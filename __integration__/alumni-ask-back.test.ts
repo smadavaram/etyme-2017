@@ -17,6 +17,8 @@ import { GET as tenure } from '@/app/api/tenure/route'
 const D = '@demo.etyme.local'
 const NIKE_OFFICER = `world-nike-compliance${D}`
 const CORNING_OFFICER = `world-corning-compliance${D}`
+const NIKE_HIRING = `world-nike-hiring${D}`
+const CORNING_HIRING = `world-corning-hiring${D}`
 
 async function rowOn(email: string, route: typeof alumni | typeof tenure, path: string, list: 'alumni' | 'people', name: string) {
   as(email)
@@ -53,7 +55,7 @@ describe('ask them back reads the time-limit ledger', () => {
 
   it('asking Kwame Mensah back is refused inside his break, with the same day the list and the ledger show', async () => {
     const ledger = await rowOn(NIKE_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
-    as(NIKE_OFFICER)
+    as(NIKE_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: northbend })))
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('BREAK_PERIOD')
@@ -93,7 +95,7 @@ const askBacksAt = (companyId: string) =>
 describe('ask them back is written only for a client the caller acts for, and goes to a supplier', () => {
   it('a caller cannot write an ask-back against a client it does not act for', async () => {
     const before = await askBacksAt(cavanaugh)
-    as(NIKE_OFFICER)
+    as(NIKE_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toMatch(/your own company/i)
@@ -111,7 +113,7 @@ describe('ask them back is written only for a client the caller acts for, and go
   })
 
   it('asking somebody back who never worked at the client is refused in a sentence', async () => {
-    as(CORNING_OFFICER)
+    as(CORNING_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(404)
     expect(r.body.error.message).toContain('has not worked at Cavanaugh Glassworks')
@@ -120,7 +122,7 @@ describe('ask them back is written only for a client the caller acts for, and go
   it('asking Nadia Petrova back goes to the supplier Cavanaugh Glassworks paid for her, and none of Cavanaugh’s own people is told it as a supplier', async () => {
     const vertex = await prisma.company.findFirstOrThrow({ where: { name: 'Vertex Global' }, select: { id: true } })
     const since = new Date()
-    as(CORNING_OFFICER)
+    as(CORNING_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.clientName).toBe('Cavanaugh Glassworks')
@@ -138,14 +140,31 @@ describe('ask them back is written only for a client the caller acts for, and go
       where: { companyId: cavanaugh, action: 'ALUMNI_ASK_BACK' }, orderBy: { at: 'desc' },
     })
     expect((log.payload as any).toCompanyIds).toEqual([vertex.id])
-    expect(log.reversible).toBe(true)
+    expect(log.reversible, 'a notice sent cannot be unsent').toBe(false)
+    expect(log.reason).toContain('cannot be undone')
   })
 
   it('the ask-back never names a firm below the rung the client pays', async () => {
-    as(CORNING_OFFICER)
+    as(CORNING_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(200)
     const sahasra = await prisma.company.findFirst({ where: { slug: 'world-sahasra' }, select: { name: true } })
     if (sahasra) expect(JSON.stringify(r.body)).not.toContain(sahasra.name)
+  })
+})
+
+describe('whose desk asks somebody back', () => {
+  it('a compliance officer may read who worked here before, and is told whose desk asks them back', async () => {
+    as(CORNING_OFFICER)
+    const list = await json(await alumni(req('GET', '/api/alumni')))
+    expect(list.body?.error, JSON.stringify(list.body)).toBeUndefined()
+    expect(list.body.data.alumni.some((a: any) => a.name === 'Nadia Petrova')).toBe(true)
+
+    const before = await askBacksAt(cavanaugh)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+ desk/)
+    expect(r.body.error.message).toContain('You can read who worked here before')
+    expect(await askBacksAt(cavanaugh), 'nothing written').toBe(before)
   })
 })

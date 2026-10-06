@@ -111,6 +111,15 @@ describe('who an ask-back is written for, and who hears it', () => {
     expect(src).not.toMatch(/where: \{ id: clientCompanyId \}/)
   })
 
+  it('asking somebody back is for the desk that raises job requests, the same desk that asks for a person by name', () => {
+    expect(src).toMatch(/hasPermission\(permissions, 'requirements\.write'\)/)
+  })
+
+  it('an ask-back is logged as not reversible, because a notice sent to a supplier cannot be unsent', () => {
+    expect(src).toContain('reversible: false')
+    expect(src).not.toContain('reversible: true')
+  })
+
   it('the ask-back goes to a supplier by the same rule as asking for a person, never to the caller’s own firm', () => {
     expect(src).toContain('askGoesTo(')
     expect(src).not.toMatch(/companyId: caller\.company\?\.id,\s*role:/)
