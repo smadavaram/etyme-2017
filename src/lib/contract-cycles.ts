@@ -212,7 +212,7 @@ export async function writeCyclesFor(
           where: { id: sell.id },
           select: {
             company: {
-              select: { cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true },
+              select: { cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true },
             },
           },
         })

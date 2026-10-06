@@ -495,7 +495,8 @@ export function generateCycles(
       if (floor && periodEnd <= floor) continue
       const due = new Date(periodEnd)
       due.setDate(due.getDate() + offsetFor(def))
-      const shifted = shiftToWorkingDay(due, holidaySet, direction)
+      // The company's own days off where it set them (2026-10-06).
+      const shifted = shiftToWorkingDay(due, holidaySet, direction, policy.daysOff)
       // Keyed the same way the holidays are, so an extension knows the
       // dates it already wrote whatever timezone the server is in.
       const day = localDayKey(shifted)

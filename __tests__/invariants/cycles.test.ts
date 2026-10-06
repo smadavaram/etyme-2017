@@ -425,3 +425,30 @@ describe('the day a pack asks for is the day it gets', () => {
     expect(cycles.some((c) => c.kind === 'INVOICE_GENERATE')).toBe(true)
   })
 })
+
+// Decided 2026-10-06: cycle dates shift around the company's own days off.
+import { policyFrom } from '@/lib/cycle-shift'
+
+describe('the company’s days off move the cycle dates', () => {
+  const MONTH_END_PAY: CycleDefinition = { kind: 'SALARY_PAY', frequency: 'MONTHLY', offsetDays: 0 }
+
+  it('a pay date landing on a Friday at a company with Friday off moves to Thursday, and at a company with the default moves nowhere', () => {
+    // July 2026 ends on Friday the 31st.
+    const start = new Date('2026-07-01')
+    const end = new Date('2026-07-31')
+    const fridayOff = generateCycles(start, end, [MONTH_END_PAY], [], new Map(), { policy: policyFrom({ daysOff: [5] }) })
+    const usual = generateCycles(start, end, [MONTH_END_PAY], [], new Map(), { policy: policyFrom({}) })
+    const day = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    expect(fridayOff.map((c) => day(c.dueOn))).toEqual(['2026-07-30'])
+    expect(usual.map((c) => day(c.dueOn))).toEqual(['2026-07-31'])
+  })
+
+  it('both loaders of the shift policy read the company’s days off', () => {
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    for (const f of ['src/lib/contract-cycles.ts', 'src/app/api/contracts/route.ts']) {
+      const src = readFileSync(`${process.cwd()}/${f}`, 'utf8')
+      expect(src, f).toMatch(/cycleShiftBill: true, daysOff: true/)
+    }
+    expect(readFileSync(`${process.cwd()}/src/lib/cycle-generator.ts`, 'utf8')).toContain('shiftToWorkingDay(due, holidaySet, direction, policy.daysOff)')
+  })
+})

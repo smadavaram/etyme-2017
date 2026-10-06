@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
     // way they move off a weekend or a holiday.
     select: {
       id: true, name: true, templatePack: true,
-      cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true,
+      cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
     },
   })
 
