@@ -23,7 +23,7 @@ import { proposeRun, type PayableBill } from '@/lib/ap-delay'
  *      that includes it. No "approve anyway with a reason".
  *
  * Northbend Athletic ← Computer Systems ← Techpeple, Helena Marsh. Her
- * week of September 14 is filed once, on Techpeple's contract.
+ * week of September 13 is filed once, on Techpeple's contract.
  */
 
 const D = (s: string) => new Date(`${s}T00:00:00.000Z`)
@@ -37,8 +37,8 @@ const CHAIN = { companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyI
 
 function week(signed: Signature[], over: Partial<RungWeek> = {}): RungWeek {
   return {
-    periodStart: D('2026-09-14'),
-    periodEnd: D('2026-09-18'),
+    periodStart: D('2026-09-13'),
+    periodEnd: D('2026-09-19'),
     totalHours: 40,
     days: DAYS,
     personName: 'Helena Marsh',
@@ -64,7 +64,7 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     expect(r.kind).toBe('CUT')
     expect(r.kind === 'CUT' && r.accepted).toEqual({ hours: 38, from: null, to: null })
     expect(r.kind === 'CUT' && r.says).toBe(
-      'Computer Systems accepted 38 of the 40 hours in Helena Marsh’s week of September 14, so it bills 38.'
+      'Computer Systems accepted 38 of the 40 hours in Helena Marsh’s week of September 13, so it bills 38.'
     )
   })
 
@@ -85,7 +85,7 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     expect(r).toEqual({
       kind: 'WAITING',
       says:
-        'Computer Systems has not accepted Helena Marsh’s week of September 14, so it is not on this bill. ' +
+        'Computer Systems has not accepted Helena Marsh’s week of September 13, so it is not on this bill. ' +
         'A firm bills only the hours the firm above it accepted; it bills once Computer Systems has.',
     })
   })
@@ -100,7 +100,7 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     expect(r).toEqual({
       kind: 'CUT',
       accepted: { hours: 38, from: null, to: null },
-      says: 'Northbend Athletic accepted 38 of the 40 hours in Helena Marsh\u2019s week of September 14, so it bills 38.',
+      says: 'Northbend Athletic accepted 38 of the 40 hours in Helena Marsh\u2019s week of September 13, so it bills 38.',
     })
   })
 
@@ -116,7 +116,7 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     expect(csBills(week([CS(40)]))).toEqual({
       kind: 'WAITING',
       says:
-        'Northbend Athletic has not accepted Helena Marsh\u2019s week of September 14, so it is not on this bill. ' +
+        'Northbend Athletic has not accepted Helena Marsh\u2019s week of September 13, so it is not on this bill. ' +
         'A firm bills only the hours the firm above it accepted; it bills once Northbend Athletic has.',
     })
   })
@@ -134,13 +134,15 @@ const RATE = 11800
 const LINE: OvertimePolicy = { afterHours: 40, multiplierBps: 15_000 }
 const SEPTEMBER: Period = { start: D('2026-09-01'), end: D('2026-09-30'), label: 'September 2026' }
 const NINES = { '2026-09-14': 9, '2026-09-15': 9, '2026-09-16': 9, '2026-09-17': 9, '2026-09-18': 9 }
-const premium = (hours = 5): Decision => ({ weekOf: '2026-09-14', treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: hours })
-const banked: Decision = { weekOf: '2026-09-14', treatment: 'TIME_OFF', appliedBps: 0, overtimeHours: 5, accrualBps: 10_000 }
+const premium = (hours = 5): Decision => ({ weekOf: '2026-09-13', treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: hours })
+const banked: Decision = { weekOf: '2026-09-13', treatment: 'TIME_OFF', appliedBps: 0, overtimeHours: 5, accrualBps: 10_000 }
 
+/** The Sunday the week of this day began; a sheet runs Sunday to Saturday. */
+const sundayOf = (iso: string) => new Date(D(iso).getTime() - D(iso).getUTCDay() * 86_400_000)
 const sheetOf = (days: Record<string, number>, leaveDays: Record<string, number> = {}) => ({
   id: 'helena-week',
-  periodStart: D(Object.keys(days).sort()[0]),
-  periodEnd: D(Object.keys(days).sort().slice(-1)[0]),
+  periodStart: sundayOf(Object.keys(days).sort()[0]),
+  periodEnd: new Date(sundayOf(Object.keys(days).sort()[0]).getTime() + 6 * 86_400_000),
   days,
   leaveDays,
   totalHours: Object.values(days).reduce((n, h) => n + h, 0),
@@ -173,11 +175,11 @@ describe('fewer hours accepted than worked: the cut comes off overtime first', (
     // seven cut took the five, then two of Friday's four.
     const days = acceptedDays(
       [
-        { day: '2026-09-14', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
-        { day: '2026-09-15', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
-        { day: '2026-09-16', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
-        { day: '2026-09-17', week: '2026-09-14', regular: 9, leave: 0, over: 0 },
-        { day: '2026-09-18', week: '2026-09-14', regular: 4, leave: 0, over: 5 },
+        { day: '2026-09-14', week: '2026-09-13', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-15', week: '2026-09-13', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-16', week: '2026-09-13', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-17', week: '2026-09-13', regular: 9, leave: 0, over: 0 },
+        { day: '2026-09-18', week: '2026-09-13', regular: 4, leave: 0, over: 5 },
       ],
       { hours: 38, from: null, to: null }
     )
@@ -204,7 +206,7 @@ describe('fewer hours accepted than worked: the cut comes off overtime first', (
   it('the week’s own overtime decision still prices the hours left over the line, though it was made about all five', () => {
     const { billed } = priced(NINES, CS(43), [premium(5)])
     expect(billed.split.overtimeHours).toBe(3)
-    expect(billed.weeksBilled).toEqual(['2026-09-14'])
+    expect(billed.weeksBilled).toEqual(['2026-09-13'])
   })
 
   it('paid leave is cut only after the hours worked on the same day, and never before an hour over the line', () => {
@@ -221,11 +223,11 @@ describe('fewer hours accepted than worked: the cut comes off overtime first', (
 describe('fewer hours accepted than worked: the cut comes off the later bill first', () => {
   // Monday 31 August to Friday 4 September: one day in August, four in September.
   const straddling = (over = 0): DayBands[] => [
-    { day: '2026-08-31', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
-    { day: '2026-09-01', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
-    { day: '2026-09-02', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
-    { day: '2026-09-03', week: '2026-08-31', regular: 8, leave: 0, over: 0 },
-    { day: '2026-09-04', week: '2026-08-31', regular: 8 - over, leave: 0, over },
+    { day: '2026-08-31', week: '2026-08-30', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-01', week: '2026-08-30', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-02', week: '2026-08-30', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-03', week: '2026-08-30', regular: 8, leave: 0, over: 0 },
+    { day: '2026-09-04', week: '2026-08-30', regular: 8 - over, leave: 0, over },
   ]
 
   it('a cut on a week crossing the bill’s edge comes off the later bill’s days first', () => {
@@ -244,11 +246,11 @@ describe('fewer hours accepted than worked: the cut comes off the later bill fir
 
   it('where the week’s overtime sits on the earlier bill’s days, overtime still comes off first', () => {
     const days: DayBands[] = [
-      { day: '2026-09-28', week: '2026-09-28', regular: 14, leave: 0, over: 0 },
-      { day: '2026-09-29', week: '2026-09-28', regular: 14, leave: 0, over: 0 },
-      { day: '2026-09-30', week: '2026-09-28', regular: 12, leave: 0, over: 2 },
-      { day: '2026-10-01', week: '2026-09-28', regular: 0, leave: 8, over: 0 },
-      { day: '2026-10-02', week: '2026-09-28', regular: 0, leave: 8, over: 0 },
+      { day: '2026-09-28', week: '2026-09-27', regular: 14, leave: 0, over: 0 },
+      { day: '2026-09-29', week: '2026-09-27', regular: 14, leave: 0, over: 0 },
+      { day: '2026-09-30', week: '2026-09-27', regular: 12, leave: 0, over: 2 },
+      { day: '2026-10-01', week: '2026-09-27', regular: 0, leave: 8, over: 0 },
+      { day: '2026-10-02', week: '2026-09-27', regular: 0, leave: 8, over: 0 },
     ]
     const cut = acceptedDays(days, { hours: 55, from: null, to: null })
     expect(cut.map((d) => [d.day, d.regular, d.leave, d.over])).toEqual([
@@ -274,7 +276,7 @@ describe('a partial acceptance is priced on the days it covers', () => {
     const { rung, billed } = priced(DAYS, CS(24, MON_TO_WED))
     expect(rung.accepted).toEqual({ hours: 24, from: '2026-09-14', to: '2026-09-16' })
     expect(rung.says).toBe(
-      'Computer Systems accepted 24 hours of Helena Marsh’s week of September 14, for September 14 to September 16 only, ' +
+      'Computer Systems accepted 24 hours of Helena Marsh’s week of September 13, for September 14 to September 16 only, ' +
         'so it bills 24 on those days and nothing for the rest of the week.'
     )
     expect(billed.hours).toBe(24)
@@ -309,7 +311,7 @@ describe('what rule 4 does not reach is still left off and said, rather than gue
     expect(r).toEqual({
       kind: 'HELD',
       says:
-        'Computer Systems has more than one acceptance standing on Helena Marsh’s week of September 14, and nothing says which ' +
+        'Computer Systems has more than one acceptance standing on Helena Marsh’s week of September 13, and nothing says which ' +
         'of them governs, so the week is left off this bill rather than guessed at. It bills once Computer Systems withdraws all but one.',
     })
   })
@@ -368,7 +370,7 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
     id: `week-${start}`,
     personName: 'Helena Marsh',
     periodStart: D(start),
-    periodEnd: new Date(D(start).getTime() + 4 * 86_400_000),
+    periodEnd: new Date(D(start).getTime() + 6 * 86_400_000),
     days: DAYS,
     sellContract: { ...CHAIN, buyLinks: [] },
     assertions: signed,
@@ -376,38 +378,38 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
   const csAccepts = { companyId: 'cs', role: 'PASS_THROUGH', hours: 40, rateCents: 11800 }
 
   it('the refusal names the week and who must accept it', () => {
-    const waiting = weeksAwaitingPayer({ payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: CS_LINKS, weeks: [payable('2026-09-14', [])] })
+    const waiting = weeksAwaitingPayer({ payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: CS_LINKS, weeks: [payable('2026-09-13', [])] })
     expect(notAcceptedSays('Computer Systems', waiting, 'record')).toBe(
-      'Computer Systems has not accepted Helena Marsh’s week of September 14. Accept it first, then record this invoice.'
+      'Computer Systems has not accepted Helena Marsh’s week of September 13. Accept it first, then record this invoice.'
     )
   })
 
   it('an accepted week beside one that is not still blocks the invoice, and names only the one that is not', () => {
     const waiting = weeksAwaitingPayer({
       payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: CS_LINKS,
-      weeks: [payable('2026-09-07', [csAccepts]), payable('2026-09-14', [])],
+      weeks: [payable('2026-09-06', [csAccepts]), payable('2026-09-13', [])],
     })
-    expect(waiting.map((w) => w.id)).toEqual(['week-2026-09-14'])
+    expect(waiting.map((w) => w.id)).toEqual(['week-2026-09-13'])
   })
 
   it('two weeks nobody has accepted are named together, and the sentence asks for both', () => {
     const waiting = weeksAwaitingPayer({
       payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: CS_LINKS,
-      weeks: [payable('2026-09-14', []), payable('2026-09-07', [])],
+      weeks: [payable('2026-09-13', []), payable('2026-09-06', [])],
     })
     expect(notAcceptedSays('Computer Systems', waiting, 'pay')).toBe(
-      'Computer Systems has not accepted Helena Marsh’s weeks of September 7 and September 14. Accept them first, then pay this invoice.'
+      'Computer Systems has not accepted Helena Marsh’s weeks of September 6 and September 13. Accept them first, then pay this invoice.'
     )
   })
 
   it('a week the buy contract was not in force for is not this invoice’s business and blocks nothing', () => {
     const ended = [{ ...CS_LINKS[0], effectiveTo: D('2026-09-01') }]
-    const waiting = weeksAwaitingPayer({ payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: ended, weeks: [payable('2026-09-14', [])] })
+    const waiting = weeksAwaitingPayer({ payerCompanyId: 'cs', buyContractId: CS_BUY, payerLinks: ended, weeks: [payable('2026-09-13', [])] })
     expect(waiting).toEqual([])
   })
 
   it('no signature can waive it: the week fails the receipt check, and a waiver on the receipt check is ignored', () => {
-    const says = 'Computer Systems has not accepted Helena Marsh’s week of September 14. Accept it first, then pay this invoice.'
+    const says = 'Computer Systems has not accepted Helena Marsh’s week of September 13. Accept it first, then pay this invoice.'
     const result = matchVendorBill({
       bill: { id: 'b', number: 'CE-1', totalCents: 4_720_00, currency: 'USD', periodStart: D('2026-09-07'), periodEnd: D('2026-09-20'), hours: 80, rateCents: 11800 },
       // One week accepted, one not: the quantity alone would have been waivable.
@@ -433,7 +435,7 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
     const bill: PayableBill = {
       id: 'b', number: 'CE-1', vendorCompanyId: 'techpeple', vendorName: 'Techpeple', currency: 'USD',
       totalCents: 4_720_00, paidCents: 0, dueAt: D('2026-09-20'), status: 'APPROVED',
-      notAccepted: 'Computer Systems has not accepted Helena Marsh’s week of September 14. Accept it first, then pay this invoice.',
+      notAccepted: 'Computer Systems has not accepted Helena Marsh’s week of September 13. Accept it first, then pay this invoice.',
     }
     const run = proposeRun([bill], 'USD', D('2026-09-30'))
     expect(run.lines).toEqual([])

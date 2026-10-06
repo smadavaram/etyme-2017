@@ -141,7 +141,7 @@ describe('the hours a regular rate is worked out from', () => {
       contractRateCents: 6_600,
       periods: [RISE],
     })
-    expect(weeks.get('2026-06-29')!.map((d) => [d.day, d.hours, d.rateCents])).toEqual([
+    expect(weeks.get('2026-06-28')!.map((d) => [d.day, d.hours, d.rateCents])).toEqual([
       ['2026-06-30', 8, 6_600],
       ['2026-07-01', 8, 7_000],
     ])
@@ -173,7 +173,7 @@ describe('the hours a regular rate is worked out from', () => {
     const [w] = sheetOvertime({
       days, afterHours: 40, contractRateCents: 6_600, periods: [RISE], method: 'US_REGULAR_RATE', line: nonexempt,
     })
-    expect(w.weekOf).toBe('2026-06-29')
+    expect(w.weekOf).toBe('2026-06-28')
     expect(w.terms.priced).toBe(true)
     expect(Math.round(w.overtime!.premiumCents)).toBe(17_144)
   })

@@ -83,7 +83,7 @@ describe('a nonexempt US worker is owed overtime after forty hours even where no
 
   it('leaves paid leave out of the forty, because leave was paid but not worked', () => {
     const worked = weeklyWorked({ ...FORTY_FIVE, '2026-08-07': 17 }, { '2026-08-07': 8 })
-    expect(worked.get('2026-08-03')).toBe(45)
+    expect(worked.get('2026-08-02')).toBe(45)
   })
 })
 
@@ -107,7 +107,7 @@ describe('who the law’s forty does not reach', () => {
     const line = payLineFor({ ...base, where: { ...US, wageRule: 'UK', payCurrency: 'GBP' } })
     expect(line).toMatchObject({ afterHours: null, reason: 'NOT_US' })
     expect(payLineSays(line, { personName: 'Oliver Grant', employerName: 'Brightmoor' }, weeklyWorked(FORTY_FIVE))).toBe(
-      'Oliver Grant worked 45 hours in the week of August 3, 2026. The US 40-hour overtime line is not applied, because ' +
+      'Oliver Grant worked 45 hours in the week of August 2, 2026. The US 40-hour overtime line is not applied, because ' +
         'Brightmoor recorded Oliver Grant\'s work under the Working Time Regulations, not US law. Neither contract sets an ' +
         'overtime line, so every hour is paid at straight time.'
     )
@@ -179,8 +179,8 @@ describe('the payroll file pays the law’s forty', () => {
   }
   const sheet = (over: Partial<SheetToPay>): SheetToPay => ({
     personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true, cutOvertime: 'ABOVE_THE_LINE',
-    periodStart: new Date('2026-08-03T00:00:00Z'), periodEnd: new Date('2026-08-09T00:00:00Z'),
-    weeks: [{ weekOf: '2026-08-03', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
+    periodStart: new Date('2026-08-02T00:00:00Z'), periodEnd: new Date('2026-08-08T00:00:00Z'),
+    weeks: [{ weekOf: '2026-08-02', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours: null, employerAcceptedAt: new Date('2026-08-10T00:00:00Z'),
     payRateCents: 6_600, contractPremiumBps: null, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false,
     rule: 'US_FLSA', assertion: nonexempt, currency: 'USD', costCode: null, orderNumber: null, ...over,
@@ -198,7 +198,7 @@ describe('the payroll file pays the law’s forty', () => {
   it('carries the reason the US forty was not applied on the line it pays', () => {
     const e = buildExport('ADP', [
       sheet({
-        weeks: [{ weekOf: '2026-08-03', regularHours: 45, leaveHours: 0, overHours: 0, client: { treatment: null, appliedBps: null } }],
+        weeks: [{ weekOf: '2026-08-02', regularHours: 45, leaveHours: 0, overHours: 0, client: { treatment: null, appliedBps: null } }],
         lineSays: 'The US 40-hour overtime line is not applied.',
       }),
     ])

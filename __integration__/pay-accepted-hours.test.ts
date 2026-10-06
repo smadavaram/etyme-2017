@@ -53,15 +53,18 @@ async function call(seat: Seat, fn: any, method: string, url: string, body?: unk
   return json(await fn(req(method, url, body, { 'x-context-id': seat.id })))
 }
 
+/** A Sunday-to-Saturday sheet with its hours worked Monday to Friday. */
 async function week(monday: string, perDay: number, accepted: number) {
   const m = d(monday)
+  const sunday = new Date(+m - 86_400_000)
+  const saturday = new Date(+m + 5 * 86_400_000)
   const days: Record<string, number> = {}
   for (let i = 0; i < 5; i++) days[iso(new Date(+m + i * 86_400_000))] = perDay
   const total = perDay * 5
   const end = new Date(+m + 4 * 86_400_000)
   const ts = await prisma.timesheet.create({
     data: {
-      sellContractId: sellId, personId, periodStart: m, periodEnd: end, days, totalHours: total,
+      sellContractId: sellId, personId, periodStart: sunday, periodEnd: saturday, days, totalHours: total,
       status: 'APPROVED', submittedAt: end, approvedAt: end, clientApprovedAt: end, employerAcceptedAt: end,
       employerAcceptedById: owner.personId, acceptedHours: accepted === total ? null : accepted,
     },
@@ -144,7 +147,7 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-07' })
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
     expect(row.straightTime).toBe(
-      'Week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Week of July 12, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
     expect(row.accepted).toContain('accepted 38 of the 45 hours Omar Haddad filed, so 38 are paid.')
     // Nothing is held, and only the week of 6 July carries a premium:
@@ -164,12 +167,12 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
     expect(item.accepted).toContain('come off ordinary hours first')
     // The week's own sentence, on the row, in plain words.
     expect(item.straightTime).toBe(
-      'Week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Week of July 12, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
   })
 
   it('puts 37 ordinary hours and 5 overtime on the payroll file for the week accepted at 42', async () => {
-    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-06&to=2026-07-10&provider=GENERIC')
+    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-05&to=2026-07-11&provider=GENERIC')
     const mine = r.body.data.lines.filter((l: any) => l.personName === 'Omar Haddad')
     expect(mine).toHaveLength(1)
     expect([mine[0].hours, mine[0].overtimeHours]).toEqual([37, 5])
@@ -178,14 +181,14 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
   })
 
   it('puts the week accepted at 38 on the payroll file as 38 hours at straight time, with its sentence as a note, rather than leaving it off', async () => {
-    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-13&to=2026-07-17&provider=GENERIC')
+    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-12&to=2026-07-18&provider=GENERIC')
     expect(r.body.data.skipped.find((x: any) => x.personName === 'Omar Haddad')).toBeUndefined()
     const mine = r.body.data.lines.filter((l: any) => l.personName === 'Omar Haddad')
     expect(mine).toHaveLength(1)
     expect([mine[0].hours, mine[0].overtimeHours]).toEqual([38, 0])
     expect(mine[0].totalCents).toBe(38 * 6_600)
     expect(mine[0].notes).toContain(
-      'Omar Haddad, week of July 13, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Omar Haddad, week of July 12, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
   })
 
@@ -215,7 +218,7 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
     expect(p.figure.totalCents).toBe(118 * 400)
     const lines = p.figure.periods.flatMap((x) => x.lines)
     expect(lines.every((l) => l.premiumCents === 0)).toBe(true)
-    const week = lines.filter((l) => l.weekOf === '2026-07-13')
+    const week = lines.filter((l) => l.weekOf === '2026-07-12')
     expect(Math.round(week.reduce((n, l) => n + l.straightCents, 0))).toBe(38 * 400)
   })
 })

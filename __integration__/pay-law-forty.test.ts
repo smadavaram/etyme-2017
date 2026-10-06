@@ -51,7 +51,7 @@ async function week(monday: string, override: Record<string, number> = {}, accep
   const end = new Date(+m + 4 * 86_400_000)
   const ts = await prisma.timesheet.create({
     data: {
-      sellContractId: sellId, personId, periodStart: m, periodEnd: end, days, totalHours: total,
+      sellContractId: sellId, personId, periodStart: new Date(+m - 86_400_000), periodEnd: new Date(+m + 5 * 86_400_000), days, totalHours: total,
       status: 'APPROVED', submittedAt: end, approvedAt: end, clientApprovedAt: end, employerAcceptedAt: end,
       employerAcceptedById: owner.personId, acceptedHours: accepted ?? null,
     },
@@ -141,7 +141,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
   })
 
   it('puts the five hours on the payroll file as overtime, with the reason on the line', async () => {
-    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-06-08&to=2026-06-12&provider=GENERIC')
+    const r = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-06-07&to=2026-06-13&provider=GENERIC')
     expect(r.status).toBe(200)
     const mine = r.body.data.lines.filter((l: any) => l.personName === 'Dana Whitfield')
     expect(mine).toHaveLength(1)
@@ -158,9 +158,9 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     expect(item.premiumCents).toBe(0)
     expect(item.grossPay).toBe(38 * 6_600)
     expect(item.straightTime).toBe(
-      'Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
-    const file = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-06&to=2026-07-10&provider=GENERIC')
+    const file = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-07-05&to=2026-07-11&provider=GENERIC')
     const mine = file.body.data.lines.filter((l: any) => l.personName === 'Dana Whitfield')
     expect(mine).toHaveLength(1)
     expect([mine[0].hours, mine[0].overtimeHours, mine[0].totalCents]).toEqual([38, 0, 38 * 6_600])

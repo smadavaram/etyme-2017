@@ -17,7 +17,7 @@
  * ── Why this can be done exactly ─────────────────────────────────────
  *
  * Because a timesheet stores hours per day, not just a total. A week
- * running Monday 27 July to Sunday 2 August has four days in July and one
+ * running Sunday 26 July to Saturday 1 August has six days in July and one
  * in August, and both months can take exactly their own. Nothing is
  * apportioned, estimated or rounded — the days are simply read.
  *
@@ -588,7 +588,7 @@ export interface AcceptedCut {
 /** One day's hours, cut into the three kinds the week judged them to be. */
 export interface DayBands {
   day: string
-  /** The Monday the week began. */
+  /** The Sunday the week began: a week runs Sunday to Saturday (`weekStart`). */
   week: string
   regular: number
   leave: number

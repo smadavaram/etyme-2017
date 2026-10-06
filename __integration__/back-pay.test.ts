@@ -92,7 +92,8 @@ describe('back pay for a raise dated before days already paid', () => {
       } as any,
     })
 
-    // Monday to Friday, 1 June to 31 July; a thirteen-hour Friday on 19 June.
+    // Sunday-to-Saturday sheets worked Monday to Friday, 1 June to 31 July;
+    // a thirteen-hour Friday on 19 June.
     for (let m = d('2026-06-01'); m <= d('2026-07-27'); m = new Date(+m + 7 * 86_400_000)) {
       const days: Record<string, number> = {}
       for (let i = 0; i < 5; i++) days[iso(new Date(+m + i * 86_400_000))] = 8
@@ -101,7 +102,7 @@ describe('back pay for a raise dated before days already paid', () => {
       const end = new Date(+m + 4 * 86_400_000)
       const ts = await prisma.timesheet.create({
         data: {
-          sellContractId: sellId, personId, periodStart: m, periodEnd: end, days, totalHours: total,
+          sellContractId: sellId, personId, periodStart: new Date(+m - 86_400_000), periodEnd: new Date(+m + 5 * 86_400_000), days, totalHours: total,
           status: 'APPROVED', submittedAt: end, approvedAt: end, clientApprovedAt: end, employerAcceptedAt: end,
           employerAcceptedById: owner.personId,
         },
@@ -132,10 +133,10 @@ describe('back pay for a raise dated before days already paid', () => {
     // 101 hours paid at $66 from 15 to 30 June, $4 each; and the premium on
     // the five overtime hours moves from half of $66 to half of $70.
     expect(a.body.data.backPay.totalCents).toBe(101 * 400 + 5 * 200)
-    expect(a.body.data.backPay.weeks).toEqual(['2026-06-15', '2026-06-22', '2026-06-29'])
+    expect(a.body.data.backPay.weeks).toEqual(['2026-06-14', '2026-06-21', '2026-06-28'])
     expect(a.body.data.backPay.payments.map((x: any) => [x.label, x.amountCents])).toEqual([['June 2026', 41_400]])
     expect(a.body.data.message).toContain(
-      'Back pay of $414.00 is proposed for Priya Venkataraman, for the weeks of June 15, 2026, June 22, 2026 and June 29, 2026'
+      'Back pay of $414.00 is proposed for Priya Venkataraman, for the weeks of June 14, 2026, June 21, 2026 and June 28, 2026'
     )
     expect(a.body.data.message).toContain('nothing is paid until then')
   })
@@ -158,7 +159,7 @@ describe('back pay for a raise dated before days already paid', () => {
     const mine = await call(owner, backPayRead, 'GET', `/api/rate-history/${rise}/back-pay`, undefined, { id: rise })
     expect(mine.status).toBe(200)
     expect(mine.body.data.totalCents).toBe(41_400)
-    expect(mine.body.data.says).toContain('June 15, 2026')
+    expect(mine.body.data.says).toContain('June 14, 2026')
     expect(mine.body.data.mayPay).toBe(true)
     const theirs = await call(second, backPayRead, 'GET', `/api/rate-history/${rise}/back-pay`, undefined, { id: rise })
     expect(theirs.body.data.mayPay).toBe(false)

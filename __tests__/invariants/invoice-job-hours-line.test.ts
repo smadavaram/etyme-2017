@@ -16,11 +16,11 @@ const week = (over: Partial<PricedLine['timesheet'] & object> = {}, decided = tr
   hours: 45, rateCents: 13_200, amountCents: 40 * 13_200 + 5 * 19_800, sellContractId: 'sc',
   sellContract: null,
   timesheet: {
-    id: 't', periodStart: new Date('2026-09-21T00:00:00Z'), periodEnd: new Date('2026-09-25T00:00:00Z'),
+    id: 't', periodStart: new Date('2026-09-20T00:00:00Z'), periodEnd: new Date('2026-09-26T00:00:00Z'),
     totalHours: 45, days: { '2026-09-21': 9, '2026-09-22': 9, '2026-09-23': 9, '2026-09-24': 9, '2026-09-25': 9 },
     leaveDays: {}, sellContractId: 'sc',
     overtimeDecisions: decided
-      ? [{ sellContractId: 'sc', weekOf: new Date('2026-09-21T00:00:00Z'), treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: 5, accrualBps: 0 }]
+      ? [{ sellContractId: 'sc', weekOf: new Date('2026-09-20T00:00:00Z'), treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: 5, accrualBps: 0 }]
       : [],
     sellContract: { overtimeAfterHours: null, overtimeMultiplierBps: 15_000, billStraddle: 'SPLIT', requirement: { hoursPerWeek: 40 } },
     ...over,

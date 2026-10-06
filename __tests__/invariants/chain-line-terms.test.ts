@@ -35,14 +35,14 @@ const line = {
   sellContract: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000, billStraddle: 'END' },
   timesheet: {
     id: 'ts-1',
-    periodStart: new Date('2026-09-07T00:00:00.000Z'),
-    periodEnd: new Date('2026-09-13T00:00:00.000Z'),
+    periodStart: new Date('2026-09-06T00:00:00.000Z'),
+    periodEnd: new Date('2026-09-12T00:00:00.000Z'),
     totalHours: 45,
     days: nineHourWeek(),
     leaveDays: {},
     sellContractId: 'sub-line',
     overtimeDecisions: [{
-      sellContractId: 'sub-line', weekOf: new Date('2026-09-07T00:00:00.000Z'),
+      sellContractId: 'sub-line', weekOf: new Date('2026-09-06T00:00:00.000Z'),
       treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: 5, accrualBps: 10_000,
     }],
     sellContract: { overtimeAfterHours: null, overtimeMultiplierBps: 15_000, billStraddle: 'SPLIT' },

@@ -79,7 +79,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // invoice.
     const doubled = billableInPeriod(
       sheet(days), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'PREMIUM', 20_000, 5)]
+      [decided('2026-09-06', 'PREMIUM', 20_000, 5)]
     )!
     expect(doubled.value.totalCents).toBe(40 * RATE + 5 * RATE * 2)
 
@@ -87,7 +87,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // nothing more — even though the contract still says 15000.
     const flat = billableInPeriod(
       sheet(days), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]
+      [decided('2026-09-06', 'SAME_RATE', 10_000, 5)]
     )!
     expect(flat.value.totalCents).toBe(45 * RATE)
   })
@@ -106,7 +106,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
   it('a week banked as time off bills its regular hours and nothing more', () => {
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'TIME_OFF', 0, 5)]
+      [decided('2026-09-06', 'TIME_OFF', 0, 5)]
     )!
 
     expect(b.hours).toBe(40)
@@ -124,7 +124,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
     const b = billableInPeriod(
       sheet(days, leave), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'PREMIUM', 15_000, 0)]
+      [decided('2026-09-06', 'PREMIUM', 15_000, 0)]
     )!
 
     // Thirty-six hours worked and eight taken from the bank: forty-four
@@ -144,7 +144,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // eight. The decision no longer describes the week.
     const b = billableInPeriod(
       sheet(week('2026-09-07', [10, 10, 10, 10, 8])), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'PREMIUM', 15_000, 5)]
+      [decided('2026-09-06', 'PREMIUM', 15_000, 5)]
     )!
 
     expect(b.pendingHours).toBe(8)
@@ -178,7 +178,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
   /** Monday 31 August to Friday 4 September, nine hours a day. */
   const crossing = () => sheet(week('2026-08-31', [9, 9, 9, 9, 9]))
-  const signed = [decided('2026-08-31', 'PREMIUM', 15_000, 5)]
+  const signed = [decided('2026-08-30', 'PREMIUM', 15_000, 5)]
 
   it('a week that crosses the end of a month is billed whole, and no signed hour is billed to nobody', () => {
     const september = billableInPeriod(crossing(), SEPTEMBER, 'SPLIT', RATE, OT, signed)!
@@ -229,7 +229,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
   it('the hours printed on a line and the money printed on it are the same hours', () => {
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]
+      [decided('2026-09-06', 'SAME_RATE', 10_000, 5)]
     )!
     // 45 hours on the line, 45 hours of money against it.
     expect(b.hours).toBe(45)
@@ -244,7 +244,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
   it('the invoice and the budget agree on the total for the same week and the same decision', () => {
     const days = week('2026-09-07', [9, 9, 9, 9, 9])
-    const answer = [decided('2026-09-07', 'PREMIUM', 20_000, 5)]
+    const answer = [decided('2026-09-06', 'PREMIUM', 20_000, 5)]
 
     // What the client's budget commits, computed the way
     // app/api/program/budget computes it: the whole weekly split.
@@ -261,9 +261,9 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // stamp them, and a stamped decision refuses to move.
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'PREMIUM', 15_000, 5)]
+      [decided('2026-09-06', 'PREMIUM', 15_000, 5)]
     )!
-    expect(b.weeksBilled).toEqual(['2026-09-07'])
+    expect(b.weeksBilled).toEqual(['2026-09-06'])
 
     expect(mayChange({ billedAt: null }).ok).toBe(true)
     expect(mayChange({ billedAt: new Date('2026-09-30T00:00:00.000Z') }).ok).toBe(false)
@@ -278,9 +278,9 @@ describe('what an invoice may bill for a week that went over the line', () => {
   it('a week banked as time off is stamped billed too, because its ordinary hours went out on the invoice', () => {
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', RATE, OT,
-      [decided('2026-09-07', 'TIME_OFF', 0, 5)]
+      [decided('2026-09-06', 'TIME_OFF', 0, 5)]
     )!
-    expect(b.weeksBilled).toEqual(['2026-09-07'])
+    expect(b.weeksBilled).toEqual(['2026-09-06'])
   })
 
   it('the invoice route reads a decision and never multiplies a rate itself', () => {
@@ -367,7 +367,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
     const backfilled = billableInPeriod(
       sheet(days), SEPTEMBER, 'SPLIT', RATE, policy,
-      [decided('2026-09-07', 'PREMIUM', policy.multiplierBps, 5)]
+      [decided('2026-09-06', 'PREMIUM', policy.multiplierBps, 5)]
     )!
 
     expect(backfilled.value.totalCents).toBe(asBilledIn2026)
@@ -386,7 +386,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
     const NIKE = 13_200
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', NIKE, OT,
-      [decided('2026-09-07', 'PREMIUM', 15_000, 5)]
+      [decided('2026-09-06', 'PREMIUM', 15_000, 5)]
     )!
     const bands = bandsOf(b.split, NIKE)
 
@@ -404,9 +404,9 @@ describe('what an invoice may bill for a week that went over the line', () => {
   it('every band multiplies out, and the bands add up to the amount charged', () => {
     const cases: [string, number, number[], Decision[]][] = [
       ['straight forty', 10_000, [8, 8, 8, 8, 8], []],
-      ['the usual rate on the overtime', 10_000, [9, 9, 9, 9, 9], [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]],
-      ['double time', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-07', 'PREMIUM', 20_000, 5)]],
-      ['banked, so no overtime band at all', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-07', 'TIME_OFF', 0, 5)]],
+      ['the usual rate on the overtime', 10_000, [9, 9, 9, 9, 9], [decided('2026-09-06', 'SAME_RATE', 10_000, 5)]],
+      ['double time', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-06', 'PREMIUM', 20_000, 5)]],
+      ['banked, so no overtime band at all', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-06', 'TIME_OFF', 0, 5)]],
     ]
 
     for (const [name, rate, hours, answer] of cases) {
@@ -422,7 +422,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
   it('a week whose overtime was signed at the usual rate still says which hours were overtime', () => {
     const b = billableInPeriod(
       sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', 13_200, OT,
-      [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]
+      [decided('2026-09-06', 'SAME_RATE', 10_000, 5)]
     )!
     const bands = bandsOf(b.split, 13_200)
 
@@ -468,14 +468,14 @@ describe('what an invoice may bill for a week that went over the line', () => {
       sellContractId: 'sc-1',
       timesheet: {
         id: 'ts-1',
-        periodStart: new Date('2026-09-07T00:00:00.000Z'),
-        periodEnd: new Date('2026-09-13T00:00:00.000Z'),
+        periodStart: new Date('2026-09-06T00:00:00.000Z'),
+        periodEnd: new Date('2026-09-12T00:00:00.000Z'),
         totalHours: 45,
         days: week('2026-09-07', [9, 9, 9, 9, 9]),
         leaveDays: {},
         sellContractId: 'sc-1',
         overtimeDecisions: [{
-          sellContractId: 'sc-1', weekOf: new Date('2026-09-07T00:00:00.000Z'),
+          sellContractId: 'sc-1', weekOf: new Date('2026-09-06T00:00:00.000Z'),
           treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: 5, accrualBps: 10_000,
         }],
         sellContract: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000, billStraddle: 'SPLIT' },

@@ -27,7 +27,8 @@ import { sheetPay, wageLineFor, type WageLine } from '@/lib/money/sheet-overtime
 import { priceByDay } from '@/lib/contract-rate'
 import { buildExport, type SheetToPay } from '@/lib/payroll-export'
 
-// Monday 6 July to Friday 10 July 2026, nine hours a day: forty-five.
+// Monday 6 July to Friday 10 July 2026, nine hours a day: forty-five, in the
+// Sunday-to-Saturday week of Sunday 5 July.
 const WEEK = { '2026-07-06': 9, '2026-07-07': 9, '2026-07-08': 9, '2026-07-09': 9, '2026-07-10': 9 }
 const SECOND = { '2026-07-13': 9, '2026-07-14': 9, '2026-07-15': 9, '2026-07-16': 9, '2026-07-17': 9 }
 const all = (n: number) => ({ hours: n, from: null, to: null })
@@ -95,8 +96,8 @@ describe('the default: overtime only on the accepted hours over the line', () =>
   it('a two-week sheet loses its overtime from the latest week back: 82 of 90 pays 40 + 2 and then 40', () => {
     const p = pay(untouched, 82, { ...WEEK, ...SECOND })
     expect(p.cut.weeks.map((w) => [w.weekOf, w.regular, w.over])).toEqual([
-      ['2026-07-06', 40, 2],
-      ['2026-07-13', 40, 0],
+      ['2026-07-05', 40, 2],
+      ['2026-07-12', 40, 0],
     ])
   })
 
@@ -149,7 +150,7 @@ describe('at or under the line, the rule changes nothing', () => {
   it('a week accepted under the line still says it is paid at straight time under the default', () => {
     const p = pay(untouched, 38)
     expect(p.straightTime.map((w) => [w.accepted, w.filed, w.worked, w.line])).toEqual([[38, 45, 38, 40]])
-    expect(p.says).toContain('Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.')
+    expect(p.says).toContain('Week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.')
   })
 
   it('a week accepted in full is paid 40 + 5 under either rule, with nothing to say about a cut', () => {
@@ -189,8 +190,8 @@ describe('one rule, read once, for every reader of pay', () => {
   it('the payroll file pays 41 of 45 as 40 + 1 by default and 36 + 5 where the week’s overtime is kept', () => {
     const row = (cutOvertime: 'ABOVE_THE_LINE' | 'KEEP_WEEK_OVERTIME'): SheetToPay => ({
       personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true,
-      periodStart: new Date('2026-07-06T00:00:00Z'), periodEnd: new Date('2026-07-10T00:00:00Z'),
-      weeks: [{ weekOf: '2026-07-06', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
+      periodStart: new Date('2026-07-05T00:00:00Z'), periodEnd: new Date('2026-07-11T00:00:00Z'),
+      weeks: [{ weekOf: '2026-07-05', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
       submittedHours: 45, acceptedHours: 41, employerAcceptedAt: new Date('2026-07-11T00:00:00Z'),
       payRateCents: 6_600, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false, rule: 'US_FLSA',
       assertion: lineOf(untouched).assertion, currency: 'USD', costCode: null, orderNumber: null, employerName: 'Brightmoor',

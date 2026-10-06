@@ -179,7 +179,7 @@ export function payLineFor(i: PayLineInput): PayLine {
   return { afterHours: drawn, source, reason: 'LINE', drawn, outside, wageRule: rule }
 }
 
-/** Hours worked each week — the sheet's hours less paid leave — by the Monday of the week. */
+/** Hours worked each week — the sheet’s hours less paid leave — by the Sunday the week began. */
 export function weeklyWorked(
   days: Record<string, number> | null | undefined,
   leaveDays?: Record<string, number> | null

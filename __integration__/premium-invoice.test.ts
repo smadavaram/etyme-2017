@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { weekStart } from '@/lib/overtime'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
@@ -45,7 +46,8 @@ describe('a week signed at a premium, as far as the invoice', () => {
       select: { id: true, days: true, periodStart: true, periodEnd: true, personId: true },
     })
 
-    const weekOf = Object.keys(sheet.days as Record<string, number>).sort()[0]
+    // The Sunday the week began, the key every reader of a week looks it up by.
+    const weekOf = weekStart(Object.keys(sheet.days as Record<string, number>).sort()[0])
     // Northbend Athletic's hiring manager, the desk that signs Omar's week.
     const signer = await prisma.person.findFirstOrThrow({
       where: { name: 'Marcus Oyelaran' },

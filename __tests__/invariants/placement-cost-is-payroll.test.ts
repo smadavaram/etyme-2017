@@ -38,11 +38,12 @@ const nonexempt: WageLine = {
 
 const OVERTIME: PayOvertime = { afterHours: 40, method: 'US_REGULAR_RATE', wage: nonexempt, payerCompanyId: 'brightmoor' }
 
-function week(monday: string, perDay: number[], opts: { client?: number | null; employer?: number | null; employers?: number } = {}): SheetToPrice {
-  const start = d(monday)
+/** A Sunday-to-Saturday sheet, its hours worked Monday onward. */
+function week(sunday: string, perDay: number[], opts: { client?: number | null; employer?: number | null; employers?: number } = {}): SheetToPrice {
+  const start = d(sunday)
   const days: Record<string, number> = {}
   perDay.forEach((h, i) => {
-    days[new Date(start.getTime() + i * 86_400_000).toISOString().slice(0, 10)] = h
+    days[new Date(start.getTime() + (i + 1) * 86_400_000).toISOString().slice(0, 10)] = h
   })
   const filed = perDay.reduce((a, b) => a + b, 0)
   const client = opts.client === undefined ? filed : opts.client
@@ -65,12 +66,12 @@ const BILL = { openingRateCents: 11_200, periods: [] as RatePeriod[], currency: 
 const PAY = { openingRateCents: 6_600, periods: RAISE, currency: 'USD', overtime: OVERTIME }
 
 // The forty-five-hour week: nine hours Monday to Friday, all at $70.
-const AUG_10 = week('2026-08-10', [9, 9, 9, 9, 9])
-const JUL_13 = week('2026-07-13', [8, 8, 8, 8, 8])
+const AUG_9 = week('2026-08-09', [9, 9, 9, 9, 9])
+const JUL_12 = week('2026-07-12', [8, 8, 8, 8, 8])
 
 describe("a placement's cost is what payroll pays, overtime premium included", () => {
   it("a placement's cost is what payroll pays, overtime premium included: 45 hours at $70 is $3,150 of straight time and $175 of premium", () => {
-    const e = placementEarned({ sheets: [AUG_10], bill: BILL, pay: PAY })
+    const e = placementEarned({ sheets: [AUG_9], bill: BILL, pay: PAY })
     expect(e.costCents).toBe(45 * 7_000 + 17_500)
     expect(e.overtimePremiumCents).toBe(17_500)
     expect(e.overtimeHours).toBe(5)
@@ -79,59 +80,59 @@ describe("a placement's cost is what payroll pays, overtime premium included", (
 
   it('the cost is reached through the payroll run’s own call, sheetPay, and agrees with it to the cent', () => {
     const pay = sheetPay({
-      days: AUG_10.days as Record<string, number>, leaveDays: {}, afterHours: 40,
+      days: AUG_9.days as Record<string, number>, leaveDays: {}, afterHours: 40,
       accepted: { hours: 45, from: null, to: null }, contractRateCents: 6_600, periods: RAISE,
       method: 'US_REGULAR_RATE', line: nonexempt,
     })
     const straight = priceByDay({ contractRateCents: 6_600, periods: RAISE, days: pay.days })
     const premium = Math.round([...pay.premiums.values()].reduce((n, p) => n + p.premiumCents, 0))
-    const e = placementEarned({ sheets: [AUG_10], bill: BILL, pay: PAY })
+    const e = placementEarned({ sheets: [AUG_9], bill: BILL, pay: PAY })
     expect(e.costCents).toBe(straight.cents + premium)
   })
 
   it('a week at or under the line costs straight time and carries no premium', () => {
-    const e = placementEarned({ sheets: [JUL_13], bill: BILL, pay: PAY })
+    const e = placementEarned({ sheets: [JUL_12], bill: BILL, pay: PAY })
     expect(e.costCents).toBe(40 * 6_600)
     expect(e.overtimePremiumCents).toBe(0)
     expect(e.overtimeSays).toBeNull()
   })
 
   it('a forty-five-hour week accepted at thirty-eight costs thirty-eight hours at straight time, the way payroll pays it', () => {
-    const cut = week('2026-08-10', [9, 9, 9, 9, 9], { employer: 38 })
+    const cut = week('2026-08-09', [9, 9, 9, 9, 9], { employer: 38 })
     const e = placementEarned({ sheets: [cut], bill: BILL, pay: PAY })
     expect(e.costCents).toBe(38 * 7_000)
     expect(e.overtimePremiumCents).toBe(0)
   })
 
   it('a forty-five-hour week accepted at forty-two costs forty straight and two at the premium, under the default cut', () => {
-    const cut = week('2026-08-10', [9, 9, 9, 9, 9], { employer: 42 })
+    const cut = week('2026-08-09', [9, 9, 9, 9, 9], { employer: 42 })
     const e = placementEarned({ sheets: [cut], bill: BILL, pay: PAY })
     expect(e.costCents).toBe(42 * 7_000 + 2 * 3_500)
     expect(e.overtimeHours).toBe(2)
   })
 
   it('the cost says in a sentence how much of it is overtime premium, with the week as a person reads it', () => {
-    const e = placementEarned({ sheets: [JUL_13, AUG_10], bill: BILL, pay: PAY })
+    const e = placementEarned({ sheets: [JUL_12, AUG_9], bill: BILL, pay: PAY })
     expect(e.overtimeSays).toContain('$175.00 of overtime premium')
-    expect(e.overtimeSays).toContain('Aug 10, 2026')
+    expect(e.overtimeSays).toContain('Aug 9, 2026')
     expect(e.overtimeSays).not.toMatch(ISO)
   })
 
   it('where the pay line’s overtime terms were not read and a week went over forty hours, the cost is blank rather than straight time', () => {
     const e = placementEarned({
-      sheets: [JUL_13, AUG_10],
+      sheets: [JUL_12, AUG_9],
       bill: BILL,
       pay: { openingRateCents: 6_600, periods: RAISE, currency: 'USD' },
     })
     expect(e.costCents).toBeNull()
     expect(e.marginCents).toBeNull()
-    expect(e.costRefusedBecause).toContain('Aug 10, 2026')
+    expect(e.costRefusedBecause).toContain('Aug 9, 2026')
     expect(e.costRefusedBecause).not.toMatch(ISO)
   })
 
   it('without the overtime terms a placement that never went over forty is still costed at straight time', () => {
     const e = placementEarned({
-      sheets: [JUL_13],
+      sheets: [JUL_12],
       bill: BILL,
       pay: { openingRateCents: 6_600, periods: RAISE, currency: 'USD' },
     })
@@ -139,8 +140,8 @@ describe("a placement's cost is what payroll pays, overtime premium included", (
   })
 
   it('a week with two acceptances standing is not costed, because payroll pays none of it on a guess', () => {
-    const twice = week('2026-08-10', [9, 9, 9, 9, 9], { employers: 2 })
-    const e = placementEarned({ sheets: [JUL_13, twice], bill: BILL, pay: PAY })
+    const twice = week('2026-08-09', [9, 9, 9, 9, 9], { employers: 2 })
+    const e = placementEarned({ sheets: [JUL_12, twice], bill: BILL, pay: PAY })
     expect(e.costCents).toBeNull()
     expect(e.costRefusedBecause).toContain('more than one acceptance')
   })
@@ -149,7 +150,7 @@ describe("a placement's cost is what payroll pays, overtime premium included", (
 describe('the hours on a placement’s header are every week it has, not the dozen on its card', () => {
   it('the hours a placement reports are summed over every sheet, so thirty-one weeks are never read as twelve', () => {
     const sheets = Array.from({ length: 31 }, (_, i) =>
-      week(new Date(d('2026-02-23').getTime() + i * 7 * 86_400_000).toISOString().slice(0, 10), [8, 8, 8, 8, 8])
+      week(new Date(d('2026-02-22').getTime() + i * 7 * 86_400_000).toISOString().slice(0, 10), [8, 8, 8, 8, 8])
     )
     const signed = hoursSigned(sheets)
     expect(signed.approved).toBe(31 * 40)
@@ -158,7 +159,7 @@ describe('the hours on a placement’s header are every week it has, not the doz
   })
 
   it('what the client approved and what the employer accepted are counted apart', () => {
-    const sheets = [JUL_13, week('2026-07-20', [8, 8, 8, 8, 8], { employer: null })]
+    const sheets = [JUL_12, week('2026-07-19', [8, 8, 8, 8, 8], { employer: null })]
     expect(hoursSigned(sheets)).toEqual({ approved: 80, accepted: 40 })
   })
 })
@@ -166,7 +167,7 @@ describe('the hours on a placement’s header are every week it has, not the doz
 describe('no sentence on the payroll or placement money screens carries an ISO date', () => {
   it('no sentence on the payroll or placement money screens carries an ISO date: the rate change on a placement', () => {
     const e = placementEarned({
-      sheets: [week('2026-07-27', [8, 8, 8, 8, 8]), week('2026-08-03', [8, 8, 8, 8, 8])],
+      sheets: [week('2026-07-26', [8, 8, 8, 8, 8]), week('2026-08-02', [8, 8, 8, 8, 8])],
       bill: BILL, pay: PAY,
     })
     expect(e.payRateChangeSays).toContain('Jul 27 – Jul 28, 2026')
@@ -177,11 +178,11 @@ describe('no sentence on the payroll or placement money screens carries an ISO d
 
   it('no sentence on the payroll or placement money screens carries an ISO date: the overtime a run pays', () => {
     const pay = sheetPay({
-      days: AUG_10.days as Record<string, number>, leaveDays: {}, afterHours: 40, accepted: null,
+      days: AUG_9.days as Record<string, number>, leaveDays: {}, afterHours: 40, accepted: null,
       contractRateCents: 7_000, periods: [], method: 'US_REGULAR_RATE', line: nonexempt,
     })
     const says = overtimeSaysFor(pay.weeks)!
-    expect(says).toContain('Aug 10, 2026')
+    expect(says).toContain('Aug 9, 2026')
     expect(says).not.toMatch(ISO)
   })
 

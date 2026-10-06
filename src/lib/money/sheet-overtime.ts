@@ -35,7 +35,7 @@ const dayDate = (day: string) => new Date(`${day.slice(0, 10)}T00:00:00Z`)
 
 /**
  * Worked hours per day — the sheet's hours less paid leave — each at the
- * rate in force that day, grouped by the Monday of their week.
+ * rate in force that day, grouped by the Sunday their week began.
  *
  * Leave is left out on purpose: it is paid, but it was not worked, so it
  * neither crosses the line nor counts toward the regular rate (29 U.S.C.

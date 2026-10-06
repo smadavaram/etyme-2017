@@ -32,7 +32,8 @@ import { sheetOvertime, sheetPay, premiumByDay, overtimeSaysFor, type WageLine }
 import { priceByDay } from '@/lib/contract-rate'
 import { buildExport, type SheetToPay } from '@/lib/payroll-export'
 
-// Monday 6 July to Friday 10 July 2026, nine hours a day: forty-five.
+// Monday 6 July to Friday 10 July 2026, nine hours a day: forty-five, in the
+// Sunday-to-Saturday week of Sunday 5 July.
 const WEEK = { '2026-07-06': 9, '2026-07-07': 9, '2026-07-08': 9, '2026-07-09': 9, '2026-07-10': 9 }
 const all = (n: number) => ({ hours: n, from: null, to: null })
 
@@ -116,11 +117,11 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
   it('says a week accepted under the line in one sentence: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40', () => {
     const cut = payCut(payBands(WEEK, {}, 40), all(38), 40, 'KEEP_WEEK_OVERTIME')
     expect(straightTimeSays(cut.weeks[0], 40)).toBe(
-      'Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
     expect(payCutSays(cut, { personName: 'Priya', employerName: 'Brightmoor' })).toBe(
       'Brightmoor accepted 38 of the 45 hours Priya filed, so 38 are paid. The 7 not accepted come off ordinary hours first, ' +
-        'from the last day back. Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted ' +
+        'from the last day back. Week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted ' +
         'week is not over 40.'
     )
     // A week that keeps its overtime says nothing of straight time.
@@ -132,7 +133,7 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
     expect([at(37.5).regular, at(37.5).over, at(37.5).underTheLine]).toEqual([37.5, 0, true])
     expect([at(39).regular, at(39).over, at(39).underTheLine]).toEqual([31.5, 7.5, false])
     expect(straightTimeSays(at(37.5), 37.5)).toBe(
-      'Week of July 6, 2026: 37.5 of 45 hours accepted; paid at straight time because the accepted week is not over 37.5.'
+      'Week of July 5, 2026: 37.5 of 45 hours accepted; paid at straight time because the accepted week is not over 37.5.'
     )
   })
 
@@ -146,7 +147,7 @@ describe('the founder’s two examples, a forty-hour line and forty-five hours w
     expect([w.regular, w.leave, w.over, w.underTheLine]).toEqual([38, 8, 0, true])
     expect(cut.paid).toBe(46)
     expect(straightTimeSays(w, 40)).toBe(
-      'Week of July 6, 2026: 46 of 54 hours accepted, 8 of them paid leave; paid at straight time because the 38 hours ' +
+      'Week of July 5, 2026: 46 of 54 hours accepted, 8 of them paid leave; paid at straight time because the 38 hours ' +
         'worked in the accepted week are not over 40.'
     )
   })
@@ -217,8 +218,8 @@ describe('where the paying firm keeps the week’s overtime: ordinary hours firs
     // 85 filed, 82 accepted: the 3 come off the latest ordinary hours,
     // Friday 17 July, and the first week keeps its overtime.
     expect(cut.weeks.map((w) => [w.weekOf, w.regular, w.over, w.underTheLine])).toEqual([
-      ['2026-07-06', 40, 5, false],
-      ['2026-07-13', 37, 0, false],
+      ['2026-07-05', 40, 5, false],
+      ['2026-07-12', 37, 0, false],
     ])
   })
 
@@ -229,11 +230,11 @@ describe('where the paying firm keeps the week’s overtime: ordinary hours firs
     const second = { '2026-07-13': 9, '2026-07-14': 9, '2026-07-15': 9, '2026-07-16': 9, '2026-07-17': 9 }
     const cut = payCut(payBands({ ...WEEK, ...second }, {}, 40), all(82), 40, 'KEEP_WEEK_OVERTIME')
     expect(cut.weeks.map((w) => [w.weekOf, w.regular, w.over, w.underTheLine])).toEqual([
-      ['2026-07-06', 40, 5, false],
-      ['2026-07-13', 37, 0, true],
+      ['2026-07-05', 40, 5, false],
+      ['2026-07-12', 37, 0, true],
     ])
     expect(payCutSays(cut, { personName: 'Priya', employerName: 'Brightmoor' })).toContain(
-      'so hours over the line keep their premium. Week of July 13, 2026: 37 of 45 hours accepted; paid at straight time'
+      'so hours over the line keep their premium. Week of July 12, 2026: 37 of 45 hours accepted; paid at straight time'
     )
   })
 
@@ -251,7 +252,7 @@ describe('where the paying firm keeps the week’s overtime: ordinary hours firs
 })
 
 describe('whose acceptance is paid', () => {
-  const sheet = { periodStart: new Date('2026-07-06T00:00:00Z'), periodEnd: new Date('2026-07-10T00:00:00Z'), acceptedHours: null }
+  const sheet = { periodStart: new Date('2026-07-05T00:00:00Z'), periodEnd: new Date('2026-07-11T00:00:00Z'), acceptedHours: null }
 
   it('pays the employer’s acceptance in the ledger', () => {
     expect(acceptanceForPay([{ role: 'EMPLOYER_ACCEPTANCE', hours: '42.00', companyId: 'co' }], sheet, 'co')).toEqual(all(42))
@@ -297,8 +298,8 @@ describe('whose acceptance is paid', () => {
 describe('the payroll file takes the same cut, on a line that keeps the week’s overtime', () => {
   const row = (acceptedHours: number): SheetToPay => ({
     personName: 'Priya Venkataraman', payrollId: 'E1', contractType: 'W2', weAreTheEmployer: true, cutOvertime: 'KEEP_WEEK_OVERTIME',
-    periodStart: new Date('2026-07-06T00:00:00Z'), periodEnd: new Date('2026-07-10T00:00:00Z'),
-    weeks: [{ weekOf: '2026-07-06', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
+    periodStart: new Date('2026-07-05T00:00:00Z'), periodEnd: new Date('2026-07-11T00:00:00Z'),
+    weeks: [{ weekOf: '2026-07-05', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     submittedHours: 45, acceptedHours, employerAcceptedAt: new Date('2026-07-11T00:00:00Z'),
     payRateCents: 6_600, payModel: 'FIXED_HOURLY', paidOnSalaryBasis: false, rule: 'US_FLSA',
     assertion: nonexempt.assertion, currency: 'USD', costCode: null, orderNumber: null, employerName: 'Brightmoor',
@@ -317,7 +318,7 @@ describe('the payroll file takes the same cut, on a line that keeps the week’s
     expect([e.lines[0].hours, e.lines[0].overtimeHours]).toEqual([38, 0])
     expect(e.lines[0].totalCents).toBe(38 * 6_600)
     expect(e.lines[0].notes).toContain(
-      'Priya Venkataraman, week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
+      'Priya Venkataraman, week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.'
     )
   })
 
@@ -342,7 +343,7 @@ describe('the payroll file takes the same cut, on a line that keeps the week’s
     const e = buildExport('ADP', [{
       ...row(38),
       weeks: [{
-        weekOf: '2026-07-06', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null },
+        weekOf: '2026-07-05', regularHours: 40, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null },
         payRateCents: 6_600,
         rates: [{ rateCents: 6_600, hours: 27 }, { rateCents: 7_000, hours: 13 }],
         worked: [
@@ -359,7 +360,7 @@ describe('the payroll file takes the same cut, on a line that keeps the week’s
     const e = buildExport('ADP', [{
       ...row(42),
       weeksAreAccepted: true,
-      weeks: [{ weekOf: '2026-07-06', regularHours: 37, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
+      weeks: [{ weekOf: '2026-07-05', regularHours: 37, leaveHours: 0, overHours: 5, client: { treatment: null, appliedBps: null } }],
     }])
     expect([e.lines[0].hours, e.lines[0].overtimeHours]).toEqual([37, 5])
   })
@@ -428,9 +429,9 @@ describe('the worker’s page prices a cut week with the function payroll pays i
 
   it('names each week paid at straight time, with the hours accepted, filed and worked and the line, so the page can say it to the worker', () => {
     expect(one(38).straightTime.map((w) => [w.weekOf, w.accepted, w.filed, w.worked, w.line])).toEqual([
-      ['2026-07-06', 38, 45, 38, 40],
+      ['2026-07-05', 38, 45, 38, 40],
     ])
-    expect(one(38).says).toContain('Week of July 6, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.')
+    expect(one(38).says).toContain('Week of July 5, 2026: 38 of 45 hours accepted; paid at straight time because the accepted week is not over 40.')
     expect(one(42).straightTime).toEqual([])
     expect(one(45).says).toBeNull()
   })
