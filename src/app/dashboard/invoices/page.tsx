@@ -7,6 +7,8 @@ import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
 import { pageFraming } from '@/lib/page-framing'
 import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCountSays } from '@/lib/money/invoice-parties'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
@@ -404,12 +406,14 @@ function payableStatusWords(status: string): string {
 /**
  * The one thing a payer may do with the row next.
  *
- * Pay — only where it passed the check and was submitted, and it opens
- * the invoice's own page, where the check and the form sit together.
+ * Pay — only where it passed the check and was submitted, and only for a
+ * desk that pays (`lib/money/pay-desk`): a Program Manager was offered
+ * Pay that the route then refused. It opens the invoice's own page,
+ * where the check and the form sit together.
  * Ask the supplier — on the thread about the job, with the question
  * written first, because a hold nobody explains is a phone call.
  */
-function PayerAction({ row, onToast }: { row: Invoice; onToast: (m: string, t?: 'success' | 'error') => void }) {
+function PayerAction({ row, mayPay, onToast }: { row: Invoice; mayPay: boolean; onToast: (m: string, t?: 'success' | 'error') => void }) {
   const r = row.receipt
   if (!r || row.outstandingMinor <= 0 || row.status === 'CANCELLED') return null
   const payable = r.matches && (row.status === 'SUBMITTED' || row.status === 'PARTIALLY_PAID')
@@ -439,7 +443,7 @@ function PayerAction({ row, onToast }: { row: Invoice; onToast: (m: string, t?: 
 
   return (
     <div className="flex items-center gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
-      {payable && (
+      {payable && mayPay && (
         <a href={`/dashboard/invoices/${row.id}#pay`} className="btn-primary text-[11px] px-3 py-1">
           Pay
         </a>
@@ -456,7 +460,8 @@ function PayerAction({ row, onToast }: { row: Invoice; onToast: (m: string, t?: 
 // ── Page ─────────────────────────────────────────────
 
 export default function InvoicesPage() {
-  const { company } = useSession()
+  const session = useSession()
+  const { company } = session
   const isClient = company?.kind === 'CLIENT'
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -524,6 +529,23 @@ export default function InvoicesPage() {
   // book — "Sell · What you bill clients" over seven buy-side lines at
   // a firm that bills nobody.
   const framing = pageFraming(company?.kind ?? 'VENDOR', 'invoices', reading)
+  // Whether this reader's desk pays — judged by the seat where the page
+  // reads a client's book from one, the way the payment route judges it,
+  // through the same reading of the session the sidebar's menu uses.
+  const inASeat = !!reading?.inASeat
+  const desk = payDesk({
+    permissions: session.loading
+      ? null
+      : payDeskPermissions({
+          own: session.permissions,
+          seat: inASeat && session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
+          readingInASeat: inASeat,
+        }),
+    companyKind: company?.kind ?? null,
+    companyName: company?.name ?? null,
+    seat: inASeat ? session.seat : null,
+    side: 'PAYABLE',
+  })
   // Whose book, read out of the URL and written back into it.
   //
   // It was React state only: `?books=own` did nothing on load, a
@@ -912,7 +934,7 @@ export default function InvoicesPage() {
     {
       key: 'act',
       label: '',
-      render: (row) => <PayerAction row={row} onToast={showToast} />,
+      render: (row) => <PayerAction row={row} mayPay={desk.mayPay} onToast={showToast} />,
     },
   ]
 
@@ -1103,6 +1125,17 @@ export default function InvoicesPage() {
           </button>
         ))}
       </div>
+
+      {/* Who pays, where this desk does not. The figures above stay; the
+          button that the route would refuse is not drawn. */}
+      {side === 'PAYABLE' && !desk.mayPay && desk.says && outstandingMinor > 0 && (
+        <div className="panel mb-4">
+          <p className="text-[13px] text-etyme-ink">
+            {fmtMinor(outstandingMinor, bookCcy)} is still owed{overdueMinor > 0 ? `, ${fmtMinor(overdueMinor, bookCcy)} of it past due` : ''}.
+          </p>
+          <p className="mt-1 text-[13px] text-etyme-muted">{desk.says}</p>
+        </div>
+      )}
 
       {/* Data table */}
       <ListSurface<Invoice>

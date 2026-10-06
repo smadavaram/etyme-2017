@@ -11,6 +11,7 @@ import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books 
 import { receiptsLink } from '@/lib/money/ap-words'
 import { sectionOfHref } from '@/lib/page-framing'
 import { useSession } from '@/components/session-provider'
+import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 
 /**
  * Accounts payable.
@@ -57,7 +58,8 @@ const STATE_CHIP: Record<string, { chip: string; word: string }> = {
 
 export default function ApPage() {
   const router = useRouter()
-  const { company } = useSession()
+  const session = useSession()
+  const { company } = session
   const searchParams = useSearchParams()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -223,7 +225,20 @@ export default function ApPage() {
           {tab === 'hops' && <Hops data={data} book={book} />}
           {tab === 'clause' && <Clause data={data} book={book} />}
           {tab === 'exceptions' && <Exceptions />}
-          {tab === 'runs' && <PaymentRuns currency={book.currency} />}
+          {tab === 'runs' && (
+            <PaymentRuns
+              currency={book.currency}
+              // A run is drawn from the reader's own firm's book under the
+              // reader's own role — the route has no seat — so a program
+              // office reading a client's payables is offered no run, and
+              // everybody else is offered one only where their desk pays.
+              desk={runDesk({
+                permissions: session.loading ? null : session.permissions,
+                companyKind: company?.kind ?? null,
+                inASeat: data?.reading?.inASeat ? { clientName: data.reading.company } : null,
+              })}
+            />
+          )}
         </>
       )}
     </div>
@@ -810,7 +825,7 @@ function Exceptions() {
 // measures `paidAt` and until now nothing set it except a clerk typing a
 // date one bill at a time.
 
-function PaymentRuns({ currency }: { currency: string }) {
+function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdict }) {
   const [data, setData] = useState<any>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -831,8 +846,10 @@ function PaymentRuns({ currency }: { currency: string }) {
   }, [currency, payOn])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    // In a client's seat the route would answer with the office's own
+    // runs under the client's banner, so nothing is read at all.
+    if (desk.readsRuns) void load()
+  }, [load, desk.readsRuns])
 
   async function assemble() {
     setBusy(true)
@@ -876,10 +893,28 @@ function PaymentRuns({ currency }: { currency: string }) {
   const advice: any[] = data?.advice ?? []
   const runs: any[] = data?.runs ?? []
 
+  if (!desk.readsRuns) {
+    return (
+      <div className="panel">
+        <p className="text-[13px] text-etyme-ink">{desk.says}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">{data?.note}</p>
 
+      {/* Who runs payments, where this desk does not. What would go and
+          what went stay on the page below; the buttons the route would
+          refuse are not drawn. */}
+      {!desk.mayRun && desk.says && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-ink">{desk.says}</p>
+        </div>
+      )}
+
+      {desk.mayRun && (
       <div className="flex flex-wrap items-center gap-3">
         <span className="stat-label">Paying on</span>
         <input
@@ -899,6 +934,7 @@ function PaymentRuns({ currency }: { currency: string }) {
           It releases nothing. Somebody other than you has to approve it.
         </span>
       </div>
+      )}
 
       {said && (
         <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
@@ -1005,7 +1041,7 @@ function PaymentRuns({ currency }: { currency: string }) {
                   </span>
                 )}
               </div>
-              {r.status !== 'PAID' && r.status !== 'CANCELLED' && (
+              {desk.mayRun && r.status !== 'PAID' && r.status !== 'CANCELLED' && (
                 <div className="mt-3 flex flex-wrap gap-3 border-t border-etyme-rule pt-3">
                   {r.status === 'DRAFT' && (
                     <button

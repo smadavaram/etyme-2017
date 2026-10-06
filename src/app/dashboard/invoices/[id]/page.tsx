@@ -8,6 +8,9 @@ import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
 
 /** The status in words a clerk says, never the enum. */
 const STATUS_WORDS: Record<string, string> = {
@@ -187,6 +190,7 @@ function CheckRow({ c, onWaive, onWithdraw }: {
 
 export default function InvoiceDetail() {
   const params = useParams()
+  const session = useSession()
   const id = String(params?.id ?? '')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -408,6 +412,23 @@ export default function InvoiceDetail() {
               dueAt: inv.dueAt,
               payments: inv.payments ?? [],
             }}
+            // Whether this desk pays, judged the way the payment route
+            // judges it. This page carries no book switch, so the route
+            // reads the client's book whenever the session holds a seat —
+            // and so does this, through the sidebar's reading of it.
+            desk={payDesk({
+              permissions: session.loading
+                ? null
+                : payDeskPermissions({
+                    own: session.permissions,
+                    seat: session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
+                    readingInASeat: !!session.seat,
+                  }),
+              companyKind: session.company?.kind ?? null,
+              companyName: session.company?.name ?? null,
+              seat: session.seat,
+              side: inv.direction === 'RECEIVABLE' ? 'RECEIVABLE' : 'PAYABLE',
+            })}
             onPaid={load}
             onToast={showToast}
           />

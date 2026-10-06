@@ -5,6 +5,7 @@ import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/m
 import { minorPerUnit } from '@/lib/money'
 import { plainDate } from '@/lib/plain-date'
 import { PAYMENT_METHODS, payMethodFor } from '@/lib/money/pay-method'
+import type { PayDeskVerdict } from '@/lib/money/pay-desk'
 
 /**
  * The money half of one invoice: who it is paid to, how it is coded,
@@ -94,10 +95,18 @@ function paymentSays(p: PaymentRow): string {
 
 export function InvoiceMoney({
   invoice,
+  desk,
   onPaid,
   onToast,
 }: {
   invoice: MoneyInvoice
+  /**
+   * Whether the reader's desk pays (`lib/money/pay-desk`). The form was
+   * drawn from the invoice's side alone, so a Program Manager filled it
+   * in and the route refused. Where the desk does not pay, its sentence
+   * stands where the form would be.
+   */
+  desk: PayDeskVerdict
   /** Called after a payment is recorded, so the page can read itself again. */
   onPaid?: () => void
   onToast: (message: string, type?: 'success' | 'error') => void
@@ -346,7 +355,17 @@ export function InvoiceMoney({
         </div>
       )}
 
-      {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && (
+      {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && !desk.mayPay && desk.says && (
+        <div id="pay" className="border-t border-etyme-rule pt-6">
+          <p className="eyebrow mb-2">{payer ? 'Who pays this' : 'Who records the payment'}</p>
+          <p className="text-sm text-etyme-ink">
+            {fmtMinorExact(outstanding, invoice.currency)} {payer ? 'is still to pay' : 'is still to come in'}, due {plainDate(invoice.dueAt)}.
+          </p>
+          <p className="mt-1 text-sm text-etyme-muted">{desk.says}</p>
+        </div>
+      )}
+
+      {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && desk.mayPay && (
         <div id="pay" className="border-t border-etyme-rule pt-6">
           <p className="eyebrow mb-3">{payer ? 'Pay this invoice' : 'Record a payment received'}</p>
           <form onSubmit={pay} className="space-y-3">

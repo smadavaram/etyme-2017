@@ -6,6 +6,8 @@ import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
+import { useSession } from '@/components/session-provider'
+import { payDesk } from '@/lib/money/pay-desk'
 
 /**
  * Accounts receivable.
@@ -735,6 +737,16 @@ function Disputes({ book }: { book: any }) {
  */
 function OrphanReceipts({ book }: { book: any }) {
   const receipts: any[] = book.orphanReceipts ?? []
+  // Placing a receipt records a payment, and the route refuses anybody
+  // whose desk does not record one. The receipts stay on the page for
+  // every reader; the act is offered only to the desk that does it.
+  const session = useSession()
+  const desk = payDesk({
+    permissions: session.loading ? null : session.permissions,
+    companyKind: session.company?.kind ?? null,
+    companyName: session.company?.name ?? null,
+    side: 'RECEIVABLE',
+  })
   const [openId, setOpenId] = useState<string | null>(null)
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [busy, setBusy] = useState(false)
@@ -782,6 +794,12 @@ function OrphanReceipts({ book }: { book: any }) {
             'are two separate facts.'}
       </p>
 
+      {!desk.mayPay && desk.says && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-ink">{desk.says}</p>
+        </div>
+      )}
+
       {said && (
         <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
           <p className="text-[13px] text-etyme-ink">{said}</p>
@@ -809,6 +827,7 @@ function OrphanReceipts({ book }: { book: any }) {
               landed {new Date(r.receivedAt).toISOString().slice(0, 10)}
             </span>
             {r.reference && <span>ref {r.reference}</span>}
+            {desk.mayPay && (
             <button
               className="ml-auto text-[11px] underline"
               style={{ color: 'var(--color-action)' }}
@@ -816,9 +835,10 @@ function OrphanReceipts({ book }: { book: any }) {
             >
               {openId === r.id ? 'Cancel' : 'Place it'}
             </button>
+            )}
           </div>
 
-          {openId === r.id && (
+          {desk.mayPay && openId === r.id && (
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-etyme-rule pt-3">
               <input
                 className="rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]"
