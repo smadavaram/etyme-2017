@@ -20,6 +20,8 @@
 
 import { prisma } from '@/lib/db'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
+import { postAssertion } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
 
 export interface CompleteInput {
   sellContractId: string
@@ -263,18 +265,33 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
       },
       select: { id: true },
     })
-    await prisma.workAssertion.createMany({
-      data: [
-        {
-          timesheetId: sheet.id, companyId: clientCompanyId, role: 'CLIENT_APPROVAL',
-          hours: 40, rateCents: billRateCents, state: 'LIVE', byId: clientPersonId,
-        },
-        {
-          timesheetId: sheet.id, companyId: supplierCompanyId, role: 'EMPLOYER_ACCEPTANCE',
-          hours: 40, rateCents: payRateCents, state: 'LIVE', byId: supplierPersonId,
-        },
-      ],
-    })
+    // Each signature is posted as it is written, the way the approve
+    // button posts it, so a visitor opening the door finds these weeks
+    // already on the books rather than waiting for somebody to run a
+    // rebuild. A posting that cannot be made is reported rather than
+    // thrown: the signature stands, and a visitor should not read an
+    // error about books on the way in.
+    const signatures = [
+      {
+        timesheetId: sheet.id, companyId: clientCompanyId, role: 'CLIENT_APPROVAL' as const,
+        hours: 40, rateCents: billRateCents, state: 'LIVE' as const, byId: clientPersonId,
+      },
+      {
+        timesheetId: sheet.id, companyId: supplierCompanyId, role: 'EMPLOYER_ACCEPTANCE' as const,
+        hours: 40, rateCents: payRateCents, state: 'LIVE' as const, byId: supplierPersonId,
+      },
+    ]
+    // Both are written before either is posted, so each is planned
+    // against the week as it stands — the way a rebuild reads it.
+    const written = []
+    for (const data of signatures) {
+      written.push({ ...(await prisma.workAssertion.create({ data, select: { id: true } })), byId: data.byId })
+    }
+    for (const w of written) {
+      await postAssertion(w.id, w.byId ?? null).catch((err) =>
+        reportError('demo-placement: posting a seeded week', err),
+      )
+    }
   }
 
   // ── The money ──

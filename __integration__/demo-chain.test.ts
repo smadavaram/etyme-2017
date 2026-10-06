@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { resetDatabase, prisma } from './harness'
 import { seedChain, CHAIN, type Seat } from '@/lib/demo-chain'
+import { rebuildPostings } from '@/lib/order-postings'
 
 /**
  * The demo had three doors and the schema knows five kinds of company,
@@ -99,4 +100,22 @@ describe('what a demo placement carries', () => {
       }
     }
   })
+
+  it("a demo placement's signed weeks are on the books the moment the door opens", async () => {
+    // Every other writer of a signature posts it; this one wrote the two
+    // signatures and stopped, so a visitor's placement earned nothing
+    // until somebody ran a rebuild. A rebuild that would change nothing
+    // is the proof the door already posted.
+    const sells = await prisma.sellContract.findMany({
+      where: { company: { isDemo: true }, timesheets: { some: { assertions: { some: { state: 'LIVE' } } } } },
+      select: { companyId: true, clientCompanyId: true },
+    })
+    expect(sells.length).toBeGreaterThan(0)
+    const companyIds = [...new Set(sells.flatMap((s) => [s.companyId, s.clientCompanyId!]).filter(Boolean))]
+    const posted = await prisma.orderPosting.count({ where: { source: 'TIMESHEET', companyId: { in: companyIds } } })
+    expect(posted).toBeGreaterThan(0)
+    const rebuilt = await rebuildPostings({ companyIds, dryRun: true })
+    expect(rebuilt.written).toBe(0)
+    expect(rebuilt.removed).toBe(0)
+  }, 120_000)
 })
