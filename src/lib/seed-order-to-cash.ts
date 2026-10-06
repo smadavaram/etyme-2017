@@ -43,7 +43,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
-import { postAssertion } from '@/lib/order-postings'
+import { postAssertion, removeWithdrawnPostings } from '@/lib/order-postings'
 import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt, type Entry } from '@/lib/gl'
 import { alreadyOnABill, type BillOnRecord } from '@/lib/money/billed-elsewhere'
 
@@ -567,20 +567,26 @@ export async function seedOrderToCash(
     // ── 4. What each project actually earned and cost ───────────────────
     //
     // Through `postAssertion`, which is the function the assert route calls
-    // when a week is signed. It opens the project order if there is not one
-    // yet, posts REVENUE where the client approved the hours and PAY plus
-    // BURDEN where the employer accepted them, to the month the work was
-    // done rather than the month it was signed.
+    // when a week is signed, so the books are the product's own arithmetic
+    // and not the seed's. Posted to the month the work was done rather
+    // than the month it was signed.
     //
-    // The seed wrote 104 assertions directly and none of them had ever been
-    // posted, so every margin screen read zero on a world with 38 live
-    // placements.
+    // The hop-ledger rule (lib/money/hop-ledger): each signature is the
+    // payer's acceptance on the rung it buys on.
+    //   · it is REVENUE to that rung's seller, at the seller's own sell
+    //     rate — the client's approval to the firm selling it the top
+    //     rung, a middle firm's acceptance to the firm below it;
+    //   · where the payer itself sells the rung above, the same hours are
+    //     its own cost, at its own buy rate (a PAY row in its books);
+    //   · the employer's acceptance is PAY at hop 0, with BURDEN only
+    //     where the firm employs the person.
+    // So every live signature posts itself, the middle firms' included.
     //
     // The world's signatures only. A real firm's weeks were posted by the
     // route that signed them, and a seed has no business in its books.
     const assertions = await db.workAssertion.findMany({
-      where: { state: 'LIVE', role: { not: 'PASS_THROUGH' }, companyId: { in: await world() } },
-      select: { id: true, byId: true, role: true },
+      where: { state: 'LIVE', companyId: { in: await world() } },
+      select: { id: true, byId: true, role: true, companyId: true },
       orderBy: { id: 'asc' },
     })
     // A contiguous share of them where the caller asked for one, so the
@@ -589,32 +595,42 @@ export async function seedOrderToCash(
 
     // A week whose every posting is already written is passed over rather
     // than posted again. `postAssertion` would only read its way to the
-    // same rows — its writes are upserts that change nothing — and those
-    // reads were nearly all of a re-walk's cost: about twenty queries a
-    // week, every week, on every new deployment. Complete means every
-    // kind the signature writes: revenue for the client's, pay and burden
-    // for the employer's. An acceptance with pay and no burden is posted
-    // again, because only `postAssertion` knows whether its firm carries
-    // burden, and a week cut off between the two must still get it.
-    const written = new Map<string, Set<string>>()
+    // same rows — its writes skip a kind already held — and those reads
+    // were nearly all of a re-walk's cost: about twenty queries a week,
+    // every week, on every new deployment. Complete means what the
+    // signature writes:
+    //   · a client's approval — REVENUE;
+    //   · a middle firm's acceptance — REVENUE in the books of the firm
+    //     below, and its own PAY where it sells the rung above (a middle
+    //     firm does, by being in the middle; one whose rung above is not
+    //     linked is posted again, harmlessly, and writes nothing);
+    //   · the employer's acceptance — PAY. BURDEN is not required: only
+    //     `postAssertion` knows whether the firm employs the person, and a
+    //     one-person corporation or a supplier paying corp-to-corp carries
+    //     none.
+    const written = new Map<string, { kind: string; companyId: string }[]>()
     for (const p of await db.orderPosting.findMany({
       where: { source: 'TIMESHEET', sourceId: { in: share.map((a) => a.id) } },
-      select: { sourceId: true, kind: true },
+      select: { sourceId: true, kind: true, companyId: true },
     })) {
       if (!p.sourceId) continue
-      written.set(p.sourceId, (written.get(p.sourceId) ?? new Set()).add(p.kind))
+      written.set(p.sourceId, [...(written.get(p.sourceId) ?? []), { kind: p.kind, companyId: p.companyId }])
     }
-    const complete = (a: { id: string; role: string }) => {
-      const kinds = written.get(a.id)
-      if (!kinds) return false
-      if (a.role === 'CLIENT_APPROVAL') return kinds.has('REVENUE')
-      if (a.role === 'EMPLOYER_ACCEPTANCE') return kinds.has('PAY') && kinds.has('BURDEN')
+    const complete = (a: { id: string; role: string; companyId: string }) => {
+      const rows = written.get(a.id)
+      if (!rows) return false
+      if (a.role === 'CLIENT_APPROVAL') return rows.some((r) => r.kind === 'REVENUE')
+      if (a.role === 'PASS_THROUGH') {
+        return rows.some((r) => r.kind === 'REVENUE' && r.companyId !== a.companyId) &&
+          rows.some((r) => r.kind === 'PAY' && r.companyId === a.companyId)
+      }
+      if (a.role === 'EMPLOYER_ACCEPTANCE') return rows.some((r) => r.kind === 'PAY')
       return false
     }
 
     for (const a of share) {
       if (complete(a)) {
-        out.postings += written.get(a.id)!.size
+        out.postings += written.get(a.id)!.length
         continue
       }
       try {
@@ -625,6 +641,16 @@ export async function seedOrderToCash(
         // the day refuses one too. Neither is a reason to stop seeding the
         // rest of the world.
       }
+    }
+
+    // A signature the seed withdrew or superseded — Halcyon's acceptance
+    // of Colleen Byrne's weeks when they moved to her own company's line
+    // (lib/seed-doors), the client approval replaced by emailed evidence
+    // (lib/seed-week-approval) — takes its postings with it. Once, on the
+    // last share, so a seeded world never carries a posting under a
+    // signature that no longer stands.
+    if (lastShare(slice)) {
+      await removeWithdrawnPostings({ companyIds: await world() })
     }
     out.projectOrders = await db.projectOrder.count({ where: { companyId: { in: await world() } } })
   }
