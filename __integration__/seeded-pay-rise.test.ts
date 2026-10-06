@@ -4,7 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { rateChangeDates, RATE_CHANGE_PERSON, RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
 import { costCenterCode } from '@/lib/seed-coding'
 import { shortDay } from '@/lib/consultant-portfolio'
-import { weekStart } from '@/lib/overtime'
+import { weekStart, weekEnd } from '@/lib/overtime'
 
 import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { GET as profitability } from '@/app/api/profitability/route'
@@ -163,15 +163,17 @@ describe('a pay rise on the seeded world', () => {
 
   it('the week of the raise is paid at $66 for the days before it and $70 from the Wednesday', async () => {
     const all = await days()
-    const monday = iso(dates.straddleWeek)
-    const friday = iso(new Date(+dates.straddleWeek + 4 * DAY))
-    const inWeek = Object.entries(all).filter(([d]) => d >= monday && d <= friday)
+    // The sheet runs Sunday to Saturday, and the export selects a sheet by
+    // its period end, so the window asked for is the whole week.
+    const sunday = weekStart(iso(dates.straddleWeek))
+    const saturday = weekEnd(iso(dates.straddleWeek))
+    const inWeek = Object.entries(all).filter(([d]) => d >= sunday && d <= saturday)
     const before = inWeek.filter(([d]) => d < iso(dates.rise)).reduce((n, [, h]) => n + h, 0)
     const after = inWeek.filter(([d]) => d >= iso(dates.rise)).reduce((n, [, h]) => n + h, 0)
     expect(after).toBeGreaterThan(0)
 
     as(PAYROLL_DESK)
-    const r = await json(await payrollExport(req('GET', `/api/payroll/export?from=${monday}&to=${friday}&provider=GENERIC`)))
+    const r = await json(await payrollExport(req('GET', `/api/payroll/export?from=${sunday}&to=${saturday}&provider=GENERIC`)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const mine = r.body.data.lines.filter((l: any) => l.personName === RATE_CHANGE_PERSON.name)
     const expected = [
