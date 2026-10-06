@@ -30,14 +30,26 @@ function timeIn(days: number) {
   return { date, time: '10:00' }
 }
 
-/** Notices are fire-and-forget; give the bell a moment to ring. */
-async function noticesAbout(interviewId: string, tries = 20) {
-  for (let i = 0; i < tries; i++) {
-    const rows = await prisma.notification.findMany({ where: { entityId: interviewId }, orderBy: { createdAt: 'asc' } })
-    if (rows.length > 0) return rows
+type Notice = Awaited<ReturnType<typeof prisma.notification.findMany>>[number]
+
+/**
+ * The notices about a round, once the ones a test is waiting for have
+ * been written — up to a second, then whatever is there.
+ *
+ * Notices are fire-and-forget, and one event is several writes: the
+ * supplier's staff are written together in the app, and the candidate's
+ * email is written on its own, so either can land first. Waiting for
+ * "any row" read the candidate's email before the staff rows existed.
+ * So the caller says what it is waiting for.
+ */
+async function untilNotices(interviewId: string, arrived: (rows: Notice[]) => boolean): Promise<Notice[]> {
+  const read = () => prisma.notification.findMany({ where: { entityId: interviewId }, orderBy: { createdAt: 'asc' } })
+  for (let i = 0; i < 20; i++) {
+    const rows = await read()
+    if (arrived(rows)) return rows
     await new Promise((r) => setTimeout(r, 50))
   }
-  return prisma.notification.findMany({ where: { entityId: interviewId } })
+  return read()
 }
 
 let nike: { id: string }
@@ -103,7 +115,10 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
   })
 
   it('the supplier\'s people are told in the app, and the candidate by email', async () => {
-    const rows = await noticesAbout(round1)
+    const rows = await untilNotices(
+      round1,
+      (all) => all.some((n) => pinnacle.staff.includes(n.personId)) && all.some((n) => n.personId === meiLin.personId)
+    )
     const toStaff = rows.filter((n) => pinnacle.staff.includes(n.personId))
     const toHer = rows.filter((n) => n.personId === meiLin.personId)
     expect(toStaff.length, 'nobody at Pinnacle was told').toBeGreaterThan(0)
@@ -132,17 +147,13 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
 
   it('the supplier confirms for the candidate, and the person who asked is told', async () => {
     as(pinnacle.seat)
-    const before = (await noticesAbout(round1)).length
+    const before = (await prisma.notification.findMany({ where: { entityId: round1 } })).length
     const res = await call(decide, req('POST', `/api/interviews/${round1}`, { action: 'confirm', forConsultant: true }), round1)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
 
     const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
-    let told: any[] = []
-    for (let i = 0; i < 20 && told.length === 0; i++) {
-      const rows = await prisma.notification.findMany({ where: { entityId: round1, personId: requester.id } })
-      told = rows.filter((n) => n.title.startsWith('Pinnacle Resourcing confirmed'))
-      if (told.length === 0) await new Promise((r) => setTimeout(r, 50))
-    }
+    const confirmed = (n: Notice) => n.personId === requester.id && n.title.startsWith('Pinnacle Resourcing confirmed')
+    const told = (await untilNotices(round1, (all) => all.some(confirmed))).filter(confirmed)
     expect(told, `no confirmation reached the desk that asked (had ${before} notices before)`).toHaveLength(1)
   })
 
@@ -152,12 +163,8 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     const res = await call(decide, req('POST', `/api/interviews/${round1}`, { action: 'outcome', outcome: 'ADVANCE', feedback: notes }), round1)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
 
-    let rows: any[] = []
-    for (let i = 0; i < 20; i++) {
-      rows = await prisma.notification.findMany({ where: { entityId: round1, personId: { in: pinnacle.staff }, title: { contains: 'round 2' } } })
-      if (rows.length > 0) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    const through = (n: Notice) => pinnacle.staff.includes(n.personId) && n.title.includes('round 2')
+    const rows = (await untilNotices(round1, (all) => all.some(through))).filter(through)
     expect(rows.length, 'Pinnacle was not told she went through').toBeGreaterThan(0)
     for (const n of rows) {
       expect(n.title).toContain('goes through to round 2')
@@ -203,12 +210,13 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     expect(after.state).toBe('PROPOSED')
 
     const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
-    let rows: any[] = []
-    for (let i = 0; i < 20; i++) {
-      rows = await prisma.notification.findMany({ where: { entityId: round2, title: { contains: 'accepted round 2' } } })
-      if (rows.length > 0) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    const accepted = (n: Notice) => n.title.includes('accepted round 2')
+    const rows = (
+      await untilNotices(
+        round2,
+        (all) => all.some((n) => accepted(n) && n.personId === requester.id) && all.some((n) => accepted(n) && pinnacle.staff.includes(n.personId))
+      )
+    ).filter(accepted)
     expect(rows.some((n) => n.personId === requester.id), 'the desk that asked was not told').toBe(true)
     expect(rows.some((n) => pinnacle.staff.includes(n.personId)), 'Pinnacle was not told').toBe(true)
     expect(rows.some((n) => n.personId === meiLin.personId), 'she was told about her own answer').toBe(false)
@@ -222,12 +230,8 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
 
     const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
-    let rows: any[] = []
-    for (let i = 0; i < 20; i++) {
-      rows = await prisma.notification.findMany({ where: { entityId: iv.id, personId: requester.id } })
-      if (rows.length > 0) break
-      await new Promise((r) => setTimeout(r, 50))
-    }
+    const toDesk = (n: Notice) => n.personId === requester.id
+    const rows = (await untilNotices(iv.id, (all) => all.some(toDesk))).filter(toDesk)
     expect(rows).toHaveLength(1)
     expect(rows[0].title).toBe('Daniel Okafor cannot make round 2')
     expect(rows[0].body).toContain('They said: I start a new contract that week.')
