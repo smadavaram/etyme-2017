@@ -3,13 +3,10 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { rateInForce, ratePeriods } from '@/lib/contract-rate'
-import { priceSheets } from '@/lib/money/placement-earned'
-import { placementPayTermsMany, payTermsKey } from '@/lib/money/placement-pay-terms'
 import {
-  profitOf, total, forCandidate, forCustomer, health, belowFloor,
-  type Line, type ContractType,
+  total, forCandidate, forCustomer, health, belowFloor,
 } from '@/lib/profitability'
+import { placementBooks, pairsFor, bookEarned, billingTotal, REVENUE_HEADING, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
 import {
   spreadOn, blendedSpread, sellSideRate, isLive, scopeSays, spreadHealth,
   type Pair, type Scope,
@@ -108,10 +105,23 @@ export async function GET(request: NextRequest) {
   // `by=book` and by the order view's fallback.
   const pairs = await pairsFor(companyId, scope)
 
+  // The one margin service (lib/money/margin), read once for every view:
+  // each placement this firm sells, priced on its own rates.
+  const books = await placementBooks(companyId, { scope, pairs })
+  const booksInScope = scope === 'LIVE' ? books.filter((b) => b.live) : books
+  // The earned figure across the book and the three revenue figures, on
+  // every answer, under the names every screen uses.
+  const common = {
+    labels: { agreed: AGREED_SPREAD, earned: EARNED_MARGIN, revenue: REVENUE_HEADING },
+    earned: bookEarned(booksInScope.map((b) => ({ earned: b.earned, currency: b.currency }))),
+    billing: billingTotal(booksInScope.map((b) => b.billing)),
+  }
+
   if (by === 'book') {
     const book = blendedSpread(pairs.pairs, scope)
     return NextResponse.json({
       data: {
+        ...common,
         by: 'book',
         scope: scope.toLowerCase(),
         scopeSays: scopeSays(scope),
@@ -199,6 +209,7 @@ export async function GET(request: NextRequest) {
     if (by === 'candidate') {
       return NextResponse.json({
         data: {
+          ...common,
           by: 'candidate',
           source: 'POSTINGS',
           rows: postingsByPerson(ps),
@@ -213,6 +224,7 @@ export async function GET(request: NextRequest) {
     if (by === 'customer') {
       return NextResponse.json({
         data: {
+          ...common,
           by: 'customer',
           source: 'POSTINGS',
           rows: postingsByCustomer(ps),
@@ -268,6 +280,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
+        ...common,
         by: 'order',
         source: 'POSTINGS',
         rows: rows
@@ -315,6 +328,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
+        ...common,
         by: 'order',
         // Named so the screen can say where the figure came from. PAIRS is
         // the rates two firms agreed; POSTINGS is what the money did.
@@ -339,71 +353,20 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // ── By contract, person and customer: the one margin service ────────
+  //
+  // Every placement this firm sells — its own employees and the people it
+  // buys in — priced on its own rates from the signatures on the rungs it
+  // is party to (lib/money/margin). Computer Systems' line to Northbend
+  // carries none of Helena Marsh's weeks, which are filed on Techpeple's;
+  // it read nothing here until 2026-10-06 and reads her now, at its own
+  // $145 against its own $118.
   const contracts = await prisma.sellContract.findMany({
-    where: { companyId },
-    select: {
-      id: true, billRate: true, startDate: true, endDate: true,
-      person: { select: { id: true, name: true } },
-      clientCompany: { select: { id: true, name: true } },
-      msa: { select: { minMarginPct: true } },
-      timesheets: {
-        select: {
-          id: true,
-          // The days, so each hour is priced at the rate in force the day
-          // it was worked rather than one rate across the whole book.
-          days: true, periodStart: true, periodEnd: true,
-          // Leave, the pre-ledger column and who signed which days: what
-          // payroll reads to cut a week and price its overtime.
-          leaveDays: true, acceptedHours: true,
-          assertions: {
-            where: { state: 'LIVE' },
-            select: { role: true, hours: true, rateCents: true, companyId: true, coversFrom: true, coversTo: true },
-          },
-        },
-      },
-      // Invoices hang off the engagement, not the contract — several
-      // people on one project bill together. So unpaid is attributed at
-      // the customer level, which is the level it matters at anyway.
-      engagementId: true,
-    },
-    take: 1000,
+    where: { id: { in: books.map((b) => b.sellContractId) } },
+    select: { id: true, startDate: true, endDate: true, engagementId: true, msa: { select: { minMarginPct: true } } },
   })
+  const meta = new Map(contracts.map((c) => [c.id, c]))
 
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      engagementId: { in: contracts.map((c) => c.engagementId).filter((x): x is string => !!x) },
-    },
-    select: { engagementId: true, total: true, paid: true },
-  })
-
-  const unpaidByEngagement = new Map<string, number>()
-  for (const i of invoices) {
-    const outstanding = Math.max(0, Math.round((Number(i.total) - Number(i.paid)) * 100))
-    unpaidByEngagement.set(
-      i.engagementId,
-      (unpaidByEngagement.get(i.engagementId) ?? 0) + outstanding
-    )
-  }
-
-  // How this placement is funded, which decides the burden and the cost.
-  //
-  // Paired through `ContractLink` — the sell line to the buy line that
-  // actually pays for it. This was a `Map<personId, buyContract>` until
-  // 2026-09-26, and pairing by person is wrong twice: a consultant with
-  // two placements had one of them priced from the other's buy line, last
-  // write winning, and a shared buy line naming four people was read as
-  // whichever of them the loop reached last. `ContractLink` is written by
-  // the award and is the only thing that says which cost belongs to which
-  // placement.
-  //
-  // A sell line with no link now has no cost on record, which is what it
-  // is. Guessing from a buy line that happens to name the same consultant
-  // would put a confident wrong number on a screen; the gap belongs on
-  // Loose ends, which already counts seven kinds of broken link.
-  // Keyed off `all`, never the scoped set. What a placement costs is a
-  // fact about the placement; reading it through the scope made an ENDED
-  // placement report "no cost on record" the moment somebody asked for
-  // live-only, which is a wrong sentence rather than a filtered one.
   const bySell = new Map(pairs.all.map((p) => [p.sell.id, p]))
   const engagementOf = (sellContractId: string) => {
     const pair = bySell.get(sellContractId)
@@ -411,122 +374,28 @@ export async function GET(request: NextRequest) {
     return { type: pair.buy.contractType, payRate: pair.buy.payRateCents, pair }
   }
 
-  // Every rate change on these lines, read once: the sell line's for what
-  // was billed, the buy line's for what was paid. And each buy line's own
-  // recorded rate, which is its opening rate — a change never overwrites
-  // it, so a day before the change still reads it.
-  const buyIdsHere = [
-    ...new Set(contracts.map((c) => bySell.get(c.id)?.buy?.id).filter((x): x is string => !!x)),
-  ]
-  const [rateRows, openingPay] = await Promise.all([
-    prisma.rateHistory.findMany({
-      where: {
-        OR: [
-          { contractType: 'SELL', contractId: { in: contracts.map((c) => c.id) } },
-          ...(buyIdsHere.length ? [{ contractType: 'BUY', contractId: { in: buyIdsHere } }] : []),
-        ],
-      },
-      select: { id: true, contractType: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-    }),
-    prisma.buyContractCandidate.findMany({
-      where: { buyContractId: { in: buyIdsHere } },
-      select: { buyContractId: true, personId: true, payRate: true },
-    }),
-  ])
-  const periodsFor = (side: 'SELL' | 'BUY', id: string) =>
-    ratePeriods(rateRows.filter((r) => r.contractType === side && r.contractId === id))
-
-  // How payroll pays each pair — the weekly line, the overtime method and
-  // the wage facts — so cost here is what payroll pays, premium included,
-  // exactly as the placement page costs it. Two reads for the whole book.
-  const payTerms = await placementPayTermsMany(
-    contracts.flatMap((c) => {
-      const buyContractId = bySell.get(c.id)?.buy?.id
-      return buyContractId ? [{ buyContractId, sellContractId: c.id, personId: c.person.id }] : []
-    })
-  )
-
-  const rows = contracts.map((c) => {
-    // Both sides from the ledger. Neither is a rate card multiplied by
-    // one hours figure — and neither is one rate across every week: each
-    // accepted hour is priced at the rate in force on the day it was
-    // worked, on its own side of the trade.
-    //
-    // The pay side used to read the rate off the employer's acceptance in
-    // the ledger, and the approval route wrote the BILL rate there on a
-    // direct placement. Priya's pay read $112 against $112 billed, and a
-    // placement agreed at 41% showed a loss.
-    const eng = engagementOf(c.id)
-    const buyId = eng?.pair.buy?.id ?? null
-    const opening = buyId
-      ? openingPay.find((x) => x.buyContractId === buyId && x.personId === c.person.id)?.payRate ?? eng!.payRate
-      : 0
-
-    // One reader, shared with the placement page (lib/money/placement-earned),
-    // so one placement cannot read two margins two clicks apart. No buy
-    // line behind it: the ledger's own figure is the only one there is,
-    // and `costKnown` below says how far to trust it.
-    const {
-      billedHours, paidHours, billedCents, paidCents, payRateFromLedger,
-    } = priceSheets({
-      sheets: c.timesheets,
-      bill: { openingRateCents: c.billRate, periods: periodsFor('SELL', c.id) },
-      pay: buyId && opening > 0
-        ? {
-            openingRateCents: opening,
-            periods: periodsFor('BUY', buyId),
-            overtime: payTerms.get(payTermsKey({ buyContractId: buyId, sellContractId: c.id, personId: c.person.id })) ?? null,
-          }
-        : null,
-    })
-
-    const payRate = eng?.payRate || payRateFromLedger || 0
-
-    const line: Line = {
-      billedHours,
-      billRateCents: c.billRate,
-      paidHours,
-      payRateCents: payRate,
-      contractType: eng?.type ?? 'C2C',
-      // No buy contract means no cost on record. Said, rather than
-      // computed around — a placement with an unknown cost reads 100%
-      // margin, which is the most dangerous number this screen could
-      // show because it looks like good news.
-      costKnown: eng != null && payRate > 0,
-      revenueCents: billedCents,
-      payCents: paidCents,
-    }
-
-    const p = profitOf(line)
-    const floor = c.msa?.minMarginPct ?? null
-
-
+  const rows = books.map((b) => {
+    const floor = meta.get(b.sellContractId)?.msa?.minMarginPct ?? null
     return {
-      contractId: c.id,
-      person: { id: c.person.id, name: c.person.name },
-      client: { id: c.clientCompany.id, name: c.clientCompany.name },
-      contractType: line.contractType,
-      profit: p,
-      health: health(p, floor),
-      floorBreach: belowFloor(p, floor),
-      // The rate the two sides agreed, beside what the work earned. Two
-      // figures, two labels, and neither presented as the other: the
-      // agreed spread is per hour and knows nothing about hours worked,
-      // burden, commission or the bench. Carried here so a placement with
-      // nothing in the hours ledger yet still shows the margin on it
-      // rather than reading as though nothing were happening.
-      agreed: bySell.get(c.id) ? spreadOn(bySell.get(c.id)!, scope) : null,
-      live: bySell.get(c.id) ? isLive(bySell.get(c.id)!) : false,
-      vendorName: bySell.get(c.id)?.buy?.vendorName ?? null,
-      // Split evenly across the contracts on the engagement. Honest
-      // rather than precise — an invoice covering four people does not
-      // record which of them each line was for.
-      unpaidCents: c.engagementId
-        ? Math.round(
-            (unpaidByEngagement.get(c.engagementId) ?? 0) /
-              contracts.filter((x) => x.engagementId === c.engagementId).length
-          )
-        : 0,
+      contractId: b.sellContractId,
+      person: b.person,
+      client: b.customer,
+      contractType: b.contractType ?? 'C2C',
+      profit: b.profit,
+      health: health(b.profit, floor),
+      floorBreach: belowFloor(b.profit, floor),
+      agreed: b.agreed,
+      earned: b.earned,
+      billing: b.billing,
+      live: b.live,
+      // Its own supplier only — the rung directly below — and how many
+      // hops lie either side. Never what any of them charge.
+      vendorName: b.boughtFrom,
+      hopsAbove: b.hopsAbove,
+      hopsBelow: b.hopsBelow,
+      // Unpaid on this line: what it billed less what came back, from its
+      // own bill lines — never an engagement's total split evenly.
+      unpaidCents: Math.max(0, b.billing.billedCents - b.billing.collectedCents),
     }
   })
 
@@ -593,6 +462,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
+        ...common,
         by: 'candidate',
         scope: scope.toLowerCase(),
         scopeSays: scopeSays(scope),
@@ -621,6 +491,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
+        ...common,
         by: 'customer',
         scope: scope.toLowerCase(),
         scopeSays: scopeSays(scope),
@@ -632,10 +503,15 @@ export async function GET(request: NextRequest) {
   }
 
   // ── By contract ─────────────────────────────────────────────────────
-  const overall = total(inScope.map((r) => r.profit))
+  // Added up as lib/profitability always has, with the rate taken from the
+  // weeks the margin covers — never the margin over revenue it has no cost
+  // against — and blank where one placement has no cost behind it.
+  const summed = total(inScope.map((r) => r.profit))
+  const overall = { ...summed, marginPct: common.earned.pct, says: common.earned.says }
 
   return NextResponse.json({
     data: {
+      ...common,
       by: 'contract',
       scope: scope.toLowerCase(),
       scopeSays: scopeSays(scope),
@@ -657,157 +533,6 @@ export async function GET(request: NextRequest) {
       note: 'Every figure comes from what was actually approved and accepted, not from a rate card.',
     },
   })
-}
-
-// ── The pairs ─────────────────────────────────────────────────────────
-
-interface Pairs {
-  /** Scoped by the caller's `scope`. What a margin is read over. */
-  pairs: Pair[]
-  /** Unfiltered. A revenue figure asks about the sell line alone. */
-  all: Pair[]
-  /** Sell lines the award never linked a buy line to. Named, never dropped. */
-  unlinked: number
-  /** Sell lines with more than one buy line over their life. */
-  multiLinked: { sellContractId: string; personName: string; links: number }[]
-  /** Everything, including the lines scope filtered out, for a count. */
-  totalSellLines: number
-}
-
-/**
- * Every placement this company sells, with the buy line that funds it.
- *
- * The pair is the unit, not the person. Pairing by person — which the
- * contract view did until 2026-09-26, through a
- * `Map<personId, buyContract>` whose last write won — hands one
- * placement's cost to another placement of the same consultant, and does
- * it silently. `ContractLink` is written by the award and says which buy
- * line pays for which sell line, so it is the authority.
- *
- * Where a sell line has several links over its life — somebody moved
- * sub-vendor mid-assignment — the one covering today is used, else the
- * latest to start, and the count is reported. Picking one without saying
- * so is how a closed vendor's rate keeps showing up in a margin
- * (`lib/contract-links` has the same problem on the hours side and the
- * same answer).
- */
-async function pairsFor(companyId: string, scope: Scope): Promise<Pairs> {
-  const sells = await prisma.sellContract.findMany({
-    // The firm's own sell lines only. A prime is also somebody's client,
-    // and `payerScope` correctly serves it both sides of its placements
-    // for a list — but its supplier's bill rate is its own cost, and
-    // counting that as revenue is what put 10.1% on the Reports page.
-    where: { companyId },
-    select: {
-      id: true, billRate: true, billCurrency: true, state: true,
-      startDate: true, endDate: true, projectOrderId: true,
-      person: { select: { id: true, name: true } },
-      clientCompany: { select: { id: true, name: true } },
-      msa: { select: { minMarginPct: true } },
-      projectOrder: { select: { id: true, code: true, name: true, status: true } },
-      buyLinks: {
-        select: {
-          effectiveFrom: true, effectiveTo: true,
-          buyContract: {
-            select: {
-              id: true, contractType: true, state: true, payCurrency: true,
-              projectOrderId: true,
-              vendorCompany: { select: { name: true } },
-              candidates: { select: { personId: true, payRate: true, payCurrency: true } },
-            },
-          },
-        },
-        orderBy: { effectiveFrom: 'desc' },
-      },
-    },
-    take: 1000,
-  })
-
-  const now = Date.now()
-  const multiLinked: Pairs['multiLinked'] = []
-
-  // The rate each side agreed is the rate in force — today, or on the
-  // last day of a placement that has ended. A line's own rate is its
-  // opening rate and a change never overwrites it.
-  const pairRates = await prisma.rateHistory.findMany({
-    where: {
-      approvalState: 'APPROVED',
-      OR: [
-        { contractType: 'SELL', contractId: { in: sells.map((c) => c.id) } },
-        { contractType: 'BUY', contractId: { in: sells.flatMap((c) => c.buyLinks.map((l) => l.buyContract.id)) } },
-      ],
-    },
-    select: { id: true, contractType: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-  })
-  const inForce = (side: 'SELL' | 'BUY', id: string, opening: number, end: Date | null) =>
-    rateInForce(
-      opening,
-      ratePeriods(pairRates.filter((r) => r.contractType === side && r.contractId === id)),
-      end && end.getTime() < now ? end : new Date(now)
-    ).rateCents
-  let unlinked = 0
-
-  const all: Pair[] = sells.map((c) => {
-    if (c.buyLinks.length > 1) {
-      multiLinked.push({
-        sellContractId: c.id,
-        personName: c.person.name,
-        links: c.buyLinks.length,
-      })
-    }
-
-    const covering =
-      c.buyLinks.find(
-        (l) =>
-          l.effectiveFrom.getTime() <= now &&
-          (l.effectiveTo === null || l.effectiveTo.getTime() >= now)
-      ) ?? c.buyLinks[0]
-
-    if (!covering) unlinked++
-
-    const b = covering?.buyContract ?? null
-    // The candidate line for this person on that buy line. A shared buy
-    // line carries several people at several rates, and the one that
-    // matters is the one naming the person on this sell line.
-    const cand = b?.candidates.find((x) => x.personId === c.person.id) ?? null
-
-    return {
-      sell: {
-        id: c.id,
-        billRateCents: inForce('SELL', c.id, c.billRate, c.endDate),
-        billCurrency: c.billCurrency ?? 'USD',
-        state: c.state,
-        personId: c.person.id,
-        personName: c.person.name,
-        clientId: c.clientCompany.id,
-        clientName: c.clientCompany.name,
-        masterContractId: c.projectOrderId,
-      },
-      buy:
-        b == null
-          ? null
-          : {
-              id: b.id,
-              // A buy line naming nobody on it has no pay rate for this
-              // person, and `spreadOn` refuses on a zero rather than
-              // reading the whole bill rate as margin.
-              payRateCents: cand ? inForce('BUY', b.id, cand.payRate, c.endDate) : 0,
-              payCurrency: cand?.payCurrency ?? b.payCurrency ?? 'USD',
-              contractType: b.contractType as ContractType,
-              state: b.state,
-              vendorName: b.vendorCompany?.name ?? null,
-              masterContractId: b.projectOrderId,
-            },
-    }
-  })
-
-  return {
-    pairs: scope === 'LIVE' ? all.filter(isLive) : all,
-    all,
-    unlinked,
-    multiLinked,
-    totalSellLines: all.length,
-  }
 }
 
 /**

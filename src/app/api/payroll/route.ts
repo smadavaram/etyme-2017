@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { pairsFor, AGREED_SPREAD } from '@/lib/money/margin'
+import { spreadOn, blendedSpread } from '@/lib/money/placement-margin'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
@@ -626,9 +628,34 @@ export async function GET(request: NextRequest) {
     ),
   }
 
+  // ── The spread, from the one margin service ─────────────────────────
+  //
+  // The page averaged each week's bill rate in the browser and read a
+  // missing one as nought, so a placement with no bill rate showed a
+  // spread of a hundred per cent of nothing, and every payroll desk read
+  // the bill rate on every week. The payroll desks pay people and do not
+  // read the margin (lib/company-roles), so a seat without `margin.read`
+  // or `pnl.read` gets neither the rate nor the spread; one with it gets
+  // the agreed spread as `spreadOn` computes it for Profitability, so the
+  // two screens cannot disagree (lib/money/margin).
+  const readsMargin = hasPermission(caller.permissions, 'margin.read') || hasPermission(caller.permissions, 'pnl.read')
+  const pairs = readsMargin ? (await pairsFor(companyId, 'ALL')).all : []
+  const items = filtered.map((p) => {
+    const timesheets = readsMargin ? p.timesheets : p.timesheets.map(({ billRate: _rate, ...t }) => t)
+    if (!readsMargin) return { ...p, timesheets, agreed: null }
+    const theirs = pairs.filter((x) => x.buy?.id === p.buyContractId && x.sell.personId === p.person.id)
+    return {
+      ...p,
+      timesheets,
+      agreed: theirs.length === 1 ? spreadOn(theirs[0]) : theirs.length > 1 ? blendedSpread(theirs, 'ALL') : null,
+    }
+  })
+
   return NextResponse.json({
     data: {
-      payItems: filtered,
+      payItems: items,
+      /** The column's name, from the service every screen reads it from. */
+      spreadLabel: readsMargin ? AGREED_SPREAD : null,
       paidElsewhere,
       summary,
       period: period ?? 'all',

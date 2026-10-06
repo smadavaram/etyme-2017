@@ -139,9 +139,12 @@ describe('a margin nobody can stand behind is blank, never good news', () => {
 
 describe('one reader for one question', () => {
   it('the profitability screen prices a placement through the same reader as the placement page', () => {
+    // Through the one margin service, which prices with `placementEarned`
+    // — the reader the placement page calls (lib/money/margin).
     const route = readFileSync('src/app/api/profitability/route.ts', 'utf8')
-    expect(route).toMatch(/priceSheets\(/)
+    expect(route).toMatch(/placementBooks\(/)
     expect(route).not.toMatch(/priceByDay\(\{\s*contractRateCents: c\.billRate/)
+    expect(readFileSync('src/lib/money/margin.ts', 'utf8')).toMatch(/placementEarned\(\{/)
   })
 
   it('the book keeps its old fallback: a placement with no buy line is costed from the ledger and says it was', () => {

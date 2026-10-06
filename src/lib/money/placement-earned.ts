@@ -312,8 +312,12 @@ export interface PlacementEarned {
   /** Hours the employer accepted, and what they cost. Null where no buy line prices them. */
   hoursPaid: number
   costCents: number | null
-  /** Revenue less cost over the weeks both sides signed. Null where it cannot be stood behind. */
+  /** Employer burden on the cost, where a burden rate was given. Null where the cost is. */
+  burdenCents: number | null
+  /** Revenue less cost, and burden where given, over the weeks both sides signed. Null where it cannot be stood behind. */
   marginCents: number | null
+  /** The revenue of the weeks the margin covers — its denominator. Null where the margin is. */
+  marginRevenueCents: number | null
   /** How many weeks the margin covers, and how many were left out because the employer has not accepted them. */
   marginWeeks: number
   weeksAwaitingPay: number
@@ -364,6 +368,14 @@ export function placementEarned(input: {
    * went over forty hours, the cost is refused rather than shown short.
    */
   pay: (LineRates & { currency: string; overtime?: PayOvertime | null }) | null
+  /**
+   * Employer burden as a share of pay, where the firm employs the person
+   * at hop 0 (`burdenRate` in lib/order-postings, which is what the books
+   * post). Absent or nought on a line bought in from a supplier, which
+   * carries the burden on its own people. Each week's burden is rounded on
+   * its own, the way the books post it, so the two agree to the cent.
+   */
+  burdenRate?: number | null
 }): PlacementEarned {
   const hasPayLine = input.pay != null && input.pay.openingRateCents > 0
   const priced = priceSheets({
@@ -405,9 +417,13 @@ export function placementEarned(input: {
       : 'No week has been both approved by the client and accepted by the employer yet.'
   }
 
+  const rate = input.burdenRate && input.burdenRate > 0 ? input.burdenRate : 0
+  const burdenOf = (s: PricedSheet) => (s.paidCents == null ? 0 : Math.round(s.paidCents * rate))
+  const burdenCents = costCents == null ? null : priced.sheets.reduce((n, s) => n + burdenOf(s), 0)
+
   const marginCents = marginRefusedBecause
     ? null
-    : matched.reduce((n, s) => n + s.billedCents - (s.paidCents ?? 0), 0)
+    : matched.reduce((n, s) => n + s.billedCents - (s.paidCents ?? 0) - burdenOf(s), 0)
 
   const paySegs = mergeSegments(priced.sheets.flatMap((s) => s.paySegments))
   const billSegs = mergeSegments(priced.sheets.flatMap((s) => s.billSegments))
@@ -423,7 +439,9 @@ export function placementEarned(input: {
     revenueCents: priced.billedCents,
     hoursPaid: priced.paidHours,
     costCents,
+    burdenCents,
     marginCents,
+    marginRevenueCents: marginCents == null ? null : matched.reduce((n, s) => n + s.billedCents, 0),
     marginWeeks: marginCents == null ? 0 : matched.length,
     weeksAwaitingPay: awaiting,
     overtimePremiumCents: costCents == null ? 0 : priced.premiumCents,

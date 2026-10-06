@@ -64,8 +64,15 @@ interface PayItem {
     periodEnd: string
     clientCompany: { id: string; name: string } | null
     engagement: { id: string; title: string } | null
-    billRate: number
+    /** Only for a seat that reads margin; the payroll desks do not. */
+    billRate?: number
   }>
+  /**
+   * The agreed spread on this person's placement, from the one margin
+   * service (lib/money/margin). Null where the seat does not read margin
+   * or no sell line is behind the pay line.
+   */
+  agreed?: { pct: number | null; says: string; refusedBecause: string | null } | null
   totalApprovedHours: number
   grossPay: number
   /** Hours over the weekly line in the period, and the premium on them — inside grossPay. */
@@ -207,6 +214,9 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
 
 export default function PayrollPage() {
   const [payItems, setPayItems] = useState<PayItem[]>([])
+  // The spread column's name from the route, and null where this seat
+  // does not read margin — then there is no column at all.
+  const [spreadLabel, setSpreadLabel] = useState<string | null>(null)
   // Workers paid on an invoice receipt, not by payroll: one plain line each.
   const [paidElsewhere, setPaidElsewhere] = useState<Array<{ buyContractId: string; person: { id: string; name: string }; says: string }>>([])
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
@@ -245,6 +255,7 @@ export default function PayrollPage() {
 
       const body = await res.json()
       setPayItems(body.data?.payItems ?? [])
+      setSpreadLabel(body.data?.spreadLabel ?? null)
       setPaidElsewhere(body.data?.paidElsewhere ?? [])
       setSummary(body.data?.summary ?? null)
     } catch (err: any) {
@@ -457,32 +468,38 @@ export default function PayrollPage() {
       render: (row) => <CarryCell sellContractId={row.sellContractId} />,
       align: 'right' as const,
     },
-    {
-      key: 'margin',
-      label: 'Margin',
-      render: (row) => {
-        if (row.timesheets.length === 0) return <span className="text-etyme-faint">—</span>
-        // Average bill rate across linked sell contracts
-        const avgBill = row.timesheets.reduce((s, ts) => s + ts.billRate, 0) / row.timesheets.length
-        const marginPct = avgBill > 0 ? ((avgBill - row.payRate) / avgBill * 100) : 0
+    ...(spreadLabel ? [{
+      key: 'agreed',
+      // "Agreed spread", from the same service Profitability reads, so the
+      // two screens cannot disagree. Never the bare word margin: what the
+      // hours earned, after burden, is on Profitability.
+      label: spreadLabel,
+      render: (row: PayItem) => {
+        const pct = row.agreed?.pct ?? null
+        if (pct == null) {
+          return (
+            <span className="text-[12px] text-etyme-faint" title={row.agreed?.refusedBecause ?? 'No sell line behind this pay line.'}>
+              —
+            </span>
+          )
+        }
         return (
-          <span className={`tabular-nums text-[12px] ${
-            marginPct >= 30 ? 'text-etyme-verified' :
-            marginPct >= 15 ? 'text-etyme-ink' :
-            'text-etyme-attention'
-          }`}>
-            {marginPct.toFixed(0)}%
+          <span
+            title={row.agreed?.says}
+            className={`tabular-nums text-[12px] ${
+              pct >= 30 ? 'text-etyme-verified' :
+              pct >= 15 ? 'text-etyme-ink' :
+              'text-etyme-attention'
+            }`}
+          >
+            {pct.toFixed(1)}%
           </span>
         )
       },
-      sortValue: (row) => {
-        if (row.timesheets.length === 0) return 0
-        const avgBill = row.timesheets.reduce((s, ts) => s + ts.billRate, 0) / row.timesheets.length
-        return avgBill > 0 ? (avgBill - row.payRate) / avgBill * 100 : 0
-      },
+      sortValue: (row: PayItem) => row.agreed?.pct ?? -1,
       align: 'right' as const,
       hideOnMobile: true,
-    },
+    }] : []),
     {
       key: 'payStatus',
       label: 'Status',

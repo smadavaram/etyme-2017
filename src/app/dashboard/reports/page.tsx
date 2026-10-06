@@ -568,9 +568,11 @@ export default function ReportsPage() {
               </p>
             </div>
 
-            {/* Avg Margin */}
+            {/* The agreed spread — "Agreed spread", the name every screen
+                uses for it (lib/money/margin). Never the bare word margin:
+                what the hours earned is on Profitability. */}
             <div className="panel">
-              <p className="stat-label">Avg Margin</p>
+              <p className="stat-label">Agreed spread</p>
               <p className={`stat-value ${avgMargin != null && avgMargin > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
                 {avgMargin != null ? fmtPercent(avgMargin) : '—'}
               </p>
@@ -579,7 +581,7 @@ export default function ReportsPage() {
                     reason, and a seat that may not read a margin is told
                     that rather than shown an empty box. */}
                 {avgMargin != null
-                  ? 'agreed rate spread, running now'
+                  ? 'on the rates, running now'
                   : bookRefusal ?? book?.agreed.refusedBecause ?? 'needs both sides of a placement'}
               </p>
               {book != null && book.unlinked > 0 && (

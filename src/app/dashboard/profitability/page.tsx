@@ -221,9 +221,19 @@ export default function ProfitabilityPage() {
       {data?.overall && (
         <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
           <div>
-            <p className="stat-label">Billed</p>
+            {/* The heading is the route's one word (REVENUE_HEADING in
+                lib/money/margin): whether it is renamed is the founder's
+                call, and the three figures under it stand either way. */}
+            <p className="stat-label">{data.labels?.revenue ?? 'Billed'}</p>
             <p className="stat-value tabular-nums">{money(data.overall.revenueCents)}</p>
             <p className="mt-0.5 text-[11px] text-etyme-faint">hours signed on both sides</p>
+            {data.billing && (
+              <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-etyme-muted">
+                <li>{money(data.billing.acceptedNotBilledCents)} accepted, not yet billed</li>
+                <li>{money(data.billing.billedCents)} billed</li>
+                <li>{money(data.billing.collectedCents)} collected</li>
+              </ul>
+            )}
           </div>
           <div>
             <p className="stat-label">Earned margin</p>

@@ -56,12 +56,24 @@ describe('a week signed from the approve button is posted to the books once', ()
     expect(await postings(a.id, 'REVENUE')).toBe(1)
   })
 
-  it('the firm in the middle accepting in its turn posts nothing of its own here', async () => {
+  // Until 2026-10-06 this sentence read "posts nothing of its own here",
+  // and that was the defect the outside chain audit found: the middle
+  // firm's books never held the people it buys in (lib/money/hop-ledger).
+  it('the firm in the middle accepting in its turn is revenue to the firm below it and cost to itself, each at its own rate', async () => {
     as(CS)
     const r = await sign(s.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const a = await live('PASS_THROUGH')
-    expect(await prisma.orderPosting.count({ where: { source: 'TIMESHEET', sourceId: a.id } })).toBe(0)
+    const rows = await prisma.orderPosting.findMany({
+      where: { source: 'TIMESHEET', sourceId: a.id, reversalOfId: null },
+      select: { companyId: true, kind: true, txAmountCents: true },
+    })
+    const tp = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
+    const hours = Number(a.hours)
+    expect(rows).toContainEqual({ companyId: tp.id, kind: 'REVENUE', txAmountCents: Math.round(hours * 11_800) })
+    expect(rows).toContainEqual({ companyId: cs.id, kind: 'PAY', txAmountCents: -Math.round(hours * 11_800) })
+    expect(rows).toHaveLength(2)
   })
 
   it('a week accepted from the approve button is posted to the books once, the same as one accepted any other way', async () => {
