@@ -59,6 +59,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
+import { weekStart } from '@/lib/overtime'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { rolesFor } from '@/lib/company-defaults'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
@@ -71,8 +72,8 @@ const DAY = 86_400_000
 const isoDay = (d: Date) => d.toISOString().slice(0, 10)
 const plus = (d: Date, n: number) => new Date(d.getTime() + n * DAY)
 const atHour = (d: Date, h: number) => new Date(d.getTime() + h * 3_600_000)
-/** The Monday on or before a day. */
-const mondayOf = (d: Date) => plus(d, -((d.getUTCDay() + 6) % 7))
+/** The Sunday a day's week opens on (`weekStart` in lib/overtime). */
+const sundayOf = (d: Date) => new Date(`${weekStart(isoDay(d))}T00:00:00Z`)
 
 /** The firm, by its seed slug without the `world-` prefix. Read by lib/seed-world for `FIRMS`. */
 export const NICHE_VENDOR = {
@@ -187,8 +188,15 @@ export const NICHE_PEOPLE: NichePerson[] = [
   },
 ]
 
-/** The day a placement starts: a Monday, whole weeks before the world's own week. */
-export const nicheStart = (p: Placement) => plus(mondayOf(day(0)), -7 * p.weeksAgo)
+/**
+ * The day a placement starts: a Monday, whole weeks before the world's own week.
+ *
+ * Her first day, not a week's: the week itself runs Sunday to Saturday
+ * and is read from `weekStart`. The Sunday the week holding the day
+ * before today opens on, plus one, is the Monday on or before today on
+ * every weekday — on a Sunday it is the Monday six days back.
+ */
+export const nicheStart = (p: Placement) => plus(sundayOf(plus(day(0), -1)), 1 - 7 * p.weeksAgo)
 
 /** The day somebody said yes to the bench: counted back from their placement where they sat before it. */
 export function nicheListed(n: NichePerson): Date | null {
@@ -455,13 +463,24 @@ export async function seedBenchProfitWeeks(ctx: SeedContext): Promise<number> {
     // what it pays this firm, and this firm accepts last at what it pays
     // the person — the chain, top to bottom (CLAUDE.md, "The signed week
     // travels down the chain").
-    for (let m = start; plus(m, 4) <= day(-3); m = plus(m, 7)) {
+    //
+    // A week runs Sunday to Saturday (`weekStart` in lib/overtime), its
+    // hours on the weekdays; the week she starts in opens on her first
+    // day. Every whole week whose Friday ended at least three days before
+    // the world's birthday, so the latest has had its weekend.
+    for (let sunday = sundayOf(start); plus(sunday, 5) <= day(-3); sunday = plus(sunday, 7)) {
       weeks++
-      if (await db.timesheet.findFirst({ where: { sellContractId: sell.id, periodStart: m } })) continue
-      const friday = plus(m, 4)
+      const periodStart = sunday < start ? start : sunday
+      const saturday = plus(sunday, 6)
+      // Any sheet on those days: a world seeded while weeks ran Monday to
+      // Friday keeps its own rather than gaining a second over them.
+      if (await db.timesheet.findFirst({
+        where: { sellContractId: sell.id, periodStart: { lte: saturday }, periodEnd: { gte: periodStart } },
+      })) continue
+      const friday = plus(sunday, 5)
       const days: Record<string, number> = {}
-      for (let k = 0; k < 5; k++) {
-        const on = isoDay(plus(m, k))
+      for (let k = 1; k <= 5; k++) {
+        const on = isoDay(plus(sunday, k))
         if (!holidays.has(on)) days[on] = 8
       }
       const total = Object.values(days).reduce((a, b) => a + b, 0)
@@ -470,7 +489,7 @@ export async function seedBenchProfitWeeks(ctx: SeedContext): Promise<number> {
       const employerAt = atHour(plus(friday, 4), 17)
       const ts = await db.timesheet.create({
         data: {
-          sellContractId: sell.id, personId: person.id, periodStart: m, periodEnd: friday,
+          sellContractId: sell.id, personId: person.id, periodStart, periodEnd: saturday,
           days, totalHours: total, status: 'APPROVED', submittedAt: atHour(friday, 22),
           approvedAt: clientAt, approvedById: clientSeat.personId,
           clientApprovedAt: clientAt, clientApprovedById: clientSeat.personId,
@@ -486,7 +505,7 @@ export async function seedBenchProfitWeeks(ctx: SeedContext): Promise<number> {
       await db.workAssertion.create({
         data: { timesheetId: ts.id, companyId: firm.id, role: 'EMPLOYER_ACCEPTANCE', hours: total, rateCents: p.pay, state: 'LIVE', byId: owner.personId, auto: false, at: employerAt },
       })
-      await completeCycle(db, { sellContractId: sell.id, kind: 'TIMESHEET_APPROVE', periodEnd: friday, at: employerAt })
+      await completeCycle(db, { sellContractId: sell.id, kind: 'TIMESHEET_APPROVE', periodEnd: saturday, at: employerAt })
     }
   }
   return weeks

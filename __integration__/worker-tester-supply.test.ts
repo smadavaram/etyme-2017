@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { as, req, json, freshWorld } from './harness'
 
 import { GET as myWork, POST as fileWeek } from '@/app/api/me/work/route'
@@ -82,8 +82,17 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
   })
 
   it('once a link has gone to Northbend’s approver, the row says so and offers no second one', async () => {
+    // The two sentences above filed every week open today: this week so
+    // far, and the one whole week the seed left unfiled. Every other week
+    // is seeded Sunday to Saturday, so nothing is left to file until time
+    // passes. The walk moves on a week, and Helena files the week she is
+    // then in — a week nobody has touched, inside her placement.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(Date.now() + 7 * 86_400_000))
     const d0 = await page()
-    const week = d0.filing[0].weeks.find((w: any) => w.days.length >= 1)
+    const week = d0.filing[0].weeks[0]
+    expect(week, 'the week she is in a week from now is open to file').toBeTruthy()
+    expect(week.periodEnd, 'and it is the week she is then in, not a gap left behind').toBe(new Date().toISOString().slice(0, 10))
     const id = await file(week, { [week.days[0]]: 8 })
     expect(row(await page(), id).door.says).toBe('Ask the client to approve by email')
 
@@ -96,6 +105,10 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     const says = row(await page(), id).door.says as string
     expect(says).toMatch(/^Link sent to Marcus Oyelaran, /)
     expect(says).not.toContain('Ask the client')
+  })
+
+  afterAll(() => {
+    vi.useRealTimers()
   })
 })
 

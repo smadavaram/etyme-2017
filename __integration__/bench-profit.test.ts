@@ -92,15 +92,16 @@ function placed(weeksAgo: number, billCents: number, payCents: number, burden: n
     const m = plus(start, 7 * k)
     const days = [0, 1, 2, 3, 4].filter((i) => !holidayKeys().has(iso(plus(m, i)))).length
     const hours = days * 8
-    return { friday: plus(m, 4), marginCents: hours * (billCents - payCents) - Math.round(hours * payCents * burden) }
+    // A week ends on its Saturday (Sunday to Saturday, lib/overtime).
+    return { endsOn: plus(m, 5), marginCents: hours * (billCents - payCents) - Math.round(hours * payCents * burden) }
   })
   return { start, weeks, marginCents: weeks.reduce((a, w) => a + w.marginCents, 0) }
 }
 
-/** The Friday of the week whose margin, added up from the start, first covers the cost. */
-function paidBackOn(weeks: { friday: Date; marginCents: number }[], costCents: number): Date | null {
+/** The Saturday ending the week whose margin, added up from the start, first covers the cost. */
+function paidBackOn(weeks: { endsOn: Date; marginCents: number }[], costCents: number): Date | null {
   let sum = 0
-  for (const w of weeks) if ((sum += w.marginCents) >= costCents) return w.friday
+  for (const w of weeks) if ((sum += w.marginCents) >= costCents) return w.endsOn
   return null
 }
 
@@ -157,7 +158,7 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     expect(tobias.marginCents).toBe(marginCents)
     // The week his running margin first covers the cost, burden taken off.
     // At about $2,680 a week after burden against at most $8,960 of bench,
-    // that week comes on any day the world can be born; which Friday it is
+    // that week comes on any day the world can be born; which Saturday it is
     // depends on where the holidays fall, so it is worked out, not assumed.
     const on = paidBackOn(weeks, cost)
     expect(on, 'his margin covers his bench cost').not.toBeNull()
