@@ -11,6 +11,7 @@ import {
   awardSaid, roundsToCallOff, OPEN_ROUND_STATES, STOOD_DOWN_REASON, type AwardFacts, type RoundToCallOff,
 } from '@/lib/award'
 import { tell } from '@/lib/interview-notices'
+import { endsPastLimit } from '@/lib/governance'
 import { tellNotChosen } from '@/lib/notify/not-chosen'
 import { annualValue } from '@/lib/requisition-approval'
 import { headerFor, lineTermsFrom } from '../../order-header'
@@ -30,7 +31,7 @@ import { tellSelected } from '@/lib/papering'
 
 /**
  * POST /api/submissions/:id/award
- *   { rate?, startDate?, endDate?, workUnderWay?, underWayReason? }
+ *   { rate?, startDate?, endDate?, workUnderWay?, underWayReason?, limitReason? }
  *
  * Give a candidate one of the positions on a requisition.
  *
@@ -332,6 +333,29 @@ export async function POST(
     : req.months
       ? new Date(new Date(start).setMonth(start.getMonth() + req.months))
       : null
+
+  // A line booked past the end client's time limit is refused in a
+  // sentence naming the date, the same check money runs at POST
+  // /api/contracts and on an extension (`endsPastLimit`, 0595dfe72):
+  // BLOCK where the client's rule blocks; WARN takes a reason and goes
+  // ahead, the reason kept on the award's record. The end client is the
+  // site — a reseller's copy names it; a client's own job is its own.
+  const past = await endsPastLimit({
+    personId: submission.personId,
+    clientId: req.endClientCompanyId ?? req.companyId,
+    startDate: start,
+    endDate: end,
+  })
+  if (past?.outcome === 'BLOCK') {
+    return NextResponse.json({ error: { code: 'TIME_LIMIT', message: past.says } }, { status: 422 })
+  }
+  const limitReason = typeof body.limitReason === 'string' ? body.limitReason.trim() : ''
+  if (past?.outcome === 'WARN' && !limitReason) {
+    return NextResponse.json(
+      { error: { code: 'TIME_LIMIT_REASON', message: `${past.says} Give a reason to go ahead.`, field: 'limitReason' } },
+      { status: 422 }
+    )
+  }
 
   // Payment terms and currency, resolved down the cascade rather than
   // defaulted. The schema said terms "cascade from the MSA, overridable"
@@ -1022,9 +1046,11 @@ export async function POST(
       companyId: req.companyId,
       action: 'CANDIDATE_AWARDED',
       summary: `${submission.person.name} placed on ${req.title} at $${Math.round(awardedRate / 100)}/hr via ${submission.fromCompany.name}`,
-      reason: decision.summary,
+      reason: past ? `${decision.summary} ${past.says} Reason given: ${limitReason}` : decision.summary,
       payload: {
         submissionId: id,
+        // Booked past the time limit on a warning, with the reason given.
+        ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
         requirementId: req.id,
         contractId: result.contract.id,
         rate: awardedRate,

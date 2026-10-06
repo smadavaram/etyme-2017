@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { clientOf, endHoldsForSubmission } from '@/lib/holds'
 import { notify } from '@/lib/notify'
 import { placeByAward } from '@/lib/award'
+import { cancelRoundsFor, turnedDownReason } from '@/lib/interview-notices'
+import { reportError } from '@/lib/alerts'
 
 /**
  * PATCH /api/submissions/:id/status
@@ -150,7 +152,7 @@ export async function PATCH(
     )
   }
 
-  await prisma.$transaction([
+  const [, logged] = await prisma.$transaction([
     prisma.submission.update({
       where: { id },
       data: {
@@ -184,6 +186,31 @@ export async function PATCH(
       },
     }),
   ])
+
+  // A candidate turned down or withdrawn has no interview left to go to.
+  // Their open rounds are called off and everybody in them told
+  // (`cancelRoundsFor`, conversation's), and the rounds are named on this
+  // decision's own log row, the way the award records the rounds it calls
+  // off. The tester turned two candidates down and both were still booked.
+  if (status === 'REJECTED' || status === 'WITHDRAWN') {
+    try {
+      const calledOff = await cancelRoundsFor(id, turnedDownReason(status))
+      if (calledOff.length > 0) {
+        await prisma.automationLog.update({
+          where: { id: logged.id },
+          data: {
+            payload: {
+              ...((logged.payload as Record<string, unknown> | null) ?? {}),
+              interviewsCalledOff: calledOff,
+            },
+          },
+        })
+      }
+    } catch (err) {
+      // The decision stands; a round left open is reported, not hidden.
+      void reportError('Calling off the interviews of a turned-down candidate failed', err)
+    }
+  }
 
   // Give the hold back the moment this vendor stops trying.
   //
