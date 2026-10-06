@@ -136,16 +136,17 @@ describe('which weeks the window bills', () => {
     expect(billed[0]!.value.totalCents).toBe(400_000)
   })
 
-  it('a week touching the dates asked for by one day is not billed on that bill when it ends outside them', () => {
-    // Asked for the 13th to the 20th: the week of the 7th ends on the
-    // 13th and belongs here; the week of the 14th ends on the 20th and
-    // belongs here; the week of the 21st does not start until after.
-    const w = billingWindow(asked({ periodStart: '2026-09-13', periodEnd: '2026-09-20' }), d('2026-09-27'), terms()).window
+  it('a week touching the dates asked for by one day is billed there only when its last worked day falls inside them', () => {
+    // Asked for the 11th to the 18th: the week of the 7th last worked on
+    // the 11th, inside; the week of the 14th last worked on the 18th,
+    // inside; the week of the 21st does not start until after.
+    const w = billingWindow(asked({ periodStart: '2026-09-11', periodEnd: '2026-09-18' }), d('2026-09-27'), terms()).window
     const got = [W1, W2, W3].map((s) => billableInPeriod(s, w, 'END', 10_000, POLICY)?.hours ?? 0)
     expect(got).toEqual([40, 40, 0])
 
-    // And one day later the week of the 7th is somebody else's bill.
-    const w2 = billingWindow(asked({ periodStart: '2026-09-14', periodEnd: '2026-09-21' }), d('2026-09-27'), terms()).window
+    // And one day later the week of the 7th is somebody else's bill. Its
+    // empty Saturday and Sunday inside the dates do not bring it back.
+    const w2 = billingWindow(asked({ periodStart: '2026-09-12', periodEnd: '2026-09-19' }), d('2026-09-27'), terms()).window
     const got2 = [W1, W2, W3].map((s) => billableInPeriod(s, w2, 'END', 10_000, POLICY)?.hours ?? 0)
     expect(got2).toEqual([0, 40, 0])
   })
@@ -156,7 +157,7 @@ describe('which weeks the window bills', () => {
     const w = billingWindow(asked({ periodStart: '2026-09-10', periodEnd: '2026-09-16' }), d('2026-09-27'), terms()).window
     const split = billableInPeriod(W1, w, 'SPLIT', 10_000, POLICY)
     expect(split?.hours).toBe(40)
-    expect(split?.share.note).toMatch(/billed in the period it ends in/)
+    expect(split?.share.note).toMatch(/billed in the period its last worked day falls in/)
     // The week of the 14th ends on the 20th, outside: not on this bill.
     expect(billableInPeriod(W2, w, 'SPLIT', 10_000, POLICY)).toBeNull()
   })

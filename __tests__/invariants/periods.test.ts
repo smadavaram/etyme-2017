@@ -248,11 +248,12 @@ describe('a week that straddles the month end', () => {
 
   it('can be told to move the whole thing to where it ends instead', () => {
     // Some clients will not accept a part-week line. That is a setting,
-    // not a bug.
-    expect(hoursInPeriod(straddler, JULY, 'END')).toBeNull()
-    const august = hoursInPeriod(straddler, AUGUST, 'END')!
-    expect(august.hours).toBe(40)
-    expect(august.note).toMatch(/billed where it ends/)
+    // not a bug. Saturday 1 August carries hours, so the week ends in August.
+    const withSaturday = { ...straddler, days: { ...straddler.days, '2026-08-01': 4 }, totalHours: 44 }
+    expect(hoursInPeriod(withSaturday, JULY, 'END')).toBeNull()
+    const august = hoursInPeriod(withSaturday, AUGUST, 'END')!
+    expect(august.hours).toBe(44)
+    expect(august.note).toMatch(/billed where its last worked day falls/)
   })
 
   it('or to where it starts', () => {
@@ -269,6 +270,58 @@ describe('a week that straddles the month end', () => {
     expect(august.hours).toBe(40)
     expect(august.partial).toBe(false)
     expect(august.note).toMatch(/no daily hours recorded/)
+  })
+})
+
+/**
+ * Decided 2026-10-06: START and END judge a week by the days that carry
+ * hours, never by an empty Sunday or Saturday at its edge.
+ */
+describe('a week judged by its hours, not its empty edges', () => {
+  const SEPTEMBER: Period = { start: d('2026-09-01'), end: d('2026-09-30'), label: 'September 2026' }
+  const OCTOBER: Period = { start: d('2026-10-01'), end: d('2026-10-31'), label: 'October 2026' }
+
+  it('under START a week bills where its first worked day falls, never on an empty Sunday', () => {
+    // Sunday 30 August to Saturday 5 September, hours 1 to 4 September.
+    const week = sheet({
+      id: 'ts-empty-sunday',
+      periodStart: d('2026-08-30'),
+      periodEnd: d('2026-09-05'),
+      days: { '2026-09-01': 8, '2026-09-02': 8, '2026-09-03': 8, '2026-09-04': 8 },
+      totalHours: 32,
+    })
+    expect(hoursInPeriod(week, AUGUST, 'START')).toBeNull()
+    const september = hoursInPeriod(week, SEPTEMBER, 'START')!
+    expect(september.hours).toBe(32)
+    expect(september.note).toMatch(/first worked day/)
+  })
+
+  it('under END a week bills where its last worked day falls, never on an empty Saturday', () => {
+    // Sunday 27 September to Saturday 3 October, hours 28 to 30 September.
+    const week = sheet({
+      id: 'ts-empty-saturday',
+      periodStart: d('2026-09-27'),
+      periodEnd: d('2026-10-03'),
+      days: { '2026-09-28': 8, '2026-09-29': 8, '2026-09-30': 8 },
+      totalHours: 24,
+    })
+    expect(hoursInPeriod(week, OCTOBER, 'END')).toBeNull()
+    expect(hoursInPeriod(week, SEPTEMBER, 'END')!.hours).toBe(24)
+  })
+
+  it('a week with hours on both sides of a month end still goes whole to the month its first (START) or last (END) worked day is in', () => {
+    // Monday 31 August in August, Tuesday to Friday in September.
+    const week = sheet({
+      id: 'ts-both-sides',
+      periodStart: d('2026-08-30'),
+      periodEnd: d('2026-09-05'),
+      days: { '2026-08-31': 9, '2026-09-01': 9, '2026-09-02': 9, '2026-09-03': 9, '2026-09-04': 9 },
+      totalHours: 45,
+    })
+    expect(hoursInPeriod(week, AUGUST, 'START')!.hours).toBe(45)
+    expect(hoursInPeriod(week, SEPTEMBER, 'START')).toBeNull()
+    expect(hoursInPeriod(week, AUGUST, 'END')).toBeNull()
+    expect(hoursInPeriod(week, SEPTEMBER, 'END')!.hours).toBe(45)
   })
 })
 
@@ -301,7 +354,7 @@ describe('the straddle a bill can actually record', () => {
   it('a document that asks for a week to be split is told which answer was used instead, and why', () => {
     const asked = billingStraddle('SPLIT')
     expect(asked.instead).toContain('one week bills once per contract')
-    expect(asked.instead).toContain('billed in the period it ends in')
+    expect(asked.instead).toContain('billed in the period its last worked day falls in')
   })
 
   it('the week goes to the period it ends in rather than the one it starts in, so no client is billed for work nobody has done yet', () => {

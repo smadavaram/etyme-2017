@@ -25,7 +25,7 @@
  * asked for narrow it and never widen it: a bill covers the part of ONE
  * contract period between the two dates, and a week crossing the edge
  * of that part follows the straddle rule a bill can record
- * (`billingStraddle` — whole where it ends, or where it starts), the
+ * (`billingStraddle` — whole where its last or first worked day falls), the
  * same rule a week crossing a month end follows. A part-period bill is
  * already a thing the three-way match accepts in words ("part of
  * August"); a bill spanning two periods is not, so dates running past

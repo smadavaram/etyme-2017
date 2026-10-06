@@ -74,9 +74,9 @@ export type Straddle =
    * different act, and the document model cannot hold the answer.
    */
   | 'SPLIT'
-  /** The whole timesheet goes to the period its last day falls in. */
+  /** The whole timesheet goes to the period its last day with hours falls in. */
   | 'END'
-  /** The whole timesheet goes to the period its first day falls in. */
+  /** The whole timesheet goes to the period its first day with hours falls in. */
   | 'START'
 
 /** A straddle a bill can honor, and what it was asked for. */
@@ -172,7 +172,7 @@ export function billingStraddle(straddle: Straddle): BillingStraddle {
     straddle: 'END',
     instead:
       'one week bills once per contract, so the days falling in the earlier period ' +
-      'cannot be billed there and the whole week is billed in the period it ends in',
+      'cannot be billed there and the whole week is billed in the period its last worked day falls in',
   }
 }
 
@@ -425,10 +425,15 @@ export function hoursInPeriod(sheet: Sheet, period: Period, straddle: Straddle):
 
   // Whole-timesheet policies, and the fallback when there is nothing daily
   // to split. Dividing a total by seven would look exact and be a guess.
-  const goesHere =
-    straddle === 'START'
-      ? sheetStart >= period.start && sheetStart <= period.end
-      : sheetEnd >= period.start && sheetEnd <= period.end
+  //
+  // Decided 2026-10-06: START and END judge a week by its first and last
+  // day with hours, never by an empty Sunday or Saturday at its edge.
+  // With no daily hours, the sheet's own first and last day stand in.
+  const worked = workedSpan(sheet.days)
+  const first = worked ? worked.first : sheetStart
+  const last = worked ? worked.last : sheetEnd
+  const judged = straddle === 'START' ? first : last
+  const goesHere = judged >= period.start && judged <= period.end
 
   if (!goesHere) return null
 
@@ -436,14 +441,27 @@ export function hoursInPeriod(sheet: Sheet, period: Period, straddle: Straddle):
     straddle === 'SPLIT'
       ? 'no daily hours recorded, so the whole timesheet is billed where it ends'
       : straddle === 'START'
-        ? 'whole timesheet billed where it starts'
-        : 'whole timesheet billed where it ends'
+        ? 'whole timesheet billed where its first worked day falls'
+        : 'whole timesheet billed where its last worked day falls'
 
   return {
     sheetId: sheet.id,
     hours: sheet.totalHours,
     partial: false,
     note: `Crosses the period boundary — ${why}`,
+  }
+}
+
+/** The first and last day with hours on a sheet. Null where no day has any. */
+export function workedSpan(days: Record<string, number> | null | undefined): { first: Date; last: Date } | null {
+  const worked = Object.entries(days ?? {})
+    .filter(([, h]) => Number(h) > 0)
+    .map(([k]) => k.slice(0, 10))
+    .sort()
+  if (worked.length === 0) return null
+  return {
+    first: dayOf(new Date(`${worked[0]}T00:00:00Z`)),
+    last: dayOf(new Date(`${worked[worked.length - 1]}T00:00:00Z`)),
   }
 }
 
