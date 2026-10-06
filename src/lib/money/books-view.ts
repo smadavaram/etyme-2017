@@ -83,3 +83,25 @@ export function otherBooks(books: Books): Books {
 export function switchLabel(books: Books, noun: string): string {
   return books === 'own' ? 'Read the program you run' : `Read our own ${noun} instead`
 }
+
+/**
+ * Any URL, carrying the book — whether or not it already has a query.
+ *
+ * The invoice page posts to `…/match/override?code=PRICE` as well as to
+ * plain paths, and `booksHref` would put a second `?` on that one.
+ */
+export function withBooks(url: string, books: Books): string {
+  if (books !== 'own') return url
+  return `${url}${url.includes('?') ? '&' : '?'}${BOOKS_PARAM}=${OWN}`
+}
+
+/**
+ * One invoice's page, in the book the list was reading.
+ *
+ * The row linked to the bare page, so a program office reading its own
+ * books opened one of its own invoices under its seat's scope — the
+ * client's — and got "Invoice not found" for a row it had just read.
+ */
+export function invoiceHref(id: string, books: Books): string {
+  return booksHref(`/dashboard/invoices/${id}`, books)
+}

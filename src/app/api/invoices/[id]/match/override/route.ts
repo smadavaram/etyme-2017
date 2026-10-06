@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { matchInvoice } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents, type MatchCode } from '@/lib/three-way-match'
+import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
+import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
+import { waiveDesk } from '@/lib/money/pay-desk'
+import type { CompanyKind } from '@/lib/company-defaults'
 
 /**
  * POST   /api/invoices/:id/match/override   { code, reason }
@@ -24,7 +29,62 @@ import { OVERRIDABLE, decimalToCents, type MatchCode } from '@/lib/three-way-mat
  * waiver granted on Monday against a $4,800 invoice should not still be
  * covering a $12,000 one on Friday, which is why the amount at the time is
  * recorded alongside it.
+ *
+ * And two gates in front of all three, added 2026-10-06. The invoice was
+ * found by id alone, so any signed-in caller could waive a check on any
+ * company's invoice. It is now found only in the reader's own books —
+ * the client's, through the seat, where a program office sits at a
+ * client's desk — and the waiving desk is asked (`waiveDesk` in
+ * lib/money/pay-desk): the firm being asked to pay, at a desk that pays.
  */
+async function deskFor(request: NextRequest, caller: CallerContext, id: string) {
+  const notFound = NextResponse.json(
+    { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+    { status: 404 }
+  )
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return { error: whose.error }
+  const reading = whose?.books ?? null
+  const scope = reading && invoiceScope(caller) ? reading.invoiceWhere : null
+  if (!reading || !scope) return { error: notFound }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, ...scope },
+    select: {
+      id: true, number: true, total: true,
+      workOrder: { select: { issuedById: true, issuedToId: true } },
+      engagement: {
+        select: {
+          msa: { select: { vendorId: true, clientId: true } },
+          sellContracts: { select: { companyId: true }, take: 1 },
+        },
+      },
+    },
+  })
+  if (!invoice) return { error: notFound }
+
+  const direction = directionFrom(
+    partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }),
+    reading.companyId
+  )
+  const verdict = waiveDesk({
+    permissions: reading.caller.permissions,
+    direction,
+    companyKind: reading.companyKind as CompanyKind,
+    companyName: reading.companyName,
+    seat: reading.seat ? { clientName: reading.seat.clientCompany.name, roleName: reading.seat.role.name } : null,
+  })
+  if (!verdict.mayWaive) {
+    return {
+      error: NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: verdict.says ?? 'This desk cannot waive a check.' } },
+        { status: 403 }
+      ),
+    }
+  }
+  return { invoice, reading }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -70,16 +130,10 @@ export async function POST(
     )
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    select: { id: true, number: true, total: true, engagement: { select: { sellContracts: { select: { companyId: true }, take: 1 } } } },
-  })
-  if (!invoice) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
-      { status: 404 }
-    )
-  }
+  const desk = await deskFor(request, caller, id)
+  if (desk.error) return desk.error
+  const { invoice, reading } = desk
+  noteMoneyRead(reading, `Invoice ${invoice.number} check waived`)
 
   // Rule 1 — only waive something that is actually failing right now.
   const before = await matchInvoice(id)
@@ -164,6 +218,10 @@ export async function DELETE(
       { status: 422 }
     )
   }
+
+  const desk = await deskFor(request, caller, id)
+  if (desk.error) return desk.error
+  noteMoneyRead(desk.reading, `Invoice ${desk.invoice.number} exception withdrawn`)
 
   const existing = await prisma.invoiceMatchOverride.findUnique({
     where: { invoiceId_code: { invoiceId: id, code } },

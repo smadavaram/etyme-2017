@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { payDesk, desksThatPay, payDeskPermissions, runDesk } from '@/lib/money/pay-desk'
+import { payDesk, desksThatPay, payDeskPermissions, runDesk, waiveDesk } from '@/lib/money/pay-desk'
 import { rolesFor } from '@/lib/company-defaults'
 
 /**
@@ -158,5 +158,65 @@ describe('a receipt nobody placed is placed only by the desk that records paymen
     expect(AR).toContain("from '@/lib/money/pay-desk'")
     expect(AR).toMatch(/desk\.mayPay && \(\s*<button/)
     expect(AR).toMatch(/desk\.mayPay && openId === r\.id/)
+  })
+})
+
+describe('a failed check is waived only by the desk that pays the invoice', () => {
+  const OVERRIDE = read('app/api/invoices/[id]/match/override/route.ts')
+
+  it('a client’s AP clerk may record an exception on an invoice receipt it pays', () => {
+    expect(waiveDesk({ permissions: perms('CLIENT', 'AP Clerk'), direction: 'PAYABLE', companyKind: 'CLIENT' }).mayWaive).toBe(true)
+  })
+
+  it('a program manager reads the failed check and who may waive it, and is never offered the exception', () => {
+    const d = waiveDesk({ permissions: perms('CLIENT', 'Program Manager'), direction: 'PAYABLE', companyKind: 'CLIENT', companyName: 'Northbend Athletic' })
+    expect(d.mayWaive).toBe(false)
+    expect(d.says).toMatch(/AP Clerk/)
+    expect(d.says).not.toMatch(/payments\.record/)
+  })
+
+  it('the firm that raised an invoice cannot waive a check on its own invoice, however senior the desk', () => {
+    const d = waiveDesk({ permissions: ['*'], direction: 'RECEIVABLE', companyKind: 'VENDOR' })
+    expect(d.mayWaive).toBe(false)
+    expect(d.says).toMatch(/raised it/)
+  })
+
+  it('a firm that is neither party to an invoice is offered nothing', () => {
+    expect(waiveDesk({ permissions: ['*'], direction: 'NEITHER', companyKind: 'CLIENT' }).mayWaive).toBe(false)
+  })
+
+  it('a program office is judged by the client desk it sits at, and told whose desk that is', () => {
+    const d = waiveDesk({
+      permissions: perms('CLIENT', 'Program Manager'),
+      direction: 'PAYABLE',
+      companyKind: 'CLIENT',
+      seat: { clientName: 'Cavanaugh Glassworks', roleName: 'Program Manager' },
+    })
+    expect(d.mayWaive).toBe(false)
+    expect(d.says).toMatch(/Cavanaugh Glassworks/)
+  })
+
+  it('the exception route finds the invoice only among the reader’s own books, through the seat', () => {
+    expect(OVERRIDE).toContain('booksFor(')
+    expect(OVERRIDE).toContain('invoiceScope(')
+    expect(OVERRIDE).not.toMatch(/invoice\.findUnique\(\{\s*where: \{ id \}/)
+  })
+
+  it('the exception route asks the waiving desk, both to record an exception and to withdraw one', () => {
+    expect(OVERRIDE.match(/waiveDesk\(/g)?.length ?? 0).toBeGreaterThanOrEqual(1)
+    expect(OVERRIDE.match(/deskFor\(/g)?.length ?? 0).toBeGreaterThanOrEqual(3)
+  })
+
+  it('the invoice page draws Record an exception and Withdraw only for the desk that may waive', () => {
+    expect(DETAIL).toMatch(/mayWaive/)
+    expect(DETAIL).toMatch(/failed && c\.overridable && mayWaive/)
+    expect(DETAIL).toMatch(/waived && mayWaive/)
+  })
+})
+
+describe('a program office reading its own books opens its own invoices', () => {
+  it('a row on the list opens the invoice in the book the list was reading', () => {
+    expect(LIST).toMatch(/invoiceHref\(/)
+    expect(DETAIL).toMatch(/BOOKS_PARAM/)
   })
 })

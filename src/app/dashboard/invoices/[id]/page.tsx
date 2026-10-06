@@ -3,14 +3,15 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
-import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
+import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
+import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
 
 /** The status in words a clerk says, never the enum. */
 const STATUS_WORDS: Record<string, string> = {
@@ -137,8 +138,10 @@ function checkTitle(c: Check): string {
   return c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
 }
 
-function CheckRow({ c, onWaive, onWithdraw }: {
+function CheckRow({ c, mayWaive, onWaive, onWithdraw }: {
   c: Check
+  /** Only the desk that pays waives a check, or withdraws an exception (lib/money/pay-desk). */
+  mayWaive: boolean
   onWaive: (code: string) => void
   onWithdraw: (code: string) => void
 }) {
@@ -169,13 +172,13 @@ function CheckRow({ c, onWaive, onWithdraw }: {
           )}
         </div>
         <div className="shrink-0">
-          {failed && c.overridable && (
+          {failed && c.overridable && mayWaive && (
             <button onClick={() => onWaive(c.code)}
               className="px-3 py-1 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
               Record an exception
             </button>
           )}
-          {waived && (
+          {waived && mayWaive && (
             <button onClick={() => onWithdraw(c.code)}
               className="px-3 py-1 text-xs text-etyme-muted hover:text-etyme-attention">
               Withdraw
@@ -191,6 +194,12 @@ function CheckRow({ c, onWaive, onWithdraw }: {
 export default function InvoiceDetail() {
   const params = useParams()
   const session = useSession()
+  // Which book this invoice is opened in, from the list's link. A program
+  // office reading its own books opened its own invoice under the seat's
+  // scope — the client's — and read "Invoice not found". Every call this
+  // page makes to a route that reads the book carries it.
+  const books = booksFrom(useSearchParams().get(BOOKS_PARAM))
+  const readingInASeat = !!session.seat && books !== 'own'
   const id = String(params?.id ?? '')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -204,11 +213,11 @@ export default function InvoiceDetail() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const res = await fetch(`/api/invoices/${id}`)
+      const res = await fetch(withBooks(`/api/invoices/${id}`, books))
       const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
-  }, [id])
+  }, [id, books])
 
   useEffect(() => { if (id) load() }, [id, load])
 
@@ -217,7 +226,7 @@ export default function InvoiceDetail() {
       'Why is this being waived? This travels with the invoice, and the next person to read it will be an auditor.'
     )
     if (!reason) return
-    const res = await fetch(`/api/invoices/${id}/match/override`, {
+    const res = await fetch(withBooks(`/api/invoices/${id}/match/override`, books), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, reason }),
     })
@@ -235,7 +244,7 @@ export default function InvoiceDetail() {
 
   async function withdraw(code: string) {
     if (!window.confirm('Withdraw this exception? The invoice may stop matching.')) return
-    const res = await fetch(`/api/invoices/${id}/match/override?code=${code}`, { method: 'DELETE' })
+    const res = await fetch(withBooks(`/api/invoices/${id}/match/override?code=${code}`, books), { method: 'DELETE' })
     if (!res.ok) { alert('Could not withdraw it'); return }
     await load()
   }
@@ -287,6 +296,21 @@ export default function InvoiceDetail() {
 
   const inv = data.invoice
   const m = data.match
+  // Who may record an exception or withdraw one: the firm being asked to
+  // pay, at a desk that pays, judged by the seat the route will judge by.
+  const waiveVerdict = waiveDesk({
+    permissions: session.loading
+      ? null
+      : payDeskPermissions({
+          own: session.permissions,
+          seat: session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
+          readingInASeat,
+        }),
+    direction: inv.direction,
+    companyKind: session.company?.kind ?? null,
+    companyName: session.company?.name ?? null,
+    seat: readingInASeat ? session.seat : null,
+  })
   // What is wrong comes first. A clerk opening a held invoice is looking
   // for the thing to fix, not for reassurance about the eight that passed.
   const checks: Check[] = m
@@ -298,7 +322,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href="/dashboard/invoices" className="text-sm text-etyme-action hover:underline">
+      <a href={booksHref('/dashboard/invoices', books)} className="text-sm text-etyme-action hover:underline">
         ← {inv.direction === 'PAYABLE' ? 'Invoice receipts' : inv.direction === 'RECEIVABLE' ? 'Bills' : 'Back to the list'}
       </a>
       {toast && (
@@ -385,9 +409,13 @@ export default function InvoiceDetail() {
               </button>
             )}
           </div>
+          {!waiveVerdict.mayWaive && waiveVerdict.says &&
+            checks.some((c) => c.outcome === 'FAIL' && c.overridable) && (
+              <p className="px-4 pb-3 text-xs text-etyme-muted">{waiveVerdict.says}</p>
+            )}
           <div className="border-t border-etyme-rule divide-y divide-etyme-rule">
             {checks.map(c => (
-              <CheckRow key={c.code} c={c} onWaive={waive} onWithdraw={withdraw} />
+              <CheckRow key={c.code} c={c} mayWaive={waiveVerdict.mayWaive} onWaive={waive} onWithdraw={withdraw} />
             ))}
           </div>
         </div>
@@ -413,22 +441,23 @@ export default function InvoiceDetail() {
               payments: inv.payments ?? [],
             }}
             // Whether this desk pays, judged the way the payment route
-            // judges it. This page carries no book switch, so the route
-            // reads the client's book whenever the session holds a seat —
-            // and so does this, through the sidebar's reading of it.
+            // judges it: the client's book whenever the session holds a
+            // seat and the list was not reading our own — through the
+            // sidebar's reading of the seat.
             desk={payDesk({
               permissions: session.loading
                 ? null
                 : payDeskPermissions({
                     own: session.permissions,
                     seat: session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
-                    readingInASeat: !!session.seat,
+                    readingInASeat,
                   }),
               companyKind: session.company?.kind ?? null,
               companyName: session.company?.name ?? null,
-              seat: session.seat,
+              seat: readingInASeat ? session.seat : null,
               side: inv.direction === 'RECEIVABLE' ? 'RECEIVABLE' : 'PAYABLE',
             })}
+            books={books}
             onPaid={load}
             onToast={showToast}
           />

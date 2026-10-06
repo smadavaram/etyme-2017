@@ -11,7 +11,7 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
 import { pageFraming } from '@/lib/page-framing'
 import { openingSide, counterpartyOf, counterpartyHeading, sidesOffered, openCountSays } from '@/lib/money/invoice-parties'
-import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
+import { booksFrom, booksHref, otherBooks, switchLabel, invoiceHref, BOOKS_PARAM, OWN, type Books } from '@/lib/money/books-view'
 
 /**
  * Invoices working surface — the Operate section.
@@ -413,7 +413,7 @@ function payableStatusWords(status: string): string {
  * Ask the supplier — on the thread about the job, with the question
  * written first, because a hold nobody explains is a phone call.
  */
-function PayerAction({ row, mayPay, onToast }: { row: Invoice; mayPay: boolean; onToast: (m: string, t?: 'success' | 'error') => void }) {
+function PayerAction({ row, mayPay, books, onToast }: { row: Invoice; mayPay: boolean; books: Books; onToast: (m: string, t?: 'success' | 'error') => void }) {
   const r = row.receipt
   if (!r || row.outstandingMinor <= 0 || row.status === 'CANCELLED') return null
   const payable = r.matches && (row.status === 'SUBMITTED' || row.status === 'PARTIALLY_PAID')
@@ -444,7 +444,7 @@ function PayerAction({ row, mayPay, onToast }: { row: Invoice; mayPay: boolean; 
   return (
     <div className="flex items-center gap-2 justify-end" onClick={(e) => e.stopPropagation()}>
       {payable && mayPay && (
-        <a href={`/dashboard/invoices/${row.id}#pay`} className="btn-primary text-[11px] px-3 py-1">
+        <a href={`${invoiceHref(row.id, books)}#pay`} className="btn-primary text-[11px] px-3 py-1">
           Pay
         </a>
       )}
@@ -726,7 +726,7 @@ export default function InvoicesPage() {
       label: side === 'RECEIVABLE' ? 'Bill #' : 'Invoice receipt #',
       render: (row) => (
         <div>
-          <a href={`/dashboard/invoices/${row.id}`}
+          <a href={invoiceHref(row.id, whoseBooks)}
             className="font-medium text-etyme-ink font-mono text-[12px] hover:text-etyme-action">
             {row.number}
           </a>
@@ -841,7 +841,7 @@ export default function InvoicesPage() {
       label: 'Invoice receipt',
       render: (row) => (
         <div>
-          <a href={`/dashboard/invoices/${row.id}`}
+          <a href={invoiceHref(row.id, whoseBooks)}
             className="font-medium text-etyme-ink font-mono text-[12px] hover:text-etyme-action">
             {row.number}
           </a>
@@ -934,7 +934,7 @@ export default function InvoicesPage() {
     {
       key: 'act',
       label: '',
-      render: (row) => <PayerAction row={row} mayPay={desk.mayPay} onToast={showToast} />,
+      render: (row) => <PayerAction row={row} mayPay={desk.mayPay} books={whoseBooks} onToast={showToast} />,
     },
   ]
 
@@ -1160,7 +1160,9 @@ export default function InvoicesPage() {
         // and the pay form together. The row used to open a side panel
         // with Pay and no check, and the number a page with the check
         // and no Pay — two doors, each missing half.
-        onRowClick={(row) => router.push(`/dashboard/invoices/${row.id}`)}
+        // In the book the list is reading: a program office on its own books
+        // opened its own invoice under the seat's scope and read "not found".
+        onRowClick={(row) => router.push(invoiceHref(row.id, whoseBooks) as any)}
         bulkActions={(selected, clearSelection) => (
           <>
             {!isClient && (

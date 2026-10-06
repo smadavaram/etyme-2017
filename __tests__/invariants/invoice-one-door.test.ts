@@ -25,7 +25,7 @@ const MONEY = read('app/dashboard/invoices/invoice-money.tsx')
 
 describe('an invoice receipt has one detail, with the check and the pay form together', () => {
   it('a row on the list opens the invoice’s own page, never a side panel of its own', () => {
-    expect(LIST).toContain('onRowClick={(row) => router.push(`/dashboard/invoices/${row.id}`)}')
+    expect(LIST).toContain('onRowClick={(row) => router.push(invoiceHref(row.id, whoseBooks)')
     expect(LIST).not.toMatch(/InvoiceDetailDrawer/)
     expect(LIST).not.toMatch(/Pay this invoice/)
   })

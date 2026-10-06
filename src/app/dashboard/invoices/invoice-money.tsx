@@ -6,6 +6,7 @@ import { minorPerUnit } from '@/lib/money'
 import { plainDate } from '@/lib/plain-date'
 import { PAYMENT_METHODS, payMethodFor } from '@/lib/money/pay-method'
 import type { PayDeskVerdict } from '@/lib/money/pay-desk'
+import { withBooks, type Books } from '@/lib/money/books-view'
 
 /**
  * The money half of one invoice: who it is paid to, how it is coded,
@@ -96,6 +97,7 @@ function paymentSays(p: PaymentRow): string {
 export function InvoiceMoney({
   invoice,
   desk,
+  books = 'seat',
   onPaid,
   onToast,
 }: {
@@ -107,6 +109,8 @@ export function InvoiceMoney({
    * stands where the form would be.
    */
   desk: PayDeskVerdict
+  /** Which book the page is reading, so the payment lands in that one. */
+  books?: Books
   /** Called after a payment is recorded, so the page can read itself again. */
   onPaid?: () => void
   onToast: (message: string, type?: 'success' | 'error') => void
@@ -167,7 +171,7 @@ export function InvoiceMoney({
     }
     setSubmitting(true)
     try {
-      const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
+      const res = await fetch(withBooks(`/api/invoices/${invoice.id}/payments`, books), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: minor / per, method: payMethod, reference: payReference || undefined }),

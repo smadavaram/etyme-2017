@@ -172,3 +172,65 @@ export function runDesk(input: {
       `Your desk reads what would go and what went, and does not run it.`,
   }
 }
+
+export type WaiveDeskVerdict =
+  | { mayWaive: true; says: null }
+  | { mayWaive: false; says: string | null }
+
+/**
+ * May this reader record an exception against a failed check — or
+ * withdraw one?
+ *
+ * Two things, both required. The firm must be the one being asked to
+ * pay: a check exists to protect the payer, and the firm that raised the
+ * invoice waiving a check on its own invoice is marking its own work.
+ * And the desk must be the one that pays — an exception is a decision to
+ * pay something that did not match, so it belongs to whoever would pay
+ * it, judged by the seat exactly as Pay is.
+ *
+ * The route found the invoice by id alone and asked neither, so any
+ * signed-in caller could waive a check on any company's invoice
+ * (found 2026-10-06, after the Pay review).
+ */
+export function waiveDesk(input: {
+  permissions: readonly string[] | null | undefined
+  direction: Side | 'NEITHER'
+  companyKind: CompanyKind | null | undefined
+  companyName?: string | null
+  seat?: Pick<SeatLike, 'clientName' | 'roleName'> | null
+}): WaiveDeskVerdict {
+  if (input.permissions == null) return { mayWaive: false, says: null }
+  if (input.direction === 'RECEIVABLE') {
+    return {
+      mayWaive: false,
+      says:
+        'A check is waived by the firm being asked to pay, never by the firm that raised it. ' +
+        'Correct the invoice, or ask the firm you bill to record the exception.',
+    }
+  }
+  if (input.direction === 'NEITHER') {
+    return { mayWaive: false, says: 'Only the firm being asked to pay this invoice may waive a check on it.' }
+  }
+  if (hasPermission(input.permissions, 'payments.record')) return { mayWaive: true, says: null }
+
+  if (input.seat) {
+    const client = input.seat.clientName
+    const desks = either(desksThatPay('CLIENT'))
+    const desk = input.seat.roleName ? `${input.seat.roleName} desk` : 'desk it granted you'
+    return {
+      mayWaive: false,
+      says:
+        `${client} seated you at its ${desk}, and that desk does not waive a check. ` +
+        `${desks ? `${client}'s ${desks} does` : `${client} does it itself`}, or ${client} can seat ` +
+        `you at a desk that pays.`,
+    }
+  }
+  const desks = either(desksThatPay(input.companyKind))
+  const at = input.companyName ? ` at ${input.companyName}` : ''
+  return {
+    mayWaive: false,
+    says:
+      `Recording an exception is a decision to pay something that did not match, so it belongs ` +
+      `to the ${desks || 'finance'} desk${at}, which pays invoice receipts.`,
+  }
+}
