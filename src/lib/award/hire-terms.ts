@@ -170,6 +170,85 @@ export function engagementOf(line: {
   return null
 }
 
+// ── Terms carried on a bench listing ──────────────────────────────────
+//
+// A firm that agreed a person's terms when it listed them should not have
+// to ask a second time at the award. So a `BenchListing` may carry them:
+// an engagement type and a pay rate the firm stated, who stated them and
+// when, and — its own column — when the person agreed. The award reads
+// them here, through the same `checkStatedTerms` the terms page uses, so
+// a rate of nought or "employed by another firm" on a listing is refused
+// in the same words and never written as a pay line.
+//
+// Agreed means the person's yes came at or after the statement. A yes
+// that predates the terms is a yes to something else: the firm restated
+// after she agreed, and she has not seen what it says now.
+
+/** The terms columns of one listing, as the database holds them. */
+export interface ListingTermsFacts {
+  engagementType: string | null
+  payRateCents: number | null
+  statedAt: Date | null
+  statedById: string | null
+  agreedAt: Date | null
+  personName: string
+  firmName: string
+  ownCompany: { id: string; name: string } | null
+}
+
+export type ListingTerms =
+  /** Nothing was stated on the listing. The terms page is where they are agreed. */
+  | { state: 'NONE' }
+  /** Something is on the listing that cannot be written as a pay line. The firm's move. */
+  | { state: 'FIRM'; says: string }
+  /** Stated, and the person has not agreed what is stated now. Her move. */
+  | { state: 'PERSON'; says: string }
+  /** Stated, and agreed by the person. The award writes the pay line from these. */
+  | {
+      state: 'AGREED'
+      terms: Extract<StatedVerdict, { ok: true }>
+      statedAt: Date
+      statedById: string | null
+      agreedAt: Date
+      says: string
+    }
+
+export function listingTerms(f: ListingTermsFacts): ListingTerms {
+  const anything = f.engagementType != null || f.payRateCents != null || f.statedAt != null
+  if (!anything) return { state: 'NONE' }
+
+  const checked = checkStatedTerms({
+    engagementType: f.engagementType,
+    payRateCents: f.payRateCents,
+    personName: f.personName,
+    firmName: f.firmName,
+    ownCompany: f.ownCompany,
+  })
+  if (!checked.ok) return { state: 'FIRM', says: `The terms on ${f.firmName}’s bench listing cannot be used. ${checked.says}` }
+  if (!f.statedAt) {
+    return {
+      state: 'FIRM',
+      says: `${f.firmName}’s bench listing carries terms with no record of when they were stated. State them again on the terms page.`,
+    }
+  }
+  if (!f.agreedAt || f.agreedAt.getTime() < f.statedAt.getTime()) {
+    return {
+      state: 'PERSON',
+      says: f.agreedAt
+        ? `${f.firmName} changed the terms on its bench listing after ${f.personName} agreed them. ${f.personName} has not agreed the new terms yet.`
+        : `${f.personName} has not agreed the terms ${f.firmName} stated on its bench listing yet.`,
+    }
+  }
+  return {
+    state: 'AGREED',
+    terms: checked,
+    statedAt: f.statedAt,
+    statedById: f.statedById,
+    agreedAt: f.agreedAt,
+    says: `${checked.says} ${f.personName} agreed these terms on ${f.firmName}’s bench listing.`,
+  }
+}
+
 // ── Whether hop 0 is on record ────────────────────────────────────────
 
 /** Hop 0 as the database has it, for one placement. */
@@ -187,6 +266,12 @@ export interface HopZeroFacts {
   paper: { firmSignedAt: Date | null; personSignedAt: Date | null } | null
   /** The firm holds a live EMPLOYEE context for the person. */
   employedByFirm: boolean
+  /**
+   * Where no line exists, what the firm's bench listing of the person
+   * says about terms. Read only to say whose move it is: a listing never
+   * stands in for the pay line itself, because payroll runs from a line.
+   */
+  listing?: ListingTerms | null
 }
 
 export type Pending = 'BELOW' | 'NO_LINE' | 'NO_RATE' | 'FIRM' | 'PERSON'
@@ -219,11 +304,20 @@ export function hopZero(f: HopZeroFacts): HopZero {
     }
   }
   if (!f.line) {
+    const l = f.listing
+    if (l?.state === 'PERSON') {
+      return { onRecord: false, pending: 'PERSON', waitingOn: 'PERSON', says: l.says }
+    }
     return {
       onRecord: false,
       pending: 'NO_LINE',
       waitingOn: 'FIRM',
-      says: `${f.firmName} has not said how it engages ${f.personName} or what it pays them.`,
+      says:
+        l?.state === 'FIRM'
+          ? l.says
+          : l?.state === 'AGREED'
+            ? `${f.personName} agreed ${f.firmName}’s terms on its bench listing after the award, so no pay line was written. ${f.firmName} states them on the terms page to write it.`
+            : `${f.firmName} has not said how it engages ${f.personName} or what it pays them.`,
     }
   }
   if (!(f.line.payRateCents != null && f.line.payRateCents > 0)) {
@@ -337,6 +431,23 @@ export function startOf(f: StartFacts): StartVerdict {
 export function noDatesBefore(now: Date): Date {
   const today = new Date(`${calendarDay(now)}T00:00:00.000Z`)
   return new Date(today.getTime() - 24 * 60 * 60 * 1000)
+}
+
+/**
+ * The due-date floor for every date a placement writes: the award's own
+ * day, at midnight UTC. Passed to the cycle writer as `noneDueBefore`.
+ *
+ * Bounding by the period (`noDatesBefore` above, as `onlyPeriodsAfter`)
+ * dropped the one reminder an under-way award most needs: the week that
+ * ended the day before the award and falls due after it. So the floor is
+ * on the due date instead — nothing due before the award day is written,
+ * because nobody can act on it, and anything due on the day or after is
+ * kept, whichever period it covers. The terms page writes its pay dates
+ * from the same day, so a pay date the award would have written is not
+ * lost because the terms were agreed a week later.
+ */
+export function noneDueBeforeAward(awardedAt: Date): Date {
+  return new Date(`${calendarDay(awardedAt)}T00:00:00.000Z`)
 }
 
 function plainDay(d: Date): string {

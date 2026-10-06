@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-import { checkStatedTerms, hopZero, startOf, perHour, payRateIsNotTheBuyers, noDatesBefore } from '@/lib/award/hire-terms'
+import { checkStatedTerms, hopZero, startOf, perHour, payRateIsNotTheBuyers, noDatesBefore, listingTerms, noneDueBeforeAward } from '@/lib/award/hire-terms'
 import { placementStatus, PLACEMENT_WORDS } from '@/lib/award/placement-status'
 import { tellSelected, awardHandoff } from '@/lib/papering'
-import { tellPlaced } from '@/lib/award'
+import { tellPlaced, buySide } from '@/lib/award'
+import { generateCycles } from '@/lib/cycle-generator'
 import { submissionKindWord } from '@/app/dashboard/submissions/words'
 
 /**
@@ -229,5 +230,107 @@ describe('the award route', () => {
 
   it('keeps whether anybody was interviewed on the award’s own record, without refusing either way', () => {
     expect(route).toMatch(/placedWithoutInterview: roundsHeld === 0/)
+  })
+})
+
+describe('terms carried on a bench listing', () => {
+  const STATED = new Date('2026-10-01T10:00:00Z')
+  const AGREED = new Date('2026-10-02T09:00:00Z')
+  const base = {
+    engagementType: 'W2', payRateCents: 9_500, statedAt: STATED, statedById: 'desk-1', agreedAt: AGREED,
+    personName: 'Marisol Quintero', firmName: 'Brightmoor Staffing', ownCompany: null,
+  }
+
+  it('a listing whose terms the person agreed makes the award ready at once, written from the listing', () => {
+    const l = listingTerms(base)
+    expect(l.state).toBe('AGREED')
+    if (l.state !== 'AGREED') return
+    expect(l.terms).toMatchObject({ contractType: 'W2', vendorCompanyId: null, payRateCents: 9_500 })
+    expect(l.says).toBe('Brightmoor Staffing employs Marisol Quintero at $95/hr. Marisol Quintero agreed these terms on Brightmoor Staffing’s bench listing.')
+
+    const buy = buySide({
+      awardedCompanyId: 'brightmoor', suppliedByCompanyId: null, suppliedRateCents: null,
+      employedByAwardedFirm: false, currentPayCents: null,
+      agreedOnListing: { contractType: l.terms.contractType, vendorCompanyId: null, payRateCents: 9_500, says: l.says },
+    })
+    expect(buy).toMatchObject({ write: true, contractType: 'W2', payRateCents: 9_500, hopZero: true, fromListing: true })
+  })
+
+  it('terms a firm stated after the person said yes are not agreed until she agrees them', () => {
+    const l = listingTerms({ ...base, statedAt: new Date('2026-10-03T00:00:00Z') })
+    expect(l).toEqual({
+      state: 'PERSON',
+      says: 'Brightmoor Staffing changed the terms on its bench listing after Marisol Quintero agreed them. Marisol Quintero has not agreed the new terms yet.',
+    })
+    const v = hopZero({ personName: 'Marisol Quintero', firmName: 'Brightmoor Staffing', line: null, paper: null, employedByFirm: false, listing: l })
+    expect(v).toMatchObject({ onRecord: false, pending: 'PERSON', waitingOn: 'PERSON' })
+  })
+
+  it('terms stated on a listing and never agreed are the person’s move, and the award writes no pay line', () => {
+    const l = listingTerms({ ...base, agreedAt: null })
+    expect(l).toEqual({ state: 'PERSON', says: 'Marisol Quintero has not agreed the terms Brightmoor Staffing stated on its bench listing yet.' })
+    const buy = buySide({ awardedCompanyId: 'brightmoor', suppliedByCompanyId: null, suppliedRateCents: null, agreedOnListing: null })
+    expect(buy.write).toBe(false)
+  })
+
+  it('a listing with no terms on it changes nothing: the firm still states them after the award', () => {
+    expect(listingTerms({ ...base, engagementType: null, payRateCents: null, statedAt: null, agreedAt: null })).toEqual({ state: 'NONE' })
+    const v = hopZero({ personName: 'Marisol Quintero', firmName: 'Brightmoor Staffing', line: null, paper: null, employedByFirm: false, listing: { state: 'NONE' } })
+    expect(v.says).toBe('Brightmoor Staffing has not said how it engages Marisol Quintero or what it pays them.')
+  })
+
+  it('a rate of nought on a listing is refused in the terms page’s own words, never written as a pay line', () => {
+    const l = listingTerms({ ...base, payRateCents: 0 })
+    expect(l.state).toBe('FIRM')
+    if (l.state === 'FIRM') expect(l.says).toMatch(/An empty rate is a missing rate, not a free placement\./)
+  })
+
+  it('terms on a listing with no record of when they were stated are the firm’s to state again', () => {
+    const l = listingTerms({ ...base, statedAt: null })
+    expect(l.state).toBe('FIRM')
+  })
+
+  it('terms agreed on a listing after the award still need the pay line written; a listing never stands in for it', () => {
+    const l = listingTerms(base)
+    const v = hopZero({ personName: 'Marisol Quintero', firmName: 'Brightmoor Staffing', line: null, paper: null, employedByFirm: false, listing: l })
+    expect(v).toMatchObject({ onRecord: false, pending: 'NO_LINE', waitingOn: 'FIRM' })
+  })
+
+  it('through her own company, the listing’s terms pay that company and raise no purchase order to her', () => {
+    const l = listingTerms({ ...base, engagementType: 'OWN_COMPANY', ownCompany: { id: 'mq-llc', name: 'Quintero Controls LLC' } })
+    expect(l.state).toBe('AGREED')
+    if (l.state === 'AGREED') expect(l.terms).toMatchObject({ contractType: 'C2C', vendorCompanyId: 'mq-llc' })
+    const route = src('src/app/api/submissions/[id]/award/route.ts')
+    expect(route).toMatch(/const buyCeiling = buy\.write && buy\.vendorCompanyId && !buy\.hopZero/)
+  })
+})
+
+describe('the reminders an award for work already under way writes', () => {
+  // Work began Friday 4 September; the award is Sunday 4 October at 3pm.
+  // The week ending Friday 2 October is approved Monday 5 October.
+  const day = (s: string) => new Date(`${s}T00:00:00.000Z`)
+  const APPROVE = [{ kind: 'TIMESHEET_APPROVE' as const, frequency: 'WEEKLY' as const, dayOfWeek: 5, offsetDays: 3 }]
+  const awarded = new Date('2026-10-04T15:00:00Z')
+  const dues = () =>
+    generateCycles(day('2026-09-04'), day('2026-10-30'), APPROVE as any, [], new Map(), { noneDueBefore: noneDueBeforeAward(awarded) })
+      .map((c) => c.dueOn.toISOString().slice(0, 10))
+
+  it('the floor is the award’s own day at midnight UTC, not the day before', () => {
+    expect(noneDueBeforeAward(awarded).toISOString()).toBe('2026-10-04T00:00:00.000Z')
+  })
+
+  it('the week that ended just before an under-way award still gets its approval reminder, due the day after', () => {
+    expect(dues()[0]).toBe('2026-10-05')
+  })
+
+  it('no reminder is written that falls due before the award day', () => {
+    expect(dues().every((d) => d >= '2026-10-04')).toBe(true)
+  })
+
+  it('the award and the terms page both bound their dates by the due day, from the award', () => {
+    expect(src('src/app/api/submissions/[id]/award/route.ts')).toMatch(/noneDueBefore: noneDueBeforeAward\(awardedAt\)/)
+    const terms = src('src/app/api/submissions/[id]/terms/route.ts')
+    expect(terms).toMatch(/noneDueBefore: noneDueBeforeAward\(sell\.createdAt\)/)
+    expect(terms).not.toMatch(/onlyPeriodsAfter/)
   })
 })

@@ -8,7 +8,7 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { localKey } from '@/lib/cycle-generator'
 import { loadContractHolidays } from '@/lib/holidays'
 import {
-  checkStatedTerms, engagementOf, perHour, noDatesBefore, ENGAGEMENT_WORDS, TERMS_PAPER,
+  checkStatedTerms, engagementOf, perHour, noneDueBeforeAward, ENGAGEMENT_WORDS, TERMS_PAPER,
 } from '@/lib/award/hire-terms'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { placementStatus } from '@/lib/award/placement-status'
@@ -54,7 +54,7 @@ async function load(id: string) {
   const sell = await prisma.sellContract.findFirst({
     where: { companyId: sub.fromCompanyId, personId: sub.personId, requirementId: sub.requirementId },
     select: {
-      id: true, state: true, startDate: true, endDate: true, billCurrency: true, clientCompanyId: true,
+      id: true, state: true, startDate: true, endDate: true, billCurrency: true, clientCompanyId: true, createdAt: true,
       buyLinks: {
         select: {
           buyContract: {
@@ -325,8 +325,10 @@ export async function POST(request: NextRequest, { params }: Ctx) {
         packId: l.sub.fromCompany.templatePack ?? 'US_IT',
         holidays,
         existing: already,
-        // Terms stated after the start writes no pay date already gone.
-        onlyPeriodsAfter: noDatesBefore(new Date()),
+        // The same floor the award used, from the award's own day: a pay
+        // date the award would have written is not lost because the terms
+        // were agreed later.
+        noneDueBefore: noneDueBeforeAward(sell.createdAt),
       })
     }
 

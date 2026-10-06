@@ -13,9 +13,9 @@
  */
 
 import { prisma } from '@/lib/db'
-import { hopZero, TERMS_PAPER, type HopZero } from './hire-terms'
+import { hopZero, listingTerms, TERMS_PAPER, type HopZero, type ListingTerms } from './hire-terms'
 
-type Db = Pick<typeof prisma, 'sellContract' | 'context' | 'submission'>
+type Db = Pick<typeof prisma, 'sellContract' | 'context' | 'submission' | 'benchListing'>
 
 export interface TermsAnswer extends HopZero {
   /** The line that pays the person, where the walk reached one. */
@@ -32,7 +32,7 @@ const LINE = {
   companyId: true,
   personId: true,
   company: { select: { name: true } },
-  person: { select: { name: true, consultant: { select: { ownCompanyId: true } } } },
+  person: { select: { name: true, consultant: { select: { ownCompanyId: true, ownCompany: { select: { id: true, name: true } } } } } },
   buyLinks: {
     select: {
       buyContract: {
@@ -73,6 +73,7 @@ export async function termsOnRecordFor(sellIds: string[], db: Db = prisma): Prom
     payRateCents: number | null
     paper: { firmSignedAt: Date | null; personSignedAt: Date | null } | null
     stoppedAbove: string | null
+    ownCompany: { id: string; name: string } | null
     /** The firm below, where the walk stopped at a buy line to it. */
     belowCompanyId?: string | null
   }
@@ -94,6 +95,7 @@ export async function termsOnRecordFor(sellIds: string[], db: Db = prisma): Prom
         firmCompanyId: line.companyId,
         firmName: line.company.name,
         sellId: line.id,
+        ownCompany: line.person.consultant?.ownCompany ?? null,
       }
 
       if (!buy) {
@@ -170,8 +172,45 @@ export async function termsOnRecordFor(sellIds: string[], db: Db = prisma): Prom
     for (const c of ctx) employed.add(`${c.personId}:${c.companyId}`)
   }
 
+  // Where hop 0 has no line at all, what the firm's bench listing says.
+  // Terms stated there and not agreed are the person's move, not the
+  // firm's; terms agreed there after the award still need the line
+  // written. A listing never stands in for the line: payroll runs from a
+  // line, so "on record" still needs one.
+  const lineless = reached.filter((r) => !r.stoppedAbove && !r.buyId)
+  const listed = new Map<string, ListingTerms>()
+  if (lineless.length > 0) {
+    const rows = await db.benchListing.findMany({
+      where: {
+        state: 'GRANTED',
+        revokedAt: null,
+        OR: lineless.map((r) => ({ companyId: r.firmCompanyId, consultant: { personId: r.personId } })),
+      },
+      select: {
+        companyId: true, consultant: { select: { personId: true } },
+        termsEngagementType: true, termsPayRateCents: true,
+        termsStatedAt: true, termsStatedById: true, termsAgreedAt: true,
+      },
+    })
+    for (const r of lineless) {
+      const row = rows.find((x) => x.companyId === r.firmCompanyId && x.consultant.personId === r.personId)
+      if (!row) continue
+      listed.set(`${r.personId}:${r.firmCompanyId}`, listingTerms({
+        engagementType: row.termsEngagementType,
+        payRateCents: row.termsPayRateCents,
+        statedAt: row.termsStatedAt,
+        statedById: row.termsStatedById,
+        agreedAt: row.termsAgreedAt,
+        personName: r.personName,
+        firmName: r.firmName,
+        ownCompany: r.ownCompany,
+      }))
+    }
+  }
+
   for (const r of reached) {
     const verdict = hopZero({
+      listing: listed.get(`${r.personId}:${r.firmCompanyId}`) ?? null,
       personName: r.personName,
       firmName: r.firmName,
       line: r.buyId && !r.stoppedAbove ? { payRateCents: r.payRateCents } : null,

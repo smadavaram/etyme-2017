@@ -23,7 +23,7 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { awardHandoff } from '@/lib/papering'
 import { loadContractHolidays } from '@/lib/holidays'
 import { actingDesk } from '@/lib/program-seat'
-import { startOf, payRateIsNotTheBuyers, noDatesBefore } from '@/lib/award/hire-terms'
+import { startOf, payRateIsNotTheBuyers, noneDueBeforeAward, listingTerms, TERMS_PAPER } from '@/lib/award/hire-terms'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { placementStatus } from '@/lib/award/placement-status'
 import { tellSelected } from '@/lib/papering'
@@ -496,7 +496,8 @@ export async function POST(
   //
   // Hop 0 — the firm pays the person — is written only where the
   // person's own terms are already on record: an employee of this firm,
-  // at the pay they are on today. A bench listing is consent to be
+  // at the pay they are on today, or terms the firm stated on its bench
+  // listing and the person agreed there. A bench listing alone is consent to be
   // marketed, never consent to be employed, so for anybody else the
   // award writes no pay line and the placement reads "Awarded, terms
   // pending" until the firm states the terms and the person agrees them
@@ -525,12 +526,52 @@ export async function POST(
       })
     : null
 
+  // Terms the firm stated on its bench listing of the person, where the
+  // person agreed them there. Read only at hop 0 and only on the awarded
+  // firm's own live listing: another firm's listing is another firm's
+  // terms. Stated and not agreed is her move, and the award writes nothing.
+  const listing = isHopZero
+    ? await prisma.benchListing.findFirst({
+        where: {
+          consultant: { personId: submission.personId },
+          companyId: submission.fromCompanyId,
+          state: 'GRANTED',
+          revokedAt: null,
+        },
+        select: {
+          termsEngagementType: true, termsPayRateCents: true,
+          termsStatedAt: true, termsStatedById: true, termsAgreedAt: true,
+        },
+      })
+    : null
+  const onListing = listing
+    ? listingTerms({
+        engagementType: listing.termsEngagementType,
+        payRateCents: listing.termsPayRateCents,
+        statedAt: listing.termsStatedAt,
+        statedById: listing.termsStatedById,
+        agreedAt: listing.termsAgreedAt,
+        personName: submission.person.name,
+        firmName: submission.fromCompany.name,
+        ownCompany: submission.person.consultant?.ownCompany ?? null,
+      })
+    : null
+  const agreedOnListing = onListing?.state === 'AGREED' ? onListing : null
+
   const buy = buySide({
     awardedCompanyId: submission.fromCompanyId,
     suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
     suppliedRateCents: suppliedBy?.rate ?? null,
     employedByAwardedFirm: employedHere,
     currentPayCents: currentPay?.payRate ?? null,
+    agreedOnListing: agreedOnListing
+      ? {
+          contractType: agreedOnListing.terms.contractType,
+          vendorCompanyId: agreedOnListing.terms.vendorCompanyId,
+          payRateCents: agreedOnListing.terms.payRateCents,
+          says: agreedOnListing.says,
+        }
+      : null,
   })
 
   // What the client's order may authorize in total. The requisition's
@@ -554,7 +595,7 @@ export async function POST(
   // The agreement under our own order to a sub-vendor, where there is
   // one. Read, never created: papering our relationship with a supplier
   // is the supplier desk's act, not a side effect of a client's award.
-  const buyAgreement = buy.vendorCompanyId
+  const buyAgreement = buy.vendorCompanyId && !buy.hopZero
     ? await prisma.masterAgreement.findFirst({
         where: { vendorId: buy.vendorCompanyId, clientId: submission.fromCompanyId },
         select: { id: true, paymentTerms: true, currency: true },
@@ -564,7 +605,9 @@ export async function POST(
   // What we pay down the chain, valued the same way. The client's
   // ceiling is what the client authorized; ours to a sub-vendor is our
   // own money and is never the client's number.
-  const buyCeiling = buy.write && buy.vendorCompanyId
+  // Not at hop 0: a person paid through their own company is paid on the
+  // terms they agreed, not on a purchase order raised to them.
+  const buyCeiling = buy.write && buy.vendorCompanyId && !buy.hopZero
     ? orderCeiling({
         budgetCents: null,
         billMaxCents: buy.payRateCents,
@@ -753,6 +796,34 @@ export async function POST(
           effectiveTo: end,
         },
       })
+
+      // Terms agreed on the bench listing: the same paper the terms page
+      // writes, signed on the days the two of them actually said it — the
+      // firm when it stated the terms, the person when she agreed. The
+      // paper holds who agreed and when; the line holds what.
+      if (buy.fromListing && agreedOnListing) {
+        const template =
+          (await tx.docTemplate.findFirst({ where: { companyId: submission.fromCompanyId, name: TERMS_PAPER }, select: { id: true } })) ??
+          (await tx.docTemplate.create({
+            data: { companyId: submission.fromCompanyId, name: TERMS_PAPER, audience: 'CANDIDATE', needsSignature: true },
+            select: { id: true },
+          }))
+        await tx.docInstance.create({
+          data: {
+            templateId: template.id,
+            buyContractId: buyContract.id,
+            subjectType: 'BUY_CONTRACT',
+            subjectId: buyContract.id,
+            status: 'SIGNED',
+            sentAt: agreedOnListing.statedAt,
+            countersignedAt: agreedOnListing.statedAt,
+            countersignedById: agreedOnListing.statedById,
+            signedAt: agreedOnListing.agreedAt,
+            signedById: submission.personId,
+            note: agreedOnListing.says,
+          },
+        })
+      }
     }
 
     // Its due dates. The contract-creating route wrote them and this
@@ -770,8 +841,9 @@ export async function POST(
       packId: submission.fromCompany.templatePack ?? 'US_IT',
       holidays,
       // A start marked as already under way lies behind the award; its
-      // dates do not. No reminder is written for a day already gone.
-      onlyPeriodsAfter: noDatesBefore(awardedAt),
+      // dates do not. Nothing falls due before the award day, and the
+      // week that ended just before it still gets its reminder.
+      noneDueBefore: noneDueBeforeAward(awardedAt),
     })
 
     // The other direction. This award has just created a sell contract

@@ -41,6 +41,10 @@ async function trailPay(caller: CallerContext, reader: ChainReader, legs: Leg[],
   )
 }
 import { postAssertion, reversePostingsFor } from '@/lib/order-postings'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { ladderAbove } from '../../ladder'
+import { topDown } from '../../chain-turn'
+import { signatureRateCents, type RungRate } from '../../signature-rate'
 
 /**
  * GET  /api/timesheets/:id/assert — where every party stands
@@ -64,11 +68,14 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
  * what made 2017 duplicate a timesheet down the chain and then have to
  * reconcile the copies.
  */
-async function expectedLegs(sellContractId: string) {
+async function expectedLegs(sellContractId: string, weekStart: Date) {
   const sell = await prisma.sellContract.findUnique({
     where: { id: sellContractId },
     select: {
+      id: true,
       companyId: true,
+      clientCompanyId: true,
+      endClientCompanyId: true,
       billRate: true,
       company: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
@@ -80,40 +87,76 @@ async function expectedLegs(sellContractId: string) {
 
   const endClient = sell.endClientCompany ?? sell.clientCompany
 
-  // KNOWN OPEN, and named here rather than left for somebody to find.
+  // ── What each signature records ────────────────────────────────────
   //
-  // Two rate-party defects live in this function and neither can be
-  // fixed from inside it:
-  //
-  //   1. On a chained placement the end client is not a party to this
-  //      contract — it pays the rung above — so `sell.billRate` here is
-  //      its supplier's supplier's price. Nike reads $118 where it pays
-  //      $145, and asserts at $118.
-  //   2. GET returns every leg with its rate, so the end client also
-  //      reads the pass-through leg's bill rate and the employer leg's
-  //      PAY rate. A client reading what its supplier pays the person
-  //      is the sharpest version of the same rule.
-  //
-  // Walking (1) up the chain with lib/chain-top was tried and reverted:
-  // `postAssertion` (lib/order-postings, etyme-money) computes REVENUE
-  // as hours x rateCents and posts it against the project order of the
-  // contract the sheet is filed on — the bottom rung. Raising the
-  // client leg's rate without moving the posting to the asserting leg's
-  // own order books the prime's margin as the sub's revenue, which is a
-  // worse number than the one being fixed.
-  //
-  // So `WorkAssertion.rateCents` has two readers that disagree in a
-  // chain: work-ledger says it is the asserting company's own leg
-  // ("their money, their number") and order-postings reads it as the
-  // filed contract's rate. That is one decision, and it is etyme-money's
-  // to make before either of these moves. (2) is etyme-demand's and does
-  // not wait on it.
+  // `WorkAssertion.rateCents` is the rate on the rung the signing firm
+  // pays on, as that firm pays it, in force on the week's first day — a
+  // record of what the signer saw, read by no posting (decided
+  // 2026-10-06, lib/money/hop-ledger; the rule is `signatureRateCents`
+  // beside this route). The client's is the top contract's bill rate,
+  // which on a chain is not the contract the week is filed on.
+  const above = await ladderAbove(sell.id, {
+    sellContractId: sell.id,
+    companyId: sell.companyId,
+    clientCompanyId: sell.clientCompanyId,
+    endClientCompanyId: sell.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladder = topDown(above.map((r) => r.rung))
+  const billOf = new Map(above.map((r) => [r.rung.sellContractId, r.contract?.billRate ?? sell.billRate]))
+  const sellChanges = await prisma.rateHistory.findMany({
+    where: { contractType: 'SELL', contractId: { in: ladder.map((r) => r.sellContractId) }, approvalState: 'APPROVED' },
+    select: { id: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const rungs: RungRate[] = ladder.map((r) => ({
+    sellContractId: r.sellContractId,
+    companyId: r.companyId,
+    clientCompanyId: r.clientCompanyId,
+    billRateCents: rateInForce(
+      billOf.get(r.sellContractId) ?? sell.billRate,
+      ratePeriods(sellChanges.filter((c) => c.contractId === r.sellContractId)),
+      weekStart
+    ).rateCents,
+  }))
+
+  /**
+   * A firm's own buy line for this person, rate in force on the week's
+   * first day. For a firm in the middle, the line to the rung below it;
+   * for the employer, the line linked to the contract the week is filed
+   * on — found by the person alone, a person paid by two firms had the
+   * other firm's pay put on this week.
+   */
+  async function ownBuyLine(companyId: string, below: string | null): Promise<number | null> {
+    const person = sell!.person.id
+    const pick = { id: true, candidates: { where: { personId: person }, select: { payRate: true }, take: 1 } } as const
+    const buy = below
+      ? await prisma.buyContract.findFirst({
+          where: { companyId, supplierSellContractId: below, candidates: { some: { personId: person } } },
+          select: pick,
+        })
+      : (await prisma.buyContract.findFirst({
+          where: { companyId, sellLinks: { some: { sellContractId: sell!.id } }, candidates: { some: { personId: person } } },
+          select: pick,
+        })) ??
+        (await prisma.buyContract.findFirst({
+          where: { companyId, candidates: { some: { personId: person } } },
+          select: pick,
+        }))
+    const pay = buy?.candidates[0]?.payRate
+    if (!buy || pay == null) return null
+    const changes = await prisma.rateHistory.findMany({
+      where: { contractType: 'BUY', contractId: buy.id, approvalState: 'APPROVED' },
+      select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+    })
+    return rateInForce(pay, ratePeriods(changes), weekStart).rateCents
+  }
+
   const legs: { companyId: string; companyName: string; role: Role; rateCents: number }[] = [
     {
       companyId: endClient.id,
       companyName: endClient.name,
       role: 'CLIENT_APPROVAL',
-      rateCents: sell.billRate,
+      rateCents: signatureRateCents({ role: 'CLIENT_APPROVAL', companyId: endClient.id, ladder: rungs, ownBuyLineCents: null }),
     },
   ]
 
@@ -122,40 +165,30 @@ async function expectedLegs(sellContractId: string) {
   // leg, and inventing one would leave every direct placement waiting on
   // a party that does not exist.
   if (sell.endClientCompany && sell.endClientCompany.id !== sell.clientCompany.id) {
+    // The middle firm pays on the rung it buys — here, the contract the
+    // week is filed on — so its own buy line is the one to that rung.
+    const middle = sell.clientCompany.id
     legs.push({
-      companyId: sell.clientCompany.id,
+      companyId: middle,
       companyName: sell.clientCompany.name,
       role: 'PASS_THROUGH',
-      rateCents: sell.billRate,
+      rateCents: signatureRateCents({
+        role: 'PASS_THROUGH', companyId: middle, ladder: rungs,
+        ownBuyLineCents: await ownBuyLine(middle, sell.id),
+      }),
     })
   }
 
-  // Who actually pays the person. The buy contract carries their rate,
-  // which is not the client's rate and never was.
-  //
-  // The buy line at the firm that sold these hours — the one that employs
-  // the person on this contract. Found by the person alone, it took their
-  // first buy line anywhere: a person paid by two firms had a week filed
-  // at one named the other as its employer, that firm's pay rate put on
-  // the leg, and the real employer shut out of its own chain.
-  const buy = await prisma.buyContract.findFirst({
-    where: { companyId: sell.companyId, candidates: { some: { personId: sell.person.id } } },
-    select: {
-      companyId: true,
-      company: { select: { id: true, name: true } },
-      candidates: { where: { personId: sell.person.id }, select: { payRate: true }, take: 1 },
-    },
-  })
-
-  // Zero, never the bill rate. Falling back to what the client pays says
-  // "we pay them exactly what we bill", which silently zeroes the margin
-  // and is never true of any placement anywhere. Zero is visibly wrong;
-  // the bill rate is invisibly wrong, which is worse.
+  // Who actually pays the person: the firm that sold these hours, on its
+  // pay line. Its rate is not the client's rate and never was.
   legs.push({
-    companyId: buy?.company.id ?? sell.company.id,
-    companyName: buy?.company.name ?? sell.company.name,
+    companyId: sell.company.id,
+    companyName: sell.company.name,
     role: 'EMPLOYER_ACCEPTANCE',
-    rateCents: buy?.candidates[0]?.payRate ?? 0,
+    rateCents: signatureRateCents({
+      role: 'EMPLOYER_ACCEPTANCE', companyId: sell.company.id, ladder: rungs,
+      ownBuyLineCents: await ownBuyLine(sell.company.id, null),
+    }),
   })
 
   return { legs, sell }
@@ -224,7 +257,7 @@ export async function GET(
     )
   }
 
-  const walked = await expectedLegs(t.sellContractId)
+  const walked = await expectedLegs(t.sellContractId, t.periodStart)
   if (!walked) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'That timesheet has no contract behind it.' } },
@@ -304,7 +337,7 @@ export async function POST(
     )
   }
 
-  const walked = await expectedLegs(t.sellContractId)
+  const walked = await expectedLegs(t.sellContractId, t.periodStart)
   if (!walked) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'That timesheet has no contract behind it.' } },

@@ -386,25 +386,4 @@ describe('a client’s approval is recorded at the rate the client agreed', () =
     expect(approve).toContain('rateCents: payRateCents')
     expect(approve).toContain('rateInForce(')
   })
-
-  it('names the two rates the ledger’s own read still quotes to a party who is not one, rather than leaving them to be found', () => {
-    // The same shape twice in `expectedLegs`, and neither is fixable
-    // from inside it. The client leg is priced at the contract the hours
-    // are filed against, and the GET hands every leg's rate to every
-    // reader — so on a chained week the end client sees both its
-    // supplier's supplier's bill rate and that firm's PAY rate for the
-    // person.
-    //
-    // Walking the client leg up was tried and reverted: `postAssertion`
-    // reads the same column as the filed contract's rate and posts
-    // REVENUE from it against the filed contract's order, so raising it
-    // books the prime's margin as the sub's revenue. One column, two
-    // readers, one decision — etyme-money's, because it is the one that
-    // moves a figure in the journal.
-    //
-    // When it is fixed, delete the note in the route and delete this.
-    const src = readFileSync(join(process.cwd(), 'src/app/api/timesheets/[id]/assert/route.ts'), 'utf8')
-    expect(src, 'the open rate-party gap in expectedLegs is no longer named where the line is').toContain('KNOWN OPEN')
-    expect(src).toContain('their money, their number')
-  })
 })

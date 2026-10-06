@@ -378,6 +378,17 @@ export interface BuySideFacts {
    * its own, where it does. An employee's pay is on record already.
    */
   currentPayCents?: number | null
+  /**
+   * Hop 0 only: terms the firm stated on its bench listing of the person
+   * and the person agreed (`listingTerms` in lib/award/hire-terms, AGREED
+   * only). Already checked; the award writes them as they are.
+   */
+  agreedOnListing?: {
+    contractType: 'W2' | 'IND_1099' | 'C2C'
+    vendorCompanyId: string | null
+    payRateCents: number
+    says: string
+  } | null
 }
 
 /**
@@ -394,19 +405,23 @@ export interface BuySideFacts {
  * and the placement reads "Awarded, terms pending" until the firm states
  * them and the person agrees (`lib/award/hire-terms`).
  *
- * The one hop 0 the award may write is an employee's at the pay they are
+ * Two hop 0 lines the award may write. An employee's at the pay they are
  * on today: employed, so nobody has to be asked, and paid, so nothing has
- * to be guessed.
+ * to be guessed. And terms the firm stated on its bench listing of the
+ * person and the person agreed there: both have already said them, so
+ * asking again at the award would be asking twice.
  */
 export type BuySide =
   | {
       write: true
       /** Null where the firm pays its own employee; the supplier where it buys. */
       vendorCompanyId: string | null
-      contractType: 'C2C' | 'W2'
+      contractType: 'C2C' | 'W2' | 'IND_1099'
       payRateCents: number
       rateKnown: true
       hopZero: boolean
+      /** Written from terms the person agreed on the firm's bench listing. */
+      fromListing?: true
       says: string
     }
   | {
@@ -455,6 +470,21 @@ export function buySide(f: BuySideFacts): BuySide {
       rateKnown: true,
       hopZero,
       says: 'Their own employee, at the pay they are on today.',
+    }
+  }
+  // Terms the person agreed when the firm listed them: on record already,
+  // so nobody is asked twice. Never a default — only what both said.
+  const listed = f.agreedOnListing
+  if (listed && listed.payRateCents > 0) {
+    return {
+      write: true,
+      vendorCompanyId: listed.vendorCompanyId,
+      contractType: listed.contractType,
+      payRateCents: listed.payRateCents,
+      rateKnown: true,
+      hopZero,
+      fromListing: true,
+      says: listed.says,
     }
   }
   return {
