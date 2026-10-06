@@ -298,8 +298,9 @@ export const SUPPLIER_SEATS: Program[] = [
       'Its own consultant is shortlisted at the prime, with a screening call booked. The I-9 ' +
       'it asked its own consultant for six days ago is still not back.',
     about:
-      'Sells only to the prime above it, and never learns which hospital the job is at. Buys ' +
-      'from nobody: it employs its own people.',
+      'Sells only to the prime above it. It knows the hospital where its consultant works. ' +
+      'The hospital does not see its name unless its agreement with the prime asks for it. ' +
+      'Buys from nobody: it employs its own people.',
   },
   // Two suppliers outside IT, 2026-09-29 (lib/seed-sector-suppliers).
   // CLAUDE.md: horizontal, never vertical. Until these, every supplier

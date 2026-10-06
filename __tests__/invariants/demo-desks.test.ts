@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { deskRefusal, deskFrom, deskName, desksOpen } from '@/lib/demo-desks'
+import { deskRefusal, deskFrom, deskAsked, deskName, desksOpen } from '@/lib/demo-desks'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 // Teleworld Solutions as the seeded world has it: an owner, and four
 // delivery staff whose seats carry their discipline as the role name.
@@ -58,5 +60,42 @@ describe('the demo door says which desks a firm actually has', () => {
     expect(deskFrom('owner')).toBeNull()
     expect(deskFrom(7)).toBeNull()
     expect(deskFrom('ap')).toBe('ap')
+  })
+})
+
+describe('the demo door never hands the Owner seat to a desk nobody asked for', () => {
+  const brightmoor = { name: 'Brightmoor Staffing', kind: 'VENDOR' }
+  const seats = ['Owner', 'Recruiter', 'AP & Payroll', 'Account Manager']
+
+  it('a desk word that is not a desk is read as unknown, not as asking for the first seat', () => {
+    expect(deskAsked('owner')).toEqual({ desk: null, unknown: 'owner' })
+    expect(deskAsked('recruter')).toEqual({ desk: null, unknown: 'recruter' })
+    expect(deskAsked(7)).toEqual({ desk: null, unknown: '7' })
+  })
+
+  it('asking with no desk at all is still a request for the first seat', () => {
+    expect(deskAsked(undefined)).toEqual({ desk: null, unknown: null })
+    expect(deskAsked(null)).toEqual({ desk: null, unknown: null })
+    expect(deskAsked('')).toEqual({ desk: null, unknown: null })
+    expect(deskAsked('ap')).toEqual({ desk: 'ap', unknown: null })
+  })
+
+  it('an unknown desk is refused in a sentence that says no seat was taken and names the desks this firm has', () => {
+    const r = deskRefusal({ asWorld: 'world-brightmoor', company: brightmoor, desk: null, heldRoles: seats, unknown: 'owner' })
+    expect(r.message).toContain('There is no "owner" desk in the demo, so no seat was taken.')
+    expect(r.message).toContain('At Brightmoor Staffing you can ask for "ap", "account", "recruiter" or "payroll" by name.')
+    expect(r.desks).toEqual(['ap', 'account', 'recruiter', 'payroll'])
+  })
+
+  it('the refusal of an unknown desk says the Owner seat is opened only by asking with no desk', () => {
+    const r = deskRefusal({ asWorld: 'world-brightmoor', company: brightmoor, desk: null, heldRoles: seats, unknown: 'admin' })
+    expect(r.message).toContain('Ask with no desk to sit as the Owner.')
+  })
+
+  it('the demo route refuses an unknown desk before it reads anybody\'s seat as the caller\'s', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/demo/route.ts'), 'utf8')
+    expect(route).toContain('deskAsked(')
+    expect(route).not.toMatch(/deskFrom\(\(body/)
+    expect(route).toMatch(/const email = unknownDesk \? undefined :/)
   })
 })

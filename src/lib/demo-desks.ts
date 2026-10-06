@@ -53,9 +53,27 @@ export const DESK_ROLES: Record<Desk, string[]> = {
   delivery: ['Delivery Manager'],
 }
 
-/** A desk key from a request body, or null for "the firm's first seat". */
+/** A desk key from a request body, or null where it is not one of ours. */
 export function deskFrom(asked: unknown): Desk | null {
   return typeof asked === 'string' && (DESKS as readonly string[]).includes(asked) ? (asked as Desk) : null
+}
+
+/**
+ * What a request body asked for: a desk, nothing at all, or a word that
+ * is not a desk.
+ *
+ * The last two are not the same request, and treating them as one was
+ * the bug the chain audit found on 2026-10-05: `{"desk":"owner"}` or a
+ * desk one letter wrong fell through to "the firm's first seat", which
+ * is the Owner, so a visitor asking for a narrow desk was handed the
+ * widest one with no word said. Asking with no desk still opens the
+ * first seat — that is a request for it. Asking for a desk that does not
+ * exist is refused, and the refusal names the ones that do.
+ */
+export function deskAsked(asked: unknown): { desk: Desk | null; unknown: string | null } {
+  if (asked == null || asked === '') return { desk: null, unknown: null }
+  const desk = deskFrom(asked)
+  return desk ? { desk, unknown: null } : { desk: null, unknown: String(asked) }
 }
 
 /**
@@ -100,6 +118,8 @@ export function deskRefusal(input: {
   company: { name: string; kind: string } | null
   desk: Desk | null
   heldRoles: string[]
+  /** A desk word the visitor sent that is not a desk anywhere in the demo. */
+  unknown?: string | null
 }): DeskRefusal {
   const { asWorld, company, desk } = input
   if (!company) {
@@ -114,6 +134,17 @@ export function deskRefusal(input: {
     return {
       message: `Nobody is seated at ${company.name} yet. POST /api/seed-world to build it first.`,
       desks: [],
+    }
+  }
+  if (input.unknown) {
+    // Never the first seat in its place: that seat is the Owner, and a
+    // visitor who asked for something narrower must not be handed it.
+    const ways: string[] = []
+    if (open.length > 0) ways.push(`At ${company.name} you can ask for ${orList(open.map((d) => `"${d}"`))} by name.`)
+    ways.push(`Ask with no desk to sit as the ${seated[0]}.`)
+    return {
+      message: `There is no "${input.unknown}" desk in the demo, so no seat was taken. ${ways.join(' ')}`,
+      desks: open,
     }
   }
   // Only reached with a desk: without one the firm's first seat opens,

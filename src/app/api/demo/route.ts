@@ -1,4 +1,4 @@
-import { deskFrom, deskRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
+import { deskAsked, deskRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { randomBytes } from 'node:crypto'
@@ -301,7 +301,10 @@ export async function POST(request: NextRequest) {
     // one seat, and the demo has to be seen from the desk that actually
     // does the thing — the clerk who pays cannot raise a requisition,
     // and a visitor who sits as the owner never finds that out.
-    const desk = deskFrom((body as any)?.desk)
+    //
+    // A word that is not a desk is refused below, never read as "no
+    // desk": that fell through to the first seat granted, the Owner.
+    const { desk, unknown: unknownDesk } = deskAsked((body as any)?.desk)
     // The same two sentences the private path gives below. This lookup
     // used to throw straight out of the handler, so a database that was
     // down answered the front door with an empty 500 — the one error
@@ -352,7 +355,7 @@ export async function POST(request: NextRequest) {
         ? ((await seatsHeldBy(company.id))[0]?.clientCompany.name ?? null)
         : null
 
-    const email = company?.contexts[0]?.person.primaryEmail
+    const email = unknownDesk ? undefined : company?.contexts[0]?.person.primaryEmail
     if (!company || !email) {
       // Which desks this firm DOES have.
       //
@@ -382,19 +385,23 @@ export async function POST(request: NextRequest) {
         company: company ? { name: company.name, kind: company.kind } : null,
         desk,
         heldRoles: held.map((c) => c.role?.name ?? '').filter(Boolean),
+        unknown: unknownDesk,
       })
 
+      // An unknown desk at a seeded firm is the visitor's word, not a
+      // missing seed: same shape, its own code.
+      const unknownAtSeeded = !!unknownDesk && !!company && held.length > 0
       return NextResponse.json(
         {
           error: {
-            code: 'NOT_SEEDED',
+            code: unknownAtSeeded ? 'UNKNOWN_DESK' : 'NOT_SEEDED',
             message,
             // The machine's list, so a caller can retry without parsing
             // the sentence it was handed.
             desks: open,
           },
         },
-        { status: 404 }
+        { status: unknownAtSeeded ? 400 : 404 }
       )
     }
     const res = NextResponse.json({

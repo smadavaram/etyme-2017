@@ -163,7 +163,6 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/people': SCOPED,
   '/dashboard/program/budget': SCOPED,
   '/dashboard/alumni': SCOPED,
-  '/dashboard/program/team': SCOPED,
   '/dashboard/program/org': SCOPED,
   '/dashboard/tenure': SCOPED,
   '/dashboard/identity': SCOPED,
@@ -841,7 +840,12 @@ const CLIENT_NAV: NavSection[] = [
       // Who runs the program: approvers, the lead, and who is
       // answerable for each budget. Three facts that were in three
       // places, none of which showed the result as one picture.
-      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Who runs it' },
+      // Read by whoever raises a job request, sets the program up, or
+      // seats people — the three its own GET handler asks for. It was
+      // listed as asking nothing, and the HR partner opened it to a
+      // refusal (chain audit, 2026-10-05): the test that reads gates
+      // missed one written across two lines.
+      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Who runs it', needs: ['requirements.write', 'settings.manage', 'team.manage'] },
       // Who runs the program when it is not this client's own people. A
       // firm that runs somebody's program places nobody, so nothing ties
       // it to the client the way a placement ties a supplier — the

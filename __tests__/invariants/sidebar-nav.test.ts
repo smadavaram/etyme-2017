@@ -895,10 +895,10 @@ describe('a menu offers only what this seat can actually open', () => {
     if (start < 0) return null
     const after = src.indexOf('export async function', start + 10)
     const body = src.slice(start, after < 0 ? src.length : after)
-    const first = body.match(/if \(!(hasPermission|hasAnyPermission|mayOpen|mayRead)\(/)
+    const first = body.match(/if \(\s*!(hasPermission|hasAnyPermission|mayOpen|mayRead)\(/)
     if (!first) return []
     if (first[1] === 'hasPermission') {
-      const guard = body.slice(first.index).match(/if \(!hasPermission\((?:[^{])*/)?.[0] ?? ''
+      const guard = body.slice(first.index).match(/if \(\s*!hasPermission\((?:[^{])*/)?.[0] ?? ''
       return [...guard.matchAll(/hasPermission\([^,]+,\s*('[^']+'|[A-Za-z_$][\w$]*)/g)]
         .map((m) => literalOf(src, m[1]))
     }
@@ -944,6 +944,22 @@ describe('a menu offers only what this seat can actually open', () => {
       if (!i.needs && !openBecause(i.href)) silent.add(`consultant: ${i.label} (${i.href})`)
     }
     expect([...silent], 'a link that neither names a permission nor says why it needs none').toEqual([])
+  })
+
+  it('a route whose permission check is written across two lines is still read as asking for those permissions', () => {
+    // The Program team route opens its check with "if (" and the first
+    // hasPermission on the next line. The reader looked only for "if (!"
+    // on one line, read that route as asking nothing, and the menu
+    // offered the HR partner a page that refused her (2026-10-05).
+    expect(gateOf('program/team')).toEqual(['requirements.write', 'settings.manage', 'team.manage'])
+  })
+
+  it('an HR partner at a client is not offered Program team, because its page refuses her', () => {
+    const hr = rolesFor('CLIENT').find((r) => r.name === 'HR Partner')!
+    const labels = itemsOf(getNavForKind('CLIENT', false, { permissions: hr.permissions })).map((i) => i.label)
+    expect(labels).not.toContain('Program team')
+    const pm = rolesFor('CLIENT').find((r) => r.name === 'Program Manager')!
+    expect(itemsOf(getNavForKind('CLIENT', false, { permissions: pm.permissions })).map((i) => i.label)).toContain('Program team')
   })
 
   it('a link said to need no permission opens a route that still asks for none', () => {

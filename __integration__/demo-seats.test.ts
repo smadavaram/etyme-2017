@@ -254,6 +254,16 @@ describe('every seat on the demo page opens', () => {
     expect(body.companyName).toBe('Teleworld Solutions')
   })
 
+  it('asking for a desk that does not exist takes no seat at all, rather than sitting the visitor as the Owner', async () => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'owner' }) as NextRequest)
+    expect(res.status).toBe(400)
+    expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
+    const err = (await res.json()).error
+    expect(err.code).toBe('UNKNOWN_DESK')
+    expect(err.message).toMatch(/^There is no "owner" desk in the demo, so no seat was taken\./)
+    expect(err.message).toContain('Ask with no desk to sit as the Owner.')
+  })
+
   it('offers both integrators, and only firms that employ people they can submit', async () => {
     for (const s of INTEGRATOR_SEATS) {
       const company = await prisma.company.findUniqueOrThrow({ where: { slug: s.slug } })
