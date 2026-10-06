@@ -374,6 +374,10 @@ export const DOMAINS: Domain[] = [
       // (`holidayPayFor` in lib/bench-policy); the switch on Our bench is
       // supply's screen over /api/settings/bench/people.
       'lib/bench-holiday-switch',
+      // The company's week: which days are off, when a week's hours are due
+      // and when they are approved. The columns are the schema's; the
+      // arithmetic of a single shifted date stays in lib/cycle-shift.
+      'lib/days-off',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies

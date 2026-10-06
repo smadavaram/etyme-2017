@@ -7,6 +7,8 @@
  * up by the other has to land on the same midnight.
  */
 
+import { DEFAULT_DAYS_OFF, isDayOff } from '@/lib/days-off'
+
 /**
  * The day this world counts from, as milliseconds at midnight UTC.
  *
@@ -115,12 +117,17 @@ export const day = (n: number): Date =>
  * Forward for a round still ahead, backward for one already held —
  * nudging a past round forward would move it into the future, where it
  * would read as upcoming.
+ *
+ * Off the company's days off where the caller has them (`lib/days-off`);
+ * Saturday and Sunday where it does not, which is every seeded firm today.
  */
-export const weekday = (d: Date, back: boolean): Date => {
-  const g = d.getUTCDay()
-  if (g !== 0 && g !== 6) return d
-  const days = g === 6 ? (back ? 1 : 2) : back ? 2 : 1
-  return new Date(d.getTime() + days * (back ? -86_400_000 : 86_400_000))
+export const weekday = (d: Date, back: boolean, daysOff: readonly number[] = DEFAULT_DAYS_OFF): Date => {
+  // Seven days off is refused at the door; a week with none working is
+  // read as the default rather than walked forever.
+  const off = daysOff.length >= 7 ? DEFAULT_DAYS_OFF : daysOff
+  let t = d.getTime()
+  while (isDayOff(new Date(t), off)) t += back ? -86_400_000 : 86_400_000
+  return t === d.getTime() ? d : new Date(t)
 }
 
 /** An hour on a working day, absolute. Same normalization as `day`. */

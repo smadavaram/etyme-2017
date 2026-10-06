@@ -58,8 +58,31 @@
 
 import type { Category } from '@/lib/cycle-kinds'
 
-/** Sunday and Saturday. */
-const WEEKEND_DAYS = [0, 6]
+/**
+ * Sunday and Saturday: the days off of every company that has not said
+ * otherwise.
+ *
+ * Which days are off is a company setting since 2026-09-30 ("If a company
+ * is in Dubai they would have Friday off — this should be a configurable
+ * setting"). The setting is read and written through `lib/days-off`; this
+ * file only needs the answer, and takes it as an argument so it stays
+ * free of the database. Every caller that passes nothing gets this.
+ */
+export const DEFAULT_DAYS_OFF: readonly number[] = Object.freeze([0, 6])
+
+/**
+ * A list of days off this build can stand behind, or null.
+ *
+ * Whole numbers from 0 (Sunday) to 6 (Saturday), each once. Seven days
+ * off is not a week anybody works, and a shift looking for a working day
+ * in it would never find one, so it reads as no answer too.
+ */
+export function cleanDaysOff(value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null
+  if (!value.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) return null
+  const days = Array.from(new Set(value as number[])).sort((a, b) => a - b)
+  return days.length >= 7 ? null : days
+}
 
 export const SHIFT_DIRECTIONS = ['BEFORE', 'AFTER', 'NONE'] as const
 export type ShiftDirection = (typeof SHIFT_DIRECTIONS)[number]
@@ -69,6 +92,12 @@ export interface CycleShiftPolicy {
   hours: ShiftDirection
   pay: ShiftDirection
   bill: ShiftDirection
+  /**
+   * The company's days off, where the caller loaded them. Omitted means
+   * Saturday and Sunday. Carried here so the generator can pass it to
+   * `shiftToWorkingDay` from the policy it already holds.
+   */
+  daysOff?: readonly number[]
 }
 
 /**
@@ -116,6 +145,7 @@ export interface CompanyShiftColumns {
   cycleShiftHours?: string | null
   cycleShiftPay?: string | null
   cycleShiftBill?: string | null
+  daysOff?: number[] | null
 }
 
 /**
@@ -127,11 +157,16 @@ export interface CompanyShiftColumns {
  * the one outcome that must not be possible.
  */
 export function policyFrom(company: CompanyShiftColumns | null | undefined): CycleShiftPolicy {
-  return {
+  const policy: CycleShiftPolicy = {
     hours: isShiftDirection(company?.cycleShiftHours) ? company!.cycleShiftHours as ShiftDirection : DEFAULT_CYCLE_SHIFT.hours,
     pay: isShiftDirection(company?.cycleShiftPay) ? company!.cycleShiftPay as ShiftDirection : DEFAULT_CYCLE_SHIFT.pay,
     bill: isShiftDirection(company?.cycleShiftBill) ? company!.cycleShiftBill as ShiftDirection : DEFAULT_CYCLE_SHIFT.bill,
   }
+  // Only where the caller loaded the column, so a policy built from the
+  // three directions alone still equals the shipped default exactly.
+  const daysOff = cleanDaysOff(company?.daysOff)
+  if (daysOff) policy.daysOff = daysOff
+  return policy
 }
 
 /**
@@ -171,28 +206,42 @@ export function localDayKey(d: Date): string {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-/** Whether anybody works on this day at this company. */
-export function isWorkingDay(date: Date, holidays: Set<string> | ReadonlySet<string>): boolean {
-  return !WEEKEND_DAYS.includes(date.getDay()) && !holidays.has(localDayKey(date))
+/**
+ * Whether anybody works on this day at this company.
+ *
+ * `daysOff` is the company's own week; omitted, Saturday and Sunday.
+ */
+export function isWorkingDay(
+  date: Date,
+  holidays: Set<string> | ReadonlySet<string>,
+  daysOff: readonly number[] = DEFAULT_DAYS_OFF
+): boolean {
+  return !daysOff.includes(date.getDay()) && !holidays.has(localDayKey(date))
 }
 
 /**
  * To the nearest working day, the way this company asked.
  *
  * Iterates, because the day before a holiday can be a Sunday and the day
- * after a Friday holiday is a Saturday. NONE returns the date untouched —
+ * after a Friday holiday is a Saturday. Around the company's own days off
+ * where they are passed — a Dubai company's Friday date moves to the
+ * Thursday or the Saturday, not past a weekend it does not keep. NONE returns the date untouched —
  * including a date that falls on Christmas Day, which is the point of it.
  */
 export function shiftToWorkingDay(
   date: Date,
   holidays: Iterable<string> | Set<string> | ReadonlySet<string>,
-  direction: ShiftDirection
+  direction: ShiftDirection,
+  daysOff: readonly number[] = DEFAULT_DAYS_OFF
 ): Date {
   if (direction === 'NONE') return new Date(date)
   const set = holidays instanceof Set ? holidays : new Set(holidays as Iterable<string>)
+  // A week with no working day in it has nowhere to shift to; it reads as
+  // the default rather than looping forever on a value nobody should hold.
+  const off = cleanDaysOff(daysOff) ?? DEFAULT_DAYS_OFF
   const step = direction === 'BEFORE' ? -1 : 1
   const d = new Date(date)
-  while (!isWorkingDay(d, set)) {
+  while (!isWorkingDay(d, set, off)) {
     d.setDate(d.getDate() + step)
   }
   return d

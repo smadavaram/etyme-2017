@@ -513,18 +513,47 @@ model Company {
   cycleShiftPay   ShiftDirection @default(BEFORE)
   /// The day an invoice is raised. Default: the working day after.
   cycleShiftBill  ShiftDirection @default(AFTER)
+
+  // ── The company's week ──────────────────────────────────────────────
+  //
+  // Decided by the founder, 2026-09-30: "If a company is in Dubai they
+  // would have Friday off — this should be a configurable setting." And:
+  // "your recommendation is default, but companies can choose to change
+  // their settings and take up to an additional week to approve."
+  //
+  // The week itself still runs Sunday to Saturday for everybody. These
+  // say which of its days nobody is expected to work, and when a week's
+  // hours are due and approved. They move to the site when the legal
+  // entity and site layer exists. Read and written only through
+  // src/lib/days-off.ts.
+  /// The days nobody is expected to work, 0 = Sunday through 6 = Saturday.
+  /// A day off decides what a sheet expects and what a date shifts around,
+  /// never what a worker may file. Empty means every day is a working day.
+  daysOff             Int[]     @default([0, 6])
+  /// The weekday after a week ends on which its hours are due. Default Monday.
+  hoursDueWeekday     Int       @default(1)
+  /// The weekday by which a week's hours must be approved. Default Wednesday.
+  approveByWeekday    Int       @default(3)
+  /// Extra weeks approvers are given past that weekday: 0 or 1, never more,
+  /// because every day an approval waits the bill and the pay wait behind it.
+  approvalExtraWeeks  Int       @default(0)
+  /// When somebody last answered the questions above. Null: nobody has, and
+  /// the defaults stand.
+  weekSettingsSetAt   DateTime?
+  /// The person who last answered them.
+  weekSettingsSetById String?
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
-  supplierPosture String?
-  currency        String         @default("USD")
+  supplierPosture     String?
+  currency            String    @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to
   // email, and when there is no email either the notification says so
   // rather than sitting in the app pretending it was sent.
-  teamsWebhookUrl String?
+  teamsWebhookUrl     String?
 
   /// The words on their public page.
   ///

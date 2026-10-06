@@ -186,6 +186,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Context.suspendedById': { as: 'RECORD' },
   'Context.revokedById': { as: 'RECORD' },
   'Context.invitedById': { as: 'RECORD' },
+  // Who last answered the company's week questions (lib/days-off). A record of a person, never followed.
+  'Company.weekSettingsSetById': { as: 'RECORD' },
   'Interview.requestedById': { as: 'RECORD' },
   'Interview.noShowBy': { as: 'RECORD' },
   'Interview.decidedById': { as: 'RECORD' },

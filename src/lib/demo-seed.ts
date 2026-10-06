@@ -26,6 +26,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { daysOffFor, isDayOff } from '@/lib/days-off'
 import { rolesFor } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
 
@@ -372,14 +373,16 @@ export async function seedDemoCompany(input: {
   // breakdown — which is what lets a monthly invoice take exactly its own
   // days out of a week that crosses the boundary.
   const sheets: string[] = []
+  // The employer's own days off, through the one door: Saturday and
+  // Sunday unless the firm said otherwise.
+  const daysOff = await daysOffFor(company.id)
   for (let w = 4; w >= 1; w--) {
     const start = daysAgo(w * 7 + 2)
     const end = daysAgo(w * 7 - 4)
     const days: Record<string, number> = {}
     const d = new Date(start)
     while (d <= end) {
-      const dow = d.getUTCDay()
-      if (dow !== 0 && dow !== 6) days[d.toISOString().slice(0, 10)] = 8
+      if (!isDayOff(d, daysOff)) days[d.toISOString().slice(0, 10)] = 8
       d.setUTCDate(d.getUTCDate() + 1)
     }
     const total = Object.values(days).reduce((a, b) => a + b, 0)
