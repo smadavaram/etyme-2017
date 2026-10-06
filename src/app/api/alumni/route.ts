@@ -4,7 +4,8 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
-import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { askBack } from './ask-back-standing'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -136,12 +137,12 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  const capDays = tenureRule
-    ? daysFor((tenureRule.parameters as any).maxMonths)
-    : null
-  const breakDaysPolicy = breakRule
-    ? (breakRule.parameters as any).breakDays
-    : null
+  // Read raw, the way the ledger (/api/tenure) reads them, so the two
+  // pages are fed the same rules.
+  const limitRules = {
+    capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
+    breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
+  }
 
   // Group by person
   const personMap = new Map<string, {
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
 
   // Days on site per person, overlaps counted once — a prime's contract
   // and its sub's are the same weeks, and summed per row they doubled.
-  const periodsByPerson = new Map<string, { startDate: Date; endDate: Date | null }[]>()
+  const periodsByPerson = new Map<string, { startDate: Date; endDate: Date | null; state: string }[]>()
   for (const c of contracts) {
     periodsByPerson.set(c.personId, [...(periodsByPerson.get(c.personId) ?? []), c])
   }
@@ -258,31 +259,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check re-engagement eligibility (Addendum E §E.2.3)
-    let canReengage = true
-    let reengageBlockReason: string | null = null
-    let eligibleDate: string | null = null
-
-    if (state === 'placed') {
-      // Already here — no re-engage action needed
-      canReengage = false
-    } else if (capDays !== null && data.totalDays >= capDays && breakDaysPolicy !== null) {
-      // Check break-in-service
-      if (data.lastEndDate) {
-        const daysSinceEnd = Math.ceil(
-          (now.getTime() - data.lastEndDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-        if (daysSinceEnd < breakDaysPolicy) {
-          canReengage = false
-          const eligible = new Date(data.lastEndDate.getTime() + breakDaysPolicy * 24 * 60 * 60 * 1000)
-          eligibleDate = eligible.toISOString().slice(0, 10)
-          reengageBlockReason = `Break period: ${daysSinceEnd} of ${breakDaysPolicy} days completed. Eligible ${eligibleDate}.`
-        }
-      } else {
-        canReengage = false
-        reengageBlockReason = 'Time limit on site reached, and no end date is recorded'
-      }
-    }
+    // Re-engagement eligibility (Addendum E §E.2.3), read off the one
+    // standing the ledger and the award read — never a copy of its
+    // arithmetic. Inside a break: the day, not a button. Past the limit
+    // with no break rule: no button and no day.
+    const { canReengage, reengageBlockReason, eligibleDate, ledgerStatus } = askBack(
+      (periodsByPerson.get(personId) ?? []).map((c) => ({
+        startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED',
+      })),
+      limitRules,
+      now
+    )
 
     return {
       personId,
@@ -315,6 +302,7 @@ export async function GET(request: NextRequest) {
       canReengage,
       reengageBlockReason,
       eligibleDate,
+      ledgerStatus,
     }
   })
 

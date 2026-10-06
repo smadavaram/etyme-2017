@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { notify } from '@/lib/notify'
-import { daysFor, daysOnSite } from '@/lib/tenure-days'
+import { daysOnSite } from '@/lib/tenure-days'
+import { askBack } from '../ask-back-standing'
 
 /**
  * POST /api/alumni/ask-back
@@ -108,34 +109,31 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  const capDays = tenureRule
-    ? daysFor((tenureRule.parameters as any).maxMonths)
-    : null
-  const breakDaysPolicy = breakRule
-    ? (breakRule.parameters as any).breakDays
-    : null
-
-  if (capDays !== null && totalDays >= capDays && breakDaysPolicy !== null) {
-    const lastEnd = contracts
-      .filter(c => c.endDate)
-      .sort((a, b) => b.endDate!.getTime() - a.endDate!.getTime())[0]?.endDate
-
-    if (lastEnd) {
-      const daysSinceEnd = Math.ceil((now.getTime() - lastEnd.getTime()) / (1000 * 60 * 60 * 24))
-      if (daysSinceEnd < breakDaysPolicy) {
-        const eligible = new Date(lastEnd.getTime() + breakDaysPolicy * 24 * 60 * 60 * 1000)
-        return NextResponse.json(
-          {
-            error: {
-              code: 'BREAK_PERIOD',
-              message: `${person.name} is in a break period. Eligible ${eligible.toISOString().slice(0, 10)}.`,
-              eligibleDate: eligible.toISOString().slice(0, 10),
-            },
-          },
-          { status: 409 }
-        )
-      }
-    }
+  // The same standing the alumni list, the ledger and the award read
+  // (lib/tenure-days), so a request the list did not offer a button for
+  // is refused here with the same day — or with no day, where the client
+  // has no break rule that would reset a passed limit.
+  const limitRules = {
+    capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
+    breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
+  }
+  const verdict = askBack(
+    contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
+    limitRules,
+    now
+  )
+  if (!verdict.canReengage) {
+    const inBreak = verdict.ledgerStatus === 'IN_BREAK'
+    return NextResponse.json(
+      {
+        error: {
+          code: inBreak ? 'BREAK_PERIOD' : 'TIME_LIMIT',
+          message: `${person.name} cannot be asked back to ${client.name} yet. ${verdict.reengageBlockReason ?? ''}`.trim(),
+          eligibleDate: verdict.eligibleDate,
+        },
+      },
+      { status: 409 }
+    )
   }
 
   // Log the re-engagement request
@@ -149,7 +147,8 @@ export async function POST(request: NextRequest) {
         personId,
         clientCompanyId,
         totalDays,
-        tenureCapDays: capDays,
+        tenureCapMonths: limitRules.capMonths,
+        ledgerStatus: verdict.ledgerStatus,
       },
       reversible: true,
     },

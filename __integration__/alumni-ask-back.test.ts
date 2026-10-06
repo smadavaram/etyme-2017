@@ -1,0 +1,84 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { as, req, json, prisma, freshWorld } from './harness'
+
+import { GET as alumni } from '@/app/api/alumni/route'
+import { POST as askBack } from '@/app/api/alumni/ask-back/route'
+import { GET as tenure } from '@/app/api/tenure/route'
+
+/**
+ * "Ask them back" gives the time-limit ledger's answer, on the seeded
+ * world (Addendum E §E.2.3).
+ *
+ *   Northbend Athletic   an eighteen-month limit and a ninety-day break.
+ *   Kwame Mensah         740 days on site, left fifty days ago: inside the break.
+ *   Cavanaugh Glassworks Nadia Petrova left a hundred days ago: the break is served.
+ */
+
+const D = '@demo.etyme.local'
+const NIKE_OFFICER = `world-nike-compliance${D}`
+const CORNING_OFFICER = `world-corning-compliance${D}`
+
+async function rowOn(email: string, route: typeof alumni | typeof tenure, path: string, list: 'alumni' | 'people', name: string) {
+  as(email)
+  const r = await json(await route(req('GET', path)))
+  expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  const row = r.body.data[list].find((p: any) => p.name === name)
+  expect(row, `${name} is on ${path}`).toBeTruthy()
+  return row
+}
+
+let northbend = ''
+let kwame = ''
+
+beforeAll(async () => {
+  await freshWorld()
+  northbend = (await prisma.company.findFirstOrThrow({ where: { name: 'Northbend Athletic' }, select: { id: true } })).id
+  kwame = (await prisma.person.findFirstOrThrow({ where: { name: 'Kwame Mensah' }, select: { id: true } })).id
+}, 120_000)
+
+describe('ask them back reads the time-limit ledger', () => {
+  it('Kwame Mensah, inside his break, is shown the eligibility date the ledger shows instead of an ask-back button', async () => {
+    const ledger = await rowOn(NIKE_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
+    const row = await rowOn(NIKE_OFFICER, alumni, '/api/alumni', 'alumni', 'Kwame Mensah')
+    expect(ledger.status).toBe('IN_BREAK')
+    expect(row.canReengage).toBe(false)
+    expect(row.ledgerStatus).toBe(ledger.status)
+    expect(row.eligibleDate).toBe(ledger.eligibleDate)
+    expect(row.reengageBlockReason).toContain('90-day break')
+  })
+
+  it('asking Kwame Mensah back is refused inside his break, with the same day the list and the ledger show', async () => {
+    const ledger = await rowOn(NIKE_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
+    as(NIKE_OFFICER)
+    const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: northbend })))
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('BREAK_PERIOD')
+    expect(r.body.error.eligibleDate).toBe(ledger.eligibleDate)
+    expect(r.body.error.message).toContain('Kwame Mensah cannot be asked back to Northbend Athletic yet.')
+  })
+
+  it('Nadia Petrova, out longer than the break, is offered ask them back where the ledger reads her eligible', async () => {
+    const ledger = await rowOn(CORNING_OFFICER, tenure, '/api/tenure', 'people', 'Nadia Petrova')
+    const row = await rowOn(CORNING_OFFICER, alumni, '/api/alumni', 'alumni', 'Nadia Petrova')
+    expect(row.ledgerStatus).toBe(ledger.status)
+    expect(row.canReengage).toBe(true)
+    expect(row.eligibleDate).toBeNull()
+  })
+
+  it('every former worker on Northbend Athletic’s alumni list reads the ledger’s status, and only an eligible one has a button', async () => {
+    as(NIKE_OFFICER)
+    const led = await json(await tenure(req('GET', '/api/tenure')))
+    const al = await json(await alumni(req('GET', '/api/alumni')))
+    const byId = new Map(led.body.data.people.map((p: any) => [p.personId, p]))
+    let compared = 0
+    for (const a of al.body.data.alumni) {
+      const l: any = byId.get(a.personId)
+      if (!l) continue
+      compared++
+      expect(a.ledgerStatus, a.name).toBe(l.status)
+      if (a.canReengage) expect(['OK', 'WARNING', 'ELIGIBLE'], a.name).toContain(l.status)
+      if (a.state !== 'placed' && l.status === 'IN_BREAK') expect(a.eligibleDate, a.name).toBe(l.eligibleDate)
+    }
+    expect(compared).toBeGreaterThan(1)
+  })
+})

@@ -52,6 +52,8 @@ interface AlumniPerson {
   canReengage: boolean
   reengageBlockReason: string | null
   eligibleDate: string | null
+  /** The ledger's status word, the same one the time-limit page reads. */
+  ledgerStatus?: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
 }
 
 // ── Status helpers ─────────────────────────────────────────
@@ -377,7 +379,8 @@ function AlumniAction({ person, onAskBack, acting }: {
     )
   }
 
-  // Blocked by break period — show eligibility date instead of button
+  // Blocked by the ledger — inside a break, the day instead of a button;
+  // past the limit with no break rule, no day at all
   return (
     <div className="text-right">
       {person.eligibleDate && (
@@ -387,6 +390,11 @@ function AlumniAction({ person, onAskBack, acting }: {
             day: 'numeric',
             year: 'numeric',
           })}
+        </div>
+      )}
+      {!person.eligibleDate && person.ledgerStatus === 'BREAK_REQUIRED' && (
+        <div className="text-[11px] text-etyme-attention font-semibold whitespace-nowrap">
+          Past the limit
         </div>
       )}
       {person.reengageBlockReason && (
