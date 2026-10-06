@@ -102,8 +102,10 @@ you need and why, and stop. The architect adds it.
    it. Then the route. Then the screen.
 3. Unit tests for the arithmetic. Every branch that carries money, a
    date, or a legal consequence.
-4. `npx tsc --noEmit` and the full suite before you hand back. Report the
-   real numbers, including failures.
+4. `npx tsc --noEmit` and your own tests before you hand back: the unit
+   and integration files that cover your module, by name. Never the full
+   suite; the release pass runs that once per wave on a quiet tree
+   (founder, 2026-10-06). Report the real numbers, including failures.
 
 ## What to say when you finish
 

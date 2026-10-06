@@ -219,6 +219,25 @@ not a fault.
 
 ---
 
+## Who runs which tests — decided by the founder, 2026-10-06
+
+Builders test their own files. One release pass tests everything.
+
+- **A builder runs only its own tests.** The unit files that import its
+  module, and the integration files that walk it, by name. Minutes.
+- **A builder never runs the full suite.** Not the unit suite, not
+  `npm run test:integration`. On a shared tree a full run tests six
+  other agents' half-landed work and the red list is noise.
+- **A builder reports its own files green and nothing else.** No red
+  lists from builders.
+- **One release pass per wave** runs the whole suite once, on a tree
+  with nothing uncommitted, and routes each red test to its owner.
+
+Why: on 2026-10-06 seven builders ran the full suite and six ran the
+full integration suite. Only the one release pass at the end counted.
+
+---
+
 ## What gets work rejected
 
 **A number nobody can stand behind.** Where the data does not support a

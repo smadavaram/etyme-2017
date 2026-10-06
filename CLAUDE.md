@@ -490,6 +490,12 @@ The founder cannot read code. This is the compensating discipline.
    plausible is worse than a delay. Especially in: timesheet valuation, invoice
    generation, cycle date arithmetic, tenure math.
 
+7. **Builders test their own files; one release pass tests everything.**
+   Decided by the founder, 2026-10-06. A builder runs the unit and
+   integration files that cover its module, by name, and never the full
+   suite. The full suite runs once per wave, on a quiet tree, and its
+   red list is routed to owners. See `docs/how-agents-work.md`.
+
 6. **Ready is the edges, and `/ready` is the only measure of it.** Tests
    prove the inside. An edge with the outside world — a real tenant
    signing in, a real file imported, an email that left, a Teams channel
