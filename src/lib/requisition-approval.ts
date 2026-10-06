@@ -302,16 +302,23 @@ export function evaluateRequisition(
     (r) => r.thresholdCents !== null && facts.annualValueCents > r.thresholdCents
   )
 
-  // Say which number did it, and whether anybody typed that number.
+  // Say which number did it, which limit, and who signs — in two short
+  // sentences. It read "Sent for a sign-off because about $180,000,
+  // estimated from $125/hr at 40 hours a week for 9 months is over the
+  // limit — state a budget and…" on one line (tester, 2026-10-03), and
+  // never named the limit or the person. How the estimate was made stays
+  // on the passing check and the requisition; the reason says the result.
   if (byThreshold.length > 0 && facts.valueSays) {
     checks.push({
       code: 'VALUE',
       outcome: 'ROUTE',
       stage: 'FINAL',
-      reason:
-        facts.valueBasis === 'ESTIMATE'
-          ? `Sent for a sign-off because ${facts.valueSays} is over the limit — state a budget and the limit is checked against that instead`
-          : `Sent for a sign-off because ${facts.valueSays} is over the limit`,
+      reason: overTheLimitSays({
+        valueSays: facts.valueSays,
+        estimated: facts.valueBasis === 'ESTIMATE',
+        rules: byThreshold,
+        notAsked: [facts.raisedById, facts.ownerId],
+      }),
     })
   } else if (facts.valueSays) {
     checks.push({ code: 'VALUE', outcome: 'PASS', stage: 'FINAL', reason: facts.valueSays })
@@ -459,6 +466,40 @@ export function evaluateRequisition(
   const summary = `${first} — waiting on ${[rank1.join(' and '), rank2.length ? `${rank1.length ? 'then ' : ''}${possessive(rank2.join(' and '))} yes` : ''].filter(Boolean).join(', ')}`
 
   return { state: 'PENDING_APPROVAL', checks, steps, route, summary }
+}
+
+function upperFirst(t: string): string {
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/**
+ * Why a requisition goes to somebody for its value, in two short
+ * sentences: "About $180,000 is over the $80,000 limit, so Dana
+ * Whitfield signs it. State a budget and the limit is checked against
+ * that." The amount is taken from the value's own words, so it is
+ * rounded the way the page already shows it. The limit is the lowest one
+ * passed. Somebody who raised or owns the job is not named as signing
+ * it, because they are not asked.
+ */
+export function overTheLimitSays(o: {
+  valueSays: string
+  estimated: boolean
+  rules: { approverId: string; approverName: string; thresholdCents: number | null }[]
+  notAsked?: (string | null | undefined)[]
+}): string {
+  const amount = o.estimated
+    ? (o.valueSays.match(/\$\d(?:[\d,]*\d)?(?:\.\d+)?/)?.[0] ?? null)
+    : null
+  const what = amount ? `About ${amount}` : upperFirst(o.valueSays.trim())
+  const limits = o.rules.map((r) => r.thresholdCents).filter((c): c is number => c !== null)
+  const limit = limits.length > 0 ? `the ${dollars(Math.min(...limits))} limit` : 'the limit'
+  const skip = new Set(o.notAsked?.filter(Boolean) as string[] | undefined)
+  const who = Array.from(new Set(o.rules.filter((r) => !skip.has(r.approverId)).map((r) => r.approverName)))
+  const signs = who.length === 0
+    ? 'so it needs a sign-off'
+    : `so ${who.length === 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`} ${who.length === 1 ? 'signs' : 'sign'} it`
+  const first = `${what} is over ${limit}, ${signs}.`
+  return o.estimated ? `${first} State a budget and the limit is checked against that.` : first
 }
 
 /**

@@ -270,7 +270,7 @@ describe('A rule on the money is still honored, at the final rank', () => {
     const finals = d.steps.filter((s) => s.stage === 'FINAL')
     expect(finals.map((s) => s.approverName)).toEqual(['Dana Whitfield', 'Marcus Chen'])
     expect(finals.every((s) => s.rank === 2)).toBe(true)
-    expect(d.checks.find((c) => c.code === 'VALUE')?.reason).toBe('Sent for a sign-off because the $300,000 budget you stated is over the limit')
+    expect(d.checks.find((c) => c.code === 'VALUE')?.reason).toBe('The $300,000 budget you stated is over the $250,000 limit, so Marcus Chen signs it.')
   })
 
   it('a threshold rule under the line is not asked', () => {
@@ -544,7 +544,7 @@ describe('what a requisition is worth, and where that figure came from', () => {
     )
     expect(decision.state).toBe('PENDING_APPROVAL')
     const value = decision.checks.find(c => c.code === 'VALUE')
-    expect(value?.reason).toContain('state a budget')
+    expect(value?.reason).toContain('State a budget and the limit is checked against that.')
   })
 })
 
@@ -604,5 +604,23 @@ describe('a reviewer can ask for a change without refusing it', () => {
     const a = advanceApprovalChain(chain, 'changes', 'finance')
     expect(a.nextState).not.toBe('REJECTED')
     expect(chain[0].outcome).toBe('APPROVED')
+  })
+})
+
+import { overTheLimitSays } from '@/lib/requisition-approval'
+
+describe('Why a job goes to somebody for its value, in two short sentences', () => {
+  const dana = { approverId: 'p-dana', approverName: 'Dana Whitfield', thresholdCents: 80_000_00 }
+
+  it('says an estimate is over the $80,000 limit, who signs it, and that a budget would be checked instead', () => {
+    expect(overTheLimitSays({
+      valueSays: 'about $180,000, estimated from $125/hr at 40 hours a week for 9 months',
+      estimated: true, rules: [dana],
+    })).toBe('About $180,000 is over the $80,000 limit, so Dana Whitfield signs it. State a budget and the limit is checked against that.')
+  })
+
+  it('does not name somebody who raised the job as signing it', () => {
+    expect(overTheLimitSays({ valueSays: 'the $90,000 budget you stated', estimated: false, rules: [dana], notAsked: ['p-dana'] }))
+      .toBe('The $90,000 budget you stated is over the $80,000 limit, so it needs a sign-off.')
   })
 })
