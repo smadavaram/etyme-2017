@@ -9,6 +9,7 @@ import { burnOf } from '@/lib/bench-policy'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { karthikWindow } from '@/lib/seed-doors'
 import { plainDate } from '@/lib/plain-date'
+import { burdenRate } from '@/lib/order-postings'
 
 /**
  * Bench profit on the seeded world (CLAUDE.md, "Bench profit, next after
@@ -30,6 +31,16 @@ import { plainDate } from '@/lib/plain-date'
  * from them. What depends on the calendar is worked out below from the
  * same birthday: the Monday the placements began, the days that were a
  * holiday, and so the margin and the day it paid the bench back.
+ *
+ * ── The margin is the books' (2026-10-06) ────────────────────────────
+ *
+ * Bench profit reads money's `placementBooks`, the figure the placement
+ * page and Profitability print. Pellwright employs its people on W2, so
+ * the employer's burden comes off each signed week as the books post it:
+ * that week's pay times the burden rate for the year the work began,
+ * rounded on its own. The rate is read from `burdenRate`, the books' own
+ * door — the published default for W2 until Pellwright has posted enough
+ * real payroll to measure its own.
  *
  * ── Holidays on the bench (2026-10-03) ───────────────────────────────
  *
@@ -61,19 +72,26 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
 const between = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DAY)
 const dollars = (cents: number) => (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
+/** The Monday a placement began, `weeksAgo` whole weeks before the world's own week. */
+function startOf(weeksAgo: number) {
+  const today = seedToday()
+  const monday = plus(today, -((today.getUTCDay() + 6) % 7))
+  return plus(monday, -7 * weeksAgo)
+}
+
 /**
  * A placement the seed began `weeksAgo` whole weeks before the Monday of
  * the world's own week, and its signed weeks: every whole week up to
- * last week, eight hours on each weekday that is not a holiday.
+ * last week, eight hours on each weekday that is not a holiday, at
+ * (bill − pay) an hour, less the employer's burden on that week's pay.
  */
-function placed(weeksAgo: number, marginPerHourCents: number) {
-  const today = seedToday()
-  const monday = plus(today, -((today.getUTCDay() + 6) % 7))
-  const start = plus(monday, -7 * weeksAgo)
+function placed(weeksAgo: number, billCents: number, payCents: number, burden: number) {
+  const start = startOf(weeksAgo)
   const weeks = Array.from({ length: weeksAgo }, (_, k) => {
     const m = plus(start, 7 * k)
     const days = [0, 1, 2, 3, 4].filter((i) => !holidayKeys().has(iso(plus(m, i)))).length
-    return { friday: plus(m, 4), marginCents: days * 8 * marginPerHourCents }
+    const hours = days * 8
+    return { friday: plus(m, 4), marginCents: hours * (billCents - payCents) - Math.round(hours * payCents * burden) }
   })
   return { start, weeks, marginCents: weeks.reduce((a, w) => a + w.marginCents, 0) }
 }
@@ -101,17 +119,23 @@ function holidaysIn(from: Date, to: Date): number {
 }
 const notPaid = (n: number) => (n > 0 ? `, ${n} public holiday${n === 1 ? '' : 's'} not paid` : '')
 
-// Seventeen weeks at ($88 − $62) an hour; four at ($82 − $58).
-const tobiasWeeks = () => placed(17, 8_800 - 6_200)
-const noorWeeks = () => placed(4, 8_200 - 5_800)
+// Seventeen weeks at ($88 − $62) an hour; four at ($82 − $58); each less
+// the burden on its pay, at the W2 rate for the year each placement began.
+let tobiasBurden = 0
+let noorBurden = 0
+const tobiasWeeks = () => placed(17, 8_800, 6_200, tobiasBurden)
+const noorWeeks = () => placed(4, 8_200, 5_800, noorBurden)
 
 beforeAll(async () => {
   await freshWorld()
   owner = await read(OWNER)
+  const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
+  tobiasBurden = (await burdenRate(firm.id, 'W2', startOf(17))).rate
+  noorBurden = (await burdenRate(firm.id, 'W2', startOf(4))).rate
 }, 900_000)
 
 describe('bench to bill, per person, at Pellwright Validation Partners', () => {
-  it('the owner reads what Tobias Wren’s days on the bench cost, less the public holidays Pellwright does not pay, and the day his margin paid it back', () => {
+  it('the owner reads what Tobias Wren’s days on the bench cost, less the public holidays Pellwright does not pay, and whether his margin after burden has paid it back', () => {
     expect(owner.status, JSON.stringify(owner.body)).toBe(200)
     expect(owner.body.data.policySays).toBe('50% of their pay while on the bench, for up to 90 days.')
     const tobias = row(owner.body, 'Tobias Wren')
@@ -126,14 +150,24 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     const worked = 35 - h
     const cost = worked * 24_800
     expect(tobias.costCents).toBe(cost)
-    // Seventeen signed weeks at ($88 − $62) × 8 on every day that was not a holiday.
+    // Seventeen signed weeks at ($88 − $62) × 8 on every day that was not a
+    // holiday, less the employer's burden on his $62 an hour.
+    expect(tobiasBurden).toBeGreaterThan(0)
     expect(tobias.marginCents).toBe(marginCents)
-    // His cost is covered within nine or ten weeks of $1,040 a day, whatever the holidays.
-    const on = paidBackOn(weeks, cost)!
-    expect(tobias.paidBackOn).toBe(iso(on))
-    expect(tobias.paybackSays).toBe(
-      `Paid back on ${plainDate(iso(on))}, ${between(start, on)} days after they started on ${plainDate(iso(start))}.`
-    )
+    // The week his running margin first covers the cost, burden taken off.
+    // At about $494 a week after burden against about $8,700 of bench, that
+    // week has not come on most days the world can be born; it depends on
+    // where the holidays fall, so it is worked out rather than assumed.
+    const on = paidBackOn(weeks, cost)
+    if (on) {
+      expect(tobias.paidBackOn).toBe(iso(on))
+      expect(tobias.paybackSays).toBe(
+        `Paid back on ${plainDate(iso(on))}, ${between(start, on)} days after they started on ${plainDate(iso(start))}.`
+      )
+    } else {
+      expect(tobias).toMatchObject({ paidBackOn: null, leftCents: cost - marginCents })
+      expect(tobias.paybackSays).toBe(`Not yet. ${dollars(cost - marginCents)} left to earn back.`)
+    }
     expect(tobias.placedAt).toBe('Corveldt Aerospace, through Sundara Systems')
     // The sentence says what was counted, the holidays not paid included.
     expect(tobias.costCounted).toBe(`${worked} working days of 49 at 50% of $496.00 a day${notPaid(h)}`)
@@ -204,20 +238,16 @@ describe('bench to bill, per person, at Pellwright Validation Partners', () => {
     )
   })
 
-  // Since 2026-10-06 the placement page reads money's margin service and
-  // takes the employer's burden off; bench profit says in its own basis
-  // that it does not. So the two agree on everything but the burden, to
-  // the cent, and the burden is the page's own figure. Whether bench
-  // profit should take burden off too is supply's and money's to decide.
-  it('the margin on a placement is the placement page’s own figure before employer burden, to the cent', async () => {
+  // Both read money's placementBooks, burden taken off, so they agree.
+  it('the margin on a placement is the placement page’s own figure, to the cent', async () => {
     const tobias = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'tobias.wren@seed.etyme.invalid' }, select: { id: true } })
     const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
     const line = await prisma.sellContract.findFirstOrThrow({ where: { companyId: firm.id, personId: tobias.id }, select: { id: true } })
     as(OWNER)
     const page = await json(await placementGET(req('GET', `/api/placements/${line.id}`), { params: Promise.resolve({ id: line.id }) }))
     expect(page.status, JSON.stringify(page.body)).toBe(200)
-    const m = page.body.data.money
-    expect(Math.round(m.margin * 100) + Math.round((m.burden ?? 0) * 100)).toBe(row(owner.body, 'Tobias Wren').marginCents)
+    expect(Math.round(page.body.data.money.margin * 100)).toBe(row(owner.body, 'Tobias Wren').marginCents)
+    expect(owner.body.data.basis.join(' ')).toContain('less employer burden where you employ the person')
   })
 })
 

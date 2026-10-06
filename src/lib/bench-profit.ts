@@ -429,6 +429,16 @@ export function benchToBill(input: {
     }
   }
 
+  // The day it paid back is read off the weeks, so the weeks must be the
+  // margin's own. Where they do not add up to it to the cent, a date is a
+  // guess and is not printed.
+  if (e.weeks.reduce((n, w) => n + w.marginCents, 0) !== margin) {
+    return {
+      ...base, marginCents: margin, marginSays, paidBackOn: null, leftCents: null,
+      paybackSays: 'Not known yet. The margin could not be read week by week, so the day it paid the bench back is not named.',
+    }
+  }
+
   let running = 0
   for (const w of [...e.weeks].sort((a, b) => a.endsOn.getTime() - b.endsOn.getTime())) {
     running += w.marginCents

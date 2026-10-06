@@ -9,6 +9,7 @@ import { notify } from '@/lib/notify'
 import { emit } from '@/lib/events'
 import { STAY_CHOICES, readStay, renewFields, stayFields, stayOver, staySays } from '@/lib/bench-stay'
 import { renewStay } from '@/lib/bench-stay-record'
+import { termsShown, agreeingTerms } from '@/lib/bench-filter'
 
 /**
  * GET   /api/me/benches — who has me, what have they done with me
@@ -62,11 +63,16 @@ export async function GET(_request: NextRequest) {
         select: {
           id: true, state: true, invitedAt: true,
           stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, showInMatches: true,
+          termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
           company: { select: { name: true } },
         },
       })
     ).map((l) => [l.id, l])
   )
+  const termsOf = (id: string) => {
+    const l = states.get(id)
+    return l ? termsShown(l, l.company.name) : null
+  }
   const invitedToo = data.benches
     .filter((b) => states.get(b.listingId)?.state === 'INVITED')
     .map((b) => ({
@@ -74,6 +80,9 @@ export async function GET(_request: NextRequest) {
       company: b.company,
       // "Sep 3, 2026" (`plainDate`): this is printed as it stands.
       askedAt: plainDate((states.get(b.listingId)?.invitedAt ?? null)?.toISOString()),
+      // What the firm says it would pay them, read beside the yes. The
+      // page sends these back with the yes, which is how the yes agrees them.
+      terms: termsOf(b.listingId),
     }))
   data.benches = data.benches.filter((b) => (states.get(b.listingId)?.state ?? 'GRANTED') === 'GRANTED')
 
@@ -97,6 +106,9 @@ export async function GET(_request: NextRequest) {
       ended: stayOver(l, now),
       mayRenew: stayOver(l, now) && renewFields(l, now).ok,
       showInMatches: l.showInMatches,
+      // Stated with the listing, and whether they have agreed them. A yes
+      // given through the emailed link agreed no pay; they can agree here.
+      terms: termsShown(l, l.company.name),
     }
   }
   const ranOut = (
@@ -164,6 +176,61 @@ export async function PATCH(request: NextRequest) {
           : `${listing.company.name} can put you forward without asking. You are still told every time.`,
       },
     })
+  }
+
+  // ── Agree the pay terms on a listing already said yes to ──────────
+  //
+  // A yes given through the emailed link, or before the firm stated terms
+  // the person has now read, agreed no pay. Agreed here, on the terms the
+  // page printed, the same rule as the yes itself (2026-10-06).
+  if (typeof body.listingId === 'string' && 'agreeTerms' in body) {
+    const listing = await prisma.benchListing.findFirst({
+      where: { id: body.listingId, consultant: { personId: person.id }, revokedAt: null, state: 'GRANTED' },
+      select: {
+        id: true, companyId: true, termsEngagementType: true, termsPayRateCents: true, termsAgreedAt: true,
+        company: { select: { name: true } },
+      },
+    })
+    if (!listing) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'That is not one of your listings.' } },
+        { status: 404 }
+      )
+    }
+    if (!termsShown(listing, listing.company.name)) {
+      return NextResponse.json(
+        { error: { code: 'NO_TERMS', message: `${listing.company.name} has not said what it would pay you, so there is nothing to agree.` } },
+        { status: 409 }
+      )
+    }
+    const now = new Date()
+    const verdict = agreeingTerms(listing, body.agreeTerms, listing.company.name, now)
+    if (!verdict.ok) {
+      return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: verdict.says, field: 'agreeTerms' } }, { status: 409 })
+    }
+    if ('termsAgreedAt' in verdict.data) {
+      await prisma.$transaction([
+        prisma.benchListing.update({ where: { id: listing.id }, data: verdict.data }),
+        prisma.automationLog.create({
+          data: {
+            companyId: listing.companyId,
+            // Their consent, extended to pay: the same action as their yes,
+            // which is already recorded as the person's own act.
+            action: 'BENCH_CONSENT_GIVEN',
+            summary: `${person.name} agreed the pay terms ${listing.company.name} stated with their listing`,
+            reason: 'The person agreed them themselves, from their own page.',
+            payload: {
+              listingId: listing.id,
+              said: 'AGREE_TERMS',
+              termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents },
+            },
+            // Their own agreement. A firm undoing it would be deciding for them.
+            reversible: false,
+          },
+        }),
+      ])
+    }
+    return NextResponse.json({ data: { listingId: listing.id, termsAgreed: true, message: verdict.says } })
   }
 
   // ── Do not send me there ───────────────────────────────────────────

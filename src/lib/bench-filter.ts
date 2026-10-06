@@ -32,6 +32,8 @@
  * without reading code.
  */
 
+import { checkStatedTerms, perHour, ENGAGEMENT_TYPES, type EngagementType } from '@/lib/award/hire-terms'
+
 /** How many reach the model, unless somebody says otherwise. */
 export const DEFAULT_SHORTLIST = 15
 
@@ -874,4 +876,178 @@ export function listingRates(
     return { ok: false, says: `The highest rate is under the $${(floorCents / 100).toFixed(2)} an hour they said they take at the least.` }
   }
   return { ok: true, rateMin, rateMax }
+}
+
+// ── Terms stated at listing (2026-10-06) ──────────────────────────────
+//
+// A listing is consent to be marketed, never consent to be employed
+// (lib/award/hire-terms). So a firm that already knows how it would
+// engage somebody, and at what pay, may say so when it lists them — and
+// the person reads it beside the yes. Optional on purpose: a listing
+// with nothing said about pay is still a listing, and the placement then
+// waits on the terms page as before.
+//
+// Checked through demand's `checkStatedTerms` and nothing of our own, so
+// the listing door and the terms page refuse the same things in the same
+// sentence: no $0 rate, one of the engagement types, and never "employed
+// by another firm" — that firm puts them forward itself.
+//
+// What the person agrees is what they were shown. A yes carries the
+// terms the page printed, and if the firm changed them in between the
+// yes agrees nothing and asks them to read again. A yes to a listing
+// with no terms agrees only the marketing.
+
+
+/** The five columns a listing carries for its terms. Null is "nobody said". */
+export interface ListingTermsFields {
+  termsEngagementType: string | null
+  termsPayRateCents: number | null
+  termsStatedAt: Date | null
+  termsStatedById: string | null
+  termsAgreedAt: Date | null
+}
+
+const blank = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && v.trim() === '')
+
+/**
+ * What a firm typed about pay when it listed somebody, as the columns to
+ * write. Nothing typed writes all five as null — including on a listing
+ * asked again after it was taken back, where an old agreement must not
+ * survive the person's withdrawal.
+ */
+export function listingTermsFrom(
+  typed: { engagementType: unknown; payRateCents: unknown },
+  who: {
+    personName: string
+    firmName: string
+    ownCompany: { id: string; name: string } | null
+    statedById: string
+    now: Date
+  }
+):
+  | { ok: true; fields: ListingTermsFields; says: string | null }
+  | { ok: false; code: string; says: string; field: 'termsEngagementType' | 'termsPayRateCents' } {
+  const none: ListingTermsFields = {
+    termsEngagementType: null, termsPayRateCents: null, termsStatedAt: null, termsStatedById: null, termsAgreedAt: null,
+  }
+  if (blank(typed.engagementType) && blank(typed.payRateCents)) return { ok: true, fields: none, says: null }
+
+  const rate = typeof typed.payRateCents === 'number' ? typed.payRateCents : Number(typed.payRateCents)
+  const verdict = checkStatedTerms({
+    engagementType: blank(typed.engagementType) ? null : String(typed.engagementType),
+    payRateCents: Number.isFinite(rate) ? rate : null,
+    personName: who.personName,
+    firmName: who.firmName,
+    ownCompany: who.ownCompany,
+  })
+  if (!verdict.ok) {
+    return {
+      ok: false,
+      code: verdict.code,
+      says: verdict.says,
+      field: verdict.code === 'NO_RATE' ? 'termsPayRateCents' : 'termsEngagementType',
+    }
+  }
+  return {
+    ok: true,
+    fields: {
+      termsEngagementType: verdict.engagementType,
+      termsPayRateCents: verdict.payRateCents,
+      termsStatedAt: who.now,
+      termsStatedById: who.statedById,
+      // Never agreed by the firm saying so. Only the person's own yes.
+      termsAgreedAt: null,
+    },
+    says: `${verdict.says} ${who.personName} sees these terms when they are asked, and agrees them only by saying yes.`,
+  }
+}
+
+/** How each engagement reads to the person it is about. */
+const TO_THE_PERSON: Record<Exclude<EngagementType, 'OTHER_EMPLOYER'>, string> = {
+  W2: 'as its employee (W2)',
+  IND_1099: 'as an independent contractor (1099)',
+  OWN_COMPANY: 'through your own company',
+}
+
+export interface TermsShown {
+  engagementType: EngagementType
+  payRateCents: number
+  /** "$90/hr" */
+  rate: string
+  /** "as its employee (W2)" */
+  words: string
+  agreed: boolean
+  says: string
+}
+
+/**
+ * The stated terms as the person reads them, or null where nothing was
+ * stated — or where what is on the row is not something the listing door
+ * would have written, which is shown as nothing rather than guessed at.
+ */
+export function termsShown(
+  l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
+  firmName: string
+): TermsShown | null {
+  const type = l.termsEngagementType as EngagementType | null
+  if (!type || !ENGAGEMENT_TYPES.includes(type) || type === 'OTHER_EMPLOYER') return null
+  const rate = perHour(l.termsPayRateCents)
+  if (!rate) return null
+  const words = TO_THE_PERSON[type]
+  const agreed = l.termsAgreedAt != null
+  return {
+    engagementType: type,
+    payRateCents: l.termsPayRateCents!,
+    rate,
+    words,
+    agreed,
+    says: agreed
+      ? `You agreed: ${firmName} pays you ${rate}, ${words}, when it places you.`
+      : `${firmName} says it would pay you ${rate}, ${words}, when it places you.`,
+  }
+}
+
+/**
+ * What a yes agrees about pay.
+ *
+ * `seen` is the terms the person's page printed beside the button. Where
+ * the firm stated terms, the yes agrees them only if they are the ones
+ * shown; otherwise it is refused, so nobody agrees a figure they never
+ * read. Where nothing was stated, the yes agrees only the marketing.
+ */
+export function agreeingTerms(
+  l: { termsEngagementType: string | null; termsPayRateCents: number | null; termsAgreedAt: Date | null },
+  seen: unknown,
+  firmName: string,
+  now: Date
+):
+  | { ok: true; data: { termsAgreedAt: Date } | Record<string, never>; agreed: boolean; says: string }
+  | { ok: false; says: string } {
+  const stated = termsShown(l, firmName)
+  if (!stated) {
+    return {
+      ok: true,
+      data: {},
+      agreed: false,
+      says: `${firmName} has not said what it would pay you, so this yes lets it market you and agrees no pay.`,
+    }
+  }
+  if (stated.agreed) return { ok: true, data: {}, agreed: true, says: stated.says }
+  const s = (seen ?? null) as { engagementType?: unknown; payRateCents?: unknown } | null
+  const same =
+    s != null &&
+    String(s.engagementType ?? '').toUpperCase() === stated.engagementType &&
+    Math.round(Number(s.payRateCents)) === stated.payRateCents
+  if (!same) {
+    return {
+      ok: false,
+      says: `${stated.says} Read these terms, then say yes again — your yes agrees them.`,
+    }
+  }
+  return {
+    ok: true,
+    data: { termsAgreedAt: now },
+    agreed: true,
+    says: `You agreed: ${firmName} pays you ${stated.rate}, ${stated.words}, when it places you.`,
+  }
 }

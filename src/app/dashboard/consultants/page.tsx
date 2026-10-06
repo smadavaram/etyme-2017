@@ -10,6 +10,7 @@ import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags } from '@/lib/bench-filter'
 import { sectionOfHref } from '@/lib/page-framing'
+import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -63,6 +64,10 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
     tier: 'MARKETING' as 'MARKETING' | 'RETAINED',
     rateMin: '',
     rateMax: '',
+    // What the firm would pay them when it places them, if it knows
+    // already (2026-10-06). Optional; they read it beside their yes.
+    termsEngagementType: '' as '' | 'W2' | 'IND_1099',
+    termsPay: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -130,6 +135,12 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           tier: form.tier,
           rateMin: rates.rateMin,
           rateMax: rates.rateMax,
+          // Dollars an hour typed, minor units sent. The route checks it
+          // with the terms page's own rule and says what is wrong.
+          termsEngagementType: form.termsEngagementType || null,
+          termsPayRateCents: form.termsPay.trim()
+            ? Number.isFinite(Number(form.termsPay)) ? Math.round(Number(form.termsPay) * 100) : form.termsPay
+            : null,
         }),
       })
 
@@ -352,6 +363,37 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
             </div>
           </div>
+          {/* Pay terms, optional. Only the two a person added here can
+              have: "through their own company" needs their company on
+              record first, and "employed by another firm" is that firm's
+              to put forward. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="add-terms-type" className="block text-xs font-semibold text-etyme-muted mb-1">How you would pay them (optional)</label>
+              <select
+                id="add-terms-type"
+                value={form.termsEngagementType}
+                onChange={(e) => setForm({ ...form, termsEngagementType: e.target.value as '' | 'W2' | 'IND_1099' })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="">Not decided yet</option>
+                <option value="W2">{ENGAGEMENT_WORDS.W2}</option>
+                <option value="IND_1099">{ENGAGEMENT_WORDS.IND_1099}</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="add-terms-pay" className="block text-xs font-semibold text-etyme-muted mb-1">Their pay ($/hr)</label>
+              <input id="add-terms-pay" type="number" min="0" step="0.01" value={form.termsPay}
+                onChange={(e) => setForm({ ...form, termsPay: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
+              {fieldErrors.termsPayRateCents && <p className="text-xs text-etyme-attention mt-1">{fieldErrors.termsPayRateCents}</p>}
+            </div>
+          </div>
+          <p className="text-xs text-etyme-muted">
+            If you fill these in, they see them when they are asked and agree them by saying yes.
+          </p>
+
           {/* Said plainly, right above the one button, because saving
               sends an email (outside review, 2026-10-05). */}
           <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name)}</p>

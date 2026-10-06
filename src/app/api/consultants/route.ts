@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
-import { addedSays, benchClosedSays } from '@/lib/bench-filter'
+import { addedSays, benchClosedSays, listingTermsFrom } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -147,6 +147,9 @@ export async function GET(request: NextRequest) {
                 rateMin: true,
                 rateMax: true,
                 grantedAt: true,
+                termsEngagementType: true,
+                termsPayRateCents: true,
+                termsAgreedAt: true,
               },
             }
           : false,
@@ -190,6 +193,10 @@ export async function GET(request: NextRequest) {
             rateMin: showRate ? l.rateMin : undefined,
             rateMax: showRate ? l.rateMax : undefined,
             grantedAt: l.grantedAt.toISOString(),
+            // The terms stated at listing: the kind is not money, the pay is.
+            termsEngagementType: l.termsEngagementType,
+            termsPayRateCents: showRate ? l.termsPayRateCents : undefined,
+            termsAgreed: l.termsAgreedAt != null,
           }))
         : [],
     }
@@ -213,8 +220,13 @@ export async function GET(request: NextRequest) {
  *
  * Create a consultant by hand. BUILD.md §3 — Supply.
  *
- * Creates: Person + ConsultantProfile + BenchListing (RETAINED, pending grant).
- * The consultant must grant the listing before submissions can reference it.
+ * Creates: Person + ConsultantProfile + BenchListing (MARKETING unless
+ * the firm says otherwise, pending grant). The consultant must grant the
+ * listing before submissions can reference it.
+ *
+ * Optional terms (2026-10-06): `termsEngagementType` and
+ * `termsPayRateCents`, what the firm would pay them when it places them,
+ * checked by demand's `checkStatedTerms` and agreed only by their own yes.
  *
  * Requires consultants.write permission.
  */
@@ -298,6 +310,26 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // What the firm says it would pay them, where it says anything. A
+  // person added here has no company of their own on record yet, so
+  // "through their own company" is refused in the terms page's sentence.
+  const terms = listingTermsFrom(
+    { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
+    {
+      personName: name.trim(),
+      firmName: caller.company!.name,
+      ownCompany: null,
+      statedById: caller.person.id,
+      now: new Date(),
+    }
+  )
+  if (!terms.ok) {
+    return NextResponse.json(
+      { error: { code: terms.code, message: terms.says, field: terms.field } },
+      { status: 422 }
+    )
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // 1. Find or create the Person
@@ -356,6 +388,7 @@ export async function POST(request: NextRequest) {
           rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
           rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
           ...invitation(new Date()),
+          ...terms.fields,
         },
       })
 
@@ -380,6 +413,8 @@ export async function POST(request: NextRequest) {
             profileId: profile.id,
             listingId: listing.id,
             createdBy: caller.person.id,
+            termsEngagementType: terms.fields.termsEngagementType,
+            termsPayRateCents: terms.fields.termsPayRateCents,
           },
           reversible: true,
         },
@@ -436,6 +471,10 @@ export async function POST(request: NextRequest) {
             rateMin: result.listing.rateMin,
             rateMax: result.listing.rateMax,
             status: result.listing.state,
+            termsEngagementType: result.listing.termsEngagementType,
+            termsPayRateCents: result.listing.termsPayRateCents,
+            termsStatedAt: result.listing.termsStatedAt?.toISOString() ?? null,
+            termsAgreedAt: null,
           },
           // What adding them did, in a sentence: the ask went, and nothing
           // reaches past the firm until they say yes.
@@ -444,7 +483,7 @@ export async function POST(request: NextRequest) {
             firm: caller.company!.name,
             tier: result.listing.tier,
             emailed: Boolean(url && result.person.primaryEmail),
-          }),
+          }) + (terms.says ? ` ${terms.says}` : ''),
         },
       },
       { status: 201 }

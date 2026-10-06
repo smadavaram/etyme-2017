@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { answer, type State } from '@/lib/bench-consent'
 import { tellTheFirm } from '@/lib/bench-invite'
 import { readStay, stayFields, staySays } from '@/lib/bench-stay'
+import { agreeingTerms } from '@/lib/bench-filter'
 
 /**
  * POST /api/me/benches/:id/respond
@@ -15,7 +16,14 @@ import { readStay, stayFields, staySays } from '@/lib/bench-stay'
  * now `grantedAt` was stamped the moment a vendor created the row — so
  * every listing was born consented and nobody was ever asked.
  *
- * Body: { said: 'ACCEPT' | 'DECLINE', note?: string }
+ * Body: { said: 'ACCEPT' | 'DECLINE', note?: string,
+ *         termsSeen?: { engagementType, payRateCents } }
+ *
+ * Where the firm stated terms when it listed them (2026-10-06), the yes
+ * agrees those terms — `termsAgreedAt` — but only the terms their page
+ * printed beside the button, sent back as `termsSeen`. If the firm
+ * changed them in between, the yes is refused and they read again. A yes
+ * to a listing with no terms agrees only the marketing.
  */
 export async function POST(
   request: NextRequest,
@@ -77,18 +85,34 @@ export async function POST(
   }
   const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
 
+  // What the yes agrees about pay. A no agrees nothing and needs no check.
+  const terms = said === 'ACCEPT' ? agreeingTerms(listing, body.termsSeen, listing.company.name, now) : null
+  if (terms && !terms.ok) {
+    return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
+  }
+  const agreed = terms && terms.ok ? terms : null
+
   await prisma.$transaction([
     prisma.benchListing.update({
       where: { id },
-      data: chosen ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true } : outcome.data!,
+      data: chosen
+        ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true, ...(agreed?.data ?? {}) }
+        : outcome.data!,
     }),
     prisma.automationLog.create({
       data: {
         companyId: listing.company.id,
         action: said === 'ACCEPT' ? 'BENCH_CONSENT_GIVEN' : 'BENCH_CONSENT_DECLINED',
-        summary: `${caller.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}`,
+        summary:
+          `${caller.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
+          (agreed?.agreed && 'termsAgreedAt' in agreed.data ? ', and agreed the pay terms stated with the listing' : ''),
         reason: 'The consultant answered the invitation themselves.',
-        payload: { listingId: id, said },
+        payload: {
+          listingId: id, said,
+          ...(agreed?.agreed && 'termsAgreedAt' in agreed.data
+            ? { termsAgreed: { engagementType: listing.termsEngagementType, payRateCents: listing.termsPayRateCents } }
+            : {}),
+        },
         // Their own answer about their own representation. A vendor
         // reversing it would be the vendor consenting on their behalf,
         // which is the whole thing this prevents.
@@ -116,7 +140,10 @@ export async function POST(
     data: {
       id,
       state: said === 'ACCEPT' ? 'GRANTED' : 'DECLINED',
-      says: chosen ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}` : outcome.reason,
+      termsAgreed: agreed?.agreed ?? false,
+      says: chosen
+        ? `${outcome.reason} ${staySays(chosen, listing.company.name, now)}${agreed ? ` ${agreed.says}` : ''}`
+        : outcome.reason,
     },
   })
 }

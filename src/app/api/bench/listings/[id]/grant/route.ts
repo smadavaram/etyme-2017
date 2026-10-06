@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
 import { answer, type State } from '@/lib/bench-consent'
 import { readStay, stayFields } from '@/lib/bench-stay'
+import { agreeingTerms } from '@/lib/bench-filter'
 
 /**
  * PATCH /api/bench/listings/:id/grant
@@ -109,12 +110,20 @@ export async function PATCH(
     )
   }
 
+  // Terms stated with the listing are agreed by this yes only where the
+  // caller sends back the terms it was shown (`termsSeen`), the same rule
+  // as the person's own page. Nothing stated agrees only the marketing.
+  const terms = agreeingTerms(listing, body?.termsSeen, listing.company.name, grantedOn)
+  if (!terms.ok) {
+    return NextResponse.json({ error: { code: 'TERMS_NOT_SEEN', message: terms.says, field: 'termsSeen' } }, { status: 409 })
+  }
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
       // The moment the listing becomes live, and the state that says so.
       const result = await tx.benchListing.update({
         where: { id },
-        data: { ...outcome.data!, ...stayFields(stay.days, grantedOn) },
+        data: { ...outcome.data!, ...stayFields(stay.days, grantedOn), ...terms.data },
       })
 
       // AutomationLog on the company that owns the listing

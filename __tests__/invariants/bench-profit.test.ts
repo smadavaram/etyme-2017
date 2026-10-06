@@ -199,6 +199,24 @@ describe('bench to bill, per person', () => {
     expect(run(earned(2), { policy: { policy: 'NO_PAY' }, rateFrom: 'x' }).costSays).not.toContain('x.')
   })
 
+  it('the day a placement paid its bench back is not named when its weeks do not add up to its margin', () => {
+    // The books' margin, burden taken off, with weeks priced some other
+    // way: a date read off those weeks would be a guess.
+    const r = run({ ...earned(12), marginCents: 104_000 * 12 - 1 })
+    expect(r.marginCents).toBe(1_247_999)
+    expect(r.paidBackOn).toBeNull()
+    expect(r.leftCents).toBeNull()
+    expect(r.paybackSays).toBe('Not known yet. The margin could not be read week by week, so the day it paid the bench back is not named.')
+  })
+
+  it('bench profit reads its margin from the books the placement page and Profitability read, burden and all', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/bench/profit/route.ts'), 'utf8')
+    expect(src).toContain("from '@/lib/money/margin'")
+    expect(src).toMatch(/placementBooks\(companyId/)
+    expect(src).not.toMatch(/placementEarned\(/)
+    expect(src).not.toContain('Employer burden is not taken off')
+  })
+
   it('nothing spent on the bench has nothing to pay back', () => {
     const r = run(earned(2), { policy: { policy: 'NO_PAY' } })
     expect(r.costCents).toBe(0)

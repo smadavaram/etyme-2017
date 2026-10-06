@@ -6,6 +6,7 @@ import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { listingTermsFrom } from '@/lib/bench-filter'
 
 /**
  * POST /api/bench/listings
@@ -17,6 +18,12 @@ import { hasPermission } from '@/lib/permissions'
  *
  * CLAUDE.md invariant: "A Submission requires a live BenchListing granted
  * by the consultant." — the grant step is what makes it "live".
+ *
+ * Terms (2026-10-06), optional: `termsEngagementType` (W2 · IND_1099 ·
+ * OWN_COMPANY) and `termsPayRateCents`, what the firm would pay the
+ * person when it places them. Checked by demand's `checkStatedTerms`;
+ * recorded with who stated them and when; agreed only by the person's
+ * own yes (`/api/me/benches/:id/respond`).
  *
  * Requires consultants.write permission.
  */
@@ -77,6 +84,7 @@ export async function POST(request: NextRequest) {
       personId: true,
       rateFloor: true,
       person: { select: { name: true, primaryEmail: true } },
+      ownCompany: { select: { id: true, name: true } },
     },
   })
 
@@ -102,6 +110,25 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       )
     }
+  }
+
+  // What the firm says it would pay them, where it says anything. The
+  // same rule and the same sentences as the terms page.
+  const terms = listingTermsFrom(
+    { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents },
+    {
+      personName: consultant.person.name,
+      firmName: caller.company!.name,
+      ownCompany: consultant.ownCompany ?? null,
+      statedById: caller.person.id,
+      now: new Date(),
+    }
+  )
+  if (!terms.ok) {
+    return NextResponse.json(
+      { error: { code: terms.code, message: terms.says, field: terms.field } },
+      { status: 422 }
+    )
   }
 
   try {
@@ -136,6 +163,9 @@ export async function POST(request: NextRequest) {
             ...invitation(new Date()),
             revokedAt: null,
             declinedNote: null,
+            // Stated afresh or not at all. Terms agreed on the listing
+            // they took back went with it.
+            ...terms.fields,
           },
         })
       } else {
@@ -153,6 +183,7 @@ export async function POST(request: NextRequest) {
             // right and there was no mechanism behind it. grantedAt
             // defaulted to now() and nobody was ever asked.
             ...invitation(new Date()),
+            ...terms.fields,
           },
         })
       }
@@ -170,6 +201,8 @@ export async function POST(request: NextRequest) {
             personId: consultant.personId,
             requestedBy: caller.person.id,
             tier,
+            termsEngagementType: terms.fields.termsEngagementType,
+            termsPayRateCents: terms.fields.termsPayRateCents,
           },
           reversible: true,
         },
@@ -218,8 +251,14 @@ export async function POST(request: NextRequest) {
             rateMax: result.rateMax,
             status: 'PENDING_GRANT',
             grantedAt: result.grantedAt.toISOString(),
+            termsEngagementType: result.termsEngagementType,
+            termsPayRateCents: result.termsPayRateCents,
+            termsStatedAt: result.termsStatedAt?.toISOString() ?? null,
+            termsAgreedAt: null,
           },
-          message: `Bench listing created for "${consultant.person.name}". Consultant must grant it before submissions can be made.`,
+          message:
+            `Bench listing created for "${consultant.person.name}". Consultant must grant it before submissions can be made.` +
+            (terms.says ? ` ${terms.says}` : ''),
         },
       },
       { status: 201 }

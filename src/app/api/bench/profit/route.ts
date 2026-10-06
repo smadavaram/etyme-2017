@@ -3,7 +3,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { isConsultantSeat } from '@/lib/seat'
 import { ratePeriods } from '@/lib/contract-rate'
-import { placementEarned, priceSheets, type SheetToPrice } from '@/lib/money/placement-earned'
+import { priceSheets, type SheetToPrice } from '@/lib/money/placement-earned'
+import { placementBooks } from '@/lib/money/margin'
+import { burdenRate } from '@/lib/order-postings'
 import { placementPayTermsMany, placementMoneySheets, payTermsKey } from '@/lib/money/placement-pay-terms'
 import { payTrail } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
@@ -30,9 +32,13 @@ import { benchHolidays } from '../holiday-pay'
  * figure was worked from is on the access trail before the answer leaves.
  *
  * Nothing here decides money. The bench cost is `benchCost` under the
- * firm's policy, the day rate is `burnOf`'s, and the margin is
- * `placementEarned`'s — the placement page's own figure, read week by week
- * so the week it caught up can be named.
+ * firm's policy, the day rate is `burnOf`'s, and the margin is money's
+ * `placementBooks` — the figure the placement page and Profitability
+ * print, employer burden taken off where the firm employs the person —
+ * read week by week so the week it caught up can be named. The weeks are
+ * priced the books' way and must add up to the books' figure to the cent;
+ * where they do not, the day it paid back is left unnamed
+ * (`benchToBill`).
  */
 
 const LIVE_OR_PAPERED = ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED', 'ENDED'] as const
@@ -146,6 +152,12 @@ export async function GET(request: NextRequest) {
   }
 
   // ── The margin on a line, the placement page's way ──────────────────
+  //
+  // One read of the books for every line here, from money's one door, so
+  // bench profit, the placement page and Profitability print one figure.
+  const books = new Map(
+    (sells.length ? await placementBooks(companyId, { sellContractIds: sells.map((s) => s.id) }) : []).map((b) => [b.sellContractId, b])
+  )
   const earnedCache = new Map<string, Earned>()
   const rateRows = sells.length
     ? await prisma.rateHistory.findMany({
@@ -181,16 +193,38 @@ export async function GET(request: NextRequest) {
           overtime: terms.get(payTermsKey({ buyContractId: p.buyContractId, sellContractId: s.id, personId: s.personId })) ?? null,
         }
       : null
-    const e = placementEarned({ sheets, bill, pay })
-    // The same weeks `placementEarned` took its margin over, priced the
-    // same way, so the running total ends on its figure exactly.
+    const book = books.get(s.id) ?? null
+    if (!book) {
+      const out: Earned = {
+        marginCents: null,
+        refusedBecause: 'This placement is not on your books, so its margin is not read here.',
+        currency: s.billCurrency,
+        weeks: [],
+      }
+      earnedCache.set(s.id, out)
+      return out
+    }
+    const e = book.earned
+    // Burden comes off each week as the books post it: the employer's
+    // rate, for the year the work began, on that week's pay, rounded on
+    // its own. The books took it off only where this firm employs the
+    // person at hop 0, which is exactly where their burden is above nought.
+    const burdenOn =
+      e.marginCents != null && (e.burdenCents ?? 0) > 0 && p
+        ? (await burdenRate(companyId, p.contractType, sheets[0]?.periodStart ?? new Date())).rate
+        : 0
+    // The same weeks the books took their margin over, priced the same
+    // way, so the running total ends on their figure exactly.
     const weekly =
       e.marginCents == null
         ? []
         : priceSheets({ sheets, bill, pay: pay && pay.openingRateCents > 0 ? pay : null }).sheets
             .map((w, i) => ({ w, endsOn: sheets[i].periodEnd }))
             .filter(({ w }) => w.bothSigned)
-            .map(({ w, endsOn }) => ({ endsOn, marginCents: w.billedCents - (w.paidCents ?? 0) }))
+            .map(({ w, endsOn }) => ({
+              endsOn,
+              marginCents: w.billedCents - (w.paidCents ?? 0) - (w.paidCents == null ? 0 : Math.round(w.paidCents * burdenOn)),
+            }))
     const out: Earned = {
       marginCents: e.marginCents,
       refusedBecause: e.marginRefusedBecause,
@@ -406,7 +440,7 @@ export async function GET(request: NextRequest) {
           : 'Public holidays on the bench are not paid unless your firm turned holiday pay on and switched that person on.') +
           ' A holiday not paid is taken out of their cost. The holidays are the ones on your company calendar' +
           (firm.country ? ` for ${firm.country}.` : '.'),
-        'The margin is what the client’s approved hours billed, less what you paid for the hours you accepted, on the weeks both sides signed — the same figure as the placement page. Employer burden is not taken off.',
+        'The margin is what the client’s approved hours billed, less what you paid for the hours you accepted, on the weeks both sides signed, less employer burden where you employ the person — the same figure as the placement page and Profitability, to the cent.',
         'A figure the record cannot support is left blank, with the reason beside it.',
       ],
     },

@@ -25,6 +25,15 @@ interface Hold {
   role: string | null
   daysLeft: number
 }
+/** Pay terms the firm stated when it listed them (2026-10-06). */
+interface Terms {
+  engagementType: string
+  payRateCents: number
+  rate: string
+  words: string
+  agreed: boolean
+  says: string
+}
 interface Bench {
   listingId: string
   companyId: string
@@ -42,6 +51,7 @@ interface Bench {
   mayRenew?: boolean
   /** Whether this firm may show them, without their name, beyond the firms it works with. */
   showInMatches?: boolean
+  terms?: Terms | null
 }
 interface Data {
   benches: Bench[]
@@ -55,7 +65,7 @@ interface Data {
    * Firms that asked to market them and are waiting on an answer. Not a
    * bench yet: nothing reaches anybody until they say yes.
    */
-  invited?: { listingId: string; company: string; askedAt: string | null }[]
+  invited?: { listingId: string; company: string; askedAt: string | null; terms?: Terms | null }[]
   /** Stays that ran out: not a bench any more, and one tap from being one again. */
   ended?: { listingId: string; company: string; stayDays: number | null; stay: string; mayRenew: boolean }[]
   stayChoices?: number[]
@@ -181,7 +191,7 @@ export default function MyBenchesPage() {
   // emailed link runs, from their own page: until this existed the only
   // way to say yes was the link, and a signed-in consultant read the
   // firm under "Agencies marketing you" without having agreed to anything.
-  async function answerAsk(listingId: string, said: 'ACCEPT' | 'DECLINE') {
+  async function answerAsk(listingId: string, said: 'ACCEPT' | 'DECLINE', terms?: Terms | null) {
     setBusy(true)
     setError(null)
     setFlash(null)
@@ -191,7 +201,12 @@ export default function MyBenchesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           said === 'ACCEPT'
-            ? { said, stayDays: stayFor[listingId] ?? null, showInMatches: showFor[listingId] === true }
+            ? {
+                said, stayDays: stayFor[listingId] ?? null, showInMatches: showFor[listingId] === true,
+                // The terms printed beside the button. The yes agrees these
+                // and nothing else; if the firm changed them, it is refused.
+                termsSeen: terms ? { engagementType: terms.engagementType, payRateCents: terms.payRateCents } : null,
+              }
             : { said }
         ),
       })
@@ -282,6 +297,16 @@ export default function MyBenchesPage() {
                       {a.askedAt && (
                         <p className="text-[13px] text-etyme-muted mt-0.5 tabular-nums">asked {a.askedAt}</p>
                       )}
+                      {/* Pay terms stated with the ask, read before the yes. */}
+                      {a.terms ? (
+                        <p className="text-[13px] text-etyme-ink mt-1">
+                          {a.terms.says} Saying yes agrees these terms.
+                        </p>
+                      ) : (
+                        <p className="text-[13px] text-etyme-muted mt-1">
+                          No pay terms yet. Saying yes lets them market you and agrees no pay.
+                        </p>
+                      )}
                     </div>
                     {/* The yes and how long it lasts are one answer. */}
                     <div className="flex flex-wrap items-center gap-2">
@@ -292,8 +317,8 @@ export default function MyBenchesPage() {
                         choices={data.stayChoices ?? STAY_CHOICES_FALLBACK}
                         disabled={busy}
                       />
-                      <button className={primary} disabled={busy} onClick={() => answerAsk(a.listingId, 'ACCEPT')}>
-                        Yes, market me
+                      <button className={primary} disabled={busy} onClick={() => answerAsk(a.listingId, 'ACCEPT', a.terms)}>
+                        {a.terms ? 'Yes, market me on these terms' : 'Yes, market me'}
                       </button>
                       <button className={quiet} disabled={busy} onClick={() => answerAsk(a.listingId, 'DECLINE')}>
                         No
@@ -363,6 +388,27 @@ export default function MyBenchesPage() {
                       Take it back
                     </button>
                   </div>
+
+                  {/* Pay terms stated with the listing, and their answer to them. */}
+                  {b.terms && (
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <p className={`text-[13px] ${b.terms.agreed ? 'text-etyme-muted' : 'text-etyme-ink'}`}>{b.terms.says}</p>
+                      {!b.terms.agreed && (
+                        <button
+                          className={primary}
+                          disabled={busy}
+                          onClick={() =>
+                            send({
+                              listingId: b.listingId,
+                              agreeTerms: { engagementType: b.terms!.engagementType, payRateCents: b.terms!.payRateCents },
+                            })
+                          }
+                        >
+                          Agree these terms
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Where this agency currently holds them. The one thing
                       that stops a second agency submitting them there. */}
