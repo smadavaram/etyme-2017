@@ -20,6 +20,7 @@ import { categoryOf } from '@/lib/cycle-kinds'
 
 const ALL = Object.values(TEMPLATE_PACKS)
 const iso = (d: Date) => d.toISOString().slice(0, 10)
+const daysBefore = (d: Date, n: number) => new Date(d.getTime() - n * 86_400_000)
 
 /** A quarter, from each of the seven days a contract can start on. */
 function quarterFrom(weekday: number): { start: Date; end: Date } {
@@ -32,7 +33,7 @@ function datesFor(def: CycleDefinition, start: Date, end: Date): Date[] {
   return generateCycles(start, end, [def]).map((c) => c.dueOn)
 }
 
-describe('an approval is three days after the hours, never before them', () => {
+describe('an approval is two days after the hours are due, never before them', () => {
   const weekly = ALL.flatMap((pack) => {
     const submit = pack.cycleDefinitions.find((d) => d.kind === 'TIMESHEET_SUBMIT')
     const approve = pack.cycleDefinitions.find((d) => d.kind === 'TIMESHEET_APPROVE')
@@ -75,6 +76,63 @@ describe('an approval is three days after the hours, never before them', () => {
           `${w.id}, starting ${iso(start)}`
         ).toBe(datesFor(w.submit, start, end).length)
       }
+    }
+  })
+
+  it('the weekly hours of a Sunday-to-Saturday week are due on the Monday after it ends', () => {
+    // The founder's decision of 2026-09-30: a week runs Sunday to
+    // Saturday and its hours are due the Monday after, so weekend work is
+    // in before anybody signs. The packs asked for them on the Friday,
+    // before the week's Saturday had happened. No holidays are passed, so
+    // nothing here has been shifted. Dates are UTC midnights, the way a
+    // contract's dates are stored.
+    const offenders: string[] = []
+    for (const w of weekly) {
+      for (let day = 0; day < 7; day++) {
+        const start = new Date(Date.UTC(2026, 9, 11 + day)) // 11 Oct 2026 is a Sunday
+        const end = new Date(Date.UTC(2026, 11, 31))
+        for (const due of datesFor(w.submit, start, end)) {
+          const saturday = daysBefore(due, 2)
+          const sunday = daysBefore(due, 8)
+          if (due.getUTCDay() !== 1) offenders.push(`${w.id}: ${iso(due)} is not a Monday`)
+          // The week it is for ended on the Saturday two days earlier and
+          // had at least one day inside the contract.
+          if (!(due > saturday && saturday >= start && sunday <= end)) {
+            offenders.push(`${w.id}: starting ${iso(start)}, ${iso(due)} asks for a week the contract did not have`)
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('approves each week on the Wednesday after it, two days after its hours are due', () => {
+    for (const w of weekly) {
+      for (let day = 0; day < 7; day++) {
+        const start = new Date(Date.UTC(2026, 9, 11 + day))
+        const end = new Date(Date.UTC(2026, 11, 31))
+        const hours = datesFor(w.submit, start, end)
+        const approvals = datesFor(w.approve, start, end)
+        approvals.forEach((a, i) => {
+          expect(a.getUTCDay(), `${w.id} ${iso(a)}`).toBe(3)
+          expect(Math.round((+a - +hours[i]) / 86_400_000), `${w.id} ${iso(a)}`).toBe(2)
+        })
+      }
+    }
+  })
+
+  it('a contract running Monday to Friday is asked for every one of its weeks, the last included', () => {
+    // Why the Monday is said as "Friday plus three" and not as a Saturday
+    // anchor: the generator counts a week as the contract's when its
+    // anchor day falls inside it, and a Saturday anchor drops the final
+    // week of the commonest placement there is.
+    for (const w of weekly) {
+      const start = new Date(Date.UTC(2026, 9, 12)) // a Monday
+      const end = new Date(Date.UTC(2026, 11, 18)) // a Friday, ten weeks later
+      const hours = datesFor(w.submit, start, end).map(iso)
+      expect(hours.length, w.id).toBe(10)
+      expect(hours[0], w.id).toBe('2026-10-19')
+      expect(hours[hours.length - 1], w.id).toBe('2026-12-21')
     }
   })
 
@@ -138,6 +196,46 @@ describe('a cycle date is the end of a period, never the first day of it', () =>
       // The old cut gave gaps of one and three days, then a month.
       expect(Math.min(...gaps), id).toBeGreaterThanOrEqual(13)
       expect(Math.max(...gaps), id).toBeLessThanOrEqual(19)
+    }
+  })
+})
+
+describe('a fortnight is paid the Friday after it ends, and worked out before it is paid', () => {
+  // The founder's biweekly default, 2026-09-30: the period ends on a
+  // Saturday and is paid on the Friday after. The two dates used to be
+  // anchored apart, so a contract starting on a Thursday or a Friday
+  // calculated its pay five days after paying it.
+  const biweekly = ALL.flatMap((pack) => {
+    const calc = pack.cycleDefinitions.find((d) => d.kind === 'SALARY_CALCULATE')
+    const pay = pack.cycleDefinitions.find((d) => d.kind === 'SALARY_PAY')
+    return calc && pay && calc.frequency === 'BIWEEKLY' && pay.frequency === 'BIWEEKLY'
+      ? [{ id: pack.id, calc, pay }]
+      : []
+  })
+
+  it('finds the packs that pay every other week', () => {
+    expect(biweekly.map((b) => b.id).sort()).toEqual(['US_IT', 'US_SAP'])
+  })
+
+  it('pays on a Friday six days after a fortnight ends on a Saturday, and works it out on the Wednesday between', () => {
+    for (const b of biweekly) {
+      for (let day = 0; day < 7; day++) {
+        const start = new Date(Date.UTC(2026, 9, 11 + day))
+        const end = new Date(Date.UTC(2027, 3, 30))
+        const pays = datesFor(b.pay, start, end)
+        const calcs = datesFor(b.calc, start, end)
+        expect(calcs.length, `${b.id}, starting ${iso(start)}`).toBe(pays.length)
+        pays.forEach((p, i) => {
+          expect(p.getUTCDay(), `${b.id} ${iso(p)}`).toBe(5)
+          expect(calcs[i].getUTCDay(), `${b.id} ${iso(calcs[i])}`).toBe(3)
+          // Worked out two days before it is paid, never after.
+          expect(Math.round((+p - +calcs[i]) / 86_400_000), `${b.id}, starting ${iso(start)}`).toBe(2)
+          // The Saturday the fortnight ended on is six days before the pay
+          // day, and the contract had begun by then.
+          const saturday = daysBefore(p, 6)
+          expect(saturday >= start, `${b.id}, starting ${iso(start)}: ${iso(p)}`).toBe(true)
+        })
+      }
     }
   })
 })

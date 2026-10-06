@@ -166,12 +166,89 @@ export interface TemplatePack {
 // Cycles are generated once — at award, convert, replace, extend and
 // seed — so nothing already written is rewritten, and a demo moves when
 // it is re-seeded.
+//
+// ── The week runs Sunday to Saturday, and its hours are due Monday ────
+//
+// Changed 2026-10-06, on the founder's decision of 2026-09-30 (CLAUDE.md,
+// "When a Sunday-to-Saturday week is due"): a week runs Sunday to
+// Saturday; by default its hours are due on the Monday after it ends and
+// are approved by the Wednesday, so weekend work is in before anybody
+// signs. Until today the packs asked for the hours on the Friday — the
+// last weekday of the week, before its Saturday had happened — and the
+// approval on the Monday.
+//
+// **Monday is said as "the Friday plus three", not as `dayOfWeek: 1`,
+// and that is deliberate.** `lib/cycle-generator` reads a weekly
+// `dayOfWeek` as the END of the period and `offsetDays` as how long after
+// it the date falls — the same reading the monthly note above rests on.
+// Measured over every start day and every end day of a five-month
+// contract, 2,401 contracts and 8,379 Sunday-to-Saturday weeks:
+//
+//   - `dayOfWeek: 1` makes a Monday the end of a week. A contract that
+//     starts on a Monday — the commonest start — is asked for the hours
+//     of the week BEFORE it began (98 dates for work that did not
+//     happen), and every contract loses its final week's date, even one
+//     ending on a Saturday (343 weeks with no date). It is the 2026-09-22
+//     defect again, one day over.
+//   - Saturday plus two is the purest reading and loses the last week of
+//     every contract ending Sunday to Friday (294), which includes the
+//     commonest shape of all: Monday to Friday. Today's Friday anchor
+//     covered that week, so this would have taken a date away from most
+//     placements.
+//   - Friday plus three gives the identical Monday for every week in the
+//     middle, keeps the last week of a contract ending on a Friday or a
+//     Saturday, writes nothing for a week before the contract, and loses
+//     only a one-day first week for a contract starting on a Saturday
+//     (49) and the final part-week of one ending Sunday to Thursday
+//     (245). That last case is the "no final partial period" item in
+//     CLAUDE.md's honest list for the cycle engine, `etyme-money`'s, and
+//     no anchor fixes it.
+//
+// In words: a week belongs to the contract if its Friday does, and its
+// hours are due the Monday after its Saturday. The approval is two days
+// after that, on the Wednesday, said as an offset off the same anchor
+// for the reason the 2026-09-22 note gives: an approval is not a rhythm
+// of its own. HOURS dates move forward off a weekend or a holiday, so a
+// Monday holiday makes it a Tuesday and the approval still follows it.
+// A company that gives its approvers the extra week the decision allows
+// is a setting, not a pack.
+//
+// **The fortnight is paid the Friday after it ends.** The same decision:
+// for a US employer the default is biweekly, "the period ending on a
+// Saturday and paid on the Friday after". The pack asked for the pay day
+// on a Friday anchored on its own and the calculation on a Wednesday
+// anchored on its own, so the two drifted apart by start day — a contract
+// starting on a Thursday or a Friday calculated pay five days
+// AFTER paying it — and the pay day was the Friday before the period's
+// Saturday, paying ahead of the work. Both now hang off one anchor: the
+// fortnight's Friday, its Saturday the day after, the pay day seven days
+// on (the Friday after), the calculation five days on (the Wednesday).
+//
+// **The calculation is Wednesday, not Monday.** Monday is two days before
+// the weekly approvals land, so pay would be worked out from hours nobody
+// has signed. And pay dates shift BACKWARD off a holiday (`lib/cycle-shift`,
+// the company's setting), so a Monday calculation on a Monday holiday —
+// five of the eleven US federal holidays always do — would move to the
+// Friday inside the fortnight it calculates. A Wednesday calculation
+// moved back lands on the Tuesday, still after the period. It does fall
+// on the same day the approvals are due; whether it should be the
+// Thursday instead, the way the founder chose three days over one on
+// 2026-09-26 to keep a sign-off off the day its hours land, is his to say
+// and is not decided here.
 const COMMON_CYCLES: CycleDefinition[] = [
-  { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
-  { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
+  // The Monday after a Sunday-to-Saturday week: the hours are for the
+  // week that ended two days earlier. Friday plus three, see above.
+  // Founder's decision, 2026-09-30.
+  { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
+  // The Wednesday after the week: two days after its hours are due,
+  // off the same anchor so it can never come first. 2026-09-30.
+  { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 5 },
   { kind: 'INVOICE_GENERATE', label: 'Bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 15 },
-  { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 3 },
-  { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5 },
+  // The Wednesday after a fortnight ending on a Saturday, two days before
+  // it is paid. Not Monday — see above. 2026-09-30.
+  { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 5, offsetDays: 5 },
+  // The Friday after a fortnight ending on a Saturday. 2026-09-30.
+  { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5, offsetDays: 7 },
 ]
 
 const US_IT: TemplatePack = {
@@ -270,12 +347,14 @@ const UK: TemplatePack = {
     { code: 'PAYE', label: 'PAYE Temp', description: 'Temporary employee on agency payroll' },
   ],
   cycleDefinitions: [
-    { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5 },
-    // The same pair, and the same defect, as the note on COMMON_CYCLES
-    // above: a weekly approval anchored on its own Monday. A UK
-    // placement starting on a Monday had it too, and a fix that leaves
-    // the identical line in the next pack down is half a fix.
-    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
+    // The Monday after a Sunday-to-Saturday week: the hours are for the
+    // week that ended two days earlier. The same change as COMMON_CYCLES,
+    // on the founder's decision of 2026-09-30; a fix that leaves the
+    // identical line in the next pack down is half a fix.
+    { kind: 'TIMESHEET_SUBMIT', label: 'Timesheet submission', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 3 },
+    // The Wednesday after the week, two days after its hours are due,
+    // off the same anchor (2026-09-22 note above; 2026-09-30 decision).
+    { kind: 'TIMESHEET_APPROVE', label: 'Timesheet approval', frequency: 'WEEKLY', dayOfWeek: 5, offsetDays: 5 },
     { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'MONTHLY', dayOfMonth: 25 },
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     // Both still land on the 1st, and it is now the 1st after the month
