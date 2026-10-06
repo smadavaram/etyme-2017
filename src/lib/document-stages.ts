@@ -1449,6 +1449,123 @@ export function credentialsToChase(
   return out.sort((a, b) => (a.daysLeft ?? 9_999) - (b.daysLeft ?? 9_999))
 }
 
+// ── Who asks a worker for her own paperwork ──────────────────────────
+//
+// CLAUDE.md, "Where a document lives — on the line, on the side it
+// protects": a person's license, visa and background check live on the
+// **buy** line — the line of the firm that pays for that person's work —
+// because that is the firm that may hold her to it and the firm whose
+// money stops when it lapses. So the firm that asks her for a renewal is
+// the one holding that line.
+//
+// Found by `__integration__/demo-seats.test.ts` on 2026-10-06. The chase
+// picked its asker as "the newest live sell line with her on it". After
+// Colleen Byrne's hours moved onto her own company's line on 2026-09-30
+// she has two — Byrne Critical Care LLC sells her to Halcyon, Halcyon
+// sells her to Harlow Health — and both started the same day. Postgres
+// broke the tie however it liked, so on some nights her renewal was asked
+// for by Halcyon and on others by her own company, and a re-run raised a
+// second ask from the other firm. Her own company asking her is her
+// asking herself: nobody at it can hold her to anything she does not
+// already hold herself to.
+//
+// The rule, in order:
+//   1. A firm the person owns never asks her. She is that firm.
+//   2. The firm holding the buy line nearest her asks — the one whose
+//      line pays her, or pays her own company, rather than a firm above
+//      it that buys the same person from somebody else.
+//   3. Where nobody holds a buy line for her, the firm that sells her at
+//      the bottom of the chain asks — it is the nearest firm that places
+//      her.
+//   4. Failing both, the firm whose bench she sits on.
+//   5. Otherwise nobody. Inventing a relationship would mean a firm
+//      emailing a stranger.
+// Every tie is broken the same way every night: the newest start, then
+// the line's id. One person, one asker, the same one tomorrow.
+
+/** A live line with the person on it, read from either side. */
+export interface LineCarryingPerson {
+  side: 'BUY' | 'SELL'
+  id: string
+  /** The firm holding the line. */
+  companyId: string
+  companyName: string
+  /** BUY: the firm this line pays. Null where it pays the person by payroll. */
+  vendorCompanyId?: string | null
+  /** SELL: the firm this line bills. */
+  clientCompanyId?: string | null
+  startDate: Date
+}
+
+export interface WhoAsks {
+  companyId: string
+  companyName: string
+  /** Why this firm, in a sentence a desk can read. */
+  because: string
+}
+
+function newestFirst(a: LineCarryingPerson, b: LineCarryingPerson): number {
+  const d = b.startDate.getTime() - a.startDate.getTime()
+  if (d !== 0) return d
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+}
+
+/**
+ * The one firm that asks a person for her own paperwork — a license
+ * renewal, a visa, a background check consent.
+ *
+ * Pure. The caller reads the live lines with the person on them, the
+ * firms she owns, and the firm whose bench she sits on, and passes them
+ * in; nothing here touches a database.
+ */
+export function whoAsksTheWorker(input: {
+  lines: LineCarryingPerson[]
+  /** Firms the person owns — a one-person corporation is hers. */
+  ownCompanyIds: string[]
+  /** The firm whose bench she sits on, where nobody places her. */
+  bench?: { companyId: string; companyName: string } | null
+}): WhoAsks | null {
+  const own = new Set(input.ownCompanyIds)
+  const lines = input.lines.filter((l) => !own.has(l.companyId))
+
+  const buys = lines.filter((l) => l.side === 'BUY')
+  if (buys.length > 0) {
+    const buyers = new Set(buys.map((l) => l.companyId))
+    // Nearest the worker: a line whose vendor does not itself buy her
+    // from somebody further down. A payroll line has no vendor at all.
+    const nearest = buys.filter((l) => !l.vendorCompanyId || !buyers.has(l.vendorCompanyId))
+    const pick = (nearest.length > 0 ? nearest : buys).slice().sort(newestFirst)[0]
+    return {
+      companyId: pick.companyId,
+      companyName: pick.companyName,
+      because: `${pick.companyName} pays for this person's work, and their paperwork lives on the line it pays from.`,
+    }
+  }
+
+  const sells = lines.filter((l) => l.side === 'SELL')
+  if (sells.length > 0) {
+    const clients = new Set(sells.map((l) => l.clientCompanyId).filter((x): x is string => !!x))
+    // The bottom seller: a firm nobody else on her chain sells her to.
+    const bottom = sells.filter((l) => !clients.has(l.companyId))
+    const pick = (bottom.length > 0 ? bottom : sells).slice().sort(newestFirst)[0]
+    return {
+      companyId: pick.companyId,
+      companyName: pick.companyName,
+      because: `${pick.companyName} places this person, and no firm below it holds a line that pays them.`,
+    }
+  }
+
+  if (input.bench && !own.has(input.bench.companyId)) {
+    return {
+      companyId: input.bench.companyId,
+      companyName: input.bench.companyName,
+      because: `Nobody places this person today; ${input.bench.companyName} carries them on its bench.`,
+    }
+  }
+
+  return null
+}
+
 // ── A form's name keeps its capitals ─────────────────────────────────
 //
 // Found on two client dashboards by a release walk: "Ingrid Sørensen
