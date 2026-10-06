@@ -7,7 +7,8 @@ import {
   payerScope, buyContractScope, resolveClientCompany,
 } from '@/lib/resolve-client-company'
 import {
-  actingInSeat, noteSeatRead, seatTrail, type LiveSeat,
+  actingInSeat, actingDesk, noteSeatRead, permissionsToJudgeBy, seatTrail,
+  type ActingDesk, type LiveSeat,
 } from '@/lib/program-seat'
 import { invoiceBetween } from './invoice-parties'
 import type { CallerContext } from '@/lib/api-context'
@@ -342,4 +343,40 @@ async function unitsReachedBy(seat: LiveSeat): Promise<string[] | null> {
 export function noteMoneyRead(books: Books, what: string): void {
   if (!books.seat) return
   void noteSeatRead(books.seat, books.caller, what)
+}
+
+// ── Which book a write lands in ──────────────────────────────────────
+
+/**
+ * The desk a write acts at, and the book it lands in.
+ *
+ * Three write routes read the seat's book and wrote the office's own:
+ * the purchase-order list showed Cavanaugh Glassworks' orders and "Raise"
+ * put the new one on Aptiva Workforce's book; the expense page showed
+ * Cavanaugh's expenses and approve acted on Aptiva's. A write now goes
+ * where the read came from — `actingDesk` in lib/program-seat: the
+ * client's book, judged by the client's role, under a seat; the
+ * caller's own otherwise.
+ *
+ * With one escape, the same one every read here has: `?books=own`. A
+ * program office is also a firm with its own orders and expenses, and a
+ * screen reading its own books must write to them. Without this, a
+ * seated office could not raise its own expense at all.
+ */
+export async function writingDesk(
+  caller: CallerContext,
+  request: NextRequest
+): Promise<ActingDesk | null> {
+  if (!caller.company) return null
+  const askedForOwn = (request.nextUrl.searchParams.get('books') ?? '').toLowerCase() === 'own'
+  if (askedForOwn) {
+    return {
+      companyId: caller.company.id,
+      companyName: caller.company.name,
+      seat: null,
+      permissions: permissionsToJudgeBy(caller, null),
+      acting: caller,
+    }
+  }
+  return actingDesk(caller)
 }

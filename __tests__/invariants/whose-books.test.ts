@@ -173,15 +173,16 @@ describe('a money page is framed by the same block that chose its rows', () => {
       .toContain('reading: reading')
   })
 
-  it('raising an expense still writes to the reader\'s own book, not the client\'s', () => {
-    // Reads follow the seat. Writing does not, and the picker on the
-    // screen asks for the same book the POST accepts — so a control and
-    // its route still agree even while the rows beside them are
-    // somebody else's.
+  it('the expense form raises onto the reader\'s own book by name, and a write without the name lands in the seat\'s', () => {
+    // Writes follow the seat since 2026-10-06 (architect): a write lands
+    // in the book the screen was reading. The raise form picks from the
+    // office's own contracts, so it names its own book on the POST as it
+    // does on the picker — a control and its route still agree.
     const route = read('src/app/api/expenses/route.ts')
-    expect(route).toContain('companyId: caller.company?.id')
+    expect(route).toContain('writingDesk(caller, request)')
+    expect(route).toContain('companyId: desk.companyId')
     const page = read('src/app/dashboard/expenses/page.tsx')
-    expect(page).toContain('books=own')
+    expect(page).toContain("fetch('/api/expenses?books=own', {")
   })
 
   it('offers no "+" where the framing says this reader raises nothing here', () => {

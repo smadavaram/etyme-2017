@@ -154,7 +154,9 @@ export default function PurchaseOrdersPage() {
   async function raise() {
     setBusy(true); setError(null); setFlash(null)
     try {
-      const res = await fetch('/api/purchase-orders', {
+      // Into the book on screen: the client's in a seat, ours with
+      // `?books=own` — the route writes where the list was read from.
+      const res = await fetch(booksHref('/api/purchase-orders', books), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

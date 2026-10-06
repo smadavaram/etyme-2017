@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { fromUnits } from '@/lib/money-display'
 import type { Prisma } from '@prisma/client'
 import { getCallerContext } from '@/lib/api-context'
-import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
+import { booksFor, noteMoneyRead, seatedRefusal, writingDesk, moneyTrailFor } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import { emit } from '@/lib/events'
@@ -293,15 +293,33 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
+  // Whose order this is. The list reads the client's orders from a seat,
+  // and "Raise" put the new one on the office's own book under the
+  // office's own role. Now the order is the client's, on the client's
+  // book, where the client's role on the seat may raise one — and the
+  // office's own only where the screen asked for its own books.
+  const desk = (await writingDesk(caller, request))!
   // Authorizing spend is an accounts-payable act, not a contracting one.
-  if (!hasPermission(caller.permissions, 'invoices.issue')) {
+  if (!hasPermission(desk.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Raising a purchase order needs invoices.issue' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Raising a purchase order')
+            : askTheDesk({
+                doing: 'Raising a purchase order',
+                needs: 'invoices.issue',
+                kind: caller.company.kind,
+                companyName: caller.company.name,
+              }),
+        },
+      },
       { status: 403 }
     )
   }
 
-  const companyId = caller.company.id
+  const companyId = desk.companyId
   const body = await request.json().catch(() => ({}))
 
   const number = String(body.number ?? '').trim()
@@ -602,6 +620,7 @@ export async function POST(request: NextRequest) {
         ? `${caller.person.name} recorded ${buyer.name}'s order ${number} — ${fromUnits(amount, currency)} authorized to ${seller.name}`
         : `${caller.person.name} authorized ${fromUnits(amount, currency)} to ${seller.name} on ${number}`,
       reason: [
+        moneyTrailFor(desk.seat, `Order ${number} raised`),
         allowed.onBehalf
           ? allowed.says
           : attached > 0
@@ -682,9 +701,30 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  if (!caller.company || !hasPermission(caller.permissions, 'invoices.issue')) {
+  if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Changing a purchase order needs invoices.issue' } },
+      { error: { code: 'NO_COMPANY', message: 'Purchase orders belong to a company' } },
+      { status: 403 }
+    )
+  }
+  // The same desk the list was read from: the client's order, under the
+  // client's role, in a seat; the office's own with `?books=own`.
+  const desk = (await writingDesk(caller, request))!
+  if (!hasPermission(desk.permissions, 'invoices.issue')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Changing a purchase order')
+            : askTheDesk({
+                doing: 'Changing a purchase order',
+                needs: 'invoices.issue',
+                kind: caller.company.kind,
+                companyName: caller.company.name,
+              }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -695,7 +735,7 @@ export async function PATCH(request: NextRequest) {
   const existing = await prisma.workOrder.findFirst({
     // Only the issuer changes it. A supplier cannot raise the ceiling they
     // are billing against, which is the whole point of a PO.
-    where: { id, issuedById: caller.company.id },
+    where: { id, issuedById: desk.companyId },
     select: {
       id: true, number: true, amount: true, currency: true, status: true, endDate: true,
       issuedTo: { select: { name: true } },
@@ -759,10 +799,13 @@ export async function PATCH(request: NextRequest) {
 
   await prisma.automationLog.create({
     data: {
-      companyId: caller.company.id,
+      companyId: desk.companyId,
       action: 'PURCHASE_ORDER_CHANGED',
       summary: `${caller.person.name} changed ${existing.number} — ${changes.join(', ')}`,
-      reason: body.reason ? String(body.reason).trim() : 'Changed on the purchase orders screen',
+      reason: [
+        moneyTrailFor(desk.seat, `Order ${existing.number} changed`),
+        body.reason ? String(body.reason).trim() : 'Changed on the purchase orders screen',
+      ].filter(Boolean).join(' '),
       payload: { workOrderId: id, changes },
       reversible: true,
     },
@@ -771,7 +814,7 @@ export async function PATCH(request: NextRequest) {
   if (data.status === 'CLOSED' || data.status === 'CANCELLED') {
     void emit({
       type: 'purchase_order.closed',
-      companyId: caller.company.id,
+      companyId: desk.companyId,
       subjectType: 'WorkOrder',
       subjectId: id,
       actorPersonId: caller.person.id,

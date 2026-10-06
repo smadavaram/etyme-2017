@@ -4,7 +4,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { expenseScope } from '@/lib/resolve-client-company'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
+import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
 
 /**
  * GET /api/expenses
@@ -37,12 +37,11 @@ export async function GET(request: NextRequest) {
   // (empty) expense book on a page whose every neighbour was showing
   // Cavanaugh's, with nothing on the screen to say which.
   //
-  // Reads follow the seat. Writing does not: `POST` below still scopes
-  // the sell contract to the caller's own company, and the picker on
-  // the screen asks for that same book by name, so a control and its
-  // route still agree. Whether a seated office should raise an expense
-  // onto a client's book is a decision somebody has to make, and it is
-  // not made by a read path drifting into a write path.
+  // Reads follow the seat, and since 2026-10-06 so do writes (`POST`
+  // below and /api/expenses/actions, through `writingDesk`): a write
+  // lands in the book the screen was reading, judged by the role it was
+  // read under. The raise form picks from the office's own contracts and
+  // says so with `?books=own`.
   let reading = null
   if (caller.company) {
     const whose = await booksFor(caller, request)
@@ -222,18 +221,31 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'An expense is raised by a company' } },
+      { status: 403 }
+    )
+  }
 
-  if (!hasPermission(caller.permissions, 'invoices.read')) {
+  // The book the write lands in, and the role it is judged by: the
+  // client's under a seat, the caller's own otherwise or with
+  // `?books=own`. It was always the caller's own, under the caller's own
+  // role, whatever book the screen was showing.
+  const desk = (await writingDesk(caller, request))!
+  if (!hasPermission(desk.permissions, 'invoices.read')) {
     return NextResponse.json(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({
-            doing: 'Raising an expense',
-            needs: 'invoices.read',
-            kind: caller.company?.kind,
-            companyName: caller.company?.name,
-          }),
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Raising an expense')
+            : askTheDesk({
+                doing: 'Raising an expense',
+                needs: 'invoices.read',
+                kind: caller.company.kind,
+                companyName: caller.company.name,
+              }),
         },
       },
       { status: 403 }
@@ -285,17 +297,30 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Verify sell contract belongs to caller's company
+  // The sell contract must be the desk's own: an expense is raised by the
+  // firm whose contract bills it.
   const sellContract = await prisma.sellContract.findFirst({
     where: {
       id: sellContractId,
-      companyId: caller.company?.id,
+      companyId: desk.companyId,
     },
   })
 
   if (!sellContract) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Sell contract not found or does not belong to your company' } },
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: desk.seat
+            // A client bills nobody, so its book holds no contract an
+            // expense could ride on — refused in words rather than as a
+            // missing contract.
+            ? `An expense is raised by the supplier whose contract bills it, and ` +
+              `${desk.companyName}'s book holds no such contract. Raise your own firm's ` +
+              `expense from your own books.`
+            : 'Sell contract not found or does not belong to your company',
+        },
+      },
       { status: 404 }
     )
   }
@@ -309,7 +334,7 @@ export async function POST(request: NextRequest) {
 
   const expense = await prisma.expense.create({
     data: {
-      companyId: caller.company!.id,
+      companyId: desk.companyId,
       sellContractId,
       personId,
       category: category.toUpperCase(),

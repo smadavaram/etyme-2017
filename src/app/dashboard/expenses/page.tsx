@@ -231,7 +231,10 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
         receiptUrl: receiptUrl || undefined,
       }
 
-      const res = await fetch('/api/expenses', {
+      // The form picks from our own contracts (`books=own` above), so it
+      // writes to our own book — the route would otherwise write to the
+      // client's where we sit at a client's desk.
+      const res = await fetch('/api/expenses?books=own', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

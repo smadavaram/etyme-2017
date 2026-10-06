@@ -140,7 +140,6 @@ const STILL_SAYING_A_KEY: Record<string, string> = {
   'src/app/api/contracts/[id]/master-contract/route.ts': 'etyme-money',
   'src/app/api/contracts/[id]/rolloff/route.ts': 'etyme-money',
   'src/app/api/contracts/route.ts': 'etyme-money',
-  'src/app/api/expenses/actions/route.ts': 'etyme-money',
   'src/app/api/invoices/[id]/payments/route.ts': 'etyme-money',
   'src/app/api/invoices/[id]/submit/route.ts': 'etyme-money',
   'src/app/api/invoices/route.ts': 'etyme-money',

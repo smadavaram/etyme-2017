@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { writingDesk, seatedRefusal, moneyTrailFor } from '@/lib/money/seated-books'
+import { askTheDesk } from '@/lib/permissions'
 
 /**
  * POST /api/expenses/actions
@@ -90,9 +92,33 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'invoices.read')) {
+  if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.read permission' } },
+      { error: { code: 'NO_COMPANY', message: 'An expense belongs to a company' } },
+      { status: 403 }
+    )
+  }
+
+  // The book the decision is taken in, and the role it is judged by: the
+  // client's under a seat, the caller's own otherwise or with
+  // `?books=own`. The page reads a seated office the client's expenses;
+  // approving them acted on the office's own book under its own role.
+  const desk = (await writingDesk(caller, request))!
+  if (!hasPermission(desk.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Deciding an expense')
+            : askTheDesk({
+                doing: 'Deciding an expense',
+                needs: 'invoices.read',
+                kind: caller.company.kind,
+                companyName: caller.company.name,
+              }),
+        },
+      },
       { status: 403 }
     )
   }
@@ -122,17 +148,29 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Fetch expenses scoped to caller's company
+  // Only the desk's own book.
   const expenses = await prisma.expense.findMany({
     where: {
       id: { in: expenseIds },
-      companyId: caller.company?.id,
+      companyId: desk.companyId,
     },
   })
 
   if (expenses.length === 0) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No matching expenses found' } },
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message: desk.seat
+            // A supplier's expense is the supplier's own row; the client
+            // agreeing to one is not built here, so a seat finds none
+            // rather than deciding the office's own.
+            ? `${desk.companyName}'s book holds none of these expenses: each is the supplier's ` +
+              `own, submitted and decided by the firm that raised it. Your own firm's are on ` +
+              `your own books.`
+            : 'No matching expenses found',
+        },
+      },
       { status: 404 }
     )
   }
@@ -184,13 +222,13 @@ export async function POST(request: NextRequest) {
     const words = said(decision, successCount, caller.person.name, reason ?? null)
     await prisma.automationLog.create({
       data: {
-        companyId: caller.company!.id,
+        companyId: desk.companyId,
         action:
           decision === 'submit' ? 'EXPENSE_SUBMITTED'
           : decision === 'approve' ? 'EXPENSE_APPROVED'
           : 'EXPENSE_REJECTED',
         summary: words.summary,
-        reason: words.reason,
+        reason: [moneyTrailFor(desk.seat, words.summary), words.reason].filter(Boolean).join(' '),
         payload: { expenseIds: results.filter((r) => !r.error).map((r) => r.id), actor: caller.person.id },
         // Honest, and it used to say a submission could be taken back.
         // Nothing anywhere moves an expense to DRAFT, so a submission
@@ -219,7 +257,7 @@ export async function POST(request: NextRequest) {
     for (const [personId, count] of byPerson) {
       notifications.push({
         personId,
-        companyId: caller.company?.id,
+        companyId: desk.companyId,
         type: 'EXPENSE',
         title: decision === 'approve'
           ? `${count} expense${count > 1 ? 's' : ''} approved`
