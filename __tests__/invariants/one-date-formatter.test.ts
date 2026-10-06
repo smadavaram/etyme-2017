@@ -81,7 +81,6 @@ const NOT_YET_MOVED: string[] = [
   'src/app/dashboard/submissions/page.tsx',
   'src/app/dashboard/suppliers/page.tsx',
   'src/app/dashboard/texts/page.tsx',
-  'src/app/dashboard/timesheets/decide-overtime.tsx',
   'src/app/dashboard/timesheets/page.tsx',
   'src/app/dashboard/timesheets/totals.ts',
   'src/lib/agreement-term.ts',

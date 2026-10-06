@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { overtimeOptions, type OvertimeSide } from './overtime-words'
 import { amount, compact } from '@/lib/money-display'
 import { says as overtimeTerms } from '@/lib/overtime'
+import { formatDayLong } from '@/lib/format-date'
 
 /**
  * The question asked before anybody signs a week that went over.
@@ -59,14 +60,9 @@ export interface OvertimeTerms {
 }
 
 
-/** "Monday, September 7" — the way somebody says which week they mean. */
+/** "Sunday, September 20" — the day a Sunday-to-Saturday week opens, the way somebody says which week they mean. */
 function weekLabel(iso: string): string {
-  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
+  return formatDayLong(iso, { weekday: true, year: false })
 }
 
 const MULTIPLIERS = [
@@ -201,7 +197,7 @@ export function DecideOvertime({
         {/* What the contract actually offers, in the same words on every
             screen that mentions overtime. */}
         <p className="text-[12px] text-etyme-muted mb-3">
-          {overtimeTerms({ afterHours, multiplierBps: contractBps })}
+          {overtimeTerms({ afterHours, multiplierBps: contractBps }, { timeOff: timeOffAllowed })}
         </p>
 
         {weeks.length > 1 && (

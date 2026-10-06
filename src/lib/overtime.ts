@@ -569,8 +569,15 @@ export function saysAwaiting(
   )
 }
 
-/** What the contract's terms say, for a screen. */
-export function says(policy: OvertimePolicy): string {
+/**
+ * What the contract's terms say, for a screen.
+ *
+ * Time off in place of pay is named only where the dialog under the
+ * sentence offers it (`timeOffOffered`). The client tester read "or time
+ * off in the bank" over a choice of two, the usual rate or a premium
+ * (2026-10-03): a sentence promising an option the screen does not have.
+ */
+export function says(policy: OvertimePolicy, opts: { timeOff?: boolean } = {}): string {
   if (policy.afterHours == null) return 'Straight time — every hour at the same rate.'
   // Not "is time and a half". Since overtime became a decision, the
   // multiplier is one of three outcomes and only after somebody chooses
@@ -578,8 +585,10 @@ export function says(policy: OvertimePolicy): string {
   // make. The sentence says who decides and what the default offer is.
   return (
     `Over ${policy.afterHours} hours in a week, whoever approves the week decides: ` +
-    `the usual rate, a premium (${multipleWord(policy.multiplierBps)} unless they say otherwise), ` +
-    'or time off in the bank.'
+    (opts.timeOff
+      ? `the usual rate, a premium (${multipleWord(policy.multiplierBps)} unless they say otherwise), ` +
+        'or time off in the bank.'
+      : `the usual rate or a premium (${multipleWord(policy.multiplierBps)} unless they say otherwise).`)
   )
 }
 
