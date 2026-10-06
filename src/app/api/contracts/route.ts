@@ -26,6 +26,7 @@ import {
 import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
 import { recordedLine } from '@/lib/money/recorded-line'
 import { mayRecordFor, recordingFloor, type PersonTies } from '@/lib/money/recorded-person'
+import { endsPastLimit } from '@/lib/governance'
 
 /**
  * POST /api/contracts
@@ -335,6 +336,26 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // A line booked past the end client's time limit is refused (founder's
+  // decision, 2026-10-06). An open-ended line at a client with a limit is
+  // refused too. Where the client only warns, a reason is asked for.
+  const past = await endsPastLimit({
+    personId: String(personId),
+    clientId: String(endClientCompanyId ?? clientCompanyId),
+    startDate: start,
+    endDate: end,
+  })
+  if (past?.outcome === 'BLOCK') {
+    return NextResponse.json({ error: { code: 'TIME_LIMIT', message: past.says } }, { status: 422 })
+  }
+  const limitReason = typeof body.limitReason === 'string' ? body.limitReason.trim() : ''
+  if (past?.outcome === 'WARN' && !limitReason) {
+    return NextResponse.json(
+      { error: { code: 'TIME_LIMIT_REASON', message: `${past.says} Give a reason to go ahead.`, field: 'limitReason' } },
+      { status: 422 }
+    )
+  }
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // ── The paper behind the contract ─────────────────────────────
@@ -600,7 +621,7 @@ export async function POST(request: NextRequest) {
           companyId,
           action: 'CONTRACT_CREATED',
           summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(pay!.payRateCents, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated.`,
-          reason: 'Contract created via API',
+          reason: past ? `Contract created via API. ${past.says} Reason given: ${limitReason}` : 'Contract created via API',
           payload: {
             workOrderId: header?.id ?? null,
             sellContractId: sellContract.id,

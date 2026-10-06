@@ -4,7 +4,7 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { localKey } from '@/lib/cycle-generator'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { evaluateGovernance } from '@/lib/governance'
+import { endsPastLimit, evaluateGovernance } from '@/lib/governance'
 import { loadContractHolidays } from '@/lib/holidays'
 import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
@@ -137,6 +137,21 @@ export async function POST(
   const newEnd = new Date(baseDate)
   newEnd.setMonth(newEnd.getMonth() + months)
 
+  // A line moved past the client's time limit is refused (founder's
+  // decision, 2026-10-06). Where the client only warns, a reason is asked
+  // for and kept on the log.
+  const past = await endsPastLimit({ personId: contract.personId, clientId: endClientId, contractId: contract.id, endDate: newEnd })
+  if (past?.outcome === 'BLOCK') {
+    return NextResponse.json({ error: { code: 'TIME_LIMIT', message: past.says } }, { status: 422 })
+  }
+  const limitReason = typeof body.limitReason === 'string' ? body.limitReason.trim() : ''
+  if (past?.outcome === 'WARN' && !limitReason) {
+    return NextResponse.json(
+      { error: { code: 'TIME_LIMIT_REASON', message: `${past.says} Give a reason to go ahead.`, field: 'limitReason' } },
+      { status: 422 }
+    )
+  }
+
   // ── The months added need their due dates ──────────────────────────
   //
   // This route moved `endDate`, wrote a log line saying it had extended
@@ -224,6 +239,7 @@ export async function POST(
           newEndDate: newEnd.toISOString(),
           months,
           cyclesAdded: { sell: cycles.sell, buy: cycles.buy },
+          ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
         },
         reversible: true,
       },
