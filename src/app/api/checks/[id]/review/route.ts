@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { checkReview, CANNOT_SEE_QUEUE } from '@/lib/review'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/checks/:id/review
@@ -20,13 +21,16 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const notStaff = staffOnly(caller, 'The check queue')
   if (notStaff) return notStaff
 
   // Gated as the queue is (lib/review): a review that opens where the
   // queue refuses is a door beside the one that was locked.
-  if (!hasPermission(caller.permissions, 'submissions.read')) {
+  if (!hasPermission(deskPermissions, 'submissions.read')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_SEE_QUEUE } }, { status: 403 })
   }
 

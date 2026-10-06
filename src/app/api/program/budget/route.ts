@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
-import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { resolveClientCompany, writePermissions } from '@/lib/resolve-client-company'
 import { ledgerFor, type AcceptedExpense, type AcceptedWork, type ContractFact } from '@/lib/budget-ledger'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
@@ -281,6 +281,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
   const notStaff = staffOnly(caller, 'Setting a budget')
   if (notStaff) return notStaff
   const { client, error: clientError } = await resolveClientCompany(caller, null)
@@ -301,7 +304,7 @@ export async function POST(request: NextRequest) {
   }
 
   const mine = center.ownerId === caller.person.id
-  if (!mine && !hasPermission(caller.permissions, 'governance.write')) {
+  if (!mine && !hasPermission(deskPermissions, 'governance.write')) {
     return NextResponse.json(
       {
         error: {

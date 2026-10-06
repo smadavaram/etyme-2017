@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { requirementScope, seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
+import { requirementScope, seatedDesk, unitsReachedBy, writePermissions } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { requirementForReader } from './visible'
 
@@ -177,6 +177,9 @@ export async function POST(request: NextRequest) {
   // know which company the caller belongs to — see below.
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const body = await request.json()
   const { companyId, title, skills, location, billMin, billMax, months, startDate, msaId, marginClass, rateVisible } = body
@@ -230,7 +233,7 @@ export async function POST(request: NextRequest) {
   // Same permission as the client's own path, `POST /api/requisitions`.
   // Two routes that open a role must refuse the same people, or the
   // narrower one simply becomes the way round the wider one.
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
+  if (!hasPermission(deskPermissions, 'requirements.write')) {
     return NextResponse.json(
       {
         error: {

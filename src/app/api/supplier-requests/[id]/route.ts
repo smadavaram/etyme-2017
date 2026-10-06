@@ -12,6 +12,7 @@ import {
   mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * PATCH /api/supplier-requests/[id]
@@ -77,6 +78,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
   const notStaff = staffOnly(caller, 'Supplier requests')
   if (notStaff) return notStaff
   const companyId = caller.company!.id
@@ -111,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   // the desk the request is on. Resending used to return before this
   // gate, so anybody seated could make the app send a credential.
   const verdict = mayActAt({
-    stage, permissions: caller.permissions, callerId: caller.person.id,
+    stage, permissions: deskPermissions, callerId: caller.person.id,
     recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
     deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
     companyName: caller.company!.name,

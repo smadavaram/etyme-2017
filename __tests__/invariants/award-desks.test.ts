@@ -105,7 +105,7 @@ describe('a prime awarding a sub-vendor’s consultant onto its own requisition'
     )
     // The sentence lives in `awardDoor`, which the route and the lists share.
     const door = readFileSync(join(process.cwd(), 'src/lib/award.ts'), 'utf8')
-    expect(route).toContain("hasPermission(caller.permissions, 'requirements.write')")
+    expect(route).toContain("hasPermission(deskPermissions, 'requirements.write')")
     expect(route).toContain('awardDoor({')
     expect(door).toContain('Ask them to award')
   })

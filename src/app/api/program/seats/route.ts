@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { liveSeatWhere, mayGrantSeat, seatIsLive, noSeatYet } from '@/lib/program-seat'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * The desks a client has granted to firms that are not the client.
@@ -132,6 +133,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
   const notStaff = staffOnly(caller, 'The program office')
   if (notStaff) return notStaff
 
@@ -168,7 +172,7 @@ export async function POST(request: NextRequest) {
 
   const verdict = mayGrantSeat({
     grantorCompany: { id: company.id, kind: company.kind, name: company.name },
-    grantorPermissions: caller.permissions,
+    grantorPermissions: deskPermissions,
     officeCompany: office,
     role,
     reason,

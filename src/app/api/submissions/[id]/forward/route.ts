@@ -7,6 +7,7 @@ import { mayForward, onwardRate, mirrorRole, type Via } from '@/lib/forwarding'
 import { clientOf, takeHold } from '@/lib/holds'
 import { whyNotOpen } from '../../words'
 import { landingFor } from './landing'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/submissions/:id/forward
@@ -35,6 +36,9 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -65,7 +69,7 @@ export async function POST(
   }
 
   const verdict = mayForward(
-    { companyId: caller.company?.id, permissions: caller.permissions },
+    { companyId: caller.company?.id, permissions: deskPermissions },
     {
       id: submission.id,
       fromCompanyId: submission.fromCompanyId,

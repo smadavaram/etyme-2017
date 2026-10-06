@@ -22,6 +22,7 @@ import {
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { awardHandoff } from '@/lib/papering'
 import { loadContractHolidays } from '@/lib/holidays'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
@@ -56,6 +57,9 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -125,7 +129,7 @@ export async function POST(
   const door = awardDoor({
     callerCompanyId: caller.company?.id ?? null,
     callerCompanyName: caller.company?.name ?? null,
-    mayHire: hasPermission(caller.permissions, 'requirements.write'),
+    mayHire: hasPermission(deskPermissions, 'requirements.write'),
     requirementCompanyId: req.companyId,
     fromCompanyId: submission.fromCompanyId,
     fromCompanyName: submission.fromCompany.name,

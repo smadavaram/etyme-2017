@@ -26,6 +26,7 @@
  */
 import type { LadderRung, Signer } from './chain-turn'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
 // ── The link ──────────────────────────────────────────────────────────
 
@@ -306,6 +307,94 @@ export function checkEvidence(
     return { ok: true, approverName: name, approverEmail: email, kind, approvedOn, says: `${what}, ${sizeSaid(input.file.size)}.` }
   }
   return { ok: true, approverName: name, approverEmail: email, kind, approvedOn, says: 'pasted email text.' }
+}
+
+// ── Whether the approver is somebody at the client ────────────────────
+
+export interface ClientOfRecord {
+  /** The client's name, for the sentence. */
+  name?: string | null
+  /** The client's verified domain — the tenant, by the one-tenant-one-domain rule. */
+  domain: string | null
+  /** Domains the client saved as its own besides the main one. */
+  aliases?: readonly (string | null | undefined)[]
+  /** The addresses of every person holding a live seat at the client. */
+  seatedEmails: readonly (string | null | undefined)[]
+}
+
+export type ApproverVerdict =
+  | { ok: true; how: 'DOMAIN' | 'ALIAS' | 'SEATED' }
+  | { ok: false; code: 'APPROVER_NOT_AT_CLIENT'; says: string }
+
+/** The address, or a subdomain of it, belongs to this domain. */
+function underDomain(addressDomain: string, domain: string): boolean {
+  return addressDomain === domain || addressDomain.endsWith('.' + domain)
+}
+
+function cleanDomain(d: string | null | undefined): string | null {
+  if (!d) return null
+  const v = d.trim().toLowerCase().replace(/^@/, '').replace(/\.$/, '')
+  // A consumer provider is never a company's domain. A client set up
+  // with gmail.com would otherwise let any Gmail address approve for it.
+  if (!v.includes('.') || isConsumerDomain(v)) return null
+  return v
+}
+
+/**
+ * Whether the person named as the client's approver is somebody at the
+ * client.
+ *
+ * Evidence of a client's approval names a person and an address, and
+ * until this rule nothing stopped a worker giving their own address as
+ * the client's approver — the evidence would have read as the client's
+ * yes. So the address must be one of three things:
+ *
+ *  - at the client's own domain (or a subdomain of it);
+ *  - at a domain the client saved as an alias of its own; or
+ *  - the address of a person holding a seat at the client, which covers
+ *    an approver whose mail is on another domain but whom the client has
+ *    seated (the seeded Northbend approver is one).
+ *
+ * Anything else is refused in a sentence. Nobody is refused for the case
+ * of the letters: addresses are compared lowercased.
+ */
+export function approverIsKnownAtClient(i: {
+  approverEmail: string
+  client: ClientOfRecord
+}): ApproverVerdict {
+  const email = (i.approverEmail ?? '').trim().toLowerCase()
+  const clientName = i.client.name?.trim() || 'the client'
+  const addressDomain = domainOfEmail(email)
+
+  if (!email || !addressDomain) {
+    return {
+      ok: false,
+      code: 'APPROVER_NOT_AT_CLIENT',
+      says: `Give the email address of the person at ${clientName} who approved this week.`,
+    }
+  }
+
+  const seated = new Set(
+    i.client.seatedEmails.filter((e): e is string => typeof e === 'string').map((e) => e.trim().toLowerCase())
+  )
+  if (seated.has(email)) return { ok: true, how: 'SEATED' }
+
+  const main = cleanDomain(i.client.domain)
+  if (main && underDomain(addressDomain, main)) return { ok: true, how: 'DOMAIN' }
+
+  for (const a of i.client.aliases ?? []) {
+    const alias = cleanDomain(a ?? null)
+    if (alias && underDomain(addressDomain, alias)) return { ok: true, how: 'ALIAS' }
+  }
+
+  const where = main ? ` Its addresses end in @${main}.` : ''
+  return {
+    ok: false,
+    code: 'APPROVER_NOT_AT_CLIENT',
+    says:
+      `${email} is not an address at ${clientName}, and nobody with that address holds a seat there.${where} ` +
+      `Give the address of the person at ${clientName} who approved this week.`,
+  }
 }
 
 // ── Who may send a link or attach evidence ────────────────────────────

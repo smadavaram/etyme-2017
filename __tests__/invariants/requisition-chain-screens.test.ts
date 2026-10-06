@@ -22,6 +22,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { rowActions } from '@/app/dashboard/requisitions/row-actions'
 import { readFileSync } from 'fs'
 import { transformSync } from 'esbuild'
 import { join } from 'path'
@@ -579,8 +580,13 @@ describe('A role that is already closed is not offered a cancellation', () => {
   })
 
   it('and the row does not offer the button the door would refuse', () => {
-    expect(code(LIST_PAGE)).toContain(
-      "r.status !== 'CANCELLED' && r.status !== 'FILLED' && r.status !== 'CLOSED'"
-    )
+    // The status rule moved into row-actions.ts with the permission gate,
+    // so the page asks one function and cannot drift from either.
+    const office = { permissions: ['requirements.write', 'governance.write'], personId: 'p-office' }
+    for (const status of ['CANCELLED', 'FILLED', 'CLOSED']) {
+      expect(rowActions({ status, approvalState: 'APPROVED', archivedAt: null, raisedBy: null }, office, false).cancel).toBe(false)
+    }
+    expect(rowActions({ status: 'OPEN', approvalState: 'APPROVED', archivedAt: null, raisedBy: null }, office, false).cancel).toBe(true)
+    expect(code(LIST_PAGE)).toContain('{can.cancel && (')
   })
 })

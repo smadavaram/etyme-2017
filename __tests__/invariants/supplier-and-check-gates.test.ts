@@ -191,7 +191,7 @@ describe('who may add suppliers from a pasted list', () => {
   it('the add route asks for the panel desk before it writes anything', () => {
     const src = readFileSync(join(API, 'suppliers', 'route.ts'), 'utf8')
     const post = src.slice(src.indexOf('export async function POST'))
-    const gate = post.indexOf(`if (!hasPermission(caller.permissions, '${ADDS_SUPPLIERS}'))`)
+    const gate = post.indexOf(`if (!hasPermission(deskPermissions, '${ADDS_SUPPLIERS}'))`)
     expect(gate).toBeGreaterThan(0)
     expect(gate).toBeLessThan(post.indexOf('prisma.'))
   })
@@ -209,7 +209,7 @@ describe('who may join two records of one supplier', () => {
   })
 
   it('the join asks for the panel desk before it reads or moves anything', () => {
-    const gate = post.indexOf(`if (!hasPermission(caller.permissions, '${ADDS_SUPPLIERS}'))`)
+    const gate = post.indexOf(`if (!hasPermission(deskPermissions, '${ADDS_SUPPLIERS}'))`)
     expect(gate).toBeGreaterThan(0)
     expect(gate).toBeLessThan(post.indexOf('prisma.'))
   })
@@ -238,7 +238,7 @@ describe('the route asks for exactly what the reasons say', () => {
   it('the check queue and its review both ask for the one desk that reads submissions', () => {
     expect(getOf('checks/queue')).toContain(`if (!hasPermission(caller.permissions, '${QUEUE_OPENS_FOR}'))`)
     const review = readFileSync(join(API, 'checks', '[id]', 'review', 'route.ts'), 'utf8')
-    expect(review).toContain(`if (!hasPermission(caller.permissions, '${QUEUE_OPENS_FOR}'))`)
+    expect(review).toContain(`if (!hasPermission(deskPermissions, '${QUEUE_OPENS_FOR}'))`)
   })
 
   it('reading the check queue leaves a trail against the people behind the sample, including when it is refused', () => {

@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatedDesk, writePermissions } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
@@ -249,6 +249,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const notStaff = staffOnly(caller, 'Suppliers')
   if (notStaff) return notStaff
@@ -256,7 +259,7 @@ export async function POST(request: NextRequest) {
   // Adding firms to the panel is the panel desk's (ADDS_SUPPLIERS in
   // lib/supplier-list); everybody else recommends one through the
   // supplier workflow. No AccessLog: this writes firms, not people.
-  if (!hasPermission(caller.permissions, 'vendors.manage')) {
+  if (!hasPermission(deskPermissions, 'vendors.manage')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_ADD_SUPPLIER } }, { status: 403 })
   }
 

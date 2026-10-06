@@ -10,6 +10,7 @@ import {
   mayRecommend, mayActAt, newChecklist, readiness, stepsOf, withOrderedItems, evidenceNoteFor, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
 } from '@/lib/supplier-onboarding'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * GET  /api/supplier-requests   — firms in the pipeline, where each is, and what this caller may do
@@ -118,9 +119,12 @@ function STATE_WORD_OF(state: RequestState): string {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
   const notStaff = staffOnly(caller, 'Supplier requests')
   if (notStaff) return notStaff
-  if (!mayRecommend(caller.permissions)) {
+  if (!mayRecommend(deskPermissions)) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Recommending a supplier is for whoever raises requirements here.' } }, { status: 403 })
   }
   const body = await request.json().catch(() => ({}))

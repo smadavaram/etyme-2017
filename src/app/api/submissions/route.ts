@@ -12,7 +12,7 @@ import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
-import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
+import { submissionScope, seatedDesk, writePermissions } from '@/lib/resolve-client-company'
 import { orderedOfSupplier } from '@/lib/supplier-desks'
 import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
@@ -21,6 +21,9 @@ import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWa
 import { awardDoor } from '@/lib/award'
 import { maySeeOutside } from '@/lib/walls'
 import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
+import { workAuthAtSubmission } from './work-authorization'
 
 /**
  * POST /api/submissions
@@ -50,6 +53,9 @@ export async function POST(request: NextRequest) {
   // eight positions in `__integration__/party-uniform.test.ts`.
   const { caller, error: callerError } = await getCallerContext(request)
   if (callerError) return callerError
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const email = await getSessionEmail()
 
@@ -146,8 +152,8 @@ export async function POST(request: NextRequest) {
   // the recruiting desk, the listing and the consent; that is refused
   // per person below, in a sentence naming the desk.
   const deliveryDeskOnly =
-    !hasPermission(caller.permissions, 'submissions.create') && hasPermission(caller.permissions, 'assignments.write')
-  if (!hasPermission(caller.permissions, 'submissions.create') && !deliveryDeskOnly) {
+    !hasPermission(deskPermissions, 'submissions.create') && hasPermission(deskPermissions, 'assignments.write')
+  if (!hasPermission(deskPermissions, 'submissions.create') && !deliveryDeskOnly) {
     return NextResponse.json(
       {
         error: {
@@ -202,6 +208,9 @@ export async function POST(request: NextRequest) {
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
       location: true, startDate: true,
+      // The job's length, for whether it would carry somebody past the
+      // client's time limit. Null is "nobody said", and is said so.
+      months: true,
       company: { select: { name: true } },
       endClientCompany: { select: { name: true } },
     },
@@ -438,6 +447,34 @@ export async function POST(request: NextRequest) {
   // ENFORCEMENT, WARN, RULE, beside SUBMISSION_OFF_BAND, which is the
   // same shape — somebody was warned, went ahead, and it was recorded.
 
+  // ── The client's time limit and break, once for the batch ────────
+  //
+  // Addendum E: a tenure limit and a break in service are BLOCKs. They
+  // are the client's own rules, read from its governance policy the way
+  // the tenure ledger and the award read them, and asked per person in
+  // the loop below (`./time-limit`).
+  const limitRules = await prisma.governanceRule.findMany({
+    where: {
+      policy: { companyId: clientCompanyId, isActive: true },
+      ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] },
+      isActive: true,
+    },
+    select: { ruleType: true, enforcementMode: true, parameters: true },
+  })
+  const capRule = limitRules.find((r) => r.ruleType === 'TENURE_CAP')
+  const breakRule = limitRules.find((r) => r.ruleType === 'BREAK_IN_SERVICE')
+  const modeOf = (m: string | null | undefined): Mode => (m === 'WARN' ? 'WARN' : 'BLOCK')
+  const numberIn = (p: unknown, key: string): number | null => {
+    const v = p && typeof p === 'object' ? (p as Record<string, unknown>)[key] : null
+    return typeof v === 'number' && v > 0 ? v : null
+  }
+  const timeLimitRules = {
+    capMonths: capRule ? (numberIn(capRule.parameters, 'maxMonths') ?? 18) : null,
+    capMode: modeOf(capRule?.enforcementMode),
+    breakDays: breakRule ? (numberIn(breakRule.parameters, 'breakDays') ?? 30) : null,
+    breakMode: modeOf(breakRule?.enforcementMode),
+  }
+
   const results: any[] = []
 
   for (const personId of personIds) {
@@ -660,7 +697,7 @@ export async function POST(request: NextRequest) {
           // does not reach them through this one instead.
           const outside = maySeeOutside({
             posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
-            permissions: caller.permissions,
+            permissions: deskPermissions,
           })
           if (offer.ok && !outside.ok) {
             refusedSays = outside.reason
@@ -832,6 +869,82 @@ export async function POST(request: NextRequest) {
         item.existingSubmittedAt = existing.submittedAt.toISOString()
         results.push(item)
         continue
+      }
+
+      // 3b. The time limit at this client, across every supplier.
+      //
+      // Asked before anything is written, so a refusal leaves no hold,
+      // no consent ask and no row. A BLOCK is refused with the day they
+      // are eligible again; a WARN goes ahead only with a reason, and the
+      // reason is written down beside the submission's own access row.
+      const onSite = await prisma.sellContract.findMany({
+        where: {
+          personId,
+          ...endClientFilter(clientCompanyId),
+          state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+        },
+        select: { startDate: true, endDate: true, state: true },
+      })
+      const limit = timeLimitAtSubmission({
+        personName: person.name,
+        clientName,
+        rules: timeLimitRules,
+        contracts: onSite,
+        job: { startDate: requirement.startDate, months: requirement.months },
+        now: new Date(),
+      })
+      let tenureReason: string | null = null
+      if (limit.outcome === 'BLOCK') {
+        item.status = 'error'
+        item.code = limit.code
+        item.error = limit.says
+        if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
+        await prisma.accessLog.create({
+          data: {
+            subjectId: personId,
+            actorPersonId: submitter?.id ?? null,
+            actorCompanyId: fromCompanyId,
+            action: 'SUBMIT',
+            allowed: false,
+            reason: `${limit.code}: ${limit.says}`,
+          },
+        })
+        results.push(item)
+        continue
+      }
+      if (limit.outcome === 'WARN') {
+        tenureReason = reasonGiven(body, personId)
+        if (!tenureReason) {
+          // Warned, and nothing written: the submitter is asked for a
+          // reason, and the next press carries it.
+          item.status = 'needs_reason'
+          item.code = limit.code
+          item.error = limit.says
+          if (limit.reachedOn) item.limitReachedOn = limit.reachedOn.toISOString().slice(0, 10)
+          if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
+          results.push(item)
+          continue
+        }
+        item.tenureWarning = limit.says
+        item.tenureReason = tenureReason
+      } else if (limit.outcome === 'PASS' && limit.unknown) {
+        item.tenureNote = limit.unknown
+      }
+
+      // 3c. Work authorization: warned here, refused at activation.
+      const authRows = await prisma.verification.findMany({
+        where: { personId },
+        select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+      })
+      const auth = workAuthAtSubmission({
+        personName: person.name,
+        rows: authRows,
+        startsOn: requirement.startDate,
+        now: new Date(),
+      })
+      if (!auth.ok) {
+        item.workAuthWarning = auth.says
+        item.workAuthCode = auth.code
       }
 
       // 4. Compute SubmissionKind from ownership (never accepted from client)
@@ -1217,7 +1330,14 @@ export async function POST(request: NextRequest) {
           actorCompanyId: fromCompanyId,
           action: 'SUBMIT',
           allowed: true,
-          reason: `Submitted to "${requirement.title}"`,
+          // Warned and went ahead: the warnings and the reason given are
+          // the record, here, until the automation ladder has a rung for
+          // them (asked of etyme-architect, beside SUBMISSION_OFF_BAND).
+          reason: [
+            `Submitted to "${requirement.title}"`,
+            item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
+            item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
+          ].filter(Boolean).join(' — '),
         },
       })
 
@@ -1247,6 +1367,9 @@ export async function POST(request: NextRequest) {
   // Counted apart from errors: nobody did anything wrong, and the vendor
   // may well want to wait for the hold to lapse.
   const held = results.filter((r) => r.status === 'held')
+  // Warned about the client's time limit and not yet given a reason.
+  // Nothing was written for them; the same press with a reason goes on.
+  const needsReason = results.filter((r) => r.status === 'needs_reason')
 
   // Notify the requirement owner about new submissions
   if (created.length > 0) {
@@ -1294,6 +1417,7 @@ export async function POST(request: NextRequest) {
         submitted: created.length,
         duplicates: duplicates.length,
         heldElsewhere: held.length,
+        needsReason: needsReason.length,
         errors: errors.length,
         total: personIds.length,
       },
@@ -1301,6 +1425,7 @@ export async function POST(request: NextRequest) {
         `${created.length} submitted`,
         `${duplicates.length} duplicates`,
         held.length > 0 ? `${held.length} already represented elsewhere` : null,
+        needsReason.length > 0 ? `${needsReason.length} waiting on a reason` : null,
         `${errors.length} errors`,
       ].filter(Boolean).join(', '),
       // Said on the way out, not swallowed. The submission stood; the

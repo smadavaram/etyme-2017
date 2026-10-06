@@ -7,6 +7,7 @@ import {
   headline, stillValid, shapeRow as shape, rowToInterview as asInterview, type Slot,
 } from '@/lib/interviews'
 import { tell } from '@/lib/interview-notices'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * GET  /api/submissions/:id/interviews — the rounds so far
@@ -90,6 +91,9 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const notStaff = staffOnly(caller, 'Interviews')
   if (notStaff) return notStaff
@@ -98,7 +102,7 @@ export async function POST(
   // raises a requisition. Nike's AP clerk is a party to the program
   // and saw the button; a clerk booking interviews is not a thing that
   // happens, and the refusal says who does.
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
+  if (!hasPermission(deskPermissions, 'requirements.write')) {
     return NextResponse.json(
       {
         error: {

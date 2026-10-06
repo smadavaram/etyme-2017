@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { isConsultantSeat } from '@/lib/seat'
 import { maySeeOutside } from '@/lib/walls'
-import { seatFor, actingInSeat, noteSeatRead, type LiveSeat } from '@/lib/program-seat'
+import { seatFor, actingInSeat, noteSeatRead, actingDesk, type LiveSeat } from '@/lib/program-seat'
 import { descendants } from '@/lib/org-tree'
 import type { CallerContext } from '@/lib/api-context'
 
@@ -644,4 +644,23 @@ export async function unitsReachedBy(
     select: { id: true, parentId: true },
   })
   return [seat.orgUnitId, ...descendants(units, seat.orgUnitId)]
+}
+
+/**
+ * The permissions a write is judged by: the seat's, where this firm sits
+ * at a client's desk, and the caller's own everywhere else.
+ *
+ * Found by the architect, 2026-10-05: the read routes resolved the seat
+ * and the write routes asked `caller.permissions`, which is the office's
+ * own role. A program office seated at a client could therefore send a
+ * write its own role allowed and the client's seat did not — and CLAUDE.md
+ * says a program office acts only in a seat the client grants, under the
+ * client's rules. So every write in etyme-demand's routes asks this.
+ *
+ * It is `actingDesk` (lib/program-seat, the server half of `deskOf`), read
+ * for its permissions alone, so the screen, the reads and the writes
+ * cannot judge one caller two ways.
+ */
+export async function writePermissions(caller: CallerContext): Promise<readonly string[]> {
+  return (await actingDesk(caller))?.permissions ?? caller.permissions
 }

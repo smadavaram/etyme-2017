@@ -130,15 +130,17 @@ const GATED: Array<[what: string, source: string, permission: string]> = [
  * `acting.permissions` is the same question asked one step later: where
  * a client has seated a program office at one of its own desks, the
  * office acts under the CLIENT's role and not its own (`lib/program-seat`,
- * 2026-09-20). Both are a desk check and either satisfies this rule; a
- * route that asks neither has authorized nothing.
+ * 2026-09-20). `deskPermissions` is the seat's permissions read once at
+ * the top of a write (`writePermissions` in lib/resolve-client-company,
+ * 2026-10-05). Each is a desk check and any satisfies this rule; a route
+ * that asks none has authorized nothing.
  *
  * The seat is deliberately resolved *before* the gate. Asked the other
  * way round, a program office was refused on a program its client had
  * opened to it, because an MSP's own firm has no contingent program of
  * its own and its roles do not carry the permissions for running one.
  */
-const DESK = '(?:caller|acting)\\.permissions'
+const DESK = '(?:caller\\.permissions|acting\\.permissions|deskPermissions)'
 
 describe('a route that acts asks which desk is calling, not only which company', () => {
   for (const [what, source, permission] of GATED) {

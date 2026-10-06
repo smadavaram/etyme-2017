@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { bandHint, RATE_HELP, CURRENCY_SAYS } from './rate-words'
 import Link from 'next/link'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -232,25 +233,44 @@ function SubmitToRequirementModal({
     // What that supplier charges us, in dollars an hour.
     payRate: '',
     rate: '',
-    rateCurrency: 'USD',
     coverNote: '',
+    // Why they go forward past a warning about the client's time limit.
+    reason: '',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** The client's time-limit warning, waiting on a reason before it goes. */
+  const [needsReason, setNeedsReason] = useState<string | null>(null)
+  /** Submitted, with something the submitter should read before closing. */
+  const [doneSays, setDoneSays] = useState<string[] | null>(null)
+  /** This firm's own band per job, from its own invitations. */
+  const [bands, setBands] = useState<Record<string, { payMin: number | null; payMax: number | null }>>({})
 
   // Fetch open requirements and bench listings on mount
   useEffect(() => {
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [reqRes, benchRes, ownRes, netRes] = await Promise.all([
+        const [reqRes, benchRes, ownRes, netRes, invRes] = await Promise.all([
           fetch('/api/requirements?status=OPEN&limit=50'),
           fetch('/api/bench?limit=100'),
           fetch('/api/submissions/own-people'),
           // Refused where this firm keeps to its own people; then the
           // group is simply not offered.
           fetch('/api/bench?scope=network&limit=100'),
+          // This firm's own invitations, for the band it was given on each
+          // job. Refused for anybody with no company; then no hint shows.
+          fetch('/api/invitations'),
         ])
+
+        if (invRes.ok) {
+          const body = await invRes.json()
+          const byJob: Record<string, { payMin: number | null; payMax: number | null }> = {}
+          for (const inv of body.data?.invitations ?? []) {
+            if (inv?.requirement?.id && inv.band) byJob[inv.requirement.id] = inv.band
+          }
+          setBands(byJob)
+        }
 
         if (netRes.ok) {
           const body = await netRes.json()
@@ -374,8 +394,8 @@ function SubmitToRequirementModal({
           personIds: [form.personId],
           rate: Math.round(rateNum * 100),
           fromCompanyId: companyId,
-          rateCurrency: form.rateCurrency,
           coverNote: form.coverNote || undefined,
+          ...(needsReason && form.reason.trim() ? { reason: form.reason.trim() } : {}),
           ...(selectedOffer
             ? { offeredBy: selectedOffer.supplierId, payRate: Math.round(payNum * 100) }
             : {}),
@@ -407,8 +427,25 @@ function SubmitToRequirementModal({
         setError(firstResult.error)
         return
       }
+      // The client's time limit warned: nothing was written, and the same
+      // press with a reason goes on (Addendum E: warn, capture a reason,
+      // proceed).
+      if (firstResult?.status === 'needs_reason') {
+        setNeedsReason(firstResult.error)
+        if (form.reason.trim()) setError('Give a reason of at least a sentence.')
+        return
+      }
 
+      // Submitted, with a warning the submitter should read before the
+      // form shuts: a work authorization that is missing or runs out, a
+      // time limit gone past with a reason, a job with no length.
+      const said = [firstResult?.workAuthWarning, firstResult?.tenureWarning, firstResult?.tenureNote, body.data?.coverWarning]
+        .filter((x: unknown): x is string => typeof x === 'string' && x.length > 0)
       onCreated()
+      if (said.length > 0) {
+        setDoneSays(said)
+        return
+      }
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -435,7 +472,17 @@ function SubmitToRequirementModal({
           </div>
         )}
 
-        {loadingOptions ? (
+        {doneSays ? (
+          <div className="space-y-4">
+            <p className="text-sm text-etyme-ink">Submitted. Read this before you close:</p>
+            <ul className="space-y-2">
+              {doneSays.map((w) => (
+                <li key={w} className="text-sm text-etyme-attention">{w}</li>
+              ))}
+            </ul>
+            <button type="button" onClick={onClose} className="btn-primary w-full">Close</button>
+          </div>
+        ) : loadingOptions ? (
           <div className="py-8 text-center text-sm text-etyme-faint animate-pulse">
             Loading requirements and consultants…
           </div>
@@ -447,7 +494,7 @@ function SubmitToRequirementModal({
               <select
                 required
                 value={form.requirementId}
-                onChange={(e) => setForm({ ...form, requirementId: e.target.value })}
+                onChange={(e) => { setForm({ ...form, requirementId: e.target.value }); setNeedsReason(null) }}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
@@ -465,13 +512,15 @@ function SubmitToRequirementModal({
 
             {/* Consultant select */}
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Who *</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Consultant *</label>
               <select
                 required
                 value={form.offeredBy ? `${form.personId}|${form.offeredBy}` : form.personId}
                 onChange={(e) => {
                   const [personId, offeredBy = ''] = e.target.value.split('|')
                   setForm({ ...form, personId, offeredBy })
+                  // A warning about one person is not a warning about the next.
+                  setNeedsReason(null)
                 }}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
@@ -513,7 +562,7 @@ function SubmitToRequirementModal({
               {selectedOffer && (
                 <div className="mt-3">
                   <label className="block text-xs font-semibold text-etyme-muted mb-1">
-                    What {selectedOffer.supplierName} charges you ($/hr) *
+                    What {selectedOffer.supplierName} charges you, per hour *
                   </label>
                   <input
                     type="number"
@@ -524,9 +573,9 @@ function SubmitToRequirementModal({
                     onChange={(e) => setForm({ ...form, payRate: e.target.value })}
                     className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                                focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                    placeholder="90"
+                    aria-describedby="pay-rate-help"
                   />
-                  <p className="text-[11px] text-etyme-muted mt-1">
+                  <p id="pay-rate-help" className="text-[11px] text-etyme-muted mt-1">
                     {selectedOffer.supplierName} holds {selectedOffer.name}’s consent and supplies them to you at this
                     rate. The client sees your rate and your name, never {selectedOffer.supplierName}’s.
                   </p>
@@ -596,35 +645,35 @@ function SubmitToRequirementModal({
               </div>
             )}
 
-            {/* Rate + Currency */}
+            {/* Rate, per hour. The currency is said, not picked: a
+                submission records no currency of its own, and a picker
+                whose answer the route threw away was a form that lied. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate ($/hr) *</label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  step="0.01"
-                  value={form.rate}
-                  onChange={(e) => setForm({ ...form, rate: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                  placeholder="125"
-                />
+                <label htmlFor="submit-rate" className="block text-xs font-semibold text-etyme-muted mb-1">Rate *</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="submit-rate"
+                    type="number"
+                    required
+                    min="1"
+                    step="0.01"
+                    value={form.rate}
+                    onChange={(e) => setForm({ ...form, rate: e.target.value })}
+                    aria-describedby="submit-rate-help"
+                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  />
+                  <span className="text-sm text-etyme-muted shrink-0">per hour</span>
+                </div>
+                <p id="submit-rate-help" className="text-[11px] text-etyme-muted mt-1">
+                  {bandHint(bands[form.requirementId]) ?? RATE_HELP}
+                </p>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-etyme-muted mb-1">Currency</label>
-                <select
-                  value={form.rateCurrency}
-                  onChange={(e) => setForm({ ...form, rateCurrency: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                >
-                  <option value="USD">USD</option>
-                  <option value="CAD">CAD</option>
-                  <option value="GBP">GBP</option>
-                  <option value="EUR">EUR</option>
-                </select>
+                <span className="block text-xs font-semibold text-etyme-muted mb-1">Currency</span>
+                <p className="px-3 py-2 text-sm text-etyme-ink">USD</p>
+                <p className="text-[11px] text-etyme-faint">{CURRENCY_SAYS}</p>
               </div>
             </div>
 
@@ -641,9 +690,36 @@ function SubmitToRequirementModal({
               />
             </div>
 
-            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
-              {submitting ? 'Submitting…' : 'Submit consultant'}
-            </button>
+            {needsReason && (
+              <div className="rounded-lg border border-etyme-attention/40 bg-etyme-canvas px-4 py-3">
+                <p className="text-sm text-etyme-attention mb-2">{needsReason}</p>
+                <label htmlFor="submit-reason" className="block text-xs font-semibold text-etyme-muted mb-1">
+                  Reason to go ahead *
+                </label>
+                <textarea
+                  id="submit-reason"
+                  rows={2}
+                  required
+                  minLength={10}
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-y
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                />
+                <p className="text-[11px] text-etyme-muted mt-1">
+                  The reason is recorded with the submission, under your name.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={onClose} className="btn-secondary flex-1">
+                Cancel
+              </button>
+              <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50">
+                {submitting ? 'Submitting…' : needsReason ? 'Submit with this reason' : 'Submit consultant'}
+              </button>
+            </div>
           </form>
         )}
       </div>

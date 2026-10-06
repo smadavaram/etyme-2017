@@ -14,7 +14,7 @@ describe('a delivery manager puts forward only the firm’s own people', () => {
   })
 
   it('the submission door lets the delivery desk in and refuses it per person wherever the firm is not the employer', () => {
-    expect(DOOR).toContain("hasPermission(caller.permissions, 'assignments.write')")
+    expect(DOOR).toContain("hasPermission(deskPermissions, 'assignments.write')")
     expect(DOOR).toContain('if (deliveryDeskOnly && !employedByUs) {')
     expect(DOOR.indexOf('if (deliveryDeskOnly && !employedByUs) {')).toBeGreaterThan(DOOR.indexOf('const employedByUs = employment !== null'))
   })

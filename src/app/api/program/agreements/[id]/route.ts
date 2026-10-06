@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { ensureBaseline, recordVersion, type TermSnapshot } from '../trail'
 import { paymentDaysSays, marginFloorSays } from '../verdict'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * PATCH /api/program/agreements/[id]
@@ -58,6 +59,9 @@ export async function PATCH(
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const companyId = caller.company?.id
   if (!companyId) {
@@ -121,8 +125,8 @@ export async function PATCH(
   // disabled button with no words is how somebody concludes the product
   // is broken.
   if (
-    !hasPermission(caller.permissions, 'rates.write') &&
-    !hasPermission(caller.permissions, 'settings.manage')
+    !hasPermission(deskPermissions, 'rates.write') &&
+    !hasPermission(deskPermissions, 'settings.manage')
   ) {
     return NextResponse.json(
       {

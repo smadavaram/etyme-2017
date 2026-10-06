@@ -5,6 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { canJoin, buttonSays, type Side } from '@/lib/join-companies'
 import { CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * GET  /api/suppliers/join — pairs that look like one firm twice
@@ -166,6 +167,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const notStaff = staffOnly(caller, 'Joining supplier records')
   if (notStaff) return notStaff
@@ -175,7 +179,7 @@ export async function POST(request: NextRequest) {
   // them back apart: after the join, a moved row and one that was always
   // there look the same. That is the panel desk's act and nobody else's
   // (ADDS_SUPPLIERS in lib/supplier-list).
-  if (!hasPermission(caller.permissions, 'vendors.manage')) {
+  if (!hasPermission(deskPermissions, 'vendors.manage')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: CANNOT_JOIN_SUPPLIERS } }, { status: 403 })
   }
 

@@ -9,6 +9,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { askGoesTo } from '@/lib/chain-top'
 import { tellThread } from '@/lib/thread-notices'
 import type { Participant } from '@/lib/threads'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/people/[id]/ask   { requirementId, note? }
@@ -44,12 +45,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
   const notStaff = staffOnly(caller, 'Asking for a person')
   if (notStaff) return notStaff
   // The reader's own word for a job, the one on their menu: a client
   // says "job request", a supplier "requirement" (lib/page-framing).
   const word = jobListWord(caller.company?.kind as CompanyKind | undefined)
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
+  if (!hasPermission(deskPermissions, 'requirements.write')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: `Asking for a person is for whoever raises ${word.plural.toLowerCase()} here.` } }, { status: 403 })
   }
   const companyId = caller.company!.id

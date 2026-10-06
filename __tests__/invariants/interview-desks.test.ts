@@ -21,7 +21,7 @@ const INTERVIEWS = read('src/app/dashboard/interviews/page.tsx')
 
 describe('setting up and deciding a round is for whoever is hiring', () => {
   it('a clerk asking for a round is refused, in a sentence that names who can', () => {
-    expect(PROPOSE).toMatch(/hasPermission\(caller\.permissions, 'requirements\.write'\)/)
+    expect(PROPOSE).toMatch(/hasPermission\(deskPermissions, 'requirements\.write'\)/)
     expect(PROPOSE).toContain("code: 'NOT_HIRING'")
     expect(PROPOSE).toMatch(/Setting up an interview is for whoever is hiring at \$\{caller\.company!\.name\}/)
   })

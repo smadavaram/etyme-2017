@@ -18,6 +18,7 @@ import {
 import { ancestry } from '@/lib/org-tree'
 import { ownPriceMedian } from '@/lib/chain-top'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { writePermissions } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/requisitions/:id
@@ -326,6 +327,9 @@ export async function PATCH(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // Judged by the seat where this firm sits at a client's desk
+  // (`writePermissions`), never by the office's own role.
+  const deskPermissions = await writePermissions(caller)
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -371,10 +375,10 @@ export async function PATCH(
   // The program office is whoever writes the rules — not whoever may
   // release to suppliers, which Procurement also does and Procurement is
   // an approver here.
-  const office = hasPermission(caller.permissions, 'governance.write')
+  const office = hasPermission(deskPermissions, 'governance.write')
   const editor =
     caller.person.id === requisition.ownerId || caller.person.id === requisition.raisedById || office
-  if (!hasPermission(caller.permissions, 'requirements.write') || !editor) {
+  if (!hasPermission(deskPermissions, 'requirements.write') || !editor) {
     return NextResponse.json(
       {
         error: {

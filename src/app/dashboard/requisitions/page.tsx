@@ -3,11 +3,12 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
-import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
+import { deskOf as deskOfSession } from '@/components/shell/sidebar-props'
+import { rowActions, mayRaise } from './row-actions'
 import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
+import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
 import { missingForApproval, missingSays } from './facts'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
@@ -579,8 +580,17 @@ export default function RequisitionsPage() {
   const [editing, setEditing] = useState<Requisition | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
-  /** What this reader's desk may do, so a button is not offered that the route refuses. */
-  const { permissions, company } = useSession()
+  /**
+   * What this reader's desk may do, so a button is not offered that the
+   * route refuses. Read through the seat, the way the sidebar, the + button and ⌘K read it (`deskOf`): a
+   * program office at a client's desk holds the client's role there, and
+   * its own firm's permissions say nothing about this book.
+   */
+  const session = useSession()
+  const { company } = session
+  // `deskOf` is the shell's, renamed here because this page already
+  // has a `deskOf` of its own: which approval desk a row is at.
+  const { permissions } = deskOfSession(session)
   const [decision, setDecision] = useState<any>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
@@ -751,7 +761,7 @@ export default function RequisitionsPage() {
             The approver who decides it, the clerk who pays for it and the
             viewer who reads the program are told what they are looking
             at rather than handed a button the route will refuse. */}
-        {hasPermission(permissions, 'requirements.write') ? (
+        {mayRaise(permissions) ? (
           <button onClick={() => setRaising(true)}
             className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
             Raise one
@@ -899,9 +909,16 @@ export default function RequisitionsPage() {
                       Cancel and Archive stay off a row somebody is
                       deciding, because they are not the editor's to press
                       while a desk holds it. */}
-                  {(mayEdit(r) || (!pending && r.status !== 'CANCELLED')) && (
+                  {/* And only for whoever the route lets change it: the
+                      desk holding requirements.write, and of those the
+                      manager it is for, whoever raised it, or the program
+                      office (row-actions.ts). */}
+                  {(() => {
+                    const can = rowActions(r, { permissions, personId: me?.id ?? null }, Boolean(pending))
+                    if (!can.edit && !can.cancel && !can.archive) return null
+                    return (
                     <div className="flex items-center gap-2 shrink-0">
-                      {mayEdit(r) && (
+                      {can.edit && (
                         <button
                           onClick={() => setEditing(r)}
                           className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink"
@@ -913,7 +930,7 @@ export default function RequisitionsPage() {
                           stop. A closed one is already stopped, and the
                           route refuses it — a button the route refuses is
                           a button that lies. */}
-                      {!pending && r.status !== 'CANCELLED' && r.status !== 'FILLED' && r.status !== 'CLOSED' && (
+                      {can.cancel && (
                         <button
                           onClick={() => cancel(r.id, r.title)}
                           disabled={busyId === r.id}
@@ -922,7 +939,7 @@ export default function RequisitionsPage() {
                           Cancel
                         </button>
                       )}
-                      {!pending && r.status !== 'CANCELLED' && r.status !== 'OPEN' && (
+                      {can.archive && (
                         <button
                           onClick={() => putAway(r.id, r.archivedAt ? 'unarchive' : 'archive')}
                           disabled={busyId === r.id}
@@ -932,7 +949,8 @@ export default function RequisitionsPage() {
                         </button>
                       )}
                     </div>
-                  )}
+                    )
+                  })()}
                   {mine && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button

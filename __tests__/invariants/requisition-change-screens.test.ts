@@ -23,6 +23,7 @@ import { transformSync } from 'esbuild'
 import { join } from 'path'
 import { WORDS, MONEY, diff, mayChange, said, noticeForSuppliers } from '@/lib/requisition-change'
 import { mayEdit, stageOf } from '@/lib/requisition-stage'
+import { rowActions } from '@/app/dashboard/requisitions/row-actions'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
@@ -240,7 +241,7 @@ describe('Changing a requirement that suppliers already have', () => {
     expect(route.mayReassignOwner(row, 'p-stranger', false)).toBe(false)
     expect(route.mayReassignOwner(row, 'p-stranger', true)).toBe(true)
     // The office is whoever writes the rules — Procurement releases too, and is an approver.
-    expect(code(EDIT_ROUTE)).toContain("hasPermission(caller.permissions, 'governance.write')")
+    expect(code(EDIT_ROUTE)).toContain("hasPermission(deskPermissions, 'governance.write')")
   })
 
   it('every change to a requisition leaves a reason on the record, not a free-text note', () => {
@@ -277,7 +278,16 @@ describe('The edit form on a published row', () => {
 
   it('the Edit button opens on a published row, now that words can change', () => {
     expect(mayEdit({ status: 'OPEN', approvalState: 'APPROVED', archivedAt: null })).toBe(true)
-    expect(code(LIST_PAGE)).toContain("{(mayEdit(r) || (!pending && r.status !== 'CANCELLED')) && (")
+    // Asked through row-actions.ts, which puts the route's own gate in
+    // front of the stage rule: the manager it is for may edit it.
+    expect(
+      rowActions(
+        { status: 'OPEN', approvalState: 'APPROVED', archivedAt: null, raisedBy: { id: 'p-1' }, owner: { id: 'p-2' } },
+        { permissions: ['requirements.write'], personId: 'p-2' },
+        false
+      ).edit
+    ).toBe(true)
+    expect(code(LIST_PAGE)).toContain('{can.edit && (')
     // The old sentence, which said the opposite, is gone with the rule.
     expect(LIST_PAGE).not.toContain('Published\n                          is deliberately not editable')
   })
