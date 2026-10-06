@@ -49,6 +49,9 @@ const co: Record<string, string> = {}
 const it_: Record<string, any> = {}
 
 /** The cycles on a contract, by kind, and whether each is done. */
+const DAY = 86_400_000
+const isoOf = (x: Date) => x.toISOString().slice(0, 10)
+
 async function cycles(where: { sellContractId?: string; buyContractId?: string }) {
   const rows = await prisma.cycle.findMany({ where, orderBy: { dueOn: 'asc' }, select: { kind: true, dueOn: true, completedAt: true } })
   const byKind: Record<string, { total: number; done: number }> = {}
@@ -198,9 +201,15 @@ describe('the ledger: one placement, every table, every station', () => {
 
   it('a week filed and sent: timesheet OPEN then SUBMITTED, and it does not close the next week’s hours-due reminder', async () => {
     as(WORKER)
-    const WEEK = { periodStart: day(-7).toISOString().slice(0, 10), periodEnd: day(-3).toISOString().slice(0, 10) }
+    // A Sunday-to-Saturday week: the last one ending on or before three
+    // days ago, worked Monday to Friday, inside the contract that started
+    // two weeks ago. Its hours were due the Monday after its Saturday,
+    // which is always before the award.
+    const sat = new Date(+day(-3) - ((day(-3).getUTCDay() + 1) % 7) * DAY)
+    it_.weekEnd = sat
+    const WEEK = { periodStart: isoOf(new Date(+sat - 6 * DAY)), periodEnd: isoOf(sat) }
     const days: Record<string, number> = {}
-    for (let i = 0; i < 5; i++) days[day(-7 + i).toISOString().slice(0, 10)] = 8
+    for (let i = 1; i <= 5; i++) days[isoOf(new Date(+sat - 6 * DAY + i * DAY))] = 8
     const r = await json(await fileTimesheet(req('POST', '/api/timesheets', { sellContractId: it_.contract, ...WEEK, days })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.timesheet = r.body.data.timesheet.id
@@ -215,7 +224,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_SUBMIT.done).toBe(0)
   })
 
-  it('both signatures: timesheet APPROVED, and a week before the award does not close the next week’s approval reminder', async () => {
+  it('both signatures: timesheet APPROVED, and the approval date it closes is its own week’s, never the next week’s', async () => {
     as(NIKE.hiring)
     const c = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(c.body?.error, JSON.stringify(c.body)).toBeUndefined()
@@ -226,10 +235,17 @@ describe('the ledger: one placement, every table, every station', () => {
     const e = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, { as: 'EMPLOYER' })
     expect(e.body?.error, JSON.stringify(e.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('APPROVED')
-    // The approval reminder due after the award is for the week after this
-    // one; a period that ended a whole cycle or more before it does not
-    // mark it done.
-    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_APPROVE.done).toBe(0)
+    // A week is approved the Wednesday after its Saturday. Whether that
+    // date was written depends on the weekday the award fell on — never
+    // for a day already gone — so: where it was written, approving the
+    // week closes it; and no later week's approval date is ever closed.
+    const approvals = await prisma.cycle.findMany({
+      where: { sellContractId: it_.contract, kind: 'TIMESHEET_APPROVE' },
+      select: { dueOn: true, completedAt: true },
+    })
+    const own = (due: Date) => +due >= +it_.weekEnd - DAY && +due <= +it_.weekEnd + 6 * DAY
+    expect(approvals.filter((c) => own(c.dueOn) && !c.completedAt)).toEqual([])
+    expect(approvals.filter((c) => !own(c.dueOn) && c.completedAt)).toEqual([])
   })
 
   it('a flight Tariq paid for: expense DRAFT, SUBMITTED, APPROVED', async () => {
@@ -290,10 +306,13 @@ describe('the ledger: one placement, every table, every station', () => {
     const t = r.body.data.timeline
     const doneKinds = [...t.hours, ...t.bill].filter((d: any) => d.done).map((d: any) => d.kind)
     // The bill for that week closes its invoice date; the hours reminders
-    // after the award belong to later weeks and stay open, not overdue.
+    // that belong to later weeks stay open, not overdue. The week's own
+    // hours were due before the award and never written; its approval date
+    // is done where it was written.
     expect(doneKinds).toEqual(expect.arrayContaining(['INVOICE_GENERATE']))
     expect(doneKinds).not.toContain('TIMESHEET_SUBMIT')
-    expect(doneKinds).not.toContain('TIMESHEET_APPROVE')
+    const lastOfWeek = isoOf(new Date(+it_.weekEnd + 6 * DAY))
+    expect(t.hours.filter((d: any) => d.done && String(d.dueOn).slice(0, 10) > lastOfWeek)).toEqual([])
     // The work began two weeks before the award, marked as under way. A
     // reminder is never written for a day already gone (audit, 2026-10-05),
     // so the weeks before the award carry none — and none is overdue.

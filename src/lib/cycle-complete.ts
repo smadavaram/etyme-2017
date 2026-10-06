@@ -13,12 +13,16 @@
  *
  * ── Which cycle ──────────────────────────────────────────────────────
  *
- * A timesheet for the week ending Friday the 12th belongs to the cycle
- * of its kind whose due date is the first one on or after that Friday —
- * the 12th itself, or the 15th once a weekend shift has moved it. The
- * rule is: the earliest cycle of that kind, not yet done, due on or
- * after the day before the period ended. The day's grace is for a
- * period that ends on the due date itself when the shift went backwards.
+ * A week runs Sunday to Saturday and its hours are due on the Monday
+ * after it (CLAUDE.md, "A week runs Sunday to Saturday", decided
+ * 2026-09-30). So a timesheet for the week ending Saturday the 12th
+ * belongs to the cycle of its kind whose due date is the first one on or
+ * after that Saturday — Monday the 14th, or Tuesday the 15th once a
+ * Monday holiday has moved it. The rule is: the earliest cycle of that
+ * kind, not yet done, due on or after the day before the period ended.
+ * The day's grace is for a date that a backward shift moved onto the
+ * Friday before the week's Saturday, and for the Friday reminders older
+ * packs wrote, which still sit on contracts created before the change.
  *
  * Earlier cycles left undone stay undone. A week nobody ever submitted
  * is still owed, and completing it because a later week arrived would
@@ -52,13 +56,23 @@ const DAY = 24 * 60 * 60 * 1000
  * ended a whole cycle or more before it: where the reminder one rhythm
  * earlier — the one the floor did not write — would itself have been the
  * period's under the rule above, the period is that one's and claims
- * nothing. Measured that way, with the same day of grace, a Sunday-to-
- * Saturday week ending the day after a Friday reminder belongs to that
- * Friday's, not the next. The rhythm is read off the gap to the next
- * reminder of the same kind; with only one reminder there is no rhythm
- * to read and the rule above stands. Pass every row of the
- * kind, done or not: "earliest" means earliest written, not earliest
- * still open.
+ * nothing. A week ending Saturday 5 September against a first reminder on
+ * Monday 14 September is a week too early: the reminder a rhythm before,
+ * Monday 7, would have been its own.
+ *
+ * The rhythm is the typical gap between two reminders of the kind in a
+ * row — the lower median of every gap — not the first gap. A first
+ * reminder a holiday moved — pay pulled back from Labor Day, Monday 7
+ * September, to Friday 4 — opens a ten-day gap to Monday 14, and read as
+ * the rhythm that let the week ending Saturday 29 August claim a pay
+ * date belonging to the week after it. Nor the shortest gap: a
+ * semimonthly invoice runs 13 to 18 days apart over a year, and taking
+ * 13 refused the 15 October invoice date to the week ending 3 October,
+ * whose own date it is. The median is what the rhythm usually is, and
+ * one shifted date among several cannot move it. With only one reminder
+ * there is no rhythm to read and the rule above stands. Pass
+ * every row of the kind, done or not: "earliest" means earliest written,
+ * not earliest still open.
  */
 export function pickCycle(cycles: CycleRow[], kind: string, periodEnd: Date): CycleRow | null {
   const floor = periodEnd.getTime() - DAY
@@ -66,11 +80,18 @@ export function pickCycle(cycles: CycleRow[], kind: string, periodEnd: Date): Cy
   const hit = ofKind.find((c) => c.completedAt === null && c.dueOn.getTime() >= floor) ?? null
   if (!hit) return null
   if (hit === ofKind[0] && ofKind.length > 1) {
-    const rhythm = ofKind[1].dueOn.getTime() - hit.dueOn.getTime()
+    const gaps: number[] = []
+    for (let i = 1; i < ofKind.length; i++) {
+      const gap = ofKind[i].dueOn.getTime() - ofKind[i - 1].dueOn.getTime()
+      if (gap > 0) gaps.push(gap)
+    }
+    gaps.sort((a, b) => a - b)
+    // The lower median: what the gap usually is, whatever one holiday did.
+    const rhythm = gaps.length > 0 ? gaps[Math.floor((gaps.length - 1) / 2)] : Infinity
     // The reminder a whole cycle earlier, had the floor not dropped it.
     // If the rule above would have given the period that one, the period
     // is that one's, and the earliest written is not.
-    if (rhythm > 0 && hit.dueOn.getTime() - rhythm >= floor) return null
+    if (Number.isFinite(rhythm) && hit.dueOn.getTime() - rhythm >= floor) return null
   }
   return hit
 }

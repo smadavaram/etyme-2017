@@ -225,12 +225,42 @@ describe('the day a pack asks for is the day it gets', () => {
   const ymd = (d: Date) => d.toISOString().slice(0, 10)
   const on = (y: number, m: number, d: number) => new Date(y, m - 1, d)
 
-  it('a Monday approval lands on Monday, not on the default Friday', () => {
+  it('a Wednesday approval lands on Wednesday, not on the default Monday', () => {
     const cycles = generateCycles(on(2026, 3, 2), on(2026, 3, 29), [
-      { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', dayOfWeek: 1 },
+      { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', dayOfWeek: 3 },
     ])
     expect(cycles.length).toBeGreaterThan(0)
-    for (const c of cycles) expect(c.dueOn.getDay()).toBe(1)
+    for (const c of cycles) expect(c.dueOn.getDay()).toBe(3)
+  })
+
+  it('a weekly cycle whose pack names no day is due on the Monday after each Sunday-to-Saturday week', () => {
+    // March 2026: Sunday 1 to Saturday 7 is the first week, due Monday 9;
+    // the last whole week, Sunday 22 to Saturday 28, is due Monday 30.
+    const cycles = generateCycles(on(2026, 3, 1), on(2026, 3, 31), [
+      { kind: 'TIMESHEET_SUBMIT', frequency: 'WEEKLY' },
+    ])
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-09', '2026-03-16', '2026-03-23', '2026-03-30'])
+  })
+
+  it('a contract starting Sunday to Friday owes its first week’s hours on the Monday after that week’s Saturday, never inside the week', () => {
+    for (let d = 1; d <= 6; d++) {
+      // 1 March 2026 is a Sunday, 6 March a Friday.
+      const start = on(2026, 3, d)
+      const [first] = generateCycles(start, on(2026, 4, 30), [{ kind: 'TIMESHEET_SUBMIT', frequency: 'WEEKLY' }])
+      expect(ymd(first.dueOn)).toBe('2026-03-09')
+    }
+  })
+
+  it('a Monday-to-Friday contract ending on a Friday still has its last week’s hours due the Monday after', () => {
+    const cycles = generateCycles(on(2026, 3, 2), on(2026, 3, 27), [{ kind: 'TIMESHEET_SUBMIT', frequency: 'WEEKLY' }])
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-09', '2026-03-16', '2026-03-23', '2026-03-30'])
+  })
+
+  it('a weekly cycle that names its own offset is due that many days after its Friday, not three', () => {
+    const cycles = generateCycles(on(2026, 3, 1), on(2026, 3, 31), [
+      { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', offsetDays: 4 },
+    ])
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-10', '2026-03-17', '2026-03-24', '2026-03-31'])
   })
 
   it('a vendor bill raised on the 15th lands on the 15th, not at month-end', () => {

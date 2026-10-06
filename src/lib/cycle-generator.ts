@@ -88,7 +88,7 @@ export type CycleFrequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY' |
 export interface CycleDefinition {
   kind: string
   frequency: CycleFrequency
-  /** 0 = Sunday … 6 = Saturday. Weekly and biweekly. Default Friday. */
+  /** 0 = Sunday … 6 = Saturday. Weekly and biweekly: the boundary day. Default Friday (see `DEFAULT_DAY_OF_WEEK`). */
   dayOfWeek?: number
   /**
    * 1–31. Monthly: the day. Semimonthly: the first cut, with month-end as
@@ -96,7 +96,11 @@ export interface CycleDefinition {
    * month-end (monthly).
    */
   dayOfMonth?: number
-  /** Days after the period boundary the cycle is due. Default 0. */
+  /**
+   * Days after the period boundary the cycle is due. Default 0, except a
+   * weekly cycle naming no weekday, which is due 3 days after its Friday:
+   * the Monday after the week's Saturday (`offsetFor`).
+   */
   offsetDays?: number
 }
 
@@ -105,8 +109,48 @@ export interface GeneratedCycle {
   dueOn: Date
 }
 
-/** The Friday that is the default period end. */
+/**
+ * Friday, and a weekly cycle that names neither day nor offset is due
+ * three days later: the Monday after the week's Saturday.
+ *
+ * A week runs Sunday to Saturday and its hours are due on the Monday
+ * after it ends, so weekend work is in before anybody signs. Decided by
+ * the founder on 2026-09-30 (CLAUDE.md, "A week runs Sunday to Saturday,
+ * and the weekend can be filed" and "When a Sunday-to-Saturday week is
+ * due"). The default used to be due on the Friday itself, before the
+ * week's Saturday had happened.
+ *
+ * Why the boundary is Friday and not the Saturday the week ends on:
+ * `generatePeriodEnds` keeps only boundaries on or before the contract's
+ * last day, so a Saturday boundary drops the final week of every
+ * contract ending Sunday to Friday — the ordinary Monday-to-Friday
+ * placement loses its last week's hours date, which is a week nobody is
+ * reminded to bill. Friday plus three keeps it, and is the shape the
+ * shipped packs use (`lib/template-packs`, measured by regulatory over
+ * 2,401 contract shapes). Nor is the boundary Monday: a series anchored
+ * on Monday starts on the first Monday after the contract does, so a
+ * contract starting on a Sunday would owe its first week's hours the
+ * next day — the spurious head the approval note below describes.
+ *
+ * What it still does not cover: a contract starting on a Saturday has
+ * no date for that one day, the head's twin of "no final partial
+ * period" (CLAUDE.md, "The cycle engine, honestly", item 2).
+ *
+ * A biweekly period with no day named also ends on the Friday, with no
+ * default offset, because when its money moves depends on the kind.
+ * Every shipped pack names its own day; this reaches only a definition
+ * built without one, and a pack that names a day or an offset gets
+ * exactly what it named.
+ */
 const DEFAULT_DAY_OF_WEEK = 5
+/** The Monday after the week's Saturday, for a weekly cycle that names neither day nor offset. */
+const DEFAULT_WEEKLY_OFFSET_DAYS = 3
+
+/** How many days after its period end a definition is due. */
+function offsetFor(def: CycleDefinition): number {
+  if (def.offsetDays !== undefined) return def.offsetDays
+  return def.frequency === 'WEEKLY' && def.dayOfWeek === undefined ? DEFAULT_WEEKLY_OFFSET_DAYS : 0
+}
 /** The mid-month cut that is the default first semimonthly boundary. */
 const DEFAULT_SEMIMONTHLY_CUT = 15
 /** At or past this, a day of month means "the end of the month". */
@@ -203,8 +247,15 @@ function dayInMonth(year: number, month: number, requested: number | undefined):
  * belongs.
  */
 function nextOnDay(from: Date, dayOfWeek: number): Date {
+  // In UTC, because contract dates are stored as UTC midnights. Read in
+  // local time, a server east of Greenwich saw a Monday as the Sunday
+  // before it, and one west of it moved across a daylight-saving change
+  // by an hour and landed a day out (CLAUDE.md, "The cycle engine,
+  // honestly", items 8 and 9). The step loop in `generatePeriodEnds` and
+  // `dayInMonth` still count in local time; that is item 9's own piece
+  // of work, because moving them moves every contract's dates.
   const d = new Date(from)
-  while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1)
+  while (d.getUTCDay() !== dayOfWeek) d.setUTCDate(d.getUTCDate() + 1)
   return d
 }
 
@@ -443,7 +494,7 @@ export function generateCycles(
       // the company has since asked its dates to move.
       if (floor && periodEnd <= floor) continue
       const due = new Date(periodEnd)
-      due.setDate(due.getDate() + (def.offsetDays ?? 0))
+      due.setDate(due.getDate() + offsetFor(def))
       const shifted = shiftToWorkingDay(due, holidaySet, direction)
       // Keyed the same way the holidays are, so an extension knows the
       // dates it already wrote whatever timezone the server is in.

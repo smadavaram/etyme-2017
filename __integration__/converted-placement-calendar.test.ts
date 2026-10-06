@@ -28,14 +28,15 @@ import { POST as convert } from '@/app/api/submissions/[id]/convert/route'
  *   Kesterly Group      never touched the setting, so it is on the
  *                       shipped default: bill after, pay before.
  *
- * Both firms close on Friday 6 February 2026 — a pay day on the default
- * pack — so a direction is visible in a real date rather than in a
+ * Both firms close on Friday 13 March 2026 — a pay day on the default
+ * pack, which pays a Sunday-to-Saturday fortnight on the Friday after it
+ * ends — so a direction is visible in a real date rather than in a
  * constant. 1 March 2026 is a Sunday, which is what makes the invoice
  * date move without any holiday at all.
  *
  * Every date below is a real day: 27 February 2026 is a Friday, the
- * 28th a Saturday, 1 March a Sunday, 2 March a Monday. 5 February is a
- * Thursday, the 6th a Friday, the 9th the Monday after.
+ * 28th a Saturday, 1 March a Sunday, 2 March a Monday. 12 March is a
+ * Thursday, the 13th a Friday, the 16th the Monday after.
  */
 
 const CLIENT = 'program@halverson.test'
@@ -44,7 +45,7 @@ const KESTERLY = 'owner@kesterly.test'
 
 const START = '2026-02-01'
 const END = '2026-04-30'
-const CLOSED = new Date('2026-02-06T00:00:00.000Z')
+const CLOSED = new Date('2026-03-13T00:00:00.000Z')
 
 const co = { client: '', brightmoor: '', kesterly: '' }
 const who = { pm: '', brightmoor: '', kesterly: '', ravi: '', dana: '' }
@@ -172,21 +173,21 @@ describe('a placement converted from a submission is generated on the company’
 
   it('a firm that asked to pay after the weekend has a pay day on a day it is closed generated on the Monday', async () => {
     const dates = await days({ buyContractId: contractOf.brightmoor.buy! }, 'SALARY_PAY')
-    expect(dates).toContain('2026-02-09')
-    expect(dates).not.toContain('2026-02-06')
+    expect(dates).toContain('2026-03-16')
+    expect(dates).not.toContain('2026-03-13')
   })
 
   it('a firm on the default pays that day before it closes, which is what US payroll does', async () => {
     const dates = await days({ buyContractId: contractOf.kesterly.buy! }, 'SALARY_PAY')
-    expect(dates).toContain('2026-02-05')
-    expect(dates).not.toContain('2026-02-06')
+    expect(dates).toContain('2026-03-12')
+    expect(dates).not.toContain('2026-03-13')
   })
 
   it('nobody is paid on a day their employer is shut, whichever answer the firm gave', async () => {
     for (const firm of ['brightmoor', 'kesterly'] as const) {
       const dates = await days({ buyContractId: contractOf[firm].buy! }, 'SALARY_PAY')
       expect(dates.length).toBeGreaterThan(0)
-      expect(dates).not.toContain('2026-02-06')
+      expect(dates).not.toContain('2026-03-13')
     }
   })
 
