@@ -233,6 +233,13 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
       'A document that has run out — or that leaves weeks uncovered between one policy ending and the next ' +
       'beginning — is asked for again, from the company that owes it. Asking is all it does.',
   },
+  CREDENTIAL_ASK_WITHDRAWN: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A request to a worker for a license renewal, raised by a firm that is not the one that asks this person ' +
+      'for paperwork, is withdrawn, so she is asked once and by the right firm. It can be put back.',
+  },
   WEBHOOK_DISABLED: {
     rung: 'L3',
     basis: 'RULE',
