@@ -145,11 +145,14 @@ export default function PurchaseOrdersPage() {
 
   useEffect(() => {
     if (!adding) return
-    fetch('/api/companies')
+    // The buyer's own suppliers, from the book the order will be written
+    // on — the client's in a seat, ours with `?books=own` — never every
+    // company this firm has heard of.
+    fetch(booksHref('/api/companies/suppliers', books))
       .then((r) => r.json())
       .then((b) => setSuppliers((b.data?.companies ?? []).filter((c: any) => c.kind !== 'CLIENT')))
       .catch(() => setSuppliers([]))
-  }, [adding])
+  }, [adding, books])
 
   async function raise() {
     setBusy(true); setError(null); setFlash(null)

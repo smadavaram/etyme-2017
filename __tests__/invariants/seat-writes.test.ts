@@ -64,6 +64,15 @@ describe('a write from a seat is judged by the seat and lands in the seat’s bo
     expect(read('app/dashboard/purchase-orders/page.tsx')).toContain("fetch(booksHref('/api/purchase-orders', books), {")
   })
 
+  it('an order is checked against the buyer’s own suppliers, the same list the picker offers', () => {
+    const post = handler(ORDERS, 'POST')
+    expect(post).toContain('sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId)')
+  })
+
+  it('the purchase-order picker offers the buyer’s suppliers from the book the order is written on', () => {
+    expect(read('app/dashboard/purchase-orders/page.tsx')).toContain("fetch(booksHref('/api/companies/suppliers', books))")
+  })
+
   it('the expense form, which picks from the office’s own contracts, raises onto the office’s own book', () => {
     expect(read('app/dashboard/expenses/page.tsx')).toContain("fetch('/api/expenses?books=own', {")
   })

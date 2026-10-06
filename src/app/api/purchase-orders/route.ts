@@ -10,6 +10,8 @@ import { writePayTrail } from '@/lib/money/pay-trail'
 import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 import { mayWriteOrder, shellNotice } from '@/lib/off-system'
+import { suppliersOf } from '@/lib/suppliers-of'
+import { supplierStanding } from '@/lib/counterparty'
 import { nounFor, referenceFor, sideOf } from '@/lib/order-naming'
 import { termsFor } from '@/lib/money/order-terms'
 
@@ -395,7 +397,17 @@ export async function POST(request: NextRequest) {
   // one in the name of a firm that is here and could have raised it. The
   // second is the trap — a firm naming a real tenant as its client with
   // nobody at that tenant involved.
-  const allowed = mayWriteOrder({ callerCompanyId: companyId, buyer, seller })
+  //
+  // And where the caller is the buyer, the seller must be one of the
+  // buyer's suppliers and not one it blocked — read from the same book
+  // the picker lists (`lib/suppliers-of`), so a firm offered on the
+  // screen is a firm the order may go to, and no other.
+  const allowed = mayWriteOrder({
+    callerCompanyId: companyId,
+    buyer,
+    seller,
+    ...(recordingForBuyer ? {} : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId) }),
+  })
   if (!allowed.ok) {
     return NextResponse.json(
       { error: { code: 'NOT_YOURS', message: allowed.says, field: recordingForBuyer ? 'issuedById' : 'issuedToId' } },

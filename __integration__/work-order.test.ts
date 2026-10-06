@@ -309,7 +309,17 @@ describe('the purchase order the client handed them', () => {
   })
 
   it('a client reads it as a purchase order and a supplier reads the same row as a sales order', async () => {
-    // Northbend raises its own, the ordinary way round.
+    // Northbend raises its own, the ordinary way round — to a firm it
+    // buys from. A purchase order goes to one of the buyer's suppliers
+    // and no other (lib/suppliers-of), so Veritan is on Northbend's
+    // register as an approved supplier first, the state supplier
+    // onboarding ends in.
+    await prisma.counterparty.create({
+      data: {
+        companyId: co.northbend, otherCompanyId: co.veritan,
+        relationship: 'SUPPLIER', status: 'ACTIVE', tier: 'APPROVED',
+      },
+    })
     as(NORTHBEND)
     const raised = await json(
       await raiseOrder(

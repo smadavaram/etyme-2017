@@ -4,6 +4,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as raiseOrder, PATCH as changeOrder } from '@/app/api/purchase-orders/route'
 import { POST as raiseExpense } from '@/app/api/expenses/route'
 import { POST as decideExpenses } from '@/app/api/expenses/actions/route'
+import { suppliersOf } from '@/lib/suppliers-of'
 
 /**
  * A write lands in the book the screen was reading.
@@ -18,7 +19,7 @@ import { POST as decideExpenses } from '@/app/api/expenses/actions/route'
  */
 
 const APTIVA = 'world-aptiva@demo.etyme.local'
-const id = { aptiva: '', cavanaugh: '', wrenfield: '' }
+const id = { aptiva: '', cavanaugh: '', wrenfield: '', aptivaSupplier: '' }
 const s: Record<string, any> = {}
 
 async function seatAptivaAt(roleName: string) {
@@ -55,6 +56,15 @@ beforeAll(async () => {
   id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
   id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id
   id.wrenfield = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })).id
+  // A firm Aptiva itself buys from, read the way the order route reads
+  // it. Wrenfield is Cavanaugh's supplier, not Aptiva's, and an order on
+  // Aptiva's own book to Wrenfield is rightly refused.
+  const aptivaBuysFrom = [...(await suppliersOf(id.aptiva)).ids]
+  expect(aptivaBuysFrom.length, 'Aptiva buys from somebody in the seeded world').toBeGreaterThan(0)
+  id.aptivaSupplier = aptivaBuysFrom.sort()[0]
+  // And the client's: Wrenfield must really be Cavanaugh's supplier, or
+  // the seated order below proves nothing.
+  expect((await suppliersOf(id.cavanaugh)).ids.has(id.wrenfield)).toBe(true)
   const ownLine = await prisma.sellContract.findFirstOrThrow({
     where: { companyId: id.aptiva },
     select: { id: true, personId: true },
@@ -112,9 +122,27 @@ describe('a purchase order raised from a seat is the client’s', () => {
   })
 
   it('an office reading its own books raises its own order, on its own book', async () => {
-    const r = await json(await raiseOrder(req('POST', '/api/purchase-orders?books=own', order('APT-OWN-PO-1'))))
+    const r = await json(
+      await raiseOrder(req('POST', '/api/purchase-orders?books=own', { ...order('APT-OWN-PO-1'), issuedToId: id.aptivaSupplier }))
+    )
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect((await prisma.workOrder.findFirstOrThrow({ where: { number: 'APT-OWN-PO-1' } })).issuedById).toBe(id.aptiva)
+  })
+})
+
+describe('a purchase order goes only to one of the buyer’s suppliers', () => {
+  it('an order to a firm that is not one of the buyer’s suppliers is refused and told to recommend them first', async () => {
+    await seatAptivaAt('Owner')
+    // Talvern Medical is a client, and buys nothing from anybody's
+    // order — it is no firm's supplier, Cavanaugh's least of all.
+    const talvern = await prisma.company.findFirstOrThrow({ where: { slug: 'world-terumo-bct' } })
+    const r = await json(
+      await raiseOrder(req('POST', '/api/purchase-orders', { ...order('CAV-NOT-A-SUPPLIER'), issuedToId: talvern.id }))
+    )
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toMatch(/is not one of Cavanaugh Glassworks's suppliers/)
+    expect(r.body.error.message).toMatch(/Recommend them as a supplier first/)
+    expect(await prisma.workOrder.count({ where: { number: 'CAV-NOT-A-SUPPLIER' } })).toBe(0)
   })
 })
 
