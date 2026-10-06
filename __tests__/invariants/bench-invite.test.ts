@@ -109,6 +109,36 @@ describe('what the invitation says', () => {
     expect(msg.body).toMatch(/no password, no account/i)
   })
 
+  it('the invitation names the pay terms the firm stated, in the firm\'s own voice', () => {
+    const withTerms = inviteText({
+      personName: 'Ravi Patel',
+      vendorName: 'Techpeple',
+      url: 'https://etyme.example/bench-invite/abc',
+      terms: {
+        engagementType: 'W2' as never,
+        payRateCents: 9000,
+        rate: '$90/hr',
+        words: 'as its employee (W2)',
+        agreed: false,
+        says: '',
+      },
+    })
+    expect(withTerms.body).toMatch(
+      /Nothing happens until you say yes\. If you say yes, you also agree our pay terms: \$90\/hr, as our employee \(W2\), when we place you\./,
+    )
+    expect(withTerms.body).not.toMatch(/its employee/)
+    expect(withTerms.body).not.toMatch(/We have not stated any pay terms/)
+  })
+
+  it('with no terms stated, the invitation says a yes agrees only the marketing', () => {
+    expect(msg.body).toMatch(
+      /Nothing happens until you say yes\. We have not stated any pay terms yet, so saying yes agrees only that we may put you forward\./,
+    )
+    const nullTerms = inviteText({ personName: 'Ravi Patel', vendorName: 'Techpeple', url: 'u', terms: null })
+    expect(nullTerms.body).toMatch(/saying yes agrees only that we may put you forward/)
+    expect(nullTerms.body).not.toMatch(/agree our pay terms/)
+  })
+
   it('goes out in the vendor’s name, never ours', () => {
     // The prose, not the link — the URL carries the deployment's own
     // host and always will. What must never appear is us introducing

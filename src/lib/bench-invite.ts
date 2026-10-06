@@ -1,4 +1,5 @@
 import { sign, read, baseUrl } from '@/lib/signed-link'
+import type { TermsShown } from '@/lib/bench-filter'
 
 /**
  * The link a consultant opens to answer a vendor who wants to market
@@ -81,19 +82,36 @@ export function inviteUrl(listingId: string): string {
  * the email promised a protection the default does not give (tester,
  * 2026-09-30). It now says what a yes lets the firm do, and that the
  * person can choose to be asked first on the page the link opens.
+ *
+ * ── It names the pay terms, or says there are none ──────────────────
+ *
+ * A firm may state how it would engage somebody and what it would pay
+ * (`termsShown` in lib/bench-filter), and the page the link opens asks
+ * the person to agree them with the yes (2026-10-06). An email that
+ * said nothing about them would let the yes carry a term the person
+ * first met one click later. So the email says the terms in the firm's
+ * own voice, or says plainly that none were stated and a yes agrees
+ * only to being put forward. Optional, so a caller that has not read
+ * the listing's terms yet still sends the honest second sentence.
  */
 export function inviteText(o: {
   personName: string
   vendorName: string
   url: string
+  terms?: TermsShown | null
 }): { subject: string; body: string } {
   const first = o.personName.trim().split(/\s+/)[0]
+  const terms = o.terms
+    ? `If you say yes, you also agree our pay terms: ${o.terms.rate}, ${o.terms.words.replace('its ', 'our ')}, when we place you. `
+    : `We have not stated any pay terms yet, so saying yes agrees only that we may put you forward. `
   return {
     subject: `${o.vendorName} would like to put you forward for contract work`,
     body:
       `Hi ${first} — ${o.vendorName} here.\n\n` +
       `We would like to add you to our bench, which means we can put you forward ` +
-      `for contract jobs. Nothing happens until you say yes. On the page below you can ` +
+      `for contract jobs. Nothing happens until you say yes. ` +
+      terms +
+      `On the page below you can ` +
       `also ask us to check with you before we send you to a client we have not sent ` +
       `you to before, and you can take this back whenever you like.\n\n` +
       `Say yes or no here — no password, no account:\n${o.url}\n\n` +
