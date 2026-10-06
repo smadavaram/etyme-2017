@@ -145,7 +145,14 @@ describe("an integrator's own engineer reads his firm's menu, then his own", () 
   it('his menu ends with "You", after every one of his firm\'s sections', () => {
     const nav = getNavForKind('GSI', false, { worker: true, permissions: KARTHIK })
     expect(nav[nav.length - 1].label).toBe('You')
-    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Today', 'Deliver', 'Supply', 'Operate', 'Grow', 'Governance'])
+    expect(nav.filter((s) => s.label === 'You')).toHaveLength(1)
+    // The integrator's spine, in its order, less any heading his seat
+    // has no link under. Supply holds the bench, consultants, check-ins
+    // and Training, and Training now asks for the bench and the open
+    // jobs it is drawn from, so a delivery engineer who reads neither
+    // has nothing under Supply and the heading is not drawn (the next
+    // sentence). Every firm section he can open still comes before "You".
+    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Today', 'Deliver', 'Operate', 'Grow', 'Governance'])
   })
 
   it('a menu heading with no links in it is not drawn', () => {
