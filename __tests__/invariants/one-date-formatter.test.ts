@@ -56,7 +56,6 @@ const NOT_YET_MOVED: string[] = [
   'src/app/dashboard/decisions/page.tsx',
   'src/app/dashboard/documents/page.tsx',
   'src/app/dashboard/expenses/page.tsx',
-  'src/app/dashboard/interviews/page.tsx',
   'src/app/dashboard/invitations/page.tsx',
   'src/app/dashboard/invoices/page.tsx',
   'src/app/dashboard/leads/page.tsx',

@@ -563,7 +563,8 @@ export const MATRIX: L1[] = [
         { code: 'L3.1.3.2', name: 'Interview', owner: 'Hiring manager', status: B,
           tasks: ['Three-party acceptance', 'Chase after 24 hours', 'Flag a fourth round',
             'Propose a round from the candidate', 'Rounds in turn', 'Tell all three', 'The candidate answers',
-            'BUILT 2026-10-03 by etyme-conversation, client tester: a time is said in the reader\u2019s own zone, named, the American way; when an award fills a job, each supplier whose candidate was not chosen is told once, in one sentence, with no other candidate named and no rate (lib/notify/not-chosen)'],
+            'BUILT 2026-10-03 by etyme-conversation, client tester: a time is said in the reader\u2019s own zone, named, the American way; when an award fills a job, each supplier whose candidate was not chosen is told once, in one sentence, with no other candidate named and no rate (lib/notify/not-chosen)',
+            'BUILT 2026-10-06 by etyme-conversation: a candidate turned down has every round still ahead called off and the supplier, the candidate and the client told in one sentence, with the booked time in each reader\u2019s own zone (cancelRoundsFor in lib/interview-notices); every interview time goes through lib/when. OPEN for etyme-demand: the status route that rejects or withdraws a submission must call it'],
           implementedBy: [
             'src/lib/interviews.ts', 'src/lib/interview-proposal.ts', 'src/lib/interview-notices.ts',
             'src/components/propose-interview.tsx',
@@ -579,6 +580,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/interview-notices.test.ts', '__tests__/invariants/interview-conversation.test.ts',
             '__tests__/invariants/client-interviews.test.ts', '__tests__/invariants/my-work-interviews.test.ts',
             '__tests__/invariants/interview-desks.test.ts', '__integration__/interview-rounds.test.ts',
+            '__tests__/invariants/interview-turned-down.test.ts', '__integration__/interview-turned-down.test.ts',
           ] },
         { code: 'L3.1.3.4', name: 'Talking to a supplier', owner: 'Hiring manager', status: B,
           tasks: ['Demand opens, supply answers', 'Only a firm on the deal', 'From the role or the candidate',

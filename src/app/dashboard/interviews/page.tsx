@@ -6,6 +6,7 @@ import { readJson } from '@/lib/read-response'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
 import { PlaceDialog } from './place-dialog'
@@ -59,26 +60,14 @@ interface Row {
 }
 
 /**
- * A time offered, in the reader's own zone, with the zone named.
- *
- * The browser formats it, so it is already the reader's local time; the
- * zone is written out because "Tue, Oct 6, 9:00 AM" is wrong for the
- * supplier two time zones away and looks right to them.
+ * A time offered, in the reader's own zone, with the zone named:
+ * "Tue, Oct 6, 9:00 AM PDT". Through `lib/when`, the one door for a
+ * moment, so this screen and the letters about the same round say the
+ * same words. A hiring manager in Tualatin read "16:00 UTC" for a 9am
+ * round (client tester, 2026-10-03).
  */
 function when(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-  })
-}
-
-/** The zone this browser is in, sent so the server's sentences use it too. */
-function browserZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''
-  } catch {
-    return ''
-  }
+  return momentFor(new Date(iso), readerZone())
 }
 
 export default function InterviewsPage() {
@@ -91,7 +80,11 @@ export default function InterviewsPage() {
   // The heading follows the reader's own menu: a client reads the
   // section its Submissions sit under, a supplier the one its
   // Interviews entry sits under. Never a word typed here.
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'interviews')
+  //
+  // No eyebrow until the session says whose menu it is: guessing a
+  // supplier put "Operate" over a client's page for the moment before
+  // the session landed, which is what the client tester read (3.11).
+  const framing = company ? pageFraming(company.kind, 'interviews') : null
   const mayDecide = hasPermission(permissions, 'requirements.write')
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState('')
@@ -117,7 +110,7 @@ export default function InterviewsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/interviews?tz=${encodeURIComponent(browserZone())}`)
+      const res = await fetch(`/api/interviews?tz=${encodeURIComponent(readerZone())}`)
       const body = await readJson(res)
       setRows(body.data.interviews)
       setSummary(body.data.summary)
@@ -135,7 +128,7 @@ export default function InterviewsPage() {
     setBusy(id)
     setError(null)
     try {
-      const res = await fetch(`/api/interviews/${id}?tz=${encodeURIComponent(browserZone())}`, {
+      const res = await fetch(`/api/interviews/${id}?tz=${encodeURIComponent(readerZone())}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -161,9 +154,9 @@ export default function InterviewsPage() {
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
       <header>
-        {framing.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">{framing.title}</h1>
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">{framing.subtitle}</p>
+        {framing?.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
+        <h1 className="headline-serif text-[30px] leading-tight">{framing?.title ?? 'Interviews'}</h1>
+        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">{framing?.subtitle}</p>
       </header>
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>

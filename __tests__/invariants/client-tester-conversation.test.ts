@@ -61,7 +61,8 @@ describe('an interview time is said in the reader’s own time zone, and the zon
   it('the Interviews page asks the server for its sentences in the browser’s own zone', () => {
     const page = read('src/app/dashboard/interviews/page.tsx')
     expect(page).toMatch(/\/api\/interviews\?tz=/)
-    expect(page).toContain("timeZoneName: 'short'")
+    // Through the one door for a moment, so the zone is always named.
+    expect(page).toContain('momentFor(new Date(iso), readerZone())')
     expect(page).not.toContain("'en-GB'")
   })
 })
@@ -135,7 +136,10 @@ describe('the Interviews and Submissions pages are headed in the reader’s own 
 
   it('the Interviews page takes its heading from the framing and types no section name of its own', () => {
     const page = read('src/app/dashboard/interviews/page.tsx')
-    expect(page).toContain("pageFraming(company?.kind ?? 'VENDOR', 'interviews')")
+    // And no section at all until the session says whose menu it is:
+    // a guessed supplier's word must never flash over a client's page.
+    expect(page).toContain("company ? pageFraming(company.kind, 'interviews') : null")
+    expect(page).not.toContain("?? 'VENDOR', 'interviews'")
     expect(page).not.toMatch(/className="eyebrow">\s*Operate/)
   })
 

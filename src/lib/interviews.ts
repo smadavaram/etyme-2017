@@ -35,6 +35,7 @@
  * turn up — which is a thing only the layer between them can hold.
  */
 
+import { momentFor } from '@/lib/when'
 
 /** Where an interview has got to. */
 export type State =
@@ -383,16 +384,10 @@ export function isZone(zone: string | null | undefined): zone is string {
  * people who read it and looks right to all of them.
  */
 export function timeFor(at: Date, zone: string | null | undefined): string {
-  const tz = isZone(zone) ? zone : 'UTC'
-  try {
-    return at.toLocaleString('en-US', {
-      timeZone: tz,
-      weekday: 'short', month: 'short', day: 'numeric',
-      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-    })
-  } catch {
-    return `${at.toISOString().slice(0, 16).replace('T', ' ')} UTC`
-  }
+  // One formatter for a moment, the architect's: a zone outside the US
+  // is named by its place as well as its offset ("GMT+5:30 (Kolkata
+  // time)"), which this file's own copy did not do.
+  return momentFor(at, isZone(zone) ? zone : null)
 }
 
 /**

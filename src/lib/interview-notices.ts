@@ -148,11 +148,16 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       toRequester(`${c.consultant.name} cannot make ${round}`, `For ${c.role}.${c.reason ? ` They said: ${c.reason}` : ''} Offer other times, or ask ${c.vendor.name}.`)
       toVendorStaff(`${c.consultant.name} cannot make ${round} at ${c.client.name}`, `For ${c.role}.${c.reason ? ` They said: ${c.reason}` : ''}`)
       break
-    case 'CANCELLED':
-      toVendorStaff(`${round} for ${c.consultant.name} at ${c.client.name} is off`, `For ${c.role}.${c.reason ? ` ${c.reason}` : ''}`)
-      toConsultant(`Your ${round} with ${c.client.name} is off`, `For ${c.role}.${c.reason ? ` ${c.reason}` : ''} ${c.vendor.name} will be in touch.`)
-      toRequester(`${round} for ${c.consultant.name} is off`, `For ${c.role}.${c.reason ? ` ${c.reason}` : ''}`)
+    case 'CANCELLED': {
+      // A booked round names the time it was booked for, in each
+      // reader's own day, so nobody has to work out which morning they
+      // got back (client tester, 2026-10-03).
+      const off = (at: string) => `For ${c.role}${at ? `, ${at}` : ''}.${c.reason ? ` ${c.reason}` : ''}`
+      toVendorStaff(`Round ${c.round} for ${c.consultant.name} at ${c.client.name} is off`, off)
+      toConsultant(`Your ${round} with ${c.client.name} is off`, (at) => `${off(at)} ${c.vendor.name} will be in touch.`)
+      toRequester(`Round ${c.round} for ${c.consultant.name} is off`, off)
       break
+    }
     case 'ADVANCED':
       toVendorStaff(`${c.consultant.name} goes through to round ${c.round + 1} at ${c.client.name}`, `For ${c.role}. ${c.client.name} will propose times.`)
       toConsultant(`You are through to round ${c.round + 1} with ${c.client.name}`, `For ${c.role}. They will propose times; ${c.vendor.name} will let you know.`)
@@ -182,7 +187,7 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
     case 'NO_SHOW': {
       const who = c.noShowBy === 'CONSULTANT' ? c.consultant.name : c.noShowBy === 'VENDOR' ? c.vendor.name : c.client.name
       if (c.noShowBy !== 'CLIENT') toRequester(`Nobody came to ${round} for ${c.consultant.name}`, `${who} did not turn up for ${c.role}.`)
-      if (c.noShowBy !== 'VENDOR') toVendorStaff(`${round} for ${c.consultant.name} at ${c.client.name}: no show`, `${who} did not turn up for ${c.role}.`)
+      if (c.noShowBy !== 'VENDOR') toVendorStaff(`Round ${c.round} for ${c.consultant.name} at ${c.client.name}: no show`, `${who} did not turn up for ${c.role}.`)
       break
     }
   }
@@ -264,4 +269,84 @@ export function tell(
     .catch((err) => {
       console.error(`[interview-notices] could not tell ${event} for ${interviewId}:`, err)
     })
+}
+
+// ── A candidate turned down: their open rounds come off the diaries ────
+
+/** How a submission stopped. Each one leaves any round still open pointless. */
+export type TurnedDown = 'NOT_SELECTED' | 'REJECTED' | 'WITHDRAWN'
+
+/** The rounds that have not happened yet and can still be called off. */
+const OPEN = ['PROPOSED', 'CONFIRMED'] as const
+
+/**
+ * Why the round is off, in one sentence the supplier, the candidate and
+ * the client can all read.
+ *
+ * A rejection reaches the candidate through their supplier, so the
+ * REJECTED sentence says the round is off and not why: the candidate
+ * still has to know not to turn up, and the supplier is told the
+ * outcome on its own.
+ */
+export function turnedDownReason(how: TurnedDown): string {
+  switch (how) {
+    case 'NOT_SELECTED':
+      return 'The job went to someone else, so this interview is cancelled.'
+    case 'WITHDRAWN':
+      return 'The candidate was withdrawn, so this interview is cancelled.'
+    case 'REJECTED':
+      return 'This interview is cancelled.'
+  }
+}
+
+/**
+ * Which of a submission's rounds are called off — pure, so the rule can
+ * be read as a test. Only a round not yet held: a round already done,
+ * missed or called off is history and is never touched.
+ */
+export function openRounds<T extends { state: string }>(rounds: T[]): T[] {
+  return rounds.filter((r) => (OPEN as readonly string[]).includes(r.state))
+}
+
+/**
+ * Call off every open round for one submission, and tell everybody who
+ * would have been in the room — the supplier's desks in the app, the
+ * candidate by email, the client who asked for it — in the same words
+ * the round now carries.
+ *
+ * The client tester placed somebody and the other candidates' rounds
+ * stayed "In all three diaries". Whatever turns a candidate down calls
+ * this after its own write; a second call finds nothing open and tells
+ * nobody twice. Resolves to the rounds it called off.
+ */
+export async function cancelRoundsFor(
+  submissionId: string,
+  reason: string,
+  now: Date = new Date()
+): Promise<string[]> {
+  const rounds = await prisma.interview.findMany({
+    where: { submissionId, state: { in: [...OPEN] } },
+    select: { id: true, state: true },
+  })
+  const open = openRounds(rounds)
+  if (open.length === 0) return []
+
+  // Guarded on the state again, so two callers racing call a round off
+  // once and only the one that did tells anybody.
+  const done: string[] = []
+  for (const r of open) {
+    const hit = await prisma.interview.updateMany({
+      where: { id: r.id, state: { in: [...OPEN] } },
+      data: { state: 'CANCELLED', cancelledAt: now, cancelledReason: reason },
+    })
+    if (hit.count > 0) done.push(r.id)
+  }
+  if (done.length === 0) return []
+
+  // Called off because a person decided the submission, so it is
+  // recorded on that decision's own log row, the way the award records
+  // the rounds it calls off: the caller puts these ids in its payload.
+  // Nothing here is the system acting on its own.
+  await Promise.all(done.map((id) => tell('CANCELLED', id, { reason })))
+  return done
 }
