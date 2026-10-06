@@ -4,6 +4,7 @@ import { seedWorld } from '@/lib/seed-world'
 import { rateChangeDates, RATE_CHANGE_PERSON, RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
 import { costCenterCode } from '@/lib/seed-coding'
 import { shortDay } from '@/lib/consultant-portfolio'
+import { weekStart } from '@/lib/overtime'
 
 import { GET as payrollExport } from '@/app/api/payroll/export/route'
 import { GET as profitability } from '@/app/api/profitability/route'
@@ -192,7 +193,7 @@ describe('a pay rise on the seeded world', () => {
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)
-    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === monday)
+    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === weekStart(monday))
     expect(week, 'the raise week is not on her page').toBeTruthy()
     expect(week.owedCents).toBe(before * 6_600 + after * 7_000)
     expect(week.says).toContain(
@@ -280,7 +281,7 @@ describe('a pay rise on the seeded world', () => {
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)
-    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === iso(long.periodStart))
+    const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === weekStart(iso(long.periodStart)))
     expect(week, 'the long week is not on her page').toBeTruthy()
     expect([week.hours, week.ordinaryHours, week.overtimeHours]).toEqual([45, 40, 5])
     expect(week.premiumCents).toBe(5 * 3_500)
@@ -307,7 +308,7 @@ describe('a pay rise on the seeded world', () => {
       as(RATE_CHANGE_PERSON.email)
       const r = await json(await myWork(req('GET', '/api/me/work')))
       expect(r.status).toBe(200)
-      const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === iso(long.periodStart))
+      const week = r.body.data.owed.weeks.find((w: any) => w.weekOf === weekStart(iso(long.periodStart)))
       expect([week.ordinaryHours, week.overtimeHours]).toEqual([40, 5])
       expect(week.owedCents).toBe(40 * 7_000 + 5 * 10_500)
     } finally {

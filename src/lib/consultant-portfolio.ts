@@ -961,11 +961,13 @@ function fromDay(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10)
 }
 
-/** The Monday of the week a day falls in. Weeks run Monday to Sunday. */
-export function mondayOf(iso: string): string {
-  const ms = toDay(iso)
-  const dow = new Date(ms).getUTCDay() // 0 Sunday … 6 Saturday
-  return fromDay(ms - ((dow + 6) % 7) * DAY_MS)
+/**
+ * The Saturday that closes the week a day falls in. Weeks run Sunday to
+ * Saturday (CLAUDE.md, 2026-09-30); the Sunday is `weekStart`, the one door.
+ */
+// Switch to `weekEnd` from @/lib/overtime once it is exported there.
+function saturdayOf(iso: string): string {
+  return fromDay(toDay(weekStart(iso)) + 6 * DAY_MS)
 }
 
 /**
@@ -1014,7 +1016,7 @@ export interface OpenWeek {
   periodEnd: string
   /** Every day in the run, oldest first. */
   days: string[]
-  /** "Mon 21 Sep – Sun 27 Sep", for the picker. */
+  /** "Sun, Sep 20 – Sat, Sep 26", for the picker. */
   label: string
 }
 
@@ -1047,12 +1049,16 @@ function label(from: string, to: string): string {
 /**
  * The weeks a worker can still file on one contract, newest first.
  *
- * A week is Monday to Sunday, trimmed to the days that have happened,
+ * A week is Sunday to Saturday, trimmed to the days that have happened,
  * that the placement covers, and that no filed sheet already covers — so
  * two sheets never claim the same day, and a week filed on a Wednesday
- * leaves Thursday to Sunday for the next one rather than swallowing them.
+ * leaves Thursday to Saturday for the next one rather than swallowing them.
  * Where a filed sheet sits in the middle of a week, the days either side
  * are offered as separate runs rather than one period spanning it.
+ *
+ * A week whose Saturday has not come yet is this week, filed as it goes.
+ * Saturday and Sunday are days like any other here: not expected, never
+ * flagged, and open to hours where somebody worked them.
  */
 export function openWeeks(
   c: { startDate: string; endDate: string | null },
@@ -1060,14 +1066,15 @@ export function openWeeks(
   today: string
 ): OpenWeek[] {
   const out: OpenWeek[] = []
-  const lastMonday = toDay(mondayOf(today))
-  const firstMonday = Math.max(toDay(mondayOf(c.startDate)), lastMonday - (WEEKS_BACK - 1) * 7 * DAY_MS)
+  const lastSunday = toDay(weekStart(today))
+  const firstSunday = Math.max(toDay(weekStart(c.startDate)), lastSunday - (WEEKS_BACK - 1) * 7 * DAY_MS)
 
-  for (let mon = lastMonday; mon >= firstMonday; mon -= 7 * DAY_MS) {
+  for (let sun = lastSunday; sun >= firstSunday; sun -= 7 * DAY_MS) {
+    const sat = toDay(saturdayOf(fromDay(sun)))
     let run: string[] = []
     const runs: string[][] = []
-    for (let i = 0; i < 7; i++) {
-      const day = fromDay(mon + i * DAY_MS)
+    for (let d = sun; d <= sat; d += DAY_MS) {
+      const day = fromDay(d)
       if (dayStanding(day, c, filed, today) === 'OPEN') {
         run.push(day)
       } else if (run.length > 0) {
@@ -1725,7 +1732,7 @@ export interface PaidSoFar {
 export type OwedStage = 'OWED' | 'PAID'
 
 export interface OwedWeek {
-  /** The Monday of the week. */
+  /** The Sunday that opens the week (`weekStart`). */
   weekOf: string
   stage: OwedStage
   currency: string
@@ -2318,7 +2325,7 @@ export type WaitingStage = 'WAITING_FOR_CLIENT' | 'WAITING_FOR_EMPLOYER'
 
 export interface WaitingWeek {
   sheetId: string
-  /** The Monday of the week the sheet starts in, so it sorts beside the weeks owed. */
+  /** The Sunday of the week the sheet starts in, so it sorts beside the weeks owed. */
   weekOf: string
   periodStart: string
   periodEnd: string

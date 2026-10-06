@@ -72,16 +72,16 @@ describe('one week has one state, the same on every tile and row', () => {
 
   it('a week whose days fall in a week with anything still owed reads owed; all paid reads paid', () => {
     const owed = [
-      { weekOf: '2026-08-31', stage: 'OWED' as const, priced: true },
-      { weekOf: '2026-08-03', stage: 'PAID' as const, priced: true },
+      { weekOf: '2026-08-30', stage: 'OWED' as const, priced: true },
+      { weekOf: '2026-08-02', stage: 'PAID' as const, priced: true },
     ]
-    expect(payStageOf({ '2026-09-01': 8, '2026-09-02': 8 }, '2026-08-31', owed)).toBe('OWED')
-    expect(payStageOf({ '2026-08-04': 8 }, '2026-08-03', owed)).toBe('PAID')
-    expect(payStageOf({ '2026-07-07': 8 }, '2026-07-06', owed)).toBeNull()
+    expect(payStageOf({ '2026-09-01': 8, '2026-09-02': 8 }, '2026-08-30', owed)).toBe('OWED')
+    expect(payStageOf({ '2026-08-04': 8 }, '2026-08-02', owed)).toBe('PAID')
+    expect(payStageOf({ '2026-07-07': 8 }, '2026-07-05', owed)).toBeNull()
   })
 
   it('a week with no figure is not called paid or owed', () => {
-    expect(payStageOf({ '2026-09-01': 8 }, '2026-08-31', [{ weekOf: '2026-08-31', stage: 'PAID', priced: false }])).toBeNull()
+    expect(payStageOf({ '2026-09-01': 8 }, '2026-08-30', [{ weekOf: '2026-08-30', stage: 'PAID', priced: false }])).toBeNull()
   })
 
   it('the tiles, the pay section and Your hours read one state through one function', () => {

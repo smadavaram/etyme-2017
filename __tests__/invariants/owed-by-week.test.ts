@@ -80,7 +80,8 @@ describe('what a worker is owed on her own page is what payroll pays her', () =>
   it("a non-exempt worker's forty-five-hour week at $70 is owed forty ordinary hours and five overtime hours, $3,325.00 in all", () => {
     const [w] = owedByWeek([sheet(LONG_WEEK)], line(), nothingPaid)
 
-    expect(w.weekOf).toBe('2026-09-07')
+    // Weeks run Sunday to Saturday: Monday the 7th's week opened on Sunday the 6th.
+    expect(w.weekOf).toBe('2026-09-06')
     expect(w.priced).toBe(true)
     expect([w.hours, w.ordinaryHours, w.overtimeHours]).toEqual([45, 40, 5])
     // Half of $70 again on each of the five hours.
@@ -391,8 +392,8 @@ const CHAIN = weekSigners(
 function sent(signers: typeof DIRECT, signedAt: Record<string, string>): WaitingSheet {
   return {
     id: 'ts9',
-    periodStart: d('2026-09-14'),
-    periodEnd: d('2026-09-20'),
+    periodStart: d('2026-09-13'),
+    periodEnd: d('2026-09-19'),
     hours: 40,
     submittedAt: d('2026-09-18'),
     signers: signers.map((x) => ({ ...x, signedAt: signedAt[x.companyId] ? d(signedAt[x.companyId]) : null })),
@@ -416,7 +417,7 @@ describe('a week sent and not yet accepted by her employer is waiting, and never
     const w = waitingWeek(sent(DIRECT, {}), d('2026-09-19'))!
 
     expect(w.stage).toBe('WAITING_FOR_CLIENT')
-    expect(w.label).toBe('Week of Sep 14')
+    expect(w.label).toBe('Week of Sep 13')
     expect(w.waitingOn).toBe('Northbend Athletic')
     expect(w.says).toBe('Sent to Northbend Athletic on Sep 18. Waiting for them to sign.')
   })

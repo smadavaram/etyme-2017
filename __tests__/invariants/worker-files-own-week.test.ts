@@ -5,10 +5,10 @@ import {
   rungsToFile,
   openWeeks,
   checkWeek,
-  mondayOf,
   FINAL_WEEK_GRACE_DAYS,
   type WorkRung,
 } from '@/lib/consultant-portfolio'
+import { weekStart } from '@/lib/overtime'
 
 /**
  * The worker files their own week.
@@ -63,41 +63,64 @@ describe('which contract a worker files against', () => {
 })
 
 describe('which days are open to file', () => {
-  it('weeks run Monday to Sunday', () => {
-    expect(mondayOf('2026-09-30')).toBe('2026-09-28')
-    expect(mondayOf('2026-09-28')).toBe('2026-09-28')
-    expect(mondayOf('2026-10-04')).toBe('2026-09-28')
+  it('weeks run Sunday to Saturday', () => {
+    expect(weekStart('2026-09-30')).toBe('2026-09-27')
+    expect(weekStart('2026-09-27')).toBe('2026-09-27')
+    expect(weekStart('2026-10-03')).toBe('2026-09-27')
+    expect(weekStart('2026-10-04')).toBe('2026-10-04')
+    const lastWeek = openWeeks(bottom, [], TODAY)[1]
+    expect(lastWeek.days).toEqual(['2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26'])
   })
 
   it('this week is offered up to today and never a day that has not happened', () => {
     const weeks = openWeeks(bottom, [], TODAY)
-    expect(weeks[0].periodStart).toBe('2026-09-28')
+    expect(weeks[0].periodStart).toBe('2026-09-27')
     expect(weeks[0].periodEnd).toBe('2026-09-30')
-    expect(weeks[0].days).toEqual(['2026-09-28', '2026-09-29', '2026-09-30'])
+    expect(weeks[0].days).toEqual(['2026-09-27', '2026-09-28', '2026-09-29', '2026-09-30'])
+  })
+
+  it('a Saturday worked is filed on the week that began the Sunday before, never on the week after', () => {
+    const weeks = openWeeks(bottom, [], TODAY)
+    const holding = weeks.filter((w) => w.days.includes('2026-09-26'))
+    expect(holding).toHaveLength(1)
+    expect(holding[0].periodStart).toBe('2026-09-20')
+    expect(holding[0].periodEnd).toBe('2026-09-26')
+    const thisWeek = weeks.find((w) => w.periodStart === '2026-09-27')!
+    expect(thisWeek.days).not.toContain('2026-09-26')
+    const v = checkWeek({ week: holding[0], hours: { '2026-09-26': 6, '2026-09-27': 2 }, contract: bottom, filed: [], today: TODAY })
+    expect(v.says).toContain('is not in the week you are sending')
+    expect(checkWeek({ week: holding[0], hours: { '2026-09-26': 6 }, contract: bottom, filed: [], today: TODAY }).ok).toBe(true)
+  })
+
+  it('a weekend day on the sheet is a day like any other, open to hours and never refused for being a weekend', () => {
+    const week = openWeeks(bottom, [], TODAY)[1]
+    const v = checkWeek({ week, hours: { '2026-09-20': 4, '2026-09-21': 8, '2026-09-26': 5 }, contract: bottom, filed: [], today: TODAY })
+    expect(v.ok).toBe(true)
+    expect(v.totalHours).toBe(17)
   })
 
   it('no week before the placement starts is offered, and the first week starts on the first day', () => {
     const fresh = { ...bottom, startDate: '2026-09-24' }
     const weeks = openWeeks(fresh, [], TODAY)
-    expect(weeks.map((w) => w.periodStart)).toEqual(['2026-09-28', '2026-09-24'])
-    expect(weeks[1].periodEnd).toBe('2026-09-27')
+    expect(weeks.map((w) => w.periodStart)).toEqual(['2026-09-27', '2026-09-24'])
+    expect(weeks[1].periodEnd).toBe('2026-09-26')
   })
 
   it('a day already on a filed week is never offered again, so two sheets never claim one day', () => {
     // The seeded world files odd spans: Thursday to Monday.
     const filed = [{ periodStart: '2026-09-17', periodEnd: '2026-09-21' }]
     const weeks = openWeeks(bottom, filed, TODAY)
-    const lastWeek = weeks.find((w) => w.periodStart.startsWith('2026-09-2') && w.periodEnd === '2026-09-27')!
+    const lastWeek = weeks.find((w) => w.periodEnd === '2026-09-26')!
     expect(lastWeek.periodStart).toBe('2026-09-22')
     for (const w of weeks) expect(w.days).not.toContain('2026-09-21')
   })
 
   it('days either side of a filed sheet inside one week are offered as two separate runs', () => {
     const filed = [{ periodStart: '2026-09-23', periodEnd: '2026-09-24' }]
-    const weeks = openWeeks(bottom, filed, TODAY).filter((w) => mondayOf(w.periodStart) === '2026-09-21')
+    const weeks = openWeeks(bottom, filed, TODAY).filter((w) => weekStart(w.periodStart) === '2026-09-20')
     expect(weeks.map((w) => [w.periodStart, w.periodEnd])).toEqual([
-      ['2026-09-25', '2026-09-27'],
-      ['2026-09-21', '2026-09-22'],
+      ['2026-09-25', '2026-09-26'],
+      ['2026-09-20', '2026-09-22'],
     ])
   })
 
@@ -114,7 +137,7 @@ describe('which days are open to file', () => {
 
 describe('whether what the worker typed is a week somebody can sign', () => {
   const filed = [{ periodStart: '2026-09-17', periodEnd: '2026-09-21' }]
-  const week = openWeeks(bottom, filed, TODAY).find((w) => w.periodEnd === '2026-09-27')!
+  const week = openWeeks(bottom, filed, TODAY).find((w) => w.periodEnd === '2026-09-26')!
   const check = (hours: Record<string, number | string>) => checkWeek({ week, hours, contract: bottom, filed, today: TODAY })
 
   it('a full week of hours is ready to send, and says how many', () => {
@@ -139,7 +162,7 @@ describe('whether what the worker typed is a week somebody can sign', () => {
 
   it('hours before the placement starts are refused and the sentence names the start', () => {
     const late = { ...bottom, startDate: '2026-09-23' }
-    const w = openWeeks(late, [], TODAY).find((x) => x.periodEnd === '2026-09-27')!
+    const w = openWeeks(late, [], TODAY).find((x) => x.periodEnd === '2026-09-26')!
     const v = checkWeek({ week: w, hours: { '2026-09-22': 8 }, contract: late, filed: [], today: TODAY })
     expect(v.ok).toBe(false)
     expect(v.says).toContain('before your placement starts on Wed, Sep 23')
