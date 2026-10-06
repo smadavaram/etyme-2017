@@ -25,6 +25,7 @@
  */
 
 import { amount } from '@/lib/money-display'
+import { DEFAULT_DAYS_OFF, cleanDaysOff } from '@/lib/cycle-shift'
 
 export type BenchPolicy = 'NO_PAY' | 'FULL_PAY' | 'REDUCED_RATE' | 'RESERVE_FUNDED'
 export type ReserveOnExit = 'PAY_OUT' | 'COMPANY_KEEPS' | 'DEPENDS_ON_REASON'
@@ -556,6 +557,8 @@ export interface BenchSitter {
   benchSince: Date
   /** Whether holidays are paid for them, and the firm's calendar. Absent, holidays are paid days. */
   holidayPay?: HolidayPay | null
+  /** The firm's days off, from lib/days-off. Absent, `holidayPay.daysOff`, then Saturday and Sunday. */
+  daysOff?: readonly number[] | null
 }
 
 export interface Burn {
@@ -563,7 +566,7 @@ export interface Burn {
   /** Null where they are billing: a placed person costs the bench nothing. */
   dailyCents: number | null
   /**
-   * Monday to Friday from the day after `benchSince` through `now`, the days
+   * The firm's working days from the day after `benchSince` through `now`, the days
    * the daily cost is paid on — less the public holidays, where the firm
    * does not pay this person for them.
    */
@@ -579,12 +582,15 @@ export interface Burn {
 const DAY_MS = 86_400_000
 const utcDay = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
 
-/** Monday to Friday strictly after `from`, up to and including `to`. */
-export function workingDaysBetween(from: Date, to: Date): number {
+/**
+ * The firm's working days strictly after `from`, up to and including `to`.
+ * `daysOff` is the firm's week from lib/days-off; omitted, Saturday and Sunday.
+ */
+export function workingDaysBetween(from: Date, to: Date, daysOff: readonly number[] = DEFAULT_DAYS_OFF): number {
+  const off = cleanDaysOff(daysOff) ?? DEFAULT_DAYS_OFF
   let n = 0
   for (let t = utcDay(from) + DAY_MS; t <= utcDay(to); t += DAY_MS) {
-    const wd = new Date(t).getUTCDay()
-    if (wd !== 0 && wd !== 6) n++
+    if (!off.includes(new Date(t).getUTCDay())) n++
   }
   return n
 }
@@ -603,7 +609,7 @@ export function burnOf(s: BenchSitter, now: Date, currency = 'USD'): Burn {
       says: 'Placed and billing, so not a bench cost.',
     }
   }
-  const days = benchDays(s.benchSince, now, s.holidayPay)
+  const days = benchDays(s.benchSince, now, s.holidayPay, s.daysOff)
   const workingDays = days.paidDays
   const holidaysNotPaid = days.weekdays - days.paidDays
   const dailyCents = Math.round(s.payRateCents * (s.hoursPerDay ?? 8))
@@ -653,10 +659,16 @@ export interface HolidayPay {
    * lib/holidays gives exactly this.
    */
   calendar: ReadonlySet<string>
+  /**
+   * The firm's days off, from `daysOffFor` in lib/days-off. Absent,
+   * Saturday and Sunday. Decided 2026-10-06: a bench day is a day the
+   * firm works, whichever days those are.
+   */
+  daysOff?: readonly number[]
 }
 
 export interface BenchDays {
-  /** Monday to Friday strictly after `from`, through `to`. */
+  /** The firm's working days strictly after `from`, through `to`. */
   weekdays: number
   /** Of those, the days on the firm's holiday calendar. */
   holidays: number
@@ -671,13 +683,18 @@ export interface BenchDays {
  * With no holiday answer, holidays are paid days — what the count was
  * before the setting existed — and the caller says so.
  */
-export function benchDays(from: Date, to: Date, h?: HolidayPay | null): BenchDays {
+export function benchDays(
+  from: Date,
+  to: Date,
+  h?: HolidayPay | null,
+  daysOff?: readonly number[] | null
+): BenchDays {
+  const off = cleanDaysOff(daysOff ?? h?.daysOff) ?? DEFAULT_DAYS_OFF
   let weekdays = 0
   let holidays = 0
   for (let t = utcDay(from) + DAY_MS; t <= utcDay(to); t += DAY_MS) {
     const d = new Date(t)
-    const wd = d.getUTCDay()
-    if (wd === 0 || wd === 6) continue
+    if (off.includes(d.getUTCDay())) continue
     weekdays++
     if (h && h.calendar.has(d.toISOString().slice(0, 10))) holidays++
   }

@@ -62,7 +62,8 @@ import {
   type OvertimeMethod,
 } from '@/lib/money/overtime-method'
 import { premiumTerms } from '@/lib/money/sheet-overtime'
-import { payCut, straightTimeSays, type CutOvertime } from '@/lib/money/pay-hours'
+import { payCut, straightTimeSays, type CutOvertime, type PayCut, type PayWeek } from '@/lib/money/pay-hours'
+import type { DayBands } from '@/lib/periods'
 import { plainDate } from '@/lib/plain-date'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
@@ -1380,6 +1381,8 @@ function semiweeklyDue(payDay: Date): Date {
   return d
 }
 
+// Saturday and Sunday here are the bank's week, not the firm's days off:
+// a firm with Friday off still deposits with the IRS on a Friday.
 function nextBusinessDay(d: Date, holidays: readonly Date[]): Date {
   const stamps = new Set(holidays.map((h) => isoDay(h)))
   const out = new Date(d.getTime())
@@ -1467,5 +1470,54 @@ export function blankShortWages(pack: YearEndPack, paidByRuns: readonly RunPaidT
         ` ${short.length} ${short.length === 1 ? 'person has' : 'people have'} no W-2 figure yet: the runs paid more than the wage postings hold.`,
     },
     short,
+  }
+}
+
+// ── Which sheets a file window takes, and which of their days ─────────
+//
+// Decided 2026-10-06. A sheet is in the file when any of its days falls
+// in the window, and only the days inside the window are paid. Picking a
+// sheet by its last day missed a Sunday-to-Saturday week around a
+// Monday-to-Friday window, and paid a whole week to the window it ended
+// in. The week is still judged whole against the overtime line first;
+// the window only chooses which of its days are on this file.
+
+/** A calendar day as YYYY-MM-DD, in UTC. */
+const dayKey = (d: Date): string => d.toISOString().slice(0, 10)
+
+/** Whether a sheet has any day in the window. Days as YYYY-MM-DD, both ends inclusive. */
+export function overlapsWindow(sheet: { periodStart: Date; periodEnd: Date }, from: string, to: string): boolean {
+  return dayKey(sheet.periodStart) <= to && dayKey(sheet.periodEnd) >= from
+}
+
+/**
+ * A pay cut kept to the days inside the window. Each week keeps what it
+ * was judged to be as a whole — its hours filed, and whether it was
+ * accepted under the line — and is paid only on its days in the window.
+ * A week with no day in the window is dropped.
+ */
+export function cutInWindow(cut: PayCut, bands: readonly DayBands[], from: string, to: string): PayCut {
+  const inside = (day: string) => day >= from && day <= to
+  const days = cut.days.filter((d) => inside(d.day)).map((d) => ({ ...d }))
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
+  const weeks: PayWeek[] = []
+  for (const w of cut.weeks) {
+    const mine = days.filter((d) => d.week === w.weekOf)
+    if (mine.length === 0) continue
+    weeks.push({
+      ...w,
+      regular: r2(mine.reduce((n, d) => n + d.regular, 0)),
+      leave: r2(mine.reduce((n, d) => n + d.leave, 0)),
+      over: r2(mine.reduce((n, d) => n + d.over, 0)),
+    })
+  }
+
+  return {
+    ...cut,
+    days,
+    weeks,
+    filed: r2(bands.filter((d) => inside(d.day)).reduce((n, d) => n + d.regular + d.leave + d.over, 0)),
+    paid: r2(days.reduce((n, d) => n + d.regular + d.leave + d.over, 0)),
   }
 }

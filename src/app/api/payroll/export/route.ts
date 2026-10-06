@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { buildExport, toCsv, missingIds, type Provider, type SheetToPay } from '@/lib/payroll-export'
+import { buildExport, toCsv, missingIds, overlapsWindow, cutInWindow, type Provider, type SheetToPay } from '@/lib/payroll-export'
 import { policyOf, splitWeeks, weekStart, type Decision } from '@/lib/overtime'
 import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
@@ -61,6 +61,12 @@ export async function GET(request: NextRequest) {
     ? new Date(url.searchParams.get('from')!)
     : new Date(Date.now() - 30 * 86_400_000)
   const to = url.searchParams.get('to') ? new Date(url.searchParams.get('to')!) : new Date()
+  // The window as calendar days. A sheet is in the file when any of its
+  // days is in the window, and only those days are paid (cutInWindow).
+  const fromDay = from.toISOString().slice(0, 10)
+  const toDay = to.toISOString().slice(0, 10)
+  const fromAt = new Date(`${fromDay}T00:00:00.000Z`)
+  const toAt = new Date(`${toDay}T00:00:00.000Z`)
 
   // Sheets on contracts this company sells. A prime exporting payroll
   // exports its own employees, never its sub-vendor's — the sub pays
@@ -69,7 +75,8 @@ export async function GET(request: NextRequest) {
   const sheets = await prisma.timesheet.findMany({
     where: {
       sellContract: { companyId },
-      periodEnd: { gte: from, lte: to },
+      periodStart: { lte: toAt },
+      periodEnd: { gte: fromAt },
     },
     select: {
       periodStart: true, periodEnd: true, totalHours: true,
@@ -158,7 +165,17 @@ export async function GET(request: NextRequest) {
       })
     : []
 
-  const rows: SheetToPay[] = sheets.map((s) => {
+  // A sheet with no daily hours cannot be cut to the window, so it goes
+  // whole on the file whose window holds its last day, as before.
+  const inFile = sheets.filter((s) => {
+    if (!overlapsWindow(s, fromDay, toDay)) return false
+    const daysKnown = Object.keys((s.days as Record<string, number>) ?? {}).length > 0
+    if (daysKnown) return true
+    const end = s.periodEnd.toISOString().slice(0, 10)
+    return end >= fromDay && end <= toDay
+  })
+
+  const rows: SheetToPay[] = inFile.map((s) => {
     // The buy contract in force over this work, and this person on it.
     // Null all the way down where nothing on the buy side describes
     // them, which `buildExport` refuses rather than filling in from the
@@ -246,16 +263,12 @@ export async function GET(request: NextRequest) {
     // the hours worked — and goes on the file with its sentence as a note.
     const acceptance = acceptanceForPay(s.assertions, s, companyId)
     const cutRule = cutOvertimeFor(buy).rule
-    const cut =
-      acceptance === 'MANY'
-        ? null
-        : payCut(
-            payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, payLine.afterHours),
-            acceptance,
-            payLine.afterHours,
-            cutRule
-          )
+    const bands = payBands((s.days as Record<string, number>) ?? {}, (s.leaveDays as Record<string, number>) ?? {}, payLine.afterHours)
+    const wholeCut = acceptance === 'MANY' ? null : payCut(bands, acceptance, payLine.afterHours, cutRule)
+    // The week judged whole, then only its days inside the window paid.
+    const cut = wholeCut ? cutInWindow(wholeCut, bands, fromDay, toDay) : null
     const paidMaps = cut ? paidDayMaps(cut) : { days: {}, leaveDays: {} }
+    const wholeMaps = wholeCut ? paidDayMaps(wholeCut) : { days: {}, leaveDays: {} }
     const cutWeeks = new Map((cut?.weeks ?? []).map((w) => [w.weekOf, w]))
     const daysKnown = Object.keys((s.days as Record<string, number>) ?? {}).length > 0
 
@@ -291,11 +304,12 @@ export async function GET(request: NextRequest) {
     // Every hour worked in each week, each day at its own rate, so a
     // week paid at two rates that went over the line has its overtime
     // priced on the regular rate rather than on its first day's rate.
+    // The whole week, not only the window: the regular rate is a weekly fact.
     const workedWeeks =
       recorded != null && recorded > 0
         ? workedByWeek({
-            days: daysKnown ? paidMaps.days : allDays,
-            leaveDays: daysKnown ? paidMaps.leaveDays : (s.leaveDays as Record<string, number>) ?? {},
+            days: daysKnown ? wholeMaps.days : allDays,
+            leaveDays: daysKnown ? wholeMaps.leaveDays : (s.leaveDays as Record<string, number>) ?? {},
             contractRateCents: recorded,
             periods,
           })
@@ -315,9 +329,11 @@ export async function GET(request: NextRequest) {
       // own employee is paid by the sub-vendor.
       weAreTheEmployer: buy?.companyId === companyId,
       cutOvertime: cutRule,
-      periodStart: s.periodStart,
-      periodEnd: s.periodEnd,
-      weeks: split.weeks.map((w) => {
+      // Cut to the window where the days say which days were paid.
+      periodStart: daysKnown && s.periodStart < fromAt ? fromAt : s.periodStart,
+      periodEnd: daysKnown && s.periodEnd > toAt ? toAt : s.periodEnd,
+      // A week with no day in the window is not on this file.
+      weeks: split.weeks.filter((w) => !daysKnown || !cut || cutWeeks.has(w.weekOf)).map((w) => {
         // As accepted, where the days say; as filed where a sheet carries
         // no daily hours and the acceptance is cut from the weeks below.
         const c = daysKnown ? cutWeeks.get(w.weekOf) : null

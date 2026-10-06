@@ -381,3 +381,45 @@ describe('where the employer says whether somebody is exempt', () => {
     expect(route).toContain('The screen only ever')
   })
 })
+
+// Decided 2026-10-06: a sheet is on the file when its days overlap the
+// window, and only its days inside the window are paid.
+import { overlapsWindow, cutInWindow } from '@/lib/payroll-export'
+import { payBands, payCut } from '@/lib/money/pay-hours'
+
+describe('the payroll file window', () => {
+  it('a window from Monday to Friday still finds the Sunday-to-Saturday sheet around it and exports only its days inside the window', () => {
+    // Sunday 6 to Saturday 12 September 2026, fifty hours, the line at forty.
+    const sheet = { periodStart: new Date('2026-09-06T00:00:00Z'), periodEnd: new Date('2026-09-12T00:00:00Z') }
+    const days = {
+      '2026-09-06': 4, '2026-09-07': 8, '2026-09-08': 8, '2026-09-09': 8,
+      '2026-09-10': 8, '2026-09-11': 8, '2026-09-12': 6,
+    }
+    expect(overlapsWindow(sheet, '2026-09-07', '2026-09-11')).toBe(true)
+
+    const bands = payBands(days, {}, 40)
+    const whole = payCut(bands, null, 40, 'ABOVE_THE_LINE')
+    const cut = cutInWindow(whole, bands, '2026-09-07', '2026-09-11')
+
+    // Monday to Friday only: no Sunday, no Saturday.
+    expect(cut.days.map((d) => d.day)).toEqual(['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'])
+    expect(cut.paid).toBe(40)
+    // The week was judged whole: Sunday's four hours count toward the
+    // line, so Friday's last four are overtime.
+    expect(cut.weeks).toHaveLength(1)
+    expect(cut.weeks[0]).toMatchObject({ weekOf: '2026-09-06', regular: 36, over: 4 })
+  })
+
+  it('a sheet with no day inside the window is not on the file', () => {
+    const sheet = { periodStart: new Date('2026-09-13T00:00:00Z'), periodEnd: new Date('2026-09-19T00:00:00Z') }
+    expect(overlapsWindow(sheet, '2026-09-07', '2026-09-11')).toBe(false)
+  })
+
+  it('the export route chooses sheets by overlap and pays only the days in the window', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/payroll/export/route.ts'), 'utf8')
+    expect(src).toContain('periodStart: { lte: toAt }')
+    expect(src).toContain('periodEnd: { gte: fromAt }')
+    expect(src).toContain('cutInWindow(')
+    expect(src).not.toContain('periodEnd: { gte: from, lte: to }')
+  })
+})

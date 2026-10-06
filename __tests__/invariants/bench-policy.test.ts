@@ -135,3 +135,32 @@ describe('What happens to an unspent reserve when somebody leaves', () => {
     expect(onExit({ policy: 'RESERVE_FUNDED' }, 0, 'RESIGNED').says).toBe('Nothing in their reserve.')
   })
 })
+
+// Decided 2026-10-06: a bench day is a day the firm works, read from the
+// firm's days off (lib/days-off), not Saturday and Sunday by rule.
+import { benchDays, burnOf, workingDaysBetween } from '@/lib/bench-policy'
+
+describe('the firm’s days off on the bench', () => {
+  it('a bench day at a firm with Friday off is counted on Saturday and not on Friday', () => {
+    // From Thursday 10 September 2026: Friday 11 and Saturday 12 follow.
+    const thursday = new Date('2026-09-10T00:00:00Z')
+    const friday = new Date('2026-09-11T00:00:00Z')
+    const saturday = new Date('2026-09-12T00:00:00Z')
+    const fridayOff = [5]
+    expect(benchDays(thursday, friday, null, fridayOff).weekdays).toBe(0)
+    expect(benchDays(friday, saturday, null, fridayOff).weekdays).toBe(1)
+    expect(workingDaysBetween(thursday, saturday, fridayOff)).toBe(1)
+    // The same days at a firm on the default count Friday and not Saturday.
+    expect(benchDays(thursday, friday).weekdays).toBe(1)
+    expect(benchDays(friday, saturday).weekdays).toBe(0)
+  })
+
+  it('the days off reach the bench burn through the holiday answer as well', () => {
+    const calendar = new Set<string>()
+    const b = burnOf(
+      { payRateCents: 5000, billing: false, benchSince: new Date('2026-09-10T00:00:00Z'), holidayPay: { paid: true, calendar, daysOff: [5] } },
+      new Date('2026-09-12T00:00:00Z')
+    )
+    expect(b.workingDays).toBe(1)
+  })
+})
