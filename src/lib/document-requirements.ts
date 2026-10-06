@@ -65,6 +65,7 @@ import {
   type DocumentTypeSpec,
   type SuppliedBy,
 } from '@/lib/document-type'
+import { formatDayLong } from '@/lib/format-date'
 
 // ── The words ─────────────────────────────────────────────────────────
 
@@ -359,7 +360,7 @@ export interface EffectiveInput {
 }
 
 function onDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
+  return formatDayLong(d, { year: false })
 }
 
 /**

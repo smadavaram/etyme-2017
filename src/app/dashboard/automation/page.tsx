@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
+import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 
 /**
  * Automation Log — what the system did, with reasons.
@@ -144,7 +145,7 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24)
   if (days === 1) return 'yesterday'
   if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return dayOfMomentFor(d, readerZone())
 }
 
 // ── Page ─────────────────────────────────────────────
@@ -510,13 +511,7 @@ export default function AutomationPage() {
                       <div>
                         <p className="stat-label mb-1">Timestamp</p>
                         <p className="text-[12px] text-etyme-ink tabular-nums">
-                          {new Date(entry.at).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            second: '2-digit',
-                          })}
+                          {momentFor(new Date(entry.at), readerZone())}
                         </p>
                       </div>
                       <div className="col-span-2">
@@ -535,12 +530,7 @@ export default function AutomationPage() {
                         <div className="col-span-2">
                           <p className="stat-label mb-1">Reversed At</p>
                           <p className="text-[12px] text-etyme-muted tabular-nums">
-                            {new Date(entry.reversedAt!).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                            })}
+                            {momentFor(new Date(entry.reversedAt!), readerZone())}
                           </p>
                         </div>
                       )}

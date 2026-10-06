@@ -39,6 +39,7 @@ import { WORLD_SLUGS } from '@/lib/seed-world'
 import { describeCompanies } from '@/lib/seed-owners'
 import { reservedAddress } from '@/lib/demo-session'
 import { send } from '@/lib/messages'
+import { formatDayLong } from '@/lib/format-date'
 
 export const SANDBOX_UNUSED_DAYS = 30
 export const SANDBOX_WARN_DAYS = 23
@@ -67,8 +68,7 @@ export function sandboxVerdict(i: { lastUsedAt: Date; warnedAt: Date | null; now
   return { act: 'KEEP', removeOn, unusedDays }
 }
 
-const plainDay = (d: Date) =>
-  d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const plainDay = (d: Date) => formatDayLong(d, { weekday: true })
 
 /** What a visitor who left an address is told. */
 export function warningText(i: { name: string; removeOn: Date }): { subject: string; body: string } {

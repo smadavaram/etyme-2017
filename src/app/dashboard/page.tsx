@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { consoleHome } from '@/lib/console-home'
 import { dashboardReads, NOT_YOURS, type DashboardReads } from '@/lib/dashboard-reads'
+import { dayOfMomentFor, readerZone } from '@/lib/when'
 
 /**
  * Vendor Dashboard — the "Today" view.
@@ -102,7 +103,7 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24)
   if (days === 1) return 'yesterday'
   if (days < 7) return `${days}d ago`
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return dayOfMomentFor(d, readerZone())
 }
 
 function greetingTime(): string {
@@ -113,7 +114,7 @@ function greetingTime(): string {
 }
 
 function todayLabel(): string {
-  return new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  return dayOfMomentFor(new Date(), readerZone(), { long: true, year: false })
 }
 
 // ── Page ─────────────────────────────────────────────

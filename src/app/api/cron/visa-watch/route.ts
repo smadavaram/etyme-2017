@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { byCalendar } from '@/lib/visa-petition'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * GET /api/cron/visa-watch
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
           personId: p.personId,
           type: 'VISA_EXPIRY',
           title: `Visa petition expires in ${daysUntilExpiry} days`,
-          body: `${p.person.name}'s ${p.type} petition expires ${p.expiresAt.toLocaleDateString()}`,
+          body: `${p.person.name}'s ${p.type} petition expires ${formatDay(p.expiresAt)}`,
           data: {
             petitionId: p.id,
             petitionType: p.type,

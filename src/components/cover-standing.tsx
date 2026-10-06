@@ -1,4 +1,5 @@
 import { coverLabel } from '@/lib/document-stages'
+import { formatDay, formatMonth } from '@/lib/format-date'
 
 /**
  * A supplier's certificate, and a supplier's verdict, as a screen reads them.
@@ -86,10 +87,8 @@ export function coverStandingChipClass(row: CoverCertificateRow): string {
   return 'chip--passive'
 }
 
-const shortDay = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-const monthYear = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+const shortDay = (iso: string) => formatDay(iso)
+const monthYear = (iso: string) => formatMonth(iso)
 
 /**
  * The date worth showing beside the word.

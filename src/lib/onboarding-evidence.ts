@@ -88,6 +88,7 @@
 
 import { typeByKey, type DefinedType } from '@/lib/document-type'
 import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
+import { formatDayLong } from '@/lib/format-date'
 
 /**
  * A checklist item as `lib/supplier-onboarding` holds it, plus the two
@@ -177,7 +178,7 @@ function asDate(v: string | Date | null | undefined): Date | null {
 }
 
 function onDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+  return formatDayLong(d)
 }
 
 /** What these keys are called, in the dictionary's own words. */

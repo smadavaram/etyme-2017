@@ -45,6 +45,7 @@
  */
 
 import { CHOOSES_OVERTIME_METHOD, MIN_REASON } from '@/lib/overtime-method-choice'
+import { formatDayLong } from '@/lib/format-date'
 
 export type CutOvertime = 'ABOVE_THE_LINE' | 'KEEP_WEEK_OVERTIME'
 
@@ -186,8 +187,7 @@ export interface CutLineChoice extends CutOvertimeOnLine {
   cutOvertimeBy?: { name: string } | null
 }
 
-const longDate = (d: Date) =>
-  d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const longDate = (d: Date) => formatDayLong(d)
 
 /**
  * What the pay line says. Read through `cutOvertimeFor`, the same call

@@ -3,6 +3,7 @@ import { EtymeLogo } from '@/components/logo'
 import { ReseedButton } from '@/components/reseed-button'
 import { assess, type Edge } from '@/lib/readiness'
 import { gatherFacts } from '@/lib/readiness-facts'
+import { momentFor } from '@/lib/when'
 
 /**
  * Is Etyme ready?
@@ -68,7 +69,7 @@ export default async function ReadyPage() {
         </section>
 
         <p className="mt-8 text-xs text-etyme-faint tabular-nums">
-          Read at {new Date(verdict.at).toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' })} UTC.
+          Read at {momentFor(new Date(verdict.at), 'UTC')}.
           The machine itself is on <a href="/api/health" className="underline">/api/health</a>.
         </p>
       </main>

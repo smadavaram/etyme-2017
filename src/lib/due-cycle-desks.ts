@@ -1,5 +1,6 @@
 import { isMoneyKind, labelOf, sideOf, type MoneyKind, type Side } from '@/lib/cycle-kinds'
 import type { Permission } from '@/lib/permissions'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * Who hears that a cycle is coming, and in whose words.
@@ -308,7 +309,7 @@ export function titleFor(kind: string, daysUntilDue: number): string {
 
 /** Who it is about and where, which is what makes a queue readable. */
 export function bodyFor(kind: string, legs: Legs, dueOn: Date): string {
-  const on = dueOn.toLocaleDateString('en-US', { timeZone: 'UTC' })
+  const on = formatDay(dueOn)
   const leg = legOf(kind, legs)
 
   if (leg === 'BUY' && legs.buy) {

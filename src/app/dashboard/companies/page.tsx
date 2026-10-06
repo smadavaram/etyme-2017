@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { dayOfMomentFor, readerZone } from '@/lib/when'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -401,11 +402,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
             <div>
               <p className="eyebrow mb-1">Created</p>
               <p className="text-sm tabular-nums">
-                {new Date(company.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {dayOfMomentFor(new Date(company.createdAt), readerZone())}
               </p>
             </div>
           </div>
@@ -637,11 +634,7 @@ export default function CompaniesPage() {
       label: 'Created',
       render: (row) => (
         <span className="text-[12px] tabular-nums text-etyme-muted">
-          {new Date(row.createdAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          {dayOfMomentFor(new Date(row.createdAt), readerZone())}
         </span>
       ),
       sortValue: (row) => new Date(row.createdAt).getTime(),

@@ -45,6 +45,7 @@ import {
   whoAskedSentence, approverIsKnownAtClient, type ClientOfRecord,
   SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
+import { formatDay } from '@/lib/format-date'
 
 // ── Results ───────────────────────────────────────────────────────────
 
@@ -816,7 +817,7 @@ export async function openLink(token: string, now = new Date()): Promise<{ ok: t
 }
 
 function dayName(iso: string): string {
-  return new Date(`${iso.slice(0, 10)}T00:00:00.000Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return formatDay(iso.slice(0, 10), { weekday: true, year: false })
 }
 
 /** Approve or Send back, from the link. */

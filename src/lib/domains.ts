@@ -388,6 +388,9 @@ export const DOMAINS: Domain[] = [
       // (lib/award/terms-on-record); this only finds the page.
       'lib/your-terms',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      // One way to print a calendar day on a screen: UTC, American order,
+      // the year shown. lib/when is its twin for a moment in somebody's zone.
+      'lib/format-date',
       // Deleting the demo world so it can be seeded again from today.
       'lib/seed-rebuild',
       // Taking back what earlier seeds wrote outside the demo world, by

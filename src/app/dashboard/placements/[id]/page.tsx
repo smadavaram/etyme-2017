@@ -8,6 +8,7 @@ import { readJson } from '@/lib/read-response'
 import { saveForm } from '@/lib/form-save'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
+import { dayOfMomentFor, readerZone } from '@/lib/when'
 
 /**
  * One placement, top to bottom.
@@ -207,7 +208,7 @@ const day = (iso: string | null) => plainDate(iso) ?? '—'
  * day it happened there.
  */
 const moment = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  iso ? dayOfMomentFor(new Date(iso), readerZone()) : '—'
 
 /** A word for a state, in the tone it deserves. */
 function tone(status: string): string {

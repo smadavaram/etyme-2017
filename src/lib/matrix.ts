@@ -543,6 +543,17 @@ export const MATRIX: L1[] = [
             'src/components/shell/sidebar.tsx', 'src/components/shell/header.tsx',
             'src/app/icon.svg', 'src/app/apple-icon.png', 'public/favicon.ico'],
           testedBy: ['__tests__/invariants/chart-colors.test.ts', '__tests__/invariants/shell-logo.test.ts'] },
+        { code: 'L3.1.5.2', name: 'A date reads one way on every screen', owner: 'Etyme', status: P,
+          tasks: [
+            'A calendar day is printed through one formatter, in UTC, so a day stored at midnight UTC reads as that day for a reader west of Greenwich: "Oct 6, 2026"',
+            'American order and a short month on a screen; the month spelled out in a letter or a sentence; the year shown unless the caller says it is already on the screen',
+            'A range says the year once inside one year and both years across two, with an en dash',
+            'A moment \u2014 a message, an automation, a sign-in \u2014 is printed in the reader\u2019s own zone with the zone named, through lib/when, never with a bare toLocaleString',
+            'DONE 2026-10-06: the formatter (lib/format-date) and an invariant that fails on any new file formatting a date itself. The platform\u2019s own eighteen files moved; due-cycle notices read "Apr 17, 2026" where they read "4/17/2026"',
+            'OPEN, and why this row is PARTIAL: 78 files \u2014 77 in other domains, and the platform\u2019s own components/thread.tsx, held back because a test outside any domain\u2019s boundary (requisition-change-screens) pins its old source text \u2014 still format a date themselves and sit on the invariant\u2019s allowlist, which may only shrink. Each owner moves its own; lib/plain-date (supply) already prints the same shape and can become a thin wrapper over this one',
+          ],
+          implementedBy: ['src/lib/format-date.ts', 'src/lib/when.ts'],
+          testedBy: ['__tests__/invariants/format-date.test.ts', '__tests__/invariants/one-date-formatter.test.ts', '__tests__/invariants/when.test.ts'] },
       ]},
       { code: 'L2.1.3', name: 'Evaluation', domain: 'DEMAND', processes: [
         { code: 'L3.1.3.1', name: 'Screening loop', owner: 'Client screener', status: B,

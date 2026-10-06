@@ -250,13 +250,13 @@ describe('The notice says who it is about and where', () => {
 
   it('a sell-side notice names the person and the client that pays', () => {
     expect(bodyFor('INVOICE_GENERATE', legs(), when)).toBe(
-      'Helena Marsh at Northbend Athletic — 4/17/2026'
+      'Helena Marsh at Northbend Athletic — Apr 17, 2026'
     )
   })
 
   it('a pay-day notice names the person and says it is our own payroll', () => {
     expect(bodyFor('SALARY_PAY', legs(), when)).toBe(
-      'Helena Marsh on Veritan Talent’s own payroll — 4/17/2026'
+      'Helena Marsh on Veritan Talent’s own payroll — Apr 17, 2026'
     )
   })
 
@@ -266,7 +266,7 @@ describe('The notice says who it is about and where', () => {
       legs({ buy: { ...BUY, vendorCompanyId: 'brightmoor', vendorName: 'Brightmoor Staffing' } }),
       when
     )
-    expect(body).toBe('Helena Marsh through Brightmoor Staffing — 4/17/2026')
+    expect(body).toBe('Helena Marsh through Brightmoor Staffing — Apr 17, 2026')
   })
 })
 

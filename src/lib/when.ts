@@ -64,3 +64,41 @@ export function momentFor(at: Date, timezone: string | null | undefined): string
 export function knowsWhere(timezone: string | null | undefined): boolean {
   return Boolean(timezone && timezone.trim())
 }
+
+/**
+ * The reader's own zone, on the device reading it. In a browser that is
+ * the zone the reader's clock is set to; on a server it is UTC. Used by
+ * screens that print a moment — a message, an automation's timestamp —
+ * so they ask one place rather than each reaching for `Intl` itself.
+ */
+export function readerZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
+/**
+ * The day a moment fell on, in somebody's own zone: "Oct 6, 2026", or
+ * "October 6" with `{ long: true, year: false }`. For "today" and "posted
+ * on", where the moment is real and the reader's calendar decides the day.
+ * A day stored as a day — a start, a due date — is `formatDay` in
+ * `lib/format-date`, read in UTC, never this.
+ */
+export function dayOfMomentFor(
+  at: Date,
+  timezone: string | null | undefined,
+  opts: { long?: boolean; year?: boolean } = {},
+): string {
+  const options: Intl.DateTimeFormatOptions = {
+    month: opts.long ? 'long' : 'short',
+    day: 'numeric',
+    ...(opts.year === false ? {} : { year: 'numeric' }),
+  }
+  try {
+    return new Intl.DateTimeFormat('en-US', { ...options, timeZone: timezone || 'UTC' }).format(at)
+  } catch {
+    return new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(at)
+  }
+}

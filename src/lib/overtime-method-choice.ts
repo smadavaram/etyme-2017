@@ -39,6 +39,7 @@ import {
   methodFor,
   type OvertimeMethod,
 } from '@/lib/money/overtime-method'
+import { formatDayLong } from '@/lib/format-date'
 
 /** Shortest reason that reads as one, in characters, once trimmed. */
 export const MIN_REASON = 10
@@ -133,8 +134,7 @@ export interface LineChoice {
   overtimeMethodBy?: { name: string } | null
 }
 
-const longDate = (d: Date) =>
-  d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const longDate = (d: Date) => formatDayLong(d)
 
 /**
  * The sentence on the pay line. Read through `methodFor`, so the screen

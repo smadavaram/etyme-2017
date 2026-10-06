@@ -1,3 +1,4 @@
+import { formatDayLong } from '@/lib/format-date'
 /**
  * What kind of thing a document is, said by the company that holds it.
  *
@@ -650,7 +651,7 @@ export interface ValidityVerdict {
 }
 
 function onDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+  return formatDayLong(d)
 }
 
 function plural(n: number, one: string, many: string): string {

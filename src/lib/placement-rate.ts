@@ -1,5 +1,6 @@
 import { rateInForce, ratePeriods, type RateRow } from '@/lib/contract-rate'
 import { rate, compact, DEFAULT_CURRENCY } from '@/lib/money-display'
+import { formatDayLong } from '@/lib/format-date'
 
 /**
  * The rate a placement's card shows: the one in force today, and — where
@@ -35,7 +36,7 @@ export interface RateToday {
 const DAY_MS = 86_400_000
 
 function longDay(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDayLong(d)
 }
 
 export function rateToday(

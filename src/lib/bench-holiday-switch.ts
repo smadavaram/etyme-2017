@@ -38,6 +38,7 @@ import {
   type HolidaySwitch,
   type ReserveOnExit,
 } from '@/lib/bench-policy'
+import { formatDay } from '@/lib/format-date'
 
 /** The three desks the founder named, by the role's own name. */
 export const BENCH_PAY_DESKS = ['Owner', 'Admin', 'Finance'] as const
@@ -253,8 +254,7 @@ export interface SwitchRow {
 
 export const asSwitch = (r: SwitchRow): HolidaySwitch => ({ paid: r.paid, byName: r.setBy?.name ?? null, at: r.setAt })
 
-const shortDay = (d: Date) =>
-  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+const shortDay = (d: Date) => formatDay(d)
 
 /** "Switched on by Rahul Iyer, Oct 3, 2026", or null where nobody has turned it. */
 export function turnedSays(s: HolidaySwitch | null): string | null {
