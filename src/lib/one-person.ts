@@ -31,6 +31,7 @@
  */
 
 import { daysFor, daysOnSite, monthsOf } from '@/lib/tenure-days'
+import type { PlacementWord } from '@/lib/award/placement-status'
 
 export interface Offer {
   vendorName: string
@@ -85,6 +86,18 @@ export interface Person {
    * somebody who has not walked in.
    */
   startingOn?: Date | null
+  /**
+   * The one word for their placement here, from `placementStatus` — the
+   * same function the program page and the placement read. Absent where
+   * the caller has no placement in hand.
+   *
+   * The register said "On site here. Nothing needs you." about Marisol
+   * Quintero, awarded with no terms and a start already passed, while
+   * the program page said she could not start (audit, 2026-10-05). A
+   * placed row now says what its placement is, and "on site" only when
+   * it is.
+   */
+  placement?: PlacementWord | null
 }
 
 /** The day they arrive, where they are not here yet. */
@@ -155,6 +168,8 @@ export interface Merged {
    * needs the whole register at once, not one Person at a time.
    */
   possibleDuplicate?: { personId: string; name: string; confidence: string; says: string } | null
+  /** The placement's one word, where there is a placement. */
+  placement?: PlacementWord | null
 }
 
 /** Order of how far along somebody is. Highest wins on a merged record. */
@@ -274,6 +289,7 @@ export function merge(p: Person, now: Date): Merged {
     })),
     says: sentence(p, monthsHere, headroom, pastCap, sellingNames, spread, state, starts),
     unknowns,
+    placement: p.placement ?? null,
   }
 }
 
@@ -342,6 +358,11 @@ function sentence(
 
   if (spread?.says) bits.push(spread.says.replace(/\.$/, ''))
 
+  // A placement that is not under way says which word it is first,
+  // because it is what stops the start — terms, then papers.
+  const notOnSite = state === 'PLACED' && p.placement && p.placement.status !== 'ON_SITE' && p.placement.status !== 'ENDED'
+  if (notOnSite) bits.unshift(p.placement!.word)
+
   if (starts) {
     bits.push(
       `Starts ${starts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
@@ -349,6 +370,7 @@ function sentence(
   }
 
   if (bits.length === 0) {
+    if (state === 'PLACED' && p.placement?.status === 'ENDED') return 'Their placement here has ended.'
     if (state === 'PLACED') return 'On site here. Nothing needs you.'
     return vendorNames.length === 1
       ? `Put forward by ${vendorNames[0]}.`

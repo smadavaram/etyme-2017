@@ -68,6 +68,13 @@ export interface AwardFacts {
   currency: string
   /** Null where the role named no start. */
   startDate: Date | null
+  /**
+   * Where this firm pays the person and their terms are not on record:
+   * the page the contract desk states them on. Placed is not employed —
+   * the award writes no pay line until the firm says how it engages the
+   * person and what it pays, and the person agrees (`lib/award/hire-terms`).
+   */
+  termsHref?: string | null
 }
 
 export interface Notice {
@@ -143,11 +150,15 @@ export function awardHandoff(facts: AwardFacts, seats: readonly Seat[]): Handoff
     ? {
         personIds: papering.map((s) => s.personId),
         title: `Paper the contract — ${facts.personName} at ${facts.clientName}`,
-        body:
-          `${subject} was awarded ${rateClause}.${startClause} ` +
-          'The contract is on file as a draft and nobody can start on a draft. ' +
-          'Open it, check the rate, term and end client against what was agreed, ' +
-          'then send it for verification. Contracts is where it is waiting.',
+        body: facts.termsHref
+          ? `${subject} was awarded ${rateClause}.${startClause} ` +
+            `First say how your firm engages ${facts.personName} and what you pay them — ` +
+            `employee, independent, or through their own company — at ${facts.termsHref}. ` +
+            `${facts.personName} agrees it on their own page, and nobody starts until both of you have.`
+          : `${subject} was awarded ${rateClause}.${startClause} ` +
+            'The contract is on file as a draft and nobody can start on a draft. ' +
+            'Open it, check the rate, term and end client against what was agreed, ' +
+            'then send it for verification. Contracts is where it is waiting.',
       }
     : null
 
@@ -298,5 +309,45 @@ export function paperingRow(c: WaitingContract, now: Date): QueueRow | null {
       `not started · ${startWords} · the paperwork is checked when you start them`,
     urgency,
     waitedDays,
+  }
+}
+
+// ── The award travels down the chain ─────────────────────────────────
+//
+// A client awards the prime's candidate. The prime hears at once — its
+// own desks, above. But the sub-vendor that put the person forward to the
+// prime, and the bench firm below that, heard nothing until each firm
+// above them settled in turn, and the person, told at the top, knew
+// before the firm that will actually call them. The audit of 2026-10-05
+// asked for the notice to travel one hop at a time, each firm told in its
+// own terms.
+
+export interface SelectedFacts {
+  personName: string
+  /** The job as this firm knows it — the title on the job it answered. */
+  roleTitle: string
+  /** Who this firm put the person forward to. Its own counterparty, never a rung it cannot see. */
+  buyerName: string
+  /** What this firm asked, in minor units. Its own rate and nobody else's. */
+  rateCents: number | null
+  currency: string
+}
+
+/**
+ * What a firm further down the chain reads when the client chooses its
+ * candidate.
+ *
+ * Each firm reads the job under the title it received, the firm it sold
+ * to and the rate it asked — never the client's bill rate, never another
+ * rung's, and never the end client's name unless that is who it sold to.
+ */
+export function tellSelected(f: SelectedFacts): { title: string; body: string } {
+  const money = rateWords(f.rateCents, f.currency)
+  return {
+    title: `Selected — ${f.personName} for ${f.roleTitle}`,
+    body:
+      `${f.buyerName} has a client decision: ${f.personName} was selected for ${f.roleTitle}` +
+      `${money ? `, at the ${money} you asked` : ''}. ` +
+      `${f.buyerName} places them with you next, and your contract desk is asked to paper it then.`,
   }
 }

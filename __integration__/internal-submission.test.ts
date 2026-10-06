@@ -3,6 +3,7 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 
 import { POST as submitCandidate } from '@/app/api/submissions/route'
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
 
 /**
@@ -370,11 +371,17 @@ describe('Cavanaugh Glassworks awards the employee, and Ardent gets a contract p
     as(CORNING_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.internal}/award`, {
-        rate: 11_500, startDate: '2026-10-05', endDate: '2027-10-04',
+        rate: 11_500, startDate: '2026-10-05', endDate: '2027-10-04', ...UNDER_WAY,
       }),
       { params: Promise.resolve({ id: it_.internal }) }
     ))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+  })
+
+  it('Ardent says what it pays Arun, and he is told rather than asked, because he is its employee', async () => {
+    const terms = await agreeTerms({ submissionId: it_.internal, firmEmail: ARDENT_DM, personEmail: null, payRate: 7_500 })
+    expect(terms.employee).toBe(true)
+    expect(terms.onRecord).toBe(true)
   })
 
   it('writes the sell contract Ardent bills Cavanaugh Glassworks under', async () => {

@@ -7,6 +7,8 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as submitCandidates } from '@/app/api/submissions/route'
 import { POST as award } from '@/app/api/submissions/[id]/award/route'
+import { POST as actOnTerms } from '@/app/api/submissions/[id]/terms/route'
+import { agreeTerms } from './hire-terms-walk'
 
 /**
  * The same three stations, asked of every desk inside one company.
@@ -105,6 +107,11 @@ describe('the desk inside the company, and not only the company', () => {
         consultantId: profile.id, companyId: pinnacle.id, tier: 'RETAINED', state: 'GRANTED',
         invitedAt: day(-30), respondedAt: day(-29), grantedAt: day(-29),
       },
+    })
+    // Her own seat, the one a consultant signs in to — where she agrees
+    // her terms with the supplier after the award.
+    await prisma.context.create({
+      data: { personId: person.id, companyId: pinnacle.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
     })
   }, 300_000)
 
@@ -249,18 +256,47 @@ describe('the desk inside the company, and not only the company', () => {
       expect(count).toBe(0)
     })
 
-    it('the hiring manager awards it, and both sides of the deal are written', async () => {
+    it('the hiring manager awards it: the sell side is written, and the buy side waits on Nadia’s own terms', async () => {
       as(NIKE.hiring)
       const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms())
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-      const sell = await prisma.sellContract.findFirstOrThrow({
+      await prisma.sellContract.findFirstOrThrow({
         where: { requirementId: it_.requisition, personId: it_.worker },
       })
+      // A bench listing is consent to be marketed, never to be employed:
+      // the award writes no pay line for her at any rate.
+      expect(r.body.data.placement.word).toBe('Awarded, terms pending')
+      expect(await prisma.buyContractCandidate.count({ where: { personId: it_.worker } })).toBe(0)
+    })
+
+    it('the supplier’s recruiter cannot state what Nadia is paid — that is the contract desk’s', async () => {
+      as(SEAT.supplierRecruiter)
+      const r = await call(actOnTerms, 'POST', `/api/submissions/${it_.submission}/terms`, it_.submission, {
+        action: 'state', engagementType: 'W2', payRate: 3000,
+      })
+      expect(r.status).toBe(403)
+      isASentence(r.body.error.message)
+    })
+
+    it('the client cannot state or read Nadia’s terms with the supplier', async () => {
+      as(NIKE.hiring)
+      const r = await call(actOnTerms, 'POST', `/api/submissions/${it_.submission}/terms`, it_.submission, {
+        action: 'state', engagementType: 'W2', payRate: 3000,
+      })
+      expect(r.status).toBe(403)
+      isASentence(r.body.error.message)
+    })
+
+    it('the supplier’s contract desk states the terms and Nadia agrees, and only then are both sides of the deal written', async () => {
+      await agreeTerms({
+        submissionId: it_.submission, firmEmail: `world-pinnacle${D}`,
+        personEmail: 'nadia.okonkwo@desks.etyme.invalid', payRate: 3000,
+      })
       // The buy side is the supplier's own contract with the person it
-      // employs, found through the candidate it names. Raising one side
-      // and not the other is the failure this asserts against.
+      // pays, found through the candidate it names.
       const buy = await prisma.buyContractCandidate.findFirst({ where: { personId: it_.worker } })
       expect(buy, 'the sell side was raised without the buy side').not.toBeNull()
+      expect(buy!.payRate).toBe(3000)
     })
 
     it('the program manager could have awarded it too — the split is hiring against reading, not manager against manager', async () => {

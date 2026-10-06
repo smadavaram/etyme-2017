@@ -9,6 +9,8 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as submitCandidates } from '@/app/api/submissions/route'
 import { POST as award } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
+import { POST as actOnTerms } from '@/app/api/submissions/[id]/terms/route'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { POST as reviewPacket } from '@/app/api/packets/[id]/review/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
@@ -203,7 +205,7 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
   // ── 4 ────────────────────────────────────────────────────────────────
 
   it('the client’s hiring manager awards the seat, and the viewer cannot', async () => {
-    const terms = { rate: 3800, startDate: day(-14).toISOString().slice(0, 10), endDate: day(180).toISOString().slice(0, 10) }
+    const terms = { rate: 3800, startDate: day(-14).toISOString().slice(0, 10), endDate: day(180).toISOString().slice(0, 10), ...UNDER_WAY }
 
     as(NIKE.viewer)
     refused(await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms))
@@ -213,8 +215,17 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
     expect(ok.body?.error, JSON.stringify(ok.body)).toBeUndefined()
     it_.contract = ok.body.data.contractId
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
-    it_.buy = sell.buyLinks[0].buyContractId
     expect(sell.state).toBe('DRAFT')
+  })
+
+  it('Brightmoor’s contract desk states her terms and its recruiter cannot; she agrees them on her own page', async () => {
+    as(BRIGHTMOOR.recruiter)
+    refused(await call(actOnTerms, 'POST', `/api/submissions/${it_.submission}/terms`, it_.submission, {
+      action: 'state', engagementType: 'W2', payRate: 3000,
+    }))
+    await agreeTerms({ submissionId: it_.submission, firmEmail: BRIGHTMOOR.contract, personEmail: WORKER, payRate: 3000 })
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
+    it_.buy = sell.buyLinks[0].buyContractId
   })
 
   // ── 5 ────────────────────────────────────────────────────────────────

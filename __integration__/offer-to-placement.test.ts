@@ -11,6 +11,7 @@ import { POST as proposeRound } from '@/app/api/submissions/[id]/interviews/rout
 import { POST as decideRound } from '@/app/api/interviews/[id]/route'
 import { PATCH as setStatus } from '@/app/api/submissions/[id]/status/route'
 import { POST as award } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
 
@@ -184,14 +185,17 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
     expect(r.body.error.code).toBe('NOT_HIRING')
   })
 
-  it('the hiring manager places Wren from the offer, and the award writes the contract, both sides and their dates', async () => {
+  it('the hiring manager places Wren from the offer, and once Pinnacle and Wren agree her terms, both sides and their dates exist', async () => {
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
+      ...UNDER_WAY,
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
     it_.contract = r.body.data.contractId
+    expect(r.body.data.placement.word).toBe('Awarded, terms pending')
+    await agreeTerms({ submissionId: it_.submission, firmEmail: PINNACLE, personEmail: WREN, payRate: 3000 })
 
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
     expect(sell.personId).toBe(it_.worker)

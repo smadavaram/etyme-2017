@@ -346,8 +346,8 @@ export const STOOD_DOWN_REASON = 'TIMING' as const
  * forwarded carries a parent, and the parent's sender is the supplier —
  * Techpeple put Priya forward to Computer Systems, Computer Systems put
  * her forward to Adobe, so when Adobe awards, Computer Systems buys from
- * Techpeple at what Techpeple asked for. A submission with no parent is a
- * firm's own person, which is a W2 employee and no purchase order.
+ * Techpeple at what Techpeple asked for. A submission with no parent is
+ * hop 0: the firm pays the person, on terms the two of them agree.
  *
  * This used to be decided by comparing the supplier with the awarding
  * company, which are never the same — the route refuses that case
@@ -362,51 +362,109 @@ export interface BuySideFacts {
   awardedCompanyId: string
   /**
    * Who supplied the person to them, from the hop below. Null where
-   * nobody did, which means the person is their own.
+   * nobody did, which means this firm is hop 0: it pays the person.
    */
   suppliedByCompanyId: string | null
   /** What that supplier asked for, in cents per hour. Their price is this
    *  firm's cost, which is the whole arrangement. */
   suppliedRateCents: number | null
-  /** A rate somebody typed on the award itself, if they did. */
-  agreedRateCents?: number | null
+  /**
+   * Hop 0 only: the awarded firm holds a live EMPLOYEE context for the
+   * person. The employment is the consent, so the firm's word is enough.
+   */
+  employedByAwardedFirm?: boolean
+  /**
+   * Hop 0 only: what that firm pays the person today on a live W2 line of
+   * its own, where it does. An employee's pay is on record already.
+   */
+  currentPayCents?: number | null
 }
 
-export interface BuySide {
-  /** Null where we employ them ourselves; the supplier where we do not. */
-  vendorCompanyId: string | null
-  contractType: 'C2C' | 'W2'
-  /** Zero where nobody has said. Visibly missing beats a plausible guess. */
-  payRateCents: number
-  rateKnown: boolean
-  /** Plain English for the award log and the screen. */
-  says: string
-}
+/**
+ * The buy line the award writes, or why it writes none.
+ *
+ * ── Hop 0 is not the award's to invent ───────────────────────────────
+ *
+ * This wrote a W2 line at $0 for every person with no firm below them,
+ * on the theory that "visibly missing beats a plausible guess". A $0 W2
+ * line is not visibly missing: it says the firm employs the person, and
+ * a bench listing — which is all most of them had — is consent to be
+ * marketed, never consent to be employed (audit, 2026-10-05). So where
+ * the person's own terms are not on record, no line is written at all,
+ * and the placement reads "Awarded, terms pending" until the firm states
+ * them and the person agrees (`lib/award/hire-terms`).
+ *
+ * The one hop 0 the award may write is an employee's at the pay they are
+ * on today: employed, so nobody has to be asked, and paid, so nothing has
+ * to be guessed.
+ */
+export type BuySide =
+  | {
+      write: true
+      /** Null where the firm pays its own employee; the supplier where it buys. */
+      vendorCompanyId: string | null
+      contractType: 'C2C' | 'W2'
+      payRateCents: number
+      rateKnown: true
+      hopZero: boolean
+      says: string
+    }
+  | {
+      write: false
+      vendorCompanyId: string | null
+      rateKnown: false
+      hopZero: boolean
+      says: string
+    }
 
 export function buySide(f: BuySideFacts): BuySide {
-  const ourOwn =
-    f.suppliedByCompanyId === null || f.suppliedByCompanyId === f.awardedCompanyId
+  const hopZero = f.suppliedByCompanyId === null || f.suppliedByCompanyId === f.awardedCompanyId
 
-  // Where the person came up the chain from another firm, what that firm
-  // asked for IS the cost. Where we employ them ourselves, nothing in the
-  // chain tells us what we pay them and a guess would be worse than a gap.
-  const agreed =
-    typeof f.agreedRateCents === 'number' && f.agreedRateCents > 0 ? f.agreedRateCents : null
-  const fallback = !ourOwn && f.suppliedRateCents && f.suppliedRateCents > 0
-    ? f.suppliedRateCents
-    : null
-  const rate = agreed ?? fallback
+  if (!hopZero) {
+    // Up the chain: what the firm below asked for IS this firm's cost.
+    // No zero default — a submission that arrived with no rate is a hop
+    // whose rate nobody stated, and it is left unwritten rather than
+    // written at nothing.
+    const rate = f.suppliedRateCents && f.suppliedRateCents > 0 ? f.suppliedRateCents : null
+    return rate === null
+      ? {
+          write: false,
+          vendorCompanyId: f.suppliedByCompanyId,
+          rateKnown: false,
+          hopZero,
+          says: 'The firm below put this person forward with no rate, so no cost is written until one is agreed.',
+        }
+      : {
+          write: true,
+          vendorCompanyId: f.suppliedByCompanyId,
+          contractType: 'C2C',
+          payRateCents: rate,
+          rateKnown: true,
+          hopZero,
+          says: 'Pay rate taken from what the supplier asked for.',
+        }
+  }
 
+  const pay = f.currentPayCents && f.currentPayCents > 0 ? f.currentPayCents : null
+  if (f.employedByAwardedFirm && pay !== null) {
+    return {
+      write: true,
+      vendorCompanyId: null,
+      contractType: 'W2',
+      payRateCents: pay,
+      rateKnown: true,
+      hopZero,
+      says: 'Their own employee, at the pay they are on today.',
+    }
+  }
   return {
-    vendorCompanyId: ourOwn ? null : f.suppliedByCompanyId,
-    contractType: ourOwn ? 'W2' : 'C2C',
-    payRateCents: rate ?? 0,
-    rateKnown: rate !== null,
-    says: rate === null
-      ? 'No pay rate on this placement yet. Margin stays blank until somebody sets one.'
-      : agreed !== null
-        ? 'Pay rate taken from the award.'
-        : 'Pay rate taken from what the supplier asked for.',
+    write: false,
+    vendorCompanyId: null,
+    rateKnown: false,
+    hopZero,
+    says: f.employedByAwardedFirm
+      ? 'Their own employee, with no pay on record yet. The firm states it before they can start.'
+      : 'Awarded, terms pending: the firm and the person agree how they are engaged and what they are paid before the start.',
   }
 }
 
@@ -906,15 +964,29 @@ export function placeByAward(personName: string, byBuyer: boolean, buyerName: st
  * firm that will actually call them. They already know every firm above it:
  * each rung told them when it put them forward.
  */
-export function tellPlaced(i: { siteName: string; supplierName: string; roleTitle: string }): {
+export function tellPlaced(i: {
+  siteName: string
+  supplierName: string
+  roleTitle: string
+  /**
+   * Where the person's own terms are not on record yet: the page they
+   * agree them on. Placed is not employed — the firm states the terms and
+   * the person says yes before anybody starts (`lib/award/hire-terms`).
+   */
+  termsHref?: string | null
+}): {
   title: string
   body: string
 } {
+  const base =
+    `You are placed at ${i.siteName} through ${i.supplierName}, for ${i.roleTitle}. ` +
+    `${i.supplierName} will be in touch about your start date.`
   return {
     title: `You are placed at ${i.siteName}`,
-    body:
-      `You are placed at ${i.siteName} through ${i.supplierName}, for ${i.roleTitle}. ` +
-      `${i.supplierName} will be in touch about your start date.`,
+    body: i.termsHref
+      ? `${base} Nothing starts until you and ${i.supplierName} agree how you are engaged and what you are paid; ` +
+        'you will see their offer on your own page and say yes there.'
+      : base,
   }
 }
 

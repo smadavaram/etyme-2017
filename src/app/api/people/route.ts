@@ -9,6 +9,8 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { placementStatus } from '@/lib/award/placement-status'
+import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
 import { says as inviteSays, stepsOf as inviteSteps, STATE_WORD, type Answer, type InviteState } from '@/lib/contractor-invite'
 
@@ -215,6 +217,29 @@ export async function GET(request: NextRequest) {
     return ahead.length > 0 ? new Date(Math.min(...ahead)) : null
   }
 
+  // ── The one word for each placement ─────────────────────────────────
+  //
+  // The line this client pays, latest first, read through the same
+  // function the program page and the placement page read — so this
+  // register can never say "on site" about somebody the program page
+  // says cannot start (audit, 2026-10-05).
+  const placementLine = (personId: string) => {
+    const mine = contractsFor(personId).filter((c) => c.state !== 'CANCELLED')
+    const paid = mine.filter((c) => c.clientCompanyId === companyId)
+    const pool = paid.length > 0 ? paid : mine
+    return pool.sort((a, b) => b.startDate.getTime() - a.startDate.getTime())[0] ?? null
+  }
+  const lines = personIds.map(placementLine).filter((c): c is NonNullable<typeof c> => c != null)
+  const terms = await termsOnRecordFor(lines.filter((c) => !['IN_PROGRESS', 'PAUSED', 'ENDED'].includes(c.state)).map((c) => c.id))
+  const placementOf = (personId: string) => {
+    const c = placementLine(personId)
+    if (!c) return null
+    return placementStatus(
+      { state: c.state, startDate: c.startDate, endDate: c.endDate, termsOnRecord: terms.get(c.id)?.onRecord ?? true },
+      now
+    )
+  }
+
   const byPerson = new Map<string, Person>()
 
   for (const s of subs) {
@@ -234,6 +259,7 @@ export async function GET(request: NextRequest) {
           vendorName: supplierOn(c.companyId),
         })),
         startingOn: startingOn(s.personId),
+        placement: placementOf(s.personId),
         barred: barredBy.has(s.personId)
           ? {
               at: barredBy.get(s.personId)!.blockedAt,

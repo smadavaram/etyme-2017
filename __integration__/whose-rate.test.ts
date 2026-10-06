@@ -232,7 +232,9 @@ describe('tenure counts days actually served, never the length of the contract',
     // here. Nothing needs you." about somebody whose first day has not
     // come. The tenure page next door said "has not started".
     expect(ingrid.monthsHere).toBe(0)
-    expect(ingrid.says).toMatch(/^Starts /)
+    // It now leads with the placement's one word, the same the program
+    // page reads, and then the day.
+    expect(ingrid.says).toMatch(/^(Awarded, terms pending|Papers pending|Ready to start)\. Starts /)
   })
 })
 

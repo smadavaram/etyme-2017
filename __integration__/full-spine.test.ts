@@ -38,6 +38,7 @@ import { POST as proposeInterview } from '@/app/api/submissions/[id]/interviews/
 import { POST as decideInterview } from '@/app/api/interviews/[id]/route'
 import { POST as raisePurchaseOrder } from '@/app/api/purchase-orders/route'
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as activateContract } from '@/app/api/contracts/[id]/activate/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
 import { POST as sendTimesheet } from '@/app/api/timesheets/[id]/submit/route'
@@ -653,7 +654,9 @@ describe('Step 11 — Auralis awards it, and Computer Systems gets a contract pa
     as(ADOBE_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.primeSubmission}/award`, {
-        rate: 13_500, startDate: '2026-09-14', endDate: '2027-09-13',
+        // The walk is dated from the day it was written, so its start is
+        // behind today: the awarder says the work is already under way.
+        rate: 13_500, startDate: '2026-09-14', endDate: '2027-09-13', ...UNDER_WAY,
       }),
       { params: Promise.resolve({ id: it_.primeSubmission }) }
     ))
@@ -706,7 +709,9 @@ describe('Step 12 — Computer Systems awards its own sub, and Techpeple gets it
     as(PRIME)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.subSubmission}/award`, {
-        rate: 11_000, payRate: 8_500, startDate: '2026-09-14', endDate: '2027-09-13',
+        // No pay rate: what Techpeple pays Priya is between Techpeple and
+        // Priya, never the buyer's to set at the award.
+        rate: 11_000, startDate: '2026-09-14', endDate: '2027-09-13', ...UNDER_WAY,
       }),
       { params: Promise.resolve({ id: it_.subSubmission }) }
     ))
@@ -717,6 +722,14 @@ describe('Step 12 — Computer Systems awards its own sub, and Techpeple gets it
     it_.subSell = sell.id
     it_.subEngagement = sell.engagementId!
     expect(rate(sell.billRate)).toBe('$110/hr')
+  })
+
+  it('writes no pay line for Priya until Techpeple states her terms and she agrees them on her own page', async () => {
+    expect(await prisma.buyContract.count({ where: { companyId: co.sub } })).toBe(0)
+    const terms = await agreeTerms({
+      submissionId: it_.subSubmission, firmEmail: SUB, personEmail: CONSULTANT, engagementType: 'W2', payRate: 8_500,
+    })
+    expect(terms.terms.payRateWords).toBe('$85/hr')
   })
 
   it('employs Priya rather than buying her from somebody — there is nobody below Techpeple', async () => {

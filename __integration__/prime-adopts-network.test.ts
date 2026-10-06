@@ -218,7 +218,9 @@ describe('the person placed is told, by the firm nearest them', () => {
       if (!told) await new Promise((r) => setTimeout(r, 100))
     }
     expect(told?.body).toBe(
-      'You are placed at Northbend Athletic through Techpeple, for Demand planning analyst. Techpeple will be in touch about your start date.'
+      'You are placed at Northbend Athletic through Techpeple, for Demand planning analyst. Techpeple will be in touch about your start date. ' +
+        // Placed is not employed: her own terms with Techpeple come first.
+        'Nothing starts until you and Techpeple agree how you are engaged and what you are paid; you will see their offer on your own page and say yes there.'
     )
   })
 })

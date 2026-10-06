@@ -9,6 +9,7 @@ import { POST as decideRequisition } from '@/app/api/requisitions/[id]/approve/r
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as submitCandidates } from '@/app/api/submissions/route'
 import { POST as award } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
@@ -208,21 +209,28 @@ describe('3 · the hiring manager awards, and both contracts exist with their du
     expect(r.status).toBe(403)
   })
 
-  it('the award writes the sell contract, the buy contract, the link and the cycles', async () => {
+  it('the award writes the sell contract and its cycles, and Tariq’s own pay line waits for his terms', async () => {
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
+      ...UNDER_WAY,
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.contract = r.body.data.contractId
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
     expect(sell.state).toBe('DRAFT')
     expect(sell.clientCompanyId).toBe(co['world-nike'])
-    expect(sell.buyLinks).toHaveLength(1)
+    expect(sell.buyLinks).toHaveLength(0)
     it_.engagement = sell.engagementId
     // The thing the award path never did: a placement made by awarding
     // had no hours due, no pay day and no invoice date.
     expect(await prisma.cycle.count({ where: { sellContractId: sell.id } })).toBeGreaterThan(0)
+  })
+
+  it('Pinnacle states Tariq’s terms and he agrees them, and the buy contract, the link and the pay dates exist', async () => {
+    await agreeTerms({ submissionId: it_.submission, firmEmail: PINNACLE, personEmail: WORKER, payRate: 3000 })
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
+    expect(sell.buyLinks).toHaveLength(1)
     expect(await prisma.cycle.count({ where: { buyContractId: sell.buyLinks[0].buyContractId } })).toBeGreaterThan(0)
   })
 })

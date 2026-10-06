@@ -1560,6 +1560,9 @@ export async function GET(request: NextRequest) {
         requirement: { select: { id: true, title: true, skills: true, companyId: true, interviewers: true } },
         fromCompany: { select: { id: true, name: true } },
         toCompany: { select: { id: true, name: true } },
+        // The hop this row came up, so "how they came" is read off the
+        // chain rather than off the stored kind (`submissionKindWord`).
+        parentSubmission: { select: { fromCompany: { select: { name: true } } } },
         // Where each candidate has got to, so a row can say it without a
         // second call per row. Four fields — no feedback, no panel, no
         // notes: this list is read by both sides of the trade, and what
@@ -1607,6 +1610,13 @@ export async function GET(request: NextRequest) {
         fromCompany: s.fromCompany,
         toCompany: s.toCompany,
         kind: s.kind,
+        // Whether it came up from another firm's submission, and that
+        // firm's name only to the firm that bought from it — a client never
+        // learns the name of a rung below the one it pays.
+        came: {
+          chained: !!s.parentSubmission,
+          through: s.parentSubmission && s.fromCompanyId === deskId ? s.parentSubmission.fromCompany.name : null,
+        },
         rate: s.rate,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),

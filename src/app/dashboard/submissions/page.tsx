@@ -50,6 +50,8 @@ interface Submission {
   fromCompany: { id: string; name: string }
   toCompany: { id: string; name: string }
   kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
+  /** The hop it came up, read off the chain. Absent on an older cached response. */
+  came?: { chained: boolean; through: string | null }
   rate: number
   status: string
   submittedAt: string
@@ -957,7 +959,7 @@ function AwardModal({
   submission: Submission
   placing: boolean
   onClose: () => void
-  onPlace: (rateDollars: number, startDate: string) => void
+  onPlace: (rateDollars: number, startDate: string, underWay: { reason: string } | null) => void
 }) {
   // Dollars, because that is what the field says and what onPlace
   // multiplies back up. Seeded from cents, one click made a $130/hr
@@ -966,6 +968,11 @@ function AwardModal({
   const [startDate, setStartDate] = useState(
     new Date().toISOString().slice(0, 10)
   )
+  // A start before today is refused unless the work is already under way,
+  // and why is kept with the placement (audit, 2026-10-05).
+  const before = !!startDate && startDate < new Date().toISOString().slice(0, 10)
+  const [underWay, setUnderWay] = useState(false)
+  const [why, setWhy] = useState('')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -1010,6 +1017,27 @@ function AwardModal({
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
             />
           </div>
+          {before && (
+            <div className="rounded-md bg-etyme-canvas px-3 py-2">
+              <label className="flex items-center gap-2 text-[12px] text-etyme-ink">
+                <input type="checkbox" checked={underWay} onChange={(e) => setUnderWay(e.target.checked)} />
+                The work is already under way
+              </label>
+              {underWay && (
+                <input
+                  value={why}
+                  onChange={(e) => setWhy(e.target.value)}
+                  placeholder="Why it started before the award"
+                  className="mt-2 w-full px-3 py-2 border border-etyme-rule rounded-md text-sm"
+                />
+              )}
+              {!underWay && (
+                <p className="mt-1 text-[12px] text-etyme-muted">
+                  That date is before today. Pick today or later, or tick this and say why.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 mt-6">
@@ -1021,8 +1049,8 @@ function AwardModal({
             Cancel
           </button>
           <button
-            onClick={() => onPlace(rate, startDate)}
-            disabled={placing || !(rate > 0) || !startDate}
+            onClick={() => onPlace(rate, startDate, before && underWay ? { reason: why.trim() } : null)}
+            disabled={placing || !(rate > 0) || !startDate || (before && (!underWay || why.trim().length === 0))}
             className="btn-primary flex-1 disabled:opacity-50"
           >
             {placing ? 'Placing…' : 'Place'}
@@ -1277,7 +1305,7 @@ export default function SubmissionsPage() {
     {
       key: 'kind',
       label: KIND_HEADING,
-      render: (row) => <span className={`chip ${kindChipClass(row.kind)}`}>{submissionKindWord(row.kind, direction)}</span>,
+      render: (row) => <span className={`chip ${kindChipClass(row.kind)}`}>{submissionKindWord(row.kind, direction, row.came)}</span>,
       sortValue: (row) => row.kind,
       hideOnMobile: true,
     },
@@ -1436,7 +1464,7 @@ export default function SubmissionsPage() {
     row.requirement.skills.some((s) => s.toLowerCase().includes(q)) ||
     row.fromCompany.name.toLowerCase().includes(q) ||
     row.toCompany.name.toLowerCase().includes(q) ||
-    submissionKindWord(row.kind, direction).toLowerCase().includes(q) ||
+    submissionKindWord(row.kind, direction, row.came).toLowerCase().includes(q) ||
     submissionStatusWord(row.status).toLowerCase().includes(q)
 
   // ── Status filter options ──────────────────────────
@@ -1706,7 +1734,7 @@ export default function SubmissionsPage() {
           submission={placeSubmission}
           placing={placing}
           onClose={() => setPlaceSubmission(null)}
-          onPlace={async (rateDollars, startDate) => {
+          onPlace={async (rateDollars, startDate, underWay) => {
             setPlacing(true)
             try {
               // The one road to a placement: the award.
@@ -1716,6 +1744,7 @@ export default function SubmissionsPage() {
                 body: JSON.stringify({
                   rate: Math.round(rateDollars * 100), // dollars → cents
                   startDate,
+                  ...(underWay ? { workUnderWay: true, underWayReason: underWay.reason } : {}),
                 }),
               })
               // Read here rather than with readJson: a blocked award lists

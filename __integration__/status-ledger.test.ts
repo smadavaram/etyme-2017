@@ -18,6 +18,7 @@ import { POST as submitInvoice } from '@/app/api/invoices/[id]/submit/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
 import { GET as endContracts } from '@/app/api/cron/end-contracts/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 
 /**
  * Every table moves.
@@ -128,10 +129,11 @@ describe('the ledger: one placement, every table, every station', () => {
     expect(inv.status).toBe('ACCEPTED')
   })
 
-  it('the award: submission PLACED, requirement FILLED and archived, both contracts DRAFT, cycles written and none done', async () => {
+  it('the award: submission PLACED, requirement FILLED and archived, the contract DRAFT with Tariq’s own terms pending, cycles written and none done', async () => {
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-14).toISOString().slice(0, 10), endDate: day(180).toISOString().slice(0, 10),
+      ...UNDER_WAY,
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.contract = r.body.data.contractId
@@ -142,10 +144,11 @@ describe('the ledger: one placement, every table, every station', () => {
     expect(req_.archivedAt).not.toBeNull()
 
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
-    it_.buy = sell.buyLinks[0].buyContractId
     it_.engagement = sell.engagementId
     expect(sell.state).toBe('DRAFT')
-    expect((await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.buy } })).state).toBe('DRAFT')
+    // A bench listing is not employment: no pay line until the terms are agreed.
+    expect(sell.buyLinks).toEqual([])
+    expect(r.body.data.placement.word).toBe('Awarded, terms pending')
 
     const sellCycles = await cycles({ sellContractId: it_.contract })
     // No invoice-due cycle: when an invoice falls due is the invoice's
@@ -153,6 +156,26 @@ describe('the ledger: one placement, every table, every station', () => {
     // guessed on the 28th months ahead could only disagree with it.
     expect(Object.keys(sellCycles).sort()).toEqual(['INVOICE_GENERATE', 'TIMESHEET_APPROVE', 'TIMESHEET_SUBMIT'])
     expect(Object.values(sellCycles).every((c) => c.done === 0)).toBe(true)
+  })
+
+  it('work marked under way two weeks before the award keeps its start, and writes no reminder for a day already gone', async () => {
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })
+    expect(sell.startDate.toISOString().slice(0, 10)).toBe(day(-14).toISOString().slice(0, 10))
+    const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
+    const past = await prisma.cycle.count({ where: { sellContractId: it_.contract, dueOn: { lt: today } } })
+    expect(past).toBe(0)
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { action: 'CANDIDATE_AWARDED', payload: { path: ['submissionId'], equals: it_.submission } },
+    })
+    expect((log.payload as any).startedBeforeAward).toEqual({ reason: UNDER_WAY.underWayReason })
+  })
+
+  it('Pinnacle states Tariq’s terms and he agrees them: the pay line is written, DRAFT', async () => {
+    const terms = await agreeTerms({ submissionId: it_.submission, firmEmail: PINNACLE, personEmail: WORKER, payRate: 3000 })
+    expect(terms.placement.word).toBe('Papers pending')
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
+    it_.buy = sell.buyLinks[0].buyContractId
+    expect((await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.buy } })).state).toBe('DRAFT')
   })
 
   it('activation with the paperwork on file: both contracts IN_PROGRESS', async () => {
@@ -261,9 +284,11 @@ describe('the ledger: one placement, every table, every station', () => {
     const t = r.body.data.timeline
     const doneKinds = [...t.hours, ...t.bill].filter((d: any) => d.done).map((d: any) => d.kind)
     expect(doneKinds).toEqual(expect.arrayContaining(['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE', 'INVOICE_GENERATE']))
-    // The week before, which nobody filed, is still owed — a later week
-    // does not quietly complete it.
-    expect(t.hours.filter((d: any) => d.kind === 'TIMESHEET_SUBMIT' && d.overdue).length).toBeGreaterThanOrEqual(1)
+    // The work began two weeks before the award, marked as under way. A
+    // reminder is never written for a day already gone (audit, 2026-10-05),
+    // so the weeks before the award carry none — and none is overdue.
+    const today = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`
+    expect([...t.hours, ...t.bill].filter((d: any) => !d.done && d.dueOn < today)).toEqual([])
   })
 
   it('the last day passes: the daily job ends both contracts, and says so in the vendor’s log', async () => {

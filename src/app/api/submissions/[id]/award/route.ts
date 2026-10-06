@@ -23,9 +23,14 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { awardHandoff } from '@/lib/papering'
 import { loadContractHolidays } from '@/lib/holidays'
 import { actingDesk } from '@/lib/program-seat'
+import { startOf, payRateIsNotTheBuyers, noDatesBefore } from '@/lib/award/hire-terms'
+import { termsOnRecordFor } from '@/lib/award/terms-on-record'
+import { placementStatus } from '@/lib/award/placement-status'
+import { tellSelected } from '@/lib/papering'
 
 /**
- * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
+ * POST /api/submissions/:id/award
+ *   { rate?, startDate?, endDate?, workUnderWay?, underWayReason? }
  *
  * Give a candidate one of the positions on a requisition.
  *
@@ -152,6 +157,43 @@ export async function POST(
       },
       { status: door.httpStatus }
     )
+  }
+
+  // ── What the buyer may not set ──────────────────────────────────────
+  //
+  // Whoever awards is the buyer. What the seller pays below it — its own
+  // employee, or its own supplier — is the seller's agreement and never
+  // the buyer's to type. This field was accepted and written as the
+  // seller's cost, which is how a buyer could set a supplier's W2 at any
+  // rate it liked (audit, 2026-10-05).
+  if (body?.payRate !== undefined && body?.payRate !== null) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PAY_RATE_NOT_YOURS',
+          message: payRateIsNotTheBuyers({ sellerName: submission.fromCompany.name, personName: submission.person.name }),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // ── The first day ───────────────────────────────────────────────────
+  //
+  // Not before the award, unless the person awarding says the work is
+  // already under way and why. Every date the placement generates is
+  // counted from this one, so a start typed a week early wrote a week of
+  // reminders about days already gone (audit, 2026-10-05).
+  const awardedAt = new Date()
+  const begins = startOf({
+    typed: body.startDate ? new Date(body.startDate) : null,
+    neededBy: req.neededBy ?? null,
+    now: awardedAt,
+    underWay: body.workUnderWay === true,
+    reason: typeof body.underWayReason === 'string' ? body.underWayReason : null,
+  })
+  if (!begins.ok) {
+    return NextResponse.json({ error: { code: begins.code, message: begins.says } }, { status: 422 })
   }
 
   const awardedRate: number = Number.isFinite(body.rate) ? body.rate : submission.rate
@@ -284,7 +326,7 @@ export async function POST(
     )
   }
 
-  const start = body.startDate ? new Date(body.startDate) : (req.neededBy ?? new Date())
+  const start = begins.start
   const end = body.endDate
     ? new Date(body.endDate)
     : req.months
@@ -451,11 +493,44 @@ export async function POST(
   // to be, because whether there is a sub-vendor below decides whether
   // there is a second header at all. It is pure arithmetic over facts
   // already read.
+  //
+  // Hop 0 — the firm pays the person — is written only where the
+  // person's own terms are already on record: an employee of this firm,
+  // at the pay they are on today. A bench listing is consent to be
+  // marketed, never consent to be employed, so for anybody else the
+  // award writes no pay line and the placement reads "Awarded, terms
+  // pending" until the firm states the terms and the person agrees them
+  // (`lib/award/hire-terms`, the terms page beside this route).
+  const isHopZero = !suppliedBy || suppliedBy.fromCompanyId === submission.fromCompanyId
+  const employedHere = isHopZero
+    ? (await prisma.context.count({
+        where: { personId: submission.personId, companyId: submission.fromCompanyId, type: 'EMPLOYEE', revokedAt: null },
+      })) > 0
+    : false
+  const currentPay = employedHere
+    ? await prisma.buyContractCandidate.findFirst({
+        where: {
+          personId: submission.personId,
+          payRate: { gt: 0 },
+          state: 'ACTIVE',
+          buyContract: {
+            companyId: submission.fromCompanyId,
+            vendorCompanyId: null,
+            contractType: 'W2',
+            state: { in: ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING', 'PAUSED'] },
+          },
+        },
+        orderBy: { startDate: 'desc' },
+        select: { payRate: true },
+      })
+    : null
+
   const buy = buySide({
     awardedCompanyId: submission.fromCompanyId,
     suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
     suppliedRateCents: suppliedBy?.rate ?? null,
-    agreedRateCents: typeof body?.payRate === 'number' ? body.payRate : null,
+    employedByAwardedFirm: employedHere,
+    currentPayCents: currentPay?.payRate ?? null,
   })
 
   // What the client's order may authorize in total. The requisition's
@@ -489,7 +564,7 @@ export async function POST(
   // What we pay down the chain, valued the same way. The client's
   // ceiling is what the client authorized; ours to a sub-vendor is our
   // own money and is never the client's number.
-  const buyCeiling = buy.vendorCompanyId && buy.rateKnown
+  const buyCeiling = buy.write && buy.vendorCompanyId
     ? orderCeiling({
         budgetCents: null,
         billMaxCents: buy.payRateCents,
@@ -608,7 +683,7 @@ export async function POST(
     // ceiling, and a ceiling over a pay rate nobody has agreed is a
     // number invented on the way past. The supplier desk raises it from
     // the purchase orders screen when the rate is settled.
-    const buyHeader = buy.vendorCompanyId && buyCeiling
+    const buyHeader = buy.write && buy.vendorCompanyId && buyCeiling
       ? await headerFor(tx, {
           buyerId: submission.fromCompanyId,
           sellerId: buy.vendorCompanyId,
@@ -629,53 +704,56 @@ export async function POST(
         })
       : null
 
-    const buyContract = await tx.buyContract.create({
-      data: {
-        companyId: submission.fromCompanyId,
-        // Null where we employ them ourselves; the supplier where we do
-        // not. The model has meant this from the first commit.
-        vendorCompanyId: buy.vendorCompanyId,
-        payCurrency: terms.currency.value,
-        contractType: buy.contractType,
-        // DRAFT until somebody confirms the rate. A placement whose cost
-        // nobody has agreed is not ready to pay against, and pretending
-        // otherwise is how the wrong number reaches a payroll file.
-        state: 'DRAFT',
-        // The rung below, so the hours this firm bills for can be found
-        // at all. Null on a W2 placement, where there is no rung below.
-        supplierSellContractId: supplierContract?.id ?? null,
-        // The header this line hangs on: our order to the sub-vendor,
-        // and null for our own employee.
-        workOrderId: buyHeader?.id ?? null,
-        startDate: start,
-        endDate: end,
-      },
-    })
+    // No line at all where the award has no rate to write — never a $0
+    // line standing in for one (see `buySide`).
+    const buyContract = buy.write
+      ? await tx.buyContract.create({
+          data: {
+            companyId: submission.fromCompanyId,
+            // Null where we employ them ourselves; the supplier where we do
+            // not. The model has meant this from the first commit.
+            vendorCompanyId: buy.vendorCompanyId,
+            payCurrency: terms.currency.value,
+            contractType: buy.contractType,
+            // DRAFT until somebody confirms the rate. A placement whose cost
+            // nobody has agreed is not ready to pay against, and pretending
+            // otherwise is how the wrong number reaches a payroll file.
+            state: 'DRAFT',
+            // The rung below, so the hours this firm bills for can be found
+            // at all. Null on a W2 placement, where there is no rung below.
+            supplierSellContractId: supplierContract?.id ?? null,
+            // The header this line hangs on: our order to the sub-vendor,
+            // and null for our own employee.
+            workOrderId: buyHeader?.id ?? null,
+            startDate: start,
+            endDate: end,
+          },
+        })
+      : null
 
-    await tx.buyContractCandidate.create({
-      data: {
-        buyContractId: buyContract.id,
-        personId: submission.personId,
-        // Zero where nobody has said yet. Visibly missing beats a
-        // plausible guess — profitability refuses to show a margin on it
-        // rather than inventing one.
-        payRate: buy.payRateCents,
-        payCurrency: terms.currency.value,
-        startDate: start,
-        endDate: end,
-      },
-    })
+    if (buyContract && buy.write) {
+      await tx.buyContractCandidate.create({
+        data: {
+          buyContractId: buyContract.id,
+          personId: submission.personId,
+          payRate: buy.payRateCents,
+          payCurrency: terms.currency.value,
+          startDate: start,
+          endDate: end,
+        },
+      })
 
-    // The join that makes margin readable. It has existed in the schema
-    // from the start and nothing ever created one.
-    await tx.contractLink.create({
-      data: {
-        sellContractId: contract.id,
-        buyContractId: buyContract.id,
-        effectiveFrom: start,
-        effectiveTo: end,
-      },
-    })
+      // The join that makes margin readable. It has existed in the schema
+      // from the start and nothing ever created one.
+      await tx.contractLink.create({
+        data: {
+          sellContractId: contract.id,
+          buyContractId: buyContract.id,
+          effectiveFrom: start,
+          effectiveTo: end,
+        },
+      })
+    }
 
     // Its due dates. The contract-creating route wrote them and this
     // one did not, so a placement made the way a client actually makes
@@ -684,9 +762,16 @@ export async function POST(
     // helper the seeds use; no end date, no cycles, which is the rule.
     const cycles = await writeCyclesFor(tx, {
       sell: { id: contract.id, startDate: start, endDate: end },
-      buy: { id: buyContract.id, contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId },
+      // No buy line yet means no pay or vendor-bill dates yet: they are
+      // written when the terms are, from the terms page.
+      buy: buyContract && buy.write
+        ? { id: buyContract.id, contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId }
+        : null,
       packId: submission.fromCompany.templatePack ?? 'US_IT',
       holidays,
+      // A start marked as already under way lies behind the award; its
+      // dates do not. No reminder is written for a day already gone.
+      onlyPeriodsAfter: noDatesBefore(awardedAt),
     })
 
     // The other direction. This award has just created a sell contract
@@ -826,7 +911,7 @@ export async function POST(
   // consultants on it — the case the old spreadsheet could not add up,
   // because the customer lived inside the consultant's name.
   const orderId = await orderFor(result.contract.id)
-  if (orderId) {
+  if (orderId && result.buyContract) {
     await prisma.buyContract.update({
       where: { id: result.buyContract.id },
       // The project order, which is what orderFor opens and returns.
@@ -852,6 +937,13 @@ export async function POST(
     clientCompanyId: clientOf(req),
     reason: 'They were placed at this client, so every hold here went back.',
   })
+
+  // Whether anybody met the person before placing them. The founder has
+  // not decided whether placing without an interview is allowed with a
+  // record or refused (decision 4 of the 2026-10-05 audit), so nothing is
+  // refused here — but the record is kept on the award's own row, where
+  // the answer will be read from either way.
+  const roundsHeld = await prisma.interview.count({ where: { submissionId: id, state: 'DONE' } })
 
   await prisma.automationLog.create({
     data: {
@@ -890,6 +982,15 @@ export async function POST(
         // new one can be proposed.
         interviewsCalledOff: result.calledOff as any,
         candidatesStoodDown: { count: result.passedOver, reason: STOOD_DOWN_REASON },
+        // No interview held is kept as a fact, never as a refusal yet.
+        interviews: { held: roundsHeld, placedWithoutInterview: roundsHeld === 0 },
+        // A start before the award, with the awarder's own reason.
+        startedBeforeAward: begins.underWay,
+        // The pay line, or why there is none: a person's own terms are
+        // theirs to agree, never the award's to invent.
+        payLine: buy.write
+          ? { written: true, says: buy.says }
+          : { written: false, says: buy.says },
       },
       // Reversible only until the person actually starts.
       reversible: true,
@@ -963,7 +1064,7 @@ export async function POST(
           supplierId: buy.vendorCompanyId,
           amount: buyCeiling.dollars,
           basis: buyCeiling.basis,
-          buyContractId: result.buyContract.id,
+          buyContractId: result.buyContract?.id ?? null,
         },
         reversible: true,
       },
@@ -1022,47 +1123,45 @@ export async function POST(
     })
   }
 
-  // ── The person ──────────────────────────────────────────────────────
+  // ── The chain under this award ──────────────────────────────────────
   //
-  // Told everybody above and never them. Only where this is the top of the
-  // chain — the rung nobody sent any further — because the award of a rung
-  // below is a prime settling with its sub-vendor, and the client may not
-  // have decided yet (`awardTellsThePerson`). They are told by the firm
-  // nearest them, at the bottom of the chain, which is who will call, and
-  // at the site they will work at, which is the end client where there is
-  // one. No rate: see `tellPlaced`.
-  const sentOnward = (await prisma.submission.count({ where: { parentSubmissionId: id } })) > 0
-  if (awardTellsThePerson({ sentOnward })) {
-    let nearest = submission.fromCompany.name
+  // Every submission below this one, nearest first: the firm that sent
+  // the person to the awarded firm, the firm that sent them to that one,
+  // and so on to the firm that holds the person. Read once and used three
+  // times — who is told the client chose, which firm the person hears
+  // from, and where the person's own terms are agreed.
+  const below: { id: string; fromCompanyId: string; fromName: string; toName: string; rate: number; title: string }[] = []
+  {
     let down = submission.parentSubmissionId
-    for (let hop = 0; down && hop < 5; hop++) {
-      const below = await prisma.submission.findUnique({
+    for (let hop = 0; down && hop < 8; hop++) {
+      const s = await prisma.submission.findUnique({
         where: { id: down },
-        select: { parentSubmissionId: true, fromCompany: { select: { name: true } } },
+        select: {
+          id: true, parentSubmissionId: true, fromCompanyId: true, rate: true,
+          fromCompany: { select: { name: true } },
+          toCompany: { select: { name: true } },
+          requirement: { select: { title: true } },
+        },
       })
-      if (!below) break
-      nearest = below.fromCompany.name
-      down = below.parentSubmissionId
+      if (!s) break
+      below.push({
+        id: s.id, fromCompanyId: s.fromCompanyId, fromName: s.fromCompany.name,
+        toName: s.toCompany.name, rate: s.rate, title: s.requirement.title,
+      })
+      down = s.parentSubmissionId
     }
-    const site = await prisma.company.findUnique({
-      where: { id: req.endClientCompanyId ?? req.companyId },
-      select: { name: true },
-    })
-    const placed = tellPlaced({
-      siteName: site?.name ?? submission.toCompany.name,
-      supplierName: nearest,
-      roleTitle: req.title,
-    })
-    void notify({
-      personId: submission.personId,
-      type: 'CONTRACT',
-      channel: 'EMAIL',
-      title: placed.title,
-      body: placed.body,
-      entityId: result.contract.id,
-      data: { contractId: result.contract.id, requirementId: req.id },
-    })
   }
+  // The submission at the bottom: the firm that holds the person, and the
+  // page their own terms are agreed on.
+  const bottom = below.length > 0 ? below[below.length - 1] : { id, fromName: submission.fromCompany.name }
+  const termsHref = `/dashboard/submissions/${bottom.id}/terms`
+
+  // The one status every screen reads, for the line just written.
+  const termsNow = (await termsOnRecordFor([result.contract.id])).get(result.contract.id)
+  const status = placementStatus(
+    { state: result.contract.state, startDate: start, endDate: end, termsOnRecord: termsNow?.onRecord ?? false },
+    new Date()
+  )
 
   // ── The baton passes ────────────────────────────────────────────────
   //
@@ -1078,14 +1177,19 @@ export async function POST(
   // do: whoever can paper it is asked to, by email as well as in the app,
   // and whoever sells is told it was won and who has it now. Nobody is
   // handed a job they would be refused on arrival. src/lib/papering.ts
-  const seats = await prisma.context.findMany({
-    where: { companyId: submission.fromCompanyId, revokedAt: null, type: 'EMPLOYEE' },
-    select: {
-      personId: true,
-      person: { select: { name: true } },
-      role: { select: { name: true, permissions: true } },
-    },
-  })
+  //
+  // Told first, and awaited, because the notice travels down the chain
+  // in order: the awarded firm, then each firm below it, then the person.
+  const seatsAt = (companyId: string) =>
+    prisma.context.findMany({
+      where: { companyId, revokedAt: null, type: 'EMPLOYEE' },
+      select: {
+        personId: true,
+        person: { select: { name: true } },
+        role: { select: { name: true, permissions: true } },
+      },
+    })
+  const seats = await seatsAt(submission.fromCompanyId)
 
   const handoff = awardHandoff(
     {
@@ -1095,6 +1199,9 @@ export async function POST(
       rateCents: awardedRate,
       currency: terms.currency.value,
       startDate: start,
+      // This firm pays the person and nothing is on record: its contract
+      // desk states the terms before anything else.
+      termsHref: buy.hopZero && !buy.write ? termsHref : null,
     },
     seats.map((s) => ({
       personId: s.personId,
@@ -1107,7 +1214,7 @@ export async function POST(
   for (const notice of [handoff.toPaper, handoff.toSell]) {
     if (!notice) continue
     for (const personId of notice.personIds) {
-      void notify({
+      await notify({
         personId,
         companyId: submission.fromCompanyId,
         type: 'CONTRACT',
@@ -1117,9 +1224,83 @@ export async function POST(
         title: notice.title,
         body: notice.body,
         entityId: result.contract.id,
-        data: { contractId: result.contract.id, requirementId: req.id, href: '/dashboard/contracts' },
+        data: {
+          contractId: result.contract.id, requirementId: req.id,
+          href: buy.hopZero && !buy.write ? termsHref : '/dashboard/contracts',
+        },
       })
     }
+  }
+
+  // ── Down the chain, one hop at a time ───────────────────────────────
+  //
+  // Only from the top — the rung nobody sent any further, which is the
+  // client's decision. Each firm below hears that its candidate was
+  // chosen, for the job as it knows it, from the firm it sold to, at the
+  // rate it asked; never the client's bill rate and never another rung's.
+  // The selling and papering desks both hear: it is news to one and the
+  // next thing to do for the other.
+  const sentOnward = (await prisma.submission.count({ where: { parentSubmissionId: id } })) > 0
+  const isTop = awardTellsThePerson({ sentOnward })
+  if (isTop) {
+    for (const hop of below) {
+      const told = tellSelected({
+        personName: submission.person.name,
+        roleTitle: hop.title,
+        buyerName: hop.toName,
+        rateCents: hop.rate,
+        currency: terms.currency.value,
+      })
+      const desks = (await seatsAt(hop.fromCompanyId)).filter((s) => {
+        const held = s.role?.permissions ?? []
+        return held.includes('*') || held.includes('submissions.create') || held.includes('assignments.write')
+      })
+      for (const d of desks) {
+        await notify({
+          personId: d.personId,
+          companyId: hop.fromCompanyId,
+          type: 'SUBMISSION',
+          channel: 'EMAIL',
+          title: told.title,
+          body: told.body,
+          entityId: hop.id,
+          data: { submissionId: hop.id, href: '/dashboard/submissions' },
+        })
+      }
+    }
+  }
+
+  // ── The person ──────────────────────────────────────────────────────
+  //
+  // Told last, after every firm between them and the client. Only where
+  // this is the top of the chain — the rung nobody sent any further —
+  // because the award of a rung below is a prime settling with its
+  // sub-vendor, and the client may not have decided yet
+  // (`awardTellsThePerson`). They are told by the firm nearest them, at
+  // the bottom of the chain, which is who will call, and at the site they
+  // will work at, which is the end client where there is one. No rate:
+  // see `tellPlaced`. Where their own terms are not on record, they are
+  // told nothing starts until they agree them.
+  if (isTop) {
+    const site = await prisma.company.findUnique({
+      where: { id: req.endClientCompanyId ?? req.companyId },
+      select: { name: true },
+    })
+    const placed = tellPlaced({
+      siteName: site?.name ?? submission.toCompany.name,
+      supplierName: bottom.fromName,
+      roleTitle: req.title,
+      termsHref: termsNow?.onRecord ? null : termsHref,
+    })
+    await notify({
+      personId: submission.personId,
+      type: 'CONTRACT',
+      channel: 'EMAIL',
+      title: placed.title,
+      body: placed.body,
+      entityId: result.contract.id,
+      data: { contractId: result.contract.id, requirementId: req.id, ...(termsNow?.onRecord ? {} : { href: termsHref }) },
+    })
   }
 
   return NextResponse.json(
@@ -1130,6 +1311,16 @@ export async function POST(
         vendor: submission.fromCompany,
         rate: awardedRate / 100,
         startDate: start.toISOString().slice(0, 10),
+        // One word for the placement, the same one every screen reads.
+        placement: { status: status.status, word: status.word },
+        // The person's own terms: on record, or what is missing and where
+        // it is agreed.
+        terms: {
+          onRecord: termsNow?.onRecord ?? false,
+          says: termsNow?.says ?? buy.says,
+          href: termsNow?.onRecord ? null : termsHref,
+        },
+        startedBeforeAward: begins.underWay,
         seatsAfter: decision.seatsAfter,
         requisitionFilled: decision.fillsRequisition,
         vendorsStoodDown: result.standDown,

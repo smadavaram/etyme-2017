@@ -37,11 +37,42 @@ export function submissionStatusWord(status: string): string {
  * Karthik forward, "the supplier's own employee" to the client. Neither
  * names a firm below the one the client pays — the column says a person
  * came through another firm, never which.
+ *
+ * ── Read off the chain, not off the stored kind ──────────────────────
+ *
+ * The audit of 2026-10-05 found both sides of Marisol Quintero's row
+ * reading "through a partner firm" when there was no partner: Brightmoor
+ * held her listing and sent her straight to Northbend. The stored kind
+ * said NETWORK because her listing was a marketing one rather than a
+ * retained one, and the words trusted the kind. So where the row says
+ * which hop it came up — `came` — the words follow the chain: our own
+ * employee, our own bench, or through a named supplier, and the supplier
+ * is named only to the firm that bought from it.
  */
-export function submissionKindWord(kind: string, direction: 'sent' | 'received' | null | undefined): string {
+export interface Came {
+  /** The row was forwarded up from a submission another firm made. */
+  chained: boolean
+  /** That firm's name — given only to the firm that bought from it. */
+  through: string | null
+}
+
+export function submissionKindWord(
+  kind: string,
+  direction: 'sent' | 'received' | null | undefined,
+  came?: Came | null
+): string {
   const ours = direction === 'sent'
-  switch (String(kind ?? '').toUpperCase()) {
-    case 'INTERNAL': return ours ? 'Our own employee' : 'Supplier’s own employee'
+  const k = String(kind ?? '').toUpperCase()
+  if (k === 'INTERNAL') return ours ? 'Our own employee' : 'Supplier’s own employee'
+  if (came) {
+    if (came.chained) {
+      return ours
+        ? came.through ? `Through ${came.through}` : 'Through a supplier of ours'
+        : 'Through the supplier’s own supplier'
+    }
+    return ours ? 'From our bench' : 'From the supplier’s bench'
+  }
+  switch (k) {
     case 'BENCH':    return ours ? 'From our bench' : 'From the supplier’s bench'
     case 'NETWORK':  return ours ? 'Through a partner firm' : 'Through another firm'
     default:         return 'Not stated'

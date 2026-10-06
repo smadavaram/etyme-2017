@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as convertSubmission } from '@/app/api/submissions/[id]/convert/route'
 import { nounFor } from '@/lib/order-naming'
 
@@ -86,8 +87,10 @@ async function worker(name: string, email: string, employerId: string, roleId: s
 }
 
 async function award(submissionId: string, body: Record<string, unknown>) {
+  // These placements are dated from the day this walk was written, so
+  // their start is behind today; the awarder says the work is under way.
   return json(
-    await awardSubmission(req('POST', `/api/submissions/${submissionId}/award`, body), {
+    await awardSubmission(req('POST', `/api/submissions/${submissionId}/award`, { ...UNDER_WAY, ...body }), {
       params: Promise.resolve({ id: submissionId }),
     })
   )
@@ -321,6 +324,10 @@ describe('A client awards, and the order it will quote exists the same second', 
   })
 
   it('an employee’s line hangs on no order at all', async () => {
+    // The award wrote no pay line, because nothing on record said what
+    // Veritan pays Rosa. Veritan says it — she is its employee, so she is
+    // told rather than asked — and the line it writes hangs on no order.
+    await agreeTerms({ submissionId: it_.firstSubmission, firmEmail: VERITAN, personEmail: null, payRate: 8_000 })
     const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: it_.firstContract } })
     const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: link.buyContractId } })
     // You do not raise a purchase order to your own employee.

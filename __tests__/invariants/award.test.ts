@@ -221,8 +221,9 @@ describe('Awarding a person creates both sides of the deal, not just the price',
       suppliedByCompanyId: 'supplier',
       suppliedRateCents: 8_000,
     })
+    expect(b.write).toBe(true)
     expect(b.vendorCompanyId).toBe('supplier')
-    expect(b.contractType).toBe('C2C')
+    if (b.write) expect(b.contractType).toBe('C2C')
   })
 
   it('what the supplier asked for is what the placement costs', () => {
@@ -231,40 +232,58 @@ describe('Awarding a person creates both sides of the deal, not just the price',
       suppliedByCompanyId: 'supplier',
       suppliedRateCents: 8_000,
     })
-    expect(b.payRateCents).toBe(8_000)
+    expect(b.write && b.payRateCents).toBe(8_000)
     expect(b.rateKnown).toBe(true)
     expect(b.says).toBe('Pay rate taken from what the supplier asked for.')
   })
 
-  it('a rate agreed on the award beats the rate that was asked for', () => {
+  it('a supplier that asked for no rate gets no $0 line, only a sentence saying none is written', () => {
     const b = buySide({
       awardedCompanyId: 'us',
       suppliedByCompanyId: 'supplier',
-      suppliedRateCents: 8_000,
-      agreedRateCents: 7_500,
+      suppliedRateCents: 0,
     })
-    expect(b.payRateCents).toBe(7_500)
-    expect(b.says).toBe('Pay rate taken from the award.')
+    expect(b.write).toBe(false)
+    expect(b.says).toMatch(/no rate, so no cost is written/)
   })
 
-  it('our own employee is not bought from a vendor', () => {
+  it('awarding a bench-listed person writes no employment and no $0 rate', () => {
     const b = buySide({
-      awardedCompanyId: 'us',
+      awardedCompanyId: 'brightmoor',
       suppliedByCompanyId: null,
-      suppliedRateCents: 8_000,
+      suppliedRateCents: 9_000,
     })
+    expect(b.write).toBe(false)
+    expect(b.hopZero).toBe(true)
+    expect(b.says).toMatch(/^Awarded, terms pending/)
+  })
+
+  it('a firm’s own employee is written at the pay they are on today, because the employment is the consent', () => {
+    const b = buySide({
+      awardedCompanyId: 'teleworld',
+      suppliedByCompanyId: null,
+      suppliedRateCents: 12_000,
+      employedByAwardedFirm: true,
+      currentPayCents: 7_000,
+    })
+    expect(b.write).toBe(true)
     expect(b.vendorCompanyId).toBeNull()
-    expect(b.contractType).toBe('W2')
+    if (b.write) {
+      expect(b.contractType).toBe('W2')
+      expect(b.payRateCents).toBe(7_000)
+    }
   })
 
-  it('nothing in a submission says what we pay our own employee', () => {
+  it('an employee with no pay on record is not written at nothing — the firm states the pay first', () => {
     const b = buySide({
-      awardedCompanyId: 'us',
+      awardedCompanyId: 'teleworld',
       suppliedByCompanyId: null,
-      suppliedRateCents: 8_000,
+      suppliedRateCents: 12_000,
+      employedByAwardedFirm: true,
+      currentPayCents: null,
     })
-    expect(b.rateKnown).toBe(false)
-    expect(b.payRateCents).toBe(0)
+    expect(b.write).toBe(false)
+    expect(b.says).toMatch(/no pay on record/)
   })
 
   it('never records a firm as buying a person from itself', () => {
@@ -278,7 +297,7 @@ describe('Awarding a person creates both sides of the deal, not just the price',
       suppliedRateCents: 13_500,
     })
     expect(b.vendorCompanyId).toBeNull()
-    expect(b.contractType).toBe('W2')
+    expect(b.hopZero).toBe(true)
   })
 
   it('a missing pay rate is left visibly missing rather than guessed', () => {
@@ -288,8 +307,6 @@ describe('Awarding a person creates both sides of the deal, not just the price',
       suppliedRateCents: null,
     })
     expect(b.rateKnown).toBe(false)
-    expect(b.says).toBe(
-      'No pay rate on this placement yet. Margin stays blank until somebody sets one.'
-    )
+    expect(b.write).toBe(false)
   })
 })

@@ -108,6 +108,8 @@ interface ProgramData {
     startDate: string
     daysUntil: number
     paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null }
+    /** The one word every screen reads for this placement (`placementStatus`). */
+    placement?: { status: string; word: string }
   }[]
   today: { id: string; what: string; who: string; at: string }[]
   endingSoon: {
@@ -748,7 +750,10 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
                 {data.startingSoon.map((c) => (
                   <div key={c.contractId} className="p-4 flex flex-wrap items-start gap-3">
                     <div className="flex-1 min-w-[200px]">
-                      <p className="text-sm text-etyme-ink">{c.person.name} <span className="text-etyme-muted">through {c.vendor.via ?? c.vendor.name}</span></p>
+                      <p className="text-sm text-etyme-ink">
+                        {c.person.name} <span className="text-etyme-muted">through {c.vendor.via ?? c.vendor.name}</span>
+                        {c.placement && <span className="chip ml-2">{c.placement.word}</span>}
+                      </p>
                       <p className={`text-xs mt-1 ${c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : c.paperwork.outcome === 'WARN' ? 'text-etyme-muted' : 'text-etyme-verified'}`}>
                         {c.paperwork.outcome === 'PASS' ? 'Paperwork complete. Nothing stops the start.' : c.paperwork.says}
                         {c.paperwork.outcome !== 'PASS' && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}

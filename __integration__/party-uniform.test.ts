@@ -7,6 +7,7 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as submitCandidates } from '@/app/api/submissions/route'
 import { POST as award } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
@@ -370,9 +371,12 @@ describe('4 · the award, and the contracts it writes', () => {
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
+      ...UNDER_WAY,
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.contract = r.body.data.contractId
+    // Her own terms with the firm that holds her, before anything else.
+    await agreeTerms({ submissionId: it_.submission, firmEmail: SEAT.PRIME, personEmail: SEAT.CANDIDATE, payRate: 3000 })
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
     expect(sell.clientCompanyId).toBe(co['world-nike'])
     expect(sell.buyLinks).toHaveLength(1)

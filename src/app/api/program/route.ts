@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { placementStatus } from '@/lib/award/placement-status'
+import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
@@ -363,8 +365,12 @@ export async function GET(request: NextRequest) {
   // 154-882, WI expired" can be checked against a register; "your license
   // expired" cannot.
   const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true } as const
+  // The one word for each, from the function every screen reads, so this
+  // page and the contractor register cannot disagree about one person.
+  const notStarted = contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)
+  const termsFor = await termsOnRecordFor(notStarted.map((c) => c.id))
   const startingSoon = await Promise.all(
-    contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5).map(async (c) => {
+    notStarted.map(async (c) => {
       const [personVerifications, supplierCertificates] = await Promise.all([
         prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
         prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: verificationShape }),
@@ -400,6 +406,13 @@ export async function GET(request: NextRequest) {
         startDate: c.startDate.toISOString(),
         daysUntil: Math.ceil((c.startDate.getTime() - now.getTime()) / 86_400_000),
         paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
+        placement: placementStatus(
+          {
+            state: c.state, startDate: c.startDate, endDate: c.endDate,
+            termsOnRecord: termsFor.get(c.id)?.onRecord ?? false,
+          },
+          now
+        ),
       }
     })
   )

@@ -3,6 +3,7 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 import { rolesFor } from '@/lib/company-defaults'
 
 import { POST as awardSubmission } from '@/app/api/submissions/[id]/award/route'
+import { agreeTerms } from './hire-terms-walk'
 import { POST as moveContract } from '@/app/api/contracts/[id]/activate/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 
@@ -95,6 +96,8 @@ beforeAll(async () => {
 
   const priya = await prisma.person.create({ data: { name: 'Priya Raman', primaryEmail: 'priya@person.test' } })
   who.priya = priya.id
+  // She signs in as herself, to agree her own terms with the supplier.
+  await prisma.context.create({ data: { personId: priya.id, type: 'CONSULTANT' } })
 
   const requirement = await prisma.requirement.create({
     data: {
@@ -158,6 +161,10 @@ describe('The award is the handoff, and both desks hear about it in their own wo
   it('the award leaves the contract a draft, because winning a deal is not papering one', async () => {
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })
     expect(sell.state).toBe('DRAFT')
+    // And no pay line until Priya's own terms are agreed: the contract
+    // desk states them, she says yes, and the line is a draft too.
+    expect(await prisma.buyContract.count({ where: { companyId: co.supplier } })).toBe(0)
+    await agreeTerms({ submissionId: it_.submission, firmEmail: PAPERER, personEmail: 'priya@person.test', payRate: 9_000 })
     const buy = await prisma.buyContract.findFirstOrThrow({ where: { companyId: co.supplier } })
     expect(buy.state).toBe('DRAFT')
   })
