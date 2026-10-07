@@ -378,6 +378,12 @@ export const DOMAINS: Domain[] = [
       // and when they are approved. The columns are the schema's; the
       // arithmetic of a single shifted date stays in lib/cycle-shift.
       'lib/days-off',
+      // The company's payroll rhythm: how often pay is run, when it is
+      // worked out and when it is paid. The columns are the schema's; the
+      // dates a contract's pay lines carry are money's generator, which
+      // reads them through payDatesFor. lib/pay-dates is the pure half a
+      // screen may import.
+      'lib/payroll-settings', 'lib/pay-dates',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies

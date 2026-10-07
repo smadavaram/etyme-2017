@@ -542,6 +542,25 @@ model Company {
   weekSettingsSetAt   DateTime?
   /// The person who last answered them.
   weekSettingsSetById String?
+  // ── Payroll: the company's choice ──────────────────────────────────
+  //
+  // The founder, 2026-10-07: "Give choice to businesses when they want to
+  // configure payroll." The defaults are today's packs; a company may
+  // change them. Read and written only through src/lib/payroll-settings.ts.
+  /// How often pay is run: WEEKLY, BIWEEKLY, SEMIMONTHLY or MONTHLY.
+  payPeriod           String    @default("BIWEEKLY")
+  /// Weekly and biweekly: days after the period's Saturday that pay is worked out (4 = Wednesday).
+  payCalcOffsetDays   Int       @default(4)
+  /// Weekly and biweekly: days after the period's Saturday that pay is paid (6 = Friday).
+  payDayOffsetDays    Int       @default(6)
+  /// Semimonthly and monthly: the pay days of the month, 1 to 28, where 28 means month end.
+  payDaysOfMonth      Int[]     @default([28])
+  /// Semimonthly and monthly: how many days before the pay day pay is worked out (28 - 3 = the 25th).
+  payCalcDaysBefore   Int       @default(3)
+  /// When somebody last answered the payroll questions. Null: the defaults stand.
+  paySettingsSetAt    DateTime?
+  /// The person who last answered them.
+  paySettingsSetById  String?
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from

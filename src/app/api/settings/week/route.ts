@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { prisma } from '@/lib/db'
 import { setWeekSettings, weekSettingsFor } from '@/lib/days-off'
 
 /**
@@ -49,7 +50,12 @@ async function guard(request: NextRequest, doing: string, change = true) {
 export async function GET(request: NextRequest) {
   const { caller, error } = await guard(request, 'Reading this company’s working week', false)
   if (error) return error
-  return NextResponse.json({ data: await weekSettingsFor(caller!.company!.id) })
+  const settings = await weekSettingsFor(caller!.company!.id)
+  // The name of whoever last set it, so the settings screen can say so.
+  const by = settings.setById
+    ? await prisma.person.findUnique({ where: { id: settings.setById }, select: { name: true } })
+    : null
+  return NextResponse.json({ data: { ...settings, setByName: by?.name ?? null } })
 }
 
 export async function PATCH(request: NextRequest) {
