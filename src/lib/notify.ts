@@ -99,10 +99,23 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
       // Not awaited: the caller wanted a notification written, not a
       // round trip to an email provider. The row already exists, so a
       // slow or dead sender delays only the delivery status.
-      void deliver(created.id, personId, companyId ?? null, title, body, type, entityId ?? null)
+      void deliver(created.id, personId, companyId ?? null, title, body, pageOf(type, entityId ?? null, data))
     }
     return created
   })
+}
+
+/**
+ * The page a notice opens, outside the app as well as in it. A caller
+ * that names the page in `data.href` has said where the reader acts, so
+ * the email link and the Teams button go there too, rather than to the
+ * type's general list. Anything that is not a path inside the app is
+ * ignored, so a notice can never carry a link off the site.
+ */
+export function pageOf(type: string, entityId: string | null, data?: Record<string, unknown>): string {
+  const href = data?.href
+  if (typeof href === 'string' && /^\/dashboard(\/|\?|$)/.test(href) && !href.includes('//')) return href
+  return notificationHref(type, entityId)
 }
 
 /** The row `notify` writes for one notice — the one shape, used by both doors. */
@@ -196,8 +209,7 @@ async function deliver(
   companyId: string | null,
   title: string,
   body: string,
-  type: string,
-  entityId: string | null
+  page: string
 ): Promise<void> {
   try {
     const person = await prisma.person.findUnique({
@@ -233,11 +245,13 @@ async function deliver(
     // A company whose saved link is the retired kind still wins here:
     // routing sees the link, sends email instead, and writes why on the
     // row — rather than quietly posting to another company's channel.
-    const teamsWebhookUrl =
-      named?.teamsWebhookUrl ??
-      person.contexts.find((c) => c.company?.teamsWebhookUrl)?.company
-        ?.teamsWebhookUrl ??
-      null
+    // So does a named company with no link at all: its news goes by
+    // email, never into the channel of another firm this person also
+    // works through, which would tell that firm somebody else's business.
+    const teamsWebhookUrl = named
+      ? named.teamsWebhookUrl ?? null
+      : person.contexts.find((c) => c.company?.teamsWebhookUrl)?.company
+          ?.teamsWebhookUrl ?? null
 
     const recipient: Recipient = {
       isConsultant,
@@ -255,7 +269,7 @@ async function deliver(
       body,
       configuredSenders(),
       new Date(),
-      appLink(notificationHref(type, entityId))
+      appLink(page)
     )
 
     await prisma.notification.update({
