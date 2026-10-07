@@ -2,6 +2,9 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { rateChangeDates, RATE_CHANGE_PERSON, RATE_CHANGE_DEPARTMENT } from '@/lib/seed-rate-change'
+import { runAtFor } from '@/lib/seed-payroll-runs'
+import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
+import { seedToday, anchorSeed } from '@/lib/seed-days'
 import { costCenterCode } from '@/lib/seed-coding'
 import { shortDay } from '@/lib/consultant-portfolio'
 import { weekStart, weekEnd } from '@/lib/overtime'
@@ -58,15 +61,51 @@ const runsOnHerLine = async () =>
 const monthOf = (d: Date | string) => (typeof d === 'string' ? d : iso(d)).slice(0, 7)
 
 /**
- * Whether a month's payroll run has come by the day the world was born.
- * A run is pressed five days after its month ends and never earlier, so
- * a month whose fifth day after has not passed before the birthday has
- * not been run yet and is owed (lib/seed-payroll-runs, runAtFor).
+ * The months whose payroll run had been pressed by the day the world was
+ * born, read by the seed's own rule rather than a second copy of it.
+ *
+ * A run is pressed five days after its month ends at 17:00, or an hour
+ * after the employer's last acceptance on a week holding a day of the
+ * month, whichever is later, and only if that is no later than 17:00 the
+ * evening before the world was born (lib/seed-payroll-runs, runAtFor).
+ * This used to be one calendar comparison, month-end + 6 on or before
+ * today, which forgot the acceptance: the week that crosses a month's end
+ * is accepted on the Tuesday after its Saturday, which can be later than
+ * five days past the month. Born 2026-10-07, September's last week was
+ * accepted on Oct 6 at 17:00, so its run falls at 18:00 that evening,
+ * past the seed's cut-off, and is not written — September is owed, due
+ * on its pay day, Oct 9. The comparison said its run had come.
+ *
+ * Read off the world's own birthday (the harness anchors it) and its own
+ * acceptances, so it holds whatever day the template was built.
  */
-const runDayCame = (month: string) => {
-  const [y, m] = month.split('-').map(Number)
-  const now = new Date()
-  return Date.UTC(y, m, 0) + 6 * 86_400_000 <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+async function monthsRunCame(personId: string): Promise<Set<string>> {
+  const employers = new Set((await prisma.buyContract.findMany({
+    where: {
+      vendorCompanyId: null, supplierSellContractId: null,
+      contractType: { in: [...EMPLOYEE_CONTRACT_TYPES] as any },
+      candidates: { some: { personId } },
+    },
+    select: { companyId: true },
+  })).map((l) => l.companyId))
+  const sheets = await prisma.timesheet.findMany({
+    where: { personId },
+    select: {
+      days: true, periodStart: true, periodEnd: true,
+      assertions: { where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' }, select: { companyId: true, at: true } },
+    },
+  })
+  const months = new Set(sheets.flatMap((s) => Object.keys(s.days as Record<string, number>)).map((d) => d.slice(0, 7)))
+  const came = new Set<string>()
+  for (const month of months) {
+    const [y, m] = month.split('-').map(Number)
+    const period = { start: new Date(Date.UTC(y, m - 1, 1)), end: new Date(Date.UTC(y, m, 0)), label: month }
+    const accepted = sheets
+      .filter((s) => s.periodStart <= period.end && s.periodEnd >= period.start)
+      .flatMap((s) => s.assertions.filter((a) => employers.has(a.companyId)).map((a) => a.at))
+    if (runAtFor(period, accepted)) came.add(month)
+  }
+  return came
 }
 
 async function census() {
@@ -377,13 +416,41 @@ describe('a pay rise on the seeded world', () => {
     expect(center.actualCents).toBe(Math.round(hours * 11_200))
   })
 
+  it('a month whose last week is accepted the evening before the world is born is not yet run that day, and is run from the day after, whatever day the world is born', () => {
+    // September 2026: the week of Sep 27 to Oct 3 accepted by her
+    // employer on Oct 6 at 17:00, and a month with no late acceptance
+    // beside it. Pay day for September is Oct 9 either way.
+    const september = { start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-09-30T00:00:00Z'), label: 'September 2026' }
+    const late = [new Date('2026-10-06T17:00:00Z')]
+    const born = seedToday()
+    try {
+      const runOn = (birthday: string, accepted: Date[] = []) => {
+        anchorSeed(new Date(`${birthday}T00:00:00Z`))
+        return runAtFor(september, accepted)?.toISOString() ?? null
+      }
+      // The day before the acceptance, the day of it, the day after.
+      expect(runOn('2026-10-06', late)).toBeNull()
+      expect(runOn('2026-10-07', late)).toBeNull()
+      expect(runOn('2026-10-08', late)).toBe('2026-10-06T18:00:00.000Z')
+      // On the pay day itself and after it, the run stands.
+      expect(runOn('2026-10-09', late)).toBe('2026-10-06T18:00:00.000Z')
+      expect(runOn('2026-10-10', late)).toBe('2026-10-06T18:00:00.000Z')
+      // With nothing accepted late the run is five days after the month.
+      expect(runOn('2026-10-05')).toBeNull()
+      expect(runOn('2026-10-06')).toBe('2026-10-05T17:00:00.000Z')
+    } finally {
+      anchorSeed(born)
+    }
+  })
+
   it('on a fresh demo every month of hers whose pay run day has come is paid by a run of its own, the month holding her forty-five-hour week included, its overtime priced as payroll prices it', async () => {
     const all = await days()
-    const now = monthOf(new Date())
+    const now = monthOf(seedToday())
+    const came = await monthsRunCame(personId)
     const before = [...new Set(Object.keys(all).map(monthOf))].filter((m) => m < now).sort()
     expect(before.length, 'five months of weeks and more before this one').toBeGreaterThanOrEqual(6)
     // A month whose run falls after the world was born is not run yet.
-    const worked = before.filter(runDayCame)
+    const worked = before.filter((m) => came.has(m))
     expect(worked.length).toBeGreaterThanOrEqual(5)
 
     const runs = await runsOnHerLine()
@@ -401,7 +468,8 @@ describe('a pay rise on the seeded world', () => {
   })
 
   it('on her page every week in a paid month reads as paid, and only this month, or a month whose run has not come yet, reads as owed', async () => {
-    const open = new Set([...Object.keys(await days()).map(monthOf), monthOf(new Date())].filter((m) => !runDayCame(m)))
+    const came = await monthsRunCame(personId)
+    const open = new Set([...Object.keys(await days()).map(monthOf), monthOf(seedToday())].filter((m) => !came.has(m)))
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await myWork(req('GET', '/api/me/work')))
     expect(r.status).toBe(200)

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
-import { PAID_WORKERS } from '@/lib/seed-payroll-runs'
+import { PAID_WORKERS, runAtFor } from '@/lib/seed-payroll-runs'
+import { seedToday } from '@/lib/seed-days'
 import { EMPLOYEE_CONTRACT_TYPES } from '@/lib/money/paid-through'
 import { GET as myWork } from '@/app/api/me/work/route'
 
@@ -22,15 +23,51 @@ const iso = (d: Date) => d.toISOString().slice(0, 10)
 const monthOf = (d: string) => d.slice(0, 7)
 
 /**
- * Whether a month's payroll run has come by the day the world was born.
- * A run is pressed five days after its month ends and never earlier, so
- * a month whose fifth day after has not passed before the birthday has
- * not been run yet and is owed (lib/seed-payroll-runs, runAtFor).
+ * The months whose payroll run had been pressed by the day the world was
+ * born, read by the seed's own rule rather than a second copy of it.
+ *
+ * A run is pressed five days after its month ends at 17:00, or an hour
+ * after the employer's last acceptance on a week holding a day of the
+ * month, whichever is later, and only if that is no later than 17:00 the
+ * evening before the world was born (lib/seed-payroll-runs, runAtFor).
+ * This used to be one calendar comparison, month-end + 6 on or before
+ * today, which forgot the acceptance: the week that crosses a month's end
+ * is accepted on the Tuesday after its Saturday, which can be later than
+ * five days past the month. Born 2026-10-07, September's last week was
+ * accepted on Oct 6 at 17:00, so its run falls at 18:00 that evening,
+ * past the seed's cut-off, and is not written — September is owed, due
+ * on its pay day, Oct 9. The comparison said its run had come.
+ *
+ * Read off the world's own birthday (the harness anchors it) and its own
+ * acceptances, so it holds whatever day the template was built.
  */
-const runDayCame = (month: string) => {
-  const [y, m] = month.split('-').map(Number)
-  const now = new Date()
-  return Date.UTC(y, m, 0) + 6 * 86_400_000 <= Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+async function monthsRunCame(personId: string): Promise<Set<string>> {
+  const employers = new Set((await prisma.buyContract.findMany({
+    where: {
+      vendorCompanyId: null, supplierSellContractId: null,
+      contractType: { in: [...EMPLOYEE_CONTRACT_TYPES] as any },
+      candidates: { some: { personId } },
+    },
+    select: { companyId: true },
+  })).map((l) => l.companyId))
+  const sheets = await prisma.timesheet.findMany({
+    where: { personId },
+    select: {
+      days: true, periodStart: true, periodEnd: true,
+      assertions: { where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' }, select: { companyId: true, at: true } },
+    },
+  })
+  const months = new Set(sheets.flatMap((s) => Object.keys(s.days as Record<string, number>)).map((d) => d.slice(0, 7)))
+  const came = new Set<string>()
+  for (const month of months) {
+    const [y, m] = month.split('-').map(Number)
+    const period = { start: new Date(Date.UTC(y, m - 1, 1)), end: new Date(Date.UTC(y, m, 0)), label: month }
+    const accepted = sheets
+      .filter((s) => s.periodStart <= period.end && s.periodEnd >= period.start)
+      .flatMap((s) => s.assertions.filter((a) => employers.has(a.companyId)).map((a) => a.at))
+    if (runAtFor(period, accepted)) came.add(month)
+  }
+  return came
 }
 
 /**
@@ -109,7 +146,7 @@ describe('a seeded worker reads her own pay the way her employer would have left
   })
 
   it('Karthik’s weeks in the months before this one are paid by a Teleworld payroll run, and his page says so', async () => {
-    const now = monthOf(iso(new Date()))
+    const now = monthOf(iso(seedToday()))
     const weeks = await weeksOf('karthik.menon')
     const pastDays = weeks.flatMap((t) => Object.keys(t.days as Record<string, number>)).filter((d) => monthOf(d) < now)
     expect(pastDays.length).toBeGreaterThan(0)
@@ -136,20 +173,21 @@ describe('a seeded worker reads her own pay the way her employer would have left
   })
 
   it('no worker the demo pays reads a week as owed unless it has a day in this month or in a month a payroll run has to price', async () => {
-    const now = monthOf(iso(new Date()))
+    const now = monthOf(iso(seedToday()))
     // Rosa's forty-five-hour week was once left for a run; since
     // 2026-09-30 the seed prices its premium through sheetPay and pays it.
 
     for (const address of PAID_WORKERS) {
       const handle = address.split('@')[0]
       const weeks = await weeksOf(handle)
+      const came = await monthsRunCame((await prisma.person.findUniqueOrThrow({ where: { primaryEmail: address } })).id)
       as(address)
       const r = await json(await myWork(req('GET', '/api/me/work')))
       expect(r.status, handle).toBe(200)
       for (const w of r.body.data.owed.weeks.filter((x: any) => x.stillOwedCents > 0)) {
         const months = daysInWeek(weeks, w.weekOf).map(monthOf)
         expect(
-          months.some((m) => m === now || !runDayCame(m)),
+          months.some((m) => m === now || !came.has(m)),
           `${handle}'s week of ${w.weekOf} reads as owed in a month the seed paid`
         ).toBe(true)
       }
