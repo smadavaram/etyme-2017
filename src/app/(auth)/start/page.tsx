@@ -1,63 +1,151 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { WeekPanel } from '@/components/settings/week-panel'
+import { PayrollPanel } from '@/components/settings/payroll-panel'
+import { InviteTeammate } from '@/components/invite-teammate'
+import { deskHome } from '@/components/desk-home'
+import { SETUP_RAIL, packSentence, currencyFor, type SetupStep } from '@/lib/setup-steps'
+import { packFor, type CompanyKind } from '@/lib/company-defaults'
 
 /**
- * Getting in.
+ * Getting in, and setting up. Five steps, then it stops.
  *
- * There is no sign-up form separate from sign-in, because the difference is
- * something the system can work out. You sign in; if your company is here
- * you join it, and if it is not you set it up.
+ * The founder, 2026-10-07: after the first sign-in a new company walks
+ * the prototype's five steps (prototypes/Etyme_Onboarding.jsx) — sign in;
+ * your company; how you work; your people; your team. Every answer has a
+ * default, so a company may click through in a minute, and what it
+ * answers is recorded with who and when (lib/setup-steps,
+ * /api/onboarding/setup).
  *
- * The one question worth asking is what the company does here, because it
- * decides navigation and permissions for the rest of the relationship.
- * Everything else is inferred: the domain is verified by the identity
- * provider, the name is guessed from it, the address follows from the name.
+ * There is still no sign-up form apart from sign-in. You sign in; if your
+ * company is here you join it as Member and land on your own work; if it
+ * is not, you set it up. A company that finished setup never sees the
+ * steps again: this page sends its people to their desks.
  */
 
-interface TypeOption {
-  key: string
-  label: string
-  blurb: string
-  example: string
-}
+interface TypeOption { key: string; kind: string; label: string; blurb: string; example: string }
+interface Country { code: string; name: string; currency: string }
 
 function Lbl({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
 }
 
+function Rail({ at, done }: { at: 'SIGN_IN' | SetupStep; done: (k: 'SIGN_IN' | SetupStep) => boolean }) {
+  return (
+    <ol className="flex flex-wrap gap-1.5" aria-label="Setup steps">
+      {SETUP_RAIL.map((s, i) => {
+        const on = s.key === at
+        const isDone = !on && done(s.key)
+        return (
+          <li key={s.key}
+            aria-current={on ? 'step' : undefined}
+            className={`flex items-center gap-2 px-3 py-1 rounded-full text-[12.5px] ${on ? 'bg-etyme-ink text-etyme-canvas font-semibold' : isDone ? 'text-etyme-muted' : 'text-etyme-faint'}`}>
+            <span className={`w-[17px] h-[17px] rounded-full grid place-items-center text-[10px] font-bold ${
+              isDone ? 'bg-etyme-verified/15 text-etyme-verified' : on ? 'bg-etyme-canvas text-etyme-ink' : 'border border-etyme-rule'}`}>
+              {isDone ? '✓' : i + 1}
+            </span>
+            <span className="hidden sm:inline">{s.label}</span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+const primary = 'px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40'
+const secondary = 'px-5 py-2.5 border border-etyme-rule bg-etyme-surface rounded text-sm text-etyme-ink hover:border-etyme-muted disabled:opacity-40'
+const field = 'w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink focus:outline-none focus:border-etyme-action'
+
 export default function StartPage() {
+  const router = useRouter()
   const [state, setState] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [joined, setJoined] = useState<any>(null)
+  // Step 2's answers, each pre-filled with its guess.
   const [type, setType] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState<any>(null)
+  const [country, setCountry] = useState('US')
+  const [currency, setCurrency] = useState('USD')
+  const [invitedHere, setInvitedHere] = useState(0)
+  // Steps passed on this visit after following the dashboard's link back,
+  // so skipping one again moves on rather than showing it twice.
+  const [passed, setPassed] = useState<SetupStep[]>([])
 
-  useEffect(() => {
-    fetch('/api/onboarding')
-      .then(async r => {
-        const j = await readJson(r)
-        setState(j.data)
-        if (j.data.suggestedName) setName(j.data.suggestedName)
-      })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      const back = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('finish') === '1'
+      const j = await readJson(await fetch(`/api/onboarding${back ? '?finish=1' : ''}`))
+      setState(j.data)
+      if (j.data.suggestedName) setName((n) => n || j.data.suggestedName)
+      if (j.data.suggestedCountry) setCountry(j.data.suggestedCountry)
+      if (j.data.suggestedCurrency) setCurrency(j.data.suggestedCurrency)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+  useEffect(() => { load() }, [load])
 
-  async function submit() {
+  // Where this seat's own desk is.
+  const desk = useMemo(() => {
+    if (state?.action !== 'ALREADY_IN') return null
+    return deskHome({
+      kind: (state.company?.kind ?? null) as CompanyKind | null,
+      isConsultant: state.seat?.type === 'CONSULTANT',
+      role: state.seat?.role ?? null,
+      permissions: state.seat?.permissions ?? [],
+    })
+  }, [state])
+
+  const setup = state?.action === 'ALREADY_IN' ? state.setup : null
+  const showingSteps = setup?.shows === true
+
+  // Already here, nothing owed, not just arrived: straight to their desk.
+  useEffect(() => {
+    if (state?.action === 'ALREADY_IN' && !showingSteps && !joined && desk) router.replace(desk as any)
+  }, [state, showingSteps, joined, desk, router])
+
+  async function enter(body: Record<string, unknown>) {
     setBusy(true); setError(null)
     try {
-      const res = await fetch('/api/onboarding', {
+      const j = await readJson(await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, name }),
-      })
-      const j = await readJson(res)
-      setDone(j.data)
+        body: JSON.stringify(body),
+      }))
+      // A consultant has no firm and no setup: their own work is the desk.
+      if (j.data.action === 'CONSULTANT') { router.push('/dashboard/my-work'); return }
+      if (j.data.action === 'JOIN') setJoined(j.data)
+      await load()
+    } catch (e: any) { setError(e.message) } finally { setBusy(false) }
+  }
+
+  async function answer(step: SetupStep, outcome: 'DONE' | 'SKIPPED') {
+    setBusy(true); setError(null)
+    try {
+      const j = await readJson(await fetch('/api/onboarding/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step, outcome }),
+      }))
+      // The last answer lands on the dashboard, which says its own first-day sentence.
+      const nowPassed = [...passed, step]
+      setPassed(nowPassed)
+      const left = setup?.finishedAt
+        ? (j.data.owed as SetupStep[]).filter((k) => !nowPassed.includes(k))
+        : j.data.next ? [j.data.next] : []
+      if (left.length === 0) {
+        router.push('/dashboard')
+        return
+      }
+      await load()
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -65,119 +153,215 @@ export default function StartPage() {
     return <div className="min-h-screen grid place-items-center text-etyme-muted">Checking your account…</div>
   }
 
-  if (done) {
+  // ── A colleague, just arrived ──────────────────────────────────────
+  if (joined && state?.action === 'ALREADY_IN') {
     return (
       <div className="min-h-screen grid place-items-center px-6">
         <div className="max-w-lg text-center">
           <Lbl>You are in</Lbl>
           <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">
-            {done.companyName ?? 'Ready'}
+            {state.company?.name ?? 'Ready'}
           </h1>
-          <p className="text-etyme-muted mt-3">{done.message}</p>
-          <a href="/dashboard"
-            className="inline-block mt-6 px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-            Go to Etyme
+          <p className="text-etyme-muted mt-3">{joined.message}</p>
+          <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
+            Go to your desk
           </a>
         </div>
       </div>
     )
   }
 
-  // Already placed, or joining, or a consultant — nothing to ask.
-  const noQuestion = state && state.action !== 'CREATE'
+  // Which step is on screen.
+  const step: 'SIGN_IN' | SetupStep | null =
+    state?.action === 'CREATE' || (state?.action === 'SUGGEST') ? 'COMPANY'
+      : showingSteps ? ((setup.finishedAt ? (setup.owed as SetupStep[]).find((k) => !passed.includes(k)) : setup.next) ?? null)
+        : null
+
+  const answered = (k: 'SIGN_IN' | SetupStep) =>
+    k === 'SIGN_IN' || (setup?.record?.[k] != null) || (k === 'COMPANY' && state?.action === 'ALREADY_IN')
 
   return (
-    <div className="min-h-screen grid place-items-center px-6 py-12">
-      <div className="max-w-2xl w-full">
-        <Lbl>Etyme</Lbl>
+    <div className="min-h-screen bg-etyme-canvas">
+      {step && (
+        <div className="border-b border-etyme-rule">
+          <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+            <Lbl>Etyme setup</Lbl>
+            <Rail at={step} done={answered} />
+          </div>
+        </div>
+      )}
 
-        {state?.action === 'ALREADY_IN' && (
-          <>
-            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">
-              You are already in {state.company?.name}
-            </h1>
-            <a href="/dashboard" className="inline-block mt-6 px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-              Continue
-            </a>
-          </>
-        )}
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        {!step && <Lbl>Etyme</Lbl>}
 
         {state?.action === 'JOIN' && (
           <>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">
-              {state.company.name} is already here
+              {state.company?.name ?? state.companyName} is already here
             </h1>
             <p className="text-etyme-muted mt-3">{state.message}</p>
             <p className="text-sm text-etyme-muted mt-4">
-              You will join them. Someone there decides what you can see — nobody
-              gets access just for sharing an email domain.
+              You join as Member. You can see your own work at once. An owner there gives you a desk.
             </p>
-            <button onClick={submit} disabled={busy}
-              className="mt-6 px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
-              {busy ? 'Joining…' : `Join ${state.company.name}`}
+            <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
+              {busy ? 'Joining…' : `Join ${state.company?.name ?? state.companyName}`}
+            </button>
+          </>
+        )}
+
+        {state?.action === 'REQUEST' && (
+          <>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">
+              {state.companyName} is already here
+            </h1>
+            <p className="text-etyme-muted mt-3">{state.message}</p>
+            <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
+              {busy ? 'Joining…' : `Join ${state.companyName}`}
             </button>
           </>
         )}
 
         {state?.action === 'CONSULTANT' && (
           <>
-            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">
-              Setting you up as a consultant
-            </h1>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Setting you up as a consultant</h1>
             <p className="text-etyme-muted mt-3">{state.message}</p>
-            <button onClick={submit} disabled={busy}
-              className="mt-6 px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
               {busy ? 'Setting up…' : 'Continue'}
             </button>
           </>
         )}
 
-        {state?.action === 'CREATE' && (
-          <>
-            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">
-              Setting up {state.suggestedName}
-            </h1>
-            <p className="text-etyme-muted mt-2">{state.message}</p>
+        {state?.action === 'REFUSE' && (
+          <h1 className="font-serif text-2xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">{state.message}</h1>
+        )}
 
-            <div className="mt-8">
+        {/* ── Step 2: your company ── */}
+        {step === 'COMPANY' && (
+          <div className="max-w-xl">
+            <Lbl>Step 2 of 5</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>
+            <p className="text-etyme-muted mt-2">Everything here has a guess filled in. Change what is wrong.</p>
+
+            {state.action === 'SUGGEST' && (
+              <div className="mt-6 p-4 border border-etyme-rule rounded-lg bg-etyme-surface">
+                <p className="text-sm text-etyme-ink">{state.message}</p>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => enter({ joinExisting: true })} disabled={busy} className={primary}>Yes, we are part of {state.companyName}</button>
+                </div>
+                <p className="text-xs text-etyme-muted mt-2">If you are a separate company, fill in the form below.</p>
+              </div>
+            )}
+
+            <label className="block mt-6">
+              <Lbl>Company name</Lbl>
+              <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
+              <p className="text-xs text-etyme-muted mt-1">Guessed from your web address. Change it if it is wrong.</p>
+            </label>
+
+            <div className="mt-6">
               <Lbl>What does your company do here?</Lbl>
-              <div className="mt-3 space-y-2">
-                {(state.companyTypes as TypeOption[]).map(t => (
+              <div className="mt-2 space-y-2">
+                {(state.companyTypes as TypeOption[]).map((t) => (
                   <button key={t.key} onClick={() => setType(t.key)}
                     className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                      type === t.key
-                        ? 'border-etyme-action bg-etyme-action/5'
-                        : 'border-etyme-rule bg-etyme-surface hover:border-etyme-muted'
-                    }`}>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-etyme-ink font-medium">{t.label}</span>
-                      <span className="text-xs text-etyme-faint shrink-0">{t.example}</span>
-                    </div>
+                      type === t.key ? 'border-etyme-action bg-etyme-action/5' : 'border-etyme-rule bg-etyme-surface hover:border-etyme-muted'}`}>
+                    <span className="text-etyme-ink font-medium">{t.label}</span>
                     <p className="text-sm text-etyme-muted mt-1">{t.blurb}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            <label className="block mt-6">
-              <Lbl>Company name</Lbl>
-              <input value={name} onChange={e => setName(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink focus:outline-none focus:border-etyme-action" />
-              <p className="text-xs text-etyme-muted mt-1">
-                Guessed from your email domain. Change it if it is wrong.
-              </p>
-            </label>
+            <div className="grid sm:grid-cols-2 gap-4 mt-6">
+              <label className="block">
+                <Lbl>Country</Lbl>
+                <select value={country} className={field}
+                  onChange={(e) => { setCountry(e.target.value); setCurrency(currencyFor(e.target.value)) }}>
+                  {(state.countries as Country[]).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+              </label>
+              <label className="block">
+                <Lbl>Currency</Lbl>
+                <select value={currency} onChange={(e) => setCurrency(e.target.value)} className={field}>
+                  {(state.currencies as string[]).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+            </div>
+            <p className="text-xs text-etyme-muted mt-2">
+              {country === state.suggestedCountry ? state.countrySays : 'Your choice. The currency follows the country unless you change it.'}
+            </p>
+            <p className="text-sm text-etyme-ink mt-4">
+              {packSentence(packFor(((state.companyTypes as TypeOption[]).find((t) => t.key === type)?.kind ?? 'VENDOR') as CompanyKind, country))}
+            </p>
 
             {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
-
-            <button onClick={submit} disabled={busy || !type}
-              className="mt-6 px-5 py-2.5 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40">
-              {busy ? 'Setting up…' : 'Create it'}
+            <button onClick={() => enter({ type, name, country, currency, ...(state.action === 'SUGGEST' ? { joinExisting: false } : {}) })}
+              disabled={busy || !type} className={`mt-6 ${primary}`}>
+              {busy ? 'Setting up…' : 'Continue'}
             </button>
-            <p className="text-xs text-etyme-faint mt-3">
-              Anyone else from your domain who signs in will join you automatically.
+            <p className="text-xs text-etyme-faint mt-3">Anyone else from your web address who signs in will join you as Member.</p>
+          </div>
+        )}
+
+        {/* ── Step 3: how you work ── */}
+        {step === 'WORK' && (
+          <div>
+            <Lbl>Step 3 of 5</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">How you work</h1>
+            <p className="text-etyme-muted mt-2 mb-6">
+              {setup.company.packSays} The defaults are filled in. Change one and save it, or keep them all.
             </p>
-          </>
+            <WeekPanel canEdit />
+            <PayrollPanel canEdit />
+            {error && <p className="mb-4 text-sm text-etyme-attention">{error}</p>}
+            <button onClick={() => answer('WORK', 'DONE')} disabled={busy} className={primary}>Continue</button>
+            <p className="text-xs text-etyme-faint mt-3">Continue keeps what is saved above. You can change all of it later in Settings.</p>
+          </div>
+        )}
+
+        {/* ── Step 4: your people ── */}
+        {step === 'PEOPLE' && (
+          <div className="max-w-xl">
+            <Lbl>Step 4 of 5</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Your people</h1>
+            <p className="text-etyme-muted mt-2">
+              Bring in your contractor list from a spreadsheet. A system of record with none of your records is a demo.
+            </p>
+            <p className="text-sm text-etyme-muted mt-2">Any columns will do. We read them, and you check the result before anything is saved.</p>
+            {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
+            <div className="flex flex-wrap gap-2 mt-6">
+              {setup.facts.peopleImported ? (
+                <button onClick={() => answer('PEOPLE', 'DONE')} disabled={busy} className={primary}>Continue</button>
+              ) : (
+                <a href="/dashboard/import" className={primary}>Import a file</a>
+              )}
+              {!setup.facts.peopleImported && (
+                <button onClick={() => answer('PEOPLE', 'SKIPPED')} disabled={busy} className={secondary}>Skip for now</button>
+              )}
+            </div>
+            {setup.facts.peopleImported && <p className="text-sm text-etyme-verified mt-3">Your people are in.</p>}
+          </div>
+        )}
+
+        {/* ── Step 5: your team ── */}
+        {step === 'TEAM' && (
+          <div>
+            <Lbl>Step 5 of 5</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Your team</h1>
+            <p className="text-etyme-muted mt-2 mb-6">
+              Invite the people who work here: name, work email, and what they do. They are emailed, and the seat is theirs when they sign in.
+            </p>
+            <InviteTeammate onInvited={() => setInvitedHere((n) => n + 1)} />
+            {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
+            <div className="flex flex-wrap gap-2 mt-6">
+              {(invitedHere > 0 || setup.facts.teammates > 0) && (
+                <button onClick={() => answer('TEAM', 'DONE')} disabled={busy} className={primary}>Finish</button>
+              )}
+              {invitedHere === 0 && setup.facts.teammates === 0 && (
+                <button onClick={() => answer('TEAM', 'SKIPPED')} disabled={busy} className={secondary}>Skip for now</button>
+              )}
+            </div>
+          </div>
         )}
 
         {error && !state && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}

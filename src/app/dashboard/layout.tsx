@@ -3,6 +3,7 @@ import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
 import { SessionProvider, type SessionSeat } from '@/components/session-provider'
 import { DemoBanner } from '@/components/demo-banner'
+import { SetupReminder } from '@/components/setup-reminder'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { deniedFor, type Denied } from '@/lib/denied'
 import { DeniedScreen } from '@/components/denied'
@@ -214,6 +215,8 @@ export default async function DashboardLayout({
               scroll sideways, which is what every phone screenshot showed. */}
           <main className="flex-1 overflow-x-clip p-4 sm:p-6 md:p-8">
             <div className="max-w-[1200px] mx-auto">
+              {/* One line while setup has steps owed; silent otherwise. */}
+              <SetupReminder />
               <Suspense>
                 {children}
               </Suspense>
