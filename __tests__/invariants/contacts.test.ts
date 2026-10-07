@@ -199,6 +199,13 @@ describe('a desk at another firm is filed under the desk it actually is', () => 
     expect(missing, `these desks are filed as "Contact":\n  ${missing.join('\n  ')}`).toEqual([])
   })
 
+  it('a Member at every kind of company is chipped "Team member", because they read only their own work and hold no desk', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP'] as const) {
+      expect(kindOfRole('Member', kind), kind).toBe('MEMBER')
+    }
+    expect(KINDS.MEMBER.label).toBe('Team member')
+  })
+
   it('a title somebody typed by hand still gets a sensible chip', () => {
     expect(chip('VP of Engineering', 'CLIENT')).toBe('Executive')
     expect(chip('Accounts Payable Supervisor', 'CLIENT')).toBe('Accounts payable')

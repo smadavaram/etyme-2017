@@ -40,6 +40,7 @@ export type ContactKind =
   | 'PROGRAM'
   | 'HR'
   | 'COMPLIANCE'
+  | 'MEMBER'
   | 'OTHER'
 
 /**
@@ -60,6 +61,10 @@ export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = 
   DELIVERY: { label: 'Delivery', callAbout: 'the work on the ground, rolloffs, replacements' },
   HR: { label: 'HR', callAbout: 'whether a job is in the plan, and a firm’s own people’s paperwork' },
   COMPLIANCE: { label: 'Compliance', callAbout: 'insurance, work authorization, background checks, tenure' },
+  // A colleague seated on arrival with the Member role: they read their
+  // own work and nothing else, so they are somebody you know, not a desk
+  // you call about anything (lib/company-defaults MEMBER_ROLE).
+  MEMBER: { label: 'Team member', callAbout: 'their own work only — they hold no desk yet' },
   OTHER: { label: 'Other', callAbout: 'whatever they were saved for — add a note' },
 }
 
@@ -267,6 +272,7 @@ const CLIENT_DESKS: Record<string, ContactKind> = {
   'ap clerk': 'AP',
   'compliance officer': 'COMPLIANCE',
   'viewer': 'OTHER',
+  'member': 'MEMBER',
 }
 
 /** The desks a program office seats, from MSP_ROLES. */
@@ -277,6 +283,7 @@ const MSP_DESKS: Record<string, ContactKind> = {
   'coordinator': 'RECRUITING',
   'ap clerk': 'AP',
   'compliance officer': 'COMPLIANCE',
+  'member': 'MEMBER',
 }
 
 /** The desks a supplier or an integrator seats, from SUPPLIER_ROLES. */
@@ -305,6 +312,7 @@ const SUPPLIER_DESKS: Record<string, ContactKind> = {
   // They pay us.
   'ap & payroll': 'AP',
   'compliance officer': 'COMPLIANCE',
+  'member': 'MEMBER',
 }
 
 function desksOf(companyKind: string | null | undefined): Record<string, ContactKind> {

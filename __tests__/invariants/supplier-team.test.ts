@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES, MEMBER_ROLE } from '@/lib/company-defaults'
+import { readsOnlyOwnWork } from '@/lib/console-home'
 
 /**
  * "Can Brightmoor add or onboard their team — account managers, HR,
@@ -15,8 +16,16 @@ const supplier = rolesFor('VENDOR')
 const role = (n: string) => supplier.find((r) => r.name === n)!
 
 describe('a staffing firm’s team, in its own words', () => {
-  it('offers Owner, Admin, Recruiter, Resource Manager, Account Manager, HR, Contract Manager, Accounts Receivable, AP & Payroll, Finance and Compliance Officer', () => {
-    expect(supplier.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Recruiter', 'Resource Manager', 'Account Manager', 'HR', 'Contract Manager', 'Accounts Receivable', 'AP & Payroll', 'Finance', 'Compliance Officer'])
+  it('offers Owner, Admin, Recruiter, Resource Manager, Account Manager, HR, Contract Manager, Accounts Receivable, AP & Payroll, Finance and Compliance Officer, and Member, who reads only their own work', () => {
+    // The firm's role list, not the invitation's choices: Member is the
+    // seat a colleague is given on arrival, so the invite form at setup
+    // leaves it off (asserted below), and the firm still holds it.
+    expect(supplier.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Recruiter', 'Resource Manager', 'Account Manager', 'HR', 'Contract Manager', 'Accounts Receivable', 'AP & Payroll', 'Finance', 'Compliance Officer', MEMBER_ROLE])
+    expect(readsOnlyOwnWork(role(MEMBER_ROLE).permissions)).toBe(true)
+  })
+  it('the invitation at setup does not offer Member or Owner, because Member is what a colleague gets by arriving', () => {
+    const form = read('src/components/invite-teammate.tsx')
+    expect(form).toContain("r.name !== 'Owner' && r.name !== 'Member'")
   })
   it('Accounts Receivable bills the client and records what came in, and never accepts hours for pay or runs payroll', () => {
     const p = role('Accounts Receivable').permissions

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative, sep } from 'path'
 import { askTheDesk, desksHolding, inWords, PERMISSION_WORDS, PERMISSIONS } from '@/lib/permissions'
-import { rolesFor } from '@/lib/company-defaults'
+import { rolesFor, MEMBER_ROLE } from '@/lib/company-defaults'
+import { readsOnlyOwnWork } from '@/lib/console-home'
+import { refusalSentence } from '@/lib/refusal-words'
 
 /**
  * A refusal names the desk. It never hands somebody a permission key.
@@ -56,10 +58,13 @@ describe('a refusal names the desk, not the key', () => {
   })
 
   it('says plainly that nobody here does it, rather than inventing a desk', () => {
-    // A one-person nursing corporation has exactly one role. Ask it for
-    // a desk that does not exist and it must not make one up.
+    // A one-person nursing corporation has exactly one role that runs
+    // it, beside Member, the seat a colleague gets on arrival, which reads
+    // only its holder's own work. Ask it for a desk that does not exist
+    // and it must not make one up.
     const solo = rolesFor('CONSULTANT_CORP')
-    expect(solo.length).toBe(1)
+    expect(solo.filter((r) => !readsOnlyOwnWork(r.permissions)).map((r) => r.name)).toEqual(['Owner'])
+    expect(solo.filter((r) => readsOnlyOwnWork(r.permissions)).map((r) => r.name)).toEqual([MEMBER_ROLE])
     const says = askTheDesk({
       doing: 'Reading the approval rules',
       needs: 'governance.read',
@@ -68,6 +73,21 @@ describe('a refusal names the desk, not the key', () => {
     })
     // The owner holds everything, so here the honest answer names them.
     expect(says).toContain('Owner')
+  })
+
+  it('a refusal on a screen never names Member as the desk for anything, because Member reads only its own work', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']) {
+      for (const key of ['timesheets.read', 'assignments.read']) {
+        const says = refusalSentence(`Requires ${key} permission`, { kind, company: 'Byrne Critical Care LLC' })
+        expect(says, `${kind} ${key}`).not.toContain(MEMBER_ROLE)
+        expect(says, `${kind} ${key}`).not.toContain(key)
+      }
+    }
+  })
+
+  it('a one-person corporation refused hours is told to ask its owner, not sent to a Member', () => {
+    const says = refusalSentence('Requires timesheets.read permission', { kind: 'CONSULTANT_CORP', company: 'Byrne Critical Care LLC' })
+    expect(says).toBe('This page is not part of your seat at Byrne Critical Care LLC. Ask your company’s owner if you need it.')
   })
 
   it('falls back to a supplier\'s desks when the company kind is unknown', () => {

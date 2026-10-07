@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
+import { rolesFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
+import { readsOnlyOwnWork } from '@/lib/console-home'
 import { hasPermission } from '@/lib/permissions'
 import { SUPPLIERS_OPEN_TO, maySeeSuppliers, CANNOT_SEE_SUPPLIERS, ADDS_SUPPLIERS, CANNOT_ADD_SUPPLIER, CANNOT_JOIN_SUPPLIERS } from '@/lib/supplier-list'
 import { QUEUE_OPENS_FOR, CANNOT_SEE_QUEUE, isAboutAPerson } from '@/lib/review'
@@ -110,9 +111,20 @@ describe('every desk that uses the supplier list today still gets in', () => {
 
   it('every client and program office desk in the default roles still opens the supplier list', () => {
     for (const kind of ['CLIENT', 'MSP'] as const) {
-      for (const r of rolesFor(kind)) {
+      // A seat that reads only its holder's own work is not a desk; it is
+      // asserted shut in the sentence below, not skipped silently.
+      for (const r of rolesFor(kind).filter((r) => !readsOnlyOwnWork(r.permissions))) {
         expect(maySeeSuppliers(r.permissions), `${kind} ${r.name}`).toBe(true)
       }
+    }
+  })
+
+  it('a Member reads only their own work and is not shown the supplier list', () => {
+    for (const kind of KINDS) {
+      const member = rolesFor(kind).find((r) => r.name === MEMBER_ROLE)
+      expect(member, kind).toBeDefined()
+      expect(readsOnlyOwnWork(member!.permissions), kind).toBe(true)
+      expect(maySeeSuppliers(member!.permissions), kind).toBe(false)
     }
   })
 

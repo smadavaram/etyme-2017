@@ -1,4 +1,6 @@
 import { PERMISSIONS, desksHolding, type Permission } from '@/lib/permissions'
+import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
+import { readsOnlyOwnWork } from '@/lib/console-home'
 
 /**
  * A refusal a person can read, whatever the route behind it wrote.
@@ -42,6 +44,25 @@ function orList(xs: readonly string[]): string {
 }
 
 /**
+ * The desks that hold a key and do something with it — never a seat
+ * that reads only its holder's own work.
+ *
+ * Member (lib/company-defaults) holds `assignments.read` and
+ * `timesheets.read`, but only over the holder's own work, so naming it
+ * as "the desk" for reading hours would send somebody to a colleague
+ * who can see nothing but their own week. Where Member was the only
+ * name left — a one-person corporation, whose Owner is held by
+ * construction and so not named — the list comes back empty and the
+ * sentence says to ask the owner, which is the honest answer there.
+ */
+function desksThatAct(keys: readonly Permission[], kind: string): string[] {
+  // An unknown kind reads the supplier set, the same fallback desksHolding uses.
+  const roles = rolesFor(kind.toUpperCase() as CompanyKind)
+  const ownWorkOnly = new Set(roles.filter((r) => readsOnlyOwnWork(r.permissions)).map((r) => r.name))
+  return desksHolding(keys, kind).filter((d) => !ownWorkOnly.has(d))
+}
+
+/**
  * The message, or a sentence in its place where it carries a key.
  *
  * `what` is the subject — "This page" by default, "This" for a button.
@@ -61,7 +82,7 @@ export function refusalSentence(
   if (!opts.kind) {
     return `${what} is not part of your seat${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
   }
-  const desks = desksHolding(keys, opts.kind)
+  const desks = desksThatAct(keys, opts.kind)
   if (desks.length === 0) {
     return `${what} is not part of your seat${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
   }
