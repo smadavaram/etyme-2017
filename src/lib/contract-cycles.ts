@@ -17,11 +17,12 @@
  */
 
 import type { Prisma } from '@prisma/client'
-import { generateCycles, type CycleDefinition } from '@/lib/cycle-generator'
+import { generateCycles, generatePayCycles, type CycleDefinition } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
 import { policyFrom, type CycleShiftPolicy } from '@/lib/cycle-shift'
 import { getTemplatePack } from '@/lib/template-packs'
 import { termsFor, type OrderHeader } from '@/lib/money/order-terms'
+import { rhythmFrom, type PayRhythm } from '@/lib/pay-dates'
 
 /**
  * The two tables this touches, so a transaction client or the plain
@@ -66,6 +67,38 @@ export const DEMO_MONTHLY_PAY: readonly CycleDefinition[] = Object.freeze([
   Object.freeze({ kind: 'SALARY_CALCULATE', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 4 }),
   Object.freeze({ kind: 'SALARY_PAY', frequency: 'MONTHLY', dayOfMonth: 28, offsetDays: 9 }),
 ] as CycleDefinition[])
+
+/**
+ * The company's payroll, where somebody chose it, or null.
+ *
+ * ── Payroll is the company's choice, 2026-10-07 ──────────────────────
+ *
+ * The founder: "Give choice to businesses when they want to configure
+ * payroll." The pack's salary lines (`lib/template-packs`) stay where they
+ * are, as the documented default; where a company has answered on its
+ * settings screen (`lib/payroll-settings`), its answer replaces them on
+ * every payroll line it pays, and the pack's lines never win over it.
+ *
+ * "Chose" is read off who set it, not off the columns: the columns carry
+ * schema defaults — every other week, Wednesday and Friday — so a value
+ * that cannot say it was never answered must not move a pay date. That is
+ * the same argument `lib/money/order-terms` makes about a line's copy of
+ * the billing rhythm. A company nobody configured is generated on the
+ * pack exactly as before, which is why no seeded date moves: an India or
+ * UK pack still pays on the 25th and 28th, a US one still on the
+ * Wednesday and Friday, and the demo's monthly override still stands.
+ *
+ * Only pay. Hours and bill dates are the pack's, and a line bought from a
+ * supplier has no payroll — its invoice receipt dates do not move.
+ */
+export function chosenPayroll(
+  company: (Parameters<typeof rhythmFrom>[0] & { paySettingsSetAt?: Date | null }) | null | undefined
+): PayRhythm | null {
+  // The pure half of lib/payroll-settings' `paySettingsFrom`, read here
+  // without the database client so the unit tests' stand-ins still fit.
+  if (!company?.paySettingsSetAt) return null
+  return rhythmFrom(company)
+}
 
 /** The kinds a pay override may replace, and must replace together. */
 const PAY_KINDS = ['SALARY_CALCULATE', 'SALARY_PAY'] as const
@@ -181,8 +214,18 @@ export async function writeCyclesFor(
      * nothing else. Only the seed passes this, with `DEMO_MONTHLY_PAY`.
      * Replaces the pack's pay calculation and pay day; on a line bought
      * from a supplier there is no payroll, so it writes nothing there.
+     *
+     * A company's own payroll choice wins over it (`chosenPayroll`): the
+     * override is the demo's stand-in for an answer nobody gave, and once
+     * somebody gives one it is theirs.
      */
     pay?: readonly CycleDefinition[]
+    /**
+     * The paying company's payroll, where the caller has it: a rhythm it
+     * chose, or null for "nobody chose, use the pack". Omitted, it is read
+     * off the company that holds the pair, with the shift policy.
+     */
+    payroll?: PayRhythm | null
   }
 ): Promise<Written> {
   const { sell, buy } = input
@@ -200,24 +243,35 @@ export async function writeCyclesFor(
   const holidays = input.holidays ?? []
   const existing = input.existing ?? new Map<string, Set<string>>()
 
-  // Whose policy: the company that holds the pair. A contract row that
-  // has gone missing between the caller's write and this read would be a
-  // bug elsewhere; it reads as the shipped default rather than as no
-  // answer, because there is no third behavior for a cycle date.
-  const policy =
-    input.policy ??
-    policyFrom(
-      (
-        await db.sellContract.findUnique({
-          where: { id: sell.id },
-          select: {
-            company: {
-              select: { cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true },
+  // Whose policy and whose payroll: the company that holds the pair — it
+  // runs the payroll on the buy line. A contract row that has gone missing
+  // between the caller's write and this read would be a bug elsewhere; it
+  // reads as the shipped default rather than as no answer, because there
+  // is no third behavior for a cycle date.
+  const company =
+    input.policy !== undefined && input.payroll !== undefined
+      ? null
+      : (
+          await db.sellContract.findUnique({
+            where: { id: sell.id },
+            select: {
+              company: {
+                select: {
+                  cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
+                  payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true,
+                  payDaysOfMonth: true, payCalcDaysBefore: true,
+                  paySettingsSetAt: true, paySettingsSetById: true,
+                },
+              },
             },
-          },
-        })
-      )?.company
-    )
+          })
+        )?.company
+  const policy = input.policy ?? policyFrom(company)
+  const payroll = input.payroll !== undefined ? input.payroll : chosenPayroll(company)
+  // A payroll line — nobody below us to pay, so we pay the person — on a
+  // company that chose its payroll: the pack's (or the demo's) pay lines
+  // step aside and the company's dates are written instead.
+  const ownPayroll = payroll !== null && buy !== null && buy.vendorCompanyId === null
   const options = {
     policy,
     onlyPeriodsAfter: input.onlyPeriodsAfter ?? null,
@@ -225,9 +279,21 @@ export async function writeCyclesFor(
   }
 
   const sellCycles = generateCycles(dates.startDate, dates.endDate, split.sell, holidays, existing, options)
-  const buyCycles = buy
-    ? generateCycles(dates.startDate, dates.endDate, split.buy, holidays, existing, options)
-    : []
+  const buyCycles = !buy
+    ? []
+    : ownPayroll
+      ? [
+          ...generateCycles(
+            dates.startDate,
+            dates.endDate,
+            split.buy.filter((d) => !(PAY_KINDS as readonly string[]).includes(d.kind)),
+            holidays,
+            existing,
+            options
+          ),
+          ...generatePayCycles(dates.startDate, dates.endDate, payroll!, holidays, existing, options),
+        ].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
+      : generateCycles(dates.startDate, dates.endDate, split.buy, holidays, existing, options)
 
   const rows = [
     ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),

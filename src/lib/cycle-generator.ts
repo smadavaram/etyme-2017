@@ -82,6 +82,7 @@ import {
   shiftToWorkingDay,
   type CycleShiftPolicy,
 } from '@/lib/cycle-shift'
+import { payDatesFor, payDatesInMonth, type PayRhythm } from '@/lib/pay-dates'
 
 export type CycleFrequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY' | 'ON_COMPLETION'
 
@@ -469,44 +470,160 @@ export function generateCycles(
 
   for (const def of definitions) {
     if (!isMoneyKind(def.kind)) continue
-    const existing = existingDates.get(def.kind) ?? new Set<string>()
-
-    // Which way this company moves a date of this kind. OTHER is not
-    // configurable and never reaches here — an unrecognized kind is
-    // skipped above — but `directionFor` answers for it anyway, because a
-    // row written by an older engine must not change behavior because
-    // somebody edited a setting about pay.
-    const direction = directionFor(categoryOf(def.kind), policy)
-
-    // What this kind already sits on: the dates written by an earlier run,
-    // and the ones this run has produced so far.
-    //
-    // Two boundaries can shift onto one day. A semimonthly invoice cuts at
-    // month-end and again on the 1st, and when the 31st is a Saturday and
-    // the 1st a Sunday both move forward to the same Monday — two rows,
-    // one day, two invoices raised for one period. The guard against
-    // re-writing an extension's existing dates was here; the guard against
-    // a run colliding with itself was not.
-    const taken = new Set(existing)
-
-    for (const periodEnd of generatePeriodEnds(start, end, def)) {
-      // A period settled by an earlier run is not emitted again, however
-      // the company has since asked its dates to move.
-      if (floor && periodEnd <= floor) continue
+    const entries = generatePeriodEnds(start, end, def).map((periodEnd) => {
       const due = new Date(periodEnd)
       due.setDate(due.getDate() + offsetFor(def))
-      // The company's own days off where it set them (2026-10-06).
-      const shifted = shiftToWorkingDay(due, holidaySet, direction, policy.daysOff)
-      // Keyed the same way the holidays are, so an extension knows the
-      // dates it already wrote whatever timezone the server is in.
-      const day = localDayKey(shifted)
-      if (dueFloor && day < dueFloor) continue
-      if (taken.has(day)) continue
-      taken.add(day)
-      cycles.push({ kind: def.kind, dueOn: shifted })
+      return { periodEnd, due }
+    })
+    emitSeries(def.kind, entries, holidaySet, existingDates, policy, floor, dueFloor, cycles)
+  }
+
+  cycles.sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
+  return cycles
+}
+
+/**
+ * One kind's dates, from their period ends and unshifted due days to the
+ * rows written: moved off a day nobody works the way the company asked,
+ * dropped where an earlier run settled the period or the award's floor
+ * forbids it, and never two on one day.
+ *
+ * Shared by the pack's series and the company's payroll, so a pay day
+ * from a setting is guarded exactly the way a pay day from a pack is.
+ */
+function emitSeries(
+  kind: string,
+  entries: readonly { periodEnd: Date; due: Date }[],
+  holidaySet: Set<string>,
+  existingDates: Map<string, Set<string>>,
+  policy: CycleShiftPolicy,
+  floor: Date | null,
+  dueFloor: string | null,
+  out: GeneratedCycle[]
+): void {
+  const existing = existingDates.get(kind) ?? new Set<string>()
+
+  // Which way this company moves a date of this kind. OTHER is not
+  // configurable and never reaches here — an unrecognized kind is
+  // skipped by the callers — but `directionFor` answers for it anyway,
+  // because a row written by an older engine must not change behavior
+  // because somebody edited a setting about pay.
+  const direction = directionFor(categoryOf(kind), policy)
+
+  // What this kind already sits on: the dates written by an earlier run,
+  // and the ones this run has produced so far.
+  //
+  // Two boundaries can shift onto one day. A semimonthly invoice cuts at
+  // month-end and again on the 1st, and when the 31st is a Saturday and
+  // the 1st a Sunday both move forward to the same Monday — two rows,
+  // one day, two invoices raised for one period. The guard against
+  // re-writing an extension's existing dates was here; the guard against
+  // a run colliding with itself was not.
+  const taken = new Set(existing)
+
+  for (const { periodEnd, due } of entries) {
+    // A period settled by an earlier run is not emitted again, however
+    // the company has since asked its dates to move.
+    if (floor && periodEnd <= floor) continue
+    // The company's own days off where it set them (2026-10-06).
+    const shifted = shiftToWorkingDay(due, holidaySet, direction, policy.daysOff)
+    // Keyed the same way the holidays are, so an extension knows the
+    // dates it already wrote whatever timezone the server is in.
+    const day = localDayKey(shifted)
+    if (dueFloor && day < dueFloor) continue
+    if (taken.has(day)) continue
+    taken.add(day)
+    out.push({ kind, dueOn: shifted })
+  }
+}
+
+// ── Pay dates from the company's own payroll ───────────────────────────
+
+const DAY_MS = 86_400_000
+const utcMidnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+
+/**
+ * A line's pay calculation and pay day on the company's own payroll
+ * rhythm (`lib/pay-dates`), rather than on the pack's salary lines.
+ *
+ * Decided by the founder, 2026-10-07: payroll is the company's choice and
+ * the recommendation is the default. The caller decides whether a company
+ * chose — `lib/contract-cycles` passes a rhythm only where somebody
+ * answered on the settings screen, so a company that never did keeps the
+ * pack's dates to the day.
+ *
+ * ── Every week and every other week ──────────────────────────────────
+ *
+ * Periods are Sunday-to-Saturday weeks — one, or two for every other
+ * week — counted from the Sunday on or before the contract start, the
+ * same periods `periodFor` in `lib/periods` pays and the payroll export
+ * reads. Pay is worked out and paid the company's offsets after each
+ * period's Saturday (`payDatesFor`).
+ *
+ * A period is kept while its Friday is inside the contract, for the
+ * reason the weekly pack lines are written "Friday + 3": the ordinary
+ * placement ends on a Friday, and a Saturday test would drop its last
+ * period's pay day. The Friday is also what an extension's floor is
+ * compared with, as it is for the pack's own series. A contract starting
+ * on a Saturday has its one day paid in the week that ends on it, which
+ * the pack's Friday anchor never covered.
+ *
+ * ── Twice a month and once a month ───────────────────────────────────
+ *
+ * The period ends on a pay day (`payDatesInMonth`), and a pay day inside
+ * the contract is written with the calculation before it. A calculation
+ * that would fall before the contract starts is not written — the pack's
+ * own rule, where a monthly line starting on the 27th has no 25th — and
+ * the pay day stands.
+ *
+ * No weekend or holiday is moved here; `emitSeries` moves both kinds in
+ * the company's PAY direction around its own days off and holidays.
+ */
+export function generatePayCycles(
+  start: Date,
+  end: Date,
+  rhythm: PayRhythm,
+  holidays: Iterable<string> = [],
+  existingDates: Map<string, Set<string>> = new Map(),
+  options: GenerateOptions = {}
+): GeneratedCycle[] {
+  const calc: { periodEnd: Date; due: Date }[] = []
+  const pay: { periodEnd: Date; due: Date }[] = []
+  const from = utcMidnight(start)
+  const to = utcMidnight(end)
+
+  if (rhythm.payPeriod === 'WEEKLY' || rhythm.payPeriod === 'BIWEEKLY') {
+    const step = rhythm.payPeriod === 'WEEKLY' ? 7 : 14
+    const anchor = from.getTime() - from.getUTCDay() * DAY_MS // the Sunday on or before the start
+    for (let k = 1; ; k++) {
+      const saturday = new Date(anchor + (k * step - 1) * DAY_MS)
+      const friday = new Date(saturday.getTime() - DAY_MS)
+      if (friday > to) break
+      const { calcOn, payOn } = payDatesFor(saturday, rhythm)
+      calc.push({ periodEnd: friday, due: calcOn })
+      pay.push({ periodEnd: friday, due: payOn })
+    }
+  } else {
+    let year = from.getUTCFullYear()
+    let month = from.getUTCMonth() + 1
+    while (Date.UTC(year, month - 1, 1) <= to.getTime()) {
+      for (const { calcOn, payOn } of payDatesInMonth(year, month, rhythm)) {
+        if (payOn < from || payOn > to) continue
+        if (calcOn >= from) calc.push({ periodEnd: payOn, due: calcOn })
+        pay.push({ periodEnd: payOn, due: payOn })
+      }
+      month++
+      if (month > 12) { month = 1; year++ }
     }
   }
 
+  const cycles: GeneratedCycle[] = []
+  const holidaySet = new Set(holidays)
+  const policy = options.policy ?? DEFAULT_CYCLE_SHIFT
+  const floor = options.onlyPeriodsAfter ?? null
+  const dueFloor = options.noneDueBefore ? localDayKey(options.noneDueBefore) : null
+  emitSeries('SALARY_CALCULATE', calc, holidaySet, existingDates, policy, floor, dueFloor, cycles)
+  emitSeries('SALARY_PAY', pay, holidaySet, existingDates, policy, floor, dueFloor, cycles)
   cycles.sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
   return cycles
 }
