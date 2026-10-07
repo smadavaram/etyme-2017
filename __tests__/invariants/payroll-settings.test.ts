@@ -115,7 +115,10 @@ describe('payroll is the company’s choice', () => {
   })
 
   it('the settings screen shows the week and payroll in the trade’s words and previews the next dates', () => {
-    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/page.tsx'), 'utf8')
+    // The two panels are components since 2026-10-07, drawn by the
+    // settings page and by setup's "How you work" step alike.
+    const page = ['src/app/dashboard/settings/page.tsx', 'src/components/settings/week-panel.tsx', 'src/components/settings/payroll-panel.tsx']
+      .map((f) => readFileSync(join(process.cwd(), f), 'utf8')).join('\n')
     for (const words of [
       'title="Your week"', 'Days off', 'Hours due', 'Approved by', 'Give approvers one extra week',
       'title="Payroll"', 'Pay period', 'Worked out on', 'Paid on', 'Pay day', 'Worked out',
