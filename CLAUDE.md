@@ -1679,7 +1679,8 @@ Three rules follow:
   month, monthly), the day pay is worked out and the day it is paid,
   recorded with who set it and when. Defaults: every other week, worked
   out the Wednesday and paid the Friday after the period's Saturday;
-  monthly on the 28th (month end), worked out three days before. Pay
+  monthly at month end (the 28th means month end), worked out on the
+  25th. Pay
   can never go out before it is worked out. Beside the monthly choice
   the screen says, as a fact and not a rule, that some US states require
   pay at least twice a month; making that a rule per state is
