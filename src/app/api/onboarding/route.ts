@@ -8,11 +8,14 @@ import {
 import {
   decideEntry, domainOfEmail, type ClaimedDomain,
 } from '@/lib/company-domains'
-import { notifyBulk } from '@/lib/notify'
-import { defaultPostureFor } from '@/lib/walls'
-import { defaultsFor } from '@/lib/company-defaults'
-import { holidaysFor } from '@/lib/holidays'
-import { writeFromRules } from '@/lib/site-voice'
+import { tellOwnerSomebodyJoined } from '@/lib/notify/joined'
+import { MEMBER_ROLE } from '@/lib/company-defaults'
+import { ensureDefaultRoles } from '@/lib/company-roles'
+import { createCompany } from '@/lib/company-create'
+import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES } from '@/lib/setup-steps'
+import { countryFromDomain, packFor } from '@/lib/company-defaults'
+import { hasPermission } from '@/lib/permissions'
+import { setupStateFor } from '@/lib/setup-state'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -47,6 +50,34 @@ async function allClaims(): Promise<ClaimedDomain[]> {
   }))
 }
 
+/**
+ * A colleague's seat, with the Member role at once.
+ *
+ * Decided by the founder, 2026-10-07: a colleague who signs in on a
+ * claimed domain gets a seat with a default role at once, and the owner
+ * is told who joined and what to give them. Member reads the holder's own
+ * work and nothing else (lib/company-defaults), so a stranger who shares a
+ * domain learns nothing about the firm, and a real colleague is not left
+ * looking at a page that refuses them while somebody remembers to act.
+ *
+ * A company formed before Member existed gets it here, the same way the
+ * access screen would give it to them (ensureDefaultRoles).
+ */
+async function seatAsMember(personId: string, companyId: string): Promise<{ roleName: string }> {
+  let role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
+  if (!role) {
+    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
+    await ensureDefaultRoles(companyId, company?.kind ?? 'VENDOR')
+    role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
+  }
+  await prisma.context.create({
+    data: { personId, type: 'EMPLOYEE', companyId, roleId: role?.id ?? null },
+  })
+  // Conversation's notice: every owner and admin, and the joiner. Never throws.
+  void tellOwnerSomebodyJoined(companyId, personId, MEMBER_ROLE)
+  return { roleName: MEMBER_ROLE }
+}
+
 export async function GET(request: NextRequest) {
   const email = await getSessionEmail()
   if (!email) {
@@ -69,8 +100,24 @@ export async function GET(request: NextRequest) {
 
   if (person && person.contexts.some(c => c.companyId)) {
     const c = person.contexts.find(x => x.companyId)!
+    // The seat they hold, so /start can open their own desk rather than an
+    // empty dashboard, and whether the company's setup is theirs to finish.
+    const role = c.roleId
+      ? await prisma.role.findUnique({ where: { id: c.roleId }, select: { name: true, permissions: true } })
+      : null
+    const permissions = role?.permissions ?? []
+    const setup = await setupStateFor(c.companyId!, {
+      mayRun: hasPermission(permissions, 'settings.manage'),
+      followedLinkBack: request.nextUrl.searchParams.get('finish') === '1',
+    })
     return NextResponse.json({
-      data: { action: 'ALREADY_IN', company: c.company, message: `You are already in ${c.company?.name}.` },
+      data: {
+        action: 'ALREADY_IN',
+        company: c.company,
+        message: `You are already in ${c.company?.name}.`,
+        seat: { type: c.type, role: role?.name ?? null, permissions },
+        setup,
+      },
     })
   }
 
@@ -87,6 +134,21 @@ export async function GET(request: NextRequest) {
         decision.action === 'CREATE' ? guessCompanyName(decision.domain)
           : decision.action === 'SUGGEST' ? guessCompanyName(decision.domain)
             : undefined,
+      // Step 2's guesses, each said as a guess. The page recomputes the
+      // pack line as the answers change, from the same functions.
+      ...(decision.action === 'CREATE' || decision.action === 'SUGGEST'
+        ? (() => {
+            const country = countryFromDomain(decision.domain)
+            return {
+              suggestedCountry: country,
+              suggestedCurrency: currencyFor(country),
+              countrySays: countryGuessSentence(country, decision.domain),
+              packSays: packSentence(packFor('VENDOR', country)),
+              countries: COUNTRIES,
+              currencies: CURRENCIES,
+            }
+          })()
+        : {}),
     },
   })
 }
@@ -164,11 +226,7 @@ export async function POST(request: NextRequest) {
       const already = await prisma.context.findFirst({
         where: { personId: person.id, companyId: decision.companyId, revokedAt: null },
       })
-      if (!already) {
-        await prisma.context.create({
-          data: { personId: person.id, type: 'EMPLOYEE', companyId: decision.companyId },
-        })
-      }
+      if (!already) await seatAsMember(person.id, decision.companyId)
 
       await prisma.automationLog.create({
         data: {
@@ -186,8 +244,8 @@ export async function POST(request: NextRequest) {
           action: 'JOIN',
           companyId: decision.companyId,
           companyName: decision.companyName,
-          message: `You are in ${decision.companyName}, and ${decision.domain} is now theirs so nobody else has to answer that.`,
-          needsRole: true,
+          message: `You are in ${decision.companyName} as ${MEMBER_ROLE}, and ${decision.domain} is now theirs so nobody else has to answer that.`,
+          role: MEMBER_ROLE,
         },
       })
     }
@@ -219,20 +277,17 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Joining does not grant a role. Somebody at the company decides what
-    // this person may do — an unrecognised colleague getting Owner because
-    // they share a domain is how a tenant is lost.
-    await prisma.context.create({
-      data: { personId: person.id, type: 'EMPLOYEE', companyId: decision.companyId },
-    })
+    // Joining grants the Member role and nothing more: their own work,
+    // never the firm's. Somebody at the company gives them a desk.
+    await seatAsMember(person.id, decision.companyId)
 
     await prisma.automationLog.create({
       data: {
         companyId: decision.companyId,
         action: 'COLLEAGUE_JOINED',
-        summary: `${person.name} joined from ${domain}`,
+        summary: `${person.name} joined from ${domain} as ${MEMBER_ROLE}`,
         reason: 'Verified work email on a domain this company already owns',
-        payload: { personId: person.id, email },
+        payload: { personId: person.id, email, role: MEMBER_ROLE },
         reversible: true,
       },
     })
@@ -243,44 +298,16 @@ export async function POST(request: NextRequest) {
       subjectType: 'Person',
       subjectId: person.id,
       actorPersonId: person.id,
-      payload: { email, domain, companyName: decision.companyName, hasRole: false },
+      payload: { email, domain, companyName: decision.companyName, hasRole: true, role: MEMBER_ROLE },
     })
-
-    // Somebody has to be told, or the new colleague sits with no role and
-    // no way to say so — waiting on a decision nobody knows they owe. The
-    // people who can grant a role are the ones who get the message.
-    const admins = await prisma.context.findMany({
-      where: {
-        companyId: decision.companyId,
-        revokedAt: null,
-        personId: { not: person.id },
-        role: { permissions: { hasSome: ['*', 'roles.write', 'company.write'] } },
-      },
-      select: { personId: true },
-    })
-    if (admins.length > 0) {
-      void notifyBulk(
-        admins.map(a => ({
-          personId: a.personId,
-          companyId: decision.companyId,
-          type: 'SYSTEM' as const,
-          title: `${person.name} is waiting for access`,
-          body: `${person.name} (${email}) signed in from ${domain} and joined ${decision.companyName}. They cannot see anything until somebody gives them a role.`,
-          entityId: person.id,
-        }))
-      )
-    }
 
     return NextResponse.json({
       data: {
         action: 'JOIN',
         companyId: decision.companyId,
         companyName: decision.companyName,
-        message: `You are in ${decision.companyName}. An administrator there decides what you can see.`,
-        needsRole: true,
-        // Said plainly, because "waiting for approval" with nobody named is
-        // the moment a new user gives up.
-        waitingOn: admins.length,
+        message: `You are in ${decision.companyName} as ${MEMBER_ROLE}. You can see your own work now. An owner there gives you a desk.`,
+        role: MEMBER_ROLE,
       },
     })
   }
@@ -311,139 +338,23 @@ export async function POST(request: NextRequest) {
   const slug = slugFromDomain(newCompanyDomain, takenSlugs)
   const name = String(body.name ?? '').trim() || guessCompanyName(newCompanyDomain)
 
-  // Everything the company starts with, decided from what it is and where
-  // it is. A default is a starting point, never a decision taken away —
-  // all of this is editable in settings. What it must not do is leave the
-  // company unable to start, which is what an empty setup produced.
-  const kit = defaultsFor(type.kind as any, name, newCompanyDomain)
-
-  const company = await prisma.company.create({
-    data: {
-      name,
-      slug,
-      // Kept for display. The company's identity is its id, and the
-      // domains it admits people through live in CompanyDomain — a
-      // conglomerate holds several and a subsidiary holds its own.
-      domain: newCompanyDomain,
-      domainVerified: true,
-      kind: type.kind as any,
-      supplierPosture: type.posture,
-      // Who here may look at the market outside. Open for a staffing firm,
-      // whose business is outside; named people only for a delivery firm or
-      // an enterprise, where a handful hire contractors and the rest have
-      // no reason to see the market at all. Changeable in settings, and
-      // the default is the safe direction rather than the convenient one.
-      outsideAccess: defaultPostureFor(type.kind),
-      // The cycle calendar. Without a pack a contract generates no due
-      // dates at all, so nothing is ever owed and nothing is ever chased.
-      templatePack: kit.templatePack,
-      // BUILD.md §4A: the ninety second promise is satisfied here.
-      siteLiveAt: new Date(),
-      // The network stays closed until somebody vouches. Public site,
-      // private network.
-      networkVerifiedAt: null,
-    },
+  // One way to make a company (lib/company-create): the same pack, roles,
+  // head office and holidays as "Add company". Country and currency are
+  // step 2's answers; left out, they are guessed from the domain.
+  const made = await createCompany({
+    name,
+    kind: type.kind as any,
+    slug,
+    domain: newCompanyDomain,
+    country: body.country ?? null,
+    currency: body.currency ?? null,
+    posture: type.posture,
+    byPersonId: person.id,
+    seatAsOwner: true,
+    claimDomain: true,
+    startsSetup: true,
   })
-
-  // Words for their page, written from what they just told us. A company
-  // with a live address and no words on it is the ninety-second promise
-  // half kept.
-  //
-  // Written by rule at sign-up rather than by model, because sign-up must
-  // not wait on a third party — and because on day one there is almost
-  // nothing to say beyond what they are and where. They can have it
-  // written properly from settings once there is something to write about.
-  const voice = writeFromRules({
-    name: company.name,
-    kind: company.kind,
-    posture: company.supplierPosture,
-    skills: [],
-    locations: [],
-    placements: 0, activeNow: 0, clients: 0,
-    openPositions: 0, comingFree: 0, trainingCourses: 0,
-  })
-
-  await prisma.company.update({
-    where: { id: company.id },
-    data: {
-      siteTagline: voice.tagline,
-      siteIntro: voice.intro,
-      siteHeadings: voice.headings as any,
-      siteWrittenBy: 'RULES',
-      siteWrittenAt: new Date(),
-    },
-  })
-
-  // The domain becomes a claim rather than the company's identity. AUTO,
-  // because the person creating a company from their work address is
-  // saying everybody on it works there — and that is exactly the case the
-  // policy exists for.
-  await prisma.companyDomain.create({
-    data: {
-      companyId: company.id,
-      domain: newCompanyDomain,
-      // The identity provider already proved it. Asking them to confirm an
-      // address it asserted is theatre that costs a step.
-      verifiedAt: new Date(),
-      verifiedVia: 'OAUTH_TENANT',
-      joinPolicy: 'AUTO',
-      isPrimary: true,
-      addedById: person.id,
-    },
-  })
-
-  // Roles for what this company actually is. A client gets Hiring Manager
-  // and no Recruiter; a supplier gets the reverse. One role called Owner
-  // meant the access screen could offer a new colleague total control or
-  // nothing, which is not a choice anybody should have to make.
-  const createdRoles = await Promise.all(
-    kit.roles.map((r) =>
-      prisma.role.create({
-        data: {
-          companyId: company.id,
-          name: r.name,
-          permissions: [...r.permissions],
-          isDefault: true,
-        },
-        select: { id: true, name: true },
-      })
-    )
-  )
-  const owner = createdRoles.find((r) => r.name === 'Owner')!
-
-  await prisma.context.create({
-    data: { personId: person.id, type: 'EMPLOYEE', companyId: company.id, roleId: owner.id },
-  })
-
-  // Somewhere to work. A location picker with nothing in it reads as
-  // broken, and an assignment with no location cannot be reasoned about
-  // for tenure or for tax.
-  await prisma.companyLocation.create({
-    data: {
-      companyId: company.id,
-      name: kit.primaryLocationName,
-      country: kit.country,
-      isPrimary: true,
-    },
-  })
-
-  // Public holidays, so business-day shifting has something real to shift
-  // against. An empty calendar silently computes every cycle date against
-  // weekends only — and cycle arithmetic is one of the three things
-  // CLAUDE.md names as hardest to get right.
-  if (kit.seedHolidays) {
-    const thisYear = new Date().getFullYear()
-    const dates = [thisYear, thisYear + 1].flatMap((y) => holidaysFor(kit.country, y) ?? [])
-    await prisma.holiday.createMany({
-      data: dates.map((h) => ({
-        companyId: company.id,
-        date: new Date(h.date + 'T00:00:00Z'),
-        name: h.name,
-        country: kit.country,
-      })),
-      skipDuplicates: true,
-    })
-  }
+  const company = made.company
 
   await prisma.automationLog.create({
     data: {
@@ -483,14 +394,16 @@ export async function POST(request: NextRequest) {
         // Said out loud, because a default nobody knows about is a
         // surprise later rather than a head start now.
         setUpForYou: {
-          templatePack: kit.templatePack,
-          roles: createdRoles.map((r) => r.name),
-          country: kit.country,
-          holidaysSeeded: kit.seedHolidays,
+          templatePack: made.templatePack,
+          roles: made.roles.map((r) => r.name),
+          country: made.country,
+          currency: made.currency,
+          holidaysSeeded: made.holidaysSeeded > 0,
           // What their page says on day one, so they can see it rather
           // than discover it.
-          siteTagline: voice.tagline,
+          siteTagline: made.siteTagline,
         },
+        packSays: packSentence(made.templatePack),
         // Everything after this is enrichment and skippable (BUILD.md §4A).
         message: `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${decision.domain} who signs in will join you.`,
       },

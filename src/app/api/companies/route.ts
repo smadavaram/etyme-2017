@@ -5,9 +5,9 @@ import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { defaultPostureFor } from '@/lib/walls'
 import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
-import { mayRegisterWithEmail, rolesFor } from '@/lib/company-defaults'
+import { mayRegisterWithEmail } from '@/lib/company-defaults'
+import { createCompany } from '@/lib/company-create'
 import { mayAddCompany } from '@/lib/counterparty'
 
 /**
@@ -17,7 +17,9 @@ import { mayAddCompany } from '@/lib/counterparty'
  *
  * Flow:
  *   1. Slug from domain, collision-numbered, reserved list checked
- *   2. Creates Company, 7 default Roles, owner Context
+ *   2. Creates the company through lib/company-create — the pack, roles
+ *      for its kind, head office and holidays first sign-in gives — and
+ *      the owner's seat where the caller is founding their own firm
  *   3. Sets siteLiveAt = now
  *   4. Fires AI site generation (background job)
  *   5. networkVerifiedAt stays null until manual verification
@@ -44,79 +46,10 @@ const RESERVED_SLUGS = new Set([
   'etyme',
 ])
 
-const DEFAULT_ROLES = [
-  { name: 'Owner', permissions: ['*'], isDefault: true },
-  {
-    name: 'Admin',
-    permissions: [
-      'consultants.read', 'consultants.write', 'consultants.cost',
-      'requirements.read', 'requirements.write',
-      'submissions.read', 'submissions.create',
-      'assignments.read', 'assignments.write',
-      'timesheets.read', 'timesheets.approve',
-      'invoices.read', 'invoices.issue',
-      'payments.record',
-      'vendors.read', 'vendors.manage',
-      'team.manage', 'settings.manage',
-      'utilization.read', 'margin.read',
-      'compliance.read', 'imports.run',
-    ],
-    isDefault: true,
-  },
-  {
-    name: 'Recruiter',
-    permissions: [
-      'consultants.read', 'consultants.write',
-      'requirements.read',
-      'submissions.read', 'submissions.create',
-      'assignments.read',
-      'timesheets.read',
-      'vendors.read',
-    ],
-    isDefault: true,
-  },
-  {
-    name: 'Accountant',
-    permissions: [
-      'timesheets.read', 'timesheets.approve',
-      'invoices.read', 'invoices.issue',
-      'payments.record',
-      'pnl.read',
-    ],
-    isDefault: true,
-  },
-  {
-    name: 'Project Manager',
-    permissions: [
-      'consultants.read',
-      'requirements.read', 'requirements.write',
-      'submissions.read',
-      'assignments.read',
-      'timesheets.read', 'timesheets.approve',
-      'utilization.read',
-    ],
-    isDefault: true,
-  },
-  {
-    name: 'Resource Manager',
-    permissions: [
-      'consultants.read', 'consultants.write',
-      'requirements.read',
-      'submissions.read', 'submissions.create',
-      'assignments.read', 'assignments.write',
-      'utilization.read',
-    ],
-    isDefault: true,
-  },
-  {
-    name: 'Compliance Officer',
-    permissions: [
-      'consultants.read', 'assignments.read', 'timesheets.read',
-      'compliance.read',
-    ],
-    isDefault: true,
-  },
-] as const
+// The seven hard-coded staffing-agency roles that used to live here are
+// retired: every kind of company now gets the roles for what it is, from
+// rolesFor(kind), through lib/company-create — the same function first
+// sign-in uses (founder, 2026-10-07).
 
 function slugify(name: string): string {
   return name
@@ -225,86 +158,48 @@ export async function POST(request: NextRequest) {
 
   // Domain from the authenticated user's email — unless it is a personal
   // one, which proves nothing about any company and must not be recorded
-  // as if it did. gmail.com marked domainVerified would be a lie the
-  // whole identity model then repeats.
-  const domain = personalEmail ? null : email.split('@')[1]?.toLowerCase() ?? null
+  // as if it did. And only where the caller is founding their own firm:
+  // a counterparty written down from inside a seat is not on the caller's
+  // domain, and recording it there as verified would hand the caller's
+  // colleagues to somebody else's company the next time they signed in.
+  const domain = personalEmail || !adding.ownsIt ? null : email.split('@')[1]?.toLowerCase() ?? null
 
   try {
     const slug = await uniqueSlug(baseSlug)
 
-    // One transaction: Company + 7 Roles + owner Person (find or create) + owner Context + AutomationLog
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create the company
-      const company = await tx.company.create({
-        data: {
-          name: name.trim(),
-          slug,
-          domain,
-          domainVerified: !personalEmail, // OAuth proves a work domain; gmail proves nothing
-          kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP',
-          // Same rule as onboarding: a delivery firm or an enterprise
-          // starts closed to all but named people.
-          outsideAccess: defaultPostureFor(kind),
-          siteLiveAt: new Date(),
-        },
-      })
-
-      // 2. Roles for this KIND of company. Every kind was getting the
-      // same seven vendor roles — rolesFor() existed, was tested, and
-      // this route never called it. A one-person consultant corp gets
-      // one role: Owner. It is their company.
-      const seeds =
-        kind === 'CONSULTANT_CORP'
-          ? rolesFor('CONSULTANT_CORP').map((r) => ({
-              name: r.name,
-              permissions: r.permissions,
-              isDefault: false,
-            }))
-          : DEFAULT_ROLES
-      const roles = await Promise.all(
-        seeds.map((r) =>
-          tx.role.create({
-            data: {
-              companyId: company.id,
-              name: r.name,
-              permissions: [...r.permissions],
-              isDefault: r.isDefault,
-            },
-          })
-        )
-      )
-
-      const ownerRole = roles.find((r) => r.name === 'Owner')!
-
-      // 3. Find or create the person for this email
-      let person = await tx.person.findUnique({
-        where: { primaryEmail: email },
-      })
-
+      // The person first, because the company's owner seat and its domain
+      // claim name them.
+      let person = await tx.person.findUnique({ where: { primaryEmail: email } })
       if (!person) {
-        person = await tx.person.create({
-          data: {
-            name: email.split('@')[0],
-            primaryEmail: email,
-          },
-        })
+        person = await tx.person.create({ data: { name: email.split('@')[0], primaryEmail: email } })
       }
 
-      // 4. Owner Context — only where this is somebody registering a
-      //    firm of their own. Recording a counterparty seats nobody:
-      //    a client of ours is not a company we own, and granting the
-      //    creator `*` on it moved their whole identity off their
-      //    employer, because contexts are read most-recently-granted
-      //    first.
-      const context = adding.ownsIt
-        ? await tx.context.create({
-            data: {
-              personId: person.id,
-              type: 'EMPLOYEE',
-              companyId: company.id,
-              roleId: ownerRole.id,
-            },
-          })
+      // 1–2. The company and everything it needs to start, made the one
+      // way. Seated as Owner only where this is somebody registering a
+      // firm of their own: recording a counterparty seats nobody, because
+      // contexts are read most-recently-granted first and granting `*` on
+      // a client of ours moved the creator's whole identity off their
+      // employer.
+      const made = await createCompany(
+        {
+          name,
+          kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP',
+          slug,
+          domain,
+          country: body?.country ?? null,
+          currency: body?.currency ?? null,
+          byPersonId: person.id,
+          seatAsOwner: adding.ownsIt,
+          claimDomain: adding.ownsIt,
+          startsSetup: adding.ownsIt,
+        },
+        tx
+      )
+      const company = await tx.company.findUniqueOrThrow({ where: { id: made.company.id } })
+      const roles = made.roles
+      const context = made.ownerContextId
+        ? await tx.context.findUniqueOrThrow({ where: { id: made.ownerContextId } })
         : null
 
       // 5. The owner of a consultant corporation IS its consultant.
@@ -357,7 +252,7 @@ export async function POST(request: NextRequest) {
       })
 
       return { company, roles, person, context }
-    })
+    }, { timeout: 20_000 })
 
     // ── The register, where the caller said what this firm is to them ──
     //

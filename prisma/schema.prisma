@@ -561,6 +561,23 @@ model Company {
   paySettingsSetAt    DateTime?
   /// The person who last answered them.
   paySettingsSetById  String?
+  // ── Setup: five steps, then it stops ───────────────────────────────
+  //
+  // The founder, 2026-10-07: after the first sign-in a new company walks
+  // sign in, your company, how you work, your people, your team. Every
+  // answer has a default; what it answers is recorded with who and when.
+  // Read and written only through src/lib/setup-steps.ts (the rules) and
+  // src/app/api/onboarding/setup (the door).
+  /// When this company began setup. Null for a company formed before the
+  /// steps existed, or recorded by somebody else as a counterparty: setup
+  /// is never asked of it and the dashboard never reminds it.
+  setupStartedAt      DateTime?
+  /// When every step had an answer, done or skipped. After this the steps
+  /// are never shown again unless somebody follows the dashboard's link back.
+  setupFinishedAt     DateTime?
+  /// One entry per step answered: { COMPANY | WORK | PEOPLE | TEAM:
+  /// { outcome: DONE | SKIPPED, byId, at } }. Who answered and when.
+  setupSteps          Json?
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from

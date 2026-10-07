@@ -106,6 +106,29 @@ function uniq(...groups: Permission[][]): Permission[] {
   return Array.from(new Set(groups.flat()))
 }
 
+// ── The seat a colleague gets on arrival ──────────────────────────────
+
+/**
+ * The role a colleague is given the moment they sign in on a domain the
+ * company already holds. Decided by the founder, 2026-10-07: a colleague
+ * joining gets a seat with a default role at once, and the owner is told
+ * who joined and what to give them.
+ *
+ * It reads the holder's own work and nothing else: the work they are on
+ * and their own hours, the two reads `readsOnlyOwnWork` in
+ * lib/console-home recognizes. No money, no other people, no market. A
+ * stranger who happens to share a domain learns nothing about the firm
+ * from it; a real colleague can sign in, see their own week, and wait
+ * for the desk somebody gives them.
+ */
+export const MEMBER_ROLE = 'Member'
+
+const MEMBER: RoleSeed = {
+  name: MEMBER_ROLE,
+  blurb: 'Sees their own work and their own hours. Nothing else until somebody gives them a desk.',
+  permissions: ['assignments.read', 'timesheets.read'],
+}
+
 // ── A staffing supplier ───────────────────────────────────────────────
 
 const SUPPLIER_ROLES: RoleSeed[] = [
@@ -211,6 +234,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     blurb: 'Checks documents and work authorization, and answers what a person asks about their own record.',
     permissions: uniq(SEE_PEOPLE, ['assignments.read'], ['timesheets.read'], SEE_RULES, RUN_PRIVACY),
   },
+  MEMBER,
 ]
 
 // ── An enterprise that hires contractors ──────────────────────────────
@@ -273,6 +297,7 @@ const CLIENT_ROLES: RoleSeed[] = [
     blurb: 'Reads the program. Changes nothing.',
     permissions: uniq(SEE_DEMAND, SEE_SUPPLY, ['assignments.read', 'timesheets.read', 'utilization.read']),
   },
+  MEMBER,
 ]
 
 // ── An MSP running somebody else's program ──────────────────────────
@@ -309,6 +334,7 @@ const MSP_ROLES: RoleSeed[] = [
     blurb: 'Owns tenure, work authorization, supplier insurance, and what is held about a person.',
     permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES, RUN_PRIVACY),
   },
+  MEMBER,
 ]
 
 // ── A consultant's own corporation ────────────────────────────────────
@@ -320,6 +346,7 @@ const CONSULTANT_CORP_ROLES: RoleSeed[] = [
     permissions: everything(),
     isOwner: true,
   },
+  MEMBER,
 ]
 
 /**
@@ -460,6 +487,26 @@ export function packFor(kind: CompanyKind, country: string | null): string {
   // from general IT contract staffing.
   if (kind === 'GSI') return 'US_SAP'
   return 'US_IT'
+}
+
+/**
+ * The payroll answers a new company starts with, written to match its pack.
+ *
+ * The payroll columns default to every other week, which is the US packs'
+ * own rhythm. The India and UK packs pay once a month, on month end,
+ * worked out on the 25th. A company that has answered nothing is still
+ * paid on its pack's dates (lib/contract-cycles reads the answers only
+ * once somebody sets them), so these change no date. They make the
+ * payroll panel at setup show what the pack actually does, rather than
+ * offering an India firm "every other week" as though it were the default.
+ */
+export function payRhythmForPack(pack: string): {
+  payPeriod: 'MONTHLY'; payDaysOfMonth: number[]; payCalcDaysBefore: number
+} | null {
+  if (pack === 'IN_DELIVERY' || pack === 'UK') {
+    return { payPeriod: 'MONTHLY', payDaysOfMonth: [28], payCalcDaysBefore: 3 }
+  }
+  return null
 }
 
 /**

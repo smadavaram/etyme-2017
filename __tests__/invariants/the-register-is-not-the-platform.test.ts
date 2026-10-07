@@ -112,11 +112,11 @@ describe('the route does what the rule says', () => {
   )
 
   it('refuses before it creates anything', () => {
-    expect(src.indexOf('mayAddCompany')).toBeLessThan(src.indexOf('tx.company.create'))
+    expect(src.indexOf('mayAddCompany')).toBeLessThan(src.indexOf('createCompany('))
   })
 
   it('creates the owner seat only where the rule says the creator owns it', () => {
-    expect(src).toContain('adding.ownsIt\n        ? await tx.context.create(')
+    expect(src).toContain('seatAsOwner: adding.ownsIt')
   })
 
   it('does not put somebody on a bench because a recruiter wrote down their limited company', () => {

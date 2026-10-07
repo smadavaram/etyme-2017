@@ -384,6 +384,10 @@ export const DOMAINS: Domain[] = [
       // reads them through payDatesFor. lib/pay-dates is the pure half a
       // screen may import.
       'lib/payroll-settings', 'lib/pay-dates',
+      // Setup asks five things, then stops (founder, 2026-10-07): one way
+      // to make a company for both doors, the steps' rules and words, and
+      // the record of who answered each and when.
+      'lib/company-create', 'lib/setup-steps', 'lib/setup-state',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies

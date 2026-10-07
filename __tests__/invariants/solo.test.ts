@@ -49,9 +49,12 @@ describe('A one-person consulting corporation registers on any email', () => {
 
 describe('A company of one is not staffed like a company of forty', () => {
 
-  it('a consultant corp starts with one role, and it is Owner', () => {
+  it('a consultant corp starts with one role that runs it, Owner, and no staff desks', () => {
+    // Member is the seat anybody arriving on a claimed domain is given at
+    // once (founder, 2026-10-07) — their own work only, no desk at all —
+    // so it is the one other role every kind carries.
     const roles = rolesFor('CONSULTANT_CORP')
-    expect(roles).toHaveLength(1)
+    expect(roles.map((r) => r.name)).toEqual(['Owner', 'Member'])
     expect(roles[0].name).toBe('Owner')
   })
 
@@ -78,8 +81,11 @@ describe('The registration route actually opens these doors', () => {
   it('a personal email never becomes a verified company domain', () => {
     // gmail.com recorded as domainVerified would be a lie the whole
     // identity model then repeats.
-    expect(ROUTE).toContain('domainVerified: !personalEmail')
-    expect(ROUTE).toContain('personalEmail ? null :')
+    // The route passes no domain for a personal email, and the one
+    // creation function marks a domain verified only where there is one.
+    const CREATE = readFileSync(join(process.cwd(), 'src/lib/company-create.ts'), 'utf8')
+    expect(ROUTE).toContain('personalEmail || !adding.ownsIt ? null :')
+    expect(CREATE).toContain('domainVerified: input.domain !== null')
   })
 
   it('the owner of a consultant corp is created as its consultant, listed on their own bench', () => {
@@ -90,6 +96,10 @@ describe('The registration route actually opens these doors', () => {
   })
 
   it('roles are seeded per kind rather than seven vendor roles for everybody', () => {
-    expect(ROUTE).toContain("rolesFor('CONSULTANT_CORP')")
+    // Through the one creation function first sign-in uses (2026-10-07).
+    const CREATE = readFileSync(join(process.cwd(), 'src/lib/company-create.ts'), 'utf8')
+    expect(ROUTE).toContain('createCompany(')
+    expect(ROUTE).not.toContain('const DEFAULT_ROLES')
+    expect(CREATE).toContain('rolesFor(input.kind)')
   })
 })
