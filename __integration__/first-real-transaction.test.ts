@@ -77,9 +77,11 @@ describe('Chapter 1 — a one-person corporation registers on a gmail address', 
     expect(listing).not.toBeNull()
   })
 
-  it('a company of one has one role, and it is Owner', async () => {
+  it('a company of one has one role that runs it, Owner, and no staff desks', async () => {
+    // Member is the seat anybody arriving on a claimed domain is given at
+    // once (founder, 2026-10-07): their own work only, no desk.
     const roles = await prisma.role.findMany({ where: { companyId: soloCompanyId } })
-    expect(roles.map((r) => r.name)).toEqual(['Owner'])
+    expect(roles.map((r) => r.name).sort()).toEqual(['Member', 'Owner'])
   })
 })
 
