@@ -1670,9 +1670,21 @@ Three rules follow:
     Sunday, because that is the bank's week, not the firm's.
   Still true: a stored overtime decision keyed to a Monday matches no
   week, so a live world seeded before the 6th must be dropped and
-  reseeded. Still open: the biweekly pay calculation sits on the
-  Wednesday approvals are due; his "three days, not one" reasoning
-  would put it on Thursday.
+  reseeded.
+- **Payroll is the company's choice. Decided by the founder,
+  2026-10-07:** *"Give choice to businesses when they want to configure
+  payroll."* This answers the Wednesday-or-Thursday question: neither is
+  a rule. The recommendation is the default and a company changes it on
+  its settings page: pay period (weekly, every other week, twice a
+  month, monthly), the day pay is worked out and the day it is paid,
+  recorded with who set it and when. Defaults: every other week, worked
+  out the Wednesday and paid the Friday after the period's Saturday;
+  monthly on the 28th (month end), worked out three days before. Pay
+  can never go out before it is worked out. Beside the monthly choice
+  the screen says, as a fact and not a rule, that some US states require
+  pay at least twice a month; making that a rule per state is
+  regulatory's. The setting is one door (`lib/payroll-settings`), and
+  the cycle generator reads it over the pack's salary lines.
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
