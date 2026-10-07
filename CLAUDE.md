@@ -1686,6 +1686,21 @@ Three rules follow:
   pay at least twice a month; making that a rule per state is
   regulatory's. The setting is one door (`lib/payroll-settings`), and
   the cycle generator reads it over the pack's salary lines.
+- **Setup asks five things, then stops. Decided by the founder,
+  2026-10-07** ("Ok go", on the finding that production had no sign-in
+  door and setup asked one question). After the first sign-in a new
+  company walks the five steps the prototype drew: sign in; your company
+  (country, currency, type, name); how you work (the week and payroll
+  panels, defaults pre-filled, the state note beside twice a month);
+  your people (import a file, or skip); your team (invite, or skip).
+  Every answer has a default, so a company may click through in a
+  minute; what it answers is recorded with who and when. A colleague who
+  signs in on a claimed domain gets a seat with a default role at once,
+  and the owner is told who joined and what to give them. "Add company"
+  and first sign-in create a company through one function, so both get
+  the same pack, roles, location and holidays. Turning sign-in on is the
+  founder's: the Microsoft and Google app keys and the email server go
+  into Vercel; `/ready` says so until they do.
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
