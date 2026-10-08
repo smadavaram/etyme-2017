@@ -102,7 +102,11 @@ describe('A filled job request says who, at what rate, and when, and offers noth
   })
 
   it('the page reads the award day from the line the award wrote', () => {
-    expect(src('src/app/api/requisitions/[id]/route.ts')).toContain('placedOn: placedOnFor.get(s.personId) ?? null')
+    const route = src('src/app/api/requisitions/[id]/route.ts')
+    // The line the reader pays (never a rung below it), and its day is
+    // the day the award wrote it.
+    expect(route).toContain('lineTheReaderPays(lines, s, caller.company?.id)')
+    expect(route).toContain('placedOn: placedLineOf(s)?.createdAt.toISOString() ?? null')
   })
 
   it('a filled job draws no Send to suppliers box and no count of suppliers working it', () => {

@@ -195,7 +195,8 @@ describe('what the client is told when a round is asked for', () => {
 
 describe('the row can only say where somebody is if the list carries it', () => {
   it('the submissions list carries each round’s number, state and outcome', () => {
-    const query = block(LIST_ROUTE, 'prisma.submission.findMany')
+    // The list query, not the desk-less refusal's lookup above it.
+    const query = block(LIST_ROUTE, 'const [submissions, total] = await Promise.all')
     expect(query).toContain('interviews: {')
     expect(query).toContain('select: { id: true, round: true, state: true, outcome: true, scheduledAt: true }')
     expect(query).toContain("orderBy: { round: 'asc' }")
