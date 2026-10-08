@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { mayChangeTier, whoSees } from '@/lib/shared-consultant'
@@ -137,20 +138,19 @@ export async function PATCH(
       // on the subject, below.
       // Showing somebody to other firms is a use of their data, so it is
       // on their trail beside every read.
-      // Written by hand on this transaction on purpose, and named as the
-      // exception in __tests__/invariants/access-lifecycle-log.test.ts: the
-      // listing becomes visible to partners and its trail commit together,
-      // or neither does. lib/access-log takes no transaction client.
-      await tx.accessLog.create({
-        data: {
-          subjectId: listing.consultant.personId,
+      // Written on this transaction, so the listing becomes visible to
+      // partners and its trail commit together, or neither does.
+      await recordAccess(
+        [listing.consultant.personId],
+        {
           actorPersonId: caller.person.id,
           actorCompanyId: companyId,
           action: 'MARKETING_REQUEST',
           allowed: true,
           reason: `${caller.person.name} at ${caller.company!.name} moved ${name}'s listing from ${listing.tier.toLowerCase()} to ${to.toLowerCase()}. ${verdict.says}`,
         },
-      })
+        tx
+      )
       return row
     })
 

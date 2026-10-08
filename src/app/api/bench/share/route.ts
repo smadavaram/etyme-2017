@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { termsShown } from '@/lib/bench-filter'
@@ -210,20 +211,19 @@ export async function POST(request: NextRequest) {
         }
 
         // AccessLog — CLAUDE.md invariant: every read of another person's data.
-        // Written by hand on this transaction on purpose, and named as the
-        // exception in __tests__/invariants/access-lifecycle-log.test.ts: the
-        // listing at the other firm and its trail commit together, or
-        // neither does. lib/access-log takes no transaction client.
-        await tx.accessLog.create({
-          data: {
-            subjectId: source.consultant.personId,
+        // Written on this transaction, so the listing at the other firm and
+        // its trail commit together, or neither does.
+        await recordAccess(
+          [source.consultant.personId],
+          {
             actorPersonId: caller.person.id,
             actorCompanyId: companyId,
             action: 'MARKETING_REQUEST',
             allowed: true,
             reason: `Bench listing shared to "${targetCompany.name}" by ${caller.person.name}`,
           },
-        })
+          tx
+        )
 
         toAsk.push({
           listingId: newListing.id,
