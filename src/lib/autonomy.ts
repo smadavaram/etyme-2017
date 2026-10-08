@@ -245,6 +245,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A webhook whose receiver stopped answering is switched off after repeated failures. Switching it back on is one click.',
   },
+  SETUP_STARTED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A supplier claimed the record a client had already written for it, so when its owner first opened setup the first step, the company, was marked done from that record and the steps opened at how the firm works. No money moved and nothing about the company was changed. The mark can be put back: the owner can return to that step and answer it again. What is not undone is the fact that setup began — that stays recorded, with the time.',
+  },
   TIMESHEET_AUTO_APPROVED: {
     rung: 'L4',
     basis: 'RULE',
