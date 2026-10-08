@@ -634,7 +634,8 @@ describe('Contacts is headed by the reader’s own menu, never by a word typed o
   it('the Contacts page reads its eyebrow from the menu rather than typing one', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/contacts/page.tsx'), 'utf8')
     expect(src).not.toContain('<p className="eyebrow">Operate</p>')
-    expect(src).toContain("sectionOfHref(")
+    // From the reader's own trimmed menu since round seven.
+    expect(src).toContain("usePageSection('/dashboard/contacts')")
   })
 })
 
@@ -1087,7 +1088,6 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
   const STILL_WITHOUT_READER = new Set<string>([
     'src/app/dashboard/bench/page.tsx',
     'src/app/dashboard/consultants/page.tsx',
-    'src/app/dashboard/contacts/page.tsx',
     'src/app/dashboard/contracts/page.tsx',
     'src/app/dashboard/documents/page.tsx',
     'src/app/dashboard/expenses/page.tsx',
@@ -1095,7 +1095,6 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
     'src/app/dashboard/outbound-pack/page.tsx',
     'src/app/dashboard/purchase-orders/page.tsx',
     'src/app/dashboard/rolloff/page.tsx',
-    'src/app/dashboard/settings/bench-pay/page.tsx',
     'src/app/dashboard/ap/page.tsx',
     'src/app/dashboard/ar/page.tsx',
   ])

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalSentence } from '@/lib/refusal-words'
 
@@ -88,10 +88,9 @@ export default function ContactsPage() {
   // supplier's heading over a client's page while it loaded (sign-up walk,
   // round three, item 16). Unknown reader, no heading.
   const readerKind = session.company?.kind ?? null
-  const eyebrow = sectionOfHref(
-    readerKind, '/dashboard/contacts',
-    session.seat ? { seated: true, clientName: session.seat.clientName } : null,
-  )
+  // Read off the reader's own trimmed menu, so a seat with no desk is
+  // never headed by a section it does not have (round seven).
+  const eyebrow = usePageSection('/dashboard/contacts')
 
   if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   if (contacts === null && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
