@@ -143,10 +143,11 @@ describe('a week approved by email reaches the books, and a program office reads
     expect(seen.body?.error, JSON.stringify(seen.body)).toBeUndefined()
     expect(seen.body.data.week.clientName).toBe(seat.clientCompany.name)
     expect(seen.body.data.approvals[0].words).toMatch(/^Approved by email: Avery Collins, .+ — evidence attached$/)
-    const viewRow = await prisma.accessLog.findFirstOrThrow({
+    // A read is logged without holding up the reader, so the row lands just after the response.
+    const viewRow = await vi.waitFor(() => prisma.accessLog.findFirstOrThrow({
       where: { subjectId: personId, action: 'APPROVAL_EVIDENCE_VIEW', allowed: true },
       orderBy: { at: 'desc' },
-    })
+    }))
     // The office read it, under the seat; never the client reading its own.
     expect(viewRow.actorCompanyId).toBe(seat.officeCompanyId)
     expect(viewRow.reason).toContain(`seat ${seat.id}`)

@@ -274,11 +274,6 @@ function handWrittenAccessLogRows(): string[] {
  * reason, and the owner moves it when lib/access-log takes a client.
  */
 const STILL_BY_HAND: readonly string[] = [
-  // etyme-architect — one seam, awaited, a failure reported to staff. Its
-  // six action names are in AccessAction since 2026-10-08; the seam's body
-  // becomes recordRefusal/recordAccess in the architect's own change, and
-  // this line goes with it.
-  'src/lib/week-approval.ts',
 ].slice().sort()
 
 describe('every access-log row goes through one door', () => {

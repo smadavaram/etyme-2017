@@ -31,6 +31,7 @@ import { notify } from '@/lib/notify'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { postAssertion } from '@/lib/order-postings'
 import { reportError } from '@/lib/alerts'
+import { logAccess, recordRefusal, type AccessAction } from '@/lib/access-log'
 import { seatFor, actingInSeat, seatTrail } from '@/lib/program-seat'
 import type { CallerContext } from '@/lib/api-context'
 import { configuredSenders } from '@/lib/senders'
@@ -362,32 +363,35 @@ async function logRefusal(r: Reader, c: WeekChain, action: WeekTrailAction, says
 }
 
 /**
- * The names this file files its access-log rows under. Integration tests
- * and the client's own trail read them, so they do not move.
+ * The names this file files its access-log rows under, a slice of
+ * `AccessAction` in `lib/access-log`. Integration tests and the client's
+ * own trail read them, so they do not move.
  */
-type WeekTrailAction =
+type WeekTrailAction = Extract<
+  AccessAction,
   | 'APPROVAL_LINK_SEND'        // refused: sending the client's approver a link
   | 'APPROVAL_EVIDENCE_ATTACH'  // refused: attaching the client's approval as evidence
   | 'WEEK_APPROVAL_VIEW'        // refused: reading who approved a week
   | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
   | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
   | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+>
 
 /**
- * Every access-log row this file writes goes through here, and waits.
+ * Every access-log row this file writes goes through here, and through
+ * `lib/access-log` from here.
  *
- * It is the one write in this file, so the trail has one seam. Until
- * 2026-10-08 there were four, each ending in `.catch(() => {})`, so a
- * failed write of a refused attempt on somebody's week vanished. A
- * failure is now reported to staff, and never turned into a 500: a
- * refusal that could not be recorded is still a refusal, and a read is
- * not withheld from the approver because the trail failed.
+ * A refusal is `recordRefusal`, awaited: the row is written before the
+ * refusal goes out, and a failed write is reported to staff rather than
+ * turned into a 500, because a refusal that could not be recorded is
+ * still a refusal.
  *
- * It writes here rather than through `lib/access-log` for one reason:
- * the six names above are not in `AccessAction`, the closed union in that
- * file, which is regulatory's. Once they are added, the body becomes
- * `recordRefusal` for a refusal and `recordAccess` for a read, and no
- * caller changes.
+ * A read is `logAccess`, not awaited, with a failed write reported to
+ * staff. Not `recordAccess`, which throws on a failed write so that its
+ * caller can withhold the read: here a read is not withheld from the
+ * approver because the trail failed. Until 2026-10-08 the four writes in
+ * this file each ended in `.catch(() => {})`, so a failure vanished; now
+ * none can.
  */
 async function trail(row: {
   subjectId: string
@@ -397,18 +401,17 @@ async function trail(row: {
   allowed: boolean
   reason: string | null
 }): Promise<void> {
-  try {
-    await prisma.accessLog.create({ data: row })
-  } catch (err) {
-    await reportError(
-      'access-log',
-      new Error(
-        `Could not record ${row.allowed ? 'a' : 'a refused'} ${row.action} of ${row.subjectId}. ` +
-          `It happened and is not in the trail. Cause: ${err instanceof Error ? err.message : String(err)}`
-      ),
-      { personId: row.actorPersonId, companyId: row.actorCompanyId }
-    ).catch(() => undefined)
+  const params = {
+    actorPersonId: row.actorPersonId ?? undefined,
+    actorCompanyId: row.actorCompanyId ?? undefined,
+    action: row.action,
+    reason: row.reason ?? undefined,
   }
+  if (!row.allowed) {
+    await recordRefusal([row.subjectId], params)
+    return
+  }
+  logAccess({ subjectId: row.subjectId, ...params })
 }
 
 // ── Whether the named approver is somebody at the client ─────────────

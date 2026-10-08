@@ -189,7 +189,8 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(r.body.data.approveRefused).toBeNull()
     expect(JSON.stringify(r.body)).not.toContain('Techpeple')
     expect(JSON.stringify(r.body)).not.toMatch(/rate|cents|\$/i)
-    expect(await prisma.accessLog.count({ where: { subjectId: it_.helena, action: 'APPROVAL_LINK_VIEW', allowed: true } })).toBe(1)
+    // A read is logged without holding up the reader, so the row lands just after the response.
+    await vi.waitFor(async () => expect(await prisma.accessLog.count({ where: { subjectId: it_.helena, action: 'APPROVAL_LINK_VIEW', allowed: true } })).toBe(1))
   })
 
   it('sending back needs a reason from the list', async () => {
@@ -280,7 +281,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(sub.body.data.approvals[0].contracts.map((c: any) => c.id)).toEqual([it_.bottom])
 
     for (const r of [client, prime, sub]) expect(JSON.stringify(r.body)).not.toMatch(/rate|cents|\$/i)
-    expect(await prisma.accessLog.count({ where: { subjectId: it_.helena, action: 'APPROVAL_EVIDENCE_VIEW', allowed: true } })).toBeGreaterThanOrEqual(3)
+    await vi.waitFor(async () => expect(await prisma.accessLog.count({ where: { subjectId: it_.helena, action: 'APPROVAL_EVIDENCE_VIEW', allowed: true } })).toBeGreaterThanOrEqual(3))
   })
 
   it('a firm not on the week cannot read its approvals, and the refusal is logged', async () => {
