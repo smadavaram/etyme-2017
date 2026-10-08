@@ -15,6 +15,13 @@
  * the stat cards and the side under them were still guessed. So now the
  * whole page waits: until the company is known, a money page that reads
  * whose company it is draws "Loading…" and nothing else.
+ *
+ * Round seven, problem 2: knowing the company was not enough either.
+ * Contracts, Invoice receipts and Expenses drew "$0 we owe", "Nothing is
+ * running" and "$0.00" for three seconds and then the real $17,400,
+ * because the tiles were drawn from empty state before the first read
+ * answered. So those three also wait for `readOnce`: until the first
+ * read has answered, "Loading…" and nothing else.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -124,6 +131,28 @@ describe('money pages wait until they know whose page it is', () => {
       const gate = src.search(WAITS)
       expect(gate).toBeGreaterThan(-1)
       expect(gate).toBeLessThan(src.indexOf('<header>'))
+    }
+  })
+
+  it('Contracts, Invoice receipts and Expenses draw no figure before their first read has answered', () => {
+    const READ_GATE = /if \(!readOnce\) \{\s*return <p[^>]*>Loading…<\/p>/
+    for (const page of ['contracts', 'invoices', 'expenses']) {
+      const whole = readFileSync(join(DASHBOARD, page, 'page.tsx'), 'utf8')
+      // The page itself, not the drawers and modals above it.
+      const src = whole.slice(whole.indexOf('export default function'))
+      // The first read marks itself answered whatever it returned —
+      // figures, a refusal or an error — so the page never waits forever.
+      expect(src, page).toMatch(/\} finally \{\s*setLoading\(false\)\s*setReadOnce\(true\)/)
+      const gate = src.search(READ_GATE)
+      expect(gate, page).toBeGreaterThan(-1)
+      // Every tile on the page is drawn after the gate, never before it.
+      const tiles = [...src.matchAll(/stat-(value|label)/g)].map((m) => m.index!)
+      expect(tiles.length, page).toBeGreaterThan(0)
+      const before = tiles.filter((i) => i < gate)
+      expect(before, page).toEqual([])
+      // And the page's own markup starts after it too: no heading drawn
+      // over a book nobody has read yet.
+      expect(gate, page).toBeLessThan(src.lastIndexOf('\n  return (\n'))
     }
   })
 })

@@ -472,6 +472,11 @@ export default function InvoicesPage() {
   const [error, setError] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  // True once the first read has answered — figures, refusal or error.
+  // Until then every tile would be a confident zero over a book nobody
+  // has read yet (sign-up walk, round seven, #2), so the page draws
+  // "Loading…" and nothing else.
+  const [readOnce, setReadOnce] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -606,6 +611,7 @@ export default function InvoicesPage() {
       setInvoices([])
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [statusFilter, ownBooks])
 
@@ -974,6 +980,11 @@ export default function InvoicesPage() {
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // And until the first read has answered, no tile either: "$0 we owe"
+  // for three seconds before $17,400 is a number nobody can stand behind.
+  if (!readOnce) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">Loading…</p>
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: isClient ? 'Invoice receipts' : 'Bills and invoice receipts', kind: company.kind, company: company.name })
