@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { canReadPayRate, canReadBillRate, canReadMargin, hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { descend } from '@/lib/work-chain'
@@ -125,8 +125,7 @@ export async function GET(
     // The refusal is logged too. CLAUDE.md: every read of another
     // person's data writes an AccessLog row, including refusals.
     if (parties) {
-      logAccess({
-        subjectId: parties.personId,
+      await recordRefusal([parties.personId], {
         actorPersonId: caller.person.id,
         actorCompanyId: mine,
         action: 'CONTRACT_VIEW',

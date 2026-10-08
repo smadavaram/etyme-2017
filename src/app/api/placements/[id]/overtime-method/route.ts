@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import {
   CHOOSES_OVERTIME_METHOD,
@@ -72,8 +72,8 @@ export async function PATCH(
 
   if (!placement || !isParty) {
     if (placement) {
-      logAccess({
-        subjectId: placement.personId, actorPersonId: caller.person.id, actorCompanyId: mine,
+      await recordRefusal([placement.personId], {
+        actorPersonId: caller.person.id, actorCompanyId: mine,
         action: 'PAYROLL_VIEW', allowed: false, reason: 'Not a party to this placement',
       })
     }
@@ -109,8 +109,8 @@ export async function PATCH(
   })
 
   if (!verdict.ok) {
-    logAccess({
-      subjectId: placement.personId, actorPersonId: caller.person.id, actorCompanyId: mine,
+    await recordRefusal([placement.personId], {
+      actorPersonId: caller.person.id, actorCompanyId: mine,
       action: 'PAYROLL_VIEW', allowed: false,
       reason: `Overtime method change refused: ${verdict.code}`,
     })
