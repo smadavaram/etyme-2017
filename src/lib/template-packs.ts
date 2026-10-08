@@ -59,7 +59,15 @@ export interface SkillSeed {
 // ── Pack shape ─────────────────────────────────────────────────
 
 export interface TemplatePack {
+  /** An address (US_IT, US_SAP, IN_DELIVERY, UK). Stored on companies; never shown. */
   id: string
+  /**
+   * What a person reads, on a setup screen a client sees too. It says what
+   * the pack decides — the country and the rhythm of hours and pay — and
+   * never a trade, because the same pack serves a hospital and a
+   * warehouse. Round one of the sign-up walk found "US IT Staffing" on a
+   * client's setup screen.
+   */
   label: string
   country: string
   contractTypes: ContractTypeDef[]
@@ -253,7 +261,7 @@ const COMMON_CYCLES: CycleDefinition[] = [
 
 const US_IT: TemplatePack = {
   id: 'US_IT',
-  label: 'US IT Staffing',
+  label: 'US weekly hours, biweekly pay',
   country: 'US',
   contractTypes: [
     { code: 'W2', label: 'W-2 Employee', description: 'Standard employment, employer pays FICA/FUTA/SUTA' },
@@ -287,7 +295,7 @@ const US_IT: TemplatePack = {
 
 const US_SAP: TemplatePack = {
   id: 'US_SAP',
-  label: 'US ERP Staffing',
+  label: 'US weekly hours, biweekly pay, ERP skills',
   country: 'US',
   contractTypes: [
     ...US_IT.contractTypes,
@@ -309,7 +317,7 @@ const US_SAP: TemplatePack = {
 
 const IN_DELIVERY: TemplatePack = {
   id: 'IN_DELIVERY',
-  label: 'India Delivery Center',
+  label: 'India monthly',
   country: 'IN',
   contractTypes: [
     { code: 'CDD', label: 'Contract of Definite Duration', description: 'Fixed-term contract under Indian labor law' },
@@ -339,7 +347,7 @@ const IN_DELIVERY: TemplatePack = {
 
 const UK: TemplatePack = {
   id: 'UK',
-  label: 'UK Staffing',
+  label: 'UK monthly',
   country: 'GB',
   contractTypes: [
     { code: 'LIMITED_COMPANY', label: 'Limited Company', description: 'Contractor via their own Ltd' },

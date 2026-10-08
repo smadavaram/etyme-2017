@@ -5,6 +5,19 @@ import { hasPermission, inWords } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { checkInvite } from '@/lib/account-lifecycle'
+import { doorOpen } from '@/lib/password-door'
+import { newToken, expiresAfter } from '@/lib/password'
+import { emailSender } from '@/lib/senders'
+import { baseUrl } from '@/lib/signed-link'
+import { inviteLetter, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
+
+/** Whether Microsoft or Google sign-in is set up here, read the way lib/auth reads it. */
+function workAccountOn(): boolean {
+  return Boolean(
+    (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) ||
+    (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  )
+}
 
 /**
  * POST /api/access/invite   { email, name?, roleId? }
@@ -68,6 +81,7 @@ export async function POST(request: NextRequest) {
     select: {
       id: true,
       name: true,
+      passwordHash: true,
       contexts: {
         where: { companyId: caller.company.id, revokedAt: null },
         select: { id: true },
@@ -172,29 +186,94 @@ export async function POST(request: NextRequest) {
     payload: { email, invited: true, roleName: role?.name ?? null, outsider: check.outsider },
   })
 
-  void notify({
-    personId: person.id,
-    companyId: caller.company.id,
-    type: 'SYSTEM',
-    title: `${caller.person.name} invited you to ${company?.name ?? 'their company'}`,
-    body: role
-      ? `You have been given the ${role.name} role. Sign in with ${email} to start.`
-      : `Sign in with ${email}. Somebody there will decide what you can see.`,
-    entityId: context.id,
-    channel: 'EMAIL',
-  })
+  // ── The email: always a way in, never only an instruction ──
+  //
+  // Round one of the sign-up walk found the invitation said "Sign in with
+  // priya@…" and carried no link, so the person invited had an
+  // instruction and no door. Where this deployment can send mail, the
+  // email carries a one-time link to set a password, issued as a RESET
+  // token so the password door's own /reset page takes it. Where only
+  // Microsoft or Google is on, it gives the sign-in address. Somebody who
+  // already has a password is sent the sign-in address, not a reset.
+  const login = baseUrl() ? `${baseUrl()}/login` : ''
+  const hasPassword = Boolean(existing?.passwordHash)
+  const door: InviteDoor =
+    doorOpen() && login && !hasPassword ? 'PASSWORD'
+      : workAccountOn() ? 'WORK_ACCOUNT'
+        : 'NONE'
+  const title = `${caller.person.name} invited you to ${company?.name ?? 'their company'}`
+
+  if (door === 'PASSWORD') {
+    const { token, tokenHash } = newToken()
+    await prisma.emailToken.create({
+      data: { personId: person.id, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(INVITE_LINK_HOURS, now) },
+    })
+    const letter = inviteLetter({
+      door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
+      setPasswordUrl: `${baseUrl()}/reset/${token}`, loginUrl: login,
+      linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),
+    })
+    // Sent here rather than through notify, because notify keeps the body
+    // and the token must live in the mailbox and nowhere else — the same
+    // rule lib/password-door keeps for its own links.
+    const sender = emailSender()
+    let state = 'NOT_CONFIGURED'
+    let note: string | null = 'No email provider set up, so this was recorded and not sent.'
+    if (sender) {
+      try {
+        await sender.send(email, title, [...letter.lines, '', letter.link!].join('\n'))
+        state = 'SENT'
+        note = null
+      } catch (e: any) {
+        state = 'FAILED'
+        note = String(e?.message ?? e).slice(0, 200)
+      }
+    }
+    await prisma.notification.create({
+      data: {
+        personId: person.id, companyId: caller.company.id, type: 'SYSTEM', channel: 'EMAIL',
+        title, body: letter.lines.join('\n') + '\n\n[the one-time link was in the email and is not kept]',
+        entityId: context.id,
+        deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? new Date() : null,
+      },
+    })
+  } else {
+    const letter = inviteLetter({
+      door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
+      setPasswordUrl: null, loginUrl: login, linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),
+    })
+    void notify({
+      personId: person.id,
+      companyId: caller.company.id,
+      type: 'SYSTEM',
+      title,
+      body: letter.lines.join('\n'),
+      entityId: context.id,
+      channel: 'EMAIL',
+    })
+  }
+
+  // What the inviter is told about the way in. Where no email can leave
+  // this deployment, they are the way in, and the sentence says so.
+  const wayIn = !emailSender()
+    ? (login
+        ? ` No email can be sent from here yet, so send them the sign-in address yourself: ${login}.`
+        : ' No email can be sent from here yet, and this deployment does not know its own address. Send them the sign-in address yourself.')
+    : door === 'PASSWORD' ? ' The email has a link to set their password.'
+      : ''
 
   return NextResponse.json(
     {
       data: {
         says: role
-          ? `${person.name} has been invited as ${role.name} and emailed. The seat is theirs when they sign in with ${email}.`
-          : `${person.name} has been invited and emailed. Give them a role when they arrive.`,
+          ? `${person.name} has been invited as ${role.name} and emailed. The seat is theirs when they sign in with ${email}.${wayIn}`
+          : `${person.name} has been invited and emailed. Give them a role when they arrive.${wayIn}`,
         contextId: context.id,
         email,
         role: role?.name ?? null,
         state: 'INVITED',
         note: check.reason,
+        wayIn: door,
         message: role
           ? `${email} can sign in as ${role.name}. Until they do, they show as invited rather than active.`
           : `${email} can sign in. They will see nothing until somebody gives them a role.`,

@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { desksOffered } from '@/lib/access-grant'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -19,11 +20,16 @@ interface Waiting {
   contextId: string
   person: { id: string; name: string; primaryEmail: string }
   waitingDays: number
+  /** "Invited today, not yet signed in", or "joined 3 days ago". */
+  said: string
 }
 interface Person {
   contextId: string
   person: { id: string; name: string; primaryEmail: string }
   role: string
+  roleId: string
+  /** The role, or "Member · give them a desk". */
+  line: string
   sensitivity: string
   expiresAt: string | null
   lastUsedAt: string | null
@@ -282,7 +288,7 @@ export default function AccessPage() {
   useEffect(() => { load() }, [load])
 
   async function grant(contextId: string) {
-    if (!form.roleId) { alert('Pick a role'); return }
+    if (!form.roleId) { alert('Pick a desk'); return }
     const res = await fetch('/api/access', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -326,6 +332,8 @@ export default function AccessPage() {
   if (!data) return null
 
   const s = data.summary
+  // Owner is offered only to an Owner; the route refuses the same.
+  const pickable = desksOffered(roles, data.actorIsOwner === true)
   const field = 'px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink focus:outline-none focus:border-etyme-action'
 
   return (
@@ -404,7 +412,7 @@ export default function AccessPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-etyme-ink">{w.person.name}</div>
                     <div className="text-xs text-etyme-muted">
-                      {w.person.primaryEmail} · joined {w.waitingDays === 0 ? 'today' : `${w.waitingDays} days ago`}
+                      {w.person.primaryEmail} · {w.said}
                     </div>
                   </div>
                   {data.canGrant === false ? (
@@ -425,7 +433,7 @@ export default function AccessPage() {
                       <select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}
                         className={`${field} w-full mt-1`}>
                         <option value="">— pick a role —</option>
-                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        {pickable.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
                     </label>
                     {/* etyme-market, 2026-09-17. A cross-domain line in
@@ -506,19 +514,68 @@ export default function AccessPage() {
             <div className="p-6 text-center text-sm text-etyme-muted">Nobody has access yet.</div>
           )}
           {data.people.map((p: Person) => (
-            <div key={p.contextId} className="p-4 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="text-etyme-ink">{p.person.name}</div>
-                <div className="text-xs text-etyme-muted">
-                  {p.role}{p.reason ? ` · ${p.reason}` : ''}
+            <div key={p.contextId} className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="text-etyme-ink">{p.person.name}</div>
+                  <div className={`text-xs ${p.line !== p.role ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                    {p.line}{p.reason ? <span className="text-etyme-muted">{` · ${p.reason}`}</span> : ''}
+                  </div>
                 </div>
+                <div className="text-xs text-etyme-muted shrink-0 w-32 text-right">{until(p.expiresAt)}</div>
+                <div className="w-24 text-right shrink-0">
+                  <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
+                    {p.sensitivity.toLowerCase().replace('_', ' ')}
+                  </Chip>
+                </div>
+                {/* Change desk, on every row. A desk given on arrival is
+                    rarely the right one, and an owner with no way to
+                    change it has a seat nobody can use. Hidden from a
+                    reader the route would refuse, with the reason said
+                    once above in "Waiting for access". */}
+                {data.canGrant !== false && (
+                  <button
+                    onClick={() => {
+                      setGranting(granting === p.contextId ? null : p.contextId)
+                      setForm({ roleId: '', days: '', reason: '' })
+                    }}
+                    className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5 shrink-0">
+                    {granting === p.contextId ? 'Cancel' : 'Change desk'}
+                  </button>
+                )}
               </div>
-              <div className="text-xs text-etyme-muted shrink-0 w-32 text-right">{until(p.expiresAt)}</div>
-              <div className="w-24 text-right shrink-0">
-                <Chip tone={p.sensitivity === 'CRITICAL' ? 'attention' : 'passive'}>
-                  {p.sensitivity.toLowerCase().replace('_', ' ')}
-                </Chip>
-              </div>
+
+              {granting === p.contextId && (
+                <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
+                  <label className="block">
+                    <Lbl>New desk</Lbl>
+                    <select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}
+                      className={`${field} w-full mt-1`}>
+                      <option value="">— pick a desk —</option>
+                      {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <Lbl>Why?</Lbl>
+                    <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+                      placeholder="Runs the client's bills from this month"
+                      className={`${field} w-full mt-1`} />
+                    <p className="text-xs text-etyme-muted mt-1">
+                      Whoever reviews this in six months is probably not you.
+                    </p>
+                  </label>
+                  <label className="block">
+                    <Lbl>For how long?</Lbl>
+                    <input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
+                      placeholder="leave blank for the usual" type="number"
+                      className={`${field} w-40 mt-1 tabular-nums`} />
+                  </label>
+                  <button onClick={() => grant(p.contextId)}
+                    className="self-start px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                    Change desk
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

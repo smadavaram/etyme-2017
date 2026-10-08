@@ -57,9 +57,9 @@ describe('setup asks five things, then stops', () => {
   })
 
   it('the pack follows the country and the type, and setup says which in one line read off the pack itself', () => {
-    expect(packSentence(packFor('VENDOR', 'US'))).toBe('Your dates will follow the US IT Staffing pack: hours weekly, pay every other week.')
-    expect(packSentence(packFor('CLIENT', 'IN'))).toBe('Your dates will follow the India Delivery Center pack: hours monthly, pay monthly.')
-    expect(packSentence(packFor('GSI', 'US'))).toContain('US ERP Staffing')
+    expect(packSentence(packFor('VENDOR', 'US'))).toBe('Your dates will follow the US weekly hours, biweekly pay pack: hours weekly, pay every other week.')
+    expect(packSentence(packFor('CLIENT', 'IN'))).toBe('Your dates will follow the India monthly pack: hours monthly, pay monthly.')
+    expect(packSentence(packFor('GSI', 'US'))).toContain('US weekly hours, biweekly pay, ERP skills')
     // A monthly pack's payroll panel shows monthly, and changes no date.
     expect(payRhythmForPack('IN_DELIVERY')).toEqual({ payPeriod: 'MONTHLY', payDaysOfMonth: [28], payCalcDaysBefore: 3 })
     expect(payRhythmForPack('US_IT')).toBeNull()

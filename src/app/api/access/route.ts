@@ -5,7 +5,10 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
-import { assessGrant, reviewAccess, sensitivityOf } from '@/lib/access-grant'
+import {
+  assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
+  assessDeskChange, canGiveDesks, OWNER_DESK,
+} from '@/lib/access-grant'
 
 /**
  * Who may read the access register.
@@ -117,20 +120,41 @@ export async function GET(request: NextRequest) {
 
   const waiting = contexts.filter(c => !c.roleId)
 
+  // Whether the reader holds Owner, so the desk picker offers Owner only
+  // to an Owner. The route refuses the same thing on POST.
+  const mine = contexts.find(c => c.id === caller.context.id)
+  const actorIsOwner = mine?.role?.name === OWNER_DESK
+
   return NextResponse.json({
     data: {
       // People who joined on the domain and can see nothing yet. This is
       // the queue that matters — somebody is sitting there unable to work.
-      waitingForAccess: waiting.map(c => ({
-        contextId: c.id,
-        person: c.person,
-        joinedAt: c.grantedAt.toISOString(),
-        waitingDays: Math.floor((now.getTime() - c.grantedAt.getTime()) / 86_400_000),
-      })),
+      //
+      // An invitation is not a sign-in: somebody invited who never came
+      // in reads "Invited today, not yet signed in", and "joined" is said
+      // only of a seat that has been used. Signed in is the rule the
+      // withdraw route already uses: never invited, or used since.
+      waitingForAccess: waiting.map(c => {
+        const waitingDays = Math.floor((now.getTime() - c.grantedAt.getTime()) / 86_400_000)
+        const invited = c.invitedAt !== null
+        const signedIn = !invited || c.lastUsedAt !== null
+        return {
+          contextId: c.id,
+          person: c.person,
+          joinedAt: c.grantedAt.toISOString(),
+          waitingDays,
+          invited,
+          signedIn,
+          said: waitingLine({ invited, signedIn, days: waitingDays }),
+        }
+      }),
       people: contexts.filter(c => c.role).map(c => ({
         contextId: c.id,
         person: c.person,
         role: c.role!.name,
+        roleId: c.role!.id,
+        // "Member · give them a desk" for the seat everybody arrives on.
+        line: deskLine(c.role!.name),
         sensitivity: sensitivityOf(c.role!.permissions),
         grantedAt: c.grantedAt.toISOString(),
         expiresAt: c.expiresAt?.toISOString() ?? null,
@@ -144,6 +168,7 @@ export async function GET(request: NextRequest) {
       // offer a form the route will refuse. Reading opened up on
       // governance.read; granting and inviting did not move.
       canGrant: hasPermission(caller.permissions, 'settings.manage'),
+      actorIsOwner,
       canInvite: hasPermission(caller.permissions, 'team.manage'),
       whyNotGrant: hasPermission(caller.permissions, 'settings.manage') ? null : askTheDesk({
         doing: 'Giving somebody a seat here',
@@ -209,8 +234,11 @@ export async function POST(request: NextRequest) {
   const { contextId, roleId, days, reason } = body
 
   const target = await prisma.context.findFirst({
-    where: { id: contextId, companyId: caller.company.id },
-    include: { person: { select: { id: true, name: true } } },
+    where: { id: contextId, companyId: caller.company.id, revokedAt: null },
+    include: {
+      person: { select: { id: true, name: true } },
+      role: { select: { name: true, permissions: true } },
+    },
   })
   if (!target) {
     return NextResponse.json(
@@ -227,6 +255,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No such role at this company' } },
       { status: 404 }
+    )
+  }
+
+  // ── Changing a desk, not only giving a first one ──
+  // The same POST gives a waiting person their first desk and moves a
+  // seated person to another, so the rules for moving sit here too: Owner
+  // only by an Owner, an Owner's desk changed only by an Owner, and never
+  // the last person who can give desks moved off it.
+  const actor = await prisma.context.findUnique({
+    where: { id: caller.context.id },
+    select: { role: { select: { name: true } } },
+  })
+  const othersWhoCanGiveDesks = await prisma.context.count({
+    where: {
+      companyId: caller.company.id,
+      revokedAt: null,
+      suspendedAt: null,
+      id: { not: target.id },
+      role: { permissions: { hasSome: ['*', 'settings.manage'] } },
+    },
+  })
+  const move = assessDeskChange({
+    fromRole: target.role?.name ?? null,
+    toRole: role.name,
+    actorIsOwner: actor?.role?.name === OWNER_DESK,
+    fromCanGiveDesks: canGiveDesks(target.role?.permissions ?? []),
+    toCanGiveDesks: canGiveDesks(role.permissions),
+    othersWhoCanGiveDesks,
+    personName: target.person.name,
+  })
+  if (!move.allowed) {
+    return NextResponse.json(
+      { error: { code: 'DESK_REFUSED', message: move.says } },
+      { status: 422 }
     )
   }
 
@@ -284,13 +346,14 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'ACCESS_GRANTED',
-      summary: `${caller.person.name} gave ${target.person.name} ${role.name}${expiresAt ? ` until ${expiresAt.toISOString().slice(0, 10)}` : ''}`,
+      summary: `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${expiresAt.toISOString().slice(0, 10)}` : ''}`,
       reason: String(reason).trim(),
       payload: {
         contextId: target.id,
         roleId: role.id,
         sensitivity: decision.sensitivity,
         expiresAt: expiresAt?.toISOString() ?? null,
+        fromRole: target.role?.name ?? null,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
       },
       reversible: true,

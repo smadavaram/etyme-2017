@@ -291,3 +291,175 @@ export function reviewAccess(held: HeldAccess[], now: Date): AccessReviewItem[] 
   }
   return out.sort((a, b) => rank[a.finding] - rank[b.finding])
 }
+
+// ── Changing somebody's desk ───────────────────────────────
+
+/**
+ * The seat everybody gets by arriving. Spelled here rather than imported
+ * because this file has no database and no company defaults in it; the
+ * name is `MEMBER_ROLE` in lib/company-defaults and the two are pinned
+ * together in `__tests__/invariants/access-desk.test.ts`.
+ */
+export const MEMBER_DESK = 'Member'
+export const OWNER_DESK = 'Owner'
+
+/**
+ * What a row on "Everyone with access" says under the person's name.
+ *
+ * A Member can see their own work and nothing else, so the row says what
+ * to do about it. Every other desk is just its name.
+ */
+export function deskLine(roleName: string): string {
+  return roleName === MEMBER_DESK ? `${MEMBER_DESK} · give them a desk` : roleName
+}
+
+/**
+ * The desks offered in the picker. Owner only to an Owner: an admin who
+ * could make somebody an Owner could make themselves one by proxy.
+ */
+export function desksOffered<R extends { name: string }>(roles: R[], actorIsOwner: boolean): R[] {
+  return roles.filter((r) => actorIsOwner || r.name !== OWNER_DESK)
+}
+
+export interface DeskChange {
+  /** The desk the person holds now. Null for somebody still waiting. */
+  fromRole: string | null
+  toRole: string
+  /** Whether the person changing it holds Owner. */
+  actorIsOwner: boolean
+  /** Whether the desk they hold now can give desks (settings.manage or everything). */
+  fromCanGiveDesks: boolean
+  /** Whether the new desk can. */
+  toCanGiveDesks: boolean
+  /** Other live seats here that can give desks. */
+  othersWhoCanGiveDesks: number
+  /** The person's name, for the sentence. */
+  personName: string
+}
+
+export type DeskVerdict = { allowed: true } | { allowed: false; says: string }
+
+/**
+ * Whether a desk may move. Four refusals, each a sentence, and every
+ * other change goes through `assessGrant` like a first grant does.
+ */
+export function assessDeskChange(c: DeskChange): DeskVerdict {
+  if (c.fromRole === c.toRole) {
+    return { allowed: false, says: `${c.personName} already works as ${c.toRole}.` }
+  }
+  if (c.toRole === OWNER_DESK && !c.actorIsOwner) {
+    return { allowed: false, says: 'Only an Owner can make somebody an Owner.' }
+  }
+  if (c.fromRole === OWNER_DESK && !c.actorIsOwner) {
+    return { allowed: false, says: `${c.personName} is an Owner. Only an Owner can change an Owner's desk.` }
+  }
+  if (c.fromCanGiveDesks && !c.toCanGiveDesks && c.othersWhoCanGiveDesks === 0) {
+    return {
+      allowed: false,
+      says: `${c.personName} is the only one here who can give desks. Give that to somebody else first, then change this one.`,
+    }
+  }
+  return { allowed: true }
+}
+
+/** Whether a set of permissions can give desks. */
+export function canGiveDesks(permissions: string[]): boolean {
+  return permissions.includes('*') || permissions.includes('settings.manage')
+}
+
+// ── Waiting for access ─────────────────────────────────────
+
+/**
+ * What a row on "Waiting for access" says beside the address.
+ *
+ * An invitation is not a sign-in. Somebody invited who never came in has
+ * not joined anything, and a row that says "joined today" sends the owner
+ * looking for a person who is not there yet.
+ */
+export function waitingLine(w: { invited: boolean; signedIn: boolean; days: number }): string {
+  const when = w.days <= 0 ? 'today' : w.days === 1 ? 'yesterday' : `${w.days} days ago`
+  if (w.invited && !w.signedIn) {
+    return `${w.days <= 0 ? 'Invited today' : `Invited ${when}`}, not yet signed in`
+  }
+  return `joined ${when}`
+}
+
+// ── The invitation email ───────────────────────────────────
+
+/**
+ * Which way in the invitation can offer.
+ *
+ * PASSWORD: the deployment can send mail, so the email carries a one-time
+ *   link to set a password.
+ * WORK_ACCOUNT: Microsoft or Google sign-in is set up, and no mail-based
+ *   door; the email gives the sign-in address.
+ * NONE: neither. The email still gives the sign-in address, and the
+ *   person inviting is told to pass it on, because nothing here can prove
+ *   the mailbox yet.
+ */
+/**
+ * How long the set-password link in an invitation works. Longer than a
+ * reset's hour, because an invitation is read when the person gets to it,
+ * not the minute after they asked. After it lapses, "Forgot password"
+ * on the sign-in page sends a fresh one.
+ */
+export const INVITE_LINK_HOURS = 72
+
+export type InviteDoor = 'PASSWORD' | 'WORK_ACCOUNT' | 'NONE'
+
+export interface InviteLetter {
+  door: InviteDoor
+  companyName: string
+  /** Null where no desk was given yet. */
+  roleName: string | null
+  /** The one-time set-password link. Required where door is PASSWORD. */
+  setPasswordUrl: string | null
+  /** The sign-in page, absolute. Empty where this deployment does not know its own address. */
+  loginUrl: string
+  /** How long the set-password link works, in hours. */
+  linkHours: number
+  /** Whether Microsoft or Google sign-in is also on. */
+  workAccount: boolean
+}
+
+/**
+ * The words of the invitation email: always a way in, never only an
+ * instruction. Returns the lines and the link, so the sender can keep the
+ * link out of the stored copy.
+ */
+export function inviteLetter(l: InviteLetter): { lines: string[]; link: string | null } {
+  const youAre = l.roleName
+    ? `You are in ${l.companyName} as ${l.roleName}.`
+    : `You are in ${l.companyName}. Somebody there will give you a desk once you are in.`
+  const days = l.linkHours >= 24 ? `${Math.round(l.linkHours / 24)} days` : `${l.linkHours} hours`
+
+  if (l.door === 'PASSWORD' && l.setPasswordUrl) {
+    return {
+      lines: [
+        `Set your password to sign in. ${youAre}`,
+        `The link works once, for ${days}. After that, use "Forgot password" on the sign-in page.`,
+        ...(l.workAccount && l.loginUrl ? [`Or sign in with your work account at ${l.loginUrl}.`] : []),
+      ],
+      link: l.setPasswordUrl,
+    }
+  }
+  if (l.loginUrl) {
+    return {
+      lines: [
+        l.door === 'WORK_ACCOUNT'
+          ? `Sign in with your work account at ${l.loginUrl}. ${youAre}`
+          : `Sign in at ${l.loginUrl}. ${youAre}`,
+      ],
+      link: null,
+    }
+  }
+  // No address for this deployment: the email cannot carry a link, so it
+  // says so rather than pointing nowhere. The inviter is told the same.
+  return {
+    lines: [
+      `${youAre}`,
+      'This invitation could not include a sign-in link. Ask the person who invited you for the address to sign in.',
+    ],
+    link: null,
+  }
+}
