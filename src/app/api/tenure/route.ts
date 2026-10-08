@@ -8,7 +8,7 @@ import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { isDeskless } from '@/lib/nav-table'
-import { refusalSentence } from '@/lib/refusal-words'
+import { askTheDesk } from '@/lib/permissions'
 import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
@@ -63,10 +63,11 @@ export async function GET(request: NextRequest) {
   // shown, so it writes an AccessLog row per person, `allowed: false`,
   // before the 403 goes out. Only ids are read to name them.
   if (!seat && isDeskless(caller.permissions)) {
-    const says = refusalSentence('Reading the tenure ledger needs assignments.read.', {
+    const says = askTheDesk({
+      doing: 'Reading the tenure ledger',
+      needs: 'assignments.read',
       kind: caller.company?.kind ?? null,
-      company: caller.company?.name ?? null,
-      what: 'The tenure ledger',
+      companyName: caller.company?.name ?? null,
     })
     const would = await prisma.sellContract.findMany({
       where: {

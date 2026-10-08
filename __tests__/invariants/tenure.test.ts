@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { isDeskless } from '@/lib/nav-table'
-import { refusalSentence, namesAPermission } from '@/lib/refusal-words'
+import { namesAPermission } from '@/lib/refusal-words'
+import { askTheDesk } from '@/lib/permissions'
 import { resolvedEndClientId, endClientFilter } from '@/lib/resolve-end-client'
 
 /**
@@ -339,12 +340,12 @@ describe('a seat with no desk cannot read the tenure ledger by URL', () => {
   })
 
   it('the refusal is a sentence naming the desk to ask, never a permission key', () => {
-    const says = refusalSentence('Reading the tenure ledger needs assignments.read.', {
-      kind: 'CLIENT', company: 'Walk Co', what: 'The tenure ledger',
+    const says = askTheDesk({
+      doing: 'Reading the tenure ledger', needs: 'assignments.read', kind: 'CLIENT', companyName: 'Walk Co',
     })
     expect(namesAPermission(says)).toBe(false)
-    expect(says).toMatch(/^The tenure ledger is for the .+ desk at Walk Co\. Ask your company’s owner if you need it\.$/)
-    expect(get).toContain('refusalSentence(')
+    expect(says).toMatch(/^Reading the tenure ledger is done by .+ at Walk Co[.,]/)
+    expect(get).toContain('askTheDesk({')
   })
 
   it('a refused read of the tenure ledger still writes an access log row for every person it would have shown', () => {
