@@ -6,6 +6,8 @@ import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { asPayer } from '@/lib/chain-top'
 import { logBulkAccess } from '@/lib/access-log'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/app/api/program/no-desk'
 import { HOURS_PER_MONTH, annualSpendMinor } from '@/lib/program-spend'
 import { orgBasis } from './basis'
 
@@ -70,6 +72,34 @@ export async function GET(request: NextRequest) {
     url.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // ── A seat with no desk reads no org view ──────────────────────────
+  //
+  // Sign-up walk, round three. Member holds no permission at all, and the
+  // menu shows a desk-less seat its own pages and what is addressed to it
+  // — never Org view (`isDeskless` in lib/nav-table, the rule the sidebar
+  // draws by). This route asked nothing, so every manager's contractors
+  // and rates opened by URL. It refuses the same seat the menu does and
+  // no other. The view names everybody on site, so the refusal is a
+  // refused read of each of them, logged before the 403.
+  if (!seat && isDeskless(caller.permissions)) {
+    const says = noDeskYet('The org view', clientCompany.name)
+    const would = await prisma.sellContract.findMany({
+      where: {
+        ...endClientFilter(clientCompany.id),
+        state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] },
+      },
+      select: { personId: true },
+    })
+    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'CONTRACT_VIEW',
+      allowed: false,
+      reason: `Org view at ${clientCompany.name} refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+  }
 
   const seatUnits = await unitsReachedBy(seat)
 

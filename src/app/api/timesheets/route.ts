@@ -8,6 +8,9 @@ import { payerScope, seatedDesk } from '@/lib/resolve-client-company'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/app/api/program/no-desk'
+import { logBulkAccess } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
@@ -87,7 +90,49 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const where: any = { sellContract: scope }
+  // ── A seat with no desk reads only its own weeks ───────────────────
+  //
+  // Sign-up walk, round three. A colleague who joins on the domain sits
+  // as Member, and Member holds no permission at all: the menu shows a
+  // desk-less seat its own pages and what is addressed to it and none of
+  // the firm's — Timesheets among them (`isDeskless` in lib/nav-table,
+  // the rule the sidebar draws by). This route asked nothing, so the
+  // firm's weeks the menu withheld opened by URL.
+  //
+  // The gate is the menu's rule, not a permission: every desk the
+  // Timesheets link is shown to still reads it. A desk-less seat who is
+  // also somebody the work is about reads their own weeks and nobody
+  // else's, because their hours are theirs whatever their seat holds.
+  // One with no weeks of their own is refused in a sentence, and the
+  // refusal is a refused read of every person the list would have shown,
+  // so each is an AccessLog row, `allowed: false`, before the 403.
+  const ownOnly = !onBench && !desk?.seat && isDeskless(caller.permissions)
+  let rowScope: Record<string, unknown> = scope
+  if (ownOnly) {
+    const own = { AND: [scope, { personId: caller.person.id }] }
+    const hasOwn = await prisma.sellContract.count({ where: own })
+    if (hasOwn === 0) {
+      // Names no desk: every desk reads this page, so what is missing is a
+      // desk of any kind, and no permission key is handed to a person.
+      const says = noDeskYet('Timesheets', caller.company?.name ?? null)
+      const would = await prisma.timesheet.findMany({
+        where: { sellContract: scope },
+        select: { personId: true },
+        distinct: ['personId'],
+      })
+      logBulkAccess(would.map((t) => t.personId), {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id ?? undefined,
+        action: 'TIMESHEET_VIEW',
+        allowed: false,
+        reason: `Timesheets refused: ${says}`,
+      })
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+    }
+    rowScope = own
+  }
+
+  const where: any = { sellContract: rowScope }
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId
   // One week, by id — the dashboard's "Look" names the week it means,

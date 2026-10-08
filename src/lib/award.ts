@@ -541,13 +541,13 @@ export interface OrderCeiling {
  * term the requisition runs for, rounded up to the nearest thousand
  * dollars.
  *
- * Why extended: `annualValue` annualises on purpose, because it is
+ * Why extended: `annualValue` annualizes on purpose, because it is
  * comparing against an annual budget and a two-year commitment must not
  * read as two years of one year's budget. A ceiling is the opposite
  * question — it has to cover the whole term or the order reads as
  * exhausted before the last invoice. Multiplying the annual figure back
  * out by the years restores exactly what was stated: a $500,000 budget
- * over 24 months annualises to $250,000 and comes back here as
+ * over 24 months annualizes to $250,000 and comes back here as
  * $500,000, and an estimate comes back as rate x hours x the whole term.
  * Same arithmetic, one stage later. `Requirement.budgetCents` has said
  * so since it was added: *"It becomes the purchase order's ceiling after
@@ -615,7 +615,7 @@ export function orderCeiling(input: {
   const basis: CeilingBasis =
     fallback ? 'LINE' : value.basis === 'BUDGET' ? 'BUDGET' : 'ESTIMATE'
 
-  // Back out the annualisation, so the ceiling covers the term rather
+  // Back out the annualization, so the ceiling covers the term rather
   // than one year of it.
   const months = input.months ?? 12
   const years = months > 12 ? months / 12 : 1

@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import Link from 'next/link'
 import { amount } from '@/lib/money-display'
+import { useSession } from '@/components/session-provider'
+import { hasPermission } from '@/lib/permissions'
+import { chipsFor, emptyBook, type TypeFilter } from './chips'
 
 /**
  * Decisions — what needs a person right now.
@@ -37,7 +40,6 @@ interface Decision {
   createdAt: string
 }
 
-type TypeFilter = 'all' | 'TIMESHEET_APPROVAL' | 'EXPENSE_APPROVAL' | 'ROLLOFF_ACTION' | 'SUBMISSION_REVIEW' | 'CONTRACT_PAPERING' | 'CONTRACT_START' | 'INVOICE_OVERDUE' | 'REQUISITION_APPROVAL'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -115,6 +117,7 @@ function timeAgo(dateStr: string): string {
 // ── Page ─────────────────────────────────────────────
 
 export default function DecisionsPage() {
+  const session = useSession()
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -230,17 +233,23 @@ export default function DecisionsPage() {
     .reduce((sum, d) => sum + (d.amount ?? 0), 0)
 
   // ── Filter options ────────────────────────────────
-  const filterOptions: { key: TypeFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: decisions.length },
-    { key: 'TIMESHEET_APPROVAL', label: 'Timesheets', count: counts.TIMESHEET_APPROVAL ?? 0 },
-    { key: 'REQUISITION_APPROVAL', label: 'Job requests', count: counts.REQUISITION_APPROVAL ?? 0 },
-    { key: 'EXPENSE_APPROVAL', label: 'Expenses', count: counts.EXPENSE_APPROVAL ?? 0 },
-    { key: 'ROLLOFF_ACTION', label: 'Rolloff', count: counts.ROLLOFF_ACTION ?? 0 },
-    { key: 'SUBMISSION_REVIEW', label: 'Submissions', count: counts.SUBMISSION_REVIEW ?? 0 },
-    { key: 'CONTRACT_PAPERING', label: 'To paper', count: counts.CONTRACT_PAPERING ?? 0 },
-    { key: 'CONTRACT_START', label: 'To start', count: counts.CONTRACT_START ?? 0 },
-    { key: 'INVOICE_OVERDUE', label: 'Bills', count: counts.INVOICE_OVERDUE ?? 0 },
-  ]
+  // Only the chips whose page is on the reader's own menu, plus any with
+  // something under them (sign-up walk, round three, item 13). None at
+  // all until the session is known, rather than a guessed set.
+  const filterOptions = session.loading
+    ? []
+    : chipsFor(
+        {
+          kind: session.company?.kind ?? null,
+          isConsultant: session.contextType === 'CONSULTANT',
+          worker: session.isWorker,
+          permissions: session.permissions,
+          seatedAtClient: session.seat?.clientName ?? null,
+        },
+        counts,
+        decisions.length,
+      )
+  const empty = emptyBook(session.company?.kind ?? null, hasPermission(session.permissions, 'assignments.write'))
 
   return (
     <>
@@ -323,13 +332,18 @@ export default function DecisionsPage() {
       {!loading && filtered.length === 0 && (
         <div className="panel text-center py-16">
           <p className="text-lg text-etyme-verified font-medium mb-1">
-            {decisions.length === 0 ? 'All clear.' : 'No items in this category.'}
+            {decisions.length === 0 ? empty.lead : 'No items in this category.'}
           </p>
           <p className="text-sm text-etyme-faint">
             {decisions.length === 0
-              ? 'Nothing needs your attention right now. Check back later.'
+              ? empty.says
               : 'Try a different filter to see other pending items.'}
           </p>
+          {decisions.length === 0 && empty.href && empty.action && (
+            <Link href={empty.href as any} className="btn-primary inline-block mt-4 text-[13px]">
+              {empty.action}
+            </Link>
+          )}
         </div>
       )}
 

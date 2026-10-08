@@ -9,6 +9,9 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { lineFor, splitWeeks } from '@/lib/overtime'
 import { actingDesk } from '@/lib/program-seat'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/app/api/program/no-desk'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -35,8 +38,34 @@ export async function GET(request: NextRequest) {
 
   // A client reads its own budget. A supplier has no business here at
   // all — this is the buying company's plan, not a number about them.
-  const { client, error: clientError } = await resolveClientCompany(caller, null)
+  const { client, seat, error: clientError } = await resolveClientCompany(caller, null)
   if (clientError) return clientError
+
+  // ── A seat with no desk reads no budget ────────────────────────────
+  //
+  // Sign-up walk, round three. Member holds no permission at all, and the
+  // menu shows a desk-less seat its own pages and what is addressed to it
+  // — never Budget (`isDeskless` in lib/nav-table, the rule the sidebar
+  // draws by). This route asked nothing, so the plan the menu withheld
+  // opened by URL. It refuses the same seat the menu does and no other:
+  // every desk the Budget link is shown to still reads it. The budget
+  // names the people allocated to each cost center, so the refusal is a
+  // refused read of each of them, logged before the 403.
+  if (!seat && isDeskless(caller.permissions)) {
+    const says = noDeskYet('The budget', client.name)
+    const would = await prisma.contractCostAllocation.findMany({
+      where: { costCenter: { companyId: client.id } },
+      select: { sellContract: { select: { personId: true } } },
+    })
+    logBulkAccess([...new Set(would.map((a) => a.sellContract.personId))], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'CONTRACT_VIEW',
+      allowed: false,
+      reason: `Budget at ${client.name} refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+  }
 
   const now = new Date()
   const period = periodOf(now)

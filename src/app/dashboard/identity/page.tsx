@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -40,6 +41,9 @@ const TONE: Record<string, string> = {
 }
 
 export default function IdentityPage() {
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const section = usePageSection('/dashboard/identity')
   const [matches, setMatches] = useState<Match[]>([])
   const [summary, setSummary] = useState('')
   const [note, setNote] = useState('')
@@ -95,7 +99,7 @@ export default function IdentityPage() {
   return (
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Duplicate check</h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           When a supplier in the middle of a chain is not on Etyme, one
