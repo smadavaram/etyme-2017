@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { recordAccess } from '@/lib/access-log'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
 import {
   latestPerPerson, notOnBenchSays, onFirmsBench, personAnswer, readSwitch, turnedSays, asSwitch,
   type SwitchRow,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   const refused = await benchPayDesk(caller)
   if (refused) {
     if (subject) {
-      await recordAccess([subject.id], {
+      await recordRefusal([subject.id], {
         actorPersonId: caller.person.id,
         actorCompanyId: caller.company?.id,
         action: 'PAYROLL_VIEW',
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
   const ours = await onBench(companyId, [subject.id], new Date())
   if (!ours.has(subject.id)) {
-    await recordAccess([subject.id], {
+    await recordRefusal([subject.id], {
       actorPersonId: caller.person.id,
       actorCompanyId: companyId,
       action: 'PAYROLL_VIEW',
@@ -139,6 +139,17 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
+
+  // The read is recorded before the switch moves, through the one door.
+  // It was a third write inside the transaction below; written first and
+  // waited for, a failed row stops the switch rather than leaving a change
+  // nobody can trace, which is what the transaction was there to ensure.
+  await recordAccess([subject.id], {
+    actorPersonId: caller.person.id,
+    actorCompanyId: companyId,
+    action: 'PAYROLL_VIEW',
+    reason: 'Turned their holiday pay on the bench',
+  })
 
   await prisma.$transaction([
     prisma.benchHolidaySwitch.create({
@@ -152,12 +163,6 @@ export async function POST(request: NextRequest) {
         reason: 'Turned by the owner, admin or finance desk',
         payload: { paid: s.paid, personId: subject.id, byPersonId: caller.person.id },
         reversible: true,
-      },
-    }),
-    prisma.accessLog.create({
-      data: {
-        subjectId: subject.id, actorPersonId: caller.person.id, actorCompanyId: companyId,
-        action: 'PAYROLL_VIEW', reason: 'Turned their holiday pay on the bench',
       },
     }),
   ])

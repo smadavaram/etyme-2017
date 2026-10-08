@@ -51,13 +51,16 @@ const POSTURE = readFileSync(join(ROOT, 'docs/security-posture.md'), 'utf8')
  * lib/access-log — logAccess, logBulkAccess, recordAccess or recordRefusal.
  * Counted from the tree, so a public number about coverage cannot go stale.
  */
-function routeFilesLoggingThroughTheLib(): number {
+function apiRouteFiles(): string[] {
   const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap((name) => {
       const full = join(dir, name)
       return statSync(full).isDirectory() ? walk(full) : name === 'route.ts' ? [full] : []
     })
-  return walk(join(ROOT, 'src/app/api')).filter((f) =>
+  return walk(join(ROOT, 'src/app/api'))
+}
+function routeFilesLoggingThroughTheLib(): number {
+  return apiRouteFiles().filter((f) =>
     /\b(?:logAccess|logBulkAccess|recordAccess|recordRefusal)\(/.test(readFileSync(f, 'utf8'))
   ).length
 }
@@ -477,13 +480,19 @@ describe('The security posture is as plain about what is absent as what is prese
     ).toBe(counted)
   })
 
-  it('it states the access-log coverage honestly rather than as every route', () => {
-    // Stale, and pinned here only so it is not edited by accident: the tree
-    // has 37 such route files out of 297 (see the sentence below for the
-    // notice, which is computed). docs/security-posture.md has no owner in
-    // lib/domains.ts, so no builder may correct it until one is named;
-    // when it is, replace this pin with routeFilesLoggingThroughTheLib().
-    expect(POSTURE).toMatch(/Nineteen route files call `logAccess` or\s*`logBulkAccess`, out of 231 API route files/)
+  it('it states the access-log coverage honestly rather than as every route, and both counts are the ones in the tree today', () => {
+    // Counted, not pinned, the same way as the privacy notice: a builder who
+    // moves a route onto lib/access-log changes the number here as well.
+    const logging = routeFilesLoggingThroughTheLib()
+    const routes = apiRouteFiles().length
+    const said = /(\d+) route files write an access-log row\s+through `src\/lib\/access-log\.ts`, out of (\d+) API route files/.exec(POSTURE)
+    expect(said, 'docs/security-posture.md no longer states the coverage in the form this test reads').not.toBeNull()
+    expect(
+      [Number(said![1]), Number(said![2])],
+      `docs/security-posture.md says ${said![1]} of ${said![2]} route files log a read; the tree has ` +
+        `${logging} of ${routes}. Change both numbers in section 4 and in the summary of what is not done.`
+    ).toEqual([logging, routes])
+    expect(POSTURE).toContain(`Access logging covers ${logging} route files of ${routes} (section 4).`)
     expect(POSTURE).toMatch(/It is not every\s*endpoint in the product and this document does not claim it is/)
   })
 

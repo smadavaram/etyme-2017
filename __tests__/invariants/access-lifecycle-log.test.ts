@@ -247,11 +247,17 @@ describe('a refused read is in the trail before the refusal is sent', () => {
 // `recordAccess` or `recordRefusal`, which report a failed write to staff.
 
 const API_ROOT = join(process.cwd(), 'src/app/api')
+// A library writes rows on a route's behalf, so it is read too: the
+// week-approval service's four hand-written rows sat in src/lib, each
+// ending in `.catch(() => {})`, where a check of src/app/api alone could
+// not see them. lib/access-log is the door itself and is skipped.
+const LIB_ROOT = join(process.cwd(), 'src/lib')
 
-/** Every file under src/app/api that writes an access-log row itself, as `file` per write. */
+/** Every file under src/app/api or src/lib that writes an access-log row itself, as `file` per write. */
 function handWrittenAccessLogRows(): string[] {
   const found: string[] = []
-  for (const file of filesUnder(API_ROOT)) {
+  for (const file of [...filesUnder(API_ROOT), ...filesUnder(LIB_ROOT)]) {
+    if (file.endsWith(join('lib', 'access-log.ts'))) continue
     const src = readFileSync(file, 'utf8')
     const writes = src.match(/\baccessLog\s*\.\s*create(?:Many)?\s*\(/g) ?? []
     for (let i = 0; i < writes.length; i++) found.push(relative(process.cwd(), file))
@@ -276,11 +282,14 @@ const STILL_BY_HAND: readonly string[] = [
   // when it does, both move through it and come off this list.
   'src/app/api/bench/listings/[id]/route.ts',
   'src/app/api/bench/share/route.ts',
-  'src/app/api/settings/bench/people/route.ts',        // etyme-architect
+  // etyme-architect — one seam, awaited, a failure reported to staff. Its
+  // six action names are not in AccessAction yet (lib/access-log is
+  // regulatory's); once they are, the seam calls recordRefusal/recordAccess.
+  'src/lib/week-approval.ts',
 ].slice().sort()
 
 describe('every access-log row goes through one door', () => {
-  it('no route writes an access-log row by hand; every one goes through lib/access-log, so the refusal rule can see it', () => {
+  it('no route and no library writes an access-log row by hand; every one goes through lib/access-log, so the refusal rule can see it', () => {
     expect(
       handWrittenAccessLogRows(),
       'A route writes prisma.accessLog.create or createMany itself. The check that a refusal is ' +

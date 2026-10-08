@@ -300,8 +300,8 @@ systems drop and the half an investigation needs.
 
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
-**Coverage, stated honestly.** Nineteen route files call `logAccess` or
-`logBulkAccess`, out of 231 API route files. They are the routes that
+**Coverage, stated honestly.** 42 route files write an access-log row
+through `src/lib/access-log.ts`, out of 297 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -730,7 +730,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 19 route files of 231 (section 4).
+- Access logging covers 42 route files of 297 (section 4).
 - Access logging is fire-and-forget, so a log write failure does not fail
   the request.
 - MFA is inherited, not enforced.

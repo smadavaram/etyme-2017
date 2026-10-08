@@ -357,10 +357,58 @@ function actorVerdict(r: Reader, c: WeekChain) {
 }
 
 /** A refused attempt to act for the client, logged like any read of the worker's week. */
-async function logRefusal(r: Reader, c: WeekChain, action: string, says: string) {
-  await prisma.accessLog.create({
-    data: { subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r), action, allowed: false, reason: withSeat(r, says) },
-  }).catch(() => {})
+async function logRefusal(r: Reader, c: WeekChain, action: WeekTrailAction, says: string) {
+  await trail({ subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r), action, allowed: false, reason: withSeat(r, says) })
+}
+
+/**
+ * The names this file files its access-log rows under. Integration tests
+ * and the client's own trail read them, so they do not move.
+ */
+type WeekTrailAction =
+  | 'APPROVAL_LINK_SEND'        // refused: sending the client's approver a link
+  | 'APPROVAL_EVIDENCE_ATTACH'  // refused: attaching the client's approval as evidence
+  | 'WEEK_APPROVAL_VIEW'        // refused: reading who approved a week
+  | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
+  | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
+  | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+
+/**
+ * Every access-log row this file writes goes through here, and waits.
+ *
+ * It is the one write in this file, so the trail has one seam. Until
+ * 2026-10-08 there were four, each ending in `.catch(() => {})`, so a
+ * failed write of a refused attempt on somebody's week vanished. A
+ * failure is now reported to staff, and never turned into a 500: a
+ * refusal that could not be recorded is still a refusal, and a read is
+ * not withheld from the approver because the trail failed.
+ *
+ * It writes here rather than through `lib/access-log` for one reason:
+ * the six names above are not in `AccessAction`, the closed union in that
+ * file, which is regulatory's. Once they are added, the body becomes
+ * `recordRefusal` for a refusal and `recordAccess` for a read, and no
+ * caller changes.
+ */
+async function trail(row: {
+  subjectId: string
+  actorPersonId: string | null
+  actorCompanyId: string | null
+  action: WeekTrailAction
+  allowed: boolean
+  reason: string | null
+}): Promise<void> {
+  try {
+    await prisma.accessLog.create({ data: row })
+  } catch (err) {
+    await reportError(
+      'access-log',
+      new Error(
+        `Could not record ${row.allowed ? 'a' : 'a refused'} ${row.action} of ${row.subjectId}. ` +
+          `It happened and is not in the trail. Cause: ${err instanceof Error ? err.message : String(err)}`
+      ),
+      { personId: row.actorPersonId, companyId: row.actorCompanyId }
+    ).catch(() => undefined)
+  }
 }
 
 // ── Whether the named approver is somebody at the client ─────────────
@@ -393,7 +441,7 @@ async function clientOfRecord(clientId: string, clientName: string): Promise<Cli
 }
 
 /** Null where the approver is at the client; the refusal where not, logged like any other. */
-async function approverRefusal(r: Reader, c: WeekChain, approverEmail: string, action: string): Promise<Refused | null> {
+async function approverRefusal(r: Reader, c: WeekChain, approverEmail: string, action: 'APPROVAL_LINK_SEND' | 'APPROVAL_EVIDENCE_ATTACH'): Promise<Refused | null> {
   const v = approverIsKnownAtClient({ approverEmail, client: await clientOfRecord(c.clientId, c.clientName) })
   if (v.ok) return null
   await logRefusal(r, c, action, v.says)
@@ -788,12 +836,10 @@ export async function openLink(token: string, now = new Date()): Promise<{ ok: t
   )
   // The approver reads a person's hours. They hold no seat, so the row
   // names their company and the link, and says what they were shown.
-  await prisma.accessLog.create({
-    data: {
-      subjectId: c.week.personId, actorPersonId: null, actorCompanyId: c.clientId,
-      action: 'APPROVAL_LINK_VIEW', allowed: v.open, reason: v.open ? null : v.says,
-    },
-  }).catch(() => {})
+  await trail({
+    subjectId: c.week.personId, actorPersonId: null, actorCompanyId: c.clientId,
+    action: 'APPROVAL_LINK_VIEW', allowed: v.open, reason: v.open ? null : v.says,
+  })
   if (!v.open) return refuse(409, v.code, v.says)
 
   return {
@@ -1086,12 +1132,10 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
     .sort((a, b) => order(a.companyId) - order(b.companyId) || a.at.getTime() - b.at.getTime())
   const sigs = signaturesSeen(r, c, sigRows, now)
   for (const l of sigs.logged) {
-    await prisma.accessLog.create({
-      data: {
-        subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r),
-        action: 'WEEK_SIGNATURE_VIEW', allowed: l.allowed, reason: r.seat ? withSeat(r, l.reason) : l.reason,
-      },
-    }).catch(() => {})
+    await trail({
+      subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r),
+      action: 'WEEK_SIGNATURE_VIEW', allowed: l.allowed, reason: r.seat ? withSeat(r, l.reason) : l.reason,
+    })
   }
 
   const who = actorVerdict(r, c)
@@ -1125,7 +1169,7 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
 
 async function writeReadLog(r: Reader, c: WeekChain, v: ReadVerdict) {
   const row = evidenceReadLog({ personId: r.personId, companyId: actorCompanyOf(r) }, { personId: c.week.personId }, v)
-  await prisma.accessLog.create({ data: { ...row, reason: r.seat ? withSeat(r, row.reason) : row.reason } }).catch(() => {})
+  await trail({ ...row, action: 'APPROVAL_EVIDENCE_VIEW', reason: r.seat ? withSeat(r, row.reason) : row.reason })
 }
 
 /** The firm that actually read: the office where it reads through a seat. */

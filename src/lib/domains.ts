@@ -74,6 +74,10 @@ export const DOMAINS: Domain[] = [
       // because a privacy notice that misdescribes what the system holds is a
       // written misrepresentation rather than a positioning error.
       'lib/legal', 'app/legal', 'app/terms', 'app/privacy', 'app/dpa',
+      // The security position: what is done and what is not yet. Read by
+      // legal-pages.test.ts against the tree, so it sits with the notice
+      // that cites it.
+      'docs/security-posture.md',
       'app/api/shared', 'app/api/packet', 'app/packet',
       'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
