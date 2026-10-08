@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { readerZone, headline, type Interview } from '@/lib/interviews'
 import { noticesFor, timeFor, type NoticeContext } from '@/lib/interview-notices'
-import { pageFraming } from '@/lib/page-framing'
+import { pageFraming, notificationsFraming } from '@/lib/page-framing'
 import { notChosenNotices, notChosenSaid, type StoodDown, type FilledJob } from '@/lib/notify/not-chosen'
 import { notificationHref } from '@/lib/notify'
 
@@ -211,9 +211,16 @@ describe('bench stay notices are filed under Bench', () => {
   })
 
   it('the notifications page can filter to bench and interview notices, and shows each type as a word', () => {
+    // The filters are the reader's own, from one door (lib/page-framing);
+    // the page draws whatever that door offers, after "All".
     const page = read('src/app/dashboard/notifications/page.tsx')
-    expect(page).toContain("{ key: 'BENCH', label: 'Bench' }")
-    expect(page).toContain("{ key: 'INTERVIEW', label: 'Interviews' }")
+    expect(page).toContain('...framing.kinds')
+    const supplier = notificationsFraming('VENDOR', false).kinds
+    expect(supplier).toContainEqual({ key: 'BENCH', label: 'Bench' })
+    expect(supplier).toContainEqual({ key: 'INTERVIEW', label: 'Interviews' })
+    const worker = notificationsFraming('VENDOR', true).kinds
+    expect(worker).toContainEqual({ key: 'BENCH', label: 'Your bench listing' })
+    expect(worker).toContainEqual({ key: 'INTERVIEW', label: 'Interviews' })
     expect(page).not.toMatch(/>\{n\.type\}</)
   })
 })

@@ -45,6 +45,7 @@ interface DeliveryHealth {
   failed: number
   notConfigured: number
   pending: number
+  demoSkipped?: number
   healthy: boolean
 }
 
@@ -353,7 +354,12 @@ export default function NotificationsPage() {
                   <span className={`chip text-[10px] ${typeChipClass(n.type)}`}>{typeLabel(n.type)}</span>
                 </div>
                 <p className="text-[12px] text-etyme-faint truncate">{n.body}</p>
-                {n.deliveryState !== 'SENT' && (
+                {n.deliveryState === 'DEMO_SKIPPED' && (
+                  <p className="text-[11px] text-etyme-faint mt-0.5">
+                    Shown here only — this is a demo address, so no email was sent.
+                  </p>
+                )}
+                {n.deliveryState !== 'SENT' && n.deliveryState !== 'DEMO_SKIPPED' && (
                   <p className="text-[11px] text-etyme-attention mt-0.5">
                     {n.deliveryState === 'FAILED'
                       ? `Not sent — ${n.deliveryNote ?? 'delivery failed'}`

@@ -37,7 +37,7 @@ const CS = `world-computer-systems${D}`
 const TECHPEPLE = `world-techpeple${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
 const HELENA = 'helena.marsh@seed.etyme.invalid'
-const DANA = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.example' }
+const DANA = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.test' }
 
 /** Every letter that left, as the email provider would have received it. */
 const letters: { to: string; subject: string; text: string }[] = []
@@ -65,13 +65,22 @@ describe('a client approves a week by email, and the proof travels down the chai
     await freshWorld()
     process.env.NEXTAUTH_URL ||= 'https://etyme.example'
     process.env.RESEND_API_KEY = 'test-key'
-    process.env.NOTIFY_FROM_EMAIL = 'hours@etyme.example'
+    process.env.NOTIFY_FROM_EMAIL = 'hours@etyme.test'
     vi.stubGlobal('fetch', async (url: string, init?: { body?: string }) => {
       if (String(url).includes('api.resend.com')) {
         const b = JSON.parse(init?.body ?? '{}')
         letters.push({ to: [b.to].flat()[0], subject: b.subject, text: b.text })
       }
       return new Response('{}', { status: 200 })
+    })
+
+    // The seeded client lives on a reserved demo domain, and no email
+    // ever leaves for one. Northbend proves a second domain on the .test
+    // name the suite uses for a real address, so the letter to its
+    // approver goes out and the link inside it can be read back.
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    await prisma.companyDomain.create({
+      data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
     })
 
     const helena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA } })
@@ -124,13 +133,31 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(row.clientApprovedAt).toBeNull()
   })
 
+  it('an approver at a demo address is sent no email, and the link is still made and recorded', async () => {
+    as(HELENA)
+    const before = letters.length
+    const demo = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.example' }
+    const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...demo })
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.status).toBe(201)
+    expect(r.body.data.delivery).toEqual({ state: 'DEMO_SKIPPED', note: 'demo address, nothing sent' })
+    expect(r.body.data.says).toMatch(/^The link is ready, but the email did not leave: demo address, nothing sent/)
+    expect(letters.length).toBe(before)
+    const row = await prisma.weekApproval.findUniqueOrThrow({ where: { id: r.body.data.id } })
+    expect(row.approverEmail).toBe(demo.approverEmail)
+    const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'WEEK_APPROVAL_LINK_SENT', payload: { path: ['weekApprovalId'], equals: row.id } } })
+    expect(log.reason).toContain('demo_skipped — demo address, nothing sent')
+    // Out of the way of the walk below, which reads the week's one link.
+    await prisma.weekApproval.delete({ where: { id: row.id } })
+  })
+
   it('a worker sends “Approve by email” on her own week, and the letter to the client’s approver carries a one-time link and no rate', async () => {
     as(HELENA)
     const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
     expect(r.body.data.delivery.state).toBe('SENT')
-    expect(r.body.data.says).toMatch(/^Sent to Dana Whitfield at dana\.whitfield@northbend\.example\. The link works once and runs out on /)
+    expect(r.body.data.says).toMatch(/^Sent to Dana Whitfield at dana\.whitfield@northbend\.test\. The link works once and runs out on /)
     // The sender is never handed the link: whoever holds it signs for the client.
     expect(JSON.stringify(r.body)).not.toMatch(/answer\/week\//)
 

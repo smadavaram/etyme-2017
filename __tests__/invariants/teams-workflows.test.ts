@@ -100,7 +100,7 @@ describe('a company that saved the retired kind before May 2026', () => {
     expect(route.reason).toBe(RETIRED_LINK_ROUTE_REASON)
 
     const email: Sender = { channel: 'EMAIL', async send() {} }
-    const o = await attemptDelivery(route, 'marcus@northbend.example', 'T', 'B', [email], NOW)
+    const o = await attemptDelivery(route, 'marcus@northbend.test', 'T', 'B', [email], NOW)
     expect(o.state).toBe('SENT')
     // The note is what the notification row keeps, so the reason is on
     // the record of the message itself.

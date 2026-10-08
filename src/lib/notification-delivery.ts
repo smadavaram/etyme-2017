@@ -23,7 +23,14 @@
 import { teamsLinkKind, RETIRED_LINK_ROUTE_REASON, TEAMS_WORKFLOWS_SENT_NOTE } from '@/lib/notify/teams-link'
 
 export type Channel = 'IN_APP' | 'EMAIL' | 'TEAMS'
-export type DeliveryState = 'PENDING' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
+/**
+ * DEMO_SKIPPED is a finished send to an address nobody can own (a seeded
+ * or demo person). Nothing left the building, nothing is broken and
+ * nothing needs setting up, so it is counted apart from NOT_CONFIGURED:
+ * a pile of demo notices is not a setup job and does not make the
+ * delivery look unhealthy.
+ */
+export type DeliveryState = 'PENDING' | 'SENT' | 'FAILED' | 'NOT_CONFIGURED' | 'DEMO_SKIPPED'
 
 export interface Recipient {
   /** A consultant has no company channel, whoever their bench is with. */
@@ -160,6 +167,7 @@ export interface DeliveryOutcome {
  *
  *   FAILED          somebody tried; the address bounced or the hook is dead
  *   NOT_CONFIGURED  nobody has ever set this up
+ *   DEMO_SKIPPED    a demo address; the send is done and nothing left
  *
  * Collapsing them loses the only fact that says what to do next.
  */
@@ -188,8 +196,10 @@ export async function attemptDelivery(
 
   // A seeded or demo person has an address nobody can own. Nothing is
   // sent and the sender is never asked; the notice stays, with the reason.
+  // The send is finished rather than stuck, so whatever the caller was
+  // doing (a link minted, a step recorded) carries on.
   if (route.channel === 'EMAIL' && demoAddress(destination)) {
-    return { state: 'NOT_CONFIGURED', note: DEMO_ADDRESS_NOTE, deliveredAt: null }
+    return { state: 'DEMO_SKIPPED', note: DEMO_ADDRESS_NOTE, deliveredAt: null }
   }
 
   const sender = senders.find(s => s.channel === route.channel)
@@ -230,11 +240,12 @@ export async function attemptDelivery(
  * A pile of NOT_CONFIGURED is a setup job — one Teams channel fixes all of
  * them. A pile of FAILED is a broken address or a dead webhook and needs
  * somebody to look. They are counted apart because they lead to different
- * work.
+ * work. A notice to a demo address is neither: it is counted on its own
+ * and never makes the summary unhealthy.
  */
 export function deliverySummary(
   rows: { deliveryState: string }[]
-): { sent: number; failed: number; notConfigured: number; pending: number; healthy: boolean } {
+): { sent: number; failed: number; notConfigured: number; pending: number; demoSkipped: number; healthy: boolean } {
   const count = (s: string) => rows.filter(r => r.deliveryState === s).length
   const failed = count('FAILED')
   const notConfigured = count('NOT_CONFIGURED')
@@ -243,6 +254,7 @@ export function deliverySummary(
     failed,
     notConfigured,
     pending: count('PENDING'),
+    demoSkipped: count('DEMO_SKIPPED'),
     healthy: failed === 0 && notConfigured === 0,
   }
 }

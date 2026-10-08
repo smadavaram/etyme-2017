@@ -23,9 +23,9 @@ import { notice } from '@/lib/notify/letters'
  * that was written down before anybody knew what was in the file.
  */
 
-const STAFF = 'census.runner@etyme.invalid'
-const OTHER_STAFF = 'someone.else@etyme.invalid'
-const OUTSIDER = 'nosey@outsider.invalid'
+const STAFF = 'census.runner@etyme.test'
+const OTHER_STAFF = 'someone.else@etyme.test'
+const OUTSIDER = 'nosey@outsider.test'
 
 const ROWS = [
   'Veritan Talent,Validation Engineer,Tualatin OR,2024-02-01,2026-12-31,92.50,40,C-1001',
@@ -60,7 +60,7 @@ function captureMail(opts: { refuse?: string } = {}) {
   const sent: { to: string; subject: string; body: string }[] = []
   const real = global.fetch
   process.env.RESEND_API_KEY = 'census-test-key'
-  process.env.NOTIFY_FROM_EMAIL = 'census@etyme.invalid'
+  process.env.NOTIFY_FROM_EMAIL = 'census@etyme.test'
 
   global.fetch = (async (url: unknown, init: { body?: unknown } = {}) => {
     if (String(url).includes('api.resend.com')) {
@@ -123,7 +123,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const res = await json(await askForCensus(req('POST', '/api/census/request', {
       companyName: 'Northbend Athletic',
       contactName: 'Dana Whitlock',
-      workEmail: 'dana.whitlock@northbend.invalid',
+      workEmail: 'dana.whitlock@northbend.test',
       desk: 'FINANCE',
       supplierCount: 9,
       option: 'TEMPLATE',
@@ -135,7 +135,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     // Nobody signed in, and nothing about them was verified.
     const row = await prisma.censusRequest.findUniqueOrThrow({ where: { id: northbendId } })
     expect(row.status).toBe('REQUESTED')
-    expect(await prisma.person.findFirst({ where: { primaryEmail: 'dana.whitlock@northbend.invalid' } })).toBeNull()
+    expect(await prisma.person.findFirst({ where: { primaryEmail: 'dana.whitlock@northbend.test' } })).toBeNull()
     expect(await prisma.company.findFirst({ where: { name: 'Northbend Athletic' } })).toBeNull()
   })
 
@@ -155,7 +155,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const res = await json(await askForCensus(req('POST', '/api/census/request', {
       companyName: 'Cavanaugh Glassworks',
       contactName: 'Marcus Vine',
-      workEmail: 'marcus.vine@cavanaugh.invalid',
+      workEmail: 'marcus.vine@cavanaugh.test',
       desk: 'PROCUREMENT',
     })))
     expect(res.status).toBe(200)
@@ -203,7 +203,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const res = await json(await acceptAgreement(req('POST', '/api/census/agree', {
       id: northbendId,
       acceptedBy: 'Priya Raman, General Counsel',
-      workEmail: 'dana.whitlock@northbend.invalid',
+      workEmail: 'dana.whitlock@northbend.test',
     })))
     expect(res.status).toBe(200)
     northbendToken = res.body.data.uploadToken
@@ -471,7 +471,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
   it('the client is written to at each of the five moments, and the letter’s date is the row’s', async () => {
     const post = captureMail()
     try {
-      const contact = 'imogen.ruiz@halloway.invalid'
+      const contact = 'imogen.ruiz@halloway.test'
 
       // 1. Asked.
       const asked = await json(await askForCensus(req('POST', '/api/census/request', {
@@ -549,7 +549,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
   it('a client who lost the tab gets the upload link again by pressing accept, and the same link, not a second one', async () => {
     const post = captureMail()
     try {
-      const contact = 'theo.marsden@pellroan.invalid'
+      const contact = 'theo.marsden@pellroan.test'
       const asked = await json(await askForCensus(req('POST', '/api/census/request', {
         companyName: 'Pell & Roan',
         contactName: 'Theo Marsden',
@@ -588,7 +588,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     try {
       // One census accepted under the 2026-09-20 wording, before the
       // edition moved. Written the way that acceptance left the row.
-      const earlierContact = 'june.harlow@okenfield.invalid'
+      const earlierContact = 'june.harlow@okenfield.test'
       const earlier = await json(await askForCensus(req('POST', '/api/census/request', {
         companyName: 'Okenfield Tools', contactName: 'June Harlow', workEmail: earlierContact, desk: 'FINANCE',
       })))
@@ -597,7 +597,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
       await prisma.censusRequest.update({ where: { id: earlierId }, data: { agreementVersion: '2026-09-20' } })
 
       // And one still pending: asked, not yet accepted.
-      const pendingContact = 'omar.vance@brisk.invalid'
+      const pendingContact = 'omar.vance@brisk.test'
       const pending = await json(await askForCensus(req('POST', '/api/census/request', {
         companyName: 'Brisk Cartage', contactName: 'Omar Vance', workEmail: pendingContact, desk: 'PROCUREMENT',
       })))
@@ -633,7 +633,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const asked = await json(await askForCensus(req('POST', '/api/census/request', {
       companyName: 'Quillane Rail',
       contactName: 'Bryn Ostrow',
-      workEmail: 'bryn.ostrow@quillane.invalid',
+      workEmail: 'bryn.ostrow@quillane.test',
       desk: 'OTHER',
     })))
     const id = asked.body.data.id
@@ -679,21 +679,21 @@ describe('A client asks for a contractor census, and the file goes on the day we
     // of a fresh deployment.
     const letter = notice({
       audience: 'business',
-      to: 'nadia.okonjo@halloway.invalid',
+      to: 'nadia.okonjo@halloway.test',
       subject: 'Your census files arrived — Halloway Foods',
       body: 'Received, 1 file, 0.1 MB.',
     })
     const dropped = await sendCensusLetter(letter)
     expect(dropped.sent).toBe(false)
     expect(dropped.staffInstruction).toBe(
-      'Send to nadia.okonjo@halloway.invalid: Your census files arrived — Halloway Foods'
+      'Send to nadia.okonjo@halloway.test: Your census files arrived — Halloway Foods'
     )
     expect(dropped.note).toContain('NOTIFY_FROM_EMAIL')
 
     // And where a sender exists but refuses the address, the same
     // instruction reaches the staff channel carrying the whole letter,
     // so somebody sends it by hand instead of nobody sending it at all.
-    const post = captureMail({ refuse: 'nadia.okonjo@halloway.invalid' })
+    const post = captureMail({ refuse: 'nadia.okonjo@halloway.test' })
     try {
       const handed = await sendCensusLetter(letter)
       expect(handed.sent).toBe(false)
@@ -701,7 +701,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
       const toStaff = post.to(STAFF)
       expect(toStaff).toHaveLength(1)
       expect(toStaff[0].subject).toBe(
-        'Send to nadia.okonjo@halloway.invalid: Your census files arrived — Halloway Foods'
+        'Send to nadia.okonjo@halloway.test: Your census files arrived — Halloway Foods'
       )
       expect(toStaff[0].body).toContain('Received, 1 file, 0.1 MB.')
       expect(toStaff[0].body).toContain('They have no account here')
@@ -714,7 +714,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     const asked = await json(await askForCensus(req('POST', '/api/census/request', {
       companyName: 'Lowmarsh Cabling',
       contactName: 'Ada Krall',
-      workEmail: 'ada.krall@lowmarsh.invalid',
+      workEmail: 'ada.krall@lowmarsh.test',
       desk: 'PROGRAM',
     })))
     const id = asked.body.data.id
@@ -749,7 +749,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
     // too, because the row remembers even where no notification can.
     await prisma.censusRequest.update({
       where: { id },
-      data: { assignedStaffEmail: 'nobody.here@etyme.invalid', lastWarnedAt: null },
+      data: { assignedStaffEmail: 'nobody.here@etyme.test', lastWarnedAt: null },
     })
     expect((await runCensusSweep(new Date())).warned).toBe(1)
     expect((await runCensusSweep(new Date())).warned).toBe(0)

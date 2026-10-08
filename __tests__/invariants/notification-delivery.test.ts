@@ -151,11 +151,18 @@ describe('No email ever leaves for a reserved demo address (sign-up walk, round 
       const o = await attemptDelivery(
         routeFor(recipient({ teamsWebhookUrl: null, email: to })), to, 'T', 'B', [recording], NOW
       )
-      expect(o.state, to).toBe('NOT_CONFIGURED')
+      expect(o.state, to).toBe('DEMO_SKIPPED')
       expect(o.note, to).toBe('demo address, nothing sent')
       expect(o.deliveredAt, to).toBeNull()
     }
     expect(asked).toEqual([])
+  })
+
+  it('a notice to a demo address is a finished send, not a setup job, and never makes delivery look unhealthy', () => {
+    const s = deliverySummary([{ deliveryState: 'SENT' }, { deliveryState: 'DEMO_SKIPPED' }, { deliveryState: 'DEMO_SKIPPED' }])
+    expect(s.demoSkipped).toBe(2)
+    expect(s.notConfigured).toBe(0)
+    expect(s.healthy).toBe(true)
   })
 
   it('a test address and a real address with the word example in its name are still sent', async () => {
