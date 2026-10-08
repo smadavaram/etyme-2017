@@ -21,6 +21,7 @@
  * Owned by etyme-regulatory (`lib/data-request` in `lib/domains.ts`).
  */
 
+import { appUrl } from '@/lib/supplier-link'
 import { prisma } from '@/lib/db'
 import { HELD, NOT_USED } from '@/lib/legal'
 import {
@@ -717,12 +718,9 @@ export function reference(requestId: string): string {
   return `DR-${requestId.slice(-8).toUpperCase()}`
 }
 
-// TODO(etyme-regulatory): switch to the one base-URL door etyme-demand is building
-// (lib/app-url or lib/supplier-link); the password door reads NEXTAUTH_URL and this does not.
+/** Every mailed link here is built from the one base address, the same the password door uses. */
 function baseUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-    ? (process.env.NEXT_PUBLIC_APP_URL ?? `https://${process.env.VERCEL_URL}`)
-    : 'http://localhost:3000'
+  return appUrl()
 }
 
 export function withdrawUrl(requestId: string): string {

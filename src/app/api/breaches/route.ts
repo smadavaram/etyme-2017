@@ -1,3 +1,4 @@
+import { appUrl } from '@/lib/supplier-link'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -405,8 +406,7 @@ export async function POST(request: NextRequest) {
       clocks: [],
     },
     now: new Date(),
-    // TODO(etyme-regulatory): use etyme-demand's one base-URL door (lib/app-url or lib/supplier-link) once it lands.
-    url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/dashboard/privacy`,
+    url: `${appUrl()}/dashboard/privacy`,
   })
   await tellStaff(alert.subject, alert.body)
 

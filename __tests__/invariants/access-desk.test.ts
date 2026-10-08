@@ -141,3 +141,13 @@ describe('the pack names', () => {
     expect(Object.keys(TEMPLATE_PACKS)).toEqual(['US_IT', 'US_SAP', 'IN_DELIVERY', 'UK'])
   })
 })
+
+describe('the base address', () => {
+  it('a privacy request link and a breach alert link are built from the one base address the password door uses', () => {
+    const dr = read('src/lib/data-request.ts')
+    const br = read('src/app/api/breaches/route.ts')
+    expect(dr).toContain("import { appUrl } from '@/lib/supplier-link'")
+    expect(br).toContain('url: `${appUrl()}/dashboard/privacy`')
+    for (const f of [dr, br]) expect(f).not.toContain('NEXT_PUBLIC_APP_URL')
+  })
+})
