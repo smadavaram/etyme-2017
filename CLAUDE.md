@@ -1701,6 +1701,22 @@ Three rules follow:
   the same pack, roles, location and holidays. Turning sign-in on is the
   founder's: the Microsoft and Google app keys and the email server go
   into Vercel; `/ready` says so until they do.
+- **A password door, until the single sign-on keys exist. Decided by
+  the founder, 2026-10-08:** *"Focus on sign up with email, password,
+  subdomain for company and email and password for candidate — good
+  where companies don't want to integrate with Microsoft and Google
+  directly."* So two sign-up forms: a company signs up with a work
+  email, a password and an **Etyme address** (`acme`), and a candidate
+  with an email and a password. The address is the tenant for a company
+  that has not verified a domain; it may verify its email domain later,
+  and until then colleagues come in by invitation or by signing up with
+  the same address and being seated as Member. A verified email comes
+  before anything else; passwords are hashed with a slow hash, never
+  logged, reset by a one-time link, and failures slow the door down. The
+  Microsoft and Google doors stay and win when their keys arrive: a
+  company that signs in that way with a domain matching an address's
+  verified domain joins that tenant. `/ready` counts a password sign-in
+  as a real sign-in once a real person has used it.
 - **Months served are whole months, never rounded up. Decided by the
   founder, 2026-09-29.** Rounding to the nearest month read 533 days as
   18 months, so three screens said "past the limit" two weeks before the
