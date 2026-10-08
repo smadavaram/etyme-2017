@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { mayTag, type MasterContractRef } from '@/lib/money/master-contract'
@@ -55,8 +55,7 @@ export async function POST(
         error: {
           code: 'FORBIDDEN',
           message:
-            `Moving a line onto a ${MASTER_CONTRACT_WORD.noun} needs the assignments.write ` +
-            `permission. Ask whoever runs your company's access.`,
+            askTheDesk({ doing: `Moving a line onto a ${MASTER_CONTRACT_WORD.noun}`, needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

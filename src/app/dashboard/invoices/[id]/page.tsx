@@ -9,6 +9,7 @@ import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
 import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
 import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
@@ -204,6 +205,8 @@ export default function InvoiceDetail() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type })
@@ -211,9 +214,14 @@ export default function InvoiceDetail() {
   }, [])
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null)
+    setLoading(true); setError(null); setRefusedSaid(null)
     try {
       const res = await fetch(withBooks(`/api/invoices/${id}`, books))
+      // Refused is not "could not read": no Try again, no figure.
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        return
+      }
       const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
@@ -291,6 +299,8 @@ export default function InvoiceDetail() {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
   }
   if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  const refused = refusedRead(refusedSaid, { what: 'This bill', kind: session.company.kind, company: session.company.name })
+  if (refused) return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
   if (error) return (
     <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
       <div className="text-etyme-attention font-medium">{error}</div>

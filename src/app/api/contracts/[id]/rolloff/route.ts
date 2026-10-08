@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 
 /**
@@ -70,7 +70,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Rolling somebody off needs the assignments.terminate permission. Ask whoever runs your company\'s access.',
+          message: askTheDesk({ doing: 'Rolling somebody off', needs: 'assignments.terminate', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

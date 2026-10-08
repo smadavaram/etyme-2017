@@ -1,6 +1,8 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -80,11 +82,21 @@ export default function ProfitabilityPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const { company, loading: sessionLoading } = useSession()
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/profitability?by=${by}&scope=${scope}`)
+      // A refusal is not an empty book (sign-up walk, round four, #5).
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        setData(null)
+        return
+      }
+      setRefusedSaid(null)
       const body = await readJson(res)
       setData(body.data)
       setError(null)
@@ -97,6 +109,17 @@ export default function ProfitabilityPage() {
   }, [by, scope])
 
   useEffect(() => { load() }, [load])
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tab, no figure.
+  const refused = refusedRead(refusedSaid, { what: 'Profitability', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">

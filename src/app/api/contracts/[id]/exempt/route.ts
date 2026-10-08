@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { mayReadPayOf, payTrail } from '@/lib/money/pay-visibility'
 import { writePayTrail } from '@/lib/money/pay-trail'
 import {
@@ -151,7 +151,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Saying whether somebody is exempt from overtime needs payroll.run',
+          message: askTheDesk({ doing: 'Saying whether somebody is exempt from overtime', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

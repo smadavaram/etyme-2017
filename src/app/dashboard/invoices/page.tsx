@@ -7,6 +7,7 @@ import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions } from '@/lib/money/pay-desk'
 import { pageFraming } from '@/lib/page-framing'
@@ -469,6 +470,8 @@ export default function InvoicesPage() {
   const [summary, setSummary] = useState<AgingSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -581,10 +584,20 @@ export default function InvoicesPage() {
       const res = await fetch(`/api/invoices?${params}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // A refusal is not an empty book: the page draws the sentence
+        // and no figure (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setInvoices([])
+          setSummary(null)
+          return
+        }
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
 
       const body = await res.json()
+      setRefusedSaid(null)
       setInvoices(body.data?.invoices ?? [])
       setSummary(body.data?.summary ?? null)
       setReading(body.data?.reading ?? null)
@@ -961,6 +974,11 @@ export default function InvoicesPage() {
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: isClient ? 'Invoice receipts' : 'Bills and invoice receipts', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
   }
   return (
     <>

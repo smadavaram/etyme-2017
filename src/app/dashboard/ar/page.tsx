@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sectionOfHref } from '@/lib/page-framing'
 import { payDesk } from '@/lib/money/pay-desk'
 
@@ -90,7 +91,7 @@ export default function ArPage() {
       .then(async (r) => {
         const b = await r.json()
         if (r.status === 403) {
-          setDenied(b.error?.message ?? 'You cannot see this.')
+          setDenied(refusalOf(r.status, b))
           return
         }
         if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
@@ -111,6 +112,12 @@ export default function ArPage() {
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
   }
+  // Refused: the sentence and nothing else — no tile, no zero, no tab
+  // (sign-up walk, round four, #5).
+  const refused = refusedRead(denied, { what: 'Accounts receivable', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
@@ -128,16 +135,6 @@ export default function ArPage() {
         </p>
       </header>
 
-      {/* ── Denied ─────────────────────────────────────────────────── */}
-      {denied && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-ink">{denied}</p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
-            Whoever manages roles at your company can seat you at the desk that bills
-            clients.
-          </p>
-        </div>
-      )}
 
       {/* ── Loading ────────────────────────────────────────────────── */}
       {loading && !denied && (

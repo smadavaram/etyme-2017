@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
@@ -25,7 +25,7 @@ export async function POST(
 
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires invoices.issue permission' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Sending a bill', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

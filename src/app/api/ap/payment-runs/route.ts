@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payments.record')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Assembling a payment run needs payments.record' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Assembling a payment run', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
@@ -222,7 +222,7 @@ export async function PATCH(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payments.record')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Releasing a payment run needs payments.record' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Releasing a payment run', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

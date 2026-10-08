@@ -5,7 +5,7 @@ import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { contractSide } from '@/lib/resolve-client-company'
-import { hasPermission, type Permission } from '@/lib/permissions'
+import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
 
@@ -130,7 +130,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: `${ACTION_SUMMARIES[action as Action].replace(/ —.*$/, '')} needs the ${needs} permission. Ask whoever runs your company's access.`,
+          message: askTheDesk({ doing: ACTION_SUMMARIES[action as Action].replace(/ —.*$/, ''), needs: needs, kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

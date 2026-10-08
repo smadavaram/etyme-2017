@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { mayOpen } from '@/components/shell/sidebar'
 import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
@@ -199,8 +200,10 @@ export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the routes said when every read was refused; null where any was not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
 
-  const { permissions } = useSession()
+  const { permissions, company, loading: sessionLoading } = useSession()
 
   const fetchAll = useCallback(async () => {
     // Nothing is asked before the seat is known, and then only what the
@@ -255,6 +258,17 @@ export default function ReportsPage() {
           bookRefusal = 'You cannot see what placements earn.'
         }
       }
+
+      // Every read refused is a refusal, not a failure to load: the page
+      // draws the one sentence and no figure (sign-up walk, round four, #5).
+      const all = [sellRes, buyRes, benchRes, invoiceRes, bookRes]
+      if (all.every((r) => r.status === 403)) {
+        const first = await sellRes.json().catch(() => null)
+        setRefusedSaid(refusalOf(403, first) ?? '')
+        setData(null)
+        return
+      }
+      setRefusedSaid(null)
 
       // If all four failed, throw
       if (!sellBody && !buyBody && !benchBody && !invoiceBody) {
@@ -334,6 +348,18 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // ── Refused ───────────────────────────────────────
+  // The sentence and nothing else — no tile, no zero, no chart.
+  const refused = refusedRead(refusedSaid, { what: 'Reports', kind: company.kind, company: company.name })
+  if (refused && !loading) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
 
   // ── Loading state ─────────────────────────────────
 

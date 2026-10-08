@@ -3,7 +3,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { theLinkFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import {
   holdBackPosting, reserveBalance, drawFromReserve, exitPosting,
   type Policy, type ReserveMovement, type ReserveMovementKind, type LeaveReason,
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payroll.run') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Seeing what the firm holds for people needs payroll.run' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Seeing what the firm holds for people', needs: ['payroll.run', 'pnl.read'], kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payroll.run')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Moving money in or out of a reserve needs payroll.run' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Moving money in or out of a reserve', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

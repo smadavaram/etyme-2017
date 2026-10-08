@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
@@ -40,13 +42,23 @@ export default function CommissionsPage() {
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const { company, loading: sessionLoading } = useSession()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const body = await readJson(await fetch('/api/payroll/commissions'))
+      const res = await fetch('/api/payroll/commissions')
+      // A refusal is not an empty list (sign-up walk, round four, #5).
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        return
+      }
+      setRefusedSaid(null)
+      const body = await readJson(res)
       setEarnings(body.data.earnings)
       setSummary(body.data.summary)
       setMayRun(body.data.mayRun)
@@ -74,6 +86,17 @@ export default function CommissionsPage() {
     { key: 'lines', label: 'Placements', align: 'right', render: (e) => <span className="tabular-nums text-etyme-muted">{e.lines.length}</span>, sortValue: (e) => e.lines.length, hideOnMobile: true },
     { key: 'amountCents', label: 'Earned', align: 'right', render: (e) => <span className="tabular-nums">{cash(e.amountCents)}</span>, sortValue: (e) => e.amountCents },
   ], [])
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else.
+  const refused = refusedRead(refusedSaid, { what: 'Commissions', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
 
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { pairsFor, AGREED_SPREAD } from '@/lib/money/margin'
 import { spreadOn, blendedSpread } from '@/lib/money/placement-margin'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!hasPermission(caller.permissions, 'payroll.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'payroll.read permission required' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Reading payroll', needs: 'payroll.read', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

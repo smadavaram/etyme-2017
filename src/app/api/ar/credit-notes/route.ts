@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
   // Giving revenue away is an invoicing decision, gated as one.
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Issuing a credit note needs invoices.issue' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Issuing a credit note', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

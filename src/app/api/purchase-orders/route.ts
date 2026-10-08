@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message: reading.seat
             ? seatedRefusal(reading.seat, 'Purchase orders')
-            : 'Seeing purchase orders needs invoices.read',
+            : askTheDesk({ doing: 'Seeing purchase orders', needs: 'invoices.read', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

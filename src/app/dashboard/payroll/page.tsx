@@ -4,6 +4,8 @@ import { readJson } from '@/lib/read-response'
 import { ratesSay } from '@/lib/money/pay-words'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { compact as formatRate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
@@ -222,6 +224,9 @@ export default function PayrollPage() {
   const [summary, setSummary] = useState<PayrollSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const { company, loading: sessionLoading } = useSession()
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [companyId, setCompanyId] = useState<string | null>(null)
@@ -250,10 +255,20 @@ export default function PayrollPage() {
       const res = await fetch(`/api/payroll?${params}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // A refusal is not an empty run: the page draws the sentence
+        // and no figure (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setPayItems([])
+          setSummary(null)
+          return
+        }
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
 
       const body = await res.json()
+      setRefusedSaid(null)
       setPayItems(body.data?.payItems ?? [])
       setSpreadLabel(body.data?.spreadLabel ?? null)
       setPaidElsewhere(body.data?.paidElsewhere ?? [])
@@ -551,6 +566,17 @@ export default function PayrollPage() {
     { key: 'PROCESSED', label: 'Processed', count: stats.processed },
     { key: 'NO_HOURS', label: 'No hours' },
   ]
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: 'Payroll', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
 
   return (
     <>

@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { endsPastLimit, evaluateGovernance } from '@/lib/governance'
 import { loadContractHolidays } from '@/lib/holidays'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
@@ -89,7 +89,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Extending a placement needs the assignments.write permission. Ask whoever runs your company\'s access.',
+          message: askTheDesk({ doing: 'Extending a placement', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
 import { refusalSentence } from '@/lib/refusal-words'
 import { isConsultantSeat } from '@/lib/seat'
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Writing a contract needs the assignments.write permission. Ask whoever runs your company\'s access.',
+          message: askTheDesk({ doing: 'Writing a contract', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

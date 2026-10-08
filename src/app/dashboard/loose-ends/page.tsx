@@ -4,6 +4,8 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
+import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 
 /**
  * The links nobody meant to leave broken.
@@ -32,16 +34,35 @@ export default function LooseEndsPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const { company, loading: sessionLoading } = useSession()
 
   useEffect(() => {
     fetch('/api/loose-ends')
       .then(async (r) => {
+        // A refusal is not "nothing loose" (sign-up walk, round four, #5).
+        if (r.status === 403) {
+          setRefusedSaid(refusalOf(r.status, await r.json().catch(() => null)))
+          return
+        }
         const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no count, no figure.
+  const refused = refusedRead(refusedSaid, { what: 'Missing paperwork', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">

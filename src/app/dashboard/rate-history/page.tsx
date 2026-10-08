@@ -1,6 +1,9 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, rate as perHour, rateMovement } from '@/lib/money-display'
@@ -71,8 +74,15 @@ export default function RateHistoryPage() {
   const [records, setRecords] = useState<RateHistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterTab>('all')
   const [changeable, setChangeable] = useState<ChangeableLine[]>([])
+  const { company, loading: sessionLoading } = useSession()
+  // The section this page sits under on the reader's own menu — Grow,
+  // not a typed "Operate" (sign-up walk, round four, #14). Nothing while
+  // the reader's company is not known.
+  const eyebrow = usePageSection('/dashboard/rate-history')
 
   const fetchHistory = useCallback(async () => {
     setLoading(true)
@@ -81,9 +91,17 @@ export default function RateHistoryPage() {
       const res = await fetch('/api/rate-history')
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // A refusal is not an empty history (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setRecords([])
+          return
+        }
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
       const body = await res.json()
+      setRefusedSaid(null)
       setRecords(body.data?.rateHistory ?? [])
       setChangeable(body.data?.changeable ?? [])
     } catch (err: any) {
@@ -288,11 +306,22 @@ export default function RateHistoryPage() {
     await fetchHistory()
   }
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no figure and no refusal naming a desk.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: 'Rate history', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Head */}
       <div className="page-head mb-6">
-        <p className="eyebrow">Operate</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>Rate History</h1>
         <p>
           Track rate changes across all contracts over time. Every adjustment is

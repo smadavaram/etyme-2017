@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
@@ -661,7 +661,7 @@ export async function PATCH(request: NextRequest) {
           message:
             seated && !seated.ok
               ? seated.says
-              : 'Recording a payment needs payments.record',
+              : askTheDesk({ doing: 'Recording a payment', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

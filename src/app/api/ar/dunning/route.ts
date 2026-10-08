@@ -3,7 +3,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { dunningRun, stepsAlreadySent, type DunningStep, type SentLetter } from '@/lib/ar-ageing'
 import { loadBook, openInvoiceIdsAcross } from '../book'
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            'Sending a reminder to a client needs invoices.issue. It is a message to their ' +
+            askTheDesk({ doing: 'Sending a reminder to a client', needs: 'invoices.issue', kind: caller.company?.kind, companyName: caller.company?.name }) + ' It is a message to their ' +
             'accounts payable team in your company’s name.',
         },
       },

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { totals, rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods'
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!hasPermission(caller.permissions, 'payroll.run')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'payroll.run permission required' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Running payroll', needs: 'payroll.run', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

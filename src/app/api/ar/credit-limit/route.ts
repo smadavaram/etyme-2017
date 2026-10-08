@@ -3,7 +3,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, RECEIVABLE } from '@/lib/money/desks'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { decimalsFor } from '@/lib/money'
 
 /**
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            'Setting a credit limit needs pnl.read. It is a decision about how much of this ' +
+            askTheDesk({ doing: 'Setting a credit limit', needs: 'pnl.read', kind: caller.company?.kind, companyName: caller.company?.name }) + ' It is a decision about how much of this ' +
             'client the firm is willing to carry.',
         },
       },

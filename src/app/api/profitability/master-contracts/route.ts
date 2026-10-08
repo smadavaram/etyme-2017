@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { nextMasterContractCode } from '@/lib/money/master-contract'
@@ -49,8 +49,7 @@ export async function GET(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            `Seeing which ${MASTER_CONTRACT_WORD.noun} a placement is on needs the ` +
-            `assignments.read permission.`,
+            askTheDesk({ doing: `Seeing which ${MASTER_CONTRACT_WORD.noun} a placement is on`, needs: 'assignments.read', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }
@@ -125,8 +124,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            `Opening a ${MASTER_CONTRACT_WORD.noun} needs the assignments.write permission. ` +
-            `Ask whoever runs your company's access.`,
+            askTheDesk({ doing: `Opening a ${MASTER_CONTRACT_WORD.noun}`, needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

@@ -150,29 +150,6 @@ describe('a refusal names the desk, not the key', () => {
  * is one import away from any of them.
  */
 const STILL_SAYING_A_KEY: Record<string, string> = {
-  // etyme-money
-  'src/app/api/ap/bills/route.ts': 'etyme-money',
-  'src/app/api/ap/payment-runs/route.ts': 'etyme-money',
-  'src/app/api/ar/credit-limit/route.ts': 'etyme-money',
-  'src/app/api/ar/credit-notes/route.ts': 'etyme-money',
-  'src/app/api/ar/dunning/route.ts': 'etyme-money',
-  'src/app/api/ar/payments/route.ts': 'etyme-money',
-  'src/app/api/contracts/[id]/activate/route.ts': 'etyme-money',
-  'src/app/api/contracts/[id]/exempt/route.ts': 'etyme-money',
-  'src/app/api/contracts/[id]/extend/route.ts': 'etyme-money',
-  'src/app/api/contracts/[id]/master-contract/route.ts': 'etyme-money',
-  'src/app/api/contracts/[id]/rolloff/route.ts': 'etyme-money',
-  'src/app/api/contracts/route.ts': 'etyme-money',
-  'src/app/api/invoices/[id]/payments/route.ts': 'etyme-money',
-  'src/app/api/invoices/[id]/submit/route.ts': 'etyme-money',
-  'src/app/api/invoices/route.ts': 'etyme-money',
-  'src/app/api/invoices/submit/route.ts': 'etyme-money',
-  'src/app/api/payroll/off-cycle/route.ts': 'etyme-money',
-  'src/app/api/payroll/reserve/route.ts': 'etyme-money',
-  'src/app/api/payroll/statutory/route.ts': 'etyme-money',
-  'src/app/api/profitability/master-contracts/route.ts': 'etyme-money',
-  'src/app/api/purchase-orders/[id]/discounts/route.ts': 'etyme-money',
-  'src/app/api/purchase-orders/route.ts': 'etyme-money',
   // etyme-supply: none since 2026-10-08 (sign-up walk round four, 8).
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payments.record')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Recording a receipt needs payments.record' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Recording a receipt', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }
@@ -239,7 +239,7 @@ export async function PATCH(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'payments.record')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Placing a receipt needs payments.record' } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Placing a receipt', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }) } },
       { status: 403 }
     )
   }

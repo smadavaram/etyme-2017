@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
@@ -475,6 +476,8 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [totals, setTotals] = useState({ grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
@@ -510,10 +513,19 @@ export default function ExpensesPage() {
       const res = await fetch(`/api/expenses?${params}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // A refusal is not an empty book: the page draws the sentence
+        // and no figure (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setExpenses([])
+          return
+        }
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
 
       const body = await res.json()
+      setRefusedSaid(null)
       setExpenses(body.data?.expenses ?? [])
       setTotals(body.data?.totals ?? { grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
       setReading(body.data?.reading ?? null)
@@ -707,6 +719,11 @@ export default function ExpensesPage() {
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: 'Expenses', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
   }
   return (
     <>

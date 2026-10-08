@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { contractsEmpty } from '@/lib/money/contracts-empty'
 import { compact, rate as rateText } from '@/lib/money-display'
 import { activeRateTotals } from '@/lib/money/rate-totals'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1266,6 +1268,8 @@ export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>(initialSide)
   // Whose book these lines are, as the route that returned them said it.
   //
@@ -1314,10 +1318,19 @@ export default function ContractsPage() {
       const res = await fetch(`/api/contracts?side=${tab}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+        // A refusal is not an empty book: the page draws the sentence
+        // and no figure (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setContracts([])
+          return
+        }
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       }
 
       const body = await res.json()
+      setRefusedSaid(null)
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
       setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
@@ -1561,6 +1574,13 @@ export default function ContractsPage() {
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
   }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: 'Contracts', kind: company.kind, company: company.name })
+  // Empty, in the reader's own position: a client bills nobody (round four, #6).
+  const empty = contractsEmpty({ kind: company.kind, readingAClientsBook: !!reading?.inASeat, tab, stateFilter, mayRecord })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
   return (
     <>
       {/* Toast notification */}
@@ -1697,20 +1717,8 @@ export default function ContractsPage() {
           (row.masterContract?.code.toLowerCase().includes(q) ?? false) ||
           stateLabel(row.state).toLowerCase().includes(q)
         }
-        emptyMessage={
-          stateFilter === 'all'
-            ? `Nothing on the ${tab} side yet.`
-            : `No ${stateFilter} lines on the ${tab} side.`
-        }
-        emptyDetail={
-          tab === 'sell'
-            ? 'A sell line is what you bill a customer from. One arrives when a client awards a ' +
-              (mayRecord
-                ? 'submission, and you can record work you are already running with Record a placement.'
-                : 'submission.')
-            : 'A buy line is what you pay from — a supplier’s invoice where you buy the person, ' +
-              'payroll where you employ them. One is written beside each placement you record.'
-        }
+        emptyMessage={empty.message}
+        emptyDetail={empty.detail}
         exportName={`${tab}-contract-lines`}
         card={(row) => <LineCard row={row} viewerId={viewerId} />}
         onRowClick={(row) => setSelectedContract(row)}

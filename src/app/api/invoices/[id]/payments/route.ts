@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
@@ -47,7 +47,7 @@ export async function POST(
         error: {
           code: 'FORBIDDEN',
           message:
-            seated && !seated.ok ? seated.says : 'Requires payments.record permission',
+            seated && !seated.ok ? seated.says : askTheDesk({ doing: 'Recording a payment', needs: 'payments.record', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

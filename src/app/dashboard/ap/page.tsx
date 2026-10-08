@@ -11,6 +11,7 @@ import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books 
 import { receiptsLink } from '@/lib/money/ap-words'
 import { sectionOfHref } from '@/lib/page-framing'
 import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 
 /**
@@ -84,7 +85,7 @@ export default function ApPage() {
       .then(async (r) => {
         const b = await r.json()
         if (r.status === 403) {
-          setDenied(b.error?.message ?? 'You cannot see this.')
+          setDenied(refusalOf(r.status, b))
           return
         }
         if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
@@ -104,6 +105,12 @@ export default function ApPage() {
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no tab
+  // (sign-up walk, round four, #5).
+  const refused = refusedRead(denied, { what: 'Accounts payable', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
   }
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
@@ -128,15 +135,6 @@ export default function ApPage() {
         onSwitch={readInstead}
       />
 
-      {denied && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-ink">{denied}</p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
-            Whoever manages roles at your company can seat you at the desk that pays
-            suppliers.
-          </p>
-        </div>
-      )}
 
       {loading && !denied && (
         <div className="panel">

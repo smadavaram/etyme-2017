@@ -10,6 +10,8 @@ import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books 
 import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { useSession } from '@/components/session-provider'
 import { sectionOfHref } from '@/lib/page-framing'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { ordersStance, ordersWords } from '@/lib/money/po-words'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -106,6 +108,8 @@ export default function PurchaseOrdersPage() {
   const [canRaise, setCanRaise] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -134,6 +138,12 @@ export default function PurchaseOrdersPage() {
     setError(null)
     try {
       const res = await fetch(booksHref('/api/purchase-orders', books))
+      // A refusal is not an empty list: the page draws the sentence alone.
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        return
+      }
+      setRefusedSaid(null)
       const body = await readJson(res)
       setPos(body.data.orders)
       setCanRaise(body.data.canRaise)
@@ -188,9 +198,17 @@ export default function PurchaseOrdersPage() {
   if (!company) {
     return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
   }
+  // Refused: the sentence and nothing else (sign-up walk, round four, #5).
+  const refused = refusedRead(refusedSaid, { what: 'Orders', kind: company.kind, company: company.name })
+  if (refused) {
+    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  }
   if (!pos) {
     return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
   }
+
+  // The reader's end of the orders, in the same words the rows use (#9).
+  const words = ordersWords(ordersStance({ kind: company.kind, sides: pos.map((p) => p.side), inASeat: !!reading?.inASeat }))
 
   const eyebrow = company ? sectionOfHref(company.kind, '/dashboard/purchase-orders', reading) : null
   const attention = pos.filter((p) => p.overdrawn || p.expired || p.consumedPercent >= 90)
@@ -202,12 +220,8 @@ export default function PurchaseOrdersPage() {
         <div className="page-head">
           {/* The section of the reader's own menu, and none until it is known. */}
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>What you have authorized</h1>
-          <p>
-            One document, a header and its lines. The header is the ceiling — what a supplier may
-            invoice you in total, and an invoice that quotes an exhausted one will not match. Each
-            line is one person, at one rate, at one site.
-          </p>
+          <h1>{words.title}</h1>
+          <p>{words.subtitle}</p>
         </div>
         {canRaise && (
           <button
@@ -291,10 +305,7 @@ export default function PurchaseOrdersPage() {
 
       {pos.length === 0 && !adding && (
         <div className="rounded-md border border-etyme-rule bg-etyme-surface p-4">
-          <p className="text-[13px] text-etyme-ink">
-            No purchase orders. If your accounts-payable policy requires one, every supplier
-            invoice will fail its check until there is something to quote.
-          </p>
+          <p className="text-[13px] text-etyme-ink">{words.empty}</p>
         </div>
       )}
 
