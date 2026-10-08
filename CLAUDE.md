@@ -1384,9 +1384,12 @@ clients."*
   less expenses the firm carried for them that were not billed on, less
   the firm's admin cost for the period, less the commission paid on the
   placement. Every term is a figure already on the record except admin
-  cost, which is a company setting: a flat amount per profile per period,
-  entered by the firm, and read as "not set" until it is — the line then
-  says the profit is before admin costs, never a guess. The bench cost
+  cost, which is a company setting: the firm's **fixed costs for the
+  period** (rent, software, back office — one figure a month), **allocated
+  equally over the number of contracts live in that period** (founder, the
+  same day: "can be fixed costs that's allocated by number of contracts").
+  Read as "not set" until the firm enters it — the line then says the
+  profit is before admin costs, never a guess. The bench cost
   (days on the bench under the bench pay policy) sits beside it as the
   thing the profit pays back.
   The founder, the same day: *"bench profitability on training is
