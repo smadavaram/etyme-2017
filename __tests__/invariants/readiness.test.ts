@@ -236,3 +236,44 @@ describe('who a person asks about their data', () => {
     expect(readFileSync(join(process.cwd(), 'src/lib/readiness-facts.ts'), 'utf8')).toContain('privacyContact: contactEmail() !== null')
   })
 })
+
+describe('replies by email', () => {
+  const inboundOf = (inbound: ReadinessFacts['inbound']) =>
+    assess({ ...TODAY, inbound }, NOW).edges.find((e) => e.key === 'inbound')!
+
+  it('replies by email read as missing until the signing secret is set, and the row names RESEND_INBOUND_SECRET and says the buttons still work', () => {
+    const e = inboundOf({ secretSet: false, signedDeliveries: 0 })
+    expect(e.state).toBe('MISSING')
+    expect(e.says).toContain('The answer buttons still work.')
+    expect(e.fix).toContain('RESEND_INBOUND_SECRET')
+    expect(inboundOf(undefined).state).toBe('MISSING')
+  })
+
+  it('with the secret set and no signed reply yet, replies by email are set up and never used', () => {
+    const e = inboundOf({ secretSet: true, signedDeliveries: 0 })
+    expect(e.state).toBe('SET')
+    expect(e.says).toBe('The signing secret is set. No signed reply has arrived yet.')
+  })
+
+  it('a signed reply that cannot be told apart from a button answer leaves the edge set up, never proven', () => {
+    const e = inboundOf({ secretSet: true, signedDeliveries: null })
+    expect(e.state).toBe('SET')
+    expect(e.says).toContain('cannot read as proven')
+  })
+
+  it('replies by email are proven by the first signed delivery, and say how many', () => {
+    const e = inboundOf({ secretSet: true, signedDeliveries: 1 })
+    expect(e.state).toBe('PROVEN')
+    expect(e.says).toBe('1 signed reply has arrived from the email provider.')
+  })
+
+  it('replies by email never block ready on their own, because the answer buttons carry the loop', () => {
+    expect(assess({ ...READY, inbound: { secretSet: false, signedDeliveries: 0 } }, NOW).ready).toBe(true)
+  })
+
+  it('the fact names the secret and never reads its value into the answer', () => {
+    const src = read('src/lib/readiness-facts.ts')
+    expect(src).toContain('Boolean(process.env[INBOUND_SECRET_ENV])')
+    expect(src).toContain('signedDeliveries: null')
+  })
+})

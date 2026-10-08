@@ -948,6 +948,25 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(wrong, `these promise something the route does not:\n  ${wrong.join('\n  ')}`).toEqual([])
   })
 
+  it('what a page says it calls beyond its gate is a route that exists, and is never read as the gate', () => {
+    // Sign-up walk, round five: the bench's own people were refused as
+    // "What you opened". `pageCalls` names the page in a refusal and
+    // nothing else; the check above reads `api` alone.
+    const missing: string[] = []
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      for (const i of itemsOf(getNavForKind(kind, false))) {
+        for (const r of i.pageCalls ?? []) {
+          const dir = join(API, r.replace(/\/\*\*$/, '').replace(/\*/g, '[id]'))
+          if (!existsSync(dir)) missing.push(`${kind} ${i.label}: ${r}`)
+        }
+      }
+    }
+    expect(missing).toEqual([])
+    const bench = itemsOf(getNavForKind('VENDOR', false)).find((i) => i.label === 'Bench')!
+    expect(bench.api).toEqual(['bench', 'bench/profit'])
+    expect(bench.pageCalls).toContain('bench/**')
+  })
+
   it('every link names the permission its page asks for, or says why it needs none', () => {
     const silent = new Set<string>()
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {

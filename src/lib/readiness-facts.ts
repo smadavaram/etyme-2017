@@ -11,6 +11,7 @@ import type { ReadinessFacts } from '@/lib/readiness'
 import { staffAddresses } from '@/lib/alerts'
 import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
+import { INBOUND_SECRET_ENV } from '@/lib/texts'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -25,6 +26,11 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     emailSender: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_FROM_EMAIL),
     anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
   }
+  // Replies by email: the secret is named, never valued. A signed delivery
+  // writes the same inbound message row a button answer does, so it
+  // cannot be counted apart yet, and an uncountable proof is null rather
+  // than a count of button clicks.
+  const inbound = { secretSet: Boolean(process.env[INBOUND_SECRET_ENV]), signedDeliveries: null }
 
   const empty: ReadinessFacts = {
     env,
@@ -38,6 +44,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     watch: { staffConfigured: staffAddresses().length > 0, alertsSent: 0, incidentsToday: 0 },
     demo: { seeded: false, current: false },
     privacyContact: contactEmail() !== null,
+    inbound,
   }
 
   if (!env.database) return empty
@@ -102,6 +109,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     watch: { staffConfigured: staffAddresses().length > 0, alertsSent: runsTold + incidentsTold, incidentsToday },
     demo: { seeded: Boolean(nike), current: Boolean(nike && nikeHr) },
     privacyContact: contactEmail() !== null,
+    inbound,
   }
 }
 

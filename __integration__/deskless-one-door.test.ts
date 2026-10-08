@@ -255,6 +255,26 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
       expect(r.body.error.message).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
     }
   })
+
+  it('his firm’s bench refuses him in the Bench page’s name, at the people the page opens on and at bench burn', async () => {
+    as(KARTHIK)
+    for (const route of ['bench/ours', 'bench/burn', 'bench/wants']) {
+      const r = await get(route)
+      expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(403)
+      expect(r.body.error.code).toBe('NO_DESK')
+      expect(r.body.error.message).toBe('Bench is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    }
+  })
+
+  it('the chain of approvals on his own week stays a desk’s: his own page reads the chain from his own work, and the assert route refuses him at the door', async () => {
+    const week = await prisma.timesheet.findFirstOrThrow({ where: { personId: karthik }, select: { id: true } })
+    as(KARTHIK)
+    const mod = await import('@/app/api/timesheets/[id]/assert/route')
+    const res = await mod.GET(req('GET', `/api/timesheets/${week.id}/assert`), { params: Promise.resolve({ id: week.id }) })
+    expect(res.status).toBe(403)
+    const work = await get('me/work')
+    expect(work.status, work.text.slice(0, 200)).toBe(200)
+  })
 })
 
 /**

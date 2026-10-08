@@ -240,4 +240,34 @@ describe('a seat holding only the reads of its own work holds no desk (round fiv
     expect(consoleHome({ kind: 'GSI', worker: true, permissions: KARTHIK.permissions }).href).toBe('/dashboard/my-work')
     expect(consoleHome({ kind: 'CLIENT', permissions: ['timesheets.read'] }).href).toBe('/dashboard/my-work')
   })
+
+  it('a seat with no desk that types the bench’s address is refused in the Bench page’s name at every route that page calls, not as "What you opened"', () => {
+    const calls = ['/api/bench/ours', '/api/bench/ours/holds', '/api/bench/ours/flag', '/api/bench/ours/p1/ask',
+      '/api/bench/ours/holds/h1/place', '/api/bench/ours/releases/r1/confirm', '/api/bench/wants', '/api/bench/burn', '/api/bench/listings/l1']
+    for (const path of calls) {
+      const v = desklessDoor({ ...KARTHIK, path })
+      expect(v.open, path).toBe(false)
+      if (!v.open) expect(v.says, path).toBe('Bench is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    }
+  })
+
+  it('what a page calls beyond its gate names the page in a refusal and opens nothing: the bench is on no seat’s allowlist that holds no desk', () => {
+    const all = desklessAllowlist()
+    const open = [...all.menu, ...all.scopesItself, ...all.shell, ...all.byId, ...all.ownRowsOnRead]
+    expect(open.filter((r) => r.split('/')[0] === 'bench')).toEqual([])
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      expect(desklessDoor({ ...MEMBER, companyKind: kind, path: '/api/bench/ours' }).open, kind).toBe(false)
+    }
+  })
+
+  it('the chain of approvals on a week stays a desk’s at the door: the worker’s own page reads his chain from his own work and never calls it', () => {
+    // Sign-up walk, round five: asked whether a desk-less worker needs
+    // /api/timesheets/:id/assert for his own week. His page shows the
+    // chain from /api/me/work and calls no assert route, so the door is
+    // not widened for a call nothing makes.
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/my-work/page.tsx'), 'utf8')
+    expect(page).not.toMatch(/\/assert/)
+    expect(page).toContain('/api/me/work')
+    expect(desklessDoor({ ...KARTHIK, path: '/api/timesheets/t1/assert', method: 'GET' }).open).toBe(false)
+  })
 })

@@ -87,6 +87,16 @@ export interface ReadinessFacts {
    * ETYME_PRIVACY_EMAIL or else the first staff alert address.
    */
   privacyContact: boolean
+  /**
+   * Replies by email (`/api/texts/inbound`, conversation's). `secretSet`
+   * is RESEND_INBOUND_SECRET present, named and never valued.
+   * `signedDeliveries` counts replies that arrived with the provider's
+   * signature; null where nothing on the record tells a signed email
+   * reply apart from a click on an answer button, which is the case
+   * today — both write the same inbound message row. Absent reads as no
+   * secret: a fact nobody gathered is not a configured edge.
+   */
+  inbound?: { secretSet: boolean; signedDeliveries: number | null }
 }
 
 export interface Readiness {
@@ -314,6 +324,39 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
         says: 'Nobody is named for questions about personal data. Your data and the data-rights letters say so.',
         fix: 'Set ETYME_PRIVACY_EMAIL to an address somebody reads, or set ETYME_STAFF_EMAILS.',
       })
+
+  // ── Replies by email reach us ────────────────────────────────────────
+  // A consultant who hits reply instead of clicking a button. The route
+  // refuses every delivery until the provider's signing secret is set
+  // (f0f21d414), so the secret is the configuration and a signed delivery
+  // is the proof. Optional: the answer buttons carry the loop without it.
+  {
+    const ib = f.inbound ?? { secretSet: false, signedDeliveries: 0 }
+    edges.push(
+      !ib.secretSet
+        ? {
+            key: 'inbound', name: 'Replies by email', state: 'MISSING', required: false,
+            says: 'Replies by email are refused: no signing secret is set, so nobody can prove a reply came from the email provider. The answer buttons still work.',
+            fix: 'Point the email provider’s inbound route at /api/texts/inbound and set RESEND_INBOUND_SECRET to its signing secret.',
+          }
+        : ib.signedDeliveries == null
+          ? {
+              key: 'inbound', name: 'Replies by email', state: 'SET', required: false,
+              says: 'The signing secret is set. A signed reply is not yet recorded apart from a button answer, so this cannot read as proven.',
+              fix: 'Reply to one Etyme email yourself and check the answer on the person’s record.',
+            }
+          : ib.signedDeliveries === 0
+            ? {
+                key: 'inbound', name: 'Replies by email', state: 'SET', required: false,
+                says: 'The signing secret is set. No signed reply has arrived yet.',
+                fix: 'Reply to one Etyme email yourself and check the answer on the person’s record.',
+              }
+            : {
+                key: 'inbound', name: 'Replies by email', state: 'PROVEN', required: false,
+                says: `${count(ib.signedDeliveries, 'signed reply has', 'signed replies have')} arrived from the email provider.`,
+              }
+    )
+  }
 
   // ── Optional: the one model call ─────────────────────────────────────
   edges.push(

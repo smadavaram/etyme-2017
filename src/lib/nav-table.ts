@@ -87,6 +87,19 @@ export type NavItem = {
    * reads each route's gate, in this order, against `needs`.
    */
   api?: string | readonly string[]
+  /**
+   * The rest of what the page calls, read only to name the page when the
+   * door refuses one of them. Never a gate and never an opening: the
+   * menu's permission is checked against `api` alone, and the door's
+   * allowlist is drawn from `api` alone, so nothing here lets anybody in.
+   *
+   * Sign-up walk, round five: a seat with no desk that typed the bench's
+   * address was refused `/api/bench/ours` as "What you opened", because
+   * the link named only the two routes its gate is read from. The page
+   * calls a dozen more — its own people, holds, releases, what we need,
+   * bench burn — and every one of them is the Bench page to its reader.
+   */
+  pageCalls?: readonly string[]
 }
 
 export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
@@ -111,7 +124,8 @@ export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP
 const BENCH_READS = {
   needs: ['consultants.read', 'pnl.read'] as const,
   api: ['bench', 'bench/profit'] as const,
-} satisfies Pick<NavItem, 'needs' | 'api'>
+  pageCalls: ['bench/**'] as const,
+} satisfies Pick<NavItem, 'needs' | 'api' | 'pageCalls'>
 
 /**
  * What the firm pays people waiting for a project, and whether a public
@@ -1295,7 +1309,7 @@ export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined
     let best: { label: string; weight: number } | null = null
     for (const s of nav) {
       for (const i of s.items) {
-        for (const r of routesOf(i)) {
+        for (const r of [...routesOf(i), ...(i.pageCalls ?? [])]) {
           if (!routeMatches(apiPath, r)) continue
           const weight = r.replace(/\*\*$/, '').length * 2 + (r.endsWith('**') ? 0 : 1)
           if (!best || weight > best.weight) best = { label: i.label, weight }
