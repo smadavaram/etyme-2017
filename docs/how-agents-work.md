@@ -38,6 +38,8 @@ for exactly one commit.
 agent that discovers it was out of bounds by breaking somebody else's
 tests has already cost more than the check would have.
 
+**Tests are written by every builder** (decided 2026-10-08): `__tests__/` and `__integration__/` are `TEST_FOLDERS` in `domains.ts`, and `mayWrite` allows them to every domain — change the sentences about your own files, and add a new file rather than edit one another domain is working in.
+
 ---
 
 ## The one queue

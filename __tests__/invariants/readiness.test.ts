@@ -34,6 +34,7 @@ const TODAY: ReadinessFacts = {
   cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
   watch: { staffConfigured: false, alertsSent: 0, incidentsToday: 0 },
   demo: { seeded: true, current: false },
+  privacyContact: false,
 }
 
 const NOW = new Date('2026-09-13T22:00:00Z')
@@ -50,6 +51,7 @@ const READY: ReadinessFacts = {
   cron: { tracked: true, lastRunAt: new Date('2026-09-13T06:00:00Z'), lastBroke: 0 },
   watch: { staffConfigured: true, alertsSent: 3, incidentsToday: 0 },
   demo: { seeded: true, current: true },
+  privacyContact: true,
 }
 
 describe('what production says about itself tonight', () => {
@@ -214,5 +216,23 @@ describe('the page and the routes', () => {
   it('a real company is one that is neither a demo workspace nor a seeded firm', () => {
     const facts = read('src/lib/readiness-facts.ts')
     expect(facts).toContain("where: { isDemo: false, NOT: [{ slug: { startsWith: 'world-' } }, { slug: { startsWith: 'demo-' } }] }")
+  })
+})
+
+describe('who a person asks about their data', () => {
+  it('the privacy contact reads as missing while no address is named, and says how to name one', () => {
+    const e = assess({ ...READY, privacyContact: false }, NOW).edges.find((x) => x.key === 'privacy')!
+    expect(e.state).toBe('MISSING')
+    expect(e.fix).toContain('ETYME_PRIVACY_EMAIL')
+  })
+
+  it('the privacy contact is set once an address somebody owns is named, and never blocks ready on its own', () => {
+    const v = assess(READY, NOW)
+    expect(v.edges.find((x) => x.key === 'privacy')!.state).toBe('SET')
+    expect(assess({ ...READY, privacyContact: false }, NOW).ready).toBe(v.ready)
+  })
+
+  it('the readiness fact is read from the same door Your data reads', () => {
+    expect(readFileSync(join(process.cwd(), 'src/lib/readiness-facts.ts'), 'utf8')).toContain('privacyContact: contactEmail() !== null')
   })
 })

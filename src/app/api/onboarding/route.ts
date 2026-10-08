@@ -11,7 +11,7 @@ import {
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
-import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES } from '@/lib/setup-steps'
+import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES, joinedSentence } from '@/lib/setup-steps'
 import { countryFromDomain, packFor } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
 import { setupStateFor, beginClaimedSetup } from '@/lib/setup-state'
@@ -370,7 +370,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: company.id,
       action: 'COMPANY_CREATED',
-      summary: `${name} joined Etyme as ${type.label.toLowerCase()}`,
+      summary: joinedSentence(name, type.kind, type.posture),
       reason: ownFirm
         ? 'First sign-in on a personal address, as a one-person company; no domain claimed'
         : `First sign-in from ${from}`,
@@ -415,7 +415,7 @@ export async function POST(request: NextRequest) {
           // than discover it.
           siteTagline: made.siteTagline,
         },
-        packSays: packSentence(made.templatePack),
+        packSays: packSentence(made.templatePack, company.kind),
         // Everything after this is enrichment and skippable (BUILD.md §4A).
         message: ownFirm
           ? `${company.name} is live at ${company.slug}.etyme.com.`

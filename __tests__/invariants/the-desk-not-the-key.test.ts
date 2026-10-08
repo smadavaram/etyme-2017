@@ -87,7 +87,10 @@ describe('a refusal names the desk, not the key', () => {
 
   it('a one-person corporation refused hours is told to ask its owner, not sent to a Member', () => {
     const says = refusalSentence('Requires timesheets.read permission', { kind: 'CONSULTANT_CORP', company: 'Byrne Critical Care LLC' })
-    expect(says).toBe('This page is not part of your seat at Byrne Critical Care LLC. Ask your company’s owner if you need it.')
+    // Member holds no permission at all since 2026-10-08, so the owner is
+    // the one desk that reads hours, and the sentence names it.
+    expect(says).toBe('This page is for the Owner desk at Byrne Critical Care LLC. Ask your company’s owner if you need it.')
+    expect(says).not.toContain(MEMBER_ROLE)
   })
 
   it('falls back to a supplier\'s desks when the company kind is unknown', () => {

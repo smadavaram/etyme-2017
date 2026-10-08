@@ -28,7 +28,7 @@ const breach: Breach = {
   populations: ['candidate', 'business'],
   peopleAffected: 14,
   companiesAffected: ['Northbend Athletic', 'Veritan Talent'],
-  categories: ['Resumes', 'A consultant own profile'],
+  categories: ['Resumes', 'A consultant’s own profile'],
   clocks: [
     { id: 'AUTHORITY', dueAt: new Date('2026-09-22T09:15:00Z'), owner: 'Dana Whitfield' },
     { id: 'PEOPLE', dueAt: new Date('2026-09-24T09:15:00Z'), owner: 'Marcus Oyelaran' },
@@ -47,7 +47,7 @@ describe('when a breach is recorded, staff hear first', () => {
     expect(body).toContain('People: 14 people')
     expect(body).toContain('Populations: candidates and business users')
     expect(body).toContain('Companies: Northbend Athletic and Veritan Talent')
-    expect(body).toContain('Records: Resumes and A consultant own profile')
+    expect(body).toContain('Records: Resumes and A consultant’s own profile')
   })
 
   it('says it has not counted the people yet rather than printing a plausible number', () => {

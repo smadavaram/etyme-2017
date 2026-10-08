@@ -159,7 +159,7 @@ describe('what happens to each kind of record, and where no period can be cited'
   })
 
   it('a resume, a profile, a sign-in and a bar are deleted outright, with no period in front of them', () => {
-    for (const c of ['Resumes', 'Identity and sign-in', 'A consultant own profile', 'Bars and preferences']) {
+    for (const c of ['Resumes', 'Identity and sign-in', 'A consultant’s own profile', 'Bars and preferences']) {
       expect(verdictFor(c, { now }).verdict, c).toBe('DELETE')
     }
   })

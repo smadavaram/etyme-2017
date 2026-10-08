@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -518,6 +519,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
 // ── Page ───────────────────────────────────────────────────
 
 export default function CompaniesPage() {
+  const section = usePageSection('/dashboard/companies')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [companies, setCompanies] = useState<Company[]>([])
@@ -670,7 +672,7 @@ export default function CompaniesPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1>{scope?.title ?? 'Companies'}</h1>
           {/* Not "companies on the platform". This list is the firms
               this company trades with, and it said otherwise to a

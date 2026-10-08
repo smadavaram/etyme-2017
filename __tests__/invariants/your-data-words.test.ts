@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { contactEmail, contactSays, NO_CONTACT_SAYS, categoryShownAs } from '@/lib/data-request'
+import { contactEmail, contactSays, NO_CONTACT_SAYS, heldCategories } from '@/lib/data-request'
 
 /**
  * The Your data page, as round three of the sign-up walk read it
@@ -65,8 +65,11 @@ describe('where a question about your data goes', () => {
 
 describe('Your data reads with its possessives', () => {
   it('the consultant profile category reads "A consultant’s own profile" on the page', () => {
-    expect(categoryShownAs('A consultant own profile')).toBe('A consultant’s own profile')
-    expect(categoryShownAs('Resumes')).toBe('Resumes')
+    // The key itself carries the possessive since the rename, in all five
+    // files that match it by exact text; nothing corrects it on the way out.
+    const names = heldCategories().map((h) => h.category)
+    expect(names).toContain('A consultant’s own profile')
+    expect(names).not.toContain('A consultant own profile')
   })
 
   it('the privacy notice and the retention schedule say "the signer’s own name", "a supplier’s own application" and "another person’s record"', () => {
@@ -86,9 +89,7 @@ describe('Your data reads with its possessives', () => {
         [...s.matchAll(/\b([a-z]+) own\b/gi)].map((m) => m[1]).filter((w) => !pronouns.test(w))
           .map((w) => `${w} own — ${s}`)
       )
-      // The one category key is shared with conversation's FATES table
-      // and is corrected on the screen by categoryShownAs until it moves.
-      expect(bad.filter((b) => !b.includes('A consultant own profile')), f).toEqual([])
+      expect(bad, f).toEqual([])
       expect(text, f).not.toMatch(/\b(another|a|of a) person record\b/)
     }
   })

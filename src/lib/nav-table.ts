@@ -1056,17 +1056,28 @@ export function getNavForKind(
   // A worker whose seat reads only their own work opens on "Your work"
   // (lib/console-home), so the firm's Dashboard link would be a second
   // door onto the same page. It gives way, the way "Your data" does.
-  const ownFrontDoor = Boolean(seat.worker) && readsOnlyOwnWork(seat.permissions)
+  //
+  // A seat that holds no permission at all — a colleague seated as Member
+  // and not yet given a desk — reads its own work and what is addressed
+  // to it, and nothing of the firm's (sign-up walk, round three, item 5).
+  // The firm's pages that "scope themselves to your company" open to any
+  // seat at the company, which is a desk's reading and not a Member's, so
+  // they are not offered until somebody gives the Member a desk.
+  const deskless = isDeskless(seat.permissions)
+  const ownFrontDoor = (Boolean(seat.worker) || deskless) && readsOnlyOwnWork(seat.permissions)
   // A one-person firm's owner is always somebody the work is about
   // (CLAUDE.md, "A one-person corporation reads its own short menu"), so
   // she reads "You" from her first day, before any placement says so.
-  const worker = Boolean(seat.worker) || kind === 'CONSULTANT_CORP'
+  const worker = Boolean(seat.worker) || kind === 'CONSULTANT_CORP' || deskless
   const sections = (!isConsultant && kind && worker)
     ? [
         ...base
           .map((s) => ({
             ...s,
-            items: s.items.filter((i) => !ownHrefs.has(i.href) && !(ownFrontDoor && i.href === '/dashboard')),
+            items: s.items.filter((i) =>
+              !ownHrefs.has(i.href)
+              && !(ownFrontDoor && i.href === '/dashboard')
+              && !(deskless && openBecause(i.href) !== ADDRESSED)),
           }))
           .filter((s) => s.items.length > 0),
         { label: 'You', items: YOURS },
@@ -1087,6 +1098,14 @@ export function getNavForKind(
   return withTerms
     .map((s) => ({ ...s, items: s.items.filter((i) => mayReach(i, seat.permissions)) }))
     .filter((s) => s.items.length > 0)
+}
+
+/**
+ * A seat that holds no permission at all: known, and empty. Null is "not
+ * known yet" and is never read as deskless.
+ */
+export function isDeskless(permissions: readonly string[] | null | undefined): boolean {
+  return Array.isArray(permissions) && permissions.length === 0
 }
 
 function kindNav(kind: CompanyKind): NavSection[] {

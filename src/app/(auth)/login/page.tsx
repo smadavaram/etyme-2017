@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { signIn, getProviders } from 'next-auth/react'
 import { DoorFrame, DoorLabel, doorField, doorButton } from '../door-frame'
 import { readJson } from '@/lib/read-response'
+import { offers, companyAccounts, loginSubtitle } from '@/lib/login-doors'
 
 /**
  * Signing in.
@@ -89,7 +90,8 @@ export default function LoginPage() {
   useEffect(() => {
     getProviders()
       .then((p) => setAvailable(new Set(Object.keys(p ?? {}))))
-      // If we cannot ask, offer everything rather than locking the door.
+      // If we cannot ask, offer only the password door, which is always
+      // there, rather than buttons nobody knows will work.
       .catch(() => setAvailable(null))
 
     // The bypass already decides who the app thinks you are in development.
@@ -101,8 +103,11 @@ export default function LoginPage() {
       .catch(() => setDevEmail(null))
   }, [])
 
-  // Null means we do not know yet, so nothing is hidden on that basis.
-  const has = (id: string) => available === null || available.has(id)
+  // Null means we do not know yet, so no door beyond the password is
+  // drawn: a button that shows for a second and vanishes is a promise the
+  // deployment cannot keep (lib/login-doors).
+  const has = (id: string) => offers(available, id)
+  const accounts = companyAccounts(available)
   // The password door is always there, so "nothing works" means no
   // identity provider and no way to confirm an email either.
   const nothingWorks = available !== null && [...available].every((id) => id === 'credentials')
@@ -111,7 +116,7 @@ export default function LoginPage() {
     <DoorFrame>
           <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-1">Sign in to Etyme</h1>
           <p className="text-sm text-etyme-muted mb-8">
-            Sign in with your email and password, or your company&rsquo;s Microsoft or Google account.
+            {loginSubtitle(available)}
           </p>
 
           {devEmail && (
@@ -185,7 +190,7 @@ export default function LoginPage() {
           )}
 
           {/* OAuth buttons */}
-          {!nothingWorks && (
+          {accounts.length > 0 && (
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px bg-etyme-rule" />
             <span className="text-xs text-etyme-muted">or</span>

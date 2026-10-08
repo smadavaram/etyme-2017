@@ -198,7 +198,7 @@ export const SCHEDULE: ScheduleLine[] = [
       'be defended, so sign-in records go first and the name becomes a tombstone.',
   },
   {
-    category: 'A consultant own profile',
+    category: 'A consultant’s own profile',
     fate: 'DELETED',
     anchor: 'NONE',
     months: 0,

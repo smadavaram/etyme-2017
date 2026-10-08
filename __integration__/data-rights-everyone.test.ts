@@ -560,7 +560,7 @@ describe('a breach touching a supplier’s people', () => {
         summary: 'A bench export ran against the wrong company and listed nine consultants to a firm that does not buy them.',
         personalData: true,
         populations: ['candidate'],
-        categories: ['Resumes', 'A consultant own profile'],
+        categories: ['Resumes', 'A consultant’s own profile'],
         companyIds: [co.techpeple, co.northbend],
       }))
     )

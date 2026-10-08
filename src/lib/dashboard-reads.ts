@@ -34,10 +34,20 @@ export interface DashboardReads {
   pipeline: boolean
 }
 
-export function dashboardReads(permissions: readonly string[] | null | undefined): DashboardReads {
+export function dashboardReads(
+  permissions: readonly string[] | null | undefined,
+  kind?: string | null,
+): DashboardReads {
   // No seat read yet is not "may read everything": the dashboard waits
   // for the session before it asks, so null here means nothing is known.
   if (permissions == null) return { bench: false, automation: false, target: false, pipeline: false }
+  // A program office places nobody and runs no bench, so a supplier's
+  // sales numbers — the submissions target, pipeline revenue, the bench —
+  // are not its desk whatever its seat holds (sign-up walk, round three,
+  // item 15). What the system did on its behalf still is.
+  if (kind === 'MSP') {
+    return { bench: false, automation: mayOpen('/dashboard/automation', permissions), target: false, pipeline: false }
+  }
   return {
     // The panel reads /api/bench, which asks consultants.read. Not the
     // menu's answer: the Bench link also opens for the finance desk, on

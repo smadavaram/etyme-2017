@@ -207,6 +207,7 @@ describe('the readiness page counts a password sign-in as a real sign-in and say
     cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
     watch: { staffConfigured: false, alertsSent: 0, incidentsToday: 0 },
     demo: { seeded: true, current: true },
+    privacyContact: false,
   }
   const signin = (f: ReadinessFacts) => assess(f).edges.find((e) => e.key === 'signin')!
 
@@ -338,8 +339,25 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(door).not.toContain("type: 'SYSTEM'")
   })
 
-  it('the sign-in page says both ways in, in one sentence', () => {
-    expect(read('src/app/(auth)/login/page.tsx')).toContain('Sign in with your email and password, or your company&rsquo;s Microsoft or Google account.')
+  it('the sign-in page names only the ways in this deployment has set up, in one sentence', async () => {
+    const { loginSubtitle } = await import('@/lib/login-doors')
+    expect(loginSubtitle(new Set(['credentials', 'azure-ad', 'google']))).toBe('Sign in with your email and password, or your company\u2019s Microsoft or Google account.')
+    expect(loginSubtitle(new Set(['credentials', 'google']))).toBe('Sign in with your email and password, or your company\u2019s Google account.')
+    expect(loginSubtitle(new Set(['credentials']))).toBe('Sign in with your email and password.')
+    expect(loginSubtitle(null)).toBe('Sign in with your email and password.')
+    expect(read('src/app/(auth)/login/page.tsx')).toContain('{loginSubtitle(available)}')
+  })
+
+  it('the sign-in page draws no Microsoft, Google or magic-link door until it knows the deployment has one', async () => {
+    const { offers, companyAccounts } = await import('@/lib/login-doors')
+    // Null is "not known yet" — the second before the list arrives, or a list that could not be read.
+    for (const id of ['azure-ad', 'google', 'email']) expect(offers(null, id)).toBe(false)
+    expect(companyAccounts(null)).toEqual([])
+    expect(offers(new Set(['credentials', 'email']), 'email')).toBe(true)
+    expect(offers(new Set(['credentials']), 'azure-ad')).toBe(false)
+    const page = read('src/app/(auth)/login/page.tsx')
+    expect(page).toContain('const has = (id: string) => offers(available, id)')
+    expect(page).not.toContain('available === null ||')
   })
 
   it('the sign-up form offers the one-person firm, which may use a personal email', async () => {

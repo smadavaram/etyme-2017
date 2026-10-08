@@ -305,7 +305,7 @@ export const HELD: HeldCategory[] = [
     provenBy: 'Person, Credential in prisma/schema.prisma',
   },
   {
-    category: 'A consultant own profile',
+    category: 'A consultant’s own profile',
     examples:
       'Headline, skills, location, work authorization class, rate floor, mobile number, ' +
       'availability date, an optional public address and the words on that page.',

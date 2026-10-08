@@ -99,7 +99,7 @@ export async function setupStateFor(
       currency: c.currency,
       templatePack: c.templatePack,
       countrySays: country === guessed ? countryGuessSentence(country, c.domain) : null,
-      packSays: c.templatePack ? packSentence(c.templatePack) : null,
+      packSays: c.templatePack ? packSentence(c.templatePack, c.kind) : null,
     },
   }
 }

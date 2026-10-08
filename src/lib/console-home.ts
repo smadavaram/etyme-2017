@@ -126,6 +126,16 @@ export function consoleHome(reader: Reader): Verdict {
     }
   }
 
+  // A colleague seated as Member and not yet given a desk holds no
+  // permission at all. The firm's console is a desk; theirs is their own
+  // work, empty until there is some (sign-up walk, round three, item 5).
+  if (Array.isArray(reader.permissions) && reader.permissions.length === 0) {
+    return {
+      href: '/dashboard/my-work',
+      says: 'A seat with no desk yet opens on its own work, not on the firm’s console.',
+    }
+  }
+
   if (kind === 'CLIENT') {
     return { href: '/dashboard/program', says: 'A client opens on the program it runs.' }
   }

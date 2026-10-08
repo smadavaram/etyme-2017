@@ -205,26 +205,6 @@ export function categoriesHeldAbout(audience: Audience | Audience[]): string[] {
   return HELD.map((h) => h.category).filter((c) => mine.has(c))
 }
 
-/**
- * How a category reads on a screen, where its name as a key is wrong.
- *
- * The category names are keys across four files and two domains — the
- * notice, the retention schedule, erasure's counts here and the FATES
- * table in conversation's `lib/notify/data-rights`, matched by exact
- * string. One of them lost its possessive when it was written, and the
- * walk read "A consultant own profile" on Your data. Renaming the key
- * here alone would leave the profile with no fate in the erasure letter,
- * so the screen is corrected now and the key moves once, in all four
- * files together, through the architect. Delete this map in that commit.
- */
-const SHOWN_AS: Record<string, string> = {
-  'A consultant own profile': 'A consultant’s own profile',
-}
-
-export function categoryShownAs(category: string): string {
-  return SHOWN_AS[category] ?? category
-}
-
 /** Everything the notice names, for a screen that renders the list. */
 export function heldCategories(): { category: string; examples: string; about: string }[] {
   return HELD.map((h) => ({ category: h.category, examples: h.examples, about: h.about }))
@@ -538,7 +518,7 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
         name: person.name, email: person.primaryEmail, timezone: person.timezone,
         accountOpened: person.createdAt, signInMethods: credentials,
       },
-      'A consultant own profile': profile ?? 'You have no consultant profile here.',
+      'A consultant’s own profile': profile ?? 'You have no consultant profile here.',
       'Resumes': resumes.map((r) => ({
         ...r,
         note: 'The file itself is on your own page. It is named here rather than pasted in, because a file inside a document is a file nobody can open.',

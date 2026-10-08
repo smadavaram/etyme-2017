@@ -269,7 +269,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
 
   const counts: Record<string, number> = {
     'Identity and sign-in': 1 + credentials,
-    'A consultant own profile': profile,
+    'A consultant’s own profile': profile,
     'Resumes': resumes,
     'Work authorization and immigration': visas,
     'Checks somebody else ran': verifications,

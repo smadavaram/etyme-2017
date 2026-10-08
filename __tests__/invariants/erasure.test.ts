@@ -32,7 +32,7 @@ function footprint(over: Partial<Footprint> = {}): Footprint {
     },
     counts: {
       'Identity and sign-in': 2,
-      'A consultant own profile': 1,
+      'A consultant’s own profile': 1,
       'Resumes': 3,
       'Checks somebody else ran': 1,
       'Money about a person': 14,
@@ -88,7 +88,7 @@ describe('the plan says what will happen before anything happens', () => {
   it('the sign-in, the profile, the resumes and the bars are the ones that go', () => {
     const gone = willDelete(planErasure(footprint()))
     expect(gone).toContain('Identity and sign-in')
-    expect(gone).toContain('A consultant own profile')
+    expect(gone).toContain('A consultant’s own profile')
     expect(gone).toContain('Resumes')
     expect(gone).toContain('Bars and preferences')
   })

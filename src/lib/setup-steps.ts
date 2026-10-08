@@ -16,6 +16,7 @@
  */
 
 import { TEMPLATE_PACKS } from '@/lib/template-packs'
+import { postureWord } from '@/lib/parties'
 
 // ── The steps ─────────────────────────────────────────────────────────
 
@@ -68,6 +69,23 @@ export function stepLabel(step: SetupStep, kind?: string | null): string {
   const rail = railFor(kind)
   return `Step ${rail.findIndex((s) => s.key === step) + 1} of ${rail.length}`
 }
+
+/**
+ * Whether "how you work" asks this company about payroll.
+ *
+ * A client buys its contractors through suppliers and pays their bills; it
+ * runs no contractor payroll on Etyme, so asking it a pay period and pay
+ * days is asking a question whose answer nothing reads (sign-up walk,
+ * round three, item 2). It is still asked its week, because its approvers
+ * sign hours on that week. Every other kind pays somebody.
+ */
+export function asksPayroll(kind?: string | null): boolean {
+  return kind !== 'CLIENT'
+}
+
+/** The one line a client reads where the payroll panel would have been. */
+export const CLIENT_NO_PAYROLL =
+  'There is no payroll to set up. Your suppliers pay their own people, and you pay their bills.'
 
 /**
  * Which steps may be skipped. A company cannot exist without a name and a
@@ -299,7 +317,7 @@ const RHYTHM_WORDS: Record<string, string> = {
  * Which pack the dates follow, in one line, read off the pack itself so
  * the sentence cannot drift from what the generator does.
  */
-export function packSentence(packId: string): string {
+export function packSentence(packId: string, kind?: string | null): string {
   const pack = TEMPLATE_PACKS[packId]
   if (!pack) return 'Your dates follow the default pack.'
   const hours = pack.cycleDefinitions.find((c) => c.kind === 'TIMESHEET_SUBMIT')?.frequency
@@ -308,7 +326,7 @@ export function packSentence(packId: string): string {
   const word = (f: string) => RHYTHM_WORDS[f] ?? f.toLowerCase()
   const parts = [
     hours ? (hours === 'WEEKLY' || hours === 'MONTHLY' ? `${word(hours)} hours` : `hours ${word(hours)}`) : null,
-    pay ? `pay ${word(pay)}` : null,
+    pay && asksPayroll(kind) ? `pay ${word(pay)}` : null,
   ].filter(Boolean)
   return `Your dates follow the ${PACK_PLACE[pack.country] ?? countryName(pack.country)} pack: ${parts.join(', ')}.`
 }
@@ -353,4 +371,27 @@ export const DESK_PAGES: Record<string, readonly string[]> = {
 export function deskPageFor(roleName: string | null | undefined, menu: readonly string[], home: string): string {
   const wanted = roleName ? DESK_PAGES[roleName] ?? [] : []
   return wanted.find((href) => menu.includes(href)) ?? home
+}
+
+// ── What a new company is, in a sentence ─────────────────────────────
+
+const KIND_NOUNS: Record<string, string> = {
+  CLIENT: 'a client',
+  GSI: 'an integrator',
+  MSP: 'a program office',
+  VENDOR: 'a supplier',
+  CONSULTANT_CORP: 'a one-person company',
+}
+
+/**
+ * "Keel joined Etyme as a program office." The picker's labels are written
+ * in the first person ("We run the program for a client") for somebody
+ * choosing among them, and pasted after "joined Etyme as" they read as
+ * nonsense (sign-up walk, round three, item 14). The sentence names what
+ * the company is, with a supplier's starting posture after it.
+ */
+export function joinedSentence(name: string, kind: string | null | undefined, posture?: string | null): string {
+  const noun = (kind && KIND_NOUNS[kind]) || 'a company'
+  const how = kind === 'VENDOR' ? postureWord(posture) : null
+  return `${name} joined Etyme as ${noun}${how ? ` that ${how}` : ''}`
 }

@@ -23,12 +23,12 @@ import { ensureDefaultRoles } from '@/lib/company-roles'
 import { tellOwnerSomebodyJoined } from '@/lib/notify/joined'
 
 export async function seatAsMember(personId: string, companyId: string): Promise<{ roleName: string }> {
-  let role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
-  if (!role) {
-    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
-    await ensureDefaultRoles(companyId, company?.kind ?? 'VENDOR')
-    role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
-  }
+  // Always, not only when Member is missing: a company formed before
+  // 2026-10-08 holds a Member that read the firm's contracts and hours,
+  // and the colleague arriving now is seated on the corrected one.
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
+  await ensureDefaultRoles(companyId, company?.kind ?? 'VENDOR')
+  const role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
   await prisma.context.create({
     data: { personId, type: 'EMPLOYEE', companyId, roleId: role?.id ?? null },
   })

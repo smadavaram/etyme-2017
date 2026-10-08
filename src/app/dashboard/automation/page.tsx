@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
@@ -151,6 +152,7 @@ function timeAgo(dateStr: string): string {
 // ── Page ─────────────────────────────────────────────
 
 export default function AutomationPage() {
+  const section = usePageSection('/dashboard/automation')
   const [entries, setEntries] = useState<AutomationEntry[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
@@ -241,7 +243,7 @@ export default function AutomationPage() {
       {/* Head */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1>What the system did on its own</h1>
           <p>
             Every action, the level it acted at, the rule it followed, and whether it

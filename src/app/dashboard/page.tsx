@@ -259,17 +259,22 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState<string>('there')
 
   const permissions = session.permissions
+  const kind = session.company?.kind ?? null
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
     setError(null)
     // Only what this seat may read, asked the way the menu asks
     // (lib/dashboard-reads). A route that would refuse is not called.
-    const reads = dashboardReads(permissions)
+    const reads = dashboardReads(permissions, kind)
     try {
-      // Fetch in parallel: decisions, contracts, bench, me, automation
+      // Fetch in parallel: decisions, contracts, bench, me, automation.
+      // A program office with no program has no contracts of its own to
+      // count (it places nobody), so it is not asked for them.
       const [decisionsRes, contractsRes, benchRes, meRes, automationRes] = await Promise.all([
         fetch('/api/decisions').then((r) => r.ok ? r.json() : { data: { decisions: [], counts: {} } }),
-        fetch('/api/contracts').then((r) => r.ok ? r.json() : { data: { contracts: [] } }),
+        kind === 'MSP'
+          ? Promise.resolve({ data: { contracts: [] } })
+          : fetch('/api/contracts').then((r) => r.ok ? r.json() : { data: { contracts: [] } }),
         reads.bench
           ? fetch('/api/bench').then((r) => r.ok ? r.json() : { data: { listings: [] } })
           : Promise.resolve({ data: {} }),
@@ -349,7 +354,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [permissions, session.company?.kind, session.company?.name])
+  }, [permissions, kind, session.company?.kind, session.company?.name])
 
   // Nothing is asked until we know this reader stays here: a client, a
   // consultant or a one-person firm is sent to its own console first,
@@ -387,6 +392,13 @@ export default function DashboardPage() {
 
   const d = data
 
+  // A program office places nobody, so a supplier's sales desk is not its
+  // Today (sign-up walk, round three, item 15). With a seat at a client it
+  // never reaches this page — lib/console-home opens the client's program
+  // through the seat. Without one, it reads what is addressed to it and a
+  // sentence that says there is no program yet, and no figure at all.
+  if (kind === 'MSP') return <ProgramOfficeWithoutProgram d={d} userName={userName} officeName={session.company?.name ?? 'Your firm'} />
+
   return (
     <div className="animate-fade-in">
       {/* Hero — today's summary */}
@@ -414,6 +426,7 @@ export default function DashboardPage() {
           label="Active Contracts"
           value={String(d?.contracts.active ?? 0)}
           subtitle={`${d?.contracts.active ?? 0} sell · ${d?.contracts.draft ?? 0} draft`}
+          empty={d && d.contracts.total === 0 ? 'No contracts yet. One appears when a client awards you a person.' : null}
           tone="default"
         />
         {d?.reads.pipeline && (
@@ -421,6 +434,7 @@ export default function DashboardPage() {
             label="Pipeline"
             value={`$${Math.round((d?.pipeline.monthlyRevenue ?? 0) / 1000)}K`}
             subtitle="monthly revenue"
+            empty={d && d.pipeline.total === 0 ? 'Nothing is billing yet, so there is no monthly revenue to show.' : null}
             tone="default"
           />
         )}
@@ -434,6 +448,7 @@ export default function DashboardPage() {
           label="On Bench"
           value={d && !d.reads.bench ? '—' : String(d?.bench.length ?? 0)}
           subtitle={d && !d.reads.bench ? 'not yours to see' : `${d?.bench.filter(b => b.status === 'available').length ?? 0} available now`}
+          empty={d && d.reads.bench && d.bench.length === 0 ? 'Nobody on the bench yet.' : null}
           tone="verified"
         />
       </div>
@@ -587,14 +602,110 @@ export default function DashboardPage() {
 
 // ─── Sub-components ────────────────────────────────
 
+/**
+ * A program office's Today before any client has granted it a seat.
+ *
+ * Its desk is the programs it runs: the people on site, the suppliers it
+ * governs, the hours waiting and the decisions. Every one of those lives
+ * in a client's program and is read through the seat, so with no seat
+ * there is nothing to count, and the page says that in sentences rather
+ * than drawing zeros. Nothing here is money.
+ */
+function ProgramOfficeWithoutProgram({ d, userName, officeName }: { d: DashboardData | null; userName: string; officeName: string }) {
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <div className="eyebrow mb-2">Today · {todayLabel()}</div>
+        <h1 className="headline-serif text-heading text-etyme-ink mb-2">
+          Good {greetingTime()}, {userName}
+        </h1>
+        <p className="text-body text-etyme-muted max-w-xl">
+          {d && d.totalDecisions > 0
+            ? `${d.totalDecisions} item${d.totalDecisions !== 1 ? 's' : ''} need${d.totalDecisions === 1 ? 's' : ''} your attention${d.highCount > 0 ? ` — ${d.highCount} urgent` : ''}.`
+            : 'Nothing needs your attention right now.'}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 space-y-6">
+          <div className="panel">
+            <h2 className="headline-serif text-[18px] text-etyme-ink mb-3">No program yet</h2>
+            <ul className="space-y-2 text-[13px] text-etyme-ink">
+              <li>{officeName} does not run a client&rsquo;s program yet.</li>
+              <li>A client grants you a seat in its program office. You then act under its rules, and every read is logged.</li>
+              <li>Ask an owner or the program manager at the client to grant {officeName} a seat.</li>
+              <li className="text-etyme-muted">Once they do, this page opens on their program: the people on site, the suppliers, the hours waiting and the decisions.</li>
+            </ul>
+          </div>
+
+          {d && d.decisions.length > 0 && (
+            <div className="panel">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="headline-serif text-[18px] text-etyme-ink">Yours to decide</h2>
+                <Link href="/dashboard/decisions" className="text-[12px] text-etyme-action hover:underline">View all →</Link>
+              </div>
+              {d.decisions.map((decision, i) => (
+                <Link
+                  key={i}
+                  href={decision.actionUrl as any}
+                  className="flex items-start gap-3 py-3 border-b border-etyme-rule last:border-b-0 hover:bg-etyme-canvas/40 transition-colors -mx-2 px-2 rounded-sm"
+                >
+                  <span className={`evidence-dot ${urgencyDot(decision.urgency)} mt-1.5 flex-shrink-0`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-etyme-ink">{decision.title}</div>
+                    <div className="text-[12px] text-etyme-muted mt-0.5">{decision.subtitle}</div>
+                  </div>
+                  <span className={`chip ${urgencyAction(decision.urgency)} flex-shrink-0 mt-0.5`}>
+                    {urgencyLabel(decision.urgency)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-2">
+          {d && d.recentAutomation.length > 0 && (
+            <div className="panel">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="headline-serif text-[18px] text-etyme-ink">System activity</h2>
+                <Link href="/dashboard/automation" className="text-[12px] text-etyme-action hover:underline">View log →</Link>
+              </div>
+              <div className="space-y-2">
+                {d.recentAutomation.map((entry, i) => (
+                  <div key={i} className="flex items-center gap-3 py-1">
+                    <span className="text-[10px] text-etyme-faint opacity-50">⚙</span>
+                    <span className="text-[12px] text-etyme-muted flex-1 truncate">{entry.summary}</span>
+                    <span className="text-[10px] text-etyme-faint tabular-nums shrink-0">{timeAgo(entry.at)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function StatCard({
-  label, value, subtitle, tone,
+  label, value, subtitle, tone, empty = null,
 }: {
   label: string
   value: string
   subtitle: string
   tone: 'default' | 'attention' | 'verified'
+  /** Where there is nothing to count yet, the sentence that says so in place of a zero. */
+  empty?: string | null
 }) {
+  if (empty) {
+    return (
+      <div className="panel">
+        <div className="stat-label mb-2">{label}</div>
+        <p className="text-[13px] text-etyme-muted">{empty}</p>
+      </div>
+    )
+  }
   const valueColor = {
     default:   'text-etyme-ink',
     attention: 'text-etyme-attention',

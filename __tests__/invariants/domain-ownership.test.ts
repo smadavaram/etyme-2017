@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { DOMAINS, SHARED, domainOf, isShared, mayWrite } from '@/lib/domains'
+import { DOMAINS, SHARED, domainOf, isShared, mayWrite, READERS } from '@/lib/domains'
 
 const ROOT = process.cwd()
 
@@ -100,6 +100,19 @@ describe('An agent is told before it edits, not after it breaks something', () =
     expect(mayWrite('etyme-regulatory', 'prisma/schema.prisma').says).toContain(
       'Say what you need and why'
     )
+  })
+
+  it('every builder may write a test, because a test is the sentences about its own files', () => {
+    for (const d of DOMAINS) {
+      expect(mayWrite(d.agent, '__tests__/invariants/anything.test.ts').mayWrite, d.agent).toBe(true)
+      expect(mayWrite(d.agent, '__integration__/anything.test.ts').mayWrite, d.agent).toBe(true)
+    }
+    expect(mayWrite('etyme-architect', '__tests__/invariants/anything.test.ts').mayWrite).toBe(true)
+    expect(mayWrite('etyme-money', '__tests__/x.test.ts').says).toContain('Change the sentences about your own files')
+  })
+
+  it('an agent that only reads may not write a test', () => {
+    for (const r of READERS) expect(mayWrite(r.agent, '__tests__/invariants/anything.test.ts').mayWrite, r.agent).toBe(false)
   })
 
   it('a file nobody owns is refused to everybody, with the reason', () => {

@@ -9,6 +9,7 @@
 import { prisma } from '@/lib/db'
 import type { ReadinessFacts } from '@/lib/readiness'
 import { staffAddresses } from '@/lib/alerts'
+import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
@@ -36,6 +37,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
     watch: { staffConfigured: staffAddresses().length > 0, alertsSent: 0, incidentsToday: 0 },
     demo: { seeded: false, current: false },
+    privacyContact: contactEmail() !== null,
   }
 
   if (!env.database) return empty
@@ -99,6 +101,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     cron: { tracked: true, lastRunAt: lastRun ? (lastRun.finishedAt ?? lastRun.startedAt) : null, lastBroke: lastRun?.broke ?? 0 },
     watch: { staffConfigured: staffAddresses().length > 0, alertsSent: runsTold + incidentsTold, incidentsToday },
     demo: { seeded: Boolean(nike), current: Boolean(nike && nikeHr) },
+    privacyContact: contactEmail() !== null,
   }
 }
 

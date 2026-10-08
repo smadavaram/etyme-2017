@@ -1087,6 +1087,10 @@ describe('a menu offers only what this seat can actually open', () => {
       for (const role of rolesFor(kind)) {
         const nav = getNavForKind(kind, false, { permissions: role.permissions })
         expect(nav.length, `${kind} / ${role.name} has no sections left`).toBeGreaterThan(0)
+        // Member is not a desk: it is the seat a colleague holds until
+        // somebody gives them one, and it reads its own work and what is
+        // addressed to it. Its menu is held by the next test instead.
+        if (role.name === 'Member') continue
         expect(
           itemsOf(nav).length,
           `${kind} / ${role.name} keeps too little to work from`
@@ -1284,6 +1288,24 @@ describe('a seat that holds everything is shown everything', () => {
 
   it('still refuses a seat that holds nothing at all', () => {
     expect(mayOpen('/dashboard/privacy', [])).toBe(false)
+  })
+})
+
+describe('a Member with no desk reads its own work and what is addressed to it, and nothing of the firm', () => {
+  it('a colleague seated as Member is offered their own five pages and what is addressed to them, and no page of the firm\'s', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP'] as const) {
+      const member = rolesFor(kind).find((r) => r.name === 'Member')!
+      const nav = getNavForKind(kind, false, { permissions: member.permissions })
+      const you = nav.find((s) => s.label === 'You')
+      expect(you?.items.map((i) => i.href), kind).toEqual(expect.arrayContaining(['/dashboard/my-work', '/dashboard/my-data']))
+      for (const item of nav.filter((s) => s.label !== 'You').flatMap((s) => s.items)) {
+        expect(openBecause(item.href), `${kind} ${item.href}`).toBe('Everybody reads what is addressed to them.')
+      }
+      const hrefs = itemsOf(nav).map((i) => i.href)
+      for (const firm of ['/dashboard/contracts', '/dashboard/timesheets', '/dashboard/program/budget', '/dashboard/tenure', '/dashboard/scorecards', '/dashboard/program/org']) {
+        expect(hrefs, `${kind} ${firm}`).not.toContain(firm)
+      }
+    }
   })
 })
 

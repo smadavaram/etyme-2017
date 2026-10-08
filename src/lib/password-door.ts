@@ -45,7 +45,7 @@ import { appUrl } from '@/lib/supplier-link'
 import { createCompany } from '@/lib/company-create'
 import { typeByKey } from '@/lib/onboarding'
 import { decideEntry, domainOfEmail, isConsumerDomain, type ClaimedDomain } from '@/lib/company-domains'
-import { knownCountry, knownCurrency } from '@/lib/setup-steps'
+import { knownCountry, knownCurrency, joinedSentence } from '@/lib/setup-steps'
 import { seatAsMember } from '@/lib/seat-member'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { mayClaim } from '@/lib/supplier-list'
@@ -719,7 +719,7 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
   await prisma.automationLog.create({
     data: {
       companyId: made.company.id, action: 'COMPANY_CREATED',
-      summary: `${made.company.name} joined Etyme as ${type.label.toLowerCase()}`,
+      summary: joinedSentence(made.company.name, type.kind, type.posture),
       reason: `Signed up with a password and confirmed ${person.primaryEmail}`,
       payload: { companyId: made.company.id, kind: type.kind, posture: type.posture, slug, door: 'PASSWORD' },
       reversible: false,

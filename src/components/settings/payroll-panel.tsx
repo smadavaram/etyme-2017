@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { DEFAULT_CYCLE_SHIFT, SHIFT_WORDS } from '@/lib/cycle-shift'
 import {
   PAY_PERIODS, PAY_PERIOD_WORDS, STATE_PAY_NOTE, SUGGESTED_DAYS_OF_MONTH,
   checkPaySettings, dayOfMonthWords, offsetWords, payPreview,
@@ -22,7 +23,12 @@ interface PayAnswers extends PayRhythm {
   setByName: string | null
 }
 
-export function PayrollPanel({ canEdit }: { canEdit: boolean }) {
+/**
+ * `shiftSection` says whether the weekend-and-holiday section is drawn
+ * below this panel. Settings draws it; setup does not, so setup says the
+ * default in words rather than pointing at a section that is not there.
+ */
+export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolean; shiftSection?: boolean }) {
   const [saved, setSaved] = useState<PayAnswers | null>(null)
   const [draft, setDraft] = useState<PayAnswers | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -156,7 +162,11 @@ export function PayrollPanel({ canEdit }: { canEdit: boolean }) {
       <p className="text-[13px] text-etyme-ink mb-3">
         {check.ok ? payPreview(check.rhythm, new Date()) : <span className="text-etyme-attention">{check.message}</span>}
       </p>
-      <p className="text-[12px] text-etyme-faint mb-4">A date on a day off or a holiday moves the way the section below says.</p>
+      <p className="text-[12px] text-etyme-faint mb-4">
+        {shiftSection
+          ? 'A date on a day off or a holiday moves the way the section below says.'
+          : `A pay day on a day off or a holiday moves to ${SHIFT_WORDS[DEFAULT_CYCLE_SHIFT.pay].label.toLowerCase()}. You can change this later in Settings.`}
+      </p>
       {err && <p className="text-[13px] text-etyme-attention mb-3">{err}</p>}
       {note && <p className="text-[13px] text-etyme-verified mb-3">{note}</p>}
       {canEdit && (

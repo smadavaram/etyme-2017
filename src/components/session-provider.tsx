@@ -211,8 +211,13 @@ export function useSession(): SessionState {
   return useContext(SessionContext)
 }
 
-/** Convenience: the active company kind, defaulting to VENDOR while loading. */
-export function useCompanyKind(): CompanyKind {
+/**
+ * Convenience: the active company kind, or null while it is not known.
+ * It returned VENDOR while loading, which drew a supplier's words over a
+ * client's page for as long as the session took (sign-up walk, round
+ * three). A caller decides what to draw for an unknown reader.
+ */
+export function useCompanyKind(): CompanyKind | null {
   const { company } = useSession()
-  return company?.kind ?? 'VENDOR'
+  return company?.kind ?? null
 }

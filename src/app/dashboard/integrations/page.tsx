@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState } from 'react'
 
 /**
@@ -8,6 +9,7 @@ import { useEffect, useState } from 'react'
  */
 
 export default function IntegrationsPage() {
+  const section = usePageSection('/dashboard/integrations')
   const [data, setData] = useState<any>(null)
   const [runs, setRuns] = useState<any[]>([])
   const [system, setSystem] = useState('QUICKBOOKS')
@@ -101,7 +103,7 @@ export default function IntegrationsPage() {
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Integrations</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           The journal exports once and is stamped as sent — a re-export is a

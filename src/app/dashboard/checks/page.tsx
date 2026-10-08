@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -43,6 +44,7 @@ interface Queue {
 }
 
 export default function ChecksPage() {
+  const section = usePageSection('/dashboard/checks')
   const [q, setQ] = useState<Queue | null>(null)
   const [at, setAt] = useState(0)
   const [note, setNote] = useState('')
@@ -142,7 +144,7 @@ export default function ChecksPage() {
   return (
     <div className="mx-auto max-w-[720px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Check queue</h1>
         <p className="mt-1 max-w-[58ch] text-[13px] text-etyme-muted">
           Ten a week. Never let the machine be the only thing checking the

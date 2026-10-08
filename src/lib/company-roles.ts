@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES, GRANTED_SINCE, REVOKED_SINCE } from '@/lib/company-defaults'
 import type { CompanyKind } from '@prisma/client'
 
 /**
@@ -13,7 +13,7 @@ import type { CompanyKind } from '@prisma/client'
 export async function ensureDefaultRoles(
   companyId: string,
   kind: string
-): Promise<{ added: string[]; renamed: string[]; granted: string[] }> {
+): Promise<{ added: string[]; renamed: string[]; granted: string[]; revoked: string[] }> {
   const renamed: string[] = []
   for (const [was, now] of Object.entries(RENAMED_ROLES)) {
     const clash = await prisma.role.findFirst({ where: { companyId, name: now }, select: { id: true } })
@@ -52,5 +52,22 @@ export async function ensureDefaultRoles(
     granted.push(`${grant.role} → ${missing.join(', ')}`)
   }
 
-  return { added, renamed, granted }
+  // A permission a shipped role should never have held. Taken away only
+  // from the untouched seed: a role whose permissions are exactly what it
+  // shipped with. An admin's own edit is never undone.
+  const revoked: string[] = []
+  for (const fix of REVOKED_SINCE) {
+    const roles = await prisma.role.findMany({
+      where: { companyId, name: fix.role },
+      select: { id: true, permissions: true },
+    })
+    for (const role of roles) {
+      const same = role.permissions.length === fix.was.length && fix.was.every((p) => role.permissions.includes(p))
+      if (!same) continue
+      await prisma.role.update({ where: { id: role.id }, data: { permissions: [...fix.now] } })
+      revoked.push(`${fix.role} → ${fix.now.length ? fix.now.join(', ') : 'no permissions'}`)
+    }
+  }
+
+  return { added, renamed, granted, revoked }
 }

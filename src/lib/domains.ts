@@ -530,6 +530,8 @@ export const DOMAINS: Domain[] = [
       // the shell can say Demo in front of its name. Company identity.
       'lib/demo-company',
       'app/layout', 'app/login', 'app/start',
+      // Which ways in the login page draws, and the line above them.
+      'lib/login-doors',
       // The tab icon: the kit's mark, square. Next links both from app/.
       'app/icon', 'app/apple-icon',
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
@@ -614,6 +616,24 @@ export const SHARED: string[] = [
   'src/app/globals.css',
 ]
 
+/**
+ * The test folders, written by every builder. Decided 2026-10-08, after
+ * three agents in one day were warned for editing a test about their own
+ * files: a test is the sentences about some domain's files, and a builder
+ * changes the sentences about its own when it changes the files. Owning
+ * the folders by domain would mean reading every test's imports to say
+ * whose it is, and a test that walks a placement end to end is
+ * everybody's at once. So the folders are open to every domain, with one
+ * rule `says` repeats: change the sentences about your own files, and add
+ * a new file rather than edit one another domain is working in.
+ */
+export const TEST_FOLDERS: string[] = ['__tests__/', '__integration__/']
+
+export function isTest(path: string): boolean {
+  const p = path.replace(/^\.?\/?/, '')
+  return TEST_FOLDERS.some((t) => p.startsWith(t))
+}
+
 export function domainOf(path: string): Domain | null {
   const p = path.replace(/^\.?\/?/, '').replace(/^src\//, '')
 
@@ -662,6 +682,19 @@ export function mayWrite(agent: string, path: string): Verdict {
             `${path} is shared and changes to it serialize through the architect. ` +
             `Say what you need and why; do not edit it.`,
         }
+  }
+
+  if (isTest(path)) {
+    const builder = agent === 'etyme-architect' || DOMAINS.some((d) => d.agent === agent)
+    return builder
+      ? {
+          mayWrite: true,
+          owner: null,
+          says:
+            `${path} is a test, and tests are written by every builder. Change the sentences ` +
+            `about your own files; where another domain is working in this file, add a new one.`,
+        }
+      : { mayWrite: false, owner: null, says: `${path} is a test. Only a builder writes tests; ${agent} reads.` }
   }
 
   const d = domainOf(path)

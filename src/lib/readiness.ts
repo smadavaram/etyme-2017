@@ -82,6 +82,11 @@ export interface ReadinessFacts {
     incidentsToday: number
   }
   demo: { seeded: boolean; current: boolean }
+  /**
+   * A privacy contact somebody owns: `contactEmail()` in lib/data-request,
+   * ETYME_PRIVACY_EMAIL or else the first staff alert address.
+   */
+  privacyContact: boolean
 }
 
 export interface Readiness {
@@ -295,6 +300,20 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
       says: `${count(f.watch.alertsSent, 'message has', 'messages have')} reached staff. ${recorded}`,
     })
   }
+
+  // ── Who a person asks about their data ───────────────────────────────
+  // Your data, and every data-rights letter, name a privacy contact. With
+  // none they say that nobody is named yet, which is honest and is not a
+  // contact. Not required for the edges to be proven, because nobody
+  // outside proves an address by writing to it on cue; it is still a gap,
+  // and it reads as missing until somebody owns the address.
+  edges.push(f.privacyContact
+    ? { key: 'privacy', name: 'Privacy contact', state: 'SET', required: false, says: 'An address is named for questions about personal data.' }
+    : {
+        key: 'privacy', name: 'Privacy contact', state: 'MISSING', required: false,
+        says: 'Nobody is named for questions about personal data. Your data and the data-rights letters say so.',
+        fix: 'Set ETYME_PRIVACY_EMAIL to an address somebody reads, or set ETYME_STAFF_EMAILS.',
+      })
 
   // ── Optional: the one model call ─────────────────────────────────────
   edges.push(

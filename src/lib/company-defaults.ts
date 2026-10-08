@@ -114,20 +114,37 @@ function uniq(...groups: Permission[][]): Permission[] {
  * joining gets a seat with a default role at once, and the owner is told
  * who joined and what to give them.
  *
- * It reads the holder's own work and nothing else: the work they are on
- * and their own hours, the two reads `readsOnlyOwnWork` in
- * lib/console-home recognizes. No money, no other people, no market. A
- * stranger who happens to share a domain learns nothing about the firm
- * from it; a real colleague can sign in, see their own week, and wait
- * for the desk somebody gives them.
+ * It holds no permission at all. Their own work, their own hours, their
+ * own data and what is addressed to them need none — each of those routes
+ * answers a person about themselves. Until 2026-10-08 it held
+ * `assignments.read` and `timesheets.read`, which are a desk's reads of
+ * the firm's contracts and hours, not the holder's own: a Member was
+ * opened Tenure, master-contract profitability and every contract and
+ * week at the firm (sign-up walk, round three, item 5). A stranger who
+ * happens to share a domain learns nothing about the firm from this
+ * seat; a real colleague can sign in, see their own week, and wait for
+ * the desk somebody gives them.
  */
 export const MEMBER_ROLE = 'Member'
 
 const MEMBER: RoleSeed = {
   name: MEMBER_ROLE,
   blurb: 'Sees their own work and their own hours. Nothing else until somebody gives them a desk.',
-  permissions: ['assignments.read', 'timesheets.read'],
+  permissions: [],
 }
+
+/**
+ * Permissions a shipped role held and no longer does.
+ *
+ * Taken away only where the role still holds exactly what it shipped
+ * with — `was`, nothing more and nothing less. A Member role somebody at
+ * the company edited is their decision and is left alone; the untouched
+ * seed is ours and is corrected, the next time somebody opens Users &
+ * permissions (lib/company-roles).
+ */
+export const REVOKED_SINCE: readonly { role: string; was: readonly Permission[]; now: readonly Permission[] }[] = [
+  { role: MEMBER_ROLE, was: ['assignments.read', 'timesheets.read'], now: [] },
+]
 
 // ── A staffing supplier ───────────────────────────────────────────────
 

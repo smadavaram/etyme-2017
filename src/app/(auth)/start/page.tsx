@@ -7,7 +7,7 @@ import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
 import { deskHome } from '@/components/desk-home'
-import { railFor, stepLabel, packSentence, currencyFor, type SetupStep } from '@/lib/setup-steps'
+import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, CLIENT_NO_PAYROLL, type SetupStep } from '@/lib/setup-steps'
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
 
@@ -364,7 +364,7 @@ export default function StartPage() {
               {country === state.suggestedCountry ? state.countrySays : 'Your choice. The currency follows the country unless you change it.'}
             </p>
             <p className="text-sm text-etyme-ink mt-4">
-              {packSentence(packFor(((state.companyTypes as TypeOption[]).find((t) => t.key === type)?.kind ?? 'VENDOR') as CompanyKind, country))}
+              {packSentence(packFor((chosenKind ?? 'VENDOR') as CompanyKind, country), chosenKind)}
             </p>
 
             {error && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
@@ -386,7 +386,9 @@ export default function StartPage() {
               {setup.company.packSays} The defaults are filled in. Change one and save it, or keep them all.
             </p>
             <WeekPanel canEdit />
-            <PayrollPanel canEdit />
+            {asksPayroll(kind)
+              ? <PayrollPanel canEdit shiftSection={false} />
+              : <p className="text-sm text-etyme-muted mb-6">{CLIENT_NO_PAYROLL}</p>}
             {error && <p className="mb-4 text-sm text-etyme-attention">{error}</p>}
             <button onClick={() => answer('WORK', 'DONE')} disabled={busy} className={primary}>Continue</button>
             <p className="text-xs text-etyme-faint mt-3">Continue keeps what is saved above. You can change all of it later in Settings.</p>

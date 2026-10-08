@@ -75,10 +75,14 @@ export default function ContactsPage() {
   }, [load])
 
   const people = (contacts?.contacts ?? []).filter((c: any) => !kind || c.kind === kind)
+  // The kind only once the session has it: a literal fallback here drew a
+  // supplier's heading over a client's page while it loaded (sign-up walk,
+  // round three, item 16). Unknown reader, no heading.
+  const readerKind = session.company?.kind ?? null
   const eyebrow = sectionOfHref(
-    session.company?.kind ?? 'VENDOR', '/dashboard/contacts',
+    readerKind, '/dashboard/contacts',
     session.seat ? { seated: true, clientName: session.seat.clientName } : null,
-  ) ?? ''
+  )
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
@@ -86,13 +90,15 @@ export default function ContactsPage() {
         {/* The section this page sits under on the reader's own menu:
             Operate for a firm that sells, Network for a client, and the
             client's word for an office sitting at a client's desk. */}
-        <p className="eyebrow">{eyebrow}</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Contacts</h1>
-        <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
-          The register of firms and the people at them. Private to this
-          company — a rolodex is a commercial asset, and nobody else&rsquo;s
-          screen shows yours.
-        </p>
+        {readerKind && (
+          <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
+            The register of firms and the people at them. Private to this
+            company — a rolodex is a commercial asset, and nobody else&rsquo;s
+            screen shows yours.
+          </p>
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-3 border-b border-etyme-rule pb-3">
