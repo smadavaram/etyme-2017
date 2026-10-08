@@ -139,7 +139,7 @@ export default function PersonPage() {
             {data.alreadyOn.length > 0
               ? `${person.name.split(' ')[0]} is already submitted to ${data.alreadyOn.join(' and ')} — read them in Submissions. `
               : 'Nothing is published to ask for them on. '}
-            <Link href={{ pathname: '/dashboard/requisitions' }} className="text-etyme-action hover:underline">Post a requirement</Link>, and it will be here.
+            <Link href={{ pathname: '/dashboard/requisitions' }} className="text-etyme-action hover:underline">Post a job request</Link>, and it will be here.
           </p>
         ) : (
           <>
@@ -149,7 +149,7 @@ export default function PersonPage() {
                 here, so this sentence never names one. */}
             <p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>
             <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Requirement" value={requirementId} onChange={(e) => setRequirementId(e.target.value)} className="rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]">
+              <select aria-label="Job request" value={requirementId} onChange={(e) => setRequirementId(e.target.value)} className="rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]">
                 {data.openRequirements.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
               </select>
               <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="A line for the supplier (optional)" className="flex-1 min-w-[200px] rounded border border-etyme-rule px-3 py-2 text-[13px]" />

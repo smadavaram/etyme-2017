@@ -7,6 +7,7 @@ import { seatTrail } from '@/lib/program-seat'
 import { asPayer } from '@/lib/chain-top'
 import { logBulkAccess } from '@/lib/access-log'
 import { HOURS_PER_MONTH, annualSpendMinor } from '@/lib/program-spend'
+import { orgBasis } from './basis'
 
 /**
  * GET /api/program/org
@@ -23,7 +24,7 @@ import { HOURS_PER_MONTH, annualSpendMinor } from '@/lib/program-spend'
  *
  *   managers  — headcount, vendor count, spend, and rate range per manager
  *   variance  — same skill priced differently across managers, with the
- *               annualised saving of moving everyone to the median
+ *               annualized saving of moving everyone to the median
  *   vendors   — the vendor tail: preferred / occasional / one-time
  *
  * This is a decision surface, not a working surface. It exists to be read
@@ -232,7 +233,7 @@ export async function GET(request: NextRequest) {
       const lo = Math.min(...rates)
       const hi = Math.max(...rates)
       const med = median(rates)
-      // Annualised cost of every placement priced above the median
+      // Annualized cost of every placement priced above the median
       const saving = s.entries
         .filter(e => e.rate > med)
         .reduce((sum, e) => sum + (annualCost(e.rate) - annualCost(med)), 0)
@@ -326,17 +327,12 @@ export async function GET(request: NextRequest) {
       // Every number above is derived from bill rates over a 160-hour month.
       // Stated so a reader knows what they are looking at (CLAUDE.md: a bare
       // number is a bug).
-      basis:
-        `Annualised from the rates ${clientCompany.name} is itself billed, at ${HOURS_PER_MONTH} hours/month, across ` +
-        `${contracts.length} of ${headcount} live contractor(s) on site. ` +
-        (unpriced > 0
-          ? `${unpriced} ${unpriced === 1 ? 'is' : 'are'} on site through a supplier chain whose top contract is not live here, ` +
-            `so ${unpriced === 1 ? 'that person is' : 'those people are'} counted as head(s) and carry no rate — ` +
-            `what a supplier pays its own supplier is not this client's price. `
-          : '') +
-        `Somebody bought through a chain is counted once, at the contract ${clientCompany.name} pays. ` +
-        `Rate variance is the difference between what a contractor is billed at and the median for that skill; ` +
-        `each person is counted once even when they appear under several skills. It is an opportunity, not a committed saving.`,
+      basis: orgBasis({
+        clientName: clientCompany.name,
+        hoursPerMonth: HOURS_PER_MONTH,
+        priced: contracts.length,
+        headcount,
+      }),
     },
   })
 }

@@ -498,6 +498,9 @@ export default function TimesheetsPage() {
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
+  // Whether the first read has come back. Until it has, every tile would
+  // read 0 and "$0" — a figure nobody can stand behind — so the row waits.
+  const [readOnce, setReadOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [approving, setApproving] = useState(false)
@@ -512,8 +515,12 @@ export default function TimesheetsPage() {
   // reading the client's, and the page heads itself accordingly.
   const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
 
+  // Null until the reader is known: a client must never read a supplier's
+  // "approve them and bill them" while its session loads, so the kind is
+  // passed only when there is one and `pageFraming` draws nothing until
+  // then (round three #16).
   const framing = pageFraming(
-    company?.kind ?? 'VENDOR',
+    company?.kind ?? null,
     'timesheets',
     atDesk ? { seated: true, companyName: atDesk.companyName } : null
   )
@@ -588,6 +595,7 @@ export default function TimesheetsPage() {
       setTimesheets([])
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [statusFilter, onlyId])
 
@@ -1045,7 +1053,9 @@ export default function TimesheetsPage() {
         )}
       </div>
 
-      {/* Stats row — prototype Stat component pattern */}
+      {/* Stats row — prototype Stat component pattern. Drawn once the
+          reader and the first read are both known, never as zeros. */}
+      {company?.kind && readOnce && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Hours listed</p>
@@ -1083,6 +1093,7 @@ export default function TimesheetsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">{totals.approvedSays}</p>
         </div>
       </div>
+      )}
 
       {/* Status filters — prototype filter-tab pattern */}
       <div className="flex gap-1.5 mb-5 flex-wrap">

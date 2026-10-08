@@ -397,8 +397,10 @@ export default function RequirementsPage() {
   // reading the client's, and the page heads itself accordingly.
   const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
 
+  // The kind only when known: until then `pageFraming` draws no eyebrow
+  // or subtitle rather than a supplier's (round three #16).
   const framing = pageFraming(
-    company?.kind ?? 'VENDOR',
+    company?.kind ?? null,
     'requirements',
     atDesk ? { seated: true, companyName: atDesk.companyName } : null
   )

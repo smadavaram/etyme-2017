@@ -27,7 +27,7 @@ import { onePerJob } from '@/lib/internal-moves'
  *   "User finds and acts fast"
  *
  * Direction toggle: sent (default — "what we submitted to clients")
- *   vs received ("what other vendors submitted to our requirements").
+ *   vs received ("what other vendors submitted to our job requests").
  *
  * Status lifecycle: SUBMITTED → SHORTLISTED → INTERVIEW → OFFERED → PLACED
  *   or → REJECTED / WITHDRAWN at any point.
@@ -466,7 +466,7 @@ function SubmitToRequirementModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-2xl mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold">Submit to requirement</h2>
+          <h2 className="text-lg font-semibold">Submit to a job request</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -492,13 +492,13 @@ function SubmitToRequirementModal({
           </div>
         ) : loadingOptions ? (
           <div className="py-8 text-center text-sm text-etyme-faint animate-pulse">
-            Loading requirements and consultants…
+            Loading job requests and consultants…
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Requirement select */}
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Requirement *</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Job request *</label>
               <select
                 required
                 value={form.requirementId}
@@ -506,7 +506,7 @@ function SubmitToRequirementModal({
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="">Select a requirement…</option>
+                <option value="">Select a job request…</option>
                 {requirements.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.title} — {r.company.name}
@@ -514,7 +514,7 @@ function SubmitToRequirementModal({
                 ))}
               </select>
               {requirements.length === 0 && (
-                <p className="text-[11px] text-etyme-faint mt-1">No open requirements found.</p>
+                <p className="text-[11px] text-etyme-faint mt-1">No open job requests found.</p>
               )}
             </div>
 
@@ -607,7 +607,7 @@ function SubmitToRequirementModal({
                 </p>
                 <div className="space-y-2">
                   <div>
-                    <p className="text-[11px] text-etyme-faint mb-1">Requirement skills</p>
+                    <p className="text-[11px] text-etyme-faint mb-1">Skills the job asks for</p>
                     <div className="flex flex-wrap gap-1">
                       {reqSkills.length > 0 ? reqSkills.map((skill) => (
                         <span
@@ -1111,13 +1111,15 @@ export default function SubmissionsPage() {
   // The words on the page follow the book being read, not the firm the
   // reader is employed by: a program office at a client's desk reads the
   // client's page, headed the way the client would head it.
+  // The kind only when known — a client never reads a supplier's heading
+  // while its session loads (round three #16).
   const framing = pageFraming(
-    company?.kind ?? 'VENDOR',
+    company?.kind ?? null,
     'submissions',
     atDesk ? { seated: true, companyName: atDesk.companyName } : null
   )
   const jobWordLower = jobListWord(
-    company?.kind ?? 'VENDOR',
+    company?.kind ?? null,
     atDesk ? { seated: true, companyName: atDesk.companyName } : null
   ).singular
   const jobWord = jobWordLower.charAt(0).toUpperCase() + jobWordLower.slice(1)
@@ -1500,11 +1502,15 @@ export default function SubmissionsPage() {
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
           <p>
-            {isClient
-              ? framing.subtitle
-              : direction === 'sent'
-                ? 'Candidates submitted to client requirements. Track from submission through to placement.'
-                : 'Candidates received from other vendors against your requirements.'}
+            {/* Nothing until the reader is known: a supplier's sentence
+                over a client's page is the round three #16 class. */}
+            {!company?.kind
+              ? ''
+              : isClient
+                ? framing.subtitle
+                : direction === 'sent'
+                  ? 'Candidates you submitted to client job requests. Track each from submission to placement.'
+                  : 'Candidates other suppliers submitted to your job requests.'}
           </p>
         </div>
 
@@ -1610,13 +1616,13 @@ export default function SubmissionsPage() {
         loading={loading}
         error={error}
         searchFilter={searchFilter}
-        searchPlaceholder="Search by consultant, requirement, company, or status…"
+        searchPlaceholder="Search by consultant, job request, company, or status…"
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : 'No submissions yet.'}
         emptyDetail={
           statusFilter !== 'ALL'
             ? 'Try "All" to see every submission, or change the direction tab.'
             : direction === 'sent'
-              ? 'Submit candidates from the Requirements page to see them here.'
+              ? 'Submit candidates from the Job requests page to see them here.'
               : 'Submissions from other vendors will appear here.'
         }
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.requirement.id}` as any)}

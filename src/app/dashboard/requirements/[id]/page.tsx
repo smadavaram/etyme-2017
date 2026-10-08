@@ -205,7 +205,7 @@ export default function RequirementDetailPage() {
     return (
       <div className="animate-fade-in">
         <div className="panel text-center py-16">
-          <p className="text-body-sm text-etyme-muted">Loading requirement…</p>
+          <p className="text-body-sm text-etyme-muted">Loading job request…</p>
         </div>
       </div>
     )
@@ -220,7 +220,7 @@ export default function RequirementDetailPage() {
           </Link>
         </div>
         <div className="panel text-center py-16">
-          <p className="text-sm text-etyme-danger">{error ?? 'Requirement not found'}</p>
+          <p className="text-sm text-etyme-danger">{error ?? 'Job request not found'}</p>
         </div>
       </div>
     )
@@ -505,7 +505,7 @@ function DistributeModal({
       >
         <div className="sticky top-0 bg-white border-b border-etyme-rule px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <p className="eyebrow">{sectionOfHref(company?.kind ?? 'VENDOR', '/dashboard/requirements') ?? ''}</p>
+            <p className="eyebrow">{company?.kind ? sectionOfHref(company.kind, '/dashboard/requirements') ?? '' : ''}</p>
             <h2 className="text-[16px] font-semibold text-etyme-ink">Send this job to suppliers</h2>
           </div>
           <button onClick={onClose} className="text-etyme-faint hover:text-etyme-ink text-xl leading-none">×</button>
