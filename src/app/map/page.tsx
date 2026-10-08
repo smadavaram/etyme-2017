@@ -4,6 +4,7 @@ import { buildModel } from '@/lib/system-map'
 import { ownedFilesOnDisk, readSentences, testFilesOnDisk } from '@/lib/map-disk'
 import { allProcesses } from '@/lib/matrix'
 import { MapView } from './map-view'
+import { MAP_WHO } from '@/lib/map-gate'
 
 /**
  * The map of the memory.
@@ -13,8 +14,10 @@ import { MapView } from './map-view'
  * from lib/domains and lib/matrix, with the sentences each proving test
  * file holds read off the file itself.
  *
- * Public, the same as /ready: it says what is built, by whom and how it
- * is proven, never a value from anybody's data. It reads no database.
+ * It says what is built, by whom and how it is proven, never a value from
+ * anybody's data, and it reads no database. It is not public: the
+ * middleware stands in front of it (lib/map-gate), and the footer says who
+ * may see it.
  *
  * Built once, with the deployment. A deployment carries no test files, so
  * reading them on a request would find none; the page is rendered while
@@ -52,6 +55,7 @@ export default function MapPage() {
         </p>
         <MapView model={model} />
       </main>
+      <footer className="mx-auto max-w-7xl px-6 pb-12 text-xs text-etyme-muted">{MAP_WHO}</footer>
     </div>
   )
 }

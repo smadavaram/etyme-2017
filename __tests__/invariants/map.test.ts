@@ -249,3 +249,41 @@ describe('The delivery matrix page and the login page say what is true now', () 
     expect(priceClaims(panel)).toEqual([])
   })
 })
+
+import { keyOpens, seatOpens, MAP_WHO, MAP_REFUSED } from '@/lib/map-gate'
+
+describe('the map opens only for the people who run a real company, or for the map key', () => {
+  it('an Owner or Admin of a company that is not seeded may open it, and nobody else', () => {
+    expect(seatOpens([{ role: 'Owner', seed: false }])).toBe(true)
+    expect(seatOpens([{ role: 'Admin', seed: false }])).toBe(true)
+    expect(seatOpens([{ role: 'Member', seed: false }, { role: 'Recruiter', seed: false }])).toBe(false)
+    expect(seatOpens([{ role: null, seed: false }])).toBe(false)
+    expect(seatOpens([])).toBe(false)
+  })
+
+  it('a demo seat never opens it, whatever its role', () => {
+    expect(seatOpens([{ role: 'Owner', seed: true }])).toBe(false)
+    expect(seatOpens([{ role: 'Owner', seed: true }, { role: 'Admin', seed: false }])).toBe(true)
+  })
+
+  it('the map key opens it only when this deployment was given one, and only the exact key', () => {
+    expect(keyOpens('a-long-map-key-123', 'a-long-map-key-123')).toBe(true)
+    expect(keyOpens('a-long-map-key-124', 'a-long-map-key-123')).toBe(false)
+    expect(keyOpens('a-long-map-key', 'a-long-map-key-123')).toBe(false)
+    expect(keyOpens('', '')).toBe(false)
+    expect(keyOpens('anything', undefined)).toBe(false)
+    expect(keyOpens(null, 'a-long-map-key-123')).toBe(false)
+  })
+
+  it('the gate stands in front of /map, and the footer and the refusal both say who may see it', () => {
+    const mw = readFileSync(join(process.cwd(), 'src/middleware.ts'), 'utf8')
+    expect(mw).toContain("pathname === '/map'")
+    expect(mw).toContain('/api/map/gate')
+    expect(readFileSync(join(process.cwd(), 'src/app/map/page.tsx'), 'utf8')).toContain('{MAP_WHO}')
+    const closed = readFileSync(join(process.cwd(), 'src/app/map/closed/page.tsx'), 'utf8')
+    expect(closed).toContain('{MAP_WHO}')
+    expect(closed).toContain('{MAP_REFUSED}')
+    expect(MAP_WHO).toContain('Owner or Admin')
+    expect(MAP_REFUSED).toBe('The map is for the people who run a company on Etyme. Sign in as its Owner or Admin to see it.')
+  })
+})

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { MAP_COOKIE, keyOpens } from '@/lib/map-gate'
 
 /**
  * Working out whose company a visitor arrived at.
@@ -43,7 +44,42 @@ const PLATFORM_SUBDOMAINS = new Set([
   'answer',
 ])
 
-export function middleware(request: NextRequest) {
+/**
+ * The map's gate (lib/map-gate). The page is built once with the deploy,
+ * so the gate stands in front of it here. A key opens it and is kept in a
+ * cookie; otherwise the seat is asked of /api/map/gate, which can reach
+ * the database. Anybody else is shown /map/closed, which says who may see it.
+ */
+async function mapGate(request: NextRequest): Promise<NextResponse> {
+  const key = process.env.MAP_TOKEN ?? null
+  const given = request.nextUrl.searchParams.get('key')
+  if (keyOpens(given, key)) {
+    const url = request.nextUrl.clone()
+    url.searchParams.delete('key')
+    const res = NextResponse.redirect(url)
+    res.cookies.set(MAP_COOKIE, given!, { httpOnly: true, sameSite: 'lax', secure: url.protocol === 'https:', path: '/map' })
+    return res
+  }
+  if (keyOpens(request.cookies.get(MAP_COOKIE)?.value, key)) return NextResponse.next()
+  let open = false
+  try {
+    const r = await fetch(new URL('/api/map/gate', request.url), {
+      headers: { cookie: request.headers.get('cookie') ?? '' },
+      cache: 'no-store',
+    })
+    open = r.ok && (await r.json())?.data?.open === true
+  } catch {
+    open = false
+  }
+  if (open) return NextResponse.next()
+  const closed = request.nextUrl.clone()
+  closed.pathname = '/map/closed'
+  closed.search = ''
+  return NextResponse.rewrite(closed)
+}
+
+export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/map') return mapGate(request)
   const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
 
   let kind: 'SUBDOMAIN' | 'CUSTOM' | 'PLATFORM' = 'PLATFORM'
