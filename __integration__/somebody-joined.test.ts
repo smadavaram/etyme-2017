@@ -69,12 +69,12 @@ describe('the owners hear that a colleague joined', () => {
 
     teamsCo = await company('Northbend Athletic', 'joined-northbend', WORKFLOWS)
     mailCo = await company('Cavanaugh Glassworks', 'joined-cavanaugh', null)
-    await seated(teamsCo.id, teamsCo.owner, 'Marcus Oyelaran', 'marcus@northbend.example')
-    await seated(teamsCo.id, teamsCo.admin, 'Lena Brook', 'lena@northbend.example')
-    mailOwner = await seated(mailCo.id, mailCo.owner, 'Dana Whitfield', 'dana@cavanaugh.example')
-    mailAdmin = await seated(mailCo.id, mailCo.admin, 'Omar Haddad', 'omar@cavanaugh.example')
-    teamsJoiner = await seated(teamsCo.id, teamsCo.member, 'Priya Nair', 'priya@northbend.example')
-    mailJoiner = await seated(mailCo.id, mailCo.member, 'Sam Ito', 'sam@cavanaugh.example')
+    await seated(teamsCo.id, teamsCo.owner, 'Marcus Oyelaran', 'marcus@northbend.test')
+    await seated(teamsCo.id, teamsCo.admin, 'Lena Brook', 'lena@northbend.test')
+    mailOwner = await seated(mailCo.id, mailCo.owner, 'Dana Whitfield', 'dana@cavanaugh.test')
+    mailAdmin = await seated(mailCo.id, mailCo.admin, 'Omar Haddad', 'omar@cavanaugh.test')
+    teamsJoiner = await seated(teamsCo.id, teamsCo.member, 'Priya Nair', 'priya@northbend.test')
+    mailJoiner = await seated(mailCo.id, mailCo.member, 'Sam Ito', 'sam@cavanaugh.test')
   }, 900_000)
 
   afterAll(() => {
@@ -96,7 +96,7 @@ describe('the owners hear that a colleague joined', () => {
     const owners = rows.filter((r) => r.personId !== mailJoiner)
     expect(owners.map((r) => r.personId).sort()).toEqual([mailOwner, mailAdmin].sort())
     for (const r of owners) {
-      expect(r.body).toBe('Sam Ito (sam@cavanaugh.example) joined Cavanaugh Glassworks as Member. Give them a desk.')
+      expect(r.body).toBe('Sam Ito (sam@cavanaugh.test) joined Cavanaugh Glassworks as Member. Give them a desk.')
       expect((r.data as any).href).toBe('/dashboard/access')
     }
   })
@@ -136,7 +136,7 @@ describe('the owners hear that a colleague joined', () => {
     expect(cards).toHaveLength(1)
     const card = cards[0].body.attachments[0].content
     expect(card.body.map((b: any) => b.text).join(' ')).toContain(
-      'Priya Nair (priya@northbend.example) joined Northbend Athletic as Member. Give them a desk.'
+      'Priya Nair (priya@northbend.test) joined Northbend Athletic as Member. Give them a desk.'
     )
     expect(card.actions[0].url).toBe('https://app.etyme.example/dashboard/access')
   })

@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  routeFor, attemptDelivery, deliverySummary,
+  routeFor, attemptDelivery, deliverySummary, demoAddress, DEMO_ADDRESS_NOTE,
   type Sender, type Recipient,
 } from '@/lib/notification-delivery'
 
@@ -131,5 +131,60 @@ describe('Whether it left is not the same question as whether it was read', () =
 
   it('everything sent is healthy', () => {
     expect(deliverySummary([{ deliveryState: 'SENT' }, { deliveryState: 'SENT' }]).healthy).toBe(true)
+  })
+})
+
+describe('No email ever leaves for a reserved demo address (sign-up walk, round two, item 30)', () => {
+
+  it('no email ever leaves for a reserved demo address; the notice is kept and says why it was not sent', async () => {
+    const asked: string[] = []
+    const recording: Sender = { channel: 'EMAIL', async send(to) { asked.push(to) } }
+    for (const to of [
+      'eleanor.vance@cavanaugh-glassworks.example',
+      'priya@supplier.invalid',
+      'karthik@demo.etyme.local',
+      'dana@demo.etyme.app',
+      'omar@seed.etyme.io',
+      'lena@example.com',
+      'marcus@mail.example.org',
+    ]) {
+      const o = await attemptDelivery(
+        routeFor(recipient({ teamsWebhookUrl: null, email: to })), to, 'T', 'B', [recording], NOW
+      )
+      expect(o.state, to).toBe('NOT_CONFIGURED')
+      expect(o.note, to).toBe('demo address, nothing sent')
+      expect(o.deliveredAt, to).toBeNull()
+    }
+    expect(asked).toEqual([])
+  })
+
+  it('a test address and a real address with the word example in its name are still sent', async () => {
+    const asked: string[] = []
+    const recording: Sender = { channel: 'EMAIL', async send(to) { asked.push(to) } }
+    for (const to of ['dana@cavanaugh.test', 'somebody@myexample.com']) {
+      const o = await attemptDelivery(
+        routeFor(recipient({ teamsWebhookUrl: null })), to, 'T', 'B', [recording], NOW
+      )
+      expect(o.state, to).toBe('SENT')
+      expect(demoAddress(to), to).toBe(false)
+    }
+    expect(asked).toEqual(['dana@cavanaugh.test', 'somebody@myexample.com'])
+  })
+
+  it('the email sender itself refuses a demo address before it calls the provider, with the same reason', async () => {
+    const env = { ...process.env }
+    process.env.RESEND_API_KEY = 'test-key'
+    process.env.NOTIFY_FROM_EMAIL = 'notices@etyme.test'
+    const realFetch = globalThis.fetch
+    let called = false
+    globalThis.fetch = (async () => { called = true; return new Response('{}') }) as typeof fetch
+    try {
+      const { emailSender } = await import('@/lib/senders')
+      await expect(emailSender()!.send('a@b.example', 'T', 'B')).rejects.toThrow(DEMO_ADDRESS_NOTE)
+      expect(called).toBe(false)
+    } finally {
+      globalThis.fetch = realFetch
+      process.env = env
+    }
   })
 })

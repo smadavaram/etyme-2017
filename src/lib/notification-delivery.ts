@@ -98,6 +98,46 @@ export function routeFor(recipient: Recipient): Route {
   }
 }
 
+/** Why a notice to a demo address was kept and not sent. */
+export const DEMO_ADDRESS_NOTE = 'demo address, nothing sent'
+
+/**
+ * The domains the seeds and the demo give their people. Nobody can own
+ * one, so mail to them reaches nobody. One list, shared with the password
+ * door, so the two rules cannot drift.
+ *
+ * `.test` is deliberately absent: the test suite and the release walks
+ * use it as the stand-in for a real address, so it stays sendable.
+ */
+export const DEMO_EMAIL_DOMAINS = {
+  /** A domain ending in one of these (RFC 2606 and 6761). */
+  suffixes: ['.example', '.invalid', '.local'],
+  /** These domains, and any name under them (RFC 2606). */
+  domains: ['example.com', 'example.net', 'example.org'],
+  /** A domain starting with one of these: the demo and seed worlds. */
+  prefixes: ['demo.etyme.', 'seed.etyme.'],
+} as const
+
+/**
+ * Whether an email address is a reserved demo address (DEMO_EMAIL_DOMAINS).
+ *
+ * Sign-up walk, round two, item 30: seeding and desk steps sent real
+ * email to these. A message nobody can receive is a message nobody can
+ * act on, and an attempt against the provider costs a bounce on the
+ * sending domain's reputation.
+ */
+export function demoAddress(email: string | null | undefined): boolean {
+  if (!email) return false
+  const at = email.lastIndexOf('@')
+  if (at < 0) return false
+  const domain = email.slice(at + 1).trim().toLowerCase().replace(/\.$/, '')
+  if (!domain) return false
+  const d = DEMO_EMAIL_DOMAINS
+  return d.prefixes.some((p) => domain.startsWith(p))
+    || d.suffixes.some((s) => domain.endsWith(s))
+    || d.domains.some((x) => domain === x || domain.endsWith(`.${x}`))
+}
+
 /** What a sender can be asked to do. */
 export interface Sender {
   channel: Channel
@@ -144,6 +184,12 @@ export async function attemptDelivery(
 
   if (!destination) {
     return { state: 'NOT_CONFIGURED', note: 'No address to send to', deliveredAt: null }
+  }
+
+  // A seeded or demo person has an address nobody can own. Nothing is
+  // sent and the sender is never asked; the notice stays, with the reason.
+  if (route.channel === 'EMAIL' && demoAddress(destination)) {
+    return { state: 'NOT_CONFIGURED', note: DEMO_ADDRESS_NOTE, deliveredAt: null }
   }
 
   const sender = senders.find(s => s.channel === route.channel)

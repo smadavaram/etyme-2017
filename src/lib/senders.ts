@@ -1,4 +1,4 @@
-import type { Sender } from '@/lib/notification-delivery'
+import { demoAddress, DEMO_ADDRESS_NOTE, type Sender } from '@/lib/notification-delivery'
 import {
   teamsCard, teamsLinkKind, teamsEdge, TEAMS_LINK_RETIRED_SENTENCE, type TeamsFacts,
 } from '@/lib/notify/teams-link'
@@ -29,6 +29,11 @@ export function emailSender(): Sender | null {
   return {
     channel: 'EMAIL',
     async send(to, title, body) {
+      // The last guard, for callers that send directly rather than through
+      // attemptDelivery: a reserved demo address is never handed to the
+      // provider. The error carries the reason, so whoever records the
+      // send writes "demo address, nothing sent".
+      if (demoAddress(to)) throw new Error(DEMO_ADDRESS_NOTE)
       if (resend) {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',

@@ -69,8 +69,8 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
     })
     workflowsCo = a.id
     retiredCo = b.id
-    workflowsPerson = (await personAt(a.id, 'Marcus Oyelaran', 'marcus@northbend.example')).id
-    retiredPerson = (await personAt(b.id, 'Dana Whitfield', 'dana@cavanaugh.example')).id
+    workflowsPerson = (await personAt(a.id, 'Marcus Oyelaran', 'marcus@northbend.test')).id
+    retiredPerson = (await personAt(b.id, 'Dana Whitfield', 'dana@cavanaugh.test')).id
   }, 900_000)
 
   afterAll(() => {
@@ -128,7 +128,7 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
     // Nothing was posted to the retired link; one email left.
     expect(sent.some((p) => p.url === RETIRED)).toBe(false)
     expect(sent.filter((p) => p.url === 'https://api.resend.com/emails')).toHaveLength(1)
-    expect(sent[0].body.to).toBe('dana@cavanaugh.example')
+    expect(sent[0].body.to).toBe('dana@cavanaugh.test')
   })
 
   it('a bulk notice that asks for Teams or email is delivered like a single one, never left pending', async () => {
