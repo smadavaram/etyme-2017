@@ -204,7 +204,7 @@ export function SignUpForm({ claimToken }: { claimToken: string | null }) {
               {personal && <p className="text-xs text-etyme-muted mt-1">A personal email is fine for this one.</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <DoorLabel htmlFor="country">Country</DoorLabel>
                 <select id="country" value={country} className={doorField}

@@ -358,6 +358,9 @@ export const DOMAINS: Domain[] = [
       // Saving a small form so a refusal is shown in the route's words and
       // the form can be saved again. Shared by every screen with one.
       'lib/form-save',
+      // The one base address every mailed link is built from. Pure, so a
+      // screen may read it; lib/supplier-link re-exports it.
+      'lib/app-url',
       // Somebody else in the seat: a new contract on the same terms, the old one ended.
       'lib/replacement',
       // The door a paying firm's choice of overtime method goes through,

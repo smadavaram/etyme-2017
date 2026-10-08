@@ -21,7 +21,7 @@
  * Owned by etyme-regulatory (`lib/data-request` in `lib/domains.ts`).
  */
 
-import { appUrl } from '@/lib/supplier-link'
+import { appUrl } from '@/lib/app-url'
 import { prisma } from '@/lib/db'
 import { HELD, NOT_USED } from '@/lib/legal'
 import {

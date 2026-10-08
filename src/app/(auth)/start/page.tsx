@@ -286,7 +286,7 @@ export default function StartPage() {
             <Lbl>Step 2 of 5</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>
             <p className="text-etyme-muted mt-2">Your email is confirmed. This is what you told us when you signed up.</p>
-            <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-3 text-sm">
+            <dl className="mt-6 grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-y-1 sm:gap-y-3 text-sm">
               <dt className="text-etyme-muted">Company name</dt><dd className="text-etyme-ink">{setup.company.name}</dd>
               <dt className="text-etyme-muted">Etyme address</dt><dd className="text-etyme-ink">{state.company?.slug}.etyme.com</dd>
               <dt className="text-etyme-muted">Country</dt><dd className="text-etyme-ink">{setup.company.countryName}</dd>

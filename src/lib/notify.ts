@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { routeFor, attemptDelivery, type Recipient } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { reportError } from '@/lib/alerts'
-import { appUrl } from '@/lib/supplier-link'
+import { appUrl } from '@/lib/app-url'
 
 /**
  * Central notification creator. Used by APIs and cron jobs to create
@@ -418,7 +418,7 @@ export function notificationHref(type: string, entityId?: string | null): string
  */
 export function appLink(path: string): string | null {
   // The same base every other mailed link uses (`appUrl` in
-  // lib/supplier-link), so a card's button and the email beside it agree.
+  // lib/app-url), so a card's button and the email beside it agree.
   // Its last resort is localhost, which is not https and so returns null.
   const base = appUrl()
   if (!/^https:\/\//i.test(base)) return null

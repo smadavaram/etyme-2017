@@ -119,6 +119,11 @@ const RUNTIME: Record<string, string> = {
   textMessage: 'a message somebody actually sent',
   webhookSubscription: 'created when a customer wires one up',
   webhookDelivery: 'written when a webhook actually fires',
+  // The password door (2026-10-08). Both hold secrets or attempts, never
+  // history: a seeded token is a live way into an account, and a seeded
+  // failure claims somebody tried a password that nobody tried.
+  emailToken: 'a one-time link mailed to confirm an email or reset a password; a seeded one would be a live way into an account',
+  signInFailure: 'written when somebody enters a wrong password, so the door can slow down; a seeded one claims an attempt nobody made',
 }
 
 /**

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
+import { appUrl } from '@/lib/app-url'
 
 /**
  * The firm's own link. Sent to the contact the client named; the firm
@@ -16,23 +17,8 @@ export function newApplyToken(): string {
   return randomBytes(24).toString('base64url')
 }
 
-/**
- * The one base address every mailed link is built from.
- *
- * NEXTAUTH_URL first, because it is the address sign-in already uses,
- * so a link and the sign-in it leads to agree. Then NEXT_PUBLIC_APP_URL,
- * then Vercel's per-deploy address, then localhost. Reading VERCEL_URL
- * first sent supplier links to a one-off deploy address that stops
- * working at the next deploy.
- */
-export function appUrl(): string {
-  const pick =
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
-    'http://localhost:3000'
-  return pick.replace(/\/+$/, '')
-}
+/** The one base address, kept in lib/app-url so a screen may read it too. */
+export { appUrl }
 
 export function applyUrl(token: string): string {
   return `${appUrl()}/apply/${token}`

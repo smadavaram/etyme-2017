@@ -242,6 +242,10 @@ const SELF_SCOPED = [
   // both happen before there is a company to be scoped to.
   'claim/[token]/route.ts',
   'onboarding/route.ts',
+  // Says only yes or no to the middleware about /map, for the caller's own
+  // seats: whether they hold Owner or Admin at a company that is not seed
+  // (lib/map-gate). It reads nobody else's record and returns no data.
+  'map/gate/route.ts',
 ]
 
 /**
