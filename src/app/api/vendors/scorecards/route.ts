@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { readsOnlyOwnWork } from '@/lib/console-home'
+import { notYoursToRead } from '@/lib/releasing-soon'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
@@ -26,6 +28,15 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Supplier scorecards')
   if (notStaff) return notStaff
+
+  // A seat that reads only its holder's own work — a worker's two reads,
+  // or none — is not a desk that reads this (sign-up walk round five).
+  if (readsOnlyOwnWork(caller.permissions)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Supplier scorecards', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const now = new Date()

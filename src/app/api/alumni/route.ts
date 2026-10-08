@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { readsOnlyOwnWork } from '@/lib/console-home'
+import { notYoursToRead } from '@/lib/releasing-soon'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
@@ -32,6 +34,15 @@ import { mayNameSubVendors, namesForClient, firmsOnARow, type SeenName } from '@
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // A seat that reads only its holder's own work — a worker's two reads,
+  // or none — is not a desk that reads this (sign-up walk round five).
+  if (readsOnlyOwnWork(caller.permissions)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Past contractors', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
 
   const url = request.nextUrl
 

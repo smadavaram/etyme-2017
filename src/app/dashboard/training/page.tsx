@@ -69,11 +69,26 @@ export default function TrainingPage() {
   const [reqsWhy, setReqsWhy] = useState<string | null>(null)
   /** Said on the screen when the bench could not be read at all. */
   const [benchWhy, setBenchWhy] = useState<string | null>(null)
+  /**
+   * The courses door's own sentence when it refused this seat. Training is
+   * the courses; a seat that may not read them reads that sentence and
+   * nothing else — not three sentences and four tiles of dashes beside it
+   * (sign-up walk round five, 11).
+   */
+  const [refused, setRefused] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
+      // The page's own door first. Nothing else is read for a seat it refuses.
+      const gate = await fetch('/api/training')
+      if (gate.status === 403) {
+        const body = await gate.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Training is not part of your seat. Ask your company\'s owner if you need it.')
+        return
+      }
+      setRefused(null)
       const [reqsRes, benchRes, payrollRes] = await Promise.all([
         fetch('/api/requirements?status=OPEN&limit=100').then(async (r) => {
           const body = await r.json().catch(() => null)
@@ -127,6 +142,10 @@ export default function TrainingPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
 
   if (loading) {
     return (

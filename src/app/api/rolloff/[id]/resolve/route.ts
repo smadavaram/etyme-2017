@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
+import { hasAnyPermission } from '@/lib/permissions'
+import { ENDING_SOON_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
@@ -34,6 +36,16 @@ export async function POST(
 ) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // The desks that read the board work it. A worker's seat holding only
+  // the reads of his own work does not claim, tick off or resolve a
+  // colleague's offboarding (sign-up walk round five, the own-work seat).
+  if (!hasAnyPermission(caller.permissions, ENDING_SOON_READERS)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Who is rolling off', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))

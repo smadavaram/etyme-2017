@@ -1369,6 +1369,45 @@ export function emptyWork(input: {
   return { says, listedBy, ownFirm: input.ownFirm }
 }
 
+// ── Somebody nothing here is about as a worker ─────────────────────────
+//
+// Sign-up walk, round five (16). A client's own employee seated as Member
+// landed on Your work and read four zero tiles ending "your vendor bills
+// these". Nothing on the record is about her as a contractor — no
+// placement, no week, no bill — and no firm bills for her time, so the
+// zeros were a supplier's sentence about somebody who is nobody's
+// supplier. `emptyWork` stays null for her, because its cards ("once a
+// firm puts you forward", "turn your page on") are a contractor's; this is
+// her own one-line answer, built only from what is known: the firm she
+// works at, and that there is no work in her name.
+
+export interface NotAWorker {
+  /** "You work at Northbend Athletic." — or null where no firm seats them. */
+  at: string | null
+  /** What the page holds for them, which is nothing, said plainly. */
+  says: string
+  /** What would change it. */
+  until: string
+}
+
+export function notAWorker(input: {
+  standing: PageVerdict
+  employers: string[]
+  ownFirm: string | null
+  contracts: number
+  weeks: number
+}): NotAWorker | null {
+  // Work on the record, a page that is theirs, or a firm of their own:
+  // the tiles or the empty cards answer, not this.
+  if (input.contracts > 0 || input.weeks > 0) return null
+  if (input.standing.ok || input.ownFirm) return null
+  return {
+    at: input.employers.length > 0 ? `You work at ${joinNames(input.employers)}.` : null,
+    says: 'You have no contract work here: no placements, no weeks to file, and nobody bills for your time.',
+    until: 'If a firm ever puts you forward or places you, that work shows here.',
+  }
+}
+
 // ── What became of the weeks the client signed ─────────────────────────
 //
 // The summary on Your work read "Approved, not billed 14 — your vendor

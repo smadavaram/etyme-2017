@@ -243,12 +243,27 @@ export default function RolloffPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [claiming, setClaiming] = useState<string | null>(null)
   const [resolving, setResolving] = useState<string | null>(null)
+  /**
+   * The door's own sentence when it refused this seat. It is not a load
+   * failure: "Could not load who is ending: … is not part of your seat"
+   * read as a fault a retry would fix (sign-up walk round five, 11).
+   */
+  const [refused, setRefused] = useState<string | null>(null)
 
   const fetchRolloffs = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch(`/api/rolloff?window=${window}`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Ending soon is not part of your seat. Ask your company\'s owner if you need it.')
+        setTracked([])
+        setUntracked([])
+        setSummary(null)
+        return
+      }
+      setRefused(null)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -357,6 +372,11 @@ export default function RolloffPage() {
     setToast({ message, type })
     setTimeout(() => setToast(null), 4000)
     if (type === 'success') fetchRolloffs()
+  }
+
+  // A refusal is the whole answer, said alone.
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   }
 
   const total = tracked.length + untracked.length

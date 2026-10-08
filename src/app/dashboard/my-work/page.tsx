@@ -1115,6 +1115,23 @@ export default function MyWorkPage() {
   )
   if (!data) return null
 
+  // Somebody nothing here is about as a worker — a client's employee, a
+  // supplier's own staff. Their answer, in their words: no tiles, no
+  // "your vendor bills these" (sign-up walk round five, 16).
+  if (data.notAWorker) {
+    return (
+      <div className="max-w-2xl">
+        <div className="mb-8">
+          <Lbl>You</Lbl>
+          <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your work</h1>
+        </div>
+        {data.notAWorker.at && <p className="text-[14px] text-etyme-ink max-w-prose">{data.notAWorker.at}</p>}
+        <p className="text-[14px] text-etyme-ink mt-1 max-w-prose">{data.notAWorker.says}</p>
+        <p className="text-[13px] text-etyme-muted mt-3 max-w-prose">{data.notAWorker.until}</p>
+      </div>
+    )
+  }
+
   // No contract and no week yet — somebody who made their page, somebody
   // on a bench nobody has put forward, the owner of a one-person firm with
   // nothing booked. A page of zeros would be the wrong answer to a state

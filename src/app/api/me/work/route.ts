@@ -5,7 +5,7 @@ import { workingLifeOf } from '@/lib/portfolio-data'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
-  weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork,
+  weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork, notAWorker,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -758,6 +758,13 @@ export async function GET(request: NextRequest) {
       // a row of zeros (sign-up walk, round two, items 35 and 38).
       empty: emptyWork({
         standing, benches: life.benches, ownFirm: ownFirm?.name ?? null,
+        contracts: contracts.length, weeks: timesheets.length,
+      }),
+      // Nothing here is about them as a worker and they own no firm — a
+      // client's or a supplier's own staff: one plain answer in their
+      // words, never four zero tiles (sign-up walk round five, 16).
+      notAWorker: notAWorker({
+        standing, employers: life.employers, ownFirm: ownFirm?.name ?? null,
         contracts: contracts.length, weeks: timesheets.length,
       }),
       placements: lines.map((l) => {

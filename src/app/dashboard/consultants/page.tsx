@@ -930,6 +930,12 @@ export default function ConsultantsPage() {
    * walk round four, 21). They wait for an answer and go on a refusal.
    */
   const [counted, setCounted] = useState(false)
+  /**
+   * The door's own sentence when it refused this seat. A refusal is the
+   * whole answer: no "Add consultant", no Feed/Table/Export toolbar and no
+   * empty table under it (sign-up walk round five, 11).
+   */
+  const [refused, setRefused] = useState<string | null>(null)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -944,6 +950,14 @@ export default function ConsultantsPage() {
     setError(null)
     try {
       const res = await fetch('/api/consultants')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Consultants are not part of your seat. Ask your company\'s owner if you need them.')
+        setConsultants([])
+        setCounted(false)
+        return
+      }
+      setRefused(null)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -1101,6 +1115,12 @@ export default function ConsultantsPage() {
       sortValue: (row) => row.tier ?? '',
     },
   ]
+
+  // A refused seat reads the sentence and nothing else — the same shape
+  // as Past contractors and Supplier scorecards (round four, 21).
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
 
   // ── Search filter ──────────────────────────────────
   const searchFilter = (row: Consultant, q: string) =>

@@ -66,6 +66,12 @@ export default function MyStandingPage() {
 
   useEffect(() => { load() }, [load])
 
+  // A refusal is the whole answer: not drawn under a heading and a promise
+  // about numbers the reader may not read (sign-up walk round five).
+  if (error && !loading && cards.length === 0) {
+    return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
+  }
+
   return (
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
       <header>
