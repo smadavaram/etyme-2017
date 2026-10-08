@@ -425,16 +425,90 @@ export const REGISTER_HEADINGS: ReadonlySet<string> = new Set(['Network', 'Compl
 export function sectionOfHref(
   kind: CompanyKind | null | undefined,
   href: string,
-  reading?: Reading | null
+  reading?: Reading | null,
+  reader?: ReaderFacts | null
 ): string | null {
-  if (!kind) return null
+  const isConsultant = Boolean(reader?.isConsultant)
+  // A consultant's menu is "You" whether or not a firm lists them, so the
+  // known absence of a company is not a reason to say nothing there. Any
+  // other reader with no company is still loading.
+  if (!kind && !isConsultant) return null
   const seat = seated(reading)
     // The name is only a label on the seat here; the menu turns on the
     // fact of one. Where the route did not name the client, the seat is
     // still a seat.
     ? { seatedAtClient: bookOwner(reading) ?? 'a client' }
     : {}
-  return headingIn(getNavForKind(kind, false, seat), href)
+  return headingIn(getNavForKind(kind, isConsultant, {
+    ...seat,
+    worker: reader?.worker,
+    permissions: reader?.permissions,
+    termsHref: reader?.termsHref ?? null,
+  }), href)
+}
+
+/**
+ * What decides which links a reader's menu keeps, beyond the company kind
+ * and the seat — the same facts the sidebar is drawn from.
+ *
+ * Sign-up walk, round six, problem 6. The heading asked `getNavForKind`
+ * for the company's whole menu, while the sidebar asked it for the menu
+ * this person is actually shown: trimmed to the desks they hold, cut to
+ * what is addressed to them where they hold none, and "You" where the
+ * work is about them. So Karthik Menon — Teleworld's own engineer, whose
+ * menu is his own work — opened Contracts and read "Operate", Submissions
+ * and read "Deliver", Reports and read "Grow": three words over pages his
+ * menu does not list, from a menu he is never shown. A Member at a client
+ * read "Governance" over Compliance and Tenure the same way.
+ *
+ * Passed, the heading is read off the same trimmed menu the sidebar
+ * draws, and a page the reader's menu does not list is headed by nothing,
+ * even where the page itself still opens to them. Absent, the company's
+ * whole menu is read, as it was — which is the sidebar's own answer while
+ * the permissions are not known yet.
+ */
+export interface ReaderFacts {
+  /** On a bench rather than of the company: the "You" menu. */
+  isConsultant?: boolean
+  /** Also somebody the work is about: the firm's menu plus "You". */
+  worker?: boolean
+  /** What the seat holds — the seat's own role where there is a seat.
+   *  Undefined or null: not known yet, and the menu is not trimmed. */
+  permissions?: readonly string[] | null
+  /** Where this person's own terms wait, if anywhere. */
+  termsHref?: string | null
+}
+
+/**
+ * The reader as the shell already describes them — `sidebarPropsFrom`'s
+ * answer, or `deskOf`'s — so a page heading and the sidebar are computed
+ * from one reading of the session and cannot disagree.
+ *
+ * Kept structural rather than imported, because this file is read by
+ * server routes and the shell's props live beside client components.
+ */
+export interface ReaderIdentity extends ReaderFacts {
+  companyKind: CompanyKind | null | undefined
+  /** The client whose desk this firm is acting at, if any. */
+  seatedAtClient?: string | null
+  /** The session is still loading. */
+  pending?: boolean
+}
+
+/**
+ * The heading over a page for the reader the sidebar is drawn for, or
+ * null where that reader's own menu does not list the page.
+ *
+ * `usePageSection(href)` should be `sectionForReader(sidebarPropsFrom(
+ * session), href)`, so the eyebrow is read off the menu on the left of
+ * the same screen and nothing else.
+ */
+export function sectionForReader(identity: ReaderIdentity | null | undefined, href: string): string | null {
+  if (!identity || identity.pending) return null
+  const reading: Reading | null = identity.seatedAtClient
+    ? { seated: true, clientName: identity.seatedAtClient }
+    : null
+  return sectionOfHref(identity.companyKind, href, reading, identity)
 }
 
 /** Every heading a menu can put over a page: its sections, and the
@@ -465,10 +539,11 @@ function headingIn(
 export function sectionFor(
   kind: CompanyKind,
   page: PageKey,
-  reading?: Reading | null
+  reading?: Reading | null,
+  reader?: ReaderFacts | null
 ): string | null {
   const menuKind: CompanyKind = seated(reading) ? 'CLIENT' : kind
-  return sectionOfHref(kind, MENU_ENTRY[menuKind]?.[page] ?? ROUTE[page], reading)
+  return sectionOfHref(kind, MENU_ENTRY[menuKind]?.[page] ?? ROUTE[page], reading, reader)
 }
 
 /**
@@ -482,11 +557,15 @@ export function sectionFor(
  *
  * `reading` is optional and absent means "their own book", so every
  * caller that predates seats keeps the framing it had to the letter.
+ * `reader` is optional too: given, the eyebrow is read off the menu this
+ * person is actually shown (see `ReaderFacts`), and is blank on a page
+ * that menu does not list.
  */
 export function pageFraming(
   kind: CompanyKind | null | undefined,
   page: PageKey,
-  reading?: Reading | null
+  reading?: Reading | null,
+  reader?: ReaderFacts | null
 ): PageFraming {
   if (!kind) return unknownReader(page)
   const inSeat = seated(reading)
@@ -501,7 +580,7 @@ export function pageFraming(
     : null
 
   return {
-    eyebrow: sectionFor(kind, page, reading) ?? '',
+    eyebrow: sectionFor(kind, page, reading, reader) ?? '',
     ...words,
     subtitle: whose ? `${words.subtitle} ${whose}` : words.subtitle,
     whose,

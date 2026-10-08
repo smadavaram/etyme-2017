@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pageFraming, sectionFor, sectionOfHref, notificationsFraming, headingsOf, REGISTER_HEADINGS, type PageKey } from '@/lib/page-framing'
+import { pageFraming, sectionFor, sectionOfHref, sectionForReader, notificationsFraming, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
 import { getNavForKind } from '@/lib/nav-table'
 import type { CompanyKind } from '@/components/session-provider'
 
@@ -790,5 +790,205 @@ describe('sign-up walk, round three: the do-not-return list is headed by the rea
     expect(src).not.toContain('<div className="eyebrow mb-2">Operate</div>')
     expect(src).toContain("usePageSection('/dashboard/blacklist')")
     expect(src).toContain('{section && <div className="eyebrow mb-2">{section}</div>}')
+  })
+})
+
+/**
+ * Sign-up walk, round six, problem 6 (2026-10-08). The heading over a
+ * list page was read off the company's whole menu, while the sidebar on
+ * the same screen is the menu this person is shown — trimmed to their
+ * desks, cut to what is addressed to them where they hold none, with
+ * "You" where the work is about them. So three readers opened pages and
+ * read sections their own menu does not have. Each pair the walk names is
+ * a sentence here, asked through the same facts the sidebar is drawn from.
+ */
+describe('sign-up walk, round six: a page is headed only by a section the reader’s own menu lists it under', () => {
+  // Teleworld's own W2 engineer: an integrator seat holding only the two
+  // reads of his own work, and the person the placement is about.
+  const KARTHIK: ReaderIdentity = {
+    companyKind: 'GSI', isConsultant: false, worker: true,
+    permissions: ['assignments.read', 'timesheets.read'],
+  }
+  // A colleague seated at Northbend Athletic as Member: no permission at all.
+  const MO: ReaderIdentity = { companyKind: 'CLIENT', isConsultant: false, worker: false, permissions: [] }
+  // A candidate who signed up on her own: no company, the consultant menu.
+  const NINA: ReaderIdentity = { companyKind: null, isConsultant: true, worker: false, permissions: [] }
+
+  function onMenu(r: ReaderIdentity, href: string): boolean {
+    const menu = getNavForKind(r.companyKind, Boolean(r.isConsultant), { worker: r.worker, permissions: r.permissions })
+    return menu.some((s) => s.items.some((i) => i.href.split('?')[0] === href))
+  }
+
+  it('Karthik’s Contracts and Timesheets are headed by nothing, not Operate, because his menu lists neither', () => {
+    for (const href of ['/dashboard/contracts', '/dashboard/timesheets']) {
+      expect(onMenu(KARTHIK, href), href).toBe(false)
+      expect(sectionForReader(KARTHIK, href), href).toBeNull()
+    }
+  })
+
+  it('Karthik’s Submissions is headed by nothing, not Deliver, and his Reports by nothing, not Grow', () => {
+    expect(sectionForReader(KARTHIK, '/dashboard/submissions')).toBeNull()
+    expect(sectionForReader(KARTHIK, '/dashboard/reports')).toBeNull()
+  })
+
+  it('the firm’s bench pages are headed by nothing for Karthik, never Supply', () => {
+    for (const href of ['/dashboard/bench', '/dashboard/settings/bench-pay', '/dashboard/texts']) {
+      expect(sectionForReader(KARTHIK, href), href).toBeNull()
+    }
+  })
+
+  it('Leads, the compliance register and Governance pages are headed by nothing for Karthik', () => {
+    for (const href of [
+      '/dashboard/leads', '/dashboard/blacklist', '/dashboard/checks', '/dashboard/documents',
+      '/dashboard/outbound-pack', '/dashboard/compliance', '/dashboard/tenure', '/dashboard/privacy',
+      '/dashboard/governance', '/dashboard/onboarding', '/dashboard/contacts',
+    ]) {
+      expect(sectionForReader(KARTHIK, href), href).toBeNull()
+    }
+  })
+
+  it('Karthik’s own work is headed You, the section his menu lists it under', () => {
+    expect(sectionForReader(KARTHIK, '/dashboard/my-work')).toBe('You')
+  })
+
+  it('what is addressed to Karthik keeps the heading his menu prints over it', () => {
+    expect(onMenu(KARTHIK, '/dashboard/conversations')).toBe(true)
+    expect(sectionForReader(KARTHIK, '/dashboard/conversations')).toBe(sectionOfHref('GSI', '/dashboard/conversations'))
+  })
+
+  it('a Member at a client reads no Governance over Compliance, Tenure, Duplicate check, Supplier scorecards, Data requests or What is coming', () => {
+    for (const href of [
+      '/dashboard/compliance', '/dashboard/tenure', '/dashboard/identity', '/dashboard/scorecards',
+      '/dashboard/privacy', '/dashboard/governance',
+    ]) {
+      expect(onMenu(MO, href), href).toBe(false)
+      expect(sectionForReader(MO, href), href).toBeNull()
+    }
+  })
+
+  it('a Member at a client reads no Today over Needs attention, no Network over Contacts and no Sell over Leads', () => {
+    for (const href of ['/dashboard/decisions', '/dashboard/contacts', '/dashboard/leads']) {
+      expect(sectionForReader(MO, href), href).toBeNull()
+    }
+  })
+
+  it('a candidate with no company reads no Governance over Compliance, Tenure, What is coming or Data requests, and no Sell over Leads', () => {
+    for (const href of ['/dashboard/compliance', '/dashboard/tenure', '/dashboard/governance', '/dashboard/privacy', '/dashboard/leads']) {
+      expect(sectionForReader(NINA, href), href).toBeNull()
+    }
+  })
+
+  it('a candidate’s own pages are headed You, because a known absence of a company is not a loading session', () => {
+    expect(sectionForReader(NINA, '/dashboard/my-work')).toBe('You')
+  })
+
+  it('a consultant on a firm’s bench is headed by her own menu, never by the firm’s Supply or Sell', () => {
+    const omar: ReaderIdentity = { companyKind: 'VENDOR', isConsultant: true, worker: false, permissions: [] }
+    expect(sectionForReader(omar, '/dashboard/bench')).toBeNull()
+    expect(sectionForReader(omar, '/dashboard/my-work')).toBe('You')
+  })
+
+  it('every heading any of the three readers is given names a section of the menu they are actually shown', () => {
+    const hrefs = new Set<string>()
+    for (const kind of ALL_KINDS) for (const s of getNavForKind(kind, false)) for (const i of s.items) hrefs.add(i.href.split('?')[0])
+    for (const r of [KARTHIK, MO, NINA]) {
+      const shown = headingsOf(getNavForKind(r.companyKind, Boolean(r.isConsultant), { worker: r.worker, permissions: r.permissions }))
+      for (const href of hrefs) {
+        const h = sectionForReader(r, href)
+        if (h === null) continue
+        expect(onMenu(r, href), `${href} is headed ${h} but is not on the menu`).toBe(true)
+        expect(shown, href).toContain(h)
+      }
+    }
+  })
+
+  it('a shared page framed for Karthik carries no eyebrow, while its words are unchanged', () => {
+    const f = pageFraming('GSI', 'timesheets', null, KARTHIK)
+    expect(f.eyebrow).toBe('')
+    expect(f.title).toBe(pageFraming('GSI', 'timesheets').title)
+  })
+
+  it('an owner who holds every desk is headed exactly as the company’s whole menu heads the page', () => {
+    const owner: ReaderIdentity = { companyKind: 'VENDOR', isConsultant: false, worker: false, permissions: ['*'] }
+    for (const href of ['/dashboard/timesheets', '/dashboard/contacts', '/dashboard/bench', '/dashboard/blacklist']) {
+      expect(sectionForReader(owner, href), href).toBe(sectionOfHref('VENDOR', href))
+    }
+  })
+
+  it('a reader whose permissions are not known yet is headed as the sidebar draws them meanwhile, unfiltered', () => {
+    const loading: ReaderIdentity = { companyKind: 'VENDOR', isConsultant: false, worker: false, permissions: undefined }
+    expect(sectionForReader(loading, '/dashboard/timesheets')).toBe('Operate')
+  })
+
+  it('a session that is still loading is headed by nothing', () => {
+    expect(sectionForReader({ companyKind: 'VENDOR', pending: true }, '/dashboard/timesheets')).toBeNull()
+    expect(sectionForReader(null, '/dashboard/timesheets')).toBeNull()
+  })
+
+  it('a program office in a client’s seat is headed by the client’s menu, trimmed to the seat it was granted', () => {
+    const seated: ReaderIdentity = { companyKind: 'MSP', seatedAtClient: 'Cavanaugh Glassworks', permissions: ['*'] }
+    expect(sectionForReader(seated, '/dashboard/timesheets')).toBe('Workforce')
+  })
+})
+
+/**
+ * The other half of problem 6: pages that print a section name as a typed
+ * word rather than asking the menu. Each reads its section to every
+ * reader, including readers whose menu has no such section ("You", over a
+ * reader's own pages, is the one word that is always the menu's). They belong to
+ * other domains and are reported to their owners; this list names them so
+ * it can only shrink, the way the refusal list in access-lifecycle-log does.
+ */
+describe('sign-up walk, round six: pages that type a section name over themselves', () => {
+  const STILL_TYPED = new Set([
+    'src/app/dashboard/compliance/page.tsx',
+    'src/app/dashboard/compliance/refused.tsx',
+    'src/app/dashboard/decisions/page.tsx',
+    'src/app/dashboard/documents/requirements/page.tsx',
+    'src/app/dashboard/governance/page.tsx',
+    'src/app/dashboard/invitations/page.tsx',
+    'src/app/dashboard/leads/page.tsx',
+    'src/app/dashboard/my-standing/page.tsx',
+    'src/app/dashboard/packets/page.tsx',
+    'src/app/dashboard/people/page.tsx',
+    'src/app/dashboard/privacy/page.tsx',
+    'src/app/dashboard/program/org/page.tsx',
+    'src/app/dashboard/program/seats/page.tsx',
+    'src/app/dashboard/requisitions/page.tsx',
+    'src/app/dashboard/tenure/page.tsx',
+    'src/app/dashboard/tenure/refused.tsx',
+  ])
+
+  function typedNow(): string[] {
+    const { readdirSync, statSync } = require('fs') as typeof import('fs')
+    const names = new Set<string>()
+    for (const kind of ALL_KINDS) for (const h of headingsOf(getNavForKind(kind, false))) names.add(h)
+    // "You" is left out: a reader's own pages sit under You on every
+    // menu that offers them, so the typed word is the menu's word.
+    names.delete('You')
+    const alt = [...names].join('|')
+    const label = new RegExp(
+      `(className="(?:eyebrow|lbl)[^"]*"|<Lbl|className="[^"]*uppercase tracking[^"]*")>\\s*(${alt})\\s*<`)
+    const out: string[] = []
+    const walk = (dir: string) => {
+      for (const f of readdirSync(dir)) {
+        const p = join(dir, f)
+        if (statSync(p).isDirectory()) walk(p)
+        else if (f.endsWith('.tsx') && label.test(readFileSync(p, 'utf8'))) out.push(p.slice(process.cwd().length + 1))
+      }
+    }
+    walk(join(process.cwd(), 'src/app/dashboard'))
+    return out
+  }
+
+  it('no page types a section name over itself that is not already on the list to be fixed', () => {
+    const extra = typedNow().filter((p) => !STILL_TYPED.has(p))
+    expect(extra, 'read the section with usePageSection or sectionForReader instead').toEqual([])
+  })
+
+  it('a page taken off the list stays off it, so the list only shrinks', () => {
+    const now = new Set(typedNow())
+    const fixed = [...STILL_TYPED].filter((p) => !now.has(p))
+    expect(fixed, 'remove these from STILL_TYPED').toEqual([])
   })
 })
