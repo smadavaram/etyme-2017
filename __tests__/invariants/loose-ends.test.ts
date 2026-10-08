@@ -8,6 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   looseEnd, rank, standing, mayTrustReporting, ageIn, COLD_AFTER_DAYS,
 } from '@/lib/loose-ends'
@@ -108,5 +110,18 @@ describe('A margin figure is refused while the links are broken', () => {
 
   it('vouches for them once the list is empty', () => {
     expect(mayTrustReporting([]).ok).toBe(true)
+  })
+})
+
+describe('Missing paperwork is headed by the reader’s own menu', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/dashboard/loose-ends/page.tsx'), 'utf8')
+
+  it('the Missing paperwork page takes its eyebrow from the section its own menu files it under, never a word typed by hand', () => {
+    expect(page).toContain("usePageSection('/dashboard/loose-ends')")
+    expect(page).not.toMatch(/className="eyebrow">\s*Operate\s*</)
+  })
+
+  it('the Missing paperwork page draws no eyebrow while the reader’s company is not known yet', () => {
+    expect(page).toContain('{section && <p className="eyebrow">{section}</p>}')
   })
 })

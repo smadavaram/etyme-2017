@@ -171,3 +171,19 @@ describe('no screen prints a prefix onto a number that already has one', () => {
     })
   }
 })
+
+describe('a seat with no contracts desk reads its own lines, and is told so when it asks for anybody else’s', () => {
+  it('the contracts list narrows a seat that administers no contracts to the lines that name its holder, on both sides', () => {
+    const src = read(ROUTE)
+    expect(src).toContain('const ownOnly = !reading?.seated && ownLinesOnly(caller.permissions)')
+    // Once for the buy lines, once for the sell lines.
+    expect(src.match(/if \(ownOnly\) \{/g)?.length).toBe(2)
+  })
+
+  it('a seat with no contracts desk asking by URL for somebody else’s lines is refused in a sentence naming the desks that read them, not handed an empty list', () => {
+    const src = read(ROUTE)
+    expect(src).toContain('ownOnly && filterPersonId && filterPersonId !== caller.person.id')
+    expect(src).toContain("from '@/lib/refusal-words'")
+    expect(src).toContain('You read the contract lines that name you.')
+  })
+})

@@ -3,7 +3,8 @@ import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { ownLinesOnly } from '@/lib/money/own-lines'
+import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
+import { refusalSentence } from '@/lib/refusal-words'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -758,6 +759,32 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
+  // ── A seat with no contracts desk reads its own lines ─────────────
+  //
+  // The Contracts menu entry names no permission: the list scopes itself,
+  // and a seat that administers none of the firm's contracts — a Member
+  // nobody has given a desk yet, a delivery engineer — reads only the
+  // lines that name its holder (lib/money/own-lines), on both sides,
+  // below. Asking by URL for somebody else's lines used to answer an
+  // empty list, which reads as "they have no contracts". It is refused in
+  // a sentence instead, naming the desks that do read them.
+  const ownOnly = !reading?.seated && ownLinesOnly(caller.permissions)
+  if (ownOnly && filterPersonId && filterPersonId !== caller.person.id) {
+    const desks = refusalSentence(
+      `Needs ${READS_THE_FIRMS_LINES.join(', ')}.`,
+      { kind: caller.company?.kind ?? null, company: caller.company?.name ?? null, what: 'Reading somebody else’s contract lines' }
+    )
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `You read the contract lines that name you. ${desks}`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   if (side === 'buy') {
     // Scoped to the caller's company — a missing ?companyId= used to mean
     // "every buy contract in the database".
@@ -775,7 +802,7 @@ export async function GET(request: NextRequest) {
     if (filterPersonId) where.candidates = { some: { personId: filterPersonId } }
     // A seat that administers none of this reads only the lines that pay
     // its holder (lib/money/own-lines).
-    if (!reading?.seated && ownLinesOnly(caller.permissions)) {
+    if (ownOnly) {
       where.AND = [...(where.AND ?? []), { candidates: { some: { personId: caller.person.id } } }]
     }
 
@@ -936,7 +963,7 @@ export async function GET(request: NextRequest) {
   if (filterPersonId) where.personId = filterPersonId
   // A delivery engineer reads the lines that name him, never his
   // colleagues' (lib/money/own-lines).
-  if (!reading?.seated && ownLinesOnly(caller.permissions)) {
+  if (ownOnly) {
     where.AND = [...(where.AND ?? []), { personId: caller.person.id }]
   }
 

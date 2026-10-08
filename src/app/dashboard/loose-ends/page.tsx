@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState } from 'react'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * The links nobody meant to leave broken.
@@ -25,6 +26,9 @@ const SEVERITY: Record<string, { chip: string; word: string }> = {
 }
 
 export default function LooseEndsPage() {
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const section = usePageSection('/dashboard/loose-ends')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +46,7 @@ export default function LooseEndsPage() {
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Missing paperwork</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           Placements missing the link that makes them add up. Worst first, then
