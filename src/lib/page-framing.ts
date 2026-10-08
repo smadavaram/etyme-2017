@@ -196,7 +196,9 @@ const SUPPLIER: Record<PageKey, Words> = {
   },
   timesheets: {
     title: 'Timesheets',
-    subtitle: 'Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.',
+    // Plain words for a page of hours, not the line they are filed on
+    // (sign-up walk, round one, item 27).
+    subtitle: 'Hours your people worked for your clients. Check them, approve them and bill them. Flagged weeks are shown first.',
     create: 'New',
   },
   invoices: {
@@ -270,7 +272,7 @@ const CLIENT: Record<PageKey, Words> = {
   },
   timesheets: {
     title: 'Timesheets',
-    subtitle: 'Hours worked at your sites, awaiting your approval. Flagged entries are shown first.',
+    subtitle: 'Hours worked at your sites, waiting for your approval. Flagged weeks are shown first.',
     // Station 6 of the client program: the worker files their own week,
     // nobody else may. A client signs hours; it does not enter them.
     create: null,

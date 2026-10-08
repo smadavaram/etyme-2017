@@ -34,3 +34,27 @@ describe('the bench invitation page', () => {
     expect(PAGE).toContain('askFirst')
   })
 })
+
+/**
+ * Sign-up walk, round one, item 43: the answer page read "Pellwright
+ * Validation Partners's bench". A firm's name ending in s takes an
+ * apostrophe alone, and one shared rule says so (`possessive` in
+ * `lib/requisition-approval`). The page and its route build no
+ * possessive by hand; the stay line comes from `staySays`.
+ */
+const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/bench-invite/[token]/route.ts'), 'utf8')
+
+describe('the bench answer page names the firm the way people write it', () => {
+  it('the answer page and its route never stick an apostrophe and s onto a name by hand', () => {
+    for (const [file, src] of [['page', PAGE], ['route', ROUTE]] as const) {
+      expect(src, file).not.toMatch(/\}['’]s\b/)
+    }
+  })
+
+  it('the stay line on the answer page says Pellwright Validation Partners\' bench, never Partners\'s', async () => {
+    const { staySays } = await import('@/lib/bench-stay')
+    const said = staySays({ staysUntil: null, lapsedAt: null, stayDays: null }, 'Pellwright Validation Partners', new Date())
+    expect(said).toContain("Pellwright Validation Partners' bench")
+    expect(said).not.toContain("Partners's")
+  })
+})

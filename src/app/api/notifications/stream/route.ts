@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { bellShows } from '@/lib/notify/account-mail'
 
 /**
  * GET /api/notifications/stream
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       // ── Initial unread count ──────────────────────────
       try {
         const initialCount = await prisma.notification.count({
-          where: { personId, status: 'UNREAD' },
+          where: { personId, status: 'UNREAD', ...bellShows() },
         })
         sendEvent(controller, { type: 'count', unread: initialCount })
       } catch (err) {
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
               personId,
               status: 'UNREAD',
               createdAt: { gt: lastChecked },
+              ...bellShows(),
             },
             orderBy: { createdAt: 'desc' },
             take: 10,
@@ -94,7 +96,7 @@ export async function GET(request: NextRequest) {
 
           if (newNotifications.length > 0) {
             const unreadCount = await prisma.notification.count({
-              where: { personId, status: 'UNREAD' },
+              where: { personId, status: 'UNREAD', ...bellShows() },
             })
 
             sendEvent(controller, {

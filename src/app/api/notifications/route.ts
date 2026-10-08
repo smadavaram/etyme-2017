@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { deliverySummary } from '@/lib/notification-delivery'
+import { bellShows } from '@/lib/notify/account-mail'
 
 /**
  * GET /api/notifications
@@ -28,8 +29,11 @@ export async function GET(request: NextRequest) {
   const type = url.searchParams.get('type')
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '50', 10)))
 
+  // The account's own sign-up and reset emails are kept, never listed
+  // or counted here: there is nothing to do on them (`lib/notify/account-mail`).
   const where: any = {
     personId: caller.person.id,
+    ...bellShows(),
   }
 
   if (status) where.status = status.toUpperCase()
@@ -45,6 +49,7 @@ export async function GET(request: NextRequest) {
       where: {
         personId: caller.person.id,
         status: 'UNREAD',
+        ...bellShows(),
       },
     }),
   ])

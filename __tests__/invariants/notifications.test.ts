@@ -306,3 +306,61 @@ describe('a bulk notice whose single write fails', () => {
     expect(last.deliveryNote).toContain('value too long for column')
   })
 })
+
+// ── The account's own emails ──────────────────────────
+//
+// Sign-up walk, round one, item 16: the bell listed "Confirm your email
+// for Etyme" and "Set your Etyme password" as unread, ending "[the
+// one-time link was in the email and is not kept]". Nothing to do on them.
+
+import { readFileSync as readSource } from 'node:fs'
+import { join as joinPath } from 'node:path'
+import { isAccountMail, bellShows, ACCOUNT_MAIL } from '@/lib/notify/account-mail'
+
+describe('the bell and the account\'s own emails', () => {
+  it('the bell never counts the account\'s own sign-up or reset emails as something to read', () => {
+    const routes = [
+      'src/app/api/notifications/route.ts',
+      'src/app/api/notifications/stream/route.ts',
+    ].map((f) => readSource(joinPath(process.cwd(), f), 'utf8'))
+    // Every count and every list the bell reads carries the filter.
+    for (const src of routes) {
+      const reads = src.split(/prisma\.notification\.(?=count\(|findMany\()/).slice(1)
+      expect(reads.length).toBeGreaterThan(0)
+      for (const read of reads) {
+        const call = read.slice(0, read.indexOf('})') + 2)
+        const usesWhere = /^findMany\(\{\s*where,/.test(call) && /const where[^]*?\.\.\.bellShows\(\)/.test(src)
+        expect(call.includes('bellShows()') || usesWhere, call.slice(0, 80)).toBe(true)
+      }
+    }
+  })
+
+  it('a confirm-your-email notice is an account email the bell hides', () => {
+    expect(isAccountMail({ type: 'SYSTEM', title: 'Confirm your email for Etyme', body: 'Click the link.' })).toBe(true)
+  })
+
+  it('a set-your-password notice is an account email the bell hides', () => {
+    expect(isAccountMail({ type: 'SYSTEM', title: 'Set your Etyme password', body: 'Click the link.' })).toBe(true)
+  })
+
+  it('a notice whose link was cut out is hidden whatever its subject', () => {
+    expect(isAccountMail({
+      type: 'SYSTEM', title: 'Anything', body: 'Hello.\n\n[the one-time link was in the email and is not kept]',
+    })).toBe(true)
+  })
+
+  it('a notice written with the account-email kind is hidden', () => {
+    expect(isAccountMail({ type: ACCOUNT_MAIL, title: 'Welcome', body: '' })).toBe(true)
+  })
+
+  it('an ordinary system notice still shows in the bell', () => {
+    expect(isAccountMail({ type: 'SYSTEM', title: 'Priya Nair joined Acme as Member', body: 'Give them a desk.' })).toBe(false)
+    expect(isAccountMail({ type: 'TIMESHEET', title: 'Set your Etyme password', body: '' })).toBe(false)
+  })
+
+  it('the database filter hides the same three shapes the rule names', () => {
+    const f = bellShows()
+    expect(f.NOT.OR).toHaveLength(3)
+    expect(f.NOT.OR[0]).toEqual({ type: ACCOUNT_MAIL })
+  })
+})

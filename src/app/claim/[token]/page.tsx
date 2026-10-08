@@ -5,7 +5,10 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import type { Route } from 'next'
+import { signIn, getProviders } from 'next-auth/react'
 import { EtymeLogo } from '@/components/logo'
+import { approvedLine, SET_PASSWORD, WORK_ACCOUNT, setPasswordHref, backToClaim, jobsWaiting } from './words'
 
 /**
  * Taking possession of a supplier record.
@@ -55,6 +58,15 @@ export default function ClaimPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Which work-account doors are on here. Off until the keys are set,
+  // and then the page offers them beside the password.
+  const [work, setWork] = useState<{ microsoft: boolean; google: boolean }>({ microsoft: false, google: false })
+  useEffect(() => {
+    getProviders()
+      .then((p) => setWork({ microsoft: !!p?.['azure-ad'], google: !!p?.google }))
+      .catch(() => {})
+  }, [])
+
   async function take() {
     setBusy(true)
     setError(null)
@@ -87,28 +99,18 @@ export default function ClaimPage() {
         {claim && (
           <div className="mt-10 space-y-6">
             <div>
-              <p className="eyebrow">{claim.invitedBy} listed you as a supplier</p>
+              <p className="eyebrow">Supplier account</p>
               <h1 className="headline-serif mt-2 text-[34px] leading-[1.05]">
                 {claim.company}
               </h1>
               <p className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
-                {claim.rolesWaiting > 0 ? (
-                  <>
-                    There {claim.rolesWaiting === 1 ? 'is' : 'are'}{' '}
-                    <strong className="text-etyme-ink">
-                      {claim.rolesWaiting} {claim.rolesWaiting === 1 ? 'job' : 'jobs'}
-                    </strong>{' '}
-                    waiting for you from {claim.invitedBy}. Sign in and you can answer
-                    {claim.rolesWaiting === 1 ? ' it' : ' them'} straight away — no bench
-                    to build first, no setup.
-                  </>
-                ) : (
-                  <>
-                    {claim.invitedBy} added you to their supplier list. Take the account
-                    and their jobs come straight to you as they open.
-                  </>
-                )}
+                {approvedLine(claim.company, claim.invitedBy, claim.alreadyClaimed)}
               </p>
+              {jobsWaiting(claim.rolesWaiting, claim.invitedBy) && (
+                <p className="mt-2 max-w-[46ch] text-[14px] text-etyme-ink">
+                  {jobsWaiting(claim.rolesWaiting, claim.invitedBy)}
+                </p>
+              )}
             </div>
 
             {claim.alreadyClaimed && (
@@ -126,16 +128,38 @@ export default function ClaimPage() {
             {!claim.alreadyClaimed && !claim.signedInAs && (
               <div className="space-y-3">
                 <Link
-                  href={`/login?next=/claim/${token}`}
+                  href={setPasswordHref(token!) as Route}
                   className="inline-flex items-center rounded-lg bg-etyme-action px-6 py-3
                              text-[14px] font-semibold text-white"
                 >
-                  Sign in as {claim.invitedEmail}
+                  {SET_PASSWORD}
                 </Link>
+                {(work.microsoft || work.google) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[13px] text-etyme-muted">{WORK_ACCOUNT}</span>
+                    {work.microsoft && (
+                      <button
+                        type="button"
+                        onClick={() => signIn('azure-ad', { callbackUrl: backToClaim(token!) })}
+                        className="btn-secondary text-[13px]"
+                      >
+                        Microsoft
+                      </button>
+                    )}
+                    {work.google && (
+                      <button
+                        type="button"
+                        onClick={() => signIn('google', { callbackUrl: backToClaim(token!) })}
+                        className="btn-secondary text-[13px]"
+                      >
+                        Google
+                      </button>
+                    )}
+                  </div>
+                )}
                 <p className="text-[12px] text-etyme-faint">
-                  Use that address, or another one at the same company. We do not accept
-                  a personal address for this — the link gets forwarded, and a company is
-                  not something a stranger should be able to pick up.
+                  Use {claim.invitedEmail}, or another address at the same company.
+                  A personal address cannot take a company account.
                 </p>
               </div>
             )}

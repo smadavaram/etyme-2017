@@ -335,7 +335,7 @@ describe('a program office reading a client\'s book is framed in the client\'s w
   it('the hours page stops calling a client\'s weeks billable hours against sell contracts', () => {
     const f = pageFraming('MSP', 'timesheets', AT_CAVANAUGH)
     expect(f.subtitle).not.toContain('sell contracts')
-    expect(f.subtitle).toContain('awaiting your approval')
+    expect(f.subtitle).toContain('waiting for your approval')
   })
 
   it('the eyebrow follows the seat to Workforce, where the client\'s own menu files the page', () => {
@@ -458,7 +458,7 @@ describe('a supplier reading its own book is framed exactly as before', () => {
       'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
     )
     expect(pageFraming('VENDOR', 'timesheets').subtitle).toBe(
-      'Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.'
+      'Hours your people worked for your clients. Check them, approve them and bill them. Flagged weeks are shown first.'
     )
   })
 
@@ -631,5 +631,21 @@ describe('the payables and orders pages', () => {
     expect(ap).not.toContain("company?.kind ?? 'VENDOR'")
     expect(po).not.toContain('<p className="eyebrow">Operate</p>')
     expect(po).toContain("sectionOfHref(company.kind, '/dashboard/purchase-orders', reading)")
+  })
+})
+
+/**
+ * Sign-up walk, round one, item 27: a client opening its hours read
+ * "logging hours against sell contracts". A client sells nothing.
+ */
+describe('the hours page says plain words to every reader', () => {
+  it('a client reads hours worked at its sites, waiting for its approval', () => {
+    expect(pageFraming('CLIENT', 'timesheets').subtitle).toContain('Hours worked at your sites, waiting for your approval.')
+  })
+
+  it('no reader of the hours page is told about sell contracts', () => {
+    for (const kind of ALL_KINDS) {
+      expect(pageFraming(kind, 'timesheets').subtitle, kind).not.toMatch(/sell contract/i)
+    }
   })
 })
