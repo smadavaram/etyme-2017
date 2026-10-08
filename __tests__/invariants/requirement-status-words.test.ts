@@ -166,8 +166,10 @@ describe('One vocabulary across the screens that show a role', () => {
 
   it('the filter tabs say the same word as the chip on the row', () => {
     expect(code(LIST)).toContain("label: statusWord('OPEN')")
-    expect(code(LIST)).toContain("label: statusWord('FILLED')")
-    expect(code(LIST)).toContain("label: statusWord('CLOSED')")
+    // A settled request reads Archived on its chip, so its tab does too;
+    // "Filled" is a placement's word and has no tab on this list.
+    expect(code(LIST)).toContain('label: ARCHIVED_WORD')
+    expect(code(LIST)).not.toContain("label: statusWord('FILLED')")
   })
 
   it('the role’s own page says the same word as the list it was opened from', () => {

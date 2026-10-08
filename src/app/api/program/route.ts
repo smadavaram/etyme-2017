@@ -13,7 +13,8 @@ import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
-import { seatTrail } from '@/lib/program-seat'
+import { seatTrail, actingDesk } from '@/lib/program-seat'
+import { hasPermission } from '@/lib/permissions'
 import { programMonthlySpend, basisSays } from '@/lib/program-spend'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
@@ -556,12 +557,19 @@ export async function GET(request: NextRequest) {
     })),
   ].sort((a, b) => (b.daysWaiting ?? 0) - (a.daysWaiting ?? 0))
 
+  // Whether this reader may raise a job request for this client: the
+  // same desk and the same permission `POST /api/requirements` asks for,
+  // so the dashboard never offers a button the route would refuse.
+  const raiseDesk = await actingDesk(caller)
+  const mayRaise = raiseDesk?.companyId === clientCompany.id && hasPermission(raiseDesk.permissions, 'requirements.write')
+
   return NextResponse.json({
     data: {
       client: {
         id: clientCompany.id,
         name: clientCompany.name,
       },
+      mayRaise,
       summary: {
         activeContractors: onSitePeople.size,
         // The Contractors tab lists everybody with a live line here —

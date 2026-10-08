@@ -124,11 +124,12 @@ describe('a supplier walks four desks', () => {
     expect(sent.status, JSON.stringify(sent.body)).toBe(201)
     // The one thing it did not send is the one the client's orders ask
     // for and the old checklist never mentioned.
+    expect(sent.body.data.says).toContain('Sent to Northbend Athletic. They will be in touch.')
     expect(sent.body.data.says).toContain('still needs: Certificate of good standing')
     const again = await viaToken(applyPost, 'POST', it_.token, {
       docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', size: 100, validFrom: iso(-60), validUntil: iso(305) }],
     })
-    expect(again.body.data.says).toContain('has everything it asked you for')
+    expect(again.body.data.says).toBe('Sent to Northbend Athletic. They will be in touch.')
   })
 
   it('Procurement is refused until its own items are verified, verifies what the firm sent, waives the D&B report with a reason, and qualifies the firm', async () => {
@@ -260,6 +261,20 @@ describe('a supplier walks four desks', () => {
     expect(told).not.toBeNull()
     const done = await viaToken(applyPost, 'POST', it_.token, { legalName: 'x' })
     expect(done.status).toBe(409)
+    it_.claim = r.body.data.claim
+  })
+
+  it('an approved supplier is told, with a link, that it can take its account', async () => {
+    // Finance's yes wrote a claim and the firm's contact was emailed it.
+    const invite = await prisma.supplierInvite.findFirstOrThrow({ where: { email: 'ops@harborstaffing.com' }, select: { token: true, state: true } })
+    expect(it_.claim?.to).toBe('ops@harborstaffing.com')
+    expect(it_.claim?.url).toMatch(new RegExp(`/claim/${invite.token}$`))
+    expect(['SENT', 'NOT_CONFIGURED']).toContain(it_.claim?.state)
+    // The apply link, opened again, says the same sentence with the same link.
+    const page = await viaToken(applyGet, 'GET', it_.token)
+    expect(page.body.data.decided).toBe(true)
+    expect(page.body.data.claim.says).toBe('Northbend Athletic approved Harbor Staffing as a supplier. Take your account:')
+    expect(page.body.data.claim.url).toBe(it_.claim.url)
   })
 })
 

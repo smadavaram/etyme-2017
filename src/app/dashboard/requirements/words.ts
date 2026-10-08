@@ -46,7 +46,7 @@
  * looked at and archiving deliberately does not touch it.
  */
 
-import { stageOf, type RequisitionRow } from '@/lib/requisition-stage'
+import { stageOf, closedBecause, STAGES, type RequisitionRow } from '@/lib/requisition-stage'
 import { pageFraming, type Reading } from '@/lib/page-framing'
 import type { CompanyKind } from '@/components/session-provider'
 
@@ -60,6 +60,9 @@ export const STATUS_WORDS: Array<[string, string]> = [
 ]
 
 const BY_STATUS: Record<string, string> = Object.fromEntries(STATUS_WORDS)
+
+/** A settled request's word, from the stage table every list shares. */
+export const ARCHIVED_WORD = STAGES.find(([k]) => k === 'ARCHIVED')![1]
 
 /**
  * The word, or the status itself where somebody has added one nobody
@@ -109,9 +112,11 @@ export type RequirementRow = RequisitionRow & {
  */
 export function stageWordFor(r: RequirementRow): string {
   switch (stageOf(r)) {
-    // Filled keeps its own word — it is the one settled ending that is
-    // good news, and the row's tone is verified rather than passive.
-    case 'ARCHIVED':  return statusWord(r.status === 'FILLED' ? 'FILLED' : 'CLOSED')
+    // The request's own word, the same on every list: Archived, whether
+    // the seat was filled or the request closed. "Filled" is a
+    // placement's word and is read in Submissions (CLAUDE.md); how a
+    // request ended is the line under the chip (`stageReason`).
+    case 'ARCHIVED':  return ARCHIVED_WORD
     case 'CANCELLED': return statusWord('CANCELLED')
     // Only ever reached by the company that raised it; a supplier's
     // approvalState is '' and falls past both of these branches.
@@ -134,8 +139,13 @@ export function stageWordFor(r: RequirementRow): string {
  * was cut" and "we lost this to somebody".
  */
 export function stageReason(r: RequirementRow): string | null {
-  if (stageOf(r) !== 'CANCELLED') return null
-  return r.cancelReason?.trim() || null
+  const stage = stageOf(r)
+  if (stage === 'CANCELLED') return r.cancelReason?.trim() || null
+  // The chip says Archived for every settled request, so how it ended —
+  // "the seat filled", "closed without being filled" — is said once,
+  // here, under it.
+  if (stage === 'ARCHIVED') return closedBecause(r)
+  return null
 }
 
 /**

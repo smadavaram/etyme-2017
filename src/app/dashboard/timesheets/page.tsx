@@ -1123,7 +1123,13 @@ export default function TimesheetsPage() {
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, client, or engagement…"
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} timesheets.` : 'No timesheets yet.'}
-        emptyDetail="Timesheets will appear here once consultants start logging hours against sell contracts."
+        emptyDetail={
+          // A client reads its own sites, never the supplier's contract
+          // word; a seated program office reads the client's book.
+          company?.kind === 'CLIENT' || atDesk
+            ? 'Hours worked at your sites, waiting for your approval, will appear here.'
+            : 'Timesheets will appear here once your consultants file their hours.'
+        }
         exportName="timesheets"
         selectable
         bulkActions={(selected) => (

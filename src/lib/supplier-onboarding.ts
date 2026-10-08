@@ -158,6 +158,19 @@ export function newChecklist(): ChecklistItem[] {
  * thing that comes back `needsDates` is an item that would have become a
  * row if it had them.
  */
+/**
+ * The line under the two date boxes, per item.
+ *
+ * It was the insurance line on every dated item, so a certificate of
+ * good standing was explained as cover. Each dated item says what it is;
+ * anything else gets the plain ask.
+ */
+export function datesHelp(key: string): string {
+  if (key === 'GOOD_STANDING') return 'Shows your company is registered and in good standing with the state. Usually valid for a year.'
+  if (key === 'INSURANCE' || key.startsWith('INSURANCE_')) return 'The two dates printed on it. Cover that begins next month covers nobody starting this week.'
+  return 'The two dates printed on it: the day it starts and the day it runs out.'
+}
+
 export function wantsDates(item: Pick<ChecklistItem, 'key' | 'label' | 'answers'>): boolean {
   return verificationFromChecklistItem(
     { ...item, state: 'HELD', validFrom: null, validUntil: null },

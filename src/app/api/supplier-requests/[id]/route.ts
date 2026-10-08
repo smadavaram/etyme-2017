@@ -7,7 +7,7 @@ import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
 import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
-import { sendLink } from '@/lib/supplier-link'
+import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
 import {
   mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
@@ -303,16 +303,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // A request opened from a match names the firm already on Etyme; that
     // company is joined, never a second one made from its name.
     const claimed = row.firmCompanyId
-      ? await prisma.company.findUnique({ where: { id: row.firmCompanyId }, select: { id: true, name: true } })
+      ? await prisma.company.findUnique({ where: { id: row.firmCompanyId }, select: { id: true, name: true, claimedAt: true } })
       : row.domain
-        ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true } })
+        ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true, claimedAt: true } })
         : null
     const supplier = claimed ?? (await prisma.company.create({
       data: {
         name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',
         outsideAccess: defaultPostureFor('VENDOR'), listedById: companyId, isDemo: caller.company!.isDemo,
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, claimedAt: true },
     }))
     const agreementHeld = checklist.find((i) => i.key === 'AGREEMENT')?.state === 'HELD'
     // A sub-vendor under a prime holds its paper with the prime, not with
@@ -328,6 +328,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       update: { tier: 'APPROVED', status: 'ACTIVE' },
       create: { companyId, otherCompanyId: supplier.id, relationship: 'SUPPLIER', status: 'ACTIVE', tier: 'APPROVED', createdById: caller.person.id },
     })
+    // Whether the firm's contact was told it can take its account. Null
+    // where there was nobody to tell: no contact address, or a firm that
+    // already holds its account on Etyme.
+    let claim: { to: string; url: string; state: string; note: string } | null = null
     if (row.contactEmail) {
       const exists = await prisma.companyContact.findFirst({ where: { companyId, atCompanyId: supplier.id, email: row.contactEmail }, select: { id: true } })
       if (!exists) {
@@ -335,11 +339,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           data: { companyId, atCompanyId: supplier.id, name: row.contactName ?? row.contactEmail.split('@')[0], email: row.contactEmail, kind: 'RECRUITING', createdById: caller.person.id },
         })
       }
-      await prisma.supplierInvite.upsert({
+      const invite = await prisma.supplierInvite.upsert({
         where: { byId_email: { byId: companyId, email: row.contactEmail } },
         create: { companyId: supplier.id, byId: companyId, email: row.contactEmail, contactName: row.contactName, domain: row.domain, line: null, token: randomBytes(24).toString('base64url') },
         update: {},
       })
+      // The claim link used to be written here and sent nowhere, so an
+      // approved firm opened its apply link and read only that the link
+      // had done its job. The firm hears that it is approved, with the
+      // link to take its account, the moment Finance says the last yes.
+      if (!supplier.claimedAt && invite.state === 'PENDING') {
+        const out = await sendClaim({ to: row.contactEmail, contactName: row.contactName, firmName: supplier.name, clientName: desk!.companyName, token: invite.token })
+        claim = { to: row.contactEmail, url: claimUrl(invite.token), ...out }
+      }
     }
     // ── The firm is on the register, so what four desks verified goes
     //    on its compliance record ───────────────────────────────────
@@ -387,7 +399,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({
       data: {
         request: updated,
-        supplier,
+        supplier: { id: supplier.id, name: supplier.name },
+        claim,
         evidence: {
           recorded,
           undated: undated.map((sk) => sk.says),
@@ -395,6 +408,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
         says:
           `${row.name} is a supplier now, at approved standing. Send them a job.` +
+          (claim
+            ? claim.state === 'SENT'
+              ? ` ${claim.to} has been emailed a link to take ${row.name}’s account.`
+              : ` The link for ${claim.to} to take ${row.name}’s account did not go out: ${claim.note}`
+            : '') +
           (recorded > 0
             ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your desks verified ` +
               `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +

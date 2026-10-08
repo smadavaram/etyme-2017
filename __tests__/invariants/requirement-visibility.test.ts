@@ -135,7 +135,7 @@ describe('an empty approval state is inert, never a verdict', () => {
   it('an empty approval state still shows a supplier a closed role as put away', () => {
     const r = asSupplierSees({ status: 'CLOSED', approvalState: 'APPROVED' })
     expect(stageOf(r)).toBe('ARCHIVED')
-    expect(stageWordFor(r)).toBe('Closed')
+    expect(stageWordFor(r)).toBe('Archived')
   })
 
   it('a role a client turned down is never in a supplier’s list to be misread, and reads open if it somehow is', () => {
@@ -189,27 +189,29 @@ describe('a published role being re-approved', () => {
  */
 describe('one word about one row, on both ends of the deal', () => {
 
-  it('a role put away while it was still open reads "Closed" to a supplier, not "Published"', () => {
+  it('a role put away while it was still open reads "Archived" to a supplier, not "Published"', () => {
     // Archiving writes a date and deliberately never overwrites the
     // status, so this row still says OPEN. It read "Published" to every
     // supplier looking at it until the list route sent `archivedAt`.
     const r = asSupplierSees({ status: 'OPEN', archivedAt: new Date('2026-09-16T00:00:00Z') })
     expect(r.status).toBe('OPEN')
-    expect(stageWordFor(r)).toBe('Closed')
+    expect(stageWordFor(r)).toBe('Archived')
   })
 
-  it('a closed role reads "Closed" on the supplier’s list and "closed without being filled" on the client’s — one word about one row', () => {
+  it('a closed role reads "Archived" on both lists, with "closed without being filled" under it — one word about one row', () => {
     const r = asSupplierSees({ status: 'CLOSED' })
-    expect(stageWordFor(r)).toBe('Closed')
+    expect(stageWordFor(r)).toBe('Archived')
+    expect(stageReason(r)).toBe('closed without being filled')
     // The client's own chip is `closedBecause`, not the tab it sits
     // under. "Archived" is the name of a drawer; both rows say closed.
     expect(closedBecause(asClientSees({ status: 'CLOSED' }))).toBe('closed without being filled')
     expect(closedBecause(asClientSees({ status: 'CLOSED' }))).toContain('closed')
   })
 
-  it('a filled role reads "Filled" on both lists, because filling one is the good ending', () => {
+  it('a filled job request reads "Archived" on both lists, with "the seat filled" under it — filled is a placement’s word', () => {
     const r = asSupplierSees({ status: 'FILLED', headcount: 1, archivedAt: new Date() })
-    expect(stageWordFor(r)).toBe('Filled')
+    expect(stageWordFor(r)).toBe('Archived')
+    expect(stageReason(r)).toBe('the seat filled')
     expect(closedBecause(asClientSees({ status: 'FILLED', headcount: 1 }))).toBe('the seat filled')
   })
 
@@ -217,10 +219,9 @@ describe('one word about one row, on both ends of the deal', () => {
     const r = asSupplierSees({ status: 'CANCELLED', cancelReason: 'budget cut' })
     expect(stageWordFor(r)).toBe('Cancelled')
     expect(stageReason(r)).toBe('budget cut')
-    // And nothing else does: a filled row's reason is already its chip,
-    // and printing it twice on one row is the duplicate the founder has
-    // reported three times.
-    expect(stageReason(asSupplierSees({ status: 'FILLED' }))).toBeNull()
+    // A live row has no reason line. A filled one says how it ended,
+    // once, under a chip that now reads Archived rather than Filled.
+    expect(stageReason(asSupplierSees({ status: 'FILLED' }))).toBe('the seat filled')
     expect(stageReason(asSupplierSees({ status: 'OPEN' }))).toBeNull()
   })
 

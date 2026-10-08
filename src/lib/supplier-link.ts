@@ -16,9 +16,63 @@ export function newApplyToken(): string {
   return randomBytes(24).toString('base64url')
 }
 
+/**
+ * The one base address every mailed link is built from.
+ *
+ * NEXTAUTH_URL first, because it is the address sign-in already uses,
+ * so a link and the sign-in it leads to agree. Then NEXT_PUBLIC_APP_URL,
+ * then Vercel's per-deploy address, then localhost. Reading VERCEL_URL
+ * first sent supplier links to a one-off deploy address that stops
+ * working at the next deploy.
+ */
+export function appUrl(): string {
+  const pick =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    'http://localhost:3000'
+  return pick.replace(/\/+$/, '')
+}
+
 export function applyUrl(token: string): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  return `${base}/apply/${token}`
+  return `${appUrl()}/apply/${token}`
+}
+
+/** Where an approved firm takes its account. */
+export function claimUrl(token: string): string {
+  return `${appUrl()}/claim/${token}`
+}
+
+/**
+ * The one sentence an approved firm reads, in the email and on its
+ * apply page alike, so the two never say different things.
+ */
+export function approvedSays(input: { clientName: string; firmName: string }): string {
+  return `${input.clientName} approved ${input.firmName} as a supplier. Take your account:`
+}
+
+/** What a firm reads after it sends its side from the apply page. */
+export function sentSays(clientName: string): string {
+  return `Sent to ${clientName}. They will be in touch.`
+}
+
+export function claimLetter(input: { contactName: string | null; firmName: string; clientName: string; token: string }): { subject: string; body: string } {
+  const hello = input.contactName ? `${input.contactName.split(' ')[0]},` : 'Hello,'
+  return {
+    subject: `${input.clientName} approved ${input.firmName} as a supplier`,
+    body:
+      `${hello}\n\n${approvedSays(input)} ${claimUrl(input.token)}\n\n` +
+      `Sign in with this email address. Your jobs, hours and bills from ${input.clientName} will be there.`,
+  }
+}
+
+export async function sendClaim(input: { to: string; contactName: string | null; firmName: string; clientName: string; token: string }): Promise<{ state: string; note: string }> {
+  const letter = claimLetter(input)
+  const out = await attemptDelivery(
+    routeFor({ isConsultant: false, email: input.to, teamsWebhookUrl: null }),
+    input.to, letter.subject, letter.body, configuredSenders(), new Date()
+  )
+  return { state: out.state, note: out.note }
 }
 
 export function linkLetter(input: { contactName: string | null; firmName: string; clientName: string; token: string }): { subject: string; body: string } {

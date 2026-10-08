@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, suppliedByWords, optionalWord, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -642,7 +642,7 @@ export default function SuppliersPage() {
                             }}
                           >
                             <span className="w-full text-[11px] text-etyme-faint">
-                              The two dates printed on {item.label.toLowerCase()} — cover that begins next month covers nobody starting this week.
+                              {datesHelp(item.key)}
                             </span>
                             <label className="flex items-center gap-1 text-[12px] text-etyme-muted">
                               Starts

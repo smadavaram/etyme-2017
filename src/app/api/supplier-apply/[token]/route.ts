@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { approvedSays, claimUrl, sentSays } from '@/lib/supplier-link'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 
 /**
@@ -37,6 +38,19 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     row.company.name
   )
   const app = (row.application ?? null) as Record<string, unknown> | null
+  // Once approved, the same sentence and link the claim email carried, so
+  // a firm that opens this link again is pointed at its account rather
+  // than told only that the link has done its job.
+  let claim: { says: string; url: string } | null = null
+  if (row.state === 'APPROVED' && row.contactEmail) {
+    const invite = await prisma.supplierInvite.findUnique({
+      where: { byId_email: { byId: row.companyId, email: row.contactEmail } },
+      select: { token: true, state: true, company: { select: { name: true, claimedAt: true } } },
+    })
+    if (invite && invite.state === 'PENDING' && !invite.company.claimedAt) {
+      claim = { says: approvedSays({ clientName: row.company.name, firmName: invite.company.name }), url: claimUrl(invite.token) }
+    }
+  }
   return NextResponse.json({
     data: {
       client: row.company.name,
@@ -44,6 +58,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       contactName: row.contactName,
       decided: row.state === 'APPROVED' || row.state === 'DECLINED',
       state: row.state,
+      claim,
       asks: vendorItems(checklist).map((i) => ({
         key: i.key, label: i.label, required: i.required, state: i.state,
         fileName: i.fileName ?? null, says: i.says ?? null,
@@ -137,8 +152,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         wantsDates: wantsDates(i), validFrom: i.validFrom ?? null, validUntil: i.validUntil ?? null,
       })),
       says: still.length
-        ? `Received, thank you. ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
-        : `Received, thank you. ${row.company.name}’s Procurement team has everything it asked you for; they will verify it and you will hear from them.`,
+        ? `${sentSays(row.company.name)} ${row.company.name} still needs: ${still.join('; ')}. Come back to this link when you have them.`
+        : sentSays(row.company.name),
     },
   }, { status: 201 })
 }

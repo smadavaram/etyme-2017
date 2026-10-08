@@ -257,7 +257,9 @@ export default function RequirementDetailPage() {
                 out by submitting into it. */}
             {stoppedBecause && (
               <p className="text-[12px] text-etyme-muted">
-                {requirement.company.name} withdrew this job — {stoppedBecause}
+                {requirement.status === 'CANCELLED'
+                  ? `${requirement.company.name} withdrew this job — ${stoppedBecause}`
+                  : `This job request is archived — ${stoppedBecause}.`}
               </p>
             )}
           </div>

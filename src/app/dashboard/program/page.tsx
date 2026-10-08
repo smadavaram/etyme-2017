@@ -26,6 +26,8 @@ import { jobListWord, stageWordFor } from '../requirements/words'
 
 interface ProgramData {
   client: { id: string; name: string }
+  /** Whether this seat may raise a job request here — the route's own permission. */
+  mayRaise?: boolean
   summary: {
     activeContractors: number
     /** Everybody the Contractors tab lists, in people: on site plus not started. */
@@ -595,12 +597,16 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
       <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-6 max-w-2xl">
         <h2 className="font-serif text-xl text-etyme-ink">Nothing here yet.</h2>
         <p className="mt-2 text-sm text-etyme-muted leading-relaxed">
-          Raise a job request and, within plan, it publishes itself to the suppliers Procurement cleared.
+          {data.mayRaise
+            ? 'Raise a job request and, within plan, it publishes itself to the suppliers Procurement cleared.'
+            : 'When somebody here raises a job request, within plan it publishes itself to the suppliers Procurement cleared.'}
           Their submissions, the interviews, the award, the paperwork, the hours and the invoices all come
           back to this page — every contractor on site, across every supplier, with tenure added up.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link href={{ pathname: '/dashboard/requisitions' }} className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Raise a job request</Link>
+          {data.mayRaise && (
+            <Link href={{ pathname: '/dashboard/requisitions' }} className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Raise a job request</Link>
+          )}
           <Link href={{ pathname: '/dashboard/suppliers' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Invite your suppliers</Link>
           <Link href={{ pathname: '/dashboard/import' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Import who is already on site</Link>
         </div>
@@ -896,7 +902,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
           <section>
             <h2 className="font-serif text-lg text-etyme-ink mb-3">{jobListWord('CLIENT').plural} <span className="text-xs text-etyme-faint tabular-nums font-sans">{s.openRoles}</span></h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-              {data.openRoles.length === 0 && <p className="p-4 text-sm text-etyme-muted">Nothing open. Raise a requirement and it publishes itself within plan.</p>}
+              {data.openRoles.length === 0 && <p className="p-4 text-sm text-etyme-muted">{data.mayRaise ? 'Nothing open. Raise a job request and it publishes itself within plan.' : 'Nothing open.'}</p>}
               {data.openRoles.slice(0, 6).map((r) => {
                 const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5
                 return (

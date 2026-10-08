@@ -102,7 +102,12 @@ export async function GET(request: NextRequest) {
     where.companyId = companyId
   }
 
-  if (status) {
+  // ARCHIVED is a stage, not a column value: the request's own word for
+  // one that is settled — filled, closed, or put away while still open
+  // (`stageOf` in lib/requisition-stage). Added to an AND below so the
+  // search clause cannot replace it.
+  const archived = status?.toUpperCase() === 'ARCHIVED'
+  if (status && !archived) {
     where.status = status.toUpperCase()
   }
 
@@ -117,6 +122,10 @@ export async function GET(request: NextRequest) {
         ],
       },
     ]
+  }
+
+  if (archived) {
+    where.AND = [...(where.AND ?? []), { OR: [{ status: { in: ['FILLED', 'CLOSED'] } }, { archivedAt: { not: null } }] }]
   }
 
   const orderBy: any =

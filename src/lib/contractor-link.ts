@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
+import { appUrl } from '@/lib/supplier-link'
 
 /**
  * The person's own link.
@@ -16,10 +17,7 @@ export function newInviteToken(): string {
 }
 
 export function welcomeUrl(token: string): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  return `${base}/welcome/${token}`
+  return `${appUrl()}/welcome/${token}`
 }
 
 /**

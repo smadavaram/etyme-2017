@@ -6,7 +6,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { range as showRange } from '@/lib/money-display'
-import { statusWord, statusWordLower, stageWordFor, stageReason } from './words'
+import { statusWord, statusWordLower, stageWordFor, stageReason, ARCHIVED_WORD } from './words'
+import { stageOf } from '@/lib/requisition-stage'
 
 /**
  * Requirements working surface — open demand.
@@ -49,7 +50,7 @@ interface Requirement {
   createdAt: string
 }
 
-type StatusFilter = 'ALL' | 'DRAFT' | 'OPEN' | 'FILLED' | 'CLOSED'
+type StatusFilter = 'ALL' | 'DRAFT' | 'OPEN' | 'ARCHIVED'
 
 // ── New Requirement Modal ──────────────────────────────────
 
@@ -156,7 +157,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error?.message ?? 'Failed to create requirement')
+        setError(body.error?.message ?? 'The job request was not created. Try again.')
         return
       }
 
@@ -173,7 +174,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">New requirement</h2>
+          <h2 className="text-lg font-semibold">New job request</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -370,7 +371,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               Cancel
             </button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Create requirement'}
+              {submitting ? 'Creating…' : 'Create job request'}
             </button>
           </div>
         </form>
@@ -445,14 +446,20 @@ export default function RequirementsPage() {
   }, [fetchRequirements])
 
   // ── Stats ──────────────────────────────────────────
-  const openCount = requirements.filter((r) => r.status === 'OPEN').length
+  const openCount = requirements.filter((r) => stageOf(r) === 'OPEN').length
   const totalMatches = requirements.reduce((sum, r) => sum + r.matches, 0)
-  const filledCount = requirements.filter((r) => r.status === 'FILLED').length
+  // Settled requests, in the request's own word. A filled seat is a
+  // placement and is counted in Submissions, not here.
+  const archivedCount = requirements.filter((r) => stageOf(r) === 'ARCHIVED').length
 
   // ── Filtered ───────────────────────────────────────
+  // By stage, so a request put away while still open sits under
+  // Archived and not under Published.
   const filtered = statusFilter === 'ALL'
     ? requirements
-    : requirements.filter((r) => r.status === statusFilter)
+    : statusFilter === 'ARCHIVED'
+      ? requirements.filter((r) => stageOf(r) === 'ARCHIVED')
+      : requirements.filter((r) => r.status === statusFilter && stageOf(r) !== 'ARCHIVED')
 
   // ── Column definitions ─────────────────────────────
   const columns: Column<Requirement>[] = [
@@ -514,7 +521,7 @@ export default function RequirementsPage() {
         const live = word === statusWord('OPEN')
         const cls =
           live ? 'chip--action'
-          : word === statusWord('FILLED') ? 'chip--verified'
+          : row.status === 'FILLED' ? 'chip--verified'
           : word === 'Paused' ? 'chip--attention'
           : 'chip--passive'
         // Why it was withdrawn, which the chip cannot carry and a
@@ -601,12 +608,12 @@ export default function RequirementsPage() {
   // ── Status filter options ──────────────────────────
   // One vocabulary — the tab, the chip and the footer say the same word
   // about the same row, and it is the word the client's own list uses.
+  const filterWordLower = (f: StatusFilter) => (f === 'ARCHIVED' ? ARCHIVED_WORD : statusWord(f)).toLowerCase()
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
     { key: 'DRAFT', label: statusWord('DRAFT') },
     { key: 'OPEN', label: statusWord('OPEN') },
-    { key: 'FILLED', label: statusWord('FILLED') },
-    { key: 'CLOSED', label: statusWord('CLOSED') },
+    { key: 'ARCHIVED', label: ARCHIVED_WORD },
   ]
 
   return (
@@ -619,7 +626,7 @@ export default function RequirementsPage() {
           <p>{framing.subtitle}</p>
         </div>
         <button onClick={() => setShowNew(true)} className="btn-primary self-start md:mt-3 shrink-0">
-          New requirement
+          New job request
         </button>
       </div>
 
@@ -637,12 +644,12 @@ export default function RequirementsPage() {
           <p className={`stat-value ${totalMatches > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
             {totalMatches}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">across all reqs</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">across all job requests</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">{statusWord('FILLED')}</p>
-          <p className="stat-value text-etyme-verified">{filledCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
+          <p className="stat-label">{ARCHIVED_WORD}</p>
+          <p className="stat-value text-etyme-ink">{archivedCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">filled or closed</p>
         </div>
       </div>
 
@@ -670,8 +677,8 @@ export default function RequirementsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by title, skill, location, or status…"
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusWordLower(statusFilter)} requirements.` : 'No requirements yet.'}
-        emptyDetail="Create your first requirement to start matching consultants, or import requirements from your VMS."
+        emptyMessage={statusFilter !== 'ALL' ? `No ${filterWordLower(statusFilter)} job requests.` : 'No job requests yet.'}
+        emptyDetail="Create your first job request to start matching consultants, or import them from your VMS."
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.id}` as any)}
         exportName="requirements"
         defaultPageSize={20}
@@ -680,8 +687,8 @@ export default function RequirementsPage() {
       {/* Footer count */}
       {!loading && filtered.length > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {filtered.length} requirement{filtered.length !== 1 ? 's' : ''}
-          {statusFilter !== 'ALL' && ` · ${statusWordLower(statusFilter)}`}
+          {filtered.length} job request{filtered.length !== 1 ? 's' : ''}
+          {statusFilter !== 'ALL' && ` · ${filterWordLower(statusFilter)}`}
         </p>
       )}
 

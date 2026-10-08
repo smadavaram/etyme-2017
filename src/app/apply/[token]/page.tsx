@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { EtymeLogo } from '@/components/logo'
 import { useParams } from 'next/navigation'
+import { datesHelp } from '@/lib/supplier-onboarding'
 import { useCallback, useEffect, useState } from 'react'
 
 /**
@@ -30,6 +31,8 @@ interface Apply {
   contactName: string | null
   decided: boolean
   state: string
+  /** Once approved: the sentence and the link to take the account. */
+  claim: { says: string; url: string } | null
   asks: Ask[]
   application: Record<string, any> | null
 }
@@ -123,7 +126,9 @@ export default function ApplyPage() {
               <h1 className="headline-serif mt-2 text-[32px] leading-[1.05]">{data.firm}</h1>
               <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
                 {data.decided
-                  ? `${data.client} has ${data.state === 'APPROVED' ? 'approved' : 'decided on'} ${data.firm}. This link has done its job.`
+                  ? data.claim
+                    ? <>{data.claim.says} <a href={data.claim.url} className="text-etyme-action underline">{data.claim.url}</a></>
+                    : `${data.client} has ${data.state === 'APPROVED' ? 'approved' : 'decided on'} ${data.firm}. This link has done its job.`
                   : `${data.contactName ? `${data.contactName.split(' ')[0]}, ` : ''}Procurement at ${data.client} needs a few things before they can say yes. Supply them here — in one sitting or several. Nothing to sign up for.`}
               </p>
             </header>
@@ -174,7 +179,7 @@ export default function ApplyPage() {
                       {a.wantsDates && (
                         <span className="flex w-full flex-wrap items-center gap-2 pl-0 text-[12px] text-etyme-muted">
                           <span className="w-full text-[11px] text-etyme-faint">
-                            The two dates printed on it — cover that begins next month covers nobody starting this week.
+                            {datesHelp(a.key)}
                           </span>
                           <label className="flex items-center gap-1">
                             Starts

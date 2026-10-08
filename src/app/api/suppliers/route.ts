@@ -14,6 +14,7 @@ import { suppliersOwing } from '@/lib/supplier-desks'
 import { inviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
+import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 import { actingDesk } from '@/lib/program-seat'
 
 /**
@@ -430,10 +431,7 @@ export async function POST(request: NextRequest) {
     // Sent once, on creation. Re-pasting the same list does not email
     // anybody again, because upsert leaves an existing invite alone and
     // this only fires on a new one.
-    const base =
-      process.env.NEXT_PUBLIC_APP_URL ??
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-    const claimUrl = `${base}/claim/${invite.token}`
+    const claimUrl = claimLinkFor(invite.token)
 
     let delivery = { state: 'PENDING' as string, note: 'Not attempted' }
 
