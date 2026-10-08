@@ -36,7 +36,7 @@ const D = '@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 const APTIVA = `world-aptiva${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
-const DANA = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.example' }
+const DANA = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.test' }
 
 const letters: { to: string; text: string }[] = []
 const it_: Record<string, any> = {}
@@ -57,6 +57,15 @@ describe('a week approved by email reaches the books, and a program office reads
       }
       return new Response('{}', { status: 200 })
     })
+    // The seeded client lives on a reserved demo domain, and no email
+    // ever leaves for one. Northbend proves a second domain on the .test
+    // name the suite uses for a real address, so the letter to its
+    // approver goes out and can be read back.
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    await prisma.companyDomain.create({
+      data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
+    })
+
     const helena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA } })
     const week = await prisma.timesheet.findFirstOrThrow({
       where: { personId: helena.id, status: 'SUBMITTED', clientApprovedAt: null },

@@ -16,11 +16,36 @@ import { chaseCredentials, lookAtCredentials } from '@/lib/credential-chase'
  * the sentences that keep it that way. A prop and a product look
  * identical on a screenshot, which is why this is a test and not a walk.
  */
-const HER = 'colleen.byrne@seed.etyme.invalid'
+const SEEDED = 'colleen.byrne@seed.etyme.invalid'
+/**
+ * The seeded world gives her a reserved demo address, and nothing is ever
+ * mailed to one, so the ask the seed raised told her in the app only. To
+ * read the email she is owed, the suite moves her to the .test name it
+ * uses for a real address, withdraws the seeded ask, and lets the same
+ * nightly call raise it again.
+ */
+const HER = 'colleen.byrne@halcyon.test'
+const it_: Record<string, string> = {}
 
 describe('the nightly chase asking a nurse for her renewal', () => {
   beforeAll(async () => {
     await freshWorld()
+    const her = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: SEEDED }, select: { id: true } })
+    it_.her = her.id
+    const seeded = await prisma.documentPacket.findFirstOrThrow({
+      where: { packetKey: 'CREDENTIAL_RENEWAL', subjectPersonId: her.id, cancelledAt: null },
+      select: { id: true },
+    })
+    it_.seededPacket = seeded.id
+    await prisma.documentPacket.update({ where: { id: seeded.id }, data: { cancelledAt: new Date() } })
+    await prisma.person.update({ where: { id: her.id }, data: { primaryEmail: HER } })
+    await chaseCredentials(new Date())
+    // The notice is written in the background; wait for its row.
+    for (let i = 0; i < 50; i++) {
+      const packet = await herPacket()
+      if (packet && (await prisma.notification.count({ where: { personId: her.id, entityId: packet.id } })) > 0) break
+      await new Promise((r) => setTimeout(r, 100))
+    }
   }, 600_000)
 
   const herPacket = async () =>
@@ -28,6 +53,7 @@ describe('the nightly chase asking a nurse for her renewal', () => {
       where: {
         packetKey: 'CREDENTIAL_RENEWAL',
         subjectPerson: { primaryEmail: HER },
+        cancelledAt: null,
       },
       include: { items: true, company: { select: { name: true, slug: true } } },
     })
@@ -78,6 +104,14 @@ describe('the nightly chase asking a nurse for her renewal', () => {
     expect(told, 'the person who can renew it is the person who hears about it').toBeTruthy()
     expect(told!.channel).toBe('EMAIL')
     expect(told!.body).toContain(`/packet/${packet!.token}`)
+  })
+
+  it('at a seeded demo address she is told in the app and never mailed, because nobody can own that address', async () => {
+    const told = await prisma.notification.findFirst({
+      where: { personId: it_.her, entityId: it_.seededPacket },
+    })
+    expect(told, 'the ask the seed raised still reached her').toBeTruthy()
+    expect(told!.channel).toBe('IN_APP')
   })
 
   it('reads her license as the one thing worth chasing tonight, and says so in the third person to the desk', async () => {

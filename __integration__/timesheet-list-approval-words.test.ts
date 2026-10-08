@@ -42,6 +42,15 @@ describe('the timesheet list says who approved a week by email', () => {
       }
       return new Response('{}', { status: 200 })
     })
+    // The seeded client lives on a reserved demo domain, and no email
+    // ever leaves for one. Northbend proves a second domain on the .test
+    // name the suite uses for a real address, so the letter to its
+    // approver goes out and can be read back.
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    await prisma.companyDomain.create({
+      data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
+    })
+
     const helena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA } })
     it_.helena = helena.id
     const seeded = await prisma.weekApproval.findFirstOrThrow({ where: { how: 'EVIDENCE', timesheet: { personId: helena.id } } })
@@ -116,10 +125,10 @@ describe('the timesheet list says who approved a week by email', () => {
     expect(needsSigningInEtyme(chain)).toBeNull()
     as(TECHPEPLE)
     const r = await json(await sendOrAttach(req('POST', '/api/week-approvals', {
-      timesheetId: waiting.id, how: 'LINK', approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.example',
+      timesheetId: waiting.id, how: 'LINK', approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.test',
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const letter = letters.find((l) => l.to === 'dana.whitfield@northbend.example')!
+    const letter = letters.find((l) => l.to === 'dana.whitfield@northbend.test')!
     expect(letter.text).toContain('Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.')
     expect(letter.text).not.toContain('Techpeple')
     expect(letter.text).not.toContain('side of this placement')
