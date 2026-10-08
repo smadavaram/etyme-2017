@@ -589,7 +589,8 @@ export const MATRIX: L1[] = [
           ] },
         { code: 'L3.1.3.4', name: 'Talking to a supplier', owner: 'Hiring manager', status: B,
           tasks: ['Demand opens, supply answers', 'Only a firm on the deal', 'From the role or the candidate',
-            'The other side is told', 'Own notes never leave the company'],
+            'The other side is told', 'Own notes never leave the company',
+            'FIXED 2026-10-08: a seat with no desk reads only the threads that name it (conversation, 0bff5f5da)'],
           implementedBy: [
             'src/lib/threads.ts', 'src/lib/thread-notices.ts', 'src/components/thread.tsx',
             'src/app/api/conversations/route.ts', 'src/app/api/conversations/messages/route.ts',
@@ -600,6 +601,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/threads.test.ts', '__tests__/invariants/thread-screens.test.ts',
             '__integration__/supplier-thread.test.ts',
             '__tests__/invariants/conversation-job-request-word.test.ts',
+            '__tests__/invariants/conversations-own-threads.test.ts', '__integration__/deskless-conversations.test.ts',
           ] },
         { code: 'L3.1.3.3', name: 'Award and seat close', owner: 'Program manager', status: B,
           tasks: ['Governance checks', 'Seat arithmetic', 'Raise both sides of the deal', 'Stand down the rest',
