@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSession } from '@/components/session-provider'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Screening packs — the other direction.
@@ -51,14 +50,10 @@ interface SentRow {
 type Filter = 'all' | 'blocked' | 'ready'
 
 export default function OutboundPackPage() {
-  const { company, seat } = useSession()
-  // The heading the reader's menu gives this page — Compliance — and
-  // nothing while the company is not yet known, so no page borrows one.
-  const eyebrow = sectionOfHref(
-    company?.kind ?? null,
-    '/dashboard/outbound-pack',
-    seat ? { seated: true, clientName: seat.clientName } : null
-  )
+  // The heading the reader's own menu gives this page, and nothing while
+  // the session loads or where that menu does not list it, so no page
+  // borrows a section of the company's whole menu.
+  const eyebrow = usePageSection('/dashboard/outbound-pack')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
