@@ -1186,6 +1186,36 @@ because every staffer of every firm holds an EMPLOYEE context and a
 client's bookkeeper is not a contractor. Somebody whose seat already **is**
 the consultant seat reads the Consultant row and nothing changes for them.
 
+**Corrected 2026-10-08, by the sign-up walk: the firm's sections are a
+desk's, and a seat with no desk reads Today and You.** Round five seated a
+Member with no desk at a populated client and typed every URL: the
+firm's money and people came back. Round four had tested the same seat
+at an empty company, where every page is empty whatever the rules say.
+Two things followed, both in `lib/nav-table` and one door in
+`lib/api-context` (`lib/deskless-door`):
+- **"No desk" means "holds nothing beyond own-work reads"**
+  (`assignments.read`, `timesheets.read`), not "holds no permission". A
+  desk is any permission that acts on the firm's book or reads across
+  it. Karthik's two reads were meant to open his own placements and
+  weeks; they opened the firm's submissions with rates, a commercial
+  thread and colleagues' placements.
+- **One door, not a gate per route.** Every dashboard route passes
+  through the shared caller check, which refuses a desk-less seat on
+  anything its menu does not show it, in a sentence, the refused read
+  logged before the refusal goes out. The allowlist is derived from the
+  menu table, so it cannot drift. A route that scopes itself to the
+  caller's own rows declares that and is let through.
+  `__tests__/invariants/every-route-has-a-door.test.ts` fails on any API
+  route that goes through none of the shared door, the cron check or the
+  staff check and is not on the named list of public token routes.
+So Karthik's menu is now Today — Needs attention, Conversations,
+Notifications — and You, and he lands on Your work. The paragraph above
+still holds for a worker who holds a desk: a delivery manager who is
+also on a placement keeps the firm's sections and gains You. **For the
+founder to confirm:** this narrows what a firm's own W2 sees by default;
+if an integrator wants its engineers to read the firm's lists, that is a
+desk the firm gives them, not the default.
+
 **A menu entry the route will refuse is a menu entry that lies.** The same
 rule as the buttons, one layer up: a nav item names the permission the page
 behind it actually asks for, read off that route's own GET handler, and a
