@@ -25,7 +25,7 @@ import { BENCH_PAY_DESKS } from '@/lib/bench-holiday-switch'
  */
 
 const SOURCE = readFileSync(
-  join(__dirname, '../../src/components/shell/sidebar.tsx'),
+  join(__dirname, '../../src/lib/nav-table.ts'),
   'utf8'
 )
 
@@ -408,7 +408,11 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
     GSI: getNavForKind('GSI', false).map((s) => s.label),
     MSP: getNavForKind('MSP', false).map((s) => s.label),
     Client: getNavForKind('CLIENT', false).map((s) => s.label),
-    Solo: getNavForKind('CONSULTANT_CORP', false).map((s) => s.label),
+    // The table names the firm's sections. "You" is the worker rule's,
+    // and a one-person firm's owner is always somebody the work is about
+    // (CLAUDE.md: "which the worker rule above appends"), so it is there
+    // from her first day and is checked by the worker sentence below.
+    Solo: getNavForKind('CONSULTANT_CORP', false).map((s) => s.label).filter((l) => l !== 'You'),
     Consultant: getNavForKind(null, true).map((s) => s.label),
   }
 
@@ -443,6 +447,11 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
         .toEqual([...documented.get(party)!, 'You'])
     })
   }
+
+  it('a one-person firm reads "You" from her first day, before any placement makes her a worker', () => {
+    expect(getNavForKind('CONSULTANT_CORP', false).map((s) => s.label))
+      .toEqual([...documented.get('Solo')!, 'You'])
+  })
 
   it('changes nothing for somebody whose seat already is the consultant seat', () => {
     expect(getNavForKind(null, true, { worker: true }).map((s) => s.label))

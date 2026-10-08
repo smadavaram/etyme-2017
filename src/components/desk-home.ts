@@ -10,7 +10,7 @@
  * console is the desk (lib/console-home).
  */
 
-import { getNavForKind } from '@/components/shell/sidebar'
+import { getNavForKind } from '@/lib/nav-table'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { deskPageFor } from '@/lib/setup-steps'
 

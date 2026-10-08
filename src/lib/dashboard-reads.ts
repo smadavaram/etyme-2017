@@ -1,4 +1,4 @@
-import { mayOpen } from '@/components/shell/sidebar'
+import { mayOpen } from '@/lib/nav-table'
 import { hasPermission } from '@/lib/permissions'
 
 /**

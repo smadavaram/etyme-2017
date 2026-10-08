@@ -99,7 +99,7 @@ describe('asking for a person', () => {
     expect(read('src/app/api/program/route.ts')).toContain("what: 'Asked for'")
   })
   it('a client seat reaches Conversations from the menu, under Source', () => {
-    expect(read('src/components/shell/sidebar.tsx')).toContain("{ label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Source' }")
+    expect(read('src/lib/nav-table.ts')).toContain("{ label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Source' }")
   })
   it('the page says where the ask goes before the button is pressed', () => {
     expect(page).toContain('<p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>')

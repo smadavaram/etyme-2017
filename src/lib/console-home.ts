@@ -33,7 +33,19 @@
 export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
 
 /** The three consoles this product has. */
-export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work'
+export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY
+
+/**
+ * Where a one-person firm opens: the first page of her own Today.
+ *
+ * She used to open on "Your work", which a firm only has on its menu once
+ * a placement makes its owner a worker, so a new firm of one landed on a
+ * page her menu did not name (sign-up walk, round two, item 38). Her
+ * Today is the firm's queue, and the first page on it is what needs her.
+ * `__tests__/invariants/console-home.test.ts` holds it to the first link
+ * of the solo menu in lib/nav-table, so the two cannot drift apart.
+ */
+export const SOLO_TODAY = '/dashboard/decisions' as const
 
 export interface Reader {
   /** What the firm is on the register. Null for somebody with no firm. */
@@ -98,8 +110,8 @@ export function consoleHome(reader: Reader): Verdict {
   // staffing agency's pipeline, bench and commission run.
   if (kind === 'CONSULTANT_CORP') {
     return {
-      href: '/dashboard/my-work',
-      says: 'A one-person corporation opens on its own work, because its work is the whole book.',
+      href: SOLO_TODAY,
+      says: 'A one-person corporation opens on the first page of its own Today: what needs her, the whole book being hers.',
     }
   }
 

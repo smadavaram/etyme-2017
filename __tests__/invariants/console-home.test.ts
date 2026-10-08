@@ -52,8 +52,15 @@ describe('a seat opens on its own book and nobody else’s', () => {
     expect(consoleHome({ kind: null }).href).toBe('/dashboard/my-work')
   })
 
-  it('a one-person corporation opens on its own work, because its work is the whole book', () => {
-    expect(consoleHome({ kind: 'CONSULTANT_CORP' }).href).toBe('/dashboard/my-work')
+  it('a one-person corporation opens on the first page of her own Today, which her menu names from day one', () => {
+    expect(consoleHome({ kind: 'CONSULTANT_CORP' }).href).toBe('/dashboard/decisions')
+    // A new firm of one has no placement yet, so nothing makes her a worker,
+    // and she still lands on a page her own menu names (round two, item 38).
+    const fresh = getNavForKind('CONSULTANT_CORP', false)
+    expect(fresh[0].label).toBe('Today')
+    expect(fresh[0].items[0].href).toBe(consoleHome({ kind: 'CONSULTANT_CORP' }).href)
+    // Her own section is there before any placement says she is a worker.
+    expect(fresh.map((s) => s.label)).toContain('You')
   })
 
   it('says why in a sentence, for every reader', () => {

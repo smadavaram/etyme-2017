@@ -455,6 +455,10 @@ export const DOMAINS: Domain[] = [
       // demo door — three doors onto one question that had three
       // answers, one of which sent two suppliers into a buyer's program.
       'lib/console-home',
+      // The navigation table every menu, heading and landing reads. Pure,
+      // so a server route may import it; the sidebar that draws it is a
+      // client component and no route may import that.
+      'lib/nav-table',
       // One order, three names, and the rule for a counterparty that is
       // not on the system. Both are read by money, demand and the
       // platform's own routes at once, so they queue here with the
