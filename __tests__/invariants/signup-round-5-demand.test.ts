@@ -110,8 +110,11 @@ describe('4: a seat with no desk reads only the submissions that name it, and no
 
   it('the Submissions page shows a desk-less seat whose rows these are and offers it no Submit button', () => {
     const p = page('submissions')
-    expect(p).toMatch(/\{ownSays && \(/)
-    expect(p).toMatch(/framing\.create && !ownSays &&/)
+    // Round seven, problem 5: the route's sentence is now the heading
+    // itself, and the Submit button sits inside the desk's furniture.
+    expect(p).toContain('<p>{head.says}</p>')
+    expect(p.indexOf('{!own && (')).toBeGreaterThan(-1)
+    expect(p.indexOf('+ {framing.create}')).toBeGreaterThan(p.indexOf('{!own && ('))
   })
 })
 

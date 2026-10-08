@@ -141,7 +141,8 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
     expect(ownWeeksSays('Teleworld Solutions')).toBe(
       'These are your own weeks at Teleworld Solutions. Your colleagues’ weeks and what the client is billed are read by the timesheet and billing desks.'
     )
-    expect(src('app/dashboard/timesheets/page.tsx')).toMatch(/\{ownSays \?\? framing\.subtitle\}/)
+    // Round seven, problem 5: through listHead, which also waits for the read.
+    expect(src('app/dashboard/timesheets/page.tsx')).toMatch(/listHead\(\{ readOnce, ownSays, firmSays: framing\.subtitle \}\)/)
   })
 })
 

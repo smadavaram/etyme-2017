@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
+import { refusedBy } from '@/app/dashboard/program/own-refusal'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -52,11 +53,18 @@ export default function IdentityPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  // A refusal is drawn alone — no heading, no page prose above it — and
+  // so is the first load: whether this reader may see the page is the
+  // route's answer (sign-up walk, round seven, problem 6).
+  const [refused, setRefused] = useState<string | null>(null)
+  const [readOnce, setReadOnce] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/identity')
+      const no = await refusedBy(res, 'Duplicate check')
+      if (no) { setRefused(no); return }
       const body = await readJson(res)
       setMatches(body.data.matches)
       setSummary(body.data.summary)
@@ -65,6 +73,7 @@ export default function IdentityPage() {
       setError(e.message)
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [])
 
@@ -95,6 +104,9 @@ export default function IdentityPage() {
       setBusy(false)
     }
   }
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (!readOnce) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">

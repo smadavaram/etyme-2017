@@ -1,5 +1,6 @@
 'use client'
 
+import { listHead } from '../submissions/list-head'
 import { useEffect, useState, useCallback } from 'react'
 import { amount, compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1064,6 +1065,14 @@ export default function TimesheetsPage() {
     return <p className="text-[14px] text-etyme-muted py-8">{TIMESHEETS_NOT_AT_A_COMPANY}</p>
   }
 
+  // Nothing framed until the list's own read has answered: a worker read
+  // "Hours your people worked for your clients" for three seconds before
+  // the route said his were his own (sign-up walk, round seven, problem 5).
+  const head = listHead({ readOnce, ownSays, firmSays: framing.subtitle })
+  if (head.state === 'LOADING') {
+    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
@@ -1073,7 +1082,7 @@ export default function TimesheetsPage() {
           <h1>{framing.title}</h1>
           {/* A seat reading only its own weeks is told so, not handed a
               desk's "hours your people worked" (round six, problem 4). */}
-          <p>{ownSays ?? framing.subtitle}</p>
+          <p>{head.says}</p>
         </div>
         {/* Only the worker files a week, and only the server knows who
             is one — a firm's desk is told who files instead of being

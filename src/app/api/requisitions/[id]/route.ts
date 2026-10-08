@@ -71,7 +71,7 @@ export async function GET(
   // Only the raising company may open the working view of its own demand.
   if (caller.company?.id !== req.companyId) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'This job request belongs to another company' } },
+      { error: { code: 'FORBIDDEN', message: 'This job request belongs to another company.' } },
       { status: 403 }
     )
   }

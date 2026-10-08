@@ -565,7 +565,8 @@ export default function RequisitionDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← {jobListWord(company?.kind).plural}</a>
+      {/* Back only to a list the reader's own menu has (round seven, #12). */}
+      {section && <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← {jobListWord(company?.kind).plural}</a>}
 
       <div className="mt-4 mb-8">
         {/* The heading is the list's section on the reader's own menu.

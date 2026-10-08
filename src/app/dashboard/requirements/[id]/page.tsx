@@ -111,6 +111,13 @@ function formatRate(min: number | null, max: number | null): string {
   return range(min, max)
 }
 
+/** A refusal ends on a full stop, whoever wrote it. */
+function sentence(message: string | null | undefined): string | null {
+  const m = message?.trim()
+  if (!m) return null
+  return /[.!?]$/.test(m) ? m : `${m}.`
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function RequirementDetailPage() {
@@ -128,6 +135,10 @@ export default function RequirementDetailPage() {
   const [raiser, setRaiser] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A refusal is drawn alone: no back link to a list the reader's menu
+  // may not have, and no "not found" styling (sign-up walk, round seven,
+  // problem 12).
+  const [refused, setRefused] = useState<string | null>(null)
   const [showDistribute, setShowDistribute] = useState(false)
   const [distributeResult, setDistributeResult] = useState<string | null>(null)
   const [passing, setPassing] = useState(false)
@@ -141,6 +152,11 @@ export default function RequirementDetailPage() {
         fetch(`/api/requirements/${id}/matches`),
       ])
 
+      if (reqRes.status === 403) {
+        const body = await reqRes.json().catch(() => ({}))
+        setRefused(sentence(body.error?.message) ?? 'This job request is not part of your seat.')
+        return
+      }
       if (!reqRes.ok) {
         const body = await reqRes.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${reqRes.status}`)
@@ -216,14 +232,21 @@ export default function RequirementDetailPage() {
     )
   }
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   if (error || !requirement) {
     return (
       <div className="animate-fade-in">
-        <div className="mb-4">
-          <Link href="/dashboard/requirements" className="text-[12px] text-etyme-action hover:underline">
-            ← {listWord}
-          </Link>
-        </div>
+        {/* Back only to a list the reader's own menu has. */}
+        {section && (
+          <div className="mb-4">
+            <Link href={listHref as any} className="text-[12px] text-etyme-action hover:underline">
+              ← {listWord}
+            </Link>
+          </div>
+        )}
         <div className="panel text-center py-16">
           <p className="text-sm text-etyme-danger">{error ?? 'Job request not found'}</p>
         </div>
@@ -241,13 +264,16 @@ export default function RequirementDetailPage() {
   return (
     <div className="animate-fade-in">
       {/* Breadcrumb */}
-      <div className="mb-6">
-        {/* Back to the list this reader's menu opens, in its word. A
-            client's menu opens its job requests at /dashboard/requisitions. */}
-        <Link href={(company?.kind === 'CLIENT' ? '/dashboard/requisitions' : '/dashboard/requirements') as any} className="text-[12px] text-etyme-action hover:underline">
-          ← {listWord}
-        </Link>
-      </div>
+      {/* Back to the list this reader's menu opens, in its word, and only
+          where the reader's menu has it. A client's menu opens its job
+          requests at /dashboard/requisitions. */}
+      {section && (
+        <div className="mb-6">
+          <Link href={listHref as any} className="text-[12px] text-etyme-action hover:underline">
+            ← {listWord}
+          </Link>
+        </div>
+      )}
 
       {/* Requirement header — decision surface */}
       <div className="panel mb-6">

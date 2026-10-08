@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { onSiteAgainstCapSays } from './cap-words'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -282,7 +283,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     ? `${person.name} is blocked here: ${block.reason}`
     : onSite
       ? capMonths
-        ? `${person.name} is on site now, ${monthsWord} into a ${capMonths}-month cap across every supplier.`
+        ? onSiteAgainstCapSays(person.name, monthsWord, capMonths)
         : `${person.name} is on site now, ${monthsWord} here across every supplier. No time limit is set, so there is nothing to measure it against.`
       : status === 'IN_BREAK' && eligibleDate
         ? `${person.name} is in a break in service and can come back on ${plainDate(eligibleDate)}.`

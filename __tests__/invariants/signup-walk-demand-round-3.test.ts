@@ -74,7 +74,7 @@ describe('16: a client reads no supplier words while its session loads', () => {
 
   it('the supplier sentence under the submissions heading waits for the reader too', () => {
     const sub = read('src/app/dashboard/submissions/page.tsx')
-    expect(sub).toMatch(/\{!company\?\.kind\s*\?\s*''/)
+    expect(sub).toMatch(/firmSays: !company\?\.kind\s*\?\s*''/)
   })
 })
 

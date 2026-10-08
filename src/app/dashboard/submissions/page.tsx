@@ -12,6 +12,7 @@ import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
 import { SUBMISSIONS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { pageFraming } from '@/lib/page-framing'
+import { listHead } from './list-head'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
@@ -1526,6 +1527,26 @@ export default function SubmissionsPage() {
     return <p className="text-[14px] text-etyme-muted py-8">{SUBMISSIONS_NOT_AT_A_COMPANY}</p>
   }
 
+  // Nothing framed until the list's own read has answered: only the route
+  // knows whether this seat reads the firm's list or only its own rows,
+  // and the firm's sentence and "+ Submit" drawn for three seconds over a
+  // worker's page is a page that lied (sign-up walk, round seven, problem 5).
+  const head = listHead({
+    readOnce,
+    ownSays,
+    firmSays: !company?.kind
+      ? ''
+      : isClient
+        ? framing.subtitle
+        : direction === 'sent'
+          ? 'Candidates you submitted to client job requests. Track each from submission to placement.'
+          : 'Candidates other suppliers submitted to your job requests.',
+  })
+  if (head.state === 'LOADING') {
+    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  }
+  const own = head.state === 'OWN'
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
@@ -1533,26 +1554,21 @@ export default function SubmissionsPage() {
         <div className="page-head">
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
-          <p>
-            {/* Nothing until the reader is known: a supplier's sentence
-                over a client's page is the round three #16 class. */}
-            {!company?.kind
-              ? ''
-              : isClient
-                ? framing.subtitle
-                : direction === 'sent'
-                  ? 'Candidates you submitted to client job requests. Track each from submission to placement.'
-                  : 'Candidates other suppliers submitted to your job requests.'}
-          </p>
+          {/* A seat that reads only its own rows is told whose they are,
+              in the route's sentence, and never the firm's. */}
+          <p>{head.says}</p>
         </div>
 
+        {/* The firm's furniture — the Submit button and which way the
+            firm's list faces — is a desk's, never a worker's. */}
+        {!own && (
         <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
           {/* Submit button — a client receives candidates, never submits
               them, and neither does a program office at a client's desk.
               The label and whether there is one at all come from the same
               framing as the heading (`lib/page-framing`), so the button
               cannot say "Submit" over a page headed "Candidates". */}
-          {framing.create && !ownSays && (
+          {framing.create && (
             <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
               + {framing.create}
             </button>
@@ -1582,14 +1598,8 @@ export default function SubmissionsPage() {
             </button>
           </div>
         </div>
+        )}
       </div>
-
-      {/* Whose rows these are, where the reader holds no desk (round five). */}
-      {ownSays && (
-        <div className="mb-5 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
-          <p className="text-[13px] text-etyme-ink">{ownSays}</p>
-        </div>
-      )}
 
       {/* Whose desk this is, where it is not the reader's own firm. */}
       {atDesk?.says && (
@@ -1659,9 +1669,11 @@ export default function SubmissionsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, job request, company, or status…"
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : 'No submissions yet.'}
+        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : own ? 'You have not been put forward yet.' : 'No submissions yet.'}
         emptyDetail={
-          statusFilter !== 'ALL'
+          own
+            ? undefined
+            : statusFilter !== 'ALL'
             ? 'Try "All" to see every submission, or change the direction tab.'
             : direction === 'sent'
               ? 'Submit candidates from the Job requests page to see them here.'
@@ -1669,8 +1681,8 @@ export default function SubmissionsPage() {
         }
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.requirement.id}` as any)}
         exportName={`submissions-${direction}`}
-        selectable
-        bulkActions={(selected) => (
+        selectable={!own}
+        bulkActions={own ? undefined : (selected) => (
           <>
             <button
               onClick={() => handleBulkStatus(selected, 'SHORTLISTED')}
@@ -1700,12 +1712,12 @@ export default function SubmissionsPage() {
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
           {filtered.length} submission{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
-          {` · ${direction}`}
+          {!own && ` · ${direction}`}
         </p>
       )}
 
       {/* Submit to Requirement modal */}
-      {showSubmitModal && companyId && (
+      {showSubmitModal && companyId && !own && (
         <SubmitToRequirementModal
           companyId={companyId}
           initialPersonId={preselectedPerson}
