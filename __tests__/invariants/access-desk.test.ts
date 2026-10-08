@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   deskLine, desksOffered, assessDeskChange, waitingLine, inviteLetter,
+  hasSignedIn, seatPlace, deskChangedNotice,
   MEMBER_DESK, INVITE_LINK_HOURS, type DeskChange, type InviteLetter,
 } from '@/lib/access-grant'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
@@ -153,5 +154,41 @@ describe('the base address', () => {
     expect(dr).toMatch(/import \{ appUrl \} from '@\/lib\/(app-url|supplier-link)'/)
     expect(br).toContain('url: `${appUrl()}/dashboard/privacy`')
     for (const f of [dr, br]) expect(f).not.toContain('NEXT_PUBLIC_APP_URL')
+  })
+})
+
+describe('round two of the sign-up walk', () => {
+  it('an invited person who never signed in is listed as invited with the desk they will have, never as somebody with access', () => {
+    const never = hasSignedIn({ invitedAt: new Date(), lastUsedAt: null, everSignedIn: false })
+    expect(never).toBe(false)
+    expect(seatPlace({ roleName: 'AP Clerk', signedIn: never })).toBe('WAITING')
+    expect(waitingLine({ invited: true, signedIn: never, days: 0, desk: 'AP Clerk' }))
+      .toBe('Invited today, not yet signed in · will have the AP Clerk desk')
+    // The route sorts by this rule, whatever the desk.
+    const route = read('src/app/api/access/route.ts')
+    expect(route).toContain("=== 'WITH_ACCESS')")
+    expect(route).toContain('people: withAccess.map(')
+  })
+
+  it('a person who has signed in keeps their access after a desk change clears the seat’s use date', () => {
+    const after = hasSignedIn({ invitedAt: new Date(), lastUsedAt: null, everSignedIn: true })
+    expect(after).toBe(true)
+    expect(seatPlace({ roleName: 'Recruiter', signedIn: after })).toBe('WITH_ACCESS')
+  })
+
+  it('a seat nobody invited was made by a sign-in, and a seat with no desk waits either way', () => {
+    expect(hasSignedIn({ invitedAt: null, lastUsedAt: null, everSignedIn: false })).toBe(true)
+    expect(seatPlace({ roleName: null, signedIn: true })).toBe('WAITING')
+  })
+
+  it('a person whose desk changed is told by email as well as in the app', () => {
+    const n = deskChangedNotice({ roleName: 'Hiring Manager', companyName: 'Walk Co', expiresAt: null, landing: '/dashboard/program' })
+    expect(n.body).toBe('You now have the Hiring Manager desk at Walk Co. Sign in to see it.')
+    expect(n.href).toBe('/dashboard/program')
+    const dated = deskChangedNotice({ roleName: 'Admin', companyName: 'Walk Co', expiresAt: new Date('2027-01-05T00:00:00Z'), landing: '/dashboard' })
+    expect(dated.body).toBe('You now have the Admin desk at Walk Co. Sign in to see it. It runs until 2027-01-05.')
+    const route = read('src/app/api/access/route.ts')
+    expect(route).toMatch(/type: 'SYSTEM',\s*channel: 'EMAIL',/)
+    expect(route).toContain('data: { href: notice.href }')
   })
 })

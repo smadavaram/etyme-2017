@@ -20,7 +20,14 @@ interface Waiting {
   contextId: string
   person: { id: string; name: string; primaryEmail: string }
   waitingDays: number
-  /** "Invited today, not yet signed in", or "joined 3 days ago". */
+  /** The desk they will have when they come in, or null. */
+  role: string | null
+  roleId: string | null
+  /**
+   * "Invited today, not yet signed in · will have the AP Clerk desk", or
+   * "joined 3 days ago". An invited person who never signed in waits here
+   * whatever desk they were given, never under "Everyone with access".
+   */
   said: string
 }
 interface Person {
@@ -349,7 +356,7 @@ export default function AccessPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div>
-          <Lbl>Waiting on you</Lbl>
+          <Lbl>Waiting</Lbl>
           <div className={`font-serif text-3xl mt-1 tabular-nums ${s.waiting > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
             {s.waiting}
           </div>
@@ -421,7 +428,7 @@ export default function AccessPage() {
                     <button
                       onClick={() => setGranting(granting === w.contextId ? null : w.contextId)}
                       className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
-                      {granting === w.contextId ? 'Cancel' : 'Give them access'}
+                      {granting === w.contextId ? 'Cancel' : w.role ? 'Change desk' : 'Give them access'}
                     </button>
                   )}
                 </div>
@@ -433,7 +440,7 @@ export default function AccessPage() {
                       <select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}
                         className={`${field} w-full mt-1`}>
                         <option value="">— pick a role —</option>
-                        {pickable.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                        {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
                     </label>
                     {/* etyme-market, 2026-09-17. A cross-domain line in

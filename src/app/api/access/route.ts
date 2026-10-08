@@ -8,7 +8,9 @@ import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import {
   assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
+  hasSignedIn, seatPlace, deskChangedNotice,
 } from '@/lib/access-grant'
+import { consoleHome, type CompanyKind } from '@/lib/console-home'
 
 /**
  * Who may read the access register.
@@ -96,16 +98,34 @@ export async function GET(request: NextRequest) {
   const contexts = await prisma.context.findMany({
     where: { companyId: caller.company.id, revokedAt: null },
     include: {
-      person: { select: { id: true, name: true, primaryEmail: true } },
+      person: {
+        select: {
+          id: true, name: true, primaryEmail: true,
+          // Any sign-in anywhere on Etyme. The seat's own use date is
+          // cleared by a desk change, so it cannot answer this alone.
+          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
+        },
+      },
       role: { select: { id: true, name: true, permissions: true } },
     },
     orderBy: { grantedAt: 'desc' },
   })
 
   const now = new Date()
+
+  // An invitation is not access, whatever desk it carries. A seat with no
+  // desk, or whose person has never signed in, waits; the rest have access.
+  const signedInOf = (c: (typeof contexts)[number]) => hasSignedIn({
+    invitedAt: c.invitedAt,
+    lastUsedAt: c.lastUsedAt,
+    everSignedIn: c.person.credentials.length > 0,
+  })
+  const withAccess = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
+  const waiting = contexts.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
+  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: c.person.name, primaryEmail: c.person.primaryEmail })
+
   const review = reviewAccess(
-    contexts
-      .filter(c => c.role)
+    withAccess
       .map(c => ({
         contextId: c.id,
         personName: c.person.name,
@@ -117,8 +137,6 @@ export async function GET(request: NextRequest) {
       })),
     now
   )
-
-  const waiting = contexts.filter(c => !c.roleId)
 
   // Whether the reader holds Owner, so the desk picker offers Owner only
   // to an Owner. The route refuses the same thing on POST.
@@ -135,22 +153,28 @@ export async function GET(request: NextRequest) {
       // only of a seat that has been used. Signed in is the rule the
       // withdraw route already uses: never invited, or used since.
       waitingForAccess: waiting.map(c => {
-        const waitingDays = Math.floor((now.getTime() - c.grantedAt.getTime()) / 86_400_000)
+        // Counted from the invitation where there was one: a desk given
+        // before they came in moves grantedAt, not the day they were asked.
+        const since = c.invitedAt ?? c.grantedAt
+        const waitingDays = Math.floor((now.getTime() - since.getTime()) / 86_400_000)
         const invited = c.invitedAt !== null
-        const signedIn = !invited || c.lastUsedAt !== null
+        const signedIn = signedInOf(c)
         return {
           contextId: c.id,
-          person: c.person,
+          person: personOf(c),
           joinedAt: c.grantedAt.toISOString(),
           waitingDays,
           invited,
           signedIn,
-          said: waitingLine({ invited, signedIn, days: waitingDays }),
+          // The desk they will have when they come in, or null.
+          role: c.role?.name ?? null,
+          roleId: c.role?.id ?? null,
+          said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
         }
       }),
-      people: contexts.filter(c => c.role).map(c => ({
+      people: withAccess.map(c => ({
         contextId: c.id,
-        person: c.person,
+        person: personOf(c),
         role: c.role!.name,
         roleId: c.role!.id,
         // "Member · give them a desk" for the seat everybody arrives on.
@@ -194,7 +218,7 @@ export async function GET(request: NextRequest) {
       }),
       summary: {
         waiting: waiting.length,
-        withAccess: contexts.filter(c => c.role).length,
+        withAccess: withAccess.length,
         needsAttention: review.length,
         expired: review.filter(r => r.finding === 'EXPIRED').length,
         dormant: review.filter(r => r.finding === 'DORMANT').length,
@@ -378,15 +402,29 @@ export async function POST(request: NextRequest) {
   // The other half of the join notification. Somebody has been waiting,
   // and an access grant they are never told about is one they find by
   // trying the page again on a hunch.
+  //
+  // Email as well as in the app (round two of the sign-up walk, 14): a
+  // Member waiting on a desk is not sitting in the app refreshing it. One
+  // notice on the normal path, so the in-app row and the email are the
+  // same words, and the link opens the page the new desk lands on.
+  const notice = deskChangedNotice({
+    roleName: role.name,
+    companyName: caller.company.name,
+    expiresAt,
+    landing: consoleHome({
+      kind: (caller.company.kind ?? null) as CompanyKind | null,
+      permissions: role.permissions,
+    }).href,
+  })
   void notify({
     personId: target.person.id,
     companyId: caller.company.id,
     type: 'SYSTEM',
-    title: `You can now work as ${role.name}`,
-    body: expiresAt
-      ? `${caller.person.name} gave you ${role.name} at ${caller.company.name}. It runs until ${expiresAt.toISOString().slice(0, 10)}.`
-      : `${caller.person.name} gave you ${role.name} at ${caller.company.name}.`,
+    channel: 'EMAIL',
+    title: notice.title,
+    body: notice.body,
     entityId: target.id,
+    data: { href: notice.href },
   })
 
   return NextResponse.json(

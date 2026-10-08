@@ -378,12 +378,60 @@ export function canGiveDesks(permissions: string[]): boolean {
  * not joined anything, and a row that says "joined today" sends the owner
  * looking for a person who is not there yet.
  */
-export function waitingLine(w: { invited: boolean; signedIn: boolean; days: number }): string {
+export function waitingLine(w: { invited: boolean; signedIn: boolean; days: number; desk?: string | null }): string {
   const when = w.days <= 0 ? 'today' : w.days === 1 ? 'yesterday' : `${w.days} days ago`
   if (w.invited && !w.signedIn) {
-    return `${w.days <= 0 ? 'Invited today' : `Invited ${when}`}, not yet signed in`
+    const base = `${w.days <= 0 ? 'Invited today' : `Invited ${when}`}, not yet signed in`
+    return w.desk ? `${base} · will have the ${w.desk} desk` : base
   }
   return `joined ${when}`
+}
+
+/**
+ * Whether the person behind a seat has ever signed in.
+ *
+ * A seat nobody invited was made by a sign-in, so it has. An invited seat
+ * has once it was used here, or once the person signed in anywhere on
+ * Etyme. The seat's own use date is not enough by itself: a desk change
+ * clears it, so a person who signed in last week would read as never
+ * having come.
+ */
+export function hasSignedIn(s: { invitedAt: Date | null; lastUsedAt: Date | null; everSignedIn: boolean }): boolean {
+  return s.invitedAt === null || s.lastUsedAt !== null || s.everSignedIn
+}
+
+/**
+ * Where a seat sits on Users & permissions.
+ *
+ * Round two of the sign-up walk: Pat Kim was invited as AP Clerk, never
+ * signed in, and read under "Everyone with access" as somebody who had
+ * it. An invitation is not access, whatever desk it carries. So a seat
+ * with no desk, or whose person has never signed in, is WAITING; only a
+ * seat with a desk and a person who came in is WITH_ACCESS.
+ */
+export function seatPlace(s: { roleName: string | null; signedIn: boolean }): 'WAITING' | 'WITH_ACCESS' {
+  return s.roleName && s.signedIn ? 'WITH_ACCESS' : 'WAITING'
+}
+
+// ── Telling somebody their desk changed ────────────────────
+
+/**
+ * The notice a person gets when their desk is given or changed. Sent by
+ * email as well as in the app: somebody waiting on a desk is not sitting
+ * in the app refreshing it. `landing` is the page their new desk opens on.
+ */
+export function deskChangedNotice(n: {
+  roleName: string
+  companyName: string
+  expiresAt: Date | null
+  landing: string
+}): { title: string; body: string; href: string } {
+  const runs = n.expiresAt ? ` It runs until ${n.expiresAt.toISOString().slice(0, 10)}.` : ''
+  return {
+    title: `You now have the ${n.roleName} desk`,
+    body: `You now have the ${n.roleName} desk at ${n.companyName}. Sign in to see it.${runs}`,
+    href: n.landing,
+  }
 }
 
 // ── The invitation email ───────────────────────────────────

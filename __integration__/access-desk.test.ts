@@ -111,7 +111,10 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     }))
 
     as(OWNER)
-    const email = 'tara@elsewhere.test'
+    // Not a reserved name: a reserved address is kept and never sent
+    // (round two, item 30), and this sentence is about a mail that leaves.
+    // Nothing reaches the network; fetch is stubbed above.
+    const email = 'tara@elsewhere-works-fixture.com'
     const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Tara Quinn', email, roleId: it_.roles['HR'] })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.wayIn).toBe('PASSWORD')
@@ -137,5 +140,39 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     })
     const set = await resetPassword(token, 'a long walk through the harbor')
     expect(set.ok, JSON.stringify(set)).toBe(true)
+  })
+  it('an invited person who never signed in is listed as invited with the desk they will have, never as somebody with access', async () => {
+    as(OWNER)
+    const email = 'pat.kim@brightmoor-walk.example'
+    const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Pat Kim', email, roleId: it_.roles['HR'] })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const list = await json(await access(req('GET', '/api/access')))
+    const waiting = list.body.data.waitingForAccess.find((w: any) => w.person.primaryEmail === email)
+    expect(waiting.said).toBe('Invited today, not yet signed in · will have the HR desk')
+    expect(waiting.role).toBe('HR')
+    expect(list.body.data.people.find((p: any) => p.person.primaryEmail === email)).toBeUndefined()
+    it_.patContext = waiting.contextId
+  })
+
+  it('a person whose desk changed is told by email as well as in the app', async () => {
+    as(OWNER)
+    const r = await json(await grant(req('POST', '/api/access', {
+      contextId: it_.memberContext, roleId: it_.roles['HR'], days: 30, reason: 'Runs the firm’s own paperwork now',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const meera = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MEMBER }, select: { id: true } })
+    // The notice is written in the background; wait for it.
+    let row: any = null
+    for (let i = 0; i < 50 && !row; i++) {
+      row = await prisma.notification.findFirst({
+        where: { personId: meera.id, title: 'You now have the HR desk' },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!row) await new Promise((res) => setTimeout(res, 100))
+    }
+    expect(row, 'no notice written').not.toBeNull()
+    expect(row.body).toMatch(/^You now have the HR desk at Brightmoor Staffing\. Sign in to see it\./)
+    expect(row.channel).not.toBe('IN_APP')
+    expect((row.data as any).href).toMatch(/^\/dashboard/)
   })
 })

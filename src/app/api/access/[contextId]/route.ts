@@ -13,6 +13,7 @@ import {
   type AccessRow,
 } from '@/lib/account-lifecycle'
 import { possessive } from '@/lib/requisition-approval'
+import { hasSignedIn } from '@/lib/access-grant'
 
 /**
  * POST   /api/access/:contextId   { action: 'suspend' | 'reinstate' | 'revoke', reason }
@@ -254,7 +255,15 @@ export async function DELETE(
   const { contextId } = await params
   const ctx = await prisma.context.findFirst({
     where: { id: contextId, companyId: caller.company.id },
-    select: { id: true, personId: true, lastUsedAt: true, invitedAt: true, person: { select: { name: true, primaryEmail: true } } },
+    select: {
+      id: true, personId: true, lastUsedAt: true, invitedAt: true,
+      person: {
+        select: {
+          name: true, primaryEmail: true,
+          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
+        },
+      },
+    },
   })
   if (!ctx) {
     return NextResponse.json(
@@ -273,7 +282,12 @@ export async function DELETE(
 
   const verdict = canDeleteOutright({
     // An invitation nobody accepted has never been used.
-    hasSignedIn: ctx.lastUsedAt !== null || ctx.invitedAt === null,
+    // A desk change clears the seat's use date, so a sign-in anywhere
+    // on Etyme counts too.
+    hasSignedIn: hasSignedIn({
+      invitedAt: ctx.invitedAt, lastUsedAt: ctx.lastUsedAt,
+      everSignedIn: ctx.person.credentials.length > 0,
+    }),
     approvals,
     submissions,
     contracts,
@@ -321,6 +335,7 @@ async function loadAll(companyId: string): Promise<AccessRow[]> {
       id: true, personId: true, roleId: true, lastUsedAt: true, invitedAt: true,
       suspendedAt: true, revokedAt: true,
       role: { select: { permissions: true } },
+      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
 
@@ -328,7 +343,10 @@ async function loadAll(companyId: string): Promise<AccessRow[]> {
     contextId: r.id,
     personId: r.personId,
     // Somebody invited who has never done anything has never arrived.
-    hasSignedIn: r.invitedAt === null || r.lastUsedAt !== null,
+    hasSignedIn: hasSignedIn({
+      invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt,
+      everSignedIn: r.person.credentials.length > 0,
+    }),
     roleId: r.roleId,
     rolePermissions: r.role?.permissions ?? [],
     suspendedAt: r.suspendedAt,
