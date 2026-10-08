@@ -119,6 +119,23 @@ describe('the door stops nobody else', () => {
     }
   })
 
+  it('a worker with no desk reads where he was put forward: the Submissions list opens to a GET, which the route narrows to the rows naming him', () => {
+    expect(desklessDoor({ ...MEMBER, path: '/api/submissions', method: 'GET' }).open).toBe(true)
+  })
+
+  it('putting anybody forward stays a desk’s: a write to the Submissions list is refused at the door in a sentence', () => {
+    for (const method of ['POST', 'PATCH', 'DELETE', undefined]) {
+      const v = desklessDoor({ ...MEMBER, path: '/api/submissions', method })
+      expect(v.open, String(method)).toBe(false)
+      if (!v.open) expect(v.says).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
+    }
+  })
+
+  it('a worker opens the rate conversation on his own submission, and one submission by id is still refused at the door', () => {
+    expect(at('/api/me/submissions/s1/rate').open).toBe(true)
+    expect(desklessDoor({ ...MEMBER, path: '/api/submissions/s1', method: 'GET' }).open).toBe(false)
+  })
+
   it('a consultant’s own record and an integration key are not seats at a firm, and pass to the route’s own rules', () => {
     expect(at('/api/submissions', { contextType: 'CONSULTANT' }).open).toBe(true)
     expect(at('/api/submissions', { isService: true }).open).toBe(true)
@@ -129,7 +146,7 @@ describe('the allowlist is the menu’s, never a second list', () => {
   it('every route the door lets a desk-less seat through to is a route that exists', () => {
     const have = routes()
     const all = desklessAllowlist()
-    const missing = [...all.menu, ...all.scopesItself, ...all.shell, ...all.byId].filter(
+    const missing = [...all.menu, ...all.scopesItself, ...all.shell, ...all.byId, ...all.ownRowsOnRead].filter(
       (r) => !have.some((h) => routeMatches('/api/' + h.replace(/\*/g, 'x1'), r) || ('/api/' + h).startsWith('/api/' + r.replace(/\/\*\*$/, '')))
     )
     expect(missing).toEqual([])

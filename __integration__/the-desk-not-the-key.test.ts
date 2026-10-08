@@ -30,6 +30,7 @@ import { GET as subjects } from '@/app/api/blacklist/subjects/route'
 const D = '@demo.etyme.local'
 const ENGINEER = 'engineer.sundara@seed.etyme.invalid'
 const COMPLIANCE = 'compliance.sundara@seed.etyme.invalid'
+const RECEIVABLE = 'receivable.sundara@seed.etyme.invalid'
 const NORTHBEND_COMPLIANCE = `world-nike-compliance${D}`
 const NORTHBEND_PROGRAM = `world-nike-programme${D}`
 
@@ -83,6 +84,10 @@ beforeAll(async () => {
   })
 
   await seat(co.sundara, 'GSI', 'Compliance Officer', 'Meera Balan', COMPLIANCE)
+  // A desk that bills and reads nobody's access: the register's own
+  // sentence is asserted on it, because the engineer's seat holds no desk
+  // and the one door refuses it first.
+  await seat(co.sundara, 'GSI', 'Accounts Receivable', 'Rohan Iyer', RECEIVABLE)
 }, 240_000)
 
 /** No permission key of the shape `word.word` anywhere in a sentence. */
@@ -98,9 +103,27 @@ describe('an engineer who files a timesheet cannot read the firm’s staff regis
     expect(body.data).toBeUndefined()
   })
 
-  it('names the desks that do read it, and never the permission', async () => {
+  it('refuses it to the engineer at the door, in a sentence that names the page and the owner and never the permission, and the refusal is on the trail', async () => {
+    const engineer = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ENGINEER }, select: { id: true } })
+    const since = new Date()
     as(ENGINEER)
-    const { body } = await json(await accessRegister(req('GET', '/api/access')))
+    const { status, body } = await json(await accessRegister(req('GET', '/api/access')))
+    expect(status).toBe(403)
+    expect(body.error.code).toBe('NO_DESK')
+    const says: string = body.error.message
+    hasNoKeyIn(says)
+    expect(says).toMatch(/^Users & permissions is not part of your seat at .*Sundara.*\. Ask your company’s owner if you need it\.$/)
+    // The door logs a refused read of every person on the firm's lines.
+    const lines = await prisma.sellContract.count({ where: { OR: [{ companyId: co.sundara }, { clientCompanyId: co.sundara }] } })
+    expect(lines, 'Sundara has no lines on the seeded world').toBeGreaterThan(0)
+    const refused = await prisma.accessLog.count({ where: { actorPersonId: engineer.id, allowed: false, at: { gte: since } } })
+    expect(refused).toBeGreaterThan(0)
+  })
+
+  it('names the desks that do read it to a desk that does not, and never the permission', async () => {
+    as(RECEIVABLE)
+    const { status, body } = await json(await accessRegister(req('GET', '/api/access')))
+    expect(status).toBe(403)
     const says: string = body.error.message
     hasNoKeyIn(says)
     expect(says).toContain('Compliance Officer')

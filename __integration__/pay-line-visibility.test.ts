@@ -30,6 +30,7 @@ type Seat = { id: string; personId: string; email: string }
 let teleworldId = ''
 let karthik: Seat
 let payroll: Seat
+let hr: Seat
 let colleagueBuyId = ''
 let colleagueIds: string[] = []
 
@@ -67,6 +68,16 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
       data: { personId: who.id, companyId: teleworldId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'pay-line walk' },
     })
     payroll = { id: ctx.id, personId: who.id, email: who.primaryEmail }
+
+    // A desk that reads people and runs no pay: Teleworld's own HR seat.
+    // Karthik's seat holds no desk, so the one door refuses him the pay
+    // screens before they read anything; the screens' own sentences are
+    // asserted on this seat.
+    const hrSeat = await prisma.context.findFirstOrThrow({
+      where: { companyId: teleworldId, revokedAt: null, person: { primaryEmail: 'world-teleworld-hr@demo.etyme.local' } },
+      include: { person: true },
+    })
+    hr = { id: hrSeat.id, personId: hrSeat.personId, email: hrSeat.person.primaryEmail }
 
     const colleagueLine = await prisma.buyContract.findFirstOrThrow({
       where: { companyId: teleworldId, candidates: { some: { personId: { not: karthik.personId }, payRate: { gt: 0 } } } },
@@ -133,18 +144,31 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     expect(new Set(reads.map((x) => x.subjectId)).size).toBeGreaterThan(0)
   })
 
-  it('whether a colleague is owed overtime is refused to a delivery engineer in a sentence, because it is judged on their pay', async () => {
+  it('whether a colleague is owed overtime is refused to a delivery engineer at the door in a sentence, before anybody’s pay is read', async () => {
     const r = await call(karthik, readExempt, `/api/contracts/${colleagueBuyId}/exempt`, { id: colleagueBuyId })
+    expect(r.status).toBe(403)
+    expect(r.body.data).toBeUndefined()
+    expect(r.body.error.code).toBe('NO_DESK')
+    expect(r.body.error.message).toContain('is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).not.toMatch(/consultants\.cost|[a-z]+\.(read|write)/)
+  })
+
+  it('whether a colleague is owed overtime is refused to a desk that runs no pay in a sentence, because it is judged on their pay', async () => {
+    const r = await call(hr, readExempt, `/api/contracts/${colleagueBuyId}/exempt`, { id: colleagueBuyId })
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('shown only to the desks that run pay')
     const p = await call(payroll, readExempt, `/api/contracts/${colleagueBuyId}/exempt`, { id: colleagueBuyId })
     expect(p.status).toBe(200)
   })
 
-  it('the payroll file is refused to a delivery engineer and handed to the payroll desk', async () => {
+  it('the payroll file is refused to a delivery engineer at the door, to a desk that runs no pay in its own sentence, and handed to the payroll desk', async () => {
     const r = await call(karthik, exportPayroll, '/api/payroll/export')
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('only the desks that run pay may download it')
+    expect(r.body.error.code).toBe('NO_DESK')
+    expect(r.body.error.message).toBe('Payroll is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    const h = await call(hr, exportPayroll, '/api/payroll/export')
+    expect(h.status).toBe(403)
+    expect(h.body.error.message).toContain('only the desks that run pay may download it')
     as(payroll.email)
     const p = await exportPayroll(req('GET', '/api/payroll/export', undefined, { 'x-context-id': payroll.id }))
     expect(p.status).toBe(200)

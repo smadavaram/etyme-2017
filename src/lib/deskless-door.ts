@@ -56,6 +56,22 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // placement that names it and no other; app/api/placements/[id]
   // answers anybody else's as a placement that does not exist.
   'placements/*': 'A seat with no desk reads only a placement that names it.',
+  // The worker's own rate conversation, opened from where they were put
+  // forward on their own page; the route refuses a submission that does
+  // not name its caller.
+  'me/submissions/*/rate': 'A worker reads and answers the rate conversation on a submission that names them, and no other.',
+}
+
+/**
+ * Lists that answer a desk-less seat with its own rows, read only. The
+ * same route's writes are a desk's, so only a GET opens here.
+ */
+export const OWN_ROWS_ON_READ: Readonly<Record<string, string>> = {
+  // Round five, problem 4 (app/api/submissions/own-only): a seat with no
+  // desk reads the submissions that name its holder, with no rate, and
+  // asking for anybody else's is refused. Where a worker was put forward
+  // is the "You" promise; submitting anybody stays a desk's.
+  submissions: 'A seat with no desk reads only the submissions that name it, with no rate on them.',
 }
 
 /**
@@ -77,6 +93,8 @@ export const READS_PEOPLE: readonly string[] = [
 export interface DoorAsk {
   /** The request's path, `/api/...`. */
   path: string
+  /** The request's method. Absent is read as a write, so only a GET opens a list that answers with own rows. */
+  method?: string
   /** The seat's context type. A consultant's context is their own record, not a seat at a firm. */
   contextType: string
   permissions: readonly string[]
@@ -96,8 +114,8 @@ function allowlist() {
 }
 
 /** The allowlist, for the test that checks every entry names a route. */
-export function desklessAllowlist(): { menu: string[]; scopesItself: string[]; shell: string[]; byId: string[] } {
-  return { ...allowlist(), shell: [...SHELL_READS], byId: Object.keys(ANSWERS_BY_ID) }
+export function desklessAllowlist(): { menu: string[]; scopesItself: string[]; shell: string[]; byId: string[]; ownRowsOnRead: string[] } {
+  return { ...allowlist(), shell: [...SHELL_READS], byId: Object.keys(ANSWERS_BY_ID), ownRowsOnRead: Object.keys(OWN_ROWS_ON_READ) }
 }
 
 /**
@@ -117,6 +135,9 @@ export function desklessDoor(ask: DoorAsk): DoorVerdict {
   if (menu.some((r) => routeMatches(path, r))) return { open: true, why: 'ON_THE_MENU' }
   if (scopesItself.some((r) => routeMatches(path, r))) return { open: true, why: 'SCOPES_ITSELF' }
   if (Object.keys(ANSWERS_BY_ID).some((r) => routeMatches(path, r))) return { open: true, why: 'SCOPES_ITSELF' }
+  if ((ask.method ?? '').toUpperCase() === 'GET' && Object.keys(OWN_ROWS_ON_READ).some((r) => routeMatches(path, r))) {
+    return { open: true, why: 'SCOPES_ITSELF' }
+  }
 
   const name = pageNameOf(path, (ask.companyKind as CompanyKind | null) ?? null)
   const first = path.replace(/^\/api\/?/, '').split('/')[0]

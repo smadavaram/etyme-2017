@@ -10,6 +10,7 @@ import { POST as place } from '@/app/api/bench/ours/holds/[id]/place/route'
 import { POST as confirm } from '@/app/api/bench/ours/releases/[id]/confirm/route'
 import { GET as myWork } from '@/app/api/me/work/route'
 import { poolFor } from '@/lib/match-pool'
+import { rolesFor } from '@/lib/company-defaults'
 
 /**
  * The founder's example, walked on the seeded world (2026-09-30): Ingrid
@@ -110,8 +111,31 @@ describe('who may read Our bench', () => {
     }
   })
 
-  it('an engineer on the firm’s own roster cannot read Our bench', async () => {
+  it('an engineer on the firm’s own roster, whose seat holds no desk, is refused Our bench at the door in a sentence, and the refusal is on the trail', async () => {
+    const since = new Date()
     const r = await read(KARTHIK)
+    expect(r.status).toBe(403)
+    expect(r.body.data).toBeUndefined()
+    expect(r.body.error.code).toBe('NO_DESK')
+    expect(r.body.error.message).toContain('is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).not.toMatch(/[a-z]+\.(read|write)/)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: ids.karthik, allowed: false, at: { gte: since } } })).toBeGreaterThan(0)
+  })
+
+  it('a desk at the firm that neither staffs projects nor is HR cannot read Our bench, and is told who does', async () => {
+    const role = await prisma.role.findFirst({ where: { companyId: ids.teleworld, name: 'Accounts Receivable' }, select: { id: true } })
+      ?? await prisma.role.create({
+        data: { companyId: ids.teleworld, name: 'Accounts Receivable', permissions: rolesFor('GSI').find((x) => x.name === 'Accounts Receivable')!.permissions as string[], isDefault: false },
+        select: { id: true },
+      })
+    const clerk = await prisma.person.upsert({
+      where: { primaryEmail: 'ar.desk@teleworld-moves.invalid' }, update: {},
+      create: { name: 'Imani Cole', primaryEmail: 'ar.desk@teleworld-moves.invalid' },
+    })
+    if (!(await prisma.context.findFirst({ where: { personId: clerk.id, companyId: ids.teleworld } }))) {
+      await prisma.context.create({ data: { personId: clerk.id, companyId: ids.teleworld, roleId: role.id, type: 'EMPLOYEE', grantReason: 'Seated for the Our bench sentence' } })
+    }
+    const r = await read('ar.desk@teleworld-moves.invalid')
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('read by the managers who staff its projects and by HR')
   })

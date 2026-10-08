@@ -27,6 +27,7 @@ import { GET as compliance } from '@/app/api/compliance/route'
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const TW_COMPLIANCE = 'compliance.teleworld@seed.etyme.invalid'
 const TW_HR = 'hr.teleworld@seed.etyme.invalid'
+const TW_AR = 'ar.teleworld@seed.etyme.invalid'
 
 const co = { teleworld: '', northbend: '' }
 const who = { karthik: '', hiringManager: '', hiringManagerEmail: '', officerEmail: '' }
@@ -69,6 +70,7 @@ beforeAll(async () => {
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id
   await seatAt(co.teleworld, 'GSI', 'Compliance Officer', 'Nalini Rao', TW_COMPLIANCE)
   await seatAt(co.teleworld, 'GSI', 'HR', 'Owen Tallis', TW_HR)
+  await seatAt(co.teleworld, 'GSI', 'Accounts Receivable', 'Imani Cole', TW_AR)
   const hm = await deskAt(co.northbend, 'Hiring Manager')
   who.hiringManager = hm.personId
   who.hiringManagerEmail = hm.email
@@ -85,8 +87,21 @@ describe('a firm\'s own compliance page', () => {
     expect(seat.role?.permissions ?? []).not.toContain('*')
   })
 
-  it('a delivery engineer cannot read his colleagues\' work papers and is told who to ask', async () => {
+  it('a delivery engineer, whose seat holds no desk, is refused the compliance page at the door in a sentence, and the refusal is on the trail', async () => {
+    const since = new Date()
     as(KARTHIK)
+    const { status, body } = await json(await compliance(req('GET', '/api/compliance')))
+    expect(status).toBe(403)
+    expect(body.data).toBeUndefined()
+    expect(body.error.code).toBe('NO_DESK')
+    expect(body.error.message).toBe('Compliance is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(body.error.message).not.toMatch(/governance\.read|FORBIDDEN/)
+    const refused = await prisma.accessLog.count({ where: { actorPersonId: who.karthik, allowed: false, at: { gte: since } } })
+    expect(refused).toBeGreaterThan(0)
+  })
+
+  it('a desk at the firm that does not read papers cannot read colleagues\' work papers and is told who to ask', async () => {
+    as(TW_AR)
     const { status, body } = await json(await compliance(req('GET', '/api/compliance')))
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()

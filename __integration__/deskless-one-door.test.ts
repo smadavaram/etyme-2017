@@ -107,13 +107,23 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firm�
     expect(open, open.join('\n')).toEqual([])
   })
 
-  it('the dashboard, submissions, job requests, contractors and past contractors refuse with the door’s own sentence', () => {
+  it('the dashboard, job requests, contractors and past contractors refuse with the door’s own sentence', () => {
     const words: Record<string, string> = {
-      program: 'Dashboard', submissions: 'Submissions', requisitions: 'Job requests', people: 'Contractors', alumni: 'Past contractors',
+      program: 'Dashboard', requisitions: 'Job requests', people: 'Contractors', alumni: 'Past contractors',
     }
     for (const [route, page] of Object.entries(words)) {
       expect(walked[route].status, route).toBe(403)
       expect(walked[route].body.error.message).toBe(`${page} is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.`)
+    }
+  })
+
+  it('the firm’s submissions reach him only as the times he was put forward, which is none, with no rate', async () => {
+    as(MO)
+    for (const direction of ['sent', 'received']) {
+      const r = await get('submissions', `?direction=${direction}&companyId=${nike}&limit=50`)
+      expect(r.status, r.text.slice(0, 200)).toBe(200)
+      expect(r.body.data.desk.ownOnly).toBe(true)
+      expect(r.body.data.submissions).toEqual([])
     }
   })
 
@@ -221,9 +231,24 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     expect(logged).not.toBeNull()
   })
 
-  it('his firm’s submissions, companies, contacts and missing paperwork refuse him in a sentence', async () => {
+  it('his firm’s submissions list shows him only the times he was put forward, with no rate on any', async () => {
+    const teleworld = (await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' }, select: { id: true } })).id
+    const his = await prisma.submission.count({ where: { personId: karthik } })
+    expect(his, 'Karthik was put forward on the seeded world').toBeGreaterThan(0)
     as(KARTHIK)
-    for (const route of ['submissions', 'companies', 'contacts', 'loose-ends', 'invitations']) {
+    const r = await get('submissions', `?direction=sent&companyId=${teleworld}&limit=50`)
+    expect(r.status, r.text.slice(0, 200)).toBe(200)
+    expect(r.body.data.desk.ownOnly).toBe(true)
+    expect(r.body.data.submissions.length).toBeGreaterThan(0)
+    for (const row of r.body.data.submissions) {
+      expect(row.person.id).toBe(karthik)
+      expect(row.rate).toBeNull()
+    }
+  })
+
+  it('his firm’s companies, contacts, missing paperwork and invitations refuse him in a sentence', async () => {
+    as(KARTHIK)
+    for (const route of ['companies', 'contacts', 'loose-ends', 'invitations']) {
       const r = await get(route)
       expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(403)
       expect(r.body.error.code).toBe('NO_DESK')

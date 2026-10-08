@@ -13,6 +13,11 @@ import { GET as pairsOf, POST as joinRecords } from '@/app/api/suppliers/join/ro
  * Karthik Menon is a Teleworld delivery engineer: he reads the work he is
  * on and files his own week, and nothing else. Both pages were open to
  * him because both routes asked for nothing past being staff.
+ *
+ * Since the sign-up walk's round five his seat holds no desk, so the one
+ * door refuses him every route here before it reads or writes anything.
+ * Each route's own sentence is asserted on Teleworld's HR seat: a desk
+ * that reads the firm's people and buys from no supplier.
  */
 
 const D = '@demo.etyme.local'
@@ -20,6 +25,16 @@ const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const PROCUREMENT = `world-nike-procurement${D}`
 const HIRING = `world-nike-hiring${D}`
 const AP = `world-nike-ap${D}`
+const TELEWORLD_HR = `world-teleworld-hr${D}`
+
+/** The one door's refusal for a seat with no desk: the page named, no permission key, nothing read. */
+function refusedAtTheDoor(status: number, body: any, page: string) {
+  expect(status).toBe(403)
+  expect(body.data).toBeUndefined()
+  expect(body.error.code).toBe('NO_DESK')
+  expect(body.error.message).toBe(`${page} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`)
+  expect(body.error.message).not.toMatch(/vendors\.(read|manage)|requirements\.read|payments\.record|submissions\.read/)
+}
 
 const it_: Record<string, any> = {}
 
@@ -47,8 +62,14 @@ beforeAll(async () => {
 }, 300_000)
 
 describe('who opens the supplier list', () => {
-  it('a delivery engineer is refused the supplier list in a sentence that says who to ask', async () => {
+  it('a delivery engineer, whose seat holds no desk, is refused the supplier list at the door in a sentence that says who to ask', async () => {
     as(KARTHIK)
+    const { status, body } = await json(await suppliers(req('GET', '/api/suppliers')))
+    refusedAtTheDoor(status, body, 'Suppliers')
+  })
+
+  it('a desk that buys from no supplier is refused the supplier list in a sentence that says who to ask', async () => {
+    as(TELEWORLD_HR)
     const { status, body } = await json(await suppliers(req('GET', '/api/suppliers')))
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()
@@ -79,8 +100,17 @@ describe('who opens the supplier list', () => {
 describe('who adds suppliers from a pasted list', () => {
   const row = (email: string, company: string) => ({ rows: [{ email, company, domain: email.split('@')[1], contactName: 'Dana Ruiz', line: `${company} <${email}>` }] })
 
-  it('a delivery engineer cannot add a supplier, and nothing is written', async () => {
+  it('a delivery engineer cannot add a supplier: the door refuses him in a sentence, and nothing is written', async () => {
     as(KARTHIK)
+    const before = await prisma.company.count()
+    const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('dana@pellwood.invalid', 'Pellwood Staffing'))))
+    refusedAtTheDoor(status, body, 'Suppliers')
+    expect(await prisma.company.count()).toBe(before)
+    expect(await prisma.supplierInvite.count({ where: { email: 'dana@pellwood.invalid' } })).toBe(0)
+  })
+
+  it('a desk that buys from no supplier cannot add one, is pointed at the recommendation, and nothing is written', async () => {
+    as(TELEWORLD_HR)
     const before = await prisma.company.count()
     const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('dana@pellwood.invalid', 'Pellwood Staffing'))))
     expect(status).toBe(403)
@@ -140,9 +170,17 @@ describe('who joins two records of one supplier', () => {
     expect(body.data.mayNotJoinSays).toContain('Procurement')
   })
 
-  it('a delivery engineer cannot merge two supplier records', async () => {
+  it('a delivery engineer cannot merge two supplier records: the door refuses him in a sentence, and nothing moves', async () => {
     const { a, b } = await twoRecordsOfOneFirm('brindle')
     as(KARTHIK)
+    const { status, body } = await json(await joinRecords(req('POST', '/api/suppliers/join', { keepId: a, foldId: b })))
+    refusedAtTheDoor(status, body, 'Suppliers')
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: b } })).toBe(1)
+  })
+
+  it('a desk that buys from no supplier cannot merge two supplier records, and is told it cannot be undone', async () => {
+    const { a, b } = await twoRecordsOfOneFirm('brindlewood')
+    as(TELEWORLD_HR)
     const { status, body } = await json(await joinRecords(req('POST', '/api/suppliers/join', { keepId: a, foldId: b })))
     expect(status).toBe(403)
     expect(body.error.message).toContain('cannot be undone')
@@ -177,8 +215,14 @@ describe('who joins two records of one supplier', () => {
 })
 
 describe('who opens the check queue', () => {
-  it('a delivery engineer is refused the check queue in a sentence that says who to ask', async () => {
+  it('a delivery engineer, whose seat holds no desk, is refused the check queue at the door in a sentence that says who to ask', async () => {
     as(KARTHIK)
+    const { status, body } = await json(await queue(req('GET', '/api/checks/queue')))
+    refusedAtTheDoor(status, body, 'Check queue')
+  })
+
+  it('a desk that reads no submissions is refused the check queue in a sentence that says who to ask', async () => {
+    as(TELEWORLD_HR)
     const { status, body } = await json(await queue(req('GET', '/api/checks/queue')))
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()

@@ -10,10 +10,29 @@ import { GET as timesheetsList } from '@/app/api/timesheets/route'
  * Karthik Menon is a Teleworld delivery engineer. He reads the work he is
  * on and files his own week; he runs nobody's pay. On the seeded world he
  * could read what Teleworld pays his colleagues on two demand screens.
+ *
+ * Since the sign-up walk's round five his seat holds no desk, so the one
+ * door refuses him both screens before either reads anything. What each
+ * screen withholds from a desk that does not run pay is still asserted,
+ * on Teleworld's HR seat: a desk that reads people and no money.
  */
 
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
+const HR = 'world-teleworld-hr@demo.etyme.local'
 const it_: Record<string, any> = {}
+
+/** The one door's refusal: a sentence naming the page and no permission, nothing read. */
+async function refusedAtTheDoor(res: Response, page: string) {
+  const { status, body } = await json(res)
+  expect(status, JSON.stringify(body)).toBe(403)
+  expect(body.data).toBeUndefined()
+  expect(body.error.code).toBe('NO_DESK')
+  expect(body.error.message).toBe(`${page} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`)
+  expect(body.error.message).not.toMatch(/[a-z]+\.(read|write|approve|cost)/)
+}
+
+const doorTrail = (actor: string, subject: string) =>
+  prisma.accessLog.count({ where: { actorPersonId: actor, subjectId: subject, action: 'PROFILE_VIEW', allowed: false } })
 
 beforeAll(async () => {
   await freshWorld()
@@ -22,6 +41,8 @@ beforeAll(async () => {
   it_.teleworld = teleworld.id
   const karthik = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })
   it_.karthik = karthik.id
+  const hr = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HR }, select: { id: true } })
+  it_.hr = hr.id
 
   // A colleague Teleworld pays, on a week Teleworld sells to a client.
   // Preferably one with a week on file, so both screens are read about
@@ -35,7 +56,15 @@ beforeAll(async () => {
     select: { personId: true },
   })
   const hasWeek = new Set(withWeeks.map((w) => w.personId))
-  const line = paid.find((p) => hasWeek.has(p.personId)) ?? paid[0]
+  // A colleague is somebody who holds a seat at Teleworld, as Karthik
+  // does: a refusal names a person only where the reader's company
+  // already knows them by a seat (app/api/submissions/name-if-known).
+  const seated = new Set((await prisma.context.findMany({
+    where: { companyId: teleworld.id, revokedAt: null, personId: { in: paid.map((p) => p.personId) } },
+    select: { personId: true },
+  })).map((c) => c.personId))
+  const line = paid.find((p) => hasWeek.has(p.personId) && seated.has(p.personId))
+    ?? paid.find((p) => seated.has(p.personId)) ?? paid[0]
   it_.colleague = line.personId
   it_.colleaguePay = line.payRate
 
@@ -93,7 +122,7 @@ const payTrail = (actor: string, subject: string, allowed: boolean) =>
 
 describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
   it('a week names as its employer the firm that sold the hours, not the first firm that ever paid the person', async () => {
-    as(KARTHIK)
+    as(HR)
     const { body } = await json(await chainOf(req('GET', `/api/timesheets/${it_.sheet}/assert`), { params: Promise.resolve({ id: it_.sheet }) }))
     const employer = body.data.legs.find((l: any) => l.role === 'EMPLOYER_ACCEPTANCE')
     expect(employer.companyId).toBe(it_.teleworld)
@@ -104,8 +133,14 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
     expect(it_.sell, 'no Teleworld sell line for a person it pays').toBeTruthy()
   })
 
-  it('on the agreements screen, no colleague’s margin or pay reaches him, the screen says why, and the refusal is on the trail', async () => {
+  it('Karthik is refused the agreements screen at the door in a sentence, before it reads anybody’s pay, and the refusal is on the trail', async () => {
     as(KARTHIK)
+    await refusedAtTheDoor(await agreements(req('GET', '/api/program/agreements')), 'Dashboard')
+    expect(await doorTrail(it_.karthik, it_.colleague)).toBeGreaterThan(0)
+  })
+
+  it('on the agreements screen, a desk that does not run pay reads no colleague’s margin or pay, the screen says why, and the refusal is on the trail', async () => {
+    as(HR)
     const { status, body } = await json(await agreements(req('GET', '/api/program/agreements')))
     expect(status, JSON.stringify(body)).toBe(200)
     const lines = body.data.agreements.filter((a: any) => a.role === 'VENDOR').flatMap((a: any) => a.contracts)
@@ -118,7 +153,7 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
     const said = JSON.stringify(body.data.agreements)
     expect(said).not.toContain('/hr out')
     expect(body.data.payWithheldSays).toContain('desks that run pay')
-    expect(await payTrail(it_.karthik, it_.colleague, false)).toBeGreaterThan(0)
+    expect(await payTrail(it_.hr, it_.colleague, false)).toBeGreaterThan(0)
   })
 
   it('the owner at Teleworld, who reads pay, still sees the colleague’s margin, and the read is on the trail', async () => {
@@ -135,9 +170,19 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
     expect(await payTrail(owner.personId, it_.colleague, true)).toBeGreaterThan(0)
   })
 
-  it('on the chain of approvals for a colleague’s week, the employer’s leg shows him the hours and not the pay', async () => {
+  it('Karthik is refused the chain of approvals for a colleague’s week at the door, in a sentence', async () => {
     expect(it_.sheet, 'no week on the colleague’s contract').toBeTruthy()
     as(KARTHIK)
+    await refusedAtTheDoor(
+      await chainOf(req('GET', `/api/timesheets/${it_.sheet}/assert`), { params: Promise.resolve({ id: it_.sheet }) }),
+      'Timesheets'
+    )
+    expect(await doorTrail(it_.karthik, it_.colleague)).toBeGreaterThan(0)
+  })
+
+  it('on the chain of approvals for a colleague’s week, the employer’s leg shows a desk that does not run pay the hours and not the pay', async () => {
+    expect(it_.sheet, 'no week on the colleague’s contract').toBeTruthy()
+    as(HR)
     const { status, body } = await json(await chainOf(req('GET', `/api/timesheets/${it_.sheet}/assert`), { params: Promise.resolve({ id: it_.sheet }) }))
     expect(status, JSON.stringify(body)).toBe(200)
     const employer = body.data.legs.find((l: any) => l.role === 'EMPLOYER_ACCEPTANCE')
@@ -150,8 +195,8 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
 })
 
 describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and margin is the price desk’s', () => {
-  it('on the agreements screen a colleague’s bill rate is withheld from him, the screen says who reads it, and the refusal is on the trail', async () => {
-    as(KARTHIK)
+  it('on the agreements screen a colleague’s bill rate is withheld from a desk that does not price, the screen says who reads it, and the refusal is on the trail', async () => {
+    as(HR)
     const { body } = await json(await agreements(req('GET', '/api/program/agreements')))
     const theirs = body.data.agreements.filter((a: any) => a.role === 'VENDOR').flatMap((a: any) => a.contracts)
       .filter((c: any) => c.person.id === it_.colleague)
@@ -161,7 +206,7 @@ describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and 
       expect(c.billWithheld).toBe(true)
     }
     expect(body.data.billWithheldSays).toContain('desks that price and bill')
-    expect(await billTrailOf(it_.karthik, it_.colleague, false)).toBeGreaterThan(0)
+    expect(await billTrailOf(it_.hr, it_.colleague, false)).toBeGreaterThan(0)
   })
 
   it('a payroll desk that reads pay but not margin still sees no margin percent on the agreements screen', async () => {

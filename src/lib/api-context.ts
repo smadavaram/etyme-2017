@@ -475,6 +475,7 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
   if (!path || !caller.company) return null
   const verdict = desklessDoor({
     path,
+    method: request?.method,
     contextType: caller.context.type,
     permissions: caller.permissions,
     isService: caller.isService,
