@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   STAY_CHOICES, readStay, stayFields, stayOver, reminderDue, reminderLeadDays, renewFields, staySays, reminderText,
+  endedSays, refusedSays, renewAskText,
 } from '../../src/lib/bench-stay'
 
 /**
@@ -75,5 +76,33 @@ describe('how long a person stays on a bench', () => {
     const t = reminderText({ personName: 'Grace Lindqvist', firm: 'Techpeple', until: new Date('2026-10-16T00:00:00Z'), days: 15, url: 'https://x/bench-invite/abc' })
     expect(t.body).toContain('https://x/bench-invite/abc')
     expect(t.body).toContain('Anything already sent stays as it is.')
+  })
+})
+
+describe('a firm whose name ends in s is written the way a person would write it', () => {
+  const firm = 'Pellwright Validation Partners'
+  const on = new Date('2026-10-16T00:00:00Z')
+
+  it('"Pellwright Validation Partners\' bench", never "Partners\'s bench", on the person\'s own page', () => {
+    const says = staySays(stayFields(null, granted), firm, granted)
+    expect(says).toBe("You stay on Pellwright Validation Partners' bench until you cancel.")
+    expect(says).not.toContain("Partners's")
+  })
+
+  it('the reminder, the renewal ask, and the firm\'s and the submit door\'s sentences use the same rule', () => {
+    const all = [
+      reminderText({ personName: 'Grace Lindqvist', firm, until: on, days: 15, url: 'u' }).subject,
+      reminderText({ personName: 'Grace Lindqvist', firm, until: on, days: 15, url: 'u' }).body,
+      renewAskText({ personName: 'Grace Lindqvist', firm, endedOn: on, days: 15, url: 'u' }).body,
+      endedSays('Marcus Reyes', firm, on),
+      refusedSays('Marcus Reyes', firm, on),
+    ].join(' ')
+    expect(all).not.toMatch(/s's\b/)
+    expect(all).toContain("Pellwright Validation Partners' bench")
+    expect(all).toContain("Marcus Reyes' ")
+  })
+
+  it('a firm whose name does not end in s still reads "Techpeple\'s bench"', () => {
+    expect(staySays(stayFields(null, granted), 'Techpeple', granted)).toContain("Techpeple's bench")
   })
 })

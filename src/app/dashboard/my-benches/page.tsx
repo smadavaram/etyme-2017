@@ -347,7 +347,7 @@ export default function MyBenchesPage() {
         {/* ── The benches ──────────────────────────────────────────── */}
         <Panel
           title="Agencies marketing you"
-          subtitle="Each of them sees their own listing and nothing else. None of them knows the others exist."
+          subtitle="Every firm that holds your consent to be put forward, with how long you chose to stay. Each firm sees only its own listing."
         >
           {data.benches.length === 0 ? (
             <p className="text-[13px] text-etyme-faint">
@@ -546,7 +546,7 @@ export default function MyBenchesPage() {
         {/* ── Everything done in their name ────────────────────────── */}
         <Panel
           title="Every time you were put forward"
-          subtitle="Whoever did it. This list has never existed anywhere in this industry."
+          subtitle="Every firm that put you forward: the client, the job, what happened and when."
         >
           {data.history.length === 0 ? (
             <p className="text-[13px] text-etyme-faint">Nobody has submitted you yet.</p>

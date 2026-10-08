@@ -592,12 +592,15 @@ function YourCV() {
  * "your work is on the record here", which is the one thing that is not
  * true about this person.
  *
- * So this is a decision surface rather than a working one: prose, the
- * two things that can happen next, and no button Etyme cannot honor.
+ * So it is two short cards — what this page will show, and what they
+ * can do now — and no button Etyme cannot honor. It was five paragraphs
+ * of prose until the sign-up walk of 2026-10-08, and it offered "set up
+ * a company of your own", a door that did not exist; the one-person firm
+ * is a sign-up type now, and the page says so in one line.
  * **There is no "submit yourself" and no "find a role", because Etyme
  * places nobody** — the invitation comes from a firm that read their
  * page, which is why the page is the only thing worth doing today. The
- * two links go to what is actually theirs.
+ * two links go to what is actually theirs: their page and their paperwork.
  */
 function NothingYet({ says }: { says: string }) {
   return (
@@ -610,48 +613,56 @@ function NothingYet({ says }: { says: string }) {
       {/* A firm asked to market them and they have not answered: first. */}
       <AskedToMarket />
 
-      <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-6">
-        <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">
-          There is no work here yet.
-        </h2>
+      {/* Short cards, not prose (sign-up walk, 2026-10-08). Their standing
+          in one line from the one place that decides it, then what this
+          page will hold, then what they can do today. */}
+      <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">
+        There is no work here yet.
+      </h2>
+      <p className="text-[14px] text-etyme-muted mt-2 max-w-prose">{says}</p>
 
-        {/* Their standing, from the one place that decides it. */}
-        <p className="text-[15px] text-etyme-ink mt-3 max-w-prose leading-relaxed">{says}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+        <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
+          <Lbl>Once a firm puts you forward</Lbl>
+          <ul className="mt-3 space-y-1.5 text-[14px] text-etyme-ink">
+            <li>Where you work and who pays you</li>
+            <li>The weeks you file</li>
+            <li>What is approved</li>
+            <li>What you are owed</li>
+          </ul>
+          <p className="text-[13px] text-etyme-muted mt-3">Until then this page is empty, not zeros.</p>
+        </section>
 
-        <p className="text-[15px] text-etyme-muted mt-4 max-w-prose leading-relaxed">
-          The day somebody places you, this is where it lives: where you work and who
-          pays you, the weeks you file, what has been approved, and what you are owed.
-          Until then it is empty rather than filled with zeros.
-        </p>
-
-        <p className="text-[15px] text-etyme-muted mt-4 max-w-prose leading-relaxed">
-          Etyme places nobody. We do not submit you anywhere and we do not send your
-          name to a firm that has not asked for it — an invitation arrives because a
-          firm read your page. So the page is the thing worth doing now.
-        </p>
-
-        <ul className="mt-5 space-y-2 text-[14px] text-etyme-muted max-w-prose leading-relaxed">
-          <li>
-            <span className="text-etyme-ink">Turn your page on.</span> Nothing about you
-            is public until you do, and a firm cannot read what it cannot see.
-          </li>
-          <li>
-            <span className="text-etyme-ink">Keep it current.</span> What you have done,
-            what you can do, and when you are free — the line a CV never has.
-          </li>
-        </ul>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <a href="/dashboard/my-page"
-            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-            Your page
-          </a>
-          <a href="/dashboard/my-data"
-            className="px-4 py-2 border border-etyme-rule rounded text-sm font-medium text-etyme-ink hover:bg-etyme-rule/30">
-            Your data
-          </a>
-        </div>
+        <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
+          <Lbl>What you can do now</Lbl>
+          <ul className="mt-3 space-y-1.5 text-[14px] text-etyme-ink">
+            <li>Turn your page on. Nothing is public until you do.</li>
+            <li>Keep it current: your skills and when you are free.</li>
+            <li>Answer any paperwork a firm asks you for.</li>
+          </ul>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <a href="/dashboard/my-page"
+              className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+              Your page
+            </a>
+            <a href="/dashboard/my-work/paperwork"
+              className="px-4 py-2 border border-etyme-rule rounded text-sm font-medium text-etyme-ink hover:bg-etyme-rule/30">
+              Your paperwork
+            </a>
+          </div>
+        </section>
       </div>
+
+      {/* Etyme places nobody, so this card offers no button to be placed.
+          A firm asks because it read the page. */}
+      <p className="text-[13px] text-etyme-muted mt-4">
+        Etyme places nobody. A firm asks you because it read your page.
+      </p>
+
+      {/* The one-person firm is a sign-up type, not a door on this page. */}
+      <p className="text-[13px] text-etyme-muted mt-1">
+        If you work through your own company, sign up again as &ldquo;I work through my own company&rdquo;.
+      </p>
 
       {/* Still theirs, and still worth having ready: anything somebody
           has asked them to sign, and the CV a firm would be sent. With

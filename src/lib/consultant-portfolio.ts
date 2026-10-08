@@ -413,11 +413,11 @@ export function ownPage(life: WorkingLife): PageVerdict {
       ok: true,
       because: 'OWN_MAKING',
       says:
-        'You made this page yourself, and nobody has put you forward yet. No firm markets ' +
-        'you, no firm employs you here, and nothing on it is public until you turn it on. ' +
-        'Two things can happen from here and both are yours to decide: a firm invites you ' +
-        'onto its bench and you grant it a listing, or you set up a company of your own and ' +
-        'sell yourself.',
+        // One short line (sign-up walk, 2026-10-08). It used to run on to
+        // "or you set up a company of your own", a door the page did not
+        // have; the screen's cards say what comes next instead.
+        'You made this page yourself. Nobody has put you forward yet, no firm markets ' +
+        'you, and nothing on it is public until you turn it on.',
     }
   }
 

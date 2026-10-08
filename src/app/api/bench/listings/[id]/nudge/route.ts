@@ -6,6 +6,7 @@ import { send } from '@/lib/messages'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { termsShown } from '@/lib/bench-filter'
 import { renewAskText } from '@/lib/bench-stay'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * POST /api/bench/listings/:id/nudge   { copyOnly? }
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (error) return error
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Reaching somebody about ${caller.company?.name ?? 'your firm'}'s bench is for the desks that manage people there.` } },
+      { error: { code: 'FORBIDDEN', message: `Reaching somebody about ${possessive(caller.company?.name ?? 'your firm')} bench is for the desks that manage people there.` } },
       { status: 403 }
     )
   }

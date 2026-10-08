@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 import { renewFields, staySays } from '@/lib/bench-stay'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * Tell a firm's recruiting desks something about one of its listings.
@@ -53,7 +54,7 @@ export async function renewStay(listingId: string, via: 'LINK' | 'PAGE', now: Da
       data: {
         companyId: listing.company.id,
         action: 'BENCH_STAY_RENEWED',
-        summary: `${listing.consultant.person.name} renewed their stay on ${listing.company.name}'s bench for ${listing.stayDays} days`,
+        summary: `${listing.consultant.person.name} renewed their stay on ${possessive(listing.company.name)} bench for ${listing.stayDays} days`,
         reason:
           via === 'LINK'
             ? 'The person renewed it themselves, from the reminder link.'

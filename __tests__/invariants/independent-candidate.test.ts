@@ -20,9 +20,10 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
  * day one, knowing it is wrong, trusts nothing else on the screen.
  *
  * The right thing to say is that the page is theirs because they made
- * it, and that the next move is theirs both ways: a firm invites them
- * onto its bench and they grant a listing, or they incorporate and sell
- * themselves. Etyme does neither for them, and says so.
+ * it, in one short line, with what comes next on the screen's cards.
+ * Somebody paid through their own company signs up as the one-person
+ * firm (sign-up walk, 2026-10-08); this page no longer offers that as
+ * a step it does not have.
  */
 
 const NOBODY: WorkingLife = {
@@ -42,22 +43,21 @@ describe('somebody with a page and nothing else is told the truth about what is 
     expect(verdict.says).not.toContain('Your work is on the record')
   })
 
-  it('the page tells them the two things that can happen next, and that both are theirs to decide', () => {
+  it('their standing is one short line, not a paragraph', () => {
     const says = ownPage(INDEPENDENT).says
+    expect(says.split(/\s+/).length).toBeLessThanOrEqual(30)
+    expect(says).toContain('Nobody has put you forward yet')
+  })
 
-    expect(says).toContain('both are yours to decide')
-    // A firm invites them and they grant the listing — the consent is
-    // theirs, never the firm's to take.
-    expect(says).toContain('grant it a listing')
-    // Or they set up their own company and sell themselves, which is
-    // party 7 and needs nobody's permission at all.
-    expect(says).toContain('sell yourself')
+  it('the line offers no "company of your own" door, because that is a sign-up type and not a step on this page', () => {
+    const says = ownPage(INDEPENDENT).says
+    expect(says).not.toMatch(/company of your own|sell yourself/i)
   })
 
   it('tells them no firm markets them and nothing is public until they turn it on', () => {
     const says = ownPage(INDEPENDENT).says
 
-    expect(says).toContain('No firm markets you')
+    expect(says).toContain('no firm markets you')
     expect(says).toContain('public until you turn it on')
   })
 
@@ -130,24 +130,37 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     expect(EMPTY_STATE).toContain('{says}')
   })
 
-  it('the empty state says what the page is for once there is work', () => {
+  it('the empty state is short cards, not paragraphs of prose', () => {
+    // Read from the empty state's own function, not the helpers after it.
+    const own = EMPTY_STATE.slice(0, EMPTY_STATE.indexOf('\n}\n'))
+    expect(own.match(/<section /g) ?? []).toHaveLength(2)
+    expect(own).not.toMatch(/leading-relaxed/)
+  })
+
+  it('one card says what this page will show once a firm puts you forward: where you work, the weeks you file, what is approved, what you are owed', () => {
     expect(EMPTY_STATE).toContain('There is no work here yet.')
-    expect(EMPTY_STATE).toMatch(/the weeks you file/)
-    expect(EMPTY_STATE).toMatch(/what you are owed/)
-    expect(EMPTY_STATE).toContain('empty rather than filled with zeros')
+    expect(EMPTY_STATE).toContain('Once a firm puts you forward')
+    expect(EMPTY_STATE).toContain('The weeks you file')
+    expect(EMPTY_STATE).toContain('What is approved')
+    expect(EMPTY_STATE).toContain('What you are owed')
   })
 
-  it('the empty state says the one honest thing about how an invitation arrives', () => {
-    expect(EMPTY_STATE).toContain('Etyme places nobody')
-    // Wrapped across lines on the screen, so the sentence is matched
-    // rather than the line.
-    expect(EMPTY_STATE).toMatch(/an invitation arrives because a\s+firm read your page/)
-    expect(EMPTY_STATE).toMatch(/We do not submit you anywhere/)
-  })
-
-  it('the empty state says what to do today — turn the page on, and keep it current', () => {
+  it('one card says what you can do now: turn your page on, keep it current, answer your paperwork', () => {
+    expect(EMPTY_STATE).toContain('What you can do now')
     expect(EMPTY_STATE).toContain('Turn your page on')
     expect(EMPTY_STATE).toContain('Keep it current')
+    expect(EMPTY_STATE).toContain('Your paperwork')
+  })
+
+  it('says once that Etyme places nobody', () => {
+    expect(EMPTY_STATE).toContain('Etyme places nobody.')
+  })
+
+  it('somebody paid through their own company is told to sign up again as "I work through my own company", the one door that exists', () => {
+    expect(EMPTY_STATE).toContain(
+      'If you work through your own company, sign up again as &ldquo;I work through my own company&rdquo;.'
+    )
+    expect(EMPTY_STATE).not.toMatch(/set up a company of your own/i)
   })
 
   it('the empty state offers no button that Etyme cannot honor, because Etyme places nobody', () => {
@@ -166,12 +179,9 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     }
   })
 
-  it('the empty state links to their own page and to what is held about them, and nowhere else', () => {
-    expect(EMPTY_STATE).toContain('href="/dashboard/my-page"')
-    expect(EMPTY_STATE).toContain('href="/dashboard/my-data"')
-
+  it('the empty state links to their own page and their own paperwork, and nowhere else', () => {
     const hrefs = [...EMPTY_STATE.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
-    expect(hrefs.sort()).toEqual(['/dashboard/my-data', '/dashboard/my-page'])
+    expect(hrefs.sort()).toEqual(['/dashboard/my-page', '/dashboard/my-work/paperwork'])
   })
 })
 

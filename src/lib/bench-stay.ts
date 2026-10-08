@@ -29,6 +29,9 @@
  * Pure. No database here.
  */
 
+// One rule for "Pellwright Validation Partners' bench", never "Partners's".
+import { possessive } from '@/lib/requisition-approval'
+
 /** The choices, in days. Null is "until you cancel", the default. */
 export const STAY_CHOICES = [5, 7, 15, 25, 50, 60, 500] as const
 export type StayDays = (typeof STAY_CHOICES)[number]
@@ -117,16 +120,16 @@ function onDay(d: Date): string {
 /** One sentence about the stay, to the person. */
 export function staySays(l: StayFacts, firm: string, now: Date): string {
   if (l.lapsedAt || (l.staysUntil && stayOver(l, now))) {
-    return `Your stay on ${firm}'s bench ended on ${onDay(l.staysUntil ?? l.lapsedAt!)}. Renew it and they can put you forward again.`
+    return `Your stay on ${possessive(firm)} bench ended on ${onDay(l.staysUntil ?? l.lapsedAt!)}. Renew it and they can put you forward again.`
   }
-  if (l.staysUntil == null) return `You stay on ${firm}'s bench until you cancel.`
-  return `You stay on ${firm}'s bench until ${onDay(l.staysUntil)} (${l.stayDays} days). After that it ends by itself.`
+  if (l.staysUntil == null) return `You stay on ${possessive(firm)} bench until you cancel.`
+  return `You stay on ${possessive(firm)} bench until ${onDay(l.staysUntil)} (${l.stayDays} days). After that it ends by itself.`
 }
 
 /** What the firm reads when a stay ends. */
 export function endedSays(person: string, firm: string, on: Date): string {
   return (
-    `${person}'s chosen stay on ${firm}'s bench ended on ${onDay(on)}. ` +
+    `${possessive(person)} chosen stay on ${possessive(firm)} bench ended on ${onDay(on)}. ` +
     'They are out of every match and nobody can put them forward through this listing. ' +
     'Submissions already made stand. They can renew it from their own page.'
   )
@@ -135,7 +138,7 @@ export function endedSays(person: string, firm: string, on: Date): string {
 /** The refusal at the submit door. */
 export function refusedSays(person: string, firm: string, on: Date): string {
   return (
-    `${person}'s stay on ${firm}'s bench ended on ${onDay(on)}, so nobody can put them forward through it. ` +
+    `${possessive(person)} stay on ${possessive(firm)} bench ended on ${onDay(on)}, so nobody can put them forward through it. ` +
     'They can renew it from their own page in one step.'
   )
 }
@@ -144,10 +147,10 @@ export function refusedSays(person: string, firm: string, on: Date): string {
 export function reminderText(o: { personName: string; firm: string; until: Date; days: number; url: string }): { subject: string; body: string } {
   const first = o.personName.trim().split(/\s+/)[0]
   return {
-    subject: `Your stay on ${o.firm}'s bench ends on ${onDay(o.until)}`,
+    subject: `Your stay on ${possessive(o.firm)} bench ends on ${onDay(o.until)}`,
     body:
       `Hi ${first},\n\n` +
-      `You chose to stay on ${o.firm}'s bench for ${o.days} days. That ends on ${onDay(o.until)}.\n\n` +
+      `You chose to stay on ${possessive(o.firm)} bench for ${o.days} days. That ends on ${onDay(o.until)}.\n\n` +
       `After that, ${o.firm} cannot put you forward for new jobs. Anything already sent stays as it is.\n\n` +
       `To stay another ${o.days} days, open this link and press Renew — no password, no account:\n${o.url}\n\n` +
       'If you do nothing, it simply ends.',
@@ -167,7 +170,7 @@ export function renewAskText(o: { personName: string; firm: string; endedOn: Dat
     subject: `${o.firm} would like you back on its bench`,
     body:
       `Hi ${first},\n\n` +
-      `Your stay on ${o.firm}'s bench ended on ${onDay(o.endedOn)}, so ${o.firm} cannot put you forward for new jobs.\n\n` +
+      `Your stay on ${possessive(o.firm)} bench ended on ${onDay(o.endedOn)}, so ${o.firm} cannot put you forward for new jobs.\n\n` +
       `If you would like to stay ${again}, open this link and press Renew \u2014 no password, no account:\n${o.url}\n\n` +
       'If you do nothing, nothing changes.',
   }

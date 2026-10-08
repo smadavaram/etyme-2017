@@ -10,6 +10,7 @@ import { emit } from '@/lib/events'
 import { STAY_CHOICES, readStay, renewFields, stayFields, stayOver, staySays } from '@/lib/bench-stay'
 import { renewStay } from '@/lib/bench-stay-record'
 import { termsShown, agreeingTerms } from '@/lib/bench-filter'
+import { possessive } from '@/lib/requisition-approval'
 
 /**
  * GET   /api/me/benches — who has me, what have they done with me
@@ -282,7 +283,7 @@ export async function PATCH(request: NextRequest) {
         data: {
           companyId: listing.companyId,
           action: 'BENCH_STAY_CHANGED',
-          summary: `${person.name} changed how long they stay on ${listing.company.name}'s bench: ${stay.days == null ? 'until they cancel' : `${stay.days} days`}`,
+          summary: `${person.name} changed how long they stay on ${possessive(listing.company.name)} bench: ${stay.days == null ? 'until they cancel' : `${stay.days} days`}`,
           reason: 'The person changed it themselves, from their own page.',
           payload: { listingId: listing.id, stayDays: stay.days },
           reversible: true,

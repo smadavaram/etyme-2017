@@ -38,8 +38,9 @@
  */
 
 import { registrableDomain, registrableLabel } from '@/lib/registrable-domain'
+import { mayRegisterWithEmail } from '@/lib/company-defaults'
 
-export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI'
+export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
 
 /**
  * How a supplier sits in the chain, at the moment they sign up.
@@ -60,11 +61,24 @@ export interface CompanyTypeOption {
   /** What this means, for somebody who has never used the product. */
   blurb: string
   example: string
+  /**
+   * Whether this type may sign up on a personal address (gmail and the
+   * like). Read from `mayRegisterWithEmail` in lib/company-defaults, the
+   * one rule for it, so the picker and the registration cannot disagree.
+   * Only the one-person firm may: it claims no domain.
+   */
+  personalEmail: boolean
 }
 
 /**
- * The five ways in. Written so a person recognizes themselves in one line,
+ * The six ways in. Written so a person recognizes themselves in one line,
  * because a wrong choice here is felt for months.
+ *
+ * The sixth, the one-person firm, was added on the sign-up walk of
+ * 2026-10-08. The kind, its roles (`rolesFor`) and its menu (SOLO_NAV)
+ * already existed; nothing on the picker led to them, so a nurse paid
+ * corp-to-corp through her own company had no way in. It works for any
+ * trade: a travel nurse, a validation engineer, a developer.
  */
 // etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file,
 // on the precedent of c126c1c4 and f901e914: the two `example` strings
@@ -78,7 +92,7 @@ export interface CompanyTypeOption {
 // the invented integrators already seeded in the world. Nothing else in
 // this file was touched — the keys, kinds, postures, labels and blurbs
 // are etyme-supply's and are exactly as they were.
-export const COMPANY_TYPES: CompanyTypeOption[] = [
+const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
   {
     key: 'client',
     kind: 'CLIENT',
@@ -119,7 +133,20 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
     blurb: 'You have consultants on the bench and place them through other staffing firms rather than direct.',
     example: 'A bench sales firm',
   },
+  {
+    key: 'solo',
+    kind: 'CONSULTANT_CORP',
+    posture: null,
+    label: 'I work through my own company (one person)',
+    blurb: 'You are the worker and the firm: you are paid through your own company, not as an employee. A personal email is fine.',
+    example: 'A travel nurse or an engineer paid through her own company',
+  },
 ]
+
+export const COMPANY_TYPES: CompanyTypeOption[] = TYPES.map((t) => ({
+  ...t,
+  personalEmail: mayRegisterWithEmail(t.kind, true).ok,
+}))
 
 export function typeByKey(key: string): CompanyTypeOption | null {
   return COMPANY_TYPES.find(t => t.key === key) ?? null

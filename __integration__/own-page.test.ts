@@ -228,9 +228,11 @@ describe('a prime’s own employee has a page of their own', () => {
     const work = await json(await myWork(req('GET', '/api/me/work')))
     const says: string = work.body.data.standing.says
 
-    // The two moves that are real, both hers, and said as hers.
-    expect(says).toMatch(/invites you onto its bench|grant it a listing/i)
-    expect(says).toMatch(/company of your own|sell yourself/i)
+    // One short line about where she stands. The "company of your own"
+    // door is gone: that is a sign-up type, not a step on this page
+    // (sign-up walk, 2026-10-08).
+    expect(says).toMatch(/nobody has put you forward/i)
+    expect(says).not.toMatch(/company of your own|sell yourself/i)
 
     // And nothing that would need Etyme to place somebody, which it
     // never does. She is the one reader who cannot tell the difference

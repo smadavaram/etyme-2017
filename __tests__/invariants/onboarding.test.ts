@@ -16,6 +16,8 @@ import {
   guessCompanyName, COMPANY_TYPES, typeByKey,
 } from '@/lib/onboarding'
 import { namedCompanies } from '@/lib/positioning'
+import { rolesFor } from '@/lib/company-defaults'
+import { getNavForKind } from '@/components/shell/sidebar'
 
 const terumo = { id: 'c1', name: 'Talvern Medical', kind: 'CLIENT', memberCount: 12 }
 
@@ -154,8 +156,9 @@ describe('The first screen is not an empty box', () => {
 
 describe('What this company does here', () => {
 
-  it('there are five ways in', () => {
-    expect(COMPANY_TYPES).toHaveLength(5)
+  it('there are six ways in, and the sixth is the one-person firm', () => {
+    expect(COMPANY_TYPES).toHaveLength(6)
+    expect(COMPANY_TYPES[5].key).toBe('solo')
   })
 
   it('a client who hires contractors', () => {
@@ -219,6 +222,42 @@ describe('What this company does here', () => {
       expect(t.blurb.length).toBeGreaterThan(30)
       expect(t.example.length).toBeGreaterThan(0)
     }
+  })
+
+  it('somebody paid through their own company signs up as "I work through my own company (one person)"', () => {
+    const t = typeByKey('solo')!
+    expect(t.kind).toBe('CONSULTANT_CORP')
+    expect(t.label).toBe('I work through my own company (one person)')
+    expect(t.posture).toBeNull()
+  })
+
+  it('the one-person firm may sign up with a personal email, and no other type may', () => {
+    expect(typeByKey('solo')!.personalEmail).toBe(true)
+    for (const t of COMPANY_TYPES.filter((x) => x.key !== 'solo')) {
+      expect(t.personalEmail, `${t.label} claims a domain, so it needs a work email`).toBe(false)
+    }
+  })
+
+  it('the one-person firm says nothing about software, because a travel nurse picks it too', () => {
+    const t = typeByKey('solo')!
+    const words = `${t.label} ${t.blurb} ${t.example}`
+    expect(words).not.toMatch(/\b(software|developer|SAP|code)\b/i)
+    expect(words).not.toMatch(/\bIT\b/)
+    expect(words).toMatch(/nurse/i)
+  })
+
+  it('the one-person firm starts with an owner and a member seat, not a staffing firm’s nine desks', () => {
+    const roles = rolesFor(typeByKey('solo')!.kind as any).map((r) => r.name)
+    expect(roles[0]).toBe('Owner')
+    expect(roles).not.toContain('Recruiter')
+    expect(roles).not.toContain('Account Manager')
+  })
+
+  it('the one-person firm reads the short solo menu, with no bench and no recruiting', () => {
+    const solo = getNavForKind(typeByKey('solo')!.kind as any, false, { worker: true })
+    expect(solo.map((s) => s.label)).toEqual(['Today', 'Operate', 'Governance', 'You'])
+    const hrefs = solo.flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs).not.toContain('/dashboard/bench')
   })
 
   it('an unknown option is not silently accepted', () => {
