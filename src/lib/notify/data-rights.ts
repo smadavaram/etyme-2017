@@ -111,7 +111,7 @@ export const FATES: CategoryFate[] = [
     until: null,
   },
   {
-    category: 'A consultant own profile',
+    category: 'A consultant’s own profile',
     fate: 'FORGOTTEN',
     why: 'Your headline, skills, location, rate floor, mobile number, availability and your public page, if you had one, are erased.',
     until: null,
@@ -273,8 +273,8 @@ export interface ExportReady {
   linkExpiresAt: Date
   /** For "about six days" — the letter says both, because one of them is the one they read. */
   now: Date
-  /** Where a question goes. */
-  contactEmail: string
+  /** Where a question goes, or null where no privacy address is set up. */
+  contactEmail: string | null
   /** What the file does not contain. Defaults to the two true omissions. */
   notIncluded?: string[]
   timeZone?: string
@@ -310,7 +310,9 @@ export function exportReadyNotice(input: ExportReady): Notice {
     notIncluded.length > 0
       ? `What is not in it:\n${bullets(notIncluded)}`
       : null,
-    `Questions: ${input.contactEmail}`
+    // No address, no line: a file already in hand has nothing waiting on
+    // a contact, and "Questions:" followed by an apology is not one.
+    input.contactEmail ? `Questions: ${input.contactEmail}` : null
   )
 
   const card: TeamsCard = {
@@ -344,7 +346,8 @@ export interface ErasureRequested {
   categories: string[]
   /** Where they stop it. */
   withdrawUrl: string
-  contactEmail: string
+  /** Where a question goes, or null where no privacy address is set up. */
+  contactEmail: string | null
   timeZone?: string
 }
 
@@ -381,7 +384,9 @@ export function erasureReceivedNotice(input: ErasureRequested): Notice {
       : null,
     `To stop this before ${runs}, use this link:\n${input.withdrawUrl}\n` +
       'After it runs we cannot undo it.',
-    `Questions: ${input.contactEmail}. Quote ${input.reference}.`
+    input.contactEmail
+      ? `Questions: ${input.contactEmail}. Quote ${input.reference}.`
+      : `Nobody is named yet for questions about this; the request still runs on its date. Your reference is ${input.reference}.`
   )
 
   return notice({
@@ -415,7 +420,8 @@ export interface ErasureDone {
    * letter routed the usual way would go to nobody.
    */
   replyTo: string
-  contactEmail: string
+  /** Where a question goes, or null where no privacy address is set up. */
+  contactEmail: string | null
   timeZone?: string
 }
 
@@ -449,7 +455,9 @@ export function erasureCompleteNotice(input: ErasureDone): Notice {
       : null,
     'We are writing to this address because you gave it when you asked. The address on ' +
       'your account is a marker now, and this is the last message Etyme will send you.',
-    `If you need anything about this afterward: ${input.contactEmail}, quoting ${input.reference}.`
+    input.contactEmail
+      ? `If you need anything about this afterward: ${input.contactEmail}, quoting ${input.reference}.`
+      : `Nobody is named yet for questions about this. Your reference is ${input.reference}.`
   )
 
   return notice({
@@ -487,8 +495,8 @@ export interface ErasureHolderNotice {
   person: { name: string }
   reference: string
   completedOn: Date
-  /** Where a question goes. */
-  contactEmail: string
+  /** Where a question goes, or null where no privacy address is set up. */
+  contactEmail: string | null
   timeZone?: string
 }
 
@@ -522,7 +530,9 @@ export function erasureHolderNotice(input: ErasureHolderNotice): Notice {
     WHAT_STAYS[input.company.holding],
     'Nothing else changes, and there is nothing for you to do. We are telling you ' +
       'because it is your record that changed, not because there is a step for you.',
-    `Questions: ${input.contactEmail}. Quote ${input.reference}.`
+    input.contactEmail
+      ? `Questions: ${input.contactEmail}. Quote ${input.reference}.`
+      : `Nobody is named yet for questions about this. The reference is ${input.reference}.`
   )
 
   return notice({

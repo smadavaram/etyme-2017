@@ -270,3 +270,63 @@ describe('nothing a person reads is written in the system own words', () => {
     }
   })
 })
+
+/**
+ * No privacy address is set up on the deployment (`contactEmail()` in
+ * lib/data-request returns null since 6bd7d8edf). The letters used to
+ * print "Questions: no privacy address is set up yet", which reads as a
+ * broken template. With no address there is either no line or a plain
+ * sentence that still gives the reference.
+ */
+describe('a letter with no privacy address names nobody rather than printing a placeholder', () => {
+  const base = { person: priya, reference: 'DR-2026-118', categories: categoriesFor('candidate') }
+  const letters = () => [
+    exportReadyNotice({
+      person: priya, categories: base.categories, downloadUrl: 'https://etyme.example/export/abc',
+      linkExpiresAt: new Date('2026-09-26T09:00:00Z'), now, contactEmail: null,
+    }),
+    erasureReceivedNotice({
+      ...base, requestedAt: now, completesOn: new Date('2026-10-03T09:00:00Z'),
+      withdrawUrl: 'https://etyme.example/stop', contactEmail: null,
+    }),
+    erasureCompleteNotice({
+      ...base, completedOn: new Date('2026-10-03T09:00:00Z'), replyTo: 'priya@gmail.example', contactEmail: null,
+    }),
+    erasureHolderNotice({
+      person: { name: 'Priya Raman' }, reference: 'DR-2026-118', completedOn: new Date('2026-10-03T09:00:00Z'),
+      company: { name: 'Veritan Talent', holding: 'SUPPLIER' }, contactEmail: null,
+    }),
+  ]
+
+  it('no letter prints "Questions:" or an apology where an address would go', () => {
+    for (const n of letters()) {
+      expect(n.body).not.toContain('Questions:')
+      expect(n.body).not.toContain('no privacy address')
+      expect(n.body).not.toContain('null')
+      expect(n.body).not.toContain('afterward:')
+    }
+  })
+
+  it('the export letter simply has no contact line', () => {
+    expect(letters()[0].body).not.toMatch(/Nobody is named|Questions/)
+  })
+
+  it('the receipt says nobody is named yet, that the request still runs on its date, and gives the reference', () => {
+    expect(plain(letters()[1].body)).toContain(
+      'Nobody is named yet for questions about this; the request still runs on its date. Your reference is DR-2026-118.'
+    )
+  })
+
+  it('the last letter and the firms’ letter still carry the reference', () => {
+    expect(plain(letters()[2].body)).toContain('Nobody is named yet for questions about this. Your reference is DR-2026-118.')
+    expect(plain(letters()[3].body)).toContain('Nobody is named yet for questions about this. The reference is DR-2026-118.')
+  })
+
+  it('with an address, every letter reads exactly as before', () => {
+    const n = erasureCompleteNotice({
+      ...base, completedOn: new Date('2026-10-03T09:00:00Z'), replyTo: 'priya@gmail.example',
+      contactEmail: 'privacy@etyme.example',
+    })
+    expect(n.body).toContain('If you need anything about this afterward: privacy@etyme.example, quoting DR-2026-118.')
+  })
+})
