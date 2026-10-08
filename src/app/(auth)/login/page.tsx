@@ -34,6 +34,16 @@ import { readJson } from '@/lib/read-response'
 /** The prefix the door puts on a refusal for an unconfirmed address. Kept in step with lib/password. */
 const UNVERIFIED = 'UNVERIFIED:'
 
+// The category sentence and the four steps, as CLAUDE.md says them. The
+// panel carried the older tagline until 2026-10-08, which predates
+// the category decision of 2026-09-28.
+const LOGIN_STEPS = [
+  'Post a job to your suppliers.',
+  'They submit people.',
+  'Approve timesheets.',
+  'Pay one matched invoice per supplier.',
+]
+
 export default function LoginPage() {
   const [available, setAvailable] = useState<Set<string> | null>(null)
   const [email, setEmail] = useState('')
@@ -109,13 +119,17 @@ export default function LoginPage() {
         </Link>
 
         <div className="max-w-md">
-          <p className="text-2xl font-semibold text-white leading-snug mb-4 tracking-[-0.02em]">
-            The system of record for everything after the hire.
+          <p className="text-2xl font-semibold text-white leading-snug mb-6 tracking-[-0.02em]">
+            Enterprise contingent workforce management.
           </p>
-          <p className="text-sm text-white/40 leading-relaxed">
-            Employ, track, pay, prove — with an evidence trail that AI agents can
-            trust and auditors can verify.
-          </p>
+          <ol className="space-y-2 text-sm text-white/60 leading-relaxed">
+            {LOGIN_STEPS.map((s, i) => (
+              <li key={s} className="flex gap-3">
+                <span className="tabular-nums text-white/30">{i + 1}</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
         </div>
 
         <div className="flex items-center gap-6 text-xs text-white/20">

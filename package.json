@@ -20,7 +20,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "evals": "npx tsx scripts/evals.ts",
-    "test:integration": "vitest run -c vitest.integration.config.ts"
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "matrix": "vite-node --config vitest.config.ts scripts/delivery-matrix.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

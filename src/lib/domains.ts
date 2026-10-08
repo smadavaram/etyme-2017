@@ -528,6 +528,10 @@ export const DOMAINS: Domain[] = [
       'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
       // Ready for a real company: the edges, judged and shown.
       'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
+      // The map of the memory (founder, 2026-10-08): one picture of how the
+      // system hangs together, drawn from this file and lib/matrix, plus the
+      // sentences the test files hold. It shows and never stores.
+      'app/map', 'lib/system-map', 'lib/system-map-layout', 'lib/map-disk', 'lib/delivery-matrix-html',
       // Somebody is told when it breaks: the diary, the reporter, the boundaries.
       'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
       // The fifth state. Loading, empty, error and partial each belong to
@@ -550,6 +554,37 @@ export const DOMAINS: Domain[] = [
       'docs/delivery-matrix.html',
       'components/',
     ],
+  },
+]
+
+/**
+ * The two agents that read and never write.
+ *
+ * They own no file and no L2 group, so they are not domains — but they are
+ * two of the nine on the map, and a reader of the map should see them in
+ * the middle with the builders, saying what they know. Their definitions
+ * are `.claude/agents/etyme-scout.md` and `etyme-release.md`.
+ */
+export interface Reader {
+  agent: string
+  label: string
+  knows: string
+}
+
+export const READERS: Reader[] = [
+  {
+    agent: 'etyme-scout',
+    label: 'Scout',
+    knows:
+      'Where a thing lives, what already exists and who owns it, before anybody ' +
+      'starts building, so nothing is built twice. Reads only; writes nothing, ever.',
+  },
+  {
+    agent: 'etyme-release',
+    label: 'Release',
+    knows:
+      'Whether it ships: walks a feature end to end as a person would on the running ' +
+      'app, runs the full suite, the type check and the build, then clicks the thing.',
   },
 ]
 
