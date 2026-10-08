@@ -67,7 +67,9 @@ describe('16: a client reads no supplier words while its session loads', () => {
 
   it('the timesheet figures wait for the reader and the first read, so nobody reads "Approved value $0" while loading', () => {
     const ts = read('src/app/dashboard/timesheets/page.tsx')
-    expect(ts).toMatch(/\{company\?\.kind && readOnce && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
+    // Round four (f4a10d3b7) added a third condition: a failed read shows its
+    // sentence instead of the figures, so the cards also wait for no error.
+    expect(ts).toMatch(/\{company\?\.kind && readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
   })
 
   it('the supplier sentence under the submissions heading waits for the reader too', () => {

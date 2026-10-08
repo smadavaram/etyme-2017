@@ -321,6 +321,16 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
   })
 
   it('Northbend awards, and the notice reaches the prime, the sub, the bench and the candidate, in that order, each at its own rate', async () => {
+    // The forward above tells the sub and Ana without awaiting (notify is
+    // fire-and-forget by design), so its notices can land after this test
+    // opens its window and read as the award's. Wait for them to settle
+    // before the award is made.
+    for (let last = -1, i = 0; i < 40; i++) {
+      const n = await prisma.notification.count({ where: { entityId: it_.subSub } })
+      if (n === last && n > 0) break
+      last = n
+      await new Promise((r) => setTimeout(r, 50))
+    }
     const before = new Date()
     as(NIKE.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.primeSub}/award`, it_.primeSub, {

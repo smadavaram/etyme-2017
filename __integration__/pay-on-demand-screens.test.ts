@@ -192,15 +192,30 @@ describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and 
     expect(body.data.marginWithheldSays).toContain('desks that read margin')
   })
 
-  it('on the timesheets list a colleague’s week keeps its hours and loses its bill rate, with a sentence saying who reads it', async () => {
+  it('on the timesheets list Karthik reads only his own weeks; a colleague’s week is not shown to him at all, and asking for it by name is refused in a sentence', async () => {
+    // Decided 2026-10-08 (11cf064f9): a seat with no desk that acts on a
+    // week reads only the weeks that name its holder. Before that he saw a
+    // colleague’s week with its bill rate withheld; now he does not see it.
     as(KARTHIK)
     const { status, body } = await json(await timesheetsList(req('GET', '/api/timesheets')))
     expect(status, JSON.stringify(body).slice(0, 300)).toBe(200)
-    const week = body.data.timesheets.find((t: any) => t.id === it_.sheet)
-    expect(week, 'the colleague’s week is not on his list').toBeTruthy()
-    expect(week.rate.cents).toBeNull()
-    expect(week.rate.says).toContain('desks that price and bill')
-    expect(await billTrailOf(it_.karthik, it_.colleague, false)).toBeGreaterThan(0)
+    expect(body.data.timesheets.find((t: any) => t.id === it_.sheet)).toBeUndefined()
+    for (const t of body.data.timesheets) expect(t.person?.id ?? t.personId).toBe(it_.karthik)
+
+    const colleague = await prisma.person.findUniqueOrThrow({ where: { id: it_.colleague }, select: { name: true } })
+    const theirs = await json(await timesheetsList(req('GET', `/api/timesheets?personId=${it_.colleague}`)))
+    expect(theirs.status, JSON.stringify(theirs.body).slice(0, 300)).toBe(403)
+    expect(theirs.body.error.message).toContain(`${colleague.name}’s timesheet is not part of your seat`)
+    expect(theirs.body.error.message).not.toMatch(/[a-z]+\.(read|write|approve)/)
+    // The refusal is logged fire-and-forget (logBulkAccess), so wait for the row.
+    let refusedLogged = 0
+    for (let i = 0; i < 40 && refusedLogged === 0; i++) {
+      refusedLogged = await prisma.accessLog.count({
+        where: { actorPersonId: it_.karthik, subjectId: it_.colleague, action: 'TIMESHEET_VIEW', allowed: false },
+      })
+      if (refusedLogged === 0) await new Promise((r) => setTimeout(r, 50))
+    }
+    expect(refusedLogged).toBeGreaterThan(0)
   })
 
   it('the owner at Teleworld still reads what each line bills at, and the margin', async () => {
