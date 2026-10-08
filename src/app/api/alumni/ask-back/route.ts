@@ -5,7 +5,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { askGoesTo } from '@/lib/chain-top'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { daysOnSite } from '@/lib/tenure-days'
 import { askBack } from '../ask-back-standing'
 import { askDesk } from '../ask-desk'
@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
   // ── Whose site this is ─────────────────────────────────────────────
   const { client, seat, error: clientError } = await resolveClientCompany(caller, requestedClientId)
   if (clientError) {
-    logAccess({
-      subjectId: personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+    await recordRefusal([personId], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
       action: 'TENURE_VIEW', allowed: false, reason: 'Asked somebody back to a client it does not act for',
     })
     return clientError
@@ -95,8 +95,8 @@ export async function POST(request: NextRequest) {
   ])
 
   if (!person || contracts.length === 0) {
-    logAccess({
-      subjectId: personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+    await recordRefusal([personId], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
       action: 'TENURE_VIEW', allowed: false, reason: `Not a former worker at ${client.name}`,
     })
     return NextResponse.json(

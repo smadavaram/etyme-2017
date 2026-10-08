@@ -160,8 +160,6 @@ function fireAndForgetRefusals(): string[] {
  * Nothing is added here to make a new route pass.
  */
 const STILL_FIRE_AND_FORGET: readonly string[] = [
-  'src/app/api/alumni/ask-back/route.ts',                 // supply
-  'src/app/api/alumni/ask-back/route.ts',                 // supply
   'src/app/api/checks/queue/route.ts',                    // demand
   'src/app/api/people/[id]/route.ts',                     // demand
   'src/app/api/placements/[id]/cut-overtime/route.ts',    // platform
