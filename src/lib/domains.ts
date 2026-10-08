@@ -392,7 +392,9 @@ export const DOMAINS: Domain[] = [
       // 2026-10-08): the rules with no database in them, the sign-up,
       // confirm, sign-in and reset against the database, and the one way
       // a colleague is seated as Member, shared with the domain door.
-      'lib/password', 'lib/password-door', 'lib/seat-member',
+      'lib/password', 'lib/password-words', 'lib/password-door', 'lib/seat-member',
+      // Who may open the map: the gate the middleware asks, with no database in it.
+      'lib/map-gate',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies
@@ -531,7 +533,7 @@ export const DOMAINS: Domain[] = [
       // The map of the memory (founder, 2026-10-08): one picture of how the
       // system hangs together, drawn from this file and lib/matrix, plus the
       // sentences the test files hold. It shows and never stores.
-      'app/map', 'lib/system-map', 'lib/system-map-layout', 'lib/map-disk', 'lib/delivery-matrix-html',
+      'app/map', 'app/api/map', 'lib/system-map', 'lib/system-map-layout', 'lib/map-disk', 'lib/delivery-matrix-html',
       // Somebody is told when it breaks: the diary, the reporter, the boundaries.
       'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
       // The fifth state. Loading, empty, error and partial each belong to

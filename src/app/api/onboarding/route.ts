@@ -117,7 +117,11 @@ export async function GET(request: NextRequest) {
       ...decision,
       // Only asked when a company is actually being created — including
       // after somebody answers a SUGGEST by saying they are separate.
-      companyTypes: decision.action === 'CREATE' || decision.action === 'SUGGEST' ? COMPANY_TYPES : undefined,
+      // On a personal address only the types that may register on one, so
+      // the page can offer the one-person firm beside the consultant seat.
+      companyTypes: decision.action === 'CREATE' || decision.action === 'SUGGEST' ? COMPANY_TYPES
+        : decision.action === 'CONSULTANT' ? COMPANY_TYPES.filter((t) => t.personalEmail)
+          : undefined,
       suggestedName:
         decision.action === 'CREATE' ? guessCompanyName(decision.domain)
           : decision.action === 'SUGGEST' ? guessCompanyName(decision.domain)
@@ -168,8 +172,15 @@ export async function POST(request: NextRequest) {
     create: { primaryEmail: email, name: body.name?.trim() || email.split('@')[0] },
   })
 
+  // The type is read before the personal-address path is taken: a person
+  // on gmail who says "I work through my own company" founds a one-person
+  // firm, not a consultant seat (round one of the sign-up walk, item 45).
+  // Only a type that may register on a personal address does this.
+  const chosen = typeByKey(String(body.type ?? ''))
+  const ownFirm = decision.action === 'CONSULTANT' && chosen?.personalEmail === true
+
   // ── A consultant. No company, and that is not a lesser outcome. ──
-  if (decision.action === 'CONSULTANT') {
+  if (decision.action === 'CONSULTANT' && !ownFirm) {
     await prisma.context.create({
       data: { personId: person.id, type: 'CONSULTANT' },
     })
@@ -301,7 +312,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Setting the company up. ──
-  const type = typeByKey(String(body.type ?? ''))
+  const type = chosen
   if (!type) {
     return NextResponse.json(
       {
@@ -317,14 +328,19 @@ export async function POST(request: NextRequest) {
   }
 
   // Both CREATE and a SUGGEST answered "we are separate" land here.
-  const newCompanyDomain =
-    decision.action === 'CREATE' || decision.action === 'SUGGEST' ? decision.domain : domain!
+  // A one-person firm on a personal address claims no domain: gmail.com is
+  // nobody's tenant. Its address is read off its name instead.
+  const newCompanyDomain: string | null = ownFirm
+    ? null
+    : decision.action === 'CREATE' || decision.action === 'SUGGEST' ? decision.domain : domain!
 
   const takenSlugs = new Set(
     (await prisma.company.findMany({ select: { slug: true } })).map(c => c.slug)
   )
-  const slug = slugFromDomain(newCompanyDomain, takenSlugs)
-  const name = String(body.name ?? '').trim() || guessCompanyName(newCompanyDomain)
+  const name = String(body.name ?? '').trim()
+    || (newCompanyDomain ? guessCompanyName(newCompanyDomain) : person.name)
+  const nameLabel = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'company'
+  const slug = slugFromDomain(newCompanyDomain ?? `${nameLabel}.com`, takenSlugs)
 
   // One way to make a company (lib/company-create): the same pack, roles,
   // head office and holidays as "Add company". Country and currency are
@@ -339,17 +355,20 @@ export async function POST(request: NextRequest) {
     posture: type.posture,
     byPersonId: person.id,
     seatAsOwner: true,
-    claimDomain: true,
+    claimDomain: newCompanyDomain !== null,
     startsSetup: true,
   })
   const company = made.company
+  const from = 'domain' in decision ? decision.domain : null
 
   await prisma.automationLog.create({
     data: {
       companyId: company.id,
       action: 'COMPANY_CREATED',
       summary: `${name} joined Etyme as ${type.label.toLowerCase()}`,
-      reason: `First sign-in from ${decision.domain}`,
+      reason: ownFirm
+        ? 'First sign-in on a personal address, as a one-person company; no domain claimed'
+        : `First sign-in from ${from}`,
       payload: { companyId: company.id, kind: type.kind, posture: type.posture, slug },
       reversible: false,
     },
@@ -366,7 +385,7 @@ export async function POST(request: NextRequest) {
       slug: company.slug,
       kind: company.kind,
       posture: company.supplierPosture,
-      domain: decision.domain,
+      domain: newCompanyDomain,
     },
   })
 
@@ -393,7 +412,9 @@ export async function POST(request: NextRequest) {
         },
         packSays: packSentence(made.templatePack),
         // Everything after this is enrichment and skippable (BUILD.md §4A).
-        message: `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${decision.domain} who signs in will join you.`,
+        message: ownFirm
+          ? `${company.name} is live at ${company.slug}.etyme.com.`
+          : `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${from} who signs in will join you.`,
       },
     },
     { status: 201 }

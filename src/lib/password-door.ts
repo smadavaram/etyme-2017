@@ -38,27 +38,36 @@
  */
 
 import { prisma } from '@/lib/db'
+import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
-import { baseUrl } from '@/lib/signed-link'
+import { appUrl } from '@/lib/supplier-link'
 import { createCompany } from '@/lib/company-create'
 import { typeByKey } from '@/lib/onboarding'
 import { decideEntry, domainOfEmail, isConsumerDomain, type ClaimedDomain } from '@/lib/company-domains'
 import { knownCountry, knownCurrency } from '@/lib/setup-steps'
 import { seatAsMember } from '@/lib/seat-member'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
+import { mayClaim } from '@/lib/supplier-list'
+import { reservedDomain } from '@/lib/demo-company'
+import { possessive } from '@/lib/requisition-approval'
 import {
   weakPasswordReason, hashPassword, passwordMatches, newToken, hashToken, expiresAfter, tokenUsable,
   secondsToWait, waitSentence, checkAddress, numberedAddress, cleanEmail, looksLikeEmail,
   NO_MATCH, UNVERIFIED_CODE, unverifiedSentence, checkYourEmail, VERIFY_HOURS, RESET_HOURS,
+  SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, CONFIRMED_CODE, ALREADY_CONFIRMED, FIRM_ADDED,
+  memberWelcome, colleagueSentence, demoEmail,
 } from '@/lib/password'
 
 // ── What a sign-up waits on ───────────────────────────────────────────
 
 /** Held on the VERIFY link until it is clicked. Never read by anything else. */
 interface Pending {
-  kind: 'COMPANY' | 'CANDIDATE'
+  kind: 'COMPANY' | 'CANDIDATE' | 'CLAIM'
   passwordHash: string
+  /** The person's own name, from either form. */
+  personName?: string
+  /** The company's name on the company form; the person's on a candidate link sent before personName existed. */
   name?: string
   type?: string
   country?: string
@@ -66,6 +75,10 @@ interface Pending {
   address?: string
   /** Set when the address belongs to the company of somebody on the same email domain. */
   joinCompanyId?: string
+  /** A supplier invitation this sign-up takes, instead of founding a company. */
+  claimToken?: string
+  /** Set on an older link when a newer one is sent. */
+  supersededAt?: string
 }
 
 export type Answer =
@@ -79,8 +92,47 @@ export function doorOpen(): boolean {
   return emailSender() !== null
 }
 
-export const DOOR_SHUT =
-  'Sign-up with a password is off on this deployment, because it cannot send the email that confirms your address.'
+export const DOOR_SHUT = SIGNUP_SHUT
+
+// ── The demo world never gets a password ──────────────────────────────
+
+/**
+ * Whether a person's only seats are at seeded companies.
+ *
+ * A seeded company is marked (`isDemo`), sits on a domain nobody can
+ * register, or is seated by nobody but people at such domains. A real
+ * person seated there by mistake still reads as seed-only, so a password
+ * never opens a demo seat however the address got there.
+ */
+async function seedOnly(personId: string): Promise<boolean> {
+  const seats = await prisma.context.findMany({
+    where: { personId, revokedAt: null },
+    select: {
+      companyId: true,
+      company: {
+        select: {
+          isDemo: true, domain: true,
+          contexts: { where: { NOT: { personId } }, select: { person: { select: { primaryEmail: true } } } },
+        },
+      },
+    },
+  })
+  if (seats.length === 0) return false
+  return seats.every((s) => {
+    if (!s.company) return false
+    if (s.company.isDemo || reservedDomain(s.company.domain)) return true
+    const others = s.company.contexts.map((c) => c.person.primaryEmail)
+    return others.length > 0 && others.every((e) => demoEmail(e))
+  })
+}
+
+/** Whether this email may use the password door at all. Null when it may; the refusal when not. */
+async function demoRefusal(email: string): Promise<Answer | null> {
+  if (demoEmail(email)) return refuse(DEMO_REFUSAL, 'email', 403)
+  const p = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
+  if (p && (await seedOnly(p.id))) return refuse(DEMO_REFUSAL, 'email', 403)
+  return null
+}
 
 // ── Sending a link ────────────────────────────────────────────────────
 
@@ -107,21 +159,53 @@ async function mail(personId: string, to: string, subject: string, lines: string
       note = String(e?.message ?? e).slice(0, 200)
     }
   }
+  // Written down so delivery can be checked, and written read: a sign-up
+  // or reset email is not a notice for the bell. The mailbox is where the
+  // person reads it.
+  const at = new Date()
   await prisma.notification.create({
     data: {
-      personId, companyId: null, type: 'SYSTEM', channel: 'EMAIL',
+      personId, companyId: null, type: ACCOUNT_MAIL, channel: 'EMAIL',
       title: subject, body: recorded,
-      deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? new Date() : null,
+      deliveryState: state, deliveryNote: note, deliveredAt: state === 'SENT' ? at : null,
+      status: 'READ', readAt: at,
     },
   })
   return state === 'SENT'
 }
 
 function link(path: string): string {
-  return `${baseUrl()}${path}`
+  return `${appUrl()}${path}`
+}
+
+/**
+ * Only the newest link for an email works. Sending a new one spends every
+ * earlier one of the same purpose, marked so the older link says a newer
+ * one was sent rather than that it was used.
+ */
+async function supersede(personId: string, purpose: 'VERIFY' | 'RESET', now: Date = new Date()): Promise<void> {
+  const older = await prisma.emailToken.findMany({
+    where: { personId, purpose, usedAt: null },
+    select: { id: true, payload: true },
+  })
+  for (const t of older) {
+    await prisma.emailToken.updateMany({
+      where: { id: t.id, usedAt: null },
+      data: { usedAt: now, payload: { ...((t.payload as object | null) ?? {}), supersededAt: now.toISOString() } },
+    })
+  }
+}
+
+/** The stored row as `tokenUsable` reads it: a superseded link carries the moment it was replaced. */
+function asLink(row: { usedAt: Date | null; expiresAt: Date; payload: unknown }) {
+  const at = (row.payload as Pending | null)?.supersededAt
+  return { usedAt: row.usedAt, expiresAt: row.expiresAt, supersededAt: at ? new Date(at) : null }
 }
 
 async function sendVerify(person: { id: string; primaryEmail: string }, pending: Pending): Promise<void> {
+  const { supersededAt: _old, ...fresh } = pending
+  pending = fresh
+  await supersede(person.id, 'VERIFY')
   const { token, tokenHash } = newToken()
   await prisma.emailToken.create({
     data: {
@@ -136,11 +220,13 @@ async function sendVerify(person: { id: string; primaryEmail: string }, pending:
       `It works once, for ${VERIFY_HOURS} hours.`,
       'If you did not sign up for Etyme, ignore this email. Nothing is created until the link is clicked.',
     ],
-    link(`/verify/${token}`),
+    // A claim goes back to its invitation once confirmed (/verify reads `then`).
+    link(`/verify/${token}${pending.kind === 'CLAIM' && pending.claimToken ? `?then=/claim/${pending.claimToken}` : ''}`),
   )
 }
 
 async function sendReset(person: { id: string; primaryEmail: string }, opening: string): Promise<void> {
+  await supersede(person.id, 'RESET')
   const { token, tokenHash } = newToken()
   await prisma.emailToken.create({
     data: { personId: person.id, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(RESET_HOURS) },
@@ -152,9 +238,34 @@ async function sendReset(person: { id: string; primaryEmail: string }, opening: 
   )
 }
 
-/** Somebody already holds this account: whoever owns the mailbox is told, and the stranger learns nothing. */
-async function tellAlreadyHere(person: { id: string; primaryEmail: string }): Promise<void> {
-  await sendReset(person, 'Somebody tried to sign up for Etyme with this email. You already have an account. Sign in, or set a password with the link below.')
+/**
+ * A one-time link to set a password, for somebody a desk invited.
+ *
+ * The invite route used to mint its own row; this is the one place a link
+ * is made, so an invitation's link also kills any older one for the same
+ * person, and the token is returned to go in the email and nowhere else.
+ * The /reset/<token> page takes it.
+ */
+export async function issueSetPassword(personId: string, hours: number, now: Date = new Date()): Promise<string> {
+  await supersede(personId, 'RESET', now)
+  const { token, tokenHash } = newToken()
+  await prisma.emailToken.create({
+    data: { personId, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(hours, now) },
+  })
+  return link(`/reset/${token}`)
+}
+
+/**
+ * Somebody already holds this account: whoever owns the mailbox is told,
+ * and the stranger learns nothing. A person a firm put on the record, who
+ * never set a password or signed in, is told that instead, because "you
+ * already have an account" is news to somebody who never made one.
+ */
+async function tellAlreadyHere(person: Standing): Promise<void> {
+  const firmMade = person.passwordHash === null && person.credentials.length === 0
+  await sendReset(person, firmMade
+    ? FIRM_ADDED
+    : 'Somebody tried to sign up for Etyme with this email. You already have an account. Sign in, or set a password with the link below.')
 }
 
 // ── Sign-up ───────────────────────────────────────────────────────────
@@ -166,6 +277,7 @@ async function standing(email: string) {
     select: {
       id: true, primaryEmail: true, passwordHash: true, emailVerifiedAt: true,
       contexts: { where: { revokedAt: null }, select: { id: true }, take: 1 },
+      credentials: { select: { id: true }, take: 1 },
     },
   })
 }
@@ -180,7 +292,7 @@ async function begin(email: string, name: string, pending: Pending): Promise<Ans
     return { ok: true, says: checkYourEmail(email) }
   }
   // New, or a sign-up nobody confirmed yet: either way a fresh link goes,
-  // and the earlier one still works until its day is up.
+  // and only the newest link works.
   const person = existing ?? (await prisma.person.create({
     data: { primaryEmail: email, name: name || email.split('@')[0] },
     select: { id: true, primaryEmail: true },
@@ -213,9 +325,63 @@ async function ownerDomains(companyId: string): Promise<Set<string>> {
   return new Set(owners.map((o) => domainOfEmail(o.person.primaryEmail)).filter((d): d is string => !!d))
 }
 
+/**
+ * The one company a work email belongs at, read off the email domains of
+ * its owners. Never a personal domain (a gmail owner of a one-person firm
+ * makes no other gmail user a colleague), never a seeded company, and only
+ * where exactly one company answers.
+ */
+export async function colleagueCompany(rawEmail: unknown): Promise<{ id: string; slug: string; name: string } | null> {
+  const email = cleanEmail(rawEmail)
+  if (!looksLikeEmail(email) || demoEmail(email)) return null
+  const domain = domainOfEmail(email)
+  if (!domain || isConsumerDomain(domain)) return null
+  const seats = await prisma.context.findMany({
+    where: {
+      revokedAt: null, role: { name: { in: ['Owner', 'Admin'] } },
+      person: { primaryEmail: { endsWith: `@${domain}`, mode: 'insensitive' } },
+      company: { isDemo: false },
+    },
+    select: { company: { select: { id: true, slug: true, name: true } } },
+  })
+  const found = new Map(seats.filter((s) => s.company).map((s) => [s.company!.id, s.company!] as const))
+  return found.size === 1 ? [...found.values()][0] : null
+}
+
+/**
+ * What the sign-up form shows after the email field: whether this email
+ * joins a company already here. The answer the domain door gives after a
+ * Microsoft or Google sign-in, given before the form asks for a company.
+ */
+export async function signUpProbe(rawEmail: unknown): Promise<{ joins: null | { address: string; company: string; says: string } }> {
+  const c = await colleagueCompany(rawEmail)
+  return { joins: c ? { address: c.slug, company: c.name, says: colleagueSentence(c.slug, possessive(c.name)) } : null }
+}
+
+/** A supplier invitation that is still open, by its token. */
+async function openInvite(token: string) {
+  const invite = await prisma.supplierInvite.findUnique({
+    where: { token },
+    select: { token: true, email: true, state: true, company: { select: { name: true, claimedAt: true } } },
+  })
+  if (!invite || invite.state !== 'PENDING' || invite.company.claimedAt) return null
+  return invite
+}
+
+/** An open invitation sent to exactly this email, if there is one. */
+async function inviteFor(email: string) {
+  const rows = await prisma.supplierInvite.findMany({
+    where: { email: { equals: email, mode: 'insensitive' }, state: 'PENDING', company: { claimedAt: null } },
+    select: { token: true }, take: 2,
+  })
+  return rows.length === 1 ? rows[0].token : null
+}
+
 export interface CompanySignUp {
   email: unknown
   password: unknown
+  /** The person's own name. */
+  personName?: unknown
   name: unknown
   type: unknown
   country?: unknown
@@ -228,14 +394,39 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
 
   const email = cleanEmail(input.email)
   if (!looksLikeEmail(email)) return refuse('Type your work email.', 'email')
+  const demo = await demoRefusal(email)
+  if (demo) return demo
+  const personName = String(input.personName ?? '').trim()
+  if (!personName) return refuse('Type your name.', 'personName')
   const domain = domainOfEmail(email)
-  if (!domain || isConsumerDomain(domain)) {
-    return refuse(`Use your work email. A personal address like ${domain ?? 'that'} cannot stand for a company. To sign up as yourself, choose "A candidate".`, 'email')
+  const personal = !domain || isConsumerDomain(domain)
+
+  // Invited already: confirming takes the invitation's company record and
+  // founds no second one. The rest of the form is not needed for that.
+  const invited = personal ? null : await inviteFor(email)
+  if (invited) return signUpClaim({ token: invited, email, password: input.password, personName })
+
+  // A colleague: the email belongs at a company already here, so the form
+  // asked only for a name and a password.
+  const colleague = personal ? null : await colleagueCompany(email)
+  const typed = String(input.address ?? '').trim().toLowerCase()
+  if (colleague && (!typed || typed === colleague.slug)) {
+    const password = String(input.password ?? '')
+    const weak = weakPasswordReason(password, { email, companyName: colleague.name })
+    if (weak) return refuse(weak, 'password')
+    return begin(email, personName, {
+      kind: 'COMPANY', passwordHash: await hashPassword(password), personName,
+      address: colleague.slug, joinCompanyId: colleague.id,
+    })
+  }
+
+  const type = typeByKey(String(input.type ?? ''))
+  if (personal && !type?.personalEmail) {
+    return refuse(`Use your work email. A personal address like ${domain ?? 'that'} cannot stand for a company. To sign up as yourself, choose "A candidate", or the one-person company if you work through your own.`, 'email')
   }
 
   const name = String(input.name ?? '').trim()
   if (!name) return refuse('Type the company name.', 'name')
-  const type = typeByKey(String(input.type ?? ''))
   if (!type) return refuse('Say what your company does here.', 'type')
   const country = knownCountry(input.country)
   if (!country) return refuse('Choose your country.', 'country')
@@ -255,7 +446,7 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
   const holder = held.companies.get(raw)
   let joinCompanyId: string | undefined
   if (holder) {
-    if (!(await ownerDomains(holder)).has(domain)) {
+    if (personal || !(await ownerDomains(holder)).has(domain!)) {
       return refuse(`${raw}.etyme.com is already somebody else's. Choose another, or ask that company to invite you.`, 'address')
     }
     joinCompanyId = holder
@@ -265,10 +456,10 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
     if (!verdict.ok) return refuse(verdict.says, 'address')
   }
 
-  return begin(email, '', {
+  return begin(email, personName, {
     kind: 'COMPANY',
     passwordHash: await hashPassword(password),
-    name, type: type.key, country, currency, address: raw,
+    personName, name, type: type.key, country, currency, address: raw,
     ...(joinCompanyId ? { joinCompanyId } : {}),
   })
 }
@@ -277,17 +468,50 @@ export async function signUpCandidate(input: { email: unknown; password: unknown
   if (!doorOpen()) return refuse(DOOR_SHUT, undefined, 503)
   const email = cleanEmail(input.email)
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
+  const demo = await demoRefusal(email)
+  if (demo) return demo
+  const name = String(input.name ?? '').trim()
+  if (!name) return refuse('Type your name.', 'name')
   const password = String(input.password ?? '')
   const weak = weakPasswordReason(password, { email })
   if (weak) return refuse(weak, 'password')
-  const name = String(input.name ?? '').trim()
-  return begin(email, name, { kind: 'CANDIDATE', passwordHash: await hashPassword(password), ...(name ? { name } : {}) })
+  return begin(email, name, { kind: 'CANDIDATE', passwordHash: await hashPassword(password), personName: name })
+}
+
+/**
+ * Signing up from a supplier invitation (`/claim/<token>`). Confirming the
+ * email takes the invited company's record; nothing new is founded. The
+ * seat itself is taken by the claim, exactly as for somebody who signed in
+ * with Microsoft or Google: the link page sends the person there signed in.
+ */
+export async function signUpClaim(input: { token: unknown; email: unknown; password: unknown; personName?: unknown }): Promise<Answer> {
+  if (!doorOpen()) return refuse(DOOR_SHUT, undefined, 503)
+  const email = cleanEmail(input.email)
+  if (!looksLikeEmail(email)) return refuse('Type your work email.', 'email')
+  const demo = await demoRefusal(email)
+  if (demo) return demo
+  const personName = String(input.personName ?? '').trim()
+  if (!personName) return refuse('Type your name.', 'personName')
+  const invite = await openInvite(String(input.token ?? ''))
+  if (!invite) return refuse('This invitation is not open any more. Ask whoever sent it for a new one.', 'token', 410)
+  if (!mayClaim(email, invite.email)) {
+    return refuse(`This invitation was sent to ${invite.email}. Use that address, or another address at the same company.`, 'email')
+  }
+  const password = String(input.password ?? '')
+  const weak = weakPasswordReason(password, { email, companyName: invite.company.name })
+  if (weak) return refuse(weak, 'password')
+  return begin(email, personName, {
+    kind: 'CLAIM', passwordHash: await hashPassword(password), personName, claimToken: invite.token,
+  })
 }
 
 /** "Send the link again", from the sign-in page. Same answer whoever asks. */
 export async function resendVerification(rawEmail: unknown): Promise<Answer> {
+  if (!doorOpen()) return refuse(DOOR_SHUT, undefined, 503)
   const email = cleanEmail(rawEmail)
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
+  const demo = await demoRefusal(email)
+  if (demo) return demo
   const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true, primaryEmail: true, emailVerifiedAt: true } })
   if (person && !person.emailVerifiedAt) {
     // The newest sign-up's answers travel with the new link.
@@ -304,7 +528,7 @@ export async function resendVerification(rawEmail: unknown): Promise<Answer> {
 
 export type Verified =
   | { ok: true; personId: string; email: string; landing: string; says: string }
-  | { ok: false; says: string }
+  | { ok: false; says: string; code?: typeof CONFIRMED_CODE }
 
 async function claims(): Promise<ClaimedDomain[]> {
   const rows = await prisma.companyDomain.findMany({
@@ -328,12 +552,21 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
     where: { tokenHash: hashToken(String(token ?? '')) },
     include: { person: { select: { id: true, name: true, primaryEmail: true, emailVerifiedAt: true } } },
   })
-  const usable = tokenUsable(row && row.purpose === 'VERIFY' ? row : null, 'VERIFY', now)
+  const usable = tokenUsable(row && row.purpose === 'VERIFY' ? asLink(row) : null, 'VERIFY', now)
+  // Clicked again once the account is confirmed: nothing is wrong, sign in.
+  if (!usable.ok && usable.reason !== 'UNKNOWN' && row!.person.emailVerifiedAt) {
+    return { ok: false, code: CONFIRMED_CODE, says: ALREADY_CONFIRMED }
+  }
   if (!usable.ok) return { ok: false, says: usable.says }
+  if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: DEMO_REFUSAL }
 
   // Spent first, and only if nobody else spent it in the same instant.
   const spent = await prisma.emailToken.updateMany({ where: { id: row!.id, usedAt: null }, data: { usedAt: now } })
-  if (spent.count === 0) return { ok: false, says: 'This link was already used. Sign up again with the same email and we send a new one.' }
+  if (spent.count === 0) {
+    return row!.person.emailVerifiedAt
+      ? { ok: false, code: CONFIRMED_CODE, says: ALREADY_CONFIRMED }
+      : { ok: false, says: 'This link was already used. Sign up again with the same email and we send a new one.' }
+  }
   await prisma.emailToken.updateMany({ where: { personId: row!.personId, purpose: 'VERIFY', usedAt: null }, data: { usedAt: now } })
 
   const person = row!.person
@@ -343,9 +576,21 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
     data: {
       emailVerifiedAt: person.emailVerifiedAt ?? now,
       passwordHash: pending.passwordHash,
-      ...(pending.kind === 'CANDIDATE' && pending.name ? { name: pending.name } : {}),
+      // The person's own name, from the form. A candidate link sent before
+      // the form carried personName has the name in `name`.
+      ...(pending.personName ? { name: pending.personName }
+        : pending.kind === 'CANDIDATE' && pending.name ? { name: pending.name } : {}),
     },
   })
+  const named = { ...person, name: pending.personName || person.name }
+
+  // From a supplier invitation: the claim seats them; nothing is founded here.
+  if (pending.kind === 'CLAIM' && pending.claimToken) {
+    return {
+      ok: true, personId: person.id, email: person.primaryEmail, landing: `/claim/${pending.claimToken}`,
+      says: 'Your email is confirmed. Take your company\'s record on the next page.',
+    }
+  }
 
   const already = await prisma.context.findFirst({ where: { personId: person.id, revokedAt: null }, select: { id: true } })
   if (already) {
@@ -366,19 +611,19 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
   // A colleague naming their company's address from the owner's domain.
   if (pending.joinCompanyId) {
     const c = await prisma.company.findUnique({ where: { id: pending.joinCompanyId }, select: { id: true, name: true } })
-    if (c) return joinAsMember(person, c, `Signed up with ${pending.address}.etyme.com from the owner's email domain`)
+    if (c) return joinAsMember(named, c, `Signed up with ${pending.address}.etyme.com from the owner's email domain`)
   }
 
   // The email domain is already a verified tenant: one tenant is one domain.
   const entry = decideEntry(person.primaryEmail, await claims())
   if (entry.action === 'JOIN' || entry.action === 'REQUEST') {
-    return joinAsMember(person, { id: entry.companyId, name: entry.companyName }, `Verified email on ${entry.domain}, which this company owns`)
+    return joinAsMember(named, { id: entry.companyId, name: entry.companyName }, `Verified email on ${entry.domain}, which this company owns`)
   }
   if (entry.action === 'REFUSE') {
     return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: entry.message }
   }
 
-  return makeCompany(person, pending)
+  return makeCompany(named, pending)
 }
 
 async function joinAsMember(
@@ -396,8 +641,8 @@ async function joinAsMember(
     },
   })
   return {
-    ok: true, personId: person.id, email: person.primaryEmail, landing: '/start',
-    says: `You are in ${company.name} as ${MEMBER_ROLE}. You can see your own work now. An owner there gives you a desk.`,
+    ok: true, personId: person.id, email: person.primaryEmail, landing: '/start?welcome=1',
+    says: memberWelcome(company.name),
   }
 }
 
@@ -452,7 +697,7 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
 
 export type SignIn =
   | { ok: true; personId: string; email: string; name: string }
-  | { ok: false; code: 'NO_MATCH' | 'WAIT' | 'UNVERIFIED'; says: string }
+  | { ok: false; code: 'NO_MATCH' | 'WAIT' | 'UNVERIFIED' | 'DEMO'; says: string }
 
 async function failuresFor(email: string, ip: string | null, now: Date) {
   const since = new Date(now.getTime() - 15 * 60 * 1000)
@@ -476,6 +721,9 @@ export async function checkPassword(rawEmail: unknown, password: unknown, ip: st
   const email = cleanEmail(rawEmail)
   const pw = String(password ?? '')
 
+  // The demo world is opened from the demo page and never with a password.
+  if (demoEmail(email)) return { ok: false, code: 'DEMO', says: DEMO_REFUSAL }
+
   const wait = secondsToWait(await failuresFor(email, ip, now), now)
   if (wait > 0) return { ok: false, code: 'WAIT', says: waitSentence(wait) }
 
@@ -485,6 +733,8 @@ export async function checkPassword(rawEmail: unknown, password: unknown, ip: st
 
   if (person && person.passwordHash && (await passwordMatches(person.passwordHash, pw))) {
     if (!person.emailVerifiedAt) return { ok: false, code: 'UNVERIFIED', says: unverifiedSentence(email) }
+    // A password set on a seeded seat before this rule existed still opens nothing.
+    if (await seedOnly(person.id)) return { ok: false, code: 'DEMO', says: DEMO_REFUSAL }
     await recordSignIn(person.id, email, now)
     await prisma.signInFailure.deleteMany({ where: { email } })
     return { ok: true, personId: person.id, email, name: person.name }
@@ -528,8 +778,10 @@ export function unverifiedError(email: string): string {
 
 export async function requestReset(rawEmail: unknown): Promise<Answer> {
   const email = cleanEmail(rawEmail)
+  if (!doorOpen()) return refuse(RESET_SHUT, undefined, 503)
   if (!looksLikeEmail(email)) return refuse('Type your email.', 'email')
-  if (!doorOpen()) return refuse(DOOR_SHUT.replace('Sign-up', 'Resetting a password'), undefined, 503)
+  const demo = await demoRefusal(email)
+  if (demo) return demo
   const person = await standing(email)
   if (person && isAccount(person)) {
     await sendReset(person, 'You asked to set a new Etyme password.')
@@ -545,8 +797,9 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
     where: { tokenHash: hashToken(String(token ?? '')) },
     include: { person: { select: { id: true, primaryEmail: true, emailVerifiedAt: true } } },
   })
-  const usable = tokenUsable(row && row.purpose === 'RESET' ? row : null, 'RESET', now)
+  const usable = tokenUsable(row && row.purpose === 'RESET' ? asLink(row) : null, 'RESET', now)
   if (!usable.ok) return refuse(usable.says, 'token', 410)
+  if (demoEmail(row!.person.primaryEmail) || (await seedOnly(row!.personId))) return refuse(DEMO_REFUSAL, 'token', 403)
 
   const pw = String(password ?? '')
   const weak = weakPasswordReason(pw, { email: row!.person.primaryEmail })

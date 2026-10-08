@@ -5,7 +5,10 @@ import {
   weakPasswordReason, hashPassword, passwordMatches, checkAddress, numberedAddress,
   secondsToWait, waitSentence, tokenUsable, expiresAfter, newToken, hashToken,
   NO_MATCH, VERIFY_HOURS, RESET_HOURS, cleanEmail,
+  demoEmail, SUPERSEDED, SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, ALREADY_CONFIRMED, FIRM_ADDED,
+  memberWelcome, colleagueSentence, claimTokenIn, safeNext,
 } from '@/lib/password'
+import { possessive } from '@/lib/requisition-approval'
 import { assess, type ReadinessFacts } from '@/lib/readiness'
 
 /**
@@ -258,5 +261,90 @@ describe('the login page offers email and password even when no provider key is 
     const page = read('src/app/(auth)/login/page.tsx')
     expect(page).toContain('href="/signup"')
     expect(page).toContain('href="/reset"')
+  })
+})
+
+describe('round one of the sign-up walk, said as the walk found it', () => {
+  it('a seeded demo person can never set a password; the demo door is the only way into a demo seat', () => {
+    for (const e of ['dana@northbend.example', 'ap@cavanaugh.invalid', 'hr@talvern.local', 'pm@demo.etyme.com', ' PM@Demo.Etyme.io ']) {
+      expect(demoEmail(e), e).toBe(true)
+    }
+    for (const e of ['dana@kestrelworks.com', 'helena@gmail.com', 'x@demoetyme.com', 'not-an-email']) {
+      expect(demoEmail(e), e).toBe(false)
+    }
+    expect(DEMO_REFUSAL).toBe('This address belongs to the Etyme demo. A demo seat opens only from the demo page, never with a password.')
+    // Every door of the password door asks it: sign-up, claim, resend, reset, sign-in.
+    const door = read('src/lib/password-door.ts')
+    for (const fn of ['signUpCompany', 'signUpCandidate', 'signUpClaim', 'resendVerification', 'requestReset']) {
+      const body = door.slice(door.indexOf(`export async function ${fn}`), door.indexOf('\n}\n', door.indexOf(`export async function ${fn}`)))
+      expect(body, fn).toContain('demoRefusal(email)')
+    }
+  })
+
+  it('only the newest link for an email works; an older one says a newer link was sent', () => {
+    const now = new Date('2026-10-08T12:00:00Z')
+    const row = { usedAt: now, expiresAt: expiresAfter(24, now), supersededAt: now }
+    expect(tokenUsable(row, 'VERIFY', now)).toEqual({ ok: false, reason: 'SUPERSEDED', says: SUPERSEDED })
+    expect(tokenUsable(row, 'RESET', now)).toMatchObject({ reason: 'SUPERSEDED' })
+    expect(SUPERSEDED).toBe('A newer link was sent to this email. Use the link in the newest email.')
+  })
+
+  it('with no email sender, sign-up and reset say so before any form', () => {
+    expect(SIGNUP_SHUT).toBe('Sign-up is off on this deployment until an email sender is set up.')
+    expect(RESET_SHUT).toBe('Password reset is off on this deployment until an email sender is set up.')
+    for (const [page, words] of [['src/app/(auth)/signup/page.tsx', 'SIGNUP_SHUT'], ['src/app/(auth)/reset/page.tsx', 'RESET_SHUT']] as const) {
+      const src = read(page)
+      expect(src.indexOf('doorOpen()'), page).toBeGreaterThan(0)
+      expect(src.indexOf(`{${words}}`), page).toBeGreaterThan(src.indexOf('doorOpen()'))
+      expect(src.indexOf(`{${words}}`), page).toBeLessThan(src.lastIndexOf('Form'))
+    }
+  })
+
+  it('the Etyme address "demo" is kept for Etyme, and the refusal says what to try instead', () => {
+    expect(checkAddress('demo', new Set()).says).toBe("demo is kept for Etyme. Try your company's name, like brookfield.")
+  })
+
+  it('a verify link clicked again after confirming says the email is already confirmed and offers Sign in', () => {
+    expect(ALREADY_CONFIRMED).toBe('Your email is already confirmed. Sign in.')
+    const page = read('src/app/(auth)/verify/[token]/page.tsx')
+    expect(page).toContain('CONFIRMED_CODE')
+    expect(page).toMatch(/>Sign in<\/a>/)
+  })
+
+  it('a colleague is told which company they join, and a confirmed Member is told what happens next', () => {
+    expect(colleagueSentence('walkco', possessive('Walk Co'))).toBe('walkco is Walk Co\'s address. You will join it as Member once you confirm your email.')
+    expect(colleagueSentence('kestrel', possessive('Kestrel Works'))).toBe('kestrel is Kestrel Works\' address. You will join it as Member once you confirm your email.')
+    expect(memberWelcome('Walk Co')).toBe('You are in Walk Co as Member. Your owner has been told; you will see more once they give you a desk.')
+    expect(read('src/app/(auth)/start/page.tsx')).toContain('memberWelcome(')
+  })
+
+  it('a person a company added, who never set a password, is told to set one', () => {
+    expect(FIRM_ADDED).toBe('A company added you to its bench. Set your password to sign in.')
+  })
+
+  it('the sign-up page reads a supplier invitation from ?claim=, and only a path on this site from ?next=', () => {
+    expect(read('src/app/(auth)/signup/page.tsx')).toContain('searchParams?.claim')
+    expect(claimTokenIn('/claim/abc_123')).toBe('abc_123')
+    expect(claimTokenIn('/dashboard')).toBeNull()
+    expect(safeNext('//evil.example/claim/x')).toBeNull()
+    expect(safeNext('https://evil.example')).toBeNull()
+  })
+
+  it('the sign-up and reset emails are written down as account mail, never as a notice for the bell', () => {
+    const door = read('src/lib/password-door.ts')
+    expect(door).toContain('type: ACCOUNT_MAIL')
+    expect(door).not.toContain("type: 'SYSTEM'")
+  })
+
+  it('the sign-in page says both ways in, in one sentence', () => {
+    expect(read('src/app/(auth)/login/page.tsx')).toContain('Sign in with your email and password, or your company&rsquo;s Microsoft or Google account.')
+  })
+
+  it('the sign-up form offers the one-person firm, which may use a personal email', async () => {
+    const { COMPANY_TYPES } = await import('@/lib/onboarding')
+    const solo = COMPANY_TYPES.find((t) => t.key === 'solo')!
+    expect(solo).toMatchObject({ kind: 'CONSULTANT_CORP', personalEmail: true })
+    expect(COMPANY_TYPES.filter((t) => t.personalEmail).map((t) => t.key)).toEqual(['solo'])
+    expect(read('src/app/(auth)/signup/form.tsx')).toContain('COMPANY_TYPES.map')
   })
 })

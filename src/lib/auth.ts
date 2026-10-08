@@ -112,7 +112,8 @@ export function passwordDoor(): Provider {
       const door = await import('@/lib/password-door')
       if (credentials?.verifyToken) {
         const v = await door.verifyEmail(credentials.verifyToken)
-        if (!v.ok) throw new Error(v.says)
+        // An already-confirmed address carries its code, so the link page offers Sign in.
+        if (!v.ok) throw new Error(v.code ? `${v.code}:${v.says}` : v.says)
         await door.recordSignIn(v.personId, v.email)
         return { id: v.personId, email: v.email, verified: true } as any
       }

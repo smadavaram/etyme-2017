@@ -151,8 +151,7 @@ export default function LoginPage() {
 
           <h1 className="text-xl font-semibold mb-1">Sign in to Etyme</h1>
           <p className="text-sm text-etyme-muted mb-8">
-            Your work address decides where you land — your colleagues&rsquo; company
-            if it is already here, a new one if it is not.
+            Sign in with your email and password, or your company&rsquo;s Microsoft or Google account.
           </p>
 
           {devEmail && (

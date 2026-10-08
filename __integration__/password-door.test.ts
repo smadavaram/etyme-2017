@@ -6,7 +6,11 @@ import { POST as resend } from '@/app/api/auth/password/resend/route'
 import { POST as askReset } from '@/app/api/auth/password/reset/route'
 import { POST as confirmReset } from '@/app/api/auth/password/reset/confirm/route'
 import { GET as entry } from '@/app/api/onboarding/route'
-import { verifyEmail, checkPassword } from '@/lib/password-door'
+import { POST as enter } from '@/app/api/onboarding/route'
+import { GET as probe } from '@/app/api/auth/password/signup/route'
+import { verifyEmail, checkPassword, resetPassword, issueSetPassword } from '@/lib/password-door'
+import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, FIRM_ADDED, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
+import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { passwordDoor } from '@/lib/auth'
 import { gatherFacts } from '@/lib/readiness-facts'
 import { assess } from '@/lib/readiness'
@@ -19,9 +23,9 @@ import { assess } from '@/lib/readiness'
  */
 
 const PASSWORD = 'copper kettle rides north'
-const OWNER = 'dana@kestrelworks.example'
-const COLLEAGUE = 'priya@kestrelworks.example'
-const STRANGER = 'lee@otherfirm.example'
+const OWNER = 'dana@kestrelworks.test'
+const COLLEAGUE = 'priya@kestrelworks.test'
+const STRANGER = 'lee@otherfirm.test'
 const CANDIDATE = 'helena.marsh@gmail.com'
 
 const sent: { to: string; subject: string; text: string }[] = []
@@ -35,7 +39,7 @@ function lastLink(to: string, kind: 'verify' | 'reset'): string {
 }
 
 const company = (over: Record<string, unknown> = {}) => ({
-  as: 'company', email: OWNER, password: PASSWORD, name: 'Kestrel Works', type: 'client',
+  as: 'company', email: OWNER, password: PASSWORD, personName: 'Dana Reyes', name: 'Kestrel Works', type: 'client',
   country: 'US', currency: 'USD', address: 'kestrel', ...over,
 })
 
@@ -124,7 +128,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(reserved.body.error.field).toBe('address')
 
     // Held while a sign-up waits on its link.
-    const first = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'sam@harrowgate.example', name: 'Harrowgate', address: 'harrowgate' }))))
+    const first = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'sam@harrowgate.test', name: 'Harrowgate', address: 'harrowgate' }))))
     expect(first.status).toBe(200)
     const second = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: STRANGER, name: 'Other', address: 'harrowgate' }))))
     expect(second.body.error).toMatchObject({ field: 'address', message: "harrowgate.etyme.com is already somebody else's." })
@@ -132,7 +136,7 @@ describe('a password door, until the single sign-on keys exist', () => {
 
   it('a wrong password and an unknown email get the same sentence', async () => {
     const wrong = await checkPassword(OWNER, 'copper kettle rides south', '10.0.0.1')
-    const nobody = await checkPassword('nobody@kestrelworks.example', PASSWORD, '10.0.0.2')
+    const nobody = await checkPassword('nobody@kestrelworks.test', PASSWORD, '10.0.0.2')
     expect(wrong).toEqual({ ok: false, code: 'NO_MATCH', says: 'That email and password do not match.' })
     expect(nobody).toEqual(wrong)
     expect(await checkPassword(OWNER, PASSWORD, '10.0.0.1')).toMatchObject({ ok: true, email: OWNER })
@@ -155,15 +159,20 @@ describe('a password door, until the single sign-on keys exist', () => {
   })
 
   it('a verification link works once and dies after a day; signing up again resends it', async () => {
+    // Clicked again once the email is confirmed: nothing is wrong, sign in.
     const used = lastLink(OWNER, 'verify')
-    expect(await verifyEmail(used)).toEqual({ ok: false, says: 'This link was already used. Sign up again with the same email and we send a new one.' })
+    expect(await verifyEmail(used)).toEqual({ ok: false, code: 'CONFIRMED', says: 'Your email is already confirmed. Sign in.' })
+    const firstHarrowgate = lastLink('sam@harrowgate.test', 'verify')
 
-    const before = sent.filter((m) => m.to === 'sam@harrowgate.example').length
-    const again = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'sam@harrowgate.example', name: 'Harrowgate', address: 'harrowgate' }))))
-    expect(again.body.data.says).toBe('Check your email. We sent a link to sam@harrowgate.example. It works for 24 hours.')
-    expect(sent.filter((m) => m.to === 'sam@harrowgate.example').length).toBe(before + 1)
+    const before = sent.filter((m) => m.to === 'sam@harrowgate.test').length
+    const again = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'sam@harrowgate.test', name: 'Harrowgate', address: 'harrowgate' }))))
+    expect(again.body.data.says).toBe('Check your email. We sent a link to sam@harrowgate.test. It works for 24 hours.')
+    expect(sent.filter((m) => m.to === 'sam@harrowgate.test').length).toBe(before + 1)
 
-    const late = await verifyEmail(lastLink('sam@harrowgate.example', 'verify'), new Date(Date.now() + 25 * 3600_000))
+    // The first link died when the second was sent, and says so.
+    expect(await verifyEmail(firstHarrowgate)).toEqual({ ok: false, says: SUPERSEDED })
+
+    const late = await verifyEmail(lastLink('sam@harrowgate.test', 'verify'), new Date(Date.now() + 25 * 3600_000))
     expect(late).toEqual({ ok: false, says: 'This link has expired. Sign up again with the same email and we send a new one.' })
     expect(await prisma.company.count({ where: { slug: 'harrowgate' } })).toBe(0)
 
@@ -178,8 +187,8 @@ describe('a password door, until the single sign-on keys exist', () => {
   it('a reset link works once and dies after an hour', async () => {
     const asked = await json(await askReset(req('POST', '/api/auth/password/reset', { email: OWNER })))
     expect(asked.body.data.says).toBe(`If there is an account for ${OWNER}, we sent a link. It works for 1 hour.`)
-    const nobody = await json(await askReset(req('POST', '/api/auth/password/reset', { email: 'nobody@kestrelworks.example' })))
-    expect(nobody.body.data.says).toBe('If there is an account for nobody@kestrelworks.example, we sent a link. It works for 1 hour.')
+    const nobody = await json(await askReset(req('POST', '/api/auth/password/reset', { email: 'nobody@kestrelworks.test' })))
+    expect(nobody.body.data.says).toBe('If there is an account for nobody@kestrelworks.test, we sent a link. It works for 1 hour.')
 
     const token = lastLink(OWNER, 'reset')
     const { resetPassword } = await import('@/lib/password-door')
@@ -221,8 +230,8 @@ describe('a password door, until the single sign-on keys exist', () => {
   })
 
   it('an unverified email cannot sign in and is offered the link again', async () => {
-    const email = 'omar@brightwell.example'
-    await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD })))
+    const email = 'omar@brightwell.test'
+    await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Omar Haddad' })))
     expect(await checkPassword(email, PASSWORD, '10.0.2.1')).toEqual({
       ok: false, code: 'UNVERIFIED', says: `Confirm your email first. We sent a link to ${email}.`,
     })
@@ -248,7 +257,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: COLLEAGUE, name: 'Kestrel Works' }))))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const v = await verifyEmail(lastLink(COLLEAGUE, 'verify'))
-    expect(v).toMatchObject({ ok: true, says: 'You are in Kestrel Works as Member. You can see your own work now. An owner there gives you a desk.' })
+    expect(v).toMatchObject({ ok: true, landing: '/start?welcome=1', says: 'You are in Kestrel Works as Member. Your owner has been told; you will see more once they give you a desk.' })
 
     const kestrel = await prisma.company.findUniqueOrThrow({ where: { slug: 'kestrel' } })
     const seat = await prisma.context.findFirstOrThrow({ where: { person: { primaryEmail: COLLEAGUE } }, include: { role: true } })
@@ -266,12 +275,12 @@ describe('a password door, until the single sign-on keys exist', () => {
 
   it('a Microsoft or Google sign-in joins an address only through its verified domain', async () => {
     const kestrel = await prisma.company.findUniqueOrThrow({ where: { slug: 'kestrel' } })
-    as('ines@kestrelworks.example')
+    as('ines@kestrelworks.test')
     const before = await json(await entry(req('GET', '/api/onboarding')))
     expect(before.body.data.action).toBe('CREATE')
 
     await prisma.companyDomain.create({
-      data: { companyId: kestrel.id, domain: 'kestrelworks.example', verifiedAt: new Date(), verifiedVia: 'DNS_TXT', joinPolicy: 'AUTO' },
+      data: { companyId: kestrel.id, domain: 'kestrelworks.test', verifiedAt: new Date(), verifiedVia: 'DNS_TXT', joinPolicy: 'AUTO' },
     })
     const after = await json(await entry(req('GET', '/api/onboarding')))
     expect(after.body.data).toMatchObject({ action: 'JOIN', companyId: kestrel.id })
@@ -284,5 +293,186 @@ describe('a password door, until the single sign-on keys exist', () => {
     const signin = assess({ ...facts, env: { ...facts.env, nextauthSecret: true } }).edges.find((e) => e.key === 'signin')!
     expect(signin.state).toBe('PROVEN')
     expect(signin.says).toContain('through password')
+  })
+  it('a colleague on a claimed address is asked only email, name and password, and told which company they join as Member', async () => {
+    const email = 'ravi@kestrelworks.test'
+    const p = await json(await probe(req('GET', `/api/auth/password/signup?email=${encodeURIComponent(email)}`)))
+    expect(p.body.data.joins).toEqual({
+      address: 'kestrel', company: 'Kestrel Works',
+      says: "kestrel is Kestrel Works' address. You will join it as Member once you confirm your email.",
+    })
+    // Nothing about a company: no name, no type, no country, no address.
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'company', email, personName: 'Ravi Iyer', password: PASSWORD })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const v = await verifyEmail(lastLink(email, 'verify'))
+    expect(v).toMatchObject({ ok: true, says: 'You are in Kestrel Works as Member. Your owner has been told; you will see more once they give you a desk.' })
+    const seated = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, include: { contexts: { include: { role: true, company: true } } } })
+    expect(seated.name).toBe('Ravi Iyer')
+    expect(seated.contexts.map((c) => [c.company?.slug, c.role?.name])).toEqual([['kestrel', 'Member']])
+
+    // /start knows the seat is a Member's, so it can say so before the desk.
+    as(email)
+    const e = await json(await entry(req('GET', '/api/onboarding')))
+    expect(e.body.data).toMatchObject({ action: 'ALREADY_IN', company: { name: 'Kestrel Works' }, seat: { role: 'Member' } })
+    expect(e.body.data.setup?.shows ?? false).toBe(false)
+  })
+
+  it('both forms ask the person\'s own name, and it is their name once they confirm', async () => {
+    const noName = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'kai@quillmark.test', personName: '', name: 'Quillmark', address: 'quillmark' }))))
+    expect(noName.body.error).toMatchObject({ field: 'personName', message: 'Type your name.' })
+    const noCandidateName = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email: 'june@gmail.com', password: PASSWORD })))
+    expect(noCandidateName.body.error).toMatchObject({ field: 'name', message: 'Type your name.' })
+
+    await signUp(req('POST', '/api/auth/password/signup', company({ email: 'kai@quillmark.test', personName: 'Kai Lindqvist', name: 'Quillmark', address: 'quillmark' })))
+    await verifyEmail(lastLink('kai@quillmark.test', 'verify'))
+    expect((await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'kai@quillmark.test' } })).name).toBe('Kai Lindqvist')
+  })
+
+  it('only the newest link for an email works; an older one says a newer link was sent', async () => {
+    const email = 'tomas.reyna@gmail.com'
+    await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Tomas Reyna' }))
+    const first = lastLink(email, 'verify')
+    await resend(req('POST', '/api/auth/password/resend', { email }))
+    const second = lastLink(email, 'verify')
+    expect(second).not.toBe(first)
+    expect(await verifyEmail(first)).toEqual({ ok: false, says: SUPERSEDED })
+    expect(SUPERSEDED).toBe('A newer link was sent to this email. Use the link in the newest email.')
+    expect(await verifyEmail(second)).toMatchObject({ ok: true })
+
+    // The same for a reset, and for a link a desk sends with an invitation.
+    await askReset(req('POST', '/api/auth/password/reset', { email }))
+    const olderReset = lastLink(email, 'reset')
+    await askReset(req('POST', '/api/auth/password/reset', { email }))
+    const newerReset = lastLink(email, 'reset')
+    expect(await resetPassword(olderReset, 'a fresh long phrase here')).toMatchObject({ ok: false, says: SUPERSEDED })
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email } })
+    const invited = await issueSetPassword(person.id, 72)
+    expect(invited).toMatch(/\/reset\/[A-Za-z0-9_-]+$/)
+    expect(await resetPassword(newerReset, 'a fresh long phrase here')).toMatchObject({ ok: false, says: SUPERSEDED })
+    expect(await resetPassword(invited.split('/reset/')[1], 'a fresh long phrase here')).toMatchObject({ ok: true })
+  })
+
+  it('a verify link clicked again after the email is confirmed says so and offers Sign in', async () => {
+    const authorize = (passwordDoor() as any).options.authorize
+    const used = lastLink(OWNER, 'verify')
+    await expect(authorize({ verifyToken: used }, { headers: {} })).rejects.toThrow(`CONFIRMED:${ALREADY_CONFIRMED}`)
+  })
+
+  it('a seeded demo person can never set a password; the demo door is the only way into a demo seat', async () => {
+    // An address nobody can register, or a demo host, is refused at every door.
+    for (const email of ['dana@northbend.example', 'ap@cavanaugh.invalid', 'hr@talvern.local', 'pm@demo.etyme.com']) {
+      const up = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email, address: 'seedtry' }))))
+      expect(up.status, email).toBe(403)
+      expect(up.body.error.message).toBe(DEMO_REFUSAL)
+      expect((await json(await askReset(req('POST', '/api/auth/password/reset', { email })))).body.error.message).toBe(DEMO_REFUSAL)
+      expect((await json(await resend(req('POST', '/api/auth/password/resend', { email })))).body.error.message).toBe(DEMO_REFUSAL)
+      expect(await checkPassword(email, PASSWORD, '10.0.9.1')).toMatchObject({ ok: false, code: 'DEMO' })
+    }
+
+    // A person on a real-looking address whose only seat is a seeded company:
+    // even a password set before this rule opens nothing.
+    const seeded = await prisma.company.create({ data: { name: 'Seeded Firm', slug: 'world-seeded', kind: 'VENDOR', isDemo: true } })
+    const { hashPassword } = await import('@/lib/password')
+    const person = await prisma.person.create({
+      data: { primaryEmail: 'seeded.person@realmail.test', name: 'Seeded Person', emailVerifiedAt: new Date(), passwordHash: await hashPassword(PASSWORD) },
+    })
+    await prisma.context.create({ data: { personId: person.id, companyId: seeded.id, type: 'EMPLOYEE' } })
+    expect(await checkPassword(person.primaryEmail, PASSWORD, '10.0.9.2')).toMatchObject({ ok: false, code: 'DEMO', says: DEMO_REFUSAL })
+    const ask = await json(await askReset(req('POST', '/api/auth/password/reset', { email: person.primaryEmail })))
+    expect(ask.status).toBe(403)
+    expect(ask.body.error.message).toBe(DEMO_REFUSAL)
+    const link = await issueSetPassword(person.id, 1)
+    expect(await resetPassword(link.split('/reset/')[1], 'a fresh long phrase here')).toMatchObject({ ok: false, says: DEMO_REFUSAL })
+  })
+
+  it('a person a company added who never set a password is told to set one, not that they already have an account', async () => {
+    const email = 'rafael.ortiz@gmail.com'
+    const person = await prisma.person.create({ data: { primaryEmail: email, name: 'Rafael Ortiz' } })
+    await prisma.context.create({ data: { personId: person.id, type: 'CONSULTANT' } })
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Rafael Ortiz' })))
+    expect(r.body.data.says).toBe(`Check your email. We sent a link to ${email}. It works for 24 hours.`)
+    const mail = sent[sent.length - 1]
+    expect(mail).toMatchObject({ to: email, subject: 'Set your Etyme password' })
+    expect(mail.text).toContain(FIRM_ADDED)
+    expect(FIRM_ADDED).toBe('A company added you to its bench. Set your password to sign in.')
+    expect(mail.text).not.toContain('You already have an account')
+    expect(mail.text).toMatch(/\/reset\/[A-Za-z0-9_-]+/)
+  })
+
+  it('the sign-up and reset emails are written down as account mail, never as a notice for the bell', async () => {
+    const rows = await prisma.notification.findMany({ where: { channel: 'EMAIL', title: { in: ['Confirm your email for Etyme', 'Set your Etyme password'] } } })
+    expect(rows.length).toBeGreaterThan(3)
+    for (const n of rows) expect(n.type).toBe(ACCOUNT_MAIL)
+  })
+
+  it('a sign-up from a supplier invitation takes that company when confirmed and founds nothing', async () => {
+    const client = await prisma.company.create({ data: { name: 'Larkspur Health', slug: 'larkspur', kind: 'CLIENT' } })
+    const shell = await prisma.company.create({ data: { name: 'Fenwick Staffing', slug: 'fenwick', kind: 'VENDOR' } })
+    await prisma.supplierInvite.create({ data: { companyId: shell.id, byId: client.id, email: 'mara@fenwickstaffing.test', token: 'claim-tok-1' } })
+    const companies = await prisma.company.count()
+
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'claim', token: 'claim-tok-1', email: 'mara@fenwickstaffing.test', personName: 'Mara Fenwick', password: PASSWORD })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const mail = [...sent].reverse().find((m) => m.to === 'mara@fenwickstaffing.test')!
+    expect(mail.text).toContain('?then=/claim/claim-tok-1')
+    const v = await verifyEmail(lastLink('mara@fenwickstaffing.test', 'verify'))
+    expect(v).toMatchObject({ ok: true, landing: '/claim/claim-tok-1' })
+    expect(await prisma.company.count()).toBe(companies)
+
+    // The ordinary company form, on the email an invitation went to, does the same.
+    await prisma.supplierInvite.create({ data: { companyId: shell.id, byId: client.id, email: 'jo@fenwickstaffing.test', token: 'claim-tok-2' } })
+    await prisma.company.update({ where: { id: shell.id }, data: { claimedAt: null } })
+    const viaForm = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'jo@fenwickstaffing.test', personName: 'Jo Park', name: 'Fenwick Two', address: 'fenwick-two' }))))
+    expect(viaForm.status).toBe(200)
+    const v2 = await verifyEmail(lastLink('jo@fenwickstaffing.test', 'verify'))
+    expect(v2).toMatchObject({ ok: true })
+    expect(await prisma.company.count()).toBe(companies)
+    expect(await prisma.company.count({ where: { slug: 'fenwick-two' } })).toBe(0)
+  })
+
+  it('the one-person firm may sign up on a personal email and claims no domain', async () => {
+    const email = 'nia.okafor@gmail.com'
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email, personName: 'Nia Okafor', name: 'Okafor Care LLC', type: 'solo', address: 'okafor-care' }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    await verifyEmail(lastLink(email, 'verify'))
+    const made = await prisma.company.findUniqueOrThrow({ where: { slug: 'okafor-care' }, include: { claimedDomains: true } })
+    expect(made).toMatchObject({ kind: 'CONSULTANT_CORP', domain: null })
+    expect(made.claimedDomains).toEqual([])
+
+    // Any other type on a personal email is refused in a sentence.
+    const vendor = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'li.wei@gmail.com', personName: 'Li Wei', name: 'Wei Staffing', type: 'prime', address: 'wei-staffing' }))))
+    expect(vendor.body.error.field).toBe('email')
+
+    // The Microsoft or Google door reads the type before sending a personal
+    // email to the candidate path.
+    as('kofi.mensah@gmail.com')
+    const g = await json(await entry(req('GET', '/api/onboarding')))
+    expect(g.body.data.action).toBe('CONSULTANT')
+    expect(g.body.data.companyTypes.map((t: { key: string }) => t.key)).toEqual(['solo'])
+    const made2 = await json(await enter(req('POST', '/api/onboarding', { type: 'solo', name: 'Mensah Engineering LLC' })))
+    expect(made2.status, JSON.stringify(made2.body)).toBe(201)
+    const firm = await prisma.company.findUniqueOrThrow({ where: { id: made2.body.data.companyId }, include: { claimedDomains: true } })
+    expect(firm).toMatchObject({ kind: 'CONSULTANT_CORP', domain: null, name: 'Mensah Engineering LLC' })
+    expect(firm.claimedDomains).toEqual([])
+    expect(await prisma.context.count({ where: { person: { primaryEmail: 'kofi.mensah@gmail.com' }, type: 'CONSULTANT' } })).toBe(0)
+  })
+
+  it('with no email sender, sign-up, reset and asking for the link again say so', async () => {
+    const key = process.env.RESEND_API_KEY
+    delete process.env.RESEND_API_KEY
+    try {
+      const up = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'x@nosender.test', address: 'nosender' }))))
+      expect(up.status).toBe(503)
+      expect(up.body.error.message).toBe(SIGNUP_SHUT)
+      const reset = await json(await askReset(req('POST', '/api/auth/password/reset', { email: OWNER })))
+      expect(reset.body.error.message).toBe('Password reset is off on this deployment until an email sender is set up.')
+      expect(RESET_SHUT).toBe(reset.body.error.message)
+      const again = await json(await resend(req('POST', '/api/auth/password/resend', { email: OWNER })))
+      expect(again.body.error.message).toBe(SIGNUP_SHUT)
+      const p = await json(await probe(req('GET', '/api/auth/password/signup?email=x@nosender.test')))
+      expect(p.body.data).toMatchObject({ open: false })
+    } finally {
+      process.env.RESEND_API_KEY = key
+    }
   })
 })

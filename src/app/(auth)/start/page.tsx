@@ -8,7 +8,8 @@ import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
 import { deskHome } from '@/components/desk-home'
 import { SETUP_RAIL, packSentence, currencyFor, type SetupStep } from '@/lib/setup-steps'
-import { packFor, type CompanyKind } from '@/lib/company-defaults'
+import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
+import { memberWelcome } from '@/lib/password-words'
 
 /**
  * Getting in, and setting up. Five steps, then it stops.
@@ -113,10 +114,16 @@ export default function StartPage() {
   const setup = state?.action === 'ALREADY_IN' ? state.setup : null
   const showingSteps = setup?.shows === true
 
+  // A colleague who just confirmed their email and was seated as Member
+  // (round one of the sign-up walk, item 20): told where they are and what
+  // happens next, once, before the desk.
+  const newMember = welcome && state?.action === 'ALREADY_IN' && !showingSteps
+    && state.seat?.role === MEMBER_ROLE && state.company?.name
+
   // Already here, nothing owed, not just arrived: straight to their desk.
   useEffect(() => {
-    if (state?.action === 'ALREADY_IN' && !showingSteps && !joined && desk) router.replace(desk as any)
-  }, [state, showingSteps, joined, desk, router])
+    if (state?.action === 'ALREADY_IN' && !showingSteps && !joined && !newMember && desk) router.replace(desk as any)
+  }, [state, showingSteps, joined, newMember, desk, router])
 
   async function enter(body: Record<string, unknown>) {
     setBusy(true); setError(null)
@@ -157,6 +164,24 @@ export default function StartPage() {
 
   if (loading) {
     return <div className="min-h-screen grid place-items-center text-etyme-muted">Checking your account…</div>
+  }
+
+  // ── A colleague, just confirmed by the password door ───────────────
+  if (newMember) {
+    return (
+      <div className="min-h-screen grid place-items-center px-6">
+        <div className="max-w-lg text-center">
+          <Lbl>You are in</Lbl>
+          <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">
+            {state.company.name}
+          </h1>
+          <p className="text-etyme-muted mt-3">{memberWelcome(state.company.name)}</p>
+          <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
+            Go to your desk
+          </a>
+        </div>
+      </div>
+    )
   }
 
   // ── A colleague, just arrived ──────────────────────────────────────
@@ -235,6 +260,19 @@ export default function StartPage() {
             <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
               {busy ? 'Setting up…' : 'Continue'}
             </button>
+            {(state.companyTypes ?? []).map((t: TypeOption) => (
+              <div key={t.key} className="mt-8 border-t border-etyme-rule pt-6 max-w-md">
+                <p className="text-sm text-etyme-ink font-medium">{t.label}</p>
+                <p className="text-sm text-etyme-muted mt-1">{t.blurb}</p>
+                <label className="block mt-3 text-sm text-etyme-muted">
+                  Your company&rsquo;s name
+                  <input value={name} onChange={(e) => setName(e.target.value)} className={field} />
+                </label>
+                <button onClick={() => enter({ type: t.key, name })} disabled={busy || !name.trim()} className={`mt-3 ${secondary}`}>
+                  Set up my company
+                </button>
+              </div>
+            ))}
           </>
         )}
 

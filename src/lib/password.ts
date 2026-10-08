@@ -25,7 +25,11 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
-import { checkSubdomain } from '@/lib/domains-owned'
+import { checkSubdomain, RESERVED_SUBDOMAINS } from '@/lib/domains-owned'
+import { reservedAddress } from '@/lib/demo-session'
+
+export * from '@/lib/password-words'
+import { SUPERSEDED } from '@/lib/password-words'
 
 // ── Passwords ─────────────────────────────────────────────────────────
 
@@ -116,6 +120,18 @@ export function unverifiedSentence(email: string): string {
   return `Confirm your email first. We sent a link to ${email}.`
 }
 
+/**
+ * Whether an email belongs to the demo world: a domain nobody can register
+ * (.example, .invalid, .local) or any demo.etyme host. Such a person is
+ * reached through the demo door and nothing else.
+ */
+export function demoEmail(email: string): boolean {
+  const e = String(email ?? '').trim().toLowerCase()
+  const domain = e.slice(e.lastIndexOf('@') + 1)
+  if (!e.includes('@') || !domain) return false
+  return reservedAddress(e) || domain.startsWith('demo.etyme.') || domain === 'demo.etyme'
+}
+
 /** What the sign-up form says whatever happened, so it never tells a stranger who is registered. */
 export function checkYourEmail(email: string): string {
   return `Check your email. We sent a link to ${email}. It works for 24 hours.`
@@ -140,11 +156,15 @@ export function expiresAfter(hours: number, now: Date = new Date()): Date {
   return new Date(now.getTime() + hours * 60 * 60 * 1000)
 }
 
-export type TokenVerdict = { ok: true } | { ok: false; reason: 'USED' | 'EXPIRED' | 'UNKNOWN'; says: string }
+export type TokenVerdict = { ok: true } | { ok: false; reason: 'USED' | 'EXPIRED' | 'UNKNOWN' | 'SUPERSEDED'; says: string }
 
-/** Whether a stored link still works: not used, not past its time. */
+/**
+ * Whether a stored link still works: not used, not past its time, and the
+ * newest for its email. A newer link kills the older ones when it is sent,
+ * and the older one says so rather than "already used".
+ */
 export function tokenUsable(
-  row: { usedAt: Date | null; expiresAt: Date } | null,
+  row: { usedAt: Date | null; expiresAt: Date; supersededAt?: Date | null } | null,
   purpose: 'VERIFY' | 'RESET',
   now: Date = new Date(),
 ): TokenVerdict {
@@ -153,6 +173,7 @@ export function tokenUsable(
       ? 'Sign up again with the same email and we send a new one.'
       : 'Ask for a new one on the reset page.'
   if (!row) return { ok: false, reason: 'UNKNOWN', says: `This link does not work. ${again}` }
+  if (row.supersededAt) return { ok: false, reason: 'SUPERSEDED', says: SUPERSEDED }
   if (row.usedAt) return { ok: false, reason: 'USED', says: `This link was already used. ${again}` }
   if (row.expiresAt.getTime() <= now.getTime()) {
     return { ok: false, reason: 'EXPIRED', says: `This link has expired. ${again}` }
@@ -219,6 +240,9 @@ export function checkAddress(raw: string, taken: Set<string>): AddressVerdict {
   }
   if (DEMO_PREFIXES.some((p) => value.startsWith(p))) {
     return { ok: false, value: null, says: 'Addresses that start with world- or demo- are kept for the demo.' }
+  }
+  if (RESERVED_SUBDOMAINS.has(value)) {
+    return { ok: false, value: null, says: `${value} is kept for Etyme. Try your company's name, like brookfield.` }
   }
   const v = checkSubdomain(value, taken)
   return { ok: v.ok, value: v.value, says: v.reason }
