@@ -5,6 +5,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { compact } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { clientEndingChoices } from '@/lib/releasing-soon'
 
 // ── Types — match API response shape ─────────────────────
@@ -227,13 +228,15 @@ const TRACKED_COLUMNS: Column<TrackedRolloff>[] = [
 ]
 
 export default function RolloffPage() {
-  const { company } = useSession()
+  const session = useSession()
+  const { company } = session
   // The kind only when it is known. Until the session says who is
   // reading, pageFraming answers for an unknown reader — no supplier words
   // shown to a client while the session loads (sign-up walk round three, 16).
   const kind = company?.kind ?? null
   const isClient = kind === 'CLIENT'
-  const framing = pageFraming(kind, 'rolloff')
+  // Framed for this reader's own menu, not the company's whole one (round seven).
+  const framing = pageFraming(kind, 'rolloff', null, sidebarPropsFrom(session))
   const [tracked, setTracked] = useState<TrackedRolloff[]>([])
   const [untracked, setUntracked] = useState<UntrackedContract[]>([])
   const [summary, setSummary] = useState<RolloffSummary | null>(null)

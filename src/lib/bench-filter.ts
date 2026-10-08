@@ -828,6 +828,32 @@ export function benchClosedSays(firm: string | null | undefined): string {
   )
 }
 
+/**
+ * The one sentence the Bench page draws alone, or null where the page is
+ * the reader's to see. A refused page is its sentence and nothing above it
+ * — no "Bench" heading and no "People who granted you a listing" over a
+ * seat that may not open it (sign-up walk round seven, 6: Sam, a desk-less
+ * Member at a supplier, and Karthik, a worker at an integrator, both read
+ * the page's own prose above the refusal).
+ *
+ * Nothing is decided while the session is still loading, so a seat that
+ * will be let in is never refused for the second before it is known.
+ */
+export function benchPageClosed(r: {
+  loading: boolean
+  /** Null for somebody signed in at no company. */
+  company: { name: string } | null
+  client: { ok: true } | { ok: false; says: string }
+  readsBench: boolean
+  readsProfit: boolean
+}): string | null {
+  if (r.loading) return null
+  if (r.company == null) return benchClosedSays(null)
+  if (!r.client.ok) return r.client.says
+  if (!r.readsBench && !r.readsProfit) return benchClosedSays(r.company.name)
+  return null
+}
+
 // ── The tier, in one set of words ─────────────────────────────────────
 
 /**

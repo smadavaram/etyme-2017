@@ -103,7 +103,8 @@ describe('16 · rolloff and consultants say nothing about the reader until they 
   it('the rolloff page never guesses the reader is a supplier', () => {
     const page = read('src/app/dashboard/rolloff/page.tsx')
     expect(page).not.toMatch(/\?\?\s*'VENDOR'/)
-    expect(page).toContain("pageFraming(kind, 'rolloff')")
+    // Since round seven the framing is also given the reader's own menu.
+    expect(page).toContain("pageFraming(kind, 'rolloff', null, sidebarPropsFrom(session))")
   })
 
   it('the rolloff page draws no subtitle until the reader is known', () => {
@@ -114,7 +115,8 @@ describe('16 · rolloff and consultants say nothing about the reader until they 
   it('the consultants page never guesses the reader is a supplier, and draws no eyebrow or subtitle until it knows', () => {
     const page = read('src/app/dashboard/consultants/page.tsx')
     expect(page).not.toMatch(/\?\?\s*'VENDOR'/)
-    expect(page).toContain("sectionOfHref(readerKind, '/dashboard/consultants')")
+    // Since round seven the eyebrow is the reader's own menu's section.
+    expect(page).toContain("usePageSection('/dashboard/consultants')")
     expect(page.match(/\{readerKind != null && \(/g)?.length).toBe(2)
   })
 })

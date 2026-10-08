@@ -1086,9 +1086,6 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
    * are pruned and that sentence is added, as round six's list has it.
    */
   const STILL_WITHOUT_READER = new Set<string>([
-    'src/app/dashboard/bench/page.tsx',
-    'src/app/dashboard/consultants/page.tsx',
-    'src/app/dashboard/rolloff/page.tsx',
   ])
 
   function headedWithoutReader(): string[] {

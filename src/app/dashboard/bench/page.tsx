@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
-import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, listingRates, TIER_WORD, type Free } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, type Free } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
@@ -12,7 +12,7 @@ import { BenchProfit } from './bench-profit'
 import { mayReadBenchProfit, type HolidayAnswerRow } from '@/lib/bench-profit'
 import { mayChangeBenchPay } from '@/lib/bench-holiday-switch'
 import { useHolidaySwitches, HolidaySwitchCell } from './holiday-switch'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -528,6 +528,9 @@ export default function BenchPage() {
         ? 'payroll'
         : 'company'
   const session = useSession()
+  // The section on the reader's own menu, not the company's whole one
+  // (round seven: a desk-less seat read a section its menu lacks).
+  const section = usePageSection('/dashboard/bench')
 
   const [scope, setScope] = useState<BenchScope>(opensOn)
   const [scopeChosen, setScopeChosen] = useState(false)
@@ -1043,8 +1046,18 @@ export default function BenchPage() {
   // Signed in at no company — a candidate on her own: the bench is a
   // company's, and the sentence says so alone, with no "People who granted
   // you a listing" over it and no firm she does not have (round six, 9).
-  if (!session.loading && session.company == null) {
-    return <p className="text-[14px] text-etyme-muted py-8">{benchClosedSays(null)}</p>
+  // And a seat at a company that may not open the page — a client, or a
+  // supplier's or an integrator's seat with no bench desk — reads its one
+  // sentence the same way, with no heading or prose over it (round seven, 6).
+  const closed = benchPageClosed({
+    loading: session.loading,
+    company: session.company ?? null,
+    client: clientRefused,
+    readsBench,
+    readsProfit,
+  })
+  if (closed) {
+    return <p role="status" className="text-[14px] text-etyme-muted py-8">{closed}</p>
   }
 
   return (
@@ -1052,7 +1065,7 @@ export default function BenchPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <div className="eyebrow mb-2">{sectionOfHref(companyKind, '/dashboard/bench') ?? ''}</div>
+          <div className="eyebrow mb-2">{section ?? ''}</div>
           <h1 className="headline-serif text-heading text-etyme-ink mb-1">
             Bench
           </h1>

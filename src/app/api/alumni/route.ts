@@ -10,6 +10,7 @@ import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { askBack } from './ask-back-standing'
 import { askDesk } from './ask-desk'
 import { emptyAlumniSays } from './ask-back-standing'
+import { addWeeks, hoursOnRecord, EMPTY_TALLY, type HoursTally } from './hours-on-record'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -165,7 +166,7 @@ export async function GET(request: NextRequest) {
     department: string | null
     vendors: Map<string, string>
     totalDays: number
-    totalHours: number
+    hours: HoursTally
     contractCount: number
     hasActive: boolean
     lastEndDate: Date | null
@@ -181,14 +182,13 @@ export async function GET(request: NextRequest) {
 
   for (const c of contracts) {
     const days = daysOnSite(periodsByPerson.get(c.personId) ?? [], now)
-    const hours = c.timesheets.reduce((sum, t) => sum + (t.totalHours ? Number(t.totalHours) : 0), 0)
     const isActive = c.state === 'IN_PROGRESS' || c.state === 'PAUSED'
 
     const existing = personMap.get(c.personId)
     if (existing) {
       existing.vendors.set(c.company.id, c.company.name)
       existing.totalDays = days
-      existing.totalHours += hours
+      existing.hours = addWeeks(existing.hours, c.timesheets)
       existing.contractCount++
       if (isActive) existing.hasActive = true
       if (c.endDate && (!existing.lastEndDate || c.endDate > existing.lastEndDate)) {
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
         department: c.engagement?.title ?? null,
         vendors: vendorMap,
         totalDays: days,
-        totalHours: hours,
+        hours: addWeeks(EMPTY_TALLY, c.timesheets),
         contractCount: 1,
         hasActive: isActive,
         lastEndDate: c.endDate ?? null,
@@ -290,7 +290,8 @@ export async function GET(request: NextRequest) {
       skill: data.skill,
       department: data.department,
       totalMonths,
-      totalHours: Math.round(data.totalHours),
+      // Null with no approved week here: not a zero (round seven, 14).
+      totalHours: hoursOnRecord(data.hours),
       extensions,
       state,
       detail,

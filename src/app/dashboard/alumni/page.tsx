@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
+import { NO_WEEKS_SAYS } from '@/app/api/alumni/hours-on-record'
 
 /**
  * Alumni — "Worked here before"
@@ -42,7 +43,8 @@ interface AlumniPerson {
   skill: string | null
   department: string | null
   totalMonths: number
-  totalHours: number
+  /** Null where no week is on record here: not known, never zero. */
+  totalHours: number | null
   extensions: number
   state: 'placed' | 'available' | 'ended'
   detail: string
@@ -126,9 +128,15 @@ const COLUMNS: Column<AlumniPerson>[] = [
     label: 'Hours',
     align: 'right',
     sortValue: (row) => row.totalHours,
-    render: (row) => (
-      <span>{row.totalHours.toLocaleString()}</span>
-    ),
+    render: (row) =>
+      row.totalHours == null ? (
+        <span title={NO_WEEKS_SAYS}>
+          <span className="text-etyme-muted">—</span>{' '}
+          <span className="text-[11px] text-etyme-faint">{NO_WEEKS_SAYS}</span>
+        </span>
+      ) : (
+        <span>{row.totalHours.toLocaleString()}</span>
+      ),
     hideOnMobile: true,
   },
   {

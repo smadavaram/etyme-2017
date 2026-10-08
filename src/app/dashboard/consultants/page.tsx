@@ -9,7 +9,7 @@ import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags } from '@/lib/bench-filter'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 
 /**
@@ -901,6 +901,8 @@ export default function ConsultantsPage() {
   const router = useRouter()
   const session = useSession()
   const readerKind = session.company?.kind ?? null
+  // The section on the reader's own menu (round seven).
+  const section = usePageSection('/dashboard/consultants')
   const searchParams = useSearchParams()
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
@@ -1155,7 +1157,7 @@ export default function ConsultantsPage() {
               kind is a supplier's eyebrow on a client's page while the
               session loads (sign-up walk round three, 16). */}
           {readerKind != null && (
-            <p className="eyebrow">{sectionOfHref(readerKind, '/dashboard/consultants') ?? ''}</p>
+            <p className="eyebrow">{section ?? ''}</p>
           )}
           <h1>Consultants</h1>
           {readerKind != null && (

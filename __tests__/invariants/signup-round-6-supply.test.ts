@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { mayBrowseBench, benchClosedSays, notAtACompany } from '@/lib/bench-filter'
+import { mayBrowseBench, benchClosedSays, benchPageClosed, notAtACompany } from '@/lib/bench-filter'
 import { notYoursToRead } from '@/lib/releasing-soon'
 
 /**
@@ -150,10 +150,14 @@ describe('9 · somebody signed in at no company reads whose page it is, in a sen
   })
 
   it('the Bench page draws the no-company sentence alone, with no "People who granted you a listing" over it', () => {
+    // Since round seven the page asks benchPageClosed, which answers the
+    // no-company sentence first; the sentence is drawn alone above the header.
     const page = code(read('src/app/dashboard/bench/page.tsx'))
-    const gate = page.indexOf('if (!session.loading && session.company == null) {')
+    const gate = page.indexOf('if (closed) {')
     expect(gate).toBeGreaterThan(-1)
-    expect(page.slice(gate, gate + 160)).toContain('{benchClosedSays(null)}')
+    expect(page).toContain('company: session.company ?? null,')
     expect(gate).toBeLessThan(page.indexOf('People who granted you a listing'))
+    expect(benchPageClosed({ loading: false, company: null, client: { ok: true }, readsBench: true, readsProfit: true }))
+      .toBe(benchClosedSays(null))
   })
 })
