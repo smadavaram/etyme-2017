@@ -70,7 +70,7 @@ export interface Seat {
 }
 
 export interface RequisitionFacts {
-  /** Annualised value of the requisition, in cents. */
+  /** Annualized value of the requisition, in cents. */
   annualValueCents: number
   /**
    * Where that figure came from, and how it reads in a sentence.
@@ -689,7 +689,7 @@ export interface AnnualValue {
 }
 
 /**
- * Annualised value of a requisition, in cents, and where it came from.
+ * Annualized value of a requisition, in cents, and where it came from.
  *
  * A stated budget wins. It is what finance actually committed, and until
  * this existed the figure that decided who had to approve was derived

@@ -25,7 +25,7 @@ export interface Circumstances {
   classification?: string | null
   /** US_CITIZEN · GC · H1B · OPT · null when unknown. */
   workAuth?: string | null
-  /** Annualised value in cents. Bigger engagements carry more cover. */
+  /** Annualized value in cents. Bigger engagements carry more cover. */
   valueCents?: number | null
   /** Whether the person will be on the client's own premises. */
   onSite?: boolean

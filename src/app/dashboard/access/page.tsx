@@ -2,14 +2,15 @@
 
 import { readJson } from '@/lib/read-response'
 import { desksOffered } from '@/lib/access-grant'
+import { formatDay } from '@/lib/format-date'
 
 import { useEffect, useState, useCallback } from 'react'
 
 /**
  * Who can do what here.
  *
- * Somebody signed in on your company's domain, got a seat, and can see
- * nothing. This is where a colleague decides what they may do — and the
+ * Somebody signed in on your company's domain, got a Member seat, and sees
+ * only their own pages and what is addressed to them. This is where a colleague decides what they may do — and the
  * screen leads with them, because a person sitting unable to work is more
  * urgent than a tidy list of everybody else.
  *
@@ -75,7 +76,7 @@ function until(iso: string | null): string {
   if (d < 0) return `ended ${Math.abs(d)} days ago`
   if (d === 0) return 'ends today'
   if (d <= 30) return `${d} days left`
-  return `until ${iso.slice(0, 10)}`
+  return `until ${formatDay(iso)}`
 }
 
 /**
@@ -349,8 +350,9 @@ export default function AccessPage() {
         <Lbl>Settings</Lbl>
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Users & permissions</h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
-          Anyone signing in on your company&apos;s email domain joins automatically and
-          can see nothing until somebody here decides what they may do.
+          Anyone signing in on your company&apos;s email domain joins automatically as
+          a Member. A Member sees their own pages and what is sent to them, and none of
+          the firm&apos;s pages, until somebody here gives them a desk.
         </p>
       </div>
 

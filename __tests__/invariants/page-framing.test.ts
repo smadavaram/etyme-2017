@@ -777,3 +777,16 @@ describe('sign-up walk, round two', () => {
     expect(notificationsFraming(null, false)).toEqual({ eyebrow: '', title: 'Notifications', subtitle: '', kinds: [] })
   })
 })
+
+describe('sign-up walk, round three: the do-not-return list is headed by the reader’s own menu', () => {
+  it('a staffing vendor’s DNR list is headed Compliance, where its menu lists it, never Operate', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/blacklist')).toBe('Compliance')
+  })
+
+  it('the DNR list reads its eyebrow through usePageSection and draws nothing while the reader is loading', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/blacklist/page.tsx'), 'utf8')
+    expect(src).not.toContain('<div className="eyebrow mb-2">Operate</div>')
+    expect(src).toContain("usePageSection('/dashboard/blacklist')")
+    expect(src).toContain('{section && <div className="eyebrow mb-2">{section}</div>}')
+  })
+})

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Blacklist — working surface for managing blocked candidates and companies.
@@ -15,7 +16,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
  *
  * CLAUDE.md design system:
  *   Working surfaces: "Tables, search, filters, bulk, density"
- *   Section: Operate (vendor nav)
+ *   Section: whichever the reader's menu lists it under (Compliance on a
+ *   supplier's), read through usePageSection, never typed.
  */
 
 // ── Types ────────────────────────────────────────────
@@ -325,6 +327,9 @@ function AddBlacklistModal({
 
 export default function BlacklistPage() {
   const router = useRouter()
+  // The eyebrow names the section the reader's own menu lists this page
+  // under, and nothing while the reader's company is still loading.
+  const section = usePageSection('/dashboard/blacklist')
   const searchParams = useSearchParams()
 
   const [entries, setEntries] = useState<BlacklistEntry[]>([])
@@ -516,7 +521,7 @@ export default function BlacklistPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div>
-          <div className="eyebrow mb-2">Operate</div>
+          {section && <div className="eyebrow mb-2">{section}</div>}
           <h1 className="headline-serif text-heading text-etyme-ink mb-1">
             Do-not-return list
           </h1>

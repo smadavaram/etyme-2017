@@ -8,7 +8,7 @@ import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 import {
   assessGrant, reviewAccess, sensitivityOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
-  hasSignedIn, seatPlace, deskChangedNotice,
+  hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
 } from '@/lib/access-grant'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
 
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      // People who joined on the domain and can see nothing yet. This is
+      // People who joined on the domain and have no desk yet. This is
       // the queue that matters — somebody is sitting there unable to work.
       //
       // An invitation is not a sign-in: somebody invited who never came
@@ -219,7 +219,12 @@ export async function GET(request: NextRequest) {
       summary: {
         waiting: waiting.length,
         withAccess: withAccess.length,
-        needsAttention: review.length,
+        // Every review finding plus every Member waiting for a desk: a
+        // Member reads "give them a desk" on the list, so it is counted.
+        needsAttention: needsDecisionCount(
+          review,
+          withAccess.map(c => ({ contextId: c.id, roleName: c.role!.name })),
+        ),
         expired: review.filter(r => r.finding === 'EXPIRED').length,
         dormant: review.filter(r => r.finding === 'DORMANT').length,
       },

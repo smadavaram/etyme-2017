@@ -7,6 +7,8 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
+import { isDeskless } from '@/lib/nav-table'
+import { refusalSentence } from '@/lib/refusal-words'
 import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
@@ -43,6 +45,45 @@ export async function GET(request: NextRequest) {
     url.searchParams.get('clientCompanyId')
   )
   if (clientError) return clientError
+
+  // ── A seat with no desk reads no tenure ─────────────────────────────
+  //
+  // Sign-up walk, round three. A colleague who joins on the domain sits
+  // as Member, and Member holds no permission at all: the menu shows a
+  // desk-less seat its own pages and what is addressed to it, and none
+  // of the firm's — Tenure among them (`isDeskless` in lib/nav-table, the
+  // same rule the sidebar draws by). The route asked nothing, so the
+  // ledger the menu withheld opened by URL. It now refuses the same seat
+  // the menu does, and no other: every desk the Tenure link is shown to
+  // still reads it, which is why the gate is the menu's rule and not a
+  // permission the AP clerk who sees the link does not hold.
+  //
+  // A seated office is judged by the seat's role below, never by its own.
+  // The refusal is a refused read of every person the page would have
+  // shown, so it writes an AccessLog row per person, `allowed: false`,
+  // before the 403 goes out. Only ids are read to name them.
+  if (!seat && isDeskless(caller.permissions)) {
+    const says = refusalSentence('Reading the tenure ledger needs assignments.read.', {
+      kind: caller.company?.kind ?? null,
+      company: caller.company?.name ?? null,
+      what: 'The tenure ledger',
+    })
+    const would = await prisma.sellContract.findMany({
+      where: {
+        ...endClientFilter(clientCompany.id),
+        state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+      },
+      select: { personId: true },
+    })
+    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'TENURE_VIEW',
+      allowed: false,
+      reason: `Tenure view at ${clientCompany.name} refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+  }
 
   // ── What a seated office may read here ──────────────────────────────
   //

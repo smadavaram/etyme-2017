@@ -28,6 +28,7 @@
  */
 
 import { hasPermission } from '@/lib/permissions'
+import { formatDay } from '@/lib/format-date'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
@@ -316,6 +317,25 @@ export function deskLine(roleName: string): string {
 }
 
 /**
+ * How many seats need a decision on Users & permissions.
+ *
+ * Round three of the sign-up walk: the counter read "Needs a decision 0"
+ * while Lee sat on the list as "Member · give them a desk" and the owner
+ * had been emailed to give him one. A Member holds no permission, so a
+ * signed-in Member is somebody waiting for a desk, and that is a decision
+ * as much as an expired grant is. Counted once per seat: a Member who is
+ * also on the review is one decision, not two.
+ */
+export function needsDecisionCount(
+  review: { contextId: string }[],
+  withAccess: { contextId: string; roleName: string }[],
+): number {
+  const seats = new Set(review.map((r) => r.contextId))
+  for (const s of withAccess) if (s.roleName === MEMBER_DESK) seats.add(s.contextId)
+  return seats.size
+}
+
+/**
  * The desks offered in the picker. Owner only to an Owner: an admin who
  * could make somebody an Owner could make themselves one by proxy.
  */
@@ -426,7 +446,8 @@ export function deskChangedNotice(n: {
   expiresAt: Date | null
   landing: string
 }): { title: string; body: string; href: string } {
-  const runs = n.expiresAt ? ` It runs until ${n.expiresAt.toISOString().slice(0, 10)}.` : ''
+  // A day a person reads, never a machine date (round three, #6).
+  const runs = n.expiresAt ? ` It runs until ${formatDay(n.expiresAt)}.` : ''
   return {
     title: `You now have the ${n.roleName} desk`,
     body: `You now have the ${n.roleName} desk at ${n.companyName}. Sign in to see it.${runs}`,

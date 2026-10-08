@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   deskLine, desksOffered, assessDeskChange, waitingLine, inviteLetter,
-  hasSignedIn, seatPlace, deskChangedNotice,
+  hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
   MEMBER_DESK, INVITE_LINK_HOURS, type DeskChange, type InviteLetter,
 } from '@/lib/access-grant'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
@@ -186,9 +186,56 @@ describe('round two of the sign-up walk', () => {
     expect(n.body).toBe('You now have the Hiring Manager desk at Walk Co. Sign in to see it.')
     expect(n.href).toBe('/dashboard/program')
     const dated = deskChangedNotice({ roleName: 'Admin', companyName: 'Walk Co', expiresAt: new Date('2027-01-05T00:00:00Z'), landing: '/dashboard' })
-    expect(dated.body).toBe('You now have the Admin desk at Walk Co. Sign in to see it. It runs until 2027-01-05.')
+    expect(dated.body).toBe('You now have the Admin desk at Walk Co. Sign in to see it. It runs until Jan 5, 2027.')
     const route = read('src/app/api/access/route.ts')
     expect(route).toMatch(/type: 'SYSTEM',\s*channel: 'EMAIL',/)
     expect(route).toContain('data: { href: notice.href }')
+  })
+})
+
+/**
+ * Sign-up walk, round three, items 4, 5 and 6. Lee joined Walk Co on the
+ * domain as Member; the list said "Member · give them a desk", the owner
+ * was emailed to give him one, and the counter beside it read
+ * "Needs a decision 0".
+ */
+describe('sign-up walk, round three: Users & permissions counts and says what is true', () => {
+  it('a Member waiting for a desk is counted under "Needs a decision"', () => {
+    expect(needsDecisionCount([], [
+      { contextId: 'lee', roleName: 'Member' },
+      { contextId: 'rosa', roleName: 'Owner' },
+    ])).toBe(1)
+  })
+
+  it('a Member who is also on the review is one decision, not two', () => {
+    expect(needsDecisionCount(
+      [{ contextId: 'lee' }, { contextId: 'pat' }],
+      [{ contextId: 'lee', roleName: 'Member' }, { contextId: 'pat', roleName: 'Recruiter' }],
+    )).toBe(2)
+  })
+
+  it('a firm where everybody has a desk and nothing is on the review needs no decision', () => {
+    expect(needsDecisionCount([], [{ contextId: 'rosa', roleName: 'Owner' }])).toBe(0)
+  })
+
+  it('the counter on the page is the count of findings and waiting Members, not the findings alone', () => {
+    const route = read('src/app/api/access/route.ts')
+    expect(route).toContain('needsAttention: needsDecisionCount(')
+    expect(route).not.toContain('needsAttention: review.length')
+  })
+
+  it('the page says a domain colleague sees their own pages and what is sent to them, and none of the firm’s, never that they see nothing', () => {
+    const page = read('src/app/dashboard/access/page.tsx')
+    expect(page).not.toContain('can see nothing')
+    expect(page).toContain('A Member sees their own pages and what is sent to them, and none of')
+  })
+
+  it('a desk’s end date is printed as a day a person reads, on the page and in the email', () => {
+    const page = read('src/app/dashboard/access/page.tsx')
+    expect(page).toContain('until ${formatDay(iso)}')
+    expect(page).not.toContain('iso.slice(0, 10)')
+    const n = deskChangedNotice({ roleName: 'Recruiter', companyName: 'Walk Co', expiresAt: new Date('2027-07-05T00:00:00Z'), landing: '/dashboard' })
+    expect(n.body).toContain('It runs until Jul 5, 2027.')
+    expect(n.body).not.toMatch(/\d{4}-\d{2}-\d{2}/)
   })
 })

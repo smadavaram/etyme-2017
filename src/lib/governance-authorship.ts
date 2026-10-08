@@ -34,7 +34,7 @@ export interface RuleDraft {
   authorPersonId: string
   /** Who the rule sends things to, in rank order. */
   approverPersonIds: string[]
-  /** Above what annualised value this rule applies. Null means always. */
+  /** Above what annualized value this rule applies. Null means always. */
   thresholdCents: number | null
   name: string
 }

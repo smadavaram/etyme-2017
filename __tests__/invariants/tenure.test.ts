@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { isDeskless } from '@/lib/nav-table'
+import { refusalSentence, namesAPermission } from '@/lib/refusal-words'
 import { resolvedEndClientId, endClientFilter } from '@/lib/resolve-end-client'
 
 /**
@@ -315,5 +319,42 @@ describe('Tenure Invariants (Addendum E, CLAUDE.md)', () => {
         endClientCompanyId: null,
       })
     })
+  })
+})
+
+/**
+ * Sign-up walk, round three. Member holds no permission, and its menu
+ * shows none of the firm's pages — Tenure among them. The route asked
+ * nothing, so the ledger the menu withheld opened by URL.
+ */
+describe('a seat with no desk cannot read the tenure ledger by URL', () => {
+  const route = readFileSync(join(process.cwd(), 'src/app/api/tenure/route.ts'), 'utf8')
+  const get = route.slice(route.indexOf('export async function GET'))
+
+  it('the tenure route refuses a seat holding no permission, by the same rule the menu hides the link by', () => {
+    expect(isDeskless([])).toBe(true)
+    expect(isDeskless(['assignments.read'])).toBe(false)
+    expect(get).toContain('if (!seat && isDeskless(caller.permissions))')
+    expect(get).toMatch(/isDeskless\(caller\.permissions\)\) \{[\s\S]*?status: 403/)
+  })
+
+  it('the refusal is a sentence naming the desk to ask, never a permission key', () => {
+    const says = refusalSentence('Reading the tenure ledger needs assignments.read.', {
+      kind: 'CLIENT', company: 'Walk Co', what: 'The tenure ledger',
+    })
+    expect(namesAPermission(says)).toBe(false)
+    expect(says).toMatch(/^The tenure ledger is for the .+ desk at Walk Co\. Ask your company’s owner if you need it\.$/)
+    expect(get).toContain('refusalSentence(')
+  })
+
+  it('a refused read of the tenure ledger still writes an access log row for every person it would have shown', () => {
+    const refusal = get.slice(get.indexOf('if (!seat && isDeskless'), get.indexOf('status: 403'))
+    expect(refusal).toContain('logBulkAccess(')
+    expect(refusal).toContain('allowed: false')
+    expect(refusal).toContain("action: 'TENURE_VIEW'")
+  })
+
+  it('the refusal comes before any person’s tenure is read', () => {
+    expect(get.indexOf('if (!seat && isDeskless')).toBeLessThan(get.indexOf('const contracts = await prisma.sellContract.findMany'))
   })
 })
