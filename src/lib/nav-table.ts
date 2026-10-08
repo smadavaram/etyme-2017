@@ -172,6 +172,16 @@ const BENCH_PAY: NavItem = {
  */
 const SCOPED =
   'The route asks for no permission: it scopes itself to your company and shows what that company has.'
+/**
+ * Scoped, and narrowed for a seat with no desk. Sign-up walk round three
+ * (2026-10-08): these routes still name no one permission, so the link
+ * cannot be filtered on one, but a seat holding no desk is no longer
+ * answered the company's book — tenure, budget and the org view refuse it
+ * in a sentence, timesheets and contracts show it only the weeks and
+ * lines that name its holder.
+ */
+const SCOPED_TO_A_DESK =
+  'No one permission opens it: it scopes itself to your company, and a seat holding no desk that reads it is refused, or shown only the weeks and lines that name you.'
 const ABOUT_THEM = 'It answers this person about this person.'
 const ADDRESSED = 'Everybody reads what is addressed to them.'
 const DRAWN_FROM = 'No route of its own: the page is drawn from routes that each check their own reader.'
@@ -191,17 +201,17 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/loose-ends': SCOPED,
   '/dashboard/companies': SCOPED,
   '/dashboard/contacts': SCOPED,
-  '/dashboard/contracts': SCOPED,
-  '/dashboard/timesheets': SCOPED,
+  '/dashboard/contracts': SCOPED_TO_A_DESK,
+  '/dashboard/timesheets': SCOPED_TO_A_DESK,
   '/dashboard/packets': SCOPED,
   '/dashboard/outbound-pack': SCOPED,
   '/dashboard/program': SCOPED,
   '/dashboard/requisitions': SCOPED,
   '/dashboard/people': SCOPED,
-  '/dashboard/program/budget': SCOPED,
+  '/dashboard/program/budget': SCOPED_TO_A_DESK,
   '/dashboard/alumni': SCOPED,
-  '/dashboard/program/org': SCOPED,
-  '/dashboard/tenure': SCOPED,
+  '/dashboard/program/org': SCOPED_TO_A_DESK,
+  '/dashboard/tenure': SCOPED_TO_A_DESK,
   '/dashboard/identity': SCOPED,
   '/dashboard/reports': DRAWN_FROM,
   '/dashboard/scorecards': DRAWN_FROM,
@@ -213,7 +223,7 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/my-data': ABOUT_THEM,
   // Every seat reads the lines; what each person is paid is withheld
   // from a seat without consultants.cost (lib/money/pay-visibility).
-  '/dashboard/contracts?side=buy': SCOPED,
+  '/dashboard/contracts?side=buy': SCOPED_TO_A_DESK,
 }
 
 /** Why this link needs no permission, or null where it should name one. */
