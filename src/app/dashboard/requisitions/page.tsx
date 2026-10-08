@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -559,6 +560,7 @@ const REQ_COLUMNS: Column<Requisition>[] = [
 ]
 
 export default function RequisitionsPage() {
+  const section = usePageSection('/dashboard/requisitions')
   const [reqs, setReqs] = useState<Requisition[]>([])
   const [summary, setSummary] = useState<any>(null)
   // Whose book the list is. It is always a client's: the client's own
@@ -760,7 +762,7 @@ export default function RequisitionsPage() {
               client's menu. A menu item and the heading of the page it
               opens are one promise made twice, so the heading reads the
               word from lib/page-framing, where the menu's word lives. */}
-          <Lbl>Workforce</Lbl>
+          {section && <Lbl>{section}</Lbl>}
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
             {jobListWord(company?.kind, book && company && book.id !== company.id ? { seated: true, companyName: book.name } : null).plural}
           </h1>

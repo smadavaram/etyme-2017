@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 import { Thread, OWN_NOTES_ON_A_ROLE, toSupplierAboutRole } from '@/components/thread'
 import { suppliersOnRole } from '@/lib/threads'
 
@@ -443,6 +444,7 @@ function CheckedAgainst({ checked, approvalState }: {
 // ── Page ───────────────────────────────────────────────────
 
 export default function RequisitionDetail() {
+  const section = usePageSection('/dashboard/requisitions')
   const params = useParams()
   const id = String(params?.id ?? '')
   const [data, setData] = useState<any>(null)
@@ -566,9 +568,10 @@ export default function RequisitionDetail() {
       <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← {jobListWord(company?.kind).plural}</a>
 
       <div className="mt-4 mb-8">
-        {/* A code is not a heading. The team, where there is one; the cost
-            center is a fact below, in words. */}
-        <Lbl>{r.orgUnit?.name ? `Job request · ${r.orgUnit.name}` : 'Job request'}</Lbl>
+        {/* The heading is the list's section on the reader's own menu.
+            A code is not a heading: the team, where there is one, is the
+            subtitle; the cost center is a fact below, in words. */}
+        {section && <Lbl>{section}</Lbl>}
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">{r.title}</h1>
           {mayEdit(r) &&
@@ -583,6 +586,7 @@ export default function RequisitionDetail() {
         )}
         {/* Whose need it is, then who typed it — said twice only when
             they are two different people. */}
+        {r.orgUnit?.name && <div className="text-etyme-muted mt-2">Job request · {r.orgUnit.name}</div>}
         {whoFor(r) && <div className="text-etyme-muted mt-2">{whoFor(r)}</div>}
 
         {/* Over, said first. A filled job that still offered "Send to

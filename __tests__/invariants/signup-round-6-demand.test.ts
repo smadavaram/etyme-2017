@@ -240,6 +240,7 @@ describe('9: somebody with no company is told in a sentence, not a system phrase
     'app/api/program/agreements/[id]/end/route.ts',
     'app/api/submissions/route.ts',
     'app/api/timesheets/route.ts',
+    'app/api/program/units/route.ts',
     'lib/resolve-client-company.ts',
   ]
   for (const r of ROUTES) {
@@ -251,5 +252,74 @@ describe('9: somebody with no company is told in a sentence, not a system phrase
 
   it('Job requests does not tell somebody with no company that whoever set up her access can add it', () => {
     expect(src('app/api/requirements/route.ts')).toMatch(/!caller\.company && !desk\s*\?\s*notAtACompany\('Job requests'\)/)
+  })
+})
+
+describe('6: a page heads with the section of the reader’s own menu, never a word typed over it', () => {
+  const LISTS: [string, string][] = [
+    ['app/dashboard/decisions/page.tsx', '/dashboard/decisions'],
+    ['app/dashboard/invitations/page.tsx', '/dashboard/invitations'],
+    ['app/dashboard/leads/page.tsx', '/dashboard/leads'],
+    ['app/dashboard/people/page.tsx', '/dashboard/people'],
+    ['app/dashboard/program/org/page.tsx', '/dashboard/program/org'],
+    ['app/dashboard/program/seats/page.tsx', '/dashboard/program/seats'],
+    ['app/dashboard/requisitions/page.tsx', '/dashboard/requisitions'],
+  ]
+  const TYPED = /(className="(?:eyebrow|lbl)[^"]*"|<Lbl)>\s*(Today|Sell|Network|Governance|Workforce|Operate|Supply|Demand|Deliver|Grow|Procure)\b/
+
+  for (const [file, href] of LISTS) {
+    it(`${href} reads its heading from the reader’s own menu and draws none while the menu is loading`, () => {
+      const page = src(file)
+      expect(page).toContain(`usePageSection('${href}')`)
+      expect(page).toMatch(/\{section && <(p|Lbl)[^>]*>\{section\}<\/(p|Lbl)>\}/)
+      expect(page).not.toMatch(TYPED)
+    })
+  }
+
+  it('a person’s page heads with the section Contractors sits under, and says "Contractor" in the line under the name', () => {
+    const page = src('app/dashboard/people/[id]/page.tsx')
+    expect(page).toContain("usePageSection('/dashboard/people')")
+    expect(page).not.toContain('Network · Contractor')
+    expect(page).toContain("['Contractor', ...")
+  })
+
+  it('a job request’s page heads with the section of Job requests, and names its team under the title instead', () => {
+    const page = src('app/dashboard/requisitions/[id]/page.tsx')
+    expect(page).toContain("usePageSection('/dashboard/requisitions')")
+    expect(page).not.toMatch(/<Lbl>\{r\.orgUnit\?\.name \?/)
+    expect(page).toMatch(/\{r\.orgUnit\?\.name && <div[^>]*>Job request · \{r\.orgUnit\.name\}<\/div>\}/)
+  })
+
+  it('a job’s page heads with the section of the list the reader opened it from, and names the hiring company under the title instead', () => {
+    const page = src('app/dashboard/requirements/[id]/page.tsx')
+    expect(page).toMatch(/listHref = company\?\.kind === 'CLIENT' \? '\/dashboard\/requisitions' : '\/dashboard\/requirements'/)
+    expect(page).toContain('usePageSection(listHref)')
+    expect(page).not.toContain('<div className="eyebrow mb-2">{requirement.company.name}</div>')
+    expect(page).toContain('<p className="text-[13px] text-etyme-muted mb-2">{requirement.company.name}</p>')
+  })
+})
+
+describe('5, as the door says it: a client’s desk-less Member is refused Submissions in one sentence', () => {
+  it('the sentence names the page and the client, and no permission key', () => {
+    const says = clientSubmissionsRefused('Northbend Athletic')
+    expect(says).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
+    expect(namesAPermission(says)).toBe(false)
+  })
+
+  it('the submissions route says no system phrase to a reader with no company', () => {
+    expect(src('app/api/submissions/route.ts')).not.toContain('No company context')
+  })
+})
+
+describe('4, on the value column: a withheld rate values no week', () => {
+  it('a week whose rate is withheld from the reader is worth nothing on their screen, even where overtime was decided', () => {
+    const page = src('app/dashboard/timesheets/page.tsx')
+    const fn = page.slice(page.indexOf('function centsOf'), page.indexOf('// ── Status chip class'))
+    expect(fn.indexOf('if (t.rate.withheld) return null')).toBeGreaterThan(-1)
+    expect(fn.indexOf('if (t.rate.withheld) return null')).toBeLessThan(fn.indexOf('t.overtime.billableCents'))
+  })
+
+  it('the value cell of a withheld week says who reads the rate, rather than a bare dash', () => {
+    expect(src('app/dashboard/timesheets/page.tsx')).toContain("{row.rate.withheld ? RATE_WITHHELD_CELL : '—'}")
   })
 })

@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 import { Star } from '@/components/network-view'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -55,6 +56,7 @@ const money = (c: number | null) => (c == null ? '—' : `$${(c / 100).toFixed(c
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—')
 
 export default function PersonPage() {
+  const section = usePageSection('/dashboard/people')
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<Person | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -108,13 +110,13 @@ export default function PersonPage() {
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="eyebrow">Network · Contractor</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1 className="headline-serif text-[30px] leading-tight flex items-center gap-3">
             {person.name}
             <Star on={data.favorite} onClick={star} name={person.name} />
           </h1>
           <p className="mt-1 text-[13px] text-etyme-muted">
-            {[person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean).join(' · ') || 'No profile on file yet.'}
+            {['Contractor', ...([person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean) as string[])].join(' · ')}{!person.headline && !person.location && !person.workAuth ? ' · No profile on file yet.' : ''}
           </p>
           {person.skills.length > 0 && <p className="mt-1 text-[12px] text-etyme-faint">{person.skills.join(' · ')}</p>}
         </div>

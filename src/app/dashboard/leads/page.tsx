@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -276,6 +277,7 @@ function Seat({ seat, onWrittenUp }: { seat: Opening; onWrittenUp: (note: string
 // ── The page ───────────────────────────────────────────────
 
 export default function LeadsPage() {
+  const section = usePageSection('/dashboard/leads')
   const [seats, setSeats] = useState<Opening[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -318,7 +320,7 @@ export default function LeadsPage() {
   return (
     <div className="mx-auto max-w-[880px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Sell</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight" style={{ textWrap: 'balance' } as any}>
           Leads
         </h1>

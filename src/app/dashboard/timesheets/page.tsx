@@ -147,6 +147,10 @@ const STATUS_FILTERS: StatusFilter[] = ['ALL', 'OPEN', 'SUBMITTED', 'APPROVED', 
  * zero is a wrong number wearing a right one's clothes.
  */
 function centsOf(t: Timesheet): number | null {
+  // A rate withheld from this reader values nothing, whatever else the
+  // row carries: the value is the rate times the hours, so it is the
+  // rate's to withhold too.
+  if (t.rate.withheld) return null
   if (t.overtime) return t.overtime.billableCents
   if (t.rate.cents == null) return null
   return t.totalHours * t.rate.cents
@@ -940,7 +944,7 @@ export default function TimesheetsPage() {
         if (cents == null) {
           return (
             <span className="text-[11px] text-etyme-faint" title={row.rate.says ?? ''}>
-              —
+              {row.rate.withheld ? RATE_WITHHELD_CELL : '—'}
             </span>
           )
         }

@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { rateFindingSays } from './rate-finding'
@@ -113,6 +114,7 @@ const TIER_CHIP: Record<VendorRow['tier'], string> = {
 // ── Page ───────────────────────────────────────────────
 
 export default function ProgramOrgPage() {
+  const section = usePageSection('/dashboard/program/org')
   const { company, loading: sessionLoading } = useSession()
   const [data, setData] = useState<OrgData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -184,7 +186,7 @@ export default function ProgramOrgPage() {
     <>
       {/* Head — the finding, stated as prose */}
       <div className="page-head mb-8">
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="text-balance">
           {summary.managers} manager{summary.managers === 1 ? '' : 's'}.{' '}
           {summary.vendors} vendor{summary.vendors === 1 ? '' : 's'}.

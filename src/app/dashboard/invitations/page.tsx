@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { mayAnswerWithCv } from '@/app/api/submissions/own-only'
@@ -448,6 +449,7 @@ function InvitationCard({ inv, onRespond, onSent }: {
 // ── Page ───────────────────────────────────────────────────
 
 export default function InvitationsPage() {
+  const section = usePageSection('/dashboard/invitations')
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -505,7 +507,7 @@ export default function InvitationsPage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <Lbl>Sell</Lbl>
+        {section && <Lbl>{section}</Lbl>}
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
           Shared with you
         </h1>

@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import Link from 'next/link'
@@ -117,6 +118,7 @@ function timeAgo(dateStr: string): string {
 // ── Page ─────────────────────────────────────────────
 
 export default function DecisionsPage() {
+  const section = usePageSection('/dashboard/decisions')
   const session = useSession()
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -273,7 +275,7 @@ export default function DecisionsPage() {
       {/* Head — decision surface */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Today</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1>Needs attention</h1>
           <p>Items that need your attention right now — approvals, reviews, and actions across all working surfaces.</p>
         </div>

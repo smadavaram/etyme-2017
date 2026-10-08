@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
@@ -113,6 +114,7 @@ const TONE: Record<string, string> = {
 }
 
 export default function PeoplePage() {
+  const section = usePageSection('/dashboard/people')
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [pending, setPending] = useState<Pending[]>([])
@@ -279,7 +281,7 @@ export default function PeoplePage() {
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Network</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1 className="headline-serif text-[30px] leading-tight">Contractors</h1>
           <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
             Everyone who has been put in front of you, one entry each, merged across suppliers.

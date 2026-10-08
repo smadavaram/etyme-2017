@@ -941,13 +941,6 @@ describe('sign-up walk, round six: a page is headed only by a section the reader
  */
 describe('sign-up walk, round six: pages that type a section name over themselves', () => {
   const STILL_TYPED = new Set<string>([
-    'src/app/dashboard/decisions/page.tsx',
-    'src/app/dashboard/invitations/page.tsx',
-    'src/app/dashboard/leads/page.tsx',
-    'src/app/dashboard/people/page.tsx',
-    'src/app/dashboard/program/org/page.tsx',
-    'src/app/dashboard/program/seats/page.tsx',
-    'src/app/dashboard/requisitions/page.tsx',
   ])
 
   function typedNow(): string[] {

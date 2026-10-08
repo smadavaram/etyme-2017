@@ -117,13 +117,13 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firm�
     }
   })
 
-  it('the firm’s submissions reach him only as the times he was put forward, which is none, with no rate', async () => {
+  it('a client’s Member with no desk is refused Submissions in the door’s words, because a client puts nobody forward', async () => {
     as(MO)
     for (const direction of ['sent', 'received']) {
       const r = await get('submissions', `?direction=${direction}&companyId=${nike}&limit=50`)
-      expect(r.status, r.text.slice(0, 200)).toBe(200)
-      expect(r.body.data.desk.ownOnly).toBe(true)
-      expect(r.body.data.submissions).toEqual([])
+      expect(r.status, r.text.slice(0, 200)).toBe(403)
+      expect(r.body.error.code).toBe('NO_DESK')
+      expect(r.body.error.message).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
     }
   })
 

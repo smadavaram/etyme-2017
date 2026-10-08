@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
@@ -118,6 +119,10 @@ export default function RequirementDetailPage() {
   // The word this reader's menu uses for the list — "Job requests" on a
   // client's, the supplier's own word on a supplier's (`lib/page-framing`).
   const listWord = jobListWord(company?.kind).plural
+  // The heading is the section of the list this page was opened from, on
+  // the reader's own menu; whose job it is moves under the title.
+  const listHref = company?.kind === 'CLIENT' ? '/dashboard/requisitions' : '/dashboard/requirements'
+  const section = usePageSection(listHref)
   const [requirement, setRequirement] = useState<Requirement | null>(null)
   // Whether this reader raised the job — the matches route answers it.
   const [raiser, setRaiser] = useState(false)
@@ -248,10 +253,11 @@ export default function RequirementDetailPage() {
       <div className="panel mb-6">
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
-            <div className="eyebrow mb-2">{requirement.company.name}</div>
-            <h1 className="headline-serif text-heading text-etyme-ink mb-2">
+            {section && <div className="eyebrow mb-2">{section}</div>}
+            <h1 className="headline-serif text-heading text-etyme-ink mb-1">
               {requirement.title}
             </h1>
+            <p className="text-[13px] text-etyme-muted mb-2">{requirement.company.name}</p>
             {/* A sentence, not a code. Somebody who opens a role that was
                 withdrawn should read why on the way in, rather than find
                 out by submitting into it. */}

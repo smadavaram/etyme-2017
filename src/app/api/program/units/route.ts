@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { seatedDesk } from '@/lib/resolve-client-company'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * POST /api/program/units   { name, kind, parentId? }
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
   const desk = await seatedDesk(caller)
   if (!desk) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context.' } },
+      { error: { code: 'FORBIDDEN', message: notAtACompany('Units') } },
       { status: 403 }
     )
   }

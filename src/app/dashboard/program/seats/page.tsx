@@ -1,5 +1,6 @@
 'use client'
 
+import { usePageSection } from '@/components/page-section'
 import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 
@@ -41,6 +42,7 @@ const on = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 
 export default function ProgramSeatsPage() {
+  const section = usePageSection('/dashboard/program/seats')
   const [seats, setSeats] = useState<Seat[]>([])
   const [side, setSide] = useState<'CLIENT' | 'OFFICE'>('CLIENT')
   const [nothingYet, setNothingYet] = useState<string | null>(null)
@@ -117,7 +119,7 @@ export default function ProgramSeatsPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <div>
-        <p className="lbl">Governance</p>
+        {section && <p className="lbl">{section}</p>}
         <h1 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-etyme-ink text-balance">
           Program office
         </h1>
