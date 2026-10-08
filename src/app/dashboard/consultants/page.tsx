@@ -924,6 +924,12 @@ export default function ConsultantsPage() {
    * nought over five real people, and to say where they are.
    */
   const [onPayroll, setOnPayroll] = useState<number | null>(null)
+  /**
+   * Whether the list has answered. The counters read "Total 0" while the
+   * read was out and above a refusal, a nought nobody had counted (sign-up
+   * walk round four, 21). They wait for an answer and go on a refusal.
+   */
+  const [counted, setCounted] = useState(false)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -954,6 +960,7 @@ export default function ConsultantsPage() {
         rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
       }))
       setConsultants(mapped)
+      setCounted(true)
       // The seat's own permissions: the list answer does not carry them, so
       // an owner holding everything read "Restricted" over their own people.
       setHasCostPermission(hasPermission(session.permissions, 'consultants.cost'))
@@ -968,6 +975,7 @@ export default function ConsultantsPage() {
     } catch (err: any) {
       setError(err.message)
       setConsultants([])
+      setCounted(false)
     } finally {
       setLoading(false)
     }
@@ -1147,7 +1155,8 @@ export default function ConsultantsPage() {
         </div>
       )}
 
-      {/* Stats row */}
+      {/* Stats row — only once the list has answered */}
+      {counted && !error && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Total</p>
@@ -1167,6 +1176,7 @@ export default function ConsultantsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">ready to deploy</p>
         </div>
       </div>
+      )}
 
       {/* Data table */}
       <ListSurface<Consultant>

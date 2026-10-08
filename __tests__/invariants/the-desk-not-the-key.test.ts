@@ -173,9 +173,7 @@ const STILL_SAYING_A_KEY: Record<string, string> = {
   'src/app/api/profitability/master-contracts/route.ts': 'etyme-money',
   'src/app/api/purchase-orders/[id]/discounts/route.ts': 'etyme-money',
   'src/app/api/purchase-orders/route.ts': 'etyme-money',
-  // etyme-supply
-  'src/app/api/bench/share/route.ts': 'etyme-supply',
-  'src/app/api/releasing-soon/route.ts': 'etyme-supply',
+  // etyme-supply: none since 2026-10-08 (sign-up walk round four, 8).
 }
 
 /**

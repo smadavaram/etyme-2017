@@ -193,10 +193,29 @@ function asWritten(key: string, seen: Map<string, string>): string {
 }
 
 export function skillGap(
-  demand: { skills: string[] }[],
+  /**
+   * Null means the job requests could not be read — a refusal, not an
+   * empty list. Read as empty, every skill on the bench came out "spare"
+   * and the page told a desk with no access that nothing was wanted.
+   */
+  demand: { skills: string[] }[] | null,
   /** Null means the supply side could not be read at all — not that it is empty. */
   supply: SupplySide | null
 ): SkillGapReading {
+  if (demand === null) {
+    return {
+      rows: [],
+      skillsTracked: null,
+      inDeficit: null,
+      people: supply ? supply.people.length : null,
+      peopleWithSkills: supply ? supply.people.filter((p) => p.skills.some((s) => s.trim())).length : null,
+      comparable: false,
+      says:
+        'The gap is not shown, because the job requests could not be read. ' +
+        'The people side alone reads as everybody spare, which would be invented.',
+    }
+  }
+
   // Remember the first spelling somebody actually typed, so the screen
   // reads "ERP finance" rather than "Erp finance".
   const written = new Map<string, string>()

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
-import { hasPermission } from '@/lib/permissions'
+import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
@@ -27,7 +27,17 @@ export async function POST(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Requires consultants.write permission' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Sharing your bench with another firm',
+            needs: 'consultants.write',
+            kind: caller.company?.kind ?? null,
+            companyName: caller.company?.name ?? null,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

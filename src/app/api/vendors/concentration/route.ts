@@ -6,7 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import {
-  concentration, concentrationReport, clientExposures, dimensionsFor,
+  concentration, concentrationReport, clientExposures, dimensionsFor, concentrationRefusal,
   type Concentration, type Exposure, type Owners,
 } from '@/lib/concentration'
 
@@ -98,16 +98,21 @@ export async function GET(request: NextRequest) {
   // It is checked per section on the screen, not per page: `dashboard/
   // scorecards` loads standing, scorecards and shape independently, so a
   // refusal here leaves the supplier-standing half of that page working.
+  // A client reads the supplier share only: it raises no bills, so a
+  // share of its revenue by client or by person is a supplier's measure.
+  // Decided before the gate, because the refusal is written to the same
+  // reader as the answer (sign-up walk round four, 8): a client's Member
+  // read "what the firm turned over … one client" over a page about what
+  // it buys.
+  const wanted = dimensionsFor(caller.company!.kind)
+  const sells = wanted.includes('CLIENT')
+
   if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
       {
         error: {
           code: 'FORBIDDEN',
-          message:
-            'You cannot see the shape of the book here — what the firm turned over this ' +
-            'year and how much of it rides on one client, one supplier or one person. ' +
-            'Supplier standing above does not need it. Ask whoever manages roles here for ' +
-            'the profitability desk if this is your job.',
+          message: concentrationRefusal(sells, caller.company?.kind ?? null, caller.company?.name ?? null),
         },
       },
       { status: 403 }
@@ -115,10 +120,6 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
-  // A client reads the supplier share only: it raises no bills, so a
-  // share of its revenue by client or by person is a supplier's measure.
-  const wanted = dimensionsFor(caller.company!.kind)
-  const sells = wanted.includes('CLIENT')
   const now = new Date()
   const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000)
   const gaps: string[] = []

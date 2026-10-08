@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { onlyHereSays } from '@/lib/scorecard'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -157,6 +158,10 @@ function Fig({ label, f, suffix = '%' }: { label: string; f: Figure; suffix?: st
 }
 
 export default function ScorecardsPage() {
+  // The section this page sits under on the reader's own menu, and
+  // nothing while the session loads. It typed "Governance", which a
+  // program office reads under Supply (sign-up walk round four, 16).
+  const section = usePageSection('/dashboard/scorecards')
   const [cards, setCards] = useState<Card[]>([])
   const [summary, setSummary] = useState('')
   const [orderedBy, setOrderedBy] = useState('')
@@ -228,7 +233,7 @@ export default function ScorecardsPage() {
   return (
     <div className="mx-auto max-w-[860px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">
           Suppliers, and what they cost you if they stop
         </h1>
@@ -454,12 +459,17 @@ export default function ScorecardsPage() {
         <h2 className="headline-serif text-[20px] leading-tight">What they are like to work with</h2>
       </div>
 
-      <div className="border-b border-etyme-rule pb-4">
-        <p className="text-[14px] text-etyme-ink">{summary}</p>
-        <p className="mt-1 text-[12px] text-etyme-faint">
-          Last {Math.round(windowDays / 30)} months. {orderedBy}
-        </p>
-      </div>
+      {/* Said only once the list has answered. While it loads, and above
+          a refusal, a window and an order are a claim about a list nobody
+          has read (sign-up walk round four, 21). */}
+      {!loading && !error && (
+        <div className="border-b border-etyme-rule pb-4">
+          <p className="text-[14px] text-etyme-ink">{summary}</p>
+          <p className="mt-1 text-[12px] text-etyme-faint">
+            Last {Math.round(windowDays / 30)} months. {orderedBy}
+          </p>
+        </div>
+      )}
 
       {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
 

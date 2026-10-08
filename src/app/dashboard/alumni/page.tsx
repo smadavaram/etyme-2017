@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Alumni — "Worked here before"
@@ -174,6 +175,10 @@ function buildColumns(onAskBack: (person: AlumniPerson) => void, acting: boolean
 type StateFilter = 'all' | 'placed' | 'available' | 'ended'
 
 export default function AlumniPage() {
+  // The section the reader's own menu puts this page under — Workforce
+  // at a client — and nothing while the session loads. It typed
+  // "Program" (sign-up walk round four, 16).
+  const section = usePageSection('/dashboard/alumni')
   const [data, setData] = useState<AlumniData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -258,7 +263,7 @@ export default function AlumniPage() {
           Loading is its own state. So the eyebrow stands — it names the
           section and asserts nothing — and both sentences wait. */}
       <div className="page-head">
-        <p className="eyebrow">Program</p>
+        {section && <p className="eyebrow">{section}</p>}
         {data ? (
           <>
             <h1>
@@ -278,11 +283,19 @@ export default function AlumniPage() {
               </p>
             )}
           </>
+        ) : error ? (
+          // A refusal is the whole answer. It is not drawn under a row of
+          // noughts, which read as "nobody has worked here" (round four, 21).
+          <p className="text-etyme-attention">{error}</p>
         ) : (
           <p className="text-etyme-muted">Reading everyone who has worked here…</p>
         )}
       </div>
 
+      {/* Stats, the filters and the list wait for the first answer.
+          While the read is out a count is not yet a count, and after a
+          refusal there is nothing to count. */}
+      {data && (<>
       {/* Stats */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[120px]">
@@ -340,6 +353,8 @@ export default function AlumniPage() {
           row.state === 'available' ? '!bg-[#EDEFFC]/30' : ''
         }
       />
+
+      </>)}
 
       {/* Toast */}
       {toast && (

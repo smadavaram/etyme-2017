@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hasPermission } from '@/lib/permissions'
+import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -82,9 +82,13 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message:
-            'You cannot see the counterparty register. Ask whoever manages suppliers here ' +
-            'for the vendors.read permission.',
+          // The desk, never the key (sign-up walk round four, 8).
+          message: askTheDesk({
+            doing: 'Reading the standing of the firms you trade with',
+            needs: 'vendors.read',
+            kind: caller.company?.kind ?? null,
+            companyName: caller.company?.name ?? null,
+          }),
         },
       },
       { status: 403 }

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
+  askTheDesk,
   hasPermission,
   canReadPayRate,
   canReadBillRate,
@@ -45,7 +46,7 @@ export async function GET(
           actorCompanyId: caller.company?.id ?? null,
           action: 'PROFILE_VIEW',
           allowed: false,
-          reason: 'Caller lacks consultants.read permission',
+          reason: 'Refused: the reader’s desk does not read the people this firm has on its books.',
         },
       })
     }
@@ -316,7 +317,20 @@ export async function PATCH(
         const canSetRate = isSubject || hasPermission(caller.permissions, 'consultants.cost')
         if (!canSetRate) {
           return NextResponse.json(
-            { error: { code: 'FORBIDDEN', message: 'Only the consultant or someone with consultants.cost can set rateFloor', field: 'rateFloor' } },
+            {
+              error: {
+                code: 'FORBIDDEN',
+                message:
+                  'Only the consultant can set their own lowest rate, or a desk that sees what each person costs. ' +
+                  askTheDesk({
+                    doing: 'Setting somebody else’s lowest rate',
+                    needs: 'consultants.cost',
+                    kind: caller.company?.kind ?? null,
+                    companyName: caller.company?.name ?? null,
+                  }),
+                field: 'rateFloor',
+              },
+            },
             { status: 403 }
           )
         }

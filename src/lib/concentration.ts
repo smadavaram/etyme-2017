@@ -45,6 +45,7 @@
 
 import { partiesOf, type PartiesInput } from '@/lib/money/invoice-parties'
 import { amount as formatAmount } from '@/lib/money-display'
+import { askTheDesk } from '@/lib/permissions'
 
 /** What is being concentrated. */
 export type Dimension = 'CLIENT' | 'SUPPLIER' | 'PERSON'
@@ -590,4 +591,17 @@ export function clientExposures(rows: readonly BilledRow[]): ClientExposures {
           `${unattributed === 1 ? 'It is' : 'They are'} left out of the shares above, ` +
           `rather than added to whichever client was loaded first.`,
   }
+}
+
+/**
+ * The refusal, in the reader's own words, naming the desk and never the
+ * key. A firm that sells is told about its turnover; a client is told
+ * about what it buys and from how many suppliers, because it has no
+ * turnover here and no clients.
+ */
+export function concentrationRefusal(sells: boolean, kind: string | null, companyName: string | null): string {
+  const doing = sells
+    ? 'Reading what the firm turned over this year and how much of it rides on one client, one supplier or one person'
+    : 'Reading what you buy from your suppliers this year, from how many of them, and how much runs through one'
+  return askTheDesk({ doing, needs: ['margin.read', 'pnl.read'], kind, companyName })
 }

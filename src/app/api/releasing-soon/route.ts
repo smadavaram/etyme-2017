@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { askTheDesk, hasPermission } from '@/lib/permissions'
 import { maySeeOutside, mayNameTheClient } from '@/lib/walls'
 import { emit } from '@/lib/events'
 import { logAccess } from '@/lib/access-log'
@@ -43,7 +43,17 @@ export async function GET(request: NextRequest) {
   }
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Seeing who is coming free needs consultants.read' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Seeing who is coming free',
+            needs: 'consultants.read',
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
       { status: 403 }
     )
   }

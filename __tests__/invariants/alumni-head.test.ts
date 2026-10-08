@@ -46,11 +46,14 @@ describe('The alumni page before the answer is in', () => {
     expect(head.indexOf('{data ? (')).toBeLessThan(head.indexOf('people have'))
   })
 
-  it('the section it belongs to is named while it loads, because a label asserts nothing', () => {
-    // The eyebrow says where the reader is. It is true before any fetch
-    // returns, so it stays, and the page says plainly what it is doing.
+  it('the section it belongs to is the one the reader’s own menu names, and the page says plainly what it is doing while it reads', () => {
+    // It typed "Program", which no client's menu says (sign-up walk
+    // round four, 16). The section is read off the menu, and only once
+    // the session says who is reading.
     const head = PAGE.slice(PAGE.indexOf('page-head'), PAGE.indexOf('{/* Stats */}'))
-    expect(head).toContain('<p className="eyebrow">Program</p>')
+    expect(PAGE).not.toContain('<p className="eyebrow">Program</p>')
+    expect(PAGE).toContain("usePageSection('/dashboard/alumni')")
+    expect(head).toContain('{section && <p className="eyebrow">{section}</p>}')
     expect(head.indexOf('eyebrow')).toBeLessThan(head.indexOf('{data ? ('))
     expect(head).toContain('Reading everyone who has worked here…')
   })

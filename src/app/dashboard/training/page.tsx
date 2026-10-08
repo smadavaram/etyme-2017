@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { readBench } from '@/lib/bench-filter'
 import { skillGap, fieldable, type SkillGapReading } from '@/lib/training'
 import { amount } from '@/lib/money-display'
-import { sectionOfHref } from '@/lib/page-framing'
-import { useCompanyKind } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Training funnel — Talent section (vendor)
@@ -53,12 +52,21 @@ interface FunnelStage {
 // ── Page ─────────────────────────────────────────────
 
 export default function TrainingPage() {
-  const companyKind = useCompanyKind()
+  // The reader's own menu section, seat included, and nothing while the
+  // session loads (sign-up walk round four, 16).
+  const section = usePageSection('/dashboard/training')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [gap, setGap] = useState<SkillGapReading | null>(null)
   const [funnel, setFunnel] = useState<FunnelStage[]>([])
-  const [totalReqs, setTotalReqs] = useState(0)
+  /**
+   * Open job requests, or null where they could not be read. A refused
+   * read used to stand in as an empty list, so the counter said 0 and
+   * the gap read as nothing wanted (sign-up walk round four, 21).
+   */
+  const [totalReqs, setTotalReqs] = useState<number | null>(null)
+  /** Said on the screen when the job requests could not be read. */
+  const [reqsWhy, setReqsWhy] = useState<string | null>(null)
   /** Said on the screen when the bench could not be read at all. */
   const [benchWhy, setBenchWhy] = useState<string | null>(null)
 
@@ -67,15 +75,20 @@ export default function TrainingPage() {
     setError(null)
     try {
       const [reqsRes, benchRes, payrollRes] = await Promise.all([
-        fetch('/api/requirements?status=OPEN&limit=100').then(r => r.ok ? r.json() : { data: { requirements: [] } }),
+        fetch('/api/requirements?status=OPEN&limit=100').then(async (r) => {
+          const body = await r.json().catch(() => null)
+          return r.ok ? body : { refused: body?.error?.message ?? 'The job requests could not be read.' }
+        }),
         fetch('/api/bench?scope=company').then(r => r.ok ? r.json() : null),
         // The firm's own people. A GSI's whole supply is here and none of
         // it is a listing — see `rosterFor` in `app/api/bench`.
         fetch('/api/bench?scope=payroll').then(r => r.ok ? r.json() : null),
       ])
 
-      const reqs = reqsRes.data?.requirements ?? []
-      setTotalReqs(reqs.length)
+      const reqsRead = !reqsRes?.refused && Array.isArray(reqsRes?.data?.requirements)
+      const reqs = reqsRead ? reqsRes.data.requirements : null
+      setTotalReqs(reqs ? reqs.length : null)
+      setReqsWhy(reqsRead ? null : reqsRes?.refused ?? 'The job requests could not be read.')
 
       // One door. This page read `data.listings` for its whole life and
       // the route never sent one.
@@ -146,7 +159,7 @@ export default function TrainingPage() {
       {/* Header */}
       <div className="page-head mb-6">
         {/* The section this page sits under on the reader's own menu. */}
-        <p className="eyebrow">{sectionOfHref(companyKind, '/dashboard/training') ?? ''}</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Training</h1>
         <p>
           What clients are asking for, against the people you could field — your bench
@@ -161,14 +174,17 @@ export default function TrainingPage() {
           {benchWhy && (
             <p className="text-[12px] text-etyme-attention mt-1.5">{benchWhy}</p>
           )}
+          {reqsWhy && (
+            <p className="text-[12px] text-etyme-attention mt-1.5">{reqsWhy}</p>
+          )}
         </div>
       )}
 
       {/* Stats row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="panel">
-          <p className="stat-label">Open requirements</p>
-          <p className="stat-value text-etyme-ink">{totalReqs}</p>
+          <p className="stat-label">Open job requests</p>
+          <p className="stat-value text-etyme-ink">{figure(totalReqs)}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">asking for a skill</p>
         </div>
         <div className="panel">
@@ -301,7 +317,7 @@ export default function TrainingPage() {
           Your bench and your payroll →
         </Link>
         <Link href="/dashboard/requirements" className="btn-secondary">
-          View requirements →
+          View job requests →
         </Link>
       </div>
     </div>
@@ -339,6 +355,8 @@ interface CourseRow {
  */
 function Courses() {
   const [courses, setCourses] = useState<CourseRow[]>([])
+  /** Whether the course list has answered once. Until it has, there is no count. */
+  const [coursesRead, setCoursesRead] = useState(false)
   const [people, setPeople] = useState<{ id: string; name: string; kind: 'BENCH' | 'EMPLOYEE' }[]>([])
   const [newCourse, setNewCourse] = useState({ title: '', category: 'TECH', duration: '', price: '' })
   const [enroll, setEnroll] = useState({ courseId: '', personId: '' })
@@ -355,6 +373,7 @@ function Courses() {
       ])
       if (c?.error) throw new Error(c.error.message)
       setCourses(c?.data?.courses ?? [])
+      setCoursesRead(true)
 
       // Who can be enrolled on a course.
       //
@@ -408,6 +427,20 @@ function Courses() {
   }
 
   const tone = (s: string) => s === 'COMPLETED' ? 'chip--verified' : s === 'IN_PROGRESS' ? 'chip--action' : s === 'DROPPED' ? 'chip--attention' : 'chip--passive'
+
+  // Before the list has answered, a count of nought is not a count; after
+  // a refusal there is nothing to count and nothing to add to. The
+  // sentence stands alone (sign-up walk round four, 21).
+  if (!coursesRead) {
+    return (
+      <div className="panel mb-6">
+        <p className="stat-label mb-3">Courses</p>
+        {err
+          ? <p className="text-sm text-etyme-attention">{err}</p>
+          : <p className="text-sm text-etyme-muted">Reading the courses…</p>}
+      </div>
+    )
+  }
 
   return (
     <div className="panel mb-6">

@@ -394,7 +394,9 @@ export default function RolloffPage() {
         </div>
       </div>
 
-      {/* Window selector */}
+      {/* Window selector — not offered above a refusal, where no window
+          changes the answer (sign-up walk round four, 21). */}
+      {!error && (
       <div className="flex items-center gap-3 mb-6">
         <span className="text-xs font-semibold text-etyme-muted">Window:</span>
         {([30, 60, 90] as const).map((d) => (
@@ -411,6 +413,7 @@ export default function RolloffPage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Summary stats */}
       {!loading && total > 0 && (
