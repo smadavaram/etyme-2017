@@ -221,7 +221,10 @@ export async function POST(
         ? `Another record for ${domainHeldBy.name} is already here on the same ` +
           `domain. This one stays separate until somebody joins them.`
         : null,
-      landing: '/dashboard/invitations',
+      // A new owner opens setup at "How you work", whichever door they
+      // signed in by — the password claim already did (sign-up walk,
+      // round two).
+      landing: '/start',
     },
   })
 }

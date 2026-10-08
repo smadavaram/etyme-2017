@@ -50,3 +50,12 @@ describe('the claim page speaks to a firm with no account yet', () => {
     expect(jobsWaiting(3, 'Northbend Athletic')).toBe('3 jobs are waiting for you from Northbend Athletic.')
   })
 })
+
+describe('a firm that has just claimed its account opens setup', () => {
+  const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/claim/[token]/route.ts'), 'utf8')
+
+  it('a newly claimed owner is sent to setup, whichever door they signed in by, never to invitations', () => {
+    expect(ROUTE).toContain("landing: '/start'")
+    expect(ROUTE).not.toContain("landing: '/dashboard/invitations'")
+  })
+})
