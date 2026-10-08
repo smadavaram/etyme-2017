@@ -364,3 +364,49 @@ describe('the bell and the account\'s own emails', () => {
     expect(f.NOT.OR[0]).toEqual({ type: ACCOUNT_MAIL })
   })
 })
+
+// ── One base address for every mailed link ──────────────────
+//
+// appLink read NEXT_PUBLIC_APP_URL then VERCEL_URL and ignored
+// NEXTAUTH_URL, while every other mailed link came from appUrl(). A Teams
+// button and the email beside it could point at two different deploys.
+
+import { appLink } from '@/lib/notify'
+import { appUrl } from '@/lib/supplier-link'
+
+describe('the address a notice links to', () => {
+  const KEYS = ['NEXTAUTH_URL', 'NEXT_PUBLIC_APP_URL', 'VERCEL_URL'] as const
+  let saved: Record<string, string | undefined> = {}
+  beforeEach(() => {
+    saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]))
+    for (const k of KEYS) delete process.env[k]
+  })
+  const restore = () => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k]
+      else process.env[k] = saved[k]
+    }
+  }
+
+  it('a notice\'s link is built from the one base address every other mailed link uses', () => {
+    try {
+      process.env.NEXTAUTH_URL = 'https://app.etyme.example/'
+      process.env.NEXT_PUBLIC_APP_URL = 'https://other.etyme.example'
+      process.env.VERCEL_URL = 'etyme-abc123.vercel.app'
+      expect(appLink('/dashboard/timesheets')).toBe(`${appUrl()}/dashboard/timesheets`)
+      expect(appLink('/dashboard/timesheets')).toBe('https://app.etyme.example/dashboard/timesheets')
+    } finally {
+      restore()
+    }
+  })
+
+  it('a notice has no link when the one base address is not https', () => {
+    try {
+      expect(appLink('/dashboard/timesheets')).toBeNull()
+      process.env.NEXTAUTH_URL = 'http://localhost:3000'
+      expect(appLink('/dashboard/timesheets')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+})

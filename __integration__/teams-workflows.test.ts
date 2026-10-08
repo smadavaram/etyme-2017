@@ -24,6 +24,7 @@ const saved = {
   resend: process.env.RESEND_API_KEY,
   from: process.env.NOTIFY_FROM_EMAIL,
   app: process.env.NEXT_PUBLIC_APP_URL,
+  auth: process.env.NEXTAUTH_URL,
 }
 
 async function settled(id: string) {
@@ -52,6 +53,9 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
     process.env.RESEND_API_KEY = 're_test'
     process.env.NOTIFY_FROM_EMAIL = 'notices@etyme.example'
     process.env.NEXT_PUBLIC_APP_URL = 'https://app.etyme.example'
+    // The one base address (appUrl) reads NEXTAUTH_URL first; the
+    // environment's own value must not decide this deployment's address.
+    process.env.NEXTAUTH_URL = 'https://app.etyme.example'
     vi.stubGlobal('fetch', vi.fn(async (url: string, init: { body: string }) => {
       posted.push({ url: String(url), body: JSON.parse(init.body) })
       return new Response(null, { status: 202 })
@@ -72,7 +76,7 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
   afterAll(() => {
     vi.unstubAllGlobals()
     for (const [k, v] of [
-      ['RESEND_API_KEY', saved.resend], ['NOTIFY_FROM_EMAIL', saved.from], ['NEXT_PUBLIC_APP_URL', saved.app],
+      ['RESEND_API_KEY', saved.resend], ['NOTIFY_FROM_EMAIL', saved.from], ['NEXT_PUBLIC_APP_URL', saved.app], ['NEXTAUTH_URL', saved.auth],
     ] as const) {
       if (v === undefined) delete process.env[k]
       else process.env[k] = v
