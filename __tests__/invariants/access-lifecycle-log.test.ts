@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { ACTIONS, automationCalls, actionExpressions } from '@/lib/autonomy'
 
 /**
@@ -112,5 +112,139 @@ describe('a seat paused, put back or ended is filed under a name somebody can fi
     expect(text).toContain("process.argv.includes('--apply')")
     // Nothing is erased — the row keeps what it was filed under before.
     expect(text).toContain('actionWas')
+  })
+})
+
+// ── A refused read is written before the refusal goes out ──────────────
+//
+// `logAccess` and `logBulkAccess` do not wait for their write. On a
+// serverless host the function can be frozen the moment the response is
+// sent, so a 403 that went out ahead of its row could leave no row at all
+// — and CLAUDE.md's invariant is that refusals are logged too. A refusal
+// is written with `recordRefusal`, awaited, before the 403.
+
+const createMany = vi.fn()
+const reportError = vi.fn()
+vi.mock('@/lib/db', () => ({ prisma: { accessLog: { createMany: (...a: unknown[]) => createMany(...a) } } }))
+vi.mock('@/lib/alerts', () => ({ reportError: (...a: unknown[]) => reportError(...a) }))
+
+const SRC_ROOT = join(process.cwd(), 'src')
+function filesUnder(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name)
+    return statSync(full).isDirectory() ? filesUnder(full) : /\.tsx?$/.test(name) ? [full] : []
+  })
+}
+
+/** Every fire-and-forget log call whose row says the read was refused, as `file` per call. */
+function fireAndForgetRefusals(): string[] {
+  const found: string[] = []
+  for (const file of filesUnder(SRC_ROOT)) {
+    if (file.endsWith(join('lib', 'access-log.ts'))) continue
+    const src = readFileSync(file, 'utf8')
+    const re = /\blog(?:Bulk)?Access\(/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(src))) {
+      const end = src.indexOf('})', m.index)
+      if (src.slice(m.index, end < 0 ? undefined : end).includes('allowed: false')) {
+        found.push(relative(process.cwd(), file))
+      }
+    }
+  }
+  return found.sort()
+}
+
+/**
+ * Refusals still logged without waiting, in files this domain does not own.
+ * Each is the owner's to move to `recordRefusal`; the list may only shrink.
+ * Nothing is added here to make a new route pass.
+ */
+const STILL_FIRE_AND_FORGET: readonly string[] = [
+  'src/app/api/alumni/ask-back/route.ts',                 // supply
+  'src/app/api/alumni/ask-back/route.ts',                 // supply
+  'src/app/api/checks/queue/route.ts',                    // demand
+  'src/app/api/people/[id]/route.ts',                     // demand
+  'src/app/api/placements/[id]/cut-overtime/route.ts',    // platform
+  'src/app/api/placements/[id]/cut-overtime/route.ts',    // platform
+  'src/app/api/placements/[id]/overtime-method/route.ts', // platform
+  'src/app/api/placements/[id]/overtime-method/route.ts', // platform
+  'src/app/api/placements/[id]/route.ts',                 // platform
+  'src/app/api/program/budget/route.ts',                  // demand
+  'src/app/api/program/org/route.ts',                     // demand
+  'src/app/api/submissions/[id]/terms/route.ts',          // demand
+].slice().sort()
+
+describe('a refused read is in the trail before the refusal is sent', () => {
+  beforeEach(() => {
+    createMany.mockReset()
+    reportError.mockReset()
+  })
+
+  it('a refused read\u2019s access-log row is written before the refusal is sent, so a serverless host cannot drop it', async () => {
+    const { recordRefusal } = await import('@/lib/access-log')
+    let land!: (v: { count: number }) => void
+    createMany.mockReturnValue(new Promise((r) => { land = r }))
+    let done = false
+    const p = recordRefusal(['p1'], { action: 'TIMESHEET_VIEW', actorPersonId: 'a1', reason: 'refused' }).then((n) => { done = true; return n })
+    await new Promise((r) => setTimeout(r, 10))
+    expect(done, 'the refusal could be sent while its row was still in flight').toBe(false)
+    land({ count: 1 })
+    expect(await p).toBe(1)
+    expect(done).toBe(true)
+  })
+
+  it('a refusal row is filed as refused, whatever the caller leaves out', async () => {
+    const { recordRefusal } = await import('@/lib/access-log')
+    createMany.mockResolvedValue({ count: 1 })
+    await recordRefusal(['p1'], { action: 'TENURE_VIEW', reason: 'no desk' })
+    expect(createMany.mock.calls[0][0].data[0]).toMatchObject({ subjectId: 'p1', allowed: false, action: 'TENURE_VIEW', reason: 'no desk' })
+  })
+
+  it('a person a refused read would have shown twice is recorded once', async () => {
+    const { recordRefusal } = await import('@/lib/access-log')
+    createMany.mockResolvedValue({ count: 2 })
+    await recordRefusal(['p1', 'p2', 'p1'], { action: 'TENURE_VIEW' })
+    expect(createMany.mock.calls[0][0].data.map((d: { subjectId: string }) => d.subjectId)).toEqual(['p1', 'p2'])
+  })
+
+  it('a refusal that would have shown nobody writes nothing', async () => {
+    const { recordRefusal } = await import('@/lib/access-log')
+    expect(await recordRefusal([], { action: 'TENURE_VIEW' })).toBe(0)
+    expect(createMany).not.toHaveBeenCalled()
+  })
+
+  it('a refusal whose row cannot be written is still a refusal, and the failure is reported to staff rather than thrown', async () => {
+    const { recordRefusal } = await import('@/lib/access-log')
+    createMany.mockRejectedValue(new Error('connection lost'))
+    reportError.mockResolvedValue(undefined)
+    await expect(recordRefusal(['p1'], { action: 'ERASURE', actorPersonId: 'a1' })).resolves.toBe(0)
+    expect(reportError).toHaveBeenCalledTimes(1)
+    expect(String(reportError.mock.calls[0][1])).toMatch(/refused ERASURE .* not in the trail.*connection lost/)
+  })
+
+  it('the tenure ledger, timesheets, the compliance page and the door for a seat with no desk each wait for the refusal\u2019s row before the 403', () => {
+    const sites: [string, string][] = [
+      ['src/app/api/tenure/route.ts', 'if (!seat && isDeskless'],
+      ['src/app/api/timesheets/route.ts', 'if (!whose.ok)'],
+      ['src/app/api/timesheets/route.ts', 'if (hasOwn === 0)'],
+      ['src/app/api/compliance/route.ts', 'const refusedRead'],
+      ['src/lib/api-context.ts', 'if (verdict.readsPeople)'],
+    ]
+    for (const [file, from] of sites) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      const start = src.indexOf(from)
+      expect(start, `${file}: cannot find the refusal at "${from}"`).toBeGreaterThan(-1)
+      const block = src.slice(start, src.indexOf('status: 403', start))
+      expect(block, `${file}: the refusal at "${from}" does not wait for its row`).toContain('await recordRefusal(')
+    }
+  })
+
+  it('no route logs a refusal without waiting for it, except the ones still named here with the domain that owns them', () => {
+    expect(
+      fireAndForgetRefusals(),
+      'A refusal is logged with logAccess or logBulkAccess, which do not wait for the write, so a ' +
+        'serverless host can drop the row once the 403 is sent. Use `await recordRefusal(...)` from ' +
+        'lib/access-log. If you moved one of the named ones, take it off the list.'
+    ).toEqual(STILL_FIRE_AND_FORGET)
   })
 })

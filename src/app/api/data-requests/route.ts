@@ -6,7 +6,7 @@ import {
   oneSubject, mayAsk, raiseRequest, produceExport, completeErasure,
   reference, coolingEndsAtFor, deskFraming, privacyDesk, seatHeldAnywhere, seatTrail,
 } from '@/lib/data-request'
-import { logAccess, logBulkAccess } from '@/lib/access-log'
+import { logAccess, logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { possessive } from '@/lib/requisition-approval'
 
 /**
@@ -307,8 +307,8 @@ export async function POST(request: NextRequest) {
   })
   if (!may.ok) {
     if (subjectPersonId) {
-      logAccess({
-        subjectId: subjectPersonId, actorPersonId: caller.person.id, actorCompanyId: companyId,
+      await recordRefusal([subjectPersonId], {
+        actorPersonId: caller.person.id, actorCompanyId: companyId,
         action: 'DATA_EXPORT', allowed: false, reason: may.says,
       })
     }

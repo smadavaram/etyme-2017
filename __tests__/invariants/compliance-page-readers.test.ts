@@ -96,7 +96,7 @@ describe('what somebody refused the compliance page is told', () => {
 
   it('every refusal of the compliance page writes an access-log row against each person it would have shown', () => {
     const refused = GET_BODY.slice(GET_BODY.indexOf('const refusedRead'), GET_BODY.indexOf('if (seat) {'))
-    expect(refused).toContain('logBulkAccess(')
+    expect(refused).toContain('await recordRefusal(')
     expect(refused).toContain('allowed: false')
     expect(refused).toContain("select: { personId: true }")
   })

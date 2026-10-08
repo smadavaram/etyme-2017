@@ -7,7 +7,7 @@ import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
-import { logBulkAccess } from '@/lib/access-log'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail, contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { chainTop } from '@/lib/chain-top'
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
       },
       select: { personId: true },
     })
-    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+    await recordRefusal(would.map((c) => c.personId), {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company?.id,
       action: seat ? 'PROGRAM_READ' : 'COMPLIANCE_CHECK',

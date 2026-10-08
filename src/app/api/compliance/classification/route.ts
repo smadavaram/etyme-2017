@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import {
   testArrangement,
   checkCall,
@@ -122,8 +122,7 @@ export async function POST(request: NextRequest) {
 
   if (!verdict.ok) {
     // A refused write is still a read of somebody's data.
-    logAccess({
-      subjectId: personId,
+    await recordRefusal([personId], {
       actorPersonId: realPersonId(caller) ?? undefined,
       actorCompanyId: caller.company.id,
       action: 'CLASSIFICATION_CALL',

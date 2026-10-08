@@ -6,7 +6,7 @@ import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { seatUnits } from '@/lib/account-walls'
 import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope } from '@/lib/walls'
-import { logBulkAccess } from '@/lib/access-log'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { isDeskless } from '@/lib/nav-table'
 import { askTheDesk } from '@/lib/permissions'
 import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       },
       select: { personId: true },
     })
-    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+    await recordRefusal(would.map((c) => c.personId), {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company?.id ?? undefined,
       action: 'TENURE_VIEW',

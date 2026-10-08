@@ -207,14 +207,11 @@ describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and 
     expect(theirs.status, JSON.stringify(theirs.body).slice(0, 300)).toBe(403)
     expect(theirs.body.error.message).toContain(`${colleague.name}’s timesheet is not part of your seat`)
     expect(theirs.body.error.message).not.toMatch(/[a-z]+\.(read|write|approve)/)
-    // The refusal is logged fire-and-forget (logBulkAccess), so wait for the row.
-    let refusedLogged = 0
-    for (let i = 0; i < 40 && refusedLogged === 0; i++) {
-      refusedLogged = await prisma.accessLog.count({
-        where: { actorPersonId: it_.karthik, subjectId: it_.colleague, action: 'TIMESHEET_VIEW', allowed: false },
-      })
-      if (refusedLogged === 0) await new Promise((r) => setTimeout(r, 50))
-    }
+    // The refusal's row is written before the 403 is sent (recordRefusal),
+    // so it is there the moment the response is.
+    const refusedLogged = await prisma.accessLog.count({
+      where: { actorPersonId: it_.karthik, subjectId: it_.colleague, action: 'TIMESHEET_VIEW', allowed: false },
+    })
     expect(refusedLogged).toBeGreaterThan(0)
   })
 

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { mayHold, mayLift, toldTheSubject, overdueForReview, type Hold } from '@/lib/legal-hold'
 import { privacyDesk, seatTrail } from '@/lib/data-request'
-import { logAccess, logBulkAccess } from '@/lib/access-log'
+import { logAccess, logBulkAccess, recordRefusal } from '@/lib/access-log'
 
 /**
  * A company saying a subject's records may not be deleted yet.
@@ -254,8 +254,8 @@ export async function POST(request: NextRequest) {
   const verdict = mayHold(rel, !!subjectCompanyId)
   if (!verdict.ok) {
     if (subjectPersonId) {
-      logAccess({
-        subjectId: subjectPersonId, actorPersonId: caller.person.id, actorCompanyId: companyId,
+      await recordRefusal([subjectPersonId], {
+        actorPersonId: caller.person.id, actorCompanyId: companyId,
         action: 'ERASURE', allowed: false, reason: verdict.says,
       })
     }

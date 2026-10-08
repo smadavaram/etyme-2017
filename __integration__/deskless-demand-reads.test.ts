@@ -19,8 +19,17 @@ const PROGRAM = 'world-nike-programme@demo.etyme.local'
 const NIKE_MEMBER = 'new.colleague@northbend.demo.etyme.local'
 const FIRM_MEMBER = 'new.colleague@brightmoor.demo.etyme.local'
 
-/** The access log is written without awaiting; give it a moment. */
+/** A refusal's row is written before the 403 is sent (recordRefusal), so it is read at once. */
 async function refusalsBy(actorPersonId: string, startsWith: string) {
+  return prisma.accessLog.findMany({ where: { actorPersonId, allowed: false, reason: { startsWith } } })
+}
+
+/**
+ * The budget and org routes are demand's and still log their refusal
+ * without waiting for it (named in access-lifecycle-log.test.ts), so their
+ * rows are given a moment. Delete this when they move to recordRefusal.
+ */
+async function refusalsByEventually(actorPersonId: string, startsWith: string) {
   for (let i = 0; i < 20; i++) {
     const rows = await prisma.accessLog.findMany({ where: { actorPersonId, allowed: false, reason: { startsWith } } })
     if (rows.length > 0) return rows
@@ -58,7 +67,7 @@ describe('a client colleague seated as Member with no desk', () => {
     })
     const people = new Set(allocated.map((a) => a.sellContract.personId))
     expect(people.size).toBeGreaterThan(0)
-    const rows = await refusalsBy(member, 'Budget at Northbend Athletic refused')
+    const rows = await refusalsByEventually(member, 'Budget at Northbend Athletic refused')
     expect(new Set(rows.map((r) => r.subjectId))).toEqual(people)
   })
 
@@ -67,7 +76,7 @@ describe('a client colleague seated as Member with no desk', () => {
     const { status, body } = await json(await readOrg(req('GET', '/api/program/org')))
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe('The org view is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
-    const rows = await refusalsBy(member, 'Org view at Northbend Athletic refused')
+    const rows = await refusalsByEventually(member, 'Org view at Northbend Athletic refused')
     expect(rows.length).toBeGreaterThan(0)
   })
 

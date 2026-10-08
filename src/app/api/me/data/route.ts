@@ -6,7 +6,7 @@ import {
   reference, contactEmail, contactSays, coolingEndsAtFor, raisedSays,
 } from '@/lib/data-request'
 import { holdersOf } from '@/lib/erasure'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 
 /**
  * The subject's own door: what is held about you, a copy of it, and a
@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
       select: { id: true, subjectPersonId: true, document: true, kind: true, producedAt: true },
     })
     if (!row || row.subjectPersonId !== me) {
-      logAccess({
-        subjectId: me, actorPersonId: me, action: 'DATA_EXPORT', allowed: false,
+      await recordRefusal([me], {
+        actorPersonId: me, action: 'DATA_EXPORT', allowed: false,
         reason: 'Asked to download an export that is not theirs.',
       })
       return NextResponse.json(

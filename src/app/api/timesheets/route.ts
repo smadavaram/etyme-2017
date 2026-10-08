@@ -11,7 +11,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/lib/no-desk'
 import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from './own-weeks'
-import { logBulkAccess } from '@/lib/access-log'
+import { recordRefusal } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
     const named = await prisma.person.findUnique({ where: { id: whose.refusedPersonId }, select: { name: true } })
     const says = colleaguesWeeksRefused(named?.name ?? null, caller.company?.name ?? null)
     if (named) {
-      logBulkAccess([whose.refusedPersonId], {
+      await recordRefusal([whose.refusedPersonId], {
         actorPersonId: caller.person.id,
         actorCompanyId: caller.company?.id ?? undefined,
         action: 'TIMESHEET_VIEW',
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
         select: { personId: true },
         distinct: ['personId'],
       })
-      logBulkAccess(would.map((t) => t.personId), {
+      await recordRefusal(would.map((t) => t.personId), {
         actorPersonId: caller.person.id,
         actorCompanyId: caller.company?.id ?? undefined,
         action: 'TIMESHEET_VIEW',

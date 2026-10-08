@@ -118,14 +118,11 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firmâ
   })
 
   it('a refusal at a route that would have named people leaves a refused read of each of them in the access log', async () => {
-    let rows: { subjectId: string }[] = []
-    for (let i = 0; i < 30 && rows.length === 0; i++) {
-      rows = await prisma.accessLog.findMany({
-        where: { actorPersonId: mo, allowed: false, reason: { startsWith: '/api/people at Northbend Athletic refused' } },
-        select: { subjectId: true },
-      })
-      if (rows.length === 0) await new Promise((r) => setTimeout(r, 100))
-    }
+    // Written before the 403 was sent (recordRefusal), so read at once.
+    const rows = await prisma.accessLog.findMany({
+      where: { actorPersonId: mo, allowed: false, reason: { startsWith: '/api/people at Northbend Athletic refused' } },
+      select: { subjectId: true },
+    })
     const onSite = await prisma.sellContract.findMany({
       where: { OR: [{ companyId: nike }, { clientCompanyId: nike }, { endClientCompanyId: nike }] },
       select: { personId: true }, distinct: ['personId'],

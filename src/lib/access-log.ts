@@ -6,7 +6,9 @@ import { prisma } from '@/lib/db'
  * AccessLog row, including refusals."
  *
  * This helper makes it easy to log access from any API route.
- * Call it after successful reads and for refusals (allowed: false).
+ * Call `logAccess`/`logBulkAccess` after successful reads. A refusal is
+ * written with `recordRefusal`, awaited before the 403 goes out, so a
+ * serverless host cannot drop it.
  */
 
 export type AccessAction =
@@ -183,4 +185,65 @@ export async function recordAccess(
     })),
   })
   return written.count
+}
+
+/**
+ * A refused read, written before the refusal goes out.
+ *
+ * CLAUDE.md: "Every read of another person's data writes an AccessLog
+ * row, including refusals." `logAccess` and `logBulkAccess` do not wait
+ * for their write, and on a serverless host the function can be frozen
+ * the moment the response is sent — so a 403 sent ahead of its row can
+ * leave no row at all. A refused read is the one row an auditor asks for
+ * first ("who tried to look, and was stopped"), and it is one write on a
+ * path that has already decided to say no, so waiting for it costs the
+ * refused caller a few milliseconds and nothing else.
+ *
+ * Successful bulk reads stay fire-and-forget on purpose: a list of two
+ * hundred people should not pay for its own trail on every page load, and
+ * `recordAccess` exists for the reads where that trade is wrong.
+ *
+ * Unlike `recordAccess` this never throws. A refusal that could not be
+ * recorded is still a refusal: turning it into a 500 tells the caller
+ * nothing true, and the alternative — letting the read through because
+ * the log failed — is the one outcome the log exists to prevent. The
+ * failure is reported instead, awaited too, so the incident outlives the
+ * response the same way the row was meant to.
+ *
+ * Next 14 has no `after()`, and `waitUntil` would add a platform
+ * dependency for one row; awaiting is the smallest thing that is true
+ * on every host.
+ */
+export async function recordRefusal(
+  subjectIds: readonly string[],
+  // `allowed: false` may be written at the call site so the route reads
+  // as what it is; nothing else is accepted, because this is refusals only.
+  params: Omit<LogAccessParams, 'subjectId' | 'allowed'> & { allowed?: false }
+): Promise<number> {
+  const subjects = [...new Set(subjectIds)]
+  if (subjects.length === 0) return 0
+  try {
+    const written = await prisma.accessLog.createMany({
+      data: subjects.map((subjectId) => ({
+        subjectId,
+        actorPersonId: params.actorPersonId ?? null,
+        actorCompanyId: params.actorCompanyId ?? null,
+        action: params.action,
+        allowed: false,
+        reason: params.reason ?? null,
+      })),
+    })
+    return written.count
+  } catch (err) {
+    await reportError(
+      'access-log',
+      new Error(
+        `Could not record a refused ${params.action} of ${subjects.length} ${subjects.length === 1 ? 'person' : 'people'}. ` +
+          `The refusal was sent and is not in the trail. ` +
+          `Cause: ${err instanceof Error ? err.message : String(err)}`
+      ),
+      { personId: params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
+    ).catch(() => undefined)
+    return 0
+  }
 }

@@ -354,7 +354,7 @@ describe('a seat with no desk cannot read the tenure ledger by URL', () => {
 
   it('a refused read of the tenure ledger still writes an access log row for every person it would have shown', () => {
     const refusal = get.slice(get.indexOf('if (!seat && isDeskless'), get.indexOf('status: 403'))
-    expect(refusal).toContain('logBulkAccess(')
+    expect(refusal).toContain('await recordRefusal(')
     expect(refusal).toContain('allowed: false')
     expect(refusal).toContain("action: 'TENURE_VIEW'")
   })

@@ -8,7 +8,7 @@ import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
 import { staffAddresses } from '@/lib/alerts'
 import { desklessDoor } from '@/lib/deskless-door'
 import { seatFor } from '@/lib/program-seat'
-import { logBulkAccess } from '@/lib/access-log'
+import { recordRefusal } from '@/lib/access-log'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -492,7 +492,7 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
       distinct: ['personId'],
       take: 500,
     })
-    logBulkAccess(lines.map((l) => l.personId).filter((id) => id !== caller.person.id), {
+    await recordRefusal(lines.map((l) => l.personId).filter((id) => id !== caller.person.id), {
       actorPersonId: caller.person.id,
       actorCompanyId: companyId,
       action: 'PROFILE_VIEW',
