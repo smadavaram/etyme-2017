@@ -31,9 +31,13 @@ describe('conversations and bench check-ins call a job request a job request', (
   })
 
   it('the conversations subtitle says job requests, not requirements', () => {
-    const src = read(PAGES[0])
-    expect(src).toContain('about job requests, contracts and submissions')
-    expect(src).not.toContain('linked to requirements')
+    // Since 65107a0c8 the subtitle lives in conversationsFraming, in lib/page-framing,
+    // and the page draws it from there.
+    const framing = read('src/lib/page-framing.ts')
+    expect(framing).toContain('about job requests, contracts and submissions')
+    expect(framing).not.toContain('linked to requirements')
+    expect(read(PAGES[0])).toContain('conversationsFraming(')
+    expect(read(PAGES[0])).not.toContain('linked to requirements')
   })
 
   it('neither page shows the word "requirement" to a reader anywhere', () => {
