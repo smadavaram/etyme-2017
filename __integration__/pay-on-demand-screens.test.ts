@@ -56,15 +56,9 @@ beforeAll(async () => {
     select: { personId: true },
   })
   const hasWeek = new Set(withWeeks.map((w) => w.personId))
-  // A colleague is somebody who holds a seat at Teleworld, as Karthik
-  // does: a refusal names a person only where the reader's company
-  // already knows them by a seat (app/api/submissions/name-if-known).
-  const seated = new Set((await prisma.context.findMany({
-    where: { companyId: teleworld.id, revokedAt: null, personId: { in: paid.map((p) => p.personId) } },
-    select: { personId: true },
-  })).map((c) => c.personId))
-  const line = paid.find((p) => hasWeek.has(p.personId) && seated.has(p.personId))
-    ?? paid.find((p) => seated.has(p.personId)) ?? paid[0]
+  // Everybody on Teleworld's own buy line is somebody Teleworld may name
+  // in a refusal, seat or no seat (app/api/submissions/name-if-known).
+  const line = paid.find((p) => hasWeek.has(p.personId)) ?? paid[0]
   it_.colleague = line.personId
   it_.colleaguePay = line.payRate
 

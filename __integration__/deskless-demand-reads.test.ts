@@ -145,7 +145,7 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
     colleague = { id: other!.person.id, name: other!.person.name ?? '' }
   }, 240_000)
 
-  it('a worker whose seat reads only its own work sees nobody else’s weeks, and is refused anybody else’s, by name only where that person sits at the worker’s own firm', async () => {
+  it('a worker whose seat reads only its own work sees nobody else’s weeks, and is refused anybody else’s, by name only where the worker’s own firm seats, bills for or pays that person', async () => {
     as(KARTHIK)
     const list = await json(await listTimesheets(req('GET', '/api/timesheets?limit=50', undefined, { 'x-context-id': contextId })))
     expect(list.status, JSON.stringify(list.body)).toBe(200)
@@ -157,14 +157,16 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
 
     const theirs = await json(await listTimesheets(req('GET', `/api/timesheets?limit=50&personId=${colleague.id}`, undefined, { 'x-context-id': contextId })))
     expect(theirs.status, JSON.stringify(theirs.body)).toBe(403)
-    // Named only where the person sits at Teleworld; anybody else on
-    // Teleworld's lines — a sub-vendor's worker — is "That timesheet"
-    // (round five, problem 8).
-    const seated = await prisma.context.count({
-      where: { personId: colleague.id, companyId: (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })).id, revokedAt: null },
-    })
+    // Named only where Teleworld knows the person: a seat there, or a
+    // line of Teleworld's own that bills for or pays them. Anybody else —
+    // a sub-vendor's worker Teleworld is only the client of — is "That
+    // timesheet" (round five, problem 8; name-if-known).
+    const tw = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })).id
+    const known = (await prisma.context.count({ where: { personId: colleague.id, companyId: tw, revokedAt: null } }))
+      + (await prisma.sellContract.count({ where: { personId: colleague.id, companyId: tw } }))
+      + (await prisma.buyContractCandidate.count({ where: { personId: colleague.id, buyContract: { companyId: tw } } }))
     expect(theirs.body.error.message).toBe(
-      `${seated ? `${colleague.name}’s timesheet` : 'That timesheet'} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`
+      `${known ? `${colleague.name}’s timesheet` : 'That timesheet'} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`
     )
     expect(namesAPermission(theirs.body.error.message)).toBe(false)
     const logged = await refusalsBy(karthik, 'Timesheets refused')

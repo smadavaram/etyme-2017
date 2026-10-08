@@ -8,6 +8,7 @@ import {
   holdsNoDesk, submissionReach, ownSubmissionsSays, othersSubmissionsRefused, mayAnswerWithCv,
 } from '@/app/api/submissions/own-only'
 import { colleaguesWeeksRefused } from '@/app/api/timesheets/own-weeks'
+import { knownBy } from '@/app/api/submissions/name-if-known'
 import { notAPartySays } from '@/app/api/submissions/[id]/terms/not-a-party'
 import { refusalFor } from '@/app/dashboard/program/own-refusal'
 import { NOT_AT_A_COMPANY, SUBMISSIONS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
@@ -127,6 +128,22 @@ describe('8: a refusal names a person only where the reader already knows them',
 
   it('the timesheets route looks the name up only through the reader’s own company', () => {
     expect(src('app/api/timesheets/route.ts')).toMatch(/nameIfKnown\(whose\.refusedPersonId, caller\.company\?\.id \?\? null\)/)
+  })
+
+  it('a firm names a person it pays or bills for, and nobody it has no line with', () => {
+    const ties = knownBy('marcus', 'teleworld')
+    // Its own seat, its own sell line, its own buy line — each on the reader's company, and nothing wider.
+    expect(ties).toEqual({
+      seat: { personId: 'marcus', companyId: 'teleworld', revokedAt: null },
+      billsFor: { personId: 'marcus', companyId: 'teleworld' },
+      paysFor: { personId: 'marcus', buyContract: { companyId: 'teleworld' } },
+    })
+    const door = src('app/api/submissions/name-if-known.ts')
+    expect(door).toMatch(/prisma\.context\.findFirst\(\{ where: ties\.seat/)
+    expect(door).toMatch(/prisma\.sellContract\.findFirst\(\{ where: ties\.billsFor/)
+    expect(door).toMatch(/prisma\.buyContractCandidate\.findFirst\(\{ where: ties\.paysFor/)
+    // Being the client or the end client on another firm's line is not a tie.
+    expect(door).not.toMatch(/clientCompanyId|endClientCompanyId|vendorCompanyId/)
   })
 
   it('the terms refusal says "a person" when the reader has no business with them', () => {
