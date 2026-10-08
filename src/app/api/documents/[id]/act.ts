@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { notify, notifyBulk } from '@/lib/notify'
 import {
   mayAct,
+  standingOn,
   askNotice,
   checkDocumentUpload,
   MAX_DOCUMENT_BYTES,
@@ -60,12 +61,22 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
           : null
 
   const issuer = doc.template.company
-  const staffOfIssuer = caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT'
 
-  // A stranger is told nothing is here rather than that they may not.
-  if (!staffOfIssuer && caller.person.id !== subjectPersonId && !(doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId)) {
-    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That document request is not here.' } }, { status: 404 })
+  // Whose hands this is in. A seat at the firm that asked is the firm's
+  // only when it holds the paperwork desk; a Member with no desk answers
+  // its own documents and is refused anybody else's in a sentence. A
+  // stranger is told nothing is here rather than that they may not.
+  const standing = standingOn(action, { templateName: doc.template.name, subjectPersonId }, {
+    personId: caller.person.id,
+    atIssuer: caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT',
+    atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId,
+    permissions: caller.permissions ?? [],
+    companyName: caller.company?.name ?? null,
+  })
+  if (!standing.ok) {
+    return NextResponse.json({ error: { code: standing.code, message: standing.message } }, { status: standing.status })
   }
+  const { staffOfIssuer } = standing
 
   const facts = {
     status: doc.status,

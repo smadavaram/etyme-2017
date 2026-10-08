@@ -25,6 +25,7 @@ import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestati
 // The bench answer is read through one door — `lib/bench-filter` — so two
 // screens on one menu cannot disagree about the same firm's people.
 import { readBench, type BenchReading } from '@/lib/bench-filter'
+import { noDeskYet } from '@/lib/no-desk'
 
 export type DocStatus = 'PENDING' | 'SENT' | 'SIGNED' | 'UPLOADED'
 export type DocAction = 'send' | 'upload' | 'sign'
@@ -106,6 +107,95 @@ export function mayAct(
     return { ok: false, code: 'FILE_REQUIRED', message: `Attach the signed copy of ${name} you received.` }
   }
   return { ok: true, next: 'SIGNED', says: `Signed copy of ${name} recorded.` }
+}
+
+// ── Who stands for the firm on a document ─────────────────────────────
+//
+// Found 2026-10-08, the day the one door for a seat with no desk landed
+// (`lib/deskless-door`). That door lets `documents/*/sign` and
+// `documents/*/upload` through, because "Your paperwork" uses them for
+// a person's own papers. But the route read every non-consultant seat at
+// the firm that asked as the firm's staff — so a Member, seated on the
+// domain with no desk at all, could sign the firm's NDA for somebody
+// else, or put a file on record as "received", and the request would
+// read as answered. The firm's paperwork is a desk's work, and a seat is
+// the firm's for a document only when it holds that desk.
+
+/**
+ * The permission the paperwork desk holds.
+ *
+ * The same one the "Paperwork" link names (`PAPERWORK_READS` in
+ * lib/nav-table), so the menu and the route cannot disagree about who
+ * works the firm's paperwork. At a supplier it is held by HR and the
+ * Compliance Officer (and the desks that work the firm's people); at a
+ * client by the compliance desk and the desks that read its people.
+ * A Member holds none of it, and an Accounts Receivable desk does not
+ * either — billing a client is not filing its paperwork.
+ */
+export const PAPERWORK_DESK = ['consultants.read'] as const
+
+export function holdsPaperworkDesk(permissions: readonly string[] | null | undefined): boolean {
+  const held = permissions ?? []
+  return held.includes('*') || PAPERWORK_DESK.some((p) => held.includes(p))
+}
+
+export interface PaperworkSeat {
+  personId: string
+  /** A seat at the firm that asked — never a consultant's own record there. */
+  atIssuer: boolean
+  /** A seat at the company the document is about, for a company's own paper. */
+  atSubjectCompany: boolean
+  permissions: readonly string[]
+  /** The caller's company, named in the refusal. */
+  companyName: string | null
+}
+
+export type PaperworkStanding =
+  | { ok: true; staffOfIssuer: boolean }
+  | { ok: false; status: 403 | 404; code: 'NOT_FOUND' | 'NO_DESK'; message: string }
+
+/**
+ * Whether this seat may act on this document at all, and as whom.
+ *
+ * - **The firm's staff**: a seat at the firm that asked, holding the
+ *   paperwork desk. Acts on any of the firm's documents.
+ * - **The person it is about**: answers their own, whatever seat they
+ *   hold — a Member asked for her own I-9 signs it as herself.
+ * - **A seat at the firm with no paperwork desk**, on somebody else's
+ *   document: refused in a sentence, never a key. It is a colleague,
+ *   not a stranger, so it is told what its seat lacks rather than that
+ *   nothing is here.
+ * - **Anybody else** is told nothing is here, so a refusal does not
+ *   confirm that a document exists.
+ *
+ * `mayAct` then decides the move itself; this decides only whose hands
+ * it is in.
+ */
+export function standingOn(
+  action: DocAction,
+  doc: { templateName: string; subjectPersonId: string | null },
+  seat: PaperworkSeat
+): PaperworkStanding {
+  const staffOfIssuer = seat.atIssuer && holdsPaperworkDesk(seat.permissions)
+  if (staffOfIssuer) return { ok: true, staffOfIssuer: true }
+
+  const subject = doc.subjectPersonId !== null && seat.personId === doc.subjectPersonId
+  if (subject) return { ok: true, staffOfIssuer: false }
+
+  if (seat.atIssuer) {
+    const what =
+      action === 'send'
+        ? `Asking somebody for ${doc.templateName}`
+        : action === 'sign'
+          ? `Signing ${doc.templateName} for somebody else`
+          : `Putting ${doc.templateName} on file for somebody else`
+    return { ok: false, status: 403, code: 'NO_DESK', message: noDeskYet(what, seat.companyName) }
+  }
+
+  // A company's own paper reaches it; mayAct decides what it may do.
+  if (seat.atSubjectCompany) return { ok: true, staffOfIssuer: false }
+
+  return { ok: false, status: 404, code: 'NOT_FOUND', message: 'That document request is not here.' }
 }
 
 // ── A file, rather than a link to one ─────────────────────────────────

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { mayAct, askNotice, statusWord, type DocFacts } from '@/lib/document-request'
+import { mayAct, askNotice, statusWord, standingOn, holdsPaperworkDesk, type DocFacts, type PaperworkSeat } from '@/lib/document-request'
+import { MEMBER_ROLE, rolesFor } from '@/lib/company-defaults'
 import { getNavForKind } from '@/components/shell/sidebar'
 
 /**
@@ -66,6 +67,60 @@ describe('signing', () => {
   it('once on file, nothing more is asked', () => {
     expect(mayAct('sign', { ...nda, status: 'SIGNED' }, tariq, { attests: true })).toMatchObject({ ok: false, code: 'ALREADY_ON_FILE' })
     expect(mayAct('send', { ...w9, status: 'UPLOADED' }, ruth)).toMatchObject({ ok: false, code: 'ALREADY_ON_FILE' })
+  })
+})
+
+describe('who stands for the firm on a document', () => {
+  // Sign-up walk, round four: the one door lets a desk-less seat through to
+  // sign and upload for "Your paperwork", and the route read every seat at
+  // the firm as its staff. A Member could sign the firm's NDA for somebody else.
+  const mo: PaperworkSeat = { personId: 'p-mo', atIssuer: true, atSubjectCompany: false, permissions: [], companyName: 'Northbend Athletic' }
+  const hr: PaperworkSeat = { ...mo, personId: 'p-ruth', permissions: ['consultants.read', 'governance.read'] }
+  const ar: PaperworkSeat = { ...mo, personId: 'p-ar', permissions: ['timesheets.read', 'invoices.read', 'invoices.issue'] }
+  const outsider: PaperworkSeat = { ...mo, personId: 'p-x', atIssuer: false }
+  const tariqsNda = { templateName: 'Mutual NDA', subjectPersonId: 'p-tariq' }
+
+  it('a Member with no desk cannot sign the firm’s document for somebody else, and is told so in a sentence', () => {
+    expect(standingOn('sign', tariqsNda, mo)).toEqual({
+      ok: false, status: 403, code: 'NO_DESK',
+      message: 'Signing Mutual NDA for somebody else is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.',
+    })
+  })
+  it('a Member with no desk cannot put the firm’s document on file for somebody else either', () => {
+    expect(standingOn('upload', { templateName: 'W-9', subjectPersonId: 'p-tariq' }, mo)).toMatchObject({
+      ok: false, code: 'NO_DESK',
+      message: 'Putting W-9 on file for somebody else is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.',
+    })
+  })
+  it('a Member with no desk cannot answer a document about a company, which is nobody’s own person', () => {
+    expect(standingOn('upload', { templateName: 'Certificate of insurance', subjectPersonId: null }, mo)).toMatchObject({ ok: false, code: 'NO_DESK' })
+  })
+  it('a Member with no desk can sign a document addressed to them, as themselves', () => {
+    expect(standingOn('sign', { templateName: 'Mutual NDA', subjectPersonId: 'p-mo' }, mo)).toEqual({ ok: true, staffOfIssuer: false })
+  })
+  it('the refusal names no permission key', () => {
+    const r = standingOn('sign', tariqsNda, mo)
+    expect(r.ok ? '' : r.message).not.toMatch(/consultants\.read|[a-z]+\.[a-z]+/)
+  })
+  it('HR, who holds the paperwork desk, still signs for the firm', () => {
+    expect(standingOn('sign', tariqsNda, hr)).toEqual({ ok: true, staffOfIssuer: true })
+    expect(standingOn('send', tariqsNda, hr)).toEqual({ ok: true, staffOfIssuer: true })
+  })
+  it('a desk that bills but does not work the firm’s paperwork is refused like a Member', () => {
+    expect(standingOn('sign', tariqsNda, ar)).toMatchObject({ ok: false, code: 'NO_DESK' })
+    expect(standingOn('send', tariqsNda, ar)).toMatchObject({ ok: false, code: 'NO_DESK', message: expect.stringMatching(/^Asking somebody for Mutual NDA is not part of your seat/) })
+  })
+  it('somebody at another firm is told nothing is here, so the refusal confirms nothing', () => {
+    expect(standingOn('sign', tariqsNda, outsider)).toEqual({ ok: false, status: 404, code: 'NOT_FOUND', message: 'That document request is not here.' })
+  })
+  it('the shipped HR and Compliance Officer at a supplier, and the compliance desk at a client, hold the paperwork desk; a Member holds none', () => {
+    const held = (kind: 'VENDOR' | 'CLIENT', name: string) => holdsPaperworkDesk(rolesFor(kind).find((r) => r.name === name)!.permissions)
+    expect(held('VENDOR', 'HR')).toBe(true)
+    expect(held('VENDOR', 'Compliance Officer')).toBe(true)
+    expect(held('CLIENT', 'Compliance Officer')).toBe(true)
+    expect(held('VENDOR', MEMBER_ROLE)).toBe(false)
+    expect(held('CLIENT', MEMBER_ROLE)).toBe(false)
+    expect(holdsPaperworkDesk(['*'])).toBe(true)
   })
 })
 
