@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
   const scope = sellContractScope(caller)
   if (!scope) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: notAtACompany('list of who is rolling off') } },
       { status: 403 }
     )
   }

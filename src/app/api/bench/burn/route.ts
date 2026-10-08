@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, canReadCostAggregates, askTheDesk, type FieldContext } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('bench cost') } },
       { status: 403 }
     )
   }

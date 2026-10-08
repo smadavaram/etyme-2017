@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { send } from '@/lib/messages'
-import { addedSays, benchClosedSays, listingTermsFrom, termsShown } from '@/lib/bench-filter'
+import { addedSays, benchClosedSays, listingTermsFrom, termsShown, notAtACompany } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name) } },
       { status: 403 }
     )
   }
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('list of consultants') } },
       { status: 403 }
     )
   }

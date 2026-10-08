@@ -182,10 +182,26 @@ export default function ScorecardsPage() {
   /** Who the shape is written to, once the route has said. Null until then. */
   const [reader, setReader] = useState<'SELLER' | 'BUYER' | null>(null)
 
+  // What each of the three doors said about this seat: undefined while it
+  // has not answered, null when it let the reader in, the door's own
+  // sentence when it refused. Three refusals are one refusal, said once
+  // (sign-up walk round six, 14): three panels each holding the same
+  // "not part of your seat" read as a page that broke three times.
+  const [doors, setDoors] = useState<{ scored?: string | null; risk?: string | null; shape?: string | null }>({})
+  const said = (door: 'scored' | 'risk' | 'shape', refusal: string | null) =>
+    setDoors((d) => ({ ...d, [door]: refusal }))
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/vendors/scorecards')
+      if (res.status === 403) {
+        const refusal = await readJson(res).catch((e: Error) => e.message)
+        said('scored', String(refusal))
+        setError(String(refusal))
+        return
+      }
+      said('scored', null)
       const body = await readJson(res)
       setCards(body.data.suppliers)
       setSummary(body.data.summary)
@@ -193,6 +209,9 @@ export default function ScorecardsPage() {
       setWindowDays(body.data.windowDays)
       setError(null)
     } catch (err: any) {
+      // A failure that is not a refusal still answers: the section shows
+      // its own error and the page is not held on "Loading…".
+      said('scored', null)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -205,12 +224,22 @@ export default function ScorecardsPage() {
   const loadRisk = useCallback(async () => {
     try {
       const res = await fetch('/api/vendors/risk')
+      if (res.status === 403) {
+        const refusal = await readJson(res).catch((e: Error) => e.message)
+        said('risk', String(refusal))
+        setRiskError(String(refusal))
+        return
+      }
+      said('risk', null)
       const body = await readJson(res)
       setList(body.data.watchlist)
       setRiskNote(body.data.note ?? null)
       setRiskGaps(body.data.gaps ?? [])
       setRiskError(null)
     } catch (err: any) {
+      // A failure that is not a refusal still answers: the section shows
+      // its own error and the page is not held on "Loading…".
+      said('risk', null)
       setRiskError(err.message)
     }
   }, [])
@@ -218,17 +247,51 @@ export default function ScorecardsPage() {
   const loadShape = useCallback(async () => {
     try {
       const res = await fetch('/api/vendors/concentration')
+      if (res.status === 403) {
+        const refusal = await readJson(res).catch((e: Error) => e.message)
+        said('shape', String(refusal))
+        setShapeError(String(refusal))
+        return
+      }
+      said('shape', null)
       const body = await readJson(res)
       setReport(body.data.report)
       setReader(body.data.reader ?? null)
       setShapeGaps(body.data.gaps ?? [])
       setShapeError(null)
     } catch (err: any) {
+      // A failure that is not a refusal still answers: the section shows
+      // its own error and the page is not held on "Loading…".
+      said('shape', null)
       setShapeError(err.message)
     }
   }, [])
 
   useEffect(() => { load(); loadRisk(); loadShape() }, [load, loadRisk, loadShape])
+
+  // Nothing but a loading line until every door has answered: a section
+  // heading drawn before its door speaks is a promise the door may break.
+  const answered = doors.scored !== undefined && doors.risk !== undefined && doors.shape !== undefined
+  if (!answered) {
+    return (
+      <div className="mx-auto max-w-[860px] space-y-6 px-4 py-6">
+        {section && <p className="eyebrow">{section}</p>}
+        <p className="text-[13px] text-etyme-muted">Loading…</p>
+      </div>
+    )
+  }
+
+  // Every door refused: the sentence alone, once, under no heading that
+  // promises standing, concentration or scores.
+  const refused = doors.scored && doors.risk && doors.shape ? doors.scored : null
+  if (refused) {
+    return (
+      <div className="mx-auto max-w-[860px] px-4 py-6">
+        {section && <p className="eyebrow">{section}</p>}
+        <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-[860px] space-y-6 px-4 py-6">

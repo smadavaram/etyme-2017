@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { recordAccess } from '@/lib/access-log'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { termsShown } from '@/lib/bench-filter'
+import { termsShown, notAtACompany } from '@/lib/bench-filter'
 import { send } from '@/lib/messages'
 
 /**
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('bench') } },
       { status: 403 }
     )
   }

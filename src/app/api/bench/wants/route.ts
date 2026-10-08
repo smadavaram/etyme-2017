@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { benchClosedSays, mayBrowseBench, mayWriteWant, readWant, wantSays } from '@/lib/bench-filter'
+import { benchClosedSays, mayBrowseBench, mayWriteWant, readWant, wantSays, notAtACompany } from '@/lib/bench-filter'
 
 /**
  * GET  /api/bench/wants — "What we need": this firm's open asks, the open
@@ -70,11 +70,11 @@ function shape(w: any) {
 /** The checks both verbs share; null when the caller may read. */
 function readRefusal(caller: Caller) {
   if (!hasPermission(caller.permissions, 'consultants.read')) {
-    return refuse('FORBIDDEN', benchClosedSays(caller.company?.name ?? 'your firm'))
+    return refuse('FORBIDDEN', benchClosedSays(caller.company?.name))
   }
   const browse = mayBrowseBench({ companyKind: caller.company?.kind ?? null, scope: 'network' })
   if (!browse.ok) return refuse(browse.code, browse.says)
-  if (!caller.company?.id) return refuse('NO_COMPANY', 'What a firm needs belongs to a firm. Sign in at the firm you are asking for.')
+  if (!caller.company?.id) return refuse('NO_COMPANY', notAtACompany('list of what it needs'))
   return null
 }
 

@@ -543,7 +543,15 @@ export default function BenchPage() {
   // reads bench profit and no people, opens on bench profit; a client
   // reads neither (`mayBrowseBench`).
   const readsBench = hasPermission(session.permissions, 'consultants.read')
-  const clientRefused = mayBrowseBench({ companyKind: session.company?.kind ?? companyKind ?? null, scope: 'company' })
+  const clientRefused = mayBrowseBench({
+    companyKind: session.company?.kind ?? companyKind ?? null,
+    scope: 'company',
+    // A client's seat that opens no job request is not told to press Find
+    // matches on one (sign-up walk round six, 14). Asked only once the
+    // session has answered, so a loading seat is not refused early.
+    opensJobRequests: session.loading ? undefined : hasPermission(session.permissions, 'requirements.read'),
+    companyName: session.company?.name ?? null,
+  })
   const [profitOpen, setProfitOpen] = useState(asked === 'profit')
   // A link to ?scope=profit opens it for anybody, so a seat that may not
   // read it is shown the route's own sentence rather than a different tab
@@ -1032,6 +1040,13 @@ export default function BenchPage() {
     fetchBench('company')
   }
 
+  // Signed in at no company — a candidate on her own: the bench is a
+  // company's, and the sentence says so alone, with no "People who granted
+  // you a listing" over it and no firm she does not have (round six, 9).
+  if (!session.loading && session.company == null) {
+    return <p className="text-[14px] text-etyme-muted py-8">{benchClosedSays(null)}</p>
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -1043,7 +1058,7 @@ export default function BenchPage() {
           </h1>
           <p className="text-body-sm text-etyme-muted">
             {!clientRefused.ok
-              ? 'Bench reaches you through matching on your job requests.'
+              ? null
               : showProfit
               ? 'What your bench cost, and whether the work paid it back.'
               : scope === 'company'
@@ -1111,7 +1126,7 @@ export default function BenchPage() {
 
       {clientRefused.ok && !readsBench && !showProfit && (
         <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
-          {benchClosedSays(session.company?.name ?? 'your firm')}
+          {benchClosedSays(session.company?.name)}
         </p>
       )}
 

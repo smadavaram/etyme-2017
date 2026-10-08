@@ -49,7 +49,7 @@ export async function GET(
       })
     }
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name) } },
       { status: 403 }
     )
   }

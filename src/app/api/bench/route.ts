@@ -18,7 +18,7 @@ import {
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 import { stayEndedRow, stayRow } from '@/lib/bench-stay'
-import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine } from '@/lib/bench-filter'
+import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany } from '@/lib/bench-filter'
 
 /**
  * GET /api/bench
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   if (!hasPermission(caller.permissions, 'consultants.read')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name ?? 'your firm') } },
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name) } },
       { status: 403 }
     )
   }
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
   } else if (scope === 'company') {
     if (!companyId) {
       return NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },
+        { error: { code: 'NO_COMPANY', message: notAtACompany('bench') } },
         { status: 403 }
       )
     }
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
           error: {
             code: 'NO_COMPANY',
             message:
-              'A payroll belongs to a company. Sign in at the firm whose people you are looking for.',
+              notAtACompany('payroll'),
           },
         },
         { status: 403 }
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
 
     if (!companyId) {
       return NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },
+        { error: { code: 'NO_COMPANY', message: notAtACompany('bench') } },
         { status: 403 }
       )
     }

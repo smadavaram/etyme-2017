@@ -769,9 +769,30 @@ export function benchSubtitle(row: { headline: string | null; email: string | nu
  * own staff, which the document desks read — stays open to it.
  */
 export function mayBrowseBench(
-  r: { companyKind: string | null; scope: string }
+  r: {
+    companyKind: string | null
+    scope: string
+    /**
+     * Whether this seat can open a job request and so press Find matches.
+     * A client's seat with no desk cannot, and an instruction it cannot
+     * follow is not an answer (sign-up walk round six, 14). Left out, the
+     * route's own refusal is unchanged: it is read by whoever asked.
+     */
+    opensJobRequests?: boolean
+    companyName?: string | null
+  }
 ): { ok: true } | { ok: false; code: 'CLIENT'; says: string } {
   if (r.companyKind === 'CLIENT' && r.scope !== 'payroll' && r.scope !== 'mine') {
+    if (r.opensJobRequests === false) {
+      return {
+        ok: false,
+        code: 'CLIENT',
+        says:
+          'A bench is a supplier’s own people, and a client does not browse one. Bench reaches ' +
+          `${r.companyName ?? 'your company'} through matching on its job requests, and job requests are not part ` +
+          'of your seat. Ask your company’s owner if you need them.',
+      }
+    }
     return {
       ok: false,
       code: 'CLIENT',
@@ -783,8 +804,24 @@ export function mayBrowseBench(
   return { ok: true }
 }
 
-/** What a bench answers a seat that does not read people, in a sentence. */
-export function benchClosedSays(firm: string): string {
+/**
+ * What a company's page answers somebody signed in at no company — a
+ * candidate who signed up on her own and is on nobody's bench. Never a
+ * system phrase ("Active context must be associated with a company") and
+ * never a firm she does not have ("the bench at your firm"): whose page it
+ * is, and where her own work is (sign-up walk round six, 9).
+ */
+export function notAtACompany(thing: string): string {
+  return `This is a company’s ${thing}, and you are not signed in at a company. Your own work is under Your work.`
+}
+
+/**
+ * What a bench answers a seat that does not read people, in a sentence.
+ * With no firm at all, the no-company sentence: there is no "bench at
+ * your firm" to be refused.
+ */
+export function benchClosedSays(firm: string | null | undefined): string {
+  if (!firm) return notAtACompany('bench')
   return (
     `The bench at ${firm} is read by the desks that work with consultants — the recruiters, the resource ` +
     'manager, HR and the owner. Your seat is not one of them. Ask whoever manages roles there.'

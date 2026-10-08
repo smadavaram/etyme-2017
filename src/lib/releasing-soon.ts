@@ -237,7 +237,12 @@ export const CHECK_IN_READERS = ['consultants.read'] as const satisfies readonly
 
 /** Said to a seat that holds none of them. */
 export function notYoursToRead(surface: string, company: string | null | undefined): string {
-  return `${surface} at ${company ?? 'your firm'} is read by the desks that staff, run or pay its work. Your own work is on your own page.`
+  // Signed in at no company: there is no firm whose desks read it
+  // (sign-up walk round six, 9).
+  if (!company) {
+    return `${surface} is a company’s page, and you are not signed in at a company. Your own work is under Your work.`
+  }
+  return `${surface} at ${company} is read by the desks that staff, run or pay its work. Your own work is on your own page.`
 }
 
 // ── The rate on an Ending soon card ──────────────────────────────────────

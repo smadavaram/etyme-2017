@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/lib/bench-filter'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'This is a company’s view of the market' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('view of the market') } },
       { status: 403 }
     )
   }

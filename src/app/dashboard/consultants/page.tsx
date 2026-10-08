@@ -936,6 +936,14 @@ export default function ConsultantsPage() {
    * empty table under it (sign-up walk round five, 11).
    */
   const [refused, setRefused] = useState<string | null>(null)
+  /**
+   * Whether the door has answered at least once. Until it has, the page is
+   * a loading line and nothing else: "Add consultant" and the Feed/Table/
+   * Export toolbar drawn before the first read are furniture a refused seat
+   * sees and then loses (sign-up walk round six, 14). A later reload, after
+   * somebody is added, keeps the page standing.
+   */
+  const [firstRead, setFirstRead] = useState(false)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -992,6 +1000,7 @@ export default function ConsultantsPage() {
       setCounted(false)
     } finally {
       setLoading(false)
+      setFirstRead(true)
     }
   }, [session.permissions])
 
@@ -1120,6 +1129,11 @@ export default function ConsultantsPage() {
   // as Past contractors and Supplier scorecards (round four, 21).
   if (refused) {
     return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
+  // Nothing until the first read: the door may yet refuse this seat.
+  if (!firstRead) {
+    return <p className="text-[13px] text-etyme-muted py-8">Loading…</p>
   }
 
   // ── Search filter ──────────────────────────────────

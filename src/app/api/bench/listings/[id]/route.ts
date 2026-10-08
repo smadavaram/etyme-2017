@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { recordAccess } from '@/lib/access-log'
@@ -59,7 +60,7 @@ export async function PATCH(
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A bench belongs to a firm. Sign in at the firm that holds this listing.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('bench') } },
       { status: 403 }
     )
   }
