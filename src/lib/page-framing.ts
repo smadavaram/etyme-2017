@@ -448,6 +448,50 @@ export function sectionOfHref(
 }
 
 /**
+ * The heading over a page when the caller did not say who is reading.
+ *
+ * Sign-up walk, round seven, problem 3. Nine pages asked for their
+ * eyebrow with the company kind alone, and the answer was read off the
+ * company's whole menu — so Karthik Menon, Teleworld's own engineer whose
+ * menu is Today and You, opened Contracts and read "Operate", and Sam, a
+ * Member at Brightmoor, opened Submissions and read "Sell". Each word was
+ * true of Teleworld's or Brightmoor's owner and false of the person
+ * looking at it.
+ *
+ * `pageFraming` called without a reader comes here. Without the reader,
+ * nothing can know which trimmed menu is on the left of the screen, so
+ * the only heading that may be said is one every reader at this company
+ * would read: the section the whole menu files the
+ * page under **and** the section a seat with no desk files it under. Where
+ * those agree — Conversations, Notifications, a page addressed to whoever
+ * opens it — the word is true for anybody. Where they do not, or the
+ * desk-less menu does not list the page at all, the answer is null and
+ * the page draws no eyebrow, for the owner too, until it passes the
+ * reader (`sidebarPropsFrom(session)`, or `usePageSection(href)`).
+ *
+ * A blank over the owner's page is the cost, and it is the honest one: a
+ * heading that names a section the reader cannot click is the bug, and a
+ * missing heading is not.
+ *
+ * Why not make the reader a required argument: the pages still omitting
+ * it belong to five other domains, and a signature change would turn
+ * their files red in a commit they did not write. The fallback is safe
+ * today; `__tests__/invariants/page-framing.test.ts` names every page that
+ * still heads itself without its reader, and that list may only shrink.
+ */
+export function headingEveryReaderSees(
+  kind: CompanyKind | null | undefined,
+  href: string,
+  reading?: Reading | null
+): string | null {
+  if (!kind) return null
+  const whole = sectionOfHref(kind, href, reading)
+  if (!whole) return null
+  const leastSeat = sectionOfHref(kind, href, reading, { permissions: [] })
+  return leastSeat === whole ? whole : null
+}
+
+/**
  * What decides which links a reader's menu keeps, beyond the company kind
  * and the seat — the same facts the sidebar is drawn from.
  *
@@ -463,9 +507,13 @@ export function sectionOfHref(
  *
  * Passed, the heading is read off the same trimmed menu the sidebar
  * draws, and a page the reader's menu does not list is headed by nothing,
- * even where the page itself still opens to them. Absent, the company's
- * whole menu is read, as it was — which is the sidebar's own answer while
- * the permissions are not known yet.
+ * even where the page itself still opens to them. Absent, `sectionOfHref`
+ * reads the company's whole menu — the reference the tests compare a menu
+ * against, and **never an eyebrow**: a page that heads itself with it
+ * names sections a desk-less seat does not have (round seven, problem 3).
+ * A page heads itself with `usePageSection(href)`, or passes
+ * `sidebarPropsFrom(session)` here; `pageFraming` without a reader falls
+ * back to `headingEveryReaderSees`.
  */
 export interface ReaderFacts {
   /** On a bench rather than of the company: the "You" menu. */
@@ -496,6 +544,13 @@ export interface ReaderIdentity extends ReaderFacts {
 }
 
 /**
+ * What a page passes as its reader: the facts that trim the menu, and the
+ * client it is seated at if any. `sidebarPropsFrom(session)` is this
+ * shape already, so a page hands it over as it stands.
+ */
+export type PageReader = ReaderFacts & { seatedAtClient?: string | null }
+
+/**
  * The heading over a page for the reader the sidebar is drawn for, or
  * null where that reader's own menu does not list the page.
  *
@@ -508,7 +563,28 @@ export function sectionForReader(identity: ReaderIdentity | null | undefined, hr
   const reading: Reading | null = identity.seatedAtClient
     ? { seated: true, clientName: identity.seatedAtClient }
     : null
-  return sectionOfHref(identity.companyKind, href, reading, identity)
+  // The session has answered and there is no company: that is a known
+  // absence, not a load. The sidebar draws such a reader the consultant
+  // menu (`getNavForKind` with no kind), so the heading reads it too —
+  // Nina, a candidate at no company, heads "You" over Your data rather
+  // than nothing (round seven, from regulatory).
+  const answeredNoCompany = !identity.companyKind
+  return sectionOfHref(identity.companyKind, href, reading, answeredNoCompany
+    ? { ...identity, isConsultant: true }
+    : identity)
+}
+
+/**
+ * The book being read: the route's own `reading` where the page has one,
+ * else the seat the reader's identity names. One fact, two doors; the
+ * route's wins because it is what the rows on the screen were read from.
+ */
+function readingOf(
+  reading: Reading | null | undefined,
+  reader: PageReader | null | undefined
+): Reading | null | undefined {
+  if (reading) return reading
+  return reader?.seatedAtClient ? { seated: true, clientName: reader.seatedAtClient } : reading
 }
 
 /** Every heading a menu can put over a page: its sections, and the
@@ -540,8 +616,9 @@ export function sectionFor(
   kind: CompanyKind,
   page: PageKey,
   reading?: Reading | null,
-  reader?: ReaderFacts | null
+  reader?: PageReader | null
 ): string | null {
+  reading = readingOf(reading, reader)
   const menuKind: CompanyKind = seated(reading) ? 'CLIENT' : kind
   return sectionOfHref(kind, MENU_ENTRY[menuKind]?.[page] ?? ROUTE[page], reading, reader)
 }
@@ -556,18 +633,24 @@ export function sectionFor(
  * follows the viewer's.
  *
  * `reading` is optional and absent means "their own book", so every
- * caller that predates seats keeps the framing it had to the letter.
- * `reader` is optional too: given, the eyebrow is read off the menu this
- * person is actually shown (see `ReaderFacts`), and is blank on a page
- * that menu does not list.
+ * caller that predates seats keeps the words it had to the letter.
+ * `reader` should be passed — `sidebarPropsFrom(session)` is the shape —
+ * and then the eyebrow is read off the menu this person is actually shown
+ * (see `ReaderFacts`), and is blank on a page that menu does not list.
+ * Omitted, the eyebrow is only a word every reader at the company would
+ * see, and blank otherwise (round seven, problem 3). A reader that names
+ * the client it is seated at stands in for `reading` where none is given,
+ * so a page that passes `sidebarPropsFrom(session)` alone is framed the
+ * way the sidebar beside it is drawn.
  */
 export function pageFraming(
   kind: CompanyKind | null | undefined,
   page: PageKey,
   reading?: Reading | null,
-  reader?: ReaderFacts | null
+  reader?: PageReader | null
 ): PageFraming {
   if (!kind) return unknownReader(page)
+  reading = readingOf(reading, reader)
   const inSeat = seated(reading)
   const words = inSeat || kind === 'CLIENT' ? CLIENT[page] : SUPPLIER[page]
   const owner = bookOwner(reading)
@@ -579,8 +662,15 @@ export function pageFraming(
     ? `${possessive(owner)} ${BOOK[page]}, read from the seat it granted.`
     : null
 
+  // Without the reader, only a word every reader at the company would
+  // see over this page (round seven, problem 3).
+  const href = MENU_ENTRY[inSeat ? 'CLIENT' : kind]?.[page] ?? ROUTE[page]
+  const eyebrow = reader
+    ? sectionFor(kind, page, reading, reader)
+    : headingEveryReaderSees(kind, href, reading)
+
   return {
-    eyebrow: sectionFor(kind, page, reading, reader) ?? '',
+    eyebrow: eyebrow ?? '',
     ...words,
     subtitle: whose ? `${words.subtitle} ${whose}` : words.subtitle,
     whose,
@@ -707,4 +797,71 @@ export function notificationsFraming(
 
 function sectionOfMenu(menu: { label: string; items: { href: string; group?: string }[] }[], href: string): string | null {
   return headingIn(menu, href)
+}
+
+// ── The Conversations page ──────────────────────────────────────────
+
+export interface ConversationsFraming {
+  subtitle: string
+  /** What the list says when it is empty. */
+  empty: string
+  /** Whether "+ New" is offered: a conversation belongs to a company. */
+  mayStart: boolean
+  /** Whether the topic tabs are offered: a firm's threads are about its
+   *  job requests, contracts and submissions; a person's own are not
+   *  sorted that way. */
+  topics: boolean
+}
+
+/**
+ * How the Conversations page speaks to whoever opened it.
+ *
+ * Sign-up walk, round seven, problem 11. Nina signed up as a candidate
+ * with no company. Conversations is not on her menu, but it opens by
+ * address, and it told her "A client writes to you from their job or
+ * your candidate … Notes among your own people start with + New", under
+ * a "+ New" the route refuses ("A conversation belongs to a company")
+ * and six topic tabs about a firm's work. She has no candidates and no
+ * people of her own. Every sentence was a firm's.
+ *
+ * So the page is framed by who is reading:
+ * - **a firm's desk** reads the firm's words, as before;
+ * - **somebody on a firm's bench** (the consultant seat) is the person
+ *   the work is about, not a recruiter with candidates: they read what
+ *   was written to them, and keep "+ New", which the route lets them
+ *   start inside their own firm;
+ * - **somebody with no company** reads only what was written to them,
+ *   with no "+ New" and no tabs, because nothing here can be started
+ *   without a company and a filter with nothing behind it is not offered.
+ */
+export function conversationsFraming(
+  kind: CompanyKind | null | undefined,
+  consultantSeat: boolean,
+  companyName?: string | null
+): ConversationsFraming {
+  if (!kind) {
+    return {
+      subtitle: 'Messages a firm has written to you.',
+      empty: 'Nothing has been written to you yet. When a firm writes to you, it appears here.',
+      mayStart: false,
+      topics: false,
+    }
+  }
+  if (consultantSeat) {
+    const firm = companyName || 'the firm that lists you'
+    return {
+      subtitle: `Messages about your own work, with ${firm}.`,
+      empty: `Nothing has been written to you yet. When ${firm} writes to you about your work, it appears here.`,
+      mayStart: true,
+      topics: false,
+    }
+  }
+  return {
+    subtitle: 'Messages with the firms and people you work with, about job requests, contracts and submissions.',
+    empty: kind === 'CLIENT'
+      ? 'Write to a supplier from a job or a candidate, or start a note among your own people.'
+      : 'A client writes to you from their job or your candidate; it appears here. Notes among your own people start with + New.',
+    mayStart: true,
+    topics: true,
+  }
 }

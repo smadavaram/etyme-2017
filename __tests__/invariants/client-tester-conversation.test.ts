@@ -7,6 +7,12 @@ import { pageFraming, notificationsFraming } from '@/lib/page-framing'
 import { notChosenNotices, notChosenSaid, type StoodDown, type FilledJob } from '@/lib/notify/not-chosen'
 import { notificationHref } from '@/lib/notify'
 
+// The owner, who holds every desk: these sentences are about what a
+// company's menu heads a page with. `pageFraming` with no reader says
+// only what every reader at the company would see (sign-up walk, round
+// seven, problem 3).
+const OWNER = { permissions: ['*'] as string[] }
+
 /**
  * The client tester's walk of Northbend Athletic on e80773ab9, the
  * conversation side's findings:
@@ -122,33 +128,33 @@ describe('a candidate’s letter gives the time in their own day', () => {
 
 describe('the Interviews and Submissions pages are headed in the reader’s own words', () => {
   it('a client’s Interviews page is headed by the section its own menu puts Submissions under, never Operate', () => {
-    const f = pageFraming('CLIENT', 'interviews')
-    expect(f.eyebrow).toBe(pageFraming('CLIENT', 'submissions').eyebrow)
+    const f = pageFraming('CLIENT', 'interviews', null, OWNER)
+    expect(f.eyebrow).toBe(pageFraming('CLIENT', 'submissions', null, OWNER).eyebrow)
     expect(f.eyebrow).not.toBe('Operate')
     expect(f.eyebrow).toBeTruthy()
   })
 
   it('a supplier’s Interviews page is headed by the section its own menu lists Interviews under', () => {
-    expect(pageFraming('VENDOR', 'interviews').eyebrow).toBe('Sell')
-    expect(pageFraming('GSI', 'interviews').eyebrow).toBe('Deliver')
-    expect(pageFraming('MSP', 'interviews').eyebrow).toBe('Demand')
+    expect(pageFraming('VENDOR', 'interviews', null, OWNER).eyebrow).toBe('Sell')
+    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Deliver')
+    expect(pageFraming('MSP', 'interviews', null, OWNER).eyebrow).toBe('Demand')
   })
 
   it('the Interviews page takes its heading from the framing and types no section name of its own', () => {
     const page = read('src/app/dashboard/interviews/page.tsx')
     // And no section at all until the session says whose menu it is:
     // a guessed supplier's word must never flash over a client's page.
-    expect(page).toContain("company ? pageFraming(company.kind, 'interviews') : null")
+    expect(page).toContain("pageFraming(company.kind, 'interviews', null, sidebarPropsFrom(session))")
     expect(page).not.toContain("?? 'VENDOR', 'interviews'")
     expect(page).not.toMatch(/className="eyebrow">\s*Operate/)
   })
 
   it('a client’s Submissions page is titled Submissions, the word on its own menu', () => {
-    expect(pageFraming('CLIENT', 'submissions').title).toBe('Submissions')
+    expect(pageFraming('CLIENT', 'submissions', null, OWNER).title).toBe('Submissions')
   })
 
   it('a client reads candidates on its Interviews page, never consultants or vendors', () => {
-    const f = pageFraming('CLIENT', 'interviews')
+    const f = pageFraming('CLIENT', 'interviews', null, OWNER)
     expect(f.subtitle).not.toMatch(/consultant|vendor/i)
     expect(f.create).toBeNull()
   })

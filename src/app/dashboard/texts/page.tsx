@@ -1,8 +1,8 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-import { useSession } from '@/components/session-provider'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
+import { refusalSentence } from '@/lib/refusal-words'
 
 import { useEffect, useState } from 'react'
 
@@ -56,27 +56,41 @@ const KIND: Record<string, string> = {
 }
 
 export default function TextsPage() {
-  const { company, seat } = useSession()
-  // The kind only when the session has it: an unknown reader is headed by
-  // nothing, never by a vendor's section (sign-up walk, round three, 16).
-  const eyebrow = sectionOfHref(
-    company?.kind ?? null,
-    '/dashboard/texts',
-    seat ? { seated: true, clientName: seat.clientName } : null
-  )
+  // Read off the menu this reader is actually shown, never the company's
+  // whole one: a seat with no desk was headed "Supply" over a page its
+  // menu does not have (sign-up walk, round seven, problem 3). Null while
+  // the session loads and where the menu does not list the page.
+  const eyebrow = usePageSection('/dashboard/texts')
   const [f, setF] = useState<Feed | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // A refusal is the page: its sentence alone. The heading and the line
+  // about a record saying somebody is free at a rate are for the desks
+  // that read check-ins, and a reader who may not open the page is not
+  // shown either (round seven, problem 6).
+  const [refused, setRefused] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/texts')
       .then(async (r) => {
+        if (r.status === 403) {
+          const body = await r.json().catch(() => ({}))
+          setRefused(
+            refusalSentence(typeof body?.error === 'string' ? body.error : body?.error?.message) ||
+              'Bench check-ins is not part of your seat. Ask your company’s owner if you need it.'
+          )
+          return
+        }
         const body = await readJson(r)
         setF(body.data)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  // Nothing about whose bench this is until the read says it may be read.
+  if (loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
@@ -87,11 +101,13 @@ export default function TextsPage() {
             organized, and by then no menu had a Talent section at all. */}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Bench check-ins</h1>
-        <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
-          A record that says somebody is free at $78 was true three weeks
-          ago. Everything else here sits on top of it, so we ask — one
-          question, one tap, in your name.
-        </p>
+        {f && (
+          <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
+            A record that says somebody is free at $78 was true three weeks
+            ago. Everything else here sits on top of it, so we ask — one
+            question, one tap, in your name.
+          </p>
+        )}
       </header>
 
       {f && (
@@ -129,7 +145,6 @@ export default function TextsPage() {
         </>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
       {error && (
         <div className="panel">
           <p className="text-[13px] text-etyme-attention">{error}</p>

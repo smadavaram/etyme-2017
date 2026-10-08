@@ -26,9 +26,18 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pageFraming, sectionFor, sectionOfHref, sectionForReader, notificationsFraming, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
+import { pageFraming, sectionFor, sectionOfHref, sectionForReader, notificationsFraming, conversationsFraming, headingEveryReaderSees, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
 import { getNavForKind } from '@/lib/nav-table'
 import type { CompanyKind } from '@/components/session-provider'
+
+/**
+ * The owner, who holds every desk: the reader whose trimmed menu is the
+ * company's whole one. Passed wherever these sentences are about what a
+ * company's menu heads a page with, because `pageFraming` called with no
+ * reader at all now says only what every reader at the company would see
+ * (sign-up walk, round seven, problem 3; asked below).
+ */
+const OWNER = { permissions: ['*'] as string[] }
 
 const ALL_PAGES: PageKey[] = [
   'contracts.sell', 'contracts.buy', 'requirements', 'submissions',
@@ -69,7 +78,7 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     for (const kind of ALL_KINDS) {
       const sections = sectionsOf(kind)
       for (const page of pagesOnTheMenu(kind)) {
-        const { eyebrow } = pageFraming(kind, page)
+        const { eyebrow } = pageFraming(kind, page, null, OWNER)
         expect(
           sections,
           `${kind} reads "${eyebrow}" over ${page}, which is not a section its menu offers`
@@ -84,7 +93,7 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     const everySectionAnywhere = new Set(ALL_KINDS.flatMap(sectionsOf))
     for (const kind of ALL_KINDS) {
       for (const page of pagesOnTheMenu(kind)) {
-        const { eyebrow } = pageFraming(kind, page)
+        const { eyebrow } = pageFraming(kind, page, null, OWNER)
         expect(eyebrow, `${kind}/${page} has no section over it`).toBeTruthy()
         expect([...everySectionAnywhere], `"${eyebrow}" is nobody's section`).toContain(eyebrow)
       }
@@ -97,14 +106,14 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     // not name, and heading them "Sell" — the vendor menu she used to
     // fall through to — would name a section she has no way to click.
     for (const page of ['requirements', 'submissions', 'rolloff', 'consultants'] as PageKey[]) {
-      expect(pageFraming('CONSULTANT_CORP', page).eyebrow, page).toBe('')
+      expect(pageFraming('CONSULTANT_CORP', page, null, OWNER).eyebrow, page).toBe('')
     }
   })
 
   it('the pages a company of one does work in are headed by her own sections', () => {
     for (const page of ['contracts.sell', 'timesheets', 'invoices', 'expenses'] as PageKey[]) {
       expect(sectionsOf('CONSULTANT_CORP'), page)
-        .toContain(pageFraming('CONSULTANT_CORP', page).eyebrow)
+        .toContain(pageFraming('CONSULTANT_CORP', page, null, OWNER).eyebrow)
     }
   })
 
@@ -139,72 +148,72 @@ describe('the heading on a page names the section the reader\'s own menu puts it
 describe('a staffing vendor reads its own menu over its own pages', () => {
 
   it('buy contracts are headed Operate, where the menu now files both sides of a contract', () => {
-    expect(pageFraming('VENDOR', 'contracts.buy').eyebrow).toBe('Operate')
+    expect(pageFraming('VENDOR', 'contracts.buy', null, OWNER).eyebrow).toBe('Operate')
   })
 
   it('sell contracts are headed the same section as buy contracts, because they are one table', () => {
-    expect(pageFraming('VENDOR', 'contracts.sell').eyebrow)
-      .toBe(pageFraming('VENDOR', 'contracts.buy').eyebrow)
+    expect(pageFraming('VENDOR', 'contracts.sell', null, OWNER).eyebrow)
+      .toBe(pageFraming('VENDOR', 'contracts.buy', null, OWNER).eyebrow)
   })
 
   it('timesheets sit under Operate for a vendor', () => {
-    expect(pageFraming('VENDOR', 'timesheets').eyebrow).toBe('Operate')
+    expect(pageFraming('VENDOR', 'timesheets', null, OWNER).eyebrow).toBe('Operate')
   })
 
   it('candidates are headed Procure, not Talent — the section that stopped existing', () => {
-    expect(pageFraming('VENDOR', 'consultants').eyebrow).toBe('Procure')
+    expect(pageFraming('VENDOR', 'consultants', null, OWNER).eyebrow).toBe('Procure')
   })
 
   it('the roles a vendor is working are headed Sell', () => {
-    expect(pageFraming('VENDOR', 'requirements').eyebrow).toBe('Sell')
-    expect(pageFraming('VENDOR', 'submissions').eyebrow).toBe('Sell')
-    expect(pageFraming('VENDOR', 'rolloff').eyebrow).toBe('Sell')
+    expect(pageFraming('VENDOR', 'requirements', null, OWNER).eyebrow).toBe('Sell')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Sell')
+    expect(pageFraming('VENDOR', 'rolloff', null, OWNER).eyebrow).toBe('Sell')
   })
 
   it('sell contracts are still framed as what the vendor bills', () => {
-    const f = pageFraming('VENDOR', 'contracts.sell')
+    const f = pageFraming('VENDOR', 'contracts.sell', null, OWNER)
     expect(f.title).toBe('Sell Contracts')
     expect(f.subtitle).toContain('bill clients')
   })
 
   it('a supplier reads its open demand as job requests, the word its own menu uses', () => {
-    expect(pageFraming('VENDOR', 'requirements').title).toBe('Job requests')
-    expect(pageFraming('VENDOR', 'requirements').create).toBe('New job request')
+    expect(pageFraming('VENDOR', 'requirements', null, OWNER).title).toBe('Job requests')
+    expect(pageFraming('VENDOR', 'requirements', null, OWNER).create).toBe('New job request')
   })
 })
 
 describe('an integrator and a program office are headed their own words, not a bench firm\'s', () => {
 
   it('an integrator reads Deliver where a staffing vendor reads Sell', () => {
-    expect(pageFraming('GSI', 'submissions').eyebrow).toBe('Deliver')
-    expect(pageFraming('VENDOR', 'submissions').eyebrow).toBe('Sell')
+    expect(pageFraming('GSI', 'submissions', null, OWNER).eyebrow).toBe('Deliver')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Sell')
   })
 
   it('a program office reads Demand where a staffing vendor reads Sell', () => {
-    expect(pageFraming('MSP', 'requirements').eyebrow).toBe('Demand')
+    expect(pageFraming('MSP', 'requirements', null, OWNER).eyebrow).toBe('Demand')
   })
 
   it('an integrator files its bench under Supply, and a program office, which places nobody, has no bench to file', () => {
-    expect(pageFraming('GSI', 'consultants').eyebrow).toBe('Supply')
-    expect(pageFraming('MSP', 'consultants').eyebrow).toBe('')
+    expect(pageFraming('GSI', 'consultants', null, OWNER).eyebrow).toBe('Supply')
+    expect(pageFraming('MSP', 'consultants', null, OWNER).eyebrow).toBe('')
   })
 
   it('contracts, timesheets and the money are Operate for all three suppliers', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
       for (const page of ['contracts.sell', 'contracts.buy', 'timesheets', 'invoices', 'expenses'] as PageKey[]) {
-        expect(pageFraming(kind, page).eyebrow, `${kind}/${page}`).toBe('Operate')
+        expect(pageFraming(kind, page, null, OWNER).eyebrow, `${kind}/${page}`).toBe('Operate')
       }
     }
   })
 
   it('a company of one reads the seller\'s framing, because it sells', () => {
-    expect(pageFraming('CONSULTANT_CORP', 'contracts.sell'))
-      .toEqual(pageFraming('VENDOR', 'contracts.sell'))
+    expect(pageFraming('CONSULTANT_CORP', 'contracts.sell', null, OWNER))
+      .toEqual(pageFraming('VENDOR', 'contracts.sell', null, OWNER))
   })
 
   it('an integrator and a vendor read the same words under different sections', () => {
-    const gsi = pageFraming('GSI', 'rolloff')
-    const vendor = pageFraming('VENDOR', 'rolloff')
+    const gsi = pageFraming('GSI', 'rolloff', null, OWNER)
+    const vendor = pageFraming('VENDOR', 'rolloff', null, OWNER)
     expect(gsi.title).toBe(vendor.title)
     expect(gsi.eyebrow).not.toBe(vendor.eyebrow)
   })
@@ -213,47 +222,47 @@ describe('an integrator and a program office are headed their own words, not a b
 describe('a client sees demand-side framing', () => {
 
   it('sell contracts are framed as contracts at the client\'s sites', () => {
-    const f = pageFraming('CLIENT', 'contracts.sell')
+    const f = pageFraming('CLIENT', 'contracts.sell', null, OWNER)
     expect(f.title).toBe('Contracts')
     expect(f.eyebrow).toBe('Workforce')
   })
 
   it('a client is never told they bill their own contractors', () => {
-    const f = pageFraming('CLIENT', 'contracts.sell')
+    const f = pageFraming('CLIENT', 'contracts.sell', null, OWNER)
     expect(f.subtitle).not.toContain('bill clients')
     expect(f.subtitle).not.toContain('Revenue')
   })
 
   it('a client reads its requirements as job requests, the word on its menu', () => {
-    expect(pageFraming('CLIENT', 'requirements').title).toBe('Job requests')
+    expect(pageFraming('CLIENT', 'requirements', null, OWNER).title).toBe('Job requests')
   })
 
   it('a client\'s roles are headed by the section that holds its own requirements screen', () => {
     // A client raises and releases roles at /dashboard/requisitions, not
     // at the supplier's /dashboard/requirements — so that is the menu
     // entry the section is read from.
-    expect(pageFraming('CLIENT', 'requirements').eyebrow).toBe('Workforce')
+    expect(pageFraming('CLIENT', 'requirements', null, OWNER).eyebrow).toBe('Workforce')
   })
 
   it('rolloff is framed as contractors ending soon, not bench exposure', () => {
-    const f = pageFraming('CLIENT', 'rolloff')
+    const f = pageFraming('CLIENT', 'rolloff', null, OWNER)
     expect(f.title).toBe('Ending soon')
     expect(f.subtitle).not.toContain('bench')
   })
 
   it('timesheets sit under Workforce for a client, where the nav puts them', () => {
-    expect(pageFraming('CLIENT', 'timesheets').eyebrow).toBe('Workforce')
-    expect(pageFraming('CLIENT', 'invoices').eyebrow).toBe('Workforce')
+    expect(pageFraming('CLIENT', 'timesheets', null, OWNER).eyebrow).toBe('Workforce')
+    expect(pageFraming('CLIENT', 'invoices', null, OWNER).eyebrow).toBe('Workforce')
   })
 
   it('a client’s invoice receipts are what its suppliers sent it and what is still to pay, not what it bills', () => {
-    const f = pageFraming('CLIENT', 'invoices')
+    const f = pageFraming('CLIENT', 'invoices', null, OWNER)
     expect(f.subtitle).toBe('What your suppliers sent you, and what is still to pay.')
   })
 
   it('nothing a client reads at the head of a page calls its suppliers vendors', () => {
     for (const page of ALL_PAGES) {
-      const f = pageFraming('CLIENT', page)
+      const f = pageFraming('CLIENT', page, null, OWNER)
       expect(`${f.title} ${f.subtitle}`, page).not.toMatch(/\bvendors?\b/i)
     }
   })
@@ -262,8 +271,8 @@ describe('a client sees demand-side framing', () => {
     // The party who issues a document names it: the supplier bills, and
     // what arrives at the client is the supplier's invoice, received —
     // an invoice receipt.
-    expect(pageFraming('VENDOR', 'invoices').title).toBe('Bills')
-    expect(pageFraming('CLIENT', 'invoices').title).toBe('Invoice receipts')
+    expect(pageFraming('VENDOR', 'invoices', null, OWNER).title).toBe('Bills')
+    expect(pageFraming('CLIENT', 'invoices', null, OWNER).title).toBe('Invoice receipts')
   })
 })
 
@@ -276,7 +285,7 @@ describe('every page is framed for every company type', () => {
   it('no page is missing a title, eyebrow, or subtitle', () => {
     for (const kind of ALL_KINDS) {
       for (const page of pagesOnTheMenu(kind)) {
-        const f = pageFraming(kind, page)
+        const f = pageFraming(kind, page, null, OWNER)
         expect(f.eyebrow, `${kind}/${page} eyebrow`).toBeTruthy()
         expect(f.title, `${kind}/${page} title`).toBeTruthy()
         expect(f.subtitle, `${kind}/${page} subtitle`).toBeTruthy()
@@ -286,7 +295,7 @@ describe('every page is framed for every company type', () => {
 
   it('every client page reads differently from its supplier counterpart', () => {
     const differing = ALL_PAGES.filter(
-      p => pageFraming('CLIENT', p).title !== pageFraming('VENDOR', p).title
+      p => pageFraming('CLIENT', p, null, OWNER).title !== pageFraming('VENDOR', p, null, OWNER).title
     )
     expect(differing.length).toBeGreaterThan(0)
   })
@@ -332,14 +341,14 @@ describe('a program office reading a client\'s book is framed in the client\'s w
   const DESK_AT_CAVANAUGH = { seated: true, companyName: 'Cavanaugh Glassworks', says: null }
 
   it('the contracts page reads the client\'s title, never "Sell Contracts"', () => {
-    const f = pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH)
+    const f = pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH, OWNER)
     expect(f.title).toBe('Contracts')
     expect(f.subtitle).not.toContain('bill clients')
     expect(f.subtitle).not.toContain('Revenue')
   })
 
   it('the hours page stops calling a client\'s weeks billable hours against sell contracts', () => {
-    const f = pageFraming('MSP', 'timesheets', AT_CAVANAUGH)
+    const f = pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER)
     expect(f.subtitle).not.toContain('sell contracts')
     expect(f.subtitle).toContain('waiting for your approval')
   })
@@ -347,15 +356,15 @@ describe('a program office reading a client\'s book is framed in the client\'s w
   it('the eyebrow follows the seat to Workforce, where the client\'s own menu files the page', () => {
     // The sidebar already moved (`seatedAtClient` in the shell). The
     // heading is read off the same menu, so the two cannot disagree.
-    expect(pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH).eyebrow).toBe('Workforce')
-    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH).eyebrow).toBe('Workforce')
-    expect(pageFraming('MSP', 'contracts.sell').eyebrow).toBe('Operate')
+    expect(pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH, OWNER).eyebrow).toBe('Workforce')
+    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER).eyebrow).toBe('Workforce')
+    expect(pageFraming('MSP', 'contracts.sell', null, OWNER).eyebrow).toBe('Operate')
   })
 
   it('every shared page a seated office opens is worded exactly as the client\'s own desk words it', () => {
     for (const page of ALL_PAGES) {
-      const seatedF = pageFraming('MSP', page, AT_CAVANAUGH)
-      const clientF = pageFraming('CLIENT', page)
+      const seatedF = pageFraming('MSP', page, AT_CAVANAUGH, OWNER)
+      const clientF = pageFraming('CLIENT', page, null, OWNER)
       expect(seatedF.title, page).toBe(clientF.title)
       expect(seatedF.eyebrow, page).toBe(clientF.eyebrow)
       expect(seatedF.create, page).toBe(clientF.create)
@@ -365,8 +374,8 @@ describe('a program office reading a client\'s book is framed in the client\'s w
 
   it('the office is framed the same whether the route calls it a seat or a desk', () => {
     for (const page of ALL_PAGES) {
-      expect(pageFraming('MSP', page, DESK_AT_CAVANAUGH), page)
-        .toEqual(pageFraming('MSP', page, AT_CAVANAUGH))
+      expect(pageFraming('MSP', page, DESK_AT_CAVANAUGH, OWNER), page)
+        .toEqual(pageFraming('MSP', page, AT_CAVANAUGH, OWNER))
     }
   })
 
@@ -374,7 +383,7 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     // A seat is granted to whoever the client granted it to. Nothing
     // about this is an MSP's alone.
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
-      expect(pageFraming(kind, 'invoices', AT_CAVANAUGH).subtitle, kind)
+      expect(pageFraming(kind, 'invoices', AT_CAVANAUGH, OWNER).subtitle, kind)
         .toContain('suppliers sent you')
     }
   })
@@ -384,9 +393,9 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     // receives its suppliers' invoices rather than generating them. A
     // control the route would refuse is a control that lies, and sitting
     // in somebody's seat does not widen what the desk may do.
-    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH).create).toBeNull()
-    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH).create).toBeNull()
-    expect(pageFraming('MSP', 'timesheets').create).toBe('New')
+    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER).create).toBeNull()
+    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH, OWNER).create).toBeNull()
+    expect(pageFraming('MSP', 'timesheets', null, OWNER).create).toBe('New')
   })
 
   it('nobody records a contract by hand on a client\'s book — the award writes both sides', () => {
@@ -397,12 +406,12 @@ describe('a program office reading a client\'s book is framed in the client\'s w
     // The page was right: station 4 of the client program is that the
     // award writes both contracts and their due dates.
     for (const page of ['contracts.sell', 'contracts.buy'] as PageKey[]) {
-      expect(pageFraming('CLIENT', page).create, page).toBeNull()
-      expect(pageFraming('MSP', page, AT_CAVANAUGH).create, page).toBeNull()
+      expect(pageFraming('CLIENT', page, null, OWNER).create, page).toBeNull()
+      expect(pageFraming('MSP', page, AT_CAVANAUGH, OWNER).create, page).toBeNull()
     }
     // And a supplier, which does record a placement it is already
     // running, still can.
-    expect(pageFraming('VENDOR', 'contracts.sell').create).toBe('Record a placement')
+    expect(pageFraming('VENDOR', 'contracts.sell', null, OWNER).create).toBe('Record a placement')
   })
 })
 
@@ -411,33 +420,33 @@ describe('the framing names whose book it is when it is not the reader\'s own', 
   const AT_CAVANAUGH = { inASeat: true, company: 'Cavanaugh Glassworks' }
 
   it('one clause names the client and says where the right to read it came from', () => {
-    const f = pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH)
+    const f = pageFraming('MSP', 'contracts.sell', AT_CAVANAUGH, OWNER)
     expect(f.whose).toBe("Cavanaugh Glassworks' contracts, read from the seat it granted.")
     expect(f.subtitle).toContain(f.whose!)
   })
 
   it('the clause names what is on the page, in the client\'s words', () => {
-    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH).whose)
+    expect(pageFraming('MSP', 'timesheets', AT_CAVANAUGH, OWNER).whose)
       .toBe("Cavanaugh Glassworks' hours, read from the seat it granted.")
-    expect(pageFraming('MSP', 'rolloff', AT_CAVANAUGH).whose)
+    expect(pageFraming('MSP', 'rolloff', AT_CAVANAUGH, OWNER).whose)
       .toBe("Cavanaugh Glassworks' contractors ending soon, read from the seat it granted.")
   })
 
   it('a firm whose name ends in s is not given a second one', () => {
-    expect(pageFraming('MSP', 'invoices', { inASeat: true, company: 'Talvern Medical Devices' }).whose)
+    expect(pageFraming('MSP', 'invoices', { inASeat: true, company: 'Talvern Medical Devices' }, OWNER).whose)
       .toBe("Talvern Medical Devices' invoice receipts, read from the seat it granted.")
   })
 
   it('a seated office reads the client\'s invoices as its invoice receipts, the word on the client\'s own page', () => {
-    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH).whose)
+    expect(pageFraming('MSP', 'invoices', AT_CAVANAUGH, OWNER).whose)
       .toBe("Cavanaugh Glassworks' invoice receipts, read from the seat it granted.")
   })
 
   it('nobody reading their own book is told whose it is', () => {
     for (const kind of ALL_KINDS) {
       for (const page of ALL_PAGES) {
-        expect(pageFraming(kind, page).whose, `${kind}/${page}`).toBeNull()
-        expect(pageFraming(kind, page, { inASeat: false, company: 'Cavanaugh Glassworks' }).whose)
+        expect(pageFraming(kind, page, null, OWNER).whose, `${kind}/${page}`).toBeNull()
+        expect(pageFraming(kind, page, { inASeat: false, company: 'Cavanaugh Glassworks' }, OWNER).whose)
           .toBeNull()
       }
     }
@@ -447,23 +456,23 @@ describe('the framing names whose book it is when it is not the reader\'s own', 
     // Two companies' money is on these pages. A plausible wrong name is
     // worse than a blank, so the words still change to the client's and
     // the clause is simply absent.
-    const f = pageFraming('MSP', 'contracts.sell', { inASeat: true, company: null })
+    const f = pageFraming('MSP', 'contracts.sell', { inASeat: true, company: null }, OWNER)
     expect(f.whose).toBeNull()
     expect(f.title).toBe('Contracts')
-    expect(f.subtitle).toBe(pageFraming('CLIENT', 'contracts.sell').subtitle)
+    expect(f.subtitle).toBe(pageFraming('CLIENT', 'contracts.sell', null, OWNER).subtitle)
   })
 })
 
 describe('a supplier reading its own book is framed exactly as before', () => {
 
   it('the two headings the walk called out are word for word what they were', () => {
-    const contracts = pageFraming('VENDOR', 'contracts.sell')
+    const contracts = pageFraming('VENDOR', 'contracts.sell', null, OWNER)
     expect(contracts.eyebrow).toBe('Operate')
     expect(contracts.title).toBe('Sell Contracts')
     expect(contracts.subtitle).toBe(
       'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
     )
-    expect(pageFraming('VENDOR', 'timesheets').subtitle).toBe(
+    expect(pageFraming('VENDOR', 'timesheets', null, OWNER).subtitle).toBe(
       'Hours your people worked for your clients. Check them, approve them and bill them. Flagged weeks are shown first.'
     )
   })
@@ -471,10 +480,10 @@ describe('a supplier reading its own book is framed exactly as before', () => {
   it('an absent seat, a null seat and an unseated seat all read the same as no argument at all', () => {
     for (const kind of ALL_KINDS) {
       for (const page of ALL_PAGES) {
-        const plain = pageFraming(kind, page)
-        expect(pageFraming(kind, page, null), `${kind}/${page}`).toEqual(plain)
-        expect(pageFraming(kind, page, { seated: false }), `${kind}/${page}`).toEqual(plain)
-        expect(pageFraming(kind, page, { inASeat: false, company: 'Cavanaugh Glassworks' }))
+        const plain = pageFraming(kind, page, null, OWNER)
+        expect(pageFraming(kind, page, null, OWNER), `${kind}/${page}`).toEqual(plain)
+        expect(pageFraming(kind, page, { seated: false }, OWNER), `${kind}/${page}`).toEqual(plain)
+        expect(pageFraming(kind, page, { inASeat: false, company: 'Cavanaugh Glassworks' }, OWNER))
           .toEqual(plain)
       }
     }
@@ -483,7 +492,7 @@ describe('a supplier reading its own book is framed exactly as before', () => {
   it('no supplier subtitle carries a clause about somebody else\'s book', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as CompanyKind[]) {
       for (const page of ALL_PAGES) {
-        expect(pageFraming(kind, page).subtitle, `${kind}/${page}`)
+        expect(pageFraming(kind, page, null, OWNER).subtitle, `${kind}/${page}`)
           .not.toContain('read from the seat')
       }
     }
@@ -496,19 +505,19 @@ describe('a supplier reading its own book is framed exactly as before', () => {
     // The framing said null for a commit, which would have taken a
     // working control off the screen.
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as CompanyKind[]) {
-      expect(pageFraming(kind, 'requirements').create, kind).toBe('New job request')
+      expect(pageFraming(kind, 'requirements', null, OWNER).create, kind).toBe('New job request')
     }
-    expect(pageFraming('CLIENT', 'requirements').create).toBe('New job request')
-    expect(pageFraming('MSP', 'requirements', { inASeat: true, company: 'Cavanaugh Glassworks' }).create)
+    expect(pageFraming('CLIENT', 'requirements', null, OWNER).create).toBe('New job request')
+    expect(pageFraming('MSP', 'requirements', { inASeat: true, company: 'Cavanaugh Glassworks' }, OWNER).create)
       .toBe('New job request')
   })
 
   it('the "+" on a supplier\'s page still offers what it offered', () => {
-    expect(pageFraming('VENDOR', 'contracts.sell').create).toBe('Record a placement')
-    expect(pageFraming('VENDOR', 'timesheets').create).toBe('New')
-    expect(pageFraming('VENDOR', 'invoices').create).toBe('Generate')
-    expect(pageFraming('VENDOR', 'expenses').create).toBe('New')
-    expect(pageFraming('VENDOR', 'submissions').create).toBe('Submit')
+    expect(pageFraming('VENDOR', 'contracts.sell', null, OWNER).create).toBe('Record a placement')
+    expect(pageFraming('VENDOR', 'timesheets', null, OWNER).create).toBe('New')
+    expect(pageFraming('VENDOR', 'invoices', null, OWNER).create).toBe('Generate')
+    expect(pageFraming('VENDOR', 'expenses', null, OWNER).create).toBe('New')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).create).toBe('Submit')
   })
 })
 
@@ -576,7 +585,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     // for every party.
     for (const [kind] of MENUS) {
       for (const page of ['contracts.sell', 'contracts.buy', 'timesheets'] as PageKey[]) {
-        const { eyebrow } = pageFraming(kind, page)
+        const { eyebrow } = pageFraming(kind, page, null, OWNER)
         if (!eyebrow) continue
         expect(eyebrow, `${kind}/${page}`).toBe('Operate')
       }
@@ -589,7 +598,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     }
     for (const [kind] of MENUS) {
       for (const page of ALL_PAGES) {
-        expect(pageFraming(kind, page).eyebrow, `${kind}/${page}`).not.toBe('Talent')
+        expect(pageFraming(kind, page, null, OWNER).eyebrow, `${kind}/${page}`).not.toBe('Talent')
       }
     }
   })
@@ -598,7 +607,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     for (const [kind, name] of MENUS) {
       const labels = sectionLabelsInSource(name)
       for (const page of ALL_PAGES) {
-        const { eyebrow } = pageFraming(kind, page)
+        const { eyebrow } = pageFraming(kind, page, null, OWNER)
         if (!eyebrow) continue
         expect(labels, `${kind} reads "${eyebrow}" over ${page}`).toContain(eyebrow)
       }
@@ -609,7 +618,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     const registers = [...REGISTER_HEADINGS].filter((g) => SIDEBAR.includes(`group: '${g}'`))
     const labels = [...sectionLabelsInSource('CLIENT_NAV'), ...registers]
     for (const page of ALL_PAGES) {
-      const { eyebrow } = pageFraming('MSP', page, { inASeat: true, company: 'Cavanaugh Glassworks' })
+      const { eyebrow } = pageFraming('MSP', page, { inASeat: true, company: 'Cavanaugh Glassworks' }, OWNER)
       if (!eyebrow) continue
       expect(labels, `a seat reads "${eyebrow}" over ${page}`).toContain(eyebrow)
     }
@@ -647,7 +656,7 @@ describe('sign-up walk, round three: a page listed under Network or Compliance i
   })
 
   it('a client’s contractors are headed Network, beside its contacts, because the menu lists them together', () => {
-    expect(pageFraming('CLIENT', 'consultants').eyebrow).toBe('Network')
+    expect(pageFraming('CLIENT', 'consultants', null, OWNER).eyebrow).toBe('Network')
   })
 
   it('Paperwork, Screening packs and Check queue are headed Compliance for a staffing vendor, never Operate', () => {
@@ -683,11 +692,11 @@ describe('sign-up walk, round three: a page listed under Network or Compliance i
     expect(sectionOfHref(undefined, '/dashboard/conversations')).toBeNull()
   })
 
-  it('bench check-ins and conversations pass the kind only when the session has it', () => {
+  it('bench check-ins and conversations are headed off the reader’s own menu, never a guessed vendor’s', () => {
     for (const page of ['texts', 'conversations']) {
       const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
       expect(src, page).not.toContain("?? 'VENDOR'")
-      expect(src, page).toContain('company?.kind ?? null')
+      expect(src, page).toContain(`usePageSection('/dashboard/${page}')`)
       expect(src, page).not.toContain('<p className="eyebrow">Today</p>')
     }
   })
@@ -715,12 +724,12 @@ describe('the payables and orders pages', () => {
  */
 describe('the hours page says plain words to every reader', () => {
   it('a client reads hours worked at its sites, waiting for its approval', () => {
-    expect(pageFraming('CLIENT', 'timesheets').subtitle).toContain('Hours worked at your sites, waiting for your approval.')
+    expect(pageFraming('CLIENT', 'timesheets', null, OWNER).subtitle).toContain('Hours worked at your sites, waiting for your approval.')
   })
 
   it('no reader of the hours page is told about sell contracts', () => {
     for (const kind of ALL_KINDS) {
-      expect(pageFraming(kind, 'timesheets').subtitle, kind).not.toMatch(/sell contract/i)
+      expect(pageFraming(kind, 'timesheets', null, OWNER).subtitle, kind).not.toMatch(/sell contract/i)
     }
   })
 })
@@ -739,16 +748,16 @@ describe('sign-up walk, round two', () => {
   it('while the reader\'s company is unknown, a page shows no subtitle rather than a supplier\'s', () => {
     for (const page of ALL_PAGES) {
       for (const unknown of [null, undefined]) {
-        const f = pageFraming(unknown, page)
+        const f = pageFraming(unknown, page, null, OWNER)
         expect(f.subtitle, page).toBe('')
         expect(f.eyebrow, page).toBe('')
         expect(f.create, page).toBeNull()
         // A title only where both sides already use the same word.
-        if (f.title) expect([pageFraming('VENDOR', page).title, pageFraming('CLIENT', page).title]).toEqual([f.title, f.title])
+        if (f.title) expect([pageFraming('VENDOR', page, null, OWNER).title, pageFraming('CLIENT', page, null, OWNER).title]).toEqual([f.title, f.title])
       }
     }
-    expect(pageFraming(null, 'timesheets').subtitle).not.toMatch(/bill them/)
-    expect(pageFraming(null, 'contracts.sell').title).not.toBe('Sell Contracts')
+    expect(pageFraming(null, 'timesheets', null, OWNER).subtitle).not.toMatch(/bill them/)
+    expect(pageFraming(null, 'contracts.sell', null, OWNER).title).not.toBe('Sell Contracts')
   })
 
   it('a worker\'s notifications are headed by her own menu and list only her own kinds of notice', () => {
@@ -905,7 +914,7 @@ describe('sign-up walk, round six: a page is headed only by a section the reader
   it('a shared page framed for Karthik carries no eyebrow, while its words are unchanged', () => {
     const f = pageFraming('GSI', 'timesheets', null, KARTHIK)
     expect(f.eyebrow).toBe('')
-    expect(f.title).toBe(pageFraming('GSI', 'timesheets').title)
+    expect(f.title).toBe(pageFraming('GSI', 'timesheets', null, OWNER).title)
   })
 
   it('an owner who holds every desk is headed exactly as the company’s whole menu heads the page', () => {
@@ -974,5 +983,252 @@ describe('sign-up walk, round six: pages that type a section name over themselve
     const now = new Set(typedNow())
     const fixed = [...STILL_TYPED].filter((p) => !now.has(p))
     expect(fixed, 'remove these from STILL_TYPED').toEqual([])
+  })
+})
+
+/**
+ * Sign-up walk, round seven, problem 3. Nine pages headed themselves with
+ * the company kind alone, so the eyebrow was read off the company's whole
+ * menu: Karthik Menon (Today, You) read "Operate" over Contracts and
+ * "Deliver" over Submissions and Interviews, and Sam, a Member at
+ * Brightmoor with no desk, read "Sell", "Procure" and "Compliance". The
+ * framing is now safe on its own: without the reader it says only a word
+ * every reader at the company would see.
+ */
+describe('sign-up walk, round seven: a page framed without its reader names no section a desk-less seat lacks', () => {
+  const SAM: ReaderIdentity = { companyKind: 'VENDOR', isConsultant: false, worker: false, permissions: [] }
+  const KARTHIK: ReaderIdentity = {
+    companyKind: 'GSI', isConsultant: false, worker: true,
+    permissions: ['assignments.read', 'timesheets.read'],
+  }
+  const SHARED: PageKey[] = [
+    'contracts.sell', 'contracts.buy', 'requirements', 'submissions', 'interviews',
+    'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants',
+  ]
+
+  function shownTo(r: ReaderIdentity): string[] {
+    return headingsOf(getNavForKind(r.companyKind, Boolean(r.isConsultant), { worker: r.worker, permissions: r.permissions }))
+  }
+
+  it('a shared page framed with no reader is headed by nothing a seat with no desk at that company cannot see', () => {
+    for (const kind of ALL_KINDS) {
+      const deskless = headingsOf(getNavForKind(kind, false, { permissions: [] }))
+      for (const page of SHARED) {
+        const { eyebrow } = pageFraming(kind, page)
+        if (eyebrow === '') continue
+        expect(deskless, `${kind}/${page} reads "${eyebrow}" with no reader`).toContain(eyebrow)
+      }
+    }
+  })
+
+  it('Sam, a Member at a staffing firm, reads no Sell, Operate or Procure over the shared pages when the page omits its reader', () => {
+    for (const page of SHARED) {
+      const { eyebrow } = pageFraming('VENDOR', page)
+      expect(['Sell', 'Operate', 'Procure', 'Compliance'], page).not.toContain(eyebrow)
+      if (eyebrow) expect(shownTo(SAM), page).toContain(eyebrow)
+    }
+  })
+
+  it('Karthik reads no Operate, Deliver or Supply over Contracts, Timesheets, Submissions and Interviews when the page omits its reader', () => {
+    for (const page of ['contracts.sell', 'timesheets', 'submissions', 'interviews'] as PageKey[]) {
+      expect(pageFraming('GSI', page).eyebrow, page).toBe('')
+    }
+  })
+
+  it('a page that passes its reader is headed off that reader’s own trimmed menu, and an owner still reads the whole menu’s section', () => {
+    expect(pageFraming('GSI', 'interviews', null, KARTHIK).eyebrow).toBe('')
+    expect(pageFraming('VENDOR', 'submissions', null, SAM).eyebrow).toBe('')
+    expect(pageFraming('VENDOR', 'submissions', null, OWNER).eyebrow).toBe('Sell')
+    expect(pageFraming('GSI', 'interviews', null, OWNER).eyebrow).toBe('Deliver')
+  })
+
+  it('the words under the heading do not change when the reader is omitted, only the section over them', () => {
+    for (const kind of ALL_KINDS) {
+      for (const page of SHARED) {
+        const bare = pageFraming(kind, page)
+        const owned = pageFraming(kind, page, null, OWNER)
+        expect({ ...bare, eyebrow: '' }, `${kind}/${page}`).toEqual({ ...owned, eyebrow: '' })
+      }
+    }
+  })
+
+  it('a page every reader at the company reaches the same way keeps its heading with no reader: a firm’s Conversations read Today', () => {
+    expect(headingEveryReaderSees('VENDOR', '/dashboard/conversations')).toBe('Today')
+    expect(headingEveryReaderSees('VENDOR', '/dashboard/conversations'))
+      .toBe(sectionForReader(SAM, '/dashboard/conversations'))
+  })
+
+  it('a reader seated at a client is framed in the client’s words and menu when it passes only its identity', () => {
+    const seated = { permissions: ['*'], seatedAtClient: 'Cavanaugh Glassworks' }
+    const f = pageFraming('MSP', 'timesheets', null, seated)
+    expect(f.eyebrow).toBe('Workforce')
+    expect(f.whose).toContain('Cavanaugh Glassworks')
+  })
+
+  it('Interviews passes the reader the sidebar is drawn for, and Bench check-ins and Conversations read their heading off the same menu', () => {
+    const interviews = readFileSync(join(process.cwd(), 'src/app/dashboard/interviews/page.tsx'), 'utf8')
+    expect(interviews).toContain("pageFraming(company.kind, 'interviews', null, sidebarPropsFrom(session))")
+    for (const page of ['texts', 'conversations']) {
+      const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
+      expect(src, page).not.toContain('sectionOfHref(')
+    }
+  })
+
+  /**
+   * The pages still heading themselves with the company kind and no
+   * reader. Each is in another domain's files and has been reported to its
+   * owner; `pageFraming` is safe for the ones on it, and `sectionOfHref`
+   * with no reader is the company's whole menu, which is the bug for the
+   * rest. A page may come off it and none may go on. There is no "stays
+   * off" sentence yet because four domains are taking pages off in the
+   * same wave, each in its own commit; once they land the stale entries
+   * are pruned and that sentence is added, as round six's list has it.
+   */
+  const STILL_WITHOUT_READER = new Set<string>([
+    'src/app/dashboard/bench/page.tsx',
+    'src/app/dashboard/consultants/page.tsx',
+    'src/app/dashboard/contacts/page.tsx',
+    'src/app/dashboard/contracts/page.tsx',
+    'src/app/dashboard/documents/page.tsx',
+    'src/app/dashboard/expenses/page.tsx',
+    'src/app/dashboard/invoices/page.tsx',
+    'src/app/dashboard/outbound-pack/page.tsx',
+    'src/app/dashboard/program/agreements/page.tsx',
+    'src/app/dashboard/program/milestones/page.tsx',
+    'src/app/dashboard/purchase-orders/page.tsx',
+    'src/app/dashboard/requirements/[id]/page.tsx',
+    'src/app/dashboard/requirements/page.tsx',
+    'src/app/dashboard/rolloff/page.tsx',
+    'src/app/dashboard/settings/bench-pay/page.tsx',
+    'src/app/dashboard/submissions/page.tsx',
+    'src/app/dashboard/timesheets/page.tsx',
+    'src/app/dashboard/ap/page.tsx',
+    'src/app/dashboard/ar/page.tsx',
+  ])
+
+  function headedWithoutReader(): string[] {
+    const { readdirSync, statSync } = require('fs') as typeof import('fs')
+    const out: string[] = []
+    const walk = (dir: string) => {
+      for (const f of readdirSync(dir)) {
+        const p = join(dir, f)
+        if (statSync(p).isDirectory()) { walk(p); continue }
+        if (!f.endsWith('.tsx')) continue
+        const src = readFileSync(p, 'utf8')
+        // A call that heads a page with the kind alone: sectionOfHref with
+        // two or three arguments, or pageFraming with no fourth.
+        const calls = [...src.matchAll(/(sectionOfHref|pageFraming)\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g)]
+        const bare = calls.some((m) => {
+          let depth = 0, parts = 1
+          for (const ch of m[2]) {
+            if ('{[('.includes(ch)) depth++
+            else if ('}])'.includes(ch)) depth--
+            else if (ch === ',' && depth === 0) parts++
+          }
+          if (m[2].trim().endsWith(',')) parts--
+          return parts < 4
+        })
+        if (bare) out.push(p.slice(process.cwd().length + 1))
+      }
+    }
+    walk(join(process.cwd(), 'src/app/dashboard'))
+    return out.sort()
+  }
+
+  it('no page heads itself with the company kind alone that is not already on the list to be fixed', () => {
+    const extra = headedWithoutReader().filter((p) => !STILL_WITHOUT_READER.has(p))
+    expect(extra, 'pass sidebarPropsFrom(session) as the reader, or use usePageSection(href)').toEqual([])
+  })
+})
+
+/**
+ * Sign-up walk, round seven, problem 11. Nina signed up as a candidate
+ * with no company. Conversations opened by address and told her "A client
+ * writes to you from their job or your candidate … Notes among your own
+ * people start with + New", under a "+ New" the route refuses her.
+ */
+describe('sign-up walk, round seven: a reader at no company is not a session still loading', () => {
+  it('a candidate at no company is headed You over her own pages once the session has answered', () => {
+    // Nina as `sidebarPropsFrom` describes her: no company, no bench seat,
+    // and the session answered (no `pending`).
+    const nina: ReaderIdentity = { companyKind: null, isConsultant: false, worker: false, permissions: [] }
+    expect(sectionForReader(nina, '/dashboard/my-data')).toBe('You')
+    expect(sectionForReader(nina, '/dashboard/my-work')).toBe('You')
+    expect(sectionForReader({ ...nina, pending: true }, '/dashboard/my-data')).toBeNull()
+  })
+
+  it('a candidate at no company is still headed by nothing over a firm’s pages', () => {
+    const nina: ReaderIdentity = { companyKind: null, isConsultant: false, worker: false, permissions: [] }
+    for (const href of ['/dashboard/contracts', '/dashboard/compliance', '/dashboard/leads', '/dashboard/bench']) {
+      expect(sectionForReader(nina, href), href).toBeNull()
+    }
+  })
+})
+
+describe('sign-up walk, round seven: Conversations speaks to whoever opened it', () => {
+  it('somebody with no company is told only what was written to them, with no candidate and no people of their own', () => {
+    const f = conversationsFraming(null, true)
+    for (const line of [f.subtitle, f.empty]) {
+      expect(line).not.toMatch(/your candidate|your own people|job requests, contracts and submissions/i)
+    }
+    expect(f.empty).toBe('Nothing has been written to you yet. When a firm writes to you, it appears here.')
+  })
+
+  it('somebody with no company is offered no + New and no topic tabs, because a conversation belongs to a company', () => {
+    const f = conversationsFraming(undefined, false)
+    expect(f.mayStart).toBe(false)
+    expect(f.topics).toBe(false)
+  })
+
+  it('somebody on a firm’s bench reads about their own work with that firm, never about candidates', () => {
+    const f = conversationsFraming('VENDOR', true, 'Pellwright Validation Partners')
+    expect(f.subtitle).toBe('Messages about your own work, with Pellwright Validation Partners.')
+    expect(f.empty).not.toMatch(/candidate|your own people/i)
+    expect(f.topics).toBe(false)
+  })
+
+  it('a firm’s desk keeps the firm’s words, and a client is told to write from a job or a candidate', () => {
+    expect(conversationsFraming('VENDOR', false).empty).toContain('your candidate')
+    expect(conversationsFraming('CLIENT', false).empty)
+      .toBe('Write to a supplier from a job or a candidate, or start a note among your own people.')
+    expect(conversationsFraming('CLIENT', false).mayStart).toBe(true)
+  })
+
+  it('the Conversations page draws its sentences, its + New and its tabs from that framing', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/page.tsx'), 'utf8')
+    expect(src).toContain('conversationsFraming(')
+    expect(src).toContain('words.mayStart')
+    expect(src).toContain('words.topics')
+    expect(src).not.toContain('it appears here. Notes among your own people start with + New.')
+  })
+})
+
+/**
+ * Sign-up walk, round seven, problem 6, the conversation half. Bench
+ * check-ins and Interviews drew their heading and their own prose — one of
+ * them a "$78" line — above the refusal, to readers who may not open them.
+ */
+describe('sign-up walk, round seven: a refused Bench check-ins or Interviews is its sentence alone', () => {
+  for (const [page, says] of [['texts', 'Bench check-ins'], ['interviews', 'Interviews']] as const) {
+    it(`${says} returns the refusal sentence before drawing any heading or prose`, () => {
+      const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
+      const refusal = src.indexOf('if (refused) return')
+      expect(refusal, page).toBeGreaterThan(-1)
+      expect(refusal, page).toBeLessThan(src.indexOf('<header>'))
+      expect(src, page).toContain('status === 403')
+    })
+
+    it(`${says} shows Loading alone until the first read says the page may be read`, () => {
+      const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
+      const loading = src.search(/if \((!read && )?loading\) return <p[^>]*>Loading…<\/p>/)
+      expect(loading, page).toBeGreaterThan(-1)
+      expect(loading, page).toBeLessThan(src.indexOf('<header>'))
+    })
+  }
+
+  it('the $78 line on Bench check-ins is drawn only once the check-ins have been read', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
+    const line = src.indexOf('somebody is free at $78')
+    expect(src.lastIndexOf('{f && (', line)).toBeGreaterThan(src.indexOf('<header>'))
   })
 })

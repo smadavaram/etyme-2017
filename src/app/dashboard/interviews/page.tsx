@@ -6,6 +6,8 @@ import { readJson } from '@/lib/read-response'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { refusalSentence } from '@/lib/refusal-words'
 import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
@@ -76,7 +78,8 @@ export default function InterviewsPage() {
   // Nike's AP clerk is a party to the program and could see every
   // button; the route refuses them, and a button that only ever refuses
   // is a form whose answer is thrown away.
-  const { permissions, company } = useSession()
+  const session = useSession()
+  const { permissions, company } = session
   // The heading follows the reader's own menu: a client reads the
   // section its Submissions sit under, a supplier the one its
   // Interviews entry sits under. Never a word typed here.
@@ -84,12 +87,25 @@ export default function InterviewsPage() {
   // No eyebrow until the session says whose menu it is: guessing a
   // supplier put "Operate" over a client's page for the moment before
   // the session landed, which is what the client tester read (3.11).
-  const framing = company ? pageFraming(company.kind, 'interviews') : null
+  //
+  // And off the menu this reader is actually shown — the trimmed one in
+  // the sidebar beside it — never the company's whole menu: a seat with
+  // no desk at a supplier read "Deliver" over a page its menu does not
+  // have (sign-up walk, round seven, problem 3).
+  const framing = company && !session.loading
+    ? pageFraming(company.kind, 'interviews', null, sidebarPropsFrom(session))
+    : null
   const mayDecide = hasPermission(permissions, 'requirements.write')
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A refusal is the page: its sentence alone, with no heading and no
+  // "rounds your clients asked for" above it (round seven, problem 6).
+  const [refused, setRefused] = useState<string | null>(null)
+  // The heading waits for the first read, so a reader who may not open
+  // the page is never shown the page's own prose first.
+  const [read, setRead] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [deciding, setDeciding] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
@@ -111,10 +127,17 @@ export default function InterviewsPage() {
     setLoading(true)
     try {
       const res = await fetch(`/api/interviews?tz=${encodeURIComponent(readerZone())}`)
+      if (res.status === 403) {
+        const refusal = await res.json().catch(() => ({}))
+        const said = typeof refusal?.error === 'string' ? refusal.error : refusal?.error?.message
+        setRefused(refusalSentence(said) || 'Interviews is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setRows(body.data.interviews)
       setSummary(body.data.summary)
       setError(null)
+      setRead(true)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -150,6 +173,9 @@ export default function InterviewsPage() {
       setBusy(null)
     }
   }
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (!read && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">

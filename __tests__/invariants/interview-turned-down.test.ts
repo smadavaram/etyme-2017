@@ -5,6 +5,12 @@ import { noticesFor, turnedDownReason, openRounds, type NoticeContext } from '@/
 import { timeFor, headline, type Interview } from '@/lib/interviews'
 import { pageFraming, sectionOfHref } from '@/lib/page-framing'
 
+// The owner, who holds every desk: these sentences are about what a
+// company's menu heads a page with. `pageFraming` with no reader says
+// only what every reader at the company would see (sign-up walk, round
+// seven, problem 3).
+const OWNER = { permissions: ['*'] as string[] }
+
 /**
  * A candidate turned down has their open rounds called off, and the
  * people who would have been in the room are told.
@@ -41,7 +47,7 @@ const ctx: NoticeContext = {
 
 describe('a client’s Interviews and AP pages read Workforce, never Operate', () => {
   it('a client’s Interviews page is headed Workforce', () => {
-    expect(pageFraming('CLIENT', 'interviews').eyebrow).toBe('Workforce')
+    expect(pageFraming('CLIENT', 'interviews', null, OWNER).eyebrow).toBe('Workforce')
   })
 
   it('a client’s accounts payable page is headed Workforce, the section its own menu lists it under', () => {
@@ -53,12 +59,12 @@ describe('a client’s Interviews and AP pages read Workforce, never Operate', (
     // Contractors sit under the client's "Network" sub-heading, which heads
     // the page since sign-up walk round three, item 11; every other shared
     // page is Workforce. None of them is Operate, Sell or Procure.
-    for (const k of keys) expect([k, pageFraming('CLIENT', k).eyebrow]).toEqual([k, k === 'consultants' ? 'Network' : 'Workforce'])
+    for (const k of keys) expect([k, pageFraming('CLIENT', k, null, OWNER).eyebrow]).toEqual([k, k === 'consultants' ? 'Network' : 'Workforce'])
   })
 
   it('the Interviews page shows no section until it knows whose menu the reader has', () => {
     const page = read('src/app/dashboard/interviews/page.tsx')
-    expect(page).toContain("company ? pageFraming(company.kind, 'interviews') : null")
+    expect(page).toContain("pageFraming(company.kind, 'interviews', null, sidebarPropsFrom(session))")
   })
 })
 

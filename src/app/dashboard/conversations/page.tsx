@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
-import { sectionOfHref } from '@/lib/page-framing'
+import { conversationsFraming } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Conversations page — messaging between vendors, clients, and candidates.
@@ -244,14 +245,15 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
 export default function ConversationsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { company, seat } = useSession()
-  const isClient = company?.kind === 'CLIENT'
-  // Null until the company is known, so the page never borrows a heading.
-  const eyebrow = sectionOfHref(
-    company?.kind ?? null,
-    '/dashboard/conversations',
-    seat ? { seated: true, clientName: seat.clientName } : null
-  )
+  const session = useSession()
+  const { company, contextType } = session
+  // Read off the menu on the left of this screen — the trimmed one this
+  // reader is shown — and null until the session lands, so the page never
+  // borrows a heading (sign-up walk, round seven, problem 3).
+  const eyebrow = usePageSection('/dashboard/conversations')
+  // Whose words: a firm's desk, somebody on a firm's bench, or somebody
+  // with no company at all (round seven, problem 11).
+  const words = conversationsFraming(company?.kind ?? null, contextType === 'CONSULTANT', company?.name)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -421,14 +423,20 @@ export default function ConversationsPage() {
               party's menu (CLAUDE.md, plain words; round three, item 10).
               No party list either: a client's messages are with its
               suppliers, a supplier's with its clients. */}
-          <p>Messages with the firms and people you work with, about job requests, contracts and submissions.</p>
+          {!session.loading && <p>{words.subtitle}</p>}
         </div>
-        <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
-          + New
-        </button>
+        {/* A conversation belongs to a company, and the route refuses one
+            to somebody who is not at one; a button that only refuses is
+            not offered. */}
+        {!session.loading && words.mayStart && (
+          <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
+            + New
+          </button>
+        )}
       </div>
 
       {/* Topic filters */}
+      {words.topics && !session.loading && (
       <div className="flex gap-1.5 flex-wrap mb-5">
         {topicOptions.map((opt) => (
           <button
@@ -442,6 +450,7 @@ export default function ConversationsPage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -470,11 +479,7 @@ export default function ConversationsPage() {
               {filtered.length === 0 && (
                 <div className="py-12 text-center">
                   <p className="text-sm text-etyme-muted">No conversations yet.</p>
-                  <p className="text-xs text-etyme-faint mt-1 px-6">
-                    {isClient
-                      ? 'Write to a supplier from a job or a candidate, or start a note among your own people.'
-                      : 'A client writes to you from their job or your candidate; it appears here. Notes among your own people start with + New.'}
-                  </p>
+                  <p className="text-xs text-etyme-faint mt-1 px-6">{words.empty}</p>
                 </div>
               )}
 
@@ -655,9 +660,9 @@ export default function ConversationsPage() {
       )}
 
       {/* New conversation modal */}
-      {showNew && (
+      {showNew && words.mayStart && (
         <NewConversationModal
-          isClient={isClient}
+          isClient={company?.kind === 'CLIENT'}
           onClose={() => setShowNew(false)}
           onCreated={(id) => {
             setToast('Conversation started')
