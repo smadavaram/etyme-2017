@@ -39,6 +39,7 @@ import {
   type ReserveOnExit,
 } from '@/lib/bench-policy'
 import { formatDay } from '@/lib/format-date'
+import { possessive } from '@/lib/requisition-approval'
 
 /** The three desks the founder named, by the role's own name. */
 export const BENCH_PAY_DESKS = ['Owner', 'Admin', 'Finance'] as const
@@ -329,7 +330,7 @@ export function onFirmsBench(f: { employed: boolean; liveListing: boolean }): bo
 
 export function notOnBenchSays(companyName: string): string {
   return (
-    `This person is not on ${companyName}'s bench, so ${companyName} cannot set their holiday pay. ` +
+    `This person is not on ${possessive(companyName)} bench, so ${companyName} cannot set their holiday pay. ` +
     `A switch is set by the firm that employs them or whose bench they joined.`
   )
 }

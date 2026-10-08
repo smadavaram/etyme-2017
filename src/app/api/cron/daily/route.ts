@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { appUrl } from '@/lib/supplier-link'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { startRun, finishRun } from '@/lib/alerts'
 
@@ -66,9 +67,8 @@ export async function GET(request: NextRequest) {
   // Each job is a real request to its own route, so a job keeps working
   // when somebody calls it by hand and nothing here needs to know how any
   // of them are built.
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  // The one base address every mailed link is built from (lib/supplier-link).
+  const base = appUrl()
 
   const ran: any[] = []
   const broke: any[] = []

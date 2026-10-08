@@ -247,6 +247,9 @@ export function countryGuessSentence(country: string, domain: string | null): st
   return `We guessed ${countryName(country)} from your web address. Change it if that is wrong.`
 }
 
+/** How a pack's country is said in one line. */
+const PACK_PLACE: Record<string, string> = { US: 'US', IN: 'India', GB: 'UK' }
+
 const RHYTHM_WORDS: Record<string, string> = {
   WEEKLY: 'weekly',
   BIWEEKLY: 'every other week',
@@ -260,14 +263,16 @@ const RHYTHM_WORDS: Record<string, string> = {
  */
 export function packSentence(packId: string): string {
   const pack = TEMPLATE_PACKS[packId]
-  if (!pack) return 'Your dates will follow the default pack.'
+  if (!pack) return 'Your dates follow the default pack.'
   const hours = pack.cycleDefinitions.find((c) => c.kind === 'TIMESHEET_SUBMIT')?.frequency
   const pay = pack.cycleDefinitions.find((c) => c.kind === 'SALARY_PAY')?.frequency
+  // The rhythm is said once, after the colon; before it only the country.
+  const word = (f: string) => RHYTHM_WORDS[f] ?? f.toLowerCase()
   const parts = [
-    hours ? `hours ${RHYTHM_WORDS[hours] ?? hours.toLowerCase()}` : null,
-    pay ? `pay ${RHYTHM_WORDS[pay] ?? pay.toLowerCase()}` : null,
+    hours ? (hours === 'WEEKLY' || hours === 'MONTHLY' ? `${word(hours)} hours` : `hours ${word(hours)}`) : null,
+    pay ? `pay ${word(pay)}` : null,
   ].filter(Boolean)
-  return `Your dates will follow the ${pack.label} pack: ${parts.join(', ')}.`
+  return `Your dates follow the ${PACK_PLACE[pack.country] ?? countryName(pack.country)} pack: ${parts.join(', ')}.`
 }
 
 // ── Where a colleague lands ──────────────────────────────────────────

@@ -1277,3 +1277,16 @@ describe('a seat that holds everything is shown everything', () => {
     expect(mayOpen('/dashboard/privacy', [])).toBe(false)
   })
 })
+
+describe('a Member seat reads only the links its seat opens', () => {
+  it('a colleague seated as Member is shown no link to a page that would refuse a Member', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP'] as const) {
+      const member = rolesFor(kind).find((r) => r.name === 'Member')!
+      expect(member, kind).toBeTruthy()
+      const nav = getNavForKind(kind, false, { permissions: member.permissions })
+      const links = nav.flatMap((s) => s.items)
+      expect(links.length, kind).toBeGreaterThan(0)
+      for (const item of links) expect(mayOpen(item.href, member.permissions), `${kind} ${item.href}`).toBe(true)
+    }
+  })
+})
