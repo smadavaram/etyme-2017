@@ -726,7 +726,7 @@ export async function raiseRequest(input: {
         completesOn: runsOn!,
         categories: mine,
         withdrawUrl: withdrawUrl(row.id),
-        contactEmail: contactForLetter(),
+        contactEmail: contactEmail(),
       })
     )
   }
@@ -791,15 +791,6 @@ export function contactSays(email: string | null = contactEmail()): string {
   return email ? `Questions about any of this go to ${email}.` : NO_CONTACT_SAYS
 }
 
-/**
- * The same, for a letter that prints "Questions: …". The letters are
- * conversation's and take a string, so with no address they get a phrase
- * that is true rather than an address nobody reads.
- */
-function contactForLetter(): string {
-  return contactEmail() ?? 'no privacy address is set up yet'
-}
-
 // ── Answering one ─────────────────────────────────────────────────────
 
 /** Produce the export, store it on the request, and tell the person. */
@@ -844,7 +835,7 @@ export async function produceExport(requestId: string, now = new Date()): Promis
       // letter says the same day the screen does.
       linkExpiresAt: new Date(now.getTime() + 7 * 86_400_000),
       now,
-      contactEmail: contactForLetter(),
+      contactEmail: contactEmail(),
     })
   )
 
@@ -906,7 +897,7 @@ export async function completeErasure(
     completedOn: now,
     categories,
     replyTo,
-    contactEmail: contactForLetter(),
+    contactEmail: contactEmail(),
   })
   await sendOutside(letter, replyTo)
 
@@ -916,7 +907,7 @@ export async function completeErasure(
       person: { name },
       reference: reference(requestId),
       completedOn: now,
-      contactEmail: contactForLetter(),
+      contactEmail: contactEmail(),
     })
     await tellCompany(holder.companyId, held)
   }
