@@ -61,6 +61,17 @@ export type AccessAction =
   // them findable in a query: every read a firm made inside somebody
   // else's program, and nothing else.
   | 'PROGRAM_READ'        // read a client's program from a seat that client granted
+  // ── A person's own papers, opened or sent outside the company ──────
+  //
+  // These four were written by hand in their routes, outside this file,
+  // until 2026-10-08 — one of them ending in `.catch(() => {})`, so a
+  // failed write vanished. They are named here so every access-log row
+  // in the product goes through one door, and the check that a refusal
+  // is awaited can see all of them.
+  | 'DOCUMENT_FILE_READ'          // opened the file behind a document somebody asked for
+  | 'DOCUMENTS_SHARED_EXTERNALLY' // sent a person's documents to somebody outside the company
+  | 'SHARED_DOCUMENTS_OPENED'     // the outside recipient opened that share
+  | 'SHARED_DOCUMENTS_WITHDRAWN'  // the share was withdrawn
 
 interface LogAccessParams {
   /** The person whose data was accessed */

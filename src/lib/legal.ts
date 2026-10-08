@@ -632,8 +632,11 @@ export const ACCESS_LOGGING = {
       'this document does not claim it is.',
   ],
   provenBy:
-    'src/lib/access-log.ts and the nineteen route files that call logAccess or ' +
-    'logBulkAccess',
+    // The count is recomputed from the tree by legal-pages.test.ts, which
+    // fails the commit that makes it untrue. It read "nineteen" for weeks
+    // after it was thirty-odd.
+    'src/lib/access-log.ts and the 37 route files that write an access-log row ' +
+    'through it',
 } as const
 
 // ── The documents themselves ──────────────────────────────────────────

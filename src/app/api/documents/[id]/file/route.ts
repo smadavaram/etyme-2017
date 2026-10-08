@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { standingOn } from '@/lib/document-request'
 
 /**
@@ -89,7 +90,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     permissions: caller.permissions ?? [],
     companyName: caller.company?.name ?? null,
   })
-  const allowed = standing.ok
   const mine = subjectPersonId !== null && caller.person.id === subjectPersonId
 
   const why = standing.ok
@@ -104,19 +104,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // Before the verdict is acted on, so a refused attempt leaves a trail.
   // A log where every row is a success is a log that answers the wrong
-  // question.
-  await prisma.accessLog
-    .create({
-      data: {
-        subjectId: subjectPersonId ?? doc.subjectId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: caller.company?.id ?? null,
-        action: 'DOCUMENT_FILE_READ',
-        allowed,
-        reason: why,
-      },
-    })
-    .catch(() => {})
+  // question. Both go through lib/access-log: a read the file was handed
+  // over for is written without holding the bytes back, and a refusal is
+  // awaited, so a serverless host cannot freeze the function after the
+  // 403 and drop the one row an audit asks for first. Until 2026-10-08
+  // this was a hand-written row ending in `.catch(() => {})`, so a failed
+  // write vanished and the refusal rule could not see it.
+  const trail = {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'DOCUMENT_FILE_READ' as const,
+    reason: why,
+  }
+  const subject = subjectPersonId ?? doc.subjectId
+  if (standing.ok) logAccess({ ...trail, subjectId: subject, allowed: true })
+  else await recordRefusal([subject], { ...trail, allowed: false })
 
   if (!standing.ok) {
     // A colleague without the desk is told what its seat lacks, never a

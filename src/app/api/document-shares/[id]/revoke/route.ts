@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 
 /**
  * POST /api/document-shares/:id/revoke
@@ -60,15 +61,14 @@ export async function POST(
   })
 
   if (share.subjectPersonId) {
-    await prisma.accessLog.create({
-      data: {
-        subjectId: share.subjectPersonId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: share.companyId,
-        action: 'SHARED_DOCUMENTS_WITHDRAWN',
-        allowed: true,
-        reason: `Access withdrawn from ${share.recipientEmail}`,
-      },
+    // Awaited, and a write that fails stops the request, as it did when this
+    // row was written by hand: the share is logged through lib/access-log
+    // so every access-log row in the product has one door.
+    await recordAccess([share.subjectPersonId], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: share.companyId,
+      action: 'SHARED_DOCUMENTS_WITHDRAWN',
+      reason: `Access withdrawn from ${share.recipientEmail}`,
     })
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 import { checkShare } from '@/lib/document-share'
 
 /**
@@ -60,14 +61,13 @@ export async function GET(
 
   // And on the subject's own record, where they can see it.
   if (share.subjectPersonId) {
-    await prisma.accessLog.create({
-      data: {
-        subjectId: share.subjectPersonId,
-        actorCompanyId: share.companyId,
-        action: 'SHARED_DOCUMENTS_OPENED',
-        allowed: true,
-        reason: `Opened by ${share.recipientEmail} — ${share.purpose}`,
-      },
+    // Awaited, and a write that fails stops the request, as it did when this
+    // row was written by hand: the share is logged through lib/access-log
+    // so every access-log row in the product has one door.
+    await recordAccess([share.subjectPersonId], {
+      actorCompanyId: share.companyId,
+      action: 'SHARED_DOCUMENTS_OPENED',
+      reason: `Opened by ${share.recipientEmail} — ${share.purpose}`,
     })
   }
 

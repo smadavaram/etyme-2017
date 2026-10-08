@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   DRAFT_BANNER,
@@ -45,6 +45,22 @@ import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 const ROOT = process.cwd()
 const PROSE = allProse()
 const POSTURE = readFileSync(join(ROOT, 'docs/security-posture.md'), 'utf8')
+
+/**
+ * Route files under src/app/api that write an access-log row through
+ * lib/access-log — logAccess, logBulkAccess, recordAccess or recordRefusal.
+ * Counted from the tree, so a public number about coverage cannot go stale.
+ */
+function routeFilesLoggingThroughTheLib(): number {
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const full = join(dir, name)
+      return statSync(full).isDirectory() ? walk(full) : name === 'route.ts' ? [full] : []
+    })
+  return walk(join(ROOT, 'src/app/api')).filter((f) =>
+    /\b(?:logAccess|logBulkAccess|recordAccess|recordRefusal)\(/.test(readFileSync(f, 'utf8'))
+  ).length
+}
 const POLICY = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8')
 
 /** The address that does not exist yet, written once so a test can find it. */
@@ -450,7 +466,23 @@ describe('The security posture is as plain about what is absent as what is prese
     expect(planned).not.toMatch(/\broadmap\b(?! here)/i)
   })
 
+  it('the privacy notice says how many route files log a read, and the number is the one in the tree today', () => {
+    const counted = routeFilesLoggingThroughTheLib()
+    const said = /the (\d+) route files that write an access-log row/.exec(ACCESS_LOGGING.provenBy)
+    expect(said, 'the notice no longer states a count in the form this test reads').not.toBeNull()
+    expect(
+      Number(said![1]),
+      `The privacy notice says ${said![1]} route files write an access-log row through lib/access-log; ` +
+        `the tree has ${counted}. Change the number in ACCESS_LOGGING.provenBy in src/lib/legal.ts.`
+    ).toBe(counted)
+  })
+
   it('it states the access-log coverage honestly rather than as every route', () => {
+    // Stale, and pinned here only so it is not edited by accident: the tree
+    // has 37 such route files out of 297 (see the sentence below for the
+    // notice, which is computed). docs/security-posture.md has no owner in
+    // lib/domains.ts, so no builder may correct it until one is named;
+    // when it is, replace this pin with routeFilesLoggingThroughTheLib().
     expect(POSTURE).toMatch(/Nineteen route files call `logAccess` or\s*`logBulkAccess`, out of 231 API route files/)
     expect(POSTURE).toMatch(/It is not every\s*endpoint in the product and this document does not claim it is/)
   })

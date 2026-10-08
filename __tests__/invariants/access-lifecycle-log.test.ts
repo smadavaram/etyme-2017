@@ -236,3 +236,78 @@ describe('a refused read is in the trail before the refusal is sent', () => {
     ).toEqual(STILL_FIRE_AND_FORGET)
   })
 })
+
+// ── Every access-log row goes through one door ─────────────────────────
+//
+// A row written by hand in a route is invisible to the check above, which
+// reads calls to lib/access-log, and it can swallow its own failure: the
+// file route ended its write in `.catch(() => {})` until 2026-10-08, so a
+// refused attempt on somebody's passport could leave no row and nobody
+// would hear. Every row now goes through `logAccess`, `logBulkAccess`,
+// `recordAccess` or `recordRefusal`, which report a failed write to staff.
+
+const API_ROOT = join(process.cwd(), 'src/app/api')
+
+/** Every file under src/app/api that writes an access-log row itself, as `file` per write. */
+function handWrittenAccessLogRows(): string[] {
+  const found: string[] = []
+  for (const file of filesUnder(API_ROOT)) {
+    const src = readFileSync(file, 'utf8')
+    const writes = src.match(/\baccessLog\s*\.\s*create(?:Many)?\s*\(/g) ?? []
+    for (let i = 0; i < writes.length; i++) found.push(relative(process.cwd(), file))
+  }
+  return found.sort()
+}
+
+/**
+ * Routes that still write their row by hand, each in a domain this one
+ * does not own, one entry per write. Each is the owner's to move; the
+ * list may only shrink, and nothing is added to it to make a new route
+ * pass. Where a write sits inside a transaction (`tx.accessLog`) the
+ * row commits or rolls back with the act it records, which is a real
+ * reason, and the owner moves it when lib/access-log takes a client.
+ */
+const STILL_BY_HAND: readonly string[] = [
+  'src/app/api/bench/listings/[id]/route.ts',          // etyme-supply — inside a transaction
+  'src/app/api/bench/share/route.ts',                  // etyme-supply — inside a transaction
+  'src/app/api/consultants/[id]/route.ts',             // etyme-supply
+  'src/app/api/consultants/[id]/route.ts',             // etyme-supply
+  'src/app/api/me/context/route.ts',                   // etyme-supply
+  'src/app/api/requirements/[id]/matches/route.ts',    // etyme-demand
+  'src/app/api/resumes/[id]/file/route.ts',            // etyme-supply
+  'src/app/api/settings/bench/people/route.ts',        // etyme-architect
+  'src/app/api/submissions/route.ts',                  // etyme-demand, seven writes
+  'src/app/api/submissions/route.ts',
+  'src/app/api/submissions/route.ts',
+  'src/app/api/submissions/route.ts',
+  'src/app/api/submissions/route.ts',
+  'src/app/api/submissions/route.ts',
+  'src/app/api/submissions/route.ts',
+  'src/app/api/timesheets/route.ts',                   // etyme-demand
+].slice().sort()
+
+describe('every access-log row goes through one door', () => {
+  it('no route writes an access-log row by hand; every one goes through lib/access-log, so the refusal rule can see it', () => {
+    expect(
+      handWrittenAccessLogRows(),
+      'A route writes prisma.accessLog.create or createMany itself. The check that a refusal is ' +
+        'awaited cannot see it, and a hand-written write can swallow its own failure. Use logAccess ' +
+        'or logBulkAccess for a read, `await recordRefusal(...)` for a refusal, or `await ' +
+        'recordAccess(...)` where the read must not proceed unlogged. If you moved one of the named ' +
+        'ones, take it off the list.'
+    ).toEqual(STILL_BY_HAND)
+  })
+
+  it('the file behind a document and the three share routes write their rows through lib/access-log', () => {
+    for (const file of [
+      'src/app/api/documents/[id]/file/route.ts',
+      'src/app/api/document-shares/route.ts',
+      'src/app/api/document-shares/[id]/revoke/route.ts',
+      'src/app/api/shared/[token]/route.ts',
+    ]) {
+      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(src, file).toContain("from '@/lib/access-log'")
+      expect(src, file).not.toMatch(/accessLog\s*\.\s*create/)
+    }
+  })
+})

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 import {
   newToken, clampExpiry, summarize, isShareableKind,
 } from '@/lib/document-share'
@@ -146,15 +147,14 @@ export async function POST(request: NextRequest) {
   // company is a read of their data by definition, so it is logged where
   // they can see it — not only where the company can.
   if (share.subjectPersonId) {
-    await prisma.accessLog.create({
-      data: {
-        subjectId: share.subjectPersonId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: caller.company.id,
-        action: 'DOCUMENTS_SHARED_EXTERNALLY',
-        allowed: true,
-        reason: `${share.items.length} document(s) sent to ${share.recipientEmail} — ${share.purpose}`,
-      },
+    // Awaited, and a write that fails stops the request, as it did when this
+    // row was written by hand: the share is logged through lib/access-log
+    // so every access-log row in the product has one door.
+    await recordAccess([share.subjectPersonId], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company.id,
+      action: 'DOCUMENTS_SHARED_EXTERNALLY',
+      reason: `${share.items.length} document(s) sent to ${share.recipientEmail} — ${share.purpose}`,
     })
   }
 

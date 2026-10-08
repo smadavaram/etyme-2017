@@ -846,13 +846,17 @@ describe('a worker can send the file itself, and it is kept as the file', () => 
   it('logs every read of the file against the person it is about, and logs a refusal too', () => {
     const file = read('src/app/api/documents/[id]/file/route.ts')
     expect(file).toContain("action: 'DOCUMENT_FILE_READ'")
-    expect(file).toContain('allowed,')
+    // A read handed over is logged; a refusal is awaited before the
+    // refusal is sent. Both through lib/access-log, never by hand.
+    expect(file).toContain('logAccess({ ...trail, subjectId: subject, allowed: true })')
+    expect(file).toContain('await recordRefusal([subject], { ...trail, allowed: false })')
+    expect(file).not.toMatch(/accessLog\s*\.\s*create/)
     // Written before the verdict is acted on, so an attempt on a
     // stranger's papers leaves the trail an audit is looking for.
     // The verdict comes from the one door every paperwork act uses.
     expect(file).toContain("standingOn('open'")
-    expect(file.indexOf('accessLog')).toBeGreaterThan(file.indexOf("standingOn('open'"))
-    expect(file.indexOf('accessLog')).toBeLessThan(file.indexOf('if (!standing.ok)'))
+    expect(file.indexOf('recordRefusal([subject]')).toBeGreaterThan(file.indexOf("standingOn('open'"))
+    expect(file.indexOf('recordRefusal([subject]')).toBeLessThan(file.indexOf('if (!standing.ok)'))
   })
 
   it('tells a stranger the document is not here, rather than that they may not read it', () => {

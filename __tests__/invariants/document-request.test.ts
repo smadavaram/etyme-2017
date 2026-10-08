@@ -165,8 +165,8 @@ describe('who may open a document’s file', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/documents/[id]/file/route.ts'), 'utf8')
     expect(route).toMatch(/standingOn\('open'/)
     expect(route).not.toMatch(/askedForIt/)
-    expect(route.indexOf('accessLog')).toBeGreaterThan(-1)
-    expect(route.indexOf('accessLog')).toBeLessThan(route.indexOf("if (!standing.ok)"))
+    expect(route.indexOf('await recordRefusal(')).toBeGreaterThan(-1)
+    expect(route.indexOf('await recordRefusal(')).toBeLessThan(route.indexOf("if (!standing.ok)"))
   })
 })
 
