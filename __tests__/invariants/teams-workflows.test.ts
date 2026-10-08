@@ -168,13 +168,15 @@ describe('what is posted to Teams', () => {
   })
 
   it('the button opens this deployment’s own page only when the deployment knows its address', () => {
-    const before = { app: process.env.NEXT_PUBLIC_APP_URL, vercel: process.env.VERCEL_URL }
+    const before = { app: process.env.NEXT_PUBLIC_APP_URL, vercel: process.env.VERCEL_URL, auth: process.env.NEXTAUTH_URL }
     delete process.env.NEXT_PUBLIC_APP_URL
+    delete process.env.NEXTAUTH_URL
     delete process.env.VERCEL_URL
     expect(appLink('/dashboard/timesheets')).toBeNull()
     process.env.VERCEL_URL = 'etyme-preview.vercel.app'
     expect(appLink('/dashboard/timesheets')).toBe('https://etyme-preview.vercel.app/dashboard/timesheets')
     if (before.app !== undefined) process.env.NEXT_PUBLIC_APP_URL = before.app
+    if (before.auth !== undefined) process.env.NEXTAUTH_URL = before.auth
     if (before.vercel !== undefined) process.env.VERCEL_URL = before.vercel
     else delete process.env.VERCEL_URL
   })
