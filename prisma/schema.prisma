@@ -205,9 +205,70 @@ model Person {
   /// Links sent to a client's approver, and evidence attached, by this person.
   weekApprovalsSent WeekApproval[] @relation("weekApprovalSender")
 
+  // ── The password door (founder, 2026-10-08) ─────────────────────────
+  //
+  // A company or a candidate that signs up with an email and a password
+  // rather than Microsoft or Google. The hash is argon2id and is never
+  // returned or logged (`lib/password`). Null for everybody who came in
+  // through an identity provider, which proved the address itself.
+  passwordHash    String?
+  /// When this person proved they read this mailbox, by clicking the
+  /// one-time link. Nothing is created for a password sign-up until it is
+  /// set, and a password sign-in is refused while it is null.
+  emailVerifiedAt DateTime?
+  emailTokens     EmailToken[]
+  signInFailures  SignInFailure[]
+
   @@index([name])
   @@index([createdAt])
   @@index([erasedAt])
+}
+
+/// A one-time link sent to a person's mailbox: verify the address, or set
+/// a new password. Only the SHA-256 of the token is kept, so a copy of
+/// this table opens nobody's account. Used once (`usedAt`), and dead after
+/// `expiresAt` — a day for VERIFY, an hour for RESET.
+model EmailToken {
+  id        String            @id @default(cuid())
+  personId  String
+  person    Person            @relation(fields: [personId], references: [id], onDelete: Cascade)
+  purpose   EmailTokenPurpose
+  tokenHash String            @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  /// What a company sign-up answered — name, type, country, currency and
+  /// the Etyme address — held until the link is clicked, because nothing
+  /// is created before the address is proven. Null for a candidate and
+  /// for a reset.
+  payload   Json?
+  createdAt DateTime          @default(now())
+
+  @@index([personId])
+  @@index([purpose, expiresAt])
+}
+
+enum EmailTokenPurpose {
+  VERIFY
+  RESET
+}
+
+/// A wrong password, kept for fifteen minutes' arithmetic: five for one
+/// email or one network address and the door waits a minute
+/// (`lib/password-door`). In a table rather than in memory because a
+/// serverless deployment has no memory that two requests share.
+model SignInFailure {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  /// The account the email belongs to, where it belongs to one. Null for
+  /// an email nobody signed up with, which is counted all the same.
+  personId String?
+  person   Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  at       DateTime @default(now())
+
+  @@index([email, at])
+  @@index([ip, at])
+  @@index([personId])
 }
 
 model Credential {
@@ -229,6 +290,8 @@ enum Provider {
   GOOGLE
   EMAIL
   SAML
+  /// An email and a password, verified by a one-time link (2026-10-08).
+  PASSWORD
 }
 
 model Context {

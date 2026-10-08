@@ -26,6 +26,7 @@
     "@anthropic-ai/sdk": "^0.117.1",
     "@prisma/client": "^5.20.0",
     "@types/nodemailer": "^8.0.1",
+    "argon2": "^0.41.1",
     "next": "14.2.15",
     "next-auth": "^4.24.8",
     "nodemailer": "^7.0.13",

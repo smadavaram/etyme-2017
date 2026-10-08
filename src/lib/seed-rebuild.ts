@@ -86,7 +86,7 @@ export const CONFIRM_PHRASE = 'delete the demo world'
  * from `Prisma.dmmf` and fails when a model is missing or out of order.
  */
 export const DELETE_ORDER = [
-  'Credential', 'Context', 'ProgramSeat', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
+  'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
   'RequirementInvitation', 'Match', 'Lead', 'Representation', 'DoNotSubmit', 'BuyContractCandidate',

@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     typedRoutes: true,
+    // argon2 is a native module (the password door's hash). Bundling it
+    // breaks its binary lookup, so the server loads it from node_modules.
+    serverComponentsExternalPackages: ['argon2'],
   },
   // Old Rails directories — exclude from Next.js compilation
   webpack: (config) => {
