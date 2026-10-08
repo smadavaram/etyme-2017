@@ -14,7 +14,7 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
-import { readsOnlyOwnWork } from '@/lib/console-home'
+import { readsOnlyOwnWork, OWN_WORK_READS } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
@@ -1134,11 +1134,42 @@ export function getNavForKind(
 }
 
 /**
- * A seat that holds no permission at all: known, and empty. Null is "not
- * known yet" and is never read as deskless.
+ * ── What a desk is ───────────────────────────────────────────────────
+ *
+ * A desk is any permission that acts on the firm's book or reads across
+ * it: anything that writes, approves, pays, bills, recruits or
+ * administers, and every firm-wide read — `consultants.read`,
+ * `invoices.read`, `requirements.read` and the rest. The only
+ * permissions that are not a desk are the two reads of a worker's own
+ * work, `assignments.read` and `timesheets.read` (`OWN_WORK_READS` in
+ * lib/console-home), which exist so a delivery engineer can see the
+ * placement they are on and file their own week.
+ *
+ * Sign-up walk, round five (2026-10-08), problems 3–7. The door read
+ * "desk-less" as "holds no permission at all", so Karthik Menon —
+ * Teleworld's own W2 engineer, seated with exactly those two reads —
+ * was treated as a desk: he read every submission his firm made with
+ * its rate, the client's rate band, a colleague's placement by id, the
+ * firm's counterparties and contacts, and a commercial thread he was
+ * not on. The question is whether the seat holds a desk, never whether
+ * it holds any permission.
+ */
+export const NOT_A_DESK: ReadonlySet<string> = OWN_WORK_READS
+
+/** Whether a seat holds a desk: any permission beyond the reads of its own work. */
+export function holdsADesk(permissions: readonly string[] | null | undefined): boolean {
+  return Array.isArray(permissions) && permissions.some((p) => !NOT_A_DESK.has(p))
+}
+
+/**
+ * A seat that holds no desk: known, and holding nothing beyond the reads
+ * of its own work — a Member with no permission at all, or a worker
+ * seated with only `assignments.read` and `timesheets.read`. The menu
+ * and every route read it the same way. Null is "not known yet" and is
+ * never read as deskless.
  */
 export function isDeskless(permissions: readonly string[] | null | undefined): boolean {
-  return Array.isArray(permissions) && permissions.length === 0
+  return Array.isArray(permissions) && !holdsADesk(permissions)
 }
 
 function kindNav(kind: CompanyKind): NavSection[] {

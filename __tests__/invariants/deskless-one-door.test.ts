@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { desklessDoor, desklessAllowlist, SHELL_READS } from '@/lib/deskless-door'
-import { getNavForKind, routesOf, routeMatches, OPEN_TO_EVERY_SEAT, openBecause } from '@/lib/nav-table'
+import { getNavForKind, routesOf, routeMatches, OPEN_TO_EVERY_SEAT, openBecause, isDeskless, holdsADesk } from '@/lib/nav-table'
+import { consoleHome } from '@/lib/console-home'
 import { namesAPermission } from '@/lib/refusal-words'
 import { rolesFor } from '@/lib/company-defaults'
 
@@ -128,7 +129,7 @@ describe('the allowlist is the menu’s, never a second list', () => {
   it('every route the door lets a desk-less seat through to is a route that exists', () => {
     const have = routes()
     const all = desklessAllowlist()
-    const missing = [...all.menu, ...all.scopesItself, ...all.shell].filter(
+    const missing = [...all.menu, ...all.scopesItself, ...all.shell, ...all.byId].filter(
       (r) => !have.some((h) => routeMatches('/api/' + h.replace(/\*/g, 'x1'), r) || ('/api/' + h).startsWith('/api/' + r.replace(/\/\*\*$/, '')))
     )
     expect(missing).toEqual([])
@@ -164,5 +165,62 @@ describe('the allowlist is the menu’s, never a second list', () => {
       walk(root)
       for (const f of files) expect(readFileSync(f, 'utf8'), relative(API, f)).not.toContain('getCallerContext')
     }
+  })
+})
+
+/**
+ * Sign-up walk, round five, problems 3–7. Karthik Menon, Teleworld's own
+ * W2 engineer, holds two reads — `assignments.read` and
+ * `timesheets.read` — and no desk. The door read "no desk" as "no
+ * permission at all", so he read every submission his firm made with its
+ * rate, the client's rate band, a colleague's placement, the firm's
+ * counterparties and contacts, and a thread he was not on.
+ */
+describe('a seat holding only the reads of its own work holds no desk (round five)', () => {
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+
+  it('the reads of a worker’s own work are not a desk; anything that acts on the firm’s book or reads across it is', () => {
+    expect(isDeskless(['assignments.read', 'timesheets.read'])).toBe(true)
+    expect(isDeskless(['timesheets.read'])).toBe(true)
+    expect(isDeskless([])).toBe(true)
+    for (const desk of ['consultants.read', 'invoices.read', 'requirements.read', 'submissions.create', 'timesheets.approve', '*']) {
+      expect(isDeskless(['assignments.read', 'timesheets.read', desk]), desk).toBe(false)
+      expect(holdsADesk([desk]), desk).toBe(true)
+    }
+    // Not known yet is never "no desk".
+    expect(isDeskless(null)).toBe(false)
+    expect(holdsADesk(null)).toBe(false)
+  })
+
+  it('every role a company is given holds a desk, except Member', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const) {
+      for (const role of rolesFor(kind)) {
+        expect(isDeskless(role.permissions), `${kind} ${role.name}`).toBe(role.name === 'Member')
+      }
+    }
+  })
+
+  it('a worker with no desk is refused his firm’s submissions, job requests, companies, contacts and missing paperwork by URL', () => {
+    for (const path of ['/api/submissions', '/api/invitations', '/api/companies', '/api/contacts', '/api/loose-ends', '/api/requirements', '/api/consultants']) {
+      const v = desklessDoor({ ...KARTHIK, path })
+      expect(v.open, path).toBe(false)
+      if (!v.open) expect(v.says).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+    }
+  })
+
+  it('a worker with no desk still opens his own pages, his own weeks and lines, and a placement by id, which answers him only about his own', () => {
+    for (const path of ['/api/me', '/api/me/work', '/api/me/portfolio', '/api/me/benches', '/api/me/data', '/api/me/papers', '/api/timesheets', '/api/contracts', '/api/conversations', '/api/placements/abc123']) {
+      expect(desklessDoor({ ...KARTHIK, path }).open, path).toBe(true)
+    }
+    // What the placement route does with it: somebody else's is not there.
+    const route = readFileSync(join(API, 'placements/[id]/route.ts'), 'utf8')
+    expect(route).toContain('const notTheirs = deskless && parties != null && parties.personId !== caller.person.id')
+    expect(route).toContain('if (!parties || !isParty || notTheirs) {')
+    expect(route).toContain('const header = readsOurMoney && !deskless ? placement.workOrder : null')
+  })
+
+  it('a worker with no desk lands on his own work', () => {
+    expect(consoleHome({ kind: 'GSI', worker: true, permissions: KARTHIK.permissions }).href).toBe('/dashboard/my-work')
+    expect(consoleHome({ kind: 'CLIENT', permissions: ['timesheets.read'] }).href).toBe('/dashboard/my-work')
   })
 })

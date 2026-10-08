@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { canReadPayRate, canReadBillRate, canReadMargin, hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
+import { isDeskless } from '@/lib/nav-table'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
@@ -121,7 +122,16 @@ export async function GET(
       parties.clientCompanyId === mine ||
       parties.endClientCompanyId === mine)
 
-  if (!parties || !isParty) {
+  // A seat with no desk — a Member, or a worker seated with only the
+  // reads of their own work — reads the placement that names it and no
+  // other (sign-up walk, round five, problem 7: Karthik Menon read a
+  // colleague's placement, its order and its other line by id). The
+  // firm being a party is not the seat being one; somebody else's
+  // placement is answered as one that does not exist, and logged.
+  const deskless = isDeskless(caller.permissions)
+  const notTheirs = deskless && parties != null && parties.personId !== caller.person.id
+
+  if (!parties || !isParty || notTheirs) {
     // The refusal is logged too. CLAUDE.md: every read of another
     // person's data writes an AccessLog row, including refusals.
     if (parties) {
@@ -130,7 +140,9 @@ export async function GET(
         actorCompanyId: mine,
         action: 'CONTRACT_VIEW',
         allowed: false,
-        reason: 'Not a party to this placement',
+        reason: notTheirs && isParty
+          ? 'A seat with no desk reads only a placement that names it'
+          : 'Not a party to this placement',
       })
     }
     return NextResponse.json(
@@ -478,7 +490,10 @@ export async function GET(
   // the ceiling on a prime's order to its sub is two other firms' money,
   // and the names on it are the same withheld names `lib/chain-names`
   // keeps off every other list. `readsOurMoney` is already that rule.
-  const header = readsOurMoney ? placement.workOrder : null
+  //
+  // Nor for a seat with no desk reading its own line: the ceiling and the
+  // other people on the order are the firm's book, not the worker's.
+  const header = readsOurMoney && !deskless ? placement.workOrder : null
 
   const siblings = header
     ? await prisma.sellContract.findMany({

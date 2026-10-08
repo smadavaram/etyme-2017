@@ -1,6 +1,10 @@
 /**
  * One door for a seat that holds no desk. Pure: no database in it.
  *
+ * "No desk" is `isDeskless` in lib/nav-table: a seat holding nothing
+ * beyond the reads of its own work (round five), not only a seat holding
+ * no permission at all (round four).
+ *
  * ── Why one door ─────────────────────────────────────────────────────
  *
  * Sign-up walk, round four (2026-10-08). A colleague seated as Member,
@@ -43,6 +47,18 @@ export const SHELL_READS: readonly string[] = [
 ]
 
 /**
+ * Routes no menu link names, opened by id from a seat's own pages, that
+ * answer a desk-less seat themselves. Hand-kept and short on purpose,
+ * with the reason beside each.
+ */
+export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
+  // Sign-up walk, round five, problem 7: a desk-less seat opens the
+  // placement that names it and no other; app/api/placements/[id]
+  // answers anybody else's as a placement that does not exist.
+  'placements/*': 'A seat with no desk reads only a placement that names it.',
+}
+
+/**
  * Route families that answer about people. A refusal at one of them is a
  * refused read of every person the route would have named, and is
  * logged as one (CLAUDE.md: every read of another person's data writes
@@ -80,8 +96,8 @@ function allowlist() {
 }
 
 /** The allowlist, for the test that checks every entry names a route. */
-export function desklessAllowlist(): { menu: string[]; scopesItself: string[]; shell: string[] } {
-  return { ...allowlist(), shell: [...SHELL_READS] }
+export function desklessAllowlist(): { menu: string[]; scopesItself: string[]; shell: string[]; byId: string[] } {
+  return { ...allowlist(), shell: [...SHELL_READS], byId: Object.keys(ANSWERS_BY_ID) }
 }
 
 /**
@@ -100,6 +116,7 @@ export function desklessDoor(ask: DoorAsk): DoorVerdict {
   if (SHELL_READS.some((r) => routeMatches(path, r))) return { open: true, why: 'SHELL' }
   if (menu.some((r) => routeMatches(path, r))) return { open: true, why: 'ON_THE_MENU' }
   if (scopesItself.some((r) => routeMatches(path, r))) return { open: true, why: 'SCOPES_ITSELF' }
+  if (Object.keys(ANSWERS_BY_ID).some((r) => routeMatches(path, r))) return { open: true, why: 'SCOPES_ITSELF' }
 
   const name = pageNameOf(path, (ask.companyKind as CompanyKind | null) ?? null)
   const first = path.replace(/^\/api\/?/, '').split('/')[0]

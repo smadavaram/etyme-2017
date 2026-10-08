@@ -162,20 +162,26 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firm�
   }, 300_000)
 })
 
-describe('Karthik Menon, an integrator’s own W2, still reads his own weeks and lines', () => {
+describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own work and nothing of the firm’s (round five)', () => {
   let karthik = ''
+  let own = ''
+  let colleagues = ''
   beforeAll(async () => {
     await freshWorld()
     karthik = (await prisma.person.findFirstOrThrow({ where: { name: 'Karthik Menon' } })).id
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    own = (await prisma.sellContract.findFirstOrThrow({ where: { personId: karthik }, select: { id: true } })).id
+    colleagues = (await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: seat.companyId!, personId: { not: karthik } }, select: { id: true },
+    })).id
   }, 240_000)
 
-  it('his own weeks still open to him: his seat holds a desk, so the door never stands in front of it', async () => {
+  it('his own weeks still open to him, and only his', async () => {
     as(KARTHIK)
     const { status, body } = await json(await (await import('@/app/api/timesheets/route')).GET(req('GET', '/api/timesheets?limit=50')))
     expect(status, JSON.stringify(body)).toBe(200)
-    // His seat holds timesheets.read, so the route — not this door — decides
-    // whose weeks he reads; that it shows colleagues' too is reported to demand.
-    expect(body.data.timesheets.some((t: any) => (t.person?.id ?? t.personId) === karthik)).toBe(true)
+    expect(body.data.timesheets.length).toBeGreaterThan(0)
+    for (const t of body.data.timesheets) expect(t.person?.id ?? t.personId).toBe(karthik)
   })
 
   it('his contract lines are his own', async () => {
@@ -184,5 +190,44 @@ describe('Karthik Menon, an integrator’s own W2, still reads his own weeks and
     expect(status, JSON.stringify(body)).toBe(200)
     expect(body.data.contracts.length).toBeGreaterThan(0)
     for (const r of body.data.contracts) expect(r.personId ?? r.person?.id).toBe(karthik)
+  })
+
+  it('his own four pages open: your work, your page, who has you and your data, with your paperwork', async () => {
+    as(KARTHIK)
+    for (const route of ['me', 'me/work', 'me/portfolio', 'me/benches', 'me/data', 'me/papers']) {
+      const r = await get(route)
+      expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(200)
+    }
+  })
+
+  it('his own placement opens to him, without the order’s ceiling or the other people on it', async () => {
+    as(KARTHIK)
+    const mod = await import('@/app/api/placements/[id]/route')
+    const res = await mod.GET(req('GET', `/api/placements/${own}`), { params: Promise.resolve({ id: own }) })
+    const text = await res.text()
+    expect(res.status, text.slice(0, 300)).toBe(200)
+    const body = JSON.parse(text)
+    expect(JSON.stringify(body)).toContain(karthik)
+  })
+
+  it('a colleague’s placement is not there for him, and the refused read is logged', async () => {
+    as(KARTHIK)
+    const mod = await import('@/app/api/placements/[id]/route')
+    const res = await mod.GET(req('GET', `/api/placements/${colleagues}`), { params: Promise.resolve({ id: colleagues }) })
+    expect(res.status).toBe(404)
+    const logged = await prisma.accessLog.findFirst({
+      where: { actorPersonId: karthik, allowed: false, reason: 'A seat with no desk reads only a placement that names it' },
+    })
+    expect(logged).not.toBeNull()
+  })
+
+  it('his firm’s submissions, companies, contacts and missing paperwork refuse him in a sentence', async () => {
+    as(KARTHIK)
+    for (const route of ['submissions', 'companies', 'contacts', 'loose-ends', 'invitations']) {
+      const r = await get(route)
+      expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(403)
+      expect(r.body.error.code).toBe('NO_DESK')
+      expect(r.body.error.message).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+    }
   })
 })

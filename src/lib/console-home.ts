@@ -70,7 +70,7 @@ export interface Reader {
  * The two reads every delivery engineer's seat holds: the work they are
  * on, and their own hours. Nothing on a firm's Today is about them.
  */
-const A_WORKERS_OWN = new Set(['assignments.read', 'timesheets.read'])
+export const OWN_WORK_READS: ReadonlySet<string> = new Set(['assignments.read', 'timesheets.read'])
 
 /**
  * The seat reads nothing at the firm beyond its holder's own work.
@@ -83,7 +83,7 @@ const A_WORKERS_OWN = new Set(['assignments.read', 'timesheets.read'])
  */
 export function readsOnlyOwnWork(permissions: readonly string[] | null | undefined): boolean {
   if (permissions == null) return false
-  return permissions.every((p) => A_WORKERS_OWN.has(p))
+  return permissions.every((p) => OWN_WORK_READS.has(p))
 }
 
 export interface Verdict {
@@ -127,9 +127,10 @@ export function consoleHome(reader: Reader): Verdict {
   }
 
   // A colleague seated as Member and not yet given a desk holds no
-  // permission at all. The firm's console is a desk; theirs is their own
-  // work, empty until there is some (sign-up walk, round three, item 5).
-  if (Array.isArray(reader.permissions) && reader.permissions.length === 0) {
+  // permission at all, or only the reads of their own work. The firm's
+  // console is a desk; theirs is their own work, empty until there is
+  // some (sign-up walk, round three, item 5; round five, problems 3–7).
+  if (readsOnlyOwnWork(reader.permissions)) {
     return {
       href: '/dashboard/my-work',
       says: 'A seat with no desk yet opens on its own work, not on the firm’s console.',

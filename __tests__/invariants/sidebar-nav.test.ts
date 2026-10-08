@@ -736,15 +736,21 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     ])
   })
 
-  it('and still sees the firm that employs them, because they are both', () => {
+  it('and still sees what his firm addresses to him, but not the firm’s book, because his seat holds no desk', () => {
     // Not the consultant menu instead. He holds a real seat at
-    // Teleworld, and hiding his employer's menu would be this same bug
-    // facing the other way.
-    // No Supply: its one link for him, Training, is drawn from the bench
-    // and the open jobs, and his seat reads neither.
-    expect(engineer.map((s) => s.label)).toEqual(
-      ['Today', 'Deliver', 'Operate', 'Grow', 'Governance', 'You']
-    )
+    // Teleworld, and what the firm sends him lands under its Today.
+    // Sign-up walk, round five: his two reads are of his own work, not a
+    // desk, so the firm's Deliver, Operate, Grow and Governance — every
+    // submission with its rate, the counterparties, the contacts — are
+    // not his reading, on the menu or by URL.
+    expect(engineer.map((s) => s.label)).toEqual(['Today', 'You'])
+    expect(engineer[0].items.map((i) => i.label)).toEqual(['Needs attention', 'Conversations', 'Notifications'])
+  })
+
+  it('a worker who holds a desk at the firm keeps every section of the firm’s menu and gains "You"', () => {
+    const lead = getNavForKind('GSI', false, { worker: true, permissions: [...GSI_PERMS, 'requirements.read', 'consultants.read'] })
+    expect(lead.map((s) => s.label)).toContain('Deliver')
+    expect(lead[lead.length - 1].label).toBe('You')
   })
 
   it('reads their own work last, after the firm\'s, not instead of it', () => {
@@ -1018,10 +1024,13 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(src).toContain('data-section={section.label}')
   })
 
-  it('the firm\u2019s scorecard reads as the firm\u2019s on a worker\u2019s menu, never as his own', () => {
+  it('the firm\u2019s scorecard reads as the firm\u2019s on a worker\u2019s menu, never as his own, and a worker with no desk is not shown it', () => {
     const labels = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: ['assignments.read', 'timesheets.read'] })).map((i) => i.label)
     expect(labels).not.toContain('Your scorecard')
-    expect(labels).toContain('Our scorecard')
+    expect(labels).not.toContain('Our scorecard')
+    const withADesk = itemsOf(getNavForKind('GSI', false, { worker: true, permissions: ['*'] })).map((i) => i.label)
+    expect(withADesk).not.toContain('Your scorecard')
+    expect(withADesk).toContain('Our scorecard')
   })
 
   it('a delivery engineer who sees no money is shown no money or firm-admin links', () => {
@@ -1033,7 +1042,8 @@ describe('a menu offers only what this seat can actually open', () => {
     for (const refused of ['AR', 'AP', 'DNR list', 'Automation', 'Integrations', 'Import', 'Setup', 'Settings', 'Users & permissions', 'Suppliers', 'Check queue', 'Compliance']) {
       expect(labels, `${refused} would answer him with a refusal`).not.toContain(refused)
     }
-    expect(labels).toContain('Timesheets')
+    // His own weeks are on Your work; the firm's Timesheets is a desk's list.
+    expect(labels).not.toContain('Timesheets')
     expect(labels).toContain('Your work')
   })
 
@@ -1058,16 +1068,17 @@ describe('a menu offers only what this seat can actually open', () => {
     }
   })
 
-  it('shows a delivery engineer no payroll, no bills and no profit', () => {
+  it('shows a delivery engineer no payroll, no bills and no profit, and his own week and line on Your work instead of the firm’s lists', () => {
     const labels = itemsOf(getNavForKind('GSI', false, {
       worker: true, permissions: ['assignments.read', 'timesheets.read'],
     })).map((i) => i.label)
     for (const refused of ['Payroll', 'Commissions', 'Bills', 'Profitability', 'POs', 'Expenses', 'Bench', 'Consultants']) {
       expect(labels, `${refused} would answer him with a permission error`).not.toContain(refused)
     }
-    // And he keeps the week he files and the contracts he is on.
-    expect(labels).toContain('Timesheets')
-    expect(labels).toContain('Sell contracts')
+    // He keeps the week he files and the line he is on, on his own page.
+    expect(labels).not.toContain('Timesheets')
+    expect(labels).not.toContain('Sell contracts')
+    expect(labels).toContain('Your work')
   })
 
   it('shortens nobody\'s menu who holds the whole company', () => {

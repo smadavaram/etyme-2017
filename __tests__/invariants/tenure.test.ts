@@ -336,9 +336,10 @@ describe('a seat with no desk cannot read the tenure ledger by URL', () => {
   const route = readFileSync(join(process.cwd(), 'src/app/api/tenure/route.ts'), 'utf8')
   const get = route.slice(route.indexOf('export async function GET'))
 
-  it('the tenure route refuses a seat holding no permission, by the same rule the menu hides the link by', () => {
+  it('the tenure route refuses a seat holding no desk — no permission, or only the reads of its own work — by the same rule the menu hides the link by', () => {
     expect(isDeskless([])).toBe(true)
-    expect(isDeskless(['assignments.read'])).toBe(false)
+    expect(isDeskless(['assignments.read'])).toBe(true)
+    expect(isDeskless(['assignments.read', 'consultants.read'])).toBe(false)
     expect(get).toContain('if (!seat && isDeskless(caller.permissions))')
     expect(get).toMatch(/isDeskless\(caller\.permissions\)\) \{[\s\S]*?status: 403/)
   })
