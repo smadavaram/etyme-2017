@@ -72,6 +72,9 @@ export type AccessAction =
   | 'DOCUMENTS_SHARED_EXTERNALLY' // sent a person's documents to somebody outside the company
   | 'SHARED_DOCUMENTS_OPENED'     // the outside recipient opened that share
   | 'SHARED_DOCUMENTS_WITHDRAWN'  // the share was withdrawn
+  // ── Two more that were written by hand until 2026-10-08 (etyme-supply) ──
+  | 'RESUME_READ'         // opened the file behind somebody's CV, or was refused it
+  | 'CONTEXT_SWITCH'      // a person moved their own session to another seat they hold
   | 'WEEK_APPROVAL_WORDS_VIEW'    // read who approved a week by email, on the timesheet list
 
 interface LogAccessParams {

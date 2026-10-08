@@ -209,7 +209,11 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // AccessLog — CLAUDE.md invariant: every read of another person's data
+        // AccessLog — CLAUDE.md invariant: every read of another person's data.
+        // Written by hand on this transaction on purpose, and named as the
+        // exception in __tests__/invariants/access-lifecycle-log.test.ts: the
+        // listing at the other firm and its trail commit together, or
+        // neither does. lib/access-log takes no transaction client.
         await tx.accessLog.create({
           data: {
             subjectId: source.consultant.personId,

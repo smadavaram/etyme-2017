@@ -268,12 +268,14 @@ function handWrittenAccessLogRows(): string[] {
  * reason, and the owner moves it when lib/access-log takes a client.
  */
 const STILL_BY_HAND: readonly string[] = [
-  'src/app/api/bench/listings/[id]/route.ts',          // etyme-supply — inside a transaction
-  'src/app/api/bench/share/route.ts',                  // etyme-supply — inside a transaction
-  'src/app/api/consultants/[id]/route.ts',             // etyme-supply
-  'src/app/api/consultants/[id]/route.ts',             // etyme-supply
-  'src/app/api/me/context/route.ts',                   // etyme-supply
-  'src/app/api/resumes/[id]/file/route.ts',            // etyme-supply
+  // etyme-supply, kept on purpose. Each row is the trail of a person being
+  // shown to another firm — a listing moved to marketing, a listing created
+  // at a partner — and it is written on the same transaction as that change,
+  // so the person is never marketed without the row and the row never names
+  // a share that rolled back. lib/access-log takes no transaction client;
+  // when it does, both move through it and come off this list.
+  'src/app/api/bench/listings/[id]/route.ts',
+  'src/app/api/bench/share/route.ts',
   'src/app/api/settings/bench/people/route.ts',        // etyme-architect
 ].slice().sort()
 

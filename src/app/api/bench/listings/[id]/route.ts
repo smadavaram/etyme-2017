@@ -137,6 +137,10 @@ export async function PATCH(
       // on the subject, below.
       // Showing somebody to other firms is a use of their data, so it is
       // on their trail beside every read.
+      // Written by hand on this transaction on purpose, and named as the
+      // exception in __tests__/invariants/access-lifecycle-log.test.ts: the
+      // listing becomes visible to partners and its trail commit together,
+      // or neither does. lib/access-log takes no transaction client.
       await tx.accessLog.create({
         data: {
           subjectId: listing.consultant.personId,

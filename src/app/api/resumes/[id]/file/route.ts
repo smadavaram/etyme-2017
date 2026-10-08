@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { mayRead } from '@/lib/resumes'
 
 /**
@@ -58,16 +59,18 @@ export async function GET(
     resume.submissions.map((s) => s.toCompanyId)
   )
 
-  await prisma.accessLog.create({
-    data: {
-      subjectId: resume.personId,
-      actorPersonId: caller.person.id,
-      actorCompanyId: caller.company?.id ?? null,
-      action: 'RESUME_READ',
-      allowed: allowed.ok,
-      reason: allowed.reason,
-    },
-  }).catch(() => {})
+  // A read is recorded without holding the file back for it; a refusal
+  // is awaited before the 403 leaves, so a frozen function cannot drop
+  // the one row an auditor asks for first. This used to end in
+  // `.catch(() => {})`, so a failed write vanished; both paths now report.
+  const trail = {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'RESUME_READ' as const,
+    reason: allowed.reason,
+  }
+  if (allowed.ok) logAccess({ ...trail, subjectId: resume.personId, allowed: true })
+  else await recordRefusal([resume.personId], { ...trail, allowed: false })
 
   if (!allowed.ok) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: allowed.reason } }, { status: 403 })

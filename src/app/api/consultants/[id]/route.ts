@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { benchClosedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -39,15 +40,12 @@ export async function GET(
       select: { personId: true },
     })
     if (profile) {
-      await prisma.accessLog.create({
-        data: {
-          subjectId: profile.personId,
-          actorPersonId: caller.person.id,
-          actorCompanyId: caller.company?.id ?? null,
-          action: 'PROFILE_VIEW',
-          allowed: false,
-          reason: 'Refused: the reader’s desk does not read the people this firm has on its books.',
-        },
+      await recordRefusal([profile.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: 'Refused: the reader’s desk does not read the people this firm has on its books.',
       })
     }
     return NextResponse.json(
@@ -119,14 +117,12 @@ export async function GET(
 
   // Write AccessLog — every read of another person's data
   if (!isSubject) {
-    await prisma.accessLog.create({
-      data: {
-        subjectId: profile.personId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: companyId ?? null,
-        action: 'PROFILE_VIEW',
-        allowed: true,
-      },
+    logAccess({
+      subjectId: profile.personId,
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'PROFILE_VIEW',
+      allowed: true,
     })
   }
 

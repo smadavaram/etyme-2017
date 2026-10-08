@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { logAccess } from '@/lib/access-log'
 
 /**
  * POST /api/me/context
@@ -80,15 +81,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Write AccessLog for context switch — every data access is logged
-  await prisma.accessLog.create({
-    data: {
-      subjectId: person.id,
-      actorPersonId: person.id,
-      actorCompanyId: context.companyId,
-      action: 'CONTEXT_SWITCH',
-      allowed: true,
-      reason: `Switched to ${context.type} context at ${context.company?.name ?? 'unknown'}`,
-    },
+  logAccess({
+    subjectId: person.id,
+    actorPersonId: person.id,
+    actorCompanyId: context.companyId ?? undefined,
+    action: 'CONTEXT_SWITCH',
+    allowed: true,
+    reason: `Switched to ${context.type} context at ${context.company?.name ?? 'unknown'}`,
   })
 
   return NextResponse.json({
