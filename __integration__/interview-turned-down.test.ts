@@ -107,10 +107,17 @@ describe('when a candidate is turned down their open rounds are cancelled and bo
   })
 
   it('calling it again finds nothing open and tells nobody twice', async () => {
-    const before = await prisma.notification.count({ where: { entityId: round } })
+    // Counted by what a second call-off would say. The round's earlier
+    // notices — proposed, confirmed — are told without waiting (the routes
+    // `void tell(...)` by design), so under load one can land after this
+    // count and read as a second telling. Only a call-off says "is off",
+    // and the first call's notices were awaited by cancelRoundsFor itself.
+    const offNotices = () => prisma.notification.count({ where: { entityId: round, title: { endsWith: ' is off' } } })
+    const before = await offNotices()
+    expect(before, 'the first call told nobody, so there is nothing to tell twice').toBeGreaterThan(0)
     expect(await cancelRoundsFor(meiLin.submissionId, REASON)).toEqual([])
     await new Promise((r) => setTimeout(r, 200))
-    expect(await prisma.notification.count({ where: { entityId: round } })).toBe(before)
+    expect(await offNotices()).toBe(before)
   })
 
   it('a round already held is history and is never called off', async () => {
