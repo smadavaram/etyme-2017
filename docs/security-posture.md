@@ -310,9 +310,27 @@ endpoint in the product and this document does not claim it is. The
 remaining routes are overwhelmingly company-scoped records — invoices,
 cycles, orders — rather than reads of another person.
 
-Logging is fire-and-forget by design so a log failure cannot block a
-response. The trade-off is explicit: a database failure could lose a log
-row without failing the request.
+**When the row is written, and what happens if it cannot be.** Three
+doors in `src/lib/access-log.ts`, each with a stated trade-off:
+
+| Door | Used for | Waits for the row? | If the row cannot be written |
+|---|---|---|---|
+| `recordRefusal` | every refused read | **yes**, before the refusal goes out | the refusal still goes out; the failure is reported to staff (an `Incident` row and an email) |
+| `recordAccess` | reads that must not happen unlogged — a file, a census, a share | **yes**, before the data goes out | **the request fails**; the data is not handed over |
+| `logAccess`, `logBulkAccess` | ordinary reads, and lists of many people | no | the read has happened; the failure is reported to staff |
+
+So a refusal is never lost to a frozen serverless function, and never
+turned into an error. A read that goes through `recordAccess` is never
+served without its row. The trade-off that remains is explicit: an
+ordinary read or a list can lose its row on a database failure without
+failing the request, and staff are told when it does.
+
+Three files still write their rows by hand, each awaited and each listed
+by name in `__tests__/invariants/access-lifecycle-log.test.ts`, which fails
+on any new one: the week-approval seam in `src/lib/week-approval.ts`,
+which waits for its row and reports a failure to staff without failing
+the request, and two bench routes that write the row on the same
+transaction as the change it records.
 
 ---
 
@@ -731,8 +749,10 @@ Stated in one place so a reviewer does not have to assemble it.
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
 - Access logging covers 42 route files of 297 (section 4).
-- Access logging is fire-and-forget, so a log write failure does not fail
-  the request.
+- An ordinary read or a list of people is logged fire-and-forget, so a log
+  write failure there does not fail the request; staff are told instead.
+  Refusals and the reads that must not proceed unlogged wait for their
+  row (section 4).
 - MFA is inherited, not enforced.
 
 ---

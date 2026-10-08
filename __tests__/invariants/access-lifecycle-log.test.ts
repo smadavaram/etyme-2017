@@ -278,13 +278,15 @@ const STILL_BY_HAND: readonly string[] = [
   // shown to another firm — a listing moved to marketing, a listing created
   // at a partner — and it is written on the same transaction as that change,
   // so the person is never marketed without the row and the row never names
-  // a share that rolled back. lib/access-log takes no transaction client;
-  // when it does, both move through it and come off this list.
+  // a share that rolled back. Since 2026-10-08 `recordAccess` takes the
+  // transaction as its third argument, so both can move through it and
+  // come off this list.
   'src/app/api/bench/listings/[id]/route.ts',
   'src/app/api/bench/share/route.ts',
   // etyme-architect — one seam, awaited, a failure reported to staff. Its
-  // six action names are not in AccessAction yet (lib/access-log is
-  // regulatory's); once they are, the seam calls recordRefusal/recordAccess.
+  // six action names are in AccessAction since 2026-10-08; the seam's body
+  // becomes recordRefusal/recordAccess in the architect's own change, and
+  // this line goes with it.
   'src/lib/week-approval.ts',
 ].slice().sort()
 

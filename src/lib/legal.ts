@@ -619,6 +619,15 @@ export const WALLS = {
   provenBy: 'src/lib/walls.ts, src/lib/account-walls.ts, src/lib/seat.ts, src/lib/threads.ts',
 } as const
 
+/**
+ * How many route files under src/app/api write an access-log row through
+ * src/lib/access-log.ts. The privacy notice reads its count from here, and
+ * legal-pages.test.ts compares this number to the tree.
+ *
+ * Whoever moves a route onto lib/access-log updates this number in the same commit.
+ */
+export const ACCESS_LOGGED_ROUTE_FILES = 42
+
 export const ACCESS_LOGGING = {
   paragraphs: [
     'Reads of a person’s record are logged. The row names the person read, who read it, ' +
@@ -632,10 +641,10 @@ export const ACCESS_LOGGING = {
       'this document does not claim it is.',
   ],
   provenBy:
-    // The count is recomputed from the tree by legal-pages.test.ts, which
-    // fails the commit that makes it untrue. It read "nineteen" for weeks
-    // after it was thirty-odd.
-    'src/lib/access-log.ts and the 37 route files that write an access-log row ' +
+    // The count is ACCESS_LOGGED_ROUTE_FILES above, which legal-pages.test.ts
+    // compares to the tree and fails the commit that makes it untrue. It read
+    // "nineteen" for weeks after it was thirty-odd, then 37 after it was 42.
+    `src/lib/access-log.ts and the ${ACCESS_LOGGED_ROUTE_FILES} route files that write an access-log row ` +
     'through it',
 } as const
 

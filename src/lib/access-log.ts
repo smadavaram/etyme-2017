@@ -1,5 +1,9 @@
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
+
+/** Where a row may be written: the client, or a transaction the caller holds. */
+type AccessLogWriter = Pick<Prisma.TransactionClient, 'accessLog'>
 
 /**
  * CLAUDE.md invariant: "Every read of another person's data writes an
@@ -72,10 +76,32 @@ export type AccessAction =
   | 'DOCUMENTS_SHARED_EXTERNALLY' // sent a person's documents to somebody outside the company
   | 'SHARED_DOCUMENTS_OPENED'     // the outside recipient opened that share
   | 'SHARED_DOCUMENTS_WITHDRAWN'  // the share was withdrawn
-  // ── Two more that were written by hand until 2026-10-08 (etyme-supply) ──
+  // ── Three more that were written by hand until 2026-10-08 ──────────
+  //
+  // The first two are etyme-supply's routes, the third etyme-demand's.
+  // Reviewed by regulatory the same day and kept: each names one read a
+  // client could ask about by itself. CONTEXT_SWITCH is the person's own
+  // session rather than a read of somebody else; it is kept because which
+  // seat a later read was made from is the first thing an audit of that
+  // read needs.
   | 'RESUME_READ'         // opened the file behind somebody's CV, or was refused it
   | 'CONTEXT_SWITCH'      // a person moved their own session to another seat they hold
   | 'WEEK_APPROVAL_WORDS_VIEW'    // read who approved a week by email, on the timesheet list
+  // ── A week approved at the top without the client signing in ───────
+  //
+  // `lib/week-approval` (etyme-architect): the client's approver approves
+  // by a one-time link, or a desk attaches the client's approval as
+  // evidence, and every rung it applies to may read who approved and on
+  // what. These are the names that file has always written; they are
+  // here so its one seam can go through recordRefusal and recordAccess.
+  // Integration tests and the client's own trail read them, so they do
+  // not move.
+  | 'APPROVAL_LINK_SEND'        // sent the client's approver a link, or was refused
+  | 'APPROVAL_EVIDENCE_ATTACH'  // attached the client's approval as evidence, or was refused
+  | 'WEEK_APPROVAL_VIEW'        // read who approved a week, or was refused
+  | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
+  | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
+  | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
 
 interface LogAccessParams {
   /** The person whose data was accessed */
@@ -183,13 +209,19 @@ export function logBulkAccess(
  * A failure here throws rather than reporting quietly, so the caller can
  * decide: a route that cannot record a read of somebody's file should
  * not hand over the file.
+ *
+ * `db` is a transaction the caller already holds, where the row must
+ * commit or roll back with the change it records — a person shown to a
+ * partner firm is never shown without the row, and the row never names a
+ * share that rolled back. Omitted, the row is written on its own.
  */
 export async function recordAccess(
   subjectIds: string[],
-  params: Omit<LogAccessParams, 'subjectId'>
+  params: Omit<LogAccessParams, 'subjectId'>,
+  db: AccessLogWriter = prisma
 ): Promise<number> {
   if (subjectIds.length === 0) return 0
-  const written = await prisma.accessLog.createMany({
+  const written = await db.accessLog.createMany({
     data: subjectIds.map((subjectId) => ({
       subjectId,
       actorPersonId: params.actorPersonId ?? null,

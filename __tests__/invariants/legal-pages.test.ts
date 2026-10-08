@@ -12,6 +12,7 @@ import {
   NOT_USED,
   RETENTION,
   ACCESS_LOGGING,
+  ACCESS_LOGGED_ROUTE_FILES,
   SUMMARY,
   SUMMARY_ASKS,
   TERMS,
@@ -471,13 +472,16 @@ describe('The security posture is as plain about what is absent as what is prese
 
   it('the privacy notice says how many route files log a read, and the number is the one in the tree today', () => {
     const counted = routeFilesLoggingThroughTheLib()
+    expect(
+      ACCESS_LOGGED_ROUTE_FILES,
+      `src/lib/legal.ts says ${ACCESS_LOGGED_ROUTE_FILES} route files write an access-log row through ` +
+        `lib/access-log; the tree has ${counted}. Change ACCESS_LOGGED_ROUTE_FILES in src/lib/legal.ts ` +
+        `to ${counted}, in the same commit that moved the route.`
+    ).toBe(counted)
+    // And the notice reads that one number rather than carrying its own copy.
     const said = /the (\d+) route files that write an access-log row/.exec(ACCESS_LOGGING.provenBy)
     expect(said, 'the notice no longer states a count in the form this test reads').not.toBeNull()
-    expect(
-      Number(said![1]),
-      `The privacy notice says ${said![1]} route files write an access-log row through lib/access-log; ` +
-        `the tree has ${counted}. Change the number in ACCESS_LOGGING.provenBy in src/lib/legal.ts.`
-    ).toBe(counted)
+    expect(Number(said![1])).toBe(ACCESS_LOGGED_ROUTE_FILES)
   })
 
   it('it states the access-log coverage honestly rather than as every route, and both counts are the ones in the tree today', () => {
