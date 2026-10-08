@@ -189,7 +189,7 @@ describe('The privacy notice describes the system that exists', () => {
     expect(text, 'the runbook is still missing and must still be named').toMatch(/no.{0,40}rehearsed runbook/i)
   })
 
-  it('it says that ending somebody access ends a seat and erases no record', () => {
+  it('it says that ending somebody’s access ends a seat and erases no record', () => {
     const text = RETENTION.paragraphs.join(' ')
     expect(text).toMatch(/revokes their seat and deletes no record/i)
     expect(text).toMatch(/Suspension is the reversible form/i)

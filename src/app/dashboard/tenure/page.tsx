@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
-import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle } from './words'
+import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle, tenureView } from './words'
+import { TenureRefused } from './refused'
 
 /**
  * Tenure Tracking — Governance section
@@ -123,7 +124,13 @@ export default function TenurePage() {
 
   if (!data && !loading && !error) return null
 
-  const summary = data?.summary ?? { totalTracked: 0, ok: 0, warning: 0, breakRequired: 0, inBreak: 0, eligible: 0, runsPast: 0 }
+  // A refusal is the whole page: the sentence, and no figure above it.
+  // The counters below are drawn only from figures the route sent, never
+  // from zeros standing in for an answer the page has not got.
+  const view = tenureView({ loading, error, hasData: data != null })
+  if (view.show === 'refused') return <TenureRefused says={view.says} />
+
+  const summary = data?.summary ?? null
   const today = new Date()
   const capMonths = data?.tenureCapMonths ?? null
 
@@ -265,7 +272,8 @@ export default function TenurePage() {
         </p>
       </div>
 
-      {/* Stats */}
+      {/* Stats — only once the route has answered with figures */}
+      {summary && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[100px]">
           <p className="stat-label">Tracked</p>
@@ -304,6 +312,7 @@ export default function TenurePage() {
           <p className="stat-value text-etyme-verified">{summary.eligible}</p>
         </div>
       </div>
+      )}
 
       {/* DataTable */}
       <ListSurface

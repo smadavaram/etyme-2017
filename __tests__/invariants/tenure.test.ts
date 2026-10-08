@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { tenureView } from '@/app/dashboard/tenure/words'
+import { TenureRefused } from '@/app/dashboard/tenure/refused'
 import { isDeskless } from '@/lib/nav-table'
 import { namesAPermission } from '@/lib/refusal-words'
 import { askTheDesk } from '@/lib/permissions'
@@ -357,5 +361,47 @@ describe('a seat with no desk cannot read the tenure ledger by URL', () => {
 
   it('the refusal comes before any person’s tenure is read', () => {
     expect(get.indexOf('if (!seat && isDeskless')).toBeLessThan(get.indexOf('const contracts = await prisma.sellContract.findMany'))
+  })
+})
+
+/**
+ * Sign-up walk, round four, problem 4. The route refused a Member and
+ * the page drew "TRACKED 0 … OVER THE LIMIT 0" above the refusal, at a
+ * client with a contractor 24 months in and past the limit. A zero says
+ * nobody is over. The truth was "not yours to see".
+ */
+describe('a refused time-on-site page', () => {
+  const says = 'Reading the tenure ledger is done by the Owner desk at Northbend Athletic. Ask them for it.'
+  const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
+
+  it('a refused tenure page shows the heading and the refusal sentence, and no count at all', () => {
+    const html = renderToStaticMarkup(createElement(TenureRefused, { says }))
+    expect(html).toContain('Time on site')
+    expect(html).toContain(says)
+    expect(html).not.toMatch(/>\s*0\s*</)
+    expect(html).not.toMatch(/Tracked|Approaching|Over the limit|Booked past the limit|In break|Eligible|Search/)
+  })
+
+  it('a refused tenure page names no client in a subtitle, because the reader was not shown whose it is', () => {
+    const html = renderToStaticMarkup(createElement(TenureRefused, { says: 'Not yours.' }))
+    expect(html).not.toContain('How long each person has worked')
+  })
+
+  it('whenever the tenure route refuses, the page is the refusal — whether or not it was still loading', () => {
+    expect(tenureView({ loading: false, error: says, hasData: false })).toEqual({ show: 'refused', says })
+    expect(tenureView({ loading: true, error: says, hasData: false })).toEqual({ show: 'refused', says })
+  })
+
+  it('no tenure count is drawn until the route has answered with figures', () => {
+    expect(tenureView({ loading: true, error: null, hasData: false })).toEqual({ show: 'loading' })
+    expect(tenureView({ loading: false, error: null, hasData: true })).toEqual({ show: 'page' })
+    expect(page).not.toMatch(/summary \?\? \{ totalTracked: 0/)
+    expect(page).toContain('{summary && (')
+  })
+
+  it('the tenure page returns the refusal before it draws a single count', () => {
+    const refused = page.indexOf("if (view.show === 'refused') return <TenureRefused")
+    expect(refused).toBeGreaterThan(-1)
+    expect(page.indexOf('<p className="stat-label">Tracked</p>')).toBeGreaterThan(refused)
   })
 })

@@ -384,7 +384,7 @@ export const HELD: HeldCategory[] = [
       'The seat itself — which company granted it, the role and the permissions on it, ' +
       'the org unit it sits in, why it was granted, when it was last used and whether it ' +
       'is suspended or ended — and every act taken from it: a job request raised, an ' +
-      'approval given or refused with the reason in words, somebody else week of hours ' +
+      'approval given or refused with the reason in words, somebody else’s week of hours ' +
       'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
       'supplier decided at a desk, a payment run approved, a legal hold placed, an ' +
       'incident opened. An agreement carries the signer’s own name, title and email as they ' +
@@ -572,7 +572,7 @@ export const RETENTION = {
       'on one. A visa petition file is the clearest case: what can be cited covers the ' +
       'public access file and not the petition, so the line returns nothing and says why. ' +
       'A retention period invented by an engineer deletes a record that does not come back.',
-    'Ending somebody access revokes their seat and deletes no record. That is ' +
+    'Ending somebody’s access revokes their seat and deletes no record. That is ' +
       'deliberate: a person who worked somewhere worked there, and an audit long ' +
       'afterward has to be able to find them. Suspension is the reversible form, for a ' +
       'leave of absence or a lapsed visa, and keeps their history attached to them.',
@@ -712,7 +712,7 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
           'supplier relationships. A customer may not use it to reach data belonging to ' +
           'another company, to work around the walls described in the privacy notice, ' +
           'or to load personal data it has no right to load.',
-        'A customer uploading somebody personal data warrants that it is entitled to ' +
+        'A customer uploading somebody’s personal data warrants that it is entitled to ' +
           'do so and that the person has been told what they must be told. That ' +
           'matters most for resumes and onboarding documents, which arrive here from ' +
           'recruiters far more often than from the person themselves.',
@@ -919,7 +919,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
           'rate floor, answer or withdraw a bench listing, answer an interview, and read ' +
           'their own paperwork, from their own pages in the product.',
         'Anybody signed in can ask for everything held about them, or ask to be ' +
-          'forgotten, from their own page. Neither needs anybody permission and neither ' +
+          'forgotten, from their own page. Neither needs anybody’s permission and neither ' +
           'goes through a company. The copy is produced on the spot, in the categories ' +
           'this notice names, and every time it is opened a line is written saying who ' +
           'opened it — including us.',
@@ -1160,7 +1160,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
           'today, because nobody has decided which of the joint records travel with it — ' +
           'a contract between two firms, an invoice between them, and the days a person ' +
           'worked on a site are the other firm’s records as much as this one, and handing ' +
-          'over a copy of them is a decision about somebody else data. Answering by hand ' +
+          'over a copy of them is a decision about somebody else’s data. Answering by hand ' +
           'is the honest path until that is decided.',
       ],
       provenBy:
@@ -1478,7 +1478,7 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
       ask: 'Your rights',
       answer:
         'Anybody signed in can ask for everything held about them, or ask to be ' +
-        'forgotten, from their own page. Neither needs anybody permission and neither ' +
+        'forgotten, from their own page. Neither needs anybody’s permission and neither ' +
         'goes through a company.',
       href: '#your-rights-and-how-they-are-honored-today',
     },

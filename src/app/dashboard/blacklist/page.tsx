@@ -516,6 +516,23 @@ export default function BlacklistPage() {
 
   // ── Render ─────────────────────────────────────────
 
+  // A list that could not be read is the heading and the sentence. Not
+  // "All 0 · Active 0", which says nobody is barred, and not "Add
+  // somebody", which the same route would refuse.
+  if (!loading && error) return (
+    <div className="animate-fade-in">
+      <div className="mb-6">
+        {section && <div className="eyebrow mb-2">{section}</div>}
+        <h1 className="headline-serif text-heading text-etyme-ink mb-1">
+          Do-not-return list
+        </h1>
+      </div>
+      <div className="panel" role="status">
+        <p className="text-[13px] text-etyme-ink">{error}</p>
+      </div>
+    </div>
+  )
+
   return (
     <div className="animate-fade-in">
       {/* Header */}

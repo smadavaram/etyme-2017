@@ -11,6 +11,7 @@ import {
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
 } from '@/lib/access-grant'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * Who may read the access register.
@@ -375,7 +376,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'ACCESS_GRANTED',
-      summary: `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${expiresAt.toISOString().slice(0, 10)}` : ''}`,
+      summary: `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${formatDay(expiresAt)}` : ''}`,
       reason: String(reason).trim(),
       payload: {
         contextId: target.id,
@@ -442,7 +443,7 @@ export async function POST(request: NextRequest) {
         expiresAt: expiresAt?.toISOString().slice(0, 10) ?? null,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
         message: expiresAt
-          ? `${target.person.name} can now work as ${role.name}. This ends on ${expiresAt.toISOString().slice(0, 10)} unless renewed.`
+          ? `${target.person.name} can now work as ${role.name}. This ends on ${formatDay(expiresAt)} unless renewed.`
           : `${target.person.name} has read-only access with no end date.`,
       },
     },

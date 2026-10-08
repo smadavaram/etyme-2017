@@ -102,3 +102,23 @@ export function statusLabel(status: string, onSite: boolean): string {
     default: return 'OK'
   }
 }
+
+/**
+ * What the page may draw, given what the route said.
+ *
+ * Sign-up walk, round four: a Member the route refused read "TRACKED 0 …
+ * OVER THE LIMIT 0" above the refusal, at a client with somebody 24
+ * months in. A zero says "nobody is over the limit". The truth was "not
+ * yours to see". So a refusal is the whole page, and no figure is drawn
+ * until the route has answered with figures.
+ */
+export type TenureView =
+  | { show: 'refused'; says: string }
+  | { show: 'loading' }
+  | { show: 'page' }
+
+export function tenureView(s: { loading: boolean; error: string | null; hasData: boolean }): TenureView {
+  if (s.error) return { show: 'refused', says: s.error }
+  if (!s.hasData) return { show: 'loading' }
+  return { show: 'page' }
+}

@@ -239,3 +239,23 @@ describe('sign-up walk, round three: Users & permissions counts and says what is
     expect(n.body).not.toMatch(/\d{4}-\d{2}-\d{2}/)
   })
 })
+
+/**
+ * Sign-up walk, round four, problem 10. The row and the email were
+ * fixed in round three; the browser alert after "Change desk" still read
+ * "This ends on 2027-01-06 unless renewed." — the alert is the route's
+ * own `message`, so the route prints the day.
+ */
+describe('sign-up walk, round four: the Change desk confirmation says a day', () => {
+  const route = read('src/app/api/access/route.ts')
+
+  it('the confirmation after changing a desk prints its end date as a day a person reads, never as 2027-01-06', () => {
+    expect(route).toContain('This ends on ${formatDay(expiresAt)} unless renewed.')
+    expect(route).not.toMatch(/This ends on \$\{expiresAt\.toISOString\(\)/)
+  })
+
+  it('the automation log line for a desk given until a day prints the day the same way', () => {
+    expect(route).toContain('` until ${formatDay(expiresAt)}`')
+    expect(route).not.toContain('` until ${expiresAt.toISOString().slice(0, 10)}`')
+  })
+})

@@ -67,6 +67,9 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
+  // The library itself could not be read — refused, most often. Apart
+  // from `error`, which is an act on a page that did load.
+  const [unread, setUnread] = useState<string | null>(null)
 
   const [newTemplate, setNewTemplate] = useState({ name: '', audience: 'CANDIDATE', needsSignature: false })
   const [ask, setAsk] = useState({ templateId: '', personId: '' })
@@ -75,6 +78,7 @@ export default function DocumentsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setUnread(null)
     try {
       const [t, r, whoWeMayAsk] = await Promise.all([
         fetch('/api/documents').then(readJson),
@@ -85,7 +89,7 @@ export default function DocumentsPage() {
       setRequests(r?.data?.instances ?? [])
       setBooks(whoWeMayAsk)
     } catch (e: any) {
-      setError(e.message)
+      setUnread(e.message)
     } finally {
       setLoading(false)
     }
@@ -143,6 +147,21 @@ export default function DocumentsPage() {
     status === 'SIGNED' || status === 'UPLOADED' ? 'bg-etyme-verified/10 text-etyme-verified'
       : status === 'SENT' ? 'bg-etyme-attention/10 text-etyme-attention'
         : 'bg-etyme-rule/50 text-etyme-muted'
+
+  // A library that could not be read is the heading and the sentence.
+  // Not "Requests 0" and a form to ask with, which say there is nothing
+  // here and offer what the same route would refuse.
+  if (unread) return (
+    <div className="max-w-5xl">
+      <div className="page-head mb-6">
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+        <h1>Paperwork</h1>
+      </div>
+      <div className="panel" role="status">
+        <p className="text-[13px] text-etyme-ink">{unread}</p>
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-5xl">

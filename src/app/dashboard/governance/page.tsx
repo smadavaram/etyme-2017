@@ -144,6 +144,24 @@ export default function GovernancePage() {
 
   const s = data?.summary
 
+  // A refusal is the whole page: the heading and the route's sentence.
+  // Not the team lenses, the search or the window above it — each would
+  // offer to filter an answer the reader was not given.
+  if (!loading && error) return (
+    <div className="max-w-4xl">
+      <div className="mb-8">
+        <Lbl>Governance</Lbl>
+        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
+          What is coming
+        </h1>
+      </div>
+      <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6" role="status">
+        <div className="text-etyme-attention font-medium">{error}</div>
+        <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
@@ -210,13 +228,6 @@ export default function GovernancePage() {
       </div>
 
       {loading && <div className="text-etyme-muted py-12 text-center">Loading…</div>}
-
-      {!loading && error && (
-        <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-          <div className="text-etyme-attention font-medium">{error}</div>
-          <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
-        </div>
-      )}
 
       {!loading && !error && items.length === 0 && (
         <div className="border border-etyme-rule rounded-lg p-12 text-center">

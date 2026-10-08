@@ -93,4 +93,40 @@ describe('Your data reads with its possessives', () => {
       expect(text, f).not.toMatch(/\b(another|a|of a) person record\b/)
     }
   })
+
+  /**
+   * Round four, problem 11. The "own" sweep passed and the page still
+   * read "somebody else week of hours signed off": the same missing
+   * possessive, after "else" rather than before "own". The second sweep
+   * found four more of the class — "somebody access", "somebody personal
+   * data", "anybody permission", "somebody else data".
+   */
+  it('the notice says "somebody else’s week of hours signed off", never "somebody else week"', () => {
+    const notice = readFileSync(join(process.cwd(), 'src/lib/legal.ts'), 'utf8')
+    expect(notice).toContain('somebody else’s week of hours')
+    expect(notice).not.toContain('somebody else week')
+  })
+
+  it('no sentence in the notice or the schedule says "somebody", "anybody" or "somebody else" straight before a thing they own', () => {
+    // What may follow one of these words without a possessive: a verb or
+    // a word that joins, never a noun. A noun here is a missing "’s".
+    const follows = new Set([
+      'who', 'whose', 'that', 'at', 'with', 'by', 'from', 'on', 'in', 'to', 'as', 'for', 'of', 'and', 'or', 'but',
+      'it', 'here', 'there', 'else', 'nobody', 'already', 'safer', 'last', 'when', 'after', 'behind', 'before',
+      'is', 'was', 'has', 'had', 'does', 'did', 'can', 'could', 'may', 'might', 'must', 'will', 'would', 'should',
+      'ran', 'stood', 'returns', 'writes', 'decides', 'hopes', 'asks', 'audits', 'signs', 'sees', 'holds', 'reads',
+      'needs', 'gets', 'says', 'knows', 'wants',
+    ])
+    const pronoun = /\b(somebody|someone|anybody|anyone|everybody|everyone|nobody)( else)? ([a-z]+)/gi
+    for (const f of ['src/lib/legal.ts', 'src/lib/retention.ts']) {
+      const text = readFileSync(join(process.cwd(), f), 'utf8')
+      const strings = text.match(/'[^'\n]*'/g) ?? []
+      const bad = strings.flatMap((s) =>
+        [...s.matchAll(pronoun)]
+          .filter((m) => !follows.has(m[3].toLowerCase()) && !/(ed|ing)$/i.test(m[3]))
+          .map((m) => `${m[0]} — ${s}`)
+      )
+      expect(bad, f).toEqual([])
+    }
+  })
 })
