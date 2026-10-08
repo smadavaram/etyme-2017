@@ -1788,6 +1788,20 @@ Three rules follow:
   reach the fewest days any n consecutive calendar months can hold (28,
   181 for six, 365 for twelve). The block itself still counts days
   against the limit and is unchanged.
+- **A contract's last day is a day on site, and the break starts the
+  day after it. Decided 2026-10-08**, found by round six of the sign-up
+  walk: `lib/tenure-days` did not count a contract's end date, so Kwame
+  Mensah read 740 days where his dates span 741, and each contract moved
+  the time-limit date one day later. Now the start and end day are both
+  counted, a day on two lines is still counted once (a handover day
+  included), and a 90-day break is 90 days off site, counted from the day
+  after the last day. Both moves are in the client's safer direction: the
+  limit is reached one day earlier per contract, and "may come back"
+  falls one day later (Kwame: Nov 18, not Nov 17; Lucía reaches eighteen
+  months Feb 6, 2027, not Feb 7). Made by the coordinator on the
+  founder's behalf as the safer reading; **the founder may reverse the
+  break's start in one line** if the trade counts the break from the
+  last day itself.
 
 And: **a consultant a firm adds is marketed by default**; the firm may
 choose to retain them, and nothing reaches past the firm until the
