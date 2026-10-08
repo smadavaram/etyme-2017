@@ -71,7 +71,8 @@ describe('Edit, Cancel and Archive on a job request’s row', () => {
   it('the list page asks the seat for its permissions and the row-actions rule for its buttons', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/requisitions/page.tsx'), 'utf8')
     expect(page).toContain('deskOfSession(session)')
-    expect(page).toContain('mayRaise(permissions)')
+    // Through raiseVerdict, which asks mayRaise once the session has answered.
+    expect(page).toContain('raiseVerdict(session, permissions)')
     expect(page).toContain('rowActions(r, { permissions, personId: me?.id ?? null }')
     expect(page).not.toContain("hasPermission(permissions, 'requirements.write')")
   })

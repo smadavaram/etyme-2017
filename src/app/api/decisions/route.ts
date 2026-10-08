@@ -10,7 +10,7 @@ import { weekFlag, periodWord } from '@/lib/timesheet-flag'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { weekTurn } from '@/app/api/timesheets/ladder'
 import { desksFor } from '@/lib/supplier-desks'
-import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { mayActAt, STAGE_WORD, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
@@ -740,11 +740,43 @@ export async function GET(request: NextRequest) {
   // (`whoseQueue` in dashboard/program/needs-you); this says the facts it
   // needs, in the shape `lib/page-framing` already accepts.
   const desk = await seatedDesk(caller)
+
+  // ── A supplier with a client and nothing else yet ─────────────────
+  //
+  // A firm a client just approved opened its dashboard and read "All
+  // clear", with no word that it had a client at all (sign-up walk,
+  // 2026-10-08). So where the queue is empty and nothing has been sent
+  // to or placed through this firm yet, the first line names who it now
+  // supplies. Read from both registers: the client's, which approval
+  // writes, and the firm's own.
+  let welcome: string | null = null
+  if (decisions.length === 0) {
+    const [invited, placed] = await Promise.all([
+      prisma.requirementInvitation.count({ where: { toCompanyId: companyId } }),
+      prisma.sellContract.count({ where: { companyId } }),
+    ])
+    if (invited === 0 && placed === 0) {
+      const [theirs, ours] = await Promise.all([
+        prisma.counterparty.findMany({
+          where: { otherCompanyId: companyId, relationship: 'SUPPLIER', status: 'ACTIVE' },
+          select: { company: { select: { name: true } } },
+        }),
+        prisma.counterparty.findMany({
+          where: { companyId, relationship: 'CLIENT', status: 'ACTIVE' },
+          select: { otherCompany: { select: { name: true } } },
+        }),
+      ])
+      welcome = yourClientsSays([...theirs.map((r) => r.company.name), ...ours.map((r) => r.otherCompany.name)])
+    }
+  }
+
   return NextResponse.json({
     data: {
       decisions,
       counts,
       total: decisions.length,
+      /** The first line for a supplier with a client and nothing else yet, or null. */
+      welcome,
       reading: {
         company: caller.company?.name ?? null,
         seated: !!desk?.seat,

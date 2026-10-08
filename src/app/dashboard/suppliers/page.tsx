@@ -460,7 +460,7 @@ export default function SuppliersPage() {
           <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
           <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
             Who you buy from, and where each stands. A firm becomes a supplier when your lead, Procurement, HR and
-            Finance have each said yes — anybody who raises a requirement can recommend one.
+            Finance have each said yes — anybody who raises a job request can recommend one.
           </p>
         </div>
         {mayRecommend && !recommending && (

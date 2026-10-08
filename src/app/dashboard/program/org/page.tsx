@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
+import { rateFindingSays } from './rate-finding'
 
 /**
  * The multi-manager org view — Addendum E client workforce governance.
@@ -68,6 +69,8 @@ interface OrgData {
     unassigned: number
     annualSpend: number
     annualSaving: number
+    /** Skills bought by more than one manager — the ones that can be compared. */
+    comparedSkills?: number
   }
   managers: ManagerRow[]
   variance: VarianceRow[]
@@ -179,9 +182,7 @@ export default function ProgramOrgPage() {
           )}
         </h1>
         <p>
-          {hasFinding
-            ? 'Each manager found their own vendors and negotiated their own rates. Nobody has seen this together before, because it has never existed in one place — it lived across separate inboxes and AP records.'
-            : 'Every skill is bought at a consistent rate across your managers. Nothing to reconcile.'}
+          {rateFindingSays({ headcount: summary.headcount, comparedSkills: summary.comparedSkills ?? 0, annualSaving: summary.annualSaving })}
         </p>
       </div>
 

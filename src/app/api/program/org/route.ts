@@ -219,6 +219,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // How many skills two or more managers buy — the only ones a rate can
+  // be compared on. The page says "one rate" only when this is above
+  // nought; with nothing to compare it says so instead.
+  const comparedSkills = [...skillMap.values()]
+    .filter(s => new Set(s.entries.map(e => e.managerId)).size > 1).length
+
   const variance = [...skillMap.values()]
     .map(s => {
       const managerIds = new Set(s.entries.map(e => e.managerId))
@@ -312,6 +318,7 @@ export async function GET(request: NextRequest) {
         unassigned,
         annualSpend: Math.round(totalAnnualSpend),
         annualSaving: Math.round(totalSaving),
+        comparedSkills,
       },
       managers,
       variance,

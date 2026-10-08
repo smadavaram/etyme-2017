@@ -48,7 +48,7 @@ export function claimLetter(input: { contactName: string | null; firmName: strin
     subject: `${input.clientName} approved ${input.firmName} as a supplier`,
     body:
       `${hello}\n\n${approvedSays(input)} ${claimUrl(input.token)}\n\n` +
-      `Sign in with this email address. Your jobs, hours and bills from ${input.clientName} will be there.`,
+      `Sign in with this email address. Your jobs and hours from ${input.clientName}, and the bills you send it, will be there.`,
   }
 }
 

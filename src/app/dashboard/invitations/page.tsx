@@ -374,7 +374,7 @@ function InvitationCard({ inv, onRespond, onSent }: {
             disabled={busy}
             className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? 'Sending…' : 'Work this requirement'}
+            {busy ? 'Sending…' : 'Work this job request'}
           </button>
           <button
             onClick={() => setDeclining(true)}
@@ -494,8 +494,8 @@ export default function InvitationsPage() {
           Shared with you
         </h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
-          Requirements clients have put in front of you. The rate band on each is
-          yours — other vendors asked to the same requirement see their own, and
+          Job requests clients have put in front of you. The rate band on each is
+          yours — other vendors asked to the same job request see their own, and
           cannot see this one.
         </p>
       </div>
@@ -552,7 +552,7 @@ export default function InvitationsPage() {
           <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
             {term
               ? 'Try a different job, client or skill.'
-              : 'When a client sends you a requirement it arrives here, with the rate band they are offering you.'}
+              : 'When a client sends you a job request it arrives here, with the rate band they are offering you.'}
           </p>
         </div>
       )}

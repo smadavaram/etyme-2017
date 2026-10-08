@@ -44,6 +44,26 @@ export function mayChange(
   return r.raisedBy?.id === reader.personId || r.owner?.id === reader.personId
 }
 
+/**
+ * What the header beside the heading shows about raising one.
+ *
+ * WAIT until the session has answered: the walk on 2026-10-08 found a
+ * hiring manager told for seven seconds that raising a job was somebody
+ * else's, because empty permissions while loading read as "may not".
+ * No verdict is better than a wrong one. Where the answer is in and it is
+ * no, the line says what is needed, and never guesses whose desk the
+ * reader sits at.
+ */
+export type RaiseVerdict = 'WAIT' | 'RAISE' | 'NOT_YOURS'
+
+export function raiseVerdict(session: { loading: boolean; error?: string | null }, permissions: readonly string[] | null | undefined): RaiseVerdict {
+  if (session.loading || session.error) return 'WAIT'
+  return mayRaise(permissions) ? 'RAISE' : 'NOT_YOURS'
+}
+
+/** The line a reader sees when the answer is no. */
+export const NOT_YOURS_TO_RAISE = 'Raising a job request needs the hiring manager\u2019s role or the program office\u2019s.'
+
 /** Whether this reader may raise a job request — what POST /api/requisitions asks. */
 export function mayRaise(permissions: readonly string[] | null | undefined): boolean {
   return hasPermission(permissions ?? [], 'requirements.write')

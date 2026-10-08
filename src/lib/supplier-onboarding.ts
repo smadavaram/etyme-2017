@@ -763,3 +763,30 @@ export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]
     return { stage: s, word, status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
   })
 }
+
+/**
+ * The heading over the apply page. It follows the state: the walk on
+ * 2026-10-08 found an approved firm still headed "considering you as a
+ * supplier" over the line saying it was approved.
+ */
+export function applyHeading(input: { clientName: string; decided: boolean; state: string }): string {
+  if (!input.decided) return `${input.clientName} is considering you as a supplier`
+  if (input.state === 'APPROVED') return `${input.clientName} approved you as a supplier`
+  if (input.state === 'DECLINED') return `${input.clientName} did not approve you as a supplier`
+  return `${input.clientName} has decided`
+}
+
+/**
+ * The first line a supplier reads on its dashboard when a client has
+ * approved it and nothing else has happened yet. The walk on 2026-10-08
+ * found a claimed supplier told "All clear" with no word that it now had
+ * a client at all. Null with no client, so the page says nothing rather
+ * than something made up.
+ */
+export function yourClientsSays(clientNames: readonly string[]): string | null {
+  const names = [...new Set(clientNames.filter((n) => n.trim() !== ''))].sort((a, b) => a.localeCompare(b))
+  if (names.length === 0) return null
+  if (names.length === 1) return `${names[0]} is your client. Jobs it sends you appear here.`
+  const list = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return `${list} are your clients. Jobs they send you appear here.`
+}

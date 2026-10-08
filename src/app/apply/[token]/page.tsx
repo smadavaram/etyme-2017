@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { EtymeLogo } from '@/components/logo'
 import { useParams } from 'next/navigation'
-import { datesHelp } from '@/lib/supplier-onboarding'
+import { datesHelp, applyHeading } from '@/lib/supplier-onboarding'
 import { useCallback, useEffect, useState } from 'react'
 
 /**
@@ -122,7 +122,7 @@ export default function ApplyPage() {
         {data && (
           <div className="mt-8 space-y-6">
             <header>
-              <p className="eyebrow">{data.client} is considering you as a supplier</p>
+              <p className="eyebrow">{applyHeading({ clientName: data.client, decided: data.decided, state: data.state })}</p>
               <h1 className="headline-serif mt-2 text-[32px] leading-[1.05]">{data.firm}</h1>
               <p className="mt-3 max-w-[54ch] text-[14px] leading-relaxed text-etyme-muted">
                 {data.decided

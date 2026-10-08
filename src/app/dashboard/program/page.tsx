@@ -600,7 +600,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
           {data.mayRaise
             ? 'Raise a job request and, within plan, it publishes itself to the suppliers Procurement cleared.'
             : 'When somebody here raises a job request, within plan it publishes itself to the suppliers Procurement cleared.'}
-          Their submissions, the interviews, the award, the paperwork, the hours and the invoices all come
+          {' '}Their submissions, the interviews, the award, the paperwork, the hours and the invoices all come
           back to this page — every contractor on site, across every supplier, with tenure added up.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">

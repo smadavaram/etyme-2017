@@ -5,7 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { deskOf as deskOfSession } from '@/components/shell/sidebar-props'
-import { rowActions, mayRaise } from './row-actions'
+import { rowActions, raiseVerdict, NOT_YOURS_TO_RAISE } from './row-actions'
 import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
@@ -761,16 +761,16 @@ export default function RequisitionsPage() {
             The approver who decides it, the clerk who pays for it and the
             viewer who reads the program are told what they are looking
             at rather than handed a button the route will refuse. */}
-        {mayRaise(permissions) ? (
+        {raiseVerdict(session, permissions) === 'RAISE' ? (
           <button onClick={() => setRaising(true)}
             className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
             Raise one
           </button>
-        ) : (
+        ) : raiseVerdict(session, permissions) === 'NOT_YOURS' ? (
           <p className="text-xs text-etyme-muted shrink-0 max-w-[14rem] text-right">
-            Raising a job is a hiring manager&rsquo;s. You are reading theirs.
+            {NOT_YOURS_TO_RAISE}
           </p>
-        )}
+        ) : null}
       </div>
 
       {decision && <DecisionPanel decision={decision} onDismiss={() => setDecision(null)} />}
