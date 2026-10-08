@@ -4,11 +4,12 @@ import { join } from 'node:path'
 import {
   recordStep, isFinished, nextStep, outstanding, reminderFor, showsSteps,
   countryGuessSentence, packSentence, currencyFor, COUNTRIES, deskPageFor, DESK_PAGES,
+  stepsFor, railFor, stepLabel, claimedSentence, SETUP_RAIL,
   type SetupRecord,
 } from '@/lib/setup-steps'
 import { rolesFor, countryFromDomain, packFor, MEMBER_ROLE, payRhythmForPack } from '@/lib/company-defaults'
 import { deskHome } from '@/components/desk-home'
-import { getNavForKind } from '@/components/shell/sidebar'
+import { getNavForKind } from '@/lib/nav-table'
 import { readsOnlyOwnWork } from '@/lib/console-home'
 
 /**
@@ -181,10 +182,62 @@ describe('setup asks five things, then stops', () => {
 
   it('the setup page shows the prototype’s five steps in order and words', () => {
     const setup = src('src/app/(auth)/start/page.tsx')
-    expect(setup).toContain('SETUP_RAIL')
+    expect(setup).toContain('railFor(kind)')
+    expect(railFor('VENDOR')).toEqual(SETUP_RAIL)
     for (const words of ['Your company', 'How you work', 'Your people', 'Your team', 'Skip for now',
       'A system of record with none of your records is a demo.']) {
       expect(setup, words).toContain(words)
     }
+  })
+})
+
+describe('setup after round two of the sign-up walk', () => {
+  const by = 'person-1'
+  it('a one-person firm\'s setup is three steps and never asks for a contractor list or a team', () => {
+    expect(stepsFor('CONSULTANT_CORP')).toEqual(['COMPANY', 'WORK'])
+    expect(railFor('CONSULTANT_CORP').map((s) => s.label)).toEqual(['Sign in', 'Your company', 'How you work'])
+    expect(stepLabel('WORK', 'CONSULTANT_CORP')).toBe('Step 3 of 3')
+    expect(stepLabel('WORK', 'VENDOR')).toBe('Step 3 of 5')
+
+    // Her two steps finish setup, and nothing is owed or reminded after them.
+    let record: SetupRecord = {}
+    for (const step of ['COMPANY', 'WORK']) {
+      const v = recordStep(record, step, 'DONE', by, NOW, 'CONSULTANT_CORP')
+      if (!v.ok) throw new Error(v.message)
+      record = v.record
+      if (step === 'WORK') expect(v.finished).toBe(true)
+    }
+    expect(nextStep(record, 'CONSULTANT_CORP')).toBeNull()
+    const facts = { peopleImported: false, teammates: 0 }
+    expect(outstanding(record, facts, 'CONSULTANT_CORP')).toEqual([])
+    expect(reminderFor({ startedAt: NOW, record, facts, kind: 'CONSULTANT_CORP' })).toBeNull()
+    // The same record at a staffing firm still owes its people and its team.
+    expect(reminderFor({ startedAt: NOW, record, facts, kind: 'VENDOR' })?.says).toBe('Finish setting up: your people, your team.')
+    // Asked for a list anyway, it says why not.
+    expect(recordStep(record, 'PEOPLE', 'SKIPPED', by, NOW, 'CONSULTANT_CORP'))
+      .toEqual({ ok: false, message: 'A one-person firm has no contractor list or team to set up.' })
+
+    // The page says nothing about colleagues to her, and draws no list or team step.
+    const page = src('src/app/(auth)/start/page.tsx')
+    expect(page).toContain("{!solo && ' Colleagues join by invitation")
+    expect(page).toContain("{step === 'PEOPLE' && !solo && (")
+    expect(page).toContain("{step === 'TEAM' && !solo && (")
+    expect(page).not.toMatch(/Step \d of 5/)
+  })
+
+  it('a password sign-up for a one-person firm names the firm on its owner\'s profile', () => {
+    const create = src('src/lib/company-create.ts')
+    expect(create).toMatch(/company\.kind === 'CONSULTANT_CORP'[\s\S]{0,200}consultantProfile\.upsert[\s\S]{0,200}ownCompanyId: company\.id/)
+  })
+
+  it('a supplier that took its record from an invitation opens setup at how it works, with its client named', () => {
+    expect(claimedSentence('Northbend Athletic')).toBe('Northbend Athletic is your client. Next: your week and payroll.')
+    const state = src('src/lib/setup-state.ts')
+    expect(state).toContain('export async function beginClaimedSetup(')
+    expect(state).toContain("recordStep(readRecord(c.setupSteps), 'COMPANY', 'DONE', personId, now)")
+    expect(state).toContain('c.isDemo')
+    expect(src('src/app/api/onboarding/route.ts')).toContain('await beginClaimedSetup(')
+    expect(src('src/app/(auth)/start/page.tsx')).toContain('{setup.claimedSays &&')
+    expect(src('src/app/(auth)/verify/[token]/page.tsx')).toContain("b.data.already === false ? '/start'")
   })
 })

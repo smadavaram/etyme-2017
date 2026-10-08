@@ -9,7 +9,7 @@
 
 import { prisma } from '@/lib/db'
 import {
-  readRecord, recordStep, outstanding, reminderFor, showsSteps, nextStep,
+  readRecord, recordStep, outstanding, reminderFor, showsSteps, nextStep, claimedSentence,
   countryGuessSentence, packSentence, countryName,
   type SetupRecord, type SetupFacts, type SetupStep, type Reminder,
 } from '@/lib/setup-steps'
@@ -26,6 +26,11 @@ export interface SetupState {
   shows: boolean
   /** The dashboard's one line, for a reader who may finish it. */
   reminder: Reminder | null
+  /**
+   * For a supplier that took its record from a client's invitation: the
+   * line over "How you work" naming the client and the next step.
+   */
+  claimedSays: string | null
   company: {
     id: string
     name: string
@@ -58,13 +63,14 @@ export async function setupStateFor(
     where: { id: companyId },
     select: {
       id: true, name: true, kind: true, domain: true, country: true, currency: true, templatePack: true,
-      setupStartedAt: true, setupFinishedAt: true, setupSteps: true,
+      setupStartedAt: true, setupFinishedAt: true, setupSteps: true, claimedAt: true,
     },
   })
   if (!c) return null
+  const claimedFrom = c.claimedAt ? await clientThatInvited(c.id) : null
   const record = readRecord(c.setupSteps)
   const facts = await setupFactsFor(companyId)
-  const owed = outstanding(record, facts)
+  const owed = outstanding(record, facts, c.kind)
   const country = c.country ?? countryFromDomain(c.domain)
   const guessed = countryFromDomain(c.domain)
   return {
@@ -73,7 +79,7 @@ export async function setupStateFor(
     record,
     facts,
     owed,
-    next: nextStep(record),
+    next: nextStep(record, c.kind),
     shows: showsSteps({
       startedAt: c.setupStartedAt,
       finishedAt: c.setupFinishedAt,
@@ -81,7 +87,8 @@ export async function setupStateFor(
       followedLinkBack: reader.followedLinkBack === true,
       owed: owed.length,
     }),
-    reminder: reader.mayRun ? reminderFor({ startedAt: c.setupStartedAt, record, facts }) : null,
+    reminder: reader.mayRun ? reminderFor({ startedAt: c.setupStartedAt, record, facts, kind: c.kind }) : null,
+    claimedSays: claimedFrom ? claimedSentence(claimedFrom) : null,
     company: {
       id: c.id,
       name: c.name,
@@ -109,14 +116,14 @@ export async function answerStep(
 ): Promise<{ ok: true; finished: boolean } | { ok: false; message: string }> {
   const c = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { setupStartedAt: true, setupFinishedAt: true, setupSteps: true },
+    select: { kind: true, setupStartedAt: true, setupFinishedAt: true, setupSteps: true },
   })
   if (!c) return { ok: false, message: 'There is no company here to set up.' }
   if (!c.setupStartedAt) {
     return { ok: false, message: 'This company was set up before the five steps existed. Its settings page has everything they ask.' }
   }
   const now = new Date()
-  const v = recordStep(readRecord(c.setupSteps), step, outcome, byId, now)
+  const v = recordStep(readRecord(c.setupSteps), step, outcome, byId, now, c.kind)
   if (!v.ok) return v
   await prisma.company.update({
     where: { id: companyId },
@@ -126,4 +133,50 @@ export async function answerStep(
     },
   })
   return { ok: true, finished: v.finished }
+}
+
+/** The client whose invitation a supplier took its record from, by name. */
+async function clientThatInvited(companyId: string): Promise<string | null> {
+  const invite = await prisma.supplierInvite.findFirst({
+    where: { companyId, state: 'ACCEPTED' },
+    orderBy: { acceptedAt: 'desc' },
+    select: { by: { select: { name: true } } },
+  })
+  return invite?.by.name ?? null
+}
+
+/**
+ * A supplier that took its record from a client's invitation begins setup
+ * at "How you work" (sign-up walk, round two, item 29).
+ *
+ * The record already holds its name and its client, so "Your company" is
+ * recorded as done by the person who claimed it, and the next thing it
+ * sees is its week and payroll rather than "All clear" and no next step.
+ * Only a real company that took an invitation and never began setup;
+ * written once, with an automation log saying why, and undone by
+ * answering the steps or by nothing at all — it only opens the steps.
+ */
+export async function beginClaimedSetup(companyId: string, personId: string, now: Date = new Date()): Promise<boolean> {
+  const c = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { claimedAt: true, setupStartedAt: true, isDemo: true, setupSteps: true },
+  })
+  if (!c || !c.claimedAt || c.setupStartedAt || c.isDemo) return false
+  const v = recordStep(readRecord(c.setupSteps), 'COMPANY', 'DONE', personId, now)
+  if (!v.ok) return false
+  const began = await prisma.company.updateMany({
+    where: { id: companyId, setupStartedAt: null },
+    data: { setupStartedAt: now, setupSteps: v.record as any },
+  })
+  if (began.count === 0) return false
+  await prisma.automationLog.create({
+    data: {
+      companyId, action: 'SETUP_STARTED',
+      summary: 'Setup opened at "How you work" for a supplier that took its record from an invitation',
+      reason: 'The invitation already named the company and its client, so the next thing to answer is the week and payroll.',
+      payload: { personId, from: 'CLAIM', recorded: ['COMPANY'] },
+      reversible: true,
+    },
+  })
+  return true
 }

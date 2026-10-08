@@ -178,6 +178,19 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
       ).id
     : null
 
+  // A one-person firm is its owner's own company. Money's own-company
+  // check reads the owner's profile, not the seat, so the profile names
+  // the firm from the day it is made, by either door (sign-up walk,
+  // round two, item 21). An existing profile — a candidate becoming a
+  // firm — keeps everything else it held.
+  if (input.seatAsOwner && company.kind === 'CONSULTANT_CORP') {
+    await db.consultantProfile.upsert({
+      where: { personId: input.byPersonId },
+      update: { ownCompanyId: company.id },
+      create: { personId: input.byPersonId, skills: [], visibility: 'INTERNAL', ownCompanyId: company.id },
+    })
+  }
+
   // Somewhere to work. An assignment with no location cannot be reasoned
   // about for tenure or for tax.
   await db.companyLocation.create({

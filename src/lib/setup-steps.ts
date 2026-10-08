@@ -45,6 +45,31 @@ export const SETUP_RAIL: readonly { key: 'SIGN_IN' | SetupStep; label: string }[
 ]
 
 /**
+ * The steps a company of this kind walks.
+ *
+ * A one-person firm is the person and the firm at once: there is no
+ * contractor list to import and nobody else to invite, so its setup is
+ * three steps — sign in, your company, how you work — and it is never
+ * asked for a list or a team, nor reminded of one (sign-up walk, round
+ * two, item 37).
+ */
+export function stepsFor(kind?: string | null): readonly SetupStep[] {
+  return kind === 'CONSULTANT_CORP' ? ['COMPANY', 'WORK'] : RECORDED_STEPS
+}
+
+/** The rail a company of this kind sees: signing in, then its own steps. */
+export function railFor(kind?: string | null): readonly { key: 'SIGN_IN' | SetupStep; label: string }[] {
+  const mine = stepsFor(kind)
+  return SETUP_RAIL.filter((s) => s.key === 'SIGN_IN' || mine.includes(s.key))
+}
+
+/** "Step 3 of 3": where a step sits on this company's own rail. */
+export function stepLabel(step: SetupStep, kind?: string | null): string {
+  const rail = railFor(kind)
+  return `Step ${rail.findIndex((s) => s.key === step) + 1} of ${rail.length}`
+}
+
+/**
  * Which steps may be skipped. A company cannot exist without a name and a
  * type, and how it works always has an answer — the defaults are one —
  * so only the two that bring things in from outside may wait.
@@ -89,9 +114,13 @@ export function recordStep(
   outcome: unknown,
   byId: string,
   at: Date,
+  kind?: string | null,
 ): RecordVerdict {
   if (!RECORDED_STEPS.includes(step as SetupStep)) {
     return { ok: false, message: 'That is not one of the setup steps.' }
+  }
+  if (!stepsFor(kind).includes(step as SetupStep)) {
+    return { ok: false, message: 'A one-person firm has no contractor list or team to set up.' }
   }
   if (outcome !== 'DONE' && outcome !== 'SKIPPED') {
     return { ok: false, message: 'Say whether the step is done or skipped.' }
@@ -107,17 +136,17 @@ export function recordStep(
     }
   }
   const next: SetupRecord = { ...record, [s]: { outcome, byId, at: at.toISOString() } }
-  return { ok: true, record: next, finished: isFinished(next) }
+  return { ok: true, record: next, finished: isFinished(next, kind) }
 }
 
 /** Every step has an answer, done or skipped. */
-export function isFinished(record: SetupRecord): boolean {
-  return RECORDED_STEPS.every((s) => record[s])
+export function isFinished(record: SetupRecord, kind?: string | null): boolean {
+  return stepsFor(kind).every((s) => record[s])
 }
 
 /** The first step with no answer yet, or null when every step has one. */
-export function nextStep(record: SetupRecord): SetupStep | null {
-  return RECORDED_STEPS.find((s) => !record[s]) ?? null
+export function nextStep(record: SetupRecord, kind?: string | null): SetupStep | null {
+  return stepsFor(kind).find((s) => !record[s]) ?? null
 }
 
 // ── What is still owed, and the one line that says so ────────────────
@@ -135,8 +164,8 @@ export interface SetupFacts {
  * way. Importing from the Import page later, or inviting from Users and
  * permissions, finishes the step as surely as doing it here.
  */
-export function outstanding(record: SetupRecord, facts: SetupFacts): SetupStep[] {
-  return RECORDED_STEPS.filter((s) => {
+export function outstanding(record: SetupRecord, facts: SetupFacts, kind?: string | null): SetupStep[] {
+  return stepsFor(kind).filter((s) => {
     if (s === 'PEOPLE' && facts.peopleImported) return false
     if (s === 'TEAM' && facts.teammates > 0) return false
     return record[s]?.outcome !== 'DONE'
@@ -159,9 +188,10 @@ export function reminderFor(input: {
   startedAt: Date | string | null
   record: SetupRecord
   facts: SetupFacts
+  kind?: string | null
 }): Reminder | null {
   if (!input.startedAt) return null
-  const owed = outstanding(input.record, input.facts)
+  const owed = outstanding(input.record, input.facts, input.kind)
   if (owed.length === 0) return null
   return {
     says: `Finish setting up: ${owed.map((s) => REMINDER_WORDS[s]).join(', ')}.`,
@@ -186,6 +216,14 @@ export function showsSteps(input: {
   if (!input.startedAt || !input.mayRun) return false
   if (!input.finishedAt) return true
   return input.followedLinkBack && input.owed > 0
+}
+
+/**
+ * The line over "How you work" for a supplier that took its record from
+ * a client's invitation: who the client is, and what comes next.
+ */
+export function claimedSentence(client: string): string {
+  return `${client} is your client. Next: your week and payroll.`
 }
 
 // ── Step 2: country, currency and the pack ───────────────────────────

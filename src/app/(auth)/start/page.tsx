@@ -7,7 +7,7 @@ import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
 import { deskHome } from '@/components/desk-home'
-import { SETUP_RAIL, packSentence, currencyFor, type SetupStep } from '@/lib/setup-steps'
+import { railFor, stepLabel, packSentence, currencyFor, type SetupStep } from '@/lib/setup-steps'
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
 
@@ -34,10 +34,10 @@ function Lbl({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
 }
 
-function Rail({ at, done }: { at: 'SIGN_IN' | SetupStep; done: (k: 'SIGN_IN' | SetupStep) => boolean }) {
+function Rail({ at, done, kind }: { at: 'SIGN_IN' | SetupStep; done: (k: 'SIGN_IN' | SetupStep) => boolean; kind: string | null }) {
   return (
     <ol className="flex flex-wrap gap-1.5" aria-label="Setup steps">
-      {SETUP_RAIL.map((s, i) => {
+      {railFor(kind).map((s, i) => {
         const on = s.key === at
         const isDone = !on && done(s.key)
         return (
@@ -209,6 +209,13 @@ export default function StartPage() {
         : showingSteps ? ((setup.finishedAt ? (setup.owed as SetupStep[]).find((k) => !passed.includes(k)) : setup.next) ?? null)
           : null
 
+  // A one-person firm walks three steps and is never asked for a list or
+  // a team (round two, item 37). Before the company exists the kind is
+  // the type chosen on step 2.
+  const chosenKind = (state?.companyTypes as TypeOption[] | undefined)?.find((t) => t.key === type)?.kind ?? null
+  const kind: string | null = setup?.company?.kind ?? state?.company?.kind ?? chosenKind
+  const solo = kind === 'CONSULTANT_CORP'
+
   const answered = (k: 'SIGN_IN' | SetupStep) =>
     k === 'SIGN_IN' || (setup?.record?.[k] != null) || (k === 'COMPANY' && state?.action === 'ALREADY_IN')
 
@@ -218,7 +225,7 @@ export default function StartPage() {
         <div className="border-b border-etyme-rule">
           <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
             <Lbl>Etyme setup</Lbl>
-            <Rail at={step} done={answered} />
+            <Rail at={step} done={answered} kind={kind} />
           </div>
         </div>
       )}
@@ -283,7 +290,7 @@ export default function StartPage() {
         {/* ── Step 2, answered on the sign-up form: what they told us ── */}
         {step === 'COMPANY' && state?.action === 'ALREADY_IN' && (
           <div className="max-w-xl">
-            <Lbl>Step 2 of 5</Lbl>
+            <Lbl>{stepLabel('COMPANY', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>
             <p className="text-etyme-muted mt-2">Your email is confirmed. This is what you told us when you signed up.</p>
             <dl className="mt-6 grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-y-1 sm:gap-y-3 text-sm">
@@ -295,7 +302,8 @@ export default function StartPage() {
             {setup.company.packSays && <p className="text-sm text-etyme-ink mt-4">{setup.company.packSays}</p>}
             <button onClick={() => setWelcome(false)} className={`mt-6 ${primary}`}>Continue</button>
             <p className="text-xs text-etyme-faint mt-3">
-              You can change the name and the currency later in Settings. Colleagues join by invitation, or by signing up with the same Etyme address from your email domain.
+              You can change the name and the currency later in Settings.
+              {!solo && ' Colleagues join by invitation, or by signing up with the same Etyme address from your email domain.'}
             </p>
           </div>
         )}
@@ -303,7 +311,7 @@ export default function StartPage() {
         {/* ── Step 2: your company ── */}
         {step === 'COMPANY' && state?.action !== 'ALREADY_IN' && (
           <div className="max-w-xl">
-            <Lbl>Step 2 of 5</Lbl>
+            <Lbl>{stepLabel('COMPANY', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>
             <p className="text-etyme-muted mt-2">Everything here has a guess filled in. Change what is wrong.</p>
 
@@ -364,15 +372,16 @@ export default function StartPage() {
               disabled={busy || !type} className={`mt-6 ${primary}`}>
               {busy ? 'Setting up…' : 'Continue'}
             </button>
-            <p className="text-xs text-etyme-faint mt-3">Anyone else from your web address who signs in will join you as Member.</p>
+            {!solo && <p className="text-xs text-etyme-faint mt-3">Anyone else from your web address who signs in will join you as Member.</p>}
           </div>
         )}
 
         {/* ── Step 3: how you work ── */}
         {step === 'WORK' && (
           <div>
-            <Lbl>Step 3 of 5</Lbl>
+            <Lbl>{stepLabel('WORK', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">How you work</h1>
+            {setup.claimedSays && <p className="text-etyme-ink mt-2">{setup.claimedSays}</p>}
             <p className="text-etyme-muted mt-2 mb-6">
               {setup.company.packSays} The defaults are filled in. Change one and save it, or keep them all.
             </p>
@@ -385,9 +394,9 @@ export default function StartPage() {
         )}
 
         {/* ── Step 4: your people ── */}
-        {step === 'PEOPLE' && (
+        {step === 'PEOPLE' && !solo && (
           <div className="max-w-xl">
-            <Lbl>Step 4 of 5</Lbl>
+            <Lbl>{stepLabel('PEOPLE', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Your people</h1>
             <p className="text-etyme-muted mt-2">
               Bring in your contractor list from a spreadsheet. A system of record with none of your records is a demo.
@@ -409,9 +418,9 @@ export default function StartPage() {
         )}
 
         {/* ── Step 5: your team ── */}
-        {step === 'TEAM' && (
+        {step === 'TEAM' && !solo && (
           <div>
-            <Lbl>Step 5 of 5</Lbl>
+            <Lbl>{stepLabel('TEAM', kind)}</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em]">Your team</h1>
             <p className="text-etyme-muted mt-2 mb-6">
               Invite the people who work here: name, work email, and what they do. They are emailed, and the seat is theirs when they sign in.

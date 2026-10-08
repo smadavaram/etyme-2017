@@ -14,7 +14,7 @@ import { createCompany } from '@/lib/company-create'
 import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES } from '@/lib/setup-steps'
 import { countryFromDomain, packFor } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
-import { setupStateFor } from '@/lib/setup-state'
+import { setupStateFor, beginClaimedSetup } from '@/lib/setup-state'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -70,13 +70,18 @@ export async function GET(request: NextRequest) {
   })
 
   if (person && person.contexts.some(c => c.companyId)) {
-    const c = person.contexts.find(x => x.companyId)!
+    // A seat of their own before a bench that lists them: a candidate who
+    // became a one-person firm is at her firm, not at the bench (item 21).
+    const c = person.contexts.find(x => x.companyId && x.type !== 'CONSULTANT') ?? person.contexts.find(x => x.companyId)!
     // The seat they hold, so /start can open their own desk rather than an
     // empty dashboard, and whether the company's setup is theirs to finish.
     const role = c.roleId
       ? await prisma.role.findUnique({ where: { id: c.roleId }, select: { name: true, permissions: true } })
       : null
     const permissions = role?.permissions ?? []
+    // A supplier that just took its record from an invitation opens on
+    // "How you work", with its client named (round two, item 29).
+    if (hasPermission(permissions, 'settings.manage')) await beginClaimedSetup(c.companyId!, person.id)
     const setup = await setupStateFor(c.companyId!, {
       mayRun: hasPermission(permissions, 'settings.manage'),
       followedLinkBack: request.nextUrl.searchParams.get('finish') === '1',

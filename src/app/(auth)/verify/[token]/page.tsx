@@ -36,7 +36,9 @@ export default function VerifyPage({ params, searchParams }: { params: { token: 
           // Take the invited company's record now; the claim page explains a refusal.
           fetch(`/api/claim/${claim}`, { method: 'POST' })
             .then((r) => r.json())
-            .then((b) => router.replace((b?.data?.landing ?? `/claim/${claim}`) as any))
+            // A fresh claim opens setup at "How you work", with its
+            // client named (round two, item 29); /start decides.
+            .then((b) => router.replace((b?.data && b.data.already === false ? '/start' : b?.data?.landing ?? `/claim/${claim}`) as any))
             .catch(() => router.replace(`/claim/${claim}` as any))
           return
         }

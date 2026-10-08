@@ -158,4 +158,40 @@ describe('a new company walks five steps, then stops', () => {
     const refused = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'PEOPLE', outcome: 'DONE' })))
     expect(refused.status).toBe(403)
   })
+
+  it('a one-person firm\'s setup is three steps and never asks for a contractor list or a team', async () => {
+    as('ines.rocha@gmail.com')
+    const made = await json(await enter(req('POST', '/api/onboarding', { type: 'solo', name: 'Rocha Care LLC' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const firmId = made.body.data.companyId
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'ines.rocha@gmail.com' } })
+    expect((await prisma.consultantProfile.findUnique({ where: { personId: person.id } }))?.ownCompanyId).toBe(firmId)
+
+    const before = (await json(await readSetup(req('GET', '/api/onboarding/setup')))).body.data
+    expect(before.owed).toEqual(['WORK'])
+    const done = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'WORK', outcome: 'DONE' })))
+    expect(done.body.data).toMatchObject({ finished: true, next: null, owed: [], reminder: null })
+    const list = await json(await answer(req('POST', '/api/onboarding/setup', { step: 'PEOPLE', outcome: 'SKIPPED' })))
+    expect(list.body.error.message).toBe('A one-person firm has no contractor list or team to set up.')
+  })
+
+  it('a supplier that took its record from an invitation opens setup at how it works, with its client named', async () => {
+    const { rolesFor } = await import('@/lib/company-defaults')
+    const client = await prisma.company.create({ data: { name: 'Northbend Athletic Co', slug: 'nb-claim-client', kind: 'CLIENT' } })
+    const shell = await prisma.company.create({ data: { name: 'Fenwick Staffing', slug: 'fenwick-claimed', kind: 'VENDOR', claimedAt: new Date() } })
+    const owner = await prisma.role.create({ data: { companyId: shell.id, name: 'Owner', permissions: [...rolesFor('VENDOR').find((r) => r.isOwner)!.permissions] } })
+    const mara = await prisma.person.create({ data: { primaryEmail: 'mara@fenwick-claimed.example', name: 'Mara Fenwick' } })
+    await prisma.context.create({ data: { personId: mara.id, companyId: shell.id, roleId: owner.id, type: 'EMPLOYEE' } })
+    await prisma.supplierInvite.create({ data: { companyId: shell.id, byId: client.id, email: mara.primaryEmail, token: 'claimed-setup-1', state: 'ACCEPTED', acceptedAt: new Date(), acceptedById: mara.id } })
+
+    as(mara.primaryEmail)
+    const got = (await json(await entry(req('GET', '/api/onboarding')))).body.data
+    expect(got.action).toBe('ALREADY_IN')
+    expect(got.setup).toMatchObject({ shows: true, next: 'WORK', claimedSays: 'Northbend Athletic Co is your client. Next: your week and payroll.' })
+    expect(got.setup.record.COMPANY).toMatchObject({ outcome: 'DONE', byId: mara.id })
+    expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)
+    // Asked again, it is not begun twice.
+    await entry(req('GET', '/api/onboarding'))
+    expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)
+  })
 })

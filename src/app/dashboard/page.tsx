@@ -33,6 +33,8 @@ interface Decision {
 }
 
 interface DashboardData {
+  /** A supplier with nothing yet: who its client is, from GET /api/decisions (sign-up walk, round two, item 29). */
+  welcome: string | null
   decisions: Decision[]
   totalDecisions: number
   highCount: number
@@ -324,6 +326,7 @@ export default function DashboardPage() {
       }))
 
       setData({
+        welcome: typeof decisionsRes.data?.welcome === 'string' ? decisionsRes.data.welcome : null,
         decisions: decisions.slice(0, 5),
         totalDecisions: decisions.length,
         highCount,
@@ -392,6 +395,9 @@ export default function DashboardPage() {
         <h1 className="headline-serif text-heading text-etyme-ink mb-2">
           Good {greetingTime()}, {userName}
         </h1>
+        {d?.welcome && d.totalDecisions === 0 && (
+          <p className="text-body text-etyme-ink max-w-xl mb-1">{d.welcome}</p>
+        )}
         <p className="text-body text-etyme-muted max-w-xl">
           {d && d.totalDecisions > 0
             ? `${d.totalDecisions} item${d.totalDecisions !== 1 ? 's' : ''} need${d.totalDecisions === 1 ? 's' : ''} your attention${d.highCount > 0 ? ` — ${d.highCount} urgent` : ''}.`
