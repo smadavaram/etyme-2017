@@ -18,8 +18,9 @@ describe('Record a placement is offered only to a seat the route will let record
     // The route asks for assignments.write, and the page asks the same question the same way.
     expect(route).toMatch(/hasPermission\(caller\.permissions, 'assignments\.write'\)/)
     expect(page).toMatch(/const mayRecord = hasPermission\(permissions, 'assignments\.write'\)/)
-    // The button, the ?new=1 door and the empty-state sentence all ask it.
-    expect(page).toMatch(/\{framing\.create && mayRecord && \(/)
+    // The button, the ?new=1 door and the empty-state sentence all ask it;
+    // the framing is null until the reader is known, so the button waits too.
+    expect(page).toMatch(/\{framing\?\.create && mayRecord && \(/)
     expect(page).toMatch(/if \(mayRecord\) setShowCreate\(true\)/)
     expect(page).toMatch(/mayRecord\s*\?\s*'submission, and you can record work you are already running with Record a placement\.'/)
     // And the question has the answer it should, for a worker and for an owner.

@@ -189,9 +189,10 @@ describe('a money page is framed by the same block that chose its rows', () => {
     // A client does not generate its suppliers' invoices and does not
     // raise their expenses; neither does somebody reading a client's
     // book from a seat. `create` is null in both cases, and a control
-    // the route would refuse is a control that lies.
-    expect(read(MONEY_PAGES.Invoices)).toContain('{framing.create && (')
-    expect(read(MONEY_PAGES.Expenses)).toContain('{framing.create && (')
+    // the route would refuse is a control that lies. The framing is null
+    // until the reader is known, so the guard reads it optionally.
+    expect(read(MONEY_PAGES.Invoices)).toContain('{framing?.create && (')
+    expect(read(MONEY_PAGES.Expenses)).toContain('{framing?.create && (')
   })
 
   it('labels every "+" with the reader\'s own word for the act', () => {
