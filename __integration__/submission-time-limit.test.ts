@@ -119,10 +119,12 @@ beforeAll(async () => {
 describe('the client’s time limit is checked before a person is put forward', () => {
   it('a person past the limit through two suppliers is refused, with the day they are eligible again, and nothing is written', async () => {
     const result = await submit(who.ravi)
+    // The last day on site is a day served, so the 90-day break starts the
+    // day after it (lib/tenure-days, 2026-10-08): last day + 1 + 90.
     expect(result.status).toBe('error')
     expect(result.code).toBe('TIME_LIMIT_REACHED')
     expect(result.error).toContain('Cavanaugh Glassworks')
-    expect(result.eligibleOn).toBe(new Date(now + 60 * DAY + 90 * DAY).toISOString().slice(0, 10))
+    expect(result.eligibleOn).toBe(new Date(now + 60 * DAY + DAY + 90 * DAY).toISOString().slice(0, 10))
     expect(await prisma.submission.count({ where: { personId: who.ravi } })).toBe(0)
   })
 
@@ -135,7 +137,7 @@ describe('the client’s time limit is checked before a person is put forward', 
     const result = await submit(who.sana)
     expect(result.status).toBe('error')
     expect(result.code).toBe('TIME_LIMIT_REACHED')
-    expect(result.eligibleOn).toBe(new Date(ago(30).getTime() + 90 * DAY).toISOString().slice(0, 10))
+    expect(result.eligibleOn).toBe(new Date(ago(30).getTime() + DAY + 90 * DAY).toISOString().slice(0, 10))
   })
 
   it('a job that would carry the person past the limit is held for a reason, and nothing is written until one is given', async () => {

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { mayAskForDocuments, packetsForKind } from '@/lib/packets'
 import { emptyRequestsSays } from '@/app/dashboard/packets/words'
 import { rolesFor } from '@/lib/company-defaults'
+import { sectionForReader } from '@/lib/page-framing'
 
 /**
  * Document requests was a dead end for a client's compliance officer
@@ -48,8 +49,19 @@ describe('the Document requests page', () => {
   const page = readFileSync(join(process.cwd(), 'src/app/dashboard/packets/page.tsx'), 'utf8')
 
   it('sits under Governance, where the menu puts it', () => {
-    expect(page).toContain('<p className="eyebrow">Governance</p>')
-    expect(page).not.toContain('<p className="eyebrow">Operate</p>')
+    // The heading is read off the reader's own menu, never typed: a word
+    // typed over the page is how it once read "Operate".
+    expect(page).toContain("usePageSection('/dashboard/packets')")
+    expect(page).not.toMatch(/className="eyebrow">\s*(Governance|Operate|Compliance)\s*</)
+    // A client's compliance officer — the desk the tester walked as —
+    // reads Governance, the section its menu files the page under.
+    const officer = rolesFor('CLIENT').find((r) => r.name === 'Compliance Officer')!
+    const asClient = sectionForReader(
+      { companyKind: 'CLIENT', permissions: officer.permissions as readonly string[] }, '/dashboard/packets')
+    expect(asClient).toBe('Governance')
+    // A supplier's menu puts it under its Compliance heading, and the page
+    // says so rather than a section that menu does not print over it.
+    expect(sectionForReader({ companyKind: 'VENDOR' }, '/dashboard/packets')).toBe('Compliance')
   })
 
   it('offers a Request documents button when nothing has been asked yet, rather than an explanation', () => {
