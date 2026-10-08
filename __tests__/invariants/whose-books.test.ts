@@ -145,7 +145,7 @@ describe('a money page is framed by the same block that chose its rows', () => {
     it(`${name} hands the framing whose book it is, instead of only which kind of firm is reading`, () => {
       const src = read(path)
       expect(src, `${name} still frames off the company kind alone`)
-        .toMatch(/pageFraming\([\s\S]{0,120}reading\s*\n?\s*\)/)
+        .toMatch(/pageFraming\([\s\S]{0,120}reading\s*(,\s*sidebarPropsFrom\(session\)\s*)?\n?\s*\)/)
     })
 
     it(`${name} keeps whose book it is in state, so the heading cannot disagree with the table`, () => {

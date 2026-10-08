@@ -76,7 +76,7 @@ describe('money pages wait until they know whose page it is', () => {
   it('accounts receivable takes its section word from the reader\'s own menu, never "Operate" written in', () => {
     const src = readFileSync(join(DASHBOARD, 'ar', 'page.tsx'), 'utf8')
     expect(src).not.toMatch(/<p className="eyebrow">Operate<\/p>/)
-    expect(src).toMatch(/company && sectionOfHref\(company\.kind, '\/dashboard\/ar'/)
+    expect(src).toMatch(/usePageSection\('\/dashboard\/ar'\)/)
   })
 
   it('the contracts page shows neither Sell nor Buy until the company has loaded', () => {

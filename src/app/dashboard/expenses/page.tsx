@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 
 /**
  * Expenses working surface — reimbursable and company expenses.
@@ -469,7 +470,8 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
 // ── Page ─────────────────────────────────────────────
 
 export default function ExpensesPage() {
-  const { company, loading: sessionLoading } = useSession()
+  const session = useSession()
+  const { company, loading: sessionLoading } = session
   const isClient = company?.kind === 'CLIENT'
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -497,7 +499,7 @@ export default function ExpensesPage() {
   >(null)
   // No framing until the company is known: a supplier's words guessed
   // for a client while the page loads are words about the wrong side.
-  const framing = company ? pageFraming(company.kind, 'expenses', reading) : null
+  const framing = company ? pageFraming(company.kind, 'expenses', reading, sidebarPropsFrom(session)) : null
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {

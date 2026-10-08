@@ -538,7 +538,7 @@ export default function InvoicesPage() {
   // a firm that bills nobody.
   // No framing until the company is known: a supplier's words guessed
   // for a client while the page loads are words about the wrong side.
-  const framing = company ? pageFraming(company.kind, 'invoices', reading) : null
+  const framing = company ? pageFraming(company.kind, 'invoices', reading, sidebarPropsFrom(session)) : null
   // Whether this reader's desk pays — judged by the seat where the page
   // reads a client's book from one, the way the payment route judges it,
   // through the same reading of the session the sidebar's menu uses.

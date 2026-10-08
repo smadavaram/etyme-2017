@@ -715,7 +715,7 @@ describe('the payables and orders pages', () => {
     const po = readFileSync(`${process.cwd()}/src/app/dashboard/purchase-orders/page.tsx`, 'utf8')
     expect(ap).not.toContain("company?.kind ?? 'VENDOR'")
     expect(po).not.toContain('<p className="eyebrow">Operate</p>')
-    expect(po).toContain("sectionOfHref(company.kind, '/dashboard/purchase-orders', reading)")
+    expect(po).toContain("usePageSection('/dashboard/purchase-orders')")
   })
 })
 
@@ -1088,13 +1088,7 @@ describe('sign-up walk, round seven: a page framed without its reader names no s
   const STILL_WITHOUT_READER = new Set<string>([
     'src/app/dashboard/bench/page.tsx',
     'src/app/dashboard/consultants/page.tsx',
-    'src/app/dashboard/contracts/page.tsx',
-    'src/app/dashboard/expenses/page.tsx',
-    'src/app/dashboard/invoices/page.tsx',
-    'src/app/dashboard/purchase-orders/page.tsx',
     'src/app/dashboard/rolloff/page.tsx',
-    'src/app/dashboard/ap/page.tsx',
-    'src/app/dashboard/ar/page.tsx',
   ])
 
   function headedWithoutReader(): string[] {

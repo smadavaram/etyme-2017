@@ -8,7 +8,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { payDesk } from '@/lib/money/pay-desk'
 
 /**
@@ -79,6 +79,9 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function ArPage() {
   const { company, loading: sessionLoading } = useSession()
+  // The section of the reader's own menu, read off the identity the
+  // sidebar is drawn from; null while unknown, and then nothing is drawn.
+  const section = usePageSection('/dashboard/ar')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -124,9 +127,7 @@ export default function ArPage() {
         {/* The section of the reader's own menu, and none until the session
             says whose menu it is. "Operate" was written in, a supplier's
             word on every reader's page. */}
-        {company && sectionOfHref(company.kind, '/dashboard/ar', data?.reading) && (
-          <p className="eyebrow">{sectionOfHref(company.kind, '/dashboard/ar', data?.reading)}</p>
-        )}
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Accounts receivable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           Aged from the day each bill fell due, so a client on sixty-day terms is

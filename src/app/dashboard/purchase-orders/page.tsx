@@ -9,7 +9,7 @@ import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-n
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
 import { useSession } from '@/components/session-provider'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ordersStance, ordersWords } from '@/lib/money/po-words'
 
@@ -104,6 +104,9 @@ export default function PurchaseOrdersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { company, loading: sessionLoading } = useSession()
+  // The section of the reader's own menu, read off the identity the
+  // sidebar is drawn from; null while unknown, and then nothing is drawn.
+  const eyebrow = usePageSection('/dashboard/purchase-orders')
   const [pos, setPos] = useState<PO[] | null>(null)
   const [canRaise, setCanRaise] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(0)
@@ -210,7 +213,6 @@ export default function PurchaseOrdersPage() {
   // The reader's end of the orders, in the same words the rows use (#9).
   const words = ordersWords(ordersStance({ kind: company.kind, sides: pos.map((p) => p.side), inASeat: !!reading?.inASeat }))
 
-  const eyebrow = company ? sectionOfHref(company.kind, '/dashboard/purchase-orders', reading) : null
   const attention = pos.filter((p) => p.overdrawn || p.expired || p.consumedPercent >= 90)
   const rest = pos.filter((p) => !attention.includes(p))
 

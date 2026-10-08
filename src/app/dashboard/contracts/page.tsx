@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { hasPermission } from '@/lib/permissions'
 import {
   describeLine, pairLine, masterContractLine, orderNoun, sideOf,
@@ -1253,7 +1254,8 @@ export default function ContractsPage() {
   const searchParams = useSearchParams()
   const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
 
-  const { company, permissions, loading: sessionLoading } = useSession()
+  const session = useSession()
+  const { company, permissions, loading: sessionLoading } = session
   const isClient = company?.kind === 'CLIENT'
   /** Which end of every document on this page the reader stands at. */
   const viewerId = company?.id ?? null
@@ -1298,7 +1300,7 @@ export default function ContractsPage() {
   // told a client "Sell Contracts - What you bill clients" while the
   // page loaded; a blank for a moment is the honest form.
   const framing = company
-    ? pageFraming(company.kind, tab === 'sell' ? 'contracts.sell' : 'contracts.buy', reading)
+    ? pageFraming(company.kind, tab === 'sell' ? 'contracts.sell' : 'contracts.buy', reading, sidebarPropsFrom(session))
     : null
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)

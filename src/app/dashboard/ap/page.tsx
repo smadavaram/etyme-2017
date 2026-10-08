@@ -9,7 +9,7 @@ import { compact, amount } from '@/lib/money-display'
 import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { receiptsLink } from '@/lib/money/ap-words'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
@@ -61,6 +61,9 @@ export default function ApPage() {
   const router = useRouter()
   const session = useSession()
   const { company } = session
+  // The section of the reader's own menu, read off the identity the
+  // sidebar is drawn from; null while unknown, and then nothing is drawn.
+  const section = usePageSection('/dashboard/ap')
   const searchParams = useSearchParams()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -119,9 +122,7 @@ export default function ApPage() {
             Money, and read "Operate" here over a page it reached from Money.
             No eyebrow until the session says whose menu it is, and none
             where the menu does not list the page — never a typed "Money". */}
-        {company && sectionOfHref(company.kind, '/dashboard/ap', data?.reading) && (
-          <p className="eyebrow">{sectionOfHref(company.kind, '/dashboard/ap', data?.reading)}</p>
-        )}
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           What you owe, to whom, and when each one is due.
