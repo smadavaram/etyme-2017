@@ -47,6 +47,9 @@ export const RESERVED_SUBDOMAINS = new Set([
   // customers. "secure.etyme.com" reads as ours, not theirs.
   'secure', 'billing', 'payment', 'payments', 'verify', 'verification',
   'account', 'accounts', 'my', 'portal', 'internal', 'root', 'system',
+  // The doors of the platform itself (2026-10-08, the password door): the
+  // demo every buyer is sent to, and the pages a new account walks.
+  'demo', 'start', 'reset', 'ready', 'password',
 ])
 
 export interface SubdomainVerdict {

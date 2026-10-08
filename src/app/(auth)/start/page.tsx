@@ -75,11 +75,17 @@ export default function StartPage() {
   // Steps passed on this visit after following the dashboard's link back,
   // so skipping one again moves on rather than showing it twice.
   const [passed, setPassed] = useState<SetupStep[]>([])
+  // Arrived from the password sign-up's link (2026-10-08): step 2 was
+  // answered on the sign-up form, so it is shown once as what they told
+  // us, pre-filled, before step 3.
+  const [welcome, setWelcome] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
     try {
-      const back = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('finish') === '1'
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+      const back = params?.get('finish') === '1'
+      if (params?.get('welcome') === '1') setWelcome(true)
       const j = await readJson(await fetch(`/api/onboarding${back ? '?finish=1' : ''}`))
       setState(j.data)
       if (j.data.suggestedName) setName((n) => n || j.data.suggestedName)
@@ -174,8 +180,9 @@ export default function StartPage() {
   // Which step is on screen.
   const step: 'SIGN_IN' | SetupStep | null =
     state?.action === 'CREATE' || (state?.action === 'SUGGEST') ? 'COMPANY'
-      : showingSteps ? ((setup.finishedAt ? (setup.owed as SetupStep[]).find((k) => !passed.includes(k)) : setup.next) ?? null)
-        : null
+      : showingSteps && welcome && setup.next === 'WORK' ? 'COMPANY'
+        : showingSteps ? ((setup.finishedAt ? (setup.owed as SetupStep[]).find((k) => !passed.includes(k)) : setup.next) ?? null)
+          : null
 
   const answered = (k: 'SIGN_IN' | SetupStep) =>
     k === 'SIGN_IN' || (setup?.record?.[k] != null) || (k === 'COMPANY' && state?.action === 'ALREADY_IN')
@@ -235,8 +242,28 @@ export default function StartPage() {
           <h1 className="font-serif text-2xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">{state.message}</h1>
         )}
 
+        {/* ── Step 2, answered on the sign-up form: what they told us ── */}
+        {step === 'COMPANY' && state?.action === 'ALREADY_IN' && (
+          <div className="max-w-xl">
+            <Lbl>Step 2 of 5</Lbl>
+            <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>
+            <p className="text-etyme-muted mt-2">Your email is confirmed. This is what you told us when you signed up.</p>
+            <dl className="mt-6 grid grid-cols-[10rem_1fr] gap-y-3 text-sm">
+              <dt className="text-etyme-muted">Company name</dt><dd className="text-etyme-ink">{setup.company.name}</dd>
+              <dt className="text-etyme-muted">Etyme address</dt><dd className="text-etyme-ink">{state.company?.slug}.etyme.com</dd>
+              <dt className="text-etyme-muted">Country</dt><dd className="text-etyme-ink">{setup.company.countryName}</dd>
+              <dt className="text-etyme-muted">Currency</dt><dd className="text-etyme-ink">{setup.company.currency}</dd>
+            </dl>
+            {setup.company.packSays && <p className="text-sm text-etyme-ink mt-4">{setup.company.packSays}</p>}
+            <button onClick={() => setWelcome(false)} className={`mt-6 ${primary}`}>Continue</button>
+            <p className="text-xs text-etyme-faint mt-3">
+              You can change the name and the currency later in Settings. Colleagues join by invitation, or by signing up with the same Etyme address from your email domain.
+            </p>
+          </div>
+        )}
+
         {/* ── Step 2: your company ── */}
-        {step === 'COMPANY' && (
+        {step === 'COMPANY' && state?.action !== 'ALREADY_IN' && (
           <div className="max-w-xl">
             <Lbl>Step 2 of 5</Lbl>
             <h1 className="font-serif text-3xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">Your company</h1>

@@ -53,6 +53,9 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   let schemaCurrent = true
   try {
     await prisma.conversation.findFirst({ select: { withCompanyId: true } })
+    // The password door's columns (2026-10-08): sign-in reads them on every try.
+    await prisma.person.findFirst({ select: { passwordHash: true, emailVerifiedAt: true } })
+    await prisma.emailToken.findFirst({ select: { id: true } })
   } catch {
     schemaCurrent = false
   }

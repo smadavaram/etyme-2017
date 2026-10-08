@@ -58,18 +58,30 @@ describe('what production says about itself tonight', () => {
 
   it('is not ready, and says how far off in one line', () => {
     expect(v.ready).toBe(false)
-    expect(v.says).toBe('Not production ready. 1 of 8 edges proven, 2 configured but never used, 5 missing.')
+    // The email sender makes the password door a way in (2026-10-08), so
+    // sign-in is configured and unused rather than missing.
+    expect(v.says).toBe('Not production ready. 1 of 8 edges proven, 3 configured but never used, 4 missing.')
   })
 
   it('the database is the one proven edge', () => {
     expect(edge('database')).toMatchObject({ state: 'PROVEN', says: 'Reachable, and the tables match the code (152 ms).' })
   })
 
-  it('nobody outside can sign in, and the row names the two registrations that fix it', () => {
-    expect(edge('signin').state).toBe('MISSING')
-    expect(edge('signin').says).toBe('Nobody outside can sign in. The only way in is the demo button.')
-    expect(edge('signin').fix).toContain('AZURE_AD_CLIENT_ID')
-    expect(edge('signin').fix).toContain('GOOGLE_CLIENT_ID')
+  it('with an email sender and no identity provider, the password door is the way in and nobody has used it yet', () => {
+    expect(edge('signin').state).toBe('SET')
+    expect(edge('signin').says).toBe('Sign-in with password is configured. Nobody has used it yet.')
+  })
+
+  it('with no sender as well, nobody outside can sign in, and the row names the two registrations and the sender that fix it', () => {
+    const shut = assess({ ...TODAY, env: { ...TODAY.env, emailSender: false } }, NOW).edges.find((e) => e.key === 'signin')!
+    expect(shut.state).toBe('MISSING')
+    expect(shut.says).toBe(
+      'Nobody outside can sign in. The only way in is the demo button. ' +
+        'The password door cannot confirm emails without an email sender, so it is off.'
+    )
+    expect(shut.fix).toContain('AZURE_AD_CLIENT_ID')
+    expect(shut.fix).toContain('GOOGLE_CLIENT_ID')
+    expect(shut.fix).toContain('RESEND_API_KEY')
   })
 
   it('every company is seed, and it says so rather than counting the seed as customers', () => {
@@ -157,7 +169,7 @@ describe('the day it is ready', () => {
   it('a proven edge says what happened, in numbers a person would quote', () => {
     const v = assess(READY, NOW)
     const edge = (key: string) => v.edges.find((e) => e.key === key)!
-    expect(edge('signin').says).toBe('5 people have signed in through Microsoft and Google.')
+    expect(edge('signin').says).toBe('5 people have signed in through Microsoft, Google and password.')
     expect(edge('company').says).toBe('2 companies here are real, not seed.')
     expect(edge('email').says).toBe('40 emails have been sent.')
     expect(edge('teams').says).toBe('12 messages have been posted to Teams through a Workflows link.')

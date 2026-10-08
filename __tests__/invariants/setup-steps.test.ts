@@ -128,11 +128,17 @@ describe('setup asks five things, then stops', () => {
       expect(member, kind).toBeTruthy()
       expect(readsOnlyOwnWork(member!.permissions)).toBe(true)
     }
-    const route = src('src/app/api/onboarding/route.ts')
-    expect(route).toContain('async function seatAsMember(')
-    expect(route).toContain('void tellOwnerSomebodyJoined(companyId, personId, MEMBER_ROLE)')
-    // Every join path seats as Member; none creates a seat with no role.
-    expect(route).not.toMatch(/type: 'EMPLOYEE', companyId: decision\.companyId \}/)
+    // One way to seat a colleague, shared by the domain door and the
+    // password door (2026-10-08): lib/seat-member.
+    const seat = src('src/lib/seat-member.ts')
+    expect(seat).toContain('async function seatAsMember(')
+    expect(seat).toContain('void tellOwnerSomebodyJoined(companyId, personId, MEMBER_ROLE)')
+    for (const door of ['src/app/api/onboarding/route.ts', 'src/lib/password-door.ts']) {
+      const route = src(door)
+      expect(route, door).toContain("import { seatAsMember } from '@/lib/seat-member'")
+      // Every join path seats as Member; none creates a seat with no role.
+      expect(route, door).not.toMatch(/type: 'EMPLOYEE', companyId: (decision|entry)\.companyId \}/)
+    }
   })
 
   it('a colleague with a role lands on their own desk', () => {

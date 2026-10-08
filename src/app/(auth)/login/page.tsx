@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { signIn, getProviders } from 'next-auth/react'
 import { EtymeLogo } from '@/components/logo'
+import { readJson } from '@/lib/read-response'
 
 /**
  * Signing in.
@@ -21,13 +23,61 @@ import { EtymeLogo } from '@/components/logo'
  * tenant credentials is worse than no Microsoft button: the person cannot
  * tell whether they are locked out or the product is broken, and an
  * enterprise buyer only tries once.
+ *
+ * The email-and-password form sits above them and is always offered
+ * (founder, 2026-10-08, "A password door"): it needs no provider key, so
+ * this page no longer says no way in is switched on. A refusal is the
+ * door's own sentence; an address nobody confirmed yet is offered its
+ * link again (lib/password-door).
  */
+
+/** The prefix the door puts on a refusal for an unconfirmed address. Kept in step with lib/password. */
+const UNVERIFIED = 'UNVERIFIED:'
 
 export default function LoginPage() {
   const [available, setAvailable] = useState<Set<string> | null>(null)
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [devEmail, setDevEmail] = useState<string | null>(null)
+  const router = useRouter()
+  const [pwEmail, setPwEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [refusal, setRefusal] = useState<string | null>(null)
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resent, setResent] = useState<string | null>(null)
+
+  async function signInWithPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true); setRefusal(null); setUnconfirmed(false); setResent(null)
+    const res = await signIn('credentials', { email: pwEmail.trim(), password, redirect: false })
+    setBusy(false)
+    if (res?.ok && !res.error) {
+      router.push('/start')
+      return
+    }
+    const said = res?.error ?? 'That email and password do not match.'
+    if (said.startsWith(UNVERIFIED)) {
+      setUnconfirmed(true)
+      setRefusal(said.slice(UNVERIFIED.length))
+    } else {
+      setRefusal(said === 'CredentialsSignin' ? 'That email and password do not match.' : said)
+    }
+  }
+
+  async function resend() {
+    setBusy(true)
+    try {
+      const j = await readJson(await fetch('/api/auth/password/resend', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pwEmail.trim() }),
+      }))
+      setResent(j.data.says)
+    } catch (err: any) {
+      setResent(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     getProviders()
@@ -46,7 +96,9 @@ export default function LoginPage() {
 
   // Null means we do not know yet, so nothing is hidden on that basis.
   const has = (id: string) => available === null || available.has(id)
-  const nothingWorks = available !== null && available.size === 0
+  // The password door is always there, so "nothing works" means no
+  // identity provider and no way to confirm an email either.
+  const nothingWorks = available !== null && [...available].every((id) => id === 'credentials')
 
   return (
     <div className="min-h-screen bg-etyme-navy flex">
@@ -105,16 +157,79 @@ export default function LoginPage() {
             </div>
           )}
 
-          {nothingWorks && !devEmail && (
-            <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-canvas p-3">
-              <p className="text-[13px] text-etyme-ink">
-                No sign-in method is switched on for this deployment yet. Set the Microsoft,
-                Google, or email credentials and this page will offer them.
-              </p>
+          {/* Email and password — always offered */}
+          <form className="space-y-4 mb-6" onSubmit={signInWithPassword}>
+            <div>
+              <label htmlFor="pw-email" className="block text-xs font-medium text-etyme-muted mb-1.5">
+                Email
+              </label>
+              <input
+                id="pw-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={pwEmail}
+                onChange={(e) => setPwEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
+                           text-sm placeholder:text-etyme-muted/50
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20
+                           focus:border-etyme-action transition-all"
+              />
             </div>
+            <div>
+              <label htmlFor="pw" className="block text-xs font-medium text-etyme-muted mb-1.5">
+                Password
+              </label>
+              <input
+                id="pw"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
+                           text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20
+                           focus:border-etyme-action transition-all"
+              />
+            </div>
+            {refusal && <p role="alert" className="text-sm text-etyme-attention">{refusal}</p>}
+            {unconfirmed && (
+              <button type="button" onClick={resend} disabled={busy}
+                className="text-sm text-etyme-action-press hover:underline disabled:opacity-50">
+                Send the link again
+              </button>
+            )}
+            {resent && <p className="text-sm text-etyme-ink">{resent}</p>}
+            <button
+              type="submit"
+              disabled={busy || !pwEmail.trim() || !password}
+              className="w-full px-4 py-2.5 rounded-lg bg-etyme-action text-white
+                         text-sm font-medium hover:opacity-90 transition-opacity
+                         disabled:opacity-50"
+            >
+              {busy ? 'Signing in…' : 'Sign in'}
+            </button>
+            <div className="flex justify-between text-xs">
+              <a href="/reset" className="text-etyme-action-press hover:underline">Forgot your password?</a>
+              <a href="/signup" className="text-etyme-action-press hover:underline">New here? Sign up</a>
+            </div>
+          </form>
+
+          {nothingWorks && !devEmail && (
+            <p className="mb-6 text-xs text-etyme-muted">
+              Microsoft and Google sign-in are not set up on this deployment yet.
+            </p>
           )}
 
           {/* OAuth buttons */}
+          {!nothingWorks && (
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-etyme-rule" />
+            <span className="text-xs text-etyme-muted">or</span>
+            <div className="flex-1 h-px bg-etyme-rule" />
+          </div>
+          )}
           <div className="space-y-3 mb-6">
             {has('azure-ad') && (
             <button

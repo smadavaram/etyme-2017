@@ -388,6 +388,11 @@ export const DOMAINS: Domain[] = [
       // to make a company for both doors, the steps' rules and words, and
       // the record of who answered each and when.
       'lib/company-create', 'lib/setup-steps', 'lib/setup-state',
+      // A password door, until the single sign-on keys exist (founder,
+      // 2026-10-08): the rules with no database in them, the sign-up,
+      // confirm, sign-in and reset against the database, and the one way
+      // a colleague is seated as Member, shared with the domain door.
+      'lib/password', 'lib/password-door', 'lib/seat-member',
       // A client approving a week without signing in: the link to its
       // approver, the evidence of an approval given by email, the
       // no-sign-in page, and the one week read by every rung it applies

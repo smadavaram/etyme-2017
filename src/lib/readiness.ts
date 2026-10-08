@@ -61,7 +61,7 @@ export interface ReadinessFacts {
   }
   /** Companies that are not seed and not a demo workspace. */
   realCompanies: number
-  /** People who have signed in through Microsoft, Google or an email link. */
+  /** People who have signed in through Microsoft, Google, an email link or a password. */
   realSignIns: number
   imports: { total: number; committed: number }
   email: { sent: number; unsent: number }
@@ -125,7 +125,18 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
   }
 
   // ── Somebody outside can sign in ─────────────────────────────────────
-  const providers = [f.env.microsoft && 'Microsoft', f.env.google && 'Google', f.env.emailLink && 'an email link'].filter(Boolean) as string[]
+  //
+  // The password door (2026-10-08) has no key of its own; it needs only a
+  // way to send the email that confirms an address. Without a sender it is
+  // off, and the row says so rather than listing a door nobody can use.
+  const passwordOn = f.env.emailSender
+  const passwordOff = passwordOn
+    ? ''
+    : ' The password door cannot confirm emails without an email sender, so it is off.'
+  const passwordFix = passwordOn ? '' : ' Set RESEND_API_KEY and NOTIFY_FROM_EMAIL to turn on sign-up with a password.'
+  const providers = [
+    f.env.microsoft && 'Microsoft', f.env.google && 'Google', f.env.emailLink && 'an email link', passwordOn && 'password',
+  ].filter(Boolean) as string[]
   if (!f.env.nextauthSecret) {
     edges.push({
       key: 'signin', name: 'Sign-in', state: 'MISSING', required: true,
@@ -135,21 +146,23 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
   } else if (providers.length === 0) {
     edges.push({
       key: 'signin', name: 'Sign-in', state: 'MISSING', required: true,
-      says: 'Nobody outside can sign in. The only way in is the demo button.',
+      says: 'Nobody outside can sign in. The only way in is the demo button.' + passwordOff,
       fix:
         'Register Etyme as an app in Microsoft Entra (any tenant) and set AZURE_AD_CLIENT_ID and AZURE_AD_CLIENT_SECRET; ' +
-        'do the same in Google Cloud for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Candidates need EMAIL_SERVER for the magic link.',
+        'do the same in Google Cloud for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Candidates need EMAIL_SERVER for the magic link.' +
+        passwordFix,
     })
   } else if (f.realSignIns === 0) {
     edges.push({
       key: 'signin', name: 'Sign-in', state: 'SET', required: true,
-      says: `Sign-in with ${list(providers)} is configured. Nobody has used it yet.`,
-      fix: 'Sign in yourself with a company account. If the provider refuses, the redirect URL on the app registration does not match this deployment.',
+      says: `Sign-in with ${list(providers)} is configured. Nobody has used it yet.` + passwordOff,
+      fix: 'Sign in yourself with a company account. If the provider refuses, the redirect URL on the app registration does not match this deployment.' + passwordFix,
     })
   } else {
     edges.push({
       key: 'signin', name: 'Sign-in', state: 'PROVEN', required: true,
-      says: `${count(f.realSignIns, 'person has', 'people have')} signed in through ${list(providers)}.`,
+      says: `${count(f.realSignIns, 'person has', 'people have')} signed in through ${list(providers)}.` + passwordOff,
+      ...(passwordFix ? { fix: passwordFix.trim() } : {}),
     })
   }
 

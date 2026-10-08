@@ -8,9 +8,8 @@ import {
 import {
   decideEntry, domainOfEmail, type ClaimedDomain,
 } from '@/lib/company-domains'
-import { tellOwnerSomebodyJoined } from '@/lib/notify/joined'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
-import { ensureDefaultRoles } from '@/lib/company-roles'
+import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
 import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES } from '@/lib/setup-steps'
 import { countryFromDomain, packFor } from '@/lib/company-defaults'
@@ -48,34 +47,6 @@ async function allClaims(): Promise<ClaimedDomain[]> {
     verified: r.verifiedAt !== null,
     joinPolicy: r.joinPolicy as ClaimedDomain['joinPolicy'],
   }))
-}
-
-/**
- * A colleague's seat, with the Member role at once.
- *
- * Decided by the founder, 2026-10-07: a colleague who signs in on a
- * claimed domain gets a seat with a default role at once, and the owner
- * is told who joined and what to give them. Member reads the holder's own
- * work and nothing else (lib/company-defaults), so a stranger who shares a
- * domain learns nothing about the firm, and a real colleague is not left
- * looking at a page that refuses them while somebody remembers to act.
- *
- * A company formed before Member existed gets it here, the same way the
- * access screen would give it to them (ensureDefaultRoles).
- */
-async function seatAsMember(personId: string, companyId: string): Promise<{ roleName: string }> {
-  let role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
-  if (!role) {
-    const company = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
-    await ensureDefaultRoles(companyId, company?.kind ?? 'VENDOR')
-    role = await prisma.role.findFirst({ where: { companyId, name: MEMBER_ROLE }, select: { id: true } })
-  }
-  await prisma.context.create({
-    data: { personId, type: 'EMPLOYEE', companyId, roleId: role?.id ?? null },
-  })
-  // Conversation's notice: every owner and admin, and the joiner. Never throws.
-  void tellOwnerSomebodyJoined(companyId, personId, MEMBER_ROLE)
-  return { roleName: MEMBER_ROLE }
 }
 
 export async function GET(request: NextRequest) {
@@ -117,6 +88,23 @@ export async function GET(request: NextRequest) {
         message: `You are already in ${c.company?.name}.`,
         seat: { type: c.type, role: role?.name ?? null, permissions },
         setup,
+      },
+    })
+  }
+
+  // A consultant holds a seat with no company. Asking them again would
+  // offer "Continue" and write a second consultant seat — or, for a
+  // candidate on a work address, offer to found a company. Their own page
+  // is the desk (found 2026-10-08, building the password door).
+  const own = person?.contexts.find((c) => c.type === 'CONSULTANT' && !c.companyId)
+  if (own) {
+    return NextResponse.json({
+      data: {
+        action: 'ALREADY_IN',
+        company: null,
+        message: 'You are already in, on your own page.',
+        seat: { type: 'CONSULTANT', role: null, permissions: [] },
+        setup: null,
       },
     })
   }
