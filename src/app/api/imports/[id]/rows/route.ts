@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { importRefusal, ownImport } from '../../door'
 import { prisma } from '@/lib/db'
 
 /**
@@ -12,14 +13,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  // One door, then the caller's own company's import only (./door).
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const refused = importRefusal(caller)
+  if (refused) return refused
 
   const { id } = await params
   const url = request.nextUrl
@@ -28,17 +26,8 @@ export async function GET(
   const filter = url.searchParams.get('filter') // "issues" | "clean" | null
   const q = url.searchParams.get('q')?.toLowerCase()
 
-  const importRecord = await prisma.import.findUnique({
-    where: { id },
-    select: { id: true, rowCount: true, issueCount: true, committedAt: true, mapping: true },
-  })
-
-  if (!importRecord) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Import not found' } },
-      { status: 404 }
-    )
-  }
+  const { import: importRecord, error: notOurs } = await ownImport(caller, id)
+  if (notOurs) return notOurs
 
   // Build where clause
   const where: any = { importId: id }

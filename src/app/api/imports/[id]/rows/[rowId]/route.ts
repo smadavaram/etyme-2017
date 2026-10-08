@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { importRefusal, ownImport } from '../../../door'
 import { prisma } from '@/lib/db'
 import { parseValue } from '@/lib/import-mapper'
 
@@ -13,14 +14,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; rowId: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  // One door, then the caller's own company's import only (./door).
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const refused = importRefusal(caller)
+  if (refused) return refused
 
   const { id, rowId } = await params
   const body = await request.json()
@@ -34,17 +32,8 @@ export async function PATCH(
   }
 
   // Verify import exists and isn't committed
-  const importRecord = await prisma.import.findUnique({
-    where: { id },
-    select: { id: true, committedAt: true },
-  })
-
-  if (!importRecord) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Import not found' } },
-      { status: 404 }
-    )
-  }
+  const { import: importRecord, error: notOurs } = await ownImport(caller, id)
+  if (notOurs) return notOurs
 
   if (importRecord.committedAt) {
     return NextResponse.json(

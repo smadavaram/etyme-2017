@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { getTemplatePack, TEMPLATE_PACK_IDS } from '@/lib/template-packs'
 import { templatePackRefusal } from './refusal'
@@ -18,14 +18,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  // One door (sign-up walk, round five): the seat this request is made
+  // from, and its permissions, rather than a lookup by session email.
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id: companyId } = await params
   const body = await request.json()
@@ -85,24 +81,11 @@ export async function POST(
     )
   }
 
-  // Verify caller has settings.manage on this company
-  const person = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: { id: true },
-  })
-
-  // Somebody signed in with no person on the record has no seat anywhere,
-  // and used to skip this check entirely and set the pack on any company.
-  const callerContext = person
-    ? await prisma.context.findFirst({
-        where: { personId: person.id, companyId, revokedAt: null },
-        include: { role: { select: { permissions: true } } },
-      })
-    : null
-
+  // The caller's seat must be at this company: a pack is set by the
+  // company it is for, from a seat there that holds the setup desk.
   const refusal = templatePackRefusal({
-    seated: !!callerContext,
-    permissions: callerContext?.role?.permissions ?? [],
+    seated: caller.company?.id === companyId,
+    permissions: caller.company?.id === companyId ? caller.permissions : [],
     companyName: company.name,
     companyKind: company.kind,
   })

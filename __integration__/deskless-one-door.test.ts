@@ -231,3 +231,90 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     }
   })
 })
+
+/**
+ * Sign-up walk, round five, problem 1: the import routes checked only that
+ * somebody was signed in and took the company from the body. Mo, a Member
+ * at Northbend Athletic, imported a person and a live $150/hr contract into
+ * Teleworld Solutions; a candidate with no company read the rows with rates.
+ */
+describe('nobody imports into, or reads an import of, a company that is not their own (round five)', () => {
+  let teleworld = ''
+  let theirs = ''
+  const NINA = 'nina@walk5.example'
+
+  beforeAll(async () => {
+    await freshWorld()
+    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    teleworld = (await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' }, select: { id: true } })).id
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Member' }, select: { id: true } })
+    const mo = await prisma.person.create({ data: { primaryEmail: 'mo5@walk5.example', name: 'Mo Haddad' }, select: { id: true } })
+    await prisma.context.create({ data: { personId: mo.id, companyId: nike.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' } })
+    await prisma.person.create({ data: { primaryEmail: NINA, name: 'Nina Park' } })
+    // Teleworld's own import, not yet committed, with a rate in a row.
+    theirs = (await prisma.import.create({
+      data: {
+        companyId: teleworld, kind: 'PEOPLE', fileName: 'people.csv', mapping: { mappings: [], unmapped: [], warnings: [] } as any,
+        rowCount: 1, issueCount: 0,
+        rows: { create: { raw: { name: 'Walk Five Probe', 'pay rate': '90', 'bill rate': '150' } as any, parsed: { name: 'Walk Five Probe', payRate: 90, billRate: 150, startDate: '2026-10-01' } as any, issues: [] } },
+      },
+      select: { id: true },
+    })).id
+  }, 240_000)
+
+  async function call(path: string, method: string, mod: any, params: Record<string, string>, body?: unknown) {
+    const res: Response = await mod[method](req(method, path, body), { params: Promise.resolve(params) })
+    const text = await res.text()
+    let parsed: any = null
+    try { parsed = JSON.parse(text) } catch { /* not JSON */ }
+    return { status: res.status, body: parsed, text }
+  }
+
+  it('Mo cannot start an import at another company: the door refuses his seat in a sentence and nothing is written', async () => {
+    as('mo5@walk5.example')
+    const before = await prisma.import.count({ where: { companyId: teleworld } })
+    const r = await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {},
+      { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'Walk Five Probe', email: 'probe5@walk5.example', 'bill rate': '150', 'start date': '2026-10-01' }] })
+    expect(r.status, r.text.slice(0, 200)).toBe(403)
+    expect(r.body.error.message).toMatch(/is not part of your seat at Northbend Athletic/)
+    expect(await prisma.import.count({ where: { companyId: teleworld } })).toBe(before)
+  })
+
+  it('Mo cannot read or commit Teleworld’s import, and no person, listing or contract appears at Teleworld', async () => {
+    as('mo5@walk5.example')
+    const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
+    expect(rows.status).toBe(403)
+    expect(rows.text).not.toContain('150')
+    const commit = await call(`/api/imports/${theirs}/commit`, 'POST', await import('@/app/api/imports/[id]/commit/route'), { id: theirs })
+    expect(commit.status).toBe(403)
+    expect(await prisma.person.findFirst({ where: { name: 'Walk Five Probe' } })).toBeNull()
+    expect((await prisma.import.findUniqueOrThrow({ where: { id: theirs } })).committedAt).toBeNull()
+  })
+
+  it('a candidate with no company cannot read anybody’s import rows or start an import', async () => {
+    as(NINA)
+    const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
+    expect(rows.status).toBeGreaterThanOrEqual(400)
+    expect(rows.text).not.toContain('bill rate')
+    const start = await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'X' }] })
+    expect(start.status).toBeGreaterThanOrEqual(400)
+  })
+
+  it('a desk at another company is told there is no such import, and a company named in the request is never the one written to', async () => {
+    as(PROGRAM)
+    const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
+    expect([403, 404]).toContain(rows.status)
+    expect(rows.text).not.toContain('150')
+    const before = await prisma.import.count({ where: { companyId: teleworld } })
+    await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'Y Z', email: 'yz@walk5.example' }] })
+    expect(await prisma.import.count({ where: { companyId: teleworld } })).toBe(before)
+  })
+
+  it('a company’s work sites are read only by itself and the firms it trades with', async () => {
+    as(NINA)
+    const mod = await import('@/app/api/companies/[id]/locations/route')
+    const nina = await call(`/api/companies/${teleworld}/locations`, 'GET', mod, { id: teleworld })
+    expect(nina.status).toBeGreaterThanOrEqual(400)
+    expect(nina.text).not.toContain('Wichita')
+  })
+})

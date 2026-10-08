@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -102,8 +102,8 @@ function UploadStep({ onUploaded }: { onUploaded: (imp: ImportRecord) => void })
     try {
       const formData = new FormData()
       formData.append('file', file)
-      // companyId will need to come from context — use placeholder for now
-      formData.append('companyId', 'pending')
+      // No company is sent: an import is always the signed-in seat's own
+      // company's (app/api/imports/door).
       formData.append('kind', kind)
 
       const res = await fetch('/api/imports', {
@@ -701,6 +701,24 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
 // ── Page ───────────────────────────────────────────────────
 
 export default function ImportPage() {
+  // Whether this seat may import at all, asked before the wizard is
+  // drawn. A seat with no desk, or a desk that does not load people, is
+  // told so in a sentence and shown nothing else (sign-up walk, round
+  // five, problem 1: the four-step wizard was drawn to a Member).
+  const [allowed, setAllowed] = useState<null | true | string>(null)
+  useEffect(() => {
+    let live = true
+    fetch('/api/imports')
+      .then(async (res) => {
+        if (!live) return
+        if (res.ok) { setAllowed(true); return }
+        const body = await res.json().catch(() => ({}))
+        setAllowed(body.error?.message ?? 'Importing is not part of your seat. Ask your company’s owner if you need it.')
+      })
+      .catch(() => { if (live) setAllowed('Could not check whether you may import. Try again in a moment.') })
+    return () => { live = false }
+  }, [])
+
   const [step, setStep] = useState<Step>('upload')
   const [importRecord, setImportRecord] = useState<ImportRecord | null>(null)
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null)
@@ -734,6 +752,11 @@ export default function ImportPage() {
     { key: 'committed', label: 'Commit' },
   ]
   const stepIndex = steps.findIndex((s) => s.key === step)
+
+  if (allowed === null) return null
+  if (allowed !== true) {
+    return <p className="text-[14px] text-etyme-muted py-8">{allowed}</p>
+  }
 
   return (
     <>

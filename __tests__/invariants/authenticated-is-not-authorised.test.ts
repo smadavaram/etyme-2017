@@ -264,14 +264,12 @@ const PART_SCOPED = [
  * six holes. None is known to be exploited; none is known to be safe.
  * This list may shrink and must never grow.
  */
+//
+// The five import routes, a company's locations and its template pack left this list on
+// 2026-10-08 (sign-up walk, round five, problems 1 and 2): they were the
+// shape it warned about, and a Member imported into another company.
+// What remains is read again in every-route-has-a-door.test.ts.
 const TO_REVIEW = [
-  'companies/[id]/locations/route.ts',
-  'companies/[id]/template-pack/route.ts',
-  'imports/route.ts',
-  'imports/[id]/commit/route.ts',
-  'imports/[id]/mapping/route.ts',
-  'imports/[id]/rows/route.ts',
-  'imports/[id]/rows/[rowId]/route.ts',
   'market/leads/route.ts',
   'requirements/parse/route.ts',
 ]

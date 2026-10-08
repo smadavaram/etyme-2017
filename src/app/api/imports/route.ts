@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { importRefusal } from './door'
 import { prisma } from '@/lib/db'
 import { mapColumns, parseRow } from '@/lib/import-mapper'
 
 /**
+ * GET  /api/imports — whether this seat may import, said in a sentence where it may not
  * POST /api/imports
  *
  * Upload a CSV/JSON file for import. Returns an Import record with
@@ -14,7 +16,9 @@ import { mapColumns, parseRow } from '@/lib/import-mapper'
  *
  * Accepts:
  *   - multipart/form-data with a "file" field (CSV)
- *   - application/json with { companyId, kind, rows: [...] } for programmatic use
+ *   - application/json with { kind, rows: [...] } for programmatic use
+ *
+ * The import is always the caller's own company's (./door).
  *
  * The import flow:
  *   POST /imports → returns Import with proposed mapping
@@ -23,35 +27,34 @@ import { mapColumns, parseRow } from '@/lib/import-mapper'
  *   PATCH /imports/:id/rows/:rowId → fix a row inline
  *   POST /imports/:id/commit → creates real records
  */
-export async function POST(request: NextRequest) {
-  const email = await getSessionEmail()
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const refused = importRefusal(caller)
+  if (refused) return refused
+  return NextResponse.json({ data: { mayImport: true, company: { id: caller.company!.id, name: caller.company!.name } } })
+}
 
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const refused = importRefusal(caller)
+  if (refused) return refused
+
+  // The caller's own company, always. A companyId in the request is not
+  // read: round five imported into another company by naming it.
+  const companyId = caller.company!.id
 
   const contentType = request.headers.get('content-type') ?? ''
 
-  let companyId: string
   let kind: string
   let rows: Record<string, string>[]
   let fileName: string | null = null
 
   if (contentType.includes('application/json')) {
     const body = await request.json()
-    companyId = body.companyId
     kind = body.kind ?? 'PEOPLE'
     rows = body.rows
-
-    if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'companyId is required', field: 'companyId' } },
-        { status: 422 }
-      )
-    }
 
     if (!Array.isArray(rows) || rows.length === 0) {
       return NextResponse.json(
@@ -62,19 +65,11 @@ export async function POST(request: NextRequest) {
   } else if (contentType.includes('multipart/form-data')) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    companyId = formData.get('companyId') as string
     kind = (formData.get('kind') as string) ?? 'PEOPLE'
 
     if (!file) {
       return NextResponse.json(
         { error: { code: 'VALIDATION', message: 'file is required', field: 'file' } },
-        { status: 422 }
-      )
-    }
-
-    if (!companyId) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'companyId is required', field: 'companyId' } },
         { status: 422 }
       )
     }
@@ -103,19 +98,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: `Invalid kind. Must be one of: ${validKinds.join(', ')}`, field: 'kind' } },
       { status: 422 }
-    )
-  }
-
-  // Verify company exists
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { id: true },
-  })
-
-  if (!company) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Company not found' } },
-      { status: 404 }
     )
   }
 
