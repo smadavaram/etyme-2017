@@ -62,6 +62,8 @@
  * there is nothing to score.
  */
 
+import { createHmac, timingSafeEqual } from 'node:crypto'
+
 export type Kind = 'FRESHNESS' | 'CONSENT' | 'OUTCOME'
 
 /** How often to ask somebody on the bench whether anything has changed. */
@@ -447,4 +449,139 @@ export function applyReply(
 
 function firstName(full: string): string {
   return full.trim().split(/\s+/)[0]
+}
+
+// ---------------------------------------------------------------------------
+// Who may post a reply.
+//
+// A reply records an answer on somebody's profile — "free", "not free",
+// "yes, submit me". Before this existed anybody could post one as any
+// address, so a stranger could take a consultant off the bench or put them
+// forward with one request. A reply is accepted only when the email
+// provider signed it.
+//
+// The provider is Resend, which already sends our mail (RESEND_API_KEY).
+// Its inbound webhook signs every delivery the Svix way: three headers —
+// an id, a unix timestamp, and one or more "v1,<base64>" signatures — over
+// "<id>.<timestamp>.<raw body>", HMAC-SHA256 under the endpoint's signing
+// secret ("whsec_" then base64). A provider that does not sign its posts
+// cannot be told apart from a stranger, so it is not accepted at all.
+// ---------------------------------------------------------------------------
+
+/** The environment variable holding the inbound endpoint's signing secret. */
+export const INBOUND_SECRET_ENV = 'RESEND_INBOUND_SECRET'
+
+/** How old a signature may be. Older is a replay, refused. */
+export const INBOUND_TOLERANCE_SECONDS = 5 * 60
+
+export interface InboundSignature {
+  /** The signing secret from the environment. Missing means nothing is accepted. */
+  secret: string | null | undefined
+  /** svix-id (or webhook-id). */
+  id: string | null
+  /** svix-timestamp (or webhook-timestamp), unix seconds. */
+  timestamp: string | null
+  /** svix-signature (or webhook-signature): space-separated "v1,<base64>" entries. */
+  signature: string | null
+  /** The body exactly as it arrived, before any parsing. */
+  body: string
+  now: Date
+}
+
+export type InboundVerdict =
+  | { ok: true }
+  | {
+      ok: false
+      status: 503 | 403
+      code: 'INBOUND_OFF' | 'UNSIGNED' | 'STALE' | 'BAD_SIGNATURE'
+      says: string
+    }
+
+/** The secret's key bytes: "whsec_" is a label, the rest is base64. */
+function secretKey(secret: string): Buffer {
+  return Buffer.from(secret.startsWith('whsec_') ? secret.slice(6) : secret, 'base64')
+}
+
+/** The signature the provider would have sent for this body. Exported for tests that sign a request. */
+export function signInbound(secret: string, id: string, timestamp: string, body: string): string {
+  return 'v1,' + createHmac('sha256', secretKey(secret)).update(`${id}.${timestamp}.${body}`).digest('base64')
+}
+
+/**
+ * Whether this delivery was signed by the provider, recently, over exactly
+ * this body. Nothing is read from the body until this says yes.
+ *
+ * No secret configured refuses everything with 503: an unconfigured check
+ * that waves requests through is the hole this closes, so the absence of a
+ * secret is never read as "nothing to check".
+ */
+export function verifyInbound(i: InboundSignature): InboundVerdict {
+  const secret = (i.secret ?? '').trim()
+  if (!secret || secretKey(secret).length === 0) {
+    return {
+      ok: false,
+      status: 503,
+      code: 'INBOUND_OFF',
+      says:
+        `Replies by email are switched off on this deployment: ${INBOUND_SECRET_ENV} is not set, ` +
+        'so no reply can be checked and none is accepted. Copy the signing secret from the inbound ' +
+        `webhook in Resend into ${INBOUND_SECRET_ENV}.`,
+    }
+  }
+  if (!i.id || !i.timestamp || !i.signature) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'UNSIGNED',
+      says: 'This reply is not signed by the email provider, so nothing was recorded.',
+    }
+  }
+  const sent = Number(i.timestamp)
+  const age = i.now.getTime() / 1000 - sent
+  if (!Number.isFinite(sent) || Math.abs(age) > INBOUND_TOLERANCE_SECONDS) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'STALE',
+      says: 'This reply was signed more than five minutes from now, so it is treated as a replay and nothing was recorded.',
+    }
+  }
+  const expected = Buffer.from(signInbound(secret, i.id, i.timestamp, i.body).slice(3), 'base64')
+  const matches = i.signature
+    .split(' ')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.startsWith('v1,'))
+    .some((entry) => {
+      const given = Buffer.from(entry.slice(3), 'base64')
+      return given.length === expected.length && timingSafeEqual(given, expected)
+    })
+  if (!matches) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'BAD_SIGNATURE',
+      says: 'This reply’s signature does not match, so nothing was recorded.',
+    }
+  }
+  return { ok: true }
+}
+
+const HOUR_MS = 60 * 60 * 1000
+
+/**
+ * Whether a refused delivery from this source should be reported now: once
+ * an hour per source. `seen` is the caller's own memory of when each
+ * source was last reported, and is pruned here so a flood of new sources
+ * cannot grow it without bound.
+ */
+export function reportRefusalNow(seen: Map<string, number>, source: string, now: Date, cap = 1000): boolean {
+  const at = now.getTime()
+  const last = seen.get(source)
+  if (last !== undefined && at - last < HOUR_MS) return false
+  if (seen.size >= cap) {
+    for (const [k, t] of seen) if (at - t >= HOUR_MS) seen.delete(k)
+    if (seen.size >= cap) return false
+  }
+  seen.set(source, at)
+  return true
 }

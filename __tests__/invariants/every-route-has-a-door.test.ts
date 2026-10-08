@@ -58,6 +58,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'me/**': 'The session’s own person and nothing else: their page, their benches, their seats.',
   'market/leads': 'POST is the public contact form; GET and PATCH are staff only (mayReadTheList over ETYME_STAFF_EMAILS).',
   'requirements/parse': 'Turns the text it is sent into fields; reads and writes nothing on the record.',
+  'texts/inbound': 'The email provider posting a reply; nothing is read until its signature over the raw body checks (verifyInbound in lib/texts).',
 }
 
 /**
@@ -65,12 +66,9 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
  * each with its owner. This list may only shrink.
  */
 const STILL_OPEN: Readonly<Record<string, { owner: string; why: string }>> = {
-  'texts/inbound': {
-    owner: 'etyme-conversation',
-    why:
-      'An inbound reply webhook with no provider signature: anybody can post a reply as any address ' +
-      'and record an answer on that person’s profile. It needs the provider’s signature checked before it writes.',
-  },
+  // texts/inbound closed 2026-10-08 (etyme-conversation): the provider's
+  // signature is checked before the reply is read, and with no secret
+  // configured every delivery is refused.
 }
 
 function stripComments(src: string): string {
@@ -169,7 +167,7 @@ describe('every route that touches company data goes through the one door', () =
   })
 
   it('the routes still open may only shrink, and each names its owner and what is wrong', () => {
-    expect(Object.keys(STILL_OPEN).length).toBeLessThanOrEqual(1)
+    expect(Object.keys(STILL_OPEN).length).toBeLessThanOrEqual(0)
     for (const [k, v] of Object.entries(STILL_OPEN)) {
       expect(v.owner, k).toMatch(/^etyme-/)
       expect(v.why.split(' ').length, k).toBeGreaterThan(10)
