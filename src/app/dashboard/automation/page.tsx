@@ -157,6 +157,12 @@ export default function AutomationPage() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A refusal is the page: its sentence alone, with no tiles, filters or
+  // empty state around it (sign-up walk, round five, problem 10).
+  const [refused, setRefused] = useState<string | null>(null)
+  // Nothing is counted until the first read answers, so a zero is never
+  // drawn before the server has said whether this seat may read at all.
+  const [answered, setAnswered] = useState(false)
   const [actionFilter, setActionFilter] = useState<string | null>(null)
   const [showReversibleOnly, setShowReversibleOnly] = useState(false)
   const [levelFilter, setLevelFilter] = useState<Rung | null>(null)
@@ -174,6 +180,12 @@ export default function AutomationPage() {
       if (levelFilter) params.set('level', levelFilter)
 
       const res = await fetch(`/api/automation?${params.toString()}`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'The automation log is not part of your seat. Ask your company’s owner if you need it.')
+        setEntries([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -186,6 +198,7 @@ export default function AutomationPage() {
       setEntries([])
     } finally {
       setLoading(false)
+      setAnswered(true)
     }
   }, [actionFilter, showReversibleOnly, levelFilter])
 
@@ -237,6 +250,13 @@ export default function AutomationPage() {
   }
   const rungsPresent = RUNGS.filter((r) => (levelCounts[r] ?? 0) > 0)
   const topRung = rungsPresent.length ? rungsPresent[rungsPresent.length - 1] : null
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+  if (!answered) {
+    return <p className="text-[14px] text-etyme-muted py-8">Loading automation log…</p>
+  }
 
   return (
     <>

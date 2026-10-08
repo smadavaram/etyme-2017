@@ -91,9 +91,9 @@ describe('the finance desk is shown Bench, because it reads bench profit', () =>
     expect(hrefs('VENDOR', permsOf('VENDOR', 'Accounts Receivable'))).not.toContain('/dashboard/bench')
   })
 
-  it('a program office’s Bench still asks for the people alone, because it has no finance desk', () => {
-    const msp = getNavForKind('MSP', false).flatMap((s) => s.items).find((i) => i.href === '/dashboard/bench')!
-    expect(msp.needs).toEqual(['consultants.read'])
+  it('a program office is offered no Bench at all, because it places nobody (sign-up walk, round five)', () => {
+    const msp = getNavForKind('MSP', false).flatMap((s) => s.items).find((i) => i.href === '/dashboard/bench')
+    expect(msp).toBeUndefined()
   })
 })
 

@@ -18,6 +18,9 @@ export default function IntegrationsPage() {
   const [note, setNote] = useState<string | null>(null)
   const [statement, setStatement] = useState('')
   const [recon, setRecon] = useState<any>(null)
+  // A refusal is the page: its sentence alone, never beside the
+  // reconcile form (sign-up walk, round five, problem 10).
+  const [refused, setRefused] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -28,6 +31,10 @@ export default function IntegrationsPage() {
       ])
       const eb = await e.json()
       const rb = await r.json()
+      if (e.status === 403 || r.status === 403) {
+        setRefused((e.status === 403 ? eb : rb).error?.message ?? 'Integrations are not part of your seat. Ask your company’s owner if you need them.')
+        return
+      }
       if (!e.ok) throw new Error(eb.error?.message ?? `HTTP ${e.status}`)
       setData(eb.data)
       setRuns(rb.data?.runs ?? [])
@@ -100,6 +107,10 @@ export default function IntegrationsPage() {
     load()
   }
 
+  if (refused) {
+    return <p className="mx-auto max-w-[900px] px-4 py-8 text-[14px] text-etyme-muted">{refused}</p>
+  }
+
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
@@ -144,6 +155,7 @@ export default function IntegrationsPage() {
         </article>
       )}
 
+      {data && (
       <article className="panel">
         <h2 className="text-[15px] font-semibold text-etyme-ink">Reconcile against a statement</h2>
         <p className="mt-1 text-[13px] text-etyme-muted">
@@ -174,6 +186,7 @@ export default function IntegrationsPage() {
           </div>
         )}
       </article>
+      )}
 
       {runs.length > 0 && (
         <article className="panel">

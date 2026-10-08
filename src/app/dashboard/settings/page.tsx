@@ -358,6 +358,21 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
 
 // ── Company ──────────────────────────────────────────
 
+/**
+ * How this company came in, and so who joins it — said the way it
+ * actually happened. It told a firm that signed up with a password "It
+ * came from your identity provider" over a domain reading "—" (sign-up
+ * walk, round five, problem 20).
+ */
+function howYouCameIn(c: Pick<Company, 'slug' | 'domain' | 'domainVerified'>): string {
+  if (c.domain && c.domainVerified) {
+    return `Your domain, ${c.domain}, was verified when your company signed in with its work account. ` +
+      'It is not editable, and it decides who joins this company automatically.'
+  }
+  return `Your company signed up with an email and a password, so its Etyme address is ${c.slug}.etyme.com and it has no verified domain. ` +
+    'Colleagues join by invitation, or by signing up with that address, and are seated as Member until you give them a desk.'
+}
+
 function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
   const c = data.company
   const [name, setName] = useState(c.name)
@@ -368,7 +383,7 @@ function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: 
     <>
       <Panel
         title="Who you are"
-        subtitle="Your domain is not editable. It came from your identity provider and it is what decides who joins this company automatically."
+        subtitle={howYouCameIn(c)}
       >
         <div className="grid sm:grid-cols-2 gap-4">
           <label className="block">

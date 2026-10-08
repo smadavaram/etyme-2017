@@ -156,8 +156,10 @@ describe('a worker’s dashboard opens on their own work', () => {
     expect(consoleHome({ kind: 'GSI', worker: true, permissions: ['*'] }).href).toBe('/dashboard')
   })
 
-  it('staff who are not workers keep the firm’s Today, however narrow their seat', () => {
-    expect(consoleHome({ kind: 'GSI', worker: false, permissions: karthik }).href).toBe('/dashboard')
+  it('staff whose seat holds no desk open on their own work even before any work is theirs, and staff with a desk keep the firm’s Today (sign-up walk, round five)', () => {
+    // Reading only one's own work is not a desk, so the firm's Today is not theirs to read.
+    expect(consoleHome({ kind: 'GSI', worker: false, permissions: karthik }).href).toBe('/dashboard/my-work')
+    expect(consoleHome({ kind: 'GSI', worker: false, permissions: [...karthik, 'consultants.read'] }).href).toBe('/dashboard')
   })
 
   it('a seat not yet known is not read as reading only its own work', () => {

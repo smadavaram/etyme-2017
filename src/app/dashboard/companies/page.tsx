@@ -245,7 +245,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Slug</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Etyme address</label>
               <div className="flex items-center">
                 <input
                   type="text"
@@ -531,6 +531,11 @@ export default function CompaniesPage() {
   const [selected, setSelected] = useState<Company | null>(null)
   const [kindFilter, setKindFilter] = useState<KindFilter>('ALL')
   const [toast, setToast] = useState<string | null>(null)
+  // A refusal is the page: its sentence alone, with no tiles or chips
+  // around it (sign-up walk, round five, problem 10). And nothing is
+  // counted before the first read answers.
+  const [refused, setRefused] = useState<string | null>(null)
+  const [answered, setAnswered] = useState(false)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -545,6 +550,12 @@ export default function CompaniesPage() {
     setError(null)
     try {
       const res = await fetch('/api/companies')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(refusalSentence(body.error?.message) || 'Companies is not part of your seat. Ask your company’s owner if you need it.')
+        setCompanies([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -560,6 +571,7 @@ export default function CompaniesPage() {
       setCompanies([])
     } finally {
       setLoading(false)
+      setAnswered(true)
     }
   }, [])
 
@@ -595,7 +607,9 @@ export default function CompaniesPage() {
     },
     {
       key: 'slug',
-      label: 'Slug',
+      // The reader's word for it is the address they signed up with
+      // (sign-up walk, round five, problem 19), never the system's.
+      label: 'Etyme address',
       render: (row) => (
         <span className="text-etyme-muted text-[12px] font-mono">{row.slug}</span>
       ),
@@ -667,6 +681,13 @@ export default function CompaniesPage() {
     fetchCompanies()
   }
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+  if (!answered) {
+    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
@@ -721,7 +742,7 @@ export default function CompaniesPage() {
         loading={loading}
         error={error}
         searchFilter={searchFilter}
-        searchPlaceholder="Search by name, slug, or domain…"
+        searchPlaceholder="Search by name, Etyme address, or domain…"
         emptyMessage="No companies found."
         emptyDetail="Create your first company to get started."
         onRowClick={(row) => setSelected(row)}

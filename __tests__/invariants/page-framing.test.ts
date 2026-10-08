@@ -113,7 +113,9 @@ describe('the heading on a page names the section the reader\'s own menu puts it
     // framing, so it outlived the section by the same route.
     expect(sectionOfHref('VENDOR', '/dashboard/texts')).toBe('Procure')
     expect(sectionOfHref('GSI', '/dashboard/texts')).toBe('Supply')
-    expect(sectionOfHref('MSP', '/dashboard/texts')).toBe('Supply')
+    // A program office runs no bench, so it has no check-ins to head
+    // (sign-up walk, round five, problem 21).
+    expect(sectionOfHref('MSP', '/dashboard/texts')).toBeNull()
   })
 
   it('no section name is typed into the framing table by hand', () => {
@@ -182,9 +184,9 @@ describe('an integrator and a program office are headed their own words, not a b
     expect(pageFraming('MSP', 'requirements').eyebrow).toBe('Demand')
   })
 
-  it('both file their bench under Supply', () => {
+  it('an integrator files its bench under Supply, and a program office, which places nobody, has no bench to file', () => {
     expect(pageFraming('GSI', 'consultants').eyebrow).toBe('Supply')
-    expect(pageFraming('MSP', 'consultants').eyebrow).toBe('Supply')
+    expect(pageFraming('MSP', 'consultants').eyebrow).toBe('')
   })
 
   it('contracts, timesheets and the money are Operate for all three suppliers', () => {

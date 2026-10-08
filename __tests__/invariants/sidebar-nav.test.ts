@@ -1332,3 +1332,21 @@ describe('a Member seat reads only the links its seat opens', () => {
     }
   })
 })
+
+/**
+ * Sign-up walk, round five, problem 21: a program office's setup told it
+ * "You run the program and place nobody, so the suppliers pay their own
+ * people", and its menu then offered Payroll, Bench, Consultants and
+ * Bench check-ins.
+ */
+describe('a program office’s menu offers nothing it does not do', () => {
+  it('a program office is offered no payroll, no bench, no consultants and no bench check-ins, even holding the whole company', () => {
+    const labels = itemsOf(getNavForKind('MSP', false, { permissions: ['*'] })).map((i) => i.label)
+    for (const absent of ['Payroll', 'Commissions', 'Bench', 'Consultants', 'Bench check-ins']) {
+      expect(labels, absent).not.toContain(absent)
+    }
+    // What it does do stays: its suppliers and how they score.
+    expect(labels).toContain('Suppliers')
+    expect(labels).toContain('Supplier scorecards')
+  })
+})

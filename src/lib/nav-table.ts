@@ -601,9 +601,11 @@ const MSP_NAV: NavSection[] = [
       // Only computable where somebody buys from several firms for one
       // program, which is the whole of what an MSP is for.
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎', needs: ['consultants.read'] },
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
+      // No Bench, Consultants or Bench check-ins. A program office runs
+      // the program and places nobody (CLAUDE.md, "Etyme runs the
+      // program"): it holds no bench and no consultants of its own, and
+      // its own setup tells it so. The menu offered all three anyway
+      // (sign-up walk, round five, problem 21).
     ],
   },
   operateSection(
@@ -612,7 +614,9 @@ const MSP_NAV: NavSection[] = [
     NETWORK.filter((i) => i.href !== '/dashboard/suppliers'),
     // No commissions: a program office is paid a fee on the program, not
     // a recruiter's split on a placement, and there is no run behind it.
-    MONEY.filter((i) => i.href !== '/dashboard/payroll/commissions'),
+    // No payroll either: it pays nobody — the suppliers pay their own
+    // people — which is what its setup says (round five, problem 21).
+    MONEY.filter((i) => i.href !== '/dashboard/payroll/commissions' && i.href !== '/dashboard/payroll'),
   ),
   {
     label: 'Grow',

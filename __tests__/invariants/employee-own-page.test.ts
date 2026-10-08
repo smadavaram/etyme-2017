@@ -142,17 +142,14 @@ describe("an integrator's own engineer reads his firm's menu, then his own", () 
   // (lib/seed-world: a delivery engineer's role).
   const KARTHIK = ['assignments.read', 'timesheets.read'] as const
 
-  it('his menu ends with "You", after every one of his firm\'s sections', () => {
+  it('his menu ends with "You", after what his firm addresses to him; the firm\'s book is a desk\'s, and his seat holds none', () => {
     const nav = getNavForKind('GSI', false, { worker: true, permissions: KARTHIK })
     expect(nav[nav.length - 1].label).toBe('You')
     expect(nav.filter((s) => s.label === 'You')).toHaveLength(1)
-    // The integrator's spine, in its order, less any heading his seat
-    // has no link under. Supply holds the bench, consultants, check-ins
-    // and Training, and Training now asks for the bench and the open
-    // jobs it is drawn from, so a delivery engineer who reads neither
-    // has nothing under Supply and the heading is not drawn (the next
-    // sentence). Every firm section he can open still comes before "You".
-    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Today', 'Deliver', 'Operate', 'Grow', 'Governance'])
+    // Sign-up walk, round five: his two reads are of his own work, not a
+    // desk, so the firm's Deliver, Operate, Grow and Governance are not
+    // his reading. What the firm addresses to him stays under its Today.
+    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Today'])
   })
 
   it('a menu heading with no links in it is not drawn', () => {
