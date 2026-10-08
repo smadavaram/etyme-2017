@@ -2,8 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { refusedBy } from '../own-refusal'
-import { useSession } from '@/components/session-provider'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -90,7 +89,7 @@ const REASONS = [
 export default function MilestonesPage() {
   // The reader's own menu names the section, never a typed "Operate" —
   // the program page's, which is the door to this one.
-  const { company } = useSession()
+  const section = usePageSection('/dashboard/program')
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -182,7 +181,7 @@ export default function MilestonesPage() {
   return (
     <>
       <div className="mb-1">
-        <div className="eyebrow mb-1">{sectionOfHref(company?.kind ?? 'CLIENT', '/dashboard/program') ?? ''}</div>
+        {section && <div className="eyebrow mb-1">{section}</div>}
         <h1 className="text-2xl font-semibold tracking-[-0.02em] font-serif">Milestones</h1>
         <p className="text-sm text-etyme-muted mt-1 max-w-2xl">
           A milestone bills because somebody accepted it, never because a date passed. What

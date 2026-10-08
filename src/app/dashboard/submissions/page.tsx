@@ -12,6 +12,7 @@ import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
 import { SUBMISSIONS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { listHead } from './list-head'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
@@ -1073,7 +1074,8 @@ function AwardModal({
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
-  const { company, permissions, loading: sessionLoading } = useSession()
+  const session = useSession()
+  const { company, permissions, loading: sessionLoading } = session
   const isClient = company?.kind === 'CLIENT'
   // Setting up a round is for whoever is hiring — the permission that
   // raises a requisition. The AP clerk is a party and is not the one
@@ -1129,7 +1131,8 @@ export default function SubmissionsPage() {
   const framing = pageFraming(
     company?.kind ?? null,
     'submissions',
-    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null,
+    sidebarPropsFrom(session)
   )
   const jobWordLower = jobListWord(
     company?.kind ?? null,

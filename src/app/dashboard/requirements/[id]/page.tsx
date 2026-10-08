@@ -1,7 +1,6 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-import { sectionOfHref } from '@/lib/page-framing'
 import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -439,6 +438,7 @@ function DistributeModal({
   // The section the reader's own menu puts job requests under, never a
   // typed "Sell" a client would read (lib/page-framing).
   const { company } = useSession()
+  const eyebrow = usePageSection('/dashboard/requirements')
   const [vendors, setVendors] = useState<VendorOption[]>([])
   const [loadingVendors, setLoadingVendors] = useState(true)
   const [selectedVendors, setSelectedVendors] = useState<Set<string>>(new Set())
@@ -537,7 +537,7 @@ function DistributeModal({
       >
         <div className="sticky top-0 bg-white border-b border-etyme-rule px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <p className="eyebrow">{company?.kind ? sectionOfHref(company.kind, '/dashboard/requirements') ?? '' : ''}</p>
+            <p className="eyebrow">{eyebrow ?? ''}</p>
             <h2 className="text-[16px] font-semibold text-etyme-ink">Send this job to suppliers</h2>
           </div>
           <button onClick={onClose} className="text-etyme-faint hover:text-etyme-ink text-xl leading-none">×</button>

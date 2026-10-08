@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { range as showRange } from '@/lib/money-display'
 import { statusWord, statusWordLower, stageWordFor, stageReason, ARCHIVED_WORD } from './words'
 import { stageOf } from '@/lib/requisition-stage'
@@ -384,7 +385,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
 // ── Page ───────────────────────────────────────────────────
 
 export default function RequirementsPage() {
-  const { company } = useSession()
+  const session = useSession()
+  const { company } = session
   const isClient = company?.kind === 'CLIENT'
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -408,7 +410,8 @@ export default function RequirementsPage() {
   const framing = pageFraming(
     company?.kind ?? null,
     'requirements',
-    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null,
+    sidebarPropsFrom(session)
   )
 
   // Open the new modal when navigated with ?new=1

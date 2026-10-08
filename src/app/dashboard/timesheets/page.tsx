@@ -9,6 +9,7 @@ import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
 import { listTotals, totalsRowOf } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
@@ -503,7 +504,8 @@ export default function TimesheetsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const { company, loading: sessionLoading } = useSession()
+  const session = useSession()
+  const { company, loading: sessionLoading } = session
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
@@ -538,7 +540,8 @@ export default function TimesheetsPage() {
   const framing = pageFraming(
     company?.kind ?? null,
     'timesheets',
-    atDesk ? { seated: true, companyName: atDesk.companyName } : null
+    atDesk ? { seated: true, companyName: atDesk.companyName } : null,
+    sidebarPropsFrom(session)
   )
   const [rejectTarget, setRejectTarget] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
