@@ -2,6 +2,7 @@ import { doorOpen } from '@/lib/password-door'
 import { SIGNUP_SHUT, safeNext, claimTokenIn } from '@/lib/password'
 import { DoorFrame } from '../door-frame'
 import { SignUpForm } from './form'
+import { COMPANY_TYPES } from '@/lib/onboarding'
 
 /**
  * /signup. Without an email sender nobody can confirm an address, so the
@@ -15,7 +16,7 @@ import { SignUpForm } from './form'
  */
 export const dynamic = 'force-dynamic'
 
-export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string } }) {
+export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string } }) {
   if (!doorOpen()) {
     return (
       <DoorFrame>
@@ -27,5 +28,8 @@ export default function SignUpPage({ searchParams }: { searchParams: { claim?: s
   }
   const raw = typeof searchParams?.claim === 'string' ? searchParams.claim : null
   const claimToken = (raw && /^[A-Za-z0-9_-]+$/.test(raw) ? raw : null) ?? claimTokenIn(safeNext(searchParams?.next))
-  return <SignUpForm claimToken={claimToken} />
+  // `?type=solo` opens the company form on the one-person firm, the link a
+  // candidate's own page offers to become one (sign-up walk, round two, item 21).
+  const type = COMPANY_TYPES.some((t) => t.key === searchParams?.type) ? searchParams.type! : null
+  return <SignUpForm claimToken={claimToken} initialType={type} />
 }

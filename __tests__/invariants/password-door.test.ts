@@ -5,7 +5,8 @@ import {
   weakPasswordReason, hashPassword, passwordMatches, checkAddress, numberedAddress,
   secondsToWait, waitSentence, tokenUsable, expiresAfter, newToken, hashToken,
   NO_MATCH, VERIFY_HOURS, RESET_HOURS, cleanEmail,
-  demoEmail, SUPERSEDED, SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, ALREADY_CONFIRMED, FIRM_ADDED,
+  demoEmail, SUPERSEDED, SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, ALREADY_CONFIRMED, firmAddedYou, soloFromCandidate,
+  PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading,
   memberWelcome, colleagueSentence, claimTokenIn, safeNext,
 } from '@/lib/password'
 import { possessive } from '@/lib/requisition-approval'
@@ -318,8 +319,9 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(read('src/app/(auth)/start/page.tsx')).toContain('memberWelcome(')
   })
 
-  it('a person a company added, who never set a password, is told to set one', () => {
-    expect(FIRM_ADDED).toBe('A company added you to its bench. Set your password to sign in.')
+  it('a person a company added is told which company, and to confirm their email to sign in', () => {
+    expect(firmAddedYou('Brookfield Walk Staffing')).toBe('Brookfield Walk Staffing added you to its bench. Confirm your email to sign in.')
+    expect(firmAddedYou(null)).toBe('A company added you to its bench. Confirm your email to sign in.')
   })
 
   it('the sign-up page reads a supplier invitation from ?claim=, and only a path on this site from ?next=', () => {
@@ -346,5 +348,62 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(solo).toMatchObject({ kind: 'CONSULTANT_CORP', personalEmail: true })
     expect(COMPANY_TYPES.filter((t) => t.personalEmail).map((t) => t.key)).toEqual(['solo'])
     expect(read('src/app/(auth)/signup/form.tsx')).toContain('COMPANY_TYPES.map')
+  })
+})
+
+describe('round two of the sign-up walk, said as the walk found it', () => {
+  const door = read('src/lib/password-door.ts')
+
+  it('a real person a demo firm added can still sign up, reset and sign in; only a reserved demo address is refused', () => {
+    // The address decides, never who typed it in.
+    expect(door).not.toContain('seedOnly')
+    const refusal = door.slice(door.indexOf('function demoRefusal'), door.indexOf('\n}\n', door.indexOf('function demoRefusal')))
+    expect(refusal).toContain('demoEmail(email)')
+    expect(refusal).not.toContain('prisma')
+    expect(demoEmail('helena.marsh@gmail.com')).toBe(false)
+    expect(demoEmail('colleen.byrne@seed.etyme.invalid')).toBe(true)
+  })
+
+  it('a person a firm added signs up once: the password they typed is the one that works, and the mail names the firm', () => {
+    expect(firmAddedYou('Brookfield Walk Staffing')).toContain('Brookfield Walk Staffing added you to its bench.')
+    // The confirming link, not a one-hour reset, and a password already in use is never replaced by it.
+    expect(door).toContain('firmAddedYou(await firmThatAdded(existing.id))')
+    expect(door).toContain('passwordHash: person.passwordHash ?? pending.passwordHash')
+  })
+
+  it('a dead reset link says so on open, before anything is typed', () => {
+    const page = read('src/app/(auth)/reset/[token]/page.tsx')
+    expect(page).toContain('await resetLinkState(params.token)')
+    expect(page.indexOf('resetLinkState')).toBeLessThan(page.indexOf('<ResetWithLinkForm'))
+    expect(page).not.toContain("'use client'")
+    expect(read('src/app/(auth)/reset/[token]/form.tsx')).toContain('Set your password')
+  })
+
+  it('a candidate may become a one-person firm with the same email, and nothing they typed is thrown away', () => {
+    expect(soloFromCandidate('Okafor Care LLC', true)).toBe('Confirm your email to set up Okafor Care LLC as your own company on Etyme. You sign in with the password you already use.')
+    expect(soloFromCandidate('Okafor Care LLC', false)).toBe('Confirm your email to set up Okafor Care LLC as your own company on Etyme.')
+    expect(read('src/app/(auth)/signup/page.tsx')).toContain('searchParams?.type')
+  })
+
+  it('the sign-up page says "Check your email" once, as its heading', () => {
+    expect(underHeading('Check your email', 'Check your email. We sent a link to a@b.co. It works for 24 hours.'))
+      .toBe('We sent a link to a@b.co. It works for 24 hours.')
+    expect(underHeading('Check your email', 'Something else.')).toBe('Something else.')
+    expect(read('src/app/(auth)/signup/form.tsx')).toContain("underHeading('Check your email', sent)")
+  })
+
+  it("a candidate's password hint names no company", () => {
+    expect(PASSWORD_HINT_PERSON).toBe('At least 12 characters. Not your email.')
+    expect(PASSWORD_HINT_COMPANY).toBe('At least 12 characters. Not your email or the company name.')
+    expect(read('src/app/(auth)/signup/form.tsx')).toContain("tab === 'candidate' && !claimToken ? PASSWORD_HINT_PERSON : PASSWORD_HINT_COMPANY")
+  })
+
+  it('the sign-in page sits in the same frame as the other doors, says no false footer, and links the terms', () => {
+    const page = read('src/app/(auth)/login/page.tsx')
+    expect(page).toContain('<DoorFrame>')
+    expect(page).toContain('font-serif')
+    expect(page).not.toContain('bg-white')
+    expect(page).not.toContain('A personal address signs you in as a consultant')
+    expect(page).toContain('<Link href="/terms"')
   })
 })

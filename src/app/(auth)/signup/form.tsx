@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { COMPANY_TYPES } from '@/lib/onboarding'
 import { COUNTRIES, CURRENCIES, currencyFor } from '@/lib/setup-steps'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-frame'
+import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading } from '@/lib/password-words'
 
 /**
  * Signing up with an email and a password.
@@ -28,13 +29,13 @@ import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-
 type Tab = 'company' | 'candidate'
 type Joins = { address: string; company: string; says: string } | null
 
-export function SignUpForm({ claimToken }: { claimToken: string | null }) {
+export function SignUpForm({ claimToken, initialType = null }: { claimToken: string | null; initialType?: string | null }) {
   const [tab, setTab] = useState<Tab>('company')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [personName, setPersonName] = useState('')
-  const [type, setType] = useState('')
+  const [type, setType] = useState(initialType ?? '')
   const [country, setCountry] = useState('US')
   const [currency, setCurrency] = useState('USD')
   const [address, setAddress] = useState('')
@@ -106,7 +107,7 @@ export function SignUpForm({ claimToken }: { claimToken: string | null }) {
     return (
       <DoorFrame>
         <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-3">Check your email</h1>
-        <p className="text-sm text-etyme-ink">{sent}</p>
+        <p className="text-sm text-etyme-ink">{underHeading('Check your email', sent)}</p>
         <p className="text-sm text-etyme-muted mt-3">Nothing is set up until you click the link.</p>
         <DoorError says={error} />
         <button type="button" onClick={again} disabled={busy}
@@ -171,7 +172,7 @@ export function SignUpForm({ claimToken }: { claimToken: string | null }) {
           <DoorLabel htmlFor="password">Password</DoorLabel>
           <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password" className={doorField} />
-          <p className="text-xs text-etyme-muted mt-1">At least 12 characters. Not your email or the company name.</p>
+          <p className="text-xs text-etyme-muted mt-1">{tab === 'candidate' && !claimToken ? PASSWORD_HINT_PERSON : PASSWORD_HINT_COMPANY}</p>
         </div>
 
         {askCompany && (

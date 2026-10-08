@@ -8,8 +8,8 @@ import { POST as confirmReset } from '@/app/api/auth/password/reset/confirm/rout
 import { GET as entry } from '@/app/api/onboarding/route'
 import { POST as enter } from '@/app/api/onboarding/route'
 import { GET as probe } from '@/app/api/auth/password/signup/route'
-import { verifyEmail, checkPassword, resetPassword, issueSetPassword } from '@/lib/password-door'
-import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, FIRM_ADDED, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
+import { verifyEmail, checkPassword, resetPassword, issueSetPassword, resetLinkState } from '@/lib/password-door'
+import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, firmAddedYou, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
 import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { passwordDoor } from '@/lib/auth'
 import { gatherFacts } from '@/lib/readiness-facts'
@@ -369,34 +369,84 @@ describe('a password door, until the single sign-on keys exist', () => {
       expect(await checkPassword(email, PASSWORD, '10.0.9.1')).toMatchObject({ ok: false, code: 'DEMO' })
     }
 
-    // A person on a real-looking address whose only seat is a seeded company:
-    // even a password set before this rule opens nothing.
-    const seeded = await prisma.company.create({ data: { name: 'Seeded Firm', slug: 'world-seeded', kind: 'VENDOR', isDemo: true } })
-    const { hashPassword } = await import('@/lib/password')
-    const person = await prisma.person.create({
-      data: { primaryEmail: 'seeded.person@realmail.test', name: 'Seeded Person', emailVerifiedAt: new Date(), passwordHash: await hashPassword(PASSWORD) },
-    })
-    await prisma.context.create({ data: { personId: person.id, companyId: seeded.id, type: 'EMPLOYEE' } })
-    expect(await checkPassword(person.primaryEmail, PASSWORD, '10.0.9.2')).toMatchObject({ ok: false, code: 'DEMO', says: DEMO_REFUSAL })
-    const ask = await json(await askReset(req('POST', '/api/auth/password/reset', { email: person.primaryEmail })))
-    expect(ask.status).toBe(403)
-    expect(ask.body.error.message).toBe(DEMO_REFUSAL)
-    const link = await issueSetPassword(person.id, 1)
-    expect(await resetPassword(link.split('/reset/')[1], 'a fresh long phrase here')).toMatchObject({ ok: false, says: DEMO_REFUSAL })
   })
 
-  it('a person a company added who never set a password is told to set one, not that they already have an account', async () => {
+  it('a real person a demo firm added can still sign up, reset and sign in; only a reserved demo address is refused', async () => {
+    // Round two, item 34: a real address whose only seat is at a seeded
+    // firm used to read as demo and was locked out of every door for good.
+    const seeded = await prisma.company.create({ data: { name: 'Pellwright Staffing', slug: 'world-pellwright', kind: 'VENDOR', isDemo: true } })
+    const email = 'jordan.ames@realmail.test'
+    const person = await prisma.person.create({ data: { primaryEmail: email, name: 'Jordan Ames' } })
+    await prisma.context.create({ data: { personId: person.id, companyId: seeded.id, type: 'CONSULTANT' } })
+
+    const up = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Jordan Ames' })))
+    expect(up.status, JSON.stringify(up.body)).toBe(200)
+    const v = await verifyEmail(lastLink(email, 'verify'))
+    expect(v).toMatchObject({ ok: true })
+    expect(await checkPassword(email, PASSWORD, '10.0.9.2')).toMatchObject({ ok: true })
+
+    const ask = await json(await askReset(req('POST', '/api/auth/password/reset', { email })))
+    expect(ask.status).toBe(200)
+    const token = lastLink(email, 'reset')
+    expect(await resetPassword(token, 'a fresh long phrase here')).toMatchObject({ ok: true })
+    expect(await checkPassword(email, 'a fresh long phrase here', '10.0.9.3')).toMatchObject({ ok: true })
+  })
+
+  it('a person a firm added signs up once: the password they typed is the one that works, and the mail names the firm', async () => {
     const email = 'rafael.ortiz@gmail.com'
+    const firm = await prisma.company.create({ data: { name: 'Brookfield Walk Staffing', slug: 'brookfield-walk', kind: 'VENDOR' } })
     const person = await prisma.person.create({ data: { primaryEmail: email, name: 'Rafael Ortiz' } })
-    await prisma.context.create({ data: { personId: person.id, type: 'CONSULTANT' } })
+    await prisma.context.create({ data: { personId: person.id, companyId: firm.id, type: 'CONSULTANT' } })
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Rafael Ortiz' })))
     expect(r.body.data.says).toBe(`Check your email. We sent a link to ${email}. It works for 24 hours.`)
     const mail = sent[sent.length - 1]
-    expect(mail).toMatchObject({ to: email, subject: 'Set your Etyme password' })
-    expect(mail.text).toContain(FIRM_ADDED)
-    expect(FIRM_ADDED).toBe('A company added you to its bench. Set your password to sign in.')
+    expect(mail).toMatchObject({ to: email, subject: 'Confirm your email for Etyme' })
+    expect(mail.text).toContain('Brookfield Walk Staffing added you to its bench. Confirm your email to sign in.')
+    expect(mail.text).toContain('It works once, for 24 hours.')
+    expect(firmAddedYou('Brookfield Walk Staffing')).toBe('Brookfield Walk Staffing added you to its bench. Confirm your email to sign in.')
     expect(mail.text).not.toContain('You already have an account')
-    expect(mail.text).toMatch(/\/reset\/[A-Za-z0-9_-]+/)
+    expect(mail.text).not.toMatch(/\/reset\//)
+
+    // The link signs them in; the password typed on the form is the one that works.
+    expect(await verifyEmail(lastLink(email, 'verify'))).toMatchObject({ ok: true })
+    expect(await checkPassword(email, PASSWORD, '10.0.9.4')).toMatchObject({ ok: true })
+  })
+
+  it('a dead reset link says so on open, before anything is typed', async () => {
+    expect(await resetLinkState('made-up-token')).toEqual({ ok: false, says: 'This link does not work. Ask for a new one on the reset page.' })
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNER } })
+    const first = (await issueSetPassword(person.id, 1)).split('/reset/')[1]
+    expect(await resetLinkState(first)).toEqual({ ok: true })
+    // Opening it does not spend it.
+    expect(await resetLinkState(first)).toEqual({ ok: true })
+    const second = (await issueSetPassword(person.id, 1)).split('/reset/')[1]
+    expect(await resetLinkState(first)).toEqual({ ok: false, says: SUPERSEDED })
+    expect(await resetPassword(second, 'another long phrase here')).toMatchObject({ ok: true })
+    expect(await resetLinkState(second)).toMatchObject({ ok: false, says: 'This link was already used. Ask for a new one on the reset page.' })
+  })
+
+  it('a candidate may become a one-person firm with the same email, and nothing they typed is thrown away', async () => {
+    const email = 'amara.diallo@gmail.com'
+    await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Amara Diallo' }))
+    expect(await verifyEmail(lastLink(email, 'verify'))).toMatchObject({ ok: true, landing: '/dashboard/my-work' })
+
+    // A stranger who knows the email but not the password founds nothing and changes nothing.
+    await signUp(req('POST', '/api/auth/password/signup', company({ email, personName: 'Amara Diallo', name: 'Not Hers LLC', type: 'solo', address: 'not-hers', password: 'some other long phrase' })))
+    expect([...sent].reverse().find((m) => m.to === email)!.text).toContain('You already have an account')
+
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email, personName: 'Amara Diallo', name: 'Diallo Nursing LLC', type: 'solo', address: 'diallo-nursing', country: 'US', currency: 'USD' }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const mail = [...sent].reverse().find((m) => m.to === email)!
+    expect(mail.text).toContain('Confirm your email to set up Diallo Nursing LLC as your own company on Etyme. You sign in with the password you already use.')
+    const v = await verifyEmail(lastLink(email, 'verify'))
+    expect(v).toMatchObject({ ok: true })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'diallo-nursing' } })
+    expect(firm).toMatchObject({ kind: 'CONSULTANT_CORP', name: 'Diallo Nursing LLC', country: 'US', currency: 'USD' })
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, include: { contexts: { include: { role: true } } } })
+    expect(person.contexts.some((c) => c.companyId === firm.id && c.role?.name === 'Owner')).toBe(true)
+    expect(person.contexts.some((c) => c.type === 'CONSULTANT')).toBe(true)
+    expect((await prisma.consultantProfile.findUnique({ where: { personId: person.id } }))?.ownCompanyId).toBe(firm.id)
+    expect(await checkPassword(email, PASSWORD, '10.0.9.5')).toMatchObject({ ok: true })
   })
 
   it('the sign-up and reset emails are written down as account mail, never as a notice for the bell', async () => {
@@ -438,6 +488,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     const made = await prisma.company.findUniqueOrThrow({ where: { slug: 'okafor-care' }, include: { claimedDomains: true } })
     expect(made).toMatchObject({ kind: 'CONSULTANT_CORP', domain: null })
     expect(made.claimedDomains).toEqual([])
+    expect((await prisma.consultantProfile.findFirst({ where: { person: { primaryEmail: email } } }))?.ownCompanyId).toBe(made.id)
 
     // Any other type on a personal email is refused in a sentence.
     const vendor = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email: 'li.wei@gmail.com', personName: 'Li Wei', name: 'Wei Staffing', type: 'prime', address: 'wei-staffing' }))))

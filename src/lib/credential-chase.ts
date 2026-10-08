@@ -32,6 +32,7 @@ import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
+import { demoEmail } from '@/lib/password'
 import { credentialsToChase, whoAsksTheWorker, type CredentialChase, type HeldCredential, type LineCarryingPerson } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
@@ -516,7 +517,11 @@ export async function askForRenewal(
         : `${company.name} needs your ${worst.named}`,
     body: `${worst.says}\n\nSend it here: /packet/${packet.token}`,
     entityId: packet.id,
-    channel: 'EMAIL',
+    // A reserved demo address is never mailed: the seeded world raises
+    // this ask while seeding, and a real send to colleen.byrne@….invalid
+    // is a bounce on the sender's record (sign-up walk, round two, item
+    // 30). The ask still shows in the app.
+    channel: demoEmail(person.primaryEmail) ? 'IN_APP' : 'EMAIL',
   })
 
   return {

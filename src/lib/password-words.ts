@@ -20,8 +20,21 @@ export const ALREADY_CONFIRMED = 'Your email is already confirmed. Sign in.'
 /** What a newer link does to an older one, said where the older one is opened. */
 export const SUPERSEDED = 'A newer link was sent to this email. Use the link in the newest email.'
 
-/** The opening of the email to somebody a firm put on the record, who never set a password. */
-export const FIRM_ADDED = 'A company added you to its bench. Set your password to sign in.'
+/**
+ * The opening of the email to somebody a firm put on the record, who
+ * never set a password, when they sign up. Names the firm, because "a
+ * company" tells a person nothing about why the mail came (sign-up walk,
+ * round two, item 33).
+ */
+export function firmAddedYou(firm: string | null | undefined): string {
+  return `${firm?.trim() || 'A company'} added you to its bench. Confirm your email to sign in.`
+}
+
+/** The opening of the email to somebody already on the record who signed up a company of their own: a candidate becoming a one-person firm. */
+export function soloFromCandidate(company: string, keepsPassword: boolean): string {
+  return `Confirm your email to set up ${company} as your own company on Etyme.` +
+    (keepsPassword ? ' You sign in with the password you already use.' : '')
+}
 
 /** What a colleague reads once they are seated as Member. */
 export function memberWelcome(company: string): string {
@@ -55,3 +68,20 @@ export function claimTokenIn(path: string | null | undefined): string | null {
   return m ? m[1] : null
 }
 
+
+/**
+ * What the password field says under it. A candidate has no company, so
+ * their hint names none (sign-up walk, round two, item 22).
+ */
+export const PASSWORD_HINT_COMPANY = 'At least 12 characters. Not your email or the company name.'
+export const PASSWORD_HINT_PERSON = 'At least 12 characters. Not your email.'
+
+/**
+ * A sentence shown under a heading that already says its first words.
+ * "Check your email" as the heading and again as the first line read as
+ * a stutter (round two, item 2), so the line drops what the heading said.
+ */
+export function underHeading(heading: string, says: string): string {
+  const lead = heading.trim().replace(/\.$/, '')
+  return says.startsWith(`${lead}. `) ? says.slice(lead.length + 2) : says
+}

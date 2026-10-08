@@ -230,19 +230,22 @@ describe('The delivery matrix page and the login page say what is true now', () 
     expect(JSON.parse(read('package.json')).scripts.matrix).toContain('scripts/delivery-matrix.ts')
   })
 
-  it('the login page says the category sentence and the four steps', () => {
+  it('the login page says the category sentence and the home page\'s four steps, in the frame every door shares', () => {
     const src = read('src/app/(auth)/login/page.tsx')
-    expect(src).toContain('Enterprise contingent workforce management.')
-    for (const s of [
-      'Post a job to your suppliers.', 'They submit people.',
-      'Approve timesheets.', 'Pay one matched invoice per supplier.',
-    ]) expect(src).toContain(s)
-    expect(src).not.toContain('everything after the hire')
-    expect(src).not.toContain('Employ, track, pay, prove')
-    expect(src).not.toMatch(/AI agents/)
+    const frame = read('src/app/(auth)/door-frame.tsx')
+    expect(src).toContain('<DoorFrame>')
+    expect(frame).toContain('Enterprise contingent workforce management.')
+    // The steps are the home page's own words, read from the one list.
+    expect(frame).toContain('STEPS.map((s) => s.home)')
+    expect(STEPS.map((s) => s.home)).toContain('Each supplier bills, and you pay what matched')
+    for (const f of [src, frame]) {
+      expect(f).not.toContain('Pay one matched invoice per supplier.')
+      expect(f).not.toContain('everything after the hire')
+      expect(f).not.toContain('Employ, track, pay, prove')
+      expect(f).not.toMatch(/AI agents/)
+    }
 
-    const panel = 'Enterprise contingent workforce management. Post a job to your suppliers. They submit people. ' +
-      'Approve timesheets. Pay one matched invoice per supplier.'
+    const panel = 'Enterprise contingent workforce management. ' + STEPS.map((s) => s.home).join('. ')
     expect(namedCompanies(panel)).toEqual([])
     expect(vendorManagementSystem(panel)).toEqual([])
     expect(unverifiableClaims(panel)).toEqual([])

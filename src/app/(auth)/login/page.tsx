@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn, getProviders } from 'next-auth/react'
-import { EtymeLogo } from '@/components/logo'
+import { DoorFrame, DoorLabel, doorField, doorButton } from '../door-frame'
 import { readJson } from '@/lib/read-response'
 
 /**
@@ -29,20 +29,17 @@ import { readJson } from '@/lib/read-response'
  * this page no longer says no way in is switched on. A refusal is the
  * door's own sentence; an address nobody confirmed yet is offered its
  * link again (lib/password-door).
+ *
+ * It sits in the same frame as sign-up, confirm and reset (round two of
+ * the sign-up walk, item 44): serif heading, warm canvas, the category
+ * sentence and the home page's four steps beside it, and a Terms of
+ * Service that is a link. The old footer said a personal address always
+ * signs in as a consultant, which stopped being true when the one-person
+ * firm could sign up on one.
  */
 
 /** The prefix the door puts on a refusal for an unconfirmed address. Kept in step with lib/password. */
 const UNVERIFIED = 'UNVERIFIED:'
-
-// The category sentence and the four steps, as CLAUDE.md says them. The
-// panel carried the older tagline until 2026-10-08, which predates
-// the category decision of 2026-09-28.
-const LOGIN_STEPS = [
-  'Post a job to your suppliers.',
-  'They submit people.',
-  'Approve timesheets.',
-  'Pay one matched invoice per supplier.',
-]
 
 export default function LoginPage() {
   const [available, setAvailable] = useState<Set<string> | null>(null)
@@ -111,45 +108,8 @@ export default function LoginPage() {
   const nothingWorks = available !== null && [...available].every((id) => id === 'credentials')
 
   return (
-    <div className="min-h-screen bg-etyme-navy flex">
-      {/* Left — Branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
-        <Link href="/">
-          <EtymeLogo size="lg" inverted />
-        </Link>
-
-        <div className="max-w-md">
-          <p className="text-2xl font-semibold text-white leading-snug mb-6 tracking-[-0.02em]">
-            Enterprise contingent workforce management.
-          </p>
-          <ol className="space-y-2 text-sm text-white/60 leading-relaxed">
-            {LOGIN_STEPS.map((s, i) => (
-              <li key={s} className="flex gap-3">
-                <span className="tabular-nums text-white/30">{i + 1}</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <div className="flex items-center gap-6 text-xs text-white/20">
-          <span>Etyme Inc.</span>
-          <span>·</span>
-          <span>Contingent Workforce</span>
-          <span>·</span>
-          <span>System of Record</span>
-        </div>
-      </div>
-
-      {/* Right — Sign In */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white lg:rounded-l-3xl">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-10">
-            <EtymeLogo size="lg" />
-          </div>
-
-          <h1 className="text-xl font-semibold mb-1">Sign in to Etyme</h1>
+    <DoorFrame>
+          <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em] mb-1">Sign in to Etyme</h1>
           <p className="text-sm text-etyme-muted mb-8">
             Sign in with your email and password, or your company&rsquo;s Microsoft or Google account.
           </p>
@@ -173,9 +133,7 @@ export default function LoginPage() {
           {/* Email and password — always offered */}
           <form className="space-y-4 mb-6" onSubmit={signInWithPassword}>
             <div>
-              <label htmlFor="pw-email" className="block text-xs font-medium text-etyme-muted mb-1.5">
-                Email
-              </label>
+              <DoorLabel htmlFor="pw-email">Email</DoorLabel>
               <input
                 id="pw-email"
                 type="email"
@@ -184,16 +142,11 @@ export default function LoginPage() {
                 value={pwEmail}
                 onChange={(e) => setPwEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
-                           text-sm placeholder:text-etyme-muted/50
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                           focus:border-etyme-action transition-all"
+                className={doorField}
               />
             </div>
             <div>
-              <label htmlFor="pw" className="block text-xs font-medium text-etyme-muted mb-1.5">
-                Password
-              </label>
+              <DoorLabel htmlFor="pw">Password</DoorLabel>
               <input
                 id="pw"
                 type="password"
@@ -201,9 +154,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
-                           text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                           focus:border-etyme-action transition-all"
+                className={doorField}
               />
             </div>
             {refusal && <p role="alert" className="text-sm text-etyme-attention">{refusal}</p>}
@@ -217,9 +168,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy || !pwEmail.trim() || !password}
-              className="w-full px-4 py-2.5 rounded-lg bg-etyme-action text-white
-                         text-sm font-medium hover:opacity-90 transition-opacity
-                         disabled:opacity-50"
+              className={doorButton}
             >
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
@@ -314,19 +263,14 @@ export default function LoginPage() {
             }}
           >
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-etyme-muted mb-1.5">
-                Email
-              </label>
+              <DoorLabel htmlFor="email">Email</DoorLabel>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
-                           text-sm placeholder:text-etyme-muted/50
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                           focus:border-etyme-action transition-all"
+                className={doorField}
               />
             </div>
             <button
@@ -341,14 +285,10 @@ export default function LoginPage() {
           </form>
           )}
 
-          <p className="text-xs text-etyme-muted/60 mt-6 text-center">
-            By signing in, you agree to the Etyme Terms of Service.
-            <br />
-            A personal address signs you in as a consultant. Setting a company up
-            takes a work address.
+          <p className="text-xs text-etyme-muted mt-6 text-center">
+            By signing in, you agree to the Etyme{' '}
+            <Link href="/terms" className="text-etyme-action-press hover:underline">Terms of Service</Link>.
           </p>
-        </div>
-      </div>
-    </div>
+    </DoorFrame>
   )
 }
