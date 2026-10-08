@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 import { payDesk } from '@/lib/money/pay-desk'
 
 /**
@@ -76,6 +77,7 @@ const TABS: { key: Tab; label: string }[] = [
 ]
 
 export default function ArPage() {
+  const { company } = useSession()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -107,7 +109,12 @@ export default function ArPage() {
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {/* The section of the reader's own menu, and none until the session
+            says whose menu it is. "Operate" was written in, a supplier's
+            word on every reader's page. */}
+        {company && sectionOfHref(company.kind, '/dashboard/ar', data?.reading) && (
+          <p className="eyebrow">{sectionOfHref(company.kind, '/dashboard/ar', data?.reading)}</p>
+        )}
         <h1 className="headline-serif text-[30px] leading-tight">Accounts receivable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           Aged from the day each bill fell due, so a client on sixty-day terms is

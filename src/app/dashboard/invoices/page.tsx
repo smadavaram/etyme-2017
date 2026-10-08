@@ -528,7 +528,9 @@ export default function InvoicesPage() {
   // desk was reading Aptiva Workforce's own headings over Cavanaugh's
   // book — "Sell · What you bill clients" over seven buy-side lines at
   // a firm that bills nobody.
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'invoices', reading)
+  // No framing until the company is known: a supplier's words guessed
+  // for a client while the page loads are words about the wrong side.
+  const framing = company ? pageFraming(company.kind, 'invoices', reading) : null
   // Whether this reader's desk pays — judged by the seat where the page
   // reads a client's book from one, the way the payment route judges it,
   // through the same reading of the session the sidebar's menu uses.
@@ -960,9 +962,15 @@ export default function InvoicesPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          <p>{framing.subtitle}</p>
+          {/* Nothing until the session says whose page this is: a guessed
+              supplier's words are words about the wrong side. */}
+          {framing && (
+            <>
+              <p className="eyebrow">{framing.eyebrow}</p>
+              <h1>{framing.title}</h1>
+              <p>{framing.subtitle}</p>
+            </>
+          )}
         </div>
         {/* A client raises no invoices. The button was here for them too,
             and pressing it offered a list of engagements to bill — their
@@ -973,7 +981,7 @@ export default function InvoicesPage() {
             same reason the client does: it is reading a book it does
             not bill from. `create` is null there, and the label on it
             is the reader's own word for the act. */}
-        {framing.create && (
+        {framing?.create && (
           <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
             + {framing.create}
           </button>

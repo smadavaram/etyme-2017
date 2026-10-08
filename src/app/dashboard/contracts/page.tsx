@@ -1280,11 +1280,12 @@ export default function ContractsPage() {
   // Said once over the list where a pay figure was withheld from this
   // reader, so a blank column reads as a rule rather than a gap.
   const [payWithheldSays, setPayWithheldSays] = useState<string | null>(null)
-  const framing = pageFraming(
-    company?.kind ?? 'VENDOR',
-    tab === 'sell' ? 'contracts.sell' : 'contracts.buy',
-    reading
-  )
+  // No framing until the company is known. Guessing a supplier here
+  // told a client "Sell Contracts - What you bill clients" while the
+  // page loaded; a blank for a moment is the honest form.
+  const framing = company
+    ? pageFraming(company.kind, tab === 'sell' ? 'contracts.sell' : 'contracts.buy', reading)
+    : null
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
@@ -1571,23 +1572,30 @@ export default function ContractsPage() {
       {/* Head */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          <p>{framing.subtitle}</p>
+          {/* Nothing until the session says whose page this is: a client
+              read a supplier's heading for a second before it loaded. */}
+          {framing && (
+            <>
+              <p className="eyebrow">{framing.eyebrow}</p>
+              <h1>{framing.title}</h1>
+              <p>{framing.subtitle}</p>
+            </>
+          )}
         </div>
         {/* A client does not raise contracts here — the award writes
             both sides — and neither does a program office reading a
             client's book. The framing says so now, and the word on the
             button is the reader's own. */}
-        {framing.create && mayRecord && (
+        {framing?.create && mayRecord && (
           <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
             + {framing.create}
           </button>
         )}
       </div>
 
-      {/* Sell / Buy tabs — a client has no buy side */}
-      <div className={`flex flex-wrap gap-1.5 mb-6 ${isClient ? 'hidden' : ''}`}>
+      {/* Sell / Buy tabs — a client has no buy side, and nobody reads
+          either word until the page knows whose it is */}
+      <div className={`flex flex-wrap gap-1.5 mb-6 ${!company || isClient ? 'hidden' : ''}`}>
         {(['sell', 'buy'] as const).map((t) => (
           <button
             key={t}

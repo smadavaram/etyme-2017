@@ -487,7 +487,9 @@ export default function ExpensesPage() {
   const [reading, setReading] = useState<
     { company: string | null; inASeat: boolean; says: string | null } | null
   >(null)
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'expenses', reading)
+  // No framing until the company is known: a supplier's words guessed
+  // for a client while the page loads are words about the wrong side.
+  const framing = company ? pageFraming(company.kind, 'expenses', reading) : null
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -706,9 +708,15 @@ export default function ExpensesPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + kind toggle */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          <p>{framing.subtitle}</p>
+          {/* Nothing until the session says whose page this is: a guessed
+              supplier's words are words about the wrong side. */}
+          {framing && (
+            <>
+              <p className="eyebrow">{framing.eyebrow}</p>
+              <h1>{framing.title}</h1>
+              <p>{framing.subtitle}</p>
+            </>
+          )}
         </div>
 
         {/* Kind toggle + New button */}
@@ -734,7 +742,7 @@ export default function ExpensesPage() {
               own company and would refuse every row on the screen. The
               framing says so, and a control the route would refuse is
               a control that lies. */}
-          {framing.create && (
+          {framing?.create && (
             <button onClick={() => setShowModal(true)} className="btn-primary">
               + {framing.create}
             </button>
