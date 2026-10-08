@@ -26,8 +26,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pageFraming, sectionFor, sectionOfHref, type PageKey } from '@/lib/page-framing'
-import { getNavForKind } from '@/components/shell/sidebar'
+import { pageFraming, sectionFor, sectionOfHref, notificationsFraming, type PageKey } from '@/lib/page-framing'
+import { getNavForKind } from '@/lib/nav-table'
 import type { CompanyKind } from '@/components/session-provider'
 
 const ALL_PAGES: PageKey[] = [
@@ -512,7 +512,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
   // getNavForKind — so a section renamed in the table and left behind
   // in a derived helper still fails here.
   const SIDEBAR = readFileSync(
-    join(__dirname, '../../src/components/shell/sidebar.tsx'),
+    join(__dirname, '../../src/lib/nav-table.ts'),
     'utf8'
   )
 
@@ -520,7 +520,7 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
   function sectionLabelsInSource(name: string): string[] {
     const decl = `const ${name}: NavSection[] = [`
     const start = SIDEBAR.indexOf(decl)
-    expect(start, `${name} not found in sidebar.tsx`).toBeGreaterThan(-1)
+    expect(start, `${name} not found in lib/nav-table.ts`).toBeGreaterThan(-1)
     let depth = 0
     let i = start + decl.length - 1
     const open = i
@@ -647,5 +647,60 @@ describe('the hours page says plain words to every reader', () => {
     for (const kind of ALL_KINDS) {
       expect(pageFraming(kind, 'timesheets').subtitle, kind).not.toMatch(/sell contract/i)
     }
+  })
+})
+
+describe('sign-up walk, round two', () => {
+
+  it('page framing imports no client component, so a server route may read it', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/page-framing.ts'), 'utf8')
+    const imports = [...src.matchAll(/^import\s+(type\s+)?[^'"]*from\s+'([^']+)'/gm)]
+    const runtime = imports.filter((m) => !m[1]).map((m) => m[2])
+    expect(runtime.filter((from) => from.startsWith('@/components/') || from.startsWith('@/app/'))).toEqual([])
+    expect(runtime).toContain('@/lib/nav-table')
+    expect(src).not.toMatch(/^'use client'/m)
+  })
+
+  it('while the reader\'s company is unknown, a page shows no subtitle rather than a supplier\'s', () => {
+    for (const page of ALL_PAGES) {
+      for (const unknown of [null, undefined]) {
+        const f = pageFraming(unknown, page)
+        expect(f.subtitle, page).toBe('')
+        expect(f.eyebrow, page).toBe('')
+        expect(f.create, page).toBeNull()
+        // A title only where both sides already use the same word.
+        if (f.title) expect([pageFraming('VENDOR', page).title, pageFraming('CLIENT', page).title]).toEqual([f.title, f.title])
+      }
+    }
+    expect(pageFraming(null, 'timesheets').subtitle).not.toMatch(/bill them/)
+    expect(pageFraming(null, 'contracts.sell').title).not.toBe('Sell Contracts')
+  })
+
+  it('a worker\'s notifications are headed by her own menu and list only her own kinds of notice', () => {
+    const f = notificationsFraming('VENDOR', true)
+    expect(f.eyebrow).toBe('You')
+    expect(f.eyebrow).not.toBe('Today')
+    expect(f.subtitle).not.toMatch(/bill|invoice/i)
+    const keys = f.kinds.map((k) => k.key)
+    expect(keys).not.toContain('INVOICE')
+    expect(keys).not.toContain('ROLLOFF')
+    expect(keys).not.toContain('SYSTEM')
+    expect(keys).toContain('INTERVIEW')
+    expect(keys).toContain('TIMESHEET')
+  })
+
+  it('a firm\'s notifications are headed by the section its own menu files them under', () => {
+    expect(notificationsFraming('VENDOR', false).eyebrow).toBe(sectionOfHref('VENDOR', '/dashboard/notifications') ?? '')
+    expect(notificationsFraming('VENDOR', false).kinds.map((k) => k.key)).toContain('INVOICE')
+  })
+
+  it('a client\'s notifications call what its suppliers send invoice receipts, never bills', () => {
+    const f = notificationsFraming('CLIENT', false)
+    expect(f.subtitle).not.toMatch(/\bbills\b/i)
+    expect(f.kinds.find((k) => k.key === 'INVOICE')?.label).toBe('Invoice receipts')
+  })
+
+  it('while the reader is unknown, notifications show their title and nothing else', () => {
+    expect(notificationsFraming(null, false)).toEqual({ eyebrow: '', title: 'Notifications', subtitle: '', kinds: [] })
   })
 })

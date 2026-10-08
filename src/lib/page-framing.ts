@@ -1,5 +1,5 @@
 import type { CompanyKind } from '@/components/session-provider'
-import { getNavForKind } from '@/components/shell/sidebar'
+import { getNavForKind } from '@/lib/nav-table'
 
 /**
  * Page framing per company type — and per seat.
@@ -432,10 +432,11 @@ export function sectionFor(
  * caller that predates seats keeps the framing it had to the letter.
  */
 export function pageFraming(
-  kind: CompanyKind,
+  kind: CompanyKind | null | undefined,
   page: PageKey,
   reading?: Reading | null
 ): PageFraming {
+  if (!kind) return unknownReader(page)
   const inSeat = seated(reading)
   const words = inSeat || kind === 'CLIENT' ? CLIENT[page] : SUPPLIER[page]
   const owner = bookOwner(reading)
@@ -455,7 +456,127 @@ export function pageFraming(
   }
 }
 
+/**
+ * The heading while the reader's company is not known yet.
+ *
+ * Sign-up walk, round two, item 8: a client's pages flashed the
+ * supplier's words while the session loaded — "Hours your people worked
+ * for your clients… bill them" over a client's own timesheets — because
+ * the pages fell back to VENDOR. A page that does not yet know who is
+ * reading says nothing about whose business it is: no section, no
+ * subtitle, no button. The title stays only where both sides already use
+ * the same word, so the heading never changes meaning when the session
+ * lands.
+ */
+function unknownReader(page: PageKey): PageFraming {
+  const same = SUPPLIER[page].title === CLIENT[page].title
+  return { eyebrow: '', title: same ? CLIENT[page].title : '', subtitle: '', create: null, whose: null }
+}
+
 /** "Cavanaugh Glassworks'" — and "Auralis Software's". */
 function possessive(name: string): string {
   return name.endsWith('s') ? `${name}'` : `${name}'s`
+}
+
+// ── The Notifications page ──────────────────────────────────────────
+
+/** One filter on the Notifications page: a notice type and its word. */
+export interface NoticeKind {
+  key: string
+  label: string
+}
+
+export interface NotificationsFraming {
+  eyebrow: string
+  title: string
+  subtitle: string
+  /** The filters this reader is offered, after "All". */
+  kinds: NoticeKind[]
+}
+
+/**
+ * What a firm's desk filters its notices by. Every one is work a firm
+ * does: it puts people forward, signs hours, bills, pays.
+ */
+const FIRM_KINDS: NoticeKind[] = [
+  { key: 'SUBMISSION', label: 'Submissions' },
+  { key: 'INTERVIEW', label: 'Interviews' },
+  { key: 'BENCH', label: 'Bench' },
+  { key: 'TIMESHEET', label: 'Timesheets' },
+  { key: 'INVOICE', label: 'Bills and invoices' },
+  { key: 'EXPENSE', label: 'Expenses' },
+  { key: 'CONTRACT', label: 'Contracts' },
+  { key: 'ROLLOFF', label: 'Rolloff' },
+  { key: 'CONVERSATION', label: 'Messages' },
+  { key: 'SYSTEM', label: 'System' },
+]
+
+/** A client receives its suppliers' invoices and bills nobody. */
+const CLIENT_KINDS: NoticeKind[] = FIRM_KINDS.map((k) =>
+  k.key === 'INVOICE' ? { key: k.key, label: 'Invoice receipts' }
+    : k.key === 'ROLLOFF' ? { key: k.key, label: 'Ending soon' }
+    : k
+).filter((k) => k.key !== 'BENCH')
+
+/**
+ * What a worker's own notices are about: her own work, in her own words.
+ *
+ * Sign-up walk, round two, item 22: a candidate whose menu is only "You"
+ * opened Notifications and read "Today" over a list about bills,
+ * invoices and contracts — a firm's desk, shown to the person the work
+ * is about. She bills nobody and pays nobody, so those filters are not
+ * offered; a filter with nothing behind it is not offered.
+ */
+const WORKER_KINDS: NoticeKind[] = [
+  { key: 'SUBMISSION', label: 'Put forward' },
+  { key: 'INTERVIEW', label: 'Interviews' },
+  { key: 'TIMESHEET', label: 'Your hours' },
+  { key: 'EXPENSE', label: 'Your expenses' },
+  { key: 'CONTRACT', label: 'Your contracts' },
+  { key: 'BENCH', label: 'Your bench listing' },
+  { key: 'CONVERSATION', label: 'Messages' },
+]
+
+const NOTIFICATIONS_HREF = '/dashboard/notifications'
+
+/**
+ * How the Notifications page is headed for the person reading it.
+ *
+ * `consultantSeat` is the consultant seat (context type CONSULTANT), the
+ * same fact the shell uses to draw the "You" menu. A firm's staffer who
+ * is also a worker keeps the firm's menu and so the firm's words here.
+ *
+ * The eyebrow is the section the reader's own menu files the page under:
+ * "Today" for a firm, "You" for a worker. While the company is not known
+ * yet the page says only its title, never a firm's words.
+ */
+export function notificationsFraming(
+  kind: CompanyKind | null | undefined,
+  consultantSeat: boolean
+): NotificationsFraming {
+  if (consultantSeat) {
+    return {
+      eyebrow: sectionOfMenu(getNavForKind(kind, true), NOTIFICATIONS_HREF) ?? '',
+      title: 'Notifications',
+      subtitle: 'What happened on your own work: where you were put forward, your interviews, your hours and your contracts.',
+      kinds: WORKER_KINDS,
+    }
+  }
+  if (!kind) return { eyebrow: '', title: 'Notifications', subtitle: '', kinds: [] }
+  const client = kind === 'CLIENT'
+  return {
+    eyebrow: sectionOfHref(kind, NOTIFICATIONS_HREF) ?? '',
+    title: 'Notifications',
+    subtitle: client
+      ? 'What happened across submissions, timesheets, invoice receipts, expenses and contracts.'
+      : 'What happened across your submissions, timesheets, bills and invoices, expenses and contracts.',
+    kinds: client ? CLIENT_KINDS : FIRM_KINDS,
+  }
+}
+
+function sectionOfMenu(menu: { label: string; items: { href: string }[] }[], href: string): string | null {
+  for (const section of menu) {
+    if (section.items.some((item) => path(item.href) === path(href))) return section.label
+  }
+  return null
 }

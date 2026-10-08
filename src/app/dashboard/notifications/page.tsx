@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { notificationsFraming } from '@/lib/page-framing'
 
 /**
  * Notifications page — inbox for all platform activity.
@@ -47,7 +49,8 @@ interface DeliveryHealth {
 }
 
 type StatusFilter = 'all' | 'UNREAD' | 'READ'
-type TypeFilter = 'all' | 'SUBMISSION' | 'INTERVIEW' | 'BENCH' | 'TIMESHEET' | 'INVOICE' | 'EXPENSE' | 'CONTRACT' | 'ROLLOFF' | 'CONVERSATION' | 'SYSTEM'
+/** 'all', or a notice type the reader's framing offers. */
+type TypeFilter = string
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -194,18 +197,13 @@ export default function NotificationsPage() {
   })
 
   // ── Type filter options ───────────────────────────
+  // The reader's own kinds: a worker is offered her own work, never a
+  // firm's bills (lib/page-framing, notificationsFraming).
+  const session = useSession()
+  const framing = notificationsFraming(session.company?.kind ?? null, session.contextType === 'CONSULTANT')
   const typeOptions: { key: TypeFilter; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'SUBMISSION', label: 'Submissions' },
-    { key: 'INTERVIEW', label: 'Interviews' },
-    { key: 'BENCH', label: 'Bench' },
-    { key: 'TIMESHEET', label: 'Timesheets' },
-    { key: 'INVOICE', label: 'Bills and invoices' },
-    { key: 'EXPENSE', label: 'Expenses' },
-    { key: 'CONTRACT', label: 'Contracts' },
-    { key: 'ROLLOFF', label: 'Rolloff' },
-    { key: 'CONVERSATION', label: 'Messages' },
-    { key: 'SYSTEM', label: 'System' },
+    ...framing.kinds,
   ]
 
   return (
@@ -213,9 +211,9 @@ export default function NotificationsPage() {
       {/* Head */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Today</p>
-          <h1>Notifications</h1>
-          <p>Activity across your submissions, timesheets, bills and invoices, expenses, and contracts.</p>
+          {framing.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
+          <h1>{framing.title}</h1>
+          {framing.subtitle && <p>{framing.subtitle}</p>}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
@@ -380,7 +378,7 @@ export default function NotificationsPage() {
         <p className="text-xs text-etyme-faint mt-4 tabular-nums">
           {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'all' && ` · ${statusFilter.toLowerCase()}`}
-          {typeFilter !== 'all' && ` · ${typeFilter.toLowerCase()}`}
+          {typeFilter !== 'all' && ` · ${(typeOptions.find((o) => o.key === typeFilter)?.label ?? typeLabel(typeFilter)).toLowerCase()}`}
         </p>
       )}
     </>
