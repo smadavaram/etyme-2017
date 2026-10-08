@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
-import { logBulkAccess } from '@/lib/access-log'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import {
   drawSample, agreement, thisWeek, question, SAMPLE_SIZE,
   CANNOT_SEE_QUEUE, isAboutAPerson,
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
   // The sample is drawn before the gate so that a refusal is recorded
   // against the people it would have shown, the same way a read is.
   if (!hasPermission(caller.permissions, 'submissions.read')) {
-    logBulkAccess(subjects, {
+    await recordRefusal(subjects, {
       ...trail,
       allowed: false,
       reason: `Check queue at ${caller.company!.name}: refused, the seat reads no submissions`,

@@ -5,7 +5,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { asPayer } from '@/lib/chain-top'
-import { logBulkAccess } from '@/lib/access-log'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/app/api/program/no-desk'
 import { HOURS_PER_MONTH, annualSpendMinor } from '@/lib/program-spend'
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       },
       select: { personId: true },
     })
-    logBulkAccess([...new Set(would.map((c) => c.personId))], {
+    await recordRefusal([...new Set(would.map((c) => c.personId))], {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company?.id ?? undefined,
       action: 'CONTRACT_VIEW',

@@ -160,16 +160,11 @@ function fireAndForgetRefusals(): string[] {
  * Nothing is added here to make a new route pass.
  */
 const STILL_FIRE_AND_FORGET: readonly string[] = [
-  'src/app/api/checks/queue/route.ts',                    // demand
-  'src/app/api/people/[id]/route.ts',                     // demand
   'src/app/api/placements/[id]/cut-overtime/route.ts',    // platform
   'src/app/api/placements/[id]/cut-overtime/route.ts',    // platform
   'src/app/api/placements/[id]/overtime-method/route.ts', // platform
   'src/app/api/placements/[id]/overtime-method/route.ts', // platform
   'src/app/api/placements/[id]/route.ts',                 // platform
-  'src/app/api/program/budget/route.ts',                  // demand
-  'src/app/api/program/org/route.ts',                     // demand
-  'src/app/api/submissions/[id]/terms/route.ts',          // demand
 ].slice().sort()
 
 describe('a refused read is in the trail before the refusal is sent', () => {

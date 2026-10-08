@@ -11,7 +11,7 @@ import { lineFor, splitWeeks } from '@/lib/overtime'
 import { actingDesk } from '@/lib/program-seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/app/api/program/no-desk'
-import { logBulkAccess } from '@/lib/access-log'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       where: { costCenter: { companyId: client.id } },
       select: { sellContract: { select: { personId: true } } },
     })
-    logBulkAccess([...new Set(would.map((a) => a.sellContract.personId))], {
+    await recordRefusal([...new Set(would.map((a) => a.sellContract.personId))], {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company?.id ?? undefined,
       action: 'CONTRACT_VIEW',

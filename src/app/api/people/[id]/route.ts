@@ -9,7 +9,7 @@ import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { firmsOnARow, mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysFor, daysOnSite, monthsOf, standingAgainstLimit, ledgerStatus, linesCounted, bookedLimitDay, contractsPastLimit, runsPastSentence } from '@/lib/tenure-days'
 import { plainDate } from '@/lib/plain-date'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 
 /**
  * GET /api/people/[id] — one person, as this client knows them
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   })
 
   if (subs.length === 0 && everyRung.length === 0) {
-    logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'PROFILE_VIEW', allowed: false, reason: registerSays(false) })
+    await recordRefusal([id], { actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'PROFILE_VIEW', allowed: false, reason: registerSays(false) })
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That person has not been put in front of you, so there is nothing here to read.' } }, { status: 404 })
   }
   logAccess({ subjectId: id, actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'PROFILE_VIEW', reason: registerSays(true) })

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { logAccess } from '@/lib/access-log'
+import { logAccess, recordRefusal } from '@/lib/access-log'
 import { notify } from '@/lib/notify'
 import { holdsContractDesk } from '@/lib/papering'
 import { writeCyclesFor } from '@/lib/contract-cycles'
@@ -155,8 +155,8 @@ export async function GET(request: NextRequest, { params }: Ctx) {
 
   const you = partyOf(caller, l)
   if (!you) {
-    logAccess({
-      subjectId: l.sub.personId, actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+    await recordRefusal([l.sub.personId], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
       action: 'CONTRACT_VIEW', allowed: false,
       reason: 'Asked for a person’s own terms with a firm and is neither the person nor the firm',
     })
