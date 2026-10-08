@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
     : expenseScope(caller)
   if (!scope) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: notAtACompany('The expense book') } },
       { status: 403 }
     )
   }

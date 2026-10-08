@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { rate } from '@/lib/money-display'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
@@ -792,7 +793,7 @@ export async function GET(request: NextRequest) {
     const scope = reading?.buyContractWhere ?? buyContractScope(caller)
     if (!scope) {
       return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { error: { code: 'FORBIDDEN', message: notAtACompany('The list of buy contracts') } },
         { status: 403 }
       )
     }
@@ -935,7 +936,7 @@ export async function GET(request: NextRequest) {
   const scope = reading?.sellContractWhere ?? payerScope(caller)
   if (!scope) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: notAtACompany('The list of contracts') } },
       { status: 403 }
     )
   }

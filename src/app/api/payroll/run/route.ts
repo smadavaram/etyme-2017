@@ -18,6 +18,7 @@ import { payDaysToMark } from '@/lib/money/pay-day-period'
 import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
 import { daySpan, plainDate } from '@/lib/plain-date'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * POST /api/payroll/run
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_CONTEXT', message: 'No company context' } },
+      { error: { code: 'NO_CONTEXT', message: notAtACompany('Payroll') } },
       { status: 403 }
     )
   }

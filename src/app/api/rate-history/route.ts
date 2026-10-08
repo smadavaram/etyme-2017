@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_CURRENCY } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     const companyId = caller.company?.id
     if (!companyId) {
       return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { error: { code: 'FORBIDDEN', message: notAtACompany('Rate history') } },
         { status: 403 }
       )
     }
