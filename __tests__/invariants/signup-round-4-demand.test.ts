@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { sectionOfHref } from '@/lib/page-framing'
+import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
+import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from '@/app/api/timesheets/own-weeks'
+import { namesAPermission } from '@/lib/refusal-words'
 
 /**
  * Round four of the sign-up walk, 2026-10-08, on the buying side's pages
@@ -125,5 +128,62 @@ describe('21: a count is drawn only after the first read has answered', () => {
   it('a supplier’s Job requests list and Needs attention draw their counts only once the first read is back', () => {
     expect(read('requirements')).toMatch(/\{readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
     expect(read('decisions')).toMatch(/\{readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
+  })
+})
+
+describe('a worker’s seat reads its own weeks, and a timesheet desk reads the firm’s', () => {
+  const permsOf = (kind: CompanyKind, name: string) => {
+    const role = rolesFor(kind).find((r) => r.name === name)
+    if (!role) throw new Error(`${kind} has no ${name}`)
+    return role.permissions
+  }
+  const WORKERS_SEAT = ['assignments.read', 'timesheets.read']
+
+  it('a delivery engineer’s seat, holding only their own work and their own hours, reads only weeks that name them', () => {
+    expect(ownWeeksOnly(WORKERS_SEAT)).toBe(true)
+  })
+
+  it('a client program manager, a client hiring manager and a client viewer still read the program’s weeks', () => {
+    expect(ownWeeksOnly(permsOf('CLIENT', 'Program Manager'))).toBe(false)
+    expect(ownWeeksOnly(permsOf('CLIENT', 'Hiring Manager'))).toBe(false)
+    expect(ownWeeksOnly(permsOf('CLIENT', 'Viewer'))).toBe(false)
+  })
+
+  it('a supplier’s AP & Payroll, Account Manager and Accounts Receivable still read the firm’s weeks', () => {
+    expect(ownWeeksOnly(permsOf('VENDOR', 'AP & Payroll'))).toBe(false)
+    expect(ownWeeksOnly(permsOf('VENDOR', 'Account Manager'))).toBe(false)
+    expect(ownWeeksOnly(permsOf('VENDOR', 'Accounts Receivable'))).toBe(false)
+  })
+
+  it('an integrator’s team lead, who signs a project’s weeks by name, still reads the firm’s weeks', () => {
+    expect(ownWeeksOnly(permsOf('GSI', 'Team Lead'))).toBe(false)
+  })
+
+  it('every default role that reads timesheets at all is a desk that reads the firm’s weeks', () => {
+    const kinds: CompanyKind[] = ['CLIENT', 'MSP', 'GSI', 'VENDOR', 'CONSULTANT_CORP']
+    const narrowed = kinds.flatMap((k) =>
+      rolesFor(k).filter((r) => r.permissions.includes('timesheets.read') && ownWeeksOnly(r.permissions)).map((r) => `${k} ${r.name}`)
+    )
+    expect(narrowed).toEqual([])
+  })
+
+  it('a worker’s seat asking for its own weeks by person is answered with its own weeks', () => {
+    expect(whoseWeeks({ ownOnly: true, callerPersonId: 'karthik', askedPersonId: 'karthik' })).toEqual({ ok: true, personId: 'karthik' })
+    expect(whoseWeeks({ ownOnly: true, callerPersonId: 'karthik', askedPersonId: null })).toEqual({ ok: true, personId: 'karthik' })
+  })
+
+  it('a worker’s seat asking for a colleague’s weeks by person is refused, never silently shown its own instead', () => {
+    expect(whoseWeeks({ ownOnly: true, callerPersonId: 'karthik', askedPersonId: 'aditi' })).toEqual({ ok: false, refusedPersonId: 'aditi' })
+  })
+
+  it('a timesheet desk asking for one person’s weeks is narrowed to that person', () => {
+    expect(whoseWeeks({ ownOnly: false, callerPersonId: 'pm', askedPersonId: 'aditi' })).toEqual({ ok: true, personId: 'aditi' })
+    expect(whoseWeeks({ ownOnly: false, callerPersonId: 'pm', askedPersonId: null })).toEqual({ ok: true, personId: null })
+  })
+
+  it('the refusal of a colleague’s weeks names the colleague and the firm, and no permission key', () => {
+    const says = colleaguesWeeksRefused('Aditi Ramaswamy', 'Teleworld')
+    expect(says).toBe('Aditi Ramaswamy’s timesheet is not part of your seat at Teleworld. Ask your company’s owner if you need it.')
+    expect(namesAPermission(says)).toBe(false)
   })
 })

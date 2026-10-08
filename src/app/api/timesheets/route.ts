@@ -9,7 +9,8 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
 import { isDeskless } from '@/lib/nav-table'
-import { noDeskYet } from '@/app/api/program/no-desk'
+import { noDeskYet } from '@/lib/no-desk'
+import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from './own-weeks'
 import { logBulkAccess } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
@@ -106,9 +107,39 @@ export async function GET(request: NextRequest) {
   // One with no weeks of their own is refused in a sentence, and the
   // refusal is a refused read of every person the list would have shown,
   // so each is an AccessLog row, `allowed: false`, before the 403.
-  const ownOnly = !onBench && !desk?.seat && isDeskless(caller.permissions)
+  const deskless = !onBench && !desk?.seat && isDeskless(caller.permissions)
+
+  // ── A seat with no timesheet desk reads only its own weeks ─────────
+  //
+  // Karthik Menon, Teleworld's own W2, holds the two reads every delivery
+  // engineer holds and no desk that administers anybody. The firm scope
+  // above handed him every colleague's week and `personId=` was ignored.
+  // A seat holding none of the desks that act on a week (`./own-weeks`)
+  // reads the weeks that name its holder; asking for a colleague's by
+  // `personId=` is refused by name, and the refusal is logged.
+  const ownOnly = deskless || (!onBench && !desk?.seat && ownWeeksOnly(caller.permissions))
+  const whose = whoseWeeks({
+    ownOnly,
+    callerPersonId: caller.person.id,
+    askedPersonId: url.searchParams.get('personId'),
+  })
+  if (!whose.ok) {
+    const named = await prisma.person.findUnique({ where: { id: whose.refusedPersonId }, select: { name: true } })
+    const says = colleaguesWeeksRefused(named?.name ?? null, caller.company?.name ?? null)
+    if (named) {
+      logBulkAccess([whose.refusedPersonId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id ?? undefined,
+        action: 'TIMESHEET_VIEW',
+        allowed: false,
+        reason: `Timesheets refused: ${says}`,
+      })
+    }
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+  }
+
   let rowScope: Record<string, unknown> = scope
-  if (ownOnly) {
+  if (deskless) {
     const own = { AND: [scope, { personId: caller.person.id }] }
     const hasOwn = await prisma.sellContract.count({ where: own })
     if (hasOwn === 0) {
@@ -130,9 +161,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
     }
     rowScope = own
+  } else if (ownOnly) {
+    // A worker's seat with nothing of their own filed reads an empty
+    // list, not a refusal: the menu offers them Timesheets for their own.
+    rowScope = { AND: [scope, { personId: caller.person.id }] }
   }
 
   const where: any = { sellContract: rowScope }
+  if (whose.personId) where.personId = whose.personId
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId
   // One week, by id — the dashboard's "Look" names the week it means,
