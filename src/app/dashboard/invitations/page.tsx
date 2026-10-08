@@ -1,6 +1,9 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { refusedBy } from '@/app/dashboard/program/own-refusal'
+import { mayAnswerWithCv } from '@/app/api/submissions/own-only'
+import { useSession } from '@/components/session-provider'
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact as money } from '@/lib/money-display'
@@ -265,6 +268,8 @@ function InvitationCard({ inv, onRespond, onSent }: {
   onRespond: (id: string, action: 'accept' | 'decline', reason?: string) => Promise<void>
   onSent: () => void
 }) {
+  const { permissions } = useSession()
+  const mayAnswer = mayAnswerWithCv(permissions).open
   const [busy, setBusy] = useState(false)
   const [declining, setDeclining] = useState(false)
   const [reason, setReason] = useState('')
@@ -360,7 +365,10 @@ function InvitationCard({ inv, onRespond, onSent }: {
       {/* Once they are working it, the CV box. A supplier who has just
           been listed by a client has no bench yet, and the whole point of
           the invitation was that they did not need one. */}
-      {(accepted || open) && <AnswerBox inv={inv} onSent={onSent} />}
+      {/* Answering with a CV puts a new person in front of the client, a
+          recruiting desk's act; the route refuses anybody else, so the
+          box is not offered to them (round five, #3). */}
+      {(accepted || open) && mayAnswer && <AnswerBox inv={inv} onSent={onSent} />}
 
       {error && (
         <div className="mt-4 text-sm text-etyme-attention">{error}</div>
@@ -446,12 +454,16 @@ export default function InvitationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<'OPEN' | 'ALL'>('OPEN')
+  // The door's refusal, drawn alone with no "Try again" (round five, #14).
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/invitations')
+      const no = await refusedBy(res, 'Shared with you')
+      if (no) { setRefused(no); return }
       const json = await readJson(res)
       setInvitations(json.data.invitations)
       setSummary(json.data.summary)
@@ -485,6 +497,10 @@ export default function InvitationsPage() {
       (i.requirement.location ?? '').toLowerCase().includes(term) ||
       i.requirement.skills.some(s => s.toLowerCase().includes(term))
     )
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
 
   return (
     <div className="max-w-4xl">

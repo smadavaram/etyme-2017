@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
+import { holdsNoDesk } from '@/app/api/submissions/own-only'
+import { noDeskYet } from '@/lib/no-desk'
 
 /**
  * GET /api/invitations
@@ -34,6 +36,18 @@ export async function GET(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'Invitations are addressed to a company' } },
+      { status: 403 }
+    )
+  }
+
+  // Round five, problem 4. Shared with you is a recruiting desk's inbox,
+  // and each card carries the rate band the client offers this firm. A
+  // seat that reads only its holder's own work read the band; it is now
+  // told this is not part of its seat. A program office in a seat reads
+  // under the client's role and never reaches here as desk-less.
+  if (caller.context.type !== 'CONSULTANT' && holdsNoDesk(caller.permissions)) {
+    return NextResponse.json(
+      { error: { code: 'NO_DESK', message: noDeskYet('Shared with you', caller.company.name) } },
       { status: 403 }
     )
   }

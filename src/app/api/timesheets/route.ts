@@ -11,6 +11,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/lib/no-desk'
 import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from './own-weeks'
+import { nameIfKnown } from '@/app/api/submissions/name-if-known'
 import { reportError } from '@/lib/alerts'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
@@ -125,9 +126,12 @@ export async function GET(request: NextRequest) {
     askedPersonId: url.searchParams.get('personId'),
   })
   if (!whose.ok) {
-    const named = await prisma.person.findUnique({ where: { id: whose.refusedPersonId }, select: { name: true } })
-    const says = colleaguesWeeksRefused(named?.name ?? null, caller.company?.name ?? null)
-    if (named) {
+    // Named only where the reader's company already knows the person
+    // (round five, problem 8): an id typed at Teleworld for a Techpeple
+    // worker is refused as "That timesheet", never by her name.
+    const named = await nameIfKnown(whose.refusedPersonId, caller.company?.id ?? null)
+    const says = colleaguesWeeksRefused(named.name, caller.company?.name ?? null)
+    if (named.exists) {
       await recordRefusal([whose.refusedPersonId], {
         actorPersonId: caller.person.id,
         actorCompanyId: caller.company?.id ?? undefined,

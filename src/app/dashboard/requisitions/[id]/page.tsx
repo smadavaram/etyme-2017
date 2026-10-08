@@ -15,6 +15,7 @@ import { mayEdit } from '@/lib/requisition-stage'
 import { useSession } from '@/components/session-provider'
 import { jobListWord } from '../../requirements/words'
 import { hasPermission } from '@/lib/permissions'
+import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
 import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
@@ -447,6 +448,9 @@ export default function RequisitionDetail() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A refusal is drawn alone, with no "Try again" under it: a retry cannot
+  // give somebody a desk (round five, #14).
+  const [refused, setRefused] = useState<string | null>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
   // Editors: the manager it is for, whoever raised it, the program
@@ -463,6 +467,8 @@ export default function RequisitionDetail() {
     setLoading(true); setError(null)
     try {
       const res = await fetch(`/api/requisitions/${id}`)
+      const no = await refusedBy(res, 'This job request')
+      if (no) { setRefused(no); return }
       const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
@@ -517,6 +523,7 @@ export default function RequisitionDetail() {
   }
 
   if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   if (error) return (
     <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
       <div className="text-etyme-attention font-medium">{error}</div>

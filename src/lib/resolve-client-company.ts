@@ -207,7 +207,11 @@ export async function resolveClientCompany(
   requestedClientId: string | null
 ): Promise<Resolution> {
   if (!caller.company) {
-    return forbidden('No company context. You must belong to a company.')
+    // The system's phrase was the sentence a candidate read here (round
+    // five, problem 17); she is told whose page this is and where hers is.
+    return forbidden(
+      'These are a company’s books, and you are not signed in at a company. Your own work is under Your work.'
+    )
   }
 
   // ── Case 1: the caller IS the client ──

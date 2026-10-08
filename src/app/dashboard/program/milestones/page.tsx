@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { refusedBy } from '../own-refusal'
 import { useSession } from '@/components/session-provider'
 import { sectionOfHref } from '@/lib/page-framing'
 
@@ -93,12 +94,19 @@ export default function MilestonesPage() {
   const [data, setData] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The door's refusal, in this page's own name and drawn alone (round five, #14).
+  const [refused, setRefused] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; bad?: boolean } | null>(null)
   const [rejecting, setRejecting] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/program/milestones')
+      const no = await refusedBy(res, 'Milestones')
+      if (no) {
+        setRefused(no)
+        return
+      }
       const body = await readJson(res)
       setData(body.data)
       setError(null)
@@ -157,10 +165,14 @@ export default function MilestonesPage() {
     )
   }
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   if (error) {
     return (
       <div className="card text-center py-16">
-        <p className="text-sm text-red-600">Could not load milestones: {error}</p>
+        <p className="text-sm text-etyme-danger">Could not load milestones: {error}</p>
       </div>
     )
   }

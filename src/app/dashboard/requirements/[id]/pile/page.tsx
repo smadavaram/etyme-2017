@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * The pile.
@@ -69,6 +70,12 @@ function hourly(cents: number | null): string {
 export default function PilePage() {
   const params = useParams<{ id: string }>()
   const id = params?.id
+  // A client's job requests are under /dashboard/requisitions, a
+  // supplier's under /dashboard/requirements; whichever this reader's
+  // menu holds names the section.
+  const asBuyer = usePageSection('/dashboard/requisitions')
+  const asSeller = usePageSection('/dashboard/requirements')
+  const section = asBuyer ?? asSeller
 
   const [pile, setPile] = useState<Pile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -113,7 +120,10 @@ export default function PilePage() {
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Program</p>
+        {/* The reader's own menu section for job requests — a client's
+            Workforce, a supplier's Sell — never "Program", which is on no
+            client's menu (round five, #18). Blank until the seat is known. */}
+        <p className="eyebrow">{section ?? ''}</p>
         <h1 className="headline-serif text-[30px] leading-tight">
           {pile?.title ?? 'The pile'}
         </h1>

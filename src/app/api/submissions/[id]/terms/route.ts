@@ -12,6 +12,9 @@ import {
 } from '@/lib/award/hire-terms'
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { placementStatus } from '@/lib/award/placement-status'
+import { nameIfKnown } from '../../name-if-known'
+import { notAPartySays } from './not-a-party'
+import { holdsNoDesk } from '../../own-only'
 
 /**
  * GET  /api/submissions/:id/terms
@@ -100,6 +103,20 @@ function partyOf(caller: { person: { id: string }; company: { id: string } | nul
   return null
 }
 
+/**
+ * The person's name for a reader who is not a party, or null. A desk at
+ * the company the person was put in front of already read the name on
+ * the submission; anybody else is told it only if the person sits at the
+ * reader's own company (round five, problem 8).
+ */
+async function strangerKnows(
+  caller: { company: { id: string } | null; permissions?: readonly string[] | null },
+  l: Loaded
+): Promise<string | null> {
+  if (caller.company?.id === l.sub.toCompanyId && !holdsNoDesk(caller.permissions ?? [])) return l.sub.person.name
+  return (await nameIfKnown(l.sub.personId, caller.company?.id)).name
+}
+
 async function answer(l: Loaded, you: 'PERSON' | 'FIRM', permissions: readonly string[]) {
   const line = payLineOf(l)
   const own = l.sub.person.consultant?.ownCompany ?? null
@@ -160,11 +177,7 @@ export async function GET(request: NextRequest, { params }: Ctx) {
       action: 'CONTRACT_VIEW', allowed: false,
       reason: 'Asked for a person’s own terms with a firm and is neither the person nor the firm',
     })
-    return refuse(
-      'NOT_A_PARTY',
-      `These are the terms between ${l.sub.person.name} and the firm that holds them. Only those two can read them.`,
-      403
-    )
+    return refuse('NOT_A_PARTY', notAPartySays(await strangerKnows(caller, l)), 403)
   }
   if (l.sub.parentSubmissionId) {
     return refuse('NOT_HOP_ZERO', 'These terms are agreed with the firm at the bottom of the chain, not this one.', 409)
@@ -188,11 +201,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
 
   const you = partyOf(caller, l)
   if (!you) {
-    return refuse(
-      'NOT_A_PARTY',
-      `Only ${l.sub.person.name} and ${l.sub.fromCompany.name} agree these terms.`,
-      403
-    )
+    return refuse('NOT_A_PARTY', notAPartySays(await strangerKnows(caller, l)), 403)
   }
   if (l.sub.parentSubmissionId) {
     return refuse('NOT_HOP_ZERO', 'These terms are agreed with the firm at the bottom of the chain, not this one.', 409)

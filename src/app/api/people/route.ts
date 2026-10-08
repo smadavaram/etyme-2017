@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { NOT_AT_A_COMPANY } from './not-at-a-company'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { seatTrail } from '@/lib/program-seat'
 import { logBulkAccess } from '@/lib/access-log'
@@ -42,6 +43,16 @@ const DAY = 86_400_000
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // A candidate signed in with no company holds no bench seat at
+  // anybody's; "you are on their bench" told her something false (round
+  // five, problem 17). She is told whose list this is and where hers is.
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: NOT_AT_A_COMPANY } },
+      { status: 403 }
+    )
+  }
 
   const notStaff = staffOnly(caller, 'The register')
   if (notStaff) return notStaff

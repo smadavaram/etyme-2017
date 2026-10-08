@@ -3,6 +3,9 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as listTimesheets } from '@/app/api/timesheets/route'
 import { GET as readBudget } from '@/app/api/program/budget/route'
 import { GET as readOrg } from '@/app/api/program/org/route'
+import { GET as listSubmissions } from '@/app/api/submissions/route'
+import { GET as listInvitations } from '@/app/api/invitations/route'
+import { POST as answerInvitation } from '@/app/api/invitations/[id]/answer/route'
 import { namesAPermission } from '@/lib/refusal-words'
 import { rolesFor } from '@/lib/company-defaults'
 
@@ -142,7 +145,7 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
     colleague = { id: other!.person.id, name: other!.person.name ?? '' }
   }, 240_000)
 
-  it('a worker whose seat reads only its own work sees nobody else’s weeks, and is refused a colleague’s by name', async () => {
+  it('a worker whose seat reads only its own work sees nobody else’s weeks, and is refused anybody else’s, by name only where that person sits at the worker’s own firm', async () => {
     as(KARTHIK)
     const list = await json(await listTimesheets(req('GET', '/api/timesheets?limit=50', undefined, { 'x-context-id': contextId })))
     expect(list.status, JSON.stringify(list.body)).toBe(200)
@@ -154,8 +157,14 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
 
     const theirs = await json(await listTimesheets(req('GET', `/api/timesheets?limit=50&personId=${colleague.id}`, undefined, { 'x-context-id': contextId })))
     expect(theirs.status, JSON.stringify(theirs.body)).toBe(403)
+    // Named only where the person sits at Teleworld; anybody else on
+    // Teleworld's lines — a sub-vendor's worker — is "That timesheet"
+    // (round five, problem 8).
+    const seated = await prisma.context.count({
+      where: { personId: colleague.id, companyId: (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })).id, revokedAt: null },
+    })
     expect(theirs.body.error.message).toBe(
-      `${colleague.name}’s timesheet is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`
+      `${seated ? `${colleague.name}’s timesheet` : 'That timesheet'} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`
     )
     expect(namesAPermission(theirs.body.error.message)).toBe(false)
     const logged = await refusalsBy(karthik, 'Timesheets refused')
@@ -182,5 +191,108 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
       const people = new Set(body.data.timesheets.map((t: any) => t.person?.id ?? t.personId))
       expect(people.size, `${name} reads more than one person’s weeks`).toBeGreaterThan(1)
     }
+  })
+})
+
+
+/**
+ * Round five of the sign-up walk (2026-10-08), problems 3, 4 and 8. Karthik
+ * Menon's seat reads his own work and his own hours and holds no desk. He
+ * read all six of Teleworld's submissions with each rate, read the
+ * client's band, put a stranger in front of a client with a pasted CV,
+ * and a timesheet refusal named a worker at a firm Teleworld has no tie to.
+ */
+describe('a worker seat with no desk, on the buying side (round five)', () => {
+  const KARTHIK = 'karthik.menon@seed.etyme.invalid'
+  let karthik = ''
+  let contextId = ''
+  let teleworld = ''
+  const headers = () => ({ 'x-context-id': contextId })
+  beforeAll(async () => {
+    await freshWorld()
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
+    teleworld = firm.id
+    karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })).id
+    contextId = (await prisma.context.findFirstOrThrow({
+      where: { personId: karthik, companyId: firm.id, type: 'EMPLOYEE' }, select: { id: true },
+    })).id
+  }, 240_000)
+
+  it('Karthik reads no colleague’s submission and no rate on the Submissions list', async () => {
+    const colleagues = await prisma.submission.count({ where: { fromCompanyId: teleworld, personId: { not: karthik } } })
+    expect(colleagues, 'Teleworld has put colleagues forward').toBeGreaterThan(0)
+    as(KARTHIK)
+    const { status, body } = await json(await listSubmissions(
+      req('GET', `/api/submissions?direction=sent&companyId=${teleworld}&limit=50`, undefined, headers())
+    ))
+    // Refused outright, or narrowed to his own rows; never the firm's list.
+    if (status === 403) {
+      expect(namesAPermission(body.error.message)).toBe(false)
+      return
+    }
+    expect(status, JSON.stringify(body)).toBe(200)
+    for (const s of body.data.submissions) {
+      expect(s.person.id).toBe(karthik)
+      expect(s.rate).toBeNull()
+    }
+    expect(body.data.desk.ownOnly).toBe(true)
+  })
+
+  it('Karthik asking for a colleague’s submissions by person is refused without naming them', async () => {
+    const other = await prisma.submission.findFirstOrThrow({
+      where: { fromCompanyId: teleworld, personId: { not: karthik } },
+      select: { person: { select: { id: true, name: true } } },
+    })
+    as(KARTHIK)
+    const { status, body } = await json(await listSubmissions(
+      req('GET', `/api/submissions?personId=${other.person.id}`, undefined, headers())
+    ))
+    expect(status, JSON.stringify(body)).toBe(403)
+    expect(body.error.message).not.toContain(other.person.name)
+    expect(namesAPermission(body.error.message)).toBe(false)
+  })
+
+  it('Karthik is refused Shared with you, so he reads no client’s rate band', async () => {
+    as(KARTHIK)
+    const { status, body } = await json(await listInvitations(req('GET', '/api/invitations', undefined, headers())))
+    expect(status, JSON.stringify(body)).toBe(403)
+    expect(JSON.stringify(body)).not.toMatch(/payMin|payMax|band/)
+  })
+
+  it('a desk-less seat cannot submit a new person by answering an invitation, and nobody is created', async () => {
+    const invitation = await prisma.requirementInvitation.findFirst({
+      where: { toCompanyId: teleworld, requirement: { status: 'OPEN' } }, select: { id: true },
+    })
+    expect(invitation, 'Teleworld has an open invitation').not.toBeNull()
+    const before = await prisma.submission.count({ where: { fromCompanyId: teleworld } })
+    as(KARTHIK)
+    const cv = 'Walk Probe Three\nwalk.probe.three@example.invalid\nDO-178C verification engineer, ten years on avionics test.'
+    const { status, body } = await json(await answerInvitation(
+      req('POST', `/api/invitations/${invitation!.id}/answer`, { cv, rateCents: 13_500, mayRepresent: true }, headers()),
+      { params: Promise.resolve({ id: invitation!.id }) }
+    ))
+    // Refused at the one door (named for Shared with you) or by the route
+    // itself (named for the act); either way in a sentence, and nothing made.
+    expect(status, JSON.stringify(body)).toBe(403)
+    expect(body.error.message).toMatch(/^(Shared with you|Answering a job with a CV) is not part of your seat at Teleworld Solutions\./)
+    expect(namesAPermission(body.error.message)).toBe(false)
+    expect(await prisma.person.findUnique({ where: { primaryEmail: 'walk.probe.three@example.invalid' } })).toBeNull()
+    expect(await prisma.submission.count({ where: { fromCompanyId: teleworld } })).toBe(before)
+  })
+
+  it('a timesheet refusal for a worker Teleworld has no tie to names nobody', async () => {
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } })
+    expect(await prisma.context.count({ where: { personId: helena.id, companyId: teleworld } })).toBe(0)
+    as(KARTHIK)
+    const { status, body } = await json(await listTimesheets(
+      req('GET', `/api/timesheets?limit=50&personId=${helena.id}`, undefined, headers())
+    ))
+    expect(status, JSON.stringify(body)).toBe(403)
+    expect(body.error.message).toBe(
+      'That timesheet is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.'
+    )
+    // Still a refused read of her data, and logged as one.
+    const logged = await refusalsBy(karthik, 'Timesheets refused')
+    expect(logged.some((r) => r.subjectId === helena.id)).toBe(true)
   })
 })

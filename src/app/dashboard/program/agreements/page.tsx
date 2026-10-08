@@ -6,6 +6,7 @@ import { sectionOfHref } from '@/lib/page-framing'
 import Link from 'next/link'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson, statusMeans } from '@/lib/read-response'
+import { refusalFor } from '../own-refusal'
 import {
   DO_THIS,
   FILTERS,
@@ -145,13 +146,17 @@ async function ask<T>(url: string, init?: RequestInit): Promise<T> {
   if (res.status === 403 || res.status === 401) {
     const body = await res.text().catch(() => '')
     let says = statusMeans(res.status)
+    let code: string | undefined
     try {
-      says = JSON.parse(body)?.error?.message ?? says
+      const parsed = JSON.parse(body)
+      says = parsed?.error?.message ?? says
+      code = parsed?.error?.code
     } catch {
       // No body, or an HTML error page. The status sentence stands.
     }
-    const trouble = new Error(says) as Error & { denied?: boolean }
+    const trouble = new Error(says) as Error & { denied?: boolean; code?: string }
     trouble.denied = true
+    trouble.code = code
     throw trouble
   }
   const body = await readJson<{ data: T }>(res)
@@ -174,7 +179,12 @@ export default function AgreementsPage() {
       setData(payload)
       setTrouble(null)
     } catch (e: any) {
-      setTrouble({ says: e.message, denied: Boolean(e.denied) })
+      // A refusal in this page's own name, never the door's "Dashboard"
+      // (round five, #14).
+      setTrouble({
+        says: e.denied ? refusalFor({ code: e.code, message: e.message }, 'Agreements') : e.message,
+        denied: Boolean(e.denied),
+      })
     } finally {
       setLoading(false)
     }
@@ -297,19 +307,10 @@ export default function AgreementsPage() {
   const empty = emptySays(role)
 
   // ── Denied, said rather than coded ──
+  // The sentence alone: the door's refusal already says who to ask, and a
+  // second sentence beside it read as a second rule (round five, #14).
   if (trouble?.denied) {
-    return (
-      <>
-        <Head />
-        <div className="panel mt-6">
-          <p className="text-[13px] text-etyme-attention">{trouble.says}</p>
-          <p className="mt-2 text-[12px] text-etyme-faint">
-            Agreements are read by the desk that papers deals. If that is your job here,
-            ask an owner to seat you as a contract manager.
-          </p>
-        </div>
-      </>
-    )
+    return <p className="text-[14px] text-etyme-muted py-8">{trouble.says}</p>
   }
 
   return (

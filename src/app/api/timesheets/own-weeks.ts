@@ -71,10 +71,11 @@ export function whoseWeeks(input: {
 
 /**
  * The sentence a seat that reads only its own weeks is given when it asks
- * for a colleague's. Names the colleague where the name is known, and
- * never a permission key.
+ * for a colleague's. Names the colleague only where the caller passes a
+ * name — which the route does only for somebody seated at the reader's
+ * own company (round five, problem 8) — and never a permission key.
  */
 export function colleaguesWeeksRefused(name: string | null | undefined, company: string | null | undefined): string {
-  const who = name?.trim() ? `${name.trim()}’s timesheet` : 'Another person’s timesheet'
+  const who = name?.trim() ? `${name.trim()}’s timesheet` : 'That timesheet'
   return noDeskYet(who, company)
 }

@@ -10,6 +10,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
+import { SUBMISSIONS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { pageFraming } from '@/lib/page-framing'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
@@ -54,7 +55,8 @@ interface Submission {
   kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
   /** The hop it came up, read off the chain. Absent on an older cached response. */
   came?: { chained: boolean; through: string | null }
-  rate: number
+  /** Null to a seat with no desk: what the firm asked is the selling desk's to read. */
+  rate: number | null
   status: string
   submittedAt: string
   forwardedAt: string | null
@@ -769,7 +771,7 @@ function SendOnModal({
   const [toCompanyId, setToCompanyId] = useState('')
   const [email, setEmail] = useState('')
   // Shown and typed in dollars; sent in cents.
-  const [rate, setRate] = useState(String(submission.rate / 100))
+  const [rate, setRate] = useState(String((submission.rate ?? 0) / 100))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Where the company chosen sent us more than one role and nothing on
@@ -793,7 +795,7 @@ function SendOnModal({
   }, [submission.toCompany.id, submission.fromCompany.id])
 
   const onwardCents = Math.round(Number(rate) * 100)
-  const marginCents = onwardCents - submission.rate
+  const marginCents = onwardCents - (submission.rate ?? 0)
 
   async function send() {
     setBusy(true)
@@ -970,7 +972,7 @@ function AwardModal({
   // Dollars, because that is what the field says and what onPlace
   // multiplies back up. Seeded from cents, one click made a $130/hr
   // submission into a $13,000/hr contract.
-  const [rate, setRate] = useState(submission.rate / 100)
+  const [rate, setRate] = useState((submission.rate ?? 0) / 100)
   const [startDate, setStartDate] = useState(
     new Date().toISOString().slice(0, 10)
   )
@@ -1070,7 +1072,7 @@ function AwardModal({
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
-  const { company, permissions } = useSession()
+  const { company, permissions, loading: sessionLoading } = useSession()
   const isClient = company?.kind === 'CLIENT'
   // Setting up a round is for whoever is hiring — the permission that
   // raises a requisition. The AP clerk is a party and is not the one
@@ -1113,6 +1115,10 @@ export default function SubmissionsPage() {
   // the page says so rather than letting nine of somebody else's rows
   // look like nine of its own.
   const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
+  // A seat with no desk reads only the submissions naming its holder, with
+  // no rate, and the page says so rather than presenting them as the
+  // firm's whole list (round five, problem 4).
+  const [ownSays, setOwnSays] = useState<string | null>(null)
 
   // The words on the page follow the book being read, not the firm the
   // reader is employed by: a program office at a client's desk reads the
@@ -1212,6 +1218,7 @@ export default function SubmissionsPage() {
       const body = await res.json()
       setSubmissions(body.data?.submissions ?? [])
       setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
+      setOwnSays(body.data?.desk?.ownOnly ? body.data.desk.ownSays ?? null : null)
     } catch (err: any) {
       setError(err.message)
       setSubmissions([])
@@ -1511,6 +1518,14 @@ export default function SubmissionsPage() {
     return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   }
 
+  // Somebody signed in with no company — a candidate on nobody's bench —
+  // has no list here, and the read below never starts for her; "Loading…"
+  // for ever was the page waiting on a company that was not coming
+  // (round five, problem 17).
+  if (!sessionLoading && !company && !urlRequirementId) {
+    return <p className="text-[14px] text-etyme-muted py-8">{SUBMISSIONS_NOT_AT_A_COMPANY}</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
@@ -1537,7 +1552,7 @@ export default function SubmissionsPage() {
               The label and whether there is one at all come from the same
               framing as the heading (`lib/page-framing`), so the button
               cannot say "Submit" over a page headed "Candidates". */}
-          {framing.create && (
+          {framing.create && !ownSays && (
             <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
               + {framing.create}
             </button>
@@ -1568,6 +1583,13 @@ export default function SubmissionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Whose rows these are, where the reader holds no desk (round five). */}
+      {ownSays && (
+        <div className="mb-5 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
+          <p className="text-[13px] text-etyme-ink">{ownSays}</p>
+        </div>
+      )}
 
       {/* Whose desk this is, where it is not the reader's own firm. */}
       {atDesk?.says && (

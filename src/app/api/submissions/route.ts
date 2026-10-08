@@ -26,6 +26,7 @@ import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
 import { workAuthAtSubmission } from './work-authorization'
 import { actingDesk } from '@/lib/program-seat'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
+import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays } from './own-only'
 
 /**
  * POST /api/submissions
@@ -1491,7 +1492,40 @@ export async function GET(request: NextRequest) {
 
   const where: any = { ...scope }
 
-  if (filterPersonId) {
+  // ── A seat with no desk reads only the submissions naming its holder ──
+  //
+  // Round five, problem 4. Karthik Menon's seat reads his own work and his
+  // own hours and nothing else, and this list handed him all six of
+  // Teleworld's submissions with each colleague's rate. A seat holding no
+  // desk now reads the submissions that name its holder, whichever way
+  // they faced, with no rate on them; asking for somebody else's is
+  // refused without naming them, and logged where the person exists.
+  const reach = submissionReach({
+    permissions: caller.permissions,
+    seated: !!desk?.seat,
+    consultantSeat: isConsultantSeat(caller),
+    callerPersonId: caller.person.id,
+    askedPersonId: filterPersonId,
+  })
+  if ('refused' in reach) {
+    const exists = await prisma.person.findUnique({ where: { id: reach.askedPersonId }, select: { id: true } })
+    const says = othersSubmissionsRefused(caller.company?.name ?? null)
+    if (exists) {
+      await recordRefusal([reach.askedPersonId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id ?? undefined,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: `Submissions refused: ${says}`,
+      })
+    }
+    return NextResponse.json({ error: { code: 'NO_DESK', message: says } }, { status: 403 })
+  }
+  const ownOnly = 'ownOnly' in reach && reach.ownOnly
+
+  if (ownOnly) {
+    where.personId = caller.person.id
+  } else if (filterPersonId) {
     where.personId = filterPersonId
   } else if (direction === 'sent') {
     where.fromCompanyId = companyId
@@ -1575,7 +1609,9 @@ export async function GET(request: NextRequest) {
           chained: !!s.parentSubmission,
           through: s.parentSubmission && s.fromCompanyId === deskId ? s.parentSubmission.fromCompany.name : null,
         },
-        rate: s.rate,
+        // What the firm asked for the person is the selling desk's to
+        // read; a seat with no desk reads its own row without it.
+        rate: ownOnly ? null : s.rate,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),
         // Whether it has been sent on, so the list can offer the button
@@ -1624,6 +1660,9 @@ export async function GET(request: NextRequest) {
         companyId: deskId,
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
+        // Only the submissions naming the reader, and no rates (round five).
+        ownOnly,
+        ownSays: ownOnly ? ownSubmissionsSays(caller.company?.name ?? null) : null,
         says: desk?.seat
           ? `You are at ${desk.companyName}'s desk. These are the people put in front of ${desk.companyName}, not ${caller.company?.name ?? 'your firm'}.`
           : null,

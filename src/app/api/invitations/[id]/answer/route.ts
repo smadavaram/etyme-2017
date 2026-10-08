@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { readCv, cvSentence } from '@/lib/cv-reader'
 import { holdExpiry } from '@/lib/representation'
+import { noDeskYet } from '@/lib/no-desk'
+import { askTheDesk } from '@/lib/permissions'
+import { mayAnswerWithCv } from '@/app/api/submissions/own-only'
 
 /**
  * POST /api/invitations/:id/answer — answer a role by pasting one CV
@@ -43,6 +46,28 @@ export async function POST(
 
   const notStaff = staffOnly(caller, 'Answering a job')
   if (notStaff) return notStaff
+
+  // ── Which desk may do this ──────────────────────────────────────────
+  //
+  // Round five, problem 3. Answering with a CV makes a person, lists them
+  // on the firm's bench and puts them in front of a client — a recruiting
+  // desk's act, the same `submissions.create` the main submission door
+  // asks. It asked only "staff, not a consultant", so Karthik Menon, a
+  // validation engineer whose seat reads only his own work, put a stranger
+  // in front of Corveldt Aerospace and onto Teleworld's bench. A seat with
+  // no desk is told so; a desk that does not recruit is told which does.
+  const door = mayAnswerWithCv(caller.permissions)
+  if (!door.open) {
+    const message = door.deskless
+      ? noDeskYet('Answering a job with a CV', caller.company?.name ?? null)
+      : askTheDesk({
+          doing: 'Putting somebody new in front of a client',
+          needs: 'submissions.create',
+          kind: caller.company?.kind ?? null,
+          companyName: caller.company?.name ?? null,
+        })
+    return NextResponse.json({ error: { code: door.deskless ? 'NO_DESK' : 'NO_PERMISSION', message } }, { status: 403 })
+  }
 
   const { id } = await params
   const companyId = caller.company!.id

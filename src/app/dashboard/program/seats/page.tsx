@@ -47,6 +47,10 @@ export default function ProgramSeatsPage() {
   const [unreadable, setUnreadable] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Whether the first read has come back. "Nobody outside this company
+  // sits in this program" before it has was a guess drawn as an answer:
+  // at Cavanaugh it showed while Aptiva sat there (round five, #15).
+  const [readOnce, setReadOnce] = useState(false)
 
   const reload = async () => {
     const res = await fetch('/api/program/seats')
@@ -56,6 +60,7 @@ export default function ProgramSeatsPage() {
     setSeats(Array.isArray(data.seats) ? data.seats : [])
     setSide(data.side === 'OFFICE' ? 'OFFICE' : 'CLIENT')
     setNothingYet(typeof data.says === 'string' ? data.says : null)
+    setReadOnce(true)
   }
 
   async function revoke(seat: Seat) {
@@ -100,6 +105,10 @@ export default function ProgramSeatsPage() {
         </div>
       </div>
     )
+  }
+
+  if (!readOnce) {
+    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
   }
 
   const live = seats.filter((s) => s.live)
