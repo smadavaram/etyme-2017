@@ -95,3 +95,86 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
     expect(read.status).toBe(200)
   })
 })
+
+/**
+ * Sign-up walk, round five, problem 5: Karthik Menon is Teleworld's own
+ * W2 validation engineer. His seat holds two reads — the lines that name
+ * him and his own weeks — and no desk. The round-four narrowing asked
+ * only for a seat with no permission at all, so his Conversations page
+ * showed Teleworld's commercial thread with Corveldt Aerospace about
+ * Meera Balakrishnan's rate and start date, a deal he is not on.
+ * Teleworld's own seat — Sunil Raghavan, the delivery manager who works
+ * the firm's deals (Teleworld seats no separate account manager) —
+ * still reads every thread.
+ */
+const KARTHIK = 'karthik.menon@seed.etyme.invalid'
+const TELEWORLD_DESK = 'world-teleworld@demo.etyme.local'
+const MEERA_ASK = 'Can Meera Balakrishnan start inside three weeks'
+
+describe('Karthik Menon, a worker seated at Teleworld with only the reads of his own work, reads no thread he is not on', () => {
+  let teleworld = ''
+  let karthik = ''
+  let meeraThread = ''
+  let firmThreads: { id: string; participants: unknown }[] = []
+
+  beforeAll(async () => {
+    await freshWorld()
+    teleworld = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })).id
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })
+    karthik = person.id
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { personId: karthik, companyId: teleworld },
+      select: { role: { select: { permissions: true } } },
+    })
+    expect([...(seat.role?.permissions ?? [])].sort()).toEqual(['assignments.read', 'timesheets.read'])
+    const ask = await prisma.message.findFirstOrThrow({
+      where: { body: { startsWith: MEERA_ASK }, conversation: { OR: [{ companyId: teleworld }, { withCompanyId: teleworld }] } },
+      select: { conversationId: true },
+    })
+    meeraThread = ask.conversationId
+    firmThreads = await prisma.conversation.findMany({
+      where: { archivedAt: null, OR: [{ companyId: teleworld }, { withCompanyId: teleworld }] },
+      select: { id: true, participants: true },
+    })
+  }, 600_000)
+
+  it('Karthik’s conversation list holds no Teleworld thread that does not name him, and never the Corveldt thread about Meera’s rate and start date', async () => {
+    as(KARTHIK)
+    const r = await json(await list(req('GET', '/api/conversations?limit=50')))
+    expect(r.status).toBe(200)
+    const ids: string[] = r.body.data.conversations.map((c: any) => c.id)
+    const named = firmThreads
+      .filter((t) => Array.isArray(t.participants) && (t.participants as any[]).some((p) => p?.personId === karthik))
+      .map((t) => t.id)
+    expect(ids.sort()).toEqual(named.sort())
+    expect(ids).not.toContain(meeraThread)
+    expect(JSON.stringify(r.body)).not.toContain('Meera Balakrishnan')
+  })
+
+  it('opening the Corveldt thread about Meera is refused to Karthik in the door’s own sentence, and its words never reach him', async () => {
+    as(KARTHIK)
+    const r = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('That conversation is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(JSON.stringify(r.body)).not.toContain('inclusive of expenses')
+  })
+
+  it('Karthik cannot write on the Corveldt thread, and nothing is written', async () => {
+    as(KARTHIK)
+    const r = await json(await writeThread(req('POST', '/api/conversations/messages', { conversationId: meeraThread, body: 'Is she joining us?' })))
+    expect(r.status).toBe(403)
+    expect(await prisma.message.count({ where: { conversationId: meeraThread, authorId: karthik } })).toBe(0)
+  })
+
+  it('Teleworld’s delivery manager, who works the firm’s deals, still reads every Teleworld thread, the Corveldt one about Meera among them', async () => {
+    as(TELEWORLD_DESK)
+    const r = await json(await list(req('GET', '/api/conversations?limit=50')))
+    expect(r.status).toBe(200)
+    const ids: string[] = r.body.data.conversations.map((c: any) => c.id)
+    expect(ids).toContain(meeraThread)
+    expect(ids.length).toBe(Math.min(50, firmThreads.length))
+    const read = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
+    expect(read.status).toBe(200)
+    expect(read.body.data.messages.map((m: any) => m.body).join(' ')).toContain(MEERA_ASK)
+  })
+})

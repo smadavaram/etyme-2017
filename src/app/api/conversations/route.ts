@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { whoMayOpen, sideOf, readsOnlyOwnThreads, isOnThread, type TopicFacts, type Participant } from '@/lib/threads'
-import { isDeskless } from '@/lib/nav-table'
+import { whoMayOpen, sideOf, readsOnlyOwnThreads, holdsNoThreadDesk, isOnThread, type TopicFacts, type Participant } from '@/lib/threads'
 import { seatFor } from '@/lib/program-seat'
 import { tellThread } from '@/lib/thread-notices'
 
@@ -58,7 +57,7 @@ export async function GET(request: NextRequest) {
   const onlyMine = readsOnlyOwnThreads({
     consultant: isConsultantSeat(caller),
     permissions: caller.permissions,
-    holdsProgramSeat: isDeskless(caller.permissions) && !isConsultantSeat(caller)
+    holdsProgramSeat: holdsNoThreadDesk(caller.permissions) && !isConsultantSeat(caller)
       ? Boolean(await seatFor(caller, null))
       : false,
   })

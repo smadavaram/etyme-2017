@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { readsOnlyOwnThreads, isOnThread, hearsForTheFirm } from '@/lib/threads'
+import { readsOnlyOwnThreads, isOnThread, hearsForTheFirm, holdsNoThreadDesk } from '@/lib/threads'
 
 /**
  * Sign-up walk, round four: the one door lets a seat with no desk open
@@ -35,6 +35,18 @@ describe('who reads only the threads that name them', () => {
     expect(readsOnlyOwnThreads({ consultant: false, permissions: [], holdsProgramSeat: true })).toBe(false)
   })
 
+  it('a worker seated with only the reads of their own work — their lines and their weeks — reads only the threads they are on, like Karthik Menon at Teleworld', () => {
+    const karthik = ['assignments.read', 'timesheets.read']
+    expect(readsOnlyOwnThreads({ consultant: false, permissions: karthik, holdsProgramSeat: false })).toBe(true)
+    expect(readsOnlyOwnThreads({ consultant: false, permissions: ['timesheets.read'], holdsProgramSeat: false })).toBe(true)
+    expect(holdsNoThreadDesk(karthik)).toBe(true)
+  })
+
+  it('one desk permission beside the own-work reads makes it a desk, and the seat reads every thread as before', () => {
+    expect(readsOnlyOwnThreads({ consultant: false, permissions: ['assignments.read', 'timesheets.read', 'submissions.read'], holdsProgramSeat: false })).toBe(false)
+    expect(holdsNoThreadDesk(['assignments.read', 'submissions.read'])).toBe(false)
+  })
+
   it('a seat whose permissions are unknown is not mistaken for a seat with no desk', () => {
     expect(readsOnlyOwnThreads({ consultant: false, permissions: undefined, holdsProgramSeat: false })).toBe(false)
   })
@@ -58,12 +70,17 @@ describe('nobody is told about a thread they cannot open', () => {
     expect(hearsForTheFirm(['submissions.read'])).toBe(true)
     expect(NOTICES).toContain('hearsForTheFirm(')
   })
+
+  it('a worker seated with only the reads of their own work is not told of a first note from another company either, because they cannot open that thread', () => {
+    expect(hearsForTheFirm(['assignments.read', 'timesheets.read'])).toBe(false)
+    expect(hearsForTheFirm(['assignments.read', 'timesheets.read', 'requirements.read'])).toBe(true)
+  })
 })
 
 describe('the routes ask the rule', () => {
   it('the conversations list narrows through readsOnlyOwnThreads and asks for a program-office seat only for a seat with no desk', () => {
     expect(LIST).toContain('readsOnlyOwnThreads({')
-    expect(LIST).toMatch(/isDeskless\(caller\.permissions\) && !isConsultantSeat\(caller\)\s*\? Boolean\(await seatFor\(caller, null\)\)/)
+    expect(LIST).toMatch(/holdsNoThreadDesk\(caller\.permissions\) && !isConsultantSeat\(caller\)\s*\? Boolean\(await seatFor\(caller, null\)\)/)
     expect(LIST).toContain('isOnThread(c.participants, caller.person.id)')
   })
 
@@ -73,6 +90,7 @@ describe('the routes ask the rule', () => {
   })
 
   it('opening or writing on a company thread a seat with no desk is not on is refused in the door’s own sentence', () => {
+    expect(MESSAGES).toContain('const ownOnly = holdsNoThreadDesk(caller.permissions) && readsOnlyOwnThreads({')
     expect(MESSAGES).toContain("noDeskYet('That conversation', caller.company?.name)")
     expect(MESSAGES).toContain("code: 'NO_DESK'")
   })

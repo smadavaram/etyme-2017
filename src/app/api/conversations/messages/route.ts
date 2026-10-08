@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { canRead, isOnThread, readsOnlyOwnThreads, type Participant } from '@/lib/threads'
-import { isDeskless } from '@/lib/nav-table'
+import { canRead, isOnThread, readsOnlyOwnThreads, holdsNoThreadDesk, type Participant } from '@/lib/threads'
 import { seatFor } from '@/lib/program-seat'
 import { noDeskYet } from '@/lib/no-desk'
 import { tellThread } from '@/lib/thread-notices'
@@ -48,7 +47,7 @@ async function open(request: NextRequest, conversationId: string) {
   // A colleague seated with no desk yet reads the threads that name them
   // and no other. The thread is their own company's, so they are told
   // why in the door's own words rather than that it does not exist.
-  const ownOnly = isDeskless(caller.permissions) && readsOnlyOwnThreads({
+  const ownOnly = holdsNoThreadDesk(caller.permissions) && readsOnlyOwnThreads({
     consultant: false,
     permissions: caller.permissions,
     holdsProgramSeat: Boolean(await seatFor(caller, null)),

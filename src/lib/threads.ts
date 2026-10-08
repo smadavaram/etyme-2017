@@ -154,12 +154,37 @@ export function sideOf(thread: ThreadSides, companyId: string | null | undefined
 }
 
 /**
+ * The reads a worker's seat holds to see its own work: the lines that
+ * name it and its own weeks. Neither is a desk. Seeded on every
+ * integrator's own engineers (Karthik Menon at Teleworld), and the
+ * routes behind them already answer with the caller's own rows only.
+ */
+const OWN_WORK_READS: ReadonlySet<string> = new Set(['assignments.read', 'timesheets.read'])
+
+/**
+ * A seat with no desk, for conversations: it holds no permission at
+ * all, or only the reads that show a worker their own work. Such a seat
+ * is not a desk that works the firm's deals, so the firm's commercial
+ * threads are not its reading. Null is "not known yet" and is never read
+ * as a seat with no desk.
+ *
+ * `isDeskless` in lib/nav-table is being widened to say the same; until
+ * it does, this keeps a worker's seat narrowed, and after it does, the
+ * second half is a no-op.
+ */
+export function holdsNoThreadDesk(permissions: readonly string[] | null | undefined): boolean {
+  if (isDeskless(permissions)) return true
+  return Array.isArray(permissions) && permissions.every((p) => OWN_WORK_READS.has(p))
+}
+
+/**
  * Who reads only the threads they are on.
  *
  * A consultant is in some of the agency's threads and none of the rest.
  * So is a colleague seated with no desk yet — a Member who holds no
- * permission. Their menu shows Conversations because what is addressed
- * to them lands there, and a company's whole inbox, with its last
+ * permission, or a worker seated with only the reads of their own work
+ * (`holdsNoThreadDesk`). Their menu shows Conversations because what is
+ * addressed to them lands there, and a company's whole inbox, with its last
  * messages and who is on each thread, is a desk's reading, not theirs.
  *
  * A firm acting in a client's program-office seat reads under the
@@ -175,7 +200,7 @@ export function readsOnlyOwnThreads(seat: {
   holdsProgramSeat: boolean
 }): boolean {
   if (seat.consultant) return true
-  return isDeskless(seat.permissions) && !seat.holdsProgramSeat
+  return holdsNoThreadDesk(seat.permissions) && !seat.holdsProgramSeat
 }
 
 /** Whether this person is named on the thread — a participant, or whoever it was addressed to. */
@@ -187,10 +212,11 @@ export function isOnThread(participants: unknown, personId: string): boolean {
 /**
  * Whether a seat should hear about a first note across, for a firm with
  * nobody on the thread yet. A seat with no desk would be told about a
- * thread it cannot open, so it is not told.
+ * thread it cannot open, so it is not told — and neither is a worker's
+ * seat holding only the reads of its own work.
  */
 export function hearsForTheFirm(permissions: readonly string[] | null | undefined): boolean {
-  return !isDeskless(permissions)
+  return !holdsNoThreadDesk(permissions)
 }
 
 export interface Participant {
