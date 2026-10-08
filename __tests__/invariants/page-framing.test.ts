@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pageFraming, sectionFor, sectionOfHref, notificationsFraming, type PageKey } from '@/lib/page-framing'
+import { pageFraming, sectionFor, sectionOfHref, notificationsFraming, headingsOf, REGISTER_HEADINGS, type PageKey } from '@/lib/page-framing'
 import { getNavForKind } from '@/lib/nav-table'
 import type { CompanyKind } from '@/components/session-provider'
 
@@ -37,9 +37,13 @@ const ALL_PAGES: PageKey[] = [
 
 const ALL_KINDS: CompanyKind[] = ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']
 
-/** The section names a party can actually click, read off its own menu. */
+/**
+ * The headings a party's own menu prints, read off it: every section, and
+ * the two register sub-headings (Network, Compliance) that head the pages
+ * listed under them — sign-up walk, round three, item 11.
+ */
 function sectionsOf(kind: CompanyKind): string[] {
-  return getNavForKind(kind, false).map((s) => s.label)
+  return headingsOf(getNavForKind(kind, false))
 }
 
 /**
@@ -599,8 +603,9 @@ describe('a supplier\'s eyebrows name a section that exists in its menu', () => 
     }
   })
 
-  it('a seated reader\'s eyebrow is a section printed in the client\'s nav array', () => {
-    const labels = sectionLabelsInSource('CLIENT_NAV')
+  it('a seated reader\'s eyebrow is a section printed in the client\'s nav array, or a register sub-heading printed in it', () => {
+    const registers = [...REGISTER_HEADINGS].filter((g) => SIDEBAR.includes(`group: '${g}'`))
+    const labels = [...sectionLabelsInSource('CLIENT_NAV'), ...registers]
     for (const page of ALL_PAGES) {
       const { eyebrow } = pageFraming('MSP', page, { inASeat: true, company: 'Cavanaugh Glassworks' })
       if (!eyebrow) continue
@@ -613,13 +618,81 @@ describe('Contacts is headed by the reader’s own menu, never by a word typed o
   it('a client reads Contacts under its own section, not under a supplier’s Operate', () => {
     expect(sectionOfHref('CLIENT', '/dashboard/contacts')).not.toBe('Operate')
     expect(sectionOfHref('CLIENT', '/dashboard/contacts')).toBeTruthy()
-    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Operate')
   })
 
   it('the Contacts page reads its eyebrow from the menu rather than typing one', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/contacts/page.tsx'), 'utf8')
     expect(src).not.toContain('<p className="eyebrow">Operate</p>')
     expect(src).toContain("sectionOfHref(")
+  })
+})
+
+/**
+ * Sign-up walk, round three, item 11. The tester clicked Contacts under
+ * "Network" and read OPERATE (a vendor) or WORKFORCE (a client) at the
+ * top of the page; Paperwork, Screening packs and Check queue under
+ * "Compliance" read OPERATE. The sub-heading the link is printed under is
+ * what the reader saw last, and for these two registers it is the heading.
+ */
+describe('sign-up walk, round three: a page listed under Network or Compliance is headed by that word', () => {
+  it('Companies and Contacts are headed Network for a staffing vendor, where its menu lists them', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/companies')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/contacts')).toBe('Network')
+  })
+
+  it('a client’s Contacts is headed Network, not Workforce', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/contacts')).toBe('Network')
+  })
+
+  it('a client’s contractors are headed Network, beside its contacts, because the menu lists them together', () => {
+    expect(pageFraming('CLIENT', 'consultants').eyebrow).toBe('Network')
+  })
+
+  it('Paperwork, Screening packs and Check queue are headed Compliance for a staffing vendor, never Operate', () => {
+    for (const href of ['/dashboard/documents', '/dashboard/outbound-pack', '/dashboard/checks']) {
+      expect(sectionOfHref('VENDOR', href), href).toBe('Compliance')
+    }
+  })
+
+  it('every link under a Network or Compliance sub-heading, on every menu, heads its page with that sub-heading', () => {
+    for (const kind of ALL_KINDS) {
+      for (const section of getNavForKind(kind, false)) {
+        for (const item of section.items) {
+          if (!item.group || !REGISTER_HEADINGS.has(item.group)) continue
+          // The first section that lists a link heads it; a link listed
+          // twice is the duplicate class the sidebar test refuses.
+          const first = getNavForKind(kind, false).find((s) =>
+            s.items.some((i) => i.href.split('?')[0] === item.href.split('?')[0]))
+          if (first !== section) continue
+          expect(sectionOfHref(kind, item.href), `${kind} ${item.href}`).toBe(item.group)
+        }
+      }
+    }
+  })
+
+  it('a step sub-heading does not head a page: a vendor’s timesheets read Operate and a client’s read Workforce', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/timesheets')).toBe('Operate')
+    expect(sectionOfHref('CLIENT', '/dashboard/timesheets')).toBe('Workforce')
+    expect(sectionOfHref('CLIENT', '/dashboard/requisitions')).toBe('Workforce')
+  })
+
+  it('a reader whose company is not known yet is headed by nothing, never by a vendor’s section', () => {
+    expect(sectionOfHref(null, '/dashboard/texts')).toBeNull()
+    expect(sectionOfHref(undefined, '/dashboard/conversations')).toBeNull()
+  })
+
+  it('bench check-ins and conversations pass the kind only when the session has it', () => {
+    for (const page of ['texts', 'conversations']) {
+      const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
+      expect(src, page).not.toContain("?? 'VENDOR'")
+      expect(src, page).toContain('company?.kind ?? null')
+      expect(src, page).not.toContain('<p className="eyebrow">Today</p>')
+    }
+  })
+
+  it('a client’s Conversations is headed by its own menu’s section, not by a firm’s Today', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/conversations')).toBe('Workforce')
+    expect(sectionOfHref('VENDOR', '/dashboard/conversations')).toBe('Today')
   })
 })
 

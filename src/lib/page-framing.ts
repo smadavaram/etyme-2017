@@ -379,12 +379,42 @@ function path(href: string): string {
 }
 
 /**
- * The section this party's own menu puts a page under, or null where its
+ * The sub-headings that head a page in place of the section above them.
+ *
+ * Sign-up walk, round three, item 11. Most sub-headings in a menu are
+ * steps of one job — "Contracts & time", "Money", "Source", "Offboard" —
+ * and the section over them is the job, so a page under one is headed by
+ * the section: a vendor's timesheets read Operate, a client's read
+ * Workforce, as CLAUDE.md says they do.
+ *
+ * Two are not steps. **Network** is the register of who the firm trades
+ * with, and **Compliance** is the paperwork that stops work when it
+ * lapses. Each is printed as a heading of its own on every menu that has
+ * it, and a reader who clicks Contacts under "Network" and lands on a page
+ * headed "Operate" — or Paperwork under "Compliance" and lands on
+ * "Governance" — has been sent somewhere the menu did not say. So a page
+ * listed under one of these two is headed by it.
+ *
+ * Kept as a short named list rather than "every sub-heading", because
+ * heading every page by its sub-heading would rename every contracts,
+ * hours and money page for every party, and that is a decision about the
+ * whole menu, not a repair to two of its headings.
+ */
+export const REGISTER_HEADINGS: ReadonlySet<string> = new Set(['Network', 'Compliance'])
+
+/**
+ * The heading this party's own menu prints over a page, or null where its
  * menu does not offer the page at all.
+ *
+ * That is the section, unless the link sits under one of the register
+ * sub-headings above, in which case it is that sub-heading.
  *
  * Null rather than a guess: a heading that names a section the reader
  * has no way to click is what this file is here to stop, and a blank is
- * honest where a word would not be.
+ * honest where a word would not be. The same goes for a reader whose
+ * company is not known yet — null kind, null heading — so a page that
+ * passes the kind only once the session has it draws no heading until
+ * then, rather than a supplier's.
  *
  * The seat goes to `getNavForKind` rather than being resolved to a kind
  * here, because the shell already decides what a seated reader's menu is
@@ -393,18 +423,40 @@ function path(href: string): string {
  * disagree if only one of them is ever computed.
  */
 export function sectionOfHref(
-  kind: CompanyKind,
+  kind: CompanyKind | null | undefined,
   href: string,
   reading?: Reading | null
 ): string | null {
+  if (!kind) return null
   const seat = seated(reading)
     // The name is only a label on the seat here; the menu turns on the
     // fact of one. Where the route did not name the client, the seat is
     // still a seat.
     ? { seatedAtClient: bookOwner(reading) ?? 'a client' }
     : {}
-  for (const section of getNavForKind(kind, false, seat)) {
-    if (section.items.some((item) => path(item.href) === path(href))) return section.label
+  return headingIn(getNavForKind(kind, false, seat), href)
+}
+
+/** Every heading a menu can put over a page: its sections, and the
+ *  register sub-headings it prints. */
+export function headingsOf(menu: { label: string; items: { group?: string }[] }[]): string[] {
+  const out = new Set<string>()
+  for (const section of menu) {
+    out.add(section.label)
+    for (const item of section.items) {
+      if (item.group && REGISTER_HEADINGS.has(item.group)) out.add(item.group)
+    }
+  }
+  return [...out]
+}
+
+function headingIn(
+  menu: { label: string; items: { href: string; group?: string }[] }[],
+  href: string
+): string | null {
+  for (const section of menu) {
+    const item = section.items.find((i) => path(i.href) === path(href))
+    if (item) return item.group && REGISTER_HEADINGS.has(item.group) ? item.group : section.label
   }
   return null
 }
@@ -574,9 +626,6 @@ export function notificationsFraming(
   }
 }
 
-function sectionOfMenu(menu: { label: string; items: { href: string }[] }[], href: string): string | null {
-  for (const section of menu) {
-    if (section.items.some((item) => path(item.href) === path(href))) return section.label
-  }
-  return null
+function sectionOfMenu(menu: { label: string; items: { href: string; group?: string }[] }[], href: string): string | null {
+  return headingIn(menu, href)
 }

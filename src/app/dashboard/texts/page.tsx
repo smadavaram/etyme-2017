@@ -56,7 +56,14 @@ const KIND: Record<string, string> = {
 }
 
 export default function TextsPage() {
-  const { company } = useSession()
+  const { company, seat } = useSession()
+  // The kind only when the session has it: an unknown reader is headed by
+  // nothing, never by a vendor's section (sign-up walk, round three, 16).
+  const eyebrow = sectionOfHref(
+    company?.kind ?? null,
+    '/dashboard/texts',
+    seat ? { seated: true, clientName: seat.clientName } : null
+  )
   const [f, setF] = useState<Feed | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -78,7 +85,7 @@ export default function TextsPage() {
             bench firm files it under Procure, an integrator and a program
             office under Supply. It read "Talent" until the menus were
             organized, and by then no menu had a Talent section at all. */}
-        <p className="eyebrow">{sectionOfHref(company?.kind ?? 'VENDOR', '/dashboard/texts')}</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Bench check-ins</h1>
         <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
           A record that says somebody is free at $78 was true three weeks

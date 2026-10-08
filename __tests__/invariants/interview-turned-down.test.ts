@@ -50,7 +50,10 @@ describe('a client’s Interviews and AP pages read Workforce, never Operate', (
 
   it('no shared page reads Operate, Sell or Procure to a client', () => {
     const keys = ['contracts.sell', 'contracts.buy', 'requirements', 'submissions', 'interviews', 'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants'] as const
-    for (const k of keys) expect([k, pageFraming('CLIENT', k).eyebrow]).toEqual([k, 'Workforce'])
+    // Contractors sit under the client's "Network" sub-heading, which heads
+    // the page since sign-up walk round three, item 11; every other shared
+    // page is Workforce. None of them is Operate, Sell or Procure.
+    for (const k of keys) expect([k, pageFraming('CLIENT', k).eyebrow]).toEqual([k, k === 'consultants' ? 'Network' : 'Workforce'])
   })
 
   it('the Interviews page shows no section until it knows whose menu the reader has', () => {

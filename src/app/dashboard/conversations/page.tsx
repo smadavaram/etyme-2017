@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
+import { sectionOfHref } from '@/lib/page-framing'
 
 /**
  * Conversations page — messaging between vendors, clients, and candidates.
@@ -243,8 +244,14 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
 export default function ConversationsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { company } = useSession()
+  const { company, seat } = useSession()
   const isClient = company?.kind === 'CLIENT'
+  // Null until the company is known, so the page never borrows a heading.
+  const eyebrow = sectionOfHref(
+    company?.kind ?? null,
+    '/dashboard/conversations',
+    seat ? { seated: true, clientName: seat.clientName } : null
+  )
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -384,7 +391,7 @@ export default function ConversationsPage() {
   // ── Topic filter options ──────────────────────────
   const topicOptions: { key: TopicFilter; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'REQUIREMENT', label: 'Requirements' },
+    { key: 'REQUIREMENT', label: 'Job requests' },
     { key: 'CONTRACT', label: 'Contracts' },
     { key: 'SUBMISSION', label: 'Submissions' },
     { key: 'EXPENSE', label: 'Expenses' },
@@ -404,9 +411,17 @@ export default function ConversationsPage() {
       {/* Head */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Today</p>
+          {/* The heading the reader's own menu prints over this page: a
+              firm files it under Today, a client under Workforce. It was
+              typed as "Today" for everybody, and nothing until the
+              company is known (sign-up walk, round three, item 11). */}
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>Conversations</h1>
-          <p>Messages between your team, clients, and candidates — linked to requirements, contracts, and submissions.</p>
+          {/* "Job requests", the screen word for a requirement on every
+              party's menu (CLAUDE.md, plain words; round three, item 10).
+              No party list either: a client's messages are with its
+              suppliers, a supplier's with its clients. */}
+          <p>Messages with the firms and people you work with, about job requests, contracts and submissions.</p>
         </div>
         <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
           + New
