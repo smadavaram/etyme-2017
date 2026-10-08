@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -44,6 +45,7 @@ interface Card {
 }
 
 export default function MyStandingPage() {
+  const section = usePageSection('/dashboard/my-standing')
   const [cards, setCards] = useState<Card[]>([])
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(true)
@@ -75,7 +77,7 @@ export default function MyStandingPage() {
   return (
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Grow</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">How your clients see you</h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           The same numbers they read. You are not shown anybody else&rsquo;s, and

@@ -948,7 +948,6 @@ describe('sign-up walk, round six: pages that type a section name over themselve
     'src/app/dashboard/governance/page.tsx',
     'src/app/dashboard/invitations/page.tsx',
     'src/app/dashboard/leads/page.tsx',
-    'src/app/dashboard/my-standing/page.tsx',
     'src/app/dashboard/packets/page.tsx',
     'src/app/dashboard/people/page.tsx',
     'src/app/dashboard/privacy/page.tsx',
