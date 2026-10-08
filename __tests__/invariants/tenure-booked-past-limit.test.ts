@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { bookedLimitDay, bookedPastLimit, runsPastSentence, type SiteLine } from '@/lib/tenure-days'
+import { bookedLimitDay, bookedPastLimit, limitReachedOn, runsPastSentence, type SiteLine } from '@/lib/tenure-days'
 import { sentencePhrases } from '@/lib/contract-clearance'
 import { possessive } from '@/lib/requisition-approval'
 
@@ -9,6 +9,9 @@ import { possessive } from '@/lib/requisition-approval'
  * Pinnacle contract booked to Sep 3, 2027 — seven months past the day she
  * reaches the eighteen-month limit, Feb 2, 2027. Nothing said so, and the
  * doors that write a line would have written it.
+ *
+ * Since 2026-10-08 each contract's last day is a day on site, so
+ * Brightmoor's last day brings the limit a day forward, to Feb 1, 2027.
  */
 
 const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
@@ -31,7 +34,16 @@ const ask = (over: Partial<Parameters<typeof bookedPastLimit>[0]> = {}) => booke
 
 describe('a person near the time limit', () => {
   it('a person near the limit sees the day she reaches it', () => {
-    expect(bookedLimitDay([brightmoor, pinnacle], rules, today)?.toISOString().slice(0, 10)).toBe('2027-02-02')
+    expect(bookedLimitDay([brightmoor, pinnacle], rules, today)?.toISOString().slice(0, 10)).toBe('2027-02-01')
+  })
+
+  it('the door and the ledger name the same day, counting each contract’s last day once, never twice', () => {
+    // Merging the lines and handing them back must not add the last day again.
+    expect(bookedLimitDay([brightmoor, pinnacle], rules, today)?.getTime())
+      .toBe(limitReachedOn([brightmoor, pinnacle], 18)?.getTime())
+    // A 30-day break, served in the gap, leaves Pinnacle's 366 days alone: short of the limit.
+    expect(limitReachedOn([pinnacle], 18)).toBeNull()
+    expect(bookedLimitDay([brightmoor, pinnacle], { capMonths: 18, breakDays: 30 }, today)).toBeNull()
   })
 
   it('a contract already running past the limit is said on the page, not hidden', () => {
@@ -55,17 +67,17 @@ describe('the doors that write or extend a line', () => {
     const past = ask()
     expect(past?.outcome).toBe('BLOCK')
     expect(past?.says).toBe(
-      'Lucía Fernández reaches Northbend Athletic’s 18-month time limit on Feb 2, 2027. ' +
-      'This contract would run to Sep 3, 2027, 7 months past that day. End it on or before Feb 2, 2027, or plan the break.'
+      'Lucía Fernández reaches Northbend Athletic’s 18-month time limit on Feb 1, 2027. ' +
+      'This contract would run to Sep 3, 2027, 7 months past that day. End it on or before Feb 1, 2027, or plan the break.'
     )
   })
 
   it('lets a line end on the day the limit is reached, the same day the block counts', () => {
-    expect(ask({ proposed: { startDate: pinnacle.startDate, endDate: d('2027-02-02') } })).toBeNull()
+    expect(ask({ proposed: { startDate: pinnacle.startDate, endDate: d('2027-02-01') } })).toBeNull()
   })
 
   it('refuses a day later than that', () => {
-    expect(ask({ proposed: { startDate: pinnacle.startDate, endDate: d('2027-02-03') } })?.outcome).toBe('BLOCK')
+    expect(ask({ proposed: { startDate: pinnacle.startDate, endDate: d('2027-02-02') } })?.outcome).toBe('BLOCK')
   })
 
   it('refuses a line with no end date at a client with a time limit, and says why', () => {
@@ -85,7 +97,7 @@ describe('the doors that write or extend a line', () => {
 
   it('counts a chain\'s two rungs for the same days once', () => {
     const rung: SiteLine = { ...pinnacle, live: true }
-    expect(ask({ lines: [brightmoor, rung] })?.reachedOn.toISOString().slice(0, 10)).toBe('2027-02-02')
+    expect(ask({ lines: [brightmoor, rung] })?.reachedOn.toISOString().slice(0, 10)).toBe('2027-02-01')
   })
 
   it('starts the count again after a break the client requires, even one still ahead', () => {

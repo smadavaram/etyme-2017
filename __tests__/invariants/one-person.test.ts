@@ -24,9 +24,11 @@ const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
  * `endDate − startDate`, the whole contracted term booked as already
  * served, and the register summed one of those per rung of a chain.
  * The helper writes the dates a stint of that many months would have.
+ * An ended stint's last day is a day on site (2026-10-08), so it starts
+ * one day later than a running one of the same length.
  */
 const stint = (months: number, endedAt: Date | null, vendorName: string) => ({
-  startedAt: new Date((endedAt ?? NOW).getTime() - Math.round(months * 30.44) * 86_400_000),
+  startedAt: new Date((endedAt ?? NOW).getTime() - (Math.round(months * 30.44) - (endedAt ? 1 : 0)) * 86_400_000),
   endedAt,
   vendorName,
 })

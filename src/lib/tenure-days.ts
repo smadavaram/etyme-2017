@@ -36,11 +36,32 @@ export interface Period {
 
 const DAY = 86_400_000
 
+/**
+ * The instant after a line's last day on site.
+ *
+ * **A contract's end date is a day on site.** Decided 2026-10-08, on the
+ * sign-up walk's finding (round six, problem 18): the count was start-
+ * inclusive and end-exclusive, so Kwame Mensah's line from Aug 9, 2024
+ * to Aug 19, 2026 read 740 days where the dates hold 741, and every
+ * contract a person had moved the day they reach the time limit one day
+ * later. CLAUDE.md counts tenure "once per day on site, and only days
+ * served", and the last day of a placement is a day served. A late block
+ * on a time limit is the unsafe direction; this is the safe one.
+ *
+ * So a line covers its start day through its end day, both counted, and
+ * the same day on two overlapping lines is still counted once, because
+ * the spans are unioned before they are measured. A running line with no
+ * end is counted to `now`, as before.
+ */
+function after(end: Date): number {
+  return end.getTime() + DAY
+}
+
 /** Whole days on site across all the periods, overlaps counted once. */
 export function daysOnSite(periods: Period[], now: Date = new Date()): number {
   const today = now.getTime()
   const spans = periods
-    .map((p) => ({ from: p.startDate.getTime(), to: Math.min((p.endDate ?? now).getTime(), today) }))
+    .map((p) => ({ from: p.startDate.getTime(), to: Math.min(p.endDate ? after(p.endDate) : today, today) }))
     .filter((s) => s.to > s.from)
     .sort((a, b) => a.from - b.from)
 
@@ -219,7 +240,7 @@ export function limitReachedOn(periods: Period[], capMonths: number): Date | nul
   const limitDays = daysFor(capMonths)
   if (!(limitDays > 0)) return null
   const spans = periods
-    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? p.endDate.getTime() : Infinity }))
+    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? after(p.endDate) : Infinity }))
     .filter((s) => s.to > s.from)
     .sort((a, b) => a.from - b.from)
 
@@ -311,7 +332,8 @@ export function daysServed(contract: Period, now: Date = new Date()): number {
  */
 export function daysBooked(contract: Period): number | null {
   if (!contract.endDate) return null
-  return Math.max(0, Math.ceil((contract.endDate.getTime() - contract.startDate.getTime()) / DAY))
+  // Start and end day both counted, the same as `daysOnSite`.
+  return Math.max(0, Math.ceil((after(contract.endDate) - contract.startDate.getTime()) / DAY))
 }
 
 // ── Where somebody stands against the client's rules ──────────────────
@@ -430,8 +452,9 @@ export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: 
     endDate: l.live ? l.endDate : new Date(Math.min((l.endDate ?? now).getTime(), today)),
   }))
 
+  // The end date is a day on site, so somebody is on site through it.
   const onSiteNow = lines.some(
-    (l) => l.live && l.startDate.getTime() <= today && (l.endDate == null || l.endDate.getTime() > today)
+    (l) => l.live && l.startDate.getTime() <= today && (l.endDate == null || after(l.endDate) > today)
   )
   const begun = lines.filter((l) => l.live && l.startDate.getTime() <= today)
   const stretchEnd: Date | null = onSiteNow && !begun.some((l) => l.endDate == null)
@@ -440,7 +463,7 @@ export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: 
 
   // The stretches actually served, to today.
   const spans = served
-    .map((p) => ({ from: p.startDate.getTime(), to: Math.min((p.endDate ?? now).getTime(), today) }))
+    .map((p) => ({ from: p.startDate.getTime(), to: Math.min(p.endDate ? after(p.endDate) : today, today) }))
     .filter((s) => s.to > s.from)
     .sort((a, b) => a.from - b.from)
   const merged: { from: number; to: number }[] = []
@@ -453,8 +476,13 @@ export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: 
     }
   }
 
-  const lastDay = !onSiteNow && merged.length ? new Date(merged[merged.length - 1].to) : null
-  const breakEndsOn = lastDay && breakMs != null ? new Date(lastDay.getTime() + breakMs) : null
+  // A stretch's `to` is the instant after its last day on site, so the
+  // last day is the day before it — and the break is counted from `to`,
+  // the first day away, so a ninety-day break is ninety days off site.
+  // A stretch cut short at today ended today.
+  const lastTo = !onSiteNow && merged.length ? merged[merged.length - 1].to : null
+  const lastDay = lastTo == null ? null : new Date(lastTo >= today ? today : lastTo - DAY)
+  const breakEndsOn = lastTo != null && breakMs != null ? new Date(lastTo + breakMs) : null
   const breakServedNow = breakEndsOn != null && breakEndsOn.getTime() <= today
 
   // Where the count starts: after the last gap at least as long as the break.
@@ -479,7 +507,8 @@ export function standingAgainstLimit(lines: SiteLine[], rules: LimitRules, now: 
   if (onSiteNow) {
     if (pastLimit) {
       state = 'PAST_ON_SITE'
-      eligibleOn = breakMs != null && stretchEnd ? new Date(stretchEnd.getTime() + breakMs) : null
+      // The stretch's end date is its last day on site; the break runs from the day after.
+      eligibleOn = breakMs != null && stretchEnd ? new Date(after(stretchEnd) + breakMs) : null
     } else {
       state = approaching ? 'APPROACHING' : 'UNDER'
     }
@@ -566,7 +595,7 @@ export function bookedLimitDay(periods: Period[], rules: LimitRules, now: Date =
   const breakMs = rules.breakDays != null && rules.breakDays > 0 ? rules.breakDays * DAY : null
 
   const spans = periods
-    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? p.endDate.getTime() : Infinity }))
+    .map((p) => ({ from: p.startDate.getTime(), to: p.endDate ? after(p.endDate) : Infinity }))
     .filter((s) => s.to > s.from)
     .sort((a, b) => a.from - b.from)
   const merged: { from: number; to: number }[] = []
@@ -589,10 +618,13 @@ export function bookedLimitDay(periods: Period[], rules: LimitRules, now: Date =
     // reset and nothing on the paper carries it anywhere.
     if (merged[merged.length - 1].to + breakMs <= now.getTime()) return null
   }
+  // A merged `to` is the instant after the last day on site; handed back
+  // as an end date it is that last day, or `limitReachedOn` would count
+  // it a second time.
   return limitReachedOn(
     merged.slice(from).map((s) => ({
       startDate: new Date(s.from),
-      endDate: Number.isFinite(s.to) ? new Date(s.to) : null,
+      endDate: Number.isFinite(s.to) ? new Date(s.to - DAY) : null,
     })),
     capMonths
   )

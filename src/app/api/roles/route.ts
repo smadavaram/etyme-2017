@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Roles belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Roles are set by a company for its own people, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

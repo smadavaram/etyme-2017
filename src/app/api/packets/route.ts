@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Packets belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Document requests are sent by a company, and you are not signed in at one. Anything a company asks you for is under Your paperwork.' } },
       { status: 403 }
     )
   }
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Packets belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Document requests are sent by a company, and you are not signed in at one. Anything a company asks you for is under Your paperwork.' } },
       { status: 403 }
     )
   }

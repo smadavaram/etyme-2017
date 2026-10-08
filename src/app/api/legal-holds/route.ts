@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   if (!caller.company) {
-    return NextResponse.json({ error: 'A legal hold belongs to a company, and this seat has none.' }, { status: 403 })
+    return NextResponse.json({ error: 'A legal hold is placed by a company, and you are not signed in at one.' }, { status: 403 })
   }
 
   // Whose holds: the caller's own company's, unless they name a client
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   if (!caller.company) {
-    return NextResponse.json({ error: 'A legal hold belongs to a company, and this seat has none.' }, { status: 403 })
+    return NextResponse.json({ error: 'A legal hold is placed by a company, and you are not signed in at one.' }, { status: 403 })
   }
   if (!hasPermission(caller.permissions, TO_ACT)) {
     return NextResponse.json(

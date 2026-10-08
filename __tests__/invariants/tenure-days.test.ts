@@ -18,8 +18,43 @@ const on = (iso: string) => new Date(`${iso}T00:00:00Z`)
 const now = on('2026-09-10')
 
 describe('how long somebody has been on site', () => {
-  it('one contract counts its own days', () => {
-    expect(daysOnSite([{ startDate: on('2026-01-01'), endDate: on('2026-01-31') }], now)).toBe(30)
+  it('one contract counts its own days, the first and the last both included', () => {
+    // January 1 to January 31 is the whole of January: thirty-one days.
+    expect(daysOnSite([{ startDate: on('2026-01-01'), endDate: on('2026-01-31') }], now)).toBe(31)
+  })
+
+  it('the last day of a contract is a day on site: Kwame Mensah’s Aug 9, 2024 to Aug 19, 2026 is 741 days, not 740', () => {
+    // Round six of the sign-up walk, problem 18. Counting the end date as
+    // the first day off put every limit date a day late per contract.
+    expect(daysOnSite([{ startDate: on('2024-08-09'), endDate: on('2026-08-19') }], now)).toBe(741)
+  })
+
+  it('a one-day contract is one day on site, not none', () => {
+    expect(daysOnSite([{ startDate: on('2026-03-02'), endDate: on('2026-03-02') }], now)).toBe(1)
+  })
+
+  it('a day on two lines is counted once, when one line ends the same day the next begins', () => {
+    // A handover day: the old supplier's last day and the new one's first.
+    // One day on site, not two.
+    const days = daysOnSite(
+      [
+        { startDate: on('2026-01-01'), endDate: on('2026-01-10') },
+        { startDate: on('2026-01-10'), endDate: on('2026-01-20') },
+      ],
+      now
+    )
+    expect(days).toBe(20)
+  })
+
+  it('back-to-back contracts with no day between them add up to every day, each counted once', () => {
+    const days = daysOnSite(
+      [
+        { startDate: on('2026-01-01'), endDate: on('2026-01-10') },
+        { startDate: on('2026-01-11'), endDate: on('2026-01-20') },
+      ],
+      now
+    )
+    expect(days).toBe(20)
   })
 
   it('twelve months through one supplier and twelve through another is twenty-four', () => {
@@ -54,7 +89,8 @@ describe('how long somebody has been on site', () => {
       ],
       now
     )
-    expect(days).toBe(90)
+    // January 1 to April 1, both ends counted.
+    expect(days).toBe(91)
   })
 
   it('the gap between two contracts is not tenure', () => {
@@ -65,7 +101,8 @@ describe('how long somebody has been on site', () => {
       ],
       now
     )
-    expect(days).toBe(61)
+    // January 1 to February 1 is 32 days and June 1 to July 1 is 31.
+    expect(days).toBe(63)
   })
 
   it('a contract with no end date counts up to today', () => {

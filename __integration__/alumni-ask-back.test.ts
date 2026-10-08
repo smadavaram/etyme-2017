@@ -10,7 +10,7 @@ import { GET as tenure } from '@/app/api/tenure/route'
  * world (Addendum E §E.2.3).
  *
  *   Northbend Athletic   an eighteen-month limit and a ninety-day break.
- *   Kwame Mensah         740 days on site, left fifty days ago: inside the break.
+ *   Kwame Mensah         741 days on site, left fifty days ago: inside the break.
  *   Cavanaugh Glassworks Nadia Petrova left a hundred days ago: the break is served.
  */
 

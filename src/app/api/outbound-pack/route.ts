@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'NO_COMPANY',
-          message: 'An outbound pack is a company answering for itself. This account is not in one.',
+          message: 'A screening pack is a company answering for itself, and you are not signed in at one.',
         },
       },
       { status: 403 }
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'An outbound pack is a company answering for itself. This account is not in one.' } },
+      { error: { code: 'NO_COMPANY', message: 'A screening pack is a company answering for itself, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

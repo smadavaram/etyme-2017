@@ -37,12 +37,12 @@ function verdicts(lines: SiteLine[], rules: LimitRules = RULES) {
 }
 
 describe('where a person stands against the client’s time limit and break', () => {
-  it('somebody on site past the time limit is refused at award, and may come back the day their stretch ends plus the break', () => {
+  it('somebody on site past the time limit is refused at award, and may come back once the break has run in full after their stretch’s last day', () => {
     const v = verdicts([line(ago(600), ahead(30), true)])
     expect(v.standing.state).toBe('PAST_ON_SITE')
-    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(120).toISOString())
+    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(121).toISOString())
     expect(v.cap?.outcome).toBe('BLOCK')
-    expect(v.cap?.reason).toContain('Feb 3, 2027')
+    expect(v.cap?.reason).toContain('Feb 4, 2027')
     expect(v.ledger).toBe('BREAK_REQUIRED')
   })
 
@@ -54,13 +54,13 @@ describe('where a person stands against the client’s time limit and break', ()
     expect(v.cap?.reason).toMatch(/no end date, so there is no day yet/)
   })
 
-  it('somebody past the limit who has left is refused until the break ends, and the day is their last day plus the break', () => {
+  it('somebody past the limit who has left is refused until the break ends, and the day is the break counted from the day after their last day on site', () => {
     const v = verdicts([line(ago(790), ago(50), false)])
     expect(v.standing.state).toBe('IN_BREAK')
-    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(40).toISOString())
+    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(41).toISOString())
     expect(v.cap?.outcome).toBe('BLOCK')
     expect(v.brk?.outcome).toBe('BLOCK')
-    expect(v.brk?.reason).toContain('Nov 15, 2026')
+    expect(v.brk?.reason).toContain('Nov 16, 2026')
     expect(v.ledger).toBe('IN_BREAK')
   })
 
@@ -68,7 +68,7 @@ describe('where a person stands against the client’s time limit and break', ()
     const v = verdicts([line(ago(830), ago(91), false)])
     expect(v.standing.state).toBe('BREAK_SERVED')
     expect(v.standing.countedDays).toBe(0)
-    expect(v.standing.daysOnSite).toBe(739)
+    expect(v.standing.daysOnSite).toBe(740)
     expect(v.cap?.outcome).toBe('PASS')
     expect(v.cap?.reason).toMatch(/counts again from nought/)
     expect(v.brk?.outcome).toBe('PASS')
@@ -79,7 +79,7 @@ describe('where a person stands against the client’s time limit and break', ()
     const v = verdicts([line(ago(900), ago(300), false), line(ago(100), ahead(200), true)])
     expect(v.standing.state).toBe('UNDER')
     expect(v.standing.countedDays).toBe(100)
-    expect(v.standing.daysOnSite).toBe(700)
+    expect(v.standing.daysOnSite).toBe(701)
     expect(v.cap?.outcome).toBe('PASS')
     expect(v.brk?.outcome).toBe('PASS')
     expect(v.ledger).toBe('OK')
@@ -93,7 +93,7 @@ describe('where a person stands against the client’s time limit and break', ()
 
   it('a gap shorter than the break resets nothing: the days on either side are added together', () => {
     const v = verdicts([line(ago(600), ago(300), false), line(ago(260), ahead(60), true)])
-    expect(v.standing.countedDays).toBe(560)
+    expect(v.standing.countedDays).toBe(561)
     expect(v.standing.countedDays).toBeGreaterThanOrEqual(daysFor(18))
     expect(v.standing.state).toBe('PAST_ON_SITE')
     expect(v.cap?.outcome).toBe('BLOCK')
@@ -131,7 +131,7 @@ describe('where a person stands against the client’s time limit and break', ()
     expect(v.cap?.outcome).toBe('PASS')
     expect(v.brk?.outcome).toBe('BLOCK')
     expect(v.ledger).toBe('IN_BREAK')
-    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(60).toISOString())
+    expect(v.standing.eligibleOn?.toISOString()).toBe(ahead(61).toISOString())
   })
 
   it('tenure from two suppliers adds together and a chain’s two rungs on the same days count once', () => {

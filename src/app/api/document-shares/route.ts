@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Shares belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A company shares its own documents, and you are not signed in at one. Your own papers are under Your paperwork.' } },
       { status: 403 }
     )
   }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Shares belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A company shares its own documents, and you are not signed in at one. Your own papers are under Your paperwork.' } },
       { status: 403 }
     )
   }

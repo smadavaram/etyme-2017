@@ -13,7 +13,7 @@ import { GET as packetList, POST as askForPackets } from '@/app/api/packets/rout
  * the compliance page one click away said "Nothing is outstanding… 100%
  * clear, 0 flagged" and did not list her at all. Brightmoor's liability
  * certificate, twenty days from running out, read "Expiring" in the
- * table under a hundred percent. Kwame Mensah's 740 days against an
+ * table under a hundred percent. Kwame Mensah's 741 days against an
  * eighteen-month limit read "100%". And Document requests offered her
  * nothing to press.
  */
@@ -76,12 +76,12 @@ describe('the compliance officer’s page sees the start the dashboard sees', ()
 })
 
 describe('the time-limit ledger does not hide an overrun', () => {
-  it('reads Kwame Mensah’s 740 days as 135% of the eighteen-month limit, over it by 6 months', async () => {
+  it('reads Kwame Mensah’s 741 days, his last day counted, as 135% of the eighteen-month limit, over it by 6 months', async () => {
     as(OFFICER)
     const res = await json(await tenure(req('GET', '/api/tenure')))
     const kwame = res.body.data.people.find((p: any) => p.name === 'Kwame Mensah')
     expect(kwame, 'Kwame is on the ledger').toBeTruthy()
-    expect(kwame.cumulativeDays).toBe(740)
+    expect(kwame.cumulativeDays).toBe(741)
     expect(kwame.againstLimit.percent).toBe(135)
     expect(kwame.againstLimit.overBy).toBe('over the limit by 6 months')
   })

@@ -24,7 +24,7 @@ export async function POST(
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Packets belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Document requests are reviewed by the company that sent them, and you are not signed in at one. Anything a company asks you for is under Your paperwork.' } },
       { status: 403 }
     )
   }

@@ -6,7 +6,8 @@ import { limitDayWords, runsPastWords } from '@/app/dashboard/tenure/words'
  * Lucía Fernández, Northbend Athletic, walked by a tester on 2026-10-03:
  * 426 days on site against an eighteen-month limit, a Pinnacle Resourcing
  * contract booked to Sep 3, 2027, and a ledger that gave no limit date
- * and no warning. The limit is reached around Feb 2, 2027.
+ * and no warning. The limit is reached around Feb 2, 2027 — Feb 1 once each
+ * contract's last day is counted as a day on site (2026-10-08).
  */
 
 const d = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
@@ -17,8 +18,8 @@ const lucia = [
 ]
 
 describe('the day somebody reaches the time limit', () => {
-  it('names the day Lucía Fernández reaches eighteen months across both her suppliers: Feb 2, 2027', () => {
-    expect(limitReachedOn(lucia, 18)?.toISOString().slice(0, 10)).toBe('2027-02-02')
+  it('names the day Lucía Fernández reaches eighteen months across both her suppliers, each contract’s last day counted: Feb 1, 2027', () => {
+    expect(limitReachedOn(lucia, 18)?.toISOString().slice(0, 10)).toBe('2027-02-01')
   })
 
   it('is the day the block itself first counts the limit, never a day later', () => {
@@ -67,7 +68,7 @@ describe('a contract booked past the time limit', () => {
 
   it('says so in a sentence with both dates, whole months, and what to do', () => {
     expect(runsPastWords({ firm: 'Pinnacle Resourcing', personName: 'Lucía Fernández', endDate: '2027-09-03T00:00:00.000Z', daysPast: 213, reachedOn: reached!.toISOString(), today: d('2026-10-03') }))
-      .toBe('Pinnacle Resourcing’s contract runs to Sep 3, 2027, 7 months past the day Lucía Fernández reaches the time limit (Feb 2, 2027). Shorten it or plan the break.')
+      .toBe('Pinnacle Resourcing’s contract runs to Sep 3, 2027, 7 months past the day Lucía Fernández reaches the time limit (Feb 1, 2027). Shorten it or plan the break.')
   })
 
   it('never rounds a part month up: 58 days past is one month, not two', () => {
@@ -84,7 +85,7 @@ describe('a contract booked past the time limit', () => {
     const past = contractsPastLimit([{ id: 'x', firm: 'Acme', endDate: null, live: true }], reached)
     expect(past).toEqual([{ contractId: 'x', firm: 'Acme', endDate: null, daysPast: null }])
     expect(runsPastWords({ firm: 'Acme', endDate: null, daysPast: null, reachedOn: reached!.toISOString(), today: d('2026-10-03') }))
-      .toBe('Acme’s contract has no end date, so it runs past the day the time limit is reached (Feb 2, 2027). Give it an end date or plan the break.')
+      .toBe('Acme’s contract has no end date, so it runs past the day the time limit is reached (Feb 1, 2027). Give it an end date or plan the break.')
   })
 
   it('does not flag a contract that ends on or before the day the limit is reached', () => {
@@ -118,17 +119,17 @@ describe('one contract\'s days on the time-on-site page', () => {
   const pinnacle = { startDate: d('2026-09-03'), endDate: d('2027-09-03') }
   const today = new Date('2026-10-03T12:00:00Z')
 
-  it('counts Lucía Fernández\'s Pinnacle Resourcing contract as 31 days served a month in, never the 365 it is booked for', () => {
+  it('counts Lucía Fernández\'s Pinnacle Resourcing contract as 31 days served a month in, never the 366 it is booked for', () => {
     expect(daysServed(pinnacle, today)).toBe(31)
     expect(daysServed(pinnacle, today)).toBe(daysOnSite([pinnacle], today))
   })
 
-  it('shows the 365 days booked separately from the days served', () => {
-    expect(daysBooked(pinnacle)).toBe(365)
+  it('shows the 366 days booked, Sep 3 to Sep 3 with both ends counted, separately from the days served', () => {
+    expect(daysBooked(pinnacle)).toBe(366)
   })
 
   it('counts an ended contract to its last day, not to today', () => {
-    expect(daysServed({ startDate: d('2025-06-20'), endDate: d('2026-07-20') }, today)).toBe(395)
+    expect(daysServed({ startDate: d('2025-06-20'), endDate: d('2026-07-20') }, today)).toBe(396)
   })
 
   it('states no booked length for a contract with no end', () => {

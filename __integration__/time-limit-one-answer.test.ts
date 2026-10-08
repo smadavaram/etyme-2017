@@ -17,7 +17,7 @@ import { plainDate } from '@/lib/plain-date'
  * would block somebody mid-placement in a chain.
  *
  *   Northbend Athletic  an eighteen-month limit and a ninety-day break, both BLOCK.
- *   Kwame Mensah        740 days on site, left fifty days ago: inside the break.
+ *   Kwame Mensah        741 days on site, left fifty days ago: inside the break.
  */
 
 const OFFICER = 'world-nike-compliance@demo.etyme.local'
@@ -67,7 +67,8 @@ describe('Kwame Mensah, inside his break, reads the same at the ledger and at th
   it('the award refuses him on both the time limit and the break, with the day the ledger shows', async () => {
     const row = await ledgerRow('Kwame Mensah')
     expect(row.status).toBe('IN_BREAK')
-    const eligible = new Date(kwameLeft.getTime() + breakDays * DAY).toISOString().slice(0, 10)
+    // His last day is a day on site; the break runs from the day after it.
+    const eligible = new Date(kwameLeft.getTime() + (breakDays + 1) * DAY).toISOString().slice(0, 10)
     expect(row.eligibleDate).toBe(eligible)
 
     const g = await atStart(kwame)
@@ -81,19 +82,19 @@ describe('Kwame Mensah, inside his break, reads the same at the ledger and at th
 
 describe('the day after Kwame’s break ends, every door lets him back', () => {
   it('the ledger reads him eligible, with every day still on the record and the count against the limit started again', async () => {
-    const after = new Date(kwameLeft.getTime() + (breakDays + 1) * DAY)
+    const after = new Date(kwameLeft.getTime() + (breakDays + 2) * DAY)
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(after)
     const row = await ledgerRow('Kwame Mensah')
     expect(row.status).toBe('ELIGIBLE')
     expect(row.eligibleDate).toBeNull()
-    expect(row.cumulativeDays).toBe(740)
+    expect(row.cumulativeDays).toBe(741)
     expect(row.countedDays).toBe(0)
     expect(row.againstLimit.percent).toBe(0)
   })
 
   it('the award passes the time limit and the break, where it used to refuse him for ever', async () => {
-    const after = new Date(kwameLeft.getTime() + (breakDays + 1) * DAY)
+    const after = new Date(kwameLeft.getTime() + (breakDays + 2) * DAY)
     const g = await atStart(kwame, after)
     expect(rule(g, 'TENURE_CAP').outcome).toBe('PASS')
     expect(rule(g, 'TENURE_CAP').reason).toMatch(/counts again from nought/)

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A classification call belongs to a company. Yours is not set.' } },
+      { error: { code: 'NO_COMPANY', message: 'Whether a worker is an employee or a contractor is decided by the company that engages them, and you are not signed in at one.' } },
       { status: 403 }
     )
   }
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A classification call belongs to a company. Yours is not set.' } },
+      { error: { code: 'NO_COMPANY', message: 'Whether a worker is an employee or a contractor is decided by the company that engages them, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

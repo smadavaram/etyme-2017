@@ -28,17 +28,17 @@ describe('ask them back, read off the time-limit ledger', () => {
     const a = askBack(lines, RULES, NOW)
     expect(a.canReengage).toBe(false)
     expect(a.ledgerStatus).toBe('IN_BREAK')
-    expect(a.eligibleDate).toBe(ymd(ahead(40)))
+    expect(a.eligibleDate).toBe(ymd(ahead(41)))
     expect(a.eligibleDate).toBe(ymd(standingAgainstLimit(lines, RULES, NOW).eligibleOn!))
     expect(a.reengageBlockReason).toContain('90-day break')
-    expect(a.reengageBlockReason).toContain('Nov 15, 2026')
+    expect(a.reengageBlockReason).toContain('Nov 16, 2026')
   })
 
   it('somebody who left under the limit and is still inside the break is shown the day, not a button, because the award would refuse them until then', () => {
     const lines = [line(ago(200), ago(10), false)]
     const a = askBack(lines, RULES, NOW)
     expect(a.canReengage).toBe(false)
-    expect(a.eligibleDate).toBe(ymd(ahead(80)))
+    expect(a.eligibleDate).toBe(ymd(ahead(81)))
     const brk = breakInServiceVerdict({
       standing: standingAgainstLimit(lines, RULES, NOW), personName: 'P', clientName: 'C',
       breakDays: 90, now: NOW, ruleId: 'r', enforcementMode: 'BLOCK', description: '',

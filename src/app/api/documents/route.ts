@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Company context required' } },
+      { error: { code: 'NO_COMPANY', message: 'A company’s paperwork is read at the company, and you are not signed in at one. Your own papers are under Your paperwork.' } },
       { status: 403 }
     )
   }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Company context required' } },
+      { error: { code: 'NO_COMPANY', message: 'A company’s paperwork is read at the company, and you are not signed in at one. Your own papers are under Your paperwork.' } },
       { status: 403 }
     )
   }

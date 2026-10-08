@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Access belongs to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Who may read what is set by a company, and you are not signed in at one. What is held about you is under Your data.' } },
       { status: 403 }
     )
   }
@@ -238,7 +238,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Access belongs to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Who may read what is set by a company, and you are not signed in at one. What is held about you is under Your data.' } },
       { status: 403 }
     )
   }

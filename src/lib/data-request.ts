@@ -1842,7 +1842,7 @@ export async function privacyDesk(
     return {
       ok: false,
       status: 403,
-      says: 'A compliance desk belongs to a company, and this seat has none.',
+      says: 'A compliance desk is a company’s, and you are not signed in at one.',
     }
   }
 

@@ -76,6 +76,26 @@ describe('a consultant asking for the agency’s book', () => {
     expect(body.error.message).toContain('belongs to Techpeple Inc. You are')
   })
 
+  it('tells a candidate on nobody’s bench that she is not signed in at a company, never that she is on an agency’s bench', async () => {
+    // Round six of the sign-up walk, problem 8: Nina signed up as herself
+    // and read "belongs to this agency. You are on their bench" on twenty pages.
+    const nina = onTheBench({
+      person: { id: 'nina', name: 'Nina', primaryEmail: 'nina@walk.test', timezone: null },
+      context: { id: 'ctx', type: 'CONSULTANT', companyId: null, roleId: null },
+      company: null,
+    })
+    const body = await staffOnly(nina, 'Users & permissions')!.json()
+    expect(body.error.message).toBe('You are not signed in at a company. Your own work is under Your work.')
+    expect(body.error.message).not.toMatch(/bench|agency/)
+  })
+
+  it('keeps the bench sentence, naming the firm, for somebody actually listed at that firm', async () => {
+    const body = await staffOnly(onTheBench(), 'Automation')!.json()
+    expect(body.error.message).toBe(
+      'Automation belongs to Techpeple Inc. You are on their bench, not on their staff — your own work is under Your work.'
+    )
+  })
+
   it('lets staff straight through', () => {
     expect(staffOnly(staff(), 'Company settings')).toBeNull()
   })

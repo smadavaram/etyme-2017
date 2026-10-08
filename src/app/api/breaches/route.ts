@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   // reader with no company has no register to read.
   if (!staff && !companyId) {
     return NextResponse.json(
-      { error: 'A compliance desk belongs to a company, and this seat has none.' },
+      { error: 'A compliance desk is a company’s, and you are not signed in at one.' },
       { status: 403 }
     )
   }

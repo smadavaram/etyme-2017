@@ -166,10 +166,12 @@ export default function OutboundPackPage() {
           <h1>Screening packs</h1>
         </header>
         <div className="panel">
+          {/* The refusal is the whole answer. A second line here — "it needs a
+              company to answer for" — was the no-company sentence, shown to
+              everybody, including desks that have a company and simply do
+              not hold this seat (sign-up walk round six, problem 19). The
+              route's own no-company refusal already says it. */}
           <p className="text-[13px] text-etyme-ink">{denied}</p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
-            An outbound pack is a company answering for itself, so it needs a company to answer for.
-          </p>
         </div>
       </div>
     )

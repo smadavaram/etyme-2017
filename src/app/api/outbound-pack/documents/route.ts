@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Documents belong to a company. This account is not in one.' } },
+      { error: { code: 'NO_COMPANY', message: 'These are a company’s own documents, and you are not signed in at one.' } },
       { status: 403 }
     )
   }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Documents belong to a company. This account is not in one.' } },
+      { error: { code: 'NO_COMPANY', message: 'These are a company’s own documents, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

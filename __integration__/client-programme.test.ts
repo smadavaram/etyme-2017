@@ -414,7 +414,9 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const kwame = r.body.data.people.find((p: any) => p.name === 'Kwame Mensah')
     expect(kwame.status).toBe('IN_BREAK')
-    expect(kwame.eligibleDate).toBe(day(40).toISOString().slice(0, 10))
+    // He left fifty days ago and his last day was a day on site, so the
+    // ninety-day break runs from the day after: forty-one days from now.
+    expect(kwame.eligibleDate).toBe(day(41).toISOString().slice(0, 10))
   })
 
   it('at Talvern Medical, Anders is twenty-three months on site across two suppliers against a cap of eighteen', async () => {
@@ -504,7 +506,9 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const r = await json(await alumni(req('GET', '/api/alumni')))
     const kwame = r.body.data.alumni.find((a: any) => a.name === 'Kwame Mensah')
     expect(kwame.canReengage).toBe(false)
-    expect(kwame.eligibleDate).toBe(day(40).toISOString().slice(0, 10))
+    // He left fifty days ago and his last day was a day on site, so the
+    // ninety-day break runs from the day after: forty-one days from now.
+    expect(kwame.eligibleDate).toBe(day(41).toISOString().slice(0, 10))
 
     as(`world-corning-hiring${D}`)
     const c = await json(await alumni(req('GET', '/api/alumni')))

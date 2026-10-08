@@ -60,20 +60,37 @@ export function staffOnly(
   surface: string
 ): NextResponse | null {
   if (!isConsultantSeat(caller)) return null
-
-  // Company names routinely end in a full stop — "Techpeple Inc." — and a
-  // refusal reading "Techpeple Inc.. You are" looks like the bug it is.
-  const where = (caller.company?.name ?? 'this agency').replace(/\.$/, '')
-
   return NextResponse.json(
-    {
-      error: {
-        code: 'NOT_STAFF',
-        message: `${surface} belongs to ${where}. You are on their bench, not on their staff — your own work is under Your work.`,
-      },
-    },
+    { error: { code: 'NOT_STAFF', message: notStaffSays(caller, surface) } },
     { status: 403 }
   )
+}
+
+/**
+ * The sentence a consultant seat is refused a company-book surface with.
+ *
+ * Two different people hold a consultant seat, and one sentence served
+ * both. Round six of the sign-up walk (2026-10-08, problem 8): Nina
+ * signed up as a candidate, is on nobody's bench, and was told on twenty
+ * pages that "Users & permissions belongs to this agency. You are on
+ * their bench" — an agency that does not exist and a bench she is not on.
+ *
+ *  - **No company on the seat**: a candidate signed in as herself. Say
+ *    that, and where her own work is.
+ *  - **A company on the seat**: the context points at the firm because
+ *    she is listed there — which is how a firm's bench reaches a
+ *    consultant's seat (see the note at the top). The bench sentence is
+ *    true for her, and names the firm.
+ */
+export function notStaffSays(caller: CallerContext, surface: string): string {
+  const name = caller.company?.name?.trim()
+  if (!caller.context.companyId || !name) {
+    return 'You are not signed in at a company. Your own work is under Your work.'
+  }
+  // Company names routinely end in a full stop — "Techpeple Inc." — and a
+  // refusal reading "Techpeple Inc.. You are" looks like the bug it is.
+  const where = name.replace(/\.$/, '')
+  return `${surface} belongs to ${where}. You are on their bench, not on their staff — your own work is under Your work.`
 }
 
 /**

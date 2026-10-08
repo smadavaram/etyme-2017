@@ -27,9 +27,9 @@ describe('the client’s time limit, at the door where a person is put forward',
     if (v.outcome === 'PASS') throw new Error('expected a refusal')
     expect(v.code).toBe('TIME_LIMIT_REACHED')
     // The contract ends Dec 31; a 90-day break runs to Mar 31.
-    expect(v.eligibleOn?.toISOString().slice(0, 10)).toBe('2027-03-31')
+    expect(v.eligibleOn?.toISOString().slice(0, 10)).toBe('2027-04-01')
     expect(v.says).toContain('Northbend Athletic')
-    expect(v.says).toContain('Mar 31, 2027')
+    expect(v.says).toContain('Apr 1, 2027')
   })
 
   it('tenure from two suppliers is added together, and a chain’s two rungs on the same days count once', () => {
@@ -61,7 +61,7 @@ describe('the client’s time limit, at the door where a person is put forward',
     expect(v.outcome).toBe('BLOCK')
     if (v.outcome === 'PASS') throw new Error('expected a refusal')
     expect(v.code).toBe('TIME_LIMIT_REACHED')
-    expect(v.eligibleOn?.getTime()).toBe(daysBefore(30).getTime() + 90 * 86_400_000)
+    expect(v.eligibleOn?.getTime()).toBe(daysBefore(30).getTime() + 91 * 86_400_000)
   })
 
   it('a person past the limit whose break has been served may be put forward again, as every door reads them', () => {
@@ -91,7 +91,7 @@ describe('the client’s time limit, at the door where a person is put forward',
     expect(v.outcome).toBe('BLOCK')
     if (v.outcome === 'PASS') throw new Error('expected a refusal')
     expect(v.code).toBe('IN_BREAK')
-    expect(v.eligibleOn?.getTime()).toBe(daysBefore(20).getTime() + 90 * 86_400_000)
+    expect(v.eligibleOn?.getTime()).toBe(daysBefore(20).getTime() + 91 * 86_400_000)
   })
 
   it('a client that set its time limit to warn is warned, not refused', () => {
