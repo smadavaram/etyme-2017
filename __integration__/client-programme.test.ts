@@ -258,7 +258,9 @@ describe('4 · nobody starts without paperwork', () => {
     as(NIKE.ap)
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, { action: 'activate' })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toMatch(/assignments\.write/)
+    // The refusal names the desks that do this, never the permission key.
+    expect(r.body.error.message).toMatch(/activated is done by .*Program Manager/)
+    expect(r.body.error.message).not.toMatch(/assignments\.write|\b[a-z]+\.(read|write)\b/)
   })
 
   it('with no I-9 on file the supplier is refused, whatever reason it gives', async () => {
