@@ -104,6 +104,26 @@ export type NavItem = {
 
 export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
 
+// What the pages behind two links call beyond the route their gate is
+// read from, so a refusal at any of them names the page rather than
+// "What you opened" (sign-up walk, round seven, problem 10). Same reason
+// as the bench's `pageCalls`.
+
+/** The import page (/dashboard/import), reached from the Import link: every sheet it loads, maps and commits. */
+const IMPORT_CALLS = ['imports', 'imports/**'] as const
+/** Supplier scorecards: the scorecards, the risk and the concentration it draws. */
+const SCORECARD_CALLS = ['vendors/scorecards', 'vendors/risk', 'vendors/concentration'] as const
+
+/**
+ * Pages no menu link names, opened by address, and what each is called on
+ * its own heading. Read by `pageNameOf` only after every menu, so a link
+ * always wins. Hand-kept and short on purpose.
+ */
+export const UNLINKED_PAGES: Readonly<Record<string, string>> = {
+  // /dashboard/governance, headed "What is coming".
+  'governance/horizon': 'What is coming',
+}
+
 /**
  * The firm's own bench page, as a vendor's Procure and an integrator's
  * Supply name it.
@@ -150,6 +170,9 @@ const BENCH_READS = {
 const TRAINING: NavItem = {
   label: 'Training', href: '/dashboard/training', icon: '◪',
   needs: ['consultants.read', 'requirements.read'], api: ['bench', 'requirements'],
+  // Its own route, which asks nothing, is still the Training page to its
+  // reader when the door refuses it (round seven, problem 10).
+  pageCalls: ['training', 'training/**'],
 }
 
 /**
@@ -164,7 +187,9 @@ const TRAINING: NavItem = {
 const PAPERWORK_READS = {
   needs: ['consultants.read'] as const,
   api: 'bench',
-} satisfies Pick<NavItem, 'needs' | 'api'>
+  // The page's own list of templates and requests (round seven, problem 10).
+  pageCalls: ['documents', 'documents/**'] as const,
+} satisfies Pick<NavItem, 'needs' | 'api' | 'pageCalls'>
 
 const BENCH_PAY: NavItem = {
   label: 'Bench pay', href: '/dashboard/settings/bench-pay', icon: '◔',
@@ -430,7 +455,7 @@ const ADMIN: NavItem[] = [
   // Money, so read by the desks that read money.
   { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin', needs: ['invoices.read'], api: 'integrations/export' },
   // Any one kind of sheet this seat may load opens it.
-  { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin', needs: IMPORT_PERMISSIONS, api: 'imports/sheets' },
+  { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS },
   // Five onboardings, derived live from what exists, read by the desks
   // that bring each party on.
   { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin', needs: SETS_UP_A_PARTY, api: 'onboarding/readiness' },
@@ -478,7 +503,7 @@ const VENDOR_NAV: NavSection[] = [
     // the start of the next one.
     label: 'Sell',
     items: [
-      { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
+      { label: 'Leads', href: '/dashboard/leads', icon: '⌁', pageCalls: ['openings', 'openings/**'] },
       { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
@@ -514,7 +539,7 @@ const VENDOR_NAV: NavSection[] = [
       // A scorecard the supplier cannot see is a blacklist with better
       // manners. It decides who gets the next role, so it is not a
       // secret from the firm it is about.
-      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈' },
+      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈', pageCalls: ['me/scorecard'] },
     ],
   },
   governanceSection(),
@@ -567,7 +592,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
-      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈' },
+      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈', pageCalls: ['me/scorecard'] },
     ],
   },
   governanceSection(),
@@ -614,7 +639,7 @@ const MSP_NAV: NavSection[] = [
       { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
       // Only computable where somebody buys from several firms for one
       // program, which is the whole of what an MSP is for.
-      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
+      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', pageCalls: SCORECARD_CALLS },
       // No Bench, Consultants or Bench check-ins. A program office runs
       // the program and places nobody (CLAUDE.md, "Etyme runs the
       // program"): it holds no bench and no consultants of its own, and
@@ -949,7 +974,7 @@ const CLIENT_NAV: NavSection[] = [
       // Only computable here. No supplier can work these out about
       // themselves — they cannot see what the other eleven did with the
       // same role — and no supplier's own numbers are ever bad.
-      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight' },
+      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight', pageCalls: SCORECARD_CALLS },
       // Where a chain we can only see part of makes one person look like
       // two, and the tenure number quietly goes wrong.
       { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
@@ -961,7 +986,7 @@ const CLIENT_NAV: NavSection[] = [
       ...PRIVACY,
       { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup', needs: ['governance.read'] },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup', needs: ['settings.manage'] },
-      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup', needs: IMPORT_PERMISSIONS, api: 'imports/sheets' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS },
     ],
   },
 ]
@@ -1318,5 +1343,6 @@ export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined
     }
     if (best) return best.label
   }
+  for (const [route, name] of Object.entries(UNLINKED_PAGES)) if (routeMatches(apiPath, route)) return name
   return null
 }

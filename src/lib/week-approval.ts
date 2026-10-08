@@ -1047,7 +1047,16 @@ export interface WeekSeen {
  */
 function desklessStranger(r: Reader, c: WeekChain): string | null {
   if (r.seat || r.personId === c.week.personId || !isDeskless(r.permissions)) return null
+  // A week at another company is not the seat's to be refused in the
+  // door's words: the owner cannot grant it (round seven, problem 8). It
+  // is answered as not here, below, the way a stranger's placement is.
+  if (!onTheWeek(r, c)) return null
   return noDeskYet('That week', r.companyName ?? null)
+}
+
+/** A seat with no desk asking about a week at a company it has no part in. */
+function desklessOutsider(r: Reader, c: WeekChain): boolean {
+  return !r.seat && r.personId !== c.week.personId && isDeskless(r.permissions) && !onTheWeek(r, c)
 }
 
 function onTheWeek(r: Reader, c: WeekChain): boolean {
@@ -1075,6 +1084,10 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
     return refuse(403, 'NO_DESK', stranger)
   }
   if (!onTheWeek(r, c)) {
+    if (desklessOutsider(r, c)) {
+      await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', 'A week at another company, asked for from a seat with no desk')
+      return refuse(404, 'NOT_FOUND', 'That week is not here.')
+    }
     const says = 'This week is not on a contract your company is on.'
     await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', says)
     return refuse(403, 'FORBIDDEN', says)
@@ -1221,6 +1234,10 @@ export async function readEvidenceFile(
   if (stranger) {
     await writeReadLog(r, c, { ok: false, says: stranger })
     return refuse(403, 'NO_DESK', stranger)
+  }
+  if (desklessOutsider(r, c)) {
+    await writeReadLog(r, c, { ok: false, says: 'An approval on a week at another company, asked for from a seat with no desk' })
+    return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
   }
   const v = mayReadEvidence({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, a.contracts.map((x) => x.sellContractId), c.ladder)
   await writeReadLog(r, c, v)

@@ -53,7 +53,13 @@ function Lbl({ children }: { children: React.ReactNode }) {
   return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{children}</div>
 }
 
-export function BenchPaySection() {
+/**
+ * `head`: the page's own heading, drawn only above a page this desk may
+ * read. A refused page is the sentence alone — no heading and no prose
+ * about what "you pay" (sign-up walk, round seven, problem 6). Settings
+ * draws the section as a tab with no head of its own, and keeps the panel.
+ */
+export function BenchPaySection({ head }: { head?: React.ReactNode } = {}) {
   const [data, setData] = useState<BenchPay | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -111,6 +117,7 @@ export function BenchPaySection() {
     }
   }
 
+  if (refused && head !== undefined) return <p className="text-[13px] text-etyme-ink">{refused}</p>
   if (refused) {
     return (
       <Panel title="Bench pay">
@@ -120,13 +127,14 @@ export function BenchPaySection() {
   }
   if (!data) {
     return error
-      ? <Panel title="Bench pay"><p className="text-[13px] text-etyme-attention">{error}</p></Panel>
+      ? <>{head}<Panel title="Bench pay"><p className="text-[13px] text-etyme-attention">{error}</p></Panel></>
       : <p className="text-etyme-muted text-sm">Loading bench pay…</p>
   }
 
   const h = data.holidays
   return (
     <>
+      {head}
       {flash && (
         <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
           <p className="text-[13px] text-etyme-verified">{flash}</p>

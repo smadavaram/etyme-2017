@@ -11,14 +11,17 @@ import { BenchPaySection } from './bench-pay'
  */
 export default function BenchPayPage() {
   const kind = useCompanyKind()
+  // The heading is drawn by the section once the read answers, so a desk
+  // that is refused reads the sentence alone (round seven, problem 6).
   return (
-    <>
-      <div className="page-head mb-6">
-        <p className="eyebrow">{sectionOfHref(kind, '/dashboard/settings/bench-pay') ?? ''}</p>
-        <h1>Bench pay</h1>
-        <p>What you pay people waiting for a project, and whether public holidays are paid while they wait.</p>
-      </div>
-      <BenchPaySection />
-    </>
+    <BenchPaySection
+      head={
+        <div className="page-head mb-6">
+          <p className="eyebrow">{sectionOfHref(kind, '/dashboard/settings/bench-pay') ?? ''}</p>
+          <h1>Bench pay</h1>
+          <p>What you pay people waiting for a project, and whether public holidays are paid while they wait.</p>
+        </div>
+      }
+    />
   )
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { desklessDoor, desklessAllowlist, SHELL_READS } from '@/lib/deskless-door'
+import { desklessDoor, desklessAllowlist, SHELL_READS, recordNamedBy, NOT_AN_ID } from '@/lib/deskless-door'
 import { getNavForKind, routesOf, routeMatches, OPEN_TO_EVERY_SEAT, openBecause, isDeskless, holdsADesk } from '@/lib/nav-table'
 import { consoleHome } from '@/lib/console-home'
 import { namesAPermission } from '@/lib/refusal-words'
@@ -58,7 +58,7 @@ describe('a seat with no desk opens only what its menu shows it', () => {
   })
 
   it('a route that has no link anywhere is refused as "What you opened", not as an empty name', () => {
-    const v = at('/api/me/scorecard')
+    const v = at('/api/census')
     expect(v.open).toBe(false)
     if (!v.open) expect(v.says.startsWith('What you opened is not part of your seat')).toBe(true)
   })
@@ -314,5 +314,89 @@ describe('withheld is not missing: a colleague’s placement is not part of the 
   it('a candidate with no company is told what a placement is and where her own work is, not that she needs to belong to something', () => {
     expect(ROUTE).toContain('A placement opens to the firms on it, and you are not signed in at a company. Your own work is under Your work.')
     expect(ROUTE).not.toContain('You need to belong to a company')
+  })
+})
+
+describe('round seven: the door names the page, opens a worker’s own signed paper, and tells a stranger nothing is there', () => {
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+
+  it('Karthik Menon opens the file of a paper he signed: the door lets the documents file route answer him, and it reads the person the paper is about', () => {
+    // Problem 9. The route's own rule (standingOn) gives the person a
+    // document is about their own, refuses a colleague, and tells a
+    // stranger nothing is here.
+    expect(desklessDoor({ ...KARTHIK, path: '/api/documents/d1/file', method: 'GET' }).open).toBe(true)
+    expect(desklessAllowlist().byId).toContain('documents/*/file')
+    const route = readFileSync(join(API, 'documents/[id]/file/route.ts'), 'utf8')
+    expect(route).toContain('const mine = subjectPersonId !== null && caller.person.id === subjectPersonId')
+    expect(route).toContain("message: 'That document is not here.'")
+  })
+
+  it('opening a document file stays the only door: the company’s paperwork list is still refused to a seat with no desk', () => {
+    expect(desklessDoor({ ...KARTHIK, path: '/api/documents', method: 'GET' }).open).toBe(false)
+    expect(desklessDoor({ ...KARTHIK, path: '/api/documents/d1/send', method: 'POST' }).open).toBe(false)
+  })
+
+  it('every refusal the round-seven walk read as "What you opened" names its page: Leads, What is coming, Import, Our scorecard, Supplier scorecards, Training and Paperwork', () => {
+    // Problem 10.
+    const pages: [string, string, string][] = [
+      ['VENDOR', '/api/openings', 'Leads'],
+      ['VENDOR', '/api/governance/horizon', 'What is coming'],
+      ['CLIENT', '/api/governance/horizon', 'What is coming'],
+      ['CLIENT', '/api/imports', 'Import'],
+      ['VENDOR', '/api/imports/i1/rows', 'Import'],
+      ['VENDOR', '/api/me/scorecard', 'Our scorecard'],
+      ['CLIENT', '/api/vendors/scorecards', 'Supplier scorecards'],
+      ['CLIENT', '/api/vendors/risk', 'Supplier scorecards'],
+      ['VENDOR', '/api/training', 'Training'],
+      ['VENDOR', '/api/documents', 'Paperwork'],
+    ]
+    for (const [kind, path, page] of pages) {
+      const v = desklessDoor({ ...MEMBER, companyKind: kind, companyName: 'Brightmoor Staffing', path })
+      expect(v.open, path).toBe(false)
+      if (!v.open) expect(v.says, `${kind} ${path}`).toBe(`${page} is not part of your seat at Brightmoor Staffing. Ask your company’s owner if you need it.`)
+    }
+  })
+
+  it('a job request, a bill or a week opened by id is a record the door tells a stranger apart from a colleague on, in the reader’s words', () => {
+    // Problem 8. Whether the record is at the reader's company is asked
+    // in lib/api-context; this is which record the path names.
+    expect(recordNamedBy('/api/requisitions/r1')).toEqual({ family: 'requirement', id: 'r1', strangerSays: 'No job request by that id.' })
+    expect(recordNamedBy('/api/requirements/r1/screen')?.family).toBe('requirement')
+    expect(recordNamedBy('/api/invoices/i1')).toEqual({ family: 'invoice', id: 'i1', strangerSays: 'No bill by that id.' })
+    expect(recordNamedBy('/api/timesheets/t1/assert')).toEqual({ family: 'timesheet', id: 't1', strangerSays: 'No week by that id.' })
+    expect(recordNamedBy('/api/requisitions')).toBeNull()
+    expect(recordNamedBy('/api/invoices/generate')).toBeNull()
+    expect(recordNamedBy('/api/requirements/parse')).toBeNull()
+    expect(recordNamedBy('/api/settings/week')).toBeNull()
+  })
+
+  it('no route folder under those four is ever mistaken for an id', () => {
+    for (const family of Object.keys(NOT_AN_ID)) {
+      const statics = readdirSync(join(API, family)).filter((n) => !n.startsWith('[') && statSync(join(API, family, n)).isDirectory())
+      expect([...NOT_AN_ID[family]].sort(), family).toEqual(statics.sort())
+    }
+  })
+
+  it('the door answers a record at another company as not there, before its own sentence, and logs the refused read first', () => {
+    const ctx = readFileSync(join(process.cwd(), 'src/lib/api-context.ts'), 'utf8')
+    const refusal = ctx.slice(ctx.indexOf('async function desklessRefusal'))
+    expect(refusal.indexOf('recordNamedBy(path)')).toBeLessThan(refusal.indexOf("code: 'NO_DESK'"))
+    expect(refusal.indexOf('await recordRefusal(')).toBeLessThan(refusal.indexOf("code: 'NOT_FOUND', message: named.strangerSays"))
+  })
+
+  it('a week at another company is answered as not here, never as not part of the seat, and the evidence on it the same', () => {
+    const LIB = readFileSync(join(process.cwd(), 'src/lib/week-approval.ts'), 'utf8')
+    expect(LIB).toContain('if (!onTheWeek(r, c)) return null')
+    expect(LIB).toContain("return refuse(404, 'NOT_FOUND', 'That week is not here.')")
+    const file = LIB.slice(LIB.indexOf('export async function readEvidenceFile'))
+    expect(file.indexOf('desklessOutsider(r, c)')).toBeLessThan(file.indexOf('mayReadEvidence('))
+  })
+
+  it('the bench pay page draws its heading only above a page the desk may read, and a refusal is the sentence alone', () => {
+    // Problem 6, the bench pay page.
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/bench-pay/page.tsx'), 'utf8')
+    const section = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/bench-pay/bench-pay.tsx'), 'utf8')
+    expect(page).toContain('<BenchPaySection\n      head={')
+    expect(section).toContain('if (refused && head !== undefined) return <p className="text-[13px] text-etyme-ink">{refused}</p>')
   })
 })

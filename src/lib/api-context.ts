@@ -6,7 +6,8 @@ import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accou
 import { cookies } from 'next/headers'
 import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
 import { staffAddresses } from '@/lib/alerts'
-import { desklessDoor } from '@/lib/deskless-door'
+import { desklessDoor, recordNamedBy, type RecordFamily } from '@/lib/deskless-door'
+import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 
@@ -485,6 +486,28 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
   if (verdict.open) return null
   if (await seatFor(caller, null)) return null
 
+  // A record by id at another company is a stranger's question, and the
+  // door's sentence — ask your owner — is one the owner cannot answer
+  // (round seven, problem 8). Answered the way the placement route
+  // answers a stranger, with the refused read of whoever the record is
+  // about logged before the answer goes out.
+  const named = recordNamedBy(path)
+  if (named) {
+    const at = await recordAt(named.family, named.id, caller.company.id)
+    if (!at.here) {
+      if (at.people.length > 0) {
+        await recordRefusal(at.people.filter((id) => id !== caller.person.id), {
+          actorPersonId: caller.person.id,
+          actorCompanyId: caller.company.id,
+          action: 'PROFILE_VIEW',
+          allowed: false,
+          reason: `${path} is at another company than ${caller.company.name}, refused to a seat with no desk as not there`,
+        })
+      }
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: named.strangerSays } }, { status: 404 })
+    }
+  }
+
   if (verdict.readsPeople) {
     const companyId = caller.company.id
     const lines = await prisma.sellContract.findMany({
@@ -502,6 +525,51 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
     })
   }
   return NextResponse.json({ error: { code: 'NO_DESK', message: verdict.says } }, { status: 403 })
+}
+
+/**
+ * Whether a record by id is at this company — a party to it, the way its
+ * own route reads parties — and whom it is about. A record that does not
+ * exist is not here either, so the two are answered alike.
+ */
+async function recordAt(family: RecordFamily, id: string, companyId: string): Promise<{ here: boolean; people: string[] }> {
+  if (family === 'requirement') {
+    const r = await prisma.requirement.findUnique({
+      where: { id },
+      select: {
+        companyId: true, endClientCompanyId: true, payerCompanyId: true,
+        invitations: { where: { toCompanyId: companyId }, select: { id: true }, take: 1 },
+        submissions: { select: { personId: true, fromCompanyId: true, toCompanyId: true } },
+      },
+    })
+    if (!r) return { here: false, people: [] }
+    const here = [r.companyId, r.endClientCompanyId, r.payerCompanyId].includes(companyId)
+      || r.invitations.length > 0
+      || r.submissions.some((x) => x.fromCompanyId === companyId || x.toCompanyId === companyId)
+    return { here, people: [...new Set(r.submissions.map((x) => x.personId))] }
+  }
+  if (family === 'invoice') {
+    const exists = await prisma.invoice.findUnique({
+      where: { id },
+      select: { invoiceLines: { select: { personId: true } } },
+    })
+    if (!exists) return { here: false, people: [] }
+    const here = (await prisma.invoice.count({ where: { id, ...invoiceBetween(companyId) } })) > 0
+    return { here, people: [...new Set(exists.invoiceLines.map((l) => l.personId).filter((p): p is string => !!p))] }
+  }
+  const t = await prisma.timesheet.findUnique({
+    where: { id },
+    select: { personId: true, sellContract: { select: { companyId: true, clientCompanyId: true, endClientCompanyId: true } } },
+  })
+  if (!t) return { here: false, people: [] }
+  // A week is on every rung of its chain: the line it was filed on, or
+  // any line of the same person that names this company.
+  const c = t.sellContract
+  const here = [c.companyId, c.clientCompanyId, c.endClientCompanyId].includes(companyId)
+    || (await prisma.sellContract.count({
+      where: { personId: t.personId, OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+    })) > 0
+  return { here, people: [t.personId] }
 }
 
 /**

@@ -95,7 +95,9 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
     const desk = deskOf(own)
     expect(desk.menuKind).toBe('MSP')
     expect(desk.permissions).toEqual(own.permissions)
-    expect(plusMenuFor(desk.menuKind, false, desk.permissions, false).map((s) => s.label)).toEqual(['Demand', 'Supply', 'Operate'])
+    // Headed by the office's own menu: Today, Demand, Operate — and no
+    // Supply, because what Supply holds for an office is its suppliers.
+    expect(plusMenuFor(desk.menuKind, false, desk.permissions, false).map((s) => s.label)).toEqual(['Today', 'Demand', 'Operate'])
   })
 
   it('⌘K at a client’s desk finds the client’s pages and none that only the office’s own menu offers', () => {
@@ -167,6 +169,64 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
         }
       }
     }
+  })
+
+  // Sign-up walk, round seven, problem 1: round six's fix was for a seat
+  // with no desk, so a seat holding every permission under a trimmed menu
+  // was still offered a staffing agency's actions.
+  it('every seat, with a desk or without, is offered only what its own menu holds, under the heading its menu gives that page', () => {
+    const kinds = ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const
+    for (const kind of kinds) {
+      for (const r of rolesFor(kind)) {
+        const worker = kind === 'CONSULTANT_CORP'
+        const nav = getNavForKind(kind, false, { worker, permissions: r.permissions })
+        const order = nav.map((s) => s.label)
+        const menu = new Map(nav.flatMap((s) => s.items.map((i) => [i.href.split('?')[0], s.label] as const)))
+        const offered = plusMenuFor(kind, false, r.permissions, worker)
+        for (const section of offered) {
+          expect(order, `${kind} ${r.name}: the + menu says "${section.label}"`).toContain(section.label)
+          for (const i of section.items) {
+            const reach = kind === 'CLIENT' && i.href.startsWith('/dashboard/requirements') ? '/dashboard/requisitions'
+              : kind === 'CLIENT' && i.href === '/dashboard/decisions' ? '/dashboard/program'
+              : i.href.split('?')[0]
+            expect(menu.get(reach), `${kind} ${r.name} is offered ${i.label}, which its menu does not hold`).toBe(section.label)
+          }
+        }
+        const at = offered.map((s) => order.indexOf(s.label))
+        expect(at, `${kind} ${r.name}: the + menu's sections run in the menu's order`).toEqual([...at].sort((a, b) => a - b))
+      }
+    }
+  })
+
+  it('a one-person firm is offered no job request, no submission, no consultant and no bench — only her own contract, expenses, bill and a note', () => {
+    const owner = rolesFor('CONSULTANT_CORP').find((r) => r.name === 'Owner')!.permissions
+    const menu = plusMenuFor('CONSULTANT_CORP', false, owner, true)
+    for (const no of ['New job request', 'Submit consultant', 'Add consultant', 'Add to bench']) expect(labels(menu)).not.toContain(no)
+    for (const s of menu) expect(['Sell', 'Procure']).not.toContain(s.label)
+    expect(labels(menu)).toContain('New contract')
+  })
+
+  it('a program office, which places nobody, is offered no consultant to add and nobody to put on a bench', () => {
+    for (const r of rolesFor('MSP')) {
+      const offered = labels(plusMenuFor('MSP', false, r.permissions, false))
+      expect(offered, r.name).not.toContain('Add consultant')
+      expect(offered, r.name).not.toContain('Add to bench')
+    }
+  })
+
+  it('a supplier’s + button says job request, the word its menu beside it says, never requirement', () => {
+    // Sign-up walk, round seven, problem 13.
+    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
+      for (const i of items(plusMenuFor(kind, false, ['*'], false))) {
+        expect(`${i.label} ${i.description}`, `${kind} ${i.label}`).not.toMatch(/requirement/i)
+      }
+      expect(labels(plusMenuFor(kind, false, ['*'], false))).toContain('New job request')
+    }
+  })
+
+  it('a client’s hiring manager is still offered a new job request, under Workforce, where her menu lists job requests', () => {
+    const menu = plusMenuFor('CLIENT', false, role('CLIENT', 'Hiring Manager'), false)
+    expect(menu.find((s) => s.items.some((i) => i.label === 'New job request'))?.label).toBe('Workforce')
   })
 
   it('Karthik Menon, a desk-less worker whose line has ended, is offered a note to his own people and no new week', () => {

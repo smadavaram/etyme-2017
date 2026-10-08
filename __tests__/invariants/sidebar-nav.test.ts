@@ -4,6 +4,7 @@ import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { globSync } from 'fs'
 import { getNavForKind, mayOpen, openBecause, OPEN_TO_EVERY_SEAT } from '@/components/shell/sidebar'
+import { plusMenuFor } from '@/components/shell/header'
 import { RECEIVABLE, PAYABLE } from '@/lib/money/desks'
 import { MAY_READ } from '@/app/api/blacklist/desks'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
@@ -659,28 +660,15 @@ describe('the + button and the search box say what the menu beside them says', (
     const sectionsFor = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT') =>
       new Set(getNavForKind(kind, false).map((s) => s.label))
 
-    // The supplier menu is relabeled per party from one table; the
-    // client has its own. Read both out of the source and check every
-    // heading against the menu the same seat sees.
-    const plusSections = HEADER_SRC.slice(
-      HEADER_SRC.indexOf('const PLUS_SECTIONS'),
-      HEADER_SRC.indexOf('const PLUS_MENU')
-    )
-    for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
-      const row = plusSections.match(new RegExp(`${kind}: \\['([^']+)', '([^']+)'\\]`))
-      expect(row, `${kind} has no + menu headings`).toBeTruthy()
-      for (const name of [row![1], row![2]]) {
-        expect(sectionsFor(kind), `${kind}'s + menu says "${name}"`).toContain(name)
+    // Since round seven (problem 1) every heading on the + menu is read
+    // off the reader's own menu, for every seat, so the check is of what
+    // the function returns rather than of a table in the source.
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT'] as const) {
+      for (const s of plusMenuFor(kind, false, ['*'], false)) {
+        expect(sectionsFor(kind), `${kind}'s + menu says "${s.label}"`).toContain(s.label)
       }
     }
-
-    const clientPlus = HEADER_SRC.slice(
-      HEADER_SRC.indexOf('const CLIENT_PLUS_MENU'),
-      HEADER_SRC.indexOf('function plusMenuFor')
-    )
-    for (const m of clientPlus.matchAll(/^  {4}label: '([^']+)'/gm)) {
-      expect(sectionsFor('CLIENT'), `the client's + menu says "${m[1]}"`).toContain(m[1])
-    }
+    expect(HEADER_SRC).not.toContain('const PLUS_SECTIONS')
   })
 
   it('offers a consultant no + menu of somebody else’s actions', () => {

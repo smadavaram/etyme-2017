@@ -34,7 +34,7 @@ import { NotificationBell } from '@/components/notification-bell'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen, isDeskless } from '@/lib/nav-table'
+import { getNavForKind, mayOpen } from '@/lib/nav-table'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -70,6 +70,12 @@ type PlusMenuItem = {
    * Offered to nobody else, and to nobody whose lines have all ended.
    */
   workerOnly?: true
+  /**
+   * The menu link that reaches what this item creates, where the item's
+   * own page is not one the reader's menu names. Read only to decide
+   * whether the item is on the reader's menu and under which heading.
+   */
+  onMenuAs?: string
 }
 
 type PlusMenuSection = {
@@ -77,39 +83,24 @@ type PlusMenuSection = {
   items: PlusMenuItem[]
 }
 
-/**
- * The two words each supplier-side party uses for the same two sections.
- *
- * The + menu named its sections Sell and Talent for everybody, so an
- * integrator opened a menu whose headings named no section of its own
- * navigation. Same actions, same order — the heading says what that
- * firm's menu says, because a heading that names nothing is how
- * "Program" outlived the section it belonged to.
- */
-const PLUS_SECTIONS: Record<'VENDOR' | 'GSI' | 'MSP', [string, string]> = {
-  VENDOR: ['Sell', 'Procure'],
-  GSI: ['Deliver', 'Supply'],
-  MSP: ['Demand', 'Supply'],
-}
-
 const PLUS_MENU: PlusMenuSection[] = [
   {
     label: 'Sell',
     items: [
       {
-        // A supplier's requirement is its record of a client's job, and
-        // keeps its word; the page it opens is headed Requirements and its
-        // own button says New requirement (lib/page-framing). The client's
-        // menu below says New job request, the client's own document.
-        label: 'New requirement',
-        description: 'Record a client’s job for submissions',
+        // One screen word for the one object on every party's menu
+        // (CLAUDE.md, 2026-09-30): the menu beside this button says "Job
+        // requests", so the button does too (sign-up walk, round seven,
+        // problem 13). The machine name, `requirements`, does not move.
+        label: 'New job request',
+        description: 'Record a client’s job request for submissions',
         href: '/dashboard/requirements?new=1',
         icon: '◈',
         writes: ['requirements.write'],
       },
       {
         label: 'Submit consultant',
-        description: 'Submit a candidate to a requirement',
+        description: 'Submit a candidate to a job request',
         href: '/dashboard/submissions?new=1',
         icon: '◇',
         // POST /api/submissions: the recruiting desk, or a delivery
@@ -206,6 +197,8 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
         label: 'New job request',
         description: 'Post a job to your suppliers',
         href: '/dashboard/requirements?new=1',
+        // The client's menu reaches its job requests through Requisitions.
+        onMenuAs: '/dashboard/requisitions',
         icon: '◈',
         writes: ['requirements.write'],
       },
@@ -226,6 +219,11 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
         label: 'Review approvals',
         description: 'Timesheets and expenses awaiting you',
         href: '/dashboard/decisions',
+        // No client menu names the queue: it is the dashboard's, where a
+        // client approves from the row (CLAUDE.md, "The client dashboard
+        // reads as a desk"). A seat whose menu has no dashboard has no
+        // approvals to review.
+        onMenuAs: '/dashboard/program',
         icon: '⬡',
       },
     ],
@@ -256,15 +254,9 @@ export function plusMenuFor(
   more: { filesAWeek?: boolean; seatedAtClient?: string | null } = {}
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
-  const sections = kind === 'CLIENT'
-    ? CLIENT_PLUS_MENU
-    : (() => {
-        const names = PLUS_SECTIONS[kind as keyof typeof PLUS_SECTIONS] ?? PLUS_SECTIONS.VENDOR
-        return PLUS_MENU.map((section, i) => ({
-          ...section,
-          label: i < names.length ? names[i] : section.label,
-        }))
-      })()
+  // The headings come from the reader's own menu, below; the sections
+  // here only order the items within one.
+  const sections = kind === 'CLIENT' ? CLIENT_PLUS_MENU : PLUS_MENU
 
   // ── The + button says the same thing the menu says ────────────────
   //
@@ -288,35 +280,37 @@ export function plusMenuFor(
     }))
     .filter((section) => section.items.length > 0)
 
-  // ── A seat with no desk is offered only what its menu holds ───────
+  // ── Every seat is offered only what its own menu holds ────────────
   //
-  // Sign-up walk, round six, problem 7. A client's Member, with no desk
+  // Sign-up walk, round six, problem 7: a client's Member, with no desk
   // and no Governance section, was offered "Governance › Review
-  // approvals", which opened an all-clear page about approvals he can
-  // never give. The + button and the menu are filtered from one answer
-  // (CLAUDE.md), so for a desk-less seat an item stays only where the
-  // page it opens is a link on the seat's own menu, and it is headed by
-  // the section that link sits under — never a section the menu lacks.
-  if (!isDeskless(permissions)) return offered
+  // approvals". Round seven, problem 1: the fix was written for a seat
+  // with no desk, so a seat holding every permission under a trimmed
+  // menu never reached it — a one-person firm was offered "Sell › New
+  // requirement" and "Procure › Add consultant" (herself, in the third
+  // person), and a program office, which places nobody, "Add to bench".
+  // The + button and the menu are filtered from one answer (CLAUDE.md),
+  // for everybody: an item stays only where the page it opens is a link
+  // on the reader's own menu, headed by the section that link sits
+  // under, in the menu's order.
   const nav = getNavForKind(kind as Parameters<typeof getNavForKind>[0], false, {
     worker, permissions, seatedAtClient: more.seatedAtClient ?? null,
   })
-  const sectionOf = (href: string): string | null => {
+  const sectionOf = (href: string): number => {
     const path = href.split('?')[0]
-    for (const s of nav) if (s.items.some((i) => i.href.split('?')[0] === path)) return s.label
-    return null
+    return nav.findIndex((s) => s.items.some((i) => i.href.split('?')[0] === path))
   }
-  const regrouped: PlusMenuSection[] = []
+  const regrouped = new Map<number, PlusMenuItem[]>()
   for (const section of offered) {
     for (const item of section.items) {
-      const label = sectionOf(item.href)
-      if (!label) continue
-      const into = regrouped.find((s) => s.label === label)
-      if (into) into.items.push(item)
-      else regrouped.push({ label, items: [item] })
+      const at = sectionOf(item.onMenuAs ?? item.href)
+      if (at < 0) continue
+      regrouped.set(at, [...(regrouped.get(at) ?? []), item])
     }
   }
-  return regrouped
+  return [...regrouped.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([at, items]) => ({ label: nav[at].label, items }))
 }
 
 /** Whether the route behind an item will take the send from this desk. */

@@ -68,6 +68,76 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // forward on their own page; the route refuses a submission that does
   // not name its caller.
   'me/submissions/*/rate': 'A worker reads and answers the rate conversation on a submission that names them, and no other.',
+  // Round seven, problem 9: Karthik Menon signed an NDA from his own page
+  // and could not open what he signed. app/api/documents/[id]/file
+  // already decides by `standingOn` (lib/document-request): the person a
+  // document is about reads their own, a seat at the issuer without the
+  // paperwork desk is refused in a sentence, and a stranger is told
+  // nothing is there.
+  'documents/*/file': 'A seat with no desk opens a document that is about its holder, and no other.',
+}
+
+/**
+ * Records opened by id whose page the door refuses a seat with no desk.
+ *
+ * Round seven, problem 8. The door's sentence — "… is not part of your
+ * seat. Ask your company's owner" — is about the reader's own company's
+ * records, which a desk there could open. A record at another company is
+ * nothing the owner can grant, and saying the door's sentence about it
+ * confirms there is one. So where a record by id is not at the reader's
+ * company, the door answers as the stranger is answered everywhere else
+ * — the placement route's "No placement by that id." — and the family
+ * here says what the reader typed, and nothing more.
+ *
+ * Pure: which record a path names. Whether it is at the reader's company
+ * is a database question, asked in lib/api-context on the refusing path.
+ */
+export type RecordFamily = 'requirement' | 'invoice' | 'timesheet'
+
+const RECORDS_BY_ID: readonly { pattern: string; family: RecordFamily }[] = [
+  { pattern: 'requisitions/*', family: 'requirement' },
+  { pattern: 'requisitions/*/**', family: 'requirement' },
+  { pattern: 'requirements/*', family: 'requirement' },
+  { pattern: 'requirements/*/**', family: 'requirement' },
+  { pattern: 'invoices/*', family: 'invoice' },
+  { pattern: 'invoices/*/**', family: 'invoice' },
+  { pattern: 'timesheets/*', family: 'timesheet' },
+  { pattern: 'timesheets/*/**', family: 'timesheet' },
+]
+
+/**
+ * Route folders under those families that are not an id, so a refused
+ * `/api/invoices/generate` is never answered as a missing bill. The unit
+ * test reads the folders back off src/app/api and fails on a new one.
+ */
+export const NOT_AN_ID: Readonly<Record<string, readonly string[]>> = {
+  requisitions: [],
+  requirements: ['parse'],
+  invoices: ['generate', 'submit'],
+  timesheets: [],
+}
+
+/** What a stranger is told about each, in the reader's words: a job request, a bill, a week. */
+const STRANGER_SAYS: Readonly<Record<RecordFamily, string>> = {
+  requirement: 'No job request by that id.',
+  invoice: 'No bill by that id.',
+  timesheet: 'No week by that id.',
+}
+
+/**
+ * The record a refused path names by id, if it is one the door must tell
+ * a stranger apart from a colleague on. Null for a list, a setting, or a
+ * family not named here.
+ */
+export function recordNamedBy(path: string): { family: RecordFamily; id: string; strangerSays: string } | null {
+  const clean = path.replace(/\/$/, '')
+  for (const r of RECORDS_BY_ID) {
+    if (!routeMatches(clean, r.pattern)) continue
+    const [first, id] = clean.replace(/^\/?api\/?/, '').split('/')
+    if (!id || (NOT_AN_ID[first] ?? []).includes(id)) return null
+    return { family: r.family, id, strangerSays: STRANGER_SAYS[r.family] }
+  }
+  return null
 }
 
 /**

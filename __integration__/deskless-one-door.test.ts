@@ -3,6 +3,7 @@ import { readdirSync, statSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { namesAPermission } from '@/lib/refusal-words'
+import { invoiceBetween } from '@/lib/money/invoice-parties'
 
 /**
  * Sign-up walk, round four, problems 1 and 2: one door for a seat with no
@@ -314,6 +315,79 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
       expect(r.body.error.code).toBe('NO_DESK')
       expect(r.body.error.message).toBe('Bench is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
     }
+  })
+
+  it('a paper his employer sent him to sign opens to him as a file, and the same paper about a colleague does not (round seven, problem 9)', async () => {
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    const colleague = (await prisma.sellContract.findUniqueOrThrow({ where: { id: colleagues }, select: { personId: true } })).personId
+    const template = await prisma.docTemplate.create({
+      data: { companyId: seat.companyId!, name: 'Round seven probe NDA', audience: 'EMPLOYEE' }, select: { id: true },
+    })
+    const paper = async (personId: string) => (await prisma.docInstance.create({
+      data: {
+        templateId: template.id, subjectType: 'PERSON', subjectId: personId,
+        file: { create: { fileName: 'nda.txt', contentType: 'text/plain', sizeBytes: 6, bytes: Buffer.from('signed') } },
+      },
+      select: { id: true },
+    })).id
+    const his = await paper(karthik)
+    const theirs = await paper(colleague)
+    as(KARTHIK)
+    const mod = await import('@/app/api/documents/[id]/file/route')
+    const mine = await mod.GET(req('GET', `/api/documents/${his}/file`), { params: Promise.resolve({ id: his }) })
+    expect(mine.status, (await mine.clone().text()).slice(0, 200)).toBe(200)
+    expect(await mine.text()).toBe('signed')
+    const other = await mod.GET(req('GET', `/api/documents/${theirs}/file`), { params: Promise.resolve({ id: theirs }) })
+    expect(other.status).toBe(403)
+    expect((await other.json()).error.message).toMatch(/is not part of your seat at Teleworld Solutions/)
+  })
+
+  it('a job request, a bill and a week at another company are answered to him as not there, never as something his owner could give him (round seven, problem 8)', async () => {
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    const tw = seat.companyId!
+    const nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const job = await prisma.requirement.findFirstOrThrow({
+      where: { companyId: nike, invitations: { none: { toCompanyId: tw } }, submissions: { none: { OR: [{ fromCompanyId: tw }, { toCompanyId: tw }] } } },
+      select: { id: true },
+    })
+    const bill = await prisma.invoice.findFirstOrThrow({ where: { NOT: invoiceBetween(tw) }, select: { id: true } })
+    const week = await prisma.timesheet.findFirstOrThrow({
+      where: { person: { sellContracts: { none: { OR: [{ companyId: tw }, { clientCompanyId: tw }, { endClientCompanyId: tw }] } } } },
+      select: { id: true, personId: true },
+    })
+    as(KARTHIK)
+    const cases: [string, any, Record<string, string>, string][] = [
+      [`/api/requisitions/${job.id}`, await import('@/app/api/requisitions/[id]/route'), { id: job.id }, 'No job request by that id.'],
+      [`/api/invoices/${bill.id}`, await import('@/app/api/invoices/[id]/route'), { id: bill.id }, 'No bill by that id.'],
+      [`/api/timesheets/${week.id}/assert`, await import('@/app/api/timesheets/[id]/assert/route'), { id: week.id }, 'No week by that id.'],
+    ]
+    for (const [path, mod, params, says] of cases) {
+      const res: Response = await mod.GET(req('GET', path), { params: Promise.resolve(params) })
+      const body = await res.json()
+      expect(res.status, `${path} ${JSON.stringify(body)}`).toBe(404)
+      expect(body.error.message).toBe(says)
+      expect(JSON.stringify(body)).not.toMatch(/owner/)
+    }
+    // The week page reads the week through its approvals, which the door
+    // lets through; the route answers a week off his firm's chain the same way.
+    const approvals = await (await import('@/app/api/week-approvals/route')).GET(req('GET', `/api/week-approvals?timesheetId=${week.id}`))
+    expect(approvals.status).toBe(404)
+    expect((await approvals.json()).error.message).toBe('That week is not here.')
+    // The refused read of whoever the week is about, written before the answer.
+    expect(await prisma.accessLog.count({ where: { actorPersonId: karthik, subjectId: week.personId, allowed: false } })).toBeGreaterThan(0)
+  })
+
+  it('a job request at his own firm is still refused in the door’s words, because a desk there could open it', async () => {
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    const ours = await prisma.requirement.findFirst({
+      where: { OR: [{ companyId: seat.companyId! }, { invitations: { some: { toCompanyId: seat.companyId! } } }] }, select: { id: true },
+    })
+    expect(ours, 'Teleworld has a job request on the seeded world').not.toBeNull()
+    as(KARTHIK)
+    const mod = await import('@/app/api/requisitions/[id]/route')
+    const res = await mod.GET(req('GET', `/api/requisitions/${ours!.id}`), { params: Promise.resolve({ id: ours!.id }) })
+    expect(res.status).toBe(403)
+    expect((await res.json()).error.message).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
   })
 
   it('the chain of approvals on his own week stays a desk’s: his own page reads the chain from his own work, and the assert route refuses him at the door', async () => {
