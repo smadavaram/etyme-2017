@@ -6,7 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import {
-  concentration, concentrationReport, clientExposures,
+  concentration, concentrationReport, clientExposures, dimensionsFor,
   type Concentration, type Exposure, type Owners,
 } from '@/lib/concentration'
 
@@ -47,7 +47,7 @@ import {
  * ── The blank that matters ───────────────────────────────────────────
  *
  * A firm with two clients gets no percentage. Its first client is a
- * hundred per cent of its revenue and that is arithmetic, not a finding.
+ * hundred percent of its revenue and that is arithmetic, not a finding.
  */
 
 /** How far back this looks. A year, the way a book is normally read. */
@@ -115,6 +115,10 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
+  // A client reads the supplier share only: it raises no bills, so a
+  // share of its revenue by client or by person is a supplier's measure.
+  const wanted = dimensionsFor(caller.company!.kind)
+  const sells = wanted.includes('CLIENT')
   const now = new Date()
   const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000)
   const gaps: string[] = []
@@ -226,7 +230,7 @@ export async function GET(request: NextRequest) {
   // ── Revenue by client ───────────────────────────────────────────────
   const inWindow = invoices.filter((i) => countedAt(i) >= since)
   const noIssueDate = inWindow.filter((i) => i.issuedAt == null).length
-  if (noIssueDate > 0) {
+  if (sells && noIssueDate > 0) {
     gaps.push(
       `${noIssueDate} bill${noIssueDate === 1 ? '' : 's'} have no issue date, so the end ` +
         `of the period they bill is used instead. Close, and not the same thing.`
@@ -246,7 +250,7 @@ export async function GET(request: NextRequest) {
   // Said out loud rather than absorbed. A share is read as a statement
   // about one named firm, so money that belongs to nobody we can name
   // sits outside the shares and is reported as its own number.
-  if (attributed.says) gaps.push(attributed.says)
+  if (sells && attributed.says) gaps.push(attributed.says)
 
   const client = concentration({
     dimension: 'CLIENT',
@@ -327,19 +331,24 @@ export async function GET(request: NextRequest) {
     owners: NAMED_OWNERS,
   })
 
-  if (inWindow.length > 0 && linesInWindow.length === 0) {
+  if (sells && inWindow.length > 0 && linesInWindow.length === 0) {
     gaps.push(
       'None of the bills in this window carry line-level detail, so nothing can be ' +
         'attributed to a named person. The client figures are unaffected.'
     )
   }
 
-  const report = concentrationReport([client, supplier, person])
+  const report = concentrationReport(
+    [client, supplier, person].filter((p) => wanted.includes(p.dimension))
+  )
 
   return NextResponse.json({
     data: {
       asOf: now.toISOString(),
       windowDays: WINDOW_DAYS,
+      // Who the page is written to: a firm that sells reads its book, a
+      // client reads its suppliers.
+      reader: sells ? 'SELLER' : 'BUYER',
       report,
       gaps,
       howJudged:

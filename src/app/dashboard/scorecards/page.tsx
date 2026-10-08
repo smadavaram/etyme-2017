@@ -174,6 +174,8 @@ export default function ScorecardsPage() {
   const [report, setReport] = useState<Report | null>(null)
   const [shapeGaps, setShapeGaps] = useState<string[]>([])
   const [shapeError, setShapeError] = useState<string | null>(null)
+  /** Who the shape is written to, once the route has said. Null until then. */
+  const [reader, setReader] = useState<'SELLER' | 'BUYER' | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -213,6 +215,7 @@ export default function ScorecardsPage() {
       const res = await fetch('/api/vendors/concentration')
       const body = await readJson(res)
       setReport(body.data.report)
+      setReader(body.data.reader ?? null)
       setShapeGaps(body.data.gaps ?? [])
       setShapeError(null)
     } catch (err: any) {
@@ -358,14 +361,31 @@ export default function ScorecardsPage() {
       <section className="space-y-3">
         <div>
           <p className="eyebrow">Concentration</p>
-          <h2 className="headline-serif text-[20px] leading-tight">One client, one supplier, one person</h2>
-          <p className="mt-1 max-w-[58ch] text-[12px] text-etyme-muted">
-            None of these is a loss and none of them shows up on a margin
-            report. Together they decide whether a bad quarter is survivable.
-            Below a handful of names nothing is reported at all — a first
-            client is a hundred per cent of the revenue, and that is
-            arithmetic rather than a finding.
-          </p>
+          {/* Written to the reader the route named, and silent until then:
+              a client buys from suppliers and has no clients, so the
+              seller's sentence about "a first client" is not its own. */}
+          {reader === 'BUYER' && (
+            <>
+              <h2 className="headline-serif text-[20px] leading-tight">One supplier</h2>
+              <p className="mt-1 max-w-[58ch] text-[12px] text-etyme-muted">
+                How much of what you buy runs through a single supplier. With
+                one supplier it is all of it, and that is a fact rather than a
+                finding, so no share is drawn until there are three.
+              </p>
+            </>
+          )}
+          {reader === 'SELLER' && (
+            <>
+              <h2 className="headline-serif text-[20px] leading-tight">One client, one supplier, one person</h2>
+              <p className="mt-1 max-w-[58ch] text-[12px] text-etyme-muted">
+                None of these is a loss and none of them shows up on a margin
+                report. Together they decide whether a bad quarter is survivable.
+                Below a handful of names nothing is reported at all — a first
+                client is a hundred percent of the revenue, and that is
+                arithmetic rather than a finding.
+              </p>
+            </>
+          )}
         </div>
 
         {shapeError && (

@@ -228,8 +228,12 @@ const TRACKED_COLUMNS: Column<TrackedRolloff>[] = [
 
 export default function RolloffPage() {
   const { company } = useSession()
-  const isClient = company?.kind === 'CLIENT'
-  const framing = pageFraming(company?.kind ?? 'VENDOR', 'rolloff')
+  // The kind only when it is known. Until the session says who is
+  // reading, pageFraming answers for an unknown reader — no supplier words
+  // shown to a client while the session loads (sign-up walk round three, 16).
+  const kind = company?.kind ?? null
+  const isClient = kind === 'CLIENT'
+  const framing = pageFraming(kind, 'rolloff')
   const [tracked, setTracked] = useState<TrackedRolloff[]>([])
   const [untracked, setUntracked] = useState<UntrackedContract[]>([])
   const [summary, setSummary] = useState<RolloffSummary | null>(null)
@@ -378,13 +382,15 @@ export default function RolloffPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">
-            {isClient ? framing.title : 'Rolloff console'}
+            {kind == null || isClient ? framing.title : 'Rolloff console'}
           </h1>
-          <p className="text-sm text-etyme-muted mt-1">
-            {isClient
-              ? framing.subtitle
-              : 'Upcoming contract endings. Triage, complete checklists, redeploy or bench.'}
-          </p>
+          {kind != null && (
+            <p className="text-sm text-etyme-muted mt-1">
+              {isClient
+                ? framing.subtitle
+                : 'Upcoming contract endings. Triage, complete checklists, redeploy or bench.'}
+            </p>
+          )}
         </div>
       </div>
 

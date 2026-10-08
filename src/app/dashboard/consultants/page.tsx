@@ -900,6 +900,7 @@ function formatWorkAuth(auth: string | null): string {
 export default function ConsultantsPage() {
   const router = useRouter()
   const session = useSession()
+  const readerKind = session.company?.kind ?? null
   const searchParams = useSearchParams()
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
@@ -1107,10 +1108,17 @@ export default function ConsultantsPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          {/* The section this page sits under on the reader's own menu. */}
-          <p className="eyebrow">{sectionOfHref(session.company?.kind ?? 'VENDOR', '/dashboard/consultants') ?? ''}</p>
+          {/* The section this page sits under on the reader's own menu —
+              drawn only once the session says who is reading. A guessed
+              kind is a supplier's eyebrow on a client's page while the
+              session loads (sign-up walk round three, 16). */}
+          {readerKind != null && (
+            <p className="eyebrow">{sectionOfHref(readerKind, '/dashboard/consultants') ?? ''}</p>
+          )}
           <h1>Consultants</h1>
-          <p>Consultant records — the people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
+          {readerKind != null && (
+            <p>Consultant records — the people on your bench, kept to you or shown to your partners, with skills, availability and work authorization at a glance.</p>
+          )}
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
           Add consultant

@@ -16,7 +16,7 @@
  * ── Why the thresholds are data ──────────────────────────────────────
  *
  * A number buried in an `if` is a number nobody can argue with, which
- * sounds like a virtue and is not: the whole value of "forty per cent" is
+ * sounds like a virtue and is not: the whole value of "forty percent" is
  * that somebody sat down and decided it, and the next person can move it
  * knowing what it meant. So every threshold carries its meaning in plain
  * English and the role who has to act, and the screen prints both.
@@ -24,8 +24,8 @@
  * ── Two contracts is not a concentration ─────────────────────────────
  *
  * The failure this file is written to avoid: a firm with two clients
- * being told it has a dangerous seventy per cent concentration. It has a
- * small book. Every new firm's first client is a hundred per cent of its
+ * being told it has a dangerous seventy percent concentration. It has a
+ * small book. Every new firm's first client is a hundred percent of its
  * revenue and that is not a finding, it is arithmetic — so below a
  * minimum number of parties no share is reported at all, and the reason
  * is said out loud.
@@ -54,7 +54,7 @@ export type Unit = 'MONEY' | 'PEOPLE'
 
 export interface Threshold {
   dimension: Dimension
-  /** At or above this share of the whole, in per cent. */
+  /** At or above this share of the whole, in percent. */
   atOrAbovePct: number
   severity: 'NOTE' | 'WARN'
   /** Why it matters, in the words somebody would use out loud. */
@@ -135,7 +135,7 @@ export const THRESHOLDS: Threshold[] = [
  *
  * Below this the answer is "you have a small book", which is a different
  * sentence and a truer one. People needs a higher floor than clients
- * because five consultants splitting the work evenly is twenty per cent
+ * because five consultants splitting the work evenly is twenty percent
  * each and nothing has gone wrong.
  */
 export const ENOUGH_TO_CONCENTRATE: Record<Dimension, number> = {
@@ -273,6 +273,24 @@ export function concentration(input: ConcentrationInput): Concentration {
 
   const enough = ENOUGH_TO_CONCENTRATE[dimension]
 
+  // ── One counterparty is a fact, not a finding ───────────────────────
+  //
+  // A supplier with one client, or a client buying through one supplier,
+  // is all of it by definition. Saying "100%" — or calling it a small
+  // book — dresses arithmetic up as a measure. So one party gets one
+  // plain sentence, no share and no warning (sign-up walk round three, 18).
+  if (live.length === 1) {
+    return {
+      ...base,
+      totalMinor: total,
+      currency,
+      topName: top.name,
+      topAmountMinor: top.amountMinor,
+      says: onlyOneSays(dimension, unit, top.name),
+      unknowns: [],
+    }
+  }
+
   if (live.length < enough) {
     return {
       ...base,
@@ -342,6 +360,25 @@ export function concentration(input: ConcentrationInput): Concentration {
   }
 }
 
+/** The sentence for a dimension with exactly one party on it. */
+export function onlyOneSays(dimension: Dimension, unit: Unit, name: string): string {
+  const words = WORD[dimension]
+  const what =
+    unit === 'PEOPLE'
+      ? dimension === 'SUPPLIER'
+        ? `${name} supplies everybody on the books`
+        : `${name} is everybody on the books`
+      : dimension === 'SUPPLIER'
+        ? `All of the supply comes through ${name}`
+        : dimension === 'CLIENT'
+          ? `All of the revenue comes from ${name}`
+          : `All of the billing is ${name}'s`
+  return (
+    `One ${words.one}. ${what}. With a single ${words.one} there is nothing to compare ` +
+    `it with, so no share is drawn and nothing is flagged.`
+  )
+}
+
 function shareSays(
   dimension: Dimension,
   unit: Unit,
@@ -407,6 +444,7 @@ export function concentrationReport(parts: Concentration[]): ConcentrationReport
   const silent = parts.filter((p) => p.topSharePct == null).length
 
   const worst = ordered[0] ?? null
+  const onlySupplier = parts.length > 0 && parts.every((p) => p.dimension === 'SUPPLIER')
 
   return {
     parts: [
@@ -421,10 +459,33 @@ export function concentrationReport(parts: Concentration[]): ConcentrationReport
     says:
       worst == null
         ? silent === parts.length
-          ? 'Nothing here can be measured yet. That is a small book rather than a safe one.'
-          : 'No single client, supplier or person is large enough to be worth naming.'
+          ? onlySupplier
+            ? 'Too few suppliers for a share to mean anything yet. That is a short list rather than a safe one.'
+            : 'Nothing here can be measured yet. That is a small book rather than a safe one.'
+          : `No single ${namesOf(parts)} is large enough to be worth naming.`
         : `${worst.says} ${worst.breach!.meaning}`,
   }
+}
+
+/** "client, supplier or person" — only the dimensions actually read. */
+function namesOf(parts: Concentration[]): string {
+  const ones = parts.map((p) => WORD[p.dimension].one)
+  if (ones.length <= 1) return ones[0] ?? 'party'
+  return `${ones.slice(0, -1).join(', ')} or ${ones[ones.length - 1]}`
+}
+
+/**
+ * Which of the three a reader's book has.
+ *
+ * A client raises no bills, so a share of its revenue by client, or of
+ * its billing by person, is a supplier's measure and would read to a
+ * client as "Nothing has been billed through any client". What a client
+ * can lose is a supplier, so that is the one it is shown. Every firm that
+ * sells — a vendor, an integrator, a program office, a one-person
+ * company — reads all three.
+ */
+export function dimensionsFor(kind: string | null | undefined): Dimension[] {
+  return kind === 'CLIENT' ? ['SUPPLIER'] : ['CLIENT', 'SUPPLIER', 'PERSON']
 }
 
 // ── Whose invoice is it, when there is no agreement ───────────────────
