@@ -567,6 +567,9 @@ export default function RequisitionsPage() {
   const [book, setBook] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [stage, setStage] = useState<Tab>('ALL')
   /**
@@ -607,6 +610,11 @@ export default function RequisitionsPage() {
     try {
       // Archived rows too: they have a tab now.
       const res = await fetch('/api/requisitions?archived=true')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'Job requests are not part of your seat. Ask your company\'s owner if you need them.')
+        return
+      }
       const json = await readJson(res)
       setReqs(json.data.requisitions)
       setSummary(json.data.summary)
@@ -738,6 +746,10 @@ export default function RequisitionsPage() {
     r.skills.some(s => s.toLowerCase().includes(term))
   )
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   return (
     <div className="max-w-4xl">
       <div className="mb-8 flex items-start justify-between gap-4">
@@ -802,7 +814,9 @@ export default function RequisitionsPage() {
               onClick={() => setStage(key)}
               className={`filter-tab ${stage === key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
             >
-              {label} <span className="tabular-nums opacity-60">{n}</span>
+              {/* A count only once the first read is back: "All 0" while
+                  loading is a guess drawn as an answer (round four, 21). */}
+              {label}{summary && <> <span className="tabular-nums opacity-60">{n}</span></>}
             </button>
           )
         })}

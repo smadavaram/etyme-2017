@@ -7,6 +7,7 @@ import { readJson } from '@/lib/read-response'
 // draws a table with no feed, and the invariant reads the import.
 import { ListSurface, type Column } from '@/components/list-surface'
 import type { View } from '@/components/network-view'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * What is left of the budget, and what every contract is doing to it.
@@ -83,11 +84,23 @@ export default function BudgetPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<View>('feed')
+  // The door's own sentence when it refused this reader, drawn alone
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
+  // Workforce on a client's menu, read from the menu rather than typed
+  // (round four, problem 15: it said "Governance").
+  const section = usePageSection('/dashboard/program/budget')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const body = await readJson(await fetch('/api/program/budget'))
+      const res = await fetch('/api/program/budget')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'The budget is not part of your seat. Ask your company\'s owner if you need it.')
+        return
+      }
+      const body = await readJson(res)
       setCenters(body.data.centers)
       setSummary(body.data.summary)
       setPeriod(body.data.period)
@@ -151,10 +164,14 @@ export default function BudgetPage() {
     },
   ], [anywhere, me])
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+  }
+
   return (
     <div className="mx-auto max-w-[1040px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Budget</h1>
         <p className="mt-2 max-w-[62ch] text-[13px] text-etyme-muted">
           What each cost center may spend this period, what is committed against it, and what

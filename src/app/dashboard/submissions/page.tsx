@@ -1081,6 +1081,12 @@ export default function SubmissionsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Whether the first read has come back. "Total 0 submissions" before it
+  // has is a guess drawn as an answer (sign-up walk, round four, problem 21).
+  const [readOnce, setReadOnce] = useState(false)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   // Null until we know who is reading. A client whose list defaulted to
   // "Sent" saw an empty outbound pipeline they never use and clicked the
   // toggle every morning; a vendor's is the other way round. Resolved in
@@ -1192,6 +1198,12 @@ export default function SubmissionsPage() {
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
 
       const res = await fetch(`/api/submissions?${params}`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Submissions are not part of your seat. Ask your company\'s owner if you need them.')
+        setSubmissions([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -1205,6 +1217,7 @@ export default function SubmissionsPage() {
       setSubmissions([])
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [direction, statusFilter, companyId, urlRequirementId])
 
@@ -1494,6 +1507,10 @@ export default function SubmissionsPage() {
     { key: 'REJECTED', label: submissionStatusWord('REJECTED') },
   ]
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
@@ -1559,7 +1576,9 @@ export default function SubmissionsPage() {
         </div>
       )}
 
-      {/* Stats row — prototype Stat component pattern */}
+      {/* Stats row — prototype Stat component pattern. Drawn once the
+          first read is back, never as zeros before it. */}
+      {readOnce && !error && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Total</p>
@@ -1586,6 +1605,7 @@ export default function SubmissionsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
         </div>
       </div>
+      )}
 
       {/* Status filters — prototype filter-tab pattern */}
       <div className="flex gap-1.5 mb-5 flex-wrap">

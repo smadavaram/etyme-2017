@@ -502,6 +502,11 @@ export default function TimesheetsPage() {
   // read 0 and "$0" — a figure nobody can stand behind — so the row waits.
   const [readOnce, setReadOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The door's own sentence when it refused this reader. A refused page
+  // draws that sentence and nothing else — "Pending approval 0 all clear"
+  // above "not part of your seat" is a zero nobody can stand behind
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [approving, setApproving] = useState(false)
   const [acting, setActing] = useState<string | null>(null)  // ID of the timesheet being acted on
@@ -580,6 +585,12 @@ export default function TimesheetsPage() {
       if (onlyId) params.set('id', onlyId)
 
       const res = await fetch(`/api/timesheets?${params}`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Timesheets are not part of your seat. Ask your company\'s owner if you need them.')
+        setTimesheets([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -1031,6 +1042,10 @@ export default function TimesheetsPage() {
     { key: 'REJECTED', label: 'Rejected' },
   ]
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
@@ -1055,7 +1070,7 @@ export default function TimesheetsPage() {
 
       {/* Stats row — prototype Stat component pattern. Drawn once the
           reader and the first read are both known, never as zeros. */}
-      {company?.kind && readOnce && (
+      {company?.kind && readOnce && !error && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Hours listed</p>

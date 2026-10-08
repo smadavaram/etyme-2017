@@ -125,6 +125,12 @@ export default function PeoplePage() {
   const [open, setOpen] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Whether the first read has come back. "Everyone 0 · On site now 0"
+  // before it has is a guess drawn as an answer (round four, problem 21).
+  const [readOnce, setReadOnce] = useState(false)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   const [view, setView] = useState<View>('feed')
   const [filter, setFilter] = useState<NetworkFilter>('ALL')
   const [place, setPlace] = useState<string | null>(null)
@@ -134,6 +140,11 @@ export default function PeoplePage() {
     setLoading(true)
     try {
       const res = await fetch('/api/people')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'Contractors are not part of your seat. Ask your company\'s owner if you need them.')
+        return
+      }
       const body = await readJson(res)
       setRows(body.data.people)
       setPending(body.data.pending ?? [])
@@ -143,6 +154,7 @@ export default function PeoplePage() {
       setError(err.message)
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [])
 
@@ -259,6 +271,10 @@ export default function PeoplePage() {
     { key: 'askedAt', label: 'Asked', render: (p) => <span className="tabular-nums text-etyme-muted">{when(p.askedAt)}</span>, sortValue: (p) => p.askedAt, hideOnMobile: true },
   ]
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+  }
+
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -291,7 +307,10 @@ export default function PeoplePage() {
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
-      <FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />
+      {/* Counts only once the first read is back and answered. */}
+      {readOnce && !error && (
+        <FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />
+      )}
 
       {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
 

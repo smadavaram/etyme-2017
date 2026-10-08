@@ -250,6 +250,15 @@ export default function ProgramPage() {
     { company: string | null; seated: boolean; clientName: string | null } | null
   >(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
+  // Why tenure could not be read — the door's own sentence. Without it a
+  // refused read left "Reading…" under Tenure to watch for ever (sign-up
+  // walk, round four, problem 3).
+  const [tenureSays, setTenureSays] = useState<string | null>(null)
+  // Why the queue could not be read. A refused queue is not an empty one,
+  // so it never reads "Nothing needs you today."
+  const [queueSays, setQueueSays] = useState<string | null>(null)
+  // The program read refused this reader: the sentence and nothing else.
+  const [refused, setRefused] = useState<string | null>(null)
   const [firstGood, setFirstGood] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -264,6 +273,11 @@ export default function ProgramPage() {
   async function loadData() {
     try {
       const res = await fetch('/api/program')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'The program desk is not part of your seat. Ask your company\'s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setData(body.data)
     } catch (err: any) {
@@ -277,8 +291,18 @@ export default function ProgramPage() {
     fetch('/api/decisions').then(readJson).then((b) => {
       setDecisions(b?.data?.decisions ?? [])
       setQueueBook(b?.data?.reading ?? null)
-    }).catch(() => setDecisions([]))
-    fetch('/api/tenure').then(readJson).then((b) => setTenure(b?.data ?? null)).catch(() => setTenure(null))
+      setQueueSays(null)
+    }).catch((err: any) => {
+      setDecisions([])
+      setQueueSays(err?.message ?? 'Your queue could not be read.')
+    })
+    fetch('/api/tenure').then(readJson).then((b) => {
+      setTenure(b?.data ?? null)
+      setTenureSays(null)
+    }).catch((err: any) => {
+      setTenure(null)
+      setTenureSays(err?.message ?? 'Tenure could not be read.')
+    })
     fetch('/api/first-good').then(readJson).then((b) => setFirstGood(b?.data ?? null)).catch(() => {})
   }
 
@@ -387,6 +411,10 @@ export default function ProgramPage() {
     )
   }
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   if (error || !data) {
     return (
       <div className="panel p-6">
@@ -429,7 +457,7 @@ export default function ProgramPage() {
         <div className="max-w-2xl">
           <p className="eyebrow">Workforce · {data.client.name}</p>
           <h1 className="mt-1 font-serif text-3xl md:text-4xl leading-tight tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-            {decisions === null ? 'Reading your desk…' : said.says}
+            {decisions === null ? 'Reading your desk…' : queueSays ? 'Your queue could not be read.' : said.says}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
             {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}
@@ -483,7 +511,9 @@ export default function ProgramPage() {
           queue={queue}
           queueLoaded={decisions !== null}
           queueBook={queueBook}
+          queueSays={queueSays}
           tenure={tenure}
+          tenureSays={tenureSays}
           firstGood={firstGood}
           busy={busy}
           onApprove={approve}
@@ -565,14 +595,18 @@ function Stat({ label, value, sub, tone, href }: {
  * everything else opens where the decision is made. Under the queue,
  * what was done today, so a clear desk is not an empty page.
  */
-function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
+function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureSays, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
   data: ProgramData
   onApprovals: () => void
   queue: Decision[]
   queueLoaded: boolean
   /** Whose book the queue is, as /api/decisions says it. */
   queueBook: { company: string | null; seated: boolean; clientName: string | null } | null
+  /** Why the queue was not read, when the read refused or failed. */
+  queueSays: string | null
   tenure: Tenure | null
+  /** Why tenure was not read, when the read refused or failed. */
+  tenureSays: string | null
   firstGood: any
   busy: string | null
   onApprove: (d: Decision, note?: string) => void
@@ -589,7 +623,7 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
     .filter((p) => p.status === 'BREAK_REQUIRED' || p.status === 'WARNING' || p.status === 'IN_BREAK')
     .slice(0, 5)
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
-  const nothingYet = queueLoaded && queue.length === 0 && s.activeContractors === 0
+  const nothingYet = queueLoaded && !queueSays && queue.length === 0 && s.activeContractors === 0
     && data.openRoles.length === 0 && data.startingSoon.length === 0 && data.approvalQueue.length === 0
 
   if (nothingYet) {
@@ -631,7 +665,8 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
-          {queueLoaded && queue.length === 0 && others.length === 0 && (
+          {queueLoaded && queueSays && <p className="p-4 text-sm text-etyme-muted">{queueSays}</p>}
+          {queueLoaded && !queueSays && queue.length === 0 && others.length === 0 && (
             <p className="p-4 text-sm text-etyme-muted">
               {/* Never "nothing" under a headline that counted something
                   (`emptyQueueSays`): it says where those things are. */}
@@ -754,7 +789,9 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
             center, what is committed and what is left. */}
         <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" href="/dashboard/program/budget" />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
-        <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />
+        {/* A refused tenure read draws no tile: a dash over "reading"
+            is a spinner that never ends. */}
+        {!tenureSays && <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />}
         {/* What is open, and nothing promised about how fast it fills —
             a public or product sentence promises no speed (CLAUDE.md). */}
         <Stat label={jobListWord('CLIENT').plural} value={s.openRoles} sub="published or drafted" tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
@@ -804,7 +841,8 @@ function Today({ data, queue, queueLoaded, queueBook, tenure, firstGood, busy, o
           <section>
             <h2 className="font-serif text-lg text-etyme-ink mb-3">Tenure to watch</h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-              {tenure === null && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
+              {tenure === null && tenureSays && <p className="p-4 text-sm text-etyme-muted">{tenureSays}</p>}
+              {tenure === null && !tenureSays && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
               {tenure !== null && watchList.length === 0 && (
                 <p className="p-4 text-sm text-etyme-muted">
                   {tenure.summary.totalTracked === 0

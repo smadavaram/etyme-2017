@@ -118,12 +118,21 @@ export default function ProgramOrgPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openSkill, setOpenSkill] = useState<string | null>(null)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/program/org')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'The org view is not part of your seat. Ask your company\'s owner if you need it.')
+        setData(null)
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -150,6 +159,10 @@ export default function ProgramOrgPage() {
         <div className="h-32 rounded bg-etyme-rule/30 mt-8" />
       </div>
     )
+  }
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   }
 
   if (error) {

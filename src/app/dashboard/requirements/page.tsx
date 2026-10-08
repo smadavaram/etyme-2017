@@ -391,6 +391,12 @@ export default function RequirementsPage() {
   const [requirements, setRequirements] = useState<Requirement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Whether the first read has come back. Until it has, the counts would
+  // read 0 as if they were answers (sign-up walk, round four, problem 21).
+  const [readOnce, setReadOnce] = useState(false)
+  // The door's own sentence when it refused this reader: drawn alone, with
+  // no counts above it (round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showNew, setShowNew] = useState(false)
   // Whose roles the server answered about. A program office in a seat is
@@ -422,6 +428,12 @@ export default function RequirementsPage() {
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
 
       const res = await fetch(`/api/requirements?${params}`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Job requests are not part of your seat. Ask your company\'s owner if you need them.')
+        setRequirements([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -440,6 +452,7 @@ export default function RequirementsPage() {
       setRequirements([])
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [statusFilter])
 
@@ -618,6 +631,10 @@ export default function RequirementsPage() {
     { key: 'ARCHIVED', label: ARCHIVED_WORD },
   ]
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + action */}
@@ -632,7 +649,8 @@ export default function RequirementsPage() {
         </button>
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — drawn once the first read is back, never as zeros. */}
+      {readOnce && !error && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">{statusWord('OPEN')}</p>
@@ -654,6 +672,7 @@ export default function RequirementsPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">filled or closed</p>
         </div>
       </div>
+      )}
 
       {/* Status filters — prototype filter-tab pattern */}
       <div className="flex gap-1.5 mb-5 flex-wrap">

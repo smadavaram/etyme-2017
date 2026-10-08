@@ -7,6 +7,7 @@ import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/ne
 import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Your suppliers.
@@ -142,6 +143,12 @@ export default function SuppliersPage() {
   const [listSummary, setListSummary] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
+  // The section this page sits under on the reader's own menu: Supply for
+  // a program office, Network for a client (round four, problem 15).
+  const section = usePageSection('/dashboard/suppliers')
   const [done, setDone] = useState<string | null>(null)
   /**
    * What a desk is told when its click recorded nothing.
@@ -231,6 +238,11 @@ export default function SuppliersPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/suppliers')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'Suppliers are not part of your seat. Ask your company\'s owner if you need them.')
+        return
+      }
       const body = await readJson(res)
       setSuppliers(body.data.suppliers)
       setListSummary(body.data.summary)
@@ -452,11 +464,15 @@ export default function SuppliersPage() {
     },
   ]
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+  }
+
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Network</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
           <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
             Who you buy from, and where each stands. A firm becomes a supplier when your lead, Procurement, HR and

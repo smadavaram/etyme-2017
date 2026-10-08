@@ -122,6 +122,12 @@ export default function DecisionsPage() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Whether the first read has come back; until then no count is drawn,
+  // because "Pending 0" before the read is a guess (round four, problem 21).
+  const [readOnce, setReadOnce] = useState(false)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
   const [acting, setActing] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -137,6 +143,12 @@ export default function DecisionsPage() {
     setError(null)
     try {
       const res = await fetch('/api/decisions')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body.error?.message ?? 'Decisions are not part of your seat. Ask your company\'s owner if you need them.')
+        setDecisions([])
+        return
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -149,6 +161,7 @@ export default function DecisionsPage() {
       setDecisions([])
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [])
 
@@ -251,6 +264,10 @@ export default function DecisionsPage() {
       )
   const empty = emptyBook(session.company?.kind ?? null, hasPermission(session.permissions, 'assignments.write'))
 
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
+
   return (
     <>
       {/* Head — decision surface */}
@@ -269,7 +286,8 @@ export default function DecisionsPage() {
         </button>
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — only once the read is back and answered. */}
+      {readOnce && !error && (
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Pending</p>
@@ -297,6 +315,7 @@ export default function DecisionsPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Type filters */}
       <div className="flex gap-1.5 flex-wrap mb-5">

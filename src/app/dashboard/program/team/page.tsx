@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * The program team — who approves, who leads, who owns which budget.
@@ -87,6 +88,9 @@ function asTeam(data: any): Team | null {
 
 export default function ProgramTeamPage() {
   const [team, setTeam] = useState<Team | null>(null)
+  // The section this page sits under on the reader's own menu. It printed
+  // the company's name, which is not a section (round four, problem 15).
+  const section = usePageSection('/dashboard/program/team')
   /** Why the page cannot be read at all — a refusal, in the words the
    *  route used. Kept apart from `error`, which is one action going
    *  wrong and must not take the screen away from somebody mid-edit. */
@@ -324,7 +328,7 @@ export default function ProgramTeamPage() {
   return (
     <div className="animate-fade-in max-w-4xl">
       <div className="page-head">
-        <div className="eyebrow">{team.company.name}</div>
+        {section && <div className="eyebrow">{section}</div>}
         <h1 className="headline-serif text-heading text-etyme-ink">Program team</h1>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
           Who reads the job, who reads the suppliers, and who is answerable
