@@ -124,7 +124,9 @@ describe('the invitation email', () => {
   it('the old bare instruction is gone from the invitation route', () => {
     const route = read('src/app/api/access/invite/route.ts')
     expect(route).not.toContain('Somebody there will decide what you can see.')
-    expect(route).toContain("purpose: 'RESET'")
+    // One door mints the set-password link, and it kills older ones.
+    expect(route).toContain('issueSetPassword(person.id, INVITE_LINK_HOURS')
+    expect(route).not.toContain('prisma.emailToken.create')
     // The token lives in the mailbox and nowhere else.
     expect(route).toContain('[the one-time link was in the email and is not kept]')
   })

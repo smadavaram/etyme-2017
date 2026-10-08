@@ -5,8 +5,7 @@ import { hasPermission, inWords } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { checkInvite } from '@/lib/account-lifecycle'
-import { doorOpen } from '@/lib/password-door'
-import { newToken, expiresAfter } from '@/lib/password'
+import { doorOpen, issueSetPassword } from '@/lib/password-door'
 import { emailSender } from '@/lib/senders'
 import { baseUrl } from '@/lib/signed-link'
 import { inviteLetter, INVITE_LINK_HOURS, type InviteDoor } from '@/lib/access-grant'
@@ -204,13 +203,11 @@ export async function POST(request: NextRequest) {
   const title = `${caller.person.name} invited you to ${company?.name ?? 'their company'}`
 
   if (door === 'PASSWORD') {
-    const { token, tokenHash } = newToken()
-    await prisma.emailToken.create({
-      data: { personId: person.id, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(INVITE_LINK_HOURS, now) },
-    })
+    // One door mints the link, and it kills any older one for this person.
+    const setPasswordUrl = await issueSetPassword(person.id, INVITE_LINK_HOURS, now)
     const letter = inviteLetter({
       door, companyName: company?.name ?? 'their company', roleName: role?.name ?? null,
-      setPasswordUrl: `${baseUrl()}/reset/${token}`, loginUrl: login,
+      setPasswordUrl, loginUrl: login,
       linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),
     })
     // Sent here rather than through notify, because notify keeps the body

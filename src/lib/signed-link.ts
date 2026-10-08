@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { appUrl } from '@/lib/supplier-link'
 
 /**
  * One implementation of a signed link, for every page a stranger opens.
@@ -74,13 +75,17 @@ export function read(kind: string, token: string | undefined | null): string[] |
 /**
  * Where the links point.
  *
- * Absolute, because they are read in a mail client. Empty when nothing
+ * Absolute, because they are read in a mail client. Taken from appUrl()
+ * in lib/supplier-link, so every link agrees on the address. Empty when nothing
  * says where this deployment lives, and the caller sends no link rather
  * than a broken one.
  */
 export function baseUrl(): string {
-  const explicit = process.env.NEXTAUTH_URL
-  if (explicit) return explicit.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return ''
+  // One reading of where this deployment lives, shared with supplier
+  // links, so NEXT_PUBLIC_APP_URL counts here too. appUrl() falls back to
+  // localhost, which is a link to nowhere in a mail client — so with
+  // nothing set this stays empty and the caller sends no link.
+  const said =
+    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+  return said ? appUrl() : ''
 }

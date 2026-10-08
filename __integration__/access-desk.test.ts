@@ -111,7 +111,7 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     }))
 
     as(OWNER)
-    const email = 'tara@elsewhere.example'
+    const email = 'tara@elsewhere.test'
     const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Tara Quinn', email, roleId: it_.roles['HR'] })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.wayIn).toBe('PASSWORD')
@@ -126,6 +126,15 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     expect(stored.body).not.toContain(token)
 
     // And the link works: the password door's own reset page sets it.
+    // Brightmoor is a seeded demo firm, and a seat only in the demo never
+    // takes a password — so Tara also works at a real firm, as an invited
+    // teammate outside the demo would.
+    const real = await prisma.company.create({
+      data: { name: 'Elsewhere Works', slug: 'elsewhere-works-access-desk', kind: 'VENDOR', currency: 'USD' },
+    })
+    await prisma.context.create({
+      data: { personId: person.id, companyId: real.id, type: 'EMPLOYEE', grantReason: 'Works at a real firm too' },
+    })
     const set = await resetPassword(token, 'a long walk through the harbor')
     expect(set.ok, JSON.stringify(set)).toBe(true)
   })
