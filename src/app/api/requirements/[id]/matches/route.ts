@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { recordAccess } from '@/lib/access-log'
 import { runMatchEngine } from '@/lib/match-engine'
 import { poolFor, ranked, shownTo, actionFor, REACH_WORD, type Factor } from '@/lib/match-pool'
 import { mayRecommend } from '@/lib/supplier-onboarding'
@@ -102,19 +103,21 @@ export async function GET(
   // CLAUDE.md: "Every read of another person's data writes an AccessLog
   // row" — one per person shown, suggestions included, written before the
   // answer leaves so the trail cannot miss a read that happened.
-  if (rows.length > 0) {
-    await prisma.accessLog.createMany({
-      data: rows.map((r) => ({
-        subjectId: r.entry.personId,
-        actorPersonId: caller.person.id,
-        actorCompanyId: viewer.companyId,
-        action: 'MATCH_VIEW',
-        allowed: true,
-        reason:
-          r.reach === 'SUGGESTION'
-            ? `Suggested without their name for "${requirement.title}" (they agreed to be shown in matches)`
-            : `Match scores for "${requirement.title}" — ${REACH_WORD[r.reach].toLowerCase()}`,
-      })),
+  // One write per reason, since the reason names how each was reached.
+  const byReason = new Map<string, string[]>()
+  for (const r of rows) {
+    const reason =
+      r.reach === 'SUGGESTION'
+        ? `Suggested without their name for "${requirement.title}" (they agreed to be shown in matches)`
+        : `Match scores for "${requirement.title}" — ${REACH_WORD[r.reach].toLowerCase()}`
+    byReason.set(reason, [...(byReason.get(reason) ?? []), r.entry.personId])
+  }
+  for (const [reason, subjectIds] of byReason) {
+    await recordAccess(subjectIds, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: viewer.companyId,
+      action: 'MATCH_VIEW',
+      reason,
     })
   }
 

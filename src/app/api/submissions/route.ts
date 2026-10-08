@@ -25,6 +25,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
 import { workAuthAtSubmission } from './work-authorization'
 import { actingDesk } from '@/lib/program-seat'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
 
 /**
  * POST /api/submissions
@@ -482,6 +483,16 @@ export async function POST(request: NextRequest) {
 
   for (const personId of personIds) {
     const item: any = { personId, status: 'pending' }
+    // Every refusal below is one write: this person, refused a SUBMIT by
+    // this firm, for the reason the branch gives. Awaited before the item
+    // is answered, so a serverless host cannot drop the row (lib/access-log).
+    const refused = (reason: string) =>
+      recordRefusal([personId], {
+        actorPersonId: submitter?.id,
+        actorCompanyId: fromCompanyId,
+        action: 'SUBMIT',
+        reason,
+      })
 
     try {
       // 1. Verify person exists
@@ -540,16 +551,7 @@ export async function POST(request: NextRequest) {
         item.status = 'error'
         item.code = 'NOT_YOUR_EMPLOYEE'
         item.error = deliveryDeskSays(person.name, desk?.companyName ?? 'your firm')
-        await prisma.accessLog.create({
-          data: {
-            subjectId: personId,
-            actorPersonId: submitter?.id ?? null,
-            actorCompanyId: fromCompanyId,
-            action: 'SUBMIT',
-            allowed: false,
-            reason: `Delivery desk refused: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`,
-          },
-        })
+        await refused(`Delivery desk refused: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`)
         results.push(item)
         continue
       }
@@ -590,15 +592,7 @@ export async function POST(request: NextRequest) {
           item.code = 'BLOCKED'
           item.error = blockedSays()
 
-          await prisma.accessLog.create({
-            data: {
-              subjectId: personId,
-              actorCompanyId: fromCompanyId,
-              action: 'SUBMIT',
-              allowed: false,
-              reason: item.error,
-            },
-          })
+          await refused(item.error)
 
           results.push(item)
           continue
@@ -643,15 +637,7 @@ export async function POST(request: NextRequest) {
           item.status = 'error'
           item.code = 'STAY_ENDED'
           item.error = stayRefusedSays(person.name, vendorName, lapsed.staysUntil ?? lapsed.lapsedAt ?? new Date())
-          await prisma.accessLog.create({
-            data: {
-              subjectId: personId,
-              actorCompanyId: fromCompanyId,
-              action: 'SUBMIT',
-              allowed: false,
-              reason: item.error,
-            },
-          })
+          await refused(item.error)
           results.push(item)
           continue
         }
@@ -758,15 +744,7 @@ export async function POST(request: NextRequest) {
             item.status = isHeld ? 'held' : 'error'
             item.code = refusedCode
             item.error = refusedSays
-            await prisma.accessLog.create({
-              data: {
-                subjectId: personId,
-                actorCompanyId: fromCompanyId,
-                action: 'SUBMIT',
-                allowed: false,
-                reason: refusedSays,
-              },
-            })
+            await refused(refusedSays)
             results.push(item)
             continue
           }
@@ -839,15 +817,7 @@ export async function POST(request: NextRequest) {
 
             // A refused submission is still a read of somebody's data, and
             // CLAUDE.md says refusals are logged too.
-            await prisma.accessLog.create({
-              data: {
-                subjectId: personId,
-                actorCompanyId: fromCompanyId,
-                action: 'SUBMIT',
-                allowed: false,
-                reason: verdict.message,
-              },
-            })
+            await refused(verdict.message)
 
             results.push(item)
             continue
@@ -902,16 +872,7 @@ export async function POST(request: NextRequest) {
         item.code = limit.code
         item.error = limit.says
         if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
-        await prisma.accessLog.create({
-          data: {
-            subjectId: personId,
-            actorPersonId: submitter?.id ?? null,
-            actorCompanyId: fromCompanyId,
-            action: 'SUBMIT',
-            allowed: false,
-            reason: `${limit.code}: ${limit.says}`,
-          },
-        })
+        await refused(`${limit.code}: ${limit.says}`)
         results.push(item)
         continue
       }
@@ -1359,21 +1320,18 @@ export async function POST(request: NextRequest) {
       })
 
       // 6. Write AccessLog — submission is a read of person's data
-      await prisma.accessLog.create({
-        data: {
-          subjectId: personId,
-          actorCompanyId: fromCompanyId,
-          action: 'SUBMIT',
-          allowed: true,
-          // Warned and went ahead: the warnings and the reason given are
-          // the record, here, until the automation ladder has a rung for
-          // them (asked of etyme-architect, beside SUBMISSION_OFF_BAND).
-          reason: [
-            `Submitted to "${requirement.title}"`,
-            item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
-            item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
-          ].filter(Boolean).join(' — '),
-        },
+      await recordAccess([personId], {
+        actorPersonId: submitter?.id,
+        actorCompanyId: fromCompanyId,
+        action: 'SUBMIT',
+        // Warned and went ahead: the warnings and the reason given are
+        // the record, here, until the automation ladder has a rung for
+        // them (asked of etyme-architect, beside SUBMISSION_OFF_BAND).
+        reason: [
+          `Submitted to "${requirement.title}"`,
+          item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
+          item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
+        ].filter(Boolean).join(' — '),
       })
 
       item.status = 'created'

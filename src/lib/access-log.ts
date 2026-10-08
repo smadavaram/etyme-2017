@@ -72,6 +72,7 @@ export type AccessAction =
   | 'DOCUMENTS_SHARED_EXTERNALLY' // sent a person's documents to somebody outside the company
   | 'SHARED_DOCUMENTS_OPENED'     // the outside recipient opened that share
   | 'SHARED_DOCUMENTS_WITHDRAWN'  // the share was withdrawn
+  | 'WEEK_APPROVAL_WORDS_VIEW'    // read who approved a week by email, on the timesheet list
 
 interface LogAccessParams {
   /** The person whose data was accessed */

@@ -11,7 +11,8 @@ import { isConsultantSeat } from '@/lib/seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/lib/no-desk'
 import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from './own-weeks'
-import { recordRefusal } from '@/lib/access-log'
+import { reportError } from '@/lib/alerts'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
@@ -525,9 +526,19 @@ async function approvalSentences(
       })
   )
   const words = await approvalWordsFor(reader, weeks)
-  await prisma.accessLog
-    .createMany({ data: weeks.map((w) => approvalWordsReadLog(reader, w, words.has(w.id))) })
-    .catch(() => {})
+  // One row per week read, shown or refused, through lib/access-log. Both
+  // are awaited: the list is answered after its trail is written.
+  const logged = weeks.map((w) => approvalWordsReadLog(reader, w, words.has(w.id)))
+  const shown = logged.filter((l) => l.allowed)
+  const refused = logged.filter((l) => !l.allowed)
+  const actor = { actorPersonId: reader.personId, actorCompanyId: reader.companyId ?? undefined }
+  if (shown.length > 0) {
+    await recordAccess(shown.map((l) => l.subjectId), { ...actor, action: 'WEEK_APPROVAL_WORDS_VIEW' })
+      .catch((err) => reportError('access-log', err, { personId: reader.personId, companyId: reader.companyId }))
+  }
+  if (refused.length > 0) {
+    await recordRefusal(refused.map((l) => l.subjectId), { ...actor, action: 'WEEK_APPROVAL_WORDS_VIEW', reason: refused[0].reason ?? undefined })
+  }
   return words
 }
 

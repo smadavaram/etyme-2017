@@ -273,17 +273,8 @@ const STILL_BY_HAND: readonly string[] = [
   'src/app/api/consultants/[id]/route.ts',             // etyme-supply
   'src/app/api/consultants/[id]/route.ts',             // etyme-supply
   'src/app/api/me/context/route.ts',                   // etyme-supply
-  'src/app/api/requirements/[id]/matches/route.ts',    // etyme-demand
   'src/app/api/resumes/[id]/file/route.ts',            // etyme-supply
   'src/app/api/settings/bench/people/route.ts',        // etyme-architect
-  'src/app/api/submissions/route.ts',                  // etyme-demand, seven writes
-  'src/app/api/submissions/route.ts',
-  'src/app/api/submissions/route.ts',
-  'src/app/api/submissions/route.ts',
-  'src/app/api/submissions/route.ts',
-  'src/app/api/submissions/route.ts',
-  'src/app/api/submissions/route.ts',
-  'src/app/api/timesheets/route.ts',                   // etyme-demand
 ].slice().sort()
 
 describe('every access-log row goes through one door', () => {
