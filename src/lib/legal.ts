@@ -66,7 +66,7 @@ export const COUNSEL_QUESTIONS: CounselQuestion[] = [
       'workforce record and for a candidate profile?',
     whatTheCodeDoes:
       'A client company writes job requests, approvals, timesheet decisions and tenure ' +
-      'reads about workers it did not employ, and Etyme holds them on the client behalf. ' +
+      'reads about workers it did not employ, and Etyme holds them on the client’s behalf. ' +
       'A candidate separately signs in with their own consumer email, keeps their own ' +
       'profile, uploads their own resumes, grants or declines each bench listing, and ' +
       'can turn on a public page of their own. Nothing in the code labels either flow.',
@@ -119,12 +119,12 @@ export const COUNSEL_QUESTIONS: CounselQuestion[] = [
   {
     id: 'model-disclosure',
     question:
-      'Does sending a candidate name, skills, work authorization class and the full ' +
+      'Does sending a candidate’s name, skills, work authorization class and the full ' +
       'text of their resume to a third-party model require a specific disclosure, a ' +
       'separate legal basis, or an opt-out — and does any of it amount to automated ' +
       'decision-making with legal or similarly significant effect?',
     whatTheCodeDoes:
-      'Match scoring sends a candidate name, skills, headline, location, work ' +
+      'Match scoring sends a candidate’s name, skills, headline, location, work ' +
       'authorization class, rate floor and availability date. The evidence check sends ' +
       'the extracted text of a resume with the skills claimed for it. Both fall back to ' +
       'arithmetic, or skip entirely, when no model key is set. A score is always ' +
@@ -239,7 +239,7 @@ export const POPULATIONS: Population[] = [
     id: 'business',
     name: 'Business users',
     signIn:
-      'Through their employer identity provider — Microsoft Entra or Google Workspace ' +
+      'Through their employer’s identity provider — Microsoft Entra or Google Workspace ' +
       '— or by an emailed link where their company has not connected one. A consumer ' +
       'email address cannot register a company.',
     channel:
@@ -387,7 +387,7 @@ export const HELD: HeldCategory[] = [
       'approval given or refused with the reason in words, somebody else week of hours ' +
       'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
       'supplier decided at a desk, a payment run approved, a legal hold placed, an ' +
-      'incident opened. An agreement carries the signer own name, title and email as they ' +
+      'incident opened. An agreement carries the signer’s own name, title and email as they ' +
       'appear on the paper. An order names the company that raised it and not a person, ' +
       'so nothing here claims one.',
     about: 'Business users',
@@ -423,7 +423,7 @@ export const HELD: HeldCategory[] = [
     category: 'Company and supplier records',
     examples:
       'Legal name, addresses, tax registration, org units, cost centers, roles, ' +
-      'contacts, agreements, orders, bills and invoices, and a supplier own application — its ' +
+      'contacts, agreements, orders, bills and invoices, and a supplier’s own application — its ' +
       'legal name, address, D-U-N-S number, website, experience and named references ' +
       'with their contact details.',
     about: 'Companies',
@@ -451,7 +451,7 @@ export const HELD: HeldCategory[] = [
   {
     category: 'Logs',
     examples:
-      'Every read of another person record on the routes that read one — who read it, ' +
+      'Every read of another person’s record on the routes that read one — who read it, ' +
       'from which company, what they were doing and whether they were allowed, ' +
       'refusals included. Alongside those: what the system did unprompted and why, ' +
       'scheduled job runs, and errors.',
@@ -499,7 +499,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
       'for it, reading an imported file into records, and writing a company or ' +
       'consultant public page.',
     reaches:
-      'For matching: a candidate name, skills, headline, location, work authorization ' +
+      'For matching: a candidate’s name, skills, headline, location, work authorization ' +
       'class, rate floor and availability date, in batches. For the evidence check: the ' +
       'extracted text of a resume and the skills claimed for it. For an import: up to ' +
       'sixty thousand characters of whatever file or paste is being loaded. For a ' +
@@ -524,7 +524,7 @@ export const SUB_PROCESSORS: SubProcessor[] = [
       'Sign-in only, where a company has connected one. They authenticate; they ' +
       'receive no workforce data back.',
     reaches:
-      'The sign-in exchange itself — an email address and the identity provider own ' +
+      'The sign-in exchange itself — an email address and the identity provider’s own ' +
       'subject claim.',
     provenBy:
       'AZURE_AD_CLIENT_ID, GOOGLE_CLIENT_ID; src/lib/auth.ts, which registers a ' +
@@ -543,7 +543,7 @@ export const NOT_USED = [
     'held in the database, and other documents are recorded by file name and a link ' +
     'supplied by whoever uploaded them.',
   'DocuSign, or any e-signature provider. `.env.example` carries its keys; nothing ' +
-    'reads them. A document is signed here by attestation from the person own page, ' +
+    'reads them. A document is signed here by attestation from the person’s own page, ' +
     'recorded with who attested and when.',
   'Any SMS provider. Text messages are composed and stored; nothing sends one.',
   'Any analytics, advertising or session-replay service. There is no such dependency ' +
@@ -577,7 +577,7 @@ export const RETENTION = {
       'afterward has to be able to find them. Suspension is the reversible form, for a ' +
       'leave of absence or a lapsed visa, and keeps their history attached to them.',
     'A resume a candidate removes is hidden from their own list. A company it was ' +
-      'already sent to can still open its copy, because it is in that company records ' +
+      'already sent to can still open its copy, because it is in that company’s records ' +
       'and Etyme cannot unsend it.',
     'Demo workspaces nobody returns to are cleared automatically after a fixed number ' +
       'of days.',
@@ -588,7 +588,7 @@ export const RETENTION = {
       '"Erased person". Sign-in records, the consultant profile, resumes never sent, and ' +
       'bars and stars set against the name are deleted outright.',
     'A statutory minimum beats an erasure request, and the request says which and why ' +
-      'in the person own words rather than being refused.',
+      'in the person’s own words rather than being refused.',
   ],
   provenBy:
     'src/lib/retention.ts, src/lib/erasure.ts, src/lib/data-request.ts, ' +
@@ -621,7 +621,7 @@ export const WALLS = {
 
 export const ACCESS_LOGGING = {
   paragraphs: [
-    'Reads of a person record are logged. The row names the person read, who read it, ' +
+    'Reads of a person’s record are logged. The row names the person read, who read it, ' +
       'which company they were sitting at, what they were doing, whether they were ' +
       'allowed and, where they were not, why. A refusal is logged as carefully as a ' +
       'read, because a refusal is the interesting one.',
@@ -695,7 +695,7 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'Accounts and seats',
       paragraphs: [
-        'A business user signs in through their employer identity provider, or by an ' +
+        'A business user signs in through their employer’s identity provider, or by an ' +
           'emailed link. A seat belongs to the company that granted it: an owner or ' +
           'administrator there can suspend it or end it at any time.',
         'A consultant account belongs to the person, not to whichever supplier signed ' +
@@ -827,7 +827,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
         'This is stated first and plainly because it is the disclosure most easily ' +
           'buried. Personal data does reach a third-party model, and here is exactly ' +
           'which.',
-        'Matching sends a candidate name, skills, headline, location, work ' +
+        'Matching sends a candidate’s name, skills, headline, location, work ' +
           'authorization class, rate floor and availability date, together with the ' +
           'job being matched against. The evidence check — run by a supplier on its ' +
           'own submission, and again by the client screening it — sends the extracted ' +
@@ -890,7 +890,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       open: 'tenure-visibility',
     },
     {
-      heading: 'A consultant permission is per supplier, and theirs to move',
+      heading: 'A consultant’s permission is per supplier, and theirs to move',
       paragraphs: [
         'No supplier may submit a consultant to a job without a bench listing the ' +
           'consultant granted. The database requires it, not the screen.',
@@ -931,7 +931,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
           'waive.',
         'Where a company has placed a legal hold naming somebody, an erasure is held ' +
           'rather than refused, the person is told that a hold applies and in whose ' +
-          'words, and it runs by itself the day the last hold is lifted. The holder own ' +
+          'words, and it runs by itself the day the last hold is lifted. The holder’s own ' +
           'case reference is never shown to the person.',
         'A request that arrives by email is logged by the compliance desk at a company ' +
           'that actually holds the person, and the clock counts from the day it arrived ' +
@@ -948,7 +948,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
       heading: 'Cookies and tracking',
       paragraphs: [
         'A session cookie, set at sign-in, lasting thirty days. Whether a list is shown ' +
-          'as a table or a feed is remembered in the browser own storage, on the device.',
+          'as a table or a feed is remembered in the browser’s own storage, on the device.',
         'There is no analytics, advertising or session-replay service in the ' +
           'application, and no third-party cookie is set by it.',
       ],
@@ -983,10 +983,10 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
     {
       heading: 'The unsettled question, stated before anything else',
       paragraphs: [
-        'For a client own workforce data — its job requests, its approvals, its ' +
+        'For a client’s own workforce data — its job requests, its approvals, its ' +
           'timesheet decisions, the records it keeps about workers it did not employ — ' +
-          'Etyme looks like a processor acting on the client instructions.',
-        'For a candidate own profile — an account they hold themselves, a profile they ' +
+          'Etyme looks like a processor acting on the client’s instructions.',
+        'For a candidate’s own profile — an account they hold themselves, a profile they ' +
           'maintain, resumes they upload, a public page they turn on, permissions they ' +
           'grant and revoke per supplier — Etyme looks like a controller, because no ' +
           'customer instructed any of it.',
@@ -1044,7 +1044,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
       paragraphs: [
         'The list below is generated from the services the code calls. A new one would ' +
           'appear in the same list on the commit that added it.',
-        'The notice period for adding one, and the customer right to object, are open.',
+        'The notice period for adding one, and the customer’s right to object, are open.',
       ],
       table: 'sub-processors',
       open: 'sub-processor-contracts',
@@ -1059,12 +1059,12 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
       bullets: [
         'Records are filtered by the asking company in the database query rather than ' +
           'hidden on the screen (src/lib/walls.ts, src/lib/account-walls.ts, src/lib/seat.ts).',
-        'Reads of a person record are logged with the reader, their company, the ' +
+        'Reads of a person’s record are logged with the reader, their company, the ' +
           'reason and whether they were allowed, refusals included (src/lib/access-log.ts).',
         'Segregation of duties is enforced rather than advised: an approver who is the ' +
           'beneficiary is blocked, and the refusal names whose rule blocked it ' +
           '(src/lib/governance.ts, src/lib/governance-authorship.ts).',
-        'Sign-in is delegated to the customer own identity provider where one is ' +
+        'Sign-in is delegated to the customer’s own identity provider where one is ' +
           'connected, and a provider with no credentials is not offered at all ' +
           '(src/lib/auth.ts).',
         'API keys are stored as a SHA-256 hash and compared in constant time; a key ' +
@@ -1112,7 +1112,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
           'machine errors a failing route writes. It carries when somebody here became ' +
           'aware, whether personal data was involved, which populations and which ' +
           'categories, which customers, and a notification deadline for the supervisory ' +
-          'authority, for the people affected, and for each customer on that customer own ' +
+          'authority, for the people affected, and for each customer on that customer’s own ' +
           'agreed period. Every deadline names the person who owns sending it. A nightly ' +
           'sweep says so a day before each one and goes on saying so once a day after it ' +
           'has passed, and a breach cannot be closed over a deadline with no notice ' +
@@ -1153,13 +1153,13 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
       heading: 'Return and deletion at the end',
       paragraphs: [
         'Half built, and the half that is missing is named rather than papered over. A ' +
-          'request can be raised about a customer own records and carries a deadline like ' +
-          'any other, and the customer own tombstone column exists so that erasing a firm ' +
+          'request can be raised about a customer’s own records and carries a deadline like ' +
+          'any other, and the customer’s own tombstone column exists so that erasing a firm ' +
           'is anonymization rather than a row delete.',
         'What is not built is the export itself. A customer export is refused in words ' +
           'today, because nobody has decided which of the joint records travel with it — ' +
           'a contract between two firms, an invoice between them, and the days a person ' +
-          'worked on a site are the other firm records as much as this one, and handing ' +
+          'worked on a site are the other firm’s records as much as this one, and handing ' +
           'over a copy of them is a decision about somebody else data. Answering by hand ' +
           'is the honest path until that is decided.',
       ],
@@ -1470,7 +1470,7 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
       ask: 'Who can see it',
       answer:
         'The company whose record it is, filtered in the database query rather than ' +
-        'hidden on the screen, and inside a firm the org unit. Every read of a person ' +
+        'hidden on the screen, and inside a firm the org unit. Every read of a person’s ' +
         'record is logged, refusals included.',
       href: '#who-can-see-it',
     },
@@ -1515,7 +1515,7 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
     {
       ask: 'Who can see it',
       answer:
-        'A customer sees its own data. Reaching another company data, or working around ' +
+        'A customer sees its own data. Reaching another company’s data, or working around ' +
         'the walls the privacy notice describes, is what a customer may not do.',
       href: '#what-a-customer-may-and-may-not-do-with-the-platform',
     },
@@ -1602,7 +1602,7 @@ export const DEFINITIONS: Definition[] = [
   {
     term: 'Business user',
     meaning:
-      'Somebody with a seat at a company, signed in through their employer identity ' +
+      'Somebody with a seat at a company, signed in through their employer’s identity ' +
       'provider or by an emailed link. The seat belongs to the company that granted it.',
   },
   {

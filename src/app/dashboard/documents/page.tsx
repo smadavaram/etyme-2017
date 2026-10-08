@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 
 /**
@@ -51,6 +53,14 @@ interface Request_ {
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
 
 export default function DocumentsPage() {
+  const { company, seat } = useSession()
+  // The heading the reader's menu gives this page — Compliance — and
+  // nothing while the company is not yet known, so no page borrows one.
+  const eyebrow = sectionOfHref(
+    company?.kind ?? null,
+    '/dashboard/documents',
+    seat ? { seated: true, clientName: seat.clientName } : null
+  )
   const [templates, setTemplates] = useState<Template[]>([])
   const [requests, setRequests] = useState<Request_[]>([])
   const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
@@ -137,7 +147,7 @@ export default function DocumentsPage() {
   return (
     <div className="max-w-5xl">
       <div className="page-head mb-6">
-        <p className="eyebrow">Operate</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>Paperwork</h1>
         <p>What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer.</p>
       </div>

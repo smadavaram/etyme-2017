@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import {
-  raiseRequest, produceExport, heldCategories, categoriesHeldAbout, audiencesOf,
-  reference, contactEmail, coolingEndsAtFor, raisedSays,
+  raiseRequest, produceExport, heldCategories, categoriesHeldAbout, categoryShownAs, audiencesOf,
+  reference, contactEmail, contactSays, coolingEndsAtFor, raisedSays,
 } from '@/lib/data-request'
 import { holdersOf } from '@/lib/erasure'
 import { logAccess } from '@/lib/access-log'
@@ -90,11 +90,12 @@ export async function GET(request: NextRequest) {
   // find their record rather than an envelope around it.
   return NextResponse.json({
     data: {
-      held: heldCategories(),
-      aboutYou: categoriesHeldAbout(audiences),
+      held: heldCategories().map((h) => ({ ...h, category: categoryShownAs(h.category) })),
+      aboutYou: categoriesHeldAbout(audiences).map(categoryShownAs),
       youAre: audiences,
       whoWouldBeTold: holders.map((h) => ({ name: h.companyName, how: h.holding })),
       contactEmail: contactEmail(),
+      contactSays: contactSays(),
       requests: requests.map((r) => ({
         ...r,
         reference: reference(r.id),

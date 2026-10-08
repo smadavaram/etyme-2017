@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useSession } from '@/components/session-provider'
+import { sectionOfHref } from '@/lib/page-framing'
 
 /**
  * Screening packs — the other direction.
@@ -49,6 +51,14 @@ interface SentRow {
 type Filter = 'all' | 'blocked' | 'ready'
 
 export default function OutboundPackPage() {
+  const { company, seat } = useSession()
+  // The heading the reader's menu gives this page — Compliance — and
+  // nothing while the company is not yet known, so no page borrows one.
+  const eyebrow = sectionOfHref(
+    company?.kind ?? null,
+    '/dashboard/outbound-pack',
+    seat ? { seated: true, clientName: seat.clientName } : null
+  )
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -152,7 +162,7 @@ export default function OutboundPackPage() {
     return (
       <div className="mx-auto max-w-[900px] px-4 py-6">
         <header className="page-head">
-          <p className="eyebrow">Operate</p>
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>Screening packs</h1>
         </header>
         <div className="panel">
@@ -168,7 +178,7 @@ export default function OutboundPackPage() {
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-6">
       <header className="page-head">
-        <p className="eyebrow">Operate</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>Screening packs</h1>
         <p>
           A vendor spends as much time being screened as screening. This is what we can

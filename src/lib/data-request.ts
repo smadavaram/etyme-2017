@@ -22,6 +22,7 @@
  */
 
 import { appUrl } from '@/lib/app-url'
+import { staffAddresses } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { HELD, NOT_USED } from '@/lib/legal'
 import {
@@ -202,6 +203,26 @@ export function categoriesHeldAbout(audience: Audience | Audience[]): string[] {
   const all = Array.isArray(audience) ? audience : [audience]
   const mine = new Set(all.flatMap((a) => categoriesFor(a)))
   return HELD.map((h) => h.category).filter((c) => mine.has(c))
+}
+
+/**
+ * How a category reads on a screen, where its name as a key is wrong.
+ *
+ * The category names are keys across four files and two domains — the
+ * notice, the retention schedule, erasure's counts here and the FATES
+ * table in conversation's `lib/notify/data-rights`, matched by exact
+ * string. One of them lost its possessive when it was written, and the
+ * walk read "A consultant own profile" on Your data. Renaming the key
+ * here alone would leave the profile with no fate in the erasure letter,
+ * so the screen is corrected now and the key moves once, in all four
+ * files together, through the architect. Delete this map in that commit.
+ */
+const SHOWN_AS: Record<string, string> = {
+  'A consultant own profile': 'A consultant’s own profile',
+}
+
+export function categoryShownAs(category: string): string {
+  return SHOWN_AS[category] ?? category
 }
 
 /** Everything the notice names, for a screen that renders the list. */
@@ -705,7 +726,7 @@ export async function raiseRequest(input: {
         completesOn: runsOn!,
         categories: mine,
         withdrawUrl: withdrawUrl(row.id),
-        contactEmail: contactEmail(),
+        contactEmail: contactForLetter(),
       })
     )
   }
@@ -731,9 +752,52 @@ export function downloadUrl(requestId: string): string {
   return `${baseUrl()}/api/me/data?download=${requestId}`
 }
 
-/** Where a question about any of this goes. */
-export function contactEmail(): string {
-  return process.env.ETYME_PRIVACY_EMAIL ?? 'privacy@etyme.example'
+/**
+ * Domains nobody can own (RFC 2606 and 6761). An address on one of them
+ * is the demo world's, and printing it to a real person as the place
+ * their question goes is promising a reply nobody can send.
+ */
+const UNOWNABLE = ['.example', '.invalid', '.local', '.test', '.localhost']
+
+function ownable(address: string): boolean {
+  const at = address.lastIndexOf('@')
+  if (at < 1) return false
+  const domain = address.slice(at + 1).toLowerCase()
+  if (!domain.includes('.')) return false
+  return !UNOWNABLE.some((s) => domain === s.slice(1) || domain.endsWith(s))
+}
+
+/**
+ * Where a question about any of this goes, or null when nobody is set up.
+ *
+ * `ETYME_PRIVACY_EMAIL` first, then the first address on
+ * `ETYME_STAFF_EMAILS` — the people who already hear when something
+ * breaks. An address on a domain nobody can own is treated as unset,
+ * because an address on a reserved demo domain is a door painted on a wall.
+ * Null is an honest answer; callers say so in a sentence (`contactSays`).
+ */
+export function contactEmail(): string | null {
+  const named = (process.env.ETYME_PRIVACY_EMAIL ?? '').trim()
+  if (named && ownable(named)) return named
+  return staffAddresses().find(ownable) ?? null
+}
+
+/** What a person reads when no privacy contact is set up on this deployment. */
+export const NO_CONTACT_SAYS =
+  'A privacy contact address is not set up yet. Your requests on this page still run on their dates.'
+
+/** The closing line on the Your data page, with or without an address. */
+export function contactSays(email: string | null = contactEmail()): string {
+  return email ? `Questions about any of this go to ${email}.` : NO_CONTACT_SAYS
+}
+
+/**
+ * The same, for a letter that prints "Questions: …". The letters are
+ * conversation's and take a string, so with no address they get a phrase
+ * that is true rather than an address nobody reads.
+ */
+function contactForLetter(): string {
+  return contactEmail() ?? 'no privacy address is set up yet'
 }
 
 // ── Answering one ─────────────────────────────────────────────────────
@@ -780,7 +844,7 @@ export async function produceExport(requestId: string, now = new Date()): Promis
       // letter says the same day the screen does.
       linkExpiresAt: new Date(now.getTime() + 7 * 86_400_000),
       now,
-      contactEmail: contactEmail(),
+      contactEmail: contactForLetter(),
     })
   )
 
@@ -842,7 +906,7 @@ export async function completeErasure(
     completedOn: now,
     categories,
     replyTo,
-    contactEmail: contactEmail(),
+    contactEmail: contactForLetter(),
   })
   await sendOutside(letter, replyTo)
 
@@ -852,7 +916,7 @@ export async function completeErasure(
       person: { name },
       reference: reference(requestId),
       completedOn: now,
-      contactEmail: contactEmail(),
+      contactEmail: contactForLetter(),
     })
     await tellCompany(holder.companyId, held)
   }

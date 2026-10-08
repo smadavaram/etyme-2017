@@ -246,7 +246,7 @@ describe('The privacy notice describes the system that exists', () => {
   })
 
   it('it says a consultant grants a bench listing per supplier and can take it back', () => {
-    const section = PRIVACY.sections.find((s) => s.heading.includes('consultant permission'))!
+    const section = PRIVACY.sections.find((s) => s.heading.includes('consultant’s permission'))!
     const text = section.paragraphs.join(' ')
     expect(text).toMatch(/granted or declined by the consultant/i)
     expect(text).toMatch(/The database requires it, not the screen/i)
@@ -280,7 +280,7 @@ describe('The sub-processor list is generated from what the code calls', () => {
   it('it names Anthropic, because a candidate name and the text of their CV reach a model', () => {
     const anthropic = SUB_PROCESSORS.find((s) => s.name === 'Anthropic')
     expect(anthropic, 'a model sub-processor must be disclosed').toBeDefined()
-    expect(anthropic!.reaches).toMatch(/candidate name/i)
+    expect(anthropic!.reaches).toMatch(/candidate’s name/i)
     expect(anthropic!.reaches).toMatch(/extracted text of a resume/i)
     expect(anthropic!.always).toBe(false)
 
@@ -351,7 +351,7 @@ describe('The DPA lists only measures the repository can point at', () => {
     const text = section.paragraphs.join(' ')
     expect(text).toMatch(/What is not built is the export itself/i)
     expect(text, 'the reason has to be the joint records, not a vague gap').toMatch(
-      /the other firm records as much as this one/i
+      /the other firm’s records as much as this one/i
     )
     // And the route actually refuses it rather than producing a file.
     const lib = readFileSync(join(ROOT, 'src/lib/data-request.ts'), 'utf8')

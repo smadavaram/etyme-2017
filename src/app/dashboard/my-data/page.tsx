@@ -79,7 +79,7 @@ export default function MyDataPage() {
       setYouAre(d.youAre ?? [])
       setTold(d.whoWouldBeTold ?? [])
       setRequests(d.requests ?? [])
-      setContact(d.contactEmail ?? '')
+      setContact(d.contactSays ?? '')
     } catch {
       setError('We could not read your record just now. Nothing has changed — try again in a moment.')
     } finally {
@@ -321,9 +321,9 @@ export default function MyDataPage() {
         />
       </section>
 
-      {open.length === 0 && (
+      {open.length === 0 && contact && (
         <p className="text-xs text-etyme-faint mt-8">
-          Questions about any of this go to {contact}.
+          {contact}
         </p>
       )}
     </div>

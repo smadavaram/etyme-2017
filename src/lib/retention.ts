@@ -203,7 +203,7 @@ export const SCHEDULE: ScheduleLine[] = [
     anchor: 'NONE',
     months: 0,
     basis:
-      'A profile is the person own marketing of themselves. Nobody is required to keep ' +
+      'A profile is the person’s own marketing of themselves. Nobody is required to keep ' +
       'it and no counterparty book depends on it.',
   },
   {
@@ -213,7 +213,7 @@ export const SCHEDULE: ScheduleLine[] = [
     months: 0,
     basis:
       'A file the person uploaded, and the text read out of it. A copy already sent to ' +
-      'a company is in that company own records and keeps its row with the bytes and ' +
+      'a company is in that company’s own records and keeps its row with the bytes and ' +
       'the text cleared, because Etyme cannot unsend it.',
   },
   {
@@ -232,7 +232,7 @@ export const SCHEDULE: ScheduleLine[] = [
     anchor: 'NONE',
     months: null,
     basis:
-      'A message is the counterparty own record of a deal as much as the author own. ' +
+      'A message is the counterparty’s own record of a deal as much as the author’s own. ' +
       'The words stay; the author becomes the tombstone. No statute sets a period, so ' +
       'none is offered.',
   },
@@ -242,7 +242,7 @@ export const SCHEDULE: ScheduleLine[] = [
     anchor: 'NONE',
     months: null,
     basis:
-      'A decision is the company own record of a decision it made, and it keeps its date, ' +
+      'A decision is the company’s own record of a decision it made, and it keeps its date, ' +
       'its outcome and the reason in words while it stops naming anybody. Where one of ' +
       'these is itself a personnel record made in the course of a hiring action, the EEOC ' +
       'minimum applies to keeping it — one year at 29 CFR 1602.14, two for a federal ' +
@@ -272,7 +272,7 @@ export const SCHEDULE: ScheduleLine[] = [
     months: null,
     basis:
       'No statute sets a period for this. The days somebody stood on a client site are ' +
-      'the client own record of its own exposure, kept for as long as the client is ' +
+      'the client’s own record of its own exposure, kept for as long as the client is ' +
       'answerable for them, counted once per day and naming nobody after an erasure. ' +
       'Offering a deletion date here would be a number nobody can stand behind.',
   },
@@ -311,7 +311,7 @@ export const SCHEDULE: ScheduleLine[] = [
       'one. What can be cited covers one part of it: the H-1B public access file runs ' +
       'one year beyond the end of the employment named in the labor condition ' +
       'application, or one year from the application being withdrawn, at 29 CFR ' +
-      '655.760(c). The petition itself is the employer own file with the government, ' +
+      '655.760(c). The petition itself is the employer’s own file with the government, ' +
       'its period turns on the classification and on state law, and that is counsel ' +
       'answer. So nothing here is deleted on a schedule, and the reason is said rather ' +
       'than a plausible number being printed.',
@@ -325,7 +325,7 @@ export const SCHEDULE: ScheduleLine[] = [
       'Three years from the last payroll record the position is a defense of, which is ' +
       'the Fair Labor Standards Act minimum for payroll records at 29 CFR 516.5. ' +
       'Whether somebody was an employee or a contractor, and whether they were exempt, ' +
-      'is the employer own position and it has to be able to answer for it for as long ' +
+      'is the employer’s own position and it has to be able to answer for it for as long ' +
       'as the pay records behind it are live. A state may ask for longer.',
   },
   {
@@ -336,7 +336,7 @@ export const SCHEDULE: ScheduleLine[] = [
     basis:
       'Kept whole, ids and all, for as long as the records they are evidence about. ' +
       'After a tombstone the ids resolve to nobody. Deleting the trail of who read ' +
-      'somebody record is the one deletion that hurts the person it was meant to ' +
+      'somebody’s record is the one deletion that hurts the person it was meant to ' +
       'protect, so no period is offered and none is wanted.',
   },
   {
@@ -361,8 +361,8 @@ export const SCHEDULE: ScheduleLine[] = [
     anchor: 'NONE',
     months: null,
     basis:
-      'A company own legal and trading records are the company, not a person. They are ' +
-      'not erased by a person request and no statutory period here is Etyme to set.',
+      'A company’s own legal and trading records are the company, not a person. They are ' +
+      'not erased by a person’s request and no statutory period here is Etyme’s to set.',
   },
   {
     category: 'Payment details',
@@ -400,7 +400,7 @@ export interface Facts {
   /** True where an unlifted legal hold names this subject. */
   underLegalHold?: boolean
   /**
-   * The hold reason, in the holder own words. Shown to the person; the
+   * The hold reason, in the holder’s own words. Shown to the person; the
    * matter reference never is.
    */
   holdReason?: string | null
@@ -452,7 +452,7 @@ function anchorDate(anchor: Anchor, f: Facts): Date | null {
  * is the point: the records a litigation needs are usually somebody
  * else, and a hold placed by one company suspends the deletion wherever
  * it would have happened. The sentence gives the holder reason and never
- * the matter reference, which is the holder own business.
+ * the matter reference, which is the holder’s own business.
  */
 export function verdictFor(category: string, facts: Facts): Verdict {
   const line = scheduleFor(category)
