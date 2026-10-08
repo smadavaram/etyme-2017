@@ -5,6 +5,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { sectionOfHref } from '@/lib/page-framing'
 import { useSession } from '@/components/session-provider'
+import { refusalSentence } from '@/lib/refusal-words'
 
 /**
  * Contacts, and who to call there.
@@ -48,6 +49,9 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // A refusal is the page: its sentence alone, with no tabs, search or
+  // "Add contact" around it (sign-up walk, round six, problem 12).
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,8 +60,13 @@ export default function ContactsPage() {
         fetch(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`),
         fetch('/api/counterparties'),
       ])
-      const cb = await c.json()
-      const rb = await r.json()
+      const cb = await c.json().catch(() => ({}))
+      const rb = await r.json().catch(() => ({}))
+      const no = c.status === 403 ? cb : r.status === 403 ? rb : null
+      if (no) {
+        setRefused(refusalSentence(no?.error?.message) || 'Contacts is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       if (!c.ok) throw new Error(cb.error?.message ?? `HTTP ${c.status}`)
       if (!r.ok) throw new Error(rb.error?.message ?? `HTTP ${r.status}`)
       setContacts(cb.data)
@@ -83,6 +92,9 @@ export default function ContactsPage() {
     readerKind, '/dashboard/contacts',
     session.seat ? { seated: true, clientName: session.seat.clientName } : null,
   )
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (contacts === null && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">

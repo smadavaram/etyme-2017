@@ -47,6 +47,8 @@ import {
   SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
 import { formatDay } from '@/lib/format-date'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/lib/no-desk'
 
 // ── Results ───────────────────────────────────────────────────────────
 
@@ -1036,6 +1038,18 @@ export interface WeekSeen {
 }
 
 /** Whether a reader is on this week at all: the worker, or a firm on the chain. */
+/**
+ * A seat with no desk opens its own week and nobody else's (sign-up walk,
+ * round six, problem 3). The door lets such a seat through to this route
+ * because the worker's own page links every week to it; the firm being
+ * on the chain is not the seat being on it, so a colleague's week is
+ * refused here in the door's own words. Null where the reader may go on.
+ */
+function desklessStranger(r: Reader, c: WeekChain): string | null {
+  if (r.seat || r.personId === c.week.personId || !isDeskless(r.permissions)) return null
+  return noDeskYet('That week', r.companyName ?? null)
+}
+
 function onTheWeek(r: Reader, c: WeekChain): boolean {
   if (r.personId === c.week.personId) return true
   if (!r.companyId) return false
@@ -1055,6 +1069,11 @@ function labelFor(r: Reader, c: WeekChain, id: string): string {
 export async function readWeekApprovals(r: Reader, timesheetId: string, now = new Date()): Promise<{ ok: true; seen: WeekSeen } | Refused> {
   const c = await readWeekChain(timesheetId)
   if (!c) return refuse(404, 'NOT_FOUND', 'That week is not here.')
+  const stranger = desklessStranger(r, c)
+  if (stranger) {
+    await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', stranger)
+    return refuse(403, 'NO_DESK', stranger)
+  }
   if (!onTheWeek(r, c)) {
     const says = 'This week is not on a contract your company is on.'
     await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', says)
@@ -1198,6 +1217,11 @@ export async function readEvidenceFile(
   if (!a || !a.file) return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
   const c = await readWeekChain(a.timesheetId)
   if (!c) return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
+  const stranger = desklessStranger(r, c)
+  if (stranger) {
+    await writeReadLog(r, c, { ok: false, says: stranger })
+    return refuse(403, 'NO_DESK', stranger)
+  }
   const v = mayReadEvidence({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, a.contracts.map((x) => x.sellContractId), c.ladder)
   await writeReadLog(r, c, v)
   if (!v.ok) return refuse(403, 'FORBIDDEN', v.says)

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
+import { isDeskless } from '@/lib/nav-table'
 
 /**
  * One week, and how the client approved it.
@@ -68,6 +71,14 @@ export default function WeekPage() {
   const [said, setSaid] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Headed by the section the week's list sits under on the reader's own
+  // menu, never by the client's name (sign-up walk, round six, problem
+  // 6): a worker with no desk opens a week from Your work, everybody
+  // else from Timesheets.
+  const session = useSession()
+  const section = usePageSection(
+    isDeskless(session.permissions) && session.isWorker ? '/dashboard/my-work' : '/dashboard/timesheets'
+  )
 
   const load = useCallback(async () => {
     try {
@@ -120,17 +131,18 @@ export default function WeekPage() {
     }
   }
 
-  if (error) return <div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div>
+  // A refusal is the page: its sentence alone (round six, problem 12).
+  if (error) return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
   if (!seen) return <p className="text-[13px] text-etyme-muted">Loading the week…</p>
 
   const w = seen.week
   return (
     <div className="mx-auto max-w-[760px] space-y-6">
       <header>
-        <p className="eyebrow">Hours · {w.clientName}</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif mt-2 text-[30px] leading-[1.1] text-balance">{w.personName}, {w.period}</h1>
         <p className="mt-2 text-[14px] text-etyme-muted">
-          <span className="tabular-nums">{w.totalHours}</span> hours ·{' '}
+          <span className="tabular-nums">{w.totalHours}</span> hours at {w.clientName} ·{' '}
           {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? `approved by ${w.clientName}; the firms below accept it in turn` : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
         </p>
       </header>

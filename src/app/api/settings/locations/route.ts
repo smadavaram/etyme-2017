@@ -20,7 +20,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Locations belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Work sites are a company’s, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

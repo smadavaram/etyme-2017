@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Suppliers belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'This is a company’s list of its suppliers, and you are not signed in at a company.' } },
       { status: 403 }
     )
   }

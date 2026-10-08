@@ -132,13 +132,54 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
 
   it('only the person whose week it is is offered a new timesheet; the owner of the firm is not', () => {
     expect(labels(plusMenuFor('VENDOR', false, ['*'], false))).not.toContain('New timesheet')
-    expect(labels(plusMenuFor('VENDOR', false, ['*'], true))).toContain('New timesheet')
+    expect(labels(plusMenuFor('VENDOR', false, ['*'], true, { filesAWeek: true }))).toContain('New timesheet')
+  })
+
+  it('a worker is offered a new timesheet only while a line of theirs still takes hours, never on a line that has ended', () => {
+    // Sign-up walk, round six, problem 7: Karthik Menon's only line ended
+    // Aug 31 and the + button still offered him a new week.
+    expect(labels(plusMenuFor('VENDOR', false, ['*'], true, { filesAWeek: false }))).not.toContain('New timesheet')
+    expect(labels(plusMenuFor('VENDOR', false, ['*'], true))).not.toContain('New timesheet')
+    const desk = deskOf({ company: null, contextType: 'EMPLOYEE', isWorker: true, permissions: ['*'], filesAWeek: false })
+    expect(desk.filesAWeek).toBe(false)
+    expect(deskOf({ company: null, contextType: 'EMPLOYEE', isWorker: true, permissions: ['*'], filesAWeek: true }).filesAWeek).toBe(true)
+    expect(deskOf({ company: null, contextType: 'EMPLOYEE', isWorker: false, permissions: ['*'], filesAWeek: true }).filesAWeek).toBe(false)
+  })
+
+  it('a client’s Member with no desk is offered no approvals to review, because his menu has no Governance', () => {
+    const offered = plusMenuFor('CLIENT', false, [], false)
+    expect(labels(offered)).not.toContain('Review approvals')
+    expect(offered.map((s) => s.label)).not.toContain('Governance')
+  })
+
+  it('a seat with no desk is offered only what its own menu holds, under the heading its menu gives that page', () => {
+    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP'] as const) {
+      for (const worker of [false, true]) {
+        const permissions = worker ? ['assignments.read', 'timesheets.read'] : []
+        const nav = getNavForKind(kind, false, { worker, permissions })
+        const menu = new Map(nav.flatMap((s) => s.items.map((i) => [i.href.split('?')[0], s.label] as const)))
+        for (const section of plusMenuFor(kind, false, permissions, worker, { filesAWeek: true })) {
+          for (const i of section.items) {
+            const path = i.href.split('?')[0]
+            expect(menu.has(path), `${kind} ${worker ? 'worker' : 'Member'} is offered ${i.label}, which its menu does not hold`).toBe(true)
+            expect(section.label, `${kind} ${i.label}`).toBe(menu.get(path))
+          }
+        }
+      }
+    }
+  })
+
+  it('Karthik Menon, a desk-less worker whose line has ended, is offered a note to his own people and no new week', () => {
+    const offered = plusMenuFor('GSI', false, ['assignments.read', 'timesheets.read'], true, { filesAWeek: false })
+    expect(labels(offered)).not.toContain('New timesheet')
+    for (const s of offered) expect(['Today', 'You']).toContain(s.label)
   })
 
   it('the header reads the desk through the same helper the sidebar reads', () => {
     const header = readFileSync(join(process.cwd(), 'src/components/shell/header.tsx'), 'utf8')
     expect(header).toContain('const desk = deskOf(session)')
-    expect(header).toContain('plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker)')
+    expect(header).toContain('plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {')
+    expect(header).toContain('filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient,')
     expect(header).not.toMatch(/plusMenuFor\(company\?\.kind/)
   })
 })

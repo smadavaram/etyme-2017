@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Cost centers belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Cost centers are set by a company, and you are not signed in at one.' } },
       { status: 403 }
     )
   }
@@ -94,7 +94,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Cost centers belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Cost centers are set by a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

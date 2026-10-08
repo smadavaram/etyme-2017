@@ -87,6 +87,15 @@ export interface SessionState {
    * otherwise. Read on the server for the reason `isWorker` is.
    */
   termsHref: string | null
+  /**
+   * This person has a live line to file a week on: in progress, or ended
+   * inside the final-week grace (`rungsToFile` in lib/consultant-portfolio,
+   * the same answer the filing door gives). The + button offers "New
+   * timesheet" only then (sign-up walk, round six, problem 7: Karthik
+   * Menon was offered it on a line that ended Aug 31). Read on the server
+   * for the reason `isWorker` is.
+   */
+  filesAWeek: boolean
   loading: boolean
   error: string | null
 }
@@ -101,6 +110,7 @@ const EMPTY: SessionState = {
   seat: null,
   isDemo: false,
   termsHref: null,
+  filesAWeek: false,
   loading: true,
   error: null,
 }
@@ -124,6 +134,7 @@ export function SessionProvider({
   seat = null,
   demo = false,
   termsHref = null,
+  filesAWeek = false,
 }: {
   children: ReactNode
   /**
@@ -138,8 +149,10 @@ export function SessionProvider({
   demo?: boolean
   /** Where this person's own terms wait on them, if anywhere. Read on the server. */
   termsHref?: string | null
+  /** A live line to file a week on. Read on the server. */
+  filesAWeek?: boolean
 }) {
-  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref })
+  const [state, setState] = useState<SessionState>({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek })
 
   useEffect(() => {
     let cancelled = false
@@ -182,6 +195,7 @@ export function SessionProvider({
           seat,
           isDemo: demo,
           termsHref,
+          filesAWeek,
           loading: false,
           error: null,
         })
@@ -189,7 +203,7 @@ export function SessionProvider({
         if (cancelled) return
         // A failed session read must not blank the app — fall back to the
         // vendor shell and let the individual pages surface their own errors.
-        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, loading: false, error: err.message })
+        setState({ ...EMPTY, isWorker: worker, seat, isDemo: demo, termsHref, filesAWeek, loading: false, error: err.message })
       }
     }
 

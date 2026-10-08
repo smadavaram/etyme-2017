@@ -36,7 +36,7 @@ async function guard(request: NextRequest, write: boolean) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'An address belongs to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'An Etyme address belongs to a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

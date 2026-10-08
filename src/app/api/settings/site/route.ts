@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A site belongs to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A site belongs to a company, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

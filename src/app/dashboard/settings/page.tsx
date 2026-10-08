@@ -205,17 +205,18 @@ export default function SettingsPage() {
       <div className="page-head mb-6">
         {section && <p className="eyebrow">{section}</p>}
         <h1>How {company.name} is set up</h1>
-        <p>
-          Sign-up filled this in from your email domain and what your company does.
-          Everything here can be changed.
-        </p>
+        {/* Where the facts came from is said once, on the Company tab,
+            the way it actually happened (howYouCameIn). This line said
+            "from your email domain" above it to firms that signed up with
+            a password or were brought in by a client (round six, problem 17). */}
+        <p>Everything here can be changed, except a verified domain.</p>
       </div>
 
       {!canEdit && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">
           <p className="text-[13px] text-etyme-ink">
-            You can read this but not change it. Editing settings needs the settings.manage
-            permission — ask whoever gave you your role.
+            You can read this but not change it. Your company’s owner or an admin changes
+            settings — ask whoever gave you your role.
           </p>
         </div>
       )}
@@ -1042,7 +1043,7 @@ function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
     <>
       <Panel
         title="Your Etyme address"
-        subtitle="Guessed from your email domain when you signed up. Changing it is safe — the old address keeps working and sends people to the new one, so nothing you have already sent breaks."
+        subtitle="The address your company signed up with. Changing it is safe — the old address keeps working and sends people to the new one, so nothing you have already sent breaks."
       >
         <div className="flex items-center gap-2">
           <input

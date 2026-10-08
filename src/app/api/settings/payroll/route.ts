@@ -21,7 +21,7 @@ async function guard(request: NextRequest, doing: string, change = true) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Payroll belongs to a company.' } },
+        { error: { code: 'NO_COMPANY', message: 'Payroll is set up by a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

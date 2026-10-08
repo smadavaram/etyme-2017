@@ -28,7 +28,7 @@ async function guard(request: NextRequest, write: boolean) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Approval rules belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Approval rules are set by a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

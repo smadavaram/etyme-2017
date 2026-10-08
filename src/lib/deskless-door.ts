@@ -53,9 +53,17 @@ export const SHELL_READS: readonly string[] = [
  */
 export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // Sign-up walk, round five, problem 7: a desk-less seat opens the
-  // placement that names it and no other; app/api/placements/[id]
-  // answers anybody else's as a placement that does not exist.
+  // placement that names it and no other. app/api/placements/[id] tells
+  // the seat a colleague's is not part of it (round six, problem 15) and
+  // answers a stranger to the firm as a placement that does not exist.
   'placements/*': 'A seat with no desk reads only a placement that names it.',
+  // Round six, problem 3: every week on Your work links "Open this week"
+  // to /dashboard/weeks/:id, which reads this route. lib/week-approval
+  // refuses a desk-less seat anybody's week but its holder's own, in the
+  // door's words, and the worker may send the client's approver the link
+  // or attach the approval on their own week (CLAUDE.md, 2026-09-30).
+  'week-approvals': 'A seat with no desk reads and acts on the client’s approval of its own week, and no other.',
+  'week-approvals/*/file': 'A seat with no desk opens the evidence of an approval on its own week, and no other.',
   // The worker's own rate conversation, opened from where they were put
   // forward on their own page; the route refuses a submission that does
   // not name its caller.

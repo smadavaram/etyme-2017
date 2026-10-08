@@ -53,7 +53,7 @@ export async function PATCH(
   const mine = caller.company?.id
   if (!mine) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You need to belong to a company to change a pay line.' } },
+      { error: { code: 'NO_COMPANY', message: 'A pay line is changed by a firm on the placement, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

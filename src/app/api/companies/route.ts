@@ -348,6 +348,10 @@ export async function POST(request: NextRequest) {
  * Without ?slug= → list all companies (admin / operate view).
  * With ?slug=    → check slug availability (onboarding).
  */
+/** What a candidate with no company reads at the Companies list. */
+const NOT_AT_A_COMPANY =
+  'This is a company’s list of the firms it trades with, and you are not signed in at a company.'
+
 export async function GET(request: NextRequest) {
   const slug = request.nextUrl.searchParams.get('slug')
 
@@ -388,6 +392,17 @@ export async function GET(request: NextRequest) {
   // `lib/directory-scope`; what is gathered here is the evidence for it.
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  // A candidate signed in at no company has no register to read (sign-up
+  // walk, round six, problem 10). An empty 200 drew "Create your first
+  // company" to a consultant inside her own account; she is told what
+  // the list is and why it is not hers instead.
+  if (!caller.staff && !caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: NOT_AT_A_COMPANY } },
+      { status: 403 }
+    )
+  }
 
   const reader = readerFor(caller)
   const verdict = directoryScope(reader)

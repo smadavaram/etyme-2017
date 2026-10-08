@@ -8,6 +8,8 @@ import { readJson } from '@/lib/read-response'
 import { saveForm } from '@/lib/form-save'
 import { refusalSentence } from '@/lib/refusal-words'
 import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
+import { isDeskless } from '@/lib/nav-table'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
@@ -554,6 +556,14 @@ export default function PlacementPage() {
   const session = useSession()
   const [p, setP] = useState<Placement | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // A detail page is headed by the section its list sits under on the
+  // reader's own menu, never by a company's name (sign-up walk, round
+  // six, problem 6). A seat with no desk reaches its placement from Your
+  // work, so that is its parent; everybody else's is Contracts.
+  const parent = isDeskless(session.permissions) && session.isWorker
+    ? ({ href: '/dashboard/my-work', label: 'Your work' } as const)
+    : ({ href: '/dashboard/contracts', label: 'Contracts' } as const)
+  const section = usePageSection(parent.href)
 
   useEffect(() => {
     let live = true
@@ -574,20 +584,8 @@ export default function PlacementPage() {
     return () => { live = false }
   }, [id, session.company?.kind, session.company?.name])
 
-  if (error) {
-    return (
-      <div className="animate-fade-in">
-        <div className="mb-4">
-          <Link href="/dashboard/contracts" className="text-[12px] text-etyme-action hover:underline">
-            ← Contracts
-          </Link>
-        </div>
-        <div className="panel py-16 text-center">
-          <p className="text-sm text-etyme-danger">{error}</p>
-        </div>
-      </div>
-    )
-  }
+  // A refusal is the page: its sentence alone (round six, problem 12).
+  if (error) return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
 
   if (!p) {
     return (
@@ -607,17 +605,17 @@ export default function PlacementPage() {
   return (
     <div className="animate-fade-in max-w-3xl">
       <div className="mb-6">
-        <Link href="/dashboard/contracts" className="text-[12px] text-etyme-action hover:underline">
-          ← Contracts
+        <Link href={parent.href} className="text-[12px] text-etyme-action hover:underline">
+          ← {parent.label}
         </Link>
       </div>
 
       {/* ── Who, where, and how it stands ── */}
       <div className="panel mb-8">
-        <div className="eyebrow mb-2">{where.name}</div>
+        {section && <div className="eyebrow mb-2">{section}</div>}
         <h1 className="headline-serif text-heading text-etyme-ink">{p.person.name}</h1>
         <p className="mt-2 text-[14px] leading-relaxed text-etyme-muted">
-          {p.origin?.title ?? 'Placement'}
+          {p.origin?.title ?? 'Placement'} at {where.name}
           {p.person.location ? ` · ${p.person.location}` : ''}
           {p.startSays ? ` · ${p.startSays}` : ''}
         </p>

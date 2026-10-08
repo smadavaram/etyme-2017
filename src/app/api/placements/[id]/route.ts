@@ -5,6 +5,7 @@ import { logAccess, recordRefusal } from '@/lib/access-log'
 import { canReadPayRate, canReadBillRate, canReadMargin, hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/lib/no-desk'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
@@ -94,7 +95,7 @@ export async function GET(
 
   if (!mine) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You need to belong to a company to open a placement.' } },
+      { error: { code: 'NO_COMPANY', message: 'A placement opens to the firms on it, and you are not signed in at a company. Your own work is under Your work.' } },
       { status: 403 }
     )
   }
@@ -126,8 +127,14 @@ export async function GET(
   // reads of their own work — reads the placement that names it and no
   // other (sign-up walk, round five, problem 7: Karthik Menon read a
   // colleague's placement, its order and its other line by id). The
-  // firm being a party is not the seat being one; somebody else's
-  // placement is answered as one that does not exist, and logged.
+  // firm being a party is not the seat being one.
+  //
+  // Withheld is not missing (round six, problem 15). A colleague's
+  // placement at the reader's own firm exists and the reader's firm is
+  // on it, so "No placement by that id" read as a broken link. The seat
+  // is told in the door's own words that it is not part of the seat; a
+  // stranger to the firm is still answered 404, because confirming a
+  // placement exists to a firm that is not on it is itself a leak.
   const deskless = isDeskless(caller.permissions)
   const notTheirs = deskless && parties != null && parties.personId !== caller.person.id
 
@@ -144,6 +151,12 @@ export async function GET(
           ? 'A seat with no desk reads only a placement that names it'
           : 'Not a party to this placement',
       })
+    }
+    if (notTheirs && isParty) {
+      return NextResponse.json(
+        { error: { code: 'NO_DESK', message: noDeskYet('That placement', caller.company?.name ?? null) } },
+        { status: 403 }
+      )
     }
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },

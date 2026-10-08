@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
+import { kindWord } from '@/lib/parties'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -24,7 +25,7 @@ interface Company {
   id: string
   name: string
   slug: string
-  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
+  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
   entityType: string | null
   domain: string | null
   domainVerified: boolean
@@ -55,6 +56,7 @@ function kindChipClass(kind: Company['kind']): string {
     case 'CLIENT': return 'chip--verified'
     case 'MSP': return 'chip--attention'
     case 'GSI': return 'chip--passive'
+    case 'CONSULTANT_CORP': return 'chip--passive'
   }
 }
 
@@ -353,7 +355,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
           {/* Kind chip */}
           <div>
             <p className="eyebrow mb-2">Type</p>
-            <span className={`chip ${kindChipClass(company.kind)}`}>{company.kind}</span>
+            <span className={`chip ${kindChipClass(company.kind)}`}>{kindWord(company.kind)}</span>
           </div>
 
           {/* Details grid */}
@@ -620,9 +622,9 @@ export default function CompaniesPage() {
       key: 'kind',
       label: 'Kind',
       render: (row) => (
-        <span className={`chip ${kindChipClass(row.kind)}`}>{row.kind}</span>
+        <span className={`chip ${kindChipClass(row.kind)}`}>{kindWord(row.kind)}</span>
       ),
-      sortValue: (row) => row.kind,
+      sortValue: (row) => kindWord(row.kind),
     },
     {
       key: 'entityType',
@@ -665,15 +667,17 @@ export default function CompaniesPage() {
     row.slug.toLowerCase().includes(q) ||
     (row.domain ?? '').toLowerCase().includes(q) ||
     (row.entityType ?? '').toLowerCase().includes(q) ||
-    row.kind.toLowerCase().includes(q)
+    kindWord(row.kind).toLowerCase().includes(q)
 
   // ── Filter tabs ───────────────────────────────────
   const filterTabs: { key: KindFilter; label: string; count: number }[] = [
     { key: 'ALL', label: 'All', count: companies.length },
-    { key: 'VENDOR', label: 'Vendor', count: vendorCount },
-    { key: 'CLIENT', label: 'Client', count: clientCount },
-    { key: 'MSP', label: 'MSP', count: mspCount },
-    { key: 'GSI', label: 'GSI', count: gsiCount },
+    // The same nouns the Kind column prints (sign-up walk, round six,
+    // problem 16), from the one place that names kinds: lib/parties.
+    { key: 'VENDOR', label: kindWord('VENDOR'), count: vendorCount },
+    { key: 'CLIENT', label: kindWord('CLIENT'), count: clientCount },
+    { key: 'MSP', label: kindWord('MSP'), count: mspCount },
+    { key: 'GSI', label: kindWord('GSI'), count: gsiCount },
   ]
 
   function handleCreated(msg: string) {
@@ -713,7 +717,7 @@ export default function CompaniesPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">companies</p>
         </div>
         <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Vendors</p>
+          <p className="stat-label">Suppliers</p>
           <p className="stat-value text-etyme-action">{vendorCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">staffing</p>
         </div>
@@ -723,12 +727,12 @@ export default function CompaniesPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">enterprise</p>
         </div>
         <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">MSP</p>
+          <p className="stat-label">Program offices</p>
           <p className="stat-value text-etyme-attention">{mspCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">managed</p>
         </div>
         <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">GSI</p>
+          <p className="stat-label">Integrators</p>
           <p className="stat-value text-etyme-ink">{gsiCount}</p>
           <p className="text-[11px] text-etyme-faint mt-0.5">integrators</p>
         </div>
@@ -743,8 +747,8 @@ export default function CompaniesPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by name, Etyme address, or domain…"
-        emptyMessage="No companies found."
-        emptyDetail="Create your first company to get started."
+        emptyMessage="No companies yet."
+        emptyDetail="A firm appears here once you trade with it: on your register, a contract or an invitation."
         onRowClick={(row) => setSelected(row)}
         exportName="companies"
         defaultPageSize={20}

@@ -34,7 +34,7 @@ import { NotificationBell } from '@/components/notification-bell'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen } from '@/lib/nav-table'
+import { getNavForKind, mayOpen, isDeskless } from '@/lib/nav-table'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -65,7 +65,9 @@ type PlusMenuItem = {
   writes?: readonly string[]
   /**
    * Only the worker files their own week (CLAUDE.md, station 6, and
-   * `mayEnter` in lib/timesheet-authority). Offered to nobody else.
+   * `mayEnter` in lib/timesheet-authority), and only on a live line —
+   * in progress, or ended inside the final-week grace (`rungsToFile`).
+   * Offered to nobody else, and to nobody whose lines have all ended.
    */
   workerOnly?: true
 }
@@ -245,7 +247,13 @@ export function plusMenuFor(
   /** What this seat holds. Undefined while the session loads. */
   permissions: readonly string[] | null | undefined,
   /** Somebody the work is about, who may file their own week. */
-  worker = false
+  worker = false,
+  /**
+   * `filesAWeek`: a live line to file a week on (the dashboard layout's
+   * `readerFilesAWeek`). `seatedAtClient`: the client whose desk this is,
+   * so a desk-less seat's own menu is read the way the sidebar reads it.
+   */
+  more: { filesAWeek?: boolean; seatedAtClient?: string | null } = {}
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
   const sections = kind === 'CLIENT'
@@ -271,14 +279,44 @@ export function plusMenuFor(
   // And opening the form is not sending it. An item is offered only to a
   // desk that holds what the route will ask for on the send, and the
   // week's own form only to the person whose week it is.
-  return sections
+  const offered = sections
     .map((section) => ({
       ...section,
       items: section.items.filter((i) =>
-        mayOpen(i.href, permissions) && mayCreate(i, permissions) && (!i.workerOnly || worker)
+        mayOpen(i.href, permissions) && mayCreate(i, permissions) && (!i.workerOnly || (worker && more.filesAWeek === true))
       ),
     }))
     .filter((section) => section.items.length > 0)
+
+  // ── A seat with no desk is offered only what its menu holds ───────
+  //
+  // Sign-up walk, round six, problem 7. A client's Member, with no desk
+  // and no Governance section, was offered "Governance › Review
+  // approvals", which opened an all-clear page about approvals he can
+  // never give. The + button and the menu are filtered from one answer
+  // (CLAUDE.md), so for a desk-less seat an item stays only where the
+  // page it opens is a link on the seat's own menu, and it is headed by
+  // the section that link sits under — never a section the menu lacks.
+  if (!isDeskless(permissions)) return offered
+  const nav = getNavForKind(kind as Parameters<typeof getNavForKind>[0], false, {
+    worker, permissions, seatedAtClient: more.seatedAtClient ?? null,
+  })
+  const sectionOf = (href: string): string | null => {
+    const path = href.split('?')[0]
+    for (const s of nav) if (s.items.some((i) => i.href.split('?')[0] === path)) return s.label
+    return null
+  }
+  const regrouped: PlusMenuSection[] = []
+  for (const section of offered) {
+    for (const item of section.items) {
+      const label = sectionOf(item.href)
+      if (!label) continue
+      const into = regrouped.find((s) => s.label === label)
+      if (into) into.items.push(item)
+      else regrouped.push({ label, items: [item] })
+    }
+  }
+  return regrouped
 }
 
 /** Whether the route behind an item will take the send from this desk. */
@@ -354,7 +392,9 @@ export function Header({ title }: HeaderProps) {
   // helper the sidebar reads, so the three doors cannot disagree.
   const desk = deskOf(session)
   const { permissions } = desk
-  const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker)
+  const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
+    filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient,
+  })
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)

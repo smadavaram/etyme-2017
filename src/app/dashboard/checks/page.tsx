@@ -2,6 +2,7 @@
 
 import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
+import { refusalSentence } from '@/lib/refusal-words'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -52,11 +53,19 @@ export default function ChecksPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // A refusal is the page: its sentence alone, with no heading or prose
+  // around it (sign-up walk, round six, problem 12).
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/checks/queue')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(refusalSentence(body?.error?.message) || 'Check queue is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setQ(body.data)
       setAt(0)
@@ -140,6 +149,9 @@ export default function ChecksPage() {
       setBusy(false)
     }
   }
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (!q && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[720px] space-y-6 px-4 py-6">

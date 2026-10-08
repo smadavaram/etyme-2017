@@ -22,7 +22,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Roles belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Roles are given by a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

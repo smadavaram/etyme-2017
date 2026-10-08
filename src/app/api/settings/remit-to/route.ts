@@ -25,7 +25,7 @@ async function guard(request: NextRequest, write: boolean) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Payment details belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Payment details are a company’s, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

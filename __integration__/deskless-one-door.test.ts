@@ -220,13 +220,63 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     expect(JSON.stringify(body)).toContain(karthik)
   })
 
-  it('a colleague’s placement is not there for him, and the refused read is logged', async () => {
+  it('a colleague’s placement is not part of his seat, said in the door’s words rather than as a missing record, and the refused read is logged', async () => {
     as(KARTHIK)
     const mod = await import('@/app/api/placements/[id]/route')
     const res = await mod.GET(req('GET', `/api/placements/${colleagues}`), { params: Promise.resolve({ id: colleagues }) })
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error.message).toBe('That placement is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
     const logged = await prisma.accessLog.findFirst({
       where: { actorPersonId: karthik, allowed: false, reason: 'A seat with no desk reads only a placement that names it' },
+    })
+    expect(logged).not.toBeNull()
+  })
+
+  it('a placement at a firm he has no seat at is still answered as one that is not there', async () => {
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    const elsewhere = (await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: { not: seat.companyId! }, clientCompanyId: { not: seat.companyId! }, OR: [{ endClientCompanyId: null }, { endClientCompanyId: { not: seat.companyId! } }] },
+      select: { id: true },
+    })).id
+    as(KARTHIK)
+    const mod = await import('@/app/api/placements/[id]/route')
+    const res = await mod.GET(req('GET', `/api/placements/${elsewhere}`), { params: Promise.resolve({ id: elsewhere }) })
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.message).toBe('No placement by that id.')
+  })
+
+  it('his own week opens to him from the "Open this week" link on his own page, with the chain of signatures on it', async () => {
+    const week = await prisma.timesheet.findFirstOrThrow({ where: { personId: karthik, status: 'APPROVED' }, select: { id: true } })
+    as(KARTHIK)
+    const mod = await import('@/app/api/week-approvals/route')
+    const res = await mod.GET(req('GET', `/api/week-approvals?timesheetId=${week.id}`))
+    const text = await res.text()
+    expect(res.status, text.slice(0, 300)).toBe(200)
+    const body = JSON.parse(text)
+    expect(body.data.week.id).toBe(week.id)
+    expect(body.data.week.personName).toBe('Karthik Menon')
+  })
+
+  it('a colleague’s week is refused to him in the door’s words, by the route itself, and the refused read is logged', async () => {
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
+    // A week Teleworld is on, worked by somebody else: the firm is on its
+    // chain, so only the seat having no desk stops him.
+    const theirs = await prisma.timesheet.findFirstOrThrow({
+      where: {
+        personId: { not: karthik },
+        sellContract: { OR: [{ companyId: seat.companyId! }, { clientCompanyId: seat.companyId! }, { endClientCompanyId: seat.companyId! }] },
+      },
+      select: { id: true, personId: true },
+    })
+    as(KARTHIK)
+    const mod = await import('@/app/api/week-approvals/route')
+    const res = await mod.GET(req('GET', `/api/week-approvals?timesheetId=${theirs.id}`))
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error.message).toBe('That week is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    const logged = await prisma.accessLog.findFirst({
+      where: { actorPersonId: karthik, subjectId: theirs.personId, allowed: false, action: 'WEEK_APPROVAL_VIEW' },
     })
     expect(logged).not.toBeNull()
   })
@@ -353,6 +403,30 @@ describe('nobody imports into, or reads an import of, a company that is not thei
     const before = await prisma.import.count({ where: { companyId: teleworld } })
     await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'Y Z', email: 'yz@walk5.example' }] })
     expect(await prisma.import.count({ where: { companyId: teleworld } })).toBe(before)
+  })
+
+  /** Seated the way candidate sign-up seats her: a consultant context, no company (lib/password-door). */
+  async function candidate(): Promise<string> {
+    const email = 'nina6@walk6.example'
+    const p = await prisma.person.upsert({ where: { primaryEmail: email }, update: {}, create: { primaryEmail: email, name: 'Nina Park' }, select: { id: true } })
+    if (!(await prisma.context.findFirst({ where: { personId: p.id } }))) {
+      await prisma.context.create({ data: { personId: p.id, type: 'CONSULTANT' } })
+    }
+    return email
+  }
+
+  it('a candidate with no company is told what the Companies list is, rather than handed an empty one to create a company in', async () => {
+    as(await candidate())
+    const r = await get('companies')
+    expect(r.status, r.text.slice(0, 200)).toBe(403)
+    expect(r.body.error.message).toBe('This is a company’s list of the firms it trades with, and you are not signed in at a company.')
+  })
+
+  it('a candidate with no company is refused an import in a full sentence, not a fragment', async () => {
+    as(await candidate())
+    const r = await get('imports/sheets')
+    expect(r.status, r.text.slice(0, 200)).toBe(403)
+    expect(r.body.error.message).toBe('An import loads people into a company, and you are not signed in at one.')
   })
 
   it('a company’s work sites are read only by itself and the firms it trades with', async () => {

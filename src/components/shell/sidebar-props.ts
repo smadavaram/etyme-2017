@@ -133,13 +133,15 @@ export interface Desk {
   isConsultant: boolean
   /** Also somebody the work is about. */
   worker: boolean
+  /** Somebody the work is about with a live line to file a week on. */
+  filesAWeek: boolean
   permissions: readonly string[]
   seatedAtClient: string | null
 }
 
 export function deskOf(
   session: Pick<SessionState, 'company' | 'contextType' | 'isWorker' | 'permissions'> &
-    Partial<Pick<SessionState, 'seat'>>
+    Partial<Pick<SessionState, 'seat' | 'filesAWeek'>>
 ): Desk {
   const companyKind = session.company?.kind ?? null
   const isConsultant = session.contextType === 'CONSULTANT'
@@ -149,6 +151,7 @@ export function deskOf(
     menuKind: seat && !isConsultant && companyKind ? 'CLIENT' : companyKind,
     isConsultant,
     worker: !isConsultant && session.isWorker,
+    filesAWeek: !isConsultant && session.isWorker && session.filesAWeek === true,
     permissions: seat ? seat.permissions : session.permissions,
     seatedAtClient: seat?.clientName ?? null,
   }

@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
+import { refusalSentence } from '@/lib/refusal-words'
 
 import { useEffect, useState } from 'react'
 
@@ -30,11 +31,20 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  // A refusal is the page: its sentence alone, with no tabs around it
+  // (sign-up walk, round six, problem 12). Nothing is drawn before the
+  // first read answers.
+  const [refused, setRefused] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
     try {
       const res = await fetch('/api/onboarding/readiness')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(refusalSentence(body?.error?.message) || 'Setup is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setData(body.data)
       setError(null)
@@ -66,6 +76,9 @@ export default function OnboardingPage() {
     CONSULTANTS: data?.consultants ?? [],
     ASSIGNMENTS: data?.assignments ?? [],
   }
+
+  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (!data && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">

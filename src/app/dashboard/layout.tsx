@@ -12,6 +12,7 @@ import { seatFor } from '@/lib/program-seat'
 import { prisma } from '@/lib/db'
 import { demoCompanyFor } from '@/lib/demo-company'
 import { yourTermsHref } from '@/lib/your-terms'
+import { rungsToFile } from '@/lib/consultant-portfolio'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -173,6 +174,43 @@ async function whyNotSeated(): Promise<Denied | null> {
   }
 }
 
+/**
+ * Does this person have a live line to file a week on?
+ *
+ * The + button's "New timesheet" is offered only then (sign-up walk,
+ * round six, problem 7: Karthik Menon's only line ended Aug 31 and the
+ * button still offered him a new week). The answer is the filing door's
+ * own, `rungsToFile` in lib/consultant-portfolio — in progress, or ended
+ * inside the final-week grace — so the button and the form cannot
+ * disagree about which lines take hours.
+ *
+ * Never throws. A failed read means no "New timesheet" on the + button;
+ * the week is still filed from Your work.
+ */
+async function readerFilesAWeek(): Promise<boolean> {
+  try {
+    const email = await getSessionEmail()
+    if (!email) return false
+    const person = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
+    if (!person) return false
+    const lines = await prisma.sellContract.findMany({
+      where: { personId: person.id },
+      select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, startDate: true, endDate: true },
+    })
+    const today = new Date().toISOString().slice(0, 10)
+    return rungsToFile(
+      lines.map((c) => ({
+        id: c.id, personId: c.personId, companyId: c.companyId, clientCompanyId: c.clientCompanyId, state: c.state,
+        startDate: c.startDate.toISOString().slice(0, 10),
+        endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+      })),
+      today
+    ).length > 0
+  } catch {
+    return false
+  }
+}
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -184,12 +222,12 @@ export default async function DashboardLayout({
   const denied = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
-  const [worker, seat, demo, termsHref] = await Promise.all([
-    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(),
+  const [worker, seat, demo, termsHref, filesAWeek] = await Promise.all([
+    readerIsAWorker(), deskHeldAtAClient(), companyIsADemo(), readersTermsHref(), readerFilesAWeek(),
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref}>
+    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* Sidebar — the rail, from md up. Below that the same navigation
             slides in from the ☰ in the header (components/shell/mobile-nav). */}

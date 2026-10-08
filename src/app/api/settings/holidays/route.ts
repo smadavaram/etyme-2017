@@ -24,7 +24,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'A holiday calendar belongs to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'A holiday calendar is set by a company, and you are not signed in at one.' } },
         { status: 403 }
       ),
     }

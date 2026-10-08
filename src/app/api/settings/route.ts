@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'These are a company’s settings' } },
+      { error: { code: 'NO_COMPANY', message: 'Settings are a company’s, and you are not signed in at a company.' } },
       { status: 403 }
     )
   }
@@ -199,7 +199,7 @@ export async function PATCH(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'These are a company’s settings' } },
+      { error: { code: 'NO_COMPANY', message: 'Settings are a company’s, and you are not signed in at a company.' } },
       { status: 403 }
     )
   }

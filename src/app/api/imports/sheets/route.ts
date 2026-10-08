@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Imports load into a company' } },
+      { error: { code: 'NO_COMPANY', message: 'An import loads people into a company, and you are not signed in at one.' } },
       { status: 403 }
     )
   }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Imports load into a company' } },
+      { error: { code: 'NO_COMPANY', message: 'An import loads people into a company, and you are not signed in at one.' } },
       { status: 403 }
     )
   }

@@ -271,3 +271,48 @@ describe('a seat holding only the reads of its own work holds no desk (round fiv
     expect(desklessDoor({ ...KARTHIK, path: '/api/timesheets/t1/assert', method: 'GET' }).open).toBe(false)
   })
 })
+
+describe('a desk-less worker opens his own week from his own page, and nobody else’s (round six)', () => {
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+  const LIB = readFileSync(join(process.cwd(), 'src/lib/week-approval.ts'), 'utf8')
+
+  it('the "Open this week" link on Your work reaches the week’s route through the door, and the evidence on it too', () => {
+    expect(desklessDoor({ ...KARTHIK, path: '/api/week-approvals', method: 'GET' }).open).toBe(true)
+    expect(desklessDoor({ ...KARTHIK, path: '/api/week-approvals/w1/file', method: 'GET' }).open).toBe(true)
+    expect(desklessAllowlist().byId).toEqual(expect.arrayContaining(['week-approvals', 'week-approvals/*/file']))
+  })
+
+  it('the week route itself refuses a desk-less seat anybody’s week but its holder’s own, in the door’s words, and logs the refusal', () => {
+    expect(LIB).toContain("return noDeskYet('That week', r.companyName ?? null)")
+    expect(LIB).toContain('if (r.seat || r.personId === c.week.personId || !isDeskless(r.permissions)) return null')
+    // Asked before the firm-on-the-chain rule, in the read and in the evidence file.
+    const read = LIB.slice(LIB.indexOf('export async function readWeekApprovals'))
+    expect(read.indexOf('desklessStranger(r, c)')).toBeLessThan(read.indexOf('onTheWeek(r, c)'))
+    expect(read).toContain("await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', stranger)")
+    const file = LIB.slice(LIB.indexOf('export async function readEvidenceFile'))
+    expect(file.indexOf('desklessStranger(r, c)')).toBeLessThan(file.indexOf('mayReadEvidence('))
+  })
+
+  it('the week page is the one the worker’s page links every week to', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/weeks/[id]/page.tsx'), 'utf8')
+    expect(page).toContain('/api/week-approvals?timesheetId=')
+  })
+})
+
+describe('withheld is not missing: a colleague’s placement is not part of the seat, and a stranger is told nothing is there (round six)', () => {
+  const ROUTE = readFileSync(join(API, 'placements/[id]/route.ts'), 'utf8')
+
+  it('a seat with no desk at a firm on the placement is told in the door’s words that it is not part of the seat', () => {
+    expect(ROUTE).toContain('if (notTheirs && isParty) {')
+    expect(ROUTE).toContain("{ error: { code: 'NO_DESK', message: noDeskYet('That placement', caller.company?.name ?? null) } }")
+  })
+
+  it('a firm that is not on the placement is still answered as if no placement were there', () => {
+    expect(ROUTE).toContain("{ error: { code: 'NOT_FOUND', message: 'No placement by that id.' } }")
+  })
+
+  it('a candidate with no company is told what a placement is and where her own work is, not that she needs to belong to something', () => {
+    expect(ROUTE).toContain('A placement opens to the firms on it, and you are not signed in at a company. Your own work is under Your work.')
+    expect(ROUTE).not.toContain('You need to belong to a company')
+  })
+})
