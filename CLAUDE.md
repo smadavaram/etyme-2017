@@ -1388,7 +1388,11 @@ clients."*
   entered by the firm, and read as "not set" until it is — the line then
   says the profit is before admin costs, never a guess. The bench cost
   (days on the bench under the bench pay policy) sits beside it as the
-  thing the profit pays back. One service computes it (money); the Bench
+  thing the profit pays back.
+  The founder, the same day: *"bench profitability on training is
+  small."* So the per-training-group figures stay the one line they are
+  (what the course cost, how many were placed, how fast, at what margin)
+  and get no more build; the per-profile subtraction is the piece. One service computes it (money); the Bench
   profit screen reads it (supply).
 - **Everybody else** — primes, sub-vendors, clients — receives bench the
   same way: they say what they want, see who is offered, and put a
