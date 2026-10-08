@@ -849,12 +849,21 @@ describe('a worker can send the file itself, and it is kept as the file', () => 
     expect(file).toContain('allowed,')
     // Written before the verdict is acted on, so an attempt on a
     // stranger's papers leaves the trail an audit is looking for.
-    expect(file.indexOf('accessLog')).toBeLessThan(file.indexOf('if (!allowed) return missing'))
+    // The verdict comes from the one door every paperwork act uses.
+    expect(file).toContain("standingOn('open'")
+    expect(file.indexOf('accessLog')).toBeGreaterThan(file.indexOf("standingOn('open'"))
+    expect(file.indexOf('accessLog')).toBeLessThan(file.indexOf('if (!standing.ok)'))
   })
 
   it('tells a stranger the document is not here, rather than that they may not read it', () => {
     const file = read('src/app/api/documents/[id]/file/route.ts')
-    expect(file).toContain('if (!allowed) return missing')
+    // Only a colleague without the paperwork desk is told what its seat
+    // lacks; every other refusal is the same 404 as a document that
+    // does not exist.
+    const start = file.indexOf('if (!standing.ok)')
+    const refused = file.slice(start, file.indexOf('NextResponse.redirect', start))
+    expect(refused).toContain("if (standing.code === 'NO_DESK')")
+    expect(refused).toMatch(/\}\s*return missing\s*\}/)
     expect(file).toContain("message: 'That document is not here.'")
   })
 })
