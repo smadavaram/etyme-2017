@@ -626,7 +626,7 @@ export const WALLS = {
  *
  * Whoever moves a route onto lib/access-log updates this number in the same commit.
  */
-export const ACCESS_LOGGED_ROUTE_FILES = 42
+export const ACCESS_LOGGED_ROUTE_FILES = 44
 
 export const ACCESS_LOGGING = {
   paragraphs: [
