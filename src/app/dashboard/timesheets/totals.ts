@@ -28,6 +28,12 @@ export interface TotalsRow {
   /** What the row is worth at this reader's rate; null where it cannot be priced. */
   valueCents: number | null
   /**
+   * The rate is on file and withheld from this reader. A withheld figure
+   * is not a missing one, and is never added in as zero (round six,
+   * problem 4).
+   */
+  withheld?: boolean
+  /**
    * This reader has signed it. In a chain a week the client signed stays
    * SUBMITTED until the supplier below accepts it, so status alone left
    * every week Northbend signed out of Northbend's own total.
@@ -46,7 +52,7 @@ export function totalsRowOf(t: {
   status: string
   flag: string | null
   mayApprove?: boolean
-  rate: { cents: number | null }
+  rate: { cents: number | null; withheld?: boolean }
   overtime?: { billableCents: number | null } | null
   signature?: { waitingOnYou: boolean; youSigned: boolean } | null
 }): TotalsRow {
@@ -57,6 +63,7 @@ export function totalsRowOf(t: {
     flag: t.flag,
     waitingOnYou: t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED' && !!t.mayApprove,
     valueCents: t.overtime ? t.overtime.billableCents : t.rate.cents == null ? null : t.totalHours * t.rate.cents,
+    withheld: t.rate.withheld === true,
     youSigned: t.signature?.youSigned ?? false,
   }
 }
@@ -66,7 +73,8 @@ export interface Totals {
   hoursSays: string
   flagged: number
   flaggedSays: string
-  approvedValueCents: number
+  /** Null where every approved week's rate is withheld from this reader: there is no figure to show, and $0 would be a false one. */
+  approvedValueCents: number | null
   approvedSays: string
 }
 
@@ -112,7 +120,9 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
     : 'approved or signed by you'
   const priced = approved.filter((r) => r.valueCents != null)
   const approvedValueCents = priced.reduce((s, r) => s + (r.valueCents ?? 0), 0)
-  const unpriced = approved.length - priced.length
+  const withheld = approved.filter((r) => r.valueCents == null && r.withheld === true).length
+  const unpriced = approved.length - priced.length - withheld
+  const allWithheld = approved.length > 0 && priced.length === 0 && withheld === approved.length
   const approvedFirst = approved.reduce<string | null>(
     (m, r) => (m == null || r.periodStart < m ? r.periodStart : m),
     null
@@ -128,12 +138,17 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
         : flaggedWaiting > 0
           ? `${flaggedWaiting} waiting on you`
           : 'none waiting on you',
-    approvedValueCents,
+    approvedValueCents: allWithheld ? null : approvedValueCents,
     approvedSays:
       approved.length === 0
         ? 'no approved or signed weeks on this list'
-        : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} ${counted}` +
-          (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
-          (unpriced > 0 ? `; ${unpriced} more with no rate on file` : ''),
+        : allWithheld
+          ? `${weeks(approved.length)} ${counted}` +
+            (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
+            '; their value is read by the billing desk'
+          : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} ${counted}` +
+            (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
+            (withheld > 0 ? `; ${withheld} more whose rate is read by the billing desk` : '') +
+            (unpriced > 0 ? `; ${unpriced} more with no rate on file` : ''),
   }
 }

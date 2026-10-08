@@ -3,6 +3,7 @@ import { STATUS_SAYS, termsOn } from '@/lib/agreement-term'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { paymentDaysSays } from '../../verdict'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET /api/program/agreements/[id]/history
@@ -36,7 +37,7 @@ export async function GET(
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('An agreement') } },
       { status: 403 }
     )
   }

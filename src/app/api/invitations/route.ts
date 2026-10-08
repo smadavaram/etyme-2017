@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
 import { holdsNoDesk } from '@/app/api/submissions/own-only'
 import { noDeskYet } from '@/lib/no-desk'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET /api/invitations
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Invitations are addressed to a company' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Shared with you') } },
       { status: 403 }
     )
   }

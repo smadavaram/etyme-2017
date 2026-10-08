@@ -82,12 +82,20 @@ export default function PilePage() {
   const [screening, setScreening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openRow, setOpenRow] = useState<string | null>(null)
+  // The door's sentence when it refused this reader, drawn alone — never
+  // under a "Screen again" button (round six, problem 13).
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
       const res = await fetch(`/api/requirements/${id}/screen`)
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body?.error?.message ?? 'Job requests is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setPile(body.data)
       setError(null)
@@ -116,6 +124,10 @@ export default function PilePage() {
   }
 
   const arrived = pile ? pile.show.length + pile.more.length + pile.heldBack.length : 0
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
@@ -175,6 +187,9 @@ export default function PilePage() {
 
       {pile && <p className="text-[14px] text-etyme-ink">{pile.summary}</p>}
 
+      {/* Offered once the pile is read, so a reader the door refuses is
+          never shown a button first. */}
+      {pile && (
       <div className="flex items-center gap-3">
         <button
           onClick={screen}
@@ -188,6 +203,7 @@ export default function PilePage() {
           <span className="text-[12px] text-etyme-faint">{pile.orderedBy}</span>
         )}
       </div>
+      )}
 
       {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
 

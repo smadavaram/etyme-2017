@@ -79,3 +79,20 @@ export function colleaguesWeeksRefused(name: string | null | undefined, company:
   const who = name?.trim() ? `${name.trim()}’s timesheet` : 'That timesheet'
   return noDeskYet(who, company)
 }
+
+/**
+ * The line over a seat that reads only its own weeks (round six,
+ * problem 4). Karthik Menon's page opened on "Hours your people worked
+ * for your clients. Check them, approve them and bill them." — a desk's
+ * sentence over one person's own weeks. Names no desk by permission.
+ */
+export function ownWeeksSays(company: string | null | undefined): string {
+  const at = company?.trim() ? ` at ${company.trim().replace(/\.$/, '')}` : ''
+  return (
+    `These are your own weeks${at}. ` +
+    'Your colleagues’ weeks and what the client is billed are read by the timesheet and billing desks.'
+  )
+}
+
+/** Said in a blank where a rate is on file and this reader may not read it. Never "not recorded", never $0. */
+export const RATE_WITHHELD_CELL = 'Rate is read by the billing desk'

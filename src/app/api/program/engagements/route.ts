@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { maySignSow } from '../agreements/verdict'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * POST /api/program/engagements
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Engagements') } },
       { status: 403 }
     )
   }

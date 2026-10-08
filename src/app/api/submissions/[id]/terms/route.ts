@@ -15,6 +15,7 @@ import { placementStatus } from '@/lib/award/placement-status'
 import { nameIfKnown } from '../../name-if-known'
 import { notAPartySays } from './not-a-party'
 import { holdsNoDesk } from '../../own-only'
+import { termsStanding, colleaguesTermsRefused } from './standing'
 
 /**
  * GET  /api/submissions/:id/terms
@@ -96,11 +97,39 @@ function refuse(code: string, message: string, status: number) {
   return NextResponse.json({ error: { code, message } }, { status })
 }
 
-/** Who this caller is to these terms: the person, the firm, or nobody. */
-function partyOf(caller: { person: { id: string }; company: { id: string } | null }, l: Loaded): 'PERSON' | 'FIRM' | null {
-  if (caller.person.id === l.sub.personId) return 'PERSON'
-  if (caller.company?.id === l.sub.fromCompanyId) return 'FIRM'
-  return null
+/**
+ * Who this caller is to these terms: the person, the firm, or nobody.
+ *
+ * The firm reads them only through a desk that reads its submissions or
+ * papers its contracts (`termsStanding`, round six problem 1). A seat at
+ * the firm without one is a colleague, not the firm: a desk-less worker
+ * reads their own terms as the person and nobody else's.
+ */
+function partyOf(
+  caller: { person: { id: string }; company: { id: string } | null; permissions?: readonly string[] | null },
+  l: Loaded
+): 'PERSON' | 'FIRM' | 'NO_DESK' | null {
+  const standing = termsStanding({
+    callerPersonId: caller.person.id,
+    callerCompanyId: caller.company?.id ?? null,
+    permissions: caller.permissions ?? [],
+    personId: l.sub.personId,
+    firmId: l.sub.fromCompanyId,
+  })
+  return standing === 'STRANGER' ? null : standing
+}
+
+/** A colleague at the firm with no desk for these terms: refused in the no-desk sentence, the refusal logged first. */
+async function refuseColleague(
+  caller: { person: { id: string }; company: { id: string; name: string } | null },
+  l: Loaded
+) {
+  await recordRefusal([l.sub.personId], {
+    actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
+    action: 'CONTRACT_VIEW', allowed: false,
+    reason: 'Asked for a colleague’s terms of engagement from a seat with no desk that reads them',
+  })
+  return refuse('NO_DESK', colleaguesTermsRefused(caller.company?.name), 403)
 }
 
 /**
@@ -179,6 +208,7 @@ export async function GET(request: NextRequest, { params }: Ctx) {
     })
     return refuse('NOT_A_PARTY', notAPartySays(await strangerKnows(caller, l)), 403)
   }
+  if (you === 'NO_DESK') return refuseColleague(caller, l)
   if (l.sub.parentSubmissionId) {
     return refuse('NOT_HOP_ZERO', 'These terms are agreed with the firm at the bottom of the chain, not this one.', 409)
   }
@@ -203,6 +233,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   if (!you) {
     return refuse('NOT_A_PARTY', notAPartySays(await strangerKnows(caller, l)), 403)
   }
+  if (you === 'NO_DESK') return refuseColleague(caller, l)
   if (l.sub.parentSubmissionId) {
     return refuse('NOT_HOP_ZERO', 'These terms are agreed with the firm at the bottom of the chain, not this one.', 409)
   }

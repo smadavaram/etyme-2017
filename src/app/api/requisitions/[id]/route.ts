@@ -17,6 +17,7 @@ import {
 } from '@/lib/requisition-approval'
 import { ancestry } from '@/lib/org-tree'
 import { ownPriceMedian } from '@/lib/chain-top'
+import { lineTheReaderPays } from './placed-line'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { actingDesk } from '@/lib/program-seat'
 
@@ -100,15 +101,17 @@ export async function GET(
   // refuses on, so "Place" is never offered where the click would fail.
   const lines = await prisma.sellContract.findMany({
     where: { requirementId: id },
-    select: { id: true, personId: true, billRate: true, createdAt: true },
+    select: { id: true, personId: true, companyId: true, clientCompanyId: true, billRate: true, createdAt: true },
   })
-  const lineFor = new Map(lines.map((l) => [l.personId, l.id]))
-  // The day the award wrote the line: "Filled by Daniel Okafor at $132/hr
-  // on Oct 26, 2026", rather than a filled job that never says when.
-  const placedOnFor = new Map(lines.map((l) => [l.personId, l.createdAt.toISOString()]))
-  // What the award agreed, which is not what the supplier asked: the
-  // tester placed Daniel Okafor at $132 and the page went on saying $131.
-  const placedAt = new Map(lines.map((l) => [l.personId, l.billRate]))
+  // In a chain every rung writes a line carrying this job, so a line per
+  // person is the one the reader pays and never a rung below it
+  // (`./placed-line`, round six problem 2). Its rate is what the award
+  // agreed, which is not what the supplier asked: the tester placed
+  // Daniel Okafor at $132 and the page went on saying $131. Its day is
+  // when the award wrote it: "Filled by Daniel Okafor at $132/hr on Oct
+  // 26, 2026", rather than a filled job that never says when.
+  const placedLineOf = (s: { personId: string; fromCompanyId: string; toCompanyId: string }) =>
+    lineTheReaderPays(lines, s, caller.company?.id)
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
 
   const now = new Date()
@@ -243,12 +246,12 @@ export async function GET(
         vendor: s.fromCompany,
         rate: s.rate,
         // The rate on the line the award wrote, once placed; null before.
-        placedRate: placedAt.get(s.personId) ?? null,
-        placedOn: placedOnFor.get(s.personId) ?? null,
+        placedRate: placedLineOf(s)?.billRate ?? null,
+        placedOn: placedLineOf(s)?.createdAt.toISOString() ?? null,
         kind: s.kind,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),
-        contractId: lineFor.get(s.personId) ?? null,
+        contractId: placedLineOf(s)?.id ?? null,
         award: (() => {
           const door = awardDoor({
             callerCompanyId: caller.company?.id ?? null,
@@ -261,7 +264,7 @@ export async function GET(
             toCompanyName: s.toCompany.name,
             personName: s.person.name,
             status: s.status,
-            contractId: lineFor.get(s.personId) ?? null,
+            contractId: placedLineOf(s)?.id ?? null,
           })
           return { open: door.open, says: door.says }
         })(),

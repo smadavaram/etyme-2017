@@ -10,6 +10,8 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
 import { listTotals, totalsRowOf } from './totals'
+import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
+import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
 
 /**
@@ -58,6 +60,8 @@ interface Timesheet {
     basis: 'BILL' | 'PAY'
     label: string
     says: string | null
+    /** On file and withheld from this reader: drawn as who reads it, never as $0 or "not recorded". */
+    withheld?: boolean
   }
   periodStart: string
   periodEnd: string
@@ -494,7 +498,7 @@ export default function TimesheetsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const { company } = useSession()
+  const { company, loading: sessionLoading } = useSession()
 
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
@@ -519,6 +523,8 @@ export default function TimesheetsPage() {
   // Whose weeks the server answered about. A program office in a seat is
   // reading the client's, and the page heads itself accordingly.
   const [atDesk, setAtDesk] = useState<{ companyName: string | null; says: string | null } | null>(null)
+  // A seat that reads only its own weeks, and the line that says so.
+  const [ownSays, setOwnSays] = useState<string | null>(null)
 
   // Null until the reader is known: a client must never read a supplier's
   // "approve them and bill them" while its session loads, so the kind is
@@ -601,6 +607,7 @@ export default function TimesheetsPage() {
       setOnServer(body.data?.pagination?.total ?? (body.data?.timesheets ?? []).length)
       setFiling(body.data?.filing ?? null)
       setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
+      setOwnSays(body.data?.desk?.ownOnly ? body.data.desk.ownSays ?? null : null)
     } catch (err: any) {
       setError(err.message)
       setTimesheets([])
@@ -910,7 +917,7 @@ export default function TimesheetsPage() {
       render: (row) =>
         row.rate.cents == null ? (
           <span className="text-[11px] text-etyme-faint" title={row.rate.says ?? ''}>
-            not recorded
+            {row.rate.withheld ? RATE_WITHHELD_CELL : 'not recorded'}
           </span>
         ) : (
           <span className="tabular-nums text-etyme-muted">
@@ -1046,6 +1053,13 @@ export default function TimesheetsPage() {
     return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
   }
 
+  // Somebody signed in with no company — a candidate on nobody's bench —
+  // reads whose page this is and where her own work is, never "your
+  // firm" or "your consultants" (round six, problem 11).
+  if (!sessionLoading && !company) {
+    return <p className="text-[14px] text-etyme-muted py-8">{TIMESHEETS_NOT_AT_A_COMPANY}</p>
+  }
+
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
@@ -1053,7 +1067,9 @@ export default function TimesheetsPage() {
         <div className="page-head">
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
-          <p>{framing.subtitle}</p>
+          {/* A seat reading only its own weeks is told so, not handed a
+              desk's "hours your people worked" (round six, problem 4). */}
+          <p>{ownSays ?? framing.subtitle}</p>
         </div>
         {/* Only the worker files a week, and only the server knows who
             is one — a firm's desk is told who files instead of being
@@ -1103,7 +1119,9 @@ export default function TimesheetsPage() {
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Approved value</p>
           <p className="stat-value text-etyme-verified">
-            ${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            {totals.approvedValueCents == null
+              ? '—'
+              : `$${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
           </p>
           <p className="text-[11px] text-etyme-faint mt-0.5">{totals.approvedSays}</p>
         </div>

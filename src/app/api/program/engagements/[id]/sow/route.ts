@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { maySignSow, sowFinding, workHasStarted } from '../../../agreements/verdict'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * PUT /api/program/engagements/[id]/sow
@@ -35,7 +36,7 @@ export async function PUT(
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('A statement of work') } },
       { status: 403 }
     )
   }

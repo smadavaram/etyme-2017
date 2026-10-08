@@ -26,7 +26,8 @@ import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
 import { workAuthAtSubmission } from './work-authorization'
 import { actingDesk } from '@/lib/program-seat'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
-import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays } from './own-only'
+import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays, clientSubmissionsRefused } from './own-only'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * POST /api/submissions
@@ -1485,7 +1486,7 @@ export async function GET(request: NextRequest) {
     : submissionScope(caller)
   if (!scope) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: notAtACompany('Submissions') } },
       { status: 403 }
     )
   }
@@ -1506,7 +1507,27 @@ export async function GET(request: NextRequest) {
     consultantSeat: isConsultantSeat(caller),
     callerPersonId: caller.person.id,
     askedPersonId: filterPersonId,
+    atAClient: caller.company?.kind === 'CLIENT',
   })
+  if ('clientNoDesk' in reach) {
+    // A client's desk-less seat: what suppliers sent this client is the
+    // hiring desk's to read, and every person it would have named is
+    // logged as refused before the sentence goes out.
+    const says = clientSubmissionsRefused(caller.company?.name ?? null)
+    const would = await prisma.submission.findMany({
+      where: { toCompanyId: caller.company!.id },
+      select: { personId: true },
+      distinct: ['personId'],
+    })
+    await recordRefusal(would.map((w) => w.personId), {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'PROFILE_VIEW',
+      allowed: false,
+      reason: `Submissions refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'NO_DESK', message: says } }, { status: 403 })
+  }
   if ('refused' in reach) {
     const exists = await prisma.person.findUnique({ where: { id: reach.askedPersonId }, select: { id: true } })
     const says = othersSubmissionsRefused(caller.company?.name ?? null)

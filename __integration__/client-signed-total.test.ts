@@ -58,7 +58,7 @@ describe('a week the client signs counts in the client’s signed total at once'
     // Still waiting on the supplier below — and counted all the same.
     expect(row.status).toBe('SUBMITTED')
     expect(row.signature.youSigned).toBe(true)
-    expect(after.totals.approvedValueCents - before.totals.approvedValueCents).toBe(431_200)
+    expect(after.totals.approvedValueCents! - before.totals.approvedValueCents!).toBe(431_200)
   })
 
   it('the tile says the weeks it counts include the ones signed by you', async () => {

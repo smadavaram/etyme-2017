@@ -39,15 +39,28 @@ export type SubmissionReach =
   | { ownOnly: false }
   | { ownOnly: true; personId: string }
   | { refused: true; askedPersonId: string }
+  | { clientNoDesk: true }
 
+/**
+ * Round six, problem 5. The narrowing above was written for a supplier's
+ * worker — somebody a firm puts forward. A client puts nobody forward:
+ * its submissions are what suppliers sent, read by the hiring desk, and
+ * a client's Member read "the times you were put forward by Northbend
+ * Athletic" over four zero tiles. The client's menu does not offer a
+ * desk-less seat Submissions, so the page is refused in the no-desk
+ * sentence instead (`clientNoDesk`).
+ */
 export function submissionReach(input: {
   permissions: readonly string[] | null | undefined
   seated: boolean
   consultantSeat: boolean
   callerPersonId: string
   askedPersonId: string | null
+  /** The caller's own company buys and never sells: a client. */
+  atAClient?: boolean
 }): SubmissionReach | { ownOnly: false } {
   if (input.seated || input.consultantSeat || !holdsNoDesk(input.permissions)) return { ownOnly: false }
+  if (input.atAClient) return { clientNoDesk: true }
   const asked = input.askedPersonId?.trim() || null
   if (asked && asked !== input.callerPersonId) return { refused: true, askedPersonId: asked }
   return { ownOnly: true, personId: input.callerPersonId }
@@ -60,6 +73,11 @@ export function ownSubmissionsSays(company: string | null | undefined): string {
     `These are the times you were put forward${at}. ` +
     'Your colleagues’ submissions and every rate are read by the recruiting desk.'
   )
+}
+
+/** The refusal a desk-less seat at a client reads on Submissions. Names nobody and no permission key. */
+export function clientSubmissionsRefused(company: string | null | undefined): string {
+  return noDeskYet('Submissions', company)
 }
 
 /** The refusal when a desk-less seat asks for somebody else's submissions. Names nobody. */

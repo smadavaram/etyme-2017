@@ -5,6 +5,7 @@ import { requirementScope, seatedDesk, unitsReachedBy } from '@/lib/resolve-clie
 import { prisma } from '@/lib/db'
 import { requirementForReader } from './visible'
 import { actingDesk } from '@/lib/program-seat'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET /api/requirements
@@ -30,9 +31,12 @@ export async function GET(request: NextRequest) {
           // The code is for the machine; the sentence is the product.
           // "needs requirements.read" tells somebody the name of a thing
           // they cannot grant themselves and nothing about what to do.
-          message:
-            `Open jobs are not part of your seat at ${desk?.companyName ?? caller.company?.name ?? 'this company'}. ` +
-            'Whoever set up your access can add them.',
+          // Somebody with no company has no seat to add it to and nobody
+          // who set up her access (round six, problem 9).
+          message: !caller.company && !desk
+            ? notAtACompany('Job requests')
+            : `Open jobs are not part of your seat at ${desk?.companyName ?? caller.company?.name ?? 'this company'}. ` +
+              'Whoever set up your access can add them.',
         },
       },
       { status: 403 }

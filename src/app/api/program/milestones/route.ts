@@ -13,6 +13,7 @@ import {
   standing,
   type Milestone,
 } from './acceptance'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET  /api/program/milestones   — what has been handed over, and what is waiting
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
   const desk = await seatedDesk(caller)
   if (!desk) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Milestones') } },
       { status: 403 }
     )
   }
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Milestones') } },
       { status: 403 }
     )
   }

@@ -232,7 +232,7 @@ describe('A filled job request says it is filled and offers nothing that sends i
   })
 
   it('the page shows the placed candidate at the rate on the line the award wrote', () => {
-    expect(src('src/app/api/requisitions/[id]/route.ts')).toContain('placedRate: placedAt.get(s.personId) ?? null')
+    expect(src('src/app/api/requisitions/[id]/route.ts')).toContain('placedRate: placedLineOf(s)?.billRate ?? null')
     expect(src('src/app/dashboard/requisitions/[id]/page.tsx')).toContain('money(c.placedRate ?? c.rate)')
   })
 })

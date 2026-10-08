@@ -13,6 +13,7 @@ import { hasPermission } from '@/lib/permissions'
 import { ensureBaseline, recordVersion, type TermSnapshot } from '../trail'
 import { paymentDaysSays, marginFloorSays } from '../verdict'
 import { actingDesk } from '@/lib/program-seat'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * PATCH /api/program/agreements/[id]
@@ -68,7 +69,7 @@ export async function PATCH(
   const companyId = desk?.companyId
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('An agreement') } },
       { status: 403 }
     )
   }

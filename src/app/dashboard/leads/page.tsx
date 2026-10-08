@@ -280,11 +280,21 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
+  // The door's sentence when it refused this reader. A refused page draws
+  // that sentence alone — never the paste box above it (round six,
+  // problem 13).
+  const [refused, setRefused] = useState<string | null>(null)
+  const [readOnce, setReadOnce] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/openings')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body?.error?.message ?? 'Leads is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setSeats(body.data.openings)
       setError(null)
@@ -292,6 +302,7 @@ export default function LeadsPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+      setReadOnce(true)
     }
   }, [])
 
@@ -299,6 +310,10 @@ export default function LeadsPage() {
 
   const multiRoute = seats.filter((s) => s.routeCount > 1).length
   const unwritten = seats.filter((s) => s.requirements.length === 0).length
+
+  if (refused) {
+    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  }
 
   return (
     <div className="mx-auto max-w-[880px] space-y-6 px-4 py-6">
@@ -313,12 +328,15 @@ export default function LeadsPage() {
         </p>
       </header>
 
-      <PasteBox
-        onRead={(summary) => {
-          setSaid(summary)
-          load()
-        }}
-      />
+      {/* Offered once the first read says this reader has the page. */}
+      {readOnce && (
+        <PasteBox
+          onRead={(summary) => {
+            setSaid(summary)
+            load()
+          }}
+        />
+      )}
 
       {said && (
         <div className="rounded-md border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">

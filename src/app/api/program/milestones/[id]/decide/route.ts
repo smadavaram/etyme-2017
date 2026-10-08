@@ -9,6 +9,7 @@ import {
   mayDecideAs,
   type RejectionReason,
 } from '../../acceptance'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * POST /api/program/milestones/[id]/decide
@@ -51,7 +52,7 @@ export async function POST(
   const companyId = caller.company?.id
   if (!companyId) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('A milestone') } },
       { status: 403 }
     )
   }

@@ -27,6 +27,7 @@ import {
   type AgreementInput,
   type ContractInput,
 } from './verdict'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET /api/program/agreements
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
   const desk = await seatedDesk(caller)
   if (!desk) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'You must belong to a company to see its agreements.' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Agreements') } },
       { status: 403 }
     )
   }

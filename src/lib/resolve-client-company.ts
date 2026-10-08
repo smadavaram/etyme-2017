@@ -484,7 +484,7 @@ export function resolveOwnCompany(
     return {
       companyId: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { error: { code: 'FORBIDDEN', message: 'These are a company’s books, and you are not signed in at a company. Your own work is under Your work.' } },
         { status: 403 }
       ),
     }

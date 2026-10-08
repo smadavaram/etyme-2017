@@ -10,7 +10,8 @@ import { payerRung } from '@/lib/chain-top'
 import { isConsultantSeat } from '@/lib/seat'
 import { isDeskless } from '@/lib/nav-table'
 import { noDeskYet } from '@/lib/no-desk'
-import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused } from './own-weeks'
+import { ownWeeksOnly, whoseWeeks, colleaguesWeeksRefused, ownWeeksSays } from './own-weeks'
+import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { nameIfKnown } from '@/app/api/submissions/name-if-known'
 import { reportError } from '@/lib/alerts'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
   const scope = asClient && buyerCompanyId ? endClientFilter(buyerCompanyId) : payerScope(caller)
   if (!scope) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: TIMESHEETS_NOT_AT_A_COMPANY } },
       { status: 403 }
     )
   }
@@ -462,6 +463,10 @@ export async function GET(request: NextRequest) {
         says: desk?.seat
           ? `You are at ${desk.companyName}'s desk. These are the weeks worked at ${desk.companyName}'s sites, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
+        // A seat that reads only its own weeks is told so, rather than
+        // reading a desk's "hours your people worked" (round six, problem 4).
+        ownOnly,
+        ownSays: ownOnly ? ownWeeksSays(caller.company?.name ?? null) : null,
       },
       // ── Whether this reader files a week at all ─────────────────
       //
@@ -476,7 +481,10 @@ export async function GET(request: NextRequest) {
         says:
           filingFor.length > 0
             ? null
-            : asClient
+            : !caller.company && !desk?.seat
+              // Nobody's firm: no "Your firm accepts them" (round six, problem 11).
+              ? TIMESHEETS_NOT_AT_A_COMPANY
+              : asClient
               ? `Hours are filed by the person who worked them, from their own page. ` +
                 `${desk?.companyName ?? caller.company?.name ?? 'This desk'} buys the work and signs for it.`
               : `Hours are filed by the person who worked them, from their own page. ` +
@@ -573,6 +581,12 @@ interface Seen {
     basis: 'BILL' | 'PAY'
     label: string
     says: string | null
+    /**
+     * True where a rate is on file and this reader may not read it. A
+     * withheld figure is not a missing one: the page says who reads it,
+     * never "not recorded" or a value of $0 (round six, problem 4).
+     */
+    withheld?: boolean
   }
   afterHours: number | null
   multiplierBps: number | null
@@ -679,7 +693,7 @@ async function priceFor(
     for (const r of rows) {
       const seen = asIs(r)
       if (!mayReadBillRate(viewer, lineOf(r))) {
-        seen.rate = { ...seen.rate, cents: null, currency: null, says: BILL_WITHHELD_SAYS }
+        seen.rate = { ...seen.rate, cents: null, currency: null, says: BILL_WITHHELD_SAYS, withheld: true }
       }
       out.set(r.id, seen)
     }

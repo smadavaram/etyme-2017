@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
 
 /**
  * GET /api/program/team — who runs this client's contingent program.
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A program belongs to a company' } },
+      { error: { code: 'NO_COMPANY', message: notAtACompany('The program team') } },
       { status: 403 }
     )
   }
