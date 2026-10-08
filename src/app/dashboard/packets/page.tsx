@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { plainDate } from '@/lib/plain-date'
 import { emptyRequestsSays } from './words'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -59,6 +60,8 @@ function Stat({ label, value, tone = 'ink', sub }: {
 }
 
 export default function PacketsPage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/packets')
   const [packets, setPackets] = useState<Packet[] | null>(null)
   const [available, setAvailable] = useState<Available[]>([])
   const [counts, setCounts] = useState({ open: 0, awaitingReview: 0, stale: 0 })
@@ -162,7 +165,7 @@ export default function PacketsPage() {
     <>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Governance</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1>Document requests</h1>
           <p>
             Ask a supplier or a person for documents with one link. They need no account. We never

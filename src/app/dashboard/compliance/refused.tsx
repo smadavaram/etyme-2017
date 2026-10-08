@@ -7,11 +7,13 @@
  * the same refusal; no subtitle naming the program, because the reader
  * was not shown whose it is.
  */
-export function ComplianceRefused({ says }: { says: string }) {
+/** `section` is the page's section on the reader's own menu, read by
+ * the page with `usePageSection`; nothing is drawn while it is null. */
+export function ComplianceRefused({ says, section = null }: { says: string; section?: string | null }) {
   return (
     <>
       <div className="page-head">
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Compliance overview</h1>
       </div>
       <div className="panel" role="status">

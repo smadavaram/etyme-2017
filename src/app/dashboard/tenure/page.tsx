@@ -5,6 +5,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { plainDate } from '@/lib/plain-date'
 import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle, tenureView } from './words'
 import { TenureRefused } from './refused'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Tenure Tracking — Governance section
@@ -106,6 +107,8 @@ function tenureBarColor(pct: number): string {
 // ── Page ───────────────────────────────────────────────────
 
 export default function TenurePage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/tenure')
   const [data, setData] = useState<TenureData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -128,7 +131,7 @@ export default function TenurePage() {
   // The counters below are drawn only from figures the route sent, never
   // from zeros standing in for an answer the page has not got.
   const view = tenureView({ loading, error, hasData: data != null })
-  if (view.show === 'refused') return <TenureRefused says={view.says} />
+  if (view.show === 'refused') return <TenureRefused says={view.says} section={section} />
 
   const summary = data?.summary ?? null
   const today = new Date()
@@ -254,7 +257,7 @@ export default function TenurePage() {
     <>
       {/* Head */}
       <div className="page-head">
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Time on site</h1>
         {/* ── The sentence waits for the name ──
             It read "Cross-vendor tenure at … ." until the fetch

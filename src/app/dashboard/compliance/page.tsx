@@ -7,6 +7,7 @@ import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-reques
 import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnforcement, sayRule, sayRuleParameters, twoPopulations } from './says'
 import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Compliance Overview — Governance section
@@ -358,6 +359,8 @@ const EVAL_COLUMNS: Column<Evaluation>[] = [
 type ComplianceTab = 'policies' | 'evaluations' | 'verifications' | 'classification' | 'visas'
 
 export default function CompliancePage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/compliance')
   const [data, setData] = useState<ComplianceData | null>(null)
   const [calls, setCalls] = useState<ClassificationData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -391,13 +394,13 @@ export default function CompliancePage() {
   // A refusal is its own screen: a heading and the route's sentence,
   // never a page of zeros that reads as "nothing on file".
   const view = complianceView({ loading, error, hasData: !!data })
-  if (view.show === 'refused') return <ComplianceRefused says={view.says} />
+  if (view.show === 'refused') return <ComplianceRefused says={view.says} section={section} />
   // Nor are zeros drawn while the figures are still on their way.
   if (view.show === 'loading') {
     return (
       <>
         <div className="page-head">
-          <p className="eyebrow">Governance</p>
+          {section && <p className="eyebrow">{section}</p>}
           <h1>Compliance overview</h1>
           <p>{complianceSubtitle(null)}</p>
         </div>
@@ -427,7 +430,7 @@ export default function CompliancePage() {
     <>
       {/* Head */}
       <div className="page-head">
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Compliance overview</h1>
         <p>{complianceSubtitle(data?.client.name)}</p>
       </div>

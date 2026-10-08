@@ -940,22 +940,14 @@ describe('sign-up walk, round six: a page is headed only by a section the reader
  * it can only shrink, the way the refusal list in access-lifecycle-log does.
  */
 describe('sign-up walk, round six: pages that type a section name over themselves', () => {
-  const STILL_TYPED = new Set([
-    'src/app/dashboard/compliance/page.tsx',
-    'src/app/dashboard/compliance/refused.tsx',
+  const STILL_TYPED = new Set<string>([
     'src/app/dashboard/decisions/page.tsx',
-    'src/app/dashboard/documents/requirements/page.tsx',
-    'src/app/dashboard/governance/page.tsx',
     'src/app/dashboard/invitations/page.tsx',
     'src/app/dashboard/leads/page.tsx',
-    'src/app/dashboard/packets/page.tsx',
     'src/app/dashboard/people/page.tsx',
-    'src/app/dashboard/privacy/page.tsx',
     'src/app/dashboard/program/org/page.tsx',
     'src/app/dashboard/program/seats/page.tsx',
     'src/app/dashboard/requisitions/page.tsx',
-    'src/app/dashboard/tenure/page.tsx',
-    'src/app/dashboard/tenure/refused.tsx',
   ])
 
   function typedNow(): string[] {

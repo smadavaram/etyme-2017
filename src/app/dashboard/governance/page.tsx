@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { mayTryAgain } from './says'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
@@ -113,6 +114,8 @@ function ItemRow({ item }: { item: HorizonItem }) {
 }
 
 export default function GovernancePage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/governance')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -156,7 +159,7 @@ export default function GovernancePage() {
   if (!loading && error) return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <Lbl>Governance</Lbl>
+        {section && <Lbl>{section}</Lbl>}
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
           What is coming
         </h1>
@@ -175,7 +178,7 @@ export default function GovernancePage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <Lbl>Governance</Lbl>
+        {section && <Lbl>{section}</Lbl>}
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
           What is coming
         </h1>

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson } from '@/lib/read-response'
 import { possessive } from '@/lib/requisition-approval'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * What an order — or one line on it — asks for on paper.
@@ -76,6 +77,9 @@ export default function DocumentRequirementsPage() {
 }
 
 function Inner() {
+  // This page hangs under Paperwork, so its eyebrow is Paperwork's section
+  // on the reader's own menu; nothing while that is not known.
+  const section = usePageSection('/dashboard/documents')
   const params = useSearchParams()
   const workOrderId = params.get('workOrderId') ?? ''
   const sellContractId = params.get('sellContractId') ?? ''
@@ -300,7 +304,7 @@ function Inner() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="lbl">Governance</p>
+        {section && <p className="lbl">{section}</p>}
         <h1 className="text-h2 font-serif text-etyme-ink">
           {answer?.order
             ? `What ${possessive(answer.order.issuedBy, '’')} order ${answer.order.number} asks for`

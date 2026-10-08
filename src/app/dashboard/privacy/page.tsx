@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { statusMeans } from '@/lib/read-response'
 import { privacyView, type Read } from './says'
+import { usePageSection } from '@/components/page-section'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
@@ -107,6 +108,8 @@ function word(r: Request_): string {
 }
 
 export default function PrivacyPage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/privacy')
   // Each list keeps what came back or the route's sentence, never both,
   // so a refused read can never be drawn as an empty one.
   const [requestsRead, setRequestsRead] = useState<Read<Request_[]>>({ data: null, error: null })
@@ -248,7 +251,7 @@ export default function PrivacyPage() {
   // headline about the queue, no count, no empty list.
   if (view.show === 'loading') return (
     <div className="max-w-6xl">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
+      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
       <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
       <p className="text-sm text-etyme-muted mt-4" role="status">Loading…</p>
     </div>
@@ -259,7 +262,7 @@ export default function PrivacyPage() {
   // button offering to try again — a refusal is not a fault.
   if (view.show === 'refused') return (
     <div className="max-w-6xl">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
+      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
       <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
       <p className="mt-6 px-4 py-3 rounded-lg bg-etyme-attention/10 text-sm text-etyme-attention max-w-2xl" role="status">
         {view.says}
@@ -269,7 +272,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="max-w-6xl">
-      <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
+      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
       <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">{view.headline ?? 'Data requests'}</h1>
       {/* Whose desk this is, said the way this kind of firm would say it.
           The page used to describe a client program to a staffing

@@ -227,3 +227,36 @@ describe('"What is coming", when its read fails', () => {
     expect(page.lastIndexOf('mayTryAgain(status) && (', button)).toBeGreaterThan(page.indexOf('if (!loading && error) return ('))
   })
 })
+
+/**
+ * The eyebrow over each of these pages used to be the word "Governance",
+ * typed by hand. A reader whose trimmed menu files the page under another
+ * heading — Compliance, Oversight, Privacy — read a section their menu
+ * does not have. Each page now asks the reader's own menu, and draws no
+ * eyebrow while the answer is not known.
+ */
+describe('the heading over the compliance and governance pages', () => {
+  const PAGES = [
+    'src/app/dashboard/compliance/page.tsx',
+    'src/app/dashboard/tenure/page.tsx',
+    'src/app/dashboard/governance/page.tsx',
+    'src/app/dashboard/privacy/page.tsx',
+    'src/app/dashboard/packets/page.tsx',
+    'src/app/dashboard/documents/requirements/page.tsx',
+  ]
+  const REFUSED = ['src/app/dashboard/compliance/refused.tsx', 'src/app/dashboard/tenure/refused.tsx']
+  const typed = /(className="(?:eyebrow|lbl)[^"]*"|<Lbl|className="[^"]*uppercase tracking[^"]*")>\s*Governance\s*</
+
+  it('no compliance or governance page types its heading; each reads it from the reader’s own menu', () => {
+    for (const f of [...PAGES, ...REFUSED]) {
+      expect(readFileSync(path.join(process.cwd(), f), 'utf8'), f).not.toMatch(typed)
+    }
+    for (const f of PAGES) {
+      expect(readFileSync(path.join(process.cwd(), f), 'utf8'), f).toContain('usePageSection(')
+    }
+    // The refused screens draw the section their page read, and nothing
+    // while it is not known.
+    expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: 'Compliance' }))).toContain('>Compliance<')
+    expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: null }))).not.toContain('eyebrow')
+  })
+})

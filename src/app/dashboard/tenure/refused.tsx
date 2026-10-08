@@ -6,11 +6,13 @@
  * answer the page has not got; no table, no search, no subtitle naming
  * the client, because the reader was not shown whose it is.
  */
-export function TenureRefused({ says }: { says: string }) {
+/** `section` is the page's section on the reader's own menu, read by
+ * the page with `usePageSection`; nothing is drawn while it is null. */
+export function TenureRefused({ says, section = null }: { says: string; section?: string | null }) {
   return (
     <>
       <div className="page-head">
-        <p className="eyebrow">Governance</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Time on site</h1>
       </div>
       <div className="panel" role="status">
