@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ownPage, type WorkingLife } from '@/lib/consultant-portfolio'
+import { ownPage, emptyWork, signedWeeksCard, type WorkingLife } from '@/lib/consultant-portfolio'
 import { getNavForKind } from '@/components/shell/sidebar'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 
@@ -114,17 +114,19 @@ const EMPTY_STATE = (() => {
 })()
 
 describe('the empty state on their own work is what to do, not four zeros', () => {
-  it('somebody who made their page themselves is shown the empty state rather than a page of zeros', () => {
-    // The branch is taken on the verdict, ahead of the stat grid.
-    expect(PAGE).toContain("data.standing?.because === 'OWN_MAKING'")
-    expect(PAGE).toContain('<NothingYet says={data.standing.says} />')
+  it('somebody with no contract and no week is shown the empty state rather than a page of zeros', () => {
+    // The branch is taken on the route's answer, ahead of the stat grid.
+    expect(PAGE).toContain('if (data.empty) {')
+    expect(PAGE).toContain('<NothingYet says={data.empty.says} listedBy={data.empty.listedBy} ownFirm={data.empty.ownFirm} />')
+    expect(PAGE.indexOf('if (data.empty) {')).toBeLessThan(PAGE.indexOf('<Lbl>Hours this month</Lbl>'))
   })
 
   it('the route hands the page the standing sentence, so the screen and the nav cannot disagree about it', () => {
     // One answer to one question: the same `ownPage` the shell and their
     // own page already read, asked on the server.
-    expect(WORK_ROUTE).toContain("import { ownPageFor } from '@/lib/portfolio-data'")
-    expect(WORK_ROUTE).toContain('const standing = await ownPageFor(personId)')
+    expect(WORK_ROUTE).toContain("import { workingLifeOf } from '@/lib/portfolio-data'")
+    expect(WORK_ROUTE).toContain('const life = await workingLifeOf(personId)')
+    expect(WORK_ROUTE).toContain('const standing = ownPage(life)')
     expect(WORK_ROUTE).toMatch(/standing: \{ ok: standing\.ok, because: standing\.because, says: standing\.says \}/)
     // And the page prints that sentence rather than writing a second one.
     expect(EMPTY_STATE).toContain('{says}')
@@ -156,11 +158,16 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     expect(EMPTY_STATE).toContain('Etyme places nobody.')
   })
 
-  it('somebody paid through their own company is told to sign up again as "I work through my own company", the one door that exists', () => {
-    expect(EMPTY_STATE).toContain(
-      'If you work through your own company, sign up again as &ldquo;I work through my own company&rdquo;.'
-    )
+  it('somebody paid through their own company is given a link to sign up as "I work through my own company", the one door that exists', () => {
+    expect(EMPTY_STATE).toContain('<a href="/signup?type=solo"')
+    expect(EMPTY_STATE).toContain('sign up as &ldquo;I work through my own company&rdquo;')
     expect(EMPTY_STATE).not.toMatch(/set up a company of your own/i)
+  })
+
+  it('the owner of a one-person firm is not told to sign up as one, and her empty cards speak of her company', () => {
+    expect(EMPTY_STATE).toContain('{!ownFirm && (')
+    expect(EMPTY_STATE).toContain("ownFirm ? 'Once your company is on a contract' : 'Once a firm puts you forward'")
+    expect(EMPTY_STATE).not.toMatch(/your vendor/i)
   })
 
   it('the empty state offers no button that Etyme cannot honor, because Etyme places nobody', () => {
@@ -179,9 +186,9 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     }
   })
 
-  it('the empty state links to their own page and their own paperwork, and nowhere else', () => {
+  it('the empty state links to their own page, their own paperwork and the one-person-firm sign-up, and nowhere else', () => {
     const hrefs = [...EMPTY_STATE.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
-    expect(hrefs.sort()).toEqual(['/dashboard/my-page', '/dashboard/my-work/paperwork'])
+    expect(hrefs.sort()).toEqual(['/dashboard/my-page', '/dashboard/my-work/paperwork', '/signup?type=solo'])
   })
 })
 
@@ -212,5 +219,67 @@ describe('somebody with nothing but a page still reads their own menu', () => {
     expect(items).toContain('/dashboard/my-work')
     expect(items).toContain('/dashboard/my-page')
     expect(items).toContain('/dashboard/my-data')
+  })
+})
+
+// ── Sign-up walk, round two: empty, not zeros, for everybody with no work ─
+
+describe('a page with no work yet is the empty cards, whoever is reading it', () => {
+  const NOTHING = { contracts: 0, weeks: 0 }
+
+  it('a person on a bench with no work yet reads the empty cards and the firm that lists them, never a row of zeros', () => {
+    const life = { ...NOBODY, benches: ['Brightmoor Staffing'], hasProfile: true }
+    const e = emptyWork({ standing: ownPage(life), benches: life.benches, ownFirm: null, ...NOTHING })
+    expect(e).not.toBeNull()
+    expect(e!.listedBy).toBe('Listed by Brightmoor Staffing. When a firm puts you forward, your work shows here.')
+    expect(e!.says).toBe(ownPage(life).says)
+    expect(e!.ownFirm).toBeNull()
+  })
+
+  it('a person listed by two firms reads both names in one line', () => {
+    const life = { ...NOBODY, benches: ['Brightmoor Staffing', 'Veritan Talent'], hasProfile: true }
+    expect(emptyWork({ standing: ownPage(life), benches: life.benches, ownFirm: null, ...NOTHING })!.listedBy)
+      .toBe('Listed by Brightmoor Staffing and Veritan Talent. When a firm puts you forward, your work shows here.')
+  })
+
+  it('somebody who made their page themselves still reads the empty cards, with no firm named', () => {
+    const e = emptyWork({ standing: ownPage(INDEPENDENT), benches: [], ownFirm: null, ...NOTHING })
+    expect(e!.says).toBe(ownPage(INDEPENDENT).says)
+    expect(e!.listedBy).toBeNull()
+  })
+
+  it('the owner of a one-person firm with nothing booked reads the empty cards in her company’s words, never "your vendor"', () => {
+    const owner = { ...NOBODY, employers: ['Okafor Clinical LLC'] }
+    const e = emptyWork({ standing: ownPage(owner), benches: [], ownFirm: 'Okafor Clinical LLC', ...NOTHING })
+    expect(e!.ownFirm).toBe('Okafor Clinical LLC')
+    expect(e!.says).toBe('Okafor Clinical LLC is your own company. When it is on a contract, your company bills your hours and they show here.')
+    expect(e!.says).not.toMatch(/vendor/i)
+  })
+
+  it('a firm owner whose page is otherwise not hers still reads her company’s empty cards', () => {
+    const e = emptyWork({ standing: ownPage(NOBODY), benches: [], ownFirm: 'Okafor Clinical LLC', ...NOTHING })
+    expect(e).not.toBeNull()
+  })
+
+  it('anybody with a contract or a week on the record reads their work, not the empty cards', () => {
+    const life = { ...NOBODY, benches: ['Brightmoor Staffing'], hasProfile: true }
+    expect(emptyWork({ standing: ownPage(life), benches: life.benches, ownFirm: null, contracts: 1, weeks: 0 })).toBeNull()
+    expect(emptyWork({ standing: ownPage(life), benches: life.benches, ownFirm: null, contracts: 0, weeks: 2 })).toBeNull()
+  })
+
+  it('somebody nothing here is about, who owns no firm, is not drawn the empty cards', () => {
+    expect(emptyWork({ standing: ownPage(NOBODY), benches: [], ownFirm: null, ...NOTHING })).toBeNull()
+  })
+
+  it('on a one-person firm owner’s work, the signed weeks read "your company bills these", never "your vendor"', () => {
+    const card = signedWeeksCard({ notBilled: 2, ownCompany: true, employed: null })
+    expect(card.note).toBe('your company bills these')
+    expect(card.note).not.toMatch(/vendor/)
+  })
+
+  it('the route hands the page the empty answer, read from the same standing and the firm she owns', () => {
+    expect(WORK_ROUTE).toContain('empty: emptyWork({')
+    expect(WORK_ROUTE).toContain("kind: 'CONSULTANT_CORP'")
+    expect(WORK_ROUTE).toContain('ownCompany: ownFirm !== null ||')
   })
 })

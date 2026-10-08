@@ -434,3 +434,28 @@ function heldSays(code: string, count: number, total: number): string {
       return `${count} held back on ${code.toLowerCase().replace(/_/g, ' ')}.`
   }
 }
+
+/**
+ * The sentence under the scorecards heading, said for the suppliers this
+ * client actually has.
+ *
+ * It read "they cannot see what the other eleven did with the same job"
+ * on a company with no suppliers at all (sign-up walk, round two, item
+ * 18). A confident sentence written for a full demo world is a wrong
+ * sentence on an empty one, so the count decides it. Null while the
+ * list is still loading: the page asserts nothing about suppliers it has
+ * not counted yet.
+ */
+export function onlyHereSays(suppliers: number | null): string {
+  const built = 'Built from what actually happened here — not from who emails you most.'
+  if (suppliers == null) return built
+  if (suppliers === 0) return 'No suppliers yet.'
+  if (suppliers === 1) {
+    return `${built} You have one supplier, so there is nobody to compare it with yet.`
+  }
+  const others = suppliers - 1
+  return (
+    `${built} None of your suppliers can work these out about themselves: ` +
+    `they cannot see what the other ${others} did with the same job.`
+  )
+}

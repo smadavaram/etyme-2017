@@ -1329,6 +1329,46 @@ export function placementSpan(
   return span
 }
 
+// ── A page with no work on it yet ──────────────────────────────────────
+//
+// Sign-up walk, round two. A person on a bench with a listing and no work
+// read a row of zeros ending "your vendor bills these" (item 35), and the
+// owner of a one-person firm read the same zeros calling her "your
+// vendor" when she is the firm (item 38). The empty cards were drawn only
+// for somebody who made their page themselves. Now they are drawn for
+// anybody with no contract and no week yet, with one line saying who
+// lists them, or whose company it is.
+
+export interface EmptyWork {
+  /** Their standing in one sentence; for a firm owner, the firm's words. */
+  says: string
+  /** "Listed by Brightmoor Staffing. …", or null where no firm lists them. */
+  listedBy: string | null
+  /** The one-person firm they own, by name; null where they own none. */
+  ownFirm: string | null
+}
+
+export function emptyWork(input: {
+  standing: PageVerdict
+  benches: string[]
+  ownFirm: string | null
+  contracts: number
+  weeks: number
+}): EmptyWork | null {
+  if (input.contracts > 0 || input.weeks > 0) return null
+  // Nothing here is about them as a worker and they own no firm: the
+  // page is not theirs, and that is said elsewhere.
+  if (!input.standing.ok && !input.ownFirm) return null
+
+  const says = input.ownFirm
+    ? `${input.ownFirm} is your own company. When it is on a contract, your company bills your hours and they show here.`
+    : input.standing.says
+  const listedBy = input.benches.length > 0
+    ? `Listed by ${joinNames(input.benches)}. When a firm puts you forward, your work shows here.`
+    : null
+  return { says, listedBy, ownFirm: input.ownFirm }
+}
+
 // ── What became of the weeks the client signed ─────────────────────────
 //
 // The summary on Your work read "Approved, not billed 14 — your vendor

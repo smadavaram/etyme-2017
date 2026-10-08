@@ -190,3 +190,48 @@ describe('the alumni list draws Ask back only for the desk that may ask', () => 
     expect(r.body.data.askBack).toEqual({ mayAsk: true, says: null })
   })
 })
+
+// Sign-up walk, round two, item 17: a Member at a company that had just
+// signed up opened Past contractors and read a 500. A new company's
+// default seat holds no permissions at all, so it is the hardest reader.
+describe('a Member opening Past contractors sees a page, never an error', () => {
+  async function freshFirm(kind: 'CLIENT' | 'VENDOR', slug: string, email: string) {
+    const c = await prisma.company.create({ data: { name: `Fresh ${kind} ${slug}`, slug, kind } })
+    const member = await prisma.role.create({ data: { companyId: c.id, name: 'Member', permissions: [], isDefault: true } })
+    const p = await prisma.person.create({ data: { name: 'Sam Ito', primaryEmail: email } })
+    await prisma.context.create({ data: { personId: p.id, companyId: c.id, roleId: member.id, type: 'EMPLOYEE' } })
+    return c
+  }
+
+  it('a Member at a client nobody has worked at yet reads an empty list and a sentence saying why', async () => {
+    const c = await freshFirm('CLIENT', 'fresh-client-alumni', 'sam@fresh-client.example')
+    as('sam@fresh-client.example')
+    const r = await json(await alumni(req('GET', '/api/alumni')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.alumni).toEqual([])
+    expect(r.body.data.summary.total).toBe(0)
+    expect(r.body.data.says).toBe(
+      `Nobody has held a contract at ${c.name} yet. People show here once their first contract here starts.`
+    )
+    // A Member raises no job requests, so no button, and the sentence says whose desk does.
+    expect(r.body.data.askBack.mayAsk).toBe(false)
+    expect(r.body.data.askBack.says).toContain('whoever raises job requests there')
+  })
+
+  it('a Member at a firm that asks for another client’s program is refused in a sentence, never an error', async () => {
+    await freshFirm('VENDOR', 'fresh-vendor-alumni', 'sam@fresh-vendor.example')
+    as('sam@fresh-vendor.example')
+    const r = await json(await alumni(req('GET', `/api/alumni?clientCompanyId=${northbend}`)))
+    expect(r.status).toBe(403)
+    expect(typeof r.body.error.message).toBe('string')
+    expect(r.body.error.message).not.toMatch(/is not a function|undefined|FORBIDDEN/)
+    expect(r.body.error.message.length).toBeGreaterThan(20)
+  })
+
+  it('a list with people on it says nothing extra', async () => {
+    as(NIKE_OFFICER)
+    const r = await json(await alumni(req('GET', '/api/alumni')))
+    expect(r.body.data.alumni.length).toBeGreaterThan(0)
+    expect(r.body.data.says).toBeNull()
+  })
+})

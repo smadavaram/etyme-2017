@@ -31,6 +31,8 @@ interface AlumniData {
     available: number
     ended: number
   }
+  /** Said when nobody has worked here yet; null once anybody has. */
+  says?: string | null
 }
 
 interface AlumniPerson {
@@ -319,7 +321,7 @@ export default function AlumniPage() {
           row.detail.toLowerCase().includes(q)
         }
         emptyMessage={filter === 'all' ? 'No alumni records found.' : `No ${filter} alumni.`}
-        emptyDetail="Alumni appear once a person has had at least one contract at this client."
+        emptyDetail={data?.says ?? 'Alumni appear once a person has had at least one contract at this client.'}
         exportName={`alumni-${data?.client.name ?? 'export'}`}
         filters={
           <div className="flex flex-wrap gap-1.5">

@@ -7,6 +7,7 @@ import { logBulkAccess } from '@/lib/access-log'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { askBack } from './ask-back-standing'
 import { askDesk } from './ask-desk'
+import { emptyAlumniSays } from './ask-back-standing'
 // etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
 // file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
 // the prime's to keep unless the client's agreement with the prime says
@@ -337,6 +338,9 @@ export async function GET(request: NextRequest) {
       askBack: await askDesk(caller, seat, clientCompany),
       alumni,
       summary,
+      // An empty program is a page with a sentence, never an error and
+      // never a bare zero (sign-up walk, round two, item 17).
+      says: emptyAlumniSays(clientCompany.name, alumni.length),
     },
   })
 }

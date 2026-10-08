@@ -602,7 +602,13 @@ function YourCV() {
  * page, which is why the page is the only thing worth doing today. The
  * two links go to what is actually theirs: their page and their paperwork.
  */
-function NothingYet({ says }: { says: string }) {
+function NothingYet({ says, listedBy = null, ownFirm = null }: {
+  says: string
+  /** "Listed by Brightmoor Staffing. …" for somebody on a bench; else null. */
+  listedBy?: string | null
+  /** The one-person firm they own; the cards then speak of their company, never a vendor. */
+  ownFirm?: string | null
+}) {
   return (
     <div className="max-w-2xl">
       <div className="mb-8">
@@ -620,10 +626,12 @@ function NothingYet({ says }: { says: string }) {
         There is no work here yet.
       </h2>
       <p className="text-[14px] text-etyme-muted mt-2 max-w-prose">{says}</p>
+      {/* On a bench: the firm that lists them, in one line. */}
+      {listedBy && <p className="text-[14px] text-etyme-ink mt-1 max-w-prose">{listedBy}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
         <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
-          <Lbl>Once a firm puts you forward</Lbl>
+          <Lbl>{ownFirm ? 'Once your company is on a contract' : 'Once a firm puts you forward'}</Lbl>
           <ul className="mt-3 space-y-1.5 text-[14px] text-etyme-ink">
             <li>Where you work and who pays you</li>
             <li>The weeks you file</li>
@@ -659,10 +667,17 @@ function NothingYet({ says }: { says: string }) {
         Etyme places nobody. A firm asks you because it read your page.
       </p>
 
-      {/* The one-person firm is a sign-up type, not a door on this page. */}
-      <p className="text-[13px] text-etyme-muted mt-1">
-        If you work through your own company, sign up again as &ldquo;I work through my own company&rdquo;.
-      </p>
+      {/* The one-person firm is a sign-up type, and the line is its door:
+          the sign-up form opens on that type (`/signup?type=solo`). Not
+          shown to somebody who already owns one. */}
+      {!ownFirm && (
+        <p className="text-[13px] text-etyme-muted mt-1">
+          If you work through your own company,{' '}
+          <a href="/signup?type=solo" className="text-etyme-action hover:underline">
+            sign up as &ldquo;I work through my own company&rdquo;
+          </a>.
+        </p>
+      )}
 
       {/* Still theirs, and still worth having ready: anything somebody
           has asked them to sign, and the CV a firm would be sent. With
@@ -1098,10 +1113,12 @@ export default function MyWorkPage() {
   )
   if (!data) return null
 
-  // Nobody has put them forward, and nobody employs them here. A page of
-  // zeros would be the wrong answer to a state that is not a failure.
-  if (data.standing?.because === 'OWN_MAKING') {
-    return <NothingYet says={data.standing.says} />
+  // No contract and no week yet — somebody who made their page, somebody
+  // on a bench nobody has put forward, the owner of a one-person firm with
+  // nothing booked. A page of zeros would be the wrong answer to a state
+  // that is not a failure (sign-up walk, round two, items 35 and 38).
+  if (data.empty) {
+    return <NothingYet says={data.empty.says} listedBy={data.empty.listedBy} ownFirm={data.empty.ownFirm} />
   }
 
   const s = data.summary

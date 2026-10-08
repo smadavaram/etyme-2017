@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { onlyHereSays } from '@/lib/scorecard'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -229,9 +230,7 @@ export default function ScorecardsPage() {
           Suppliers, and what they cost you if they stop
         </h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-          Built from what actually happened here — not from who emails you
-          most. None of your suppliers can work these out about themselves:
-          they cannot see what the other eleven did with the same job.
+          {onlyHereSays(loading || error ? null : cards.length)}
         </p>
       </header>
 

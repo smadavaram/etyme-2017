@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
-import { askBack } from '@/app/api/alumni/ask-back-standing'
+import { readFileSync, existsSync, statSync } from 'fs'
+import path, { join } from 'path'
+import { askBack, emptyAlumniSays } from '@/app/api/alumni/ask-back-standing'
 import { whoseDeskSays } from '@/app/api/alumni/ask-desk'
 import { standingAgainstLimit, ledgerStatus, type SiteLine } from '@/lib/tenure-days'
 import { breakInServiceVerdict } from '@/lib/governance'
@@ -140,5 +140,73 @@ describe('who an ask-back is written for, and who hears it', () => {
   it('the ask-back goes to a supplier by the same rule as asking for a person, never to the caller’s own firm', () => {
     expect(src).toContain('askGoesTo(')
     expect(src).not.toMatch(/companyId: caller\.company\?\.id,\s*role:/)
+  })
+})
+
+// Sign-up walk, round two, item 17: `/api/alumni` answered a Member with a
+// 500, "getNavForKind is not a function", because ask-desk reached the
+// client sidebar through `lib/page-framing` and the requirements page's
+// words. A route reads pure modules only. Walked through every import,
+// not just the first, because the bad one was two files deep.
+describe('the alumni routes import pure modules only', () => {
+  const ROOT = process.cwd()
+
+  function resolveFrom(from: string, spec: string): string | null {
+    let base: string
+    if (spec.startsWith('@/')) base = path.join(ROOT, 'src', spec.slice(2))
+    else if (spec.startsWith('.')) base = path.resolve(path.dirname(from), spec)
+    else return null
+    for (const c of [`${base}.ts`, `${base}.tsx`, path.join(base, 'index.ts'), path.join(base, 'index.tsx'), base]) {
+      if (existsSync(c) && statSync(c).isFile()) return c
+    }
+    return null
+  }
+
+  function everyImport(entries: string[]): Map<string, string | null> {
+    const seen = new Map<string, string | null>()
+    const walk = (f: string, via: string | null) => {
+      if (seen.has(f)) return
+      seen.set(f, via)
+      const src = readFileSync(f, 'utf8')
+      // Value imports and re-exports; a type-only import is erased and runs nothing.
+      for (const m of src.matchAll(/^\s*(?:import|export)\s+(?!type\b)[^'"]*?from\s+['"]([^'"]+)['"]/gm)) {
+        const r = resolveFrom(f, m[1])
+        if (r) walk(r, f)
+      }
+    }
+    for (const e of entries) walk(path.join(ROOT, e), null)
+    return seen
+  }
+
+  it('Past contractors and asking somebody back never reach a screen module, the sidebar or page framing, however deep', () => {
+    const seen = everyImport([
+      'src/app/api/alumni/route.ts',
+      'src/app/api/alumni/ask-back/route.ts',
+      'src/app/api/alumni/ask-desk.ts',
+    ])
+    const bad = [...seen.entries()]
+      .filter(([f]) => /src\/components\/|src\/lib\/page-framing|src\/app\/dashboard\//.test(f))
+      .map(([f, via]) => `${path.relative(ROOT, f)} (from ${via ? path.relative(ROOT, via) : '?'})`)
+    expect(bad).toEqual([])
+    expect(seen.size, 'the walk found the routes and their imports').toBeGreaterThan(5)
+  })
+
+  it('ask-desk names job requests itself rather than reading the requirements page’s words', () => {
+    const imports = readFileSync(join(ROOT, 'src/app/api/alumni/ask-desk.ts'), 'utf8')
+      .split('\n').filter((l) => /^\s*import\b/.test(l)).join('\n')
+    expect(imports).not.toMatch(/components\//)
+    expect(imports).not.toContain('page-framing')
+    expect(imports).not.toContain('app/dashboard')
+    expect(whoseDeskSays('Fresh Client', [])).toBe(
+      'Asking somebody back to Fresh Client is for whoever raises job requests there. ' +
+      'You can read who worked here before; ask them to put the request in.'
+    )
+  })
+
+  it('an empty program says nobody has worked there yet, and a program with people says nothing extra', () => {
+    expect(emptyAlumniSays('Fresh Client', 0)).toBe(
+      'Nobody has held a contract at Fresh Client yet. People show here once their first contract here starts.'
+    )
+    expect(emptyAlumniSays('Northbend Athletic', 3)).toBeNull()
   })
 })

@@ -74,3 +74,12 @@ export function askBack(lines: SiteLine[], rules: LimitRules, now: Date = new Da
   // OK, Approaching, or Eligible after a served break.
   return { canReengage: true, ledgerStatus: status, eligibleDate: null, reengageBlockReason: null }
 }
+
+/**
+ * What Past contractors says when nobody has worked at the client yet.
+ * Null once anybody has: the list speaks for itself then.
+ */
+export function emptyAlumniSays(clientName: string, people: number): string | null {
+  if (people > 0) return null
+  return `Nobody has held a contract at ${clientName} yet. People show here once their first contract here starts.`
+}

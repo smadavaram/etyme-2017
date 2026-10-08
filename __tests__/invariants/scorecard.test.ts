@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import {
+  onlyHereSays,
   scorecard, order, whatToFix, middle, ENOUGH,
   type Sent, type Put, type Scorecard,
 } from '@/lib/scorecard'
@@ -354,5 +357,36 @@ describe('a supplier who was never invited but sent something anyway', () => {
     expect(scorecard('Kestrel', [], [], NOW).summary).toBe(
       'You have not sent Kestrel anything yet.'
     )
+  })
+})
+
+// Sign-up walk, round two, item 18: the page said "they cannot see what
+// the other eleven did" to a company with no suppliers at all.
+describe('the sentence under Scorecards is said for the suppliers this client has', () => {
+  it('with no suppliers it says "No suppliers yet." and nothing about the others', () => {
+    expect(onlyHereSays(0)).toBe('No suppliers yet.')
+  })
+
+  it('with one supplier it says there is nobody to compare it with yet', () => {
+    expect(onlyHereSays(1)).toContain('You have one supplier, so there is nobody to compare it with yet.')
+    expect(onlyHereSays(1)).not.toContain('the other')
+  })
+
+  it('with twelve suppliers it counts the other eleven from the list, never from a fixed word', () => {
+    expect(onlyHereSays(12)).toContain('they cannot see what the other 11 did with the same job.')
+    expect(onlyHereSays(3)).toContain('the other 2 did')
+  })
+
+  it('while the list is loading it claims nothing about suppliers it has not counted', () => {
+    expect(onlyHereSays(null)).toBe('Built from what actually happened here — not from who emails you most.')
+  })
+
+  it('the page and the route carry no fixed count, and the empty route says "No suppliers yet." with no paste box', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/scorecards/page.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'src/app/api/vendors/scorecards/route.ts'), 'utf8')
+    expect(page).not.toMatch(/other eleven/)
+    expect(page).toContain('onlyHereSays(')
+    expect(route).toContain("? 'No suppliers yet.'")
+    expect(route).not.toContain('Paste the list')
   })
 })

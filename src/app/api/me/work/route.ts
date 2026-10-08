@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { ownPageFor } from '@/lib/portfolio-data'
+import { workingLifeOf } from '@/lib/portfolio-data'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
-  weekState, payStageOf, waitingCard, signingOrder,
+  weekState, payStageOf, waitingCard, signingOrder, ownPage, emptyWork,
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
@@ -134,7 +134,24 @@ export async function GET(request: NextRequest) {
   // (`ownPage`), asked once here rather than decided a second way in the
   // browser — two answers to one question drift, and this one decides
   // what somebody with no work yet is told instead of four zeros.
-  const standing = await ownPageFor(personId)
+  const life = await workingLifeOf(personId)
+  const standing = ownPage(life)
+
+  // The one-person firm this person owns, if any: she is the firm, so the
+  // page says "your company", never "your vendor" (sign-up walk, round
+  // two, item 38). Her profile names it once a contract set it; a firm
+  // founded at sign-up is found by her seat at it — a one-person firm has
+  // one seat, hers, so any live seat there is the owner's.
+  const ownFirm = await prisma.company.findFirst({
+    where: {
+      kind: 'CONSULTANT_CORP',
+      OR: [
+        { consultantsBehind: { some: { personId } } },
+        { contexts: { some: { personId, revokedAt: null, type: 'EMPLOYEE' } } },
+      ],
+    },
+    select: { id: true, name: true },
+  })
 
   const contracts = await prisma.sellContract.findMany({
     where: { personId },
@@ -443,6 +460,9 @@ export async function GET(request: NextRequest) {
   const ownCompanyIds = (
     await prisma.consultantProfile.findMany({ where: { personId, ownCompanyId: { not: null } }, select: { ownCompanyId: true } })
   ).map((p) => p.ownCompanyId!)
+  // And the one-person firm she holds the seat at (lib/money/paid-through:
+  // "and any one-person corporation she holds the owner's seat at").
+  if (ownFirm && !ownCompanyIds.includes(ownFirm.id)) ownCompanyIds.push(ownFirm.id)
 
   const owed = (() => {
     const sellOf = new Map(contracts.map((c) => [c.id, c]))
@@ -686,7 +706,9 @@ export async function GET(request: NextRequest) {
   // reads the weeks their vendor has still to bill. A week still waiting
   // on any firm is on the waiting card instead, never on both.
   const signedCard = signedWeeksCard({
-    ownCompany: [...payByCompany.values()].some((l) => workerPaidAs(l.buyContract, ownCompanyIds) === 'OWN_COMPANY_BILLS'),
+    // She owns the firm, so her firm bills these — never "your vendor".
+    ownCompany: ownFirm !== null ||
+      [...payByCompany.values()].some((l) => workerPaidAs(l.buyContract, ownCompanyIds) === 'OWN_COMPANY_BILLS'),
     notBilled: timesheets.filter(
       (t) => t.status === 'APPROVED' && t.invoiceLines.length === 0 && !waitingOnBySheet.has(t.id) &&
         !employedBy.has(byId.get(t.sellContractId)?.companyId ?? '')
@@ -732,6 +754,12 @@ export async function GET(request: NextRequest) {
       person: { id: caller.person.id, name: caller.person.name },
       moves,
       standing: { ok: standing.ok, because: standing.because, says: standing.says },
+      // No contract and no week yet: the page draws the empty cards, never
+      // a row of zeros (sign-up walk, round two, items 35 and 38).
+      empty: emptyWork({
+        standing, benches: life.benches, ownFirm: ownFirm?.name ?? null,
+        contracts: contracts.length, weeks: timesheets.length,
+      }),
       placements: lines.map((l) => {
         const c = byId.get(l.own.id)!
         return {

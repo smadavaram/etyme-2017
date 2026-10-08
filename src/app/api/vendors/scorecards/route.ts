@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       suppliers: ranked.map((c, i) => ({ ...c, rank: c.enough ? i + 1 : null })),
       summary:
         ranked.length === 0
-          ? 'No suppliers yet. Paste the list you already email.'
+          ? 'No suppliers yet.'
           : `${ranked.length} ${ranked.length === 1 ? 'supplier' : 'suppliers'}, ` +
             `${scored} with enough history to score.`,
       // Said on the page, not buried in a tooltip. A ranking somebody
