@@ -1374,6 +1374,22 @@ clients."*
   switch a person off. Who turned it on or off, and when, is recorded.
   Bench cost, bench burn and bench profit all count a holiday the same
   way from this setting, never from a rule of their own.
+- **Bench profit per profile is one subtraction. Decided by the
+  founder, 2026-10-08:** *"Bench profitability comes from client/customer
+  billing for the timesheet or the period − vendor payment / employee
+  payroll for the period − expenses − admin costs − commission, per
+  profile."* So for each person and each period: what the client was
+  billed for their signed weeks, less what was paid for them (a
+  sub-vendor's invoice receipt or the firm's own payroll with its burden),
+  less expenses the firm carried for them that were not billed on, less
+  the firm's admin cost for the period, less the commission paid on the
+  placement. Every term is a figure already on the record except admin
+  cost, which is a company setting: a flat amount per profile per period,
+  entered by the firm, and read as "not set" until it is — the line then
+  says the profit is before admin costs, never a guess. The bench cost
+  (days on the bench under the bench pay policy) sits beside it as the
+  thing the profit pays back. One service computes it (money); the Bench
+  profit screen reads it (supply).
 - **Everybody else** — primes, sub-vendors, clients — receives bench the
   same way: they say what they want, see who is offered, and put a
   person forward to their own job request.
