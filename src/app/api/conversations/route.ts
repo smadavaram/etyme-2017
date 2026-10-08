@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { whoMayOpen, sideOf, type TopicFacts, type Participant } from '@/lib/threads'
+import { whoMayOpen, sideOf, readsOnlyOwnThreads, isOnThread, type TopicFacts, type Participant } from '@/lib/threads'
+import { isDeskless } from '@/lib/nav-table'
+import { seatFor } from '@/lib/program-seat'
 import { tellThread } from '@/lib/thread-notices'
 
 /**
@@ -48,7 +50,18 @@ export async function GET(request: NextRequest) {
   // code — the row count on one company's threads is small, and a wrong
   // JSON path predicate that silently matches nothing is worse than a
   // filter you can read.
-  const onlyMine = isConsultantSeat(caller)
+  // A colleague seated with no desk yet reads the same way: the menu
+  // shows them Conversations because what is addressed to them lands
+  // there, not because the company's inbox is theirs (lib/threads,
+  // readsOnlyOwnThreads). A firm holding a program-office seat reads under
+  // the client's role, so it is asked only for a seat with no desk.
+  const onlyMine = readsOnlyOwnThreads({
+    consultant: isConsultantSeat(caller),
+    permissions: caller.permissions,
+    holdsProgramSeat: isDeskless(caller.permissions) && !isConsultantSeat(caller)
+      ? Boolean(await seatFor(caller, null))
+      : false,
+  })
 
   const conversations = (await prisma.conversation.findMany({
     where,
@@ -65,12 +78,11 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { updatedAt: 'desc' },
-    take: limit,
-  })).filter((c) => {
-    if (!onlyMine) return true
-    const people = Array.isArray(c.participants) ? (c.participants as any[]) : []
-    return people.some((p) => p?.personId === caller.person.id)
-  })
+    // Narrowed in code, so the limit is applied after the narrowing: a
+    // reader on two threads must not lose them behind twenty-five they
+    // are not on.
+    ...(onlyMine ? {} : { take: limit }),
+  })).filter((c) => !onlyMine || isOnThread(c.participants, caller.person.id)).slice(0, limit)
 
   return NextResponse.json({
     data: {

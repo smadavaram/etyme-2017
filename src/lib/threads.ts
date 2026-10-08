@@ -29,6 +29,8 @@
  * __tests__/invariants/threads.test.ts can be read by the founder.
  */
 
+import { isDeskless } from '@/lib/nav-table'
+
 export type ThreadTopic = 'REQUIREMENT' | 'SUBMISSION'
 
 /** A role, as much of it as the rule needs. */
@@ -149,6 +151,46 @@ export function sideOf(thread: ThreadSides, companyId: string | null | undefined
   if (thread.companyId === companyId) return 'OPENED'
   if (thread.withCompanyId === companyId) return 'ANSWERS'
   return null
+}
+
+/**
+ * Who reads only the threads they are on.
+ *
+ * A consultant is in some of the agency's threads and none of the rest.
+ * So is a colleague seated with no desk yet — a Member who holds no
+ * permission. Their menu shows Conversations because what is addressed
+ * to them lands there, and a company's whole inbox, with its last
+ * messages and who is on each thread, is a desk's reading, not theirs.
+ *
+ * A firm acting in a client's program-office seat reads under the
+ * client's role (lib/program-seat), so a seat with no desk of its own at
+ * home that holds one there is not narrowed. Every seat with a desk is
+ * unchanged.
+ */
+export function readsOnlyOwnThreads(seat: {
+  /** The seat is a consultant's own record rather than a seat at a firm. */
+  consultant: boolean
+  permissions: readonly string[] | null | undefined
+  /** The caller's firm holds a live program-office seat at a client. */
+  holdsProgramSeat: boolean
+}): boolean {
+  if (seat.consultant) return true
+  return isDeskless(seat.permissions) && !seat.holdsProgramSeat
+}
+
+/** Whether this person is named on the thread — a participant, or whoever it was addressed to. */
+export function isOnThread(participants: unknown, personId: string): boolean {
+  if (!Array.isArray(participants)) return false
+  return participants.some((p) => p && typeof p === 'object' && (p as Participant).personId === personId)
+}
+
+/**
+ * Whether a seat should hear about a first note across, for a firm with
+ * nobody on the thread yet. A seat with no desk would be told about a
+ * thread it cannot open, so it is not told.
+ */
+export function hearsForTheFirm(permissions: readonly string[] | null | undefined): boolean {
+  return !isDeskless(permissions)
 }
 
 export interface Participant {

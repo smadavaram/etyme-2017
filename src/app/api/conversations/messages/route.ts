@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { canRead, type Participant } from '@/lib/threads'
+import { canRead, isOnThread, readsOnlyOwnThreads, type Participant } from '@/lib/threads'
+import { isDeskless } from '@/lib/nav-table'
+import { seatFor } from '@/lib/program-seat'
+import { noDeskYet } from '@/lib/no-desk'
 import { tellThread } from '@/lib/thread-notices'
 
 /**
  * Who may read a thread: both companies on it, and nobody else. A
- * consultant on a bench sees only the threads they are in.
+ * consultant on a bench sees only the threads they are in, and so does a
+ * colleague seated with no desk yet — refused in a sentence, because the
+ * thread is their own company's.
  *
- * Returns the row, or a refusal. The refusal is a 404 rather than a 403:
+ * Returns the row, or a refusal. To a stranger the refusal is a 404 rather than a 403:
  * a thread that is not yours is not yours to know exists.
  */
 async function open(request: NextRequest, conversationId: string) {
@@ -27,18 +32,33 @@ async function open(request: NextRequest, conversationId: string) {
   const participants: Participant[] = Array.isArray(conversation?.participants)
     ? (conversation!.participants as unknown as Participant[])
     : []
-  const inIt = participants.some((p) => p.personId === caller.person.id)
+  const inIt = isOnThread(participants, caller.person.id)
+  const notHere = {
+    ok: false as const,
+    error: NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That conversation is not here.' } },
+      { status: 404 }
+    ),
+  }
 
-  if (
-    !conversation ||
-    !canRead(conversation, caller.company?.id) ||
-    (isConsultantSeat(caller) && !inIt)
-  ) {
+  if (!conversation || !canRead(conversation, caller.company?.id)) return notHere
+  if (inIt) return { ok: true as const, caller, conversation, participants }
+  if (isConsultantSeat(caller)) return notHere
+
+  // A colleague seated with no desk yet reads the threads that name them
+  // and no other. The thread is their own company's, so they are told
+  // why in the door's own words rather than that it does not exist.
+  const ownOnly = isDeskless(caller.permissions) && readsOnlyOwnThreads({
+    consultant: false,
+    permissions: caller.permissions,
+    holdsProgramSeat: Boolean(await seatFor(caller, null)),
+  })
+  if (ownOnly) {
     return {
       ok: false as const,
       error: NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'That conversation is not here.' } },
-        { status: 404 }
+        { error: { code: 'NO_DESK', message: noDeskYet('That conversation', caller.company?.name) } },
+        { status: 403 }
       ),
     }
   }

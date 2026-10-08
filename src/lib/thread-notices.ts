@@ -10,7 +10,7 @@
 
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
-import { messageNotice, whoHears, withAuthor, type Participant } from '@/lib/threads'
+import { hearsForTheFirm, messageNotice, whoHears, withAuthor, type Participant } from '@/lib/threads'
 
 /** Staff at a company, most senior seat first, for a note that has nobody there to land on yet. */
 async function staffAt(companyId: string, limit = 10): Promise<string[]> {
@@ -18,9 +18,12 @@ async function staffAt(companyId: string, limit = 10): Promise<string[]> {
     where: { companyId, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
     orderBy: { grantedAt: 'asc' },
     take: limit,
-    select: { personId: true },
+    select: { personId: true, role: { select: { permissions: true } } },
   })
-  return seats.map((s) => s.personId)
+  // A colleague with no desk yet cannot open the thread, so is not told about it.
+  return seats
+    .filter((s) => hearsForTheFirm((s.role?.permissions as string[] | undefined) ?? []))
+    .map((s) => s.personId)
 }
 
 export async function tellThread(input: {

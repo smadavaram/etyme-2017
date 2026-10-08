@@ -44,8 +44,8 @@ describe('the routes ask the rule, and answer in its words', () => {
   })
 
   it('reading and writing a thread checks both companies on it, and a stranger is told nothing is there', () => {
-    expect(MESSAGES).toContain("!canRead(conversation, caller.company?.id)")
-    expect(MESSAGES).toContain("(isConsultantSeat(caller) && !inIt)")
+    expect(MESSAGES).toContain("!canRead(conversation, caller.company?.id)) return notHere")
+    expect(MESSAGES).toContain("if (isConsultantSeat(caller)) return notHere")
     expect(MESSAGES).toContain("message: 'That conversation is not here.'")
     expect(MESSAGES).toMatch(/\{ status: 404 \}/)
   })
