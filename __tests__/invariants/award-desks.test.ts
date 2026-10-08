@@ -112,10 +112,17 @@ describe('a prime awarding a sub-vendor’s consultant onto its own requisition'
 })
 
 describe('a firm formed before today picks this up without a migration', () => {
+  // The mock answers the way the database would: asked for one role by
+  // name, it returns only rows with that name. A Member revocation looks
+  // for Member, and none of these firms has one.
+  const roleRows = (rows: { name: string }[]) =>
+    (((args: any) => Promise.resolve(
+      args?.where?.name ? rows.filter((r) => r.name === args.where.name) : rows
+    )) as any)
 
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(prisma.role.findMany).mockResolvedValue([] as any)
+    vi.mocked(prisma.role.findMany).mockImplementation(roleRows([]))
     vi.mocked(prisma.role.findFirst).mockResolvedValue(null as any)
     vi.mocked(prisma.role.update).mockResolvedValue({} as any)
     vi.mocked(prisma.role.updateMany).mockResolvedValue({ count: 0 } as any)
@@ -123,9 +130,9 @@ describe('a firm formed before today picks this up without a migration', () => {
   })
 
   it('an account manager seated last month can award the next time somebody opens users and permissions', async () => {
-    vi.mocked(prisma.role.findMany).mockResolvedValue([
+    vi.mocked(prisma.role.findMany).mockImplementation(roleRows([
       { name: 'Account Manager' }, { name: 'Owner' },
-    ] as any)
+    ]))
     vi.mocked(prisma.role.findFirst).mockImplementation(((args: any) =>
       args.where.name === 'Account Manager'
         ? ({ id: 'role-am', permissions: ['requirements.read', 'submissions.read'] })
@@ -142,7 +149,7 @@ describe('a firm formed before today picks this up without a migration', () => {
     // The reason this is a declared list of grants and not a sync back
     // onto the seed: an admin who removed a permission meant it, and a
     // wholesale sync would undo that every time the screen was opened.
-    vi.mocked(prisma.role.findMany).mockResolvedValue([{ name: 'Account Manager' }] as any)
+    vi.mocked(prisma.role.findMany).mockImplementation(roleRows([{ name: 'Account Manager' }]))
     vi.mocked(prisma.role.findFirst).mockImplementation(((args: any) =>
       args.where.name === 'Account Manager'
         ? ({ id: 'role-am', permissions: ['requirements.read'] })
@@ -157,7 +164,7 @@ describe('a firm formed before today picks this up without a migration', () => {
   })
 
   it('a role that already has it is left alone rather than written again', async () => {
-    vi.mocked(prisma.role.findMany).mockResolvedValue([{ name: 'Account Manager' }] as any)
+    vi.mocked(prisma.role.findMany).mockImplementation(roleRows([{ name: 'Account Manager' }]))
     vi.mocked(prisma.role.findFirst).mockImplementation(((args: any) =>
       args.where.name === 'Account Manager'
         ? ({ id: 'role-am', permissions: ['requirements.write'] })
@@ -170,12 +177,39 @@ describe('a firm formed before today picks this up without a migration', () => {
   })
 
   it('a client company is not widened by a grant written for suppliers', async () => {
-    vi.mocked(prisma.role.findMany).mockResolvedValue([{ name: 'Account Manager' }] as any)
+    vi.mocked(prisma.role.findMany).mockImplementation(roleRows([{ name: 'Account Manager' }]))
     vi.mocked(prisma.role.findFirst).mockResolvedValue({ id: 'x', permissions: [] } as any)
 
     const result = await ensureDefaultRoles('northbend', 'CLIENT')
 
     expect(result.granted).toEqual([])
+  })
+
+  it('an untouched seeded Member loses exactly the two firm-wide reads and nothing else is written', async () => {
+    vi.mocked(prisma.role.findMany).mockImplementation(((args: any) => Promise.resolve(
+      args?.where?.name === 'Member'
+        ? [{ id: 'role-member', name: 'Member', permissions: ['timesheets.read', 'assignments.read'] }]
+        : [{ name: 'Member' }]
+    )) as any)
+
+    const result = await ensureDefaultRoles('brightmoor', 'VENDOR')
+
+    expect(result.revoked).toEqual(['Member → no permissions'])
+    expect(vi.mocked(prisma.role.update)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(prisma.role.update)).toHaveBeenCalledWith({ where: { id: 'role-member' }, data: { permissions: [] } })
+  })
+
+  it('a Member role a company edited itself keeps what it was given', async () => {
+    vi.mocked(prisma.role.findMany).mockImplementation(((args: any) => Promise.resolve(
+      args?.where?.name === 'Member'
+        ? [{ id: 'role-member', name: 'Member', permissions: ['assignments.read', 'timesheets.read', 'requirements.read'] }]
+        : [{ name: 'Member' }]
+    )) as any)
+
+    const result = await ensureDefaultRoles('brightmoor', 'VENDOR')
+
+    expect(result.revoked).toEqual([])
+    expect(vi.mocked(prisma.role.update)).not.toHaveBeenCalled()
   })
 
   it('every grant says why it was widened, so nobody has to guess later', () => {

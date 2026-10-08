@@ -130,7 +130,9 @@ describe('a new company walks five steps, then stops', () => {
       include: { role: true },
     })
     expect(seat.role?.name).toBe('Member')
-    expect(seat.role?.permissions.sort()).toEqual(['assignments.read', 'timesheets.read'])
+    // Member holds no permission of its own since round three: it reads its
+    // own work and what is addressed to it, and a firm-wide read is a desk.
+    expect(seat.role?.permissions).toEqual([])
 
     // The notice is not awaited by the route; give it a moment to land.
     let told = 0
