@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { mayOpen } from '@/components/shell/sidebar'
 import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
@@ -204,6 +205,9 @@ export default function ReportsPage() {
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
 
   const { permissions, company, loading: sessionLoading } = useSession()
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const eyebrow = usePageSection('/dashboard/reports')
 
   const fetchAll = useCallback(async () => {
     // Nothing is asked before the seat is known, and then only what the
@@ -367,7 +371,7 @@ export default function ReportsPage() {
     return (
       <>
         <div className="page-head">
-          <p className="eyebrow">Grow</p>
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>Reports</h1>
           <p>Revenue, margin, and operational metrics from live data.</p>
         </div>
@@ -384,7 +388,7 @@ export default function ReportsPage() {
     return (
       <>
         <div className="page-head">
-          <p className="eyebrow">Grow</p>
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>Reports</h1>
           <p>Revenue, margin, and operational metrics from live data.</p>
         </div>
@@ -561,7 +565,7 @@ export default function ReportsPage() {
     <div className="animate-fade-in">
       {/* Header — decision surface: eyebrow + serif h1 + prose subtitle */}
       <div className="page-head">
-        <p className="eyebrow">Grow</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>Reports</h1>
         <p>Revenue, margin, and operational metrics from live data.</p>
       </div>

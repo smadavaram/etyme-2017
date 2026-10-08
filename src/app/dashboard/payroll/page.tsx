@@ -5,6 +5,7 @@ import { ratesSay } from '@/lib/money/pay-words'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { compact as formatRate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -227,6 +228,9 @@ export default function PayrollPage() {
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const { company, loading: sessionLoading } = useSession()
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const eyebrow = usePageSection('/dashboard/payroll')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [selectedPeriod, setSelectedPeriod] = useState<string>('')
   const [companyId, setCompanyId] = useState<string | null>(null)
@@ -583,7 +587,7 @@ export default function PayrollPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + period selector */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
           <h1>Payroll</h1>
           <p>Buy-side payment processing. Calculate, approve, and process pay for everybody who worked in the period, including placements that have since ended.</p>
         </div>
@@ -794,6 +798,7 @@ export default function PayrollPage() {
 // consultant's.
 
 function BenchReserves() {
+  const eyebrow = usePageSection('/dashboard/payroll')
   const [data, setData] = useState<any>(null)
   const [failed, setFailed] = useState<string | null>(null)
 
@@ -811,7 +816,7 @@ function BenchReserves() {
 
   return (
     <section className="mt-8">
-      <p className="eyebrow">Operate</p>
+      {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <h2 className="headline-serif text-[22px] leading-tight">Bench reserves</h2>
       <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">{data.note}</p>
 
@@ -880,6 +885,7 @@ function BenchReserves() {
 // amendment lands late. The notice is on the screen and in the file.
 
 function Statutory() {
+  const eyebrow = usePageSection('/dashboard/payroll')
   const year = new Date().getUTCFullYear()
   const [data, setData] = useState<any>(null)
   const [failed, setFailed] = useState<string | null>(null)
@@ -899,7 +905,7 @@ function Statutory() {
 
   return (
     <section className="mt-10">
-      <p className="eyebrow">Operate</p>
+      {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <h2 className="headline-serif text-[22px] leading-tight">
         Prepared for your bureau — {data.year}
       </h2>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ListSurface, type Column } from '@/components/list-surface'
 
@@ -45,6 +46,9 @@ export default function CommissionsPage() {
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const { company, loading: sessionLoading } = useSession()
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const eyebrow = usePageSection('/dashboard/payroll/commissions')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
@@ -101,7 +105,7 @@ export default function CommissionsPage() {
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Money</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Commissions</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           What each person earned on the placements they are on a commission agreement for.

@@ -117,11 +117,10 @@ export default function ApPage() {
       <header>
         {/* The section of the reader's own menu: a client files AP under
             Money, and read "Operate" here over a page it reached from Money.
-            No eyebrow until the session says whose menu it is. */}
-        {company && (
-          <p className="eyebrow">
-            {sectionOfHref(company.kind, '/dashboard/ap', data?.reading) ?? 'Money'}
-          </p>
+            No eyebrow until the session says whose menu it is, and none
+            where the menu does not list the page — never a typed "Money". */}
+        {company && sectionOfHref(company.kind, '/dashboard/ap', data?.reading) && (
+          <p className="eyebrow">{sectionOfHref(company.kind, '/dashboard/ap', data?.reading)}</p>
         )}
         <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">

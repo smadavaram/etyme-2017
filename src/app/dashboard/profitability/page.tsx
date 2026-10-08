@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -85,6 +86,9 @@ export default function ProfitabilityPage() {
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const { company, loading: sessionLoading } = useSession()
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const eyebrow = usePageSection('/dashboard/profitability')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -124,7 +128,7 @@ export default function ProfitabilityPage() {
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Grow</p>
+        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Profitability</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           From what was actually approved and accepted, not from a rate card.

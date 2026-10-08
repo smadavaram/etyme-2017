@@ -254,4 +254,23 @@ describe('rate history’s eyebrow is the section it sits under on the reader’
     expect(src).toContain('{eyebrow && <p className="eyebrow">{eyebrow}</p>}')
     expect(src).not.toMatch(/<p className="eyebrow">Operate<\/p>/)
   })
+
+  it('no money page types an eyebrow by hand — Payroll, Profitability, Reports and Commissions read theirs from the menu too', () => {
+    // A page's eyebrow is its section: a word typed in, or a word typed
+    // as the fallback when the menu does not list the page, is one the
+    // reader's menu may not have.
+    const typed = moneyFiles('src/app/dashboard', (n) => n === 'page.tsx')
+      .filter((f) => /className="eyebrow">\s*([A-Za-z]|\{[^}]*\?\?\s*['"])/.test(whatShips(read(f))))
+    expect(typed).toEqual([])
+    for (const [page, href] of [
+      ['payroll', '/dashboard/payroll'],
+      ['profitability', '/dashboard/profitability'],
+      ['reports', '/dashboard/reports'],
+      ['payroll/commissions', '/dashboard/payroll/commissions'],
+    ]) {
+      const src = whatShips(read(`src/app/dashboard/${page}/page.tsx`))
+      expect(src, page).toContain(`usePageSection('${href}')`)
+      expect(src, page).toContain('{eyebrow && <p className="eyebrow">{eyebrow}</p>}')
+    }
+  })
 })
