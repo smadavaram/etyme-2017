@@ -1250,7 +1250,7 @@ export default function ContractsPage() {
   const searchParams = useSearchParams()
   const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
 
-  const { company, permissions } = useSession()
+  const { company, permissions, loading: sessionLoading } = useSession()
   const isClient = company?.kind === 'CLIENT'
   /** Which end of every document on this page the reader stands at. */
   const viewerId = company?.id ?? null
@@ -1556,6 +1556,11 @@ export default function ContractsPage() {
 
   const filters = tab === 'sell' ? SELL_FILTERS : BUY_FILTERS
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
   return (
     <>
       {/* Toast notification */}

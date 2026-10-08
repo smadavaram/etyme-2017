@@ -285,6 +285,11 @@ export default function InvoiceDetail() {
     await load()
   }
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!session.company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
   if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
   if (error) return (
     <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">

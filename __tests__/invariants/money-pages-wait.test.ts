@@ -8,6 +8,13 @@
  * So every money page waits: no section word, no subtitle and no
  * "Sell"/"Buy" until the company is known, then the reader's own words
  * from `lib/page-framing`.
+ *
+ * Round three, item 17: that was not enough. A client's Invoice receipts
+ * still read "Outstanding $0 owed to us · Open bills" while loading, and
+ * Contracts showed "Active bill rates", because only the heading waited —
+ * the stat cards and the side under them were still guessed. So now the
+ * whole page waits: until the company is known, a money page that reads
+ * whose company it is draws "Loading…" and nothing else.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -35,6 +42,14 @@ function moneyPages(): [string, string][] {
   walk(DASHBOARD)
   return out
 }
+
+/** A money page that asks the session which company the reader is at. */
+function readsCompany(src: string): boolean {
+  return /const \{[^}]*\bcompany\b[^}]*\} = (useSession\(\)|session)/.test(src) || /session\.company\b/.test(src)
+}
+
+/** The gate: no company yet, so "Loading…" and nothing else is drawn. */
+const WAITS = /if \(!(session\.)?company\) \{\s*return <p[^>]*>\{(session\.loading|sessionLoading) \? 'Loading…'/
 
 describe('money pages wait until they know whose page it is', () => {
   it('finds the money pages it is meant to read', () => {
@@ -74,5 +89,41 @@ describe('money pages wait until they know whose page it is', () => {
 
   it('a supplier still reads its sell side as what it bills', () => {
     expect(pageFraming('VENDOR', 'contracts.sell').subtitle).toMatch(/What you bill clients/)
+  })
+
+  it('every money page that reads whose company it is draws only "Loading…" until it knows', () => {
+    const readers = moneyPages().filter(([, src]) => readsCompany(src))
+    const paths = readers.map(([p]) => p)
+    for (const page of ['contracts', 'invoices', 'invoices/[id]', 'expenses', 'ap', 'ar', 'purchase-orders']) {
+      expect(paths).toContain(`src/app/dashboard/${page}/page.tsx`)
+    }
+    const guessing = readers.filter(([, src]) => !WAITS.test(src)).map(([p]) => p)
+    expect(guessing).toEqual([])
+  })
+
+  it('a client\'s invoice receipts never read "owed to us" or "Open bills" while the session loads', () => {
+    const src = readFileSync(join(DASHBOARD, 'invoices', 'page.tsx'), 'utf8')
+    const gate = src.search(WAITS)
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(src.indexOf("'owed to us'"))
+    expect(gate).toBeLessThan(src.indexOf("'Open bills'"))
+    expect(gate).toBeLessThan(src.indexOf("'Owed to us'"))
+  })
+
+  it('the contracts page draws neither the Sell and Buy tabs nor "Active bill rates" while the session loads', () => {
+    const src = readFileSync(join(DASHBOARD, 'contracts', 'page.tsx'), 'utf8')
+    const gate = src.search(WAITS)
+    expect(gate).toBeGreaterThan(-1)
+    expect(gate).toBeLessThan(src.indexOf('Sell / Buy tabs'))
+    expect(gate).toBeLessThan(src.indexOf('Active bill rates'))
+  })
+
+  it('accounts receivable and accounts payable draw no figure before the session says whose books they are', () => {
+    for (const page of ['ar', 'ap']) {
+      const src = readFileSync(join(DASHBOARD, page, 'page.tsx'), 'utf8')
+      const gate = src.search(WAITS)
+      expect(gate).toBeGreaterThan(-1)
+      expect(gate).toBeLessThan(src.indexOf('<header>'))
+    }
   })
 })

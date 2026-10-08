@@ -468,7 +468,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
 // ── Page ─────────────────────────────────────────────
 
 export default function ExpensesPage() {
-  const { company } = useSession()
+  const { company, loading: sessionLoading } = useSession()
   const isClient = company?.kind === 'CLIENT'
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -703,6 +703,11 @@ export default function ExpensesPage() {
     { key: 'REJECTED', label: 'Rejected' },
   ]
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + kind toggle */}

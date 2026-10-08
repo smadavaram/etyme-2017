@@ -101,7 +101,7 @@ function Consumed({ po }: { po: PO }) {
 export default function PurchaseOrdersPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { company } = useSession()
+  const { company, loading: sessionLoading } = useSession()
   const [pos, setPos] = useState<PO[] | null>(null)
   const [canRaise, setCanRaise] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(0)
@@ -183,6 +183,11 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
   if (!pos) {
     return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
   }

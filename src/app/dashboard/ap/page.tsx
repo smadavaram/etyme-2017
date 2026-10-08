@@ -100,6 +100,11 @@ export default function ApPage() {
     [data, currency]
   )
 
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+  }
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
