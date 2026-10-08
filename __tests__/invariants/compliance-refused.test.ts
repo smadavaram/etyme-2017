@@ -6,6 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { complianceRefusal } from '@/lib/walls'
 import { complianceSubtitle, complianceView } from '@/app/dashboard/compliance/says'
 import { ComplianceRefused } from '@/app/dashboard/compliance/refused'
+import { privacyView, privacyHeadline } from '@/app/dashboard/privacy/says'
+import { mayTryAgain } from '@/app/dashboard/governance/says'
+import { mayWorkBreach } from '@/lib/breach'
+import { getNavForKind } from '@/lib/nav-table'
+import { rolesFor } from '@/lib/company-defaults'
 
 /**
  * The browser walk opened /dashboard/compliance as Karthik Menon, a
@@ -106,5 +111,119 @@ describe('the pages beside compliance, when the route will not answer', () => {
   it('the access register and the client pack already return the refusal on its own', () => {
     expect(read('src/app/dashboard/access/page.tsx')).toContain('if (refused) return (')
     expect(read('src/app/dashboard/outbound-pack/page.tsx')).toContain('if (denied) {')
+  })
+})
+
+/**
+ * Round five found the compliance desk's own page still drawing a
+ * confident all-clear where it had no answer. A refused Member read
+ * "Nothing is waiting on this desk today", then "Requests 0" and
+ * "Holds 0"; Cavanaugh's program manager read "Incidents 0 … Nothing has
+ * gone anywhere it should not have" under a refused read; and every
+ * reader saw the same all-clear before the first read came back. "What
+ * is coming" put "Try again" under its refusal, as if it were a fault.
+ */
+describe('Data requests, when the routes will not answer or have not answered yet', () => {
+  const ok = <T,>(data: T) => ({ data, error: null })
+  const no = (error: string) => ({ data: null, error })
+  const NOT_YOURS = 'Reading data requests is the compliance desk’s job here.'
+
+  it('a refused desk shows the route’s sentence alone — no "Nothing is waiting", no "Requests 0", no "Holds 0"', () => {
+    const v = privacyView({ loading: false, requests: no(NOT_YOURS), holds: no('Holds are not yours.'), incidents: no('Nor these.'), open: 0, urgent: 0 })
+    expect(v).toEqual({ show: 'refused', says: NOT_YOURS })
+  })
+
+  it('nothing is said about the queue while the first read is still out, not even that nothing is waiting', () => {
+    const v = privacyView({ loading: true, requests: ok([]), holds: ok([]), incidents: ok([]), open: 0, urgent: 0 })
+    expect(v).toEqual({ show: 'loading' })
+  })
+
+  it('"Nothing is waiting on this desk today" is said only after the queue was read and found empty', () => {
+    const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: ok([]), open: 0, urgent: 0 })
+    expect(v.show === 'page' && v.headline).toBe('Nothing is waiting on this desk today.')
+  })
+
+  it('a refused incidents read is drawn as its sentence, never as "Incidents 0" and an all-clear', () => {
+    const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: no('Reading a security incident is the compliance desk’s job here.'), open: 0, urgent: 0 })
+    expect(v.show).toBe('page')
+    if (v.show !== 'page') return
+    expect(v.incidents).toEqual({ show: 'refused', says: 'Reading a security incident is the compliance desk’s job here.' })
+  })
+
+  it('an incidents list read and found empty is the all-clear, because the read succeeded', () => {
+    const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: ok([]), open: 0, urgent: 0 })
+    expect(v.show === 'page' && v.incidents).toEqual({ show: 'list', rows: [] })
+  })
+
+  it('where only the queue was refused, the page says no headline about it and draws the queue as its sentence', () => {
+    const v = privacyView({ loading: false, requests: no(NOT_YOURS), holds: ok([]), incidents: ok([]), open: 0, urgent: 0 })
+    expect(v.show).toBe('page')
+    if (v.show !== 'page') return
+    expect(v.headline).toBeNull()
+    expect(v.requests).toEqual({ show: 'refused', says: NOT_YOURS })
+  })
+
+  it('the headline counts what is open and what is due inside a day', () => {
+    expect(privacyHeadline(1, 0)).toBe('1 request needs you.')
+    expect(privacyHeadline(3, 2)).toBe('3 requests need you. 2 are due inside a day.')
+  })
+
+  it('the page returns the loading and refused states before it draws a headline, a count or an empty list', () => {
+    const page = readFileSync(path.join(process.cwd(), 'src/app/dashboard/privacy/page.tsx'), 'utf8')
+    const loading = page.indexOf("if (view.show === 'loading') return (")
+    const refused = page.indexOf("if (view.show === 'refused') return (")
+    expect(loading).toBeGreaterThan(-1)
+    expect(refused).toBeGreaterThan(loading)
+    expect(page.indexOf('{view.headline')).toBeGreaterThan(refused)
+    expect(page.indexOf('emptyMessage="Nothing has gone anywhere it should not have."')).toBeGreaterThan(refused)
+    expect(page).not.toMatch(/\{(requests|holds|breaches)\.length\}/)
+    expect(page.slice(refused, page.indexOf('{view.headline'))).not.toContain('Try again')
+  })
+})
+
+describe('who reads the incident list on Data requests', () => {
+  const read = (f: string) => readFileSync(path.join(process.cwd(), f), 'utf8')
+
+  it('the menu link and the incidents route ask for the same permission, so a desk offered the page is answered by it', () => {
+    const PRIVACY = getNavForKind('CLIENT', false).flatMap((s) => s.items).find((i) => i.href === '/dashboard/privacy')
+    expect(PRIVACY?.needs).toEqual(['governance.read'])
+    expect(read('src/app/api/breaches/route.ts')).toContain("const TO_READ = 'governance.read'")
+  })
+
+  it('a client program manager holds the governance read, so his menu offers Data requests and every list on it answers him', () => {
+    const pm = rolesFor('CLIENT').find((r) => r.name === 'Program Manager')
+    expect(pm?.permissions).toContain('governance.read')
+  })
+
+  it('a company that was in no incident is answered with an empty register, not refused', () => {
+    expect(mayWorkBreach({ isStaff: false, hasCompliancePermission: true, companyIsAffected: false }).ok).toBe(true)
+  })
+
+  it('a seat without the governance read is still refused the incident register', () => {
+    expect(mayWorkBreach({ isStaff: false, hasCompliancePermission: false, companyIsAffected: false }).ok).toBe(false)
+  })
+})
+
+describe('"What is coming", when its read fails', () => {
+  it('a refusal is the sentence alone, with no "Try again" under it', () => {
+    expect(mayTryAgain(403)).toBe(false)
+  })
+
+  it('an ended session is not offered a retry either, because signing in is the way back', () => {
+    expect(mayTryAgain(401)).toBe(false)
+  })
+
+  it('a server failure, a busy server or no connection at all is offered "Try again", because a retry can change the answer', () => {
+    expect(mayTryAgain(500)).toBe(true)
+    expect(mayTryAgain(503)).toBe(true)
+    expect(mayTryAgain(429)).toBe(true)
+    expect(mayTryAgain(0)).toBe(true)
+  })
+
+  it('the page draws "Try again" only where mayTryAgain says so', () => {
+    const page = readFileSync(path.join(process.cwd(), 'src/app/dashboard/governance/page.tsx'), 'utf8')
+    const button = page.indexOf('>Try again</button>')
+    expect(button).toBeGreaterThan(-1)
+    expect(page.lastIndexOf('mayTryAgain(status) && (', button)).toBeGreaterThan(page.indexOf('if (!loading && error) return ('))
   })
 })

@@ -462,7 +462,31 @@ describe('a breach opens a clock, or says that nobody has decided one', () => {
   it('a company none of whose records were in it is told there is nothing here, not that it is forbidden', async () => {
     as(TALVERN_COMPLIANCE)
     const { status, body } = await json(await breachList(req('GET', '/api/breaches')))
+    expect(status).toBe(200)
+    expect(body.data.breaches).toEqual([])
+    expect(body.data.says).toContain('nothing here for your company')
+  })
+
+  it('a client program manager, whose menu offers Data requests, is answered on all three lists — an empty incident list, never a refusal', async () => {
+    // Cavanaugh Glassworks was in no incident. Its program manager holds
+    // the governance read the menu link asks for, so the page he is
+    // offered must answer him: refusing the desk the page is named for
+    // made the page draw a refusal as "Incidents 0" (round five, #13).
+    as(`world-corning-programme${D}`)
+    const requests = await json(await deskQueue(req('GET', '/api/data-requests')))
+    const holds = await json(await holdList(req('GET', '/api/legal-holds')))
+    const incidents = await json(await breachList(req('GET', '/api/breaches')))
+    expect(requests.status).toBe(200)
+    expect(holds.status).toBe(200)
+    expect(incidents.status).toBe(200)
+    expect(incidents.body.data.breaches).toEqual([])
+    expect(incidents.body.data.youAre).toBe('a customer whose records were in none of these')
+  })
+
+  it('a client seat without the governance read is still refused the incident register, and told which desk reads it', async () => {
+    as(`world-corning-ap${D}`)
+    const { status, body } = await json(await breachList(req('GET', '/api/breaches')))
     expect(status).toBe(403)
-    expect(body.error).toContain('nothing here for your company')
+    expect(body.error).toContain('compliance desk')
   })
 })

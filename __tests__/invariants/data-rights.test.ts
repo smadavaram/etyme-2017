@@ -250,7 +250,7 @@ describe('who may read a breach at all', () => {
 
   it('a company none of whose records were in it is told there is nothing here, not that it is forbidden', () => {
     const v = mayWorkBreach({ isStaff: false, hasCompliancePermission: true, companyIsAffected: false })
-    expect(v.ok).toBe(false)
+    expect(v.ok).toBe(true)
     expect(v.says).toContain('nothing here for your company')
     expect(v.says).toContain('you would have been written to')
   })

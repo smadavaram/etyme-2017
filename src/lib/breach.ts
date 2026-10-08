@@ -158,12 +158,20 @@ export interface MayWork {
 }
 
 /**
- * Staff, or a compliance desk at a company the breach touches.
+ * Staff, or a compliance desk at a company — reading its own register.
  *
  * A breach is Etyme's incident and Etyme's to run, and a customer whose
  * records were in it is entitled to see its own row and record that it
- * was told. Nobody else sees one at all — a breach list is the single
- * most sensitive list in the product.
+ * was told. Nobody sees another company's row — the route scopes every
+ * read to the reader's own line — and a breach list is the single most
+ * sensitive list in the product.
+ *
+ * A company that was in no incident is answered, not refused (sign-up
+ * walk round five, problem 13). It was a 403, so the desk the page is
+ * named for — a program manager holding the governance read the menu
+ * asks for — read "refused" where the truth was "nothing here", and the
+ * page could not tell a refusal from an empty register. Its register is
+ * empty; that is the answer, and it says so.
  */
 export function mayWorkBreach(input: {
   isStaff: boolean
@@ -182,7 +190,7 @@ export function mayWorkBreach(input: {
   }
   if (!input.companyIsAffected) {
     return {
-      ok: false,
+      ok: true,
       says:
         'There is nothing here for your company. Anything that touched your records would ' +
         'be on this page, and you would have been written to as well.',

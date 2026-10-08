@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { mayTryAgain } from './says'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
@@ -115,6 +116,9 @@ export default function GovernancePage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The status behind the error, so a refusal is not offered a retry.
+  // 0 where the server could not be reached at all.
+  const [status, setStatus] = useState(0)
   const [team, setTeam] = useState<Team>('ALL')
   const [days, setDays] = useState(120)
   const [q, setQ] = useState('')
@@ -122,7 +126,9 @@ export default function GovernancePage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
+      setStatus(0)
       const res = await fetch(`/api/governance/horizon?days=${days}`)
+      setStatus(res.status)
       const json = await readJson(res)
       setData(json.data)
     } catch (e: any) {
@@ -157,7 +163,11 @@ export default function GovernancePage() {
       </div>
       <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6" role="status">
         <div className="text-etyme-attention font-medium">{error}</div>
-        <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+        {/* A refusal is the sentence alone; a retry is offered only
+            where one could change the answer. */}
+        {mayTryAgain(status) && (
+          <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+        )}
       </div>
     </div>
   )

@@ -104,6 +104,14 @@ export async function GET(request: NextRequest) {
       : false,
   })
   if (!mayRead.ok) return NextResponse.json({ error: mayRead.says }, { status: 403 })
+  // Somebody who is not staff reads only their own company's lines, so a
+  // reader with no company has no register to read.
+  if (!staff && !companyId) {
+    return NextResponse.json(
+      { error: 'A compliance desk belongs to a company, and this seat has none.' },
+      { status: 403 }
+    )
+  }
 
   const rows = await prisma.breach.findMany({
     where: staff ? {} : { companies: { some: { companyId: companyId! } } },
@@ -169,7 +177,14 @@ export async function GET(request: NextRequest) {
           })),
         }
       }),
-      youAre: staff ? 'staff' : 'a customer whose records were in one of these',
+      youAre: staff
+        ? 'staff'
+        : rows.length > 0
+          ? 'a customer whose records were in one of these'
+          : 'a customer whose records were in none of these',
+      // The empty register, said: a company in no incident is answered
+      // with its empty list and this sentence, never refused.
+      says: !staff && rows.length === 0 ? mayRead.says : null,
       populations: POPULATIONS.map((p) => ({ id: p.id, name: p.name })),
     },
   })

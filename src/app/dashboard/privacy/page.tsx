@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { statusMeans } from '@/lib/read-response'
-import { deskRefusal } from '@/lib/data-request'
+import { privacyView, type Read } from './says'
 import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
@@ -107,12 +107,19 @@ function word(r: Request_): string {
 }
 
 export default function PrivacyPage() {
-  const [requests, setRequests] = useState<Request_[]>([])
+  // Each list keeps what came back or the route's sentence, never both,
+  // so a refused read can never be drawn as an empty one.
+  const [requestsRead, setRequestsRead] = useState<Read<Request_[]>>({ data: null, error: null })
   const [desk, setDesk] = useState<Desk | null>(null)
-  const [holds, setHolds] = useState<Hold[]>([])
+  const [holdsRead, setHoldsRead] = useState<Read<Hold[]>>({ data: null, error: null })
   const [overdue, setOverdue] = useState<string[]>([])
-  const [breaches, setBreaches] = useState<Breach_[]>([])
+  const [breachesRead, setBreachesRead] = useState<Read<Breach_[]>>({ data: null, error: null })
   const [loading, setLoading] = useState(true)
+  // Whether the first read has come back. A reload after "Produce it" or
+  // "Lift it" keeps the lists it already has rather than blanking the page.
+  const [everRead, setEverRead] = useState(false)
+  // What an answer or a lift said when it did not go through. Not the
+  // page's refusal: that is decided from the reads, in ./says.
   const [error, setError] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const now = useMemo(() => Date.now(), [])
@@ -126,18 +133,17 @@ export default function PrivacyPage() {
         read('/api/legal-holds'),
         read('/api/breaches'),
       ])
-      setRequests(d.data?.requests ?? [])
+      setRequestsRead({ data: d.error ? null : d.data?.requests ?? [], error: d.error })
       setDesk(d.data?.desk ?? null)
-      setHolds(h.data?.holds ?? [])
+      setHoldsRead({ data: h.error ? null : h.data?.holds ?? [], error: h.error })
       setOverdue(h.data?.overdueForReview ?? [])
-      setBreaches(b.data?.breaches ?? [])
-      // A company that was in no incident is refused by the incidents
-      // route, correctly, and that is not a refusal of this page. Only
-      // the two lists every compliance desk has decide whether this seat
-      // can read the desk at all.
-      setError(deskRefusal({ requests: d.error, holds: h.error }))
+      // A company that was in no incident reads its incidents as an empty
+      // list; the route answers that desk. A refusal here is a real one
+      // and is drawn as its sentence, never as "Incidents 0".
+      setBreachesRead({ data: b.error ? null : b.data?.breaches ?? [], error: b.error })
     } finally {
       setLoading(false)
+      setEverRead(true)
     }
   }, [])
 
@@ -169,14 +175,17 @@ export default function PrivacyPage() {
     await load()
   }
 
-  const open = requests.filter((r) => r.status !== 'DONE' && r.status !== 'REFUSED')
+  const open = (requestsRead.data ?? []).filter((r) => r.status !== 'DONE' && r.status !== 'REFUSED')
   const urgent = open.filter((r) => daysLeft(r.dueAt, now) <= 1)
 
-  const headline =
-    open.length === 0
-      ? 'Nothing is waiting on this desk today.'
-      : `${open.length} request${open.length === 1 ? '' : 's'} need${open.length === 1 ? 's' : ''} you.` +
-        (urgent.length > 0 ? ` ${urgent.length} ${urgent.length === 1 ? 'is' : 'are'} due inside a day.` : '')
+  const view = privacyView({
+    loading: loading && !everRead,
+    requests: requestsRead,
+    holds: holdsRead,
+    incidents: breachesRead,
+    open: open.length,
+    urgent: urgent.length,
+  })
 
   const requestColumns: Column<Request_>[] = [
     { key: 'subject', label: 'Who' },
@@ -235,10 +244,33 @@ export default function PrivacyPage() {
     { key: 'says', label: 'Where it stands', render: (b) => b.says },
   ]
 
+  // Loading draws the heading and nothing it would have to take back: no
+  // headline about the queue, no count, no empty list.
+  if (view.show === 'loading') return (
+    <div className="max-w-6xl">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
+      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
+      <p className="text-sm text-etyme-muted mt-4" role="status">Loading…</p>
+    </div>
+  )
+
+  // A refused desk is the heading and the route's sentence. No headline
+  // saying nothing is waiting, no "Requests 0" or "Holds 0", and no
+  // button offering to try again — a refusal is not a fault.
+  if (view.show === 'refused') return (
+    <div className="max-w-6xl">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
+      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
+      <p className="mt-6 px-4 py-3 rounded-lg bg-etyme-attention/10 text-sm text-etyme-attention max-w-2xl" role="status">
+        {view.says}
+      </p>
+    </div>
+  )
+
   return (
     <div className="max-w-6xl">
       <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Governance</p>
-      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">{headline}</h1>
+      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">{view.headline ?? 'Data requests'}</h1>
       {/* Whose desk this is, said the way this kind of firm would say it.
           The page used to describe a client program to a staffing
           supplier and to an MSP alike; the sentence now comes from the
@@ -272,16 +304,21 @@ export default function PrivacyPage() {
 
       <section className="mt-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-1">
-          Requests <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span>
+          Requests{view.requests.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.requests.rows.length}</span></>
+          )}
         </h2>
         {open.length > 0 && (
           <p className="text-sm text-etyme-muted mb-3">{open[0].dueBasis}</p>
         )}
+        {view.requests.show === 'refused' ? (
+          <Refused says={view.requests.says} />
+        ) : (
         <ListSurface
           columns={requestColumns}
-          data={requests}
+          data={view.requests.rows}
           rowKey={(r) => r.id}
-          loading={loading}
+          loading={false}
           feedOmit={['do']}
           searchFilter={(r, q) => r.subject.toLowerCase().includes(q) || r.reference.toLowerCase().includes(q)}
           searchPlaceholder="Search by person or reference&hellip;"
@@ -289,22 +326,28 @@ export default function PrivacyPage() {
           emptyDetail="A request that arrives by email is logged here, and the clock counts from the day it arrived rather than the day you type it in."
           exportName="etyme-data-requests"
         />
+        )}
       </section>
 
       <section className="mt-10">
         <h2 className="font-serif text-lg text-etyme-ink mb-1">
-          Holds <span className="text-xs text-etyme-faint tabular-nums font-sans">{holds.length}</span>
+          Holds{view.holds.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.holds.rows.length}</span></>
+          )}
         </h2>
         <p className="text-sm text-etyme-muted mb-3 max-w-2xl">
           A hold suspends the erasure of whoever it names everywhere, not only here. Only this
           company can lift one it placed, and a hold with no review date is a retention schedule
           set by forgetting.
         </p>
+        {view.holds.show === 'refused' ? (
+          <Refused says={view.holds.says} />
+        ) : (
         <ListSurface
           columns={holdColumns}
-          data={holds}
+          data={view.holds.rows}
           rowKey={(h) => h.id}
-          loading={loading}
+          loading={false}
           feedOmit={['do']}
           searchFilter={(h, q) => h.subject.toLowerCase().includes(q) || h.reason.toLowerCase().includes(q)}
           searchPlaceholder="Search by person or reason&hellip;"
@@ -312,21 +355,27 @@ export default function PrivacyPage() {
           emptyDetail="A hold is placed when a matter needs records that would otherwise be deleted, and it carries a reason that can be shown to the person."
           exportName="etyme-legal-holds"
         />
+        )}
       </section>
 
       <section className="mt-10">
         <h2 className="font-serif text-lg text-etyme-ink mb-1">
-          Incidents <span className="text-xs text-etyme-faint tabular-nums font-sans">{breaches.length}</span>
+          Incidents{view.incidents.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.incidents.rows.length}</span></>
+          )}
         </h2>
         <p className="text-sm text-etyme-muted mb-3 max-w-2xl">
           Where personal data went somewhere it should not have. A clock with no date on it means
           nobody has decided whether a notice is owed, which is not the same as nothing being owed.
         </p>
+        {view.incidents.show === 'refused' ? (
+          <Refused says={view.incidents.says} />
+        ) : (
         <ListSurface
           columns={breachColumns}
-          data={breaches}
+          data={view.incidents.rows}
           rowKey={(b) => b.id}
-          loading={loading}
+          loading={false}
           defaultView="feed"
           card={(b) => (
             <div>
@@ -349,7 +398,17 @@ export default function PrivacyPage() {
           emptyDetail="Anything that reached your company's records would be here, and you would have been written to as well."
           exportName="etyme-incidents"
         />
+        )}
       </section>
     </div>
+  )
+}
+
+/** One list's refusal, in the route's words, where its empty message would have been. */
+function Refused({ says }: { says: string }) {
+  return (
+    <p className="px-4 py-3 rounded-lg bg-etyme-canvas border border-etyme-rule text-sm text-etyme-muted max-w-2xl" role="status">
+      {says}
+    </p>
   )
 }

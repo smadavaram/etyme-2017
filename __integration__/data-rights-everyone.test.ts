@@ -626,8 +626,9 @@ describe('a breach touching a supplier’s people', () => {
   it('a firm none of whose records were in it is told there is nothing here, not that it is forbidden', async () => {
     as(APTIVA_COMPLIANCE)
     const { status, body } = await json(await breachList(req('GET', '/api/breaches')))
-    expect(status).toBe(403)
-    expect(body.error).toContain('nothing here for your company')
+    expect(status).toBe(200)
+    expect(body.data.breaches).toEqual([])
+    expect(body.data.says).toContain('nothing here for your company')
   })
 })
 
@@ -660,8 +661,9 @@ describe('the compliance desk reads its own page', () => {
     // sentence is about.
     as(`world-terumo-bct-compliance${D}`)
     const breaches = await asThePageReads(() => breachList(req('GET', '/api/breaches')))
-    expect(breaches.data, 'this client is in no incident, which is the ordinary case').toBeNull()
-    expect(breaches.error).toContain('nothing here for your company')
+    expect(breaches.error, 'this client is in no incident, which is the ordinary case, and is answered').toBeNull()
+    expect(breaches.data.breaches).toEqual([])
+    expect(breaches.data.says).toContain('nothing here for your company')
 
     const requests = await asThePageReads(() => deskQueue(req('GET', '/api/data-requests')))
     const holds = await asThePageReads(() => holdList(req('GET', '/api/legal-holds')))

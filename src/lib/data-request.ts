@@ -217,8 +217,9 @@ export function heldCategories(): { category: string; examples: string; about: s
  * showed it whenever all three of its reads came back empty. Two things
  * were wrong with that and both reached a real screen. The envelope was
  * misread, so a 200 with a full queue in it looked like nothing; and the
- * incidents route correctly refuses a company that was in no incident,
- * which is the ordinary case and not a refusal of the page.
+ * incidents route used to refuse a company that was in no incident,
+ * which is the ordinary case and not a refusal of the page. It answers
+ * that company with an empty register now (round five, problem 13).
  *
  * So the decision is here, it takes the routes' own sentences rather
  * than a second copy of one, and it only speaks when both of the two
