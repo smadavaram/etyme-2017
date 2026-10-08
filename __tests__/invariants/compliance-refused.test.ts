@@ -11,6 +11,9 @@ import { mayTryAgain } from '@/app/dashboard/governance/says'
 import { mayWorkBreach } from '@/lib/breach'
 import { getNavForKind } from '@/lib/nav-table'
 import { rolesFor } from '@/lib/company-defaults'
+import { sectionForReader } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { documentSetDoor, SET_OPENED_FROM } from '@/app/dashboard/documents/requirements/says'
 
 /**
  * The browser walk opened /dashboard/compliance as Karthik Menon, a
@@ -258,5 +261,92 @@ describe('the heading over the compliance and governance pages', () => {
     // while it is not known.
     expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: 'Compliance' }))).toContain('>Compliance<')
     expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: null }))).not.toContain('eyebrow')
+  })
+})
+
+/**
+ * Sign-up walk, round seven, problems 6 and 7 (the regulatory pages).
+ *
+ * Paperwork drew its heading over its refusal. The document-set page
+ * told Mo, Lee, Sam and Nina to "open this from an order or from a
+ * placement", and none of them can open either.
+ */
+describe('sign-up walk, round seven: Paperwork and the document-set page', () => {
+  const read = (f: string) => readFileSync(path.join(process.cwd(), f), 'utf8')
+  const ownerOf = (kind: 'CLIENT' | 'VENDOR' | 'GSI' | 'MSP') =>
+    rolesFor(kind).find((r) => r.name === 'Owner')?.permissions ?? []
+  const reader = (kind: 'CLIENT' | 'VENDOR' | 'GSI' | 'MSP' | null, permissions: string[], extra: Partial<{ isWorker: boolean; contextType: string }> = {}) =>
+    sidebarPropsFrom({
+      company: kind ? ({ kind, name: 'Walk Co' } as never) : null,
+      contextType: (extra.contextType ?? 'EMPLOYEE') as never,
+      loading: false,
+      isWorker: extra.isWorker ?? false,
+      permissions,
+    })
+  const opensFrom = (r: ReturnType<typeof reader>) =>
+    SET_OPENED_FROM.some((href) => sectionForReader(r, href) !== null)
+
+  it('a refused Paperwork page is the refusal sentence alone, with no heading and no description over it', () => {
+    const page = read('src/app/dashboard/documents/page.tsx')
+    const refused = page.indexOf('if (unread) return (')
+    expect(refused).toBeGreaterThan(-1)
+    const branch = page.slice(refused, page.indexOf('return (', refused + 'if (unread) return ('.length))
+    expect(branch).toContain('{unread}')
+    expect(branch).not.toContain('<h1')
+    expect(branch).not.toContain('eyebrow')
+    expect(branch).not.toContain('What you ask people')
+  })
+
+  it('Paperwork reads its heading off the reader’s own menu, never off the company’s whole menu', () => {
+    const page = read('src/app/dashboard/documents/page.tsx')
+    expect(page).toContain("usePageSection('/dashboard/documents')")
+    expect(page).not.toContain('sectionOfHref(')
+  })
+
+  it('a Member at a client with no desk is not told to open a document set from an order or a placement; he reads the refusal sentence', () => {
+    const mo = reader('CLIENT', [])
+    expect(opensFrom(mo)).toBe(false)
+    expect(documentSetDoor({ pending: false, company: 'Northbend Athletic', opensFrom: opensFrom(mo) })).toEqual({
+      show: 'refused',
+      says: 'A document set is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.',
+    })
+  })
+
+  it('a desk-less seat at a supplier and a firm’s own worker read the same refusal, never the instruction', () => {
+    expect(opensFrom(reader('VENDOR', []))).toBe(false)
+    expect(opensFrom(reader('GSI', [], { isWorker: true }))).toBe(false)
+    const door = documentSetDoor({ pending: false, company: 'Brightmoor Staffing', opensFrom: false })
+    expect(door.show).toBe('refused')
+    if (door.show === 'refused') expect(door.says).not.toMatch(/Open this from/)
+  })
+
+  it('a candidate at no company is told a document set belongs to a company, and where her own papers are', () => {
+    expect(documentSetDoor({ pending: false, company: null, opensFrom: false })).toEqual({
+      show: 'refused',
+      says: 'A document set belongs to a company’s order or placement, and you are not signed in at a company. Your own papers are under Your paperwork.',
+    })
+  })
+
+  it('a reader whose menu offers orders, contract lines or the compliance desk is still pointed to an order or a placement', () => {
+    for (const kind of ['CLIENT', 'VENDOR', 'GSI', 'MSP'] as const) {
+      expect(opensFrom(reader(kind, ownerOf(kind))), kind).toBe(true)
+    }
+    expect(documentSetDoor({ pending: false, company: 'Walk Co', opensFrom: true })).toEqual({ show: 'pointer' })
+  })
+
+  it('nothing is said about a document set while the session is still loading', () => {
+    expect(documentSetDoor({ pending: true, company: null, opensFrom: false })).toEqual({ show: 'loading' })
+  })
+
+  it('the document-set page returns the refusal before it draws its heading or the instruction', () => {
+    const page = read('src/app/dashboard/documents/requirements/page.tsx')
+    const refused = page.indexOf("if (door.show === 'refused') return (")
+    expect(refused).toBeGreaterThan(-1)
+    expect(page.indexOf('What a document set asks for')).toBeGreaterThan(refused)
+    expect(page.indexOf('Open this from an order or from a placement')).toBeGreaterThan(refused)
+    const start = refused + "if (door.show === 'refused') return (".length
+    const branch = page.slice(refused, page.indexOf('return (', start))
+    expect(branch).toContain('{door.says}')
+    expect(branch).not.toContain('<h1')
   })
 })

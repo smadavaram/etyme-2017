@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { useSession } from '@/components/session-provider'
-import { sectionOfHref } from '@/lib/page-framing'
+import { usePageSection } from '@/components/page-section'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 
 /**
@@ -53,14 +52,12 @@ interface Request_ {
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
 
 export default function DocumentsPage() {
-  const { company, seat } = useSession()
-  // The heading the reader's menu gives this page — Compliance — and
-  // nothing while the company is not yet known, so no page borrows one.
-  const eyebrow = sectionOfHref(
-    company?.kind ?? null,
-    '/dashboard/documents',
-    seat ? { seated: true, clientName: seat.clientName } : null
-  )
+  // The heading the reader's own trimmed menu gives this page, read off
+  // the identity the sidebar is drawn from, and nothing where that menu
+  // does not list it or is not known yet (sign-up walk, round seven,
+  // problem 3: a desk-less seat read "Compliance" from the company's
+  // whole menu).
+  const eyebrow = usePageSection('/dashboard/documents')
   const [templates, setTemplates] = useState<Template[]>([])
   const [requests, setRequests] = useState<Request_[]>([])
   const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
@@ -148,15 +145,13 @@ export default function DocumentsPage() {
       : status === 'SENT' ? 'bg-etyme-attention/10 text-etyme-attention'
         : 'bg-etyme-rule/50 text-etyme-muted'
 
-  // A library that could not be read is the heading and the sentence.
-  // Not "Requests 0" and a form to ask with, which say there is nothing
-  // here and offer what the same route would refuse.
+  // A library that could not be read is the sentence alone. Not
+  // "Requests 0" and a form to ask with, which say there is nothing here
+  // and offer what the same route would refuse; and not the heading over
+  // it either, because a refused page is its refusal (sign-up walk,
+  // round seven, problem 6).
   if (unread) return (
     <div className="max-w-5xl">
-      <div className="page-head mb-6">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>Paperwork</h1>
-      </div>
       <div className="panel" role="status">
         <p className="text-[13px] text-etyme-ink">{unread}</p>
       </div>

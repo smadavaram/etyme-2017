@@ -14,8 +14,10 @@ import {
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount,
   MEMBER_DESK, INVITE_LINK_HOURS, type DeskChange, type InviteLetter,
 } from '@/lib/access-grant'
-import { MEMBER_ROLE } from '@/lib/company-defaults'
+import { MEMBER_ROLE, rolesFor } from '@/lib/company-defaults'
 import { TEMPLATE_PACKS } from '@/lib/template-packs'
+import { sectionForReader } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
@@ -257,5 +259,55 @@ describe('sign-up walk, round four: the Change desk confirmation says a day', ()
   it('the automation log line for a desk given until a day prints the day the same way', () => {
     expect(route).toContain('` until ${formatDay(expiresAt)}`')
     expect(route).not.toContain('` until ${expiresAt.toISOString().slice(0, 10)}`')
+  })
+})
+
+/**
+ * Sign-up walk, round seven, problem 4. Your data was headed "YOU" and
+ * Users & permissions "SETTINGS" on every firm's menu, where both links
+ * sit under Governance; a client's menu has no "You" and nobody's has a
+ * "Settings". Each page now reads its heading off the reader's own menu.
+ */
+describe('sign-up walk, round seven: the heading over Your data and Users & permissions', () => {
+  const FIRMS = ['CLIENT', 'VENDOR', 'GSI', 'MSP'] as const
+  const reader = (
+    kind: (typeof FIRMS)[number] | 'CONSULTANT_CORP' | null,
+    permissions: readonly string[],
+    extra: Partial<{ isWorker: boolean; contextType: string }> = {},
+  ) =>
+    sidebarPropsFrom({
+      company: kind ? ({ kind, name: 'Walk Co' } as never) : null,
+      contextType: (extra.contextType ?? 'EMPLOYEE') as never,
+      loading: false,
+      isWorker: extra.isWorker ?? false,
+      permissions,
+    })
+  const owner = (kind: string) => rolesFor(kind as never).find((r) => r.name === 'Owner')?.permissions ?? []
+
+  it('Users & permissions is headed Governance on every firm’s menu, never Settings', () => {
+    for (const kind of FIRMS) {
+      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/access'), kind).toBe('Governance')
+    }
+  })
+
+  it('Your data is headed Governance on every firm’s menu, never You', () => {
+    for (const kind of FIRMS) {
+      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/my-data'), kind).toBe('Governance')
+    }
+  })
+
+  it('Your data is headed You for a firm’s own worker and for somebody on a bench, where their menu lists it under You', () => {
+    expect(sectionForReader(reader('GSI', [], { isWorker: true }), '/dashboard/my-data')).toBe('You')
+    expect(sectionForReader(reader('VENDOR', [], { contextType: 'CONSULTANT' }), '/dashboard/my-data')).toBe('You')
+  })
+
+  it('neither page types its heading; each asks the reader’s own menu and draws nothing while that is not known', () => {
+    const access = read('src/app/dashboard/access/page.tsx')
+    expect(access).toContain("usePageSection('/dashboard/access')")
+    expect(access).not.toContain('<Lbl>Settings</Lbl>')
+    const mine = read('src/app/dashboard/my-data/page.tsx')
+    expect(mine).toContain("usePageSection('/dashboard/my-data')")
+    expect(mine).not.toMatch(/font-medium">You</)
+    expect(sectionForReader({ ...reader('CLIENT', owner('CLIENT')), pending: true }, '/dashboard/access')).toBeNull()
   })
 })

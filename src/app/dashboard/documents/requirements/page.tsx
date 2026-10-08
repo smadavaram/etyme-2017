@@ -6,6 +6,10 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson } from '@/lib/read-response'
 import { possessive } from '@/lib/requisition-approval'
 import { usePageSection } from '@/components/page-section'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { sectionForReader } from '@/lib/page-framing'
+import { documentSetDoor, SET_OPENED_FROM } from './says'
 
 /**
  * What an order — or one line on it — asks for on paper.
@@ -80,6 +84,11 @@ function Inner() {
   // This page hangs under Paperwork, so its eyebrow is Paperwork's section
   // on the reader's own menu; nothing while that is not known.
   const section = usePageSection('/dashboard/documents')
+  // Whether this reader's own menu offers a way to an order or a line,
+  // read off the same identity the sidebar is drawn from.
+  const session = useSession()
+  const reader = sidebarPropsFrom(session)
+  const opensFrom = SET_OPENED_FROM.some((href) => sectionForReader(reader, href) !== null)
   const params = useSearchParams()
   const workOrderId = params.get('workOrderId') ?? ''
   const sellContractId = params.get('sellContractId') ?? ''
@@ -156,6 +165,19 @@ function Inner() {
   }
 
   if (!target) {
+    const door = documentSetDoor({
+      pending: reader.pending,
+      company: session.company?.name ?? null,
+      opensFrom,
+    })
+    if (door.show === 'loading') return <p className="text-body-sm text-etyme-muted">Loading…</p>
+    // A reader who can open neither an order nor a placement is not told
+    // to open this from one: the refusal sentence alone.
+    if (door.show === 'refused') return (
+      <div className="panel p-6" role="status">
+        <p className="text-[13px] text-etyme-ink">{door.says}</p>
+      </div>
+    )
     return (
       <div className="panel p-6">
         <h1 className="text-h2 font-serif text-etyme-ink">What a document set asks for</h1>

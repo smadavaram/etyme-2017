@@ -5,6 +5,7 @@ import { desksOffered } from '@/lib/access-grant'
 import { formatDay } from '@/lib/format-date'
 
 import { useEffect, useState, useCallback } from 'react'
+import { usePageSection } from '@/components/page-section'
 
 /**
  * Who can do what here.
@@ -242,6 +243,10 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
 }
 
 export default function AccessPage() {
+  // The heading the reader's own menu puts over this page — Governance on
+  // every firm's menu — never a "Settings" no menu has (sign-up walk,
+  // round seven, problem 4). Nothing while the menu is not known.
+  const section = usePageSection('/dashboard/access')
   const [data, setData] = useState<any>(null)
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -347,7 +352,7 @@ export default function AccessPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-8">
-        <Lbl>Settings</Lbl>
+        {section && <Lbl>{section}</Lbl>}
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Users & permissions</h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
           Anyone signing in on your company&apos;s email domain joins automatically as
