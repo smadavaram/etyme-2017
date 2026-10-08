@@ -27,6 +27,8 @@
  * the cost of not doing it lands on somebody else years later.
  */
 
+import { hasPermission } from '@/lib/permissions'
+
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
 
 /**
@@ -364,7 +366,7 @@ export function assessDeskChange(c: DeskChange): DeskVerdict {
 
 /** Whether a set of permissions can give desks. */
 export function canGiveDesks(permissions: string[]): boolean {
-  return permissions.includes('*') || permissions.includes('settings.manage')
+  return hasPermission(permissions, 'settings.manage')
 }
 
 // ── Waiting for access ─────────────────────────────────────
