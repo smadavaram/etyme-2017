@@ -233,7 +233,7 @@ export interface AddressVerdict {
  * The subdomain rule the custom-address form already holds, and two more:
  * forty characters at most, and never a name the demo world could use.
  */
-export function checkAddress(raw: string, taken: Set<string>): AddressVerdict {
+export function checkAddress(raw: string, taken: Set<string>, companyName?: string | null): AddressVerdict {
   const value = String(raw ?? '').trim().toLowerCase()
   if (value.length > ADDRESS_MAX) {
     return { ok: false, value: null, says: `Too long. Use ${ADDRESS_MAX} characters or fewer.` }
@@ -242,10 +242,37 @@ export function checkAddress(raw: string, taken: Set<string>): AddressVerdict {
     return { ok: false, value: null, says: 'Addresses that start with world- or demo- are kept for the demo.' }
   }
   if (RESERVED_SUBDOMAINS.has(value)) {
-    return { ok: false, value: null, says: `${value} is kept for Etyme. Try your company's name, like brookfield.` }
+    // The example is the name this person typed, never a fixed one: "Other
+    // Three Corp" was told to try "brookfield" (sign-up walk, round four,
+    // item 19). Where their name gives no usable address, no example.
+    const like = addressFromName(companyName)
+    const usable = like && like !== value && !RESERVED_SUBDOMAINS.has(like)
+      && !DEMO_PREFIXES.some((p) => like.startsWith(p)) && !taken.has(like)
+    return {
+      ok: false, value: null,
+      says: usable
+        ? `${value} is kept for Etyme. Try your company's name, like ${like}.`
+        : `${value} is kept for Etyme. Try your company's name.`,
+    }
   }
   const v = checkSubdomain(value, taken)
   return { ok: v.ok, value: v.value, says: v.reason }
+}
+
+/**
+ * A company's name as an Etyme address: lower case, letters and digits
+ * joined by single hyphens, at most forty characters. Null where nothing
+ * of three characters or more is left.
+ */
+export function addressFromName(name: string | null | undefined): string | null {
+  const v = String(name ?? '')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, ADDRESS_MAX)
+    .replace(/-+$/, '')
+  return v.length >= 3 ? v : null
 }
 
 /** The next free numbered address, for the rare case two people verified one name in the same minute. */

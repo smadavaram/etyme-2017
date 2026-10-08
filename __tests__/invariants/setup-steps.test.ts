@@ -59,9 +59,9 @@ describe('setup asks five things, then stops', () => {
 
   it('the pack follows the country and the type, and setup says which in one line read off the pack itself', () => {
     // The rhythm said once (regulatory, round one of the sign-up walk).
-    expect(packSentence(packFor('VENDOR', 'US'))).toBe('Your dates follow the US pack: weekly hours, pay every other week.')
-    expect(packSentence(packFor('CLIENT', 'IN'))).toBe('Your dates follow the India pack: monthly hours, pay monthly.')
-    expect(packSentence(packFor('GSI', 'US'))).toBe('Your dates follow the US pack: weekly hours, pay every other week.')
+    expect(packSentence(packFor('VENDOR', 'US'))).toBe('Your dates follow the usual US rhythm: weekly hours, pay every other week.')
+    expect(packSentence(packFor('CLIENT', 'IN'))).toBe('Your dates follow the usual Indian rhythm: monthly hours, pay monthly.')
+    expect(packSentence(packFor('GSI', 'US'))).toBe('Your dates follow the usual US rhythm: weekly hours, pay every other week.')
     // A monthly pack's payroll panel shows monthly, and changes no date.
     expect(payRhythmForPack('IN_DELIVERY')).toEqual({ payPeriod: 'MONTHLY', payDaysOfMonth: [28], payCalcDaysBefore: 3 })
     expect(payRhythmForPack('US_IT')).toBeNull()

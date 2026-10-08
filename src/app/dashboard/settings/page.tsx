@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 import { kindWord, postureWord } from '@/lib/parties'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -143,6 +144,9 @@ type Tab = (typeof TABS)[number]
 // ── Page ─────────────────────────────────────────────
 
 export default function SettingsPage() {
+  // The section this page sits under on the reader's own menu, never a
+  // word typed by hand (sign-up walk, round four, item 13).
+  const section = usePageSection('/dashboard/settings')
   const [data, setData] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -199,7 +203,7 @@ export default function SettingsPage() {
   return (
     <>
       <div className="page-head mb-6">
-        <p className="eyebrow">Settings</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>How {company.name} is set up</h1>
         <p>
           Sign-up filled this in from your email domain and what your company does.

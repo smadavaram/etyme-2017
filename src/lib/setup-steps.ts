@@ -55,7 +55,12 @@ export const SETUP_RAIL: readonly { key: 'SIGN_IN' | SetupStep; label: string }[
  * two, item 37).
  */
 export function stepsFor(kind?: string | null): readonly SetupStep[] {
-  return kind === 'CONSULTANT_CORP' ? ['COMPANY', 'WORK'] : RECORDED_STEPS
+  if (kind === 'CONSULTANT_CORP') return ['COMPANY', 'WORK']
+  // A program office runs a client's program and places nobody, so it has
+  // no contractor list of its own to bring in (sign-up walk, round four,
+  // item 12). It still has a team to invite: its own desks.
+  if (kind === 'MSP') return ['COMPANY', 'WORK', 'TEAM']
+  return RECORDED_STEPS
 }
 
 /** The rail a company of this kind sees: signing in, then its own steps. */
@@ -80,12 +85,26 @@ export function stepLabel(step: SetupStep, kind?: string | null): string {
  * sign hours on that week. Every other kind pays somebody.
  */
 export function asksPayroll(kind?: string | null): boolean {
-  return kind !== 'CLIENT'
+  // A program office is the same case from the other side (round four,
+  // item 12): it runs the client's program, places nobody and pays no
+  // contractor, so its pay period would be an answer nothing reads.
+  return kind !== 'CLIENT' && kind !== 'MSP'
 }
 
 /** The one line a client reads where the payroll panel would have been. */
 export const CLIENT_NO_PAYROLL =
   'There is no payroll to set up. Your suppliers pay their own people, and you pay their bills.'
+
+/** The one line a program office reads there. */
+export const OFFICE_NO_PAYROLL =
+  'There is no payroll to set up. You run the program and place nobody, so the suppliers pay their own people.'
+
+/** Where the payroll panel would have been, the line this kind reads. Null where it is asked. */
+export function noPayrollLine(kind?: string | null): string | null {
+  if (kind === 'CLIENT') return CLIENT_NO_PAYROLL
+  if (kind === 'MSP') return OFFICE_NO_PAYROLL
+  return null
+}
 
 /**
  * Which steps may be skipped. A company cannot exist without a name and a
@@ -138,7 +157,12 @@ export function recordStep(
     return { ok: false, message: 'That is not one of the setup steps.' }
   }
   if (!stepsFor(kind).includes(step as SetupStep)) {
-    return { ok: false, message: 'A one-person firm has no contractor list or team to set up.' }
+    return {
+      ok: false,
+      message: kind === 'MSP'
+        ? 'A program office places nobody, so it has no contractor list to bring in.'
+        : 'A one-person firm has no contractor list or team to set up.',
+    }
   }
   if (outcome !== 'DONE' && outcome !== 'SKIPPED') {
     return { ok: false, message: 'Say whether the step is done or skipped.' }
@@ -304,7 +328,7 @@ export function countryGuessSentence(country: string, domain: string | null): st
 }
 
 /** How a pack's country is said in one line. */
-const PACK_PLACE: Record<string, string> = { US: 'US', IN: 'India', GB: 'UK' }
+const PACK_PLACE: Record<string, string> = { US: 'US', IN: 'Indian', GB: 'UK' }
 
 const RHYTHM_WORDS: Record<string, string> = {
   WEEKLY: 'weekly',
@@ -314,12 +338,12 @@ const RHYTHM_WORDS: Record<string, string> = {
 }
 
 /**
- * Which pack the dates follow, in one line, read off the pack itself so
+ * Which rhythm the dates follow, in one line, read off the pack itself so
  * the sentence cannot drift from what the generator does.
  */
 export function packSentence(packId: string, kind?: string | null): string {
   const pack = TEMPLATE_PACKS[packId]
-  if (!pack) return 'Your dates follow the default pack.'
+  if (!pack) return 'Your dates follow the usual rhythm.'
   const hours = pack.cycleDefinitions.find((c) => c.kind === 'TIMESHEET_SUBMIT')?.frequency
   const pay = pack.cycleDefinitions.find((c) => c.kind === 'SALARY_PAY')?.frequency
   // The rhythm is said once, after the colon; before it only the country.
@@ -328,7 +352,9 @@ export function packSentence(packId: string, kind?: string | null): string {
     hours ? (hours === 'WEEKLY' || hours === 'MONTHLY' ? `${word(hours)} hours` : `hours ${word(hours)}`) : null,
     pay && asksPayroll(kind) ? `pay ${word(pay)}` : null,
   ].filter(Boolean)
-  return `Your dates follow the ${PACK_PLACE[pack.country] ?? countryName(pack.country)} pack: ${parts.join(', ')}.`
+  // "Pack" is the system's word for a set of templates, never a buyer's
+  // (sign-up walk, round four, item 17).
+  return `Your dates follow the usual ${PACK_PLACE[pack.country] ?? countryName(pack.country)} rhythm: ${parts.join(', ')}.`
 }
 
 // ── Where a colleague lands ──────────────────────────────────────────

@@ -23,16 +23,16 @@ describe('setup asks each kind of company only what it will use (items 1 and 2)'
     const page = src('src/app/(auth)/start/page.tsx')
     expect(page).toContain('{asksPayroll(kind)')
     expect(page).toContain('<WeekPanel canEdit />')
-    expect(page).toContain('{CLIENT_NO_PAYROLL}')
+    expect(page).toContain('{noPayrollLine(kind)}')
   })
 
   it('every kind that pays somebody is still asked its payroll', () => {
-    for (const kind of ['VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP']) expect(asksPayroll(kind), kind).toBe(true)
+    for (const kind of ['VENDOR', 'GSI', 'CONSULTANT_CORP']) expect(asksPayroll(kind), kind).toBe(true)
   })
 
-  it('a client reads its pack with its hours and no pay rhythm', () => {
-    expect(packSentence(packFor('CLIENT', 'US'), 'CLIENT')).toBe('Your dates follow the US pack: weekly hours.')
-    expect(packSentence(packFor('VENDOR', 'US'), 'VENDOR')).toBe('Your dates follow the US pack: weekly hours, pay every other week.')
+  it('a client reads its usual rhythm with its hours and no pay rhythm', () => {
+    expect(packSentence(packFor('CLIENT', 'US'), 'CLIENT')).toBe('Your dates follow the usual US rhythm: weekly hours.')
+    expect(packSentence(packFor('VENDOR', 'US'), 'VENDOR')).toBe('Your dates follow the usual US rhythm: weekly hours, pay every other week.')
   })
 
   it('the payroll panel in setup says where a pay day on a day off goes, rather than pointing at a section setup does not have', () => {

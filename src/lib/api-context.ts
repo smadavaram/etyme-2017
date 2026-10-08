@@ -6,6 +6,9 @@ import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accou
 import { cookies } from 'next/headers'
 import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
 import { staffAddresses } from '@/lib/alerts'
+import { desklessDoor } from '@/lib/deskless-door'
+import { seatFor } from '@/lib/program-seat'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -424,27 +427,80 @@ export async function getCallerContext(
     }
   }
 
-  return {
-    caller: {
-      person,
-      context: {
-        id: context.id,
-        type: context.type,
-        companyId: context.companyId,
-        roleId: context.roleId,
-      },
-      company: context.company,
-      permissions: (context.role?.permissions as string[]) ?? [],
-      // Where they sit in the firm. Null is firm-wide, and that absence is
-      // the deliberate act rather than an oversight.
-      orgUnitId: context.orgUnitId,
-      // Staff who do hold a seat somewhere are still staff. Read the same
-      // way whether or not they have one, so a route asking `caller.staff`
-      // gets one answer rather than two.
-      staff: isStaffAddress(person.primaryEmail),
+  const caller: CallerContext = {
+    person,
+    context: {
+      id: context.id,
+      type: context.type,
+      companyId: context.companyId,
+      roleId: context.roleId,
     },
-    error: null,
+    company: context.company,
+    permissions: (context.role?.permissions as string[]) ?? [],
+    // Where they sit in the firm. Null is firm-wide, and that absence is
+    // the deliberate act rather than an oversight.
+    orgUnitId: context.orgUnitId,
+    // Staff who do hold a seat somewhere are still staff. Read the same
+    // way whether or not they have one, so a route asking `caller.staff`
+    // gets one answer rather than two.
+    staff: isStaffAddress(person.primaryEmail),
   }
+
+  const refused = await desklessRefusal(caller, request)
+  if (refused) return { caller: null, error: refused }
+
+  return { caller, error: null }
+}
+
+/**
+ * The one door for a seat that holds no desk (sign-up walk, round four).
+ *
+ * A colleague seated as Member and not yet given a desk opens the routes
+ * behind the links its menu shows it, and the routes the menu marks as
+ * answering such a seat themselves; any other route is refused here in a
+ * sentence, before it reads anything. The rule and its allowlist are
+ * `lib/deskless-door`, read off `lib/nav-table`.
+ *
+ * Only asked where there is a request to read a path from — the
+ * dashboard layout resolves its caller with none, to draw the menu, and
+ * is not a route. A firm acting in a client's program-office seat reads
+ * under the client's role, so a live seat is never refused here; it is
+ * looked up only on the refusing path, which is the rare one.
+ *
+ * Where the route answers about people, the refusal is a refused read of
+ * each person on the firm's contracts, logged before the 403.
+ */
+async function desklessRefusal(caller: CallerContext, request?: NextRequest): Promise<NextResponse | null> {
+  const path = request?.nextUrl?.pathname
+  if (!path || !caller.company) return null
+  const verdict = desklessDoor({
+    path,
+    contextType: caller.context.type,
+    permissions: caller.permissions,
+    isService: caller.isService,
+    companyName: caller.company.name,
+    companyKind: caller.company.kind,
+  })
+  if (verdict.open) return null
+  if (await seatFor(caller, null)) return null
+
+  if (verdict.readsPeople) {
+    const companyId = caller.company.id
+    const lines = await prisma.sellContract.findMany({
+      where: { OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+      select: { personId: true },
+      distinct: ['personId'],
+      take: 500,
+    })
+    logBulkAccess(lines.map((l) => l.personId).filter((id) => id !== caller.person.id), {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'PROFILE_VIEW',
+      allowed: false,
+      reason: `${path} at ${caller.company.name} refused to a seat with no desk: ${verdict.says}`,
+    })
+  }
+  return NextResponse.json({ error: { code: 'NO_DESK', message: verdict.says } }, { status: 403 })
 }
 
 /**

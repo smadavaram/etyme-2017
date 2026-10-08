@@ -203,19 +203,18 @@ describe('a Member opening Past contractors sees a page, never an error', () => 
     return c
   }
 
-  it('a Member at a client nobody has worked at yet reads an empty list and a sentence saying why', async () => {
+  // Since the one door for a seat with no desk (sign-up walk, round four,
+  // problem 2), a Member is refused Past contractors before the route reads
+  // anything — at an empty client as at a full one — and the refusal is a
+  // sentence, never an error.
+  it('a Member at a client is refused Past contractors in a sentence, never an error', async () => {
     const c = await freshFirm('CLIENT', 'fresh-client-alumni', 'sam@fresh-client.example')
     as('sam@fresh-client.example')
     const r = await json(await alumni(req('GET', '/api/alumni')))
-    expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.alumni).toEqual([])
-    expect(r.body.data.summary.total).toBe(0)
-    expect(r.body.data.says).toBe(
-      `Nobody has held a contract at ${c.name} yet. People show here once their first contract here starts.`
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toBe(
+      `Past contractors is not part of your seat at ${c.name}. Ask your company’s owner if you need it.`
     )
-    // A Member raises no job requests, so no button, and the sentence says whose desk does.
-    expect(r.body.data.askBack.mayAsk).toBe(false)
-    expect(r.body.data.askBack.says).toContain('whoever raises job requests there')
   })
 
   it('a Member at a firm that asks for another client’s program is refused in a sentence, never an error', async () => {

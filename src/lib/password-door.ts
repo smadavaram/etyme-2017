@@ -492,7 +492,7 @@ export async function signUpCompany(input: CompanySignUp): Promise<Answer> {
     joinCompanyId = holder
   } else {
     const taken = new Set([...held.companies.keys(), ...held.pending])
-    const verdict = checkAddress(raw, taken)
+    const verdict = checkAddress(raw, taken, name)
     if (!verdict.ok) return refuse(verdict.says, 'address')
   }
 

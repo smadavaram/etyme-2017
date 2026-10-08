@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -82,6 +83,9 @@ function parseCSV(text: string): Record<string, string>[] {
 }
 
 export default function DataPage() {
+  // The section this page sits under on the reader's own menu, never a
+  // word typed by hand (sign-up walk, round four, item 13).
+  const section = usePageSection('/dashboard/data')
   const [sheets, setSheets] = useState<Sheet[] | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [chosen, setChosen] = useState<string>('')
@@ -140,7 +144,7 @@ export default function DataPage() {
   return (
     <>
       <div className="page-head mb-6">
-        <p className="eyebrow">Settings</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1>Import</h1>
         <p>
           Cost centers, work sites, purchase orders, holidays, people. Matched on a key, so

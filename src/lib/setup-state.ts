@@ -172,8 +172,10 @@ export async function beginClaimedSetup(companyId: string, personId: string, now
   await prisma.automationLog.create({
     data: {
       companyId, action: 'SETUP_STARTED',
-      summary: 'Setup opened at "How you work" for a supplier that took its record from an invitation',
-      reason: 'The invitation already named the company and its client, so the next thing to answer is the week and payroll.',
+      // Plain words about the reader's own firm, not a log line about it in
+      // the third person (sign-up walk, round four, item 18).
+      summary: "Setup opened at How you work; the company step was filled from the client's invitation",
+      reason: "Your client's invitation already gave your company's name and your client, so the next thing to answer is your week and payroll.",
       payload: { personId, from: 'CLAIM', recorded: ['COMPANY'] },
       reversible: true,
     },

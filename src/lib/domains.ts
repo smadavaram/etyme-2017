@@ -437,6 +437,12 @@ export const DOMAINS: Domain[] = [
       'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-rate-change', 'lib/seed-sector-suppliers', 'lib/seed-coding', 'lib/seed-pipeline', 'lib/seed-bench-matching',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
+      // The one door for a seat that holds no desk, and the sentence it says
+      // (sign-up walk, round four): read off lib/nav-table, asked by
+      // lib/api-context on every route.
+      'lib/deskless-door', 'lib/no-desk',
+      // The page an address that does not exist opens, in the brand.
+      'app/not-found',
       // A desk a client grants a firm that is not the client, so a
       // program office can act in its program. Here rather than under
       // demand because it is entitlement: it decides what every domain's

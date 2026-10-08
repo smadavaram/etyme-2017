@@ -192,6 +192,9 @@ describe('a new company walks five steps, then stops', () => {
     expect(got.setup).toMatchObject({ shows: true, next: 'WORK', claimedSays: 'Northbend Athletic Co is your client. Next: your week and payroll.' })
     expect(got.setup.record.COMPANY).toMatchObject({ outcome: 'DONE', byId: mara.id })
     expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)
+    // Said in plain words about her own firm, never a log line in the third person (round four, item 18).
+    const line = await prisma.automationLog.findFirstOrThrow({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })
+    expect(line.summary).toBe("Setup opened at How you work; the company step was filled from the client's invitation")
     // Asked again, it is not begun twice.
     await entry(req('GET', '/api/onboarding'))
     expect(await prisma.automationLog.count({ where: { companyId: shell.id, action: 'SETUP_STARTED' } })).toBe(1)

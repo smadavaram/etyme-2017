@@ -623,3 +623,16 @@ describe('The documentation is written in plain English for a reader anywhere', 
     }
   })
 })
+
+describe('An address that does not exist opens a page in the brand (sign-up walk, round four, item 20)', () => {
+  it('a missing address shows one sentence on the warm canvas and a link home, never the bare framework page', () => {
+    const file = 'src/app/not-found.tsx'
+    expect(existsSync(join(ROOT, file)), `${file} is missing, so Next draws its own black-and-white 404`).toBe(true)
+    const src = read(file)
+    expect(src).toContain('There is no page at this address.')
+    expect(src).toContain('href="/"')
+    expect(src).toContain('bg-etyme-canvas')
+    expect(src).toContain('font-serif')
+    expect(src).not.toMatch(/404|could not be found/)
+  })
+})

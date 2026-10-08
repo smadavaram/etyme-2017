@@ -302,8 +302,16 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     }
   })
 
-  it('the Etyme address "demo" is kept for Etyme, and the refusal says what to try instead', () => {
-    expect(checkAddress('demo', new Set()).says).toBe("demo is kept for Etyme. Try your company's name, like brookfield.")
+  it('the Etyme address "demo" is kept for Etyme, and the refusal suggests the company name the person typed', () => {
+    expect(checkAddress('demo', new Set(), 'Other Three Corp').says).toBe("demo is kept for Etyme. Try your company's name, like other-three-corp.")
+    expect(checkAddress('demo', new Set(), 'Brookfield Walk Staffing').says).toBe("demo is kept for Etyme. Try your company's name, like brookfield-walk-staffing.")
+  })
+
+  it('the refusal of a kept address never suggests a name the person did not type, nor one that is taken or kept itself', () => {
+    expect(checkAddress('demo', new Set()).says).toBe("demo is kept for Etyme. Try your company's name.")
+    expect(checkAddress('demo', new Set(['acme']), 'Acme').says).toBe("demo is kept for Etyme. Try your company's name.")
+    expect(checkAddress('demo', new Set(), 'Demo').says).toBe("demo is kept for Etyme. Try your company's name.")
+    expect(checkAddress('demo', new Set(), 'Other Three Corp').says).not.toContain('brookfield')
   })
 
   it('a verify link clicked again after confirming says the email is already confirmed and offers Sign in', () => {

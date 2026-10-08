@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState } from 'react'
 
@@ -21,6 +22,9 @@ const STATE_CHIP: Record<string, string> = {
 }
 
 export default function OnboardingPage() {
+  // The section this page sits under on the reader's own menu, never a
+  // word typed by hand (sign-up walk, round four, item 13).
+  const section = usePageSection('/dashboard/onboarding')
   const [tab, setTab] = useState<Tab>('ASSIGNMENTS')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -66,7 +70,7 @@ export default function OnboardingPage() {
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Operate</p>
+        {section && <p className="eyebrow">{section}</p>}
         <h1 className="headline-serif text-[30px] leading-tight">Setup</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           One word, five processes. Each list is derived from what actually

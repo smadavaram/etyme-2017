@@ -715,8 +715,31 @@ const SOLO_NAV: NavSection[] = [
  * about. Nothing here asks a permission: they are his own record, and
  * the routes behind them answer him because he is him.
  */
+/**
+ * The routes a worker's own pages call, named on each link with `api`.
+ *
+ * Here because a seat with no desk is let through to nothing else
+ * (`lib/deskless-door`, sign-up walk round four): the door reads the
+ * routes a desk-less seat may open off the links its menu shows it, and
+ * these pages are named after no route of their own. Each entry is a
+ * route under src/app/api, a `*` standing for one id;
+ * `__tests__/invariants/deskless-one-door.test.ts` fails on one that
+ * names no route.
+ */
+const MY_WORK_READS = [
+  'me', 'me/work', 'me/pipeline', 'me/resumes', 'me/benches', 'me/interviews/*/respond',
+  'me/papers', 'documents/*/sign', 'documents/*/upload', 'timesheets/*/submit',
+] as const
+/**
+ * The routes behind "Your terms", which has no fixed address to carry
+ * them: the page is keyed on the submission waiting on its terms.
+ */
+export const YOUR_TERMS_READS = ['submissions/*/terms'] as const
+
+const MY_PAPERWORK_READS = ['me', 'me/papers', 'documents/*/sign', 'documents/*/upload'] as const
+
 const YOURS: NavItem[] = [
-  { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
+  { label: 'Your work', href: '/dashboard/my-work', icon: '◉', api: MY_WORK_READS },
   // Not a separate "Your profile" link to /dashboard/consultants —
   // that is the vendor staff's bench-management screen, gated on
   // consultants.read, and a consultant hitting it saw a red
@@ -725,15 +748,15 @@ const YOURS: NavItem[] = [
   // editor (headline, intro, skills) plus the public-page toggle;
   // having a second, broken link to a different page was the bug,
   // not a missing feature.
-  { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
-  { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
+  { label: 'Your page', href: '/dashboard/my-page', icon: '◐', api: ['me', 'me/portfolio', 'me/portfolio/write'] },
+  { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈', api: ['me', 'me/benches', 'me/benches/*/respond'] },
   // What is held about them, and the two things they can ask for: a
   // copy of it, or to be forgotten. The page was built with no door on
   // to it, which is the same bug as a column nothing writes to — a
   // right nobody can find is a right nobody has. No permission beside
   // it on purpose: the route behind it asks for none, because it
   // answers this person about this person.
-  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
+  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁', api: ['me', 'me/data', 'me/papers', 'data-requests/*/withdraw'] },
   // What is still being asked of her, with the day each runs out. Every
   // chase letter names this page and until now the only way to it was
   // the letter itself, which makes a reminder a dead end for anybody
@@ -745,7 +768,7 @@ const YOURS: NavItem[] = [
   // under Compliance or Governance and a reader who is both a worker
   // and staff at a firm sees both menus at once. Two entries reading
   // the same word is the bug the nav table exists to catch.
-  { label: 'Your paperwork', href: '/dashboard/my-work/paperwork', icon: '▫' },
+  { label: 'Your paperwork', href: '/dashboard/my-work/paperwork', icon: '▫', api: MY_PAPERWORK_READS },
 ]
 
 const CONSULTANT_NAV: NavSection[] = [
@@ -1100,7 +1123,7 @@ export function getNavForKind(
   const withTerms = seat.termsHref
     ? sections.map((s) => s.label !== 'You' ? s : {
         ...s,
-        items: [s.items[0], { label: 'Your terms', href: seat.termsHref!, icon: '◇' }, ...s.items.slice(1)],
+        items: [s.items[0], { label: 'Your terms', href: seat.termsHref!, icon: '◇', api: YOUR_TERMS_READS }, ...s.items.slice(1)],
       })
     : sections
 
@@ -1169,3 +1192,82 @@ export function activeHref(
   return best?.href ?? null
 }
 
+
+/** The routes a link's page reads: the ones it names, else its own and those under it. */
+export function routesOf(item: Pick<NavItem, 'href' | 'api'>): string[] {
+  if (item.api != null) return Array.isArray(item.api) ? [...item.api] : [item.api as string]
+  const path = item.href.split('?')[0].replace(/^\/dashboard\/?/, '')
+  return path ? [path, `${path}/**`] : []
+}
+
+/**
+ * What a seat holding no desk may open, read off this table and nothing
+ * else (sign-up walk, round four).
+ *
+ * `menu` — the routes behind every link a desk-less seat is shown, at
+ * any kind of company and as a consultant: what is addressed to it, and
+ * its own pages. Computed by drawing that seat's menu, so a link that
+ * leaves the menu leaves the door with it.
+ *
+ * `scopesItself` — the routes behind the links this table marks
+ * SCOPED_TO_A_DESK: each one already answers a desk-less seat itself,
+ * by refusing it in a sentence and logging the read, or by showing only
+ * the weeks and lines that name its holder. The declaration is the
+ * reason beside the link; the door takes it at its word, and the
+ * integration walk checks it.
+ */
+export function routesOpenToADesklessSeat(): { menu: string[]; scopesItself: string[] } {
+  const menu = new Set<string>(YOUR_TERMS_READS)
+  const kinds: CompanyKind[] = ['VENDOR', 'GSI', 'MSP', 'CLIENT', 'CONSULTANT_CORP']
+  const navs = [
+    ...kinds.map((k) => getNavForKind(k, false, { permissions: [] })),
+    getNavForKind(null, true, { permissions: [] }),
+  ]
+  for (const nav of navs) for (const s of nav) for (const i of s.items) for (const r of routesOf(i)) menu.add(r)
+  const scopesItself = Object.entries(OPEN_TO_EVERY_SEAT)
+    .filter(([, why]) => why === SCOPED_TO_A_DESK)
+    .map(([href]) => href.split('?')[0].replace(/^\/dashboard\/?/, ''))
+  return { menu: [...menu].sort(), scopesItself: [...new Set(scopesItself)].sort() }
+}
+
+/**
+ * Whether a route under /api matches one of these patterns: a segment
+ * for a segment, `*` for any one id, and a trailing `**` for anything
+ * under it.
+ */
+export function routeMatches(apiPath: string, pattern: string): boolean {
+  const have = apiPath.replace(/^\/?api\/?/, '').replace(/\/$/, '').split('/').filter(Boolean)
+  const want = pattern.split('/').filter(Boolean)
+  for (let i = 0; i < want.length; i++) {
+    if (want[i] === '**') return have.length > i
+    if (i >= have.length) return false
+    if (want[i] !== '*' && want[i] !== have[i]) return false
+  }
+  return have.length === want.length
+}
+
+/**
+ * What the menu calls the page behind a route, read from the reader's
+ * own menu first, so a client is told "Contractors" where a supplier
+ * would read "Consultants". Null where no link names it.
+ */
+export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined): string | null {
+  const own = kind ? getNavForKind(kind, false) : []
+  const rest = (['CLIENT', 'VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const)
+    .filter((k) => k !== kind)
+    .map((k) => getNavForKind(k, false))
+  for (const nav of [own, ...rest]) {
+    let best: { label: string; weight: number } | null = null
+    for (const s of nav) {
+      for (const i of s.items) {
+        for (const r of routesOf(i)) {
+          if (!routeMatches(apiPath, r)) continue
+          const weight = r.replace(/\*\*$/, '').length * 2 + (r.endsWith('**') ? 0 : 1)
+          if (!best || weight > best.weight) best = { label: i.label, weight }
+        }
+      }
+    }
+    if (best) return best.label
+  }
+  return null
+}
