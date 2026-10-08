@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { standingOn } from '@/lib/document-request'
 
 /**
  * GET /api/documents/:id/file — the document itself.
@@ -14,9 +15,12 @@ import { prisma } from '@/lib/db'
  * ── Who may open it ──────────────────────────────────────────────────
  *
  * Two, and no third: **the person the document is about**, because it is
- * theirs, and **the firm that asked for it**, because it cannot decide
- * whether a document answers a requirement without reading it. A company
- * document is readable by that company. Everybody else is told it is not
+ * theirs, and **the paperwork desk of the firm that asked for it**,
+ * because it cannot decide whether a document answers a requirement
+ * without reading it. A company document is readable by that company.
+ * Until 2026-10-08 any seat at the asking firm could open the file, so an
+ * Accounts Receivable clerk could read a contractor's passport; a seat
+ * there without the paperwork desk is now refused in a sentence. Everybody else is told it is not
  * here rather than that they may not have it — a refusal that confirms
  * a document exists is a refusal that leaked something.
  *
@@ -70,18 +74,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           : null
 
   const issuer = doc.template.company
-  const mine = caller.person.id === subjectPersonId
-  const askedForIt = caller.company?.id === issuer.id
-  const aboutMyCompany = doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId
-  const allowed = mine || askedForIt || aboutMyCompany
 
-  const why = allowed
-    ? mine
-      ? 'Their own document.'
-      : askedForIt
-        ? `${issuer.name} asked for this document and is reading the answer.`
+  // Whose hands this is in — the same rule as sending, signing and
+  // uploading (`standingOn` in lib/document-request). The firm that asked
+  // reads the file through its paperwork desk only; a seat there with no
+  // such desk — an Accounts Receivable clerk, a Member — is refused in a
+  // sentence, because billing a client is not reading a contractor's
+  // passport. The person it is about reads their own. A company's own
+  // paper reaches it. Everybody else is told nothing is here.
+  const standing = standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
+    personId: caller.person.id,
+    atIssuer: caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT',
+    atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId,
+    permissions: caller.permissions ?? [],
+    companyName: caller.company?.name ?? null,
+  })
+  const allowed = standing.ok
+  const mine = subjectPersonId !== null && caller.person.id === subjectPersonId
+
+  const why = standing.ok
+    ? standing.staffOfIssuer
+      ? `${issuer.name} asked for this document and its paperwork desk is reading the answer.`
+      : mine
+        ? 'Their own document.'
         : 'The company the document is about.'
-    : `Neither the person this document is about nor ${issuer.name}, who asked for it.`
+    : standing.code === 'NO_DESK'
+      ? `A seat at ${issuer.name} that does not work its paperwork, opening somebody else's document.`
+      : `Neither the person this document is about nor ${issuer.name}, who asked for it.`
 
   // Before the verdict is acted on, so a refused attempt leaves a trail.
   // A log where every row is a success is a log that answers the wrong
@@ -99,10 +118,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
     .catch(() => {})
 
-  // A stranger is told nothing is here rather than that they may not
-  // have it. Saying "you may not read Helena Marsh's I-9" confirms there
-  // is one.
-  if (!allowed) return missing
+  if (!standing.ok) {
+    // A colleague without the desk is told what its seat lacks, never a
+    // permission key. A stranger is told nothing is here rather than that
+    // they may not have it: saying "you may not read Helena Marsh's I-9"
+    // confirms there is one.
+    if (standing.code === 'NO_DESK') {
+      return NextResponse.json({ error: { code: standing.code, message: standing.message } }, { status: 403 })
+    }
+    return missing
+  }
 
   // A firm that sent a link rather than a file is a real case and is not
   // deprecated. The address is where the document is.

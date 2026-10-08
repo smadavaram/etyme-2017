@@ -124,6 +124,52 @@ describe('who stands for the firm on a document', () => {
   })
 })
 
+describe('who may open a document’s file', () => {
+  // Until 2026-10-08 any seat at the firm that asked could open the bytes,
+  // so an Accounts Receivable clerk could read a contractor's passport.
+  const ar: PaperworkSeat = { personId: 'p-ar', atIssuer: true, atSubjectCompany: false, permissions: ['timesheets.read', 'invoices.read', 'invoices.issue'], companyName: 'Brightmoor Staffing' }
+  const hr: PaperworkSeat = { ...ar, personId: 'p-ruth', permissions: ['consultants.read'] }
+  const member: PaperworkSeat = { ...ar, personId: 'p-mo', permissions: [] }
+  const contractor: PaperworkSeat = { personId: 'p-tariq', atIssuer: false, atSubjectCompany: false, permissions: [], companyName: null }
+  const outsider: PaperworkSeat = { ...ar, personId: 'p-x', atIssuer: false }
+  const passport = { templateName: 'Passport', subjectPersonId: 'p-tariq' }
+
+  it('an Accounts Receivable clerk at the firm that asked cannot open a contractor’s passport, and is told so in a sentence', () => {
+    expect(standingOn('open', passport, ar)).toEqual({
+      ok: false, status: 403, code: 'NO_DESK',
+      message: 'Opening Passport for somebody else is not part of your seat at Brightmoor Staffing. Ask your company’s owner if you need it.',
+    })
+  })
+  it('a Member with no desk at the firm cannot open somebody else’s document either', () => {
+    expect(standingOn('open', passport, member)).toMatchObject({ ok: false, code: 'NO_DESK' })
+  })
+  it('the refusal to open a file names no permission key', () => {
+    const r = standingOn('open', passport, ar)
+    expect(r.ok ? '' : r.message).not.toMatch(/consultants\.read|[a-z]+\.[a-z]+/)
+  })
+  it('HR, who holds the paperwork desk, opens the file for the firm', () => {
+    expect(standingOn('open', passport, hr)).toEqual({ ok: true, staffOfIssuer: true })
+  })
+  it('the contractor opens their own passport, whatever seat they hold', () => {
+    expect(standingOn('open', passport, contractor)).toEqual({ ok: true, staffOfIssuer: false })
+    expect(standingOn('open', { templateName: 'Passport', subjectPersonId: 'p-ar' }, ar)).toEqual({ ok: true, staffOfIssuer: false })
+  })
+  it('somebody at another firm is told nothing is here, so the refusal confirms no passport exists', () => {
+    expect(standingOn('open', passport, outsider)).toMatchObject({ ok: false, status: 404, code: 'NOT_FOUND' })
+  })
+  it('a company opens its own certificate that a client asked for', () => {
+    const supplier: PaperworkSeat = { ...outsider, atSubjectCompany: true }
+    expect(standingOn('open', { templateName: 'Certificate of insurance', subjectPersonId: null }, supplier)).toEqual({ ok: true, staffOfIssuer: false })
+  })
+  it('the file route decides who opens a file with the same rule, and logs every read before acting on it', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/documents/[id]/file/route.ts'), 'utf8')
+    expect(route).toMatch(/standingOn\('open'/)
+    expect(route).not.toMatch(/askedForIt/)
+    expect(route.indexOf('accessLog')).toBeGreaterThan(-1)
+    expect(route.indexOf('accessLog')).toBeLessThan(route.indexOf("if (!standing.ok)"))
+  })
+})
+
 describe('what people read', () => {
   it('the note says who asks and what to do, in a sentence', () => {
     expect(askNotice(nda)).toEqual({ title: 'Pinnacle asks for Mutual NDA', body: 'Sign Mutual NDA from your page. It takes a minute.' })

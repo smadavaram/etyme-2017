@@ -170,9 +170,16 @@ export type PaperworkStanding =
  *
  * `mayAct` then decides the move itself; this decides only whose hands
  * it is in.
+ *
+ * **Opening the file** (`'open'`, GET documents/:id/file) is held to the
+ * same rule, decided 2026-10-08. The file is the passport page, the
+ * signed I-9, the visa — and until that day any seat at the firm that
+ * asked could open it, so an Accounts Receivable clerk who bills the
+ * client could read a contractor's passport. Reading the file is the
+ * paperwork desk's work and the person's own right, and nobody else's.
  */
 export function standingOn(
-  action: DocAction,
+  action: DocAction | 'open',
   doc: { templateName: string; subjectPersonId: string | null },
   seat: PaperworkSeat
 ): PaperworkStanding {
@@ -186,7 +193,9 @@ export function standingOn(
     const what =
       action === 'send'
         ? `Asking somebody for ${doc.templateName}`
-        : action === 'sign'
+        : action === 'open'
+          ? `Opening ${doc.templateName} for somebody else`
+          : action === 'sign'
           ? `Signing ${doc.templateName} for somebody else`
           : `Putting ${doc.templateName} on file for somebody else`
     return { ok: false, status: 403, code: 'NO_DESK', message: noDeskYet(what, seat.companyName) }
