@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { looseEnd, rank, standing, mayTrustReporting, type LooseEnd } from '@/lib/loose-ends'
+import { ownLinesOnly } from '@/lib/money/own-lines'
+import { ownLinesRefusal } from '@/lib/money/own-scope'
 
 /**
  * GET /api/loose-ends — every placement missing a link, worst and oldest first.
@@ -21,6 +23,23 @@ export async function GET(request: NextRequest) {
 
   const notStaff = staffOnly(caller, 'Missing paperwork')
   if (notStaff) return notStaff
+
+  // A seat that administers no contract — a Member with no desk, a
+  // delivery engineer holding only reads of his own work — reads the
+  // lines that name it and no other (lib/money/own-lines). This queue is
+  // every colleague's placement, priced, so it is refused in a sentence
+  // rather than narrowed (sign-up walk, round five, problem 6).
+  if (ownLinesOnly(caller.permissions)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: ownLinesRefusal({ kind: caller.company?.kind ?? null, company: caller.company?.name ?? null }),
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   const companyId = caller.company!.id
   const now = new Date()

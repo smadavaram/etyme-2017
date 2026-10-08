@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as listContracts } from '@/app/api/contracts/route'
+import { GET as listLooseEnds } from '@/app/api/loose-ends/route'
 import { ownLinesOnly } from '@/lib/money/own-lines'
 import { namesAPermission } from '@/lib/refusal-words'
 
@@ -101,5 +102,59 @@ describe('a colleague seated as Member with no desk reads no contract of the fir
     const { status, body } = await json(await listContracts(req('GET', `/api/contracts?side=sell&personId=${karthik}`)))
     expect(status, JSON.stringify(body)).toBe(200)
     for (const r of body.data.contracts) expect(r.personId ?? r.person?.id).toBe(karthik)
+  })
+})
+
+// ── Sign-up walk, round five, problems 6 and 9 ─────────────────────────
+
+const NORTHBEND_MEMBER = 'mo.member@northbend.demo.etyme.local'
+
+describe('a narrowed reader is told the list is narrowed, not that the firm has nothing', () => {
+  let firmLines = 0
+  beforeAll(async () => {
+    await freshWorld()
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const member = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true } })
+    const p = await prisma.person.create({ data: { primaryEmail: NORTHBEND_MEMBER, name: 'Mo Haddad' }, select: { id: true } })
+    await prisma.context.create({
+      data: { personId: p.id, companyId: firm.id, type: 'EMPLOYEE', roleId: member.id, grantReason: 'Joined on the domain' },
+    })
+    firmLines = await prisma.sellContract.count({
+      where: { OR: [{ clientCompanyId: firm.id }, { endClientCompanyId: firm.id }], state: { notIn: ['CANCELLED'] } },
+    })
+  }, 240_000)
+
+  it('Northbend has live lines a Member cannot see, so an empty answer is not an empty book', () => {
+    expect(firmLines).toBeGreaterThan(0)
+  })
+
+  it('a Member at Northbend opens Contracts and the route says the list holds only lines that name him', async () => {
+    as(NORTHBEND_MEMBER)
+    const { status, body } = await json(await listContracts(req('GET', '/api/contracts?side=sell&limit=50')))
+    expect(status, JSON.stringify(body)).toBe(200)
+    expect(body.data.contracts).toEqual([])
+    expect(body.data.scope).toBe('own')
+  })
+
+  it('a desk that reads the firm’s lines is told the list is the firm’s', async () => {
+    as('world-nike-programme@demo.etyme.local')
+    const { status, body } = await json(await listContracts(req('GET', '/api/contracts?side=sell&limit=50')))
+    expect(status, JSON.stringify(body)).toBe(200)
+    expect(body.data.contracts.length).toBeGreaterThan(0)
+    expect(body.data.scope).toBe('firm')
+  })
+
+  it('Karthik opens Missing paperwork and is refused in a sentence, with no colleague’s name or money in it', async () => {
+    as(KARTHIK)
+    const { status, body } = await json(await listLooseEnds(req('GET', '/api/loose-ends')))
+    expect(status, JSON.stringify(body)).toBe(403)
+    // Refused by the one door for a desk-less seat (lib/deskless-door) or,
+    // where that door lets the seat through, by the route's own-lines rule:
+    // either way a sentence, and nobody else's line in it.
+    expect(typeof body.error.message).toBe('string')
+    expect(body.error.message.length).toBeGreaterThan(0)
+    expect(body.error.message).not.toMatch(/\$/)
+    expect(body.error.message).not.toContain('Felix Brenner')
+    expect(namesAPermission(body.error.message), body.error.message).toBe(false)
   })
 })

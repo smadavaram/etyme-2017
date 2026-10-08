@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { contractsEmpty } from '@/lib/money/contracts-empty'
+import { scopeOf, ownContractsSay, type ListScope } from '@/lib/money/own-scope'
 import { compact, rate as rateText } from '@/lib/money-display'
 import { activeRateTotals } from '@/lib/money/rate-totals'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1284,6 +1285,10 @@ export default function ContractsPage() {
   // Said once over the list where a pay figure was withheld from this
   // reader, so a blank column reads as a rule rather than a gap.
   const [payWithheldSays, setPayWithheldSays] = useState<string | null>(null)
+  // Whose lines the route answered with. 'own' where it narrowed this
+  // seat to the lines that name its holder: the page says so, and never
+  // reads the narrowed list as the firm's empty book (round five, #9).
+  const [scope, setScope] = useState<ListScope>('firm')
   // No framing until the company is known. Guessing a supplier here
   // told a client "Sell Contracts - What you bill clients" while the
   // page loaded; a blank for a moment is the honest form.
@@ -1323,6 +1328,7 @@ export default function ContractsPage() {
         const refused = refusalOf(res.status, body)
         if (refused !== null) {
           setRefusedSaid(refused)
+          setScope('firm')
           setContracts([])
           return
         }
@@ -1331,6 +1337,7 @@ export default function ContractsPage() {
 
       const body = await res.json()
       setRefusedSaid(null)
+      setScope(scopeOf(body))
       const rawContracts = body.data?.contracts ?? []
       setReading(body.data?.reading ?? null)
       setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
@@ -1577,7 +1584,10 @@ export default function ContractsPage() {
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: 'Contracts', kind: company.kind, company: company.name })
   // Empty, in the reader's own position: a client bills nobody (round four, #6).
-  const empty = contractsEmpty({ kind: company.kind, readingAClientsBook: !!reading?.inASeat, tab, stateFilter, mayRecord })
+  const empty = contractsEmpty({ kind: company.kind, readingAClientsBook: !!reading?.inASeat, tab, stateFilter, mayRecord, scope })
+  // Narrowed to the reader's own lines, and none name them: the sentence,
+  // and no tile, zero or table that would read as the firm's book.
+  const ownEmpty = scope === 'own' && !loading && !error && contracts.length === 0
   if (refused) {
     return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
   }
@@ -1603,7 +1613,9 @@ export default function ContractsPage() {
             <>
               <p className="eyebrow">{framing.eyebrow}</p>
               <h1>{framing.title}</h1>
-              <p>{framing.subtitle}</p>
+              {/* "Everyone working at your sites" is the firm's book; a
+                  narrowed reader is told whose lines these are instead. */}
+              <p>{scope === 'own' ? 'Contract lines that name you.' : framing.subtitle}</p>
             </>
           )}
         </div>
@@ -1632,6 +1644,7 @@ export default function ContractsPage() {
         ))}
       </div>
 
+      {ownEmpty ? null : (<>
       {/* Stats row */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
@@ -1741,6 +1754,13 @@ export default function ContractsPage() {
             : ''
         }
       />
+      </>)}
+
+      {scope === 'own' && !loading && !error && (
+        <p role="status" className={`text-[13px] text-etyme-muted ${ownEmpty ? 'py-12 text-center' : 'mt-4'}`}>
+          {ownContractsSay(contracts.length)}
+        </p>
+      )}
 
       {/* Contract detail drawer */}
       {selectedContract && (

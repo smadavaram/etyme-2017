@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { scopeOf, narrowedReport } from '@/lib/money/own-scope'
 import { mayOpen } from '@/components/shell/sidebar'
 import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
@@ -174,6 +175,11 @@ interface ReportData {
   book: Book | null
   /** Set where the caller may not read a margin at all. */
   bookRefusal: string | null
+  /**
+   * Set where `/api/contracts` narrowed this seat to the lines naming it,
+   * so the page never reads them as the firm's book (round five, #9).
+   */
+  narrowed: { alone: boolean; says: string } | null
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -341,7 +347,13 @@ export default function ReportsPage() {
           }
         : null
 
-      setData({ sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal })
+      const narrowed = narrowedReport({
+        scope: scopeOf(sellBody) === 'own' || scopeOf(buyBody) === 'own' ? 'own' : 'firm',
+        ownLines: Math.max(sellContracts.length, buyContracts.length),
+        readsFirmFigures: Boolean(benchBody || invoiceBody || bookBody),
+      })
+
+      setData({ sellContracts, buyContracts, benchEntries, invoices, invoiceSummary, book, bookRefusal, narrowed })
     } catch (err: any) {
       setError(err.message ?? 'Failed to load report data')
     } finally {
@@ -403,6 +415,21 @@ export default function ReportsPage() {
   }
 
   if (!data) return null
+
+  // ── Narrowed to the reader's own lines ────────────
+  // The sentence and nothing else: "No data yet" would say the firm has
+  // no book, and the firm's book is simply not this seat's to add up.
+  if (data.narrowed?.alone) {
+    return (
+      <>
+        <div className="page-head">
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+          <h1>Reports</h1>
+        </div>
+        <p role="status" className="py-12 text-center text-[13px] text-etyme-muted">{data.narrowed.says}</p>
+      </>
+    )
+  }
 
   // ── Compute metrics ───────────────────────────────
 
@@ -569,6 +596,10 @@ export default function ReportsPage() {
         <h1>Reports</h1>
         <p>Revenue, margin, and operational metrics from live data.</p>
       </div>
+
+      {data.narrowed && (
+        <p role="status" className="mb-4 text-[12px] text-etyme-muted">{data.narrowed.says}</p>
+      )}
 
       {!hasAnyData ? (
         <div className="panel text-center py-16">

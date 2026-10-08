@@ -4,6 +4,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
+import { listScope } from '@/lib/money/own-scope'
 import { refusalSentence } from '@/lib/refusal-words'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
@@ -920,6 +921,10 @@ export async function GET(request: NextRequest) {
         // pay column reads as a rule rather than a missing number.
         payWithheldSays: lines.some((l) => l.pay.withheld) ? PAY_WITHHELD_SAYS : null,
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        // Whose lines these are: 'own' where the seat reads only the
+        // lines that name it, so the page never draws a narrowed list as
+        // the firm's empty book (sign-up walk, round five, problem 9).
+        scope: listScope(ownOnly),
       },
     })
   }
@@ -1089,6 +1094,9 @@ export async function GET(request: NextRequest) {
       })),
       billWithheldSays: billWithheld ? BILL_WITHHELD_SAYS : null,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // 'own' where this seat reads only the lines naming it — the page
+      // says so rather than "No contracts yet" (round five, problem 9).
+      scope: listScope(ownOnly),
       reading: reading
         ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
         : null,

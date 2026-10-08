@@ -13,8 +13,17 @@
  * contract comes from on its side, and a firm that sells reads the sell
  * and buy lines it bills and pays from.
  *
+ * And where the route narrowed the reader to the lines that name them
+ * (`scope: 'own'`, lib/money/own-scope), the firm's empty state is false
+ * whatever the reader's kind: Northbend had six live lines when a Member
+ * read "No contracts yet" (sign-up walk, round five, problem 9). The
+ * narrowed reader is told the list is narrowed, never that the firm has
+ * nothing.
+ *
  * Pure: no React, no database.
  */
+
+import { OWN_CONTRACTS_SAY, type ListScope } from '@/lib/money/own-scope'
 
 export type ContractsTab = 'sell' | 'buy'
 
@@ -27,7 +36,15 @@ export function contractsEmpty(args: {
   stateFilter: string
   /** Whether this seat may record a placement by hand. */
   mayRecord: boolean
+  /** 'own' where the route narrowed this reader to the lines naming them. */
+  scope?: ListScope
 }): { message: string; detail: string } {
+  if (args.scope === 'own') {
+    return {
+      message: OWN_CONTRACTS_SAY,
+      detail: args.stateFilter === 'all' ? 'None do.' : `None of yours are ${args.stateFilter}.`,
+    }
+  }
   const client = args.kind === 'CLIENT' || !!args.readingAClientsBook
   if (client) {
     return {
