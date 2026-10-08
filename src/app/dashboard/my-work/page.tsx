@@ -662,9 +662,11 @@ function NothingYet({ says, listedBy = null, ownFirm = null }: {
       </div>
 
       {/* Etyme places nobody, so this card offers no button to be placed.
-          A firm asks because it read the page. */}
+          How a firm finds them depends on their standing, and the page
+          says that part (OWN_MAKING: through their page; a bench: the firm
+          that lists them, in the line above). */}
       <p className="text-[13px] text-etyme-muted mt-4">
-        Etyme places nobody. A firm asks you because it read your page.
+        Etyme places nobody.
       </p>
 
       {/* The one-person firm is a sign-up type, and the line is its door:
@@ -1118,7 +1120,22 @@ export default function MyWorkPage() {
   // nothing booked. A page of zeros would be the wrong answer to a state
   // that is not a failure (sign-up walk, round two, items 35 and 38).
   if (data.empty) {
-    return <NothingYet says={data.empty.says} listedBy={data.empty.listedBy} ownFirm={data.empty.ownFirm} />
+    // Somebody who made the page themselves (OWN_MAKING, party 8B) has no
+    // firm listing them and no employer, so a firm can only find them by
+    // reading their page. Said to them alone: to somebody on a bench it
+    // is the firm that lists them, to an employee their employer, and to
+    // the owner of a one-person firm her own company.
+    const foundByPage = data.standing?.because === 'OWN_MAKING' && !data.empty.ownFirm
+    return (
+      <div className="max-w-2xl">
+        <NothingYet says={data.empty.says} listedBy={data.empty.listedBy} ownFirm={data.empty.ownFirm} />
+        {foundByPage && (
+          <p className="text-[13px] text-etyme-muted mt-1">
+            No firm lists you, so a firm finds you by reading your page.
+          </p>
+        )}
+      </div>
+    )
   }
 
   const s = data.summary
