@@ -307,6 +307,34 @@ not explaining the complete functional process."* Decided:
   public visitor, client, program office, prime or integrator,
   supplier, one-person firm, worker.
 
+### The home page leads with the cost question — decided by the founder, 2026-10-09
+
+The founder's brief for the public site, given whole: redesign Etyme to
+Apple-level UX quality on the existing architecture, and make the home
+page convert an enterprise buyer into a qualified lead. Three things in
+it change what this file said, and are recorded so nobody reverts them
+by reading the older line:
+
+- **The hero is "Know what every contractor costs, across every
+  supplier."** The category sentence ("Enterprise contingent workforce
+  management") moves to the supporting message under it. The hook is
+  still the not-knowing; this is the not-knowing said as one question.
+- **The home page's steps are three: Connect. Control. Reconcile.** The
+  four steps (Source · Submit · Approve · Pay) stay the spine of the
+  documentation and the product pages; the home page summarizes them as
+  three. Both say who does what in one line.
+- **The primary call is "Get a Free Contractor Spend Audit", and it is
+  the census.** `/census` already exists as the door to the service
+  (2026-09-20); the audit is that door under the buyer's own word. The
+  secondary call is "Explore the Live Demo". The navigation is
+  Platform, Solutions, How It Works, Security, and the primary call.
+
+What does not change: no named vendor or company, no AI lead, no supply
+claim, no certification Etyme does not hold, no customer or figure
+presented as real (sample data is labelled as the demo's), plain
+English, and the client as the reader. The lead form posts to a real
+route and says success only on a real success.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
