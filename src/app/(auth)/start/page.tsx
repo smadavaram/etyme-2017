@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
+import { Lbl } from '@/components/ui/surface'
 import { deskHome } from '@/components/desk-home'
 import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, noPayrollLine, type SetupStep } from '@/lib/setup-steps'
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
@@ -29,10 +30,6 @@ import { memberWelcome } from '@/lib/password-words'
 
 interface TypeOption { key: string; kind: string; label: string; blurb: string; example: string }
 interface Country { code: string; name: string; currency: string }
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
 
 function Rail({ at, done, kind }: { at: 'SIGN_IN' | SetupStep; done: (k: 'SIGN_IN' | SetupStep) => boolean; kind: string | null }) {
   return (

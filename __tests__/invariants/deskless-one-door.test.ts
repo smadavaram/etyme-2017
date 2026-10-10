@@ -397,6 +397,46 @@ describe('round seven: the door names the page, opens a worker’s own signed pa
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/bench-pay/page.tsx'), 'utf8')
     const section = readFileSync(join(process.cwd(), 'src/app/dashboard/settings/bench-pay/bench-pay.tsx'), 'utf8')
     expect(page).toContain('<BenchPaySection\n      head={')
-    expect(section).toContain('if (refused && head !== undefined) return <p className="text-[13px] text-etyme-ink">{refused}</p>')
+    expect(section).toContain('if (refused && head !== undefined) return <RefusedState says={refused} />')
+  })
+})
+
+/**
+ * The demo door is a door with no caller, and it counts a seat taken
+ * there once per visit (founder's brief, 2026-10-09: the home page counts
+ * its own clicks first-party). The /demo page sends the tab's own visit
+ * id with its seat; the route counts only on a seat actually taken, and
+ * only under the id it was sent.
+ */
+describe('the demo door counts a demo start once per visit', () => {
+  const visit = 'a'.repeat(32)
+
+  it('a seat taken from the demo page counts under the visit id the page sent, on /demo', async () => {
+    const { demoVisit } = await import('@/lib/demo-session')
+    expect(demoVisit({ as: 'world-nike', desk: 'ap', visit, page: '/demo' })).toEqual({ page: '/demo', visit })
+    expect(demoVisit({ person: 'helena-marsh', visit })).toEqual({ page: '/demo', visit })
+  })
+
+  it('a seat taken with no visit id, or a malformed one, counts nothing rather than counting under a made-up visit', async () => {
+    const { demoVisit } = await import('@/lib/demo-session')
+    expect(demoVisit({ as: 'world-nike' })).toBeNull()
+    expect(demoVisit({ visit: 'not-a-visit' })).toBeNull()
+    expect(demoVisit({ visit: 'A'.repeat(32) })).toBeNull()
+    expect(demoVisit(null)).toBeNull()
+  })
+
+  it('the demo page sends its tab’s visit id with every seat, and the route counts only after a seat is taken, awaited', () => {
+    const picker = readFileSync(join(process.cwd(), 'src/app/demo/desk-picker.tsx'), 'utf8')
+    expect(picker).toContain("import { visitId } from '@/lib/public-site/count'")
+    expect(picker).toContain("...(visit ? { visit, page: '/demo' } : {})")
+    const route = readFileSync(join(API, 'demo/route.ts'), 'utf8')
+    expect(route).toContain("import { countDemoStarted } from '@/lib/events'")
+    // One count before each of the four answers that seat somebody: a
+    // resume, a person, a world desk, a private sandbox.
+    expect(route.match(/await countTheSeat\(body\)/g)?.length).toBe(4)
+    // And none on a refusal: no count precedes an error answer.
+    for (const m of route.matchAll(/await countTheSeat\(body\)\n\s*(?:const res = )?(?:return )?NextResponse\.json\(\{\n\s*(\w+)/g)) {
+      expect(m[1]).toBe('data')
+    }
   })
 })

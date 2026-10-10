@@ -12,6 +12,7 @@ import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 // the setup's "How you work" step, so the two can never ask differently.
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
+import { ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 
 /**
  * How this company is set up.
@@ -108,29 +109,8 @@ interface Settings {
 
 // ── Bits ─────────────────────────────────────────────
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Panel({ title, subtitle, children, action }: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-  action?: React.ReactNode
-}) {
-  return (
-    <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div>
-          <h2 className="font-serif text-[19px] text-etyme-ink tracking-[-0.02em]">{title}</h2>
-          {subtitle && <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">{subtitle}</p>}
-        </div>
-        {action && <div className="shrink-0">{action}</div>}
-      </div>
-      {children}
-    </section>
-  )
-}
+// Panel and Lbl are the shared ones (components/ui); the tabs are drawn
+// inside one column that spaces them, so no panel here carries its own margin.
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
@@ -191,26 +171,24 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
-    return <p className="text-etyme-muted text-sm">Loading your setup…</p>
-  }
+  if (loading) return <LoadingState says="Opening your setup…" />
   if (!data) {
-    return <p className="text-etyme-attention text-sm">{error ?? 'Could not load settings.'}</p>
+    return <ErrorState says={error ?? 'Could not load settings.'} action={{ label: 'Try again', onClick: () => load() }} />
   }
 
   const { company, canEdit } = data
 
   return (
     <>
-      <div className="page-head mb-6">
-        {section && <p className="eyebrow">{section}</p>}
-        <h1>How {company.name} is set up</h1>
-        {/* Where the facts came from is said once, on the Company tab,
-            the way it actually happened (howYouCameIn). This line said
-            "from your email domain" above it to firms that signed up with
-            a password or were brought in by a client (round six, problem 17). */}
-        <p>Everything here can be changed, except a verified domain.</p>
-      </div>
+      {/* Where the facts came from is said once, on the Company tab,
+          the way it actually happened (howYouCameIn). This line said
+          "from your email domain" above it to firms that signed up with
+          a password or were brought in by a client (round six, problem 17). */}
+      <PageHead
+        eyebrow={section}
+        title={`How ${company.name} is set up`}
+        subtitle="Everything here can be changed, except a verified domain."
+      />
 
       {!canEdit && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">
@@ -221,16 +199,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {flash && (
-        <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
-          <p className="text-[13px] text-etyme-verified">{flash}</p>
-        </div>
-      )}
-      {error && (
-        <div className="mb-5 rounded-md border border-etyme-attention/30 bg-etyme-attention/5 p-3">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {flash && <div className="mb-5"><FormMessage tone="ok">{flash}</FormMessage></div>}
+      {error && <div className="mb-5"><FormMessage tone="error">{error}</FormMessage></div>}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 mb-5">
@@ -249,6 +219,10 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {/* Every panel a tab draws sits 20px above the next — the same
+          margin the setup panels (components/settings/panel-bits) carry, so
+          the two kinds stack evenly on one tab. */}
+      <div className="[&>*]:mb-5">
       {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} />}
       {tab === 'Walls' && <WallsTab data={data} send={send} busy={busy} />}
       {tab === 'Address' && <AddressTab send={send} busy={busy} />}
@@ -259,6 +233,7 @@ export default function SettingsPage() {
       {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} />}
       {tab === 'Cycles' && <CyclesTab data={data} send={send} busy={busy} />}
       {tab === 'Bench pay' && <BenchPaySection />}
+      </div>
     </>
   )
 }
@@ -878,12 +853,12 @@ function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
 
   if (err) {
     return (
-      <Panel title="Who has to say yes" subtitle="">
-        <p className="text-[13px] text-etyme-attention">{err}</p>
+      <Panel title="Who has to say yes">
+        <ErrorState says={err} />
       </Panel>
     )
   }
-  if (!rules) return <Panel title="Who has to say yes"><Empty>Loading…</Empty></Panel>
+  if (!rules) return <Panel title="Who has to say yes"><LoadingState compact says="Opening the approval rules…" /></Panel>
 
   const active = rules.filter((r) => r.isActive)
 
@@ -1035,9 +1010,9 @@ function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
   useEffect(() => { load() }, [load])
 
   if (err && !data) {
-    return <Panel title="Your address"><p className="text-[13px] text-etyme-attention">{err}</p></Panel>
+    return <Panel title="Your address"><ErrorState says={err} /></Panel>
   }
-  if (!data) return <Panel title="Your address"><Empty>Loading…</Empty></Panel>
+  if (!data) return <Panel title="Your address"><LoadingState compact says="Opening your address…" /></Panel>
 
   return (
     <>

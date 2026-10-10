@@ -124,8 +124,9 @@ describe('no page guesses who is reading while the session loads (item 16)', () 
   it('Contacts passes the kind only once it is known, and draws no eyebrow or subtitle until then', () => {
     const page = src('src/app/dashboard/contacts/page.tsx')
     expect(page).not.toContain("?? 'VENDOR'")
-    expect(page).toContain('{eyebrow && <p className="eyebrow">{eyebrow}</p>}')
-    expect(page).toContain('{readerKind && (')
+    // PageHead draws no eyebrow while it is null (components/ui/surface).
+    expect(page).toContain('eyebrow={eyebrow}')
+    expect(page).toContain("subtitle={readerKind ? '")
   })
 
   it('useCompanyKind is null while the session loads, never a supplier', () => {

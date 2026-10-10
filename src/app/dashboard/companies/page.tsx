@@ -7,6 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
+import { Chip, FilterChips, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -50,13 +51,13 @@ type KindFilter = 'ALL' | 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
 
 // ── Kind chip mapping ─────────────────────────────────────
 
-function kindChipClass(kind: Company['kind']): string {
+function kindTone(kind: Company['kind']): ChipTone {
   switch (kind) {
-    case 'VENDOR': return 'chip--action'
-    case 'CLIENT': return 'chip--verified'
-    case 'MSP': return 'chip--attention'
-    case 'GSI': return 'chip--passive'
-    case 'CONSULTANT_CORP': return 'chip--passive'
+    case 'VENDOR': return 'action'
+    case 'CLIENT': return 'verified'
+    case 'MSP': return 'attention'
+    case 'GSI': return 'passive'
+    case 'CONSULTANT_CORP': return 'passive'
   }
 }
 
@@ -355,7 +356,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
           {/* Kind chip */}
           <div>
             <p className="eyebrow mb-2">Type</p>
-            <span className={`chip ${kindChipClass(company.kind)}`}>{kindWord(company.kind)}</span>
+            <Chip tone={kindTone(company.kind)}>{kindWord(company.kind)}</Chip>
           </div>
 
           {/* Details grid */}
@@ -421,7 +422,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
               {!loadingLocations && <span className="text-etyme-faint"> ({locations.length})</span>}
             </p>
             {loadingLocations ? (
-              <p className="text-sm text-etyme-faint animate-pulse">Loading…</p>
+              <LoadingState compact says="Opening locations…" />
             ) : locations.length === 0 ? (
               <p className="text-sm text-etyme-muted">No locations added</p>
             ) : (
@@ -434,10 +435,10 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
                       </span>
                       <div className="flex items-center gap-1.5">
                         {loc.isPrimary && (
-                          <span className="chip chip--verified text-[10px]">Primary</span>
+                          <Chip tone="verified">Primary</Chip>
                         )}
                         {loc.isRemote && (
-                          <span className="chip chip--action text-[10px]">Remote</span>
+                          <Chip tone="action">Remote</Chip>
                         )}
                       </div>
                     </div>
@@ -622,7 +623,7 @@ export default function CompaniesPage() {
       key: 'kind',
       label: 'Kind',
       render: (row) => (
-        <span className={`chip ${kindChipClass(row.kind)}`}>{kindWord(row.kind)}</span>
+        <Chip tone={kindTone(row.kind)}>{kindWord(row.kind)}</Chip>
       ),
       sortValue: (row) => kindWord(row.kind),
     },
@@ -685,57 +686,32 @@ export default function CompaniesPage() {
     fetchCompanies()
   }
 
-  if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  }
-  if (!answered) {
-    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
-  }
+  if (refused) return <RefusedState says={refused} />
+  if (!answered) return <LoadingState says="Opening companies…" />
 
   return (
     <>
-      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1>{scope?.title ?? 'Companies'}</h1>
-          {/* Not "companies on the platform". This list is the firms
-              this company trades with, and it said otherwise to a
-              one-person nursing corporation. */}
-          <p>{scope?.subtitle ?? 'The firms you have dealings with.'}</p>
-        </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-          Add company
-        </button>
-      </div>
+      {/* Not "companies on the platform". This list is the firms this
+          company trades with, and it said otherwise to a one-person
+          nursing corporation. */}
+      <PageHead
+        eyebrow={section}
+        title={scope?.title ?? 'Companies'}
+        subtitle={scope?.subtitle ?? 'The firms you have dealings with.'}
+        actions={
+          <button onClick={() => setShowAdd(true)} className="btn-primary">
+            Add company
+          </button>
+        }
+      />
 
       {/* Stats row */}
-      <div className="flex gap-3 mb-6 flex-wrap animate-fade-in">
-        <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Total</p>
-          <p className="stat-value text-etyme-ink">{companies.length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">companies</p>
-        </div>
-        <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Suppliers</p>
-          <p className="stat-value text-etyme-action">{vendorCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">staffing</p>
-        </div>
-        <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Clients</p>
-          <p className="stat-value text-etyme-verified">{clientCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">enterprise</p>
-        </div>
-        <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Program offices</p>
-          <p className="stat-value text-etyme-attention">{mspCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">managed</p>
-        </div>
-        <div className="panel flex-1 min-w-[120px]">
-          <p className="stat-label">Integrators</p>
-          <p className="stat-value text-etyme-ink">{gsiCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">integrators</p>
-        </div>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="Total" value={companies.length} sub="companies" />
+        <Stat label="Suppliers" value={vendorCount} sub="staffing" />
+        <Stat label="Clients" value={clientCount} sub="enterprise" />
+        <Stat label="Program offices" value={mspCount} sub="managed" />
+        <Stat label="Integrators" value={gsiCount} sub="integrators" />
       </div>
 
       {/* Data table with kind filter tabs */}
@@ -753,18 +729,7 @@ export default function CompaniesPage() {
         exportName="companies"
         defaultPageSize={20}
         filters={
-          <div className="flex gap-1 flex-wrap">
-            {filterTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setKindFilter(tab.key)}
-                className={`filter-tab ${kindFilter === tab.key ? 'filter-tab--active' : ''}`}
-              >
-                {tab.label}
-                <span className="ml-1.5 text-[10px] tabular-nums opacity-60">{tab.count}</span>
-              </button>
-            ))}
-          </div>
+          <FilterChips label="Kind of company" options={filterTabs} value={kindFilter} onChange={setKindFilter} />
         }
       />
 

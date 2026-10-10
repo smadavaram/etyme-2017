@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
 
 import { useEffect, useState } from 'react'
 
@@ -15,11 +16,11 @@ import { useEffect, useState } from 'react'
 const TABS = ['CLIENTS', 'SUPPLIERS', 'CONSULTANTS', 'ASSIGNMENTS'] as const
 type Tab = (typeof TABS)[number]
 
-const STATE_CHIP: Record<string, string> = {
-  DONE: 'chip--verified',
-  MISSING: 'chip--attention',
-  STALE: 'chip--attention',
-  NOT_APPLICABLE: 'chip--passive',
+const STATE_CHIP: Record<string, ChipTone> = {
+  DONE: 'verified',
+  MISSING: 'attention',
+  STALE: 'attention',
+  NOT_APPLICABLE: 'passive',
 }
 
 export default function OnboardingPage() {
@@ -77,20 +78,16 @@ export default function OnboardingPage() {
     ASSIGNMENTS: data?.assignments ?? [],
   }
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  if (!data && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (!data && loading) return <LoadingState says="Opening setup…" />
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Setup</h1>
-        <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
-          One word, five processes. Each list is derived from what actually
-          exists right now — nothing here is a ticked box that can drift from
-          the truth.
-        </p>
-      </header>
+      <PageHead
+        eyebrow={section}
+        title="Setup"
+        subtitle="One word, five processes. Each list is derived from what actually exists right now — nothing here is a ticked box that can drift from the truth."
+      />
 
       <div className="flex flex-wrap gap-1 border-b border-etyme-rule">
         {TABS.map((t) => (
@@ -109,18 +106,12 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
-      {error && (
-        <div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div>
-      )}
-      {note && <p className="text-[13px] text-etyme-verified">{note}</p>}
+      {loading && <LoadingState compact says={`Opening ${tab.toLowerCase()}…`} />}
+      {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}
+      {note && <FormMessage tone="ok">{note}</FormMessage>}
 
       {!loading && !error && lists[tab].length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing here yet. This list fills itself as {tab.toLowerCase()} exist.
-          </p>
-        </div>
+        <EmptyState says={`Nothing here yet. This list fills itself as ${tab.toLowerCase()} exist.`} />
       )}
 
       {!loading &&
@@ -128,9 +119,9 @@ export default function OnboardingPage() {
           <article key={i} className="panel">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="text-[15px] font-semibold text-etyme-ink">{c.subject}</p>
-              <span className={`chip ${c.ready ? 'chip--verified' : 'chip--passive'}`}>
+              <Chip tone={c.ready ? 'verified' : 'passive'}>
                 {c.done}/{c.of}
-              </span>
+              </Chip>
             </div>
             <p className="mt-1 text-[13px] text-etyme-muted">{c.says}</p>
 
@@ -139,9 +130,9 @@ export default function OnboardingPage() {
                 .filter((it: any) => it.state !== 'NOT_APPLICABLE')
                 .map((it: any) => (
                   <li key={it.key} className="flex flex-wrap items-baseline gap-2">
-                    <span className={`chip ${STATE_CHIP[it.state]}`}>
+                    <Chip tone={STATE_CHIP[it.state]}>
                       {it.state === 'DONE' ? 'done' : 'missing'}
-                    </span>
+                    </Chip>
                     <span className="text-[13px] text-etyme-ink">{it.label}</span>
                     {it.state !== 'DONE' && (
                       <>

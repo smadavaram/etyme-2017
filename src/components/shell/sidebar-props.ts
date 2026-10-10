@@ -137,11 +137,20 @@ export interface Desk {
   filesAWeek: boolean
   permissions: readonly string[]
   seatedAtClient: string | null
+  /**
+   * The role this desk is held under, as the header says it: the client's
+   * own role where a client granted the office a seat — the role whose
+   * permissions it acts with — and the person's own everywhere else. The
+   * header read the office's own role name beside the client's name, so
+   * a Program Manager at Maren MSP seated as Northbend's AP clerk read
+   * "Program Manager at Northbend Athletic" over the AP desk's menu.
+   */
+  roleName: string | null
 }
 
 export function deskOf(
   session: Pick<SessionState, 'company' | 'contextType' | 'isWorker' | 'permissions'> &
-    Partial<Pick<SessionState, 'seat' | 'filesAWeek'>>
+    Partial<Pick<SessionState, 'seat' | 'filesAWeek' | 'roleName'>>
 ): Desk {
   const companyKind = session.company?.kind ?? null
   const isConsultant = session.contextType === 'CONSULTANT'
@@ -154,5 +163,6 @@ export function deskOf(
     filesAWeek: !isConsultant && session.isWorker && session.filesAWeek === true,
     permissions: seat ? seat.permissions : session.permissions,
     seatedAtClient: seat?.clientName ?? null,
+    roleName: seat ? seat.roleName : (session.roleName ?? null),
   }
 }

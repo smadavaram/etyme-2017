@@ -10,6 +10,7 @@ import { refusalSentence } from '@/lib/refusal-words'
 import { useSession } from '@/components/session-provider'
 import { DetailHead } from '@/components/ui/detail-head'
 import { LoadingState, RefusedState } from '@/components/ui/states'
+import { Field, FormMessage, Select, SubmitButton, Textarea } from '@/components/ui/form'
 import { isDeskless } from '@/lib/nav-table'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
@@ -408,35 +409,36 @@ function OvertimeMethod({ placementId, overtime, person }: { placementId: string
       )}
       {open && (
         <div className="mt-2 space-y-2">
-          <label className="lbl block" htmlFor="ot-method">How {person}&rsquo;s overtime is paid in a week paid at two rates</label>
-          <select
-            id="ot-method"
-            className="block w-full min-w-0 max-w-full truncate px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
+          <Field label={<>How {person}&rsquo;s overtime is paid in a week paid at two rates</>}>
+            <Select
+              className="block w-full min-w-0 max-w-full truncate"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
+              {OVERTIME_CHOICES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field
+            label="Why"
+            help={needsReason
+              ? 'A worker the law entitles to overtime is never paid less than the regular-rate premium, whatever is chosen.'
+              : undefined}
           >
-            {OVERTIME_CHOICES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={2}
-            aria-label="Why"
-            placeholder={needsReason ? 'Why (required): what was agreed with the worker' : 'Why (optional)'}
-            className="w-full px-3 py-2 text-[13px] text-etyme-ink border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
-          />
-          {needsReason && (
-            <p className="text-[12px]">
-              A worker the law entitles to overtime is never paid less than the regular-rate premium, whatever is chosen.
-            </p>
-          )}
-          {error && <p className="text-[12px] text-etyme-danger">{error}</p>}
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              placeholder={needsReason ? 'Required: what was agreed with the worker' : 'Optional'}
+              className="min-h-0 resize-none"
+            />
+          </Field>
+          {error && <FormMessage tone="error">{error}</FormMessage>}
           <div className="flex gap-2">
-            <button type="button" className="btn-primary text-[13px] disabled:opacity-50" disabled={busy} onClick={save}>
+            <SubmitButton type="button" pending={busy} pendingLabel="Saving…" onClick={save}>
               Save
-            </button>
+            </SubmitButton>
             <button type="button" className="btn-secondary text-[13px]" onClick={() => { setOpen(false); setError(null) }}>
               Cancel
             </button>
@@ -508,30 +510,31 @@ function CutOvertime({ placementId, cut, person }: { placementId: string; cut: C
       )}
       {open && (
         <div className="mt-2 space-y-2">
-          <label className="lbl block" htmlFor="cut-overtime">Overtime when fewer hours are accepted</label>
-          <select
-            id="cut-overtime"
-            className="block w-full min-w-0 max-w-full truncate px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink"
-            value={rule}
-            onChange={(e) => setRule(e.target.value)}
-          >
-            {CUT_CHOICES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={2}
-            aria-label="Why"
-            placeholder={needsReason ? `Why (required): what was agreed with ${person}` : 'Why (optional)'}
-            className="w-full px-3 py-2 text-[13px] text-etyme-ink border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
-          />
-          {error && <p className="text-[12px] text-etyme-danger">{error}</p>}
+          <Field label="Overtime when fewer hours are accepted">
+            <Select
+              className="block w-full min-w-0 max-w-full truncate"
+              value={rule}
+              onChange={(e) => setRule(e.target.value)}
+            >
+              {CUT_CHOICES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Why">
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              placeholder={needsReason ? `Required: what was agreed with ${person}` : 'Optional'}
+              className="min-h-0 resize-none"
+            />
+          </Field>
+          {error && <FormMessage tone="error">{error}</FormMessage>}
           <div className="flex gap-2">
-            <button type="button" className="btn-primary text-[13px] disabled:opacity-50" disabled={busy} onClick={save}>
+            <SubmitButton type="button" pending={busy} pendingLabel="Saving…" onClick={save}>
               Save
-            </button>
+            </SubmitButton>
             <button type="button" className="btn-secondary text-[13px]" onClick={() => { setOpen(false); setError(null) }}>
               Cancel
             </button>

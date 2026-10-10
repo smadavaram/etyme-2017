@@ -383,7 +383,7 @@ const MENU_ROW =
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
   const session = useSession()
-  const { company, person, roleName, contextType, isDemo } = session
+  const { company, person, contextType, isDemo } = session
   // "Demo" goes in front of a made-up company's name, and only a
   // company's: a consultant with no firm is a person, never a demo of one.
   const demoChip = isDemo && company ? <DemoChip /> : null
@@ -391,7 +391,8 @@ export function Header({ title }: HeaderProps) {
   // permissions where a client granted one — read through the same
   // helper the sidebar reads, so the three doors cannot disagree.
   const desk = deskOf(session)
-  const { permissions } = desk
+  // The role this desk is held under: the client's, at a client's desk.
+  const { permissions, roleName } = desk
   const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
     filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient,
   })

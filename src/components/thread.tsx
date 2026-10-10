@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { momentFor, readerZone } from '@/lib/when'
+import { Field, Textarea, SubmitButton, FormMessage, LoadingState } from '@/components/ui'
 
 /**
  * One thread, embedded where the thing it is about lives.
@@ -141,7 +142,7 @@ export function Thread({ topic, topicId, title, withCompany, canOpen, words, onC
 
   return (
     <div className="p-4">
-      {loading && <p className="text-sm text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState compact says="Opening the conversation…" />}
 
       {!loading && messages.length === 0 && (
         <p className="text-sm text-etyme-muted">{mayWrite ? words.empty : (words.closed ?? words.empty)}</p>
@@ -166,33 +167,34 @@ export function Thread({ topic, topicId, title, withCompany, canOpen, words, onC
         </div>
       )}
 
+      {/* The reply box, through the shared form set: the label tied to the
+          box, who sees it said under it as the field's help line, and the
+          route's own sentence under it when a send is refused. */}
       {mayWrite && (
-        <div className={messages.length > 0 || !loading ? 'mt-4 pt-4 border-t border-etyme-rule' : ''}>
-          <label htmlFor={`say-${topicId}-${withCompany?.id ?? 'own'}`} className="sr-only">
-            {words.placeholder}
-          </label>
-          <textarea
-            id={`say-${topicId}-${withCompany?.id ?? 'own'}`}
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={words.placeholder}
-            className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
-          />
-          {err && <p className="mt-2 text-sm text-etyme-attention">{err}</p>}
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-xs text-etyme-faint">{words.foot}</span>
-            <button
-              onClick={post}
-              disabled={busy || text.trim().length === 0}
-              className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? 'Sending…' : withCompany ? 'Send' : 'Post'}
-            </button>
+        <form
+          onSubmit={(e) => { e.preventDefault(); post() }}
+          className={messages.length > 0 || !loading ? 'mt-4 pt-4 border-t border-etyme-rule' : ''}
+        >
+          <Field
+            label={threadId ? 'Your reply' : withCompany ? `To ${withCompany.name}` : 'A note to your own people'}
+            help={words.foot}
+            error={err ?? undefined}
+          >
+            <Textarea
+              rows={3}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={words.placeholder}
+            />
+          </Field>
+          <div className="mt-3 flex justify-end">
+            <SubmitButton pending={busy} pendingLabel="Sending…" disabled={text.trim().length === 0}>
+              {withCompany ? 'Send' : 'Post'}
+            </SubmitButton>
           </div>
-        </div>
+        </form>
       )}
-      {!mayWrite && err && <p className="mt-2 text-sm text-etyme-attention">{err}</p>}
+      {!mayWrite && err && <div className="mt-2"><FormMessage tone="error">{err}</FormMessage></div>}
     </div>
   )
 }

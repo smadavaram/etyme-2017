@@ -3,6 +3,7 @@
 import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, Field, LoadingState, PageHead, Panel, RefusedState, Stat, SubmitButton, Textarea } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -150,46 +151,31 @@ export default function ChecksPage() {
     }
   }
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  if (!q && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (!q && loading) return <LoadingState says="Opening the check queue…" />
 
   return (
     <div className="mx-auto max-w-[720px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Check queue</h1>
-        <p className="mt-1 max-w-[58ch] text-[13px] text-etyme-muted">
-          Ten a week. Never let the machine be the only thing checking the
-          machine — it will report ninety-six percent while your clients
-          quietly stop calling.
-        </p>
-      </header>
+      <PageHead
+        eyebrow={section}
+        title="Check queue"
+        subtitle="Ten a week. Never let the machine be the only thing checking the machine — it will report ninety-six percent while your clients quietly stop calling."
+      />
 
       {q && (
-        <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-          <div>
-            <p className="stat-label">This week</p>
-            <p
-              className="stat-value"
-              style={{ color: q.week.behind ? 'var(--color-attention)' : undefined }}
-            >
-              {q.week.done}
-              <span className="text-[16px] text-etyme-faint">/{q.week.target}</span>
-            </p>
-          </div>
-          <div>
-            <p className="stat-label">You agreed with</p>
-            <p
-              className="stat-value"
-              style={{ color: q.agreement.worrying ? 'var(--color-attention)' : undefined }}
-            >
-              {q.agreement.percent === null ? '—' : `${q.agreement.percent}%`}
-            </p>
-          </div>
-          <div>
-            <p className="stat-label">Waiting</p>
-            <p className="stat-value">{q.waiting}</p>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Stat
+            label="This week"
+            tone={q.week.behind ? 'attention' : 'default'}
+            value={<>{q.week.done}<span className="text-[16px] text-etyme-faint">/{q.week.target}</span></>}
+          />
+          {/* A share nobody has answered yet is not a zero: the dash. */}
+          <Stat
+            label="You agreed with"
+            tone={q.agreement.worrying ? 'attention' : 'default'}
+            value={q.agreement.percent === null ? null : `${q.agreement.percent}%`}
+          />
+          <Stat label="Waiting" value={q.waiting} />
         </div>
       )}
 
@@ -201,23 +187,15 @@ export default function ChecksPage() {
         </p>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState compact says="Opening the check queue…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && q && q.sample.length === 0 && (
-        <div className="panel">
-          <h2 className="headline-serif text-[19px]">Nothing to review</h2>
-          <p className="mt-1 max-w-[54ch] text-[13px] text-etyme-muted">
-            The model has not made a judgment since you last looked. This
-            fills up as submissions get checked — the skill-evidence check
-            is the one that lands here.
-          </p>
-        </div>
+        <EmptyState
+          says="Nothing to review"
+          detail="The model has not made a judgment since you last looked. This fills up as submissions get checked — the skill-evidence check is the one that lands here."
+        />
       )}
 
       {/* Two adverts the collapse would not settle itself.
@@ -225,7 +203,7 @@ export default function ChecksPage() {
           wrongly merged seat loses a live role and nobody notices. This
           is where a person settles it in ten seconds. */}
       {q && q.maybes.length > 0 && (
-        <div className="panel">
+        <Panel>
           <p className="eyebrow mb-3">Same seat?</p>
           {q.maybes.map((m) => (
             <div key={m.id} className="mb-4 border-b border-etyme-rule pb-4 last:mb-0 last:border-0 last:pb-0">
@@ -257,15 +235,15 @@ export default function ChecksPage() {
               </div>
             </div>
           ))}
-        </div>
+        </Panel>
       )}
 
       {item && (
-        <div className="panel">
+        <Panel>
           <div className="mb-3 flex items-center justify-between">
-            <span className={`chip ${item.verdict === 'PASS' ? 'chip--verified' : 'chip--attention'}`}>
+            <Chip tone={item.verdict === 'PASS' ? 'verified' : 'attention'}>
               {item.code.replace(/_/g, ' ').toLowerCase()}
-            </span>
+            </Chip>
             <span className="text-[11px] text-etyme-faint">
               {at + 1} of {q!.sample.length}
             </span>
@@ -296,27 +274,28 @@ export default function ChecksPage() {
             </div>
           ) : (
             <div className="mt-4">
-              <label className="eyebrow mb-1 block">What did it get wrong?</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                autoFocus
-                placeholder="Quoted a line about Docker as evidence for Kubernetes."
-                className="w-full rounded-md border border-etyme-rule bg-etyme-raised p-3 text-[13px] text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
-              />
-              <p className="mt-1 text-[11px] text-etyme-faint">
-                This note is the only thing that improves the check. An
-                agreement teaches it nothing.
-              </p>
+              <Field
+                label="What did it get wrong?"
+                help="This note is the only thing that improves the check. An agreement teaches it nothing."
+              >
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Quoted a line about Docker as evidence for Kubernetes."
+                />
+              </Field>
               <div className="mt-3 flex gap-2">
-                <button
+                <SubmitButton
+                  type="button"
                   onClick={() => answer(false)}
-                  disabled={busy || note.trim().length < 4}
-                  className="rounded-md bg-etyme-action px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50"
+                  pending={busy}
+                  pendingLabel="Saving…"
+                  disabled={note.trim().length < 4}
                 >
-                  {busy ? 'Saving…' : 'Record it'}
-                </button>
+                  Record it
+                </SubmitButton>
                 <button
                   onClick={() => { setDisagreeing(false); setNote('') }}
                   className="px-3 py-2 text-[13px] text-etyme-muted hover:text-etyme-ink"
@@ -326,7 +305,7 @@ export default function ChecksPage() {
               </div>
             </div>
           )}
-        </div>
+        </Panel>
       )}
     </div>
   )

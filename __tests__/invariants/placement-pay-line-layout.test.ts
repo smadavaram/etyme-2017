@@ -10,7 +10,8 @@ const page = readFileSync('src/app/dashboard/placements/[id]/page.tsx', 'utf8')
 
 describe("the placement's pay line", () => {
   it('each overtime choice fits its card at any width: full width of the card, never a fixed width wider than a phone', () => {
-    const selects = [...page.matchAll(/<select[\s\S]*?className="([^"]+)"/g)].map((m) => m[1])
+    // Drawn through the shared form set's Select since 2026-10-10.
+    const selects = [...page.matchAll(/<Select[\s\S]*?className="([^"]+)"/g)].map((m) => m[1])
     expect(selects.length).toBe(2)
     for (const c of selects) {
       expect(c).toMatch(/\bw-full\b/)

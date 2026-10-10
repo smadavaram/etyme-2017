@@ -111,6 +111,20 @@ describe('the seat you pick is the seat you get', () => {
     expect(again.body.companyId).toBe(first.body.companyId)
   }, 60_000)
 
+  it('a seat taken from the demo page counts one demo start under the visit the page sent, and a seat taken with no visit counts nothing', async () => {
+    const visit = 'd'.repeat(32)
+    const before = await prisma.event.count({ where: { type: 'market.demo_started' } })
+    const r = req('POST', '/api/demo', { side: 'CLIENT', visit, page: '/demo' })
+    const res = await demo(r as NextRequest)
+    expect(res.status).toBe(200)
+    const rows = await prisma.event.findMany({ where: { type: 'market.demo_started', subjectId: visit } })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].companyId).toBeNull()
+    expect(rows[0].payload).toEqual({ page: '/demo', visit })
+    await enter('BENCH')
+    expect(await prisma.event.count({ where: { type: 'market.demo_started' } })).toBe(before + 1)
+  }, 60_000)
+
   it('picking a different seat builds a new workspace instead of resuming the old one', async () => {
     const asClient = await enter('CLIENT')
     const asMsp = await enter('MSP', asClient.cookie)

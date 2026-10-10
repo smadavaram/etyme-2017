@@ -6,6 +6,7 @@ import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 /**
  * Contacts, and who to call there.
@@ -26,16 +27,16 @@ const PEOPLE_COLUMNS: Column<any>[] = [
   { key: 'name', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.name}</span> },
   { key: 'at', label: 'Firm', render: (c) => <span className="text-etyme-muted">{c.at.name}</span>, sortValue: (c) => c.at.name },
   { key: 'title', label: 'Role', render: (c) => <span className="text-etyme-muted">{c.title ?? '—'}</span>, hideOnMobile: true },
-  { key: 'kindLabel', label: 'Desk', render: (c) => <span className="chip chip--passive">{c.kindLabel}</span> },
+  { key: 'kindLabel', label: 'Desk', render: (c) => <Chip>{c.kindLabel}</Chip> },
   { key: 'email', label: 'Email', render: (c) => c.email ? <a href={`mailto:${c.email}`} className="text-etyme-action" onClick={(e) => e.stopPropagation()}>{c.email}</a> : '—' },
-  { key: 'joined', label: 'Here', render: (c) => (c.joined ? <span className="chip chip--verified">on the platform</span> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
+  { key: 'joined', label: 'Here', render: (c) => (c.joined ? <Chip tone="verified">on the platform</Chip> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
 ]
 
 const COMPANY_COLUMNS: Column<any>[] = [
   { key: 'otherCompanyName', label: 'Firm', render: (r) => <span className="text-etyme-ink">{r.otherCompanyName}</span> },
-  { key: 'relationship', label: 'To you', render: (r) => <span className="chip chip--action">{r.relationship.toLowerCase()}</span> },
-  { key: 'status', label: 'Standing', render: (r) => <span className={`chip ${r.status === 'BLOCKED' ? 'chip--attention' : 'chip--passive'}`}>{r.status.toLowerCase()}</span> },
-  { key: 'hasAgreement', label: 'Agreement', render: (r) => (r.hasAgreement ? <span className="chip chip--verified">on file</span> : <span className="text-etyme-faint">none</span>), sortValue: (r) => (r.hasAgreement ? 1 : 0) },
+  { key: 'relationship', label: 'To you', render: (r) => <Chip tone="action">{r.relationship.toLowerCase()}</Chip> },
+  { key: 'status', label: 'Standing', render: (r) => <Chip tone={r.status === 'BLOCKED' ? 'attention' : 'passive'}>{r.status.toLowerCase()}</Chip> },
+  { key: 'hasAgreement', label: 'Agreement', render: (r) => (r.hasAgreement ? <Chip tone="verified">on file</Chip> : <span className="text-etyme-faint">none</span>), sortValue: (r) => (r.hasAgreement ? 1 : 0) },
   { key: 'contacts', label: 'Contacts', align: 'right', render: (r) => <span className="tabular-nums">{r.contacts}</span> },
 ]
 
@@ -92,25 +93,21 @@ export default function ContactsPage() {
   // never headed by a section it does not have (round seven).
   const eyebrow = usePageSection('/dashboard/contacts')
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  if (contacts === null && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (contacts === null && loading) return <LoadingState says="Opening contacts…" />
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      <header>
-        {/* The section this page sits under on the reader's own menu:
-            Operate for a firm that sells, Network for a client, and the
-            client's word for an office sitting at a client's desk. */}
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Contacts</h1>
-        {readerKind && (
-          <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
-            The register of firms and the people at them. Private to this
-            company — a rolodex is a commercial asset, and nobody else&rsquo;s
-            screen shows yours.
-          </p>
-        )}
-      </header>
+      {/* The section this page sits under on the reader's own menu:
+          Operate for a firm that sells, Network for a client, and the
+          client's word for an office sitting at a client's desk. Null
+          while the session loads, and PageHead then draws no eyebrow; the
+          line under the title waits for the reader's kind the same way. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title="Contacts"
+        subtitle={readerKind ? 'The register of firms and the people at them. Private to this company — a rolodex is a commercial asset, and nobody else’s screen shows yours.' : undefined}
+      />
 
       <div className="flex flex-wrap items-center gap-3 border-b border-etyme-rule pb-3">
         {TABS.map((t) => (
@@ -141,28 +138,20 @@ export default function ContactsPage() {
         )}
       </div>
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {loading && <LoadingState compact says="Opening contacts…" />}
+      {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}
 
       {/* ── People ─────────────────────────────────────────── */}
       {!loading && tab === 'PEOPLE' && contacts && (
         <>
-          <div className="flex flex-wrap gap-2">
-            {contacts.kinds.map((k: any) => (
-              <button
-                key={k.key}
-                onClick={() => setKind(kind === k.key ? null : k.key)}
-                className={`chip ${kind === k.key ? 'chip--action' : 'chip--passive'}`}
-                title={k.callAbout}
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
+          {/* Each card says what to call the person about, so the chip
+              carries the desk's name alone. */}
+          <FilterChips<string>
+            label="Their role at their firm"
+            options={[{ key: '', label: 'Everyone' }, ...contacts.kinds.map((k: any) => ({ key: k.key, label: k.label }))]}
+            value={kind ?? ''}
+            onChange={(k) => setKind(k === '' ? null : k)}
+          />
 
           <ListSurface<any>
             name="contacts-people"
@@ -184,8 +173,8 @@ export default function ContactsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {c.joined && <span className="chip chip--verified">on the platform</span>}
-                  <span className="chip chip--passive">{c.kindLabel}</span>
+                  {c.joined && <Chip tone="verified">on the platform</Chip>}
+                  <Chip>{c.kindLabel}</Chip>
                 </div>
               </div>
               {c.via && <p className="mt-1 text-[12px] text-etyme-muted">{c.via}</p>}
@@ -201,13 +190,11 @@ export default function ContactsPage() {
           />
 
           {people.length === 0 && (
-            <div className="panel">
-              <p className="text-[13px] text-etyme-muted">
-                {q || kind
-                  ? 'Nobody matches that.'
-                  : 'Nobody on the rolodex yet. Add the person you most recently phoned — the hiring manager, the AP clerk — and it stops being empty.'}
-              </p>
-            </div>
+            <EmptyState
+              says={q || kind
+                ? 'Nobody matches that.'
+                : 'Nobody on the rolodex yet. Add the person you most recently phoned — the hiring manager, the AP clerk — and it stops being empty.'}
+            />
           )}
         </>
       )}
@@ -229,10 +216,10 @@ export default function ContactsPage() {
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[15px] font-semibold text-etyme-ink">{r.otherCompanyName}</p>
                   <div className="flex items-center gap-2">
-                    {r.status === 'BLOCKED' && <span className="chip chip--attention">blocked</span>}
-                    {r.status === 'PROSPECT' && <span className="chip chip--passive">prospect</span>}
-                    {r.hasAgreement && <span className="chip chip--verified">agreement on file</span>}
-                    <span className="chip chip--action">{r.relationship.toLowerCase()}</span>
+                    {r.status === 'BLOCKED' && <Chip tone="attention">blocked</Chip>}
+                    {r.status === 'PROSPECT' && <Chip>prospect</Chip>}
+                    {r.hasAgreement && <Chip tone="verified">agreement on file</Chip>}
+                    <Chip tone="action">{r.relationship.toLowerCase()}</Chip>
                   </div>
                 </div>
                 <p className="mt-1 text-[13px] text-etyme-muted">{r.says}</p>
@@ -247,13 +234,7 @@ export default function ContactsPage() {
           />
 
           {reg.rows.length === 0 && (
-            <div className="panel">
-              <p className="text-[13px] text-etyme-muted">
-                No counterparties yet. Add a company from the Companies screen and
-                say what they are to you, or invite a supplier — either writes the
-                register.
-              </p>
-            </div>
+            <EmptyState says="No counterparties yet. Add a company from the Companies screen and say what they are to you, or invite a supplier — either writes the register." />
           )}
         </>
       )}

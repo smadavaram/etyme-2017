@@ -1,6 +1,7 @@
 'use client'
 
 import { usePageSection } from '@/components/page-section'
+import { PageHead } from '@/components/ui'
 import { BenchPaySection } from './bench-pay'
 
 /**
@@ -15,11 +16,11 @@ export default function BenchPayPage() {
   return (
     <BenchPaySection
       head={
-        <div className="page-head mb-6">
-          <p className="eyebrow">{section ?? ''}</p>
-          <h1>Bench pay</h1>
-          <p>What you pay people waiting for a project, and whether public holidays are paid while they wait.</p>
-        </div>
+        <PageHead
+          eyebrow={section}
+          title="Bench pay"
+          subtitle="What you pay people waiting for a project, and whether public holidays are paid while they wait."
+        />
       }
     />
   )

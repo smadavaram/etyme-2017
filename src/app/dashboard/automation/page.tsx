@@ -4,6 +4,7 @@ import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
+import { Check, Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, Panel, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 /**
  * Automation Log — what the system did, with reasons.
@@ -117,15 +118,15 @@ function actionCategory(action: string): string {
  * How loud the chip is. Looking and suggesting are quiet; acting on its
  * own with a consequence is not, and should not read as though it were.
  */
-function levelTone(rung: Rung): string {
-  if (rung === 'L0' || rung === 'L1' || rung === 'L2') return 'chip--passive'
-  if (rung === 'L3') return 'chip--action'
-  return 'chip--attention'
+function levelTone(rung: Rung): ChipTone {
+  if (rung === 'L0' || rung === 'L1' || rung === 'L2') return 'passive'
+  if (rung === 'L3') return 'action'
+  return 'attention'
 }
 
-function outcomeTone(outcome: string): string {
-  if (outcome === 'PERMIT') return 'chip--verified'
-  return 'chip--attention'
+function outcomeTone(outcome: string): ChipTone {
+  if (outcome === 'PERMIT') return 'verified'
+  return 'attention'
 }
 
 function decidedLabel(by: string): string {
@@ -251,162 +252,88 @@ export default function AutomationPage() {
   const rungsPresent = RUNGS.filter((r) => (levelCounts[r] ?? 0) > 0)
   const topRung = rungsPresent.length ? rungsPresent[rungsPresent.length - 1] : null
 
-  if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  }
-  if (!answered) {
-    return <p className="text-[14px] text-etyme-muted py-8">Loading automation log…</p>
-  }
+  if (refused) return <RefusedState says={refused} />
+  if (!answered) return <LoadingState says="Opening the automation log…" />
 
   return (
     <>
-      {/* Head */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1>What the system did on its own</h1>
-          <p>
-            Every action, the level it acted at, the rule it followed, and whether it
-            can still be undone. Most of this is a date or a threshold, not a
-            judgment, and the rows say which.
-          </p>
-        </div>
-
-        <button
-          onClick={fetchEntries}
-          className="btn-secondary text-[13px] mt-3 shrink-0"
-        >
-          Refresh
-        </button>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="What the system did on its own"
+        subtitle="Every action, the level it acted at, the rule it followed, and whether it can still be undone. Most of this is a date or a threshold, not a judgment, and the rows say which."
+        actions={
+          <button onClick={fetchEntries} className="btn-secondary text-[13px]">
+            Refresh
+          </button>
+        }
+      />
 
       {/* Stats row */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Total Actions</p>
-          <p className="stat-value text-etyme-ink">{total}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">recorded</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">On its own</p>
-          <p className="stat-value text-etyme-ink">{unpromptedCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">nobody asked</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Reversible</p>
-          <p className={`stat-value ${reversibleCount > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>{reversibleCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">can be undone</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Highest level</p>
-          <p className="stat-value text-etyme-ink">{topRung ?? '—'}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {topRung ? LADDER[topRung].name.toLowerCase() : 'nothing yet'}
-          </p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">By a rule</p>
-          <p className="stat-value text-etyme-ink">{ruleCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">no model involved</p>
-        </div>
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="Total actions" value={total} sub="recorded" />
+        <Stat label="On its own" value={unpromptedCount} sub="nobody asked" />
+        <Stat label="Reversible" value={reversibleCount} sub="can be undone" />
+        <Stat label="Highest level" value={topRung} sub={topRung ? LADDER[topRung].name.toLowerCase() : 'nothing yet'} />
+        <Stat label="By a rule" value={ruleCount} sub="no model involved" />
       </div>
 
       {/* The ladder, as the reader's own filter. Only rungs we actually
           reached are offered — a rung with nothing behind it is a claim. */}
       {rungsPresent.length > 0 && (
-        <div className="panel mb-5">
+        <Panel className="mb-5">
           <p className="stat-label mb-2">How far from a person&apos;s hand</p>
-          <div className="flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => setLevelFilter(null)}
-              className={`filter-tab ${!levelFilter ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-            >
-              Everything
-              <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">{total}</span>
-            </button>
-            {rungsPresent.map((r) => (
-              <button
-                key={r}
-                onClick={() => setLevelFilter(levelFilter === r ? null : r)}
-                className={`filter-tab ${levelFilter === r ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-              >
-                {r} {LADDER[r].name}
-                <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">
-                  {levelCounts[r]}
-                </span>
-              </button>
-            ))}
-          </div>
+          <FilterChips<'ALL' | Rung>
+            label="How far from a person’s hand"
+            options={[
+              { key: 'ALL', label: 'Everything', count: total },
+              ...rungsPresent.map((r) => ({ key: r, label: `${r} ${LADDER[r].name}`, count: levelCounts[r] })),
+            ]}
+            value={levelFilter ?? 'ALL'}
+            onChange={(k) => setLevelFilter(k === 'ALL' ? null : k)}
+          />
           <p className="text-[12px] text-etyme-muted mt-2.5">
             {levelFilter
               ? LADDER[levelFilter].says
               : 'A level is only given to what the system did unprompted. A refusal aimed at somebody who asked for something is governance, not autonomy, and carries no level.'}
           </p>
-        </div>
+        </Panel>
       )}
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <div className="flex gap-1.5 flex-wrap flex-1">
-          <button
-            onClick={() => setActionFilter(null)}
-            className={`filter-tab ${!actionFilter ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-          >
-            All
-            <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">{total}</span>
-          </button>
-          {Object.entries(counts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 8)
-            .map(([action, count]) => (
-              <button
-                key={action}
-                onClick={() => setActionFilter(actionFilter === action ? null : action)}
-                className={`filter-tab ${
-                  actionFilter === action ? 'filter-tab--active' : 'filter-tab--inactive'
-                }`}
-              >
-                {actionLabel(action)}
-                <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">{count}</span>
-              </button>
-            ))}
+        <div className="flex-1">
+          <FilterChips<string>
+            label="What it did"
+            options={[
+              { key: '', label: 'All', count: total },
+              ...Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([action, count]) => ({ key: action, label: actionLabel(action), count })),
+            ]}
+            value={actionFilter ?? ''}
+            onChange={(k) => setActionFilter(k === '' ? null : k)}
+          />
         </div>
 
-        <label className="flex items-center gap-1.5 text-[12px] text-etyme-muted cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showReversibleOnly}
-            onChange={() => setShowReversibleOnly(!showReversibleOnly)}
-            className="rounded border-etyme-rule"
-          />
-          Reversible only
-        </label>
+        <Check
+          label="Reversible only"
+          checked={showReversibleOnly}
+          onChange={() => setShowReversibleOnly(!showReversibleOnly)}
+        />
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => fetchEntries() }} /></div>}
 
-      {/* Loading */}
-      {loading && (
-        <div className="py-16 text-center text-etyme-muted">Loading automation log…</div>
-      )}
+      {loading && <LoadingState says="Opening the automation log…" />}
 
-      {/* Empty state */}
       {!loading && entries.length === 0 && (
-        <div className="panel text-center py-16">
-          <p className="text-lg text-etyme-muted font-medium mb-1">
-            No automation entries found.
-          </p>
-          <p className="text-sm text-etyme-faint">
-            {actionFilter || levelFilter
-              ? 'Try a different filter to see other entries.'
-              : 'The system hasn\'t performed any automated actions yet.'}
-          </p>
-        </div>
+        <EmptyState
+          says="No automation entries found."
+          detail={actionFilter || levelFilter
+            ? 'Try a different filter to see other entries.'
+            : 'The system has not done anything on its own yet.'}
+        />
       )}
 
       {/* Log entries */}
@@ -452,40 +379,34 @@ export default function AutomationPage() {
                   {/* Chips — the level it acted at, and what decided it. */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     {isReversed && (
-                      <span className="chip chip--passive text-[9px]">Reversed</span>
+                      <Chip>Reversed</Chip>
                     )}
                     {entry.reversible && !isReversed && (
-                      <span className="chip chip--action text-[9px]">Reversible</span>
+                      <Chip tone="action">Reversible</Chip>
                     )}
                     {entry.level && (
-                      <span
-                        className={`chip ${levelTone(entry.level)} text-[9px]`}
-                        title={entry.levelSays ?? undefined}
-                      >
+                      <Chip tone={levelTone(entry.level)} title={entry.levelSays ?? undefined}>
                         {entry.level} {entry.levelName}
-                      </span>
+                      </Chip>
                     )}
                     {entry.outcome && (
-                      <span className={`chip ${outcomeTone(entry.outcome)} text-[9px]`}>
+                      <Chip tone={outcomeTone(entry.outcome)}>
                         {entry.outcome === 'BLOCK'
                           ? 'Refused'
                           : entry.outcome === 'WARN'
                             ? 'Warned'
                             : 'Let through'}
-                      </span>
+                      </Chip>
                     )}
                     {entry.kind === 'ATTRIBUTED' && (
-                      <span className="chip chip--passive text-[9px]">A person did this</span>
+                      <Chip>A person did this</Chip>
                     )}
-                    <span
-                      className="chip chip--passive text-[9px]"
-                      title={entry.decidedSays}
-                    >
+                    <Chip title={entry.decidedSays}>
                       {decidedLabel(entry.decidedBy)}
-                    </span>
-                    <span className="chip chip--passive text-[9px]">
+                    </Chip>
+                    <Chip>
                       {actionCategory(entry.action)}
-                    </span>
+                    </Chip>
                   </div>
 
                   {/* Time */}

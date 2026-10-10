@@ -2,6 +2,8 @@
 
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
+import { refusalSentence } from '@/lib/refusal-words'
+import { EmptyState, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel, RefusedState, Stat, SubmitButton } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -48,10 +50,6 @@ interface Preview {
   sample: Record<string, unknown>[]
 }
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
 /** Same parser shape as the server uses, so what you preview is what loads. */
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim())
@@ -96,10 +94,18 @@ export default function DataPage() {
   const [error, setError] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // A desk that may not import reads the route's sentence alone.
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    setError(null)
     try {
       const res = await fetch('/api/imports/sheets')
+      if (res.status === 403) {
+        const b = await res.json().catch(() => null)
+        setRefused(refusalSentence(b?.error?.message) || 'Import is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
       const body = await readJson(res)
       setSheets(body.data.sheets)
       setNote(body.data.note)
@@ -139,40 +145,34 @@ export default function DataPage() {
     }
   }
 
-  if (!sheets) return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
+  if (refused) return <RefusedState says={refused} />
+  if (!sheets) {
+    return error
+      ? <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />
+      : <LoadingState says="Opening import…" />
+  }
 
   return (
     <>
-      <div className="page-head mb-6">
-        {section && <p className="eyebrow">{section}</p>}
-        <h1>Import</h1>
-        <p>
-          Cost centers, work sites, purchase orders, holidays, people. Matched on a key, so
-          loading the same file twice changes nothing the second time.
-        </p>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Import"
+        subtitle="Cost centers, work sites, purchase orders, holidays, people. Matched on a key, so loading the same file twice changes nothing the second time."
+      />
 
       {note && (
         <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-canvas p-3">
           <p className="text-[13px] text-etyme-ink">{note}</p>
         </div>
       )}
-      {flash && (
-        <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
-          <p className="text-[13px] text-etyme-verified">{flash}</p>
-        </div>
-      )}
-      {error && (
-        <div className="mb-5 rounded-md border border-etyme-attention/30 bg-etyme-attention/5 p-3">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {flash && <div className="mb-5"><FormMessage tone="ok">{flash}</FormMessage></div>}
+      {error && <div className="mb-5"><FormMessage tone="error">{error}</FormMessage></div>}
 
       {sheets.length === 0 ? (
-        <p className="text-[13px] text-etyme-faint">Nothing here is yours to load.</p>
+        <EmptyState says="Nothing here is yours to load." />
       ) : (
         <>
-          <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
+          <Panel className="mb-5">
             <Lbl>What kind of data</Lbl>
             <div className="grid sm:grid-cols-2 gap-2 mt-2">
               {sheets.map((s) => (
@@ -193,10 +193,10 @@ export default function DataPage() {
                 </button>
               ))}
             </div>
-          </section>
+          </Panel>
 
           {sheet && (
-            <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
+            <Panel className="mb-5">
               <Lbl>Columns it looks for</Lbl>
               <div className="flex flex-wrap gap-1.5 mt-2 mb-4">
                 {sheet.fields.map((f) => (
@@ -234,22 +234,22 @@ export default function DataPage() {
               </label>
 
               {rows.length > 0 && !preview && (
-                <button
+                <SubmitButton
+                  type="button"
+                  tone="secondary"
                   onClick={() => send(false)}
-                  disabled={busy}
-                  className="ml-2 px-4 py-2 rounded border border-etyme-rule text-[13px] text-etyme-ink disabled:opacity-50"
+                  pending={busy}
+                  pendingLabel="Checking…"
+                  className="ml-2"
                 >
-                  {busy ? 'Checking…' : 'See what this would do'}
-                </button>
+                  See what this would do
+                </SubmitButton>
               )}
-            </section>
+            </Panel>
           )}
 
           {mapping && (
-            <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-              <h2 className="font-serif text-[19px] text-etyme-ink mb-3 tracking-[-0.02em]">
-                How your columns were read
-              </h2>
+            <Panel className="mb-5" title="How your columns were read">
               <div className="space-y-1">
                 {mapping.columns.map((c: any) => (
                   <div key={c.column} className="flex items-baseline justify-between gap-3 py-1 border-b border-etyme-rule/60">
@@ -263,36 +263,22 @@ export default function DataPage() {
                   </div>
                 ))}
               </div>
-            </section>
+            </Panel>
           )}
 
           {preview && (
-            <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
-              <h2 className="font-serif text-[19px] text-etyme-ink mb-2 tracking-[-0.02em]">
-                What this would do
-              </h2>
+            <Panel title="What this would do">
               <p className="text-[13px] text-etyme-ink mb-4">{preview.summary}</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-5 pb-4 border-b border-etyme-rule">
-                <div>
-                  <Lbl>New</Lbl>
-                  <p className="font-serif text-2xl text-etyme-ink tabular-nums mt-0.5">{preview.willCreate}</p>
-                </div>
-                <div>
-                  <Lbl>Updated</Lbl>
-                  <p className="font-serif text-2xl text-etyme-ink tabular-nums mt-0.5">{preview.willUpdate}</p>
-                </div>
-                <div>
-                  <Lbl>Skipped</Lbl>
-                  <p className={`font-serif text-2xl tabular-nums mt-0.5 ${
-                    preview.willSkip > 0 ? 'text-etyme-attention' : 'text-etyme-ink'
-                  }`}>{preview.willSkip}</p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                <Stat label="New" value={preview.willCreate} />
+                <Stat label="Updated" value={preview.willUpdate} />
+                <Stat label="Skipped" value={preview.willSkip} tone={preview.willSkip > 0 ? 'attention' : 'default'} />
               </div>
 
               {preview.problems.length > 0 && (
                 <div className="mb-5">
-                  <Lbl>Rows that will be skipped</Lbl>
+                  <Lbl className="mb-1">Rows that will be skipped</Lbl>
                   <div className="mt-2 space-y-1">
                     {preview.problems.map((p) => (
                       <p key={p.row} className="text-[12px] text-etyme-muted">
@@ -304,14 +290,16 @@ export default function DataPage() {
                 </div>
               )}
 
-              <button
+              <SubmitButton
+                type="button"
                 onClick={() => send(true)}
-                disabled={busy || preview.willCreate + preview.willUpdate === 0}
-                className="px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+                pending={busy}
+                pendingLabel="Loading the rows…"
+                disabled={preview.willCreate + preview.willUpdate === 0}
               >
-                {busy ? 'Loading…' : `Load ${preview.willCreate + preview.willUpdate} row(s)`}
-              </button>
-            </section>
+                {`Load ${preview.willCreate + preview.willUpdate} row(s)`}
+              </SubmitButton>
+            </Panel>
           )}
         </>
       )}

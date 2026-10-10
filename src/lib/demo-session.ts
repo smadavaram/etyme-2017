@@ -102,3 +102,27 @@ export const RESERVED_SUFFIXES = ['.invalid', '.example', '.local'] as const
 export function addressFor(handle: string): string {
   return `${handle}@demo.etyme.local`
 }
+
+/**
+ * The browser's visit a demo door sent with its seat, or null.
+ *
+ * The /demo page posts the tab's own visit id (`visitId` in
+ * lib/public-site/count, the id every other public-site count carries),
+ * so a seat taken there counts once for that visit and the staff summary
+ * reads it beside the visit's other clicks. A body with no visit id is
+ * not counted at all, rather than counted under an id made up here: the
+ * Solutions links count their own seat from the browser after this
+ * route answers, and a script taking a seat is not a visitor. Counting
+ * either under a minted id would overstate visits.
+ *
+ * Only the shape is read here — 32 hex characters, a path starting with
+ * a slash. Market's own reader (`readMarketEvent`) decides the rest
+ * before anything is written.
+ */
+export function demoVisit(body: unknown): { page: string; visit: string } | null {
+  const b = (body ?? {}) as Record<string, unknown>
+  const visit = typeof b.visit === 'string' ? b.visit : ''
+  if (!/^[a-f0-9]{32}$/.test(visit)) return null
+  const page = typeof b.page === 'string' && b.page.startsWith('/') ? b.page : '/demo'
+  return { page, visit }
+}

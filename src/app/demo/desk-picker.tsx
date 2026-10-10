@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CLIENT_DESKS, type ClientProgram, type Program } from './seats'
 import { DemoChip } from '@/components/shell/demo-chip'
+import { visitId } from '@/lib/public-site/count'
 
 /**
  * The doors on /demo, drawn three ways.
@@ -29,10 +30,13 @@ function useSeat() {
     setBusy(key)
     setError(null)
     try {
+      const visit = visitId()
       const res = await fetch('/api/demo', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        // The tab's visit id, so the route counts this seat once for this
+        // visit (`demoVisit` in lib/demo-session). An empty id is not sent.
+        body: JSON.stringify({ ...body, ...(visit ? { visit, page: '/demo' } : {}) }),
       })
       const answer = await res.json()
       if (!res.ok) throw new Error(answer.error?.message ?? 'Could not take that seat.')

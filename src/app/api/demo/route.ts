@@ -8,7 +8,8 @@ import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
 import { seedDemoClientCompany } from '@/lib/demo-seed-client'
 import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
 import { addVolume } from '@/lib/demo-volume'
-import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
+import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/lib/demo-session'
+import { countDemoStarted } from '@/lib/events'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
 import { consoleHome } from '@/lib/console-home'
 import { seatsHeldBy } from '@/lib/program-seat'
@@ -142,6 +143,19 @@ function seatHeld(contextType: string, slug: string): Held | null {
   return m ? (m[1].toUpperCase() as Seat) : null
 }
 
+/**
+ * Count one demo start for the visit the page sent, and only for it.
+ *
+ * Awaited, because a serverless host may stop the function the moment the
+ * response goes out; never throws, because a count is never worth a seat
+ * that failed to open. Called only once a seat is actually taken — a
+ * refused door counts nothing. No visit id, no count (`demoVisit`).
+ */
+async function countTheSeat(body: unknown): Promise<void> {
+  const at = demoVisit(body)
+  if (at) await countDemoStarted(at)
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
 
@@ -182,6 +196,7 @@ export async function POST(request: NextRequest) {
     if (ctx && company?.isDemo) {
       const held = seatHeld(ctx.type, company.slug)
       if (held === wanted) {
+        await countTheSeat(body)
         return NextResponse.json({
           data: { companyId: company.id, companyName: company.name, seat: held, resumed: true },
         })
@@ -256,6 +271,7 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
+    await countTheSeat(body)
     const res = NextResponse.json({
       data: {
         person: door.slug,
@@ -430,6 +446,7 @@ export async function POST(request: NextRequest) {
         { status: unknownAtSeeded ? 400 : 404 }
       )
     }
+    await countTheSeat(body)
     const res = NextResponse.json({
       data: {
         companyId: company.id, companyName: company.name, kind: company.kind,
@@ -574,6 +591,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  await countTheSeat(body)
   const res = NextResponse.json({
     data: {
       companyId: seeded.companyId,
