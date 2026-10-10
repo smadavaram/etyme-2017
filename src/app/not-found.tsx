@@ -1,26 +1,38 @@
 import Link from 'next/link'
+import { EtymeLogo } from '@/components/logo'
 
 /**
  * What an address that does not exist opens.
  *
  * Next's own page was a bare black-and-white error number and one line,
  * with no brand and no way back (sign-up walk, round four,
- * item 20). One sentence, in the brand, and a link home.
+ * item 20). One sentence, in the brand, and a link home — drawn the way
+ * the denied screen is, because both are a door that did not open.
  */
 export default function NotFound() {
   return (
-    <main className="min-h-[60vh] flex items-center justify-center px-6 py-16 bg-etyme-canvas text-etyme-ink">
-      <div className="max-w-md">
-        <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">Not found</p>
-        <h1 className="mt-2 font-serif text-3xl tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-          There is no page at this address.
-        </h1>
-        <div className="mt-6">
-          <Link href="/" className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
-            Go to the home page
-          </Link>
-        </div>
+    <div className="min-h-screen bg-etyme-canvas text-etyme-ink flex flex-col">
+      <div className="px-6 h-14 flex items-center border-b border-etyme-rule">
+        <Link href="/" aria-label="Etyme home" className="inline-block">
+          <EtymeLogo size="md" />
+        </Link>
       </div>
-    </main>
+      <main className="flex-1 flex items-start justify-center px-6 py-16 sm:py-24">
+        <div className="max-w-xl w-full">
+          <p className="eyebrow">Not found</p>
+          <h1 className="font-serif headline-serif mt-3 text-[30px] leading-[1.12] sm:text-[38px]">
+            There is no page at this address.
+          </h1>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/" className="btn-primary inline-flex items-center">
+              Go to the home page
+            </Link>
+            <Link href="/dashboard" className="btn-secondary inline-flex items-center">
+              Back to your desk
+            </Link>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 }

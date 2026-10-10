@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui/form'
 
 /**
  * Invite a teammate: name, work email, and what they do here.
@@ -53,24 +54,37 @@ export function InviteTeammate({ onInvited }: { onInvited?: (says: string) => vo
     }
   }
 
-  const field = 'px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink focus:outline-none focus:border-etyme-action'
+  // The shared field set (components/ui/form): each box has its label
+  // above it rather than a placeholder standing in for one, so "Work
+  // email" is still said once somebody has typed in it. Stacked on a
+  // phone, one row from sm up.
   return (
-    <div>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-2 items-center">
-        <input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" className={field} aria-label="Name" />
-        <input value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="Work email" className={field} aria-label="Work email" />
-        <select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })} className={field} aria-label="Role">
-          <option value="">What they do here…</option>
-          {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select>
-        <button onClick={send} disabled={busy || !invite.email.includes('@')}
-          className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40">
-          {busy ? 'Inviting…' : 'Invite'}
-        </button>
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (invite.email.includes('@')) send() }}
+      noValidate
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-3 sm:items-end">
+        <Field label="Name">
+          <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} autoComplete="off" />
+        </Field>
+        <Field label="Work email">
+          <Input type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} autoComplete="off" />
+        </Field>
+        <Field label="What they do here">
+          <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })}>
+            <option value="">Choose a role…</option>
+            {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </Select>
+        </Field>
+        <SubmitButton pending={busy} pendingLabel="Inviting…" disabled={!invite.email.includes('@')}>
+          Invite
+        </SubmitButton>
       </div>
-      {said.map((s, i) => (
-        <p key={i} className={`mt-2 text-sm ${s.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{s.text}</p>
-      ))}
-    </div>
+      {said.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {said.map((s, i) => <FormMessage key={i} tone={s.tone === 'ok' ? 'ok' : 'error'}>{s.text}</FormMessage>)}
+        </div>
+      )}
+    </form>
   )
 }

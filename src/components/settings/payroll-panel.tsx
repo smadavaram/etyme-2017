@@ -9,6 +9,7 @@ import {
   type PayPeriod, type PayRhythm,
 } from '@/lib/pay-dates'
 import { Empty, Lbl, Panel, setLine } from './panel-bits'
+import { Field, Select, SubmitButton, FormMessage } from '@/components/ui/form'
 
 // ── Payroll ──────────────────────────────────────────
 //
@@ -73,7 +74,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   }
 
   if (!draft) {
-    return <Panel title="Payroll">{err ? <p className="text-[13px] text-etyme-attention">{err}</p> : <Empty>Loading…</Empty>}</Panel>
+    return <Panel title="Payroll">{err ? <FormMessage tone="error">{err}</FormMessage> : <Empty>Loading payroll…</Empty>}</Panel>
   }
   const changed = JSON.stringify(draft) !== JSON.stringify(saved)
   const byWeek = draft.payPeriod === 'WEEKLY' || draft.payPeriod === 'BIWEEKLY'
@@ -91,7 +92,6 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   const upTo = (current: number) => Array.from({ length: Math.max(14, current + 1) }, (_, i) => i)
   const days = Array.from({ length: 28 }, (_, i) => i + 1)
   const check = checkPaySettings({}, draft)
-  const select = 'mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-[13px] bg-etyme-raised'
 
   return (
     <Panel
@@ -99,16 +99,18 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
       subtitle="How often you pay, the day pay is worked out, and the day it is paid. The default is every other week."
     >
       <Lbl>Pay period</Lbl>
-      <div className="flex flex-wrap gap-2 mt-2">
+      <div role="group" aria-label="Pay period" className="flex flex-wrap gap-1.5 mt-2">
         {PAY_PERIODS.map((p) => (
           <button
             key={p}
+            type="button"
+            aria-pressed={draft.payPeriod === p}
             disabled={!canEdit || busy}
             onClick={() => choose(p)}
-            className={`px-3 py-1.5 rounded text-[13px] border transition-colors ${
+            className={`px-3 py-1.5 rounded-pill text-[13px] border transition-colors ${
               draft.payPeriod === p
-                ? 'bg-etyme-ink text-white border-etyme-ink'
-                : 'bg-etyme-raised border-etyme-rule text-etyme-muted hover:text-etyme-ink disabled:opacity-50'
+                ? 'bg-etyme-ink text-etyme-canvas border-etyme-ink font-medium'
+                : 'bg-etyme-surface border-etyme-rule text-etyme-muted hover:text-etyme-ink disabled:opacity-50'
             }`}
           >
             {PAY_PERIOD_WORDS[p]}
@@ -119,43 +121,39 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
 
       {byWeek ? (
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
-          <label className="block">
-            <Lbl>Worked out on</Lbl>
-            <select className={select} value={draft.payCalcOffsetDays} disabled={!canEdit || busy}
+          <Field label="Worked out on">
+            <Select value={draft.payCalcOffsetDays} disabled={!canEdit || busy}
               onChange={(e) => setDraft({ ...draft, payCalcOffsetDays: Number(e.target.value) })}>
               {upTo(draft.payCalcOffsetDays).map((n) => <option key={n} value={n}>{offsetWords(n)}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <Lbl>Paid on</Lbl>
-            <select className={select} value={draft.payDayOffsetDays} disabled={!canEdit || busy}
+            </Select>
+          </Field>
+          <Field label="Paid on">
+            <Select value={draft.payDayOffsetDays} disabled={!canEdit || busy}
               onChange={(e) => setDraft({ ...draft, payDayOffsetDays: Number(e.target.value) })}>
               {upTo(draft.payDayOffsetDays).map((n) => <option key={n} value={n}>{offsetWords(n)}</option>)}
-            </select>
-          </label>
+            </Select>
+          </Field>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
           {draft.payDaysOfMonth.map((d, i) => (
-            <label key={i} className="block">
-              <Lbl>{draft.payDaysOfMonth.length > 1 ? `Pay day ${i + 1}` : 'Pay day'}</Lbl>
-              <select className={select} value={d} disabled={!canEdit || busy}
+            <Field key={i} label={draft.payDaysOfMonth.length > 1 ? `Pay day ${i + 1}` : 'Pay day'}>
+              <Select value={d} disabled={!canEdit || busy}
                 onChange={(e) => {
                   const next = [...draft.payDaysOfMonth]
                   next[i] = Number(e.target.value)
                   setDraft({ ...draft, payDaysOfMonth: next })
                 }}>
                 {days.map((n) => <option key={n} value={n}>{dayOfMonthWords(n)}</option>)}
-              </select>
-            </label>
+              </Select>
+            </Field>
           ))}
-          <label className="block">
-            <Lbl>Worked out</Lbl>
-            <select className={select} value={draft.payCalcDaysBefore} disabled={!canEdit || busy}
+          <Field label="Worked out">
+            <Select value={draft.payCalcDaysBefore} disabled={!canEdit || busy}
               onChange={(e) => setDraft({ ...draft, payCalcDaysBefore: Number(e.target.value) })}>
               {upTo(draft.payCalcDaysBefore).map((n) => <option key={n} value={n}>{n === 0 ? 'On the pay day' : `${n} ${n === 1 ? 'day' : 'days'} before`}</option>)}
-            </select>
-          </label>
+            </Select>
+          </Field>
         </div>
       )}
 
@@ -167,16 +165,16 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
           ? 'A date on a day off or a holiday moves the way the section below says.'
           : `A pay day on a day off or a holiday moves to ${SHIFT_WORDS[DEFAULT_CYCLE_SHIFT.pay].label.toLowerCase()}. You can change this later in Settings.`}
       </p>
-      {err && <p className="text-[13px] text-etyme-attention mb-3">{err}</p>}
-      {note && <p className="text-[13px] text-etyme-verified mb-3">{note}</p>}
+      {(err || note) && (
+        <div className="mb-3">
+          {err && <FormMessage tone="error">{err}</FormMessage>}
+          {note && <FormMessage tone="ok">{note}</FormMessage>}
+        </div>
+      )}
       {canEdit && (
-        <button
-          onClick={save}
-          disabled={busy || !changed}
-          className="px-3 py-1.5 rounded text-[13px] bg-etyme-action text-white disabled:opacity-50"
-        >
+        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed}>
           Save payroll
-        </button>
+        </SubmitButton>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>

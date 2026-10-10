@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { Empty, Lbl, Panel, setLine } from './panel-bits'
+import { Field, Select, Check, SubmitButton, FormMessage } from '@/components/ui/form'
 
 // ── Your week ────────────────────────────────────────
 //
@@ -67,7 +68,7 @@ export function WeekPanel({ canEdit }: { canEdit: boolean }) {
   }
 
   if (!draft) {
-    return <Panel title="Your week">{err ? <p className="text-[13px] text-etyme-attention">{err}</p> : <Empty>Loading…</Empty>}</Panel>
+    return <Panel title="Your week">{err ? <FormMessage tone="error">{err}</FormMessage> : <Empty>Loading your week…</Empty>}</Panel>
   }
   const changed = JSON.stringify(draft) !== JSON.stringify(saved)
   const toggle = (d: number) =>
@@ -80,58 +81,57 @@ export function WeekPanel({ canEdit }: { canEdit: boolean }) {
       title="Your week"
       subtitle="A week runs Sunday to Saturday. Pick the days nobody is expected to work. A worker may still file hours on a day off."
     >
-      <Lbl>Days off</Lbl>
-      <div className="flex flex-wrap gap-3 mt-2 mb-4">
-        {[0, 1, 2, 3, 4, 5, 6].map((d) => (
-          <label key={d} className="flex items-center gap-1.5 text-[13px] text-etyme-ink">
-            <input type="checkbox" checked={draft.daysOff.includes(d)} disabled={!canEdit || busy} onChange={() => toggle(d)} />
-            {WEEKDAY_NAMES[d].slice(0, 3)}
-          </label>
-        ))}
-      </div>
-      <div className="grid sm:grid-cols-2 gap-4 mb-4">
-        <label className="block">
-          <Lbl>Hours due</Lbl>
-          <select
-            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-[13px] bg-etyme-raised"
+      <fieldset>
+        <legend><Lbl>Days off</Lbl></legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2 mb-5">
+          {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+            <Check
+              key={d}
+              label={WEEKDAY_NAMES[d].slice(0, 3)}
+              checked={draft.daysOff.includes(d)}
+              disabled={!canEdit || busy}
+              onChange={() => toggle(d)}
+            />
+          ))}
+        </div>
+      </fieldset>
+      <div className="grid sm:grid-cols-2 gap-4 mb-5">
+        <Field label="Hours due">
+          <Select
             value={draft.hoursDueWeekday}
             disabled={!canEdit || busy}
             onChange={(e) => setDraft({ ...draft, hoursDueWeekday: Number(e.target.value) })}
           >
             {weekdays.map((d) => <option key={d} value={d}>{WEEKDAY_NAMES[d]} after the week ends</option>)}
-          </select>
-        </label>
-        <label className="block">
-          <Lbl>Approved by</Lbl>
-          <select
-            className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-[13px] bg-etyme-raised"
+          </Select>
+        </Field>
+        <Field label="Approved by">
+          <Select
             value={draft.approveByWeekday}
             disabled={!canEdit || busy}
             onChange={(e) => setDraft({ ...draft, approveByWeekday: Number(e.target.value) })}
           >
             {weekdays.map((d) => <option key={d} value={d}>{WEEKDAY_NAMES[d]} after the week ends</option>)}
-          </select>
-        </label>
+          </Select>
+        </Field>
       </div>
-      <label className="flex items-center gap-2 text-[13px] text-etyme-ink mb-4">
-        <input
-          type="checkbox"
-          checked={draft.approvalExtraWeeks === 1}
-          disabled={!canEdit || busy}
-          onChange={(e) => setDraft({ ...draft, approvalExtraWeeks: e.target.checked ? 1 : 0 })}
-        />
-        Give approvers one extra week
-      </label>
-      {err && <p className="text-[13px] text-etyme-attention mb-3">{err}</p>}
-      {note && <p className="text-[13px] text-etyme-verified mb-3">{note}</p>}
+      <Check
+        className="mb-5"
+        label="Give approvers one extra week"
+        checked={draft.approvalExtraWeeks === 1}
+        disabled={!canEdit || busy}
+        onChange={(e) => setDraft({ ...draft, approvalExtraWeeks: e.target.checked ? 1 : 0 })}
+      />
+      {(err || note) && (
+        <div className="mb-3">
+          {err && <FormMessage tone="error">{err}</FormMessage>}
+          {note && <FormMessage tone="ok">{note}</FormMessage>}
+        </div>
+      )}
       {canEdit && (
-        <button
-          onClick={save}
-          disabled={busy || !changed}
-          className="px-3 py-1.5 rounded text-[13px] bg-etyme-action text-white disabled:opacity-50"
-        >
+        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed}>
           Save your week
-        </button>
+        </SubmitButton>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>

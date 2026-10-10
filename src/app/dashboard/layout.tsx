@@ -3,6 +3,7 @@ import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
 import { SessionProvider, type SessionSeat } from '@/components/session-provider'
 import { DemoBanner } from '@/components/demo-banner'
+import { SectionPills } from '@/components/shell/section-pills'
 import { SetupReminder } from '@/components/setup-reminder'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { deniedFor, type Denied } from '@/lib/denied'
@@ -229,6 +230,17 @@ export default async function DashboardLayout({
   return (
     <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek}>
       <div className="min-h-screen flex bg-etyme-canvas">
+        {/* The first Tab on every page goes past the menu to the page
+            itself, so a keyboard reader does not walk forty links to
+            reach the work. Invisible until focused. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50
+                     focus:rounded-nav focus:bg-etyme-raised focus:px-3 focus:py-2 focus:text-[13px]
+                     focus:text-etyme-ink focus:shadow-float"
+        >
+          Skip to the page
+        </a>
         {/* Sidebar — the rail, from md up. Below that the same navigation
             slides in from the ☰ in the header (components/shell/mobile-nav). */}
         <div className="hidden md:block">
@@ -251,10 +263,15 @@ export default async function DashboardLayout({
               page with one element wider than a phone clips that element
               rather than making the whole screen — header, ☰, the lot —
               scroll sideways, which is what every phone screenshot showed. */}
-          <main className="flex-1 overflow-x-clip p-4 sm:p-6 md:p-8">
+          <main className="flex-1 overflow-x-clip px-4 pt-4 pb-10 sm:px-6 sm:pt-6 md:px-10 md:pt-8 focus:outline-none" id="main" tabIndex={-1}>
             <div className="max-w-[1200px] mx-auto">
               {/* One line while setup has steps owed; silent otherwise. */}
               <SetupReminder />
+              {/* On a phone, the pages beside this one, in the page's own
+                  flow so they never cover it. Nothing from md up. */}
+              <Suspense>
+                <SectionPills />
+              </Suspense>
               <Suspense>
                 {children}
               </Suspense>

@@ -368,11 +368,17 @@ function initials(name: string | undefined): string {
  *  bar uses it, so none of them can open off the edge of a phone. */
 const DROPDOWN =
   'absolute inset-x-3 top-12 md:inset-x-auto md:right-0 md:top-10 ' +
-  'bg-etyme-raised rounded-lg shadow-lg border border-etyme-rule overflow-hidden z-50'
+  'bg-etyme-raised rounded-r-lg shadow-float border border-etyme-rule overflow-hidden z-50 ' +
+  'motion-safe:animate-fade-in'
 
 const ICON_BUTTON =
-  'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-md flex items-center justify-center ' +
-  'transition-colors hover:bg-etyme-canvas'
+  'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center ' +
+  'transition-colors hover:bg-etyme-sunk hover:text-etyme-ink'
+
+/** One row in any of this bar's menus. */
+const MENU_ROW =
+  'w-full text-left px-3 py-2 text-[13px] text-etyme-ink transition-colors ' +
+  'hover:bg-etyme-surface focus-visible:bg-etyme-surface'
 
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
@@ -513,7 +519,7 @@ export function Header({ title }: HeaderProps) {
 
   /** The same list under either search box. */
   const results = showSearchResults && (
-    <div className="bg-white rounded-lg shadow-lg border border-etyme-rule overflow-hidden">
+    <div className="bg-etyme-raised rounded-r-lg shadow-float border border-etyme-rule overflow-hidden">
       {searchResults.length === 0 ? (
         <div className="px-4 py-3 text-[13px] text-etyme-muted">
           No results for &ldquo;{searchQuery}&rdquo;
@@ -527,8 +533,7 @@ export function Header({ title }: HeaderProps) {
             <button
               key={r.href + r.label}
               onClick={() => navigateTo(r.href)}
-              className="w-full text-left px-3 py-2 text-[13px] text-etyme-ink
-                         hover:bg-etyme-canvas transition-colors flex items-center gap-2"
+              className={`${MENU_ROW} flex items-center gap-2`}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
@@ -547,7 +552,7 @@ export function Header({ title }: HeaderProps) {
   )
 
   return (
-    <header className="sticky top-0 z-30 bg-etyme-canvas/95 backdrop-blur-sm border-b border-etyme-rule">
+    <header className="sticky top-0 z-30 bg-etyme-canvas/90 backdrop-blur-md border-b border-etyme-rule">
       {/* relative: the phone dropdowns hang from this row. */}
       <div className="relative h-14 px-4 md:px-6 flex items-center gap-2 md:gap-4">
         {/* ☰ — the navigation, below md. Renders nothing from md up. */}
@@ -580,6 +585,29 @@ export function Header({ title }: HeaderProps) {
           </span>
         </Link>
 
+        {/* Whose desk this is, from lg up: the company, and the seat the
+            reader holds there — the prototype's header, beside the rail
+            that carries the logo. A program office acting at a client's
+            desk reads whose desk it is, because every list below is the
+            client's book (CLAUDE.md, "Etyme runs the program"). Not at
+            768: beside the search box the name was squeezed to nothing,
+            and the rail already names the company there. */}
+        <div className="hidden lg:flex items-center gap-2 min-w-0 text-[13px]">
+          {demoChip}
+          <span className="font-medium text-etyme-ink truncate max-w-[16rem]">
+            {company?.name ?? person?.name ?? ''}
+          </span>
+          {(desk.seatedAtClient || roleName || contextType === 'CONSULTANT') && (
+            <>
+              <span aria-hidden="true" className="text-etyme-rule">/</span>
+              <span className="text-etyme-muted truncate max-w-[18rem]">
+                {contextType === 'CONSULTANT' ? 'Consultant' : roleName}
+                {desk.seatedAtClient ? `${roleName ? ' at ' : 'At '}${desk.seatedAtClient}` : ''}
+              </span>
+            </>
+          )}
+        </div>
+
         {/* Page title */}
         {title && (
           <h1 className="hidden md:block text-[15px] font-semibold text-etyme-ink truncate">
@@ -596,20 +624,26 @@ export function Header({ title }: HeaderProps) {
           <input
             type="text"
             ref={searchInputRef}
-            placeholder="Search… ⌘K"
+            placeholder="Search pages"
+            aria-label="Search pages"
+            aria-keyshortcuts="Meta+K Control+K"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-56 h-8 pl-8 pr-3 rounded-md text-[13px]
+            className="w-56 lg:w-64 h-8 pl-8 pr-10 rounded-nav text-[13px]
                        bg-etyme-surface border border-etyme-rule
                        text-etyme-ink placeholder:text-etyme-faint
-                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                       focus:border-etyme-action/40 transition-all"
+                       focus:outline-none focus:bg-etyme-raised focus:border-etyme-action
+                       focus:shadow-[0_0_0_3px_var(--violet-wash)] transition-all"
             onFocus={() => setSearchFocused(true)}
             onKeyDown={onSearchKey}
           />
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-etyme-faint">
+          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-etyme-faint">
             {searchIcon}
           </span>
+          <kbd aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2
+                         rounded-box border border-etyme-rule bg-etyme-raised px-1 text-[10.5px] leading-[16px] text-etyme-faint">
+            ⌘K
+          </kbd>
 
           {/* Search results dropdown */}
           {showSearchResults && (
@@ -649,11 +683,11 @@ export function Header({ title }: HeaderProps) {
         <div className="md:relative" ref={plusRef}>
           <button
             onClick={() => setPlusOpen(!plusOpen)}
-            className={`h-9 w-9 sm:h-8 sm:w-auto sm:px-3 shrink-0 rounded-md text-[13px] font-medium
+            className={`h-9 w-9 sm:h-8 sm:w-auto sm:px-3 shrink-0 rounded-nav text-[13px] font-medium
                        bg-etyme-action text-white
-                       hover:bg-etyme-action/90 transition-colors
+                       hover:bg-etyme-action-hover active:bg-etyme-action-down transition-colors
                        flex items-center justify-center gap-1.5
-                       ${plusOpen ? 'ring-2 ring-etyme-action/30' : ''}`}
+                       ${plusOpen ? 'bg-etyme-action-hover' : ''}`}
             title="Add new"
             aria-label="Add new"
             aria-haspopup="menu"
@@ -679,14 +713,13 @@ export function Header({ title }: HeaderProps) {
                     <button
                       key={item.href + item.label}
                       onClick={() => navigateTo(item.href)}
-                      className="w-full text-left px-3 py-2 hover:bg-etyme-canvas
-                                 transition-colors group"
+                      className={`${MENU_ROW} group`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-[13px] text-etyme-muted w-4 text-center flex-shrink-0">
                           {item.icon}
                         </span>
-                        <span className="text-[13px] font-medium text-etyme-ink group-hover:text-etyme-action">
+                        <span className="text-[13px] font-medium text-etyme-ink group-hover:text-etyme-action-press">
                           {item.label}
                         </span>
                       </div>
@@ -712,9 +745,9 @@ export function Header({ title }: HeaderProps) {
             aria-haspopup="menu"
             aria-expanded={accountOpen}
             aria-label="Account"
-            className="w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-full bg-etyme-action/10 text-etyme-action
-                       text-[11px] font-bold flex items-center justify-center
-                       hover:bg-etyme-action/20 transition-colors"
+            className="w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-full bg-etyme-action-wash text-etyme-action-press
+                       border border-etyme-action-line text-[11px] font-semibold flex items-center justify-center
+                       hover:bg-etyme-action-line/60 transition-colors"
             title={person?.name ? `${person.name}${company ? ` · ${company.name}` : ''}` : undefined}
           >
             {initials(person?.name)}
@@ -745,8 +778,7 @@ export function Header({ title }: HeaderProps) {
               {mayOpen('/dashboard/settings', permissions) && (
                 <button
                   onClick={() => { setAccountOpen(false); router.push('/dashboard/settings') }}
-                  className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
-                             hover:bg-etyme-canvas transition-colors"
+                  className={`${MENU_ROW} px-4 py-2.5`}
                 >
                   Settings
                 </button>
@@ -754,8 +786,7 @@ export function Header({ title }: HeaderProps) {
               {mayOpen('/dashboard/access', permissions) && (
                 <button
                   onClick={() => { setAccountOpen(false); router.push('/dashboard/access') }}
-                  className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
-                             hover:bg-etyme-canvas transition-colors"
+                  className={`${MENU_ROW} px-4 py-2.5`}
                 >
                   Users &amp; permissions
                 </button>
@@ -764,7 +795,7 @@ export function Header({ title }: HeaderProps) {
               <button
                 onClick={() => { setAccountOpen(false); void signOutEverywhere() }}
                 className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-attention
-                           hover:bg-etyme-canvas transition-colors border-t border-etyme-rule"
+                           hover:bg-etyme-surface transition-colors border-t border-etyme-rule"
               >
                 Sign out
               </button>
@@ -786,13 +817,14 @@ export function Header({ title }: HeaderProps) {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onKeyDown={onSearchKey}
-              className="w-full h-10 pl-9 pr-3 rounded-md text-[15px]
-                         bg-etyme-surface border border-etyme-rule
+              aria-label="Search pages"
+              className="w-full h-10 pl-9 pr-3 rounded-nav text-[16px]
+                         bg-etyme-raised border border-etyme-rule
                          text-etyme-ink placeholder:text-etyme-faint
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20
-                         focus:border-etyme-action/40"
+                         focus:outline-none focus:border-etyme-action
+                         focus:shadow-[0_0_0_3px_var(--violet-wash)]"
             />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-etyme-faint">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-etyme-faint">
               {searchIcon}
             </span>
           </div>

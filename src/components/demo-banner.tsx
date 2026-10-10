@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { DemoChip } from '@/components/shell/demo-chip'
 
 /**
  * Says demo, on every screen, without apologizing for it.
@@ -37,22 +38,33 @@ export function DemoBanner() {
     window.location.href = '/dashboard'
   }
 
+  // Quiet, on purpose: one line on the surface, the same small chip the
+  // company's name carries, and the way to start again. It is said on
+  // every screen, so it must not read as something gone wrong — an
+  // alarm that never stops is an alarm nobody hears.
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-etyme-rule bg-etyme-attention/10 px-4 py-2">
-      <p className="text-[12px] text-etyme-ink">
-        <span className="font-semibold">Demo.</span> Every number here is made up —{' '}
-        {demo.companyName} does not exist. Break it however you like.
-        {demo.daysLeft !== null && (
-          <span className="text-etyme-muted">
-            {' '}
-            This copy is deleted in {demo.daysLeft} day{demo.daysLeft === 1 ? '' : 's'}.
-          </span>
-        )}
+    <div
+      role="note"
+      aria-label="Demo"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-etyme-rule bg-etyme-surface px-4 py-1.5 md:px-6"
+    >
+      <p className="flex min-w-0 flex-1 items-center gap-2 text-[12px] text-etyme-muted">
+        <DemoChip />
+        <span className="min-w-0">
+          Every number here is made up — {demo.companyName} does not exist. Break it however you like.
+          {demo.daysLeft !== null && (
+            <span className="text-etyme-faint">
+              {' '}
+              This copy is deleted in {demo.daysLeft} day{demo.daysLeft === 1 ? '' : 's'}.
+            </span>
+          )}
+        </span>
       </p>
       <button
+        type="button"
         onClick={startAgain}
         disabled={busy}
-        className="shrink-0 text-[12px] font-medium text-etyme-action hover:underline disabled:opacity-50"
+        className="shrink-0 rounded-nav px-1.5 py-0.5 text-[12px] font-medium text-etyme-action-press hover:bg-etyme-action-wash disabled:opacity-50"
       >
         {busy ? 'Building a fresh one…' : 'Start again with clean data'}
       </button>

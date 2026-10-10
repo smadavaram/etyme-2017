@@ -180,7 +180,7 @@
     font-size: 10px;
     font-weight: 600;
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: var(--r-chip);
     letter-spacing: 0.04em;
     white-space: nowrap;
   }
@@ -240,27 +240,61 @@
     white-space: nowrap;
   }
 
-  /* Working-surface table — from onboarding prototype .tbl */
+  /* Working-surface table — from onboarding prototype .tbl.
+     The head sticks to the top of the table's own scroll box, so the
+     column names stay in view while two hundred rows scroll under them.
+     Its fill is the surface the rows sit on, or the rows would show
+     through it. */
   .data-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-surface);
     text-align: left;
     font-size: 10px;
     letter-spacing: 0.13em;
     text-transform: uppercase;
     color: var(--color-faint);
     font-weight: 600;
-    padding: 9px 10px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--color-rule);
     white-space: nowrap;
   }
 
   .data-table td {
-    padding: 9px 10px;
+    padding: 8px 12px;
     border-bottom: 1px solid #EDE9DF; /* lighter than rule — prototype pattern */
     vertical-align: middle;
+    font-variant-numeric: tabular-nums;
   }
 
-  .data-table tr:last-child td {
+  .data-table tbody tr:last-child td {
     border-bottom: none;
+  }
+
+  .data-table tbody tr {
+    transition: background var(--t-fast) var(--ease);
+  }
+
+  .data-table tbody tr:hover {
+    background: var(--color-raised);
+  }
+
+  /* A row that opens something is reached by Tab like a link, and says
+     so with the same ring every other control draws. */
+  .data-table tbody tr:focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: -2px;
+    background: var(--color-raised);
+  }
+
+  /* A header that sorts is a button, so it is reached by Tab and pressed
+     by Enter; it reads as the heading it sits in. */
+  .data-table th button {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
   }
 
   /* Filter tab — the bold pill-shaped tab from prototypes */
@@ -310,6 +344,13 @@
     background: var(--violet-press);
   }
 
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-quiet:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .btn-secondary {
     font-size: 13px;
     padding: 9px 16px;
@@ -321,6 +362,65 @@
 
   .btn-secondary:hover {
     background: var(--color-surface);
+  }
+
+  /* Quiet — a text button for the third action on a row: Cancel, Clear,
+     Show more. The deep violet, because it is small text. */
+  .btn-quiet {
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: var(--r-nav);
+    color: var(--color-action);
+    transition: background var(--t-fast) var(--ease);
+  }
+
+  .btn-quiet:hover {
+    background: var(--violet-wash);
+  }
+
+  /* One input, everywhere. Raised on the cream ground, the rule for a
+     border, and the brand ring on focus — a halo, not a second border. */
+  .input {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--color-ink);
+    background: var(--color-raised);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--r);
+    transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  }
+
+  .input::placeholder {
+    color: var(--color-faint);
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--violet);
+    box-shadow: 0 0 0 3px var(--violet-wash);
+  }
+
+  .input:disabled {
+    background: var(--color-surface);
+    color: var(--color-muted);
+    cursor: not-allowed;
+  }
+
+  .input[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  .input[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px var(--danger-wash);
+  }
+
+  /* On a phone an input under 16px makes the browser zoom the page on
+     focus, and the page does not zoom back. */
+  @media (max-width: 639px) {
+    .input { font-size: 16px; }
   }
 
   /* Head — page heading from prototype Head component */

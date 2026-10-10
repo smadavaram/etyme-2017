@@ -166,6 +166,8 @@ export default function ContactsPage() {
 
           <ListSurface<any>
             name="contacts-people"
+            // The page searches for itself, in the box above both lists.
+            searchable={false}
             defaultView="feed"
             columns={PEOPLE_COLUMNS}
             data={people}
@@ -215,6 +217,7 @@ export default function ContactsPage() {
         <>
           <ListSurface<any>
             name="contacts-companies"
+            searchable={false}
             defaultView="feed"
             columns={COMPANY_COLUMNS}
             data={reg.rows.filter((r: any) => !q || r.otherCompanyName.toLowerCase().includes(q.toLowerCase()))}

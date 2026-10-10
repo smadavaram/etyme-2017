@@ -8,7 +8,8 @@ import { readJson } from '@/lib/read-response'
 import { saveForm } from '@/lib/form-save'
 import { refusalSentence } from '@/lib/refusal-words'
 import { useSession } from '@/components/session-provider'
-import { usePageSection } from '@/components/page-section'
+import { DetailHead } from '@/components/ui/detail-head'
+import { LoadingState, RefusedState } from '@/components/ui/states'
 import { isDeskless } from '@/lib/nav-table'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { CoverChip, SubVendorCover } from '@/components/cover-standing'
@@ -563,7 +564,6 @@ export default function PlacementPage() {
   const parent = isDeskless(session.permissions) && session.isWorker
     ? ({ href: '/dashboard/my-work', label: 'Your work' } as const)
     : ({ href: '/dashboard/contracts', label: 'Contracts' } as const)
-  const section = usePageSection(parent.href)
 
   useEffect(() => {
     let live = true
@@ -585,17 +585,9 @@ export default function PlacementPage() {
   }, [id, session.company?.kind, session.company?.name])
 
   // A refusal is the page: its sentence alone (round six, problem 12).
-  if (error) return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
+  if (error) return <RefusedState says={error} />
 
-  if (!p) {
-    return (
-      <div className="animate-fade-in">
-        <div className="panel py-16 text-center">
-          <p className="text-body-sm text-etyme-muted">Opening the placement…</p>
-        </div>
-      </div>
-    )
-  }
+  if (!p) return <LoadingState says="Opening the placement…" />
 
   const where = p.endClient ?? p.client
   const chainLine = p.chain.weEmployThem
@@ -604,40 +596,41 @@ export default function PlacementPage() {
 
   return (
     <div className="animate-fade-in max-w-3xl">
-      <div className="mb-6">
-        <Link href={parent.href} className="text-[12px] text-etyme-action hover:underline">
-          ← {parent.label}
-        </Link>
-      </div>
-
       {/* ── Who, where, and how it stands ── */}
-      <div className="panel mb-8">
-        {section && <div className="eyebrow mb-2">{section}</div>}
-        <h1 className="headline-serif text-heading text-etyme-ink">{p.person.name}</h1>
-        <p className="mt-2 text-[14px] leading-relaxed text-etyme-muted">
-          {p.origin?.title ?? 'Placement'} at {where.name}
-          {p.person.location ? ` · ${p.person.location}` : ''}
-          {p.startSays ? ` · ${p.startSays}` : ''}
-        </p>
+      <DetailHead
+        from={parent.href}
+        back={parent}
+        title={p.person.name}
+        subtitle={
+          <>
+            {p.origin?.title ?? 'Placement'} at {where.name}
+            {p.person.location ? ` · ${p.person.location}` : ''}
+            {p.startSays ? ` · ${p.startSays}` : ''}
+          </>
+        }
+        meta={
+          <>
+            <span className={`chip ${tone(p.state)}`}>{words(p.state)}</span>
+            {p.person.skills.slice(0, 4).map((s) => (
+              <span key={s} className="chip chip--passive">{s}</span>
+            ))}
+          </>
+        }
+      >
         {/* A line booked past the person's time limit, said once and
             with what to do (runsPastSentence in lib/tenure-days). */}
         {p.runsPast && (
           <p className="mt-2 text-[13px] leading-relaxed text-etyme-attention">{p.runsPast}</p>
         )}
+      </DetailHead>
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <span className={`chip ${tone(p.state)}`}>{words(p.state)}</span>
-          {p.person.skills.slice(0, 4).map((s) => (
-            <span key={s} className="chip chip--passive">{s}</span>
-          ))}
-        </div>
-
+      <div className="panel mb-8 !py-5">
         {/* What a client is shown, and what it is not.
             A buyer sees the rate it pays and the hours it approved. What
             the supplier pays underneath, and what it keeps, is the
             supplier's business — showing a buyer an empty "Paying" column
             invites exactly the question the column cannot answer. */}
-        <div className="mt-6 grid grid-cols-1 gap-6 border-t border-etyme-rule pt-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* A client reading a leg its own supplier arranged does not
               pay it, and "You pay —" invites the one question the
               column cannot answer. */}

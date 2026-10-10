@@ -23,7 +23,7 @@ export function DeniedScreen({ denied }: { denied: Denied }) {
     <div className="min-h-screen bg-etyme-canvas flex flex-col">
       {/* The mark, and nothing else in the header. Enough to say which
           product refused them; not a shell they cannot use. */}
-      <div className="px-6 py-5 border-b border-etyme-rule">
+      <div className="px-6 h-14 flex items-center border-b border-etyme-rule">
         <Link href="/" className="inline-block">
           <EtymeLogo size="md" />
         </Link>
@@ -31,13 +31,10 @@ export function DeniedScreen({ denied }: { denied: Denied }) {
 
       <main className="flex-1 flex items-start justify-center px-6 py-16 sm:py-24">
         <div className="max-w-xl w-full">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-etyme-faint mb-3">
+          <p className="eyebrow mb-3">
             Not open to you
           </p>
-          <h1
-            className="font-serif text-etyme-ink text-3xl sm:text-4xl mb-5"
-            style={{ letterSpacing: '-0.02em', textWrap: 'balance' }}
-          >
+          <h1 className="headline-serif text-etyme-ink text-[30px] leading-[1.12] sm:text-[38px] mb-5">
             {denied.heading}
           </h1>
           <p className="text-etyme-muted leading-relaxed text-[15px]">{denied.says}</p>
@@ -46,7 +43,7 @@ export function DeniedScreen({ denied }: { denied: Denied }) {
             {primary && (
               <Link
                 href={primary.href as any}
-                className="inline-flex items-center rounded-md bg-etyme-action px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="btn-primary inline-flex items-center"
               >
                 {primary.label}
               </Link>
@@ -55,7 +52,7 @@ export function DeniedScreen({ denied }: { denied: Denied }) {
               <Link
                 key={d.href}
                 href={d.href as any}
-                className="inline-flex items-center rounded-md border border-etyme-rule bg-etyme-surface px-4 py-2 text-sm text-etyme-ink hover:bg-etyme-raised"
+                className="btn-secondary inline-flex items-center text-etyme-ink"
               >
                 {d.label}
               </Link>

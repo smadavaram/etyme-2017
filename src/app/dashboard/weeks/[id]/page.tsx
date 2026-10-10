@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
-import { usePageSection } from '@/components/page-section'
+import { DetailHead } from '@/components/ui/detail-head'
+import { LoadingState, RefusedState } from '@/components/ui/states'
 import { isDeskless } from '@/lib/nav-table'
 
 /**
@@ -76,9 +77,9 @@ export default function WeekPage() {
   // 6): a worker with no desk opens a week from Your work, everybody
   // else from Timesheets.
   const session = useSession()
-  const section = usePageSection(
-    isDeskless(session.permissions) && session.isWorker ? '/dashboard/my-work' : '/dashboard/timesheets'
-  )
+  const parent = isDeskless(session.permissions) && session.isWorker
+    ? { href: '/dashboard/my-work', label: 'Your work' }
+    : { href: '/dashboard/timesheets', label: 'Timesheets' }
 
   const load = useCallback(async () => {
     try {
@@ -132,20 +133,23 @@ export default function WeekPage() {
   }
 
   // A refusal is the page: its sentence alone (round six, problem 12).
-  if (error) return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
-  if (!seen) return <p className="text-[13px] text-etyme-muted">Loading the week…</p>
+  if (error) return <RefusedState says={error} />
+  if (!seen) return <LoadingState says="Opening the week…" />
 
   const w = seen.week
   return (
-    <div className="mx-auto max-w-[760px] space-y-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif mt-2 text-[30px] leading-[1.1] text-balance">{w.personName}, {w.period}</h1>
-        <p className="mt-2 text-[14px] text-etyme-muted">
-          <span className="tabular-nums">{w.totalHours}</span> hours at {w.clientName} ·{' '}
-          {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? `approved by ${w.clientName}; the firms below accept it in turn` : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
-        </p>
-      </header>
+    <div className="mx-auto max-w-[760px] space-y-5">
+      <DetailHead
+        from={parent.href}
+        back={parent}
+        title={<>{w.personName}, {w.period}</>}
+        subtitle={
+          <>
+            <span className="tabular-nums">{w.totalHours}</span> hours at {w.clientName} ·{' '}
+            {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? `approved by ${w.clientName}; the firms below accept it in turn` : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
+          </>
+        }
+      />
 
       {/* Who signed, top first, and why a flagged week was signed anyway —
           the reason only to the signing firm and the firm below it. */}

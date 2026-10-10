@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { DataTable, type Column, type DataTableProps } from '@/components/data-table'
+import { DataTable, defaultSearch, type Column, type DataTableProps } from '@/components/data-table'
 import { ViewToggle, type View } from '@/components/network-view'
+import { EmptyState, LoadingState, RefusedState } from '@/components/ui/states'
 
 export type { Column } from '@/components/data-table'
 
@@ -18,6 +19,10 @@ export type { Column } from '@/components/data-table'
  * the card's title, the second its subtitle, the rest its lines — so a
  * page describes its rows once. A page with a richer card passes one.
  * The choice is remembered per list, on this device.
+ *
+ * Both views share one toolbar: the search on the left, the switch at
+ * the right end, and the filter chips in their own row under it. A
+ * reader who switches views finds every control where it was.
  */
 export interface ListSurfaceProps<T> extends DataTableProps<T> {
   /** Remembers the view under this name; defaults to exportName. */
@@ -55,30 +60,33 @@ export function ListSurface<T extends Record<string, any>>(props: ListSurfacePro
     onView?.(v)
     try { window.localStorage.setItem(key, v) } catch {}
   }
+  const toggle = <ViewToggle view={view} onChange={choose} />
 
   return (
     <div className={table.className}>
-      <div className="mb-3 flex justify-end">
-        <ViewToggle view={view} onChange={choose} />
-      </div>
       {view === 'table'
-        ? <DataTable {...table} className="" />
-        : <Feed {...table} card={card} feedOmit={feedOmit} />}
+        ? <DataTable {...table} className="" toolbarEnd={toggle} />
+        : <Feed {...table} card={card} feedOmit={feedOmit} toolbarEnd={toggle} />}
     </div>
   )
 }
 
 function Feed<T extends Record<string, any>>({
-  columns, data, rowKey, searchPlaceholder = 'Search…', searchFilter, emptyMessage = 'Nothing here.', emptyDetail,
-  onRowClick, loading, error, filters, rowClassName, card, feedOmit,
+  columns, data, rowKey, searchPlaceholder = 'Search…', searchFilter, searchable = true,
+  emptyMessage = 'Nothing here yet.', emptyDetail, emptyAction,
+  onRowClick, loading, loadingMessage, error, filters, rowClassName, card, feedOmit, toolbarEnd,
 }: DataTableProps<T> & { card?: (row: T) => ReactNode; feedOmit: string[] }) {
   const [query, setQuery] = useState('')
   const [shown, setShown] = useState(50)
+  const matches = useMemo(
+    () => (searchable ? searchFilter ?? defaultSearch(columns) : null),
+    [searchable, searchFilter, columns]
+  )
   const rows = useMemo(() => {
-    if (!query.trim() || !searchFilter) return data
+    if (!query.trim() || !matches) return data
     const q = query.trim().toLowerCase()
-    return data.filter((r) => searchFilter(r, q))
-  }, [data, query, searchFilter])
+    return data.filter((r) => matches(r, q))
+  }, [data, query, matches])
   const shape = useMemo(() => {
     // An action column — buttons, an unlabeled tail — has no place on a
     // card; the card is for reading, the row's own page is for acting.
@@ -92,37 +100,51 @@ function Feed<T extends Record<string, any>>({
     return v == null ? null : Array.isArray(v) ? v.join(', ') : String(v)
   }
 
+  // The same three states the table draws, the same way.
+  if (error) return <RefusedState says={error} />
+  if (loading) return <LoadingState says={loadingMessage} />
+
   return (
     <div>
-      {(searchFilter || filters) && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          {searchFilter && (
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {matches && (
+          <div className="relative min-w-0 flex-1 basis-[220px] sm:max-w-[360px]">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-etyme-faint"
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
             <input
-              type="text" value={query} onChange={(e) => { setQuery(e.target.value); setShown(50) }} placeholder={searchPlaceholder}
-              className="w-full max-w-[360px] min-w-[200px] flex-1 rounded-md border border-etyme-rule bg-etyme-surface px-3 py-2 text-[13px] text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+              type="search" value={query} onChange={(e) => { setQuery(e.target.value); setShown(50) }}
+              placeholder={searchPlaceholder} aria-label={searchPlaceholder.replace(/…$/, '')}
+              className="input pl-9"
             />
-          )}
-          {filters}
-        </div>
+          </div>
+        )}
+        <div className="ml-auto flex items-center gap-2">{toolbarEnd}</div>
+      </div>
+      {filters && <div className="mb-3">{filters}</div>}
+
+      {rows.length === 0 && (
+        query.trim() && data.length > 0
+          ? <EmptyState says={`Nothing matches “${query.trim()}”.`} action={{ label: 'Clear the search', onClick: () => setQuery('') }} />
+          : <EmptyState says={emptyMessage} detail={emptyDetail} action={emptyAction} />
       )}
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
-      {error && <div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div>}
-      {!loading && !error && rows.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{emptyMessage}</p>
-          {emptyDetail && <p className="mt-1 text-[12px] text-etyme-faint">{emptyDetail}</p>}
-        </div>
-      )}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {rows.slice(0, shown).map((row, i) => (
           <article
             key={rowKey(row)}
             onClick={onRowClick ? () => onRowClick(row) : undefined}
-            className={`panel ${onRowClick ? 'cursor-pointer hover:border-etyme-action/40' : ''} ${rowClassName?.(row) ?? ''}`}
+            onKeyDown={onRowClick ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onRowClick(row) } } : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
+            className={`rounded-panel border border-etyme-rule bg-etyme-surface px-5 py-4 transition-shadow ${onRowClick ? 'cursor-pointer hover:shadow-lift hover:border-etyme-action-line' : ''} ${rowClassName?.(row) ?? ''}`}
           >
             {card ? card(row) : (
               <>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <div className="min-w-0 text-[15px] font-semibold text-etyme-ink">{cell(shape.title, row, i)}</div>
                   <div className="text-[13px] text-etyme-muted">{cell(shape.subtitle, row, i)}</div>
                 </div>
@@ -146,9 +168,12 @@ function Feed<T extends Record<string, any>>({
         ))}
       </div>
       {rows.length > shown && (
-        <button onClick={() => setShown((n) => n + 50)} className="mt-3 text-[12px] text-etyme-action hover:underline">
-          and {rows.length - shown} more
-        </button>
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-etyme-rule pt-3">
+          <p className="text-[12.5px] text-etyme-muted tabular-nums">Showing {shown} of {rows.length}</p>
+          <button type="button" onClick={() => setShown((n) => n + 50)} className="btn-secondary !py-1.5 !text-[12.5px]">
+            Show {Math.min(50, rows.length - shown)} more
+          </button>
+        </div>
       )}
     </div>
   )

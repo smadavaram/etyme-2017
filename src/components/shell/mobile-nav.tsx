@@ -76,11 +76,11 @@ export function MobileNav() {
               type="button"
               aria-label="Close menu"
               onClick={close}
-              className="absolute inset-0 w-full bg-etyme-ink/30 motion-safe:animate-fade-in"
+              className="absolute inset-0 w-full bg-etyme-ink/35 motion-safe:animate-fade-in"
             />
             <div
               className="absolute inset-y-0 left-0 w-[min(300px,85vw)] bg-etyme-surface
-                         border-r border-etyme-rule shadow-2xl motion-safe:animate-slide-in-left"
+                         border-r border-etyme-rule shadow-float motion-safe:animate-slide-in-left"
             >
               <Sidebar
                 {...sidebarPropsFrom(session)}
@@ -117,8 +117,8 @@ export function MobileNav() {
         // Only while the sheet exists; a reference to an id that is not
         // in the document is worse for a screen reader than none.
         aria-controls={open ? 'mobile-nav' : undefined}
-        className="md:hidden -ml-1.5 w-9 h-9 shrink-0 rounded-md flex items-center justify-center
-                   text-etyme-ink hover:bg-etyme-canvas transition-colors"
+        className="md:hidden -ml-1.5 w-10 h-10 shrink-0 rounded-nav flex items-center justify-center
+                   text-etyme-ink hover:bg-etyme-sunk transition-colors"
       >
         <svg
           width="18"
@@ -158,16 +158,16 @@ function Account({
         <button
           type="button"
           onClick={onSettings}
-          className="flex-1 h-9 rounded-md border border-etyme-rule bg-etyme-raised
-                     text-[13px] text-etyme-ink hover:bg-etyme-canvas transition-colors"
+          className="flex-1 h-10 rounded-nav border border-etyme-rule bg-etyme-raised
+                     text-[13px] text-etyme-ink hover:bg-etyme-sunk transition-colors"
         >
           Settings
         </button>
         <button
           type="button"
           onClick={onSignOut}
-          className="flex-1 h-9 rounded-md border border-etyme-rule bg-etyme-raised
-                     text-[13px] font-medium text-etyme-attention hover:bg-etyme-canvas transition-colors"
+          className="flex-1 h-10 rounded-nav border border-etyme-rule bg-etyme-raised
+                     text-[13px] font-medium text-etyme-attention hover:bg-etyme-sunk transition-colors"
         >
           Sign out
         </button>

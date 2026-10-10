@@ -108,7 +108,7 @@ export function Sidebar({
       className={
         sheet
           ? 'w-full h-full flex flex-col bg-etyme-surface'
-          : 'w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-etyme-surface border-r border-etyme-rule'
+          : 'w-[232px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-etyme-surface border-r border-etyme-rule'
       }
     >
       {/* Logo — the wordmark at 26px, the size every marketing header and
@@ -119,7 +119,7 @@ export function Sidebar({
           icon and a word where the logo should be. The founder read it as
           "the logo is missing". The mark stays in the phone header, beside
           the company's name, which is the sentence the kit meant. */}
-      <div className="px-5 py-5 flex items-center gap-2.5">
+      <div className="px-5 h-14 shrink-0 flex items-center gap-2.5">
         <Link href={dashboardHref as any} aria-label="Etyme home" className="flex items-center">
           <EtymeLogo size="md" />
         </Link>
@@ -128,8 +128,8 @@ export function Sidebar({
             type="button"
             onClick={onDismiss}
             aria-label="Close menu"
-            className="ml-auto -mr-2 w-9 h-9 rounded-md flex items-center justify-center
-                       text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas transition-colors"
+            className="ml-auto -mr-2 w-10 h-10 rounded-nav flex items-center justify-center
+                       text-etyme-muted hover:text-etyme-ink hover:bg-etyme-sunk transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -140,7 +140,7 @@ export function Sidebar({
       </div>
 
       {/* Nav sections */}
-      <nav ref={navRef} className="flex-1 overflow-y-auto px-3 pb-4">
+      <nav ref={navRef} aria-label="Main" className="flex-1 overflow-y-auto px-3 pb-4">
         {/* A worker who is also staff reads "You" last, after the firm's
             sections (CLAUDE.md: appended, never substituted). On a phone
             that was twenty links of the firm's before his own work
@@ -152,15 +152,15 @@ export function Sidebar({
             type="button"
             onClick={() => navRef.current?.querySelector<HTMLElement>('[data-section="You"]')
               ?.scrollIntoView?.({ block: 'start', behavior: 'smooth' })}
-            className={`mt-3 w-full text-left px-2.5 py-2 rounded-md text-etyme-action
-                        hover:bg-etyme-canvas transition-colors ${sheet ? 'text-[14px]' : 'text-[12.5px]'}`}
+            className={`mt-2 w-full text-left px-2.5 py-2 rounded-nav text-etyme-action-press
+                        hover:bg-etyme-action-wash transition-colors ${sheet ? 'text-[14px]' : 'text-[12.5px]'}`}
           >
             Your own pages ↓
           </button>
         )}
         {sections.map((section) => (
           <div key={section.label} className="mb-1" data-section={section.label}>
-            <div className="eyebrow px-2 pt-5 pb-1.5">
+            <div className="eyebrow px-2.5 pt-4 pb-1">
               {section.label}
             </div>
             {section.items.map((item, i) => {
@@ -175,8 +175,8 @@ export function Sidebar({
               return (
                 <div key={item.label}>
                   {showGroup && (
-                    <div className="px-2.5 pt-3 pb-1 text-[10px] font-medium uppercase
-                                    tracking-[0.06em] text-etyme-faint">
+                    <div className="px-2.5 pt-2.5 pb-0.5 text-[10.5px] font-medium
+                                    text-etyme-faint">
                       {item.group}
                     </div>
                   )}
@@ -186,22 +186,28 @@ export function Sidebar({
                     data-current={active ? 'true' : undefined}
                     aria-current={active ? 'page' : undefined}
                     className={`
-                      flex items-center gap-2.5 px-2.5 rounded-md
-                      ${sheet ? 'py-2.5 text-[14px]' : 'py-[7px] text-[13px]'}
-                      transition-colors
+                      relative flex items-center gap-2.5 px-2.5 rounded-nav
+                      ${sheet ? 'py-2.5 text-[14px]' : 'py-1.5 text-[13px]'}
+                      transition-colors duration-fast
                       ${active
-                        ? 'bg-etyme-canvas text-etyme-ink font-medium'
-                        : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas/60'
+                        ? 'bg-etyme-action-wash text-etyme-action-press font-medium'
+                        : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-sunk/70'
                       }
                     `}
                   >
-                    <span className="w-4 text-center text-[11px] opacity-60">
+                    {/* The active page is marked three ways — the fill, a bar
+                        at the left edge and aria-current — so it never rests
+                        on color alone. */}
+                    {active && (
+                      <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-pill bg-etyme-action" />
+                    )}
+                    <span aria-hidden="true" className={`w-4 text-center text-[11px] ${active ? 'opacity-90' : 'opacity-50'}`}>
                       {item.icon}
                     </span>
-                    <span>{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                     {item.badge !== undefined && (
                       <span className="ml-auto text-[10px] font-semibold text-etyme-attention
-                                       bg-etyme-attention/10 px-1.5 py-0.5 rounded-full tabular-nums">
+                                       bg-etyme-attention-wash px-1.5 py-0.5 rounded-pill tabular-nums">
                         {item.badge}
                       </span>
                     )}
@@ -214,18 +220,18 @@ export function Sidebar({
       </nav>
 
       {/* Bottom — company info */}
-      <div className="px-4 py-3 border-t border-etyme-rule">
+      <div className="px-5 py-3 border-t border-etyme-rule">
         {pending ? (
           <>
-            <div className="h-3 w-24 rounded bg-etyme-rule/60 animate-pulse" />
-            <div className="h-2.5 w-16 rounded bg-etyme-rule/40 animate-pulse mt-1.5" />
+            <div className="h-3 w-24 rounded bg-etyme-sunk motion-safe:animate-pulse" />
+            <div className="h-2.5 w-16 rounded bg-etyme-sunk/70 motion-safe:animate-pulse mt-1.5" />
           </>
         ) : (
           <>
             <div className="flex items-center gap-1.5 min-w-0">
               {/* In front of a made-up company's name, never a person's. */}
               {demo && companyName && <DemoChip />}
-              <div className="text-[11px] font-medium text-etyme-ink truncate">
+              <div className="text-[12px] font-medium text-etyme-ink truncate">
                 {/* A company, or the person themselves. This said
                     "Techpeple Inc." for anybody with no firm — a design
                     placeholder that survived into production and named a
@@ -234,7 +240,7 @@ export function Sidebar({
                 {companyName ?? personName ?? 'Your workspace'}
               </div>
             </div>
-            <div className="text-[10px] text-etyme-faint">
+            <div className="text-[11px] text-etyme-faint truncate">
               {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}
             </div>
           </>
