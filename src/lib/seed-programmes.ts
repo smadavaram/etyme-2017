@@ -1442,9 +1442,15 @@ export async function seedProgrammes(
         await db.workAssertion.createMany({
           data: [
             { timesheetId: dSheet.id, companyId: client.id, role: 'CLIENT_APPROVAL', hours: 40,
-              rateCents: d.rates[0], state: 'LIVE', byId: desk.hiring.personId },
+              rateCents: d.rates[0], state: 'LIVE', byId: desk.hiring.personId,
+              // Signed when the sheet says it was, never the seed's run
+              // time: payroll runs an hour after the last acceptance, and
+              // a run-time stamp lands after the cut-off before the world's
+              // birth, so the month's run is never written.
+              at: signingDays(dWs, weekDue).signedAt(0) },
             { timesheetId: dSheet.id, companyId: supplier.id, role: 'EMPLOYER_ACCEPTANCE', hours: 40,
-              rateCents: d.rates[1], state: 'LIVE', byId: supplierSeat.personId },
+              rateCents: d.rates[1], state: 'LIVE', byId: supplierSeat.personId,
+              at: signingDays(dWs, weekDue).signedAt(1) },
           ],
         })
       }

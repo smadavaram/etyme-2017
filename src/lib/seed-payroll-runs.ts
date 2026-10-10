@@ -68,9 +68,13 @@ const atHour = (d: Date, h: number) => new Date(d.getTime() + h * 3_600_000)
 
 /**
  * How far past a period's end its pay day may fall: the demo's monthly
- * pay day is month-end + 9 at the latest (`DEMO_MONTHLY_PAY`), moved back
- * off a weekend or holiday, never forward. The next month's pay day is
- * always past this, so a run completes its own period's pay day only.
+ * pay day is month-end + 9 (`DEMO_MONTHLY_PAY`) before any shift. A pay
+ * kind moves back off a weekend or holiday under the default policy
+ * (`lib/cycle-shift`, PAY before), so it lands on or before that bound;
+ * the hours and bill kinds move forward, and a company that sets its pay
+ * direction to after could push a pay day past this bound, which every
+ * seeded company leaves at the default. The next month's pay day is always
+ * past this, so a run completes its own period's pay day only.
  */
 const PAY_LAG_DAYS = Math.max(...DEMO_MONTHLY_PAY.filter((d) => d.kind === 'SALARY_PAY').map((d) => d.offsetDays ?? 0))
 
