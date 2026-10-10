@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { RefusedState, LoadingState, EmptyState, ErrorState } from '@/components/ui'
 import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -71,7 +72,7 @@ export default function MyStandingPage() {
   // A refusal is the whole answer: not drawn under a heading and a promise
   // about numbers the reader may not read (sign-up walk round five).
   if (error && !loading && cards.length === 0) {
-    return <p className="text-[14px] text-etyme-muted py-8">{error}</p>
+    return <RefusedState says={error} />
   }
 
   return (
@@ -88,20 +89,12 @@ export default function MyStandingPage() {
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Reading how your clients see you…" compact />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && cards.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            No client has sent you a job yet. Nothing to show.
-          </p>
-        </div>
+        <EmptyState says="No client has sent you a job yet. Nothing to show." />
       )}
 
       {cards.map((c) => (

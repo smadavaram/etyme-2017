@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
+import { FilterChips } from '@/components/ui'
 import { NO_WEEKS_SAYS } from '@/app/api/alumni/hours-on-record'
 
 /**
@@ -345,17 +346,12 @@ export default function AlumniPage() {
         emptyDetail={data?.says ?? 'Alumni appear once a person has had at least one contract at this client.'}
         exportName={`alumni-${data?.client.name ?? 'export'}`}
         filters={
-          <div className="flex flex-wrap gap-1.5">
-            {FILTERS.map(f => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`filter-tab ${filter === f.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-              >
-                {f.label} ({f.count})
-              </button>
-            ))}
-          </div>
+          <FilterChips<StateFilter>
+            label="Which past contractors"
+            options={FILTERS}
+            value={filter}
+            onChange={setFilter}
+          />
         }
         rowClassName={(row) =>
           row.state === 'available' ? '!bg-[#EDEFFC]/30' : ''

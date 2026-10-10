@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { Lbl, Chip, LoadingState, ErrorState } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 import { amount, compact, rate as fmtRate } from '@/lib/money-display'
@@ -110,22 +111,7 @@ interface Timesheet {
   state?: { word: string; tone: 'verified' | 'attention' | 'action' | 'passive' }
 }
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
 
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
-}
 
 /**
  * The interviews they have been offered, and the buttons to answer them.
@@ -1106,11 +1092,10 @@ export default function MyWorkPage() {
     await load()
   }
 
-  if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  if (loading) return <LoadingState says="Opening your work…" />
   if (error) return (
-    <div className="max-w-2xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-      <div className="text-etyme-attention font-medium">{error}</div>
-      <button onClick={() => load()} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+    <div className="max-w-2xl">
+      <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />
     </div>
   )
   if (!data) return null

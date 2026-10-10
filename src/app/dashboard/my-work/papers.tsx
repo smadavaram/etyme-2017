@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
+import { Chip } from '@/components/ui'
 import {
   paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS,
   type PaperRow,
@@ -48,18 +49,6 @@ import {
  * where she names a document nobody wants.
  */
 
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
-}
 
 function toneFor(r: PaperRow): 'attention' | 'verified' | 'action' | 'passive' {
   if (r.kind === 'OWED') return r.waived ? 'passive' : (r.stopsWork ? 'attention' : 'action')

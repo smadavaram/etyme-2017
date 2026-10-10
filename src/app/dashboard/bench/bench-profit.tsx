@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
 import { amount } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -335,12 +336,3 @@ export function BenchProfit() {
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'verified' | 'attention' }) {
-  const color = tone === 'verified' ? 'text-etyme-verified' : tone === 'attention' ? 'text-etyme-attention' : 'text-etyme-ink'
-  return (
-    <div className="panel py-3 px-4">
-      <div className="stat-label text-[9px] mb-1">{label}</div>
-      <div className={`text-xl font-serif font-medium tabular-nums ${color}`}>{value}</div>
-    </div>
-  )
-}

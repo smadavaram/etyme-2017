@@ -6,6 +6,7 @@ import { readBench } from '@/lib/bench-filter'
 import { skillGap, fieldable, type SkillGapReading } from '@/lib/training'
 import { amount } from '@/lib/money-display'
 import { usePageSection } from '@/components/page-section'
+import { RefusedState, LoadingState } from '@/components/ui'
 
 /**
  * Training funnel — Talent section (vendor)
@@ -144,14 +145,12 @@ export default function TrainingPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   if (loading) {
     return (
-      <div className="animate-fade-in py-20 text-center text-etyme-muted">
-        Loading training data…
-      </div>
+      <LoadingState says="Opening training…" />
     )
   }
 

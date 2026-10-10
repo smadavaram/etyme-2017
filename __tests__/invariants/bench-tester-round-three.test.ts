@@ -107,10 +107,12 @@ describe('4.4 · “What we need” sits at the top of Partner bench', () => {
     const panel = src('src/app/dashboard/bench/what-we-need.tsx')
     expect(panel).toContain("fetch('/api/bench/wants')")
     expect(panel).toContain('What we need')
-    // Every box has a label.
-    for (const id of ['want-skills', 'want-places', 'want-min', 'want-max', 'want-desk']) {
-      expect(panel).toContain(`htmlFor="${id}"`)
+    // Every box has a label: each sits inside the shared Field, which ties
+    // the label to the input it holds.
+    for (const label of ['Skills you need *', 'Places', 'Lowest rate you pay ($ an hour)', 'Highest rate you pay ($ an hour)', 'Who receives offers']) {
+      expect(panel).toContain(`<Field label="${label}">`)
     }
+    expect(panel).not.toMatch(/<input\b|<select\b/)
   })
 })
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { Lbl, Panel, Chip, LoadingState, ErrorState } from '@/components/ui'
 import { historyLine } from '@/lib/shared-consultant'
 
 import { useEffect, useState, useCallback } from 'react'
@@ -74,36 +75,8 @@ interface Data {
   note: string
 }
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
 
-function Panel({ title, subtitle, children }: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-      <h2 className="font-serif text-[19px] text-etyme-ink tracking-[-0.02em]">{title}</h2>
-      {subtitle && <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">{subtitle}</p>}
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
 
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
-}
 
 /**
  * How long they stay on a bench — one choice, beside the yes, with
@@ -220,12 +193,11 @@ export default function MyBenchesPage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-[14px] text-etyme-muted">Loading…</div>
+  if (loading) return <LoadingState says="Opening your benches…" />
   if (error && !data) {
     return (
       <div className="p-8">
-        <p className="text-[14px] text-etyme-attention">{error}</p>
-        <button className={`${quiet} mt-4`} onClick={load}>Try again</button>
+        <ErrorState says={error} action={{ label: 'Try again', onClick: () => { load() } }} />
       </div>
     )
   }
@@ -245,7 +217,7 @@ export default function MyBenchesPage() {
       <div className="mt-6">
         {/* ── Waiting on you ───────────────────────────────────────── */}
         {data.asking.length > 0 && (
-          <Panel
+          <Panel className="mb-5"
             title="Waiting on you"
             subtitle="You asked these agencies to check with you before putting you in front of anybody."
           >
@@ -284,7 +256,7 @@ export default function MyBenchesPage() {
 
         {/* ── Firms asking to market them ─────────────────────────── */}
         {(data.invited?.length ?? 0) > 0 && (
-          <Panel
+          <Panel className="mb-5"
             title="Asking to market you"
             subtitle="Say yes and the firm can put you forward, and the firms it works with can see you. Say no and that is the end of it. You can take a yes back at any time."
           >
@@ -345,7 +317,7 @@ export default function MyBenchesPage() {
         )}
 
         {/* ── The benches ──────────────────────────────────────────── */}
-        <Panel
+        <Panel className="mb-5"
           title="Agencies marketing you"
           subtitle="Every firm that holds your consent to be put forward, with how long you chose to stay. Each firm sees only its own listing."
         >
@@ -490,7 +462,7 @@ export default function MyBenchesPage() {
 
         {/* ── Stays that ran out ─────────────────────────────────── */}
         {(data.ended?.length ?? 0) > 0 && (
-          <Panel
+          <Panel className="mb-5"
             title="Stays that ended"
             subtitle="You chose how long to stay on these benches, and that time ran out. Nobody can put you forward through them now. Anything already sent stays as it is."
           >
@@ -513,7 +485,7 @@ export default function MyBenchesPage() {
         )}
 
         {/* ── Clients they will not go to ──────────────────────────── */}
-        <Panel
+        <Panel className="mb-5"
           title="Clients you will not be sent to"
           subtitle="No agency can submit you here. None of them is told why, or by whom."
         >
@@ -544,7 +516,7 @@ export default function MyBenchesPage() {
         </Panel>
 
         {/* ── Everything done in their name ────────────────────────── */}
-        <Panel
+        <Panel className="mb-5"
           title="Every time you were put forward"
           subtitle="Every firm that put you forward: the client, the job, what happened and when."
         >

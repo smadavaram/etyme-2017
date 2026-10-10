@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { Lbl, Panel, LoadingState, ErrorState } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -55,23 +56,7 @@ interface MyPage {
   note: string
 }
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
 
-function Panel({ title, subtitle, children }: {
-  title: string
-  subtitle?: string
-  children: React.ReactNode
-}) {
-  return (
-    <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-      <h2 className="font-serif text-[19px] text-etyme-ink tracking-[-0.02em]">{title}</h2>
-      {subtitle && <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">{subtitle}</p>}
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
 
 const btn = 'px-3 py-1.5 rounded text-[13px] font-medium transition-colors disabled:opacity-40'
 const primary = `${btn} bg-etyme-action text-white hover:opacity-90`
@@ -131,13 +116,12 @@ export default function MyPagePage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-[14px] text-etyme-muted">Loading…</div>
+  if (loading) return <LoadingState says="Opening your page…" />
 
   if (error && !data) {
     return (
       <div className="p-8">
-        <p className="text-[14px] text-etyme-attention">{error}</p>
-        <button className={`${quiet} mt-4`} onClick={load}>Try again</button>
+        <ErrorState says={error} action={{ label: 'Try again', onClick: () => { load() } }} />
       </div>
     )
   }
@@ -177,7 +161,7 @@ export default function MyPagePage() {
 
       <div className="mt-6">
         {/* ── The address ──────────────────────────────────────────── */}
-        <Panel
+        <Panel className="mb-5"
           title="Your address"
           subtitle="Yours permanently. If you change it, the old one keeps working — it is never given to anybody else."
         >
@@ -219,7 +203,7 @@ export default function MyPagePage() {
         </Panel>
 
         {/* ── On or off ────────────────────────────────────────────── */}
-        <Panel title={data.on ? 'Your page is live' : 'Your page is off'} subtitle={data.note}>
+        <Panel className="mb-5" title={data.on ? 'Your page is live' : 'Your page is off'} subtitle={data.note}>
           <button
             className={data.on ? quiet : primary}
             disabled={busy}
@@ -230,7 +214,7 @@ export default function MyPagePage() {
         </Panel>
 
         {/* ── The words ────────────────────────────────────────────── */}
-        <Panel
+        <Panel className="mb-5"
           title="What it says about you"
           subtitle="Only these words are stored. Everything else on the page is read from your work every time somebody opens it, so it cannot go out of date."
         >
@@ -285,7 +269,7 @@ export default function MyPagePage() {
 
         {/* ── What a stranger sees ─────────────────────────────────── */}
         {p && (
-          <Panel
+          <Panel className="mb-5"
             title="What a stranger sees"
             subtitle="Counted from real engagements. No client is named anywhere on it."
           >

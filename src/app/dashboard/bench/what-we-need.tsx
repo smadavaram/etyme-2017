@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { addSkillTags, listingRates } from '@/lib/bench-filter'
 import { formatDay } from '@/lib/format-date'
+import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui'
 
 /**
  * "What we need" — what this firm asks its partners to offer, at the top
@@ -48,8 +49,6 @@ function useWants() {
   return { data, why, reload: load }
 }
 
-const box = 'w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action'
-const label = 'block text-xs font-semibold text-etyme-muted mb-1'
 
 /** At the top of Partner bench: what we ask our partners for, and the form to ask. */
 export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: string }) => void }) {
@@ -146,28 +145,23 @@ export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: str
 
       {open && (
         <form onSubmit={save} className="mt-4 space-y-3 border-t border-etyme-rule pt-4">
-          {error && <p role="alert" className="text-sm text-etyme-danger">{error}</p>}
-          <div>
-            <label htmlFor="want-skills" className={label}>Skills you need *</label>
-            <input id="want-skills" className={box} value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Separate skills with commas" />
-          </div>
-          <div>
-            <label htmlFor="want-places" className={label}>Places</label>
-            <input id="want-places" className={box} value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Wichita, KS; Remote — a semicolon between places. Blank means any place." />
-          </div>
+          {error && <FormMessage tone="error">{error}</FormMessage>}
+          <Field label="Skills you need *">
+            <Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Separate skills with commas" />
+          </Field>
+          <Field label="Places">
+            <Input value={places} onChange={(e) => setPlaces(e.target.value)} placeholder="Wichita, KS; Remote — a semicolon between places. Blank means any place." />
+          </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="want-min" className={label}>Lowest rate you pay ($ an hour)</label>
-              <input id="want-min" type="number" min="0" step="0.01" className={`${box} tabular-nums`} value={min} onChange={(e) => setMin(e.target.value)} />
-            </div>
-            <div>
-              <label htmlFor="want-max" className={label}>Highest rate you pay ($ an hour)</label>
-              <input id="want-max" type="number" min="0" step="0.01" className={`${box} tabular-nums`} value={max} onChange={(e) => setMax(e.target.value)} />
-            </div>
+            <Field label="Lowest rate you pay ($ an hour)">
+              <Input type="number" min="0" step="0.01" className="tabular-nums" value={min} onChange={(e) => setMin(e.target.value)} />
+            </Field>
+            <Field label="Highest rate you pay ($ an hour)">
+              <Input type="number" min="0" step="0.01" className="tabular-nums" value={max} onChange={(e) => setMax(e.target.value)} />
+            </Field>
           </div>
-          <div>
-            <label htmlFor="want-desk" className={label}>Who receives offers</label>
-            <select id="want-desk" className={`${box} bg-white`} value={desk} onChange={(e) => setDesk(e.target.value)}>
+          <Field label="Who receives offers">
+            <Select value={desk} onChange={(e) => setDesk(e.target.value)}>
               <option value="">Whoever reads Partner bench</option>
               <optgroup label="A desk">
                 {data.desks.roles.map((r) => <option key={r.id} value={`role:${r.id}`}>{r.name}</option>)}
@@ -175,11 +169,11 @@ export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: str
               <optgroup label="A person">
                 {data.desks.people.map((p) => <option key={p.id} value={`person:${p.id}`}>{p.name}</option>)}
               </optgroup>
-            </select>
-          </div>
+            </Select>
+          </Field>
           <div className="flex justify-end gap-3">
             <button type="button" onClick={() => { setOpen(false); setError(null) }} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Ask partners'}</button>
+            <SubmitButton pending={busy} pendingLabel="Saving…">Ask partners</SubmitButton>
           </div>
         </form>
       )}

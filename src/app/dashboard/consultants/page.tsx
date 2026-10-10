@@ -11,6 +11,7 @@ import { ProfileEditor } from './profile-editor'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
+import { RefusedState, LoadingState } from '@/components/ui'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -703,7 +704,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
               {!loadingActivity && <span className="text-etyme-faint"> ({activeContracts.length})</span>}
             </p>
             {loadingActivity ? (
-              <p className="text-sm text-etyme-faint animate-pulse">Loading…</p>
+              <LoadingState says="Reading their contracts…" compact />
             ) : activeContracts.length === 0 ? (
               <p className="text-sm text-etyme-muted">No active contracts</p>
             ) : (
@@ -1130,12 +1131,12 @@ export default function ConsultantsPage() {
   // A refused seat reads the sentence and nothing else — the same shape
   // as Past contractors and Supplier scorecards (round four, 21).
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   // Nothing until the first read: the door may yet refuse this seat.
   if (!firstRead) {
-    return <p className="text-[13px] text-etyme-muted py-8">Loading…</p>
+    return <LoadingState says="Opening your consultants…" />
   }
 
   // ── Search filter ──────────────────────────────────

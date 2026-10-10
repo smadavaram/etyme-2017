@@ -27,7 +27,8 @@ function code(src: string): string {
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
 }
 
-const SENTENCE_ALONE = 'return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>'
+// The shared refusal: the route's sentence and nothing else (components/ui).
+const SENTENCE_ALONE = 'return <RefusedState says={refused} />'
 
 describe('11 · on a refusal, the sentence alone', () => {
   it('Consultants draws only the door’s sentence when it is refused: no Add consultant, no Feed, Table or Export, no empty table', () => {

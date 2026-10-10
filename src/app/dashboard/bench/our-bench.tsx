@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Thread } from '@/components/thread'
@@ -285,14 +286,6 @@ export function OurBench({ firmName }: { firmName: string }) {
   )
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-etyme-surface border border-etyme-rule rounded-lg px-3 py-2.5">
-      <p className="text-[10px] uppercase tracking-wide text-etyme-muted">{label}</p>
-      <p className="headline-serif text-[22px] text-etyme-ink tabular-nums">{value}</p>
-    </div>
-  )
-}
 
 function ActPanel({ act, data, onClose, onDone }: {
   act: Act

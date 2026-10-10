@@ -7,6 +7,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { clientEndingChoices } from '@/lib/releasing-soon'
+import { RefusedState, LoadingState, EmptyState } from '@/components/ui'
 
 // ── Types — match API response shape ─────────────────────
 
@@ -379,7 +380,7 @@ export default function RolloffPage() {
 
   // A refusal is the whole answer, said alone.
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   const total = tracked.length + untracked.length
@@ -474,22 +475,15 @@ export default function RolloffPage() {
 
       {/* Loading */}
       {loading && (
-        <div className="card text-center py-12">
-          <p className="text-sm text-etyme-muted">{isClient ? 'Loading who is ending…' : 'Loading rolloff events...'}</p>
-        </div>
+        <LoadingState says={isClient ? 'Loading who is ending…' : 'Loading rolloff events…'} />
       )}
 
       {/* Empty state */}
       {!loading && total === 0 && !error && (
-        <div className="card text-center py-12">
-          <p className="text-sm text-etyme-muted">No contract endings in the next {window} days.</p>
-          {!isClient && (
-            <p className="text-xs text-etyme-muted/60 mt-1">
-              Rolloff events are created automatically when a sell contract has an end date within 8 weeks,
-              either from import or when a contract end date is set.
-            </p>
-          )}
-        </div>
+        <EmptyState
+          says={`No contract endings in the next ${window} days.`}
+          detail={isClient ? undefined : 'Rolloff events are created automatically when a sell contract has an end date within 8 weeks, either from import or when a contract end date is set.'}
+        />
       )}
 
       {/* ── Untracked contracts (need rolloff events) ──── */}

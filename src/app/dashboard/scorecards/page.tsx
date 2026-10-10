@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { LoadingState, EmptyState, ErrorState } from '@/components/ui'
 import { onlyHereSays } from '@/lib/scorecard'
 import { usePageSection } from '@/components/page-section'
 
@@ -276,7 +277,7 @@ export default function ScorecardsPage() {
     return (
       <div className="mx-auto max-w-[860px] space-y-6 px-4 py-6">
         {section && <p className="eyebrow">{section}</p>}
-        <p className="text-[13px] text-etyme-muted">Loading…</p>
+        <LoadingState says="Reading your suppliers’ scorecards…" />
       </div>
     )
   }
@@ -534,20 +535,12 @@ export default function ScorecardsPage() {
         </div>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Reading your suppliers’ scorecards…" compact />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && cards.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing to score yet. Send a job to a supplier and this fills in.
-          </p>
-        </div>
+        <EmptyState says="Nothing to score yet. Send a job to a supplier and this fills in." />
       )}
 
       {cards.map((c) => (

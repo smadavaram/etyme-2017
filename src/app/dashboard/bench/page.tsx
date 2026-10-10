@@ -17,6 +17,7 @@ import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { FilterChips } from '@/components/ui'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -1276,46 +1277,28 @@ export default function BenchPage() {
         filters={
           <div className="flex items-center gap-3 flex-wrap">
             {/* Tier filter */}
-            <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5">
-              {[
+            <FilterChips<TierFilter>
+              label="Who the firm markets"
+              options={[
                 { key: 'all', label: 'All' },
                 { key: 'RETAINED', label: TIER_WORD.RETAINED },
                 { key: 'MARKETING', label: TIER_WORD.MARKETING },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setTierFilter(key as TierFilter)}
-                  className={`px-3 py-1 text-[11px] font-medium rounded transition-colors ${
-                    tierFilter === key
-                      ? 'bg-white text-etyme-ink shadow-sm'
-                      : 'text-etyme-muted hover:text-etyme-ink'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+              ]}
+              value={tierFilter}
+              onChange={setTierFilter}
+            />
 
             {/* Availability filter */}
-            <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5">
-              {[
+            <FilterChips<AvailFilter>
+              label="When they are free"
+              options={[
                 { key: 'all', label: 'Any' },
                 { key: 'now', label: 'Now' },
                 { key: 'soon', label: '≤14d' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setAvailFilter(key as AvailFilter)}
-                  className={`px-3 py-1 text-[11px] font-medium rounded transition-colors ${
-                    availFilter === key
-                      ? 'bg-white text-etyme-ink shadow-sm'
-                      : 'text-etyme-muted hover:text-etyme-ink'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+              ]}
+              value={availFilter}
+              onChange={setAvailFilter}
+            />
 
             {(tierFilter !== 'all' || availFilter !== 'all') && (
               <button
