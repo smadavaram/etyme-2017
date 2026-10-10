@@ -375,9 +375,12 @@ describe('a refused time-on-site page', () => {
   const says = 'Reading the tenure ledger is done by the Owner desk at Northbend Athletic. Ask them for it.'
   const page = readFileSync(join(process.cwd(), 'src/app/dashboard/tenure/page.tsx'), 'utf8')
 
-  it('a refused tenure page shows the heading and the refusal sentence, and no count at all', () => {
+  it('a refused tenure page shows the refusal sentence alone, and no count at all', () => {
     const html = renderToStaticMarkup(createElement(TenureRefused, { says }))
-    expect(html).toContain('Time on site')
+    // The shared refused state: no heading over the sentence, because a
+    // heading over a refusal reads as a page that loaded and is empty.
+    expect(html).toContain('data-state="refused"')
+    expect(html).not.toContain('<h1')
     expect(html).toContain(says)
     expect(html).not.toMatch(/>\s*0\s*</)
     expect(html).not.toMatch(/Tracked|Approaching|Over the limit|Booked past the limit|In break|Eligible|Search/)

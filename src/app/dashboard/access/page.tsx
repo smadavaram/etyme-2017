@@ -6,6 +6,7 @@ import { formatDay } from '@/lib/format-date'
 
 import { useEffect, useState, useCallback } from 'react'
 import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
 
 /**
  * Who can do what here.
@@ -51,23 +52,6 @@ interface Finding {
   finding: string
   detail: string
   suggestion: string | null
-}
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
 /** How long access runs, said the way somebody would say it. */
@@ -170,10 +154,11 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
       </p>
 
       <div className="flex flex-wrap gap-2 mt-4">
-        <select
+        <Select
           value={personId}
           onChange={(e) => setPersonId(e.target.value)}
-          className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+          aria-label="Who"
+          className="w-auto"
         >
           <option value="">Who?</option>
           {people.map((p) => (
@@ -181,23 +166,26 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
               {p.person.name} — {p.role}
             </option>
           ))}
-        </select>
-        <input
+        </Select>
+        <Input
           value={ref}
           onChange={(e) => setRef(e.target.value)}
+          aria-label="The link they were on"
           placeholder="Paste the link they were on"
-          className="flex-1 min-w-[16rem] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+          className="flex-1 min-w-[16rem] w-auto"
         />
-        <button
+        <SubmitButton
+          type="button"
           onClick={ask}
-          disabled={asking || !personId || !ref.trim()}
-          className="px-3 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+          pending={asking}
+          pendingLabel="Checking…"
+          disabled={!personId || !ref.trim()}
         >
-          {asking ? 'Checking…' : 'Check'}
-        </button>
+          Check
+        </SubmitButton>
       </div>
 
-      {err && <p className="text-[13px] text-etyme-attention mt-3">{err}</p>}
+      {err && <div className="mt-3"><FormMessage tone="error">{err}</FormMessage></div>}
 
       {answer && (
         <div className="mt-4 bg-etyme-surface border border-etyme-rule rounded-lg p-4">
@@ -327,19 +315,16 @@ export default function AccessPage() {
     await load()
   }
 
-  if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  if (loading) return <LoadingState says="Reading who holds which desk…" />
+  // A refusal is the route's sentence alone: no heading over it, no
+  // counters and no forms, each of which the same route would refuse.
   if (refused) return (
-    <div className="max-w-2xl">
-      <h1 className="font-serif text-2xl text-etyme-ink mb-1">Users &amp; permissions</h1>
-      <div className="mt-4 border border-etyme-rule bg-etyme-surface rounded-lg p-6">
-        <p className="text-[13px] text-etyme-ink">{refused}</p>
-      </div>
-    </div>
+    <RefusedState says={refused} />
   )
+  // Anything else that broke is a fault, and a retry may change it.
   if (error) return (
-    <div className="max-w-2xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-      <div className="text-etyme-attention font-medium">{error}</div>
-      <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+    <div className="max-w-2xl">
+      <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
     </div>
   )
   if (!data) return null
@@ -347,40 +332,20 @@ export default function AccessPage() {
   const s = data.summary
   // Owner is offered only to an Owner; the route refuses the same.
   const pickable = desksOffered(roles, data.actorIsOwner === true)
-  const field = 'px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink focus:outline-none focus:border-etyme-action'
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-8">
-        {section && <Lbl>{section}</Lbl>}
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Users & permissions</h1>
-        <p className="text-etyme-muted mt-2 max-w-2xl">
-          Anyone signing in on your company&apos;s email domain joins automatically as
-          a Member. A Member sees their own pages and what is sent to them, and none of
-          the firm&apos;s pages, until somebody here gives them a desk.
-        </p>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Users & permissions"
+        subtitle="Anyone signing in on your company’s email domain joins automatically as a Member. A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a desk."
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
-        <div>
-          <Lbl>Waiting</Lbl>
-          <div className={`font-serif text-3xl mt-1 tabular-nums ${s.waiting > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {s.waiting}
-          </div>
-        </div>
-        <div>
-          <Lbl>With access</Lbl>
-          <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.withAccess}</div>
-        </div>
-        <div>
-          <Lbl>Needs a decision</Lbl>
-          <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.needsAttention}</div>
-        </div>
-        <div>
-          <Lbl>Never used</Lbl>
-          <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.dormant}</div>
-          <div className="text-xs text-etyme-muted">held but untouched</div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <Stat label="Waiting" value={s.waiting} tone={s.waiting > 0 ? 'attention' : 'default'} />
+        <Stat label="With access" value={s.withAccess} />
+        <Stat label="Needs a decision" value={s.needsAttention} />
+        <Stat label="Never used" value={s.dormant} sub="held but untouched" />
       </div>
 
       {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
@@ -390,8 +355,7 @@ export default function AccessPage() {
           the button-that-lies one layer in, so a reader who cannot
           invite is told whose desk it is instead of being handed three
           boxes and a 403. */}
-      <section className="mb-8 border border-etyme-rule rounded-lg bg-etyme-surface p-5">
-        <h2 className="font-serif text-lg text-etyme-ink mb-1">Invite a teammate</h2>
+      <Panel title="Invite a teammate" className="mb-8">
         {data.canInvite === false ? (
           <p className="text-sm text-etyme-muted">{data.whyNotInvite}</p>
         ) : (
@@ -400,21 +364,21 @@ export default function AccessPage() {
           Name, email, and what they do here. They are emailed, and the seat is theirs the moment they sign in.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-2 items-center">
-          <input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" className={field} aria-label="Name" />
-          <input value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="Work email" className={field} aria-label="Work email" />
-          <select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })} className={field} aria-label="Role">
+          <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" aria-label="Name" />
+          <Input value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="Work email" aria-label="Work email" />
+          <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })} aria-label="Role">
             <option value="">What they do here…</option>
             {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-          <button onClick={sendInvite} disabled={inviting || !invite.email.includes('@')}
-            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40">
-            {inviting ? 'Inviting…' : 'Invite'}
-          </button>
+          </Select>
+          <SubmitButton type="button" onClick={sendInvite} pending={inviting} pendingLabel="Inviting…"
+            disabled={!invite.email.includes('@')}>
+            Invite
+          </SubmitButton>
         </div>
-        {invited && <p className={`mt-2 text-sm ${invited.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{invited.text}</p>}
+        {invited && <div className="mt-2"><FormMessage tone={invited.tone === 'ok' ? 'ok' : 'error'}>{invited.text}</FormMessage></div>}
         </>
         )}
-      </section>
+      </Panel>
 
       {data.waitingForAccess.length > 0 && (
         <section className="mb-8">
@@ -442,14 +406,12 @@ export default function AccessPage() {
 
                 {granting === w.contextId && (
                   <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-                    <label className="block">
-                      <Lbl>What can they do?</Lbl>
-                      <select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}
-                        className={`${field} w-full mt-1`}>
+                    <Field label="What can they do?">
+                      <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
                         <option value="">— pick a role —</option>
                         {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                      </select>
-                    </label>
+                      </Select>
+                    </Field>
                     {/* etyme-market, 2026-09-17. A cross-domain line in
                         etyme-regulatory's file, on the precedent of c126c1c4
                         and f901e914: the placeholder below named a real
@@ -458,28 +420,18 @@ export default function AccessPage() {
                         the sheet in docs/demo-names.md. Nothing else in this
                         file was touched — who may grant what, and for how
                         long, is etyme-regulatory's and is unchanged. */}
-                    <label className="block">
-                      <Lbl>Why do they need it?</Lbl>
-                      <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-                        placeholder="Joining the Talvern Medical delivery team"
-                        className={`${field} w-full mt-1`} />
-                      <p className="text-xs text-etyme-muted mt-1">
-                        Whoever reviews this in six months is probably not you.
-                      </p>
-                    </label>
-                    <label className="block">
-                      <Lbl>For how long?</Lbl>
-                      <input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
+                    <Field label="Why do they need it?" help="Whoever reviews this in six months is probably not you.">
+                      <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+                        placeholder="Joining the Talvern Medical delivery team" />
+                    </Field>
+                    <Field label="For how long?" help="Access ends on a date. Renewing takes a click.">
+                      <Input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
                         placeholder="leave blank for the usual" type="number"
-                        className={`${field} w-40 mt-1 tabular-nums`} />
-                      <p className="text-xs text-etyme-muted mt-1">
-                        Access ends on a date. Renewing takes a click.
-                      </p>
-                    </label>
-                    <button onClick={() => grant(w.contextId)}
-                      className="self-start px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                        className="w-40 tabular-nums" />
+                    </Field>
+                    <SubmitButton type="button" onClick={() => grant(w.contextId)} className="self-start">
                       Grant it
-                    </button>
+                    </SubmitButton>
                   </div>
                 )}
               </div>
@@ -525,7 +477,7 @@ export default function AccessPage() {
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.people.length === 0 && (
-            <div className="p-6 text-center text-sm text-etyme-muted">Nobody has access yet.</div>
+            <EmptyState compact says="Nobody has access yet." />
           )}
           {data.people.map((p: Person) => (
             <div key={p.contextId} className="p-4">
@@ -561,33 +513,24 @@ export default function AccessPage() {
 
               {granting === p.contextId && (
                 <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-                  <label className="block">
-                    <Lbl>New desk</Lbl>
-                    <select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}
-                      className={`${field} w-full mt-1`}>
+                  <Field label="New desk">
+                    <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
                       <option value="">— pick a desk —</option>
                       {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <Lbl>Why?</Lbl>
-                    <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-                      placeholder="Runs the client's bills from this month"
-                      className={`${field} w-full mt-1`} />
-                    <p className="text-xs text-etyme-muted mt-1">
-                      Whoever reviews this in six months is probably not you.
-                    </p>
-                  </label>
-                  <label className="block">
-                    <Lbl>For how long?</Lbl>
-                    <input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
+                    </Select>
+                  </Field>
+                  <Field label="Why?" help="Whoever reviews this in six months is probably not you.">
+                    <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
+                      placeholder="Runs the client's bills from this month" />
+                  </Field>
+                  <Field label="For how long?">
+                    <Input value={form.days} onChange={e => setForm({ ...form, days: e.target.value })}
                       placeholder="leave blank for the usual" type="number"
-                      className={`${field} w-40 mt-1 tabular-nums`} />
-                  </label>
-                  <button onClick={() => grant(p.contextId)}
-                    className="self-start px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                      className="w-40 tabular-nums" />
+                  </Field>
+                  <SubmitButton type="button" onClick={() => grant(p.contextId)} className="self-start">
                     Change desk
-                  </button>
+                  </SubmitButton>
                 </div>
               )}
             </div>

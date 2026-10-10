@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
 
 /**
@@ -140,10 +141,10 @@ export default function DocumentsPage() {
     } catch (e: any) { setError(e.message) }
   }
 
-  const tone = (status: string) =>
-    status === 'SIGNED' || status === 'UPLOADED' ? 'bg-etyme-verified/10 text-etyme-verified'
-      : status === 'SENT' ? 'bg-etyme-attention/10 text-etyme-attention'
-        : 'bg-etyme-rule/50 text-etyme-muted'
+  const tone = (status: string): ChipTone =>
+    status === 'SIGNED' || status === 'UPLOADED' ? 'verified'
+      : status === 'SENT' ? 'attention'
+        : 'passive'
 
   // A library that could not be read is the sentence alone. Not
   // "Requests 0" and a form to ask with, which say there is nothing here
@@ -151,20 +152,16 @@ export default function DocumentsPage() {
   // it either, because a refused page is its refusal (sign-up walk,
   // round seven, problem 6).
   if (unread) return (
-    <div className="max-w-5xl">
-      <div className="panel" role="status">
-        <p className="text-[13px] text-etyme-ink">{unread}</p>
-      </div>
-    </div>
+    <RefusedState says={unread} />
   )
 
   return (
     <div className="max-w-5xl">
-      <div className="page-head mb-6">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>Paperwork</h1>
-        <p>What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer.</p>
-      </div>
+      <PageHead
+        eyebrow={eyebrow}
+        title="Paperwork"
+        subtitle="What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer."
+      />
 
       {said && (
         <div className="mb-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between">
@@ -172,7 +169,7 @@ export default function DocumentsPage() {
           <button onClick={() => setSaid(null)} className="text-etyme-verified/70">Close</button>
         </div>
       )}
-      {error && <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
+      {error && <div className="mb-4"><FormMessage tone="error">{error}</FormMessage></div>}
 
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>
@@ -212,9 +209,9 @@ export default function DocumentsPage() {
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Requests <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span></h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-          {loading && <p className="p-4 text-sm text-etyme-muted">Loading…</p>}
+          {loading && <LoadingState compact says="Reading what was asked for…" />}
           {!loading && requests.length === 0 && (
-            <p className="p-4 text-sm text-etyme-muted">Nothing asked for yet. Add a document to the library below, then ask somebody for it above.</p>
+            <EmptyState compact says="Nothing asked for yet." detail="Add a document to the library below, then ask somebody for it above." />
           )}
           {requests.map((r) => (
             <div key={r.id} className="p-4 flex flex-wrap items-center gap-3">
@@ -226,7 +223,7 @@ export default function DocumentsPage() {
                   {r.note ? ` · ${r.note}` : ''}
                 </div>
               </div>
-              <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tone(r.status)}`}>{statusWord(r.status)}</span>
+              <Chip tone={tone(r.status)}>{statusWord(r.status)}</Chip>
               {(r.status === 'PENDING' || r.status === 'SENT') && (
                 <button onClick={() => send(r.id)} className="text-xs text-etyme-action hover:underline">
                   {r.status === 'PENDING' ? 'Ask for it' : 'Ask again'}
@@ -270,7 +267,7 @@ export default function DocumentsPage() {
       <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">The library <span className="text-xs text-etyme-faint tabular-nums font-sans">{templates.length}</span></h2>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule mb-3">
-          {templates.length === 0 && <p className="p-4 text-sm text-etyme-muted">Nothing in the library yet. A W-9, an NDA, a certificate of insurance — add what you ask for.</p>}
+          {templates.length === 0 && <EmptyState compact says="Nothing in the library yet." detail="A W-9, an NDA, a certificate of insurance — add what you ask for." />}
           {templates.map((t) => (
             <div key={t.id} className="p-4 flex items-center gap-3">
               <div className="flex-1 text-sm text-etyme-ink">{t.name}</div>

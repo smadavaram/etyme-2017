@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { mayTryAgain } from './says'
 import { usePageSection } from '@/components/page-section'
+import { EmptyState, ErrorState, FilterChips, Input, LoadingState, PageHead, RefusedState, Select, Stat } from '@/components/ui'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
@@ -46,25 +47,6 @@ const TEAMS: { key: Team; label: string; blurb: string }[] = [
   { key: 'HR', label: 'HR', blurb: 'Co-employment, tenure, work authorization' },
 ]
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Stat({ label, value, tone = 'default', sub }: {
-  label: string; value: string | number; tone?: 'default' | 'attention' | 'verified'; sub?: string
-}) {
-  const color = tone === 'attention' ? 'text-etyme-attention'
-    : tone === 'verified' ? 'text-etyme-verified' : 'text-etyme-ink'
-  return (
-    <div>
-      <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-/** How far off it is, in the words somebody would actually use. */
 function when(days: number): string {
   if (days < 0) return `${Math.abs(days)} days ago`
   if (days === 0) return 'today'
@@ -153,44 +135,30 @@ export default function GovernancePage() {
 
   const s = data?.summary
 
-  // A refusal is the whole page: the heading and the route's sentence.
-  // Not the team lenses, the search or the window above it — each would
-  // offer to filter an answer the reader was not given.
+  // A refusal is the whole page: the route's sentence alone. Not the
+  // heading, the team lenses, the search or the window — each would offer
+  // to filter an answer the reader was not given. A failure that is not a
+  // refusal keeps the heading and is offered a retry, because one could
+  // change the answer.
   if (!loading && error) return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        {section && <Lbl>{section}</Lbl>}
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-          What is coming
-        </h1>
+    mayTryAgain(status) ? (
+      <div className="max-w-4xl">
+        <PageHead eyebrow={section} title="What is coming" />
+        <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
       </div>
-      <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6" role="status">
-        <div className="text-etyme-attention font-medium">{error}</div>
-        {/* A refusal is the sentence alone; a retry is offered only
-            where one could change the answer. */}
-        {mayTryAgain(status) && (
-          <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
-        )}
-      </div>
-    </div>
+    ) : <RefusedState says={error} />
   )
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8">
-        {section && <Lbl>{section}</Lbl>}
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-          What is coming
-        </h1>
-        <p className="text-etyme-muted mt-2 max-w-2xl">
-          Not what happened — what lands next, and whose decision it is. A time limit
-          reached in eleven weeks is a plan; the same limit reached on the day
-          somebody asks for an extension is an argument.
-        </p>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="What is coming"
+        subtitle="Not what happened — what lands next, and whose decision it is. A time limit reached in eleven weeks is a plan; the same limit reached on the day somebody asks for an extension is an argument."
+      />
 
       {s && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Stat label="Already past" value={s.alreadyBreached}
             tone={s.alreadyBreached > 0 ? 'attention' : 'verified'}
             sub={s.alreadyBreached === 0 ? 'nothing overdue' : 'blocking now'} />
@@ -202,57 +170,45 @@ export default function GovernancePage() {
       )}
 
       {/* Team lenses. The same data, addressed to whoever owns it. */}
-      <div className="flex flex-wrap gap-2 mb-2">
-        {TEAMS.map(t => {
-          const count = t.key === 'ALL' ? s?.total : s?.perTeam?.[t.key]
-          const active = team === t.key
-          return (
-            <button key={t.key} onClick={() => setTeam(t.key)}
-              className={`px-3 py-1.5 rounded text-sm border transition-colors ${
-                active
-                  ? 'bg-etyme-ink text-white border-etyme-ink'
-                  : 'border-etyme-rule text-etyme-muted hover:text-etyme-ink'
-              }`}>
-              {t.label}
-              {count != null && (
-                <span className={`ml-2 tabular-nums text-xs ${active ? 'text-white/70' : 'text-etyme-faint'}`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          )
-        })}
+      <div className="mb-2">
+        <FilterChips
+          label="Whose decision"
+          value={team}
+          onChange={setTeam}
+          options={TEAMS.map(t => ({
+            key: t.key,
+            label: t.label,
+            count: (t.key === 'ALL' ? s?.total : s?.perTeam?.[t.key]) ?? undefined,
+          }))}
+        />
       </div>
       <p className="text-sm text-etyme-muted mb-6">
         {TEAMS.find(t => t.key === team)?.blurb}
       </p>
 
       <div className="flex items-center gap-3 mb-6">
-        <input value={q} onChange={e => setQ(e.target.value)}
+        <Input value={q} onChange={e => setQ(e.target.value)}
+          aria-label="Search by person or vendor"
           placeholder="Search by person or vendor…"
-          className="flex-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action" />
-        <select value={days} onChange={e => setDays(parseInt(e.target.value, 10))}
-          className="px-3 py-2 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink focus:outline-none focus:border-etyme-action">
+          className="flex-1" />
+        <Select value={days} onChange={e => setDays(parseInt(e.target.value, 10))}
+          aria-label="How far ahead" className="w-auto">
           <option value={30}>30 days</option>
           <option value={90}>90 days</option>
           <option value={120}>120 days</option>
           <option value={365}>a year</option>
-        </select>
+        </Select>
       </div>
 
-      {loading && <div className="text-etyme-muted py-12 text-center">Loading…</div>}
+      {loading && <LoadingState says="Reading what lands next…" />}
 
       {!loading && !error && items.length === 0 && (
-        <div className="border border-etyme-rule rounded-lg p-12 text-center">
-          <p className="font-serif text-lg text-etyme-ink">
-            {q ? 'Nothing matches that search' : 'Nothing on the horizon'}
-          </p>
-          <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
-            {q
-              ? 'Try another name.'
-              : `No time limits, certificates or endings land in the next ${data?.windowDays ?? 120} days for this team. Widen the window to look further out.`}
-          </p>
-        </div>
+        <EmptyState
+          says={q ? 'Nothing matches that search.' : 'Nothing on the horizon.'}
+          detail={q
+            ? 'Try another name.'
+            : `No time limits, certificates or endings land in the next ${data?.windowDays ?? 120} days for this team. Widen the window to look further out.`}
+        />
       )}
 
       {!loading && !error && items.length > 0 && (

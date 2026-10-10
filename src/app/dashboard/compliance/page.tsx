@@ -8,6 +8,7 @@ import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnfo
 import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
 import { usePageSection } from '@/components/page-section'
+import { EmptyState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 /**
  * Compliance Overview — Governance section
@@ -391,22 +392,16 @@ export default function CompliancePage() {
 
   if (!data && !loading && !error) return null
 
-  // A refusal is its own screen: a heading and the route's sentence,
-  // never a page of zeros that reads as "nothing on file".
+  // A refusal is its own screen: the route's sentence alone, never a
+  // page of zeros that reads as "nothing on file".
   const view = complianceView({ loading, error, hasData: !!data })
-  if (view.show === 'refused') return <ComplianceRefused says={view.says} section={section} />
+  if (view.show === 'refused') return <ComplianceRefused says={view.says} />
   // Nor are zeros drawn while the figures are still on their way.
   if (view.show === 'loading') {
     return (
       <>
-        <div className="page-head">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1>Compliance overview</h1>
-          <p>{complianceSubtitle(null)}</p>
-        </div>
-        <div className="panel text-center py-12">
-          <p className="text-body-sm text-etyme-muted">Loading…</p>
-        </div>
+        <PageHead eyebrow={section} title="Compliance overview" subtitle={complianceSubtitle(null)} />
+        <LoadingState says="Reading the checks on file…" />
       </>
     )
   }
@@ -429,11 +424,7 @@ export default function CompliancePage() {
   return (
     <>
       {/* Head */}
-      <div className="page-head">
-        {section && <p className="eyebrow">{section}</p>}
-        <h1>Compliance overview</h1>
-        <p>{complianceSubtitle(data?.client.name)}</p>
-      </div>
+      <PageHead eyebrow={section} title="Compliance overview" subtitle={complianceSubtitle(data?.client.name)} />
 
       {/* ── What the page counted, before any number is shown ──
           Two populations were drawn side by side and neither said what
@@ -730,28 +721,22 @@ function ClassificationTab({
 }) {
   if (error) {
     return (
-      <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-        {error}
-      </div>
+      <RefusedState says={error} />
     )
   }
 
   if (!calls) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-body-sm text-etyme-muted">Loading…</p>
-      </div>
+      <LoadingState says="Opening this tab…" />
     )
   }
 
   if (calls.calls.length === 0) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-[13px] text-etyme-muted">
-          No classification calls recorded. A sole trader with no call on file is the
-          exposure with nothing behind it.
-        </p>
-      </div>
+      <EmptyState
+        says="No classification calls recorded."
+        detail="A sole trader with no call on file is the exposure with nothing behind it."
+      />
     )
   }
 
@@ -874,25 +859,19 @@ function PoliciesTab({
 }) {
   if (loading) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-body-sm text-etyme-muted">Loading…</p>
-      </div>
+      <LoadingState says="Opening this tab…" />
     )
   }
 
   if (error) {
     return (
-      <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-        {error}
-      </div>
+      <RefusedState says={error} />
     )
   }
 
   if (policies.length === 0) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-[13px] text-etyme-muted">No governance policies configured.</p>
-      </div>
+      <EmptyState says="No governance policies configured." />
     )
   }
 
@@ -963,17 +942,13 @@ function VerificationsTab({
 }) {
   if (loading) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-body-sm text-etyme-muted">Loading…</p>
-      </div>
+      <LoadingState says="Opening this tab…" />
     )
   }
 
   if (error) {
     return (
-      <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-        {error}
-      </div>
+      <RefusedState says={error} />
     )
   }
 
@@ -985,9 +960,7 @@ function VerificationsTab({
 
   if (persons.length === 0 && companies.length === 0) {
     return (
-      <div className="panel text-center py-12">
-        <p className="text-[13px] text-etyme-muted">No verifications found.</p>
-      </div>
+      <EmptyState says="No verifications found." />
     )
   }
 

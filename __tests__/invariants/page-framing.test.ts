@@ -799,7 +799,8 @@ describe('sign-up walk, round three: the do-not-return list is headed by the rea
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/blacklist/page.tsx'), 'utf8')
     expect(src).not.toContain('<div className="eyebrow mb-2">Operate</div>')
     expect(src).toContain("usePageSection('/dashboard/blacklist')")
-    expect(src).toContain('{section && <div className="eyebrow mb-2">{section}</div>}')
+    // The shared page head draws the eyebrow only when the menu gives one.
+    expect(src).toMatch(/<PageHead\s+eyebrow=\{section\}/)
   })
 })
 

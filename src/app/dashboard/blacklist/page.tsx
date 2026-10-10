@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
+import { Chip, FilterChips, PageHead, RefusedState, Stat } from '@/components/ui'
 
 /**
  * Blacklist — working surface for managing blocked candidates and companies.
@@ -488,9 +489,9 @@ export default function BlacklistPage() {
       key: 'status',
       label: 'Status',
       render: (row) => (
-        <span className={`chip text-[9px] ${row.isActive ? 'chip--danger' : 'chip--passive'}`}>
+        <Chip tone={row.isActive ? 'danger' : 'passive'}>
           {row.isActive ? 'Active' : 'Expired'}
-        </span>
+        </Chip>
       ),
       sortValue: (row) => (row.isActive ? 0 : 1),
     },
@@ -516,51 +517,36 @@ export default function BlacklistPage() {
 
   // ── Render ─────────────────────────────────────────
 
-  // A list that could not be read is the heading and the sentence. Not
-  // "All 0 · Active 0", which says nobody is barred, and not "Add
-  // somebody", which the same route would refuse.
+  // A list that could not be read is the route's sentence alone. Not
+  // "All 0 · Active 0", which says nobody is barred, not "Add somebody",
+  // which the same route would refuse, and not a heading over it, which
+  // reads as a page that loaded and is empty.
   if (!loading && error) return (
-    <div className="animate-fade-in">
-      <div className="mb-6">
-        {section && <div className="eyebrow mb-2">{section}</div>}
-        <h1 className="headline-serif text-heading text-etyme-ink mb-1">
-          Do-not-return list
-        </h1>
-      </div>
-      <div className="panel" role="status">
-        <p className="text-[13px] text-etyme-ink">{error}</p>
-      </div>
-    </div>
+    <RefusedState says={error} />
   )
 
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div>
-          {section && <div className="eyebrow mb-2">{section}</div>}
-          <h1 className="headline-serif text-heading text-etyme-ink mb-1">
-            Do-not-return list
-          </h1>
-          <p className="text-body-sm text-etyme-muted">
-            The people and firms this company has decided not to work with again, and why. Read
-            before anybody is put forward — somebody on it cannot be submitted until the bar is
-            lifted with a reason.
-          </p>
-        </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary self-start md:mt-3 shrink-0">
-          Add somebody
-        </button>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Do-not-return list"
+        subtitle="The people and firms this company has decided not to work with again, and why. Read before anybody is put forward — somebody on it cannot be submitted until the bar is lifted with a reason."
+        actions={
+          <button onClick={() => setShowAddModal(true)} className="btn-primary">
+            Add somebody
+          </button>
+        }
+      />
 
       {/* Stats row */}
       {!loading && entries.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-          <StatChip label="Total Entries" value={stats.total} />
-          <StatChip label="Active" value={stats.active} tone="attention" />
-          <StatChip label="Expired" value={stats.expired} />
-          <StatChip label="People" value={stats.people} tone="action" />
-          <StatChip label="Companies" value={stats.companies} tone="attention" />
+          <Stat label="Total Entries" value={stats.total} />
+          <Stat label="Active" value={stats.active} tone="attention" />
+          <Stat label="Expired" value={stats.expired} />
+          <Stat label="People" value={stats.people} />
+          <Stat label="Companies" value={stats.companies} tone="attention" />
         </div>
       )}
 
@@ -581,31 +567,20 @@ export default function BlacklistPage() {
         emptyDetail="No candidates or companies have been blocked. Use the button above to add an entry."
         exportName="etyme-blacklist"
         filters={
-          <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5 flex-wrap">
-            {filterTabs.map(({ key, label, count }) => (
-              <button
-                key={key}
-                onClick={() => setFilterTab(key)}
-                className={`px-3 py-1 text-[11px] font-medium rounded transition-colors ${
-                  filterTab === key
-                    ? 'bg-white text-etyme-ink shadow-sm'
-                    : 'text-etyme-muted hover:text-etyme-ink'
-                }`}
-              >
-                {label}
-                <span className="ml-1 tabular-nums text-[10px] text-etyme-faint">{count}</span>
-              </button>
-            ))}
-
-            {filterTab !== 'all' && (
+          <FilterChips<FilterTab>
+            label="Which entries"
+            value={filterTab}
+            onChange={setFilterTab}
+            options={filterTabs.map(({ key, label, count }) => ({ key, label, count }))}
+            end={filterTab !== 'all' && (
               <button
                 onClick={() => setFilterTab('all')}
-                className="text-[11px] text-etyme-action hover:underline ml-2"
+                className="text-[12px] text-etyme-action hover:underline"
               >
                 Clear
               </button>
             )}
-          </div>
+          />
         }
       />
 
@@ -627,32 +602,6 @@ export default function BlacklistPage() {
           {toast.message}
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Stat chip ────────────────────────────────────────
-
-function StatChip({
-  label, value, tone = 'default',
-}: {
-  label: string
-  value: number
-  tone?: 'default' | 'verified' | 'action' | 'attention'
-}) {
-  const color = {
-    default: 'text-etyme-ink',
-    verified: 'text-etyme-verified',
-    action: 'text-etyme-action',
-    attention: 'text-etyme-attention',
-  }[tone]
-
-  return (
-    <div className="panel py-3 px-4">
-      <div className="stat-label text-[9px] mb-1">{label}</div>
-      <div className={`text-xl font-serif font-medium tabular-nums ${color}`}>
-        {value}
-      </div>
     </div>
   )
 }

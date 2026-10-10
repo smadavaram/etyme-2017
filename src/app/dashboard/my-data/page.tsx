@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, LoadingState, PageHead } from '@/components/ui'
 
 /**
  * Your data — what Etyme holds about you, a copy of it, and a way to
@@ -130,13 +131,11 @@ export default function MyDataPage() {
 
   return (
     <div className="max-w-4xl">
-      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
-      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Your data</h1>
-      <p className="text-sm text-etyme-muted mt-2 max-w-2xl">
-        Everything Etyme holds about you, where it came from, and what you can do about it.
-        Asking for a copy or asking to be forgotten takes one click and neither needs
-        anybody&rsquo;s permission.
-      </p>
+      <PageHead
+        eyebrow={section}
+        title="Your data"
+        subtitle="Everything Etyme holds about you, where it came from, and what you can do about it. Asking for a copy or asking to be forgotten takes one click and neither needs anybody’s permission."
+      />
 
       {said && (
         <div className="mt-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between gap-4">
@@ -236,11 +235,13 @@ export default function MyDataPage() {
           What you have asked for{' '}
           <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span>
         </h2>
-        {loading && <p className="text-sm text-etyme-muted">Reading your record&hellip;</p>}
+        {loading && <LoadingState compact says="Reading your record…" />}
         {!loading && requests.length === 0 && (
-          <p className="text-sm text-etyme-muted">
-            You have not asked for anything yet. Nothing on this page changes until you do.
-          </p>
+          <EmptyState
+            compact
+            says="You have not asked for anything yet."
+            detail="Nothing on this page changes until you do."
+          />
         )}
         <div className="space-y-3">
           {requests.map((r) => (
@@ -254,9 +255,7 @@ export default function MyDataPage() {
                     {r.reference} &middot; asked {day(r.receivedAt)}
                   </p>
                 </div>
-                <span className="inline-block h-fit px-2 py-0.5 rounded text-[11px] font-medium bg-etyme-rule/50 text-etyme-muted">
-                  {word(r)}
-                </span>
+                <span className="h-fit"><Chip>{word(r)}</Chip></span>
               </div>
 
               <p className="text-sm text-etyme-ink mt-3">

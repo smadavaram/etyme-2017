@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, ErrorState, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton } from '@/components/ui'
 
 /**
  * Screening packs — the other direction.
@@ -154,35 +155,21 @@ export default function OutboundPackPage() {
 
   // ── Denied ──────────────────────────────────────────────────────────
   if (denied) {
-    return (
-      <div className="mx-auto max-w-[900px] px-4 py-6">
-        <header className="page-head">
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Screening packs</h1>
-        </header>
-        <div className="panel">
-          {/* The refusal is the whole answer. A second line here — "it needs a
-              company to answer for" — was the no-company sentence, shown to
-              everybody, including desks that have a company and simply do
-              not hold this seat (sign-up walk round six, problem 19). The
-              route's own no-company refusal already says it. */}
-          <p className="text-[13px] text-etyme-ink">{denied}</p>
-        </div>
-      </div>
-    )
+    // The refusal is the whole answer: the route's sentence alone. A
+    // second line here — "it needs a company to answer for" — was the
+    // no-company sentence, shown to everybody, including desks that have a
+    // company and simply do not hold this seat (sign-up walk round six,
+    // problem 19). The route's own no-company refusal already says it.
+    return <RefusedState says={denied} />
   }
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-6">
-      <header className="page-head">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>Screening packs</h1>
-        <p>
-          A vendor spends as much time being screened as screening. This is what we can
-          put in front of a client&rsquo;s procurement team today — and what would stop
-          us, before the bid rather than after.
-        </p>
-      </header>
+      <PageHead
+        eyebrow={eyebrow}
+        title="Screening packs"
+        subtitle="A vendor spends as much time being screened as screening. This is what we can put in front of a client’s procurement team today — and what would stop us, before the bid rather than after."
+      />
 
 
       {/* ── Who is screening us ──────────────────────────────────────
@@ -191,12 +178,15 @@ export default function OutboundPackPage() {
           for more, and until this picker existed nothing on this screen
           could say so. */}
       {(data?.customers?.length ?? 0) > 0 && (
-        <div className="panel">
-          <label className="lbl" htmlFor="asked-by">Who is screening us</label>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <select
-              id="asked-by"
-              className="max-w-[320px] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+        <Panel>
+          <Field
+            label="Who is screening us"
+            help={data.addedSays
+              ? <span className="text-etyme-ink">{data.addedSays}</span>
+              : askedById ? 'Their orders ask for nothing beyond the usual pack.' : undefined}
+          >
+            <Select
+              className="max-w-[320px]"
               value={askedById}
               onChange={(e) => { setAskedById(e.target.value); load(e.target.value) }}
             >
@@ -204,32 +194,19 @@ export default function OutboundPackPage() {
               {data.customers.map((c: { id: string; name: string }) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
-            {data.addedSays && (
-              <p className="text-[13px] text-etyme-ink">{data.addedSays}</p>
-            )}
-            {askedById && !data.addedSays && (
-              <p className="text-[13px] text-etyme-muted">
-                Their orders ask for nothing beyond the usual pack.
-              </p>
-            )}
-          </div>
-        </div>
+            </Select>
+          </Field>
+        </Panel>
       )}
 
       {/* ── Loading ──────────────────────────────────────────────── */}
       {loading && !data && (
-        <p className="text-[13px] text-etyme-muted">Checking what we hold…</p>
+        <LoadingState says="Checking what we hold…" />
       )}
 
       {/* ── Error ────────────────────────────────────────────────── */}
       {error && (
-        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-          <button className="btn-secondary mt-3" onClick={() => { setError(null); load() }}>
-            Try again
-          </button>
-        </div>
+        <ErrorState says={error} action={{ label: 'Try again', onClick: () => { setError(null); load() } }} />
       )}
 
       {/* ── The number worth putting on a screen ─────────────────── */}
@@ -292,23 +269,17 @@ export default function OutboundPackPage() {
 
       {/* ── Empty — nothing on file at all ───────────────────────── */}
       {data && data.standing.ready === 0 && data.standing.lapsed === 0 && data.standing.neverCollected > 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-ink">
-            We hold none of our own screening documents yet, so every pack here is empty.
-          </p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
-            Put the W-9, the certificates of insurance and the business registration on file
-            first. A certificate that expires cannot go on file without its date — an unknown
-            expiry looks current on every screen until the day somebody audits it.
-          </p>
-        </div>
+        <EmptyState
+          says="We hold none of our own screening documents yet, so every pack here is empty."
+          detail="Put the W-9, the certificates of insurance and the business registration on file first. A certificate that expires cannot go on file without its date — an unknown expiry looks current on every screen until the day somebody audits it."
+        />
       )}
 
       {/* ── Sent, with a refusal ─────────────────────────────────── */}
       {refusal && (
         <div className="panel" style={{ borderColor: 'var(--color-danger)' }}>
           <p className="lbl" style={{ color: 'var(--color-danger)' }}>Not sent</p>
-          <p className="mt-2 text-[13px] text-etyme-ink">{refusal.message}</p>
+          <div className="mt-2"><FormMessage tone="error">{refusal.message}</FormMessage></div>
           <ul className="mt-3 space-y-1">
             {refusal.refusals?.map((r: any) => (
               <li key={r.key} className="text-[13px] text-etyme-muted">
@@ -327,7 +298,7 @@ export default function OutboundPackPage() {
 
       {result && (
         <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
-          <p className="text-[13px] text-etyme-ink">{result.message}</p>
+          <FormMessage tone="ok">{result.message}</FormMessage>
           <p className="mt-2 text-[13px]">
             <span className="text-etyme-muted">Link, valid to {result.expiresAt}: </span>
             <a href={result.link} style={{ color: 'var(--color-action)' }}>{result.link}</a>
@@ -341,32 +312,32 @@ export default function OutboundPackPage() {
       {/* ── Search on every list ─────────────────────────────────── */}
       {data && (
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search packs and documents"
             placeholder="Search packs and documents"
-            className="min-w-[240px] flex-1 rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]"
+            className="min-w-[240px] flex-1 w-auto"
           />
-          {(['all', 'blocked', 'ready'] as Filter[]).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`filter-tab ${filter === f ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-            >
-              {f === 'all' ? 'All' : f === 'blocked' ? 'Would not go' : 'Ready'}
-            </button>
-          ))}
+          <FilterChips<Filter>
+            label="Which packs"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { key: 'all', label: 'All' },
+              { key: 'blocked', label: 'Would not go', warn: true },
+              { key: 'ready', label: 'Ready' },
+            ]}
+          />
         </div>
       )}
 
       {/* ── Partial — a filter or a search that found nothing ────── */}
       {data && shown.length === 0 && packs.length > 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing matches. {packs.length} pack{packs.length === 1 ? '' : 's'} in total —
-            clear the search to see them.
-          </p>
-        </div>
+        <EmptyState
+          says="Nothing matches."
+          detail={`${packs.length} pack${packs.length === 1 ? '' : 's'} in total — clear the search to see them.`}
+        />
       )}
 
       {shown.map((p) => (
@@ -380,9 +351,9 @@ export default function OutboundPackPage() {
               <span className="tabular-nums text-[13px] text-etyme-muted">
                 {p.answerable} of {p.asked}
               </span>
-              <span className={`chip ${p.ready ? 'chip--verified' : 'chip--attention'}`}>
+              <Chip tone={p.ready ? 'verified' : 'attention'}>
                 {p.ready ? 'ready to send' : 'would not go'}
-              </span>
+              </Chip>
             </div>
           </div>
 
@@ -399,25 +370,29 @@ export default function OutboundPackPage() {
 
             {data?.canSend ? (
               sendingKey === p.key ? (
-                <span className="ml-auto flex flex-wrap items-center gap-2">
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="procurement@client.com"
-                    className="rounded border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-[13px]"
-                  />
+                <span className="ml-auto flex flex-wrap items-end gap-2">
+                  <Field label="Send it to">
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="procurement@client.com"
+                    />
+                  </Field>
                   {/* A button the route will refuse is a button that
                       lies. This one posted an empty box and came back
                       422 "An email address to send this to". The
                       overtime reason box beside it has always been
                       right; this is the same shape. */}
-                  <button
-                    className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                  <SubmitButton
+                    type="button"
+                    pending={busy}
+                    pendingLabel="Sending…"
                     disabled={busy || !email.trim()}
                     onClick={() => send(p.key)}
                   >
-                    {busy ? 'Sending…' : 'Send'}
-                  </button>
+                    Send
+                  </SubmitButton>
                   <button className="btn-secondary" onClick={() => setSendingKey(null)}>Cancel</button>
                 </span>
               ) : (

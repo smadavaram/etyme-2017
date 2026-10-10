@@ -6,6 +6,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { readJson } from '@/lib/read-response'
 import { possessive } from '@/lib/requisition-approval'
 import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, Input, LoadingState, PageHead, Panel, RefusedState, SubmitButton } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { sectionForReader } from '@/lib/page-framing'
@@ -74,7 +75,7 @@ const FROM_WORD: Record<string, string> = {
 
 export default function DocumentRequirementsPage() {
   return (
-    <Suspense fallback={<p className="text-body-sm text-etyme-muted">Loading…</p>}>
+    <Suspense fallback={<LoadingState says="Opening the document set…" />}>
       <Inner />
     </Suspense>
   )
@@ -170,22 +171,19 @@ function Inner() {
       company: session.company?.name ?? null,
       opensFrom,
     })
-    if (door.show === 'loading') return <p className="text-body-sm text-etyme-muted">Loading…</p>
+    if (door.show === 'loading') return <LoadingState says="Opening the document set…" />
     // A reader who can open neither an order nor a placement is not told
     // to open this from one: the refusal sentence alone.
     if (door.show === 'refused') return (
-      <div className="panel p-6" role="status">
-        <p className="text-[13px] text-etyme-ink">{door.says}</p>
-      </div>
+      <RefusedState says={door.says} />
     )
     return (
-      <div className="panel p-6">
-        <h1 className="text-h2 font-serif text-etyme-ink">What a document set asks for</h1>
-        <p className="text-body-sm text-etyme-muted mt-2">
-          Open this from an order or from a placement. A required set belongs to exactly one of
-          them — the order carries the buyer’s own rules, and a line may add to them or waive one
-          with a reason.
-        </p>
+      <div>
+        <PageHead eyebrow={section} title="What a document set asks for" />
+        <EmptyState
+          says="Open this from an order or from a placement."
+          detail="A required set belongs to exactly one of them — the order carries the buyer’s own rules, and a line may add to them or waive one with a reason."
+        />
       </div>
     )
   }
@@ -215,17 +213,17 @@ function Inner() {
       key: 'word',
       label: 'Standing',
       render: (r) => (
-        <span className={`chip ${
-          r.waiverRefused ? 'chip--danger'
-            : r.waived ? 'chip--passive'
-              : r.blocks ? 'chip--danger'
-                : r.required ? 'chip--attention' : 'chip--passive'
-        }`}>
+        <Chip tone={
+          r.waiverRefused ? 'danger'
+            : r.waived ? 'passive'
+              : r.blocks ? 'danger'
+                : r.required ? 'attention' : 'passive'
+        }>
           {r.waiverRefused ? 'Waiver refused'
             : r.waived ? 'Waived'
               : r.blocks ? 'Stops work'
                 : r.required ? 'Required' : 'Optional'}
-        </span>
+        </Chip>
       ),
       sortValue: (r) => (r.blocks ? 0 : r.required ? 1 : 2),
     },
@@ -325,15 +323,13 @@ function Inner() {
 
   return (
     <div className="space-y-4">
-      <div>
-        {section && <p className="lbl">{section}</p>}
-        <h1 className="text-h2 font-serif text-etyme-ink">
-          {answer?.order
-            ? `What ${possessive(answer.order.issuedBy, '’')} order ${answer.order.number} asks for`
-            : 'What this line asks for on paper'}
-        </h1>
-        {answer?.says && <p className="text-body-sm text-etyme-muted mt-1">{answer.says}</p>}
-      </div>
+      <PageHead
+        eyebrow={section}
+        title={answer?.order
+          ? `What ${possessive(answer.order.issuedBy, '’')} order ${answer.order.number} asks for`
+          : 'What this line asks for on paper'}
+        subtitle={answer?.says}
+      />
 
       {error && (
         <div className="panel p-4 border-etyme-attention" role="alert">
@@ -364,28 +360,27 @@ function Inner() {
       />
 
       {/* ── Asking for one more ── */}
-      <div className="panel p-4">
-        <h2 className="text-sm font-semibold text-etyme-ink">Ask for another document</h2>
-        <p className="text-[12px] text-etyme-muted mt-0.5">
-          Name the type. A type nobody here has defined is still asked for, by its own words, and
-          the reply says so — nothing watches an undefined type for expiry until somebody defines
-          it under Settings → Documents.
-        </p>
-        <div className="flex gap-2 mt-3 flex-wrap">
-          <input
-            className="flex-1 min-w-[200px] border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+      <Panel
+        title="Ask for another document"
+        subtitle="Name the type. A type nobody here has defined is still asked for, by its own words, and the reply says so — nothing watches an undefined type for expiry until somebody defines it under Settings → Documents."
+      >
+        <div className="flex gap-2 flex-wrap">
+          <Input
+            className="flex-1 min-w-[200px] w-auto"
+            aria-label="The document type"
             placeholder="FURNACE_SAFETY_INDUCTION"
             value={adding.key}
             onChange={(e) => setAdding({ ...adding, key: e.target.value })}
           />
-          <input
-            className="flex-1 min-w-[200px] border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+          <Input
+            className="flex-1 min-w-[200px] w-auto"
+            aria-label="Why this order needs it"
             placeholder="Why this order needs it"
             value={adding.note}
             onChange={(e) => setAdding({ ...adding, note: e.target.value })}
           />
-          <button
-            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          <SubmitButton
+            type="button"
             disabled={!adding.key.trim()}
             onClick={async () => {
               const ok = await post({
@@ -397,9 +392,9 @@ function Inner() {
             }}
           >
             Ask for it
-          </button>
+          </SubmitButton>
         </div>
-      </div>
+      </Panel>
 
     </div>
   )

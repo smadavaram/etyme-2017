@@ -5,6 +5,7 @@ import { statusMeans } from '@/lib/read-response'
 import { privacyView, type Read } from './says'
 import { usePageSection } from '@/components/page-section'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 /**
  * One read, one envelope.
@@ -251,40 +252,33 @@ export default function PrivacyPage() {
   // headline about the queue, no count, no empty list.
   if (view.show === 'loading') return (
     <div className="max-w-6xl">
-      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
-      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
-      <p className="text-sm text-etyme-muted mt-4" role="status">Loading…</p>
+      <PageHead eyebrow={section} title="Data requests" />
+      <LoadingState says="Opening data requests…" />
     </div>
   )
 
-  // A refused desk is the heading and the route's sentence. No headline
-  // saying nothing is waiting, no "Requests 0" or "Holds 0", and no
-  // button offering to try again — a refusal is not a fault.
-  if (view.show === 'refused') return (
-    <div className="max-w-6xl">
-      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
-      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">Data requests</h1>
-      <p className="mt-6 px-4 py-3 rounded-lg bg-etyme-attention/10 text-sm text-etyme-attention max-w-2xl" role="status">
-        {view.says}
-      </p>
-    </div>
-  )
+  // A refused desk is the route's sentence alone. No heading over it, no
+  // headline saying nothing is waiting, no "Requests 0" or "Holds 0", and
+  // no button offering to try again — a refusal is not a fault.
+  if (view.show === 'refused') return <RefusedState says={view.says} />
 
   return (
     <div className="max-w-6xl">
-      {section && <p className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{section}</p>}
-      <h1 className="font-serif text-3xl text-etyme-ink tracking-[-0.02em] text-balance mt-1">{view.headline ?? 'Data requests'}</h1>
       {/* Whose desk this is, said the way this kind of firm would say it.
           The page used to describe a client program to a staffing
           supplier and to an MSP alike; the sentence now comes from the
           route, which knows the company kind, the same way
           `lib/order-naming` decides what each end of an order is
           called. */}
-      <p className="text-sm text-etyme-muted mt-2 max-w-2xl">
-        {desk?.says ??
-          'Requests for somebody’s data, the records this company has asked to keep, and any incident its records were in.'}{' '}
-        Soonest due first.
-      </p>
+      <PageHead
+        eyebrow={section}
+        title={view.headline ?? 'Data requests'}
+        subtitle={<>
+          {desk?.says ??
+            'Requests for somebody’s data, the records this company has asked to keep, and any incident its records were in.'}{' '}
+          Soonest due first.
+        </>}
+      />
 
       {desk?.missing && (
         <p className="mt-3 px-4 py-3 rounded-lg bg-etyme-canvas border border-etyme-rule text-sm text-etyme-muted max-w-2xl">
@@ -315,7 +309,7 @@ export default function PrivacyPage() {
           <p className="text-sm text-etyme-muted mb-3">{open[0].dueBasis}</p>
         )}
         {view.requests.show === 'refused' ? (
-          <Refused says={view.requests.says} />
+          <RefusedState says={view.requests.says} />
         ) : (
         <ListSurface
           columns={requestColumns}
@@ -344,7 +338,7 @@ export default function PrivacyPage() {
           set by forgetting.
         </p>
         {view.holds.show === 'refused' ? (
-          <Refused says={view.holds.says} />
+          <RefusedState says={view.holds.says} />
         ) : (
         <ListSurface
           columns={holdColumns}
@@ -372,7 +366,7 @@ export default function PrivacyPage() {
           nobody has decided whether a notice is owed, which is not the same as nothing being owed.
         </p>
         {view.incidents.show === 'refused' ? (
-          <Refused says={view.incidents.says} />
+          <RefusedState says={view.incidents.says} />
         ) : (
         <ListSurface
           columns={breachColumns}
@@ -404,14 +398,5 @@ export default function PrivacyPage() {
         )}
       </section>
     </div>
-  )
-}
-
-/** One list's refusal, in the route's words, where its empty message would have been. */
-function Refused({ says }: { says: string }) {
-  return (
-    <p className="px-4 py-3 rounded-lg bg-etyme-canvas border border-etyme-rule text-sm text-etyme-muted max-w-2xl" role="status">
-      {says}
-    </p>
   )
 }

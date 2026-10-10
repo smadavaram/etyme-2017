@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { complianceRefusal } from '@/lib/walls'
 import { complianceSubtitle, complianceView } from '@/app/dashboard/compliance/says'
 import { ComplianceRefused } from '@/app/dashboard/compliance/refused'
+import { TenureRefused } from '@/app/dashboard/tenure/refused'
 import { privacyView, privacyHeadline } from '@/app/dashboard/privacy/says'
 import { mayTryAgain } from '@/app/dashboard/governance/says'
 import { mayWorkBreach } from '@/lib/breach'
@@ -28,7 +29,10 @@ const says = complianceRefusal('Teleworld Solutions', ['Owner'])
 describe('a refused compliance page', () => {
   it('a refused compliance page shows the refusal and no figures', () => {
     const html = renderToStaticMarkup(createElement(ComplianceRefused, { says }))
-    expect(html).toContain('Compliance overview')
+    // Drawn by the shared refused state: the sentence, and no heading over
+    // it, because a heading over a refusal reads as a page that loaded.
+    expect(html).toContain('data-state="refused"')
+    expect(html).not.toContain('<h1')
     expect(html).toContain('Ask the Owner desk at Teleworld Solutions')
     expect(html).not.toMatch(/>\s*0\s*</)
     expect(html).not.toMatch(/Clear rate|Total checks|Evaluations|Policies|Verifications|Classification|Visas/)
@@ -107,7 +111,7 @@ describe('the pages beside compliance, when the route will not answer', () => {
     const page = read('src/app/dashboard/blacklist/page.tsx')
     const refused = page.indexOf('if (!loading && error) return (')
     expect(refused).toBeGreaterThan(-1)
-    expect(page.indexOf('<StatChip label="Total Entries"')).toBeGreaterThan(refused)
+    expect(page.indexOf('<Stat label="Total Entries"')).toBeGreaterThan(refused)
     expect(page.indexOf('Add somebody\n')).toBeGreaterThan(refused)
   })
 
@@ -174,7 +178,7 @@ describe('Data requests, when the routes will not answer or have not answered ye
   it('the page returns the loading and refused states before it draws a headline, a count or an empty list', () => {
     const page = readFileSync(path.join(process.cwd(), 'src/app/dashboard/privacy/page.tsx'), 'utf8')
     const loading = page.indexOf("if (view.show === 'loading') return (")
-    const refused = page.indexOf("if (view.show === 'refused') return (")
+    const refused = page.indexOf("if (view.show === 'refused') return <RefusedState says={view.says} />")
     expect(loading).toBeGreaterThan(-1)
     expect(refused).toBeGreaterThan(loading)
     expect(page.indexOf('{view.headline')).toBeGreaterThan(refused)
@@ -225,9 +229,12 @@ describe('"What is coming", when its read fails', () => {
 
   it('the page draws "Try again" only where mayTryAgain says so', () => {
     const page = readFileSync(path.join(process.cwd(), 'src/app/dashboard/governance/page.tsx'), 'utf8')
-    const button = page.indexOf('>Try again</button>')
+    // The retry is the shared error state's one action; a refusal is the
+    // shared refused state, which takes no action at all.
+    const button = page.indexOf("action={{ label: 'Try again', onClick: load }}")
     expect(button).toBeGreaterThan(-1)
-    expect(page.lastIndexOf('mayTryAgain(status) && (', button)).toBeGreaterThan(page.indexOf('if (!loading && error) return ('))
+    expect(page.lastIndexOf('mayTryAgain(status) ?', button)).toBeGreaterThan(page.indexOf('if (!loading && error) return ('))
+    expect(page).toContain(': <RefusedState says={error} />')
   })
 })
 
@@ -257,10 +264,16 @@ describe('the heading over the compliance and governance pages', () => {
     for (const f of PAGES) {
       expect(readFileSync(path.join(process.cwd(), f), 'utf8'), f).toContain('usePageSection(')
     }
-    // The refused screens draw the section their page read, and nothing
-    // while it is not known.
-    expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: 'Compliance' }))).toContain('>Compliance<')
-    expect(renderToStaticMarkup(createElement(ComplianceRefused, { says, section: null }))).not.toContain('eyebrow')
+    // The refused screens draw no heading of any kind — no section, no
+    // title — only the route's sentence (the shared refused state).
+    for (const html of [
+      renderToStaticMarkup(createElement(ComplianceRefused, { says })),
+      renderToStaticMarkup(createElement(TenureRefused, { says })),
+    ]) {
+      expect(html).not.toContain('eyebrow')
+      expect(html).not.toContain('<h1')
+      expect(html).toContain('data-state="refused"')
+    }
   })
 })
 

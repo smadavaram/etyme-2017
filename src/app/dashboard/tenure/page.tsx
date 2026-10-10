@@ -6,6 +6,7 @@ import { plainDate } from '@/lib/plain-date'
 import { eligibleWords, limitDayWords, limitLine, runsPastWords, statusLabel, tenureSubtitle, tenureView } from './words'
 import { TenureRefused } from './refused'
 import { usePageSection } from '@/components/page-section'
+import { PageHead } from '@/components/ui'
 
 /**
  * Tenure Tracking — Governance section
@@ -131,7 +132,7 @@ export default function TenurePage() {
   // The counters below are drawn only from figures the route sent, never
   // from zeros standing in for an answer the page has not got.
   const view = tenureView({ loading, error, hasData: data != null })
-  if (view.show === 'refused') return <TenureRefused says={view.says} section={section} />
+  if (view.show === 'refused') return <TenureRefused says={view.says} />
 
   const summary = data?.summary ?? null
   const today = new Date()
@@ -256,24 +257,22 @@ export default function TenurePage() {
   return (
     <>
       {/* Head */}
-      <div className="page-head">
-        {section && <p className="eyebrow">{section}</p>}
-        <h1>Time on site</h1>
-        {/* ── The sentence waits for the name ──
+      {/* ── The sentence waits for the name ──
             It read "Cross-vendor tenure at … ." until the fetch
             returned, which is a screen asserting a fact about a company
             it cannot yet name. An ellipsis in the middle of a sentence
             is not a loading state; it is a sentence with a hole in it.
             The half that does not depend on the name is said straight
             away, because it is true of every client. */}
-        <p>
-          {tenureSubtitle({
-            clientName: data?.client.name,
-            capMonths,
-            breakDays: data?.breakDays ?? null,
-          })}
-        </p>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Time on site"
+        subtitle={tenureSubtitle({
+          clientName: data?.client.name,
+          capMonths,
+          breakDays: data?.breakDays ?? null,
+        })}
+      />
 
       {/* Stats — only once the route has answered with figures */}
       {summary && (

@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { plainDate } from '@/lib/plain-date'
 import { emptyRequestsSays } from './words'
 import { usePageSection } from '@/components/page-section'
+import { EmptyState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -40,23 +41,6 @@ interface Available {
   purpose: string
   subject: string
   itemCount: number
-}
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Stat({ label, value, tone = 'ink', sub }: {
-  label: string; value: number | string; tone?: 'ink' | 'attention' | 'verified'; sub?: string
-}) {
-  const tones = { ink: 'text-etyme-ink', attention: 'text-etyme-attention', verified: 'text-etyme-verified' }
-  return (
-    <div>
-      <Lbl>{label}</Lbl>
-      <p className={`font-serif text-3xl mt-1 tabular-nums ${tones[tone]}`}>{value}</p>
-      {sub && <p className="text-[12px] text-etyme-muted mt-0.5">{sub}</p>}
-    </div>
-  )
 }
 
 export default function PacketsPage() {
@@ -154,7 +138,10 @@ export default function PacketsPage() {
     }
   }
 
-  if (!packets) return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
+  // Until the list is read there is nothing to count and nothing to ask
+  // from: the route's sentence alone if it would not answer, and the
+  // loading line while it has not yet.
+  if (!packets) return error ? <RefusedState says={error} /> : <LoadingState says="Opening document requests…" />
 
   const review = packets.filter((p) => p.awaitingReview > 0)
   const open = packets.filter((p) => p.awaitingReview === 0 && !p.completedAt && !p.linkExpired)
@@ -163,21 +150,16 @@ export default function PacketsPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1>Document requests</h1>
-          <p>
-            Ask a supplier or a person for documents with one link. They need no account. We never
-            ask again for something already on file that has not run out.
-          </p>
-        </div>
-        {canAsk && (
-          <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px] self-start md:mt-3 shrink-0">
+      <PageHead
+        eyebrow={section}
+        title="Document requests"
+        subtitle="Ask a supplier or a person for documents with one link. They need no account. We never ask again for something already on file that has not run out."
+        actions={canAsk && (
+          <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px]">
             {asking ? 'Cancel' : 'Request documents'}
           </button>
         )}
-      </div>
+      />
 
       {flash && (
         <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
@@ -210,74 +192,63 @@ export default function PacketsPage() {
       )}
 
       {asking && (
-        <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-          <h2 className="font-serif text-[19px] text-etyme-ink mb-4 tracking-[-0.02em]">Request documents</h2>
+        <Panel title="Request documents" className="mb-5">
           <div className="grid sm:grid-cols-2 gap-3">
-            <label className="block">
-              <Lbl>What you need</Lbl>
-              <select value={packetKey} onChange={(e) => setPacketKey(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+            <Field label="What you need">
+              <Select value={packetKey} onChange={(e) => setPacketKey(e.target.value)}>
                 <option value="">Choose…</option>
                 {available.map((a) => (
                   <option key={a.key} value={a.key}>{a.label} ({a.itemCount})</option>
                 ))}
-              </select>
-            </label>
-            <label className="block">
-              <Lbl>Send to</Lbl>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
-                placeholder="office@supplier.com"
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
-            </label>
+              </Select>
+            </Field>
+            <Field label="Send to">
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
+                placeholder="office@supplier.com" />
+            </Field>
             {spec?.subject === 'PERSON' && (
-              <label className="block sm:col-span-2">
-                <Lbl>About which person</Lbl>
-                <select value={subjectPersonId}
+              <Field label="About which person" className="sm:col-span-2"
+                help={people.length === 0
+                  ? 'Nobody is on an open contract with your firm yet, so there is nobody to ask about.'
+                  : undefined}>
+                <Select value={subjectPersonId}
                   onChange={(e) => {
                     setSubjectPersonId(e.target.value)
                     const who = people.find((p) => p.id === e.target.value)
                     if (who?.email && !email.trim()) setEmail(who.email)
-                  }}
-                  className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+                  }}>
                   <option value="">Choose…</option>
                   {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                {people.length === 0 && (
-                  <span className="block text-[12px] text-etyme-muted mt-1">
-                    Nobody is on an open contract with your firm yet, so there is nobody to ask about.
-                  </span>
-                )}
-              </label>
+                </Select>
+              </Field>
             )}
             {spec?.subject === 'COMPANY' && (
-              <label className="block sm:col-span-2">
-                <Lbl>About which company</Lbl>
-                <select value={subjectCompanyId} onChange={(e) => setSubjectCompanyId(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+              <Field label="About which company" className="sm:col-span-2">
+                <Select value={subjectCompanyId} onChange={(e) => setSubjectCompanyId(e.target.value)}>
                   <option value="">Choose…</option>
                   {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
           </div>
-          <button onClick={ask}
-            disabled={busy || !packetKey || !email.trim() || (spec?.subject === 'COMPANY' && !subjectCompanyId) || (spec?.subject === 'PERSON' && !subjectPersonId)}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40">
+          <SubmitButton type="button" onClick={ask} pending={busy} pendingLabel="Sending…"
+            disabled={!packetKey || !email.trim() || (spec?.subject === 'COMPANY' && !subjectCompanyId) || (spec?.subject === 'PERSON' && !subjectPersonId)}
+            className="mt-4">
             Send the request
-          </button>
+          </SubmitButton>
           {notOffered.length > 0 && (
             <div className="mt-4 text-[12px] text-etyme-muted">
               <p>Not sent from here: {notOffered.map((n) => n.label).join(', ')}.</p>
               <p className="mt-0.5">{notOffered[0].why}</p>
             </div>
           )}
-        </section>
+        </Panel>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pb-6 border-b border-etyme-rule">
-        <Stat label="Waiting on you" value={counts.awaitingReview} tone={counts.awaitingReview > 0 ? 'attention' : 'ink'} sub="documents to look at" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <Stat label="Waiting on you" value={counts.awaitingReview} tone={counts.awaitingReview > 0 ? 'attention' : 'default'} sub="documents to look at" />
         <Stat label="Still open" value={counts.open} sub="waiting on them" />
-        <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'ink'} sub="they cannot reply" />
+        <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'default'} sub="they cannot reply" />
       </div>
 
       {/* ── Never a dead end ──
@@ -286,15 +257,10 @@ export default function PacketsPage() {
           page named for asking. It now says what to do, and offers it
           where this desk may. */}
       {packets.length === 0 && (
-        <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
-          <p className="text-[13px] text-etyme-ink">{emptyRequestsSays(canAsk)}</p>
-          {canAsk && !asking && (
-            <button onClick={() => setAsking(true)}
-              className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium">
-              Request documents
-            </button>
-          )}
-        </div>
+        <EmptyState
+          says={emptyRequestsSays(canAsk)}
+          action={canAsk && !asking ? { label: 'Request documents', onClick: () => setAsking(true) } : undefined}
+        />
       )}
 
       <Group title="Waiting on you" rows={review} note="Something arrived and nobody has looked at it." />
