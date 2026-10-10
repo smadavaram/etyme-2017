@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 
 import { useEffect, useState } from 'react'
 
@@ -88,55 +89,44 @@ export default function TextsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (refused) return <RefusedState says={refused} />
   // Nothing about whose bench this is until the read says it may be read.
-  if (loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (loading) return <LoadingState says="Opening bench check-ins…" />
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
-      <header>
-        {/* The section the reader's own menu puts this page under — a
-            bench firm files it under Procure, an integrator and a program
-            office under Supply. It read "Talent" until the menus were
-            organized, and by then no menu had a Talent section at all. */}
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Bench check-ins</h1>
-        {f && (
-          <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
+      {/* The section the reader's own menu puts this page under — a
+          bench firm files it under Procure, an integrator and a program
+          office under Supply. It read "Talent" until the menus were
+          organized, and by then no menu had a Talent section at all. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title="Bench check-ins"
+        subtitle={f && (
+          <>
             A record that says somebody is free at $78 was true three weeks
             ago. Everything else here sits on top of it, so we ask — one
             question, one tap, in your name.
-          </p>
+          </>
         )}
-      </header>
+      />
 
       {f && (
         <>
-          <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-            <div>
-              <p className="stat-label">Not confirmed</p>
-              <p
-                className="stat-value"
-                style={{ color: f.bench.unconfirmed > 0 ? 'var(--color-attention)' : undefined }}
-              >
-                {f.bench.unconfirmed}
-                <span className="text-[16px] text-etyme-faint">/{f.bench.total}</span>
-              </p>
-            </div>
-            <div>
-              <p className="stat-label">No email</p>
-              <p className="stat-value">{f.bench.noEmail}</p>
-            </div>
-            <div>
-              <p className="stat-label">Asked us to stop</p>
-              <p className="stat-value">{f.bench.optedOut}</p>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Stat
+              label="Not confirmed"
+              value={<>{f.bench.unconfirmed}<span className="text-[16px] text-etyme-faint">/{f.bench.total}</span></>}
+              tone={f.bench.unconfirmed > 0 ? 'attention' : 'default'}
+            />
+            <Stat label="No email" value={f.bench.noEmail} />
+            <Stat label="Asked us to stop" value={f.bench.optedOut} />
           </div>
 
           <p className="text-[13px] text-etyme-muted">{f.bench.says}</p>
 
           {f.provider.startsWith('not set up') && (
-            <div className="rounded-md border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
+            <div className="rounded-panel border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
               Messages are being written down but not sent — no email
               provider is set up yet. Everything below is what would have
               gone out.
@@ -145,21 +135,13 @@ export default function TextsPage() {
         </>
       )}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {f && f.messages.length === 0 && (
-        <div className="panel">
-          <h2 className="headline-serif text-[19px]">Nothing sent yet</h2>
-          <p className="mt-1 max-w-[56ch] text-[13px] text-etyme-muted">
-            The check-in runs every fortnight for anybody on the bench who
-            is not currently working. The consent ask goes out with each
-            submission.
-          </p>
-        </div>
+        <EmptyState
+          says="Nothing sent yet"
+          detail="The check-in runs every fortnight for anybody on the bench who is not currently working. The consent ask goes out with each submission."
+        />
       )}
 
       <div className="space-y-2">
@@ -182,14 +164,11 @@ export default function TextsPage() {
                 </span>
               </span>
               <span className="flex items-center gap-2">
-                {m.read && <span className="chip chip--action">{m.read.toLowerCase()}</span>}
+                {m.read && <Chip tone="action">{m.read.toLowerCase()}</Chip>}
                 {m.direction === 'OUT' && m.status !== 'SENT' && (
-                  <span
-                    className={`chip ${m.status === 'FAILED' ? 'chip--danger' : 'chip--passive'}`}
-                    title={m.statusNote}
-                  >
+                  <Chip tone={m.status === 'FAILED' ? 'danger' : 'passive'} title={m.statusNote}>
                     {m.status === 'NOT_CONFIGURED' ? 'not sent' : m.status.toLowerCase()}
-                  </span>
+                  </Chip>
                 )}
               </span>
             </div>

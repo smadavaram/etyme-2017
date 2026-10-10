@@ -6,6 +6,10 @@ import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
 import { conversationsFraming } from '@/lib/page-framing'
 import { usePageSection } from '@/components/page-section'
+import {
+  Chip, EmptyState, ErrorState, Field, FilterChips, FormMessage, Input, LoadingState, PageHead,
+  SubmitButton, Textarea, type FilterOption,
+} from '@/components/ui'
 
 /**
  * Conversations page — messaging between vendors, clients, and candidates.
@@ -178,7 +182,7 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">New conversation</h2>
+          <h2 className="font-serif text-h3 text-etyme-ink">New conversation</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1" aria-label="Close">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -191,48 +195,41 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
             : 'Among your own people. A client writes to you from their job or your candidate, and you answer on that thread; a supplier does not start one.'}
         </p>
 
-        {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="new-thread-title" className="block text-xs font-semibold text-etyme-muted mb-1">What it is about</label>
-            <input
-              id="new-thread-title"
+          <Field label="What it is about">
+            <Input
               type="text"
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="e.g. Q4 hiring plan"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label htmlFor="new-thread-body" className="block text-xs font-semibold text-etyme-muted mb-1">First note</label>
-            <textarea
-              id="new-thread-body"
+          <Field label="First note">
+            <Textarea
               required
               rows={4}
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action resize-none"
+              className="resize-none"
               placeholder="Type your note…"
             />
-          </div>
+          </Field>
+
+          {error && <FormMessage tone="error">{error}</FormMessage>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting || !form.title.trim() || !form.body.trim()} className="btn-primary w-full disabled:opacity-50">
-              {submitting ? 'Starting…' : 'Start conversation'}
-            </button>
+            <SubmitButton
+              pending={submitting}
+              pendingLabel="Starting…"
+              disabled={!form.title.trim() || !form.body.trim()}
+            >
+              Start conversation
+            </SubmitButton>
           </div>
         </form>
       </div>
@@ -265,6 +262,10 @@ export default function ConversationsPage() {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
+  // The route's own sentence when a reply did not go — "That conversation
+  // is not here.", a desk the seat does not hold — said under the box.
+  // It was swallowed, so a refused reply looked like a reply that sent.
+  const [sendError, setSendError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Open the new-conversation modal when navigated with ?new=1
@@ -348,6 +349,7 @@ export default function ConversationsPage() {
   }, [])
 
   useEffect(() => {
+    setSendError(null)
     if (activeConvo) {
       fetchMessages(activeConvo.id)
     }
@@ -359,9 +361,11 @@ export default function ConversationsPage() {
   }, [messages])
 
   // ── Send message ──────────────────────────────────
-  async function handleSend() {
+  async function handleSend(e?: React.FormEvent) {
+    e?.preventDefault()
     if (!newMessage.trim() || !activeConvo || sending) return
     setSending(true)
+    setSendError(null)
     try {
       const res = await fetch('/api/conversations/messages', {
         method: 'POST',
@@ -372,13 +376,12 @@ export default function ConversationsPage() {
           type: 'TEXT',
         }),
       })
-      if (res.ok) {
-        setNewMessage('')
-        fetchMessages(activeConvo.id)
-        fetchConversations() // update last message preview
-      }
-    } catch {
-      // silent
+      await readJson(res)
+      setNewMessage('')
+      fetchMessages(activeConvo.id)
+      fetchConversations() // update last message preview
+    } catch (err: any) {
+      setSendError(err?.message ?? 'That note did not send. Try again.')
     } finally {
       setSending(false)
     }
@@ -391,7 +394,7 @@ export default function ConversationsPage() {
   })
 
   // ── Topic filter options ──────────────────────────
-  const topicOptions: { key: TopicFilter; label: string }[] = [
+  const topicOptions: FilterOption<TopicFilter>[] = [
     { key: 'all', label: 'All' },
     { key: 'REQUIREMENT', label: 'Job requests' },
     { key: 'CONTRACT', label: 'Contracts' },
@@ -410,59 +413,45 @@ export default function ConversationsPage() {
         </div>
       )}
 
-      {/* Head */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          {/* The heading the reader's own menu prints over this page: a
-              firm files it under Today, a client under Workforce. It was
-              typed as "Today" for everybody, and nothing until the
-              company is known (sign-up walk, round three, item 11). */}
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Conversations</h1>
-          {/* "Job requests", the screen word for a requirement on every
-              party's menu (CLAUDE.md, plain words; round three, item 10).
-              No party list either: a client's messages are with its
-              suppliers, a supplier's with its clients. */}
-          {!session.loading && <p>{words.subtitle}</p>}
-        </div>
-        {/* A conversation belongs to a company, and the route refuses one
-            to somebody who is not at one; a button that only refuses is
-            not offered. */}
-        {!session.loading && words.mayStart && (
-          <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
+      {/* The heading the reader's own menu prints over this page: a firm
+          files it under Today, a client under Workforce. It was typed as
+          "Today" for everybody, and nothing until the company is known
+          (sign-up walk, round three, item 11). "Job requests", the screen
+          word for a requirement on every party's menu (CLAUDE.md, plain
+          words; round three, item 10). No party list either: a client's
+          messages are with its suppliers, a supplier's with its clients.
+          A conversation belongs to a company, and the route refuses one
+          to somebody who is not at one; a button that only refuses is
+          not offered. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title="Conversations"
+        subtitle={!session.loading ? words.subtitle : undefined}
+        actions={!session.loading && words.mayStart ? (
+          <button onClick={() => setShowNew(true)} className="btn-primary">
             + New
           </button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Topic filters */}
       {words.topics && !session.loading && (
-      <div className="flex gap-1.5 flex-wrap mb-5">
-        {topicOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setTopicFilter(opt.key)}
-            className={`filter-tab ${
-              topicFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          {error}
+        <div className="mb-5">
+          <FilterChips
+            label="What the conversation is about"
+            options={topicOptions.map((o) => ({
+              ...o,
+              count: o.key === 'all' ? conversations.length : conversations.filter((c) => c.topic === o.key).length,
+            }))}
+            value={topicFilter}
+            onChange={setTopicFilter}
+          />
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="py-16 text-center text-etyme-muted">Loading conversations…</div>
-      )}
+      {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => { void fetchConversations() } }} /></div>}
+
+      {loading && <LoadingState says="Opening conversations…" />}
 
       {/* Two-panel layout */}
       {!loading && (
@@ -476,11 +465,11 @@ export default function ConversationsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
+              {/* The sentence is the reader's own: a firm's desk, somebody
+                  on a firm's bench, or somebody with no company at all
+                  (conversationsFraming). */}
               {filtered.length === 0 && (
-                <div className="py-12 text-center">
-                  <p className="text-sm text-etyme-muted">No conversations yet.</p>
-                  <p className="text-xs text-etyme-faint mt-1 px-6">{words.empty}</p>
-                </div>
+                <EmptyState compact says="No conversations yet." detail={words.empty} />
               )}
 
               {filtered.map((c) => (
@@ -505,8 +494,8 @@ export default function ConversationsPage() {
 
                   <div className="flex items-center gap-2 ml-5 flex-wrap">
                     {c.otherCompany
-                      ? <span className="chip text-[9px] chip--action">with {c.otherCompany.name}</span>
-                      : <span className="chip text-[9px] chip--passive">own people</span>}
+                      ? <Chip tone="action">with {c.otherCompany.name}</Chip>
+                      : <Chip tone="passive">own people</Chip>}
                     <span className="text-[10px] text-etyme-faint">{topicLabel(c.topic)}</span>
                     <span className="text-[10px] text-etyme-faint tabular-nums">{c.messageCount} msgs</span>
                   </div>
@@ -525,12 +514,7 @@ export default function ConversationsPage() {
           <div className={`${activeConvo ? 'flex' : 'hidden md:flex'} flex-col flex-1`}>
             {!activeConvo ? (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-lg text-etyme-muted mb-1">Select a conversation</p>
-                  <p className="text-sm text-etyme-faint">
-                    Choose a thread from the list to view messages.
-                  </p>
-                </div>
+                <EmptyState compact says="Select a conversation" detail="Choose a thread from the list to view messages." />
               </div>
             ) : (
               <>
@@ -552,8 +536,8 @@ export default function ConversationsPage() {
                     </p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {activeConvo.otherCompany
-                        ? <span className="chip text-[9px] chip--action">with {activeConvo.otherCompany.name}</span>
-                        : <span className="chip text-[9px] chip--passive">own people</span>}
+                        ? <Chip tone="action">with {activeConvo.otherCompany.name}</Chip>
+                        : <Chip tone="passive">own people</Chip>}
                       <span className="text-[10px] text-etyme-faint">{topicLabel(activeConvo.topic)}</span>
                       {activeConvo.participants.length > 0 && (
                         <span className="text-[10px] text-etyme-faint">
@@ -566,12 +550,10 @@ export default function ConversationsPage() {
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-                  {messagesLoading && (
-                    <div className="text-center text-etyme-faint text-sm py-8">Loading messages…</div>
-                  )}
+                  {messagesLoading && <LoadingState compact says="Loading messages…" />}
 
                   {!messagesLoading && messages.length === 0 && (
-                    <div className="text-center text-etyme-faint text-sm py-8">No messages yet.</div>
+                    <EmptyState compact says="No messages yet." />
                   )}
 
                   {messages.map((msg) => {
@@ -622,37 +604,35 @@ export default function ConversationsPage() {
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Compose */}
-                <div className="px-4 py-3 border-t border-etyme-rule bg-white">
-                  <p className="text-[10px] text-etyme-faint mb-2">
-                    {activeConvo.otherCompany
+                {/* Compose: one field, and under it who reads what is typed. */}
+                <form onSubmit={handleSend} className="px-4 py-3 border-t border-etyme-rule bg-etyme-raised space-y-2">
+                  <Field
+                    label="Reply"
+                    help={activeConvo.otherCompany
                       ? `${activeConvo.otherCompany.name} sees this. Nobody else does.`
                       : 'Your own people only.'}
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSend()
-                        }
-                      }}
-                      placeholder="Type a message…"
-                      className="flex-1 px-3 py-2 text-[13px] border border-etyme-rule rounded-lg
-                                 focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                    />
-                    <button
-                      onClick={handleSend}
-                      disabled={!newMessage.trim() || sending}
-                      className="btn-primary px-4 py-2 text-[13px] disabled:opacity-50"
-                    >
-                      {sending ? '…' : 'Send'}
-                    </button>
-                  </div>
-                </div>
+                    error={sendError ?? undefined}
+                  >
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => { setNewMessage(e.target.value); if (sendError) setSendError(null) }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            void handleSend()
+                          }
+                        }}
+                        placeholder="Type a message…"
+                        className="flex-1"
+                      />
+                      <SubmitButton pending={sending} pendingLabel="Sending…" disabled={!newMessage.trim()}>
+                        Send
+                      </SubmitButton>
+                    </div>
+                  </Field>
+                </form>
               </>
             )}
           </div>

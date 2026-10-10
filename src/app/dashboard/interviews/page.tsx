@@ -12,6 +12,7 @@ import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
 import type { PlaceMove } from '@/lib/interviews'
 import { PlaceDialog } from './place-dialog'
+import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -174,16 +175,16 @@ export default function InterviewsPage() {
     }
   }
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  if (!read && loading) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (!read && loading) return <LoadingState says="Opening interviews…" />
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
-      <header>
-        {framing?.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">{framing?.title ?? 'Interviews'}</h1>
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">{framing?.subtitle}</p>
-      </header>
+      <PageHead
+        eyebrow={framing?.eyebrow}
+        title={framing?.title ?? 'Interviews'}
+        subtitle={framing?.subtitle}
+      />
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
@@ -193,24 +194,22 @@ export default function InterviewsPage() {
         </p>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState compact says="Reading the rounds again…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && rows.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing booked. Interviews start from{' '}
-            <Link href="/dashboard/submissions" className="text-etyme-action underline">
-              a candidate on a job
-            </Link>
-            .
-          </p>
-        </div>
+        <EmptyState
+          says={
+            <>
+              Nothing booked. Interviews start from{' '}
+              <Link href="/dashboard/submissions" className="text-etyme-action underline">
+                a candidate on a job
+              </Link>
+              .
+            </>
+          }
+        />
       )}
 
       {rows.map((r) => {
@@ -233,7 +232,7 @@ export default function InterviewsPage() {
                 {r.stage.toLowerCase()} · {r.mode.toLowerCase()}
               </p>
             </div>
-            {r.yours && <span className="chip chip--attention">Needs you</span>}
+            {r.yours && <Chip tone="attention">Needs you</Chip>}
           </div>
 
           <p className={`mt-2 text-[13px] ${r.overdue ? 'text-etyme-attention' : 'text-etyme-muted'}`}>

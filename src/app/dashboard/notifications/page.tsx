@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { notificationsFraming } from '@/lib/page-framing'
+import { Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, type ChipTone } from '@/components/ui'
 
 /**
  * Notifications page — inbox for all platform activity.
@@ -91,20 +92,20 @@ function typeLabel(type: string): string {
   return map[type] ?? 'Update'
 }
 
-function typeChipClass(type: string): string {
-  const map: Record<string, string> = {
-    SUBMISSION:   'chip--action',
-    INTERVIEW:    'chip--action',
-    BENCH:        'chip--verified',
-    TIMESHEET:    'chip--attention',
-    INVOICE:      'chip--action',
-    EXPENSE:      'chip--attention',
-    CONTRACT:     'chip--verified',
-    ROLLOFF:      'chip--danger',
-    CONVERSATION: 'chip--passive',
-    SYSTEM:       'chip--passive',
+function typeTone(type: string): ChipTone {
+  const map: Record<string, ChipTone> = {
+    SUBMISSION:   'action',
+    INTERVIEW:    'action',
+    BENCH:        'verified',
+    TIMESHEET:    'attention',
+    INVOICE:      'action',
+    EXPENSE:      'attention',
+    CONTRACT:     'verified',
+    ROLLOFF:      'danger',
+    CONVERSATION: 'passive',
+    SYSTEM:       'passive',
   }
-  return map[type] ?? 'chip--passive'
+  return map[type] ?? 'passive'
 }
 
 function timeAgo(dateStr: string): string {
@@ -209,29 +210,27 @@ export default function NotificationsPage() {
 
   return (
     <>
-      {/* Head */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          {framing.eyebrow && <p className="eyebrow">{framing.eyebrow}</p>}
-          <h1>{framing.title}</h1>
-          {framing.subtitle && <p>{framing.subtitle}</p>}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
-          {unreadCount > 0 && (
-            <span className="text-[13px] text-etyme-attention font-medium tabular-nums">
-              {unreadCount} unread
-            </span>
-          )}
-          <button
-            onClick={handleMarkAllRead}
-            disabled={unreadCount === 0}
-            className="btn-secondary text-[13px] disabled:opacity-50"
-          >
-            Mark all read
-          </button>
-        </div>
-      </div>
+      <PageHead
+        eyebrow={framing.eyebrow}
+        title={framing.title}
+        subtitle={framing.subtitle || undefined}
+        actions={
+          <>
+            {unreadCount > 0 && (
+              <span className="text-[13px] text-etyme-attention font-medium tabular-nums">
+                {unreadCount} unread
+              </span>
+            )}
+            <button
+              onClick={handleMarkAllRead}
+              disabled={unreadCount === 0}
+              className="btn-secondary text-[13px] disabled:opacity-50"
+            >
+              Mark all read
+            </button>
+          </>
+        }
+      />
 
       {/* What did not leave the building. Only shown when something did
           not, because a healthy system should not narrate itself. */}
@@ -276,46 +275,28 @@ export default function NotificationsPage() {
           ))}
         </div>
 
-        {/* Type filters */}
-        <div className="flex gap-1.5 flex-wrap w-full md:w-auto">
-          {typeOptions.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setTypeFilter(opt.key)}
-              className={`filter-tab ${
-                typeFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        {/* Type filters: the reader's own kinds, after "All". */}
+        <div className="w-full md:w-auto">
+          <FilterChips
+            label="Kind of notification"
+            options={typeOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => { void fetchNotifications() } }} /></div>}
 
-      {/* Loading */}
-      {loading && (
-        <div className="py-16 text-center text-etyme-muted">Loading notifications…</div>
-      )}
+      {loading && <LoadingState says="Opening notifications…" />}
 
-      {/* Empty state */}
       {!loading && filtered.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-etyme-muted text-lg font-medium">
-            {statusFilter === 'UNREAD' ? 'All caught up!' : 'No notifications yet.'}
-          </p>
-          <p className="text-etyme-faint text-sm mt-1">
-            {statusFilter === 'UNREAD'
-              ? 'You have no unread notifications.'
-              : 'Notifications will appear here as activity happens across your platform.'}
-          </p>
-        </div>
+        <EmptyState
+          says={statusFilter === 'UNREAD' ? 'All caught up!' : 'No notifications yet.'}
+          detail={statusFilter === 'UNREAD'
+            ? 'You have no unread notifications.'
+            : 'Notifications will appear here as activity happens across your platform.'}
+        />
       )}
 
       {/* Notification list */}
@@ -351,7 +332,7 @@ export default function NotificationsPage() {
                   }`}>
                     {n.title}
                   </p>
-                  <span className={`chip text-[10px] ${typeChipClass(n.type)}`}>{typeLabel(n.type)}</span>
+                  <Chip tone={typeTone(n.type)}>{typeLabel(n.type)}</Chip>
                 </div>
                 <p className="text-[12px] text-etyme-faint truncate">{n.body}</p>
                 {n.deliveryState === 'DEMO_SKIPPED' && (

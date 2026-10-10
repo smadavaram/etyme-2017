@@ -1194,23 +1194,23 @@ describe('sign-up walk, round seven: a refused Bench check-ins or Interviews is 
   for (const [page, says] of [['texts', 'Bench check-ins'], ['interviews', 'Interviews']] as const) {
     it(`${says} returns the refusal sentence before drawing any heading or prose`, () => {
       const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
-      const refusal = src.indexOf('if (refused) return')
+      const refusal = src.indexOf('if (refused) return <RefusedState says={refused} />')
       expect(refusal, page).toBeGreaterThan(-1)
-      expect(refusal, page).toBeLessThan(src.indexOf('<header>'))
+      expect(refusal, page).toBeLessThan(src.indexOf('<PageHead'))
       expect(src, page).toContain('status === 403')
     })
 
     it(`${says} shows Loading alone until the first read says the page may be read`, () => {
       const src = readFileSync(join(process.cwd(), `src/app/dashboard/${page}/page.tsx`), 'utf8')
-      const loading = src.search(/if \((!read && )?loading\) return <p[^>]*>Loading…<\/p>/)
+      const loading = src.search(/if \((!read && )?loading\) return <LoadingState says="[^"]*…" \/>/)
       expect(loading, page).toBeGreaterThan(-1)
-      expect(loading, page).toBeLessThan(src.indexOf('<header>'))
+      expect(loading, page).toBeLessThan(src.indexOf('<PageHead'))
     })
   }
 
   it('the $78 line on Bench check-ins is drawn only once the check-ins have been read', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
     const line = src.indexOf('somebody is free at $78')
-    expect(src.lastIndexOf('{f && (', line)).toBeGreaterThan(src.indexOf('<header>'))
+    expect(src.lastIndexOf('{f && (', line)).toBeGreaterThan(src.indexOf('<PageHead'))
   })
 })

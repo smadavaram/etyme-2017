@@ -1,4 +1,6 @@
+import { randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
+import { readMarketEvent, MARKET_TYPE_PREFIX } from '@/lib/public-site/market-events'
 
 /**
  * Writing to the event log.
@@ -230,4 +232,61 @@ export async function streamSince(
  */
 export function isKnownEventType(value: string): value is EventType {
   return (EVENT_TYPES as readonly string[]).includes(value)
+}
+
+/**
+ * Count one thing a public-site visitor did, from the server.
+ *
+ * The public site counts its doors from the browser (`lib/public-site/count`,
+ * through `POST /api/market/events`). One door is not a click: taking a
+ * seat in the demo happens inside `POST /api/demo`, on the server, where
+ * the browser counter cannot run. This writes the same row that route
+ * writes, so the staff summary reads both alike:
+ *
+ *   companyId null · type `market.<event>` · subjectType 'Visit' ·
+ *   subjectId the visit id · actorKind 'VISITOR' · payload { page, visit }
+ *
+ * The event, the page and the visit id go through market's own reader
+ * (`readMarketEvent`), so nothing reaches the log here that the browser's
+ * route would have refused: no query string, no address, no name.
+ *
+ * Where the caller has no visit id — a demo seat taken by a script, or a
+ * browser that refused sessionStorage — a random one is made here. That
+ * row is still one real demo start; it counts as a visit of its own,
+ * which is said in `minted` so the caller can tell.
+ *
+ * Awaited, and never throws: a serverless host may stop the function the
+ * moment the response goes out (the lesson of `recordRefusal`), and a
+ * count is never worth a demo seat that failed to open.
+ */
+export async function countVisitorEvent(
+  event: string,
+  where: { page: string; visit?: string | null },
+): Promise<{ counted: boolean; minted: boolean; says: string }> {
+  const minted = !where.visit
+  let visit = where.visit ?? ''
+  if (minted) visit = randomBytes(16).toString('hex')
+  const read = readMarketEvent({ event, page: where.page, visit })
+  if (!read.ok) return { counted: false, minted, says: read.says }
+  try {
+    await prisma.event.create({
+      data: {
+        companyId: null,
+        type: `${MARKET_TYPE_PREFIX}${read.row.event}`,
+        subjectType: 'Visit',
+        subjectId: read.row.visit,
+        actorKind: 'VISITOR',
+        payload: { page: read.row.page, visit: read.row.visit },
+      },
+    })
+  } catch (err) {
+    console.error(`[Events] Could not count ${MARKET_TYPE_PREFIX}${read.row.event}:`, err)
+    return { counted: false, minted, says: 'Not counted. Nothing else is affected.' }
+  }
+  return { counted: true, minted, says: `Counted ${read.row.event} on ${read.row.page}.` }
+}
+
+/** The demo door's one count: somebody took a seat in the demo. */
+export function countDemoStarted(where: { page?: string; visit?: string | null } = {}) {
+  return countVisitorEvent('demo_started', { page: where.page ?? '/demo', visit: where.visit })
 }
