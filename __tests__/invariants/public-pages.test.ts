@@ -542,6 +542,19 @@ describe('One header and footer on every new page', () => {
     expect(chain).toEqual(['A prime', 'A sub', 'A bench vendor'])
   })
 
+  it('the solutions menu opens on the home page band\'s four desks, in the band\'s order, then adds hiring managers and suppliers', () => {
+    // The band is written to four client desks; the menu on every page
+    // keeps two more, the hiring manager who signs weeks and the
+    // suppliers' one door to the chain page. The first four must be the
+    // band's, so the menu and the band never teach two different maps.
+    const page = read('src/app/page.tsx')
+    const block = page.slice(page.indexOf('const DESKS'), page.indexOf('const HOW'))
+    const bandDesks = [...block.matchAll(/desk: '(\w+)'/g)].map((m) => m[1])
+    expect(bandDesks).toEqual(['programme', 'procurement', 'hr', 'ap'])
+    expect(ROLES.slice(0, 4).map((r) => r.t)).toEqual(['The program office', 'Procurement', 'HR and compliance', 'Finance'])
+    expect(ROLES.slice(4).map((r) => r.t)).toEqual(['Hiring managers', 'Suppliers'])
+  })
+
   it('the right of every header is Sign in and one filled button, which leads to the spend audit', () => {
     // The audit since 2026-10-09 (the founder's brief); the example
     // program until then.

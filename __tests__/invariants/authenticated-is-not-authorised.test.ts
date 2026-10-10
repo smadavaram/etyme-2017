@@ -249,6 +249,20 @@ const SELF_SCOPED = [
 ]
 
 /**
+ * Etyme's own reading, of nothing a company owns. These answer to whether
+ * the caller is Etyme staff (`mayReadTheList` over ETYME_STAFF_EMAILS and
+ * the etyme.com domain), not to a seat at a company, so there is no
+ * company or permission to take from getCallerContext.
+ */
+const STAFF_GATED = [
+  // POST is open on purpose: a visitor to the public site has no account,
+  // and it stores one of five event names, a page path and a random visit
+  // id, nothing personal and nothing of any company's. GET is the count,
+  // read only by staff; anybody else is refused in a sentence.
+  'market/events/route.ts',
+]
+
+/**
  * Some handlers in these files already take the caller's company; at
  * least one does not. Narrower than a hole and wider than correct.
  */
@@ -294,7 +308,7 @@ describe('signing somebody in is not the same as working out what they may do', 
     .map((f) => relative(apiDir, f).split(sep).join('/'))
     .sort()
 
-  const named = new Set([...SELF_SCOPED, ...PART_SCOPED, ...TO_REVIEW])
+  const named = new Set([...SELF_SCOPED, ...STAFF_GATED, ...PART_SCOPED, ...TO_REVIEW])
 
   it('no route reads only a session without being named and accounted for', () => {
     const unaccounted = usingSessionOnly.filter((r) => !named.has(r))

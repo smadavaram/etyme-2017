@@ -118,6 +118,19 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  * what that reader will find, in the product's own terms. The HR line
  * carries the one claim about good standing the header makes, and the
  * positioning test reads it against the two doors that refuse it.
+ *
+ * ── Six here, four on the home page's Solutions band, on purpose ─────
+ *
+ * The band (2026-10-10) is the four client desks the home page is written
+ * to — program office, Procurement, HR, Finance — each with its question
+ * and its demo screen. This menu opens on the same four, in the band's
+ * order, and then adds two that the band leaves out and the header must
+ * not: hiring managers, a client desk that signs the weeks, and suppliers,
+ * whose one door from every page is the chain page (where the blind key
+ * and the unnamed end client are said). Cutting the menu to four would
+ * drop that door; adding two to the band would make the home page speak
+ * to suppliers as an equal audience. The test holds the first four to
+ * the band's demo desks.
  */
 export const ROLES: NavItem[] = [
   { t: 'The program office', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
