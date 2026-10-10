@@ -6,6 +6,7 @@ import { compact as fmtMinor, amount as fmtMinorExact, fromUnits } from '@/lib/m
 import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -291,17 +292,13 @@ function GenerateInvoiceModal({
           </button>
         </div>
 
-        {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4"><ErrorState says={error} /></div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-1">Engagement *</label>
             {loadingEngagements ? (
-              <p className="text-sm text-etyme-faint animate-pulse py-2">Loading engagements…</p>
+              <LoadingState compact says="Loading engagements…" />
             ) : engagements.length > 0 ? (
               <select
                 required
@@ -979,48 +976,46 @@ export default function InvoicesPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return session.loading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // And until the first read has answered, no tile either: "$0 we owe"
   // for three seconds before $17,400 is a number nobody can stand behind.
   if (!readOnce) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">Loading…</p>
+    return <LoadingState />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: isClient ? 'Invoice receipts' : 'Bills and invoice receipts', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          {/* Nothing until the session says whose page this is: a guessed
-              supplier's words are words about the wrong side. */}
-          {framing && (
-            <>
-              <p className="eyebrow">{framing.eyebrow}</p>
-              <h1>{framing.title}</h1>
-              <p>{framing.subtitle}</p>
-            </>
-          )}
-        </div>
-        {/* A client raises no invoices. The button was here for them too,
-            and pressing it offered a list of engagements to bill — their
-            suppliers' engagements, to bill themselves.
+      {/* Nothing until the session says whose page this is: a guessed
+          supplier's words are words about the wrong side. */}
+      {framing && (
+        <PageHead
+          eyebrow={framing.eyebrow}
+          title={framing.title}
+          subtitle={framing.subtitle}
+          actions={<>
+            {/* A client raises no invoices. The button was here for them too,
+               and pressing it offered a list of engagements to bill — their
+               suppliers' engagements, to bill themselves.
 
-            Read off the framing rather than off the company kind, so a
-            program office sitting at a client's desk loses it for the
-            same reason the client does: it is reading a book it does
-            not bill from. `create` is null there, and the label on it
-            is the reader's own word for the act. */}
-        {framing?.create && (
-          <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
-            + {framing.create}
-          </button>
-        )}
-      </div>
+               Read off the framing rather than off the company kind, so a
+               program office sitting at a client's desk loses it for the
+               same reason the client does: it is reading a book it does
+               not bill from. `create` is null there, and the label on it
+               is the reader's own word for the act. */}
+            {framing?.create && (
+              <button onClick={() => setShowGenerate(true)} className="btn-primary">
+                + {framing.create}
+              </button>
+            )}
+          </>}
+        />
+      )}
 
       {/* Whose book. Silent for a firm reading its own, which is
           everybody but a program office in a client's seat. */}
@@ -1073,47 +1068,41 @@ export default function InvoicesPage() {
       )}
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Outstanding</p>
-          <p className={`stat-value ${outstandingMinor > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {fmtMinor(outstandingMinor, bookCcy)}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          label="Outstanding"
+          value={fmtMinor(outstandingMinor, bookCcy)}
+          tone={outstandingMinor > 0 ? 'attention' : 'default'}
+          sub={<>
             {side === 'RECEIVABLE' ? 'owed to us' : 'we owe'} · {bookCcy}
-          </p>
-          {inAll && inAll.fromReceipts > 0 && (
-            <p className="text-[11px] text-etyme-faint mt-0.5">
-              includes {inAll.fromReceipts} keyed in on{' '}
-              <a href="/dashboard/ap" className="text-etyme-action hover:underline">Accounts payable</a>
-            </p>
-          )}
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Overdue</p>
-          <p className={`stat-value ${overdueMinor > 0 ? 'text-red-600' : 'text-etyme-ink'}`}>
-            {fmtMinor(overdueMinor, bookCcy)}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{overdueMinor > 0 ? 'past due date' : 'none overdue'}</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">{side === 'RECEIVABLE' ? 'Open bills' : 'Open invoice receipts'}</p>
-          <p className="stat-value text-etyme-ink">{issuedCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">awaiting payment</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Paid</p>
-          <p className="stat-value text-etyme-verified">{paidCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">this period</p>
-        </div>
+            {inAll && inAll.fromReceipts > 0 && (
+              <span className="mt-0.5 block">
+                includes {inAll.fromReceipts} keyed in on{' '}
+                <a href="/dashboard/ap" className="text-etyme-action hover:underline">Accounts payable</a>
+              </span>
+            )}
+          </>}
+        />
+        <Stat
+          label="Overdue"
+          value={fmtMinor(overdueMinor, bookCcy)}
+          tone={overdueMinor > 0 ? 'attention' : 'default'}
+          sub={overdueMinor > 0 ? 'past due date' : 'none overdue'}
+        />
+        <Stat
+          label={side === 'RECEIVABLE' ? 'Open bills' : 'Open invoice receipts'}
+          value={issuedCount}
+          sub="awaiting payment"
+        />
+        <Stat label="Paid" value={paidCount} tone="verified" sub="this period" />
       </div>
 
       {/* Aging bar — visual AR health indicator */}
       {summary && agingTotal > 0 && (
         <div className="panel mb-6">
-          <p className="stat-label mb-2">
+          <Lbl className="mb-2">
             Aging breakdown — {side === 'RECEIVABLE' ? 'owed to us' : 'we owe'}, {bookCcy}
-          </p>
+          </Lbl>
           <div className="flex h-3 rounded-full overflow-hidden bg-etyme-canvas">
             {(() => {
               const shown = agingBuckets.filter((b) => b.minor > 0)
@@ -1144,7 +1133,7 @@ export default function InvoicesPage() {
       {/* What the totals could not honestly include */}
       {summary && summary.gaps.length > 0 && (
         <div className="panel mb-6" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="stat-label">What these totals leave out</p>
+          <Lbl>What these totals leave out</Lbl>
           <ul className="mt-2 space-y-1">
             {summary.gaps.map((g, i) => (
               <li key={i} className="text-[13px] text-etyme-muted">— {g}</li>
@@ -1154,18 +1143,13 @@ export default function InvoicesPage() {
       )}
 
       {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="mb-5">
+        <FilterChips<StatusFilter>
+          label="By status"
+          options={statusOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       {/* Who pays, where this desk does not. The figures above stay; the

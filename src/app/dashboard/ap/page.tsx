@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { compact, amount } from '@/lib/money-display'
 import { CHECK_NAME, CHECK_PHRASE, type MatchCode } from '@/lib/three-way-match'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
@@ -107,27 +108,25 @@ export default function ApPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return session.loading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no tab
   // (sign-up walk, round four, #5).
   const refused = refusedRead(denied, { what: 'Accounts payable', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
-      <header>
-        {/* The section of the reader's own menu: a client files AP under
-            Money, and read "Operate" here over a page it reached from Money.
-            No eyebrow until the session says whose menu it is, and none
-            where the menu does not list the page — never a typed "Money". */}
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
-        <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
-          What you owe, to whom, and when each one is due.
-        </p>
-      </header>
+      {/* The section of the reader's own menu: a client files AP under
+          Money, and read "Operate" here over a page it reached from Money.
+          No eyebrow until the session says whose menu it is, and none
+          where the menu does not list the page — never a typed "Money". */}
+      <PageHead
+        eyebrow={section}
+        title="Accounts payable"
+        subtitle="What you owe, to whom, and when each one is due."
+      />
 
       <SeatBanner
         reading={data?.reading}
@@ -136,20 +135,16 @@ export default function ApPage() {
       />
 
 
-      {loading && !denied && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">Laying the hops end to end…</p>
-        </div>
-      )}
+      {loading && !denied && <LoadingState says="Laying the hops end to end…" />}
 
       {error && (
-        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
+        <ErrorState says={<>
+          {error}
+          <span className="mt-2 block text-etyme-muted">
             Nothing is shown rather than something approximate. A wrong figure is worse
             than none, because nobody audits a number that looks reasonable.
-          </p>
-        </div>
+          </span>
+        </>} />
       )}
 
       {!loading && !error && !denied && data?.source === 'SUPPLIER_INVOICES' && (
@@ -171,7 +166,7 @@ export default function ApPage() {
 
       {!loading && data?.gaps?.length > 0 && data.source !== 'NONE' && (
         <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="stat-label">What this screen cannot see</p>
+          <Lbl>What this screen cannot see</Lbl>
           <ul className="mt-2 space-y-1">
             {data.gaps.map((g: string, i: number) => (
               <li key={i} className="text-[13px] text-etyme-muted">— {g}</li>
@@ -202,30 +197,22 @@ export default function ApPage() {
         <>
           <Mirror book={book} />
 
-          <nav className="flex flex-wrap gap-1 border-b border-etyme-rule">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className="px-3 py-2 text-[13px] -mb-px border-b-2 transition-colors"
-                style={{
-                  borderColor: tab === t.key ? 'var(--color-action)' : 'transparent',
-                  color: tab === t.key ? 'var(--color-action)' : 'var(--color-muted)',
-                }}
-              >
-                {t.label}
-                <span className="ml-1.5 text-[11px] tabular-nums text-etyme-faint">
-                  {t.key === 'chains'
-                    ? (data.chains?.length ?? 0)
-                    : t.key === 'clause'
-                      ? (data.payWhenPaid?.length ?? 0)
-                      : t.key === 'exceptions' || t.key === 'runs'
-                        ? ''
-                        : (data.hops?.filter((h: any) => h.currency === book.currency).length ?? 0)}
-                </span>
-              </button>
-            ))}
-          </nav>
+          <FilterChips<Tab>
+            label="Accounts payable views"
+            options={TABS.map((t) => ({
+              key: t.key,
+              label: t.label,
+              count: t.key === 'chains'
+                ? (data.chains?.length ?? 0)
+                : t.key === 'clause'
+                  ? (data.payWhenPaid?.length ?? 0)
+                  : t.key === 'exceptions' || t.key === 'runs'
+                    ? undefined
+                    : (data.hops?.filter((h: any) => h.currency === book.currency).length ?? 0),
+            }))}
+            value={tab}
+            onChange={setTab}
+          />
 
           {tab === 'chains' && <Chains data={data} book={book} />}
           {tab === 'hops' && <Hops data={data} book={book} />}
@@ -333,15 +320,14 @@ function SupplierInvoices({ owed, note, link }: { owed: any; note: string; link:
       </div>
 
       {owed?.books?.length > 0 && (
-        <div className="flex flex-wrap items-baseline gap-8">
+        <div className="flex flex-wrap items-end gap-3">
           {owed.books.map((b: any) => (
-            <div key={b.currency}>
-              <p className="stat-label">We owe · {b.currency}</p>
-              <p className="stat-value tabular-nums">{compact(b.owedMinor, b.currency)}</p>
-              <p className="mt-0.5 text-[11px] text-etyme-faint">
-                {b.openCount} invoice receipt{b.openCount === 1 ? '' : 's'} · {compact(b.overdueMinor, b.currency)} past due
-              </p>
-            </div>
+            <Stat
+              key={b.currency}
+              label={`We owe · ${b.currency}`}
+              value={compact(b.owedMinor, b.currency)}
+              sub={<>{b.openCount} invoice receipt{b.openCount === 1 ? '' : 's'} · {compact(b.overdueMinor, b.currency)} past due</>}
+            />
           ))}
           {owed.books.length > 1 && (
             <span className="text-[11px] text-etyme-faint">
@@ -378,35 +364,25 @@ function Mirror({ book }: { book: any }) {
 
   return (
     <section className="space-y-4 border-b border-etyme-rule pb-5">
-      <div className="flex flex-wrap items-baseline gap-8">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {bothSides && (
-          <div>
-            <p className="stat-label">Days to get paid</p>
-            <p className="stat-value tabular-nums">{book.dso?.days ?? '—'}</p>
-            <p className="mt-0.5 max-w-[30ch] text-[11px] text-etyme-faint">
-              {book.dso?.says ?? 'Nothing on the receivable side to count back through.'}
-            </p>
-          </div>
+          <Stat
+            label="Days to get paid"
+            value={book.dso?.days ?? null}
+            sub={book.dso?.says ?? 'Nothing on the receivable side to count back through.'}
+          />
         )}
-        <div>
-          <p className="stat-label">Days to pay</p>
-          <p className="stat-value tabular-nums">{book.dpo.days ?? '—'}</p>
-          <p className="mt-0.5 max-w-[30ch] text-[11px] text-etyme-faint">{book.dpo.says}</p>
-        </div>
-        <div>
-          <p className="stat-label">We owe</p>
-          <p className="stat-value tabular-nums">{compact(book.payableMinor, ccy)}</p>
-          <p className="mt-0.5 text-[11px] text-etyme-faint">
-            {book.billCount} invoice receipt{book.billCount === 1 ? '' : 's'} · {compact(book.overdueMinor, ccy)} past due
-          </p>
-        </div>
+        <Stat label="Days to pay" value={book.dpo.days ?? null} sub={book.dpo.says} />
+        <Stat
+          label="We owe"
+          value={compact(book.payableMinor, ccy)}
+          sub={<>{book.billCount} invoice receipt{book.billCount === 1 ? '' : 's'} · {compact(book.overdueMinor, ccy)} past due</>}
+        />
         {bothSides && (
-          <div>
-            <p className="stat-label">Owed to us</p>
-            <p className="stat-value tabular-nums">
-              {book.receivableMinor == null ? '—' : compact(book.receivableMinor, ccy)}
-            </p>
-          </div>
+          <Stat
+            label="Owed to us"
+            value={book.receivableMinor == null ? null : compact(book.receivableMinor, ccy)}
+          />
         )}
       </div>
 
@@ -743,18 +719,10 @@ function Exceptions() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="panel">
-        <p className="text-[13px] text-etyme-muted">Re-checking every open invoice receipt…</p>
-      </div>
-    )
+    return <LoadingState says="Re-checking every open invoice receipt…" />
   }
   if (failed) {
-    return (
-      <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-        <p className="text-[13px] text-etyme-attention">{failed}</p>
-      </div>
-    )
+    return <ErrorState says={failed} />
   }
 
   const rows: any[] = data?.exceptions ?? []
@@ -764,13 +732,13 @@ function Exceptions() {
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">{data?.note}</p>
 
       {rows.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            All {data?.open ?? 0} open invoice receipts match the purchase order and the hours
-            somebody here accepted for pay. That is the client&rsquo;s approval and ours
-            being two different numbers, and both agreeing with the supplier&rsquo;s invoice.
-          </p>
-        </div>
+        <EmptyState
+          says={`All ${data?.open ?? 0} open invoice receipts match the purchase order and the hours somebody here accepted for pay.`}
+          detail={<>
+            That is the client&rsquo;s approval and ours being two different numbers, and both
+            agreeing with the supplier&rsquo;s invoice.
+          </>}
+        />
       )}
 
       {rows.map((e) => (
@@ -955,7 +923,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
 
       {proposed && (
         <div className="panel">
-          <p className="stat-label">What would go</p>
+          <Lbl>What would go</Lbl>
           <p className="mt-2 text-[15px] text-etyme-ink">{proposed.says}</p>
           <div className="mt-3 flex flex-wrap items-baseline gap-8 border-t border-etyme-rule pt-3">
             <div>
@@ -978,7 +946,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
 
       {proposed?.excluded?.length > 0 && (
         <div className="panel">
-          <p className="stat-label">Looked at and left out</p>
+          <Lbl>Looked at and left out</Lbl>
           <ul className="mt-2 space-y-2">
             {proposed.excluded.map((e: any) => (
               <li key={e.billId} className="text-[13px]">
@@ -998,7 +966,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
 
       {advice.length > 0 && (
         <div className="panel">
-          <p className="stat-label">Remittance advice</p>
+          <Lbl>Remittance advice</Lbl>
           {advice.map((a: any) => (
             <pre
               key={a.vendorCompanyId}
@@ -1013,7 +981,7 @@ function PaymentRuns({ currency, desk }: { currency: string; desk: RunDeskVerdic
 
       {runs.length > 0 && (
         <div className="space-y-3">
-          <p className="stat-label">Runs</p>
+          <Lbl>Runs</Lbl>
           {runs.map((r: any) => (
             <article key={r.id} className="panel">
               <div className="flex flex-wrap items-baseline justify-between gap-3">

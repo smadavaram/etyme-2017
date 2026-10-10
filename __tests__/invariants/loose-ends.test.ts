@@ -122,6 +122,8 @@ describe('Missing paperwork is headed by the reader’s own menu', () => {
   })
 
   it('the Missing paperwork page draws no eyebrow while the reader’s company is not known yet', () => {
-    expect(page).toContain('{section && <p className="eyebrow">{section}</p>}')
+    // PageHead draws the eyebrow only when it is given one, and the
+    // section is null until the reader's menu is known.
+    expect(page).toMatch(/<PageHead\s+eyebrow=\{section\}/)
   })
 })

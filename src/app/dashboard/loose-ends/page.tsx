@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 /**
  * The links nobody meant to leave broken.
@@ -21,10 +22,10 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 const money = (c: number) =>
   `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
 
-const SEVERITY: Record<string, { chip: string; word: string }> = {
-  BREAKS_REPORTING: { chip: 'chip--attention', word: 'breaks reporting' },
-  MISSTATES_MARGIN: { chip: 'chip--attention', word: 'misstates margin' },
-  WORTH_TIDYING: { chip: 'chip--passive', word: 'worth tidying' },
+const SEVERITY: Record<string, { tone: ChipTone; word: string }> = {
+  BREAKS_REPORTING: { tone: 'attention', word: 'breaks reporting' },
+  MISSTATES_MARGIN: { tone: 'attention', word: 'misstates margin' },
+  WORTH_TIDYING: { tone: 'passive', word: 'worth tidying' },
 }
 
 export default function LooseEndsPage() {
@@ -56,53 +57,38 @@ export default function LooseEndsPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no count, no figure.
   const refused = refusedRead(refusedSaid, { what: 'Missing paperwork', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Missing paperwork</h1>
-        <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={section}
+        title="Missing paperwork"
+        subtitle={<>
           Placements missing the link that makes them add up. Worst first, then
           oldest — because a gap found this week is a phone call and the same
           gap in April is archaeology.
-        </p>
-      </header>
+        </>}
+      />
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Opening the missing paperwork…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {data?.standing && (
-        <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-          <div>
-            <p className="stat-label">Loose</p>
-            <p className="stat-value tabular-nums">{data.standing.total}</p>
-          </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Stat label="Loose" value={data.standing.total} />
           {data.standing.atRiskCents > 0 && (
-            <div>
-              <p className="stat-label">Billed with no cost behind it</p>
-              <p className="stat-value tabular-nums" style={{ color: 'var(--color-attention)' }}>
-                {money(data.standing.atRiskCents)}
-              </p>
-            </div>
+            <Stat label="Billed with no cost behind it" value={money(data.standing.atRiskCents)} tone="attention" />
           )}
           {data.standing.coldTrails > 0 && (
-            <div>
-              <p className="stat-label">Cold trails</p>
-              <p className="stat-value tabular-nums">{data.standing.coldTrails}</p>
-            </div>
+            <Stat label="Cold trails" value={data.standing.coldTrails} />
           )}
         </div>
       )}
@@ -123,10 +109,8 @@ export default function LooseEndsPage() {
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <p className="text-[15px] font-semibold text-etyme-ink">{e.subject.label}</p>
             <div className="flex items-center gap-2">
-              {e.coldTrail && <span className="chip chip--attention">cold trail</span>}
-              <span className={`chip ${SEVERITY[e.severity].chip}`}>
-                {SEVERITY[e.severity].word}
-              </span>
+              {e.coldTrail && <Chip tone="attention">cold trail</Chip>}
+              <Chip tone={SEVERITY[e.severity].tone}>{SEVERITY[e.severity].word}</Chip>
             </div>
           </div>
 
@@ -153,11 +137,7 @@ export default function LooseEndsPage() {
       ))}
 
       {!loading && data && data.ends.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Every placement has both sides and an order behind it. Nothing to chase.
-          </p>
-        </div>
+        <EmptyState says="Every placement has both sides and an order behind it. Nothing to chase." />
       )}
     </div>
   )

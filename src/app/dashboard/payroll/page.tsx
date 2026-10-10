@@ -9,6 +9,7 @@ import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { compact as formatRate } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { plainDate } from '@/lib/plain-date'
 
 /**
@@ -574,26 +575,23 @@ export default function PayrollPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: 'Payroll', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + period selector */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Payroll</h1>
-          <p>Buy-side payment processing. Calculate, approve, and process pay for everybody who worked in the period, including placements that have since ended.</p>
-        </div>
-
-        {/* Period selector + run action */}
-        <div className="flex items-center gap-3 mt-3 shrink-0">
+      <PageHead
+        eyebrow={eyebrow}
+        title="Payroll"
+        subtitle="Buy-side payment processing. Calculate, approve, and process pay for everybody who worked in the period, including placements that have since ended."
+        actions={<>
+          {/* Period selector + run action */}
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -624,47 +622,24 @@ export default function PayrollPage() {
               {processing ? 'Running…' : `Process (${stats.calculated})`}
             </button>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Gross payroll</p>
-          <p className={`stat-value ${stats.totalGross > 0 ? 'text-etyme-ink' : 'text-etyme-faint'}`}>
-            {formatCents(stats.totalGross)}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {stats.totalHours.toFixed(0)} hours
-          </p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">W-2 employees</p>
-          <p className={`stat-value ${stats.w2Count > 0 ? 'text-etyme-action' : 'text-etyme-faint'}`}>
-            {stats.w2Count}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {stats.w2Gross > 0 ? formatCents(stats.w2Gross) : '$0.00'}
-          </p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Paid by invoice receipt</p>
-          <p className={`stat-value ${paidElsewhere.length > 0 ? 'text-etyme-ink' : 'text-etyme-faint'}`}>
-            {paidElsewhere.length}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            not on payroll
-          </p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Pending</p>
-          <p className={`stat-value ${stats.pending > 0 ? 'text-etyme-attention' : 'text-etyme-verified'}`}>
-            {stats.pending}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {stats.pending > 0 ? 'awaiting calculation' : 'all clear'}
-          </p>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Gross payroll" value={formatCents(stats.totalGross)} sub={`${stats.totalHours.toFixed(0)} hours`} />
+        <Stat
+          label="W-2 employees"
+          value={stats.w2Count}
+          sub={stats.w2Gross > 0 ? formatCents(stats.w2Gross) : '$0.00'}
+        />
+        <Stat label="Paid by invoice receipt" value={paidElsewhere.length} sub="not on payroll" />
+        <Stat
+          label="Pending"
+          value={stats.pending}
+          tone={stats.pending > 0 ? 'attention' : 'verified'}
+          sub={stats.pending > 0 ? 'awaiting calculation' : 'all clear'}
+        />
       </div>
 
       {/* Contract type breakdown bar */}
@@ -718,21 +693,17 @@ export default function PayrollPage() {
       )}
 
       {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-            {opt.count !== undefined && opt.count > 0 && (
-              <span className="ml-1 text-[10px] opacity-60 tabular-nums">({opt.count})</span>
-            )}
-          </button>
-        ))}
+      <div className="mb-5">
+        <FilterChips<StatusFilter>
+          label="Pay items by status"
+          options={statusOptions.map((opt) => ({
+            key: opt.key,
+            label: opt.label,
+            count: opt.count !== undefined && opt.count > 0 ? opt.count : undefined,
+          }))}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       {/* Data table */}

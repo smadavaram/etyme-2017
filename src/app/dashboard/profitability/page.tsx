@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { Chip, EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -44,18 +45,18 @@ type Scope = 'all' | 'live'
 const money = (c: number) =>
   `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
 
-const TONE: Record<string, string> = {
-  LOSS: 'chip--attention',
-  THIN: 'chip--passive',
-  FINE: 'chip--verified',
+const TONE: Record<string, ChipTone> = {
+  LOSS: 'attention',
+  THIN: 'passive',
+  FINE: 'verified',
   // Not a grade. A placement with no buy contract behind it has no
   // margin to grade, and saying "no cost on record" is the point.
-  UNKNOWN: 'chip--passive',
+  UNKNOWN: 'passive',
   // Also not a grade. A placement with no hours in the ledger was chipped
   // THIN until 2026-09-26 — a firm told its placements were marginal on
   // the strength of no data at all.
-  NOTHING_YET: 'chip--passive',
-  NO_RATE: 'chip--passive',
+  NOTHING_YET: 'passive',
+  NO_RATE: 'passive',
 }
 
 /** "1 placement" and "2 placements". A count nobody can read is a count nobody checks. */
@@ -117,70 +118,47 @@ export default function ProfitabilityPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no tab, no figure.
   const refused = refusedRead(refusedSaid, { what: 'Profitability', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      <header>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Profitability</h1>
-        <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={eyebrow}
+        title="Profitability"
+        subtitle={<>
           From what was actually approved and accepted, not from a rate card.
           Employer burden, commission and expenses are counted — and on the
           candidate view, so is the bench.
-        </p>
-      </header>
+        </>}
+      />
 
-      <div className="flex gap-1 border-b border-etyme-rule">
-        {(['order', 'contract', 'candidate', 'customer'] as By[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setBy(t)}
-            className="px-4 py-2 text-[13px] capitalize"
-            style={
-              by === t
-                ? { borderBottom: '2px solid var(--color-action)', color: 'var(--color-ink)', fontWeight: 600 }
-                : { color: 'var(--color-muted)' }
-            }
-          >
-            By {t}
-          </button>
-        ))}
+      <FilterChips<By>
+        label="Profitability by"
+        options={(['order', 'contract', 'candidate', 'customer'] as By[]).map((t) => ({ key: t, label: `By ${t}` }))}
+        value={by}
+        onChange={setBy}
+        end={
+          /* Whether finished work is in the figure is a real decision and
+             never a silent default, so it sits beside the tabs and the
+             sentence under the numbers repeats the answer. */
+          <FilterChips<Scope>
+            label="Which work"
+            options={[{ key: 'all', label: 'To date' }, { key: 'live', label: 'Running now' }]}
+            value={scope}
+            onChange={setScope}
+          />
+        }
+      />
 
-        {/* Whether finished work is in the figure is a real decision and
-            never a silent default, so it sits beside the tabs and the
-            sentence under the numbers repeats the answer. */}
-        <div className="ml-auto flex items-center gap-1 pb-1">
-          {(['all', 'live'] as Scope[]).map((sc) => (
-            <button
-              key={sc}
-              onClick={() => setScope(sc)}
-              className="rounded px-2 py-1 text-[11px]"
-              style={
-                scope === sc
-                  ? { background: 'var(--color-ink)', color: 'var(--color-surface)' }
-                  : { color: 'var(--color-muted)' }
-              }
-            >
-              {sc === 'all' ? 'To date' : 'Running now'}
-            </button>
-          ))}
-        </div>
-      </div>
+      {loading && <LoadingState says="Adding up what placements made…" />}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
-
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {/* ── What the two sides agreed ─────────────────────────────
           The rate spread, which exists from the day a placement is
@@ -190,38 +168,27 @@ export default function ProfitabilityPage() {
           how this page said nothing while Reports said 10.1%. */}
       {data?.agreed && (
         <div className="panel">
-          <div className="flex flex-wrap items-baseline gap-8">
-            <div>
-              <p className="stat-label">Agreed spread</p>
-              <p
-                className="stat-value tabular-nums"
-                style={{ color: data.agreed.pct == null ? 'var(--color-muted)' : 'var(--color-ink)' }}
-              >
-                {data.agreed.pct == null ? '—' : `${data.agreed.pct}%`}
-              </p>
-              <p className="mt-0.5 text-[11px] text-etyme-faint">on the rates, not the hours</p>
-            </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Stat
+              label="Agreed spread"
+              value={data.agreed.pct == null ? null : `${data.agreed.pct}%`}
+              sub="on the rates, not the hours"
+            />
             {data.agreed.billRateCents != null && (
-              <div>
-                <p className="stat-label">Bill rate, blended</p>
-                <p className="stat-value tabular-nums">
-                  {money(data.agreed.billRateCents)}
-                  <span className="text-[13px] text-etyme-faint">/hr</span>
-                </p>
-                <p className="mt-0.5 text-[11px] text-etyme-faint">
+              <Stat
+                label="Bill rate, blended"
+                value={<>{money(data.agreed.billRateCents)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
+                sub={<>
                   {data.agreed.placements} placement{data.agreed.placements === 1 ? '' : 's'}
                   {data.agreed.currency ? ` · ${data.agreed.currency}` : ''}
-                </p>
-              </div>
+                </>}
+              />
             )}
             {data.agreed.payRateCents != null && (
-              <div>
-                <p className="stat-label">Pay rate, blended</p>
-                <p className="stat-value tabular-nums">
-                  {money(data.agreed.payRateCents)}
-                  <span className="text-[13px] text-etyme-faint">/hr</span>
-                </p>
-              </div>
+              <Stat
+                label="Pay rate, blended"
+                value={<>{money(data.agreed.payRateCents)}<span className="text-[13px] text-etyme-faint">/hr</span></>}
+              />
             )}
           </div>
           <p className="mt-2 text-[13px] text-etyme-ink">{data.agreed.says}</p>
@@ -246,67 +213,59 @@ export default function ProfitabilityPage() {
       )}
 
       {data?.overall && (
-        <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-          <div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {/* The heading is the route's one word (REVENUE_HEADING in
                 lib/money/margin): whether it is renamed is the founder's
                 call, and the three figures under it stand either way. */}
-            <p className="stat-label">{data.labels?.revenue ?? 'Billed'}</p>
-            <p className="stat-value tabular-nums">{money(data.overall.revenueCents)}</p>
-            <p className="mt-0.5 text-[11px] text-etyme-faint">hours signed on both sides</p>
-            {data.billing && (
-              <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-etyme-muted">
-                <li>{money(data.billing.acceptedNotBilledCents)} accepted, not yet billed</li>
-                <li>{money(data.billing.billedCents)} billed</li>
-                <li>{money(data.billing.collectedCents)} collected</li>
-              </ul>
+            <Stat
+              label={data.labels?.revenue ?? 'Billed'}
+              value={money(data.overall.revenueCents)}
+              sub={<>
+                hours signed on both sides
+                {data.billing && (
+                  <ul className="mt-1 space-y-0.5 text-[11px] tabular-nums text-etyme-muted">
+                    <li>{money(data.billing.acceptedNotBilledCents)} accepted, not yet billed</li>
+                    <li>{money(data.billing.billedCents)} billed</li>
+                    <li>{money(data.billing.collectedCents)} collected</li>
+                  </ul>
+                )}
+              </>}
+            />
+            <Stat
+              label="Earned margin"
+              value={money(marginOf(data.overall))}
+              tone={marginOf(data.overall) < 0 ? 'attention' : 'verified'}
+            />
+            <Stat
+              label="Rate"
+              value={pctOf(data.overall) == null ? null : `${pctOf(data.overall)}%`}
+            />
+
+            {/* Earned and settled are two different numbers and they
+                disagree for months at a time. One says whether the work is
+                worth doing, the other whether the bank account agrees yet.
+                The old sheet carried this by hand in a "diff" column. */}
+            {data.overall.cashCents != null && (
+              <Stat
+                label="In the bank"
+                value={money(data.overall.cashCents)}
+                tone={data.overall.cashCents < 0 ? 'attention' : 'default'}
+              />
             )}
           </div>
-          <div>
-            <p className="stat-label">Earned margin</p>
-            <p
-              className="stat-value tabular-nums"
-              style={{ color: marginOf(data.overall) < 0 ? 'var(--color-attention)' : 'var(--color-verified)' }}
-            >
-              {money(marginOf(data.overall))}
-            </p>
-          </div>
-          <div>
-            <p className="stat-label">Rate</p>
-            <p className="stat-value tabular-nums">
-              {pctOf(data.overall) == null ? '—' : `${pctOf(data.overall)}%`}
-            </p>
-          </div>
-
-          {/* Earned and settled are two different numbers and they
-              disagree for months at a time. One says whether the work is
-              worth doing, the other whether the bank account agrees yet.
-              The old sheet carried this by hand in a "diff" column. */}
-          {data.overall.cashCents != null && (
-            <div>
-              <p className="stat-label">In the bank</p>
-              <p
-                className="stat-value tabular-nums"
-                style={{ color: data.overall.cashCents < 0 ? 'var(--color-attention)' : 'var(--color-ink)' }}
-              >
-                {money(data.overall.cashCents)}
-              </p>
+          {(data.unpriced > 0 || data.breaches > 0) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* A placement nobody can price is a different problem from
+                  one priced too thin, so it is counted separately. */}
+              {data.unpriced > 0 && (
+                <Chip tone="passive">{data.unpriced} with no buy contract</Chip>
+              )}
+              {data.breaches > 0 && (
+                <Chip tone="attention">{data.breaches} below the agreed floor</Chip>
+              )}
             </div>
           )}
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {/* A placement nobody can price is a different problem from
-                one priced too thin, so it is counted separately. */}
-            {data.unpriced > 0 && (
-              <span className="chip chip--passive">
-                {data.unpriced} with no buy contract
-              </span>
-            )}
-            {data.breaches > 0 && (
-              <span className="chip chip--attention">
-                {data.breaches} below the agreed floor
-              </span>
-            )}
-          </div>
         </div>
       )}
 
@@ -348,7 +307,7 @@ export default function ProfitabilityPage() {
             )}
 
             <div className="mt-3 border-t border-etyme-rule pt-3">
-              <p className="stat-label">Who is on it</p>
+              <Lbl>Who is on it</Lbl>
               <ul className="mt-1 space-y-2">
                 {r.placements.map((pl: any) => (
                   <li key={pl.sellContractId} className="text-[13px]">
@@ -395,7 +354,7 @@ export default function ProfitabilityPage() {
                 <p className="font-mono text-[11px] text-etyme-faint">{r.code}</p>
               </div>
               {r.standing?.overBudget && (
-                <span className="chip chip--attention">over budget</span>
+                <Chip tone="attention">over budget</Chip>
               )}
             </div>
 
@@ -412,7 +371,7 @@ export default function ProfitabilityPage() {
                 the same postings, without reshaping anything. */}
             {r.people.length > 0 && (
               <div className="mt-3 border-t border-etyme-rule pt-3">
-                <p className="stat-label">Who is on it</p>
+                <Lbl>Who is on it</Lbl>
                 <ul className="mt-1 space-y-1">
                   {r.people.map((p: any) => (
                     <li key={p.key} className="flex justify-between gap-4 text-[13px]">
@@ -431,7 +390,7 @@ export default function ProfitabilityPage() {
 
             {r.months.length > 0 && (
               <div className="mt-3 overflow-x-auto border-t border-etyme-rule pt-3">
-                <p className="stat-label">By month</p>
+                <Lbl>By month</Lbl>
                 <table className="mt-1 w-full text-[12px]">
                   <tbody>
                     {r.months.map((m: any) => (
@@ -493,9 +452,9 @@ export default function ProfitabilityPage() {
               </p>
             </div>
             {r.health && (
-              <span className={`chip ${TONE[r.health]}`}>
+              <Chip tone={TONE[r.health]}>
                 {CHIP_SAYS[r.health] ?? r.health.toLowerCase()}
-              </span>
+              </Chip>
             )}
           </div>
 
@@ -549,21 +508,19 @@ export default function ProfitabilityPage() {
       ))}
 
       {!loading && data && data.rows?.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            {/* "Nothing to add up yet" on a firm with two linked placements
-                and an 18.3% margin was the screen lying about itself. The
-                empty state now only speaks when the book is genuinely
-                empty, and says which question came back empty. */}
-            {data.agreed?.placements > 0
+        /* "Nothing to add up yet" on a firm with two linked placements
+           and an 18.3% margin was the screen lying about itself. The
+           empty state now only speaks when the book is genuinely
+           empty, and says which question came back empty. */
+        <EmptyState says={
+            data.agreed?.placements > 0
               ? `Nothing has been billed on ${
                   data.agreed.placements === 1 ? 'this placement' : 'these placements'
                 } yet, so there is no earned margin to add up. What was agreed is above.`
               : scope === 'live'
                 ? 'Nothing is running right now. Ask for everything to date to see what has finished.'
-                : 'No placements on the record yet. One appears when a candidate is awarded.'}
-          </p>
-        </div>
+                : 'No placements on the record yet. One appears when a candidate is awarded.'
+        } />
       )}
     </div>
   )
@@ -616,13 +573,9 @@ function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
   return (
     <div className="mt-3 border-t border-etyme-rule pt-3">
       <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={`chip ${
-            settled ? 'chip--verified' : status === 'LOCKED' ? 'chip--attention' : 'chip--passive'
-          }`}
-        >
+        <Chip tone={settled ? 'verified' : status === 'LOCKED' ? 'attention' : 'passive'}>
           {status.toLowerCase()}
-        </span>
+        </Chip>
         {row.settlesTo ? (
           <span className="text-[11px] text-etyme-faint">
             settles to {row.settlesTo.code} · {row.settlesTo.name}
@@ -675,7 +628,7 @@ function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
 
       {preview && (
         <div className="panel mt-3">
-          <p className="stat-label">Two postings, equal and opposite</p>
+          <Lbl>Two postings, equal and opposite</Lbl>
           <p className="mt-2 text-[13px] text-etyme-ink">{preview.note}</p>
           <ul className="mt-2 space-y-1">
             {preview.postings.map((p: any) => (

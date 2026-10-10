@@ -8,6 +8,7 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, rate as perHour, rateMovement } from '@/lib/money-display'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { decimalsFor } from '@/lib/money'
 import { decidedBy } from '@/lib/money/pay-words'
 
@@ -309,25 +310,25 @@ export default function RateHistoryPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: 'Rate history', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="animate-fade-in">
       {/* Head */}
-      <div className="page-head mb-6">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>Rate History</h1>
-        <p>
+      <PageHead
+        eyebrow={eyebrow}
+        title="Rate History"
+        subtitle={<>
           Track rate changes across all contracts over time. Every adjustment is
           versioned for audit and timesheet valuation.
-        </p>
-      </div>
+        </>}
+      />
 
       {/* Only desks the route would accept see this, and only the lines it
           would accept from them. The server says which. */}
@@ -341,7 +342,7 @@ export default function RateHistoryPage() {
       {pending.length > 0 && (
         <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg mb-6">
           <div className="p-4 border-b border-etyme-rule">
-            <p className="stat-label">Waiting on procurement</p>
+            <Lbl>Waiting on procurement</Lbl>
             <p className="text-sm text-etyme-muted mt-1">
               A proposed rate does not bill. Until one of these is approved, invoices
               at the new rate keep failing the price check.
@@ -378,31 +379,20 @@ export default function RateHistoryPage() {
       )}
 
       {/* Stats row */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Total changes</p>
-          <p className="stat-value text-etyme-ink">{stats.total}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">rate adjustments</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Avg change</p>
-          <p className="stat-value text-etyme-ink">
-            {stats.avgChangePct > 0 ? `${stats.avgChangePct.toFixed(1)}%` : '—'}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">absolute avg</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Increases</p>
-          <p className="stat-value text-etyme-verified">{stats.increases}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">rate raises</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Decreases</p>
-          <p className={`stat-value ${stats.decreases > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {stats.decreases}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">rate reductions</p>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Total changes" value={stats.total} sub="rate adjustments" />
+        <Stat
+          label="Avg change"
+          value={stats.avgChangePct > 0 ? `${stats.avgChangePct.toFixed(1)}%` : '—'}
+          sub="absolute avg"
+        />
+        <Stat label="Increases" value={stats.increases} sub="rate raises" tone="verified" />
+        <Stat
+          label="Decreases"
+          value={stats.decreases}
+          sub="rate reductions"
+          tone={stats.decreases > 0 ? 'attention' : 'default'}
+        />
       </div>
 
       {/* DataTable */}
@@ -427,17 +417,12 @@ export default function RateHistoryPage() {
         emptyDetail="Rate changes are recorded when a contract rate is adjusted. Each change is versioned with an effective date and reason."
         exportName="rate-history"
         filters={
-          <div className="flex gap-1.5">
-            {filterTabs.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`filter-tab ${filter === f.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-              >
-                {f.label} ({f.count})
-              </button>
-            ))}
-          </div>
+          <FilterChips<FilterTab>
+            label="Which rate changes"
+            options={filterTabs}
+            value={filter}
+            onChange={setFilter}
+          />
         }
       />
     </div>

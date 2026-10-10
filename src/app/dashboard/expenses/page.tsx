@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -279,11 +280,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </button>
         </div>
 
-        {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4"><ErrorState says={error} /></div>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Consultant (sell contract) */}
@@ -726,91 +723,65 @@ export default function ExpensesPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // And until the first read has answered, no tile either: "$0 we owe"
   // for three seconds before $17,400 is a number nobody can stand behind.
   if (!readOnce) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">Loading…</p>
+    return <LoadingState />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: 'Expenses', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + kind toggle */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          {/* Nothing until the session says whose page this is: a guessed
-              supplier's words are words about the wrong side. */}
-          {framing && (
-            <>
-              <p className="eyebrow">{framing.eyebrow}</p>
-              <h1>{framing.title}</h1>
-              <p>{framing.subtitle}</p>
-            </>
-          )}
-        </div>
-
-        {/* Kind toggle + New button */}
-        <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
-          <div className="flex bg-etyme-canvas rounded-md p-0.5">
-            {(['all', 'billable', 'internal'] as KindFilter[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => setKindFilter(k)}
-                className={`px-4 py-2 text-[13px] font-medium rounded transition-colors capitalize ${
-                  kindFilter === k
-                    ? 'bg-white shadow-sm text-etyme-ink'
-                    : 'text-etyme-muted hover:text-etyme-ink'
-                }`}
-              >
-                {k === 'all' ? 'All' : k === 'billable' ? 'Billable' : 'Internal'}
+      {/* Nothing until the session says whose page this is: a guessed
+          supplier's words are words about the wrong side. */}
+      {framing && (
+        <PageHead
+          eyebrow={framing.eyebrow}
+          title={framing.title}
+          subtitle={framing.subtitle}
+          actions={<>
+            {/* Kind toggle + New button */}
+            <FilterChips<KindFilter>
+              label="Which expenses"
+              options={(['all', 'billable', 'internal'] as KindFilter[]).map((k) => ({
+                key: k,
+                label: k === 'all' ? 'All' : k === 'billable' ? 'Billable' : 'Internal',
+              }))}
+              value={kindFilter}
+              onChange={setKindFilter}
+            />
+            {/* A client does not raise its suppliers' expenses, and a
+                program office reading a client's book does not either —
+                `POST /api/expenses` scopes the placement to the caller's
+                own company and would refuse every row on the screen. The
+                framing says so, and a control the route would refuse is
+                a control that lies. */}
+            {framing?.create && (
+              <button onClick={() => setShowModal(true)} className="btn-primary">
+                + {framing.create}
               </button>
-            ))}
-          </div>
-          {/* A client does not raise its suppliers' expenses, and a
-              program office reading a client's book does not either —
-              `POST /api/expenses` scopes the placement to the caller's
-              own company and would refuse every row on the screen. The
-              framing says so, and a control the route would refuse is
-              a control that lies. */}
-          {framing?.create && (
-            <button onClick={() => setShowModal(true)} className="btn-primary">
-              + {framing.create}
-            </button>
-          )}
-        </div>
-      </div>
+            )}
+          </>}
+        />
+      )}
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Total expenses</p>
-          <p className="stat-value text-etyme-ink">{formatUSD(totals.grand)}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{stats.total} reports</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Client-billable</p>
-          <p className={`stat-value ${totals.billable > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
-            {formatUSD(totals.billable)}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.billableCount} reports</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Internal</p>
-          <p className="stat-value text-etyme-ink">{formatUSD(totals.internal)}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.internalCount} reports</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Pending approval</p>
-          <p className={`stat-value ${stats.pending > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {stats.pending}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">awaiting review</p>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="Total expenses" value={formatUSD(totals.grand)} sub={`${stats.total} reports`} />
+        <Stat label="Client-billable" value={formatUSD(totals.billable)} sub={`${totals.billableCount} reports`} />
+        <Stat label="Internal" value={formatUSD(totals.internal)} sub={`${totals.internalCount} reports`} />
+        <Stat
+          label="Pending approval"
+          value={stats.pending}
+          tone={stats.pending > 0 ? 'attention' : 'default'}
+          sub="awaiting review"
+        />
       </div>
 
       {/* Action bar */}
@@ -838,21 +809,17 @@ export default function ExpensesPage() {
       )}
 
       {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-            {opt.count !== undefined && opt.count > 0 && (
-              <span className="ml-1 text-[10px] opacity-60">({opt.count})</span>
-            )}
-          </button>
-        ))}
+      <div className="mb-5">
+        <FilterChips<StatusFilter>
+          label="Expenses by status"
+          options={statusOptions.map((opt) => ({
+            key: opt.key,
+            label: opt.label,
+            count: opt.count !== undefined && opt.count > 0 ? opt.count : undefined,
+          }))}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
       </div>
 
       {/* Data table */}

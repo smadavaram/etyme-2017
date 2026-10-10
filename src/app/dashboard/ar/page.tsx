@@ -5,6 +5,7 @@ import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 
 import { useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, FilterChips, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { compact, amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
@@ -113,59 +114,53 @@ export default function ArPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no tab
   // (sign-up walk, round four, #5).
   const refused = refusedRead(denied, { what: 'Accounts receivable', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   return (
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
-      <header>
-        {/* The section of the reader's own menu, and none until the session
-            says whose menu it is. "Operate" was written in, a supplier's
-            word on every reader's page. */}
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Accounts receivable</h1>
-        <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
+      {/* The section of the reader's own menu, and none until the session
+          says whose menu it is. "Operate" was written in, a supplier's
+          word on every reader's page. */}
+      <PageHead
+        eyebrow={section}
+        title="Accounts receivable"
+        subtitle={<>
           Aged from the day each bill fell due, so a client on sixty-day terms is
           not shown as late on day forty-five. A part payment is chased for the
           balance. A short payment is a question for a person, not arrears.
-        </p>
-      </header>
+        </>}
+      />
 
 
       {/* ── Loading ────────────────────────────────────────────────── */}
-      {loading && !denied && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">Reading what has been billed…</p>
-        </div>
-      )}
+      {loading && !denied && <LoadingState says="Reading what has been billed…" />}
 
       {/* ── Error ──────────────────────────────────────────────────── */}
       {error && (
-        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-          <p className="mt-2 text-[13px] text-etyme-muted">
+        <ErrorState says={<>
+          {error}
+          <span className="mt-2 block text-etyme-muted">
             Nothing is shown rather than something approximate — a wrong receivable is
             worse than none.
-          </p>
-        </div>
+          </span>
+        </>} />
       )}
 
       {/* ── Empty ──────────────────────────────────────────────────── */}
       {!loading && !error && !denied && data?.source === 'NONE' && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{data.note}</p>
-        </div>
+        <EmptyState says={data.note} />
       )}
 
       {/* ── Partial — what could not be counted ────────────────────── */}
       {!loading && data?.gaps?.length > 0 && data.source !== 'NONE' && (
         <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="stat-label">What this screen cannot yet see</p>
+          <Lbl>What this screen cannot yet see</Lbl>
           <ul className="mt-2 space-y-1">
             {data.gaps.map((g: string, i: number) => (
               <li key={i} className="text-[13px] text-etyme-muted">
@@ -200,24 +195,12 @@ export default function ArPage() {
           <StatRow book={book} />
           <AgeingBar book={book} />
 
-          <nav className="flex flex-wrap gap-1 border-b border-etyme-rule">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className="px-3 py-2 text-[13px] -mb-px border-b-2 transition-colors"
-                style={{
-                  borderColor: tab === t.key ? 'var(--color-action)' : 'transparent',
-                  color: tab === t.key ? 'var(--color-action)' : 'var(--color-muted)',
-                }}
-              >
-                {t.label}
-                <span className="ml-1.5 text-[11px] tabular-nums text-etyme-faint">
-                  {countFor(t.key, book)}
-                </span>
-              </button>
-            ))}
-          </nav>
+          <FilterChips<Tab>
+            label="Accounts receivable views"
+            options={TABS.map((t) => ({ key: t.key, label: t.label, count: countFor(t.key, book) }))}
+            value={tab}
+            onChange={setTab}
+          />
 
           {tab === 'customers' && <Customers book={book} />}
           {tab === 'invoices' && <Invoices book={book} />}
@@ -251,46 +234,22 @@ function StatRow({ book }: { book: any }) {
   const ninety = book.buckets.D90_PLUS.minor
 
   return (
-    <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-      <div>
-        <p className="stat-label">Owed to us</p>
-        <p className="stat-value tabular-nums">{compact(book.outstandingMinor, ccy)}</p>
-      </div>
-      <div>
-        <p className="stat-label">Past due</p>
-        <p
-          className="stat-value tabular-nums"
-          style={{ color: book.overdueMinor > 0 ? 'var(--color-attention)' : undefined }}
-        >
-          {compact(book.overdueMinor, ccy)}
-        </p>
-      </div>
-      <div>
-        <p className="stat-label">Over 90 days</p>
-        <p
-          className="stat-value tabular-nums"
-          style={{ color: ninety > 0 ? 'var(--color-attention)' : undefined }}
-        >
-          {compact(ninety, ccy)}
-        </p>
-        <p className="mt-0.5 text-[11px] text-etyme-faint">
-          {book.buckets.D90_PLUS.count} bill{book.buckets.D90_PLUS.count === 1 ? '' : 's'}
-        </p>
-      </div>
-      <div>
-        <p className="stat-label">Days to get paid</p>
-        <p className="stat-value tabular-nums">
-          {book.dso.days == null ? '—' : book.dso.days}
-        </p>
-        <p className="mt-0.5 max-w-[34ch] text-[11px] text-etyme-faint">{book.dso.says}</p>
-      </div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <Stat label="Owed to us" value={compact(book.outstandingMinor, ccy)} />
+      <Stat
+        label="Past due"
+        value={compact(book.overdueMinor, ccy)}
+        tone={book.overdueMinor > 0 ? 'attention' : 'default'}
+      />
+      <Stat
+        label="Over 90 days"
+        value={compact(ninety, ccy)}
+        tone={ninety > 0 ? 'attention' : 'default'}
+        sub={`${book.buckets.D90_PLUS.count} bill${book.buckets.D90_PLUS.count === 1 ? '' : 's'}`}
+      />
+      <Stat label="Days to get paid" value={book.dso.days == null ? null : book.dso.days} sub={book.dso.says} />
       {book.unappliedMinor > 0 && (
-        <div>
-          <p className="stat-label">Cash we cannot place</p>
-          <p className="stat-value tabular-nums" style={{ color: 'var(--color-attention)' }}>
-            {compact(book.unappliedMinor, ccy)}
-          </p>
-        </div>
+        <Stat label="Cash we cannot place" value={compact(book.unappliedMinor, ccy)} tone="attention" />
       )}
     </div>
   )
@@ -641,7 +600,7 @@ function CreditNotes() {
   return (
     <div className="space-y-3">
       <div className="panel">
-        <p className="stat-label">What we have credited, and why</p>
+        <Lbl>What we have credited, and why</Lbl>
         <p className="mt-2 max-w-[70ch] text-[13px] text-etyme-ink">{data.says}</p>
         {data.byReason?.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-etyme-rule pt-3">
@@ -690,13 +649,11 @@ function Disputes({ book }: { book: any }) {
   if (book.disputes.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
+        <EmptyState says={<>
             Nobody has paid part of a bill and stopped. When somebody does, it appears
             here rather than in the reminder queue — a shortfall is a question about the
             bill, and a reminder answers a question nobody asked.
-          </p>
-        </div>
+        </>} />
         <CreditNotes />
       </div>
     )
@@ -1022,13 +979,11 @@ function Reminders({ book }: { book: any }) {
       )}
 
       {send.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
+        <EmptyState says={<>
             Nothing is due to be said today. Where a rung has already gone for this run of
             arrears it stays quiet until the next one falls due — repeating it is how a
             client learns to filter us.
-          </p>
-        </div>
+        </>} />
       )}
 
       {send.map((a: any) => (
@@ -1075,7 +1030,7 @@ function Reminders({ book }: { book: any }) {
 
       {quiet.length > 0 && (
         <div className="panel">
-          <p className="stat-label">Deliberately said nothing to</p>
+          <Lbl>Deliberately said nothing to</Lbl>
           <ul className="mt-2 space-y-2">
             {quiet.map((s: any) => (
               <li key={s.customerId} className="text-[13px]">
@@ -1154,9 +1109,7 @@ function Collections() {
 
   if (loading) {
     return (
-      <div className="panel">
-        <p className="text-[13px] text-etyme-muted">Reading what is past the ladder…</p>
-      </div>
+      <LoadingState says="Reading what is past the ladder…" />
     )
   }
 
@@ -1168,7 +1121,7 @@ function Collections() {
 
       {data?.gaps?.length > 0 && (
         <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
-          <p className="stat-label">What this cannot do yet</p>
+          <Lbl>What this cannot do yet</Lbl>
           <ul className="mt-2 space-y-1">
             {data.gaps.map((g: string, i: number) => (
               <li key={i} className="text-[13px] text-etyme-muted">— {g}</li>
@@ -1189,12 +1142,10 @@ function Collections() {
       )}
 
       {cases.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
+        <EmptyState says={<>
             Nothing has run out of ladder. Every overdue account still has an automated
             rung left, which is where a debt should be.
-          </p>
-        </div>
+        </>} />
       )}
 
       {cases.map((c) => {

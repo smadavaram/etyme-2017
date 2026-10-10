@@ -6,6 +6,7 @@ import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, Field, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
 
 /**
  * What a recruiter earned, and the run that posted it.
@@ -94,44 +95,39 @@ export default function CommissionsPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else.
   const refused = refusedRead(refusedSaid, { what: 'Commissions', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
-      <header>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Commissions</h1>
-        <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={eyebrow}
+        title="Commissions"
+        subtitle={<>
           What each person earned on the placements they are on a commission agreement for.
           Read from what was actually posted, not recalculated — so this says what was paid,
           not what a rule thinks should have been.
-        </p>
-      </header>
+        </>}
+      />
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
       {mayRun && (
         <form className="panel flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run() }}>
-          <label className="block">
-            <span className="lbl">From</span>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="mt-1 rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-          </label>
-          <label className="block">
-            <span className="lbl">To</span>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="mt-1 rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-          </label>
-          <button type="submit" disabled={busy || !from || !to}
-            className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
-            {busy ? 'Running…' : 'Run the period'}
-          </button>
+          <Field label="From">
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </Field>
+          <Field label="To">
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+          <SubmitButton pending={busy} pendingLabel="Running…" disabled={!from || !to}>
+            Run the period
+          </SubmitButton>
           <p className="text-[12px] text-etyme-muted">
             Posts once per person per period, under the cap. Running the same period twice
             adds nothing.
@@ -139,9 +135,9 @@ export default function CommissionsPage() {
         </form>
       )}
 
-      {said && <div className="panel"><p className="text-[13px] text-etyme-ink">{said}</p></div>}
-      {error && <div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div>}
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {said && <div className="panel" role="status"><p className="text-[13px] text-etyme-ink">{said}</p></div>}
+      {error && <ErrorState says={error} />}
+      {loading && <LoadingState says="Opening commissions…" />}
 
       {!loading && earnings.length > 0 && (
         <ListSurface<Earning>
@@ -185,11 +181,10 @@ export default function CommissionsPage() {
       )}
 
       {!loading && earnings.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing posted yet. {mayRun ? 'Pick a period above and run it.' : 'Whoever runs payroll here can run a period.'}
-          </p>
-        </div>
+        <EmptyState
+          says="Nothing posted yet."
+          detail={mayRun ? 'Pick a period above and run it.' : 'Whoever runs payroll here can run a period.'}
+        />
       )}
     </div>
   )

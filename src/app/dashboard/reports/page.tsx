@@ -6,6 +6,7 @@ import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { scopeOf, narrowedReport } from '@/lib/money/own-scope'
 import { mayOpen } from '@/components/shell/sidebar'
+import { EmptyState, ErrorState, Lbl, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 
@@ -368,13 +369,13 @@ export default function ReportsPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no figure and no refusal naming a desk.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // ── Refused ───────────────────────────────────────
   // The sentence and nothing else — no tile, no zero, no chart.
   const refused = refusedRead(refusedSaid, { what: 'Reports', kind: company.kind, company: company.name })
   if (refused && !loading) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   // ── Loading state ─────────────────────────────────
@@ -382,14 +383,8 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <>
-        <div className="page-head">
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Reports</h1>
-          <p>Revenue, margin, and operational metrics from live data.</p>
-        </div>
-        <div className="animate-fade-in py-20 text-center text-etyme-muted">
-          Loading reports…
-        </div>
+        <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
+        <LoadingState says="Loading reports…" />
       </>
     )
   }
@@ -399,17 +394,8 @@ export default function ReportsPage() {
   if (error) {
     return (
       <>
-        <div className="page-head">
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Reports</h1>
-          <p>Revenue, margin, and operational metrics from live data.</p>
-        </div>
-        <div className="panel text-center py-16">
-          <p className="text-sm text-etyme-attention mb-4">{error}</p>
-          <button onClick={fetchAll} className="btn-primary">
-            Retry
-          </button>
-        </div>
+        <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
+        <ErrorState says={error} action={{ label: 'Try again', onClick: fetchAll }} />
       </>
     )
   }
@@ -422,11 +408,8 @@ export default function ReportsPage() {
   if (data.narrowed?.alone) {
     return (
       <>
-        <div className="page-head">
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>Reports</h1>
-        </div>
-        <p role="status" className="py-12 text-center text-[13px] text-etyme-muted">{data.narrowed.says}</p>
+        <PageHead eyebrow={eyebrow} title="Reports" />
+        <EmptyState says={data.narrowed.says} />
       </>
     )
   }
@@ -591,95 +574,77 @@ export default function ReportsPage() {
   return (
     <div className="animate-fade-in">
       {/* Header — decision surface: eyebrow + serif h1 + prose subtitle */}
-      <div className="page-head">
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>Reports</h1>
-        <p>Revenue, margin, and operational metrics from live data.</p>
-      </div>
+      <PageHead eyebrow={eyebrow} title="Reports" subtitle="Revenue, margin, and operational metrics from live data." />
 
       {data.narrowed && (
         <p role="status" className="mb-4 text-[12px] text-etyme-muted">{data.narrowed.says}</p>
       )}
 
       {!hasAnyData ? (
-        <div className="panel text-center py-16">
-          <p className="text-lg font-serif text-etyme-ink mb-2">No data yet</p>
-          <p className="text-sm text-etyme-muted max-w-md mx-auto">
-            Reports will populate as you add contracts, bench listings, and bills.
-            Start by creating a contract or importing consultant data.
-          </p>
-        </div>
+        <EmptyState
+          says="No data yet"
+          detail="Reports will populate as you add contracts, bench listings, and bills. Start by creating a contract or importing consultant data."
+        />
       ) : (
         <>
           {/* Stats row — four panels */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
             {/* Active Revenue */}
-            <div className="panel">
-              <p className="stat-label">Active Revenue</p>
-              <p className="stat-value text-etyme-ink">
-                {monthlyRevenue == null ? '—' : fmtCurrency(monthlyRevenue)}
-              </p>
-              <p className="text-[11px] text-etyme-faint mt-0.5">
-                {/* "Placement" rather than "contract": there are two
-                    contracts behind one placement in a chain and counting
-                    them was how one consultant was billed twice. */}
-                {monthlyRevenue == null
-                  ? revenue?.refusedBecause ?? 'nothing running'
-                  : `monthly at 160 hrs (${revenuePlacements} placement${revenuePlacements === 1 ? '' : 's'})`}
-              </p>
-            </div>
+            {/* "Placement" rather than "contract": there are two
+                contracts behind one placement in a chain and counting
+                them was how one consultant was billed twice. */}
+            <Stat
+              label="Active Revenue"
+              value={monthlyRevenue == null ? null : fmtCurrency(monthlyRevenue)}
+              sub={monthlyRevenue == null
+                ? revenue?.refusedBecause ?? 'nothing running'
+                : `monthly at 160 hrs (${revenuePlacements} placement${revenuePlacements === 1 ? '' : 's'})`}
+            />
 
             {/* The agreed spread — "Agreed spread", the name every screen
                 uses for it (lib/money/margin). Never the bare word margin:
                 what the hours earned is on Profitability. */}
-            <div className="panel">
-              <p className="stat-label">Agreed spread</p>
-              <p className={`stat-value ${avgMargin != null && avgMargin > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
-                {avgMargin != null ? fmtPercent(avgMargin) : '—'}
-              </p>
-              <p className="text-[11px] text-etyme-faint mt-0.5">
-                {/* Never a bare dash. Where there is no figure there is a
-                    reason, and a seat that may not read a margin is told
-                    that rather than shown an empty box. */}
+            {/* Never a bare dash. Where there is no figure there is a
+                reason, and a seat that may not read a margin is told
+                that rather than shown an empty box. */}
+            <Stat
+              label="Agreed spread"
+              value={avgMargin != null ? fmtPercent(avgMargin) : null}
+              tone={avgMargin != null && avgMargin > 0 ? 'verified' : 'default'}
+              sub={<>
                 {avgMargin != null
                   ? 'on the rates, running now'
                   : bookRefusal ?? book?.agreed.refusedBecause ?? 'needs both sides of a placement'}
-              </p>
-              {book != null && book.unlinked > 0 && (
-                <p className="text-[11px] text-etyme-attention mt-0.5">
-                  {book.unlinked} with no buy line behind {book.unlinked === 1 ? 'it' : 'them'}
-                </p>
-              )}
-            </div>
+                {book != null && book.unlinked > 0 && (
+                  <span className="mt-0.5 block text-etyme-attention">
+                    {book.unlinked} with no buy line behind {book.unlinked === 1 ? 'it' : 'them'}
+                  </span>
+                )}
+              </>}
+            />
 
             {/* Bench Utilization */}
-            <div className="panel">
-              <p className="stat-label">Bench Utilization</p>
-              <p className={`stat-value ${benchUtilization != null && benchUtilization >= 70 ? 'text-etyme-verified' : benchUtilization != null && benchUtilization >= 40 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-                {benchUtilization != null ? fmtPercent(benchUtilization) : '—'}
-              </p>
-              <p className="text-[11px] text-etyme-faint mt-0.5">
-                {benchUtilization != null
-                  ? `${activeContractCount} active / ${benchAvailableCount} bench`
-                  : 'no data'}
-              </p>
-            </div>
+            <Stat
+              label="Bench Utilization"
+              value={benchUtilization != null ? fmtPercent(benchUtilization) : null}
+              tone={benchUtilization != null && benchUtilization >= 70 ? 'verified' : benchUtilization != null && benchUtilization >= 40 ? 'attention' : 'default'}
+              sub={benchUtilization != null
+                ? `${activeContractCount} active / ${benchAvailableCount} bench`
+                : 'no data'}
+            />
 
             {/* AR Outstanding */}
-            <div className="panel">
-              <p className="stat-label">AR Outstanding</p>
-              <p className={`stat-value ${arOutstandingMinor > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-                {fmtMinor(arOutstandingMinor, arCurrency)}
-              </p>
-              <p className="text-[11px] text-etyme-faint mt-0.5">
-                {arBook
+            <Stat
+              label="AR Outstanding"
+              value={fmtMinor(arOutstandingMinor, arCurrency)}
+              tone={arOutstandingMinor > 0 ? 'attention' : 'default'}
+              sub={arBook
                   ? `${arBook.invoiceCount} bill${arBook.invoiceCount !== 1 ? 's' : ''} · ${arCurrency}` +
                     (otherArBooks.length > 0
                       ? ` · ${otherArBooks.length} other book${otherArBooks.length !== 1 ? 's' : ''} not added in`
                       : '')
                   : 'no bills'}
-              </p>
-            </div>
+            />
           </div>
 
           {/* Two-column layout for main sections */}
@@ -687,7 +652,7 @@ export default function ReportsPage() {
 
             {/* Revenue by client */}
             <div className="panel">
-              <p className="stat-label mb-4">Revenue by Client</p>
+              <Lbl className="mb-4">Revenue by Client</Lbl>
               {revenueByClient.length > 0 ? (
                 <div className="space-y-3">
                   {revenueByClient.map((client) => (
@@ -729,7 +694,7 @@ export default function ReportsPage() {
 
             {/* Contract pipeline */}
             <div className="panel">
-              <p className="stat-label mb-4">Contract Pipeline</p>
+              <Lbl className="mb-4">Contract Pipeline</Lbl>
               {totalPipeline > 0 ? (
                 <>
                   {/* Stacked horizontal bar */}
@@ -800,7 +765,7 @@ export default function ReportsPage() {
 
             {/* Bench skills distribution */}
             <div className="panel">
-              <p className="stat-label mb-4">Bench Skills Distribution</p>
+              <Lbl className="mb-4">Bench Skills Distribution</Lbl>
               {/* Eight bars of identical length is not a chart; it is
                   eight skills, one listing each, drawn as though the
                   lengths meant something. Where nothing varies, the
@@ -850,7 +815,7 @@ export default function ReportsPage() {
 
             {/* Invoice aging summary */}
             <div className="panel">
-              <p className="stat-label mb-4">Bills and invoice receipts</p>
+              <Lbl className="mb-4">Bills and invoice receipts</Lbl>
               {invoiceStatusEntries.length > 0 ? (
                 <>
                   <div className="space-y-2.5">
@@ -870,7 +835,7 @@ export default function ReportsPage() {
                   {/* Aging breakdown if available */}
                   {arBook && arBook.outstandingMinor > 0 && (
                     <div className="mt-5 pt-4 border-t border-etyme-rule">
-                      <p className="stat-label mb-2">Aging Breakdown — owed to us, {arCurrency}</p>
+                      <Lbl className="mb-2">Aging Breakdown — owed to us, {arCurrency}</Lbl>
                       {/* The third place this book is drawn. All three
                           wear AGE_BANDS now; they used to be three
                           different palettes for one set of numbers. */}

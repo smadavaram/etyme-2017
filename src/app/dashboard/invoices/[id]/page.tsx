@@ -8,6 +8,7 @@ import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
+import { Chip, DetailHead, EmptyState, ErrorState, Lbl, LoadingState, RefusedState } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -102,23 +103,6 @@ function Working({ l }: { l: Line }) {
         : <>{l.hours}h</>}
     </div>
   )
-}
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
 
@@ -296,15 +280,14 @@ export default function InvoiceDetail() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!session.company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{session.loading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return session.loading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
-  if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
+  if (loading) return <LoadingState says="Opening the bill…" />
   const refused = refusedRead(refusedSaid, { what: 'This bill', kind: session.company.kind, company: session.company.name })
-  if (refused) return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+  if (refused) return <RefusedState says={refused} />
   if (error) return (
-    <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-      <div className="text-etyme-attention font-medium">{error}</div>
-      <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+    <div className="max-w-3xl">
+      <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
     </div>
   )
   if (!data) return null
@@ -337,47 +320,51 @@ export default function InvoiceDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href={booksHref('/dashboard/invoices', books)} className="text-sm text-etyme-action hover:underline">
-        ← {inv.direction === 'PAYABLE' ? 'Invoice receipts' : inv.direction === 'RECEIVABLE' ? 'Bills' : 'Back to the list'}
-      </a>
+      <DetailHead
+        from="/dashboard/invoices"
+        back={{
+          href: booksHref('/dashboard/invoices', books),
+          label: inv.direction === 'PAYABLE' ? 'Invoice receipts' : inv.direction === 'RECEIVABLE' ? 'Bills' : 'Back to the list',
+        }}
+        title={inv.number}
+        subtitle={<>
+          {inv.vendor?.name ?? 'Vendor'} → {inv.client?.name ?? 'Client'}
+          <span className="block">
+            {daySpan(inv.periodStart, inv.periodEnd)} ·{' '}
+            {inv.terms?.clockStarted === false
+              ? 'not payable yet'
+              : <>due {plainDate(inv.dueAt)}</>} · {STATUS_WORDS[inv.status] ?? inv.status}
+          </span>
+        </>}
+        actions={
+          <div className="text-right">
+            <Lbl>Total</Lbl>
+            <div className="font-serif text-3xl text-etyme-ink tabular-nums">{amountFromUnits(inv.total)}</div>
+            {inv.paid > 0 && <div className="text-xs text-etyme-muted tabular-nums">{amountFromUnits(inv.paid)} paid</div>}
+          </div>
+        }
+      >
+        {/* What the date counts from, said rather than assumed. "Due
+            the 9th" answers nothing when a client thinks the clock
+            started somewhere else. */}
+        {inv.terms?.says && (
+          <div className="text-xs text-etyme-muted mt-1">{inv.terms.says}</div>
+        )}
+        {/* And what settles it sooner, where anybody agreed a rung. */}
+        {inv.earlyPayment?.discount > 0 && (
+          <div className="text-xs text-etyme-verified mt-1">
+            {inv.earlyPayment.says}
+            {inv.earlyPayment.by ? ` Offer stands to ${plainDate(inv.earlyPayment.by)}.` : ''}
+          </div>
+        )}
+      </DetailHead>
       {toast && (
-        <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${
+        <div role={toast.type === 'error' ? 'alert' : 'status'} className={`mb-6 rounded-lg px-4 py-2 text-sm ${
           toast.type === 'error' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-verified/10 text-etyme-verified'
         }`}>
           {toast.message}
         </div>
       )}
-
-      <div className="mt-4 mb-8 flex items-start justify-between gap-6">
-        <div>
-          <Lbl>{inv.vendor?.name ?? 'Vendor'} → {inv.client?.name ?? 'Client'}</Lbl>
-          <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">{inv.number}</h1>
-          <div className="text-etyme-muted mt-2">
-            {daySpan(inv.periodStart, inv.periodEnd)} ·{' '}
-            {inv.terms?.clockStarted === false
-              ? 'not payable yet'
-              : <>due {plainDate(inv.dueAt)}</>} · {STATUS_WORDS[inv.status] ?? inv.status}
-          </div>
-          {/* What the date counts from, said rather than assumed. "Due
-              the 9th" answers nothing when a client thinks the clock
-              started somewhere else. */}
-          {inv.terms?.says && (
-            <div className="text-xs text-etyme-muted mt-1">{inv.terms.says}</div>
-          )}
-          {/* And what settles it sooner, where anybody agreed a rung. */}
-          {inv.earlyPayment?.discount > 0 && (
-            <div className="text-xs text-etyme-verified mt-1">
-              {inv.earlyPayment.says}
-              {inv.earlyPayment.by ? ` Offer stands to ${plainDate(inv.earlyPayment.by)}.` : ''}
-            </div>
-          )}
-        </div>
-        <div className="text-right shrink-0">
-          <Lbl>Total</Lbl>
-          <div className="font-serif text-3xl text-etyme-ink tabular-nums">{amountFromUnits(inv.total)}</div>
-          {inv.paid > 0 && <div className="text-xs text-etyme-muted">{amountFromUnits(inv.paid)} paid</div>}
-        </div>
-      </div>
 
       {/* Who worked, on what, and whether it matches — one line, before the checks. */}
       {data.receipt && (
@@ -487,9 +474,7 @@ export default function InvoiceDetail() {
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {data.lines.length === 0 && (
-            <div className="p-6 text-center text-sm text-etyme-muted">
-              This invoice has no lines, so there is nothing to match against.
-            </div>
+            <EmptyState compact says="This invoice has no lines, so there is nothing to match against." />
           )}
           {data.lines.map((l: Line) => (
             <div key={l.id} className="p-4 flex items-center gap-4">

@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton } from '@/components/ui'
 import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
 import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
@@ -75,10 +76,6 @@ interface PO {
   /** BUYER · SELLER · BYSTANDER — which end of it the reader is at. */
   side: OrderSide
   lines: POLine[]
-}
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
 }
 
 function money(n: number, ccy: string): string {
@@ -199,15 +196,15 @@ export default function PurchaseOrdersPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // Refused: the sentence and nothing else (sign-up walk, round four, #5).
   const refused = refusedRead(refusedSaid, { what: 'Orders', kind: company.kind, company: company.name })
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   if (!pos) {
-    return <p className="text-etyme-muted text-sm">{error ?? 'Loading…'}</p>
+    return error ? <ErrorState says={error} /> : <LoadingState says="Opening the orders…" />
   }
 
   // The reader's end of the orders, in the same words the rows use (#9).
@@ -218,22 +215,20 @@ export default function PurchaseOrdersPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4 mb-6">
-        <div className="page-head">
-          {/* The section of the reader's own menu, and none until it is known. */}
-          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1>{words.title}</h1>
-          <p>{words.subtitle}</p>
-        </div>
-        {canRaise && (
+      {/* The section of the reader's own menu, and none until it is known. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title={words.title}
+        subtitle={words.subtitle}
+        actions={canRaise && (
           <button
             onClick={() => setAdding(!adding)}
-            className="btn-secondary text-[13px] mt-3 shrink-0"
+            className="btn-secondary text-[13px]"
           >
             {adding ? 'Cancel' : 'Raise one'}
           </button>
         )}
-      </div>
+      />
 
       {(reading?.inASeat || ownBooks) && (
         <div className="panel mb-5">
@@ -252,63 +247,47 @@ export default function PurchaseOrdersPage() {
         </div>
       )}
 
-      {flash && (
-        <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
-          <p className="text-[13px] text-etyme-verified">{flash}</p>
-        </div>
-      )}
-      {error && (
-        <div className="mb-5 rounded-md border border-etyme-attention/30 bg-etyme-attention/5 p-3">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {flash && <div className="mb-5"><FormMessage tone="ok">{flash}</FormMessage></div>}
+      {error && <div className="mb-5"><ErrorState says={error} /></div>}
 
       {adding && (
-        <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5 mb-5">
-          <h2 className="font-serif text-[19px] text-etyme-ink mb-4 tracking-[-0.02em]">Raise a purchase order</h2>
+        <Panel title="Raise a purchase order" className="mb-5">
           <div className="grid sm:grid-cols-2 gap-3">
-            <label className="block">
-              <Lbl>Number your finance team will recognize</Lbl>
-              <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="PO-2026-0412"
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
-            </label>
-            <label className="block">
-              <Lbl>Supplier</Lbl>
-              <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+            <Field label="Number your finance team will recognize">
+              <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="PO-2026-0412" className="font-mono" />
+            </Field>
+            <Field label="Supplier">
+              <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 <option value="">Choose…</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <Lbl>Authorized amount</Lbl>
-              <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="250000"
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm tabular-nums" />
-            </label>
-            <label className="block">
-              <Lbl>Runs until (optional)</Lbl>
-              <input value={endDate} onChange={(e) => setEndDate(e.target.value)} type="date"
-                className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
-            </label>
+              </Select>
+            </Field>
+            <Field label="Authorized amount">
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="250000" className="tabular-nums" />
+            </Field>
+            <Field label="Runs until (optional)">
+              <Input value={endDate} onChange={(e) => setEndDate(e.target.value)} type="date" />
+            </Field>
           </div>
           <p className="text-[12px] text-etyme-muted mt-3">
             Any contract already running with this supplier and no purchase order will be attached
             to this one, so their invoices start matching.
           </p>
-          <button
+          <SubmitButton
+            type="button"
             onClick={raise}
-            disabled={busy || !number.trim() || !supplierId || !Number(amount)}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            pending={busy}
+            pendingLabel="Raising…"
+            disabled={!number.trim() || !supplierId || !Number(amount)}
+            className="mt-3"
           >
             Raise it
-          </button>
-        </section>
+          </SubmitButton>
+        </Panel>
       )}
 
       {pos.length === 0 && !adding && (
-        <div className="rounded-md border border-etyme-rule bg-etyme-surface p-4">
-          <p className="text-[13px] text-etyme-ink">{words.empty}</p>
-        </div>
+        <EmptyState says={words.empty} />
       )}
 
       {pos.length > 0 && (
@@ -373,7 +352,7 @@ const PO_COLUMNS: Column<PO>[] = [
   { key: 'lines', label: 'Lines', align: 'right', render: (po) => (
     <span className="tabular-nums text-etyme-muted">{po.lines.length}</span>
   ), sortValue: (po) => po.lines.length, hideOnMobile: true },
-  { key: 'canInvoice', label: 'Standing', render: (po) => <span className={`chip ${po.overdrawn || po.expired ? 'chip--attention' : 'chip--verified'}`}>{po.overdrawn ? 'Overdrawn' : po.expired ? 'Expired' : 'Open'}</span>, sortValue: (po) => (po.canInvoice ? 1 : 0) },
+  { key: 'canInvoice', label: 'Standing', render: (po) => <Chip tone={po.overdrawn || po.expired ? 'attention' : 'verified'}>{po.overdrawn ? 'Overdrawn' : po.expired ? 'Expired' : 'Open'}</Chip>, sortValue: (po) => (po.canInvoice ? 1 : 0) },
 ]
 
 /** Cents per hour, as a person reads a rate. */
@@ -433,7 +412,7 @@ function Lines({ po }: { po: PO }) {
 
 function Row({ po }: { po: PO }) {
   return (
-    <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+    <Panel as="article">
       {po.offSystem && (
         <p className="text-[12px] text-etyme-muted mb-2">{po.offSystem}</p>
       )}
@@ -464,6 +443,6 @@ function Row({ po }: { po: PO }) {
       </p>
 
       <Lines po={po} />
-    </div>
+    </Panel>
   )
 }

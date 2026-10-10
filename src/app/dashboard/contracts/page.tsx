@@ -9,6 +9,7 @@ import { compact, rate as rateText } from '@/lib/money-display'
 import { activeRateTotals } from '@/lib/money/rate-totals'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -458,14 +459,10 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
           </button>
         </div>
 
-        {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mb-4"><ErrorState says={error} /></div>}
 
         {loadingOptions ? (
-          <div className="text-sm text-etyme-muted animate-pulse py-8 text-center">Loading options…</div>
+          <LoadingState compact says="Loading options…" />
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Consultant */}
@@ -1587,12 +1584,12 @@ export default function ContractsPage() {
   // Money pages wait (sign-up walk, round three, #17): until the session
   // says whose company this is, no direction word, no tab, no figure.
   if (!company) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">{sessionLoading ? 'Loading…' : 'These are a company\'s books, and you are not signed in at a company.'}</p>
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
   }
   // And until the first read has answered, no tile either: "$0 we owe"
   // for three seconds before $17,400 is a number nobody can stand behind.
   if (!readOnce) {
-    return <p className="py-12 text-center text-[13px] text-etyme-muted">Loading…</p>
+    return <LoadingState />
   }
   // Refused: the sentence and nothing else — no tile, no zero, no table.
   const refused = refusedRead(refusedSaid, { what: 'Contracts', kind: company.kind, company: company.name })
@@ -1602,7 +1599,7 @@ export default function ContractsPage() {
   // and no tile, zero or table that would read as the firm's book.
   const ownEmpty = scope === 'own' && !loading && !error && contracts.length === 0
   if (refused) {
-    return <p role="alert" className="py-12 text-center text-[13px] text-etyme-muted">{refused}</p>
+    return <RefusedState says={refused} />
   }
   return (
     <>
@@ -1618,84 +1615,68 @@ export default function ContractsPage() {
       )}
 
       {/* Head */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          {/* Nothing until the session says whose page this is: a client
-              read a supplier's heading for a second before it loaded. */}
-          {framing && (
-            <>
-              <p className="eyebrow">{framing.eyebrow}</p>
-              <h1>{framing.title}</h1>
-              {/* "Everyone working at your sites" is the firm's book; a
-                  narrowed reader is told whose lines these are instead. */}
-              <p>{scope === 'own' ? 'Contract lines that name you.' : framing.subtitle}</p>
-            </>
-          )}
-        </div>
-        {/* A client does not raise contracts here — the award writes
-            both sides — and neither does a program office reading a
-            client's book. The framing says so now, and the word on the
-            button is the reader's own. */}
-        {framing?.create && mayRecord && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
-            + {framing.create}
-          </button>
-        )}
-      </div>
+      {/* Nothing until the session says whose page this is: a client
+          read a supplier's heading for a second before it loaded. */}
+      {framing && (
+        <PageHead
+          eyebrow={framing.eyebrow}
+          title={framing.title}
+          /* "Everyone working at your sites" is the firm's book; a
+             narrowed reader is told whose lines these are instead. */
+          subtitle={scope === 'own' ? 'Contract lines that name you.' : framing.subtitle}
+          actions={<>
+            {/* A client does not raise contracts here — the award writes
+               both sides — and neither does a program office reading a
+               client's book. The framing says so now, and the word on the
+               button is the reader's own. */}
+            {framing?.create && mayRecord && (
+              <button onClick={() => setShowCreate(true)} className="btn-primary">
+                + {framing.create}
+              </button>
+            )}
+          </>}
+        />
+      )}
 
       {/* Sell / Buy tabs — a client has no buy side, and nobody reads
-          either word until the page knows whose it is */}
-      <div className={`flex flex-wrap gap-1.5 mb-6 ${!company || isClient ? 'hidden' : ''}`}>
-        {(['sell', 'buy'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`filter-tab ${tab === t ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-          >
-            {t === 'sell' ? 'Sell' : 'Buy'}
-          </button>
-        ))}
+          either word until the page knows whose it is. Drawn as the same
+          row of pressed chips every list uses, so the side reads as a
+          filter on one list of lines, not as two documents. */}
+      <div className={`mb-6 ${!company || isClient ? 'hidden' : ''}`}>
+        <FilterChips<ViewTab>
+          label="Which side of the trade"
+          options={[{ key: 'sell', label: 'Sell' }, { key: 'buy', label: 'Buy' }]}
+          value={tab}
+          onChange={setTab}
+        />
       </div>
 
       {ownEmpty ? null : (<>
       {/* Stats row */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Active</p>
-          <p className="stat-value text-etyme-ink">{activeCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">contracts</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Rolloffs</p>
-          <p className={`stat-value ${rolloffWarnings.length > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {rolloffWarnings.length}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">within 28 days</p>
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Stat label="Active" value={activeCount} sub="contracts" />
+        <Stat
+          label="Rolloffs"
+          value={rolloffWarnings.length}
+          tone={rolloffWarnings.length > 0 ? 'attention' : 'default'}
+          sub="within 28 days"
+        />
         {tab === 'sell' && (
-          <div className="panel flex-1 min-w-[140px]">
-            <p className="stat-label">Active bill rates</p>
-            {activeTotals.refusedBecause ? (
-              <>
-                <p className="stat-value text-etyme-faint">—</p>
-                <p className="text-[11px] text-etyme-faint mt-0.5">{activeTotals.refusedBecause}</p>
-              </>
-            ) : activeTotals.byCurrency.length === 0 ? (
-              <>
-                <p className="stat-value text-etyme-faint">—</p>
-                <p className="text-[11px] text-etyme-faint mt-0.5">Nothing is running</p>
-              </>
-            ) : (
-              <>
-                {activeTotals.byCurrency.map((t) => (
-                  <p key={t.currency} className="stat-value text-etyme-verified">{rateText(t.cents, t.currency)}</p>
-                ))}
-                <p className="text-[11px] text-etyme-faint mt-0.5">
-                  added per hour{activeTotals.byCurrency.length > 1 ? ', one total per currency' : ''}
-                </p>
-              </>
-            )}
-          </div>
+          activeTotals.refusedBecause ? (
+            <Stat label="Active bill rates" value={null} sub={activeTotals.refusedBecause} />
+          ) : activeTotals.byCurrency.length === 0 ? (
+            <Stat label="Active bill rates" value={null} sub="Nothing is running" />
+          ) : (
+            /* One line per currency: two currencies are never added. */
+            <Stat
+              label="Active bill rates"
+              tone="verified"
+              value={activeTotals.byCurrency.map((t) => (
+                <span key={t.currency} className="block">{rateText(t.cents, t.currency)}</span>
+              ))}
+              sub={`added per hour${activeTotals.byCurrency.length > 1 ? ', one total per currency' : ''}`}
+            />
+          )
         )}
       </div>
 
@@ -1749,17 +1730,12 @@ export default function ContractsPage() {
         card={(row) => <LineCard row={row} viewerId={viewerId} />}
         onRowClick={(row) => setSelectedContract(row)}
         filters={
-          <div className="flex flex-wrap gap-1.5">
-            {filters.map(f => (
-              <button
-                key={f.key}
-                onClick={() => setStateFilter(f.key)}
-                className={`filter-tab ${stateFilter === f.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-              >
-                {f.label} ({f.count})
-              </button>
-            ))}
-          </div>
+          <FilterChips<StateFilter>
+            label="Contract lines by state"
+            options={filters}
+            value={stateFilter}
+            onChange={setStateFilter}
+          />
         }
         rowClassName={(row) =>
           row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
@@ -1769,11 +1745,13 @@ export default function ContractsPage() {
       />
       </>)}
 
-      {scope === 'own' && !loading && !error && (
-        <p role="status" className={`text-[13px] text-etyme-muted ${ownEmpty ? 'py-12 text-center' : 'mt-4'}`}>
-          {ownContractsSay(contracts.length)}
-        </p>
-      )}
+      {scope === 'own' && !loading && !error && (ownEmpty
+        ? <EmptyState says={ownContractsSay(contracts.length)} />
+        : (
+          <p role="status" className="mt-4 text-[13px] text-etyme-muted">
+            {ownContractsSay(contracts.length)}
+          </p>
+        ))}
 
       {/* Contract detail drawer */}
       {selectedContract && (

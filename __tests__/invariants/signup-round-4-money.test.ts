@@ -101,7 +101,7 @@ describe('a refused money page draws one sentence and no figure', () => {
     const guard = src.search(/const refused = refusedRead\(/)
     expect(guard, `${page} never asks whether its read was refused`).toBeGreaterThan(-1)
     const after = src.slice(guard)
-    expect(after).toMatch(/if \(refused( && !loading)?\) \{?\s*return <p role="alert"[^>]*>\{refused\}<\/p>/)
+    expect(after).toMatch(/if \(refused( && !loading)?\) \{?\s*return <RefusedState says=\{refused\} \/>/)
   })
 
   it('invoice receipts, expenses and contracts no longer drop a refusal into the table as an empty book', () => {
@@ -231,8 +231,8 @@ describe('the orders page speaks from the end of the order the reader stands at'
 
   it('the orders page draws its heading, subtitle and empty line from those words, never typed in', () => {
     const src = whatShips(read('src/app/dashboard/purchase-orders/page.tsx'))
-    expect(src).toContain('<h1>{words.title}</h1>')
-    expect(src).toContain('<p>{words.subtitle}</p>')
+    expect(src).toContain('title={words.title}')
+    expect(src).toContain('subtitle={words.subtitle}')
     expect(src).toContain('{words.empty}')
     expect(src).not.toContain('What you have authorized')
     expect(src).not.toContain('invoice you in total')
@@ -251,7 +251,7 @@ describe('rate history’s eyebrow is the section it sits under on the reader’
   it('the page reads its eyebrow from the menu and draws nothing while the reader is not known', () => {
     const src = whatShips(read('src/app/dashboard/rate-history/page.tsx'))
     expect(src).toContain("usePageSection('/dashboard/rate-history')")
-    expect(src).toContain('{eyebrow && <p className="eyebrow">{eyebrow}</p>}')
+    expect(src).toMatch(/<PageHead\s+eyebrow=\{eyebrow\}/)
     expect(src).not.toMatch(/<p className="eyebrow">Operate<\/p>/)
   })
 
@@ -270,7 +270,7 @@ describe('rate history’s eyebrow is the section it sits under on the reader’
     ]) {
       const src = whatShips(read(`src/app/dashboard/${page}/page.tsx`))
       expect(src, page).toContain(`usePageSection('${href}')`)
-      expect(src, page).toContain('{eyebrow && <p className="eyebrow">{eyebrow}</p>}')
+      expect(src, page).toMatch(/<PageHead\s+eyebrow=\{eyebrow\}/)
     }
   })
 })

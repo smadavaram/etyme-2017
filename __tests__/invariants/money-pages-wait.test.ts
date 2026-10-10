@@ -55,8 +55,13 @@ function readsCompany(src: string): boolean {
   return /const \{[^}]*\bcompany\b[^}]*\} = (useSession\(\)|session)/.test(src) || /session\.company\b/.test(src)
 }
 
-/** The gate: no company yet, so "Loading…" and nothing else is drawn. */
-const WAITS = /if \(!(session\.)?company\) \{\s*return <p[^>]*>\{(session\.loading|sessionLoading) \? 'Loading…'/
+/**
+ * The gate: no company yet, so "Loading…" and nothing else is drawn —
+ * through the shared LoadingState, whose sentence is "Loading…" — and,
+ * once the session has answered with no company, the one sentence alone
+ * through RefusedState.
+ */
+const WAITS = /if \(!(session\.)?company\) \{\s*return (session\.loading|sessionLoading) \? <LoadingState \/> : <RefusedState says="[^"]+" \/>/
 
 describe('money pages wait until they know whose page it is', () => {
   it('finds the money pages it is meant to read', () => {
@@ -130,12 +135,12 @@ describe('money pages wait until they know whose page it is', () => {
       const src = readFileSync(join(DASHBOARD, page, 'page.tsx'), 'utf8')
       const gate = src.search(WAITS)
       expect(gate).toBeGreaterThan(-1)
-      expect(gate).toBeLessThan(src.indexOf('<header>'))
+      expect(gate).toBeLessThan(src.indexOf('<PageHead'))
     }
   })
 
   it('Contracts, Invoice receipts and Expenses draw no figure before their first read has answered', () => {
-    const READ_GATE = /if \(!readOnce\) \{\s*return <p[^>]*>Loading…<\/p>/
+    const READ_GATE = /if \(!readOnce\) \{\s*return <LoadingState \/>/
     for (const page of ['contracts', 'invoices', 'expenses']) {
       const whole = readFileSync(join(DASHBOARD, page, 'page.tsx'), 'utf8')
       // The page itself, not the drawers and modals above it.
@@ -146,7 +151,7 @@ describe('money pages wait until they know whose page it is', () => {
       const gate = src.search(READ_GATE)
       expect(gate, page).toBeGreaterThan(-1)
       // Every tile on the page is drawn after the gate, never before it.
-      const tiles = [...src.matchAll(/stat-(value|label)/g)].map((m) => m.index!)
+      const tiles = [...src.matchAll(/stat-(value|label)|<Stat\b/g)].map((m) => m.index!)
       expect(tiles.length, page).toBeGreaterThan(0)
       const before = tiles.filter((i) => i < gate)
       expect(before, page).toEqual([])
