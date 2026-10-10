@@ -1,0 +1,1000 @@
+'use client'
+
+import { usePageSection } from '@/components/page-section'
+import { readJson } from '@/lib/read-response'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { deskOf as deskOfSession } from '@/components/shell/sidebar-props'
+import { rowActions, raiseVerdict, NOT_YOURS_TO_RAISE } from './row-actions'
+import { jobListWord } from '../requirements/words'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
+import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
+import { missingForApproval, missingSays } from './facts'
+import {
+  Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, alsoWaitingSays, clearedForSentence, deskOf,
+  headlineRow, myRow, whoFor, whoWillBeAsked,
+  type Approval,
+} from './chain'
+
+/**
+ * Requisitions — the demand side.
+ *
+ * A hiring manager says what they need; the system either clears it or
+ * routes it, and says which and why. CLAUDE.md calls for progressive
+ * explanation: "One line by default, reasoning on click."
+ *
+ * Addendum E: "Most requisitions must clear without human approval.
+ * Governance slower than the workaround produces the workaround." So the
+ * screen is built for the common case — raise it, watch it clear, get on
+ * with the day — with the checks available but folded away.
+ *
+ * The decision itself lives in src/lib/requisition-approval.ts and is
+ * tested there. This page only shows it.
+ */
+
+interface Check { code: string; outcome: string; reason: string }
+
+
+/** Where a requirement has got to. One row's whole life, in four words. */
+type Tab = 'ALL' | Stage
+
+const TABS: Array<[Tab, string]> = [['ALL', 'All'], ...STAGES]
+
+
+interface Requisition {
+  id: string
+  title: string
+  skills: string[]
+  location: string | null
+  headcount: number
+  billMin: number | null
+  billMax: number | null
+  months: number | null
+  neededBy: string | null
+  description: string | null
+  justification: string | null
+  status: string
+  approvalState: string
+  raisedBy: { id: string; name: string } | null
+  /** Whose need it is. Absent where the read path does not send it yet. */
+  owner?: { id: string; name: string } | null
+  /** The suppliers Procurement's yes named. Empty = every approved one. */
+  clearedSupplierIds?: string[]
+  /** The hiring panel — names, not seats. Every interview round starts with them. */
+  interviewers?: string[]
+  orgUnit: { id: string; name: string } | null
+  costCenter: { id: string; code: string; name: string } | null
+  /** Who it waits on, in the route's one sentence. Null when nothing is pending. */
+  waitingOn?: string | null
+  archivedAt: string | null
+  cancelReason?: string | null
+  approvals: Approval[]
+  counts: { submissions: number; invitations: number }
+  createdAt: string
+}
+
+/**
+ * The one chip on the card, saying the same thing as the tab it sits under.
+ *
+ * This read `approvalState` while the tabs read `status`, so a row whose
+ * approval had never been started but which was open to suppliers showed
+ * a "Draft" chip inside the "Published" tab. Both were true about
+ * different columns and together they read as a contradiction. The
+ * approval detail did not disappear — it is in Why, where the whole chain
+ * is, rather than competing with the stage on the same line.
+ */
+function stageChip(r: Requisition) {
+  switch (stageOf(r)) {
+    // Put away, with why: "all 2 seats filled" is the reason, not a tab.
+    case 'ARCHIVED':  return <Chip tone={r.status === 'FILLED' ? 'verified' : undefined}>{closedBecause(r)}</Chip>
+    case 'CANCELLED': return <Chip tone="attention">Cancelled</Chip>
+    case 'AWAITING':  return <Chip tone="attention">Awaiting approval</Chip>
+    case 'CHANGES':   return <Chip tone="attention">Needs changes</Chip>
+    case 'OPEN':      return <Chip tone="action">Published</Chip>
+    default:          return <Chip>Draft</Chip>
+  }
+}
+
+/**
+ * Progressive explanation — the summary line always, the checks on click.
+ * A manager whose requisition cleared does not need the arithmetic; one
+ * whose requisition routed needs exactly it.
+ */
+function Why({ approvals, state, desks }: {
+  approvals: Approval[]
+  state: string
+  desks?: { hrPersonId?: string | null; procurementPersonId?: string | null }
+}) {
+  const [open, setOpen] = useState(false)
+
+  // An empty chain is not an absent answer — it is the answer.
+  //
+  // This returned null, so the requisitions that matter most to the
+  // founder's own claim ("most requisitions clear without a human") were
+  // the ones that explained themselves least: a row that sailed through
+  // showed no reasoning at all, and looked broken rather than fast.
+  if (approvals.length === 0) {
+    if (state === 'AUTO_APPROVED') {
+      return (
+        <p className="mt-3 text-sm text-etyme-muted">
+          Cleared the moment it was raised — inside plan, inside budget, inside the
+          going rate. No approver was needed.
+        </p>
+      )
+    }
+    return (
+      <p className="mt-3 text-sm text-etyme-faint">
+        Not sent for approval yet. Nobody has been asked to look at this.
+      </p>
+    )
+  }
+
+  // The desk that is actually waiting, never whichever row came back
+  // first. `headlineRow` holds the rule and is tested beside the chain.
+  const lead = headlineRow(approvals)
+  if (!lead) return null
+  const also = alsoWaitingSays(lead.alsoWaiting, desks ?? {})
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-start gap-2">
+        <p className="text-sm text-etyme-muted flex-1">
+          {lead.row.reason}
+          {also && <span className="text-etyme-faint"> {also}</span>}
+        </p>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="text-xs text-etyme-action hover:underline shrink-0 mt-0.5"
+        >
+          {open ? 'Hide' : 'Why'}
+        </button>
+      </div>
+      {open && <Chain approvals={approvals} desks={desks} />}
+    </div>
+  )
+}
+
+/** The decision the system just made, shown immediately after raising one. */
+function DecisionPanel({ decision, onDismiss }: {
+  decision: {
+    state: string; summary: string; checks: Check[]; route: { name: string }[]
+    steps?: { stage: string; rank: number; approverName: string | null; outcome: string; reason: string }[]
+  }
+  onDismiss: () => void
+}) {
+  const cleared = decision.state === 'AUTO_APPROVED'
+  return (
+    <div className={`border rounded-lg p-6 mb-6 ${
+      cleared ? 'border-etyme-verified/30 bg-etyme-verified/5' : 'border-etyme-attention/30 bg-etyme-attention/5'
+    }`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Lbl>{cleared ? 'Open' : 'Sent for approval'}</Lbl>
+          <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">
+            {decision.summary}
+          </p>
+        </div>
+        <button onClick={onDismiss} className="text-etyme-faint hover:text-etyme-ink text-sm">
+          ✕
+        </button>
+      </div>
+      <div className="mt-4 space-y-1.5">
+        {/* A check the headline already says is not printed again under
+            it, and the desks below keep only their own part of it: one
+            long sentence was printed four times in this panel. */}
+        {decision.checks.filter(c => c.outcome === 'PASS' || !decision.summary.includes(c.reason)).map(c => (
+          <div key={c.code} className="flex items-baseline gap-3 text-sm">
+            <span className={`w-4 shrink-0 ${
+              c.outcome === 'PASS' ? 'text-etyme-verified' : 'text-etyme-attention'
+            }`}>
+              {c.outcome === 'PASS' ? '✓' : '!'}
+            </span>
+            <span className="text-etyme-muted">{c.reason}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* What each desk said, in the order it was asked. The route sends
+          this back on the raise; nothing read it, so somebody was told
+          "sent for approval" and had to open the row to find out to whom. */}
+      {decision.steps && decision.steps.length > 0 && (
+        <Chain
+          approvals={decision.steps.map((s, i) => ({
+            id: `step-${i}`,
+            approver: s.approverName ? { id: `step-${i}`, name: s.approverName } : null,
+            rank: s.rank,
+            stage: s.stage,
+            outcome: s.outcome,
+            reason: s.reason,
+            decidedAt: null,
+          }))}
+          alreadySaid={decision.checks.filter(c => c.outcome !== 'PASS').map(c => c.reason)}
+        />
+      )}
+    </div>
+  )
+}
+
+function RaiseModal({ onClose, onRaised, team, me }: {
+  onClose: () => void
+  onRaised: (decision: any) => void
+  team: any | null
+  me: { id: string; name: string } | null
+}) {
+  const [form, setForm] = useState({
+    title: '', skills: '', location: '', headcount: '1',
+    billMin: '', billMax: '', months: '', neededBy: '', justification: '', description: '', costCenterId: '',
+    budget: '', hoursPerWeek: '', ownerId: '',
+  })
+  const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
+  /** Who is interviewing. Names, on the requirement, from the start. */
+  const [panel, setPanel] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Whose need it is, defaulting to you. A coordinator raising four roles
+  // for four managers is ordinary; until this existed the only name on
+  // the row was the coordinator's.
+  const people: { id: string; name: string }[] = (team?.people ?? [])
+    .map((p: any) => p.person)
+    .filter((p: any) => p?.id)
+  const ownerId = form.ownerId || me?.id || ''
+  const asked = whoWillBeAsked(form.costCenterId, team)
+
+  useEffect(() => {
+    // The budgets themselves. This asked /api/program/org, which returns
+    // managers, vendors and spend and has never carried a cost center —
+    // so the list was empty however many existed.
+    fetch('/api/settings/cost-centers')
+      .then(r => r.json())
+      .then(j => {
+        const ccs = j?.data?.costCenters ?? []
+        setCostCenters(ccs.map((c: any) => ({ id: c.id, code: c.code, name: c.name })))
+      })
+      .catch(() => {})
+  }, [])
+
+  async function submit() {
+    // What the desks check the job against, and what an approver reads —
+    // asked for here rather than discovered as a blank on the approver's
+    // screen (`../facts`).
+    const missing = missingSays(missingForApproval(
+      { ...form, hoursPerWeek: form.hoursPerWeek ?? '' },
+      { costCentersOffered: costCenters.length > 0 }
+    ))
+    if (missing) {
+      setError(missing)
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/requisitions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
+          location: form.location.trim() || null,
+          headcount: parseInt(form.headcount, 10) || 1,
+          // Rates are entered in dollars and stored in cents.
+          budget: form.budget ? Math.round(parseFloat(form.budget) * 100) : null,
+          hoursPerWeek: form.hoursPerWeek ? parseInt(form.hoursPerWeek, 10) : null,
+          billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
+          billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
+          months: form.months ? parseInt(form.months, 10) : null,
+          neededBy: form.neededBy || null,
+          description: form.description.trim() || null,
+          justification: form.justification.trim() || null,
+          costCenterId: form.costCenterId || null,
+          // Whose need it is, distinct from who typed it. Never ask a
+          // question whose answer is thrown away — the route reads this.
+          ownerId: ownerId || null,
+          // The panel, so the first interview form opens with the room
+          // already in it rather than asking again.
+          interviewers: panel,
+        }),
+      })
+      const json = await readJson(res)
+      onRaised(json.data.decision)
+      onClose()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const field = 'w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action'
+
+  return (
+    <div className="fixed inset-0 bg-etyme-ink/30 flex items-start justify-center p-6 z-50 overflow-y-auto">
+      <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-6 max-w-xl w-full my-8">
+        <Lbl>New job request</Lbl>
+        <h2 className="font-serif text-2xl text-etyme-ink mt-1 mb-1 tracking-[-0.02em]">
+          What do you need?
+        </h2>
+        <p className="text-sm text-etyme-muted mb-5">
+          Most job requests clear without anyone having to approve them. You will
+          see which, and why, as soon as you raise it.
+        </p>
+
+        <div className="space-y-4">
+          <label className="block">
+            <Lbl>Job</Lbl>
+            <input autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+              placeholder="SAP MM Consultant" className={`${field} mt-1`} />
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block">
+              <Lbl>How many</Lbl>
+              <input type="number" min="1" value={form.headcount}
+                onChange={e => setForm({ ...form, headcount: e.target.value })} className={`${field} mt-1`} />
+            </label>
+            <label className="block">
+              <Lbl>For how long (months)</Lbl>
+              <input type="number" min="1" value={form.months}
+                onChange={e => setForm({ ...form, months: e.target.value })}
+                placeholder="6" className={`${field} mt-1`} />
+            </label>
+          </div>
+
+          {/* A range, not a ceiling.
+              Requirement carries billMin and billMax and the form only
+              ever sent the max, so every job request was raised with no
+              floor — and a supplier reading one could not tell whether
+              $60/hr was welcome or insulting. The floor is also what
+              makes the rate check on approval mean anything. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <label className="block">
+              <Lbl>Rate from ($/hr)</Lbl>
+              <input type="number" min="0" step="1" value={form.billMin}
+                onChange={e => setForm({ ...form, billMin: e.target.value })}
+                placeholder="105" className={`${field} mt-1 tabular-nums`} />
+            </label>
+            <label className="block">
+              <Lbl>Up to ($/hr)</Lbl>
+              <input type="number" min="0" step="1" value={form.billMax}
+                onChange={e => setForm({ ...form, billMax: e.target.value })}
+                placeholder="130" className={`${field} mt-1 tabular-nums`} />
+            </label>
+            <label className="block">
+              <Lbl>Hours a week</Lbl>
+              <input type="number" min="1" max="60" step="1" value={form.hoursPerWeek}
+                onChange={e => setForm({ ...form, hoursPerWeek: e.target.value })}
+                placeholder="40" className={`${field} mt-1 tabular-nums`} />
+            </label>
+            <label className="block">
+              <Lbl>Needed by</Lbl>
+              <input type="date" value={form.neededBy}
+                onChange={e => setForm({ ...form, neededBy: e.target.value })} className={`${field} mt-1`} />
+            </label>
+          </div>
+
+          {/* The money, stated rather than inferred.
+              The figure that decides who has to approve was derived from
+              the rate and a hardcoded 160 hours a month, so nobody typed
+              it and nobody could see it. Stated, it wins; left blank, the
+              estimate still answers and says that it is one. */}
+          <label className="block">
+            <Lbl>Budget for it ($, optional)</Lbl>
+            <input type="number" min="0" step="1000" value={form.budget}
+              onChange={e => setForm({ ...form, budget: e.target.value })}
+              placeholder="200000" className={`${field} mt-1 tabular-nums`} />
+            <p className="text-xs text-etyme-muted mt-1">
+              What has actually been signed off. Left blank, we estimate it
+              from the rate and the duration, and say so.
+            </p>
+          </label>
+
+          <label className="block">
+            <Lbl>Which budget pays for it</Lbl>
+            <select value={form.costCenterId} onChange={e => setForm({ ...form, costCenterId: e.target.value })}
+              className={`${field} mt-1`}>
+              <option value="">— not stated —</option>
+              {costCenters.map(c => (
+                <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-etyme-muted mt-1">
+              Without one, nobody owns the spend and it goes for approval.
+            </p>
+          </label>
+
+          {/* Whose need it is, which is not always who is typing.
+              A program coordinator raising four roles for four managers
+              is the ordinary case, and the row used to carry only the
+              coordinator's name — so nobody could see whose headcount it
+              was, and the lead's yes could not be held off the person it
+              was for. */}
+          {people.length > 0 && (
+            <label className="block">
+              <Lbl>Who is this for?</Lbl>
+              <select value={ownerId} onChange={e => setForm({ ...form, ownerId: e.target.value })}
+                className={`${field} mt-1`}>
+                {me && <option value={me.id}>{me.name} (you)</option>}
+                {people
+                  .filter(p => p.id !== me?.id)
+                  .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <p className="text-xs text-etyme-muted mt-1">
+                The manager whose need this is. Both names show on the row when
+                they are different, and nobody gives the final word on their own.
+              </p>
+            </label>
+          )}
+
+          {/* Who would be asked, before it is raised rather than after.
+              The page promised "you will see which, and why, as soon as
+              you raise it", which is true and a beat too late: somebody
+              deciding whether to round a rate down to stay inside their
+              own authority needs to know where the line is first.
+
+              And it listed every rule at the company, including the HR
+              and Procurement desks of units this budget has nothing to do
+              with. The desks are standing and per business unit, and the
+              budget names the unit — so it can say the three actual
+              people rather than five rows of rules. */}
+          {team && (
+            <div className="card">
+              <Lbl>Who would be asked</Lbl>
+              {asked.unitName && (
+                <p className="text-xs text-etyme-muted mt-1">
+                  {asked.budgetCode} sits in {asked.unitName}.
+                </p>
+              )}
+              <ul className="mt-2 space-y-1.5">
+                <li className="text-[13px] text-etyme-muted">
+                  <span className="text-etyme-ink">Job — HR.</span>{' '}
+                  {asked.hr
+                    ? <>{asked.hr.person.name}{asked.hr.inherited ? ` (named for ${asked.hr.from.name})` : ''} — if it is over the plan.</>
+                    : 'Nobody named, so anything over the plan clears with a note instead.'}
+                </li>
+                <li className="text-[13px] text-etyme-muted">
+                  <span className="text-etyme-ink">Sourcing — Procurement.</span>{' '}
+                  {asked.procurement
+                    ? <>{asked.procurement.person.name}{asked.procurement.inherited ? ` (named for ${asked.procurement.from.name})` : ''} — if the rate is above what you already pay.</>
+                    : 'Nobody named, so a rate above the band clears with a note instead.'}
+                </li>
+                <li className="text-[13px] text-etyme-muted">
+                  <span className="text-etyme-ink">The money — the lead.</span>{' '}
+                  {asked.lead
+                    ? `${asked.lead.name}, who owns this budget — if it is over budget.`
+                    : (asked.leadNote ?? 'Pick the budget and this says who would be asked.')}
+                </li>
+                {asked.money.map(m => (
+                  <li key={m.id} className="text-[13px] text-etyme-muted">
+                    <span className="text-etyme-ink">{m.name}.</span>{' '}
+                    {m.approverName}
+                    {m.thresholdDollars != null
+                      ? ` — anything over $${Math.round(m.thresholdDollars).toLocaleString()} a year.`
+                      : ' — whenever a check routes it.'}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-etyme-faint mt-2">
+                Within plan, budget and rate, none of them is asked — it clears
+                itself and every desk records why.
+              </p>
+            </div>
+          )}
+
+          <label className="block">
+            <Lbl>Skills it needs (comma separated)</Lbl>
+            <input value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })}
+              placeholder="SAP MM, S/4HANA" className={`${field} mt-1`} />
+          </label>
+
+          <label className="block">
+            <Lbl>Where — the city, and on site, hybrid or remote</Lbl>
+            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+              placeholder="Lakewood, CO — on site three days a week" className={`${field} mt-1`} />
+          </label>
+
+          <label className="block">
+            <Lbl>What the work is, day to day</Lbl>
+            <textarea value={form.description} rows={5}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognize."
+              className={`${field} mt-1`} />
+          </label>
+
+          <label className="block">
+            <Lbl>Why it is needed — a new project, a backfill, or extra hands</Lbl>
+            <textarea value={form.justification} rows={2}
+              onChange={e => setForm({ ...form, justification: e.target.value })}
+              placeholder="Backfill for the Q4 validation program" className={`${field} mt-1 resize-none`} />
+          </label>
+
+          {/* The room, before there is anybody to put in it. The manager
+              knows who will interview long before a CV arrives, and every
+              round then starts with those names instead of retyping them. */}
+          <PanelField names={panel} onChange={setPanel} />
+        </div>
+
+        {error && <div className="mt-4 text-sm text-etyme-attention">{error}</div>}
+
+        <div className="mt-6 flex items-center gap-3">
+          <button onClick={submit} disabled={busy}
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {busy ? 'Raising…' : 'Raise job request'}
+          </button>
+          <button onClick={onClose} className="text-sm text-etyme-muted hover:text-etyme-ink">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+/** The same rows as a table: one line each, for the day there are two hundred. */
+const REQ_COLUMNS: Column<Requisition>[] = [
+  { key: 'title', label: 'Requirement', render: (r) => <span className="text-etyme-ink">{r.title}</span> },
+  { key: 'status', label: 'Where it is', render: (r) => stageChip(r), sortValue: (r) => stageOf(r) },
+  { key: 'headcount', label: 'Positions', align: 'right' },
+  { key: 'location', label: 'Location', render: (r) => <span className="text-etyme-muted">{r.location ?? '—'}</span>, hideOnMobile: true },
+  { key: 'orgUnit', label: 'Department', render: (r) => <span className="text-etyme-muted">{r.orgUnit?.name ?? '—'}</span>, sortValue: (r) => r.orgUnit?.name ?? '', hideOnMobile: true },
+  { key: 'neededBy', label: 'Needed by', render: (r) => <span className="tabular-nums text-etyme-muted">{r.neededBy ? new Date(r.neededBy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>, sortValue: (r) => r.neededBy ?? '' },
+  { key: 'billMax', label: 'Max rate', align: 'right', render: (r) => <span className="tabular-nums">{r.billMax != null ? `$${Math.round(r.billMax / 100)}/hr` : '—'}</span> },
+  { key: 'counts', label: 'Candidates', align: 'right', render: (r) => <span className="tabular-nums">{r.counts.submissions}</span>, sortValue: (r) => r.counts.submissions },
+]
+
+export default function RequisitionsPage() {
+  const section = usePageSection('/dashboard/requisitions')
+  const [reqs, setReqs] = useState<Requisition[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  // Whose book the list is. It is always a client's: the client's own
+  // desk, or a program office in a seat that client granted. Either way
+  // the heading is the client's word, read from lib/page-framing.
+  const [book, setBook] = useState<{ id: string; name: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // The door's own sentence when it refused this reader, drawn alone
+  // (sign-up walk, round four, problem 3).
+  const [refused, setRefused] = useState<string | null>(null)
+  const [stage, setStage] = useState<Tab>('ALL')
+  /**
+   * Archived rows are off the working list by default.
+   *
+   * That is the whole meaning of archiving — it is filed as a date rather
+   * than a status precisely so it cannot overwrite what actually happened
+   * to a row. Hiding them is what makes the button worth pressing; before
+   * this, archiving changed a label and nothing else.
+   */
+  const [editing, setEditing] = useState<Requisition | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [raising, setRaising] = useState(false)
+  /**
+   * What this reader's desk may do, so a button is not offered that the
+   * route refuses. Read through the seat, the way the sidebar, the + button and ⌘K read it (`deskOf`): a
+   * program office at a client's desk holds the client's role there, and
+   * its own firm's permissions say nothing about this book.
+   */
+  const session = useSession()
+  const { company } = session
+  // `deskOf` is the shell's, renamed here because this page already
+  // has a `deskOf` of its own: which approval desk a row is at.
+  const { permissions } = deskOfSession(session)
+  const [decision, setDecision] = useState<any>(null)
+  /** Who is reading — so only your own row offers you a decision. */
+  const [me, setMe] = useState<{ id: string; name: string } | null>(null)
+  /** The program: the desks per unit, the budgets and their owners. */
+  const [team, setTeam] = useState<any | null>(null)
+  const [suppliers, setSuppliers] = useState<{ companyId: string; name: string }[]>([])
+  const [deciding, setDeciding] = useState<
+    { req: Requisition; action: 'approve' | 'reject' | 'changes'; sourcing: boolean } | null
+  >(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Archived rows too: they have a tab now.
+      const res = await fetch('/api/requisitions?archived=true')
+      if (res.status === 403) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said.error?.message ?? 'Job requests are not part of your seat. Ask your company\'s owner if you need them.')
+        return
+      }
+      const json = await readJson(res)
+      setReqs(json.data.requisitions)
+      setSummary(json.data.summary)
+      setBook(json.data.client ?? null)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  // Who is reading, which desks exist, and who this client buys from.
+  // All three are read once and are optional: a page that cannot read the
+  // program still lists requisitions, it just offers fewer decisions.
+  useEffect(() => {
+    fetch('/api/me').then(r => r.json())
+      .then(j => { const p = j?.data?.person; if (p?.id) setMe({ id: p.id, name: p.name }) })
+      .catch(() => {})
+    fetch('/api/program/team').then(r => r.json())
+      .then(j => { if (j?.data?.company) setTeam(j.data) })
+      .catch(() => {})
+    fetch('/api/suppliers').then(r => r.json())
+      .then(j => setSuppliers(
+        (j?.data?.suppliers ?? []).map((s: any) => ({ companyId: s.companyId, name: s.name }))
+      ))
+      .catch(() => {})
+  }, [])
+
+  /** Supplier names, so a cleared list reads as firms and not as ids. */
+  const supplierNames: Record<string, string> = Object.fromEntries(
+    suppliers.map(s => [s.companyId, s.name])
+  )
+
+  /**
+   * The desks for a row's own unit.
+   *
+   * Used only to place an approval under the right heading where the row
+   * does not carry its stage. The desk is a fact about the unit, not
+   * about the requisition, so it is read from the program once.
+   */
+  function desksFor(r: Requisition) {
+    const unitId = r.orgUnit?.id
+      ?? (team?.budgets ?? []).find((b: any) => b.id === r.costCenter?.id)?.department?.id
+      ?? null
+    const d = (team?.desks ?? []).find((x: any) => x.unit.id === unitId)
+    return {
+      hrPersonId: d?.hr?.person?.id ?? null,
+      procurementPersonId: d?.procurement?.person?.id ?? null,
+    }
+  }
+
+  // The whole life of a requirement, on one screen.
+  //
+  // This was two nav entries — "Requisitions" for the ones awaiting
+  // approval and "Open roles" for the ones released to suppliers —
+  // pointing at two screens showing the same rows at two stages. They
+  // read as competing entry points, because that is what they looked
+  // like. The stage belongs here, as a filter, where somebody can see
+  // all of it at once and narrow when they want to.
+
+  /**
+   * Calling one off. A reason is required by the route, and rightly:
+   * every supplier still working it is stood down, and being stood down
+   * without being told why is the part they remember.
+   */
+  async function cancel(id: string, title: string) {
+    const reason = window.prompt(
+      `Why is "${title}" being cancelled?\n\nSuppliers sourcing against it will be stood down and shown this.`
+    )
+    if (reason === null) return
+    if (!reason.trim()) {
+      setError('Say why — suppliers sourcing against this are owed a reason.')
+      return
+    }
+    setBusyId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/requisitions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', reason: reason.trim() }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'It could not be cancelled.')
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /** Off the working list, or back onto it. Changes nothing else. */
+  async function putAway(id: string, action: 'archive' | 'unarchive') {
+    setBusyId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/requisitions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That did not work.')
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // The working list is everything not put away; Archived is its own
+  // tab, so a settled row has a place to be found rather than a
+  // checkbox to remember.
+  const working = reqs.filter(r => stageOf(r) !== 'ARCHIVED')
+  const archived = reqs.filter(r => stageOf(r) === 'ARCHIVED')
+  const onTheList = stage === 'ARCHIVED' ? archived : working
+  const visible = onTheList.filter(r => stage === 'ALL' || stageOf(r) === stage)
+  // The list's own search box, over the words a manager searches by. The
+  // page drew a second box above the list before the list searched
+  // itself; one box, the list's, is the one the reader learns.
+  const matchesSearch = (r: Requisition, term: string) =>
+    r.title.toLowerCase().includes(term) ||
+    (r.costCenter?.code ?? '').toLowerCase().includes(term) ||
+    (r.location ?? '').toLowerCase().includes(term) ||
+    r.skills.some(s => s.toLowerCase().includes(term))
+  const mayRaise = raiseVerdict(session, permissions)
+
+  if (refused) {
+    return <RefusedState says={refused} />
+  }
+
+  return (
+    <div className="max-w-4xl">
+      {/* The eyebrow and the heading both said something the menu no
+          longer says — "Program" for a section now called Workforce,
+          "Requisitions" for an entry since called Job requests on a
+          client's menu. A menu item and the heading of the page it
+          opens are one promise made twice, so the heading reads the
+          word from lib/page-framing, where the menu's word lives. */}
+      {/* Raising one is the hiring manager's and the program office's.
+          The approver who decides it, the clerk who pays for it and the
+          viewer who reads the program are told what they are looking
+          at rather than handed a button the route will refuse. */}
+      <PageHead
+        eyebrow={section}
+        title={jobListWord(company?.kind, book && company && book.id !== company.id ? { seated: true, companyName: book.name } : null).plural}
+        subtitle={<>
+          What your managers need. Most clear the moment they are raised — only
+          those over plan, over budget or above the going rate go to a person.
+        </>}
+        actions={mayRaise === 'RAISE' ? (
+          <button onClick={() => setRaising(true)} className="btn-primary">
+            Raise one
+          </button>
+        ) : mayRaise === 'NOT_YOURS' ? (
+          <p className="text-xs text-etyme-muted max-w-[14rem] sm:text-right">
+            {NOT_YOURS_TO_RAISE}
+          </p>
+        ) : null}
+      />
+
+      {decision && <DecisionPanel decision={decision} onDismiss={() => setDecision(null)} />}
+
+      {summary && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <Stat label="Open" value={summary.open} />
+          <Stat label="Cleared automatically" value={summary.autoCleared} tone="verified"
+            sub="no human needed" />
+          <Stat label="Waiting on a person" value={summary.awaitingApproval}
+            tone={summary.awaitingApproval > 0 ? 'attention' : 'default'} />
+          {/* The working list — what the All tab counts — with the settled
+              ones named beside it rather than folded into one number. */}
+          <Stat label="All job requests" value={working.length}
+            sub={archived.length > 0 ? `and ${archived.length} archived` : undefined} />
+        </div>
+      )}
+
+      {loading && <LoadingState says="Opening job requests…" />}
+
+      {!loading && error && (
+        <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
+      )}
+
+      {!loading && !error && (
+        <ListSurface<Requisition>
+          name="requirements"
+          defaultView="feed"
+          columns={REQ_COLUMNS}
+          data={visible}
+          rowKey={(r) => r.id}
+          searchPlaceholder="Search by job, budget code, skill or location…"
+          searchFilter={matchesSearch}
+          filters={
+            <FilterChips<Tab>
+              label="Stage"
+              value={stage}
+              onChange={setStage}
+              options={TABS.map(([key, label]) => ({
+                key,
+                label,
+                // Counted over the same set the tab will show, or the
+                // number lies — and only once the first read is back:
+                // "All 0" while loading is a guess drawn as an answer
+                // (round four, 21).
+                count: summary
+                  ? key === 'ALL' ? working.length
+                    : key === 'ARCHIVED' ? archived.length
+                    : working.filter(r => stageOf(r) === key).length
+                  : undefined,
+              }))}
+            />
+          }
+          emptyMessage={stage === 'ALL' ? 'No job requests yet.' : 'No job requests at this stage.'}
+          emptyDetail={stage === 'ALL'
+            ? 'Raise one and it will either open straight away or go to whoever needs to see it.'
+            : undefined}
+          emptyAction={stage === 'ALL' && mayRaise === 'RAISE' ? { label: 'Raise one', onClick: () => setRaising(true) } : undefined}
+          exportName="requirements"
+          defaultPageSize={50}
+          onRowClick={(r) => { window.location.href = `/dashboard/requisitions/${r.id}` }}
+          card={(r) => {
+            const pending = r.approvals.find(a => a.outcome === 'PENDING')
+            // Only your own row, at the rank in play — the same rule the
+            // route enforces. A button that returns "this approval is not
+            // yours" is a button nobody should have been shown.
+            const mine = myRow(r.approvals, me?.id ?? null)
+            const mineIsSourcing = mine ? deskOf(mine, desksFor(r)) === 'SOURCING' : false
+            const clearedFor = clearedForSentence(r.clearedSupplierIds, supplierNames)
+            return (
+              <div key={r.id} className="bg-etyme-surface border border-etyme-rule rounded-lg p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <a href={`/dashboard/requisitions/${r.id}`}
+                      className="font-serif text-xl text-etyme-ink tracking-[-0.02em] text-balance hover:text-etyme-action">
+                      {r.title}
+                    </a>
+                    <div className="text-sm text-etyme-muted mt-1">
+                      {r.headcount} position{r.headcount === 1 ? '' : 's'}
+                      {r.location && ` · ${r.location}`}
+                      {r.costCenter && ` · ${r.costCenter.code}`}
+                      {/* Whose need it is, then who typed it — said twice
+                          only when they are two different people. */}
+                      {whoFor(r) && ` · ${whoFor(r)}`}
+                    </div>
+                    {clearedFor && (
+                      <div className="text-xs text-etyme-muted mt-1">{clearedFor}</div>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right space-y-1">
+                    {stageChip(r)}
+                    {r.billMax != null && (
+                      <div className="font-serif text-lg text-etyme-ink tabular-nums">
+                        ${Math.round(r.billMax / 100)}
+                        <span className="text-xs text-etyme-muted font-sans">/hr max</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* The role in the raiser's own words. One line on the
+                    list, the rest on the row's own page — a list of two
+                    hundred is not the place to read six paragraphs. */}
+                {r.description && (
+                  <p className="mt-2 text-sm text-etyme-muted line-clamp-2">{r.description}</p>
+                )}
+
+                <Why approvals={r.approvals} state={r.approvalState} desks={desksFor(r)} />
+
+                <div className="mt-4 pt-4 border-t border-etyme-rule flex items-center justify-between gap-4">
+                  <div className="text-xs text-etyme-muted">
+                    {r.counts.invitations} supplier{r.counts.invitations === 1 ? '' : 's'} asked
+                    {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
+                  </div>
+                  {/* Change it, call it off, or put it away.
+                      Editing used to hide the moment a job request went
+                      out, which forced a cancel-and-re-raise to add a
+                      missing skill. It now shows wherever the rule allows
+                      a change — a draft, one waiting on a desk, one handed
+                      back, and a published one — and the form itself says
+                      what saving will do (src/lib/requisition-change.ts).
+                      Cancel and Archive stay off a row somebody is
+                      deciding, because they are not the editor's to press
+                      while a desk holds it. */}
+                  {/* And only for whoever the route lets change it: the
+                      desk holding requirements.write, and of those the
+                      manager it is for, whoever raised it, or the program
+                      office (row-actions.ts). */}
+                  {(() => {
+                    const can = rowActions(r, { permissions, personId: me?.id ?? null }, Boolean(pending))
+                    if (!can.edit && !can.cancel && !can.archive) return null
+                    return (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {can.edit && (
+                        <button
+                          onClick={() => setEditing(r)}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {/* Cancel is for a role somebody still wants to
+                          stop. A closed one is already stopped, and the
+                          route refuses it — a button the route refuses is
+                          a button that lies. */}
+                      {can.cancel && (
+                        <button
+                          onClick={() => cancel(r.id, r.title)}
+                          disabled={busyId === r.id}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-attention hover:border-etyme-attention"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {can.archive && (
+                        <button
+                          onClick={() => putAway(r.id, r.archivedAt ? 'unarchive' : 'archive')}
+                          disabled={busyId === r.id}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink"
+                        >
+                          {r.archivedAt ? 'Put back' : 'Archive'}
+                        </button>
+                      )}
+                    </div>
+                    )
+                  })()}
+                  {mine && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setDeciding({ req: r, action: 'approve', sourcing: mineIsSourcing })}
+                        className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                        {mineIsSourcing ? 'Approve and name suppliers' : 'Approve'}
+                      </button>
+                      {/* The middle answer. Without it an approver who
+                          only wants the rate moved has to reject the whole
+                          thing, which stands the suppliers down and makes
+                          somebody raise it again from nothing. */}
+                      <button
+                        onClick={() => setDeciding({ req: r, action: 'changes', sourcing: mineIsSourcing })}
+                        className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+                        Ask for changes
+                      </button>
+                      <button
+                        onClick={() => setDeciding({ req: r, action: 'reject', sourcing: mineIsSourcing })}
+                        className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-attention hover:border-etyme-attention">
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                  {/* Waiting on somebody else. Said, rather than shown as
+                      an empty space where three buttons are for others. */}
+                  {/* The route's own sentence (`waitingOn`), the same one the
+                      job request's page prints — never this list's own pick
+                      of a pending row. */}
+                  {r.waitingOn && !mine && (
+                    <div className="text-xs text-etyme-muted shrink-0">{r.waitingOn}</div>
+                  )}
+                </div>
+              </div>
+            )
+          }}
+        />
+      )}
+
+      {raising && (
+        <RaiseModal
+          team={team}
+          me={me}
+          onClose={() => setRaising(false)}
+          onRaised={d => { setDecision(d); load() }}
+        />
+      )}
+
+      {deciding && (
+        <DecideModal
+          req={deciding.req}
+          action={deciding.action}
+          sourcing={deciding.sourcing}
+          suppliers={suppliers}
+          onClose={() => setDeciding(null)}
+          onDone={() => { setDeciding(null); load() }}
+        />
+      )}
+
+      {editing && (
+        <EditRequisition
+          req={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load() }}
+        />
+      )}
+    </div>
+  )
+}

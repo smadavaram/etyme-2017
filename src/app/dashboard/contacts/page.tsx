@@ -1,0 +1,402 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
+import { usePageSection } from '@/components/page-section'
+import { useSession } from '@/components/session-provider'
+import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState } from '@/components/ui'
+
+/**
+ * Contacts, and who to call there.
+ *
+ * Two tabs over one idea. Companies is the register — who they are to
+ * us, whether an agreement backs it, whether anything is live between
+ * us. People is the rolodex — the humans at those firms, by what you
+ * would call them about.
+ *
+ * A working surface: search first, dense rows, every state handled.
+ */
+
+const TABS = ['PEOPLE', 'COMPANIES'] as const
+type Tab = (typeof TABS)[number]
+
+
+const PEOPLE_COLUMNS: Column<any>[] = [
+  { key: 'name', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.name}</span> },
+  { key: 'at', label: 'Firm', render: (c) => <span className="text-etyme-muted">{c.at.name}</span>, sortValue: (c) => c.at.name },
+  { key: 'title', label: 'Role', render: (c) => <span className="text-etyme-muted">{c.title ?? '—'}</span>, hideOnMobile: true },
+  { key: 'kindLabel', label: 'Desk', render: (c) => <Chip>{c.kindLabel}</Chip> },
+  { key: 'email', label: 'Email', render: (c) => c.email ? <a href={`mailto:${c.email}`} className="text-etyme-action" onClick={(e) => e.stopPropagation()}>{c.email}</a> : '—' },
+  { key: 'joined', label: 'Here', render: (c) => (c.joined ? <Chip tone="verified">on the platform</Chip> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
+]
+
+const COMPANY_COLUMNS: Column<any>[] = [
+  { key: 'otherCompanyName', label: 'Firm', render: (r) => <span className="text-etyme-ink">{r.otherCompanyName}</span> },
+  { key: 'relationship', label: 'To you', render: (r) => <Chip tone="action">{r.relationship.toLowerCase()}</Chip> },
+  { key: 'status', label: 'Standing', render: (r) => <Chip tone={r.status === 'BLOCKED' ? 'attention' : 'passive'}>{r.status.toLowerCase()}</Chip> },
+  { key: 'hasAgreement', label: 'Agreement', render: (r) => (r.hasAgreement ? <Chip tone="verified">on file</Chip> : <span className="text-etyme-faint">none</span>), sortValue: (r) => (r.hasAgreement ? 1 : 0) },
+  { key: 'contacts', label: 'Contacts', align: 'right', render: (r) => <span className="tabular-nums">{r.contacts}</span> },
+]
+
+export default function ContactsPage() {
+  const session = useSession()
+  const [tab, setTab] = useState<Tab>('PEOPLE')
+  const [contacts, setContacts] = useState<any>(null)
+  const [reg, setReg] = useState<any>(null)
+  const [q, setQ] = useState('')
+  const [kind, setKind] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  // A refusal is the page: its sentence alone, with no tabs, search or
+  // "Add contact" around it (sign-up walk, round six, problem 12).
+  const [refused, setRefused] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [c, r] = await Promise.all([
+        fetch(`/api/contacts${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+        fetch('/api/counterparties'),
+      ])
+      const cb = await c.json().catch(() => ({}))
+      const rb = await r.json().catch(() => ({}))
+      const no = c.status === 403 ? cb : r.status === 403 ? rb : null
+      if (no) {
+        setRefused(refusalSentence(no?.error?.message) || 'Contacts is not part of your seat. Ask your company’s owner if you need it.')
+        return
+      }
+      if (!c.ok) throw new Error(cb.error?.message ?? `HTTP ${c.status}`)
+      if (!r.ok) throw new Error(rb.error?.message ?? `HTTP ${r.status}`)
+      setContacts(cb.data)
+      setReg(rb.data)
+      setError(null)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [q])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const people = (contacts?.contacts ?? []).filter((c: any) => !kind || c.kind === kind)
+  // The kind only once the session has it: a literal fallback here drew a
+  // supplier's heading over a client's page while it loaded (sign-up walk,
+  // round three, item 16). Unknown reader, no heading.
+  const readerKind = session.company?.kind ?? null
+  // Read off the reader's own trimmed menu, so a seat with no desk is
+  // never headed by a section it does not have (round seven).
+  const eyebrow = usePageSection('/dashboard/contacts')
+
+  if (refused) return <RefusedState says={refused} />
+  if (contacts === null && loading) return <LoadingState says="Opening contacts…" />
+
+  return (
+    <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
+      {/* The section this page sits under on the reader's own menu:
+          Operate for a firm that sells, Network for a client, and the
+          client's word for an office sitting at a client's desk. Null
+          while the session loads, and PageHead then draws no eyebrow; the
+          line under the title waits for the reader's kind the same way. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title="Contacts"
+        subtitle={readerKind ? 'The register of firms and the people at them. Private to this company — a rolodex is a commercial asset, and nobody else’s screen shows yours.' : undefined}
+      />
+
+      <div className="flex flex-wrap items-center gap-3 border-b border-etyme-rule pb-3">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="px-1 pb-1 text-[13px] capitalize"
+            style={
+              tab === t
+                ? { borderBottom: '2px solid var(--color-action)', color: 'var(--color-ink)', fontWeight: 600 }
+                : { color: 'var(--color-muted)' }
+            }
+          >
+            {t === 'PEOPLE' ? 'People' : 'Companies'}
+          </button>
+        ))}
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search names, companies, titles"
+          className="ml-auto w-full rounded-lg border border-etyme-rule px-3 py-1.5 text-[13px] sm:w-64"
+        />
+        {tab === 'PEOPLE' && (
+          <button onClick={() => setAdding(true)} className="btn-primary text-[13px]">
+            Add contact
+          </button>
+        )}
+      </div>
+
+      {loading && <LoadingState compact says="Opening contacts…" />}
+      {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}
+
+      {/* ── People ─────────────────────────────────────────── */}
+      {!loading && tab === 'PEOPLE' && contacts && (
+        <>
+          {/* Each card says what to call the person about, so the chip
+              carries the desk's name alone. */}
+          <FilterChips<string>
+            label="Their role at their firm"
+            options={[{ key: '', label: 'Everyone' }, ...contacts.kinds.map((k: any) => ({ key: k.key, label: k.label }))]}
+            value={kind ?? ''}
+            onChange={(k) => setKind(k === '' ? null : k)}
+          />
+
+          <ListSurface<any>
+            name="contacts-people"
+            // The page searches for itself, in the box above both lists.
+            searchable={false}
+            defaultView="feed"
+            columns={PEOPLE_COLUMNS}
+            data={people}
+            rowKey={(c) => c.id}
+            exportName="contacts"
+            defaultPageSize={50}
+            card={(c) => (
+            <div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div>
+                  <p className="text-[15px] font-semibold text-etyme-ink">{c.name}</p>
+                  <p className="text-[12px] text-etyme-faint">
+                    {[c.title, c.at.name].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {c.joined && <Chip tone="verified">on the platform</Chip>}
+                  <Chip>{c.kindLabel}</Chip>
+                </div>
+              </div>
+              {c.via && <p className="mt-1 text-[12px] text-etyme-muted">{c.via}</p>}
+              {c.callAbout && (
+                <p className="mt-1 text-[12px] text-etyme-muted">Call about: {c.callAbout}</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-4 text-[12px] text-etyme-muted">
+                {c.email && <a href={`mailto:${c.email}`} style={{ color: 'var(--color-action)' }}>{c.email}</a>}
+                {c.phone && <span className="tabular-nums">{c.phone}</span>}
+              </div>
+            </div>
+            )}
+          />
+
+          {people.length === 0 && (
+            <EmptyState
+              says={q || kind
+                ? 'Nobody matches that.'
+                : 'Nobody on the rolodex yet. Add the person you most recently phoned — the hiring manager, the AP clerk — and it stops being empty.'}
+            />
+          )}
+        </>
+      )}
+
+      {/* ── Companies ──────────────────────────────────────── */}
+      {!loading && tab === 'COMPANIES' && reg && (
+        <>
+          <ListSurface<any>
+            name="contacts-companies"
+            searchable={false}
+            defaultView="feed"
+            columns={COMPANY_COLUMNS}
+            data={reg.rows.filter((r: any) => !q || r.otherCompanyName.toLowerCase().includes(q.toLowerCase()))}
+            rowKey={(r) => `${r.otherCompanyId}:${r.relationship}`}
+            exportName="counterparties"
+            defaultPageSize={50}
+            card={(r) => (
+              <div>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[15px] font-semibold text-etyme-ink">{r.otherCompanyName}</p>
+                  <div className="flex items-center gap-2">
+                    {r.status === 'BLOCKED' && <Chip tone="attention">blocked</Chip>}
+                    {r.status === 'PROSPECT' && <Chip>prospect</Chip>}
+                    {r.hasAgreement && <Chip tone="verified">agreement on file</Chip>}
+                    <Chip tone="action">{r.relationship.toLowerCase()}</Chip>
+                  </div>
+                </div>
+                <p className="mt-1 text-[13px] text-etyme-muted">{r.says}</p>
+                <p className="mt-1 text-[12px] text-etyme-faint">
+                  {r.contacts > 0
+                    ? `${r.contacts} contact${r.contacts === 1 ? '' : 's'} on file`
+                    : 'No contacts on file — a counterparty with nobody to call is a logo, not a relationship.'}
+                </p>
+
+              </div>
+            )}
+          />
+
+          {reg.rows.length === 0 && (
+            <EmptyState says="No counterparties yet. Add a company from the Companies screen and say what they are to you, or invite a supplier — either writes the register." />
+          )}
+        </>
+      )}
+
+      {adding && contacts && (
+        <AddContactModal
+          companies={(reg?.rows ?? []).map((r: any) => ({ id: r.otherCompanyId, name: r.otherCompanyName }))}
+          kinds={contacts.kinds}
+          onClose={() => setAdding(false)}
+          onCreated={() => {
+            setAdding(false)
+            load()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function AddContactModal({
+  companies,
+  kinds,
+  onClose,
+  onCreated,
+}: {
+  companies: { id: string; name: string }[]
+  kinds: { key: string; label: string; callAbout: string }[]
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', title: '', atCompanyId: '', kind: 'OTHER' })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // Checked here, not left to the browser. A native refusal inside a
+  // modal on a phone is invisible — the Add consultant form proved it.
+  function problems(): Record<string, string> {
+    const p: Record<string, string> = {}
+    if (form.name.trim().length < 2) p.name = 'A name, so somebody knows who they are calling.'
+    if (!form.atCompanyId) p.atCompanyId = 'Say which company they work at.'
+    const email = form.email.trim()
+    // The route says the same sentence (lib/contacts), so a script that
+    // skips this form is refused in the same words.
+    if (!email && !form.phone.trim()) p.email = NO_WAY_TO_REACH
+    if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+      p.email = `"${email}" is not an email address. Leave it blank if you only have a phone number.`
+    }
+    return p
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const found = problems()
+    setFieldErrors(found)
+    if (Object.keys(found).length > 0) {
+      setError(Object.values(found)[0])
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        setError(body.error?.message ?? 'Could not save the contact.')
+        if (body.error?.field) setFieldErrors({ [body.error.field]: body.error.message })
+        return
+      }
+      onCreated()
+    } catch {
+      setError('Network error. Try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const field = (name: keyof typeof form, label: string, placeholder: string, type = 'text', required = false) => (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-etyme-muted">{label}</label>
+      {/* required says so to a screen reader; noValidate on the form
+          keeps the browser from blocking with a bubble nobody sees in a
+          modal on a phone, so the sentence above is what explains it. */}
+      <input
+        required={required}
+        aria-required={required || undefined}
+        type={type}
+        value={form[name]}
+        onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+        aria-invalid={!!fieldErrors[name]}
+        className={`w-full rounded-lg border px-3 py-2 text-sm ${fieldErrors[name] ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+        placeholder={placeholder}
+      />
+      {fieldErrors[name] && <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors[name]}</p>}
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card mx-4 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <h2 className="mb-4 text-lg font-semibold">Add contact</h2>
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Stacked on a phone, always. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {field('name', 'Name *', 'Dana Whitfield — first and last', 'text', true)}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Works at *</label>
+              <select
+                required
+                aria-required="true"
+                value={form.atCompanyId}
+                onChange={(e) => setForm({ ...form, atCompanyId: e.target.value })}
+                aria-invalid={!!fieldErrors.atCompanyId}
+                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${fieldErrors.atCompanyId ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+              >
+                <option value="">Select…</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {fieldErrors.atCompanyId && (
+                <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.atCompanyId}</p>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {field('email', 'Email', 'dana@client.com', 'email')}
+            {field('phone', 'Phone', '(303) 555-0100', 'tel')}
+          </div>
+          <p className="-mt-2 text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough.</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {field('title', 'Title', 'Director, Contingent Workforce')}
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm</label>
+              <select
+                value={form.kind}
+                onChange={(e) => setForm({ ...form, kind: e.target.value })}
+                className="w-full rounded-lg border border-etyme-rule bg-white px-3 py-2 text-sm"
+              >
+                {kinds.map((k) => (
+                  <option key={k.key} value={k.key}>{k.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Saving…' : 'Add contact'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

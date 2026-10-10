@@ -1,0 +1,752 @@
+'use client'
+
+import { usePageSection } from '@/components/page-section'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { dayOfMomentFor, readerZone } from '@/lib/when'
+import { refusalSentence } from '@/lib/refusal-words'
+import { kindWord } from '@/lib/parties'
+import { Chip, FilterChips, LoadingState, PageHead, RefusedState, Stat, type ChipTone } from '@/components/ui'
+
+/**
+ * Companies working surface — manage vendor, client, MSP, and GSI companies.
+ *
+ * CLAUDE.md design system:
+ *   Working surfaces: "Tables, search, filters, bulk, density"
+ *   "Tabular figures, tight rows"
+ *   "User finds and acts fast"
+ *
+ * Eyebrow: "Operate" — companies are an operational concern.
+ */
+
+// ── Types ──────────────────────────────────────────────────
+
+interface Company {
+  id: string
+  name: string
+  slug: string
+  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+  entityType: string | null
+  domain: string | null
+  domainVerified: boolean
+  currency: string
+  siteLiveAt: string | null
+  networkVerifiedAt: string | null
+  createdAt: string
+}
+
+interface Location {
+  id: string
+  name: string
+  address: string | null
+  city: string | null
+  state: string | null
+  country: string
+  isRemote: boolean
+  isPrimary: boolean
+}
+
+type KindFilter = 'ALL' | 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
+
+// ── Kind chip mapping ─────────────────────────────────────
+
+function kindTone(kind: Company['kind']): ChipTone {
+  switch (kind) {
+    case 'VENDOR': return 'action'
+    case 'CLIENT': return 'verified'
+    case 'MSP': return 'attention'
+    case 'GSI': return 'passive'
+    case 'CONSULTANT_CORP': return 'passive'
+  }
+}
+
+// ── Slug helper ───────────────────────────────────────────
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+}
+
+// ── Toast ─────────────────────────────────────────────────
+
+function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 4000)
+    return () => clearTimeout(timer)
+  }, [onDismiss])
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[60] animate-slide-up">
+      <div className="bg-etyme-ink text-white px-4 py-3 rounded-lg shadow-lg text-sm flex items-center gap-3">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {message}
+        <button onClick={onDismiss} className="ml-2 opacity-60 hover:opacity-100">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Add Company Modal ─────────────────────────────────────
+
+function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreated: (msg: string) => void }) {
+  const [form, setForm] = useState({
+    name: '',
+    kind: 'VENDOR' as Company['kind'],
+    // What they are to us. Required: the route refuses a company with
+    // no relationship on it, because a name on the register that
+    // nothing can point at is the "logo in a list" this page used to
+    // produce — and because adding one is recording a counterparty, not
+    // founding a firm.
+    relationship: 'SUPPLIER',
+    entityType: '',
+    domain: '',
+    slug: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Auto-generate slug from name
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, slug: slugify(prev.name) }))
+  }, [form.name])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/companies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          kind: form.kind,
+          relationship: form.relationship,
+        }),
+      })
+
+      if (!res.ok) {
+        // Parsed inside the failure branch, so an empty body threw
+        // from the error handler itself and the message below never
+        // ran.
+        const body = await res.json().catch(() => ({}) as any)
+        setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
+        return
+      }
+
+      const body = await res.json()
+      const companyName = body.data?.company?.name ?? form.name
+      // The route says what just happened — on your register, or a firm
+      // of your own with you as its owner. Two different acts, and the
+      // screen used to say "created successfully" for both.
+      onCreated(body.data?.says ? `${companyName} — ${body.data.says}` : `${companyName} added`)
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Add company</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Company name *</label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              placeholder="Techpeple Inc."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
+              <select
+                value={form.kind}
+                onChange={(e) => setForm({ ...form, kind: e.target.value as Company['kind'] })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="VENDOR">Vendor</option>
+                <option value="CLIENT">Client</option>
+                <option value="MSP">MSP</option>
+                <option value="GSI">GSI</option>
+                <option value="CONSULTANT_CORP">My own consulting corporation — one person</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
+              <select
+                value={form.relationship}
+                onChange={(e) => setForm({ ...form, relationship: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="SUPPLIER">A supplier — we buy from them</option>
+                <option value="CLIENT">A client — they buy from us</option>
+                <option value="PRIME">A prime — our work flows through them</option>
+                <option value="MSP">A program office — they run the program we work in</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
+              <input
+                type="text"
+                value={form.entityType}
+                onChange={(e) => setForm({ ...form, entityType: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                placeholder="LLC, Corp, GmbH…"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Domain</label>
+              <input
+                type="text"
+                value={form.domain}
+                onChange={(e) => setForm({ ...form, domain: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                placeholder="techpeple.example"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Etyme address</label>
+              <div className="flex items-center">
+                <input
+                  type="text"
+                  value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                             text-etyme-muted"
+                  placeholder="techpeple"
+                />
+              </div>
+              {form.slug && (
+                <p className="text-[10px] text-etyme-faint mt-1">{form.slug}.etyme.com</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Add company'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Company Detail Drawer ─────────────────────────────────
+
+interface TrustSignals {
+  medianTenureMonths: number | null
+  benchPayHonouredRate: number | null
+  medianReplacementDays: number | null
+  avgRateGrowthPercent: number | null
+  activeBenchSize: number | null
+  disclosureRate: number | null
+}
+
+function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
+  const [locations, setLocations] = useState<Location[]>([])
+  const [loadingLocations, setLoadingLocations] = useState(true)
+  const [trustSignals, setTrustSignals] = useState<TrustSignals | null>(null)
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoadingLocations(true)
+      try {
+        // Fetch locations (all companies) + trust signals (vendors only) in parallel
+        const fetches: Promise<Response | null>[] = [
+          fetch(`/api/companies/${company.id}/locations`).catch(() => null),
+        ]
+
+        // Trust signals only apply to vendor companies (Addendum D §D.3.3)
+        if (company.kind === 'VENDOR') {
+          fetches.push(
+            fetch(`/api/vendors/${company.id}/trust-signals`).catch(() => null)
+          )
+        }
+
+        const [locRes, trustRes] = await Promise.all(fetches)
+
+        if (locRes?.ok) {
+          const body = await locRes.json()
+          setLocations(body.data?.locations ?? [])
+        }
+
+        if (trustRes?.ok) {
+          const body = await trustRes.json()
+          if (body.data?.signals) {
+            setTrustSignals(body.data.signals)
+          }
+        }
+      } catch {
+        // Silently fail — supplementary data
+      } finally {
+        setLoadingLocations(false)
+      }
+    }
+    fetchData()
+  }, [company.id, company.kind])
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white h-full shadow-xl overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">{company.name}</h2>
+            <p className="text-[13px] text-etyme-muted mt-0.5">{company.slug}.etyme.com</p>
+          </div>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Kind chip */}
+          <div>
+            <p className="eyebrow mb-2">Type</p>
+            <Chip tone={kindTone(company.kind)}>{kindWord(company.kind)}</Chip>
+          </div>
+
+          {/* Details grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="eyebrow mb-1">Domain</p>
+              <p className="text-sm">{company.domain ?? 'Not set'}</p>
+              {company.domain && (
+                <span className={`chip mt-1 ${company.domainVerified ? 'chip--verified' : 'chip--attention'}`}>
+                  {company.domainVerified ? 'Verified' : 'Unverified'}
+                </span>
+              )}
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Entity type</p>
+              <p className="text-sm">{company.entityType ?? 'Not specified'}</p>
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Currency</p>
+              <p className="text-sm">{company.currency}</p>
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Site live</p>
+              <p className="text-sm">
+                {company.siteLiveAt ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="evidence-dot" />
+                    <span className="text-etyme-verified font-medium">Live</span>
+                  </span>
+                ) : (
+                  <span className="text-etyme-faint">Pending</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Network verified</p>
+              <p className="text-sm">
+                {company.networkVerifiedAt ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="evidence-dot" />
+                    <span className="text-etyme-verified font-medium">Yes</span>
+                  </span>
+                ) : (
+                  <span className="text-etyme-faint">Not yet</span>
+                )}
+              </p>
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Created</p>
+              <p className="text-sm tabular-nums">
+                {dayOfMomentFor(new Date(company.createdAt), readerZone())}
+              </p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <hr className="border-etyme-rule" />
+
+          {/* Locations */}
+          <div>
+            <p className="eyebrow mb-2">
+              Locations
+              {!loadingLocations && <span className="text-etyme-faint"> ({locations.length})</span>}
+            </p>
+            {loadingLocations ? (
+              <LoadingState compact says="Opening locations…" />
+            ) : locations.length === 0 ? (
+              <p className="text-sm text-etyme-muted">No locations added</p>
+            ) : (
+              <div className="space-y-2">
+                {locations.map((loc) => (
+                  <div key={loc.id} className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-etyme-ink">
+                        {loc.name}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {loc.isPrimary && (
+                          <Chip tone="verified">Primary</Chip>
+                        )}
+                        {loc.isRemote && (
+                          <Chip tone="action">Remote</Chip>
+                        )}
+                      </div>
+                    </div>
+                    {(loc.city || loc.state || loc.country) && (
+                      <p className="text-[11px] text-etyme-muted mt-1">
+                        {[loc.city, loc.state, loc.country].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                    {loc.address && (
+                      <p className="text-[11px] text-etyme-faint mt-0.5">{loc.address}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Trust Signals — Addendum D §D.3.3 (vendor companies only) */}
+          {trustSignals && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Trust signals</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {trustSignals.medianTenureMonths != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Median tenure</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.medianTenureMonths}<span className="text-sm text-etyme-muted ml-0.5">mo</span></p>
+                    </div>
+                  )}
+                  {trustSignals.benchPayHonouredRate != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Bench pay</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.benchPayHonouredRate}<span className="text-sm text-etyme-muted ml-0.5">%</span></p>
+                    </div>
+                  )}
+                  {trustSignals.medianReplacementDays != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Re-placement</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.medianReplacementDays}<span className="text-sm text-etyme-muted ml-0.5">days</span></p>
+                    </div>
+                  )}
+                  {trustSignals.avgRateGrowthPercent != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Rate growth</p>
+                      <p className={`text-lg font-serif tabular-nums ${
+                        trustSignals.avgRateGrowthPercent > 0 ? 'text-etyme-verified' :
+                        trustSignals.avgRateGrowthPercent < 0 ? 'text-etyme-attention' :
+                        ''
+                      }`}>
+                        {trustSignals.avgRateGrowthPercent > 0 ? '+' : ''}
+                        {trustSignals.avgRateGrowthPercent}%
+                      </p>
+                    </div>
+                  )}
+                  {trustSignals.activeBenchSize != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Bench size</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.activeBenchSize}</p>
+                    </div>
+                  )}
+                  {trustSignals.disclosureRate != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Disclosure</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.disclosureRate}<span className="text-sm text-etyme-muted ml-0.5">%</span></p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-etyme-faint mt-2 italic">
+                  Addendum D §D.3.3: Trust signals replace disclosure as the measure of vendor quality.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────
+
+export default function CompaniesPage() {
+  const section = usePageSection('/dashboard/companies')
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [companies, setCompanies] = useState<Company[]>([])
+  /** What this list is, in the route's own words. See lib/directory-scope. */
+  const [scope, setScope] = useState<{ says: string; title: string; subtitle: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [selected, setSelected] = useState<Company | null>(null)
+  const [kindFilter, setKindFilter] = useState<KindFilter>('ALL')
+  const [toast, setToast] = useState<string | null>(null)
+  // A refusal is the page: its sentence alone, with no tiles or chips
+  // around it (sign-up walk, round five, problem 10). And nothing is
+  // counted before the first read answers.
+  const [refused, setRefused] = useState<string | null>(null)
+  const [answered, setAnswered] = useState(false)
+
+  // Open the add modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowAdd(true)
+      router.replace('/dashboard/companies', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  const fetchCompanies = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/companies')
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(refusalSentence(body.error?.message) || 'Companies is not part of your seat. Ask your company’s owner if you need it.')
+        setCompanies([])
+        return
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      }
+
+      const body = await res.json()
+      setCompanies(body.data?.companies ?? [])
+      // What this list is, said by the route that scoped it, so the
+      // heading and the rows cannot describe different things.
+      setScope(body.data?.scope ?? null)
+    } catch (err: any) {
+      setError(refusalSentence(err.message))
+      setCompanies([])
+    } finally {
+      setLoading(false)
+      setAnswered(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCompanies()
+  }, [fetchCompanies])
+
+  // ── Filtered by kind ──────────────────────────────
+  const filtered = useMemo(() => {
+    if (kindFilter === 'ALL') return companies
+    return companies.filter((c) => c.kind === kindFilter)
+  }, [companies, kindFilter])
+
+  // ── Stats ─────────────────────────────────────────
+  const vendorCount = companies.filter((c) => c.kind === 'VENDOR').length
+  const clientCount = companies.filter((c) => c.kind === 'CLIENT').length
+  const mspCount = companies.filter((c) => c.kind === 'MSP').length
+  const gsiCount = companies.filter((c) => c.kind === 'GSI').length
+
+  // ── Column definitions ────────────────────────────
+  const columns: Column<Company>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (row) => (
+        <div>
+          <p className="font-medium text-etyme-ink">{row.name}</p>
+          <p className="text-[11px] text-etyme-faint">{row.slug}.etyme.com</p>
+        </div>
+      ),
+      sortValue: (row) => row.name,
+      width: 'min-w-[200px]',
+    },
+    {
+      key: 'slug',
+      // The reader's word for it is the address they signed up with
+      // (sign-up walk, round five, problem 19), never the system's.
+      label: 'Etyme address',
+      render: (row) => (
+        <span className="text-etyme-muted text-[12px] font-mono">{row.slug}</span>
+      ),
+      sortValue: (row) => row.slug,
+      hideOnMobile: true,
+    },
+    {
+      key: 'kind',
+      label: 'Kind',
+      render: (row) => (
+        <Chip tone={kindTone(row.kind)}>{kindWord(row.kind)}</Chip>
+      ),
+      sortValue: (row) => kindWord(row.kind),
+    },
+    {
+      key: 'entityType',
+      label: 'Entity type',
+      render: (row) => (
+        <span className="text-etyme-muted">{row.entityType ?? '—'}</span>
+      ),
+      sortValue: (row) => row.entityType ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'domain',
+      label: 'Domain',
+      render: (row) => (
+        row.domain ? (
+          <span className="text-sm text-etyme-ink">{row.domain}</span>
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) => row.domain ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      render: (row) => (
+        <span className="text-[12px] tabular-nums text-etyme-muted">
+          {dayOfMomentFor(new Date(row.createdAt), readerZone())}
+        </span>
+      ),
+      sortValue: (row) => new Date(row.createdAt).getTime(),
+      hideOnMobile: true,
+    },
+  ]
+
+  // ── Search filter ─────────────────────────────────
+  const searchFilter = (row: Company, q: string) =>
+    row.name.toLowerCase().includes(q) ||
+    row.slug.toLowerCase().includes(q) ||
+    (row.domain ?? '').toLowerCase().includes(q) ||
+    (row.entityType ?? '').toLowerCase().includes(q) ||
+    kindWord(row.kind).toLowerCase().includes(q)
+
+  // ── Filter tabs ───────────────────────────────────
+  const filterTabs: { key: KindFilter; label: string; count: number }[] = [
+    { key: 'ALL', label: 'All', count: companies.length },
+    // The same nouns the Kind column prints (sign-up walk, round six,
+    // problem 16), from the one place that names kinds: lib/parties.
+    { key: 'VENDOR', label: kindWord('VENDOR'), count: vendorCount },
+    { key: 'CLIENT', label: kindWord('CLIENT'), count: clientCount },
+    { key: 'MSP', label: kindWord('MSP'), count: mspCount },
+    { key: 'GSI', label: kindWord('GSI'), count: gsiCount },
+  ]
+
+  function handleCreated(msg: string) {
+    setToast(msg)
+    fetchCompanies()
+  }
+
+  if (refused) return <RefusedState says={refused} />
+  if (!answered) return <LoadingState says="Opening companies…" />
+
+  return (
+    <>
+      {/* Not "companies on the platform". This list is the firms this
+          company trades with, and it said otherwise to a one-person
+          nursing corporation. */}
+      <PageHead
+        eyebrow={section}
+        title={scope?.title ?? 'Companies'}
+        subtitle={scope?.subtitle ?? 'The firms you have dealings with.'}
+        actions={
+          <button onClick={() => setShowAdd(true)} className="btn-primary">
+            Add company
+          </button>
+        }
+      />
+
+      {/* Stats row */}
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <Stat label="Total" value={companies.length} sub="companies" />
+        <Stat label="Suppliers" value={vendorCount} sub="staffing" />
+        <Stat label="Clients" value={clientCount} sub="enterprise" />
+        <Stat label="Program offices" value={mspCount} sub="managed" />
+        <Stat label="Integrators" value={gsiCount} sub="integrators" />
+      </div>
+
+      {/* Data table with kind filter tabs */}
+      <ListSurface<Company>
+        columns={columns}
+        data={filtered}
+        rowKey={(row) => row.id}
+        loading={loading}
+        error={error}
+        searchFilter={searchFilter}
+        searchPlaceholder="Search by name, Etyme address, or domain…"
+        emptyMessage="No companies yet."
+        emptyDetail="A firm appears here once you trade with it: on your register, a contract or an invitation."
+        onRowClick={(row) => setSelected(row)}
+        exportName="companies"
+        defaultPageSize={20}
+        filters={
+          <FilterChips label="Kind of company" options={filterTabs} value={kindFilter} onChange={setKindFilter} />
+        }
+      />
+
+      {/* Footer count */}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-etyme-faint mt-3 tabular-nums">
+          {filtered.length} compan{filtered.length !== 1 ? 'ies' : 'y'}
+          {kindFilter !== 'ALL' && ` (${kindFilter.toLowerCase()})`}
+        </p>
+      )}
+
+      {/* Modals */}
+      {showAdd && <AddCompanyModal onClose={() => setShowAdd(false)} onCreated={handleCreated} />}
+      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} />}
+
+      {/* Toast */}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+    </>
+  )
+}

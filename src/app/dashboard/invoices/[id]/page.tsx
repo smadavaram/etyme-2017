@@ -1,0 +1,521 @@
+'use client'
+
+import { readJson } from '@/lib/read-response'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { amount } from '@/lib/money-display'
+import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
+import { plainDate, daySpan } from '@/lib/plain-date'
+import { InvoiceMoney } from '../invoice-money'
+import { Chip, DetailHead, EmptyState, ErrorState, Lbl, LoadingState, RefusedState } from '@/components/ui'
+import { useSession } from '@/components/session-provider'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
+import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
+
+/** The status in words a clerk says, never the enum. */
+const STATUS_WORDS: Record<string, string> = {
+  DRAFT: 'Draft',
+  ISSUED: 'Raised, not yet submitted',
+  SUBMITTED: 'Submitted for payment',
+  PARTIALLY_PAID: 'Partly paid',
+  PAID: 'Paid',
+  CANCELLED: 'Cancelled',
+}
+
+/** This endpoint returns whole currency units, not minor ones. */
+const amountFromUnits = (n: number) => amount(Math.round(n * 100))
+
+/**
+ * One invoice, as accounts payable sees it.
+ *
+ * The three-way match has existed for a while and could only be read
+ * through curl. A control nobody can see is a control that gets worked
+ * around: the clerk pays it outside the system, and the ledger stops being
+ * true.
+ *
+ * So what fails comes first, with the remedy attached. A refusal that only
+ * says no teaches people to route around you, and every check here says
+ * either how to fix it or why nobody may wave it through.
+ */
+
+interface Check {
+  code: string
+  /** The engine's own reader's name for this check. */
+  name?: string
+  outcome: 'PASS' | 'FAIL' | 'OVERRIDDEN'
+  reason: string
+  overridable: boolean
+  overriddenBy?: { name: string; reason: string; at: string }
+}
+interface Band {
+  kind: 'REGULAR' | 'LEAVE' | 'OVERTIME'
+  hours: number
+  rate: number
+  amount: number
+  says: string
+}
+
+interface Line {
+  id: string
+  person: { id: string; name: string }
+  hours: number
+  rate: number
+  amount: number
+  description: string | null
+  /** How the amount is made up, where hours × rate is not the whole story. */
+  bands: Band[]
+  receipt: { id: string; status: string; approvedHours: number; period: string } | null
+}
+
+/**
+ * The working under the amount.
+ *
+ * An invoice line exists to be checked by the person paying it, so the
+ * numbers printed here always come out: either the bands, which add up
+ * to the amount, or the plain multiplication where that is what the line
+ * is. Where neither can be shown honestly — an old line whose premium
+ * cannot be recovered — the hours are stated and no false sum is
+ * offered, because a multiplication that does not work is worse than
+ * none.
+ */
+function Working({ l }: { l: Line }) {
+  if (l.bands.length > 0) {
+    return (
+      <div className="text-xs text-etyme-muted">
+        {l.bands.map((b, i) => (
+          <div key={b.kind + i}>
+            {b.hours}h {b.says} — {amountFromUnits(b.rate)}/hr — {amountFromUnits(b.amount)}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const multipliesOut = Math.abs(Math.round(l.hours * l.rate * 100) - Math.round(l.amount * 100)) <= 1
+
+  return (
+    <div className="text-xs text-etyme-muted">
+      {multipliesOut
+        ? <>{l.hours}h × {amountFromUnits(l.rate)}</>
+        : <>{l.hours}h</>}
+    </div>
+  )
+}
+
+
+/**
+ * What this row is called.
+ *
+ * The engine names every check it returns (`CHECK_NAME` in
+ * lib/three-way-match). This screen used to keep its own list beside
+ * the codes, and two codes were missing from it — so an AP clerk
+ * opening a failed match on a client's invoice read `CONTRACT_PERIOD`
+ * as the heading, and another row was headed `PERIOD`. One list, owned
+ * by the engine, cannot go out of step with the checks.
+ *
+ * The code is still what the waive and withdraw buttons post; it is
+ * for the machine and appears nowhere on the screen.
+ */
+function checkTitle(c: Check): string {
+  return c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
+}
+
+function CheckRow({ c, mayWaive, onWaive, onWithdraw }: {
+  c: Check
+  /** Only the desk that pays waives a check, or withdraws an exception (lib/money/pay-desk). */
+  mayWaive: boolean
+  onWaive: (code: string) => void
+  onWithdraw: (code: string) => void
+}) {
+  const failed = c.outcome === 'FAIL'
+  const waived = c.outcome === 'OVERRIDDEN'
+  return (
+    <div className={`px-4 py-3 border-l-2 ${
+      failed ? 'border-etyme-attention' : waived ? 'border-etyme-action' : 'border-transparent'
+    }`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${failed ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+              {checkTitle(c)}
+            </span>
+            {waived && <Chip tone="action">exception</Chip>}
+          </div>
+          <p className="text-sm text-etyme-muted mt-0.5">{c.reason}</p>
+          {waived && c.overriddenBy && (
+            <p className="text-xs text-etyme-muted mt-1">
+              Waived by {c.overriddenBy.name}: {c.overriddenBy.reason}
+            </p>
+          )}
+          {failed && !c.overridable && (
+            <p className="text-xs text-etyme-faint mt-1">
+              This one cannot be waived — it has to be corrected.
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {failed && c.overridable && mayWaive && (
+            <button onClick={() => onWaive(c.code)}
+              className="px-3 py-1 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+              Record an exception
+            </button>
+          )}
+          {waived && mayWaive && (
+            <button onClick={() => onWithdraw(c.code)}
+              className="px-3 py-1 text-xs text-etyme-muted hover:text-etyme-attention">
+              Withdraw
+            </button>
+          )}
+          {c.outcome === 'PASS' && <span className="text-etyme-verified text-sm">✓</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function InvoiceDetail() {
+  const params = useParams()
+  const session = useSession()
+  // Which book this invoice is opened in, from the list's link. A program
+  // office reading its own books opened its own invoice under the seat's
+  // scope — the client's — and read "Invoice not found". Every call this
+  // page makes to a route that reads the book carries it.
+  const books = booksFrom(useSearchParams().get(BOOKS_PARAM))
+  const readingInASeat = !!session.seat && books !== 'own'
+  const id = String(params?.id ?? '')
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null); setRefusedSaid(null)
+    try {
+      const res = await fetch(withBooks(`/api/invoices/${id}`, books))
+      // Refused is not "could not read": no Try again, no figure.
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        return
+      }
+      const j = await readJson(res)
+      setData(j.data)
+    } catch (e: any) { setError(e.message) } finally { setLoading(false) }
+  }, [id, books])
+
+  useEffect(() => { if (id) load() }, [id, load])
+
+  async function waive(code: string) {
+    const reason = window.prompt(
+      'Why is this being waived? This travels with the invoice, and the next person to read it will be an auditor.'
+    )
+    if (!reason) return
+    const res = await fetch(withBooks(`/api/invoices/${id}/match/override`, books), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, reason }),
+    })
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
+    await load()
+  }
+
+  async function withdraw(code: string) {
+    if (!window.confirm('Withdraw this exception? The invoice may stop matching.')) return
+    const res = await fetch(withBooks(`/api/invoices/${id}/match/override?code=${code}`, books), { method: 'DELETE' })
+    if (!res.ok) { alert('Could not withdraw it'); return }
+    await load()
+  }
+
+  /** A question about this invoice, on the thread about the job with the supplier. */
+  async function askSupplier() {
+    const r = data?.receipt
+    if (!r?.requirementId || !r.supplierId) return
+    const question = window.prompt(`What do you want to ask ${data.invoice.vendor?.name ?? 'the supplier'} about invoice ${data.invoice.number}?`)
+    if (!question?.trim()) return
+    const res = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic: 'REQUIREMENT', topicId: r.requirementId, withCompanyId: r.supplierId,
+        initialMessage: `About invoice ${data.invoice.number}: ${question.trim()}`,
+      }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { showToast(body.error?.message ?? 'The question was not sent.', 'error'); return }
+    window.location.href = `/dashboard/conversations?open=${body.data.conversation.id}`
+  }
+
+  async function submit() {
+    const res = await fetch(`/api/invoices/${id}/submit`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    })
+    // A safe parse rather than readJson: this branch needs the
+    // error object itself (lists the failed checks), and readJson throws an
+    // Error, which would lose it. An empty body must still
+    // not produce a parser error on screen.
+    const j = await res.json().catch(() => ({}) as any)
+    if (!res.ok) {
+      const cs = (j.error?.checks ?? []).map((c: any) => `· ${c.reason}`).join('\n')
+      alert(`${j.error?.message ?? 'Could not submit'}${cs ? '\n\n' + cs : ''}`)
+      return
+    }
+    await load()
+  }
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!session.company) {
+    return session.loading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
+  }
+  if (loading) return <LoadingState says="Opening the bill…" />
+  const refused = refusedRead(refusedSaid, { what: 'This bill', kind: session.company.kind, company: session.company.name })
+  if (refused) return <RefusedState says={refused} />
+  if (error) return (
+    <div className="max-w-3xl">
+      <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
+    </div>
+  )
+  if (!data) return null
+
+  const inv = data.invoice
+  const m = data.match
+  // Who may record an exception or withdraw one: the firm being asked to
+  // pay, at a desk that pays, judged by the seat the route will judge by.
+  const waiveVerdict = waiveDesk({
+    permissions: session.loading
+      ? null
+      : payDeskPermissions({
+          own: session.permissions,
+          seat: session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
+          readingInASeat,
+        }),
+    direction: inv.direction,
+    companyKind: session.company?.kind ?? null,
+    companyName: session.company?.name ?? null,
+    seat: readingInASeat ? session.seat : null,
+  })
+  // What is wrong comes first. A clerk opening a held invoice is looking
+  // for the thing to fix, not for reassurance about the eight that passed.
+  const checks: Check[] = m
+    ? [...m.checks].sort((a, b) => {
+        const rank = (c: Check) => (c.outcome === 'FAIL' ? 0 : c.outcome === 'OVERRIDDEN' ? 1 : 2)
+        return rank(a) - rank(b)
+      })
+    : []
+
+  return (
+    <div className="max-w-3xl">
+      <DetailHead
+        from="/dashboard/invoices"
+        back={{
+          href: booksHref('/dashboard/invoices', books),
+          label: inv.direction === 'PAYABLE' ? 'Invoice receipts' : inv.direction === 'RECEIVABLE' ? 'Bills' : 'Back to the list',
+        }}
+        title={inv.number}
+        subtitle={<>
+          {inv.vendor?.name ?? 'Vendor'} → {inv.client?.name ?? 'Client'}
+          <span className="block">
+            {daySpan(inv.periodStart, inv.periodEnd)} ·{' '}
+            {inv.terms?.clockStarted === false
+              ? 'not payable yet'
+              : <>due {plainDate(inv.dueAt)}</>} · {STATUS_WORDS[inv.status] ?? inv.status}
+          </span>
+        </>}
+        actions={
+          <div className="text-right">
+            <Lbl>Total</Lbl>
+            <div className="font-serif text-3xl text-etyme-ink tabular-nums">{amountFromUnits(inv.total)}</div>
+            {inv.paid > 0 && <div className="text-xs text-etyme-muted tabular-nums">{amountFromUnits(inv.paid)} paid</div>}
+          </div>
+        }
+      >
+        {/* What the date counts from, said rather than assumed. "Due
+            the 9th" answers nothing when a client thinks the clock
+            started somewhere else. */}
+        {inv.terms?.says && (
+          <div className="text-xs text-etyme-muted mt-1">{inv.terms.says}</div>
+        )}
+        {/* And what settles it sooner, where anybody agreed a rung. */}
+        {inv.earlyPayment?.discount > 0 && (
+          <div className="text-xs text-etyme-verified mt-1">
+            {inv.earlyPayment.says}
+            {inv.earlyPayment.by ? ` Offer stands to ${plainDate(inv.earlyPayment.by)}.` : ''}
+          </div>
+        )}
+      </DetailHead>
+      {toast && (
+        <div role={toast.type === 'error' ? 'alert' : 'status'} className={`mb-6 rounded-lg px-4 py-2 text-sm ${
+          toast.type === 'error' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-verified/10 text-etyme-verified'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Who worked, on what, and whether it matches — one line, before the checks. */}
+      {data.receipt && (
+        <div className="mb-4">
+          <p className="text-[15px] text-etyme-ink">
+            {data.receipt.people.join(', ') || 'Nobody named on it'}
+            {data.receipt.jobs.length > 0 && <span className="text-etyme-muted"> · {data.receipt.jobs.join(', ')}</span>}
+          </p>
+          <p className="text-[13px] text-etyme-muted tabular-nums">
+            {data.receipt.row} · {data.receipt.hoursSigned ?? 'none'} h signed, {data.receipt.hoursBilled} h billed
+          </p>
+          {inv.direction === 'PAYABLE' && data.receipt.requirementId && data.receipt.supplierId && (
+            <button onClick={askSupplier} className="mt-1 text-[13px] text-etyme-action hover:underline">
+              Ask {inv.vendor?.name ?? 'the supplier'} about this invoice
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* The verdict, before anything else */}
+      {m && (
+        <div className={`border rounded-lg mb-8 ${
+          m.matched
+            ? m.cleanMatch
+              ? 'border-etyme-verified/30 bg-etyme-verified/5'
+              : 'border-etyme-action/30 bg-etyme-action/5'
+            : 'border-etyme-attention/30 bg-etyme-attention/5'
+        }`}>
+          <div className="p-4 flex items-start justify-between gap-4">
+            <div>
+              <Lbl>{m.matched ? (m.cleanMatch ? 'Matched' : 'Matched with exceptions') : 'Does not match'}</Lbl>
+              <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">{m.summary}</p>
+              {m.workOrder && (
+                <p className="text-sm text-etyme-muted mt-1 tabular-nums">
+                  {amountFromUnits(m.workOrder.remaining)} left on the purchase order
+                  {' · '}{m.workOrder.utilisationPercent}% used
+                </p>
+              )}
+            </div>
+            {m.matched && inv.status === 'ISSUED' && (
+              <button onClick={submit}
+                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
+                Submit for payment
+              </button>
+            )}
+          </div>
+          {!waiveVerdict.mayWaive && waiveVerdict.says &&
+            checks.some((c) => c.outcome === 'FAIL' && c.overridable) && (
+              <p className="px-4 pb-3 text-xs text-etyme-muted">{waiveVerdict.says}</p>
+            )}
+          <div className="border-t border-etyme-rule divide-y divide-etyme-rule">
+            {checks.map(c => (
+              <CheckRow key={c.code} c={c} mayWaive={waiveVerdict.mayWaive} onWaive={waive} onWithdraw={withdraw} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* The money: who it is paid to, what has been paid, and the one
+          place to pay it — under the check, so nobody pays without
+          seeing it. There used to be a second door, a side panel on the
+          list with Pay and no check. */}
+      {inv.direction !== 'NEITHER' && typeof inv.totalMinor === 'number' && (
+        <div className="mb-8">
+          <InvoiceMoney
+            invoice={{
+              id: inv.id,
+              number: inv.number,
+              currency: inv.currency,
+              direction: inv.direction,
+              status: inv.status,
+              totalMinor: inv.totalMinor,
+              paidMinor: inv.paidMinor,
+              outstandingMinor: inv.outstandingMinor,
+              dueAt: inv.dueAt,
+              payments: inv.payments ?? [],
+            }}
+            // Whether this desk pays, judged the way the payment route
+            // judges it: the client's book whenever the session holds a
+            // seat and the list was not reading our own — through the
+            // sidebar's reading of the seat.
+            desk={payDesk({
+              permissions: session.loading
+                ? null
+                : payDeskPermissions({
+                    own: session.permissions,
+                    seat: session.seat ? { permissions: sidebarPropsFrom(session).permissions ?? [] } : null,
+                    readingInASeat,
+                  }),
+              companyKind: session.company?.kind ?? null,
+              companyName: session.company?.name ?? null,
+              seat: readingInASeat ? session.seat : null,
+              side: inv.direction === 'RECEIVABLE' ? 'RECEIVABLE' : 'PAYABLE',
+            })}
+            books={books}
+            onPaid={load}
+            onToast={showToast}
+          />
+        </div>
+      )}
+
+      {/* Lines, each with the receipt that justifies it */}
+      <section>
+        <div className="flex items-baseline gap-3 mb-3">
+          <h2 className="font-serif text-lg text-etyme-ink">Lines</h2>
+          <span className="text-xs text-etyme-faint tabular-nums">{data.lines.length}</span>
+        </div>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          {data.lines.length === 0 && (
+            <EmptyState compact says="This invoice has no lines, so there is nothing to match against." />
+          )}
+          {data.lines.map((l: Line) => (
+            <div key={l.id} className="p-4 flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="text-etyme-ink">{l.person.name}</div>
+                {/* This person-week against what was signed and the contract's rate, in words. */}
+                {(() => {
+                  const r = data.receipt?.lines?.find((x: any) => x.lineId === l.id)
+                  return r ? (
+                    <div className={`text-xs ${r.matches ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{r.says}</div>
+                  ) : null
+                })()}
+                <div className="text-xs text-etyme-muted">
+                  {l.receipt
+                    ? <>hours for {l.receipt.period} · {l.receipt.approvedHours}h approved</>
+                    : <span className="text-etyme-attention">no timesheet behind this line</span>}
+                </div>
+              </div>
+              <div className="text-right shrink-0 tabular-nums">
+                <div className="text-sm text-etyme-ink">{amountFromUnits(l.amount)}</div>
+                <Working l={l} />
+              </div>
+              <div className="w-24 text-right shrink-0">
+                {l.receipt
+                  ? <Chip tone={l.receipt.status === 'APPROVED' ? 'verified' : 'attention'}>
+                      {l.receipt.status === 'APPROVED' ? 'approved' : l.receipt.status === 'SUBMITTED' ? 'waiting to be signed' : l.receipt.status.toLowerCase()}
+                    </Chip>
+                  : <Chip tone="attention">no receipt</Chip>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {data.workOrder && (
+        <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
+          Raised against purchase order {data.workOrder.number} — {amountFromUnits(data.workOrder.amount)} authorized,
+          {data.workOrder.endDate ? ` running to ${plainDate(data.workOrder.endDate)}` : ' open ended'}.
+          An approved timesheet is the receipt: no receipt, no payment.
+        </p>
+      )}
+    </div>
+  )
+}

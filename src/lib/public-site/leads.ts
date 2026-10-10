@@ -1,0 +1,773 @@
+/**
+ * Lead capture, for people who asked to hear from us.
+ *
+ * ── Why this file is careful about something that looks trivial ──────
+ *
+ * Every staffing product on earth has a "request a demo" box, and most
+ * of them are the front of a machine that buys a list, guesses at job
+ * titles and sends eleven emails to somebody who never asked. That
+ * machine works, in the sense that it produces meetings. It also trains
+ * a market to filter you, and this product's entire argument is that the
+ * noise in this industry is the problem. We do not get to add to it.
+ *
+ * So the rules are code rather than culture:
+ *
+ *   - No consent, no row. A moment somebody can point at, and words the
+ *     person themselves wrote.
+ *   - A purchased list is refused whole. Not filtered — refused, because
+ *     an import that quietly keeps the good rows is a list that gets
+ *     bought again next quarter.
+ *   - A second ask updates what somebody wants. Two rows for one human
+ *     is how you write to an address they left two years ago.
+ *   - A customer stops being a lead the day they become one.
+ *
+ * ── Why it lives here ────────────────────────────────────────────────
+ *
+ * `src/lib/domains.ts` gives the market domain `lib/public-site`, and a
+ * file with no owner fails `__tests__/invariants/domain-ownership.test.ts`
+ * on the commit that adds it. `lib/marketing-leads` is the name this
+ * should have; adding it to the map is the architect's call, and the map
+ * was being edited by somebody else at the time. Asked for, not taken.
+ *
+ * Nothing here touches the database. The route does that.
+ */
+
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
+
+// ── Where somebody came from ────────────────────────────────────────
+
+/**
+ * The five ways a person reaches us, all of which start with them.
+ *
+ * There is deliberately no PURCHASED, no LIST and no OTHER. A source
+ * enum with an escape hatch is an enum that ends up holding a bought
+ * spreadsheet under whichever value looked least alarming.
+ */
+export const SOURCES = ['HOME_PAGE', 'DEMO', 'GENERATED_SITE', 'REFERRAL', 'EVENT'] as const
+export type LeadSource = (typeof SOURCES)[number]
+
+export function isSource(s: string | null | undefined): s is LeadSource {
+  return !!s && (SOURCES as readonly string[]).includes(s)
+}
+
+/** Sources where the act of typing an address into a box IS the ask. */
+const SELF_SERVED: readonly string[] = ['HOME_PAGE', 'DEMO', 'GENERATED_SITE']
+
+// ── What somebody typed ─────────────────────────────────────────────
+
+export interface AskInput {
+  email: string
+  name?: string | null
+  companyName?: string | null
+  source: string
+  /** What they want, in their words. Never ours. */
+  asked?: string | null
+}
+
+export interface Problem {
+  field: 'email' | 'source' | 'asked' | 'name' | 'companyName' | 'contractorRange'
+  says: string
+}
+
+/** Trimmed and lowercased, so one human is one row. */
+export function normalEmail(e: string | null | undefined): string | null {
+  const t = (e ?? '').trim().toLowerCase()
+  return t.length > 0 ? t : null
+}
+
+/** Whitespace collapsed; empty becomes null rather than an empty string. */
+export function tidy(s: string | null | undefined): string | null {
+  const t = (s ?? '').replace(/\s+/g, ' ').trim()
+  return t.length > 0 ? t : null
+}
+
+/**
+ * The longest first message worth keeping.
+ *
+ * Not a technical limit — a honest one. Somebody pasting two thousand
+ * characters into a first message has written a document, and the reply
+ * they get will be about the first paragraph either way.
+ */
+const ASK_LIMIT = 2000
+
+/**
+ * What is wrong with this, in words that quote back what was typed.
+ *
+ * "Invalid email" tells somebody they are wrong without showing them
+ * what they did. Half the time the mistake is visible the moment they
+ * see their own text: a surname in the address field, a trailing comma
+ * from a paste, an @ that never got typed.
+ */
+export function problems(input: AskInput): Problem[] {
+  const out: Problem[] = []
+
+  const typed = (input.email ?? '').trim()
+  if (typed.length === 0) {
+    out.push({
+      field: 'email',
+      says:
+        'An email address, so somebody can write back. It is the only thing here we ' +
+        'actually need — and if you would rather not leave one, the demo needs no sign-up.',
+    })
+  } else if (!typed.includes('@')) {
+    out.push({
+      field: 'email',
+      says:
+        `"${typed}" has no @ in it, so there is nowhere to send a reply. ` +
+        'If that is a company name rather than an address, it goes in the box below.',
+    })
+  } else if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(typed)) {
+    out.push({
+      field: 'email',
+      says:
+        `"${typed}" is missing the part after the @ — a domain like yourcompany.example. ` +
+        'Send it again with the whole address and it will go straight through.',
+    })
+  }
+
+  if (!isSource(input.source)) {
+    out.push({
+      field: 'source',
+      says:
+        `"${input.source}" is not a way anybody reaches us. The five are ${SOURCES.join(', ')}, ` +
+        'and every one of them starts with the person. There is no value here for a list ' +
+        'somebody bought.',
+    })
+  }
+
+  const asked = (input.asked ?? '').trim()
+  if (asked.length > ASK_LIMIT) {
+    out.push({
+      field: 'asked',
+      says:
+        `That is ${asked.length.toLocaleString('en-US')} characters, and the shorter half is ` +
+        'the part somebody will read. Send the sentence that matters and we will ask for the rest.',
+    })
+  }
+
+  const name = (input.name ?? '').trim()
+  if (name.length > 200) {
+    out.push({ field: 'name', says: 'That is longer than a name. Put the detail in the box below.' })
+  }
+
+  return out
+}
+
+// ── The contractor spend audit, asked for on the home page ──────────
+
+/**
+ * The home page's audit form. Decided 2026-10-09, on the founder's brief
+ * for the public site: the page ends its argument in an inline form that
+ * asks for the company, a work email, roughly how many contractors and
+ * suppliers, and what the company runs today.
+ *
+ * ── Why it is a lead and not a census request ─────────────────────────
+ *
+ * The census (`/api/census/request`) is the audit itself, and it needs a
+ * name, a desk and a choice of what to send — three things this form
+ * does not ask. Filling them in for the visitor would put words in a
+ * record that the census then promises things about. So the form records
+ * what was actually typed as a lead (`MarketingLead`), which a person at
+ * Etyme is emailed about the first time an address writes and reads on
+ * the lead list, and the thanks sends the visitor on to the census page
+ * when they want to start it themselves.
+ *
+ * ── Checked twice, in the same words ─────────────────────────────────
+ *
+ * The browser runs this before it sends, so a mistake is shown without a
+ * round trip, and the route runs it again, because a form is not the
+ * only thing that can post to an open endpoint.
+ */
+export interface AuditInput {
+  /** A business email. A personal address is refused. */
+  email?: string | null
+  name?: string | null
+  companyName?: string | null
+  /** Optional. One of CONTRACTOR_RANGES, or empty. */
+  contractorRange?: string | null
+}
+
+/**
+ * The optional contractor range, as the form offers it. A question, not a
+ * limit on who may ask: every range is offered, and "rather not say" is
+ * the default. Updated 2026-10-10 on the founder's feedback: four short
+ * fields and nothing else until a person has qualified the ask.
+ */
+export const CONTRACTOR_RANGES = ['1–19', '20–49', '50–199', '200–999', '1,000 or more'] as const
+
+export function auditProblems(a: AuditInput): Problem[] {
+  const out: Problem[] = []
+
+  const typed = (a.email ?? '').trim()
+  const emailProblem = problems({ email: typed, source: 'HOME_PAGE' }).find((p) => p.field === 'email')
+  if (emailProblem) {
+    out.push(emailProblem)
+  } else {
+    const domain = domainOfEmail(typed)
+    if (domain && isConsumerDomain(domain)) {
+      out.push({
+        field: 'email',
+        says:
+          `"${typed}" is a personal address. The audit is about your company’s own contractors, ` +
+          'so the answer goes to your business email.',
+      })
+    }
+  }
+
+  const name = tidy(a.name)
+  if (!name) {
+    out.push({ field: 'name', says: 'Your name, so the person who answers can write to you by name.' })
+  } else if (name.length > 200) {
+    out.push({ field: 'name', says: 'That is longer than a name. A first and last name is enough.' })
+  }
+
+  const company = tidy(a.companyName)
+  if (!company) {
+    out.push({ field: 'companyName', says: 'Your company’s name, so the person who answers knows who is asking.' })
+  } else if (company.length > 200) {
+    out.push({ field: 'companyName', says: 'That is longer than a company name. The name alone is enough.' })
+  }
+
+  const range = tidy(a.contractorRange)
+  if (range && !(CONTRACTOR_RANGES as readonly string[]).includes(range)) {
+    out.push({ field: 'contractorRange', says: `"${range}" is not one of the ranges offered. Pick one, or leave it blank.` })
+  }
+
+  return out
+}
+
+/**
+ * What the lead row carries in `asked`, in a sentence a person at Etyme
+ * reads on the lead list and in the email. Only what was typed: no
+ * figure is added, and a range left blank says so.
+ */
+export function auditAsk(a: AuditInput): string {
+  const range = tidy(a.contractorRange)
+  return (
+    'Contractor spend audit, asked for on the home page. ' +
+    `Contractors: ${range ? `about ${range}` : 'not said'}.`
+  )
+}
+
+/** The words on the home page's audit form, and on the screen after it. */
+export const AUDIT_COPY = {
+  emailLabel: 'Business email',
+  nameLabel: 'Your name',
+  companyLabel: 'Company',
+  rangeLabel: 'Roughly how many contractors?',
+  rangeOptional: 'Optional',
+  rangeNone: 'Rather not say',
+  button: 'Ask for the audit',
+  sending: 'Sending…',
+  thanks: 'Got it. Your ask is stored, and a person at Etyme reads it.',
+  next: [
+    'They write to you by name, at the address you gave.',
+    'They tell you what to send: your contractor list and the latest invoice receipts from each supplier, in any form.',
+    'One page comes back inside five working days of your files arriving, as the audit page promises.',
+  ],
+  failed: 'That did not send. Your answers are still here. Try again, or write to us from the contact page.',
+  dropped: 'That did not send. The connection dropped. Your answers are still here. Try again.',
+} as const
+
+// ── A script, not a person ──────────────────────────────────────────
+
+export interface SubmissionShape {
+  /** A field a person never sees, and a script fills in because it is there. */
+  honeypot?: string | null
+  /** Milliseconds between the form appearing and being sent, if known. */
+  filledInMs?: number | null
+}
+
+/**
+ * Faster than anybody types an address and a sentence.
+ *
+ * Generous on purpose. Somebody pasting an address from their password
+ * manager can be quick, and refusing a real person to stop a bot is a
+ * bad trade — the honeypot does most of the work and this catches the
+ * scripts that do not bother rendering the page.
+ */
+const HUMAN_FLOOR_MS = 1500
+
+/**
+ * Whether this was typed by somebody.
+ *
+ * Not by IP address. An office of forty people shares one, so blocking
+ * it refuses thirty-nine who did nothing, and anybody scripting this at
+ * volume has a proxy pool anyway. A rate limit keyed on an address is
+ * theatre that hits the wrong people — a field only a script can see is
+ * not.
+ */
+export function looksScripted(s: SubmissionShape): { scripted: boolean; says: string } {
+  if ((s.honeypot ?? '').trim().length > 0) {
+    return {
+      scripted: true,
+      says:
+        'That form has a field people never see, and this filled it in. Nothing was ' +
+        'saved. If you are a person and you are reading this, write to us directly and ' +
+        'we will sort it out.',
+    }
+  }
+
+  const ms = s.filledInMs
+  // Absence of a timer is not evidence. An old browser, a blocked
+  // script, somebody using the API — none of that makes them a robot.
+  if (typeof ms === 'number' && ms >= 0 && ms < HUMAN_FLOOR_MS) {
+    return {
+      scripted: true,
+      says:
+        'That arrived faster than anybody types an address, so nothing was saved. ' +
+        'Try it again at human speed.',
+    }
+  }
+
+  return { scripted: false, says: 'Reads like somebody typed it.' }
+}
+
+// ── Asking twice ────────────────────────────────────────────────────
+
+export interface OnFile {
+  id: string
+  email: string
+  name?: string | null
+  companyName?: string | null
+  asked?: string | null
+  consentAt: Date
+  convertedCompanyId?: string | null
+  convertedAt?: Date | null
+}
+
+/**
+ * Both asks, newest first, with nothing thrown away.
+ *
+ * Somebody who wrote in June about tenure and in August about VMS email
+ * has told you two different things, and the June one is often the
+ * better one. Overwriting is the cheap implementation and it loses the
+ * sentence that would have opened the conversation.
+ */
+export function mergeAsk(previous: string | null | undefined, next: string | null | undefined): string | null {
+  const before = tidy(previous)
+  const now = tidy(next)
+
+  if (!now) return before
+  if (!before) return now
+  if (before === now) return before
+  if (before.includes(now)) return before
+
+  return `${now}\n\n${before}`
+}
+
+export interface AskVerdict {
+  alreadyOnFile: boolean
+  of?: OnFile
+  /** What to store in `asked` after this message. */
+  asked: string | null
+  /** What to store in `consentAt` — the first time, never the latest. */
+  consentAt: Date
+  says: string
+}
+
+/**
+ * One human, one row.
+ *
+ * Consent keeps the earlier date because consent is when they gave it.
+ * Moving it forward on every message would quietly make an old
+ * permission look fresh, which is the opposite of a record.
+ */
+export function secondAsk(input: AskInput, existing: OnFile | null, now: Date): AskVerdict {
+  const asked = tidy(input.asked)
+
+  if (!existing) {
+    return {
+      alreadyOnFile: false,
+      asked,
+      consentAt: now,
+      says: 'First time we have heard from them.',
+    }
+  }
+
+  return {
+    alreadyOnFile: true,
+    of: existing,
+    asked: mergeAsk(existing.asked, asked),
+    consentAt: existing.consentAt,
+    says:
+      `${existing.email} is already on file and asked before. This adds what they said ` +
+      'this time rather than making a second of them.',
+  }
+}
+
+// ── No consent, no row ──────────────────────────────────────────────
+
+export interface ConsentEvidence {
+  source: string
+  /** When they asked. Not when the row was created. */
+  consentAt?: Date | null
+  /** Their words. */
+  asked?: string | null
+  /** Where somebody could go and check that this happened. */
+  whereTheyAsked?: string | null
+}
+
+/**
+ * Whether there is a person behind this row.
+ *
+ * Two things have to be true, and the second is the one lists fail: a
+ * moment anybody can point at, and words the person themselves wrote or
+ * said. A form somebody filled in is exempt from the second, because
+ * typing your own address into a box that says a person reads this IS
+ * the asking.
+ */
+export function consentVerdict(e: ConsentEvidence): { consented: boolean; says: string } {
+  if (!e.consentAt) {
+    return {
+      consented: false,
+      says:
+        'There is no date on this — nobody can say when they asked, which usually ' +
+        'means they did not. A row with no moment behind it is not a lead.',
+    }
+  }
+
+  const selfServed = SELF_SERVED.includes(e.source)
+
+  if (!tidy(e.whereTheyAsked) && !selfServed) {
+    return {
+      consented: false,
+      says:
+        'Nothing here says where they asked. "HR Tech, booth 214" is checkable; a source ' +
+        'column is not, and in six months nobody will remember which it was.',
+    }
+  }
+
+  if (!tidy(e.asked) && !selfServed) {
+    return {
+      consented: false,
+      says:
+        'There are no words of their own in this row. A name, a title and a company is ' +
+        'what a list looks like — the thing that makes somebody a lead is that they said ' +
+        'something.',
+    }
+  }
+
+  return {
+    consented: true,
+    says: selfServed
+      ? 'They filled in the form themselves, which is the asking.'
+      : 'They asked, there is a date on it, and somewhere to go and check.',
+  }
+}
+
+// ── A list somebody bought ──────────────────────────────────────────
+
+export interface ImportRow extends ConsentEvidence {
+  email: string
+  name?: string | null
+  companyName?: string | null
+}
+
+export interface ImportVerdict {
+  refused: boolean
+  /** The rows to write, or null. Null every time anything is refused. */
+  accepted: ImportRow[] | null
+  /** How many of the people in this file actually asked. */
+  consented: number
+  total: number
+  says: string
+}
+
+/**
+ * Whether this file may be loaded.
+ *
+ * All or nothing, deliberately. An import that keeps the twelve good
+ * rows and drops the rest is an import that gets run again next quarter
+ * with a bigger file, because it worked. Refusing the whole thing puts
+ * the decision back where it belongs: with whoever bought it.
+ */
+export function reviewImport(rows: ImportRow[]): ImportVerdict {
+  const total = rows.length
+
+  if (total === 0) {
+    return {
+      refused: true,
+      accepted: null,
+      consented: 0,
+      total: 0,
+      says: 'There is nothing in this file. Nothing was written.',
+    }
+  }
+
+  const verdicts = rows.map((r) => ({ row: r, v: consentVerdict(r) }))
+  const consented = verdicts.filter((x) => x.v.consented).length
+  const missing = total - consented
+
+  if (missing === 0) {
+    return {
+      refused: false,
+      accepted: rows,
+      consented,
+      total,
+      says:
+        `${total.toLocaleString('en-US')} ${total === 1 ? 'person' : 'people'} who each asked, ` +
+        'each with a date and somewhere to check it. Loaded.',
+    }
+  }
+
+  return {
+    refused: true,
+    accepted: null,
+    consented,
+    total,
+    says:
+      `${missing.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} rows have nobody's ` +
+      'own words in them and no date when they asked, which means they did not ask. ' +
+      'Nothing was written — not the good rows either, because an import that keeps those ' +
+      'is an import that gets run again next quarter with a bigger file. ' +
+      'If we mail this list, every one of those people learns about us the way they learn ' +
+      'about everything else: by filtering it. We are selling a product whose argument is ' +
+      'that the noise in this industry is the problem. ' +
+      (consented > 0
+        ? `${consented.toLocaleString('en-US')} of them did ask. Those are worth a real message, typed by somebody.`
+        : 'Send the file back and put the money into the people who write to us.'),
+  }
+}
+
+// ── Once they are a customer ────────────────────────────────────────
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function day(d: Date): string {
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}
+
+export interface ConversionVerdict {
+  update: { convertedCompanyId: string; convertedAt: Date } | null
+  says: string
+}
+
+/**
+ * The day somebody stopped being a lead.
+ *
+ * Written so nothing keeps courting a customer — the most avoidable
+ * embarrassment in this whole category is a "still thinking about it?"
+ * email to somebody who has been paying for three months.
+ */
+export function conversion(lead: OnFile, companyId: string, now: Date): ConversionVerdict {
+  if (lead.convertedAt) {
+    return {
+      update: null,
+      says:
+        `${lead.email} was already recorded as converted on ${day(lead.convertedAt)}. ` +
+        'The first date is the one that counts.',
+    }
+  }
+
+  return {
+    update: { convertedCompanyId: companyId, convertedAt: now },
+    says: `${lead.email} became a customer on ${day(now)}, and stops being a lead today.`,
+  }
+}
+
+/** Everybody who asked, has not become a customer, longest wait first. */
+export function stillWaiting(leads: OnFile[]): OnFile[] {
+  return leads
+    .filter((l) => !l.convertedAt)
+    .sort((a, b) => a.consentAt.getTime() - b.consentAt.getTime())
+}
+
+// ── Whose list this is ──────────────────────────────────────────────
+
+export interface Staff {
+  /** Email domains belonging to us. */
+  domains: readonly string[]
+  /** Named people, for anybody working with us on another address. */
+  emails: readonly string[]
+}
+
+/**
+ * Who may read the list of people who asked.
+ *
+ * This is the one table in the system that belongs to Etyme rather than
+ * to a tenant, which makes it the one table where "the caller's company"
+ * is the wrong question. A customer signing in must not be able to read
+ * who else wrote to us — those are their competitors, and the list of
+ * who is shopping for a workforce system is commercially interesting to
+ * every single one of them.
+ *
+ * So it is an allow list of us, and everybody else is refused with the
+ * reason rather than with a 404 that reads as a bug.
+ */
+export function mayReadTheList(
+  email: string | null | undefined,
+  staff: Staff
+): { ok: boolean; says: string } {
+  const e = normalEmail(email)
+  if (!e) {
+    return { ok: false, says: 'Sign in first. This is not a public list.' }
+  }
+
+  if (staff.emails.some((s) => normalEmail(s) === e)) {
+    return { ok: true, says: 'Yours to read.' }
+  }
+
+  const domain = e.split('@')[1] ?? ''
+  if (staff.domains.some((d) => domain === d.toLowerCase())) {
+    return { ok: true, says: 'Yours to read.' }
+  }
+
+  return {
+    ok: false,
+    says:
+      'This is Etyme\'s own list of people who wrote to us, not a list your company ' +
+      'owns. Every other list in here is yours; this one is not, and the people on it ' +
+      'are mostly somebody\'s competitors.',
+  }
+}
+
+// ── The words on the page ───────────────────────────────────────────
+
+/**
+ * What the section says, kept here so a test can read it.
+ *
+ * No price: that is decided — free until the first five real vendors —
+ * and it is recorded in CLAUDE.md rather than invented on a form. No
+ * newsletter, no subscribe, no "updates", because none of those are
+ * things we do. The only promise is one we can keep: somebody reads it.
+ */
+export const ASK_COPY = {
+  eyebrow: 'Ask us something',
+  heading: 'Tell us what you need and a person reads it',
+  // Shortened 2026-09-27 with the home page, the one place it is drawn.
+  // What it promises is unchanged: no sequence, no list, a person answers.
+  body:
+    'Nothing you send starts a sequence or joins a list. One of the people building ' +
+    'this reads it and writes back, or tells you it is not built yet.',
+  emailLabel: 'Your email',
+  emailHint: 'The only thing we need.',
+  askLabel: 'What do you need?',
+  askHint: 'A sentence is enough. The problem in your words, not ours.',
+  askPlaceholder: 'We run 40 contractors through 3 primes and cannot say who is where.',
+  namePlaceholder: 'Your name, if you like',
+  companyPlaceholder: 'Company, if you like',
+  button: 'Send it',
+  sending: 'Sending…',
+  thanks: 'Got it. Somebody reads this and writes back.',
+  after:
+    'If you would rather look before you talk to anybody, the demo above is open to you. ' +
+    'No card. No sign-up.',
+} as const
+
+// ── Somebody is told a lead arrived ─────────────────────────────────
+
+/**
+ * The form promises "a person reads it". Until 2026-09-27 the route
+ * stored the row and emailed nobody, so the promise was kept only when
+ * somebody at Etyme happened to open the list. A census request already
+ * emailed staff; a lead now goes the same way — `tellStaff` in
+ * `lib/alerts`, to `ETYME_STAFF_EMAILS`, through the one configured
+ * sender. No second mail path.
+ *
+ * The words live here rather than in `lib/notify` because there was no
+ * lead letter there to call, lead capture is this domain's, and the
+ * letter goes to our own staff — never to the person who wrote.
+ */
+
+/**
+ * Whether this arrival should email the team: the first time an address
+ * writes, and never again.
+ *
+ * The founder allowed once an hour per lead or first creation only.
+ * Once an hour needs a memory of when the team was last told, and there
+ * is none to use: `MarketingLead` has no `toldAt` and no `updatedAt`, and
+ * a new `AutomationLog` action needs a rung on the ladder in
+ * `lib/autonomy`, which is the architect's. First creation needs no
+ * memory — the unique index on email already says whether this is the
+ * first time — so it is bounded by construction: however often an
+ * address presses the button, the team hears about it once.
+ *
+ * The cost, said rather than hidden: somebody who comes back weeks later
+ * with a new question has their words merged into the row, newest first,
+ * and nobody is emailed about it. It surfaces on the list, not in an
+ * inbox. Once-an-hour is the better rule and is one ladder entry away.
+ */
+export function shouldTellStaff(alreadyOnFile: boolean): boolean {
+  return !alreadyOnFile
+}
+
+/** Where on our side they wrote from, in words. `source` is all we record. */
+const FROM: Record<LeadSource, string> = {
+  HOME_PAGE: 'the ask form on the home page',
+  DEMO: 'the demo',
+  GENERATED_SITE: 'the ask form on a generated company site',
+  REFERRAL: 'a referral',
+  EVENT: 'an event',
+}
+
+export interface LeadArrived {
+  email: string
+  name?: string | null
+  companyName?: string | null
+  source: string
+  /** What they wrote this time, in their words. */
+  askedNow?: string | null
+  /** The staff list of everybody who wrote. */
+  listUrl: string
+}
+
+/** The email the team gets. Plain text, to our own staff only. */
+export function leadArrivedNotice(l: LeadArrived): { subject: string; body: string } {
+  const name = tidy(l.name)
+  const company = tidy(l.companyName)
+  const asked = tidy(l.askedNow)
+  const from = isSource(l.source) ? FROM[l.source] : 'a page we do not recognize'
+
+  const who = name ? `${name} (${l.email})` : l.email
+  const at = company ? ` at ${company}` : ''
+
+  const subject = `Somebody asked: ${name ?? l.email}${company ? `, ${company}` : ''}`
+
+  const lines: string[] = [
+    `${who}${at} wrote from ${from}.`,
+    '',
+    asked ? `What they wrote:\n"${asked}"` : 'They left no sentence — only an address.',
+    '',
+  ]
+  lines.push(
+    'The form promised them that a person reads it and writes back. Nothing automatic follows ' +
+      `this email: reply to ${l.email} yourself.`,
+    '',
+    `Everybody who has written, longest wait first (staff only): ${l.listUrl}`
+  )
+
+  return { subject, body: lines.join('\n') }
+}
+
+/**
+ * Whether anybody hears about a lead on this deployment, said plainly on
+ * the staff list. Leads are stored either way; this is whether a person
+ * is told.
+ */
+export function whoHearsSays(staffNamed: number, senderConfigured: boolean): { told: boolean; says: string } {
+  if (staffNamed === 0) {
+    return {
+      told: false,
+      says:
+        'Leads are being stored and nobody is told. ETYME_STAFF_EMAILS is not set on this ' +
+        'deployment, so a lead waits here until somebody opens this list.',
+    }
+  }
+  if (!senderConfigured) {
+    return {
+      told: false,
+      says:
+        'Leads are being stored and nobody is told. Staff are named but no email sender is ' +
+        'configured (NOTIFY_FROM_EMAIL with RESEND_API_KEY or SENDGRID_API_KEY).',
+    }
+  }
+  return {
+    told: true,
+    says:
+      `Each lead is emailed to ${staffNamed === 1 ? 'the one address' : `the ${staffNamed} addresses`} ` +
+      'on ETYME_STAFF_EMAILS the first time that address writes. A second message from the ' +
+      'same address is added to its row here and emails nobody. A send that fails is recorded ' +
+      'as an incident.',
+  }
+}

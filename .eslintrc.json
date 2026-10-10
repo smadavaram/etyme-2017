@@ -1,0 +1,15 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-console": "warn",
+    "prefer-const": "error"
+  },
+  "ignorePatterns": [
+    "app/",
+    "config/",
+    "db/",
+    "lib/",
+    "vendor/",
+    "public/"
+  ]
+}

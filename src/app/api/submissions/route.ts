@@ -1,0 +1,1710 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { whyNotOpen } from './words'
+import { reportError } from '@/lib/alerts'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { supplierCoverGate } from '@/lib/document-stages'
+import { emit } from '@/lib/events'
+import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
+import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
+import { missingNote } from '@/lib/resumes'
+import { tellThem } from '@/lib/representation'
+import { consentText, mayMessage } from '@/lib/texts'
+import { mayMarket, type State } from '@/lib/bench-consent'
+import { send as sendMessage } from '@/lib/messages'
+import { submissionScope, seatedDesk } from '@/lib/resolve-client-company'
+import { orderedOfSupplier } from '@/lib/supplier-desks'
+import { isConsultantSeat } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
+import { submissionKind, tellEmployee, blockedSays, deliveryDeskSays } from './kind'
+import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWallSays, ourBarSays } from './adopt'
+import { awardDoor } from '@/lib/award'
+import { maySeeOutside } from '@/lib/walls'
+import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
+import { workAuthAtSubmission } from './work-authorization'
+import { actingDesk } from '@/lib/program-seat'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
+import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays, clientSubmissionsRefused } from './own-only'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
+
+/**
+ * POST /api/submissions
+ *
+ * BUILD.md: { requirementId, personIds[], rate }
+ *   → batch, per item errors, kind computed server side
+ *
+ * CLAUDE.md invariants:
+ *   - A Submission requires a live BenchListing granted by the consultant
+ *   - Submission is unique on (requirementId, personId) — first submission wins
+ *   - SubmissionKind is computed from ownership, never accepted from a client
+ *   - Every read of another person's data writes an AccessLog row
+ */
+export async function POST(request: NextRequest) {
+  // Who is asking, and for which firm.
+  //
+  // This route authenticated by email alone and then took
+  // `fromCompanyId` from the body on trust. Anybody signed in could
+  // therefore put a candidate in front of a client *as somebody else's
+  // firm* — a client employee, a consultant, a competitor — as long as
+  // that firm held a granted bench listing on the person. The
+  // submission, the rate and the representation notice all went out in
+  // the other firm's name.
+  //
+  // Nothing in the vendor's own walk found it, because a vendor always
+  // passes its own id. It was found by asking the same station of all
+  // eight positions in `__integration__/party-uniform.test.ts`.
+  const { caller, error: callerError } = await getCallerContext(request)
+  if (callerError) return callerError
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
+
+  const email = await getSessionEmail()
+
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  // Who is submitting. Needed for the event log — "a submission happened"
+  // without a name in it is not much of an audit record.
+  const submitter = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true },
+  })
+
+  const body = await request.json()
+  const { requirementId, personIds, rate, fromCompanyId } = body
+
+  // A consultant's seat is not the firm's seat.
+  //
+  // Somebody on a bench holds a CONSULTANT context at the firm that
+  // benches them, so "the caller's company" is that firm — which let
+  // them submit themselves, and anybody else on that bench, in the
+  // firm's name. A seat on a bench is a seat to file hours and answer
+  // for yourself, never to sell.
+  if (isConsultantSeat(caller)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            'A consultant is put forward by the firm that holds their consent, not from ' +
+            'their own seat. Ask your agency to submit you.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // A firm is put forward by its own people. Never by anybody else's.
+  if (fromCompanyId && caller.company && fromCompanyId !== desk!.companyId) {
+    const other = await prisma.company.findUnique({
+      where: { id: fromCompanyId },
+      select: { name: true },
+    })
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            `Only ${other?.name ?? 'that firm'}’s own people can put somebody forward in ` +
+            `its name. You are signed in at ${desk!.companyName}.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+  if (fromCompanyId && !caller.company) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            'A consultant is put forward by a firm that holds their consent, not by ' +
+            'themselves. Ask the firm you are on the bench of to submit you.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // The firm's own people, and within the firm the desk whose job this is.
+  //
+  // Everything above asks *which company* is submitting. Nothing asked
+  // *which desk*, so every seat at a supplier could put a name in front
+  // of a client: the HR partner who keeps the firm's own paperwork, the
+  // compliance officer who reads it, the accounts receivable clerk who
+  // bills for it. Selling somebody is the recruiting desk's job and the
+  // role table has said so since it was written — SEND_SUPPLY goes to
+  // the recruiter, the resource manager and the account manager, and to
+  // nobody else (`lib/company-defaults`). The route did not ask.
+  //
+  // Same permission, same question, as sending a candidate onward from
+  // one rung to the next (`mayForward` in `lib/forwarding`). Submitting
+  // and forwarding are one act seen from two rungs of a chain, and a
+  // firm that may do one may do the other.
+  //
+  // One carve-out, decided by the founder 2026-09-30 (CLAUDE.md, the
+  // integrator bench): a delivery manager (`assignments.write`) may put
+  // the firm's OWN employee forward — the employment is the consent and
+  // the kind is INTERNAL. Anybody the firm does not employ still needs
+  // the recruiting desk, the listing and the consent; that is refused
+  // per person below, in a sentence naming the desk.
+  const deliveryDeskOnly =
+    !hasPermission(deskPermissions, 'submissions.create') && hasPermission(deskPermissions, 'assignments.write')
+  if (!hasPermission(deskPermissions, 'submissions.create') && !deliveryDeskOnly) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_PERMISSION',
+          message:
+            `Putting somebody in front of a client is a recruiting desk's job at ` +
+            `${desk?.companyName ?? 'your firm'} — a recruiter, a resource manager or the ` +
+            `account manager. Ask one of them to submit this candidate.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (!requirementId || typeof requirementId !== 'string') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'requirementId is required', field: 'requirementId' } },
+      { status: 422 }
+    )
+  }
+
+  if (!Array.isArray(personIds) || personIds.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'personIds must be a non-empty array', field: 'personIds' } },
+      { status: 422 }
+    )
+  }
+
+  if (typeof rate !== 'number' || rate <= 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'rate must be a positive number', field: 'rate' } },
+      { status: 422 }
+    )
+  }
+
+  if (!fromCompanyId || typeof fromCompanyId !== 'string') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'fromCompanyId is required', field: 'fromCompanyId' } },
+      { status: 422 }
+    )
+  }
+
+  // Verify requirement exists and is open
+  const requirement = await prisma.requirement.findUnique({
+    where: { id: requirementId },
+    select: {
+      id: true, companyId: true, status: true, approvalState: true, title: true, cancelReason: true,
+      endClientCompanyId: true, payerCompanyId: true, openToNetwork: true,
+      // For the prime's own record of this role, where it puts forward
+      // somebody its network offered it. See `./adopt`.
+      skills: true, openingId: true,
+      // For the consent text: enough detail that somebody can answer
+      // without a phone call.
+      location: true, startDate: true,
+      // The job's length, for whether it would carry somebody past the
+      // client's time limit. Null is "nobody said", and is said so.
+      months: true,
+      company: { select: { name: true } },
+      endClientCompany: { select: { name: true } },
+    },
+  })
+
+  if (!requirement) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
+      { status: 404 }
+    )
+  }
+
+  // Not open, and which kind of not-open. The door used to answer
+  // "Requirement is DRAFT, not OPEN" — a machine state, and the wrong
+  // one: a requisition at DRAFT with its chain running is waiting on
+  // three desks, not on somebody remembering to publish it. The code is
+  // for the machine and the sentence is the product, and a narrower code
+  // is a reason somebody can count a year from now.
+  const shut = whyNotOpen({
+    title: requirement.title,
+    status: requirement.status,
+    approvalState: requirement.approvalState,
+    buyerName: requirement.company.name,
+    cancelReason: requirement.cancelReason,
+  })
+  if (shut) {
+    return NextResponse.json({ error: shut }, { status: 409 })
+  }
+
+  // Published, but paused. A change to the money on a published role sends
+  // it back through approval and leaves the status OPEN so the invitations
+  // and the submissions already in stay where they are — but nothing new
+  // comes in until the client has said yes again. The suppliers were told
+  // it was paused; this is the same sentence at the door.
+  if (requirement.approvalState === 'PENDING_APPROVAL') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PAUSED',
+          message:
+            `${requirement.title} is paused while ${requirement.company.name} re-approves the money. ` +
+            'You will be told when it is open again.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // A role the buyer released to named suppliers is answered by those
+  // suppliers.
+  //
+  // The program office choosing who sees a role is the client's control
+  // over its own supply base, and it was enforced at the release door
+  // and nowhere else: any firm with the id could answer a role it was
+  // never shown. A firm's own record of somebody else's advert carries
+  // a payer and has no invitation, so this asks only about a buyer's
+  // own requisition — and never about one deliberately opened to the
+  // network.
+  if (requirement.payerCompanyId === null && !requirement.openToNetwork) {
+    const invited = await prisma.requirementInvitation.findUnique({
+      where: { requirementId_toCompanyId: { requirementId, toCompanyId: fromCompanyId } },
+      select: { status: true },
+    })
+    if (!invited) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_INVITED',
+            message:
+              `${requirement.company.name} chose which suppliers see “${requirement.title}”, ` +
+              `and ${desk?.companyName ?? 'your firm'} is not among them. Ask their program ` +
+              'office to send it to you, and it will be on your Requirements page.',
+          },
+        },
+        { status: 403 }
+      )
+    }
+  }
+
+  // Who the candidate is actually being submitted to.
+  //
+  // A client's own requisition: the client. A vendor's record of somebody
+  // else's advert: the prime who posted it, or the client direct. Using the
+  // company that wrote the role down meant a vendor submitted to
+  // themselves, and everything downstream inherited a contract with no
+  // counterparty.
+  const toCompanyId = requirement.payerCompanyId ?? requirement.companyId
+
+  if (toCompanyId === fromCompanyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_RECIPIENT',
+          message:
+            'This job has nobody to submit to. Name the prime or the client it is worked through, then submit.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // Who the hold is against. The end client where it is known, because an
+  // MSP and a prime feeding the same site is exactly the case where one
+  // person gets submitted twice and loses the role.
+  const clientCompanyId = clientOf(requirement)
+  const clientName = requirement.endClientCompany?.name ?? requirement.company.name
+
+  // The submitting company, by name. Said to the consultant, never to
+  // another vendor.
+  const fromCompany = await prisma.company.findUnique({
+    where: { id: fromCompanyId },
+    select: { name: true },
+  })
+  const vendorName = fromCompany?.name ?? 'An agency'
+  // The band this vendor was given, if any. Read once for the whole batch.
+  //
+  // Addendum E lists rate band under WARN, not BLOCK: "WARN, capture a
+  // reason, proceed everywhere else — rate band, headcount plan, vendor
+  // tier." A vendor who has the right person at the wrong price is having a
+  // negotiation, not committing a violation, and a platform that refuses
+  // the submission just sends that conversation back to email.
+  const invitation = await prisma.requirementInvitation.findUnique({
+    where: { requirementId_toCompanyId: { requirementId, toCompanyId: fromCompanyId } },
+    select: { payMin: true, payMax: true },
+  })
+
+  function bandWarning(submittedRate: number): string | null {
+    if (!invitation) return null
+    if (invitation.payMax != null && submittedRate > invitation.payMax) {
+      return `$${Math.round(submittedRate / 100)}/hr is above the $${Math.round(invitation.payMax / 100)}/hr ceiling you were given`
+    }
+    if (invitation.payMin != null && submittedRate < invitation.payMin) {
+      return `$${Math.round(submittedRate / 100)}/hr is below the $${Math.round(invitation.payMin / 100)}/hr floor you were given`
+    }
+    return null
+  }
+
+  // ── Insurance, before anything goes in front of a client ──────────
+  //
+  // Addendum E: lapsed supplier insurance is a legally grounded BLOCK.
+  // It was checked at award, which is one step too late — by then the
+  // client has read a CV, run interviews and made an offer against a
+  // supplier who could not lawfully put anybody on site. Once per batch:
+  // nothing about a candidate is relevant when the supplier cannot
+  // place anybody at all.
+  const certRows = await prisma.verification.findMany({
+    where: { companyId: fromCompanyId, personId: null },
+    // `validFrom` is here, in etyme-demand's file, by etyme-regulatory on
+    // 2026-09-17, and it is the only line changed: what the gate reads is
+    // a compliance question, and without the column selected the floor
+    // added on 2026-09-16 reads undefined and silently passes. A policy
+    // that begins next month would have blocked this supplier at
+    // activation and waved it through here.
+    select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+  })
+
+  const cover = supplierCoverGate({
+    supplierName: vendorName,
+    clientName,
+    // The firm's WHOLE standing, not the rows whose key happens to begin
+    // INSURANCE_. `COVER_THAT_STOPS_WORK` has named the certificate of
+    // good standing beside the two cover kinds since 2026-09-21, and this
+    // filter did not know it — so a supplier whose registration the state
+    // had suspended was refused on the compliance page, in those words,
+    // and accepted by this button. The door and the page disagreed about
+    // the same firm on the same day.
+    //
+    // Nothing else is needed to make them agree: the gate decides which
+    // kinds it has an opinion about, and a kind nobody filed and nobody
+    // required says nothing at all — so handing it every company-level
+    // row widens what it can see without inventing a finding. Filtering
+    // here is what went stale; not filtering cannot.
+    certificates: certRows,
+    on: new Date(),
+    // ── What this client's own orders ask of the firm ──────────────
+    //
+    // Until 2026-09-21 this door passed no required set at all, so a
+    // certificate a client writes on every purchase order — a
+    // certificate of good standing, a site induction, cyber cover —
+    // said nothing here. Activation refused the same firm on the same
+    // paperwork weeks later, by which time the client had read a CV,
+    // run interviews and made an offer. One list, read from the one
+    // door (`lib/document-requirements` through `orderedOfSupplier`),
+    // so the submit button and the placement checklist cannot name
+    // different documents about the same firm on the same day.
+    //
+    // A waived item is not passed as required: the waiver is this
+    // client accepting its absence, in somebody's name, with a reason.
+    requiredTypes: (await orderedOfSupplier(clientCompanyId, fromCompanyId))
+      .filter((i) => i.required && i.purpose === 'COMPLIANCE')
+      .map((i) => i.key),
+  })
+
+  // ── A lapse refuses; a document nobody has filed is chased ────────
+  //
+  // Two different facts wear the same word on the gate. Cover that ran
+  // out, or has not begun, is a fact about a firm that is trading
+  // today with nothing behind it — Addendum E names it a BLOCK and it
+  // is refused here, as it always was. A required certificate nobody
+  // ever filed is a chase: the firm has not been asked for it yet, or
+  // was asked last week and its broker is slow, and refusing every
+  // submission in the meantime is governance slower than the
+  // workaround. It warns, in the client's own words, and the reason is
+  // written down rather than swallowed — never silently permitted.
+  //
+  // The gate does the arithmetic and this reads its findings; nothing
+  // here recomputes a standing. `lib/document-stages` is
+  // etyme-regulatory's, and the day it decides a never-filed required
+  // item blocks instead, this door follows it without a change —
+  // `blocking` is simply no longer only MISSING.
+  const lapsed = cover.blocking.filter((b) => b.standing !== 'MISSING')
+  const neverFiled = cover.blocking.filter((b) => b.standing === 'MISSING')
+
+  if (lapsed.length > 0) {
+    return NextResponse.json(
+      { error: { code: 'COVER_LAPSED', message: cover.says, fix: cover.fix } },
+      { status: 409 }
+    )
+  }
+
+  const coverWarning =
+    neverFiled.length > 0
+      ? `${vendorName} has never filed ${neverFiled.length === 1 ? neverFiled[0].label : `${neverFiled.length} documents`} that ${clientName}'s orders require. ` +
+        `The submission goes through; it will not clear a start.`
+      : null
+
+  // The reason is not written to the automation log yet, and that is a
+  // gap rather than a decision: every action written there needs a rung
+  // on the ladder in `lib/autonomy`, which is the architect's file, and
+  // `SUBMISSION_COVER_WARNED` has no rung. Until it has one the sentence
+  // rides out with the submission and with every person in the batch, so
+  // nothing is silently permitted — but nobody can query it later, which
+  // is the half that is missing. The ask is with etyme-architect:
+  // ENFORCEMENT, WARN, RULE, beside SUBMISSION_OFF_BAND, which is the
+  // same shape — somebody was warned, went ahead, and it was recorded.
+
+  // ── The client's time limit and break, once for the batch ────────
+  //
+  // Addendum E: a tenure limit and a break in service are BLOCKs. They
+  // are the client's own rules, read from its governance policy the way
+  // the tenure ledger and the award read them, and asked per person in
+  // the loop below (`./time-limit`).
+  const limitRules = await prisma.governanceRule.findMany({
+    where: {
+      policy: { companyId: clientCompanyId, isActive: true },
+      ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] },
+      isActive: true,
+    },
+    select: { ruleType: true, enforcementMode: true, parameters: true },
+  })
+  const capRule = limitRules.find((r) => r.ruleType === 'TENURE_CAP')
+  const breakRule = limitRules.find((r) => r.ruleType === 'BREAK_IN_SERVICE')
+  const modeOf = (m: string | null | undefined): Mode => (m === 'WARN' ? 'WARN' : 'BLOCK')
+  const numberIn = (p: unknown, key: string): number | null => {
+    const v = p && typeof p === 'object' ? (p as Record<string, unknown>)[key] : null
+    return typeof v === 'number' && v > 0 ? v : null
+  }
+  const timeLimitRules = {
+    capMonths: capRule ? (numberIn(capRule.parameters, 'maxMonths') ?? 18) : null,
+    capMode: modeOf(capRule?.enforcementMode),
+    breakDays: breakRule ? (numberIn(breakRule.parameters, 'breakDays') ?? 30) : null,
+    breakMode: modeOf(breakRule?.enforcementMode),
+  }
+
+  const results: any[] = []
+
+  for (const personId of personIds) {
+    const item: any = { personId, status: 'pending' }
+    // Every refusal below is one write: this person, refused a SUBMIT by
+    // this firm, for the reason the branch gives. Awaited before the item
+    // is answered, so a serverless host cannot drop the row (lib/access-log).
+    const refused = (reason: string) =>
+      recordRefusal([personId], {
+        actorPersonId: submitter?.id,
+        actorCompanyId: fromCompanyId,
+        action: 'SUBMIT',
+        reason,
+      })
+
+    try {
+      // 1. Verify person exists
+      const person = await prisma.person.findUnique({
+        where: { id: personId },
+        // The address is here because the consent ask goes by email, and
+        // asking before submitting is the whole point of the message.
+        select: { id: true, name: true, primaryEmail: true },
+      })
+
+      if (!person) {
+        item.status = 'error'
+        item.error = 'Person not found'
+        results.push(item)
+        continue
+      }
+
+      // ── Ours, or somebody else's? ──────────────────────────────
+      //
+      // Asked before the bench walls, because for our own W2 employee
+      // there is no bench and there was never going to be one.
+      //
+      // A prime, a GSI and an MSP all sell to a client and buy either
+      // from a sub-vendor or from their own payroll. A delivery manager
+      // moving somebody off a winding-down project onto a new client, or
+      // HR placing an employee sitting between assignments, is the
+      // ordinary way those firms staff work — and this route refused all
+      // of it, because it demanded a `ConsultantProfile` and a bench
+      // listing the employee had granted to the firm that already
+      // employs them. The employment contract is that consent: nobody
+      // asks an employee's permission to be staffed on a project.
+      //
+      // So the carve-out is narrow and it is exactly three things. The
+      // listing is skipped. The employee is told rather than asked. The
+      // read is logged like every other. A firm putting forward somebody
+      // it does not employ walks the same walls it always did.
+      //
+      // Live means live: revoked, suspended and expired seats are all
+      // people this firm no longer employs, and a lapsed seat falls back
+      // to the listing path rather than opening the door wider.
+      const employment = await prisma.context.findFirst({
+        where: {
+          personId,
+          companyId: fromCompanyId,
+          type: 'EMPLOYEE',
+          revokedAt: null,
+          suspendedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      })
+      const employedByUs = employment !== null
+
+      // A delivery desk sells nobody the firm does not employ.
+      if (deliveryDeskOnly && !employedByUs) {
+        item.status = 'error'
+        item.code = 'NOT_YOUR_EMPLOYEE'
+        item.error = deliveryDeskSays(person.name, desk?.companyName ?? 'your firm')
+        await refused(`Delivery desk refused: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`)
+        results.push(item)
+        continue
+      }
+
+      // The bench listing this firm holds, where it needs one. Null for
+      // an employee, which is what makes the submission INTERNAL.
+      let listing: { tier: string | null } | null = null
+      // What `maySubmit` said when it ran — "you already represent this
+      // person here for another 12 days", and the like. There is no such
+      // sentence for an employee, because none of it applies.
+      let representationNote: string | undefined
+      // Set where the person comes from a supplier on our network rather
+      // than from a listing we hold. See `./adopt`.
+      let adopted: {
+        supplierId: string
+        supplierName: string
+        payRate: number
+        kinds: ReturnType<typeof adoptedKinds>
+      } | null = null
+
+      if (employedByUs) {
+        // An employer may skip the listing. It may not skip a block.
+        //
+        // A client off somebody's list is off it however they are
+        // engaged, and being on the submitting firm's payroll does not
+        // override a decision that was never the firm's to make.
+        // `maySubmit` bundles this check with the listing checks and so
+        // does not run here; `lib/holds` belongs to etyme-regulatory and
+        // exports nothing that answers this on its own, so the query is
+        // here, deliberately reading the same row `maySubmit` reads.
+        const blocked = await prisma.doNotSubmit.findUnique({
+          where: { personId_companyId: { personId, companyId: clientCompanyId } },
+          select: { id: true },
+        })
+
+        if (blocked) {
+          item.status = 'error'
+          item.code = 'BLOCKED'
+          item.error = blockedSays()
+
+          await refused(item.error)
+
+          results.push(item)
+          continue
+        }
+      } else {
+        // 2. Check for live BenchListing from this company
+        // CLAUDE.md: "A Submission requires a live BenchListing granted by the consultant"
+        const consultant = await prisma.consultantProfile.findUnique({
+          where: { personId },
+          select: { id: true },
+        })
+
+        if (!consultant) {
+          item.status = 'error'
+          item.error = 'Person has no consultant profile'
+          results.push(item)
+          continue
+        }
+
+        const benchListing = await prisma.benchListing.findFirst({
+          where: {
+            consultantId: consultant.id,
+            companyId: fromCompanyId,
+            revokedAt: null,
+          },
+        })
+
+        // ── A stay the person chose, run out ───────────────────────
+        //
+        // Decided 2026-09-30: a person chooses how long they stay on a
+        // bench, and when it runs out nobody can put them forward through
+        // it. Asked here as well as by the nightly job that writes the
+        // ending down, so the hour between the two is not a gap. A
+        // submission made before the end stands; this door only refuses
+        // new ones. `lib/bench-stay` holds the words.
+        const lapsed = benchListing
+          ? (stayOver(benchListing, new Date()) ? benchListing : null)
+          : await prisma.benchListing.findFirst({
+              where: { consultantId: consultant.id, companyId: fromCompanyId, lapsedAt: { not: null } },
+            })
+        if (lapsed) {
+          item.status = 'error'
+          item.code = 'STAY_ENDED'
+          item.error = stayRefusedSays(person.name, vendorName, lapsed.staysUntil ?? lapsed.lapsedAt ?? new Date())
+          await refused(item.error)
+          results.push(item)
+          continue
+        }
+
+        if (!benchListing) {
+          // ── Offered by our network ─────────────────────────────────
+          //
+          // We hold no listing on them. That used to end here, with "the
+          // consultant must grant a listing first" — said to a prime
+          // reading this person on Bench → Your network, where a supplier
+          // had offered them, on a listing they had granted that
+          // supplier. The consent exists; it is the supplier's, and the
+          // chain already rests on it when the supplier submits to us and
+          // we send them on. So it is read here, and every wall is asked
+          // about the supplier whose consent it is. `./adopt` says why.
+          const offers = await prisma.benchListing.findMany({
+            where: { consultantId: consultant.id, companyId: { not: fromCompanyId } },
+            select: {
+              companyId: true, tier: true, state: true, revokedAt: true, staysUntil: true,
+              company: { select: { name: true } },
+            },
+          })
+          const partners = await networkOf(fromCompanyId)
+          const offer = networkOffer({
+            personName: person.name,
+            ourName: vendorName,
+            offers: offers.map((o) => ({
+              companyId: o.companyId,
+              companyName: o.company.name,
+              tier: o.tier,
+              state: o.state,
+              // A stay that ran out is consent that ended, whether or not
+              // the nightly job has written it down yet.
+              revokedAt: o.revokedAt ?? (stayOver(o, new Date()) ? o.staysUntil : null),
+              onOurNetwork: partners.has(o.companyId),
+            })),
+            requested: typeof body.offeredBy === 'string' ? body.offeredBy : null,
+            payRateCents: typeof body.payRate === 'number' ? body.payRate : null,
+          })
+
+          let refusedSays: string | null = null
+          let refusedCode: string | null = null
+          let isHeld = false
+          // The same wall Bench → Your network puts up before it shows
+          // anybody: a firm that closed its door to other firms' people
+          // does not reach them through this one instead.
+          const outside = maySeeOutside({
+            posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
+            permissions: deskPermissions,
+          })
+          if (offer.ok && !outside.ok) {
+            refusedSays = outside.reason
+            refusedCode = 'OUTSIDE_CLOSED'
+          } else if (!offer.ok) {
+            refusedSays = offer.says
+            refusedCode = offer.code
+            if (offer.options) item.options = offer.options
+          } else {
+            const wall = supplierWallSays(
+              await maySubmit({ personId, companyId: offer.offeredBy.companyId, clientCompanyId }),
+              { supplierName: offer.offeredBy.companyName, personName: person.name, clientName }
+            )
+            const ourBar = wall
+              ? null
+              : await prisma.blacklist.findFirst({
+                  where: {
+                    companyId: fromCompanyId,
+                    targetType: 'PERSON',
+                    targetId: personId,
+                    liftedAt: null,
+                    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                  },
+                  select: { id: true },
+                })
+            if (wall) {
+              refusedSays = wall.says
+              refusedCode = wall.code
+              isHeld = wall.held
+            } else if (ourBar) {
+              refusedSays = ourBarSays()
+              refusedCode = 'ON_OUR_DNR_LIST'
+            } else {
+              const supplierEmploys = await prisma.context.findFirst({
+                where: {
+                  personId,
+                  companyId: offer.offeredBy.companyId,
+                  type: 'EMPLOYEE',
+                  revokedAt: null,
+                  suspendedAt: null,
+                  OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                },
+                select: { id: true },
+              })
+              adopted = {
+                supplierId: offer.offeredBy.companyId,
+                supplierName: offer.offeredBy.companyName,
+                payRate: body.payRate as number,
+                kinds: adoptedKinds({ employsThem: supplierEmploys !== null, listingTier: 'MARKETING' }),
+              }
+            }
+          }
+
+          if (refusedSays) {
+            item.status = isHeld ? 'held' : 'error'
+            item.code = refusedCode
+            item.error = refusedSays
+            await refused(refusedSays)
+            results.push(item)
+            continue
+          }
+        } else {
+
+          // And has the consultant actually agreed to it.
+          //
+          // The listing existing was never the point. `grantedAt` used to be
+          // stamped the moment a vendor created the row, so this check
+          // passed on a listing nobody had ever been asked about — which
+          // made CLAUDE.md's firmest invariant true in letter and empty in
+          // substance. A listing now starts INVITED and only the consultant
+          // moves it.
+          const consented = mayMarket({ state: benchListing.state as State, revokedAt: benchListing.revokedAt })
+          if (!consented.ok) {
+            item.status = 'error'
+            item.error = consented.reason
+            results.push(item)
+            continue
+          }
+
+          // 2b. May this vendor put this person in front of this client at all?
+          //
+          // A listing is permission to market somebody. It is not permission to
+          // send them anywhere, and the difference is what stops a consultant
+          // being burned: two vendors submitting the same name to the same
+          // client in the same week gets both rejected, and the person never
+          // finds out why.
+          //
+          // The refusal never says who else is involved. A consultant is on ten
+          // benches and that is nobody's business but theirs.
+          const verdict = await maySubmit({
+            personId,
+            companyId: fromCompanyId,
+            clientCompanyId,
+          })
+
+          if (!verdict.ok) {
+            item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
+            item.code = verdict.code
+            item.error = verdict.message
+
+            // Somebody who wants to be asked gets asked, here, once.
+            if (verdict.code === 'ASK_FIRST') {
+              const asked = await askFor({
+                personId,
+                companyId: fromCompanyId,
+                clientCompanyId,
+                requirementId,
+              })
+              if (asked) {
+                void emit({
+                  type: 'representation.requested',
+                  companyId: fromCompanyId,
+                  subjectType: 'Representation',
+                  subjectId: asked.id,
+                  actorPersonId: submitter?.id ?? null,
+                  payload: { personId, clientCompanyId, requirementId },
+                })
+                void notify({
+                  personId,
+                  type: 'SUBMISSION',
+                  title: 'An agency wants to put you forward',
+                  body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
+                  entityId: asked.id,
+                  data: { representationId: asked.id, clientCompanyId, requirementId },
+                })
+              }
+            }
+
+            // A refused submission is still a read of somebody's data, and
+            // CLAUDE.md says refusals are logged too.
+            await refused(verdict.message)
+
+            results.push(item)
+            continue
+          }
+
+          listing = benchListing
+          representationNote = verdict.note
+        }
+      }
+
+      // 3. Check for duplicate — unique on (requirementId, personId)
+      const existing = await prisma.submission.findUnique({
+        where: {
+          requirementId_personId: { requirementId, personId },
+        },
+      })
+
+      if (existing) {
+        item.status = 'duplicate'
+        item.error = 'This person has already been submitted to this requirement. First submission wins.'
+        item.existingSubmissionId = existing.id
+        item.existingSubmittedAt = existing.submittedAt.toISOString()
+        results.push(item)
+        continue
+      }
+
+      // 3b. The time limit at this client, across every supplier.
+      //
+      // Asked before anything is written, so a refusal leaves no hold,
+      // no consent ask and no row. A BLOCK is refused with the day they
+      // are eligible again; a WARN goes ahead only with a reason, and the
+      // reason is written down beside the submission's own access row.
+      const onSite = await prisma.sellContract.findMany({
+        where: {
+          personId,
+          ...endClientFilter(clientCompanyId),
+          state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+        },
+        select: { startDate: true, endDate: true, state: true },
+      })
+      const limit = timeLimitAtSubmission({
+        personName: person.name,
+        clientName,
+        rules: timeLimitRules,
+        contracts: onSite,
+        job: { startDate: requirement.startDate, months: requirement.months },
+        now: new Date(),
+      })
+      let tenureReason: string | null = null
+      if (limit.outcome === 'BLOCK') {
+        item.status = 'error'
+        item.code = limit.code
+        item.error = limit.says
+        if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
+        await refused(`${limit.code}: ${limit.says}`)
+        results.push(item)
+        continue
+      }
+      if (limit.outcome === 'WARN') {
+        tenureReason = reasonGiven(body, personId)
+        if (!tenureReason) {
+          // Warned, and nothing written: the submitter is asked for a
+          // reason, and the next press carries it.
+          item.status = 'needs_reason'
+          item.code = limit.code
+          item.error = limit.says
+          if (limit.reachedOn) item.limitReachedOn = limit.reachedOn.toISOString().slice(0, 10)
+          if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
+          results.push(item)
+          continue
+        }
+        item.tenureWarning = limit.says
+        item.tenureReason = tenureReason
+      } else if (limit.outcome === 'PASS' && limit.unknown) {
+        item.tenureNote = limit.unknown
+      }
+
+      // 3c. Work authorization: warned here, refused at activation.
+      const authRows = await prisma.verification.findMany({
+        where: { personId },
+        select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+      })
+      const auth = workAuthAtSubmission({
+        personName: person.name,
+        rows: authRows,
+        startsOn: requirement.startDate,
+        now: new Date(),
+      })
+      if (!auth.ok) {
+        item.workAuthWarning = auth.says
+        item.workAuthCode = auth.code
+      }
+
+      // 4. Compute SubmissionKind from ownership (never accepted from client)
+      //
+      // This used to read `fromCompanyId === toCompanyId` for INTERNAL,
+      // which is unreachable — NO_RECIPIENT refuses a submission to
+      // yourself several screens above — and meant the wrong thing
+      // besides. INTERNAL is about the person, not the recipient. See
+      // `./kind`.
+      const kind = adopted
+        ? adopted.kinds.ours
+        : submissionKind({ employedByUs, listingTier: listing?.tier ?? null })
+
+      // 4b. The rung below, where the person came from our network.
+      //
+      // The award buys from whoever is on the hop below, so it is written
+      // here, with ours: the supplier to us, on our own record of this
+      // role, at what we say we pay them, already sent on. First in wins
+      // on it too — somebody another firm already put forward to us on
+      // that record is theirs, and is sent on from Submissions.
+      let ourRole: { id: string } | null = null
+      let reuseBelow: string | null = null
+      if (adopted) {
+        ourRole =
+          (await prisma.requirement.findFirst({
+            where: { companyId: fromCompanyId, mirroredFromId: requirementId },
+            select: { id: true },
+          })) ??
+          (await prisma.requirement.create({
+            data: {
+              companyId: fromCompanyId,
+              title: requirement.title,
+              skills: requirement.skills,
+              location: requirement.location,
+              // Whose site it is, carried, never inferred: tenure is the
+              // person's at the client, and a null here reads as direct.
+              endClientCompanyId: clientCompanyId,
+              status: 'OPEN',
+              // The client's own chain approved the money; this is our
+              // record of its role, not a new requisition. Left at DRAFT
+              // the award would refuse the hop below.
+              approvalState: 'AUTO_APPROVED',
+              source: 'NETWORK',
+              mirroredFromId: requirementId,
+              openingId: requirement.openingId,
+              // No band. Rate bands live on an invitation, never on a
+              // requirement another firm could read.
+            },
+            select: { id: true },
+          }))
+        const below = await prisma.submission.findUnique({
+          where: { requirementId_personId: { requirementId: ourRole.id, personId } },
+          select: { id: true, fromCompanyId: true },
+        })
+        if (below && below.fromCompanyId !== adopted.supplierId) {
+          item.status = 'duplicate'
+          item.error =
+            `${person.name} was already put forward to you for this job by another firm. First in wins: ` +
+            'send theirs on from Submissions.'
+          item.existingSubmissionId = below.id
+          results.push(item)
+          continue
+        }
+        reuseBelow = below?.id ?? null
+      }
+
+      // 5. Create the submission, with the CV that is current right now.
+      //
+      // The version, not a pointer to whatever they upload next month. A
+      // client acted on the document they were sent, and it stops changing
+      // the moment it leaves.
+      const cv = await prisma.resume.findFirst({
+        where: { personId, currentKey: personId, deletedAt: null },
+        select: { id: true, label: true },
+      })
+
+      const submission = await prisma.$transaction(async (tx) => {
+        // The hop below and ours, together or not at all: a hop below
+        // with nothing above it is a supplier's submission nobody made.
+        let parentSubmissionId: string | null = null
+        if (adopted && ourRole) {
+          parentSubmissionId =
+            reuseBelow ??
+            (
+              await tx.submission.create({
+                data: {
+                  requirementId: ourRole.id,
+                  personId,
+                  fromCompanyId: adopted.supplierId,
+                  toCompanyId: fromCompanyId,
+                  kind: adopted.kinds.below,
+                  rate: adopted.payRate,
+                  status: 'SUBMITTED',
+                  resumeId: cv?.id ?? null,
+                },
+                select: { id: true },
+              })
+            ).id
+          await tx.submission.update({
+            where: { id: parentSubmissionId },
+            data: { forwardedAt: new Date(), forwardedVia: 'ONWARD', forwardedById: submitter?.id ?? null },
+          })
+        }
+        return tx.submission.create({
+          data: {
+            requirementId,
+            personId,
+            fromCompanyId,
+            toCompanyId,
+            kind,
+            rate,
+            status: 'SUBMITTED',
+            resumeId: cv?.id ?? null,
+            parentSubmissionId,
+          },
+        })
+      })
+
+      // Putting somebody forward is the answer to the invitation. The
+      // single-candidate route said so; this one did not, and the client's
+      // page went on counting a supplier that had submitted as silent.
+      await prisma.requirementInvitation.updateMany({
+        where: { requirementId, toCompanyId: fromCompanyId, status: 'SENT' },
+        data: { status: 'ACCEPTED' },
+      })
+
+      // Not a refusal — a recruiter working a role at eight at night should
+      // not be stopped by a missing file — but the client will ask for it.
+      item.cv = cv ? cv.label : null
+      if (!cv) item.note = missingNote(person.name)
+
+      // 5b. Take the hold, now that there is something to hold for.
+      //
+      // After the submission rather than before: a hold taken for a
+      // submission that then failed would keep somebody out of a client's
+      // pipeline for a month for nothing.
+      //
+      // Not taken for our own employee. A hold is one agency warning
+      // another off a name it is working; the employment already says
+      // who this person answers to, and writing a representation row
+      // against a firm's own payroll would put a marketplace claim on an
+      // employee who is not on the market.
+      const held = employedByUs
+        ? null
+        : await takeHold({
+            personId,
+            // The firm whose listing it is. Where a supplier offered them
+            // to us, the representation is the supplier's, exactly as when
+            // a supplier submits to us and we send them on.
+            companyId: adopted?.supplierId ?? fromCompanyId,
+            clientCompanyId,
+            requirementId,
+          })
+
+      if (adopted) {
+        // Told by us, with the supplier named: the person knows both
+        // firms, and is never the one kept in the dark. No consent ask —
+        // the consent is theirs to the supplier, and asking again in our
+        // name would be a second firm asking for a permission already
+        // given to somebody else.
+        if (held) item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
+        await notify({
+          personId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellAdoptedPerson({
+            ourName: vendorName,
+            supplierName: adopted.supplierName,
+            clientName,
+            roleTitle: requirement.title,
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId },
+        })
+        const supplierDesk = await prisma.context.findMany({
+          where: {
+            companyId: adopted.supplierId,
+            revokedAt: null,
+            role: { permissions: { hasSome: ['submissions.read'] } },
+          },
+          select: { personId: true },
+          take: 5,
+        })
+        for (const d of supplierDesk) {
+          void notify({
+            personId: d.personId,
+            companyId: adopted.supplierId,
+            type: 'SUBMISSION',
+            title: `${person.name} went forward to ${clientName}`,
+            body: tellSupplier({
+              ourName: vendorName,
+              personName: person.name,
+              clientName,
+              roleTitle: requirement.title,
+              payRateCents: adopted.payRate,
+            }),
+            entityId: submission.parentSubmissionId ?? submission.id,
+          })
+        }
+        void emit({
+          type: 'submission.forwarded',
+          companyId: fromCompanyId,
+          subjectType: 'Submission',
+          subjectId: submission.parentSubmissionId ?? submission.id,
+          actorPersonId: submitter?.id ?? null,
+          payload: { via: 'ONWARD', adoptedFromNetwork: true, toCompanyId, childId: submission.id, rateCents: rate },
+        })
+        item.offeredBy = adopted.supplierName
+      }
+
+      if (held && !adopted) {
+        item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
+        item.note = representationNote
+
+        void emit({
+          type: 'representation.taken',
+          companyId: fromCompanyId,
+          subjectType: 'Representation',
+          subjectId: held.id,
+          actorPersonId: submitter?.id ?? null,
+          payload: { personId, clientCompanyId, requirementId, expiresAt: held.expiresAt.toISOString() },
+        })
+
+        // Told, every time, with the client named. The vendor's
+        // competitors are kept in the dark; the person never is. Being
+        // marketed somewhere you did not know about is the complaint all
+        // of this exists to answer.
+        void notify({
+          personId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellThem({
+            vendorName,
+            clientName,
+            roleTitle: requirement.title,
+            hold: {
+              companyId: fromCompanyId,
+              clientCompanyId,
+              state: 'HELD',
+              takenAt: new Date(),
+              expiresAt: held.expiresAt,
+            },
+            now: new Date(),
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId },
+        })
+      }
+
+      // ── Ask them ────────────────────────────────────────────────
+      //
+      // The most valuable message this product sends, and it solves three
+      // things at once. Consultants get submitted blind constantly and it
+      // burns them. When two vendors put the same person forward, the
+      // client often rejects both — one text stops that at source, and
+      // "no, someone already has me there" is the cheapest deduplication
+      // anybody will ever build. And it leaves a timestamped consent trail
+      // vendors need anyway.
+      //
+      // Not a gate. The submission stands and the ask goes out alongside
+      // it, because a recruiter working a role at eight at night should
+      // not be blocked waiting for a text — the check on the package says
+      // loudly that nobody has agreed yet, which is the right place for it.
+      if (held) {
+        const profile = await prisma.consultantProfile.findFirst({
+          where: { personId },
+          select: { textsOffAt: true },
+        })
+
+        const canWrite = mayMessage({
+          name: person.name,
+          email: person.primaryEmail ?? null,
+          textsOffAt: profile?.textsOffAt ?? null,
+          confirmedAt: null,
+          askedAt: null,
+          unanswered: 0,
+          onBench: true,
+        })
+
+        if (canWrite.ok) {
+          await prisma.representation.update({
+            where: { id: held.id },
+            data: { consentAskedAt: new Date() },
+          })
+
+          const message = consentText({
+            personName: person.name,
+            vendorName,
+            clientLabel: clientName,
+            title: requirement.title,
+            location: requirement.location,
+            rateCents: rate,
+            startsOn: requirement.startDate,
+          })
+
+          void sendMessage({
+            companyId: fromCompanyId,
+            personId,
+            kind: 'CONSENT',
+            to: person.primaryEmail,
+            subject: message.subject,
+            body: message.body,
+            aboutType: 'SUBMISSION',
+            aboutId: submission.id,
+          })
+
+          item.asked = true
+        }
+      }
+
+      // ── The employee is told ────────────────────────────────────
+      //
+      // The whole carve-out rests on this message, so it is awaited
+      // rather than fired and forgotten. A submission that went ahead
+      // without asking the person and then silently failed to tell them
+      // is the thing CLAUDE.md's listing invariant exists to prevent,
+      // and "the notification was best effort" is not an answer anybody
+      // wants to give afterwards.
+      //
+      // One message, no button. A consultant on a bench gets a consent
+      // ask alongside theirs; this deliberately has none, because there
+      // is nothing for an employee to accept and offering a choice whose
+      // answer is thrown away is worse than offering none.
+      if (employedByUs) {
+        await notify({
+          personId,
+          companyId: fromCompanyId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellEmployee({
+            employerName: vendorName,
+            clientName,
+            roleTitle: requirement.title,
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId, kind },
+        })
+      }
+
+      // The band is advisory, so the submission stands and the warning
+      // travels with it — the client sees why it is off-band rather than
+      // never seeing the candidate at all.
+      // The firm owes this client a document its orders require. It
+      // travels with every person in the batch, because the refusal it
+      // becomes at activation is about the person who is starting.
+      if (coverWarning) item.coverWarning = coverWarning
+
+      const warning = bandWarning(rate)
+      if (warning) {
+        item.warning = warning
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_OFF_BAND',
+            summary: `${person.name} submitted to "${requirement.title}" off band`,
+            reason: warning,
+            payload: { submissionId: submission.id, rate, requirementId },
+            reversible: true,
+          },
+        })
+      }
+
+      // Warned and went ahead, each recorded beside the rate band's own
+      // row: the time limit with the reason the submitter gave and the
+      // day it would cross, and work authorization with what is missing.
+      if (item.tenureWarning) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_TIME_LIMIT_WARNED',
+            summary: `${person.name} submitted to "${requirement.title}" past ${clientName}'s time limit`,
+            reason: `${item.tenureWarning} Reason given: ${item.tenureReason}`,
+            payload: {
+              submissionId: submission.id, requirementId, personId, clientCompanyId,
+              limitReachedOn: limit.outcome === 'WARN' && limit.reachedOn ? limit.reachedOn.toISOString().slice(0, 10) : null,
+              reasonGiven: item.tenureReason,
+            },
+            reversible: true,
+          },
+        })
+      }
+      if (item.workAuthWarning) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_WORK_AUTH_WARNED',
+            summary: `${person.name} submitted to "${requirement.title}" without work authorization covering the start`,
+            reason: item.workAuthWarning,
+            payload: { submissionId: submission.id, requirementId, personId, code: item.workAuthCode },
+            reversible: true,
+          },
+        })
+      }
+
+      // 6. Write AccessLog — submission is a read of person's data
+      void emit({
+        type: 'submission.created',
+        companyId: fromCompanyId,
+        subjectType: 'Submission',
+        subjectId: submission.id,
+        actorPersonId: submitter?.id ?? null,
+        payload: {
+          requirementId,
+          personId: person.id,
+          rateCents: rate,
+          toCompanyId: requirement.companyId,
+          offBand: Boolean(item.warning),
+        },
+      })
+
+      // 6. Write AccessLog — submission is a read of person's data
+      await recordAccess([personId], {
+        actorPersonId: submitter?.id,
+        actorCompanyId: fromCompanyId,
+        action: 'SUBMIT',
+        // Warned and went ahead: the warnings and the reason given are
+        // the record, here, until the automation ladder has a rung for
+        // them (asked of etyme-architect, beside SUBMISSION_OFF_BAND).
+        reason: [
+          `Submitted to "${requirement.title}"`,
+          item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
+          item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
+        ].filter(Boolean).join(' — '),
+      })
+
+      item.status = 'created'
+      item.submissionId = submission.id
+      item.kind = kind
+      item.submittedAt = submission.submittedAt.toISOString()
+    } catch (err: any) {
+      // Handle race condition on duplicate
+      if (err?.code === 'P2002') {
+        item.status = 'duplicate'
+        item.error = 'This person has already been submitted (concurrent submission)'
+      } else {
+        item.status = 'error'
+        item.error = 'Submission failed'
+        reportError(`Submission failed for person ${personId}:`, err)
+      }
+    }
+
+    results.push(item)
+  }
+
+  const created = results.filter((r) => r.status === 'created')
+  const errors = results.filter((r) => r.status === 'error')
+  const duplicates = results.filter((r) => r.status === 'duplicate')
+  // Stopped because another agency is already representing them there.
+  // Counted apart from errors: nobody did anything wrong, and the vendor
+  // may well want to wait for the hold to lapse.
+  const held = results.filter((r) => r.status === 'held')
+  // Warned about the client's time limit and not yet given a reason.
+  // Nothing was written for them; the same press with a reason goes on.
+  const needsReason = results.filter((r) => r.status === 'needs_reason')
+
+  // Notify the requirement owner about new submissions
+  if (created.length > 0) {
+    // Find admins at the requirement's company who should see submissions
+    const recipientContexts = await prisma.context.findMany({
+      where: {
+        companyId: toCompanyId,
+        role: { permissions: { hasSome: ['submissions.read'] } },
+      },
+      select: { personId: true },
+      take: 5,
+    })
+
+    const notifications: NotifyParams[] = []
+    for (const ctx of recipientContexts) {
+      notifications.push({
+        personId: ctx.personId,
+        companyId: toCompanyId,
+        type: 'SUBMISSION',
+        title: created.length === 1
+          ? `New submission for "${requirement.title}"`
+          : `${created.length} new submissions for "${requirement.title}"`,
+        body: created.length === 1
+          ? `A candidate was submitted to your requirement "${requirement.title}"`
+          : `${created.length} candidates were submitted to your requirement "${requirement.title}"`,
+        entityId: requirementId,
+        data: {
+          requirementId,
+          count: created.length,
+          submissionIds: created.map((r: any) => r.submissionId),
+        },
+      })
+    }
+
+    if (notifications.length > 0) {
+      notifyBulk(notifications)
+    }
+  }
+
+  return NextResponse.json({
+    data: {
+      requirementId,
+      results,
+      summary: {
+        submitted: created.length,
+        duplicates: duplicates.length,
+        heldElsewhere: held.length,
+        needsReason: needsReason.length,
+        errors: errors.length,
+        total: personIds.length,
+      },
+      message: [
+        `${created.length} submitted`,
+        `${duplicates.length} duplicates`,
+        held.length > 0 ? `${held.length} already represented elsewhere` : null,
+        needsReason.length > 0 ? `${needsReason.length} waiting on a reason` : null,
+        `${errors.length} errors`,
+      ].filter(Boolean).join(', '),
+      // Said on the way out, not swallowed. The submission stood; the
+      // firm still owes the client a document its orders require, and
+      // the sentence names it while somebody is looking at the screen.
+      coverWarning,
+    },
+  })
+}
+
+/**
+ * GET /api/submissions
+ *
+ * BUILD.md: direction=sent|received
+ */
+export async function GET(request: NextRequest) {
+  // Was `getSessionEmail` alone, which answers "is somebody signed in"
+  // and nothing else. The seat is what says which submissions are theirs.
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  // ── Whose pipeline this is ──────────────────────────────────────────
+  //
+  // A program office in a seat is reading the client's submissions —
+  // shortlisting is most of what running a program is. Read as its own
+  // it opened on "0 submissions" beside a Requisitions page showing the
+  // client's nine roles, with nothing on the screen to say the two lists
+  // were about different companies. Silence is the worst of the three
+  // possible answers; a refusal would at least have been true.
+  const desk = await seatedDesk(caller)
+  const deskId = desk?.companyId ?? caller.company?.id ?? null
+
+  const url = request.nextUrl
+  const direction = url.searchParams.get('direction') ?? 'sent'
+  // Under a seat the desk decides, not the query string. The page asks
+  // for the caller's own company because that is what `/api/me` told it,
+  // and the seat is the later fact.
+  const companyId = desk?.seat ? deskId : url.searchParams.get('companyId')
+  const filterPersonId = url.searchParams.get('personId')
+  const filterRequirementId = url.searchParams.get('requirementId')
+  const status = url.searchParams.get('status')
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
+
+  // personId-only or requirementId-only queries skip the companyId requirement
+  if (!companyId && !filterPersonId && !filterRequirementId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'companyId or personId is required', field: 'companyId' } },
+      { status: 422 }
+    )
+  }
+
+  // Every filter below comes from the query string, and until now the
+  // whole WHERE did: `?personId=` returned one person's entire history
+  // across every firm in the market with rates attached, and `?companyId=`
+  // returned a competitor's outbound pipeline. The caller was
+  // authenticated and never authorized.
+  //
+  // Prisma ANDs top-level keys, so the scope's OR binds the caller into
+  // every query below rather than replacing what was asked for.
+  const scope = desk?.seat
+    ? { OR: [{ fromCompanyId: deskId }, { toCompanyId: deskId }] }
+    : submissionScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notAtACompany('Submissions') } },
+      { status: 403 }
+    )
+  }
+
+  const where: any = { ...scope }
+
+  // ── A seat with no desk reads only the submissions naming its holder ──
+  //
+  // Round five, problem 4. Karthik Menon's seat reads his own work and his
+  // own hours and nothing else, and this list handed him all six of
+  // Teleworld's submissions with each colleague's rate. A seat holding no
+  // desk now reads the submissions that name its holder, whichever way
+  // they faced, with no rate on them; asking for somebody else's is
+  // refused without naming them, and logged where the person exists.
+  const reach = submissionReach({
+    permissions: caller.permissions,
+    seated: !!desk?.seat,
+    consultantSeat: isConsultantSeat(caller),
+    callerPersonId: caller.person.id,
+    askedPersonId: filterPersonId,
+    atAClient: caller.company?.kind === 'CLIENT',
+  })
+  if ('clientNoDesk' in reach) {
+    // A client's desk-less seat: what suppliers sent this client is the
+    // hiring desk's to read, and every person it would have named is
+    // logged as refused before the sentence goes out.
+    const says = clientSubmissionsRefused(caller.company?.name ?? null)
+    const would = await prisma.submission.findMany({
+      where: { toCompanyId: caller.company!.id },
+      select: { personId: true },
+      distinct: ['personId'],
+    })
+    await recordRefusal(would.map((w) => w.personId), {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'PROFILE_VIEW',
+      allowed: false,
+      reason: `Submissions refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'NO_DESK', message: says } }, { status: 403 })
+  }
+  if ('refused' in reach) {
+    const exists = await prisma.person.findUnique({ where: { id: reach.askedPersonId }, select: { id: true } })
+    const says = othersSubmissionsRefused(caller.company?.name ?? null)
+    if (exists) {
+      await recordRefusal([reach.askedPersonId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id ?? undefined,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: `Submissions refused: ${says}`,
+      })
+    }
+    return NextResponse.json({ error: { code: 'NO_DESK', message: says } }, { status: 403 })
+  }
+  const ownOnly = 'ownOnly' in reach && reach.ownOnly
+
+  if (ownOnly) {
+    where.personId = caller.person.id
+  } else if (filterPersonId) {
+    where.personId = filterPersonId
+  } else if (direction === 'sent') {
+    where.fromCompanyId = companyId
+  } else {
+    where.toCompanyId = companyId
+  }
+
+  if (filterRequirementId) {
+    where.requirementId = filterRequirementId
+  }
+
+  if (status) {
+    where.status = status.toUpperCase()
+  }
+
+  const [submissions, total] = await Promise.all([
+    prisma.submission.findMany({
+      where,
+      include: {
+        person: { select: { id: true, name: true } },
+        // companyId and the panel come back so the client's own side of
+        // this list can open an interview form with the room already in
+        // it. Neither is sent to a supplier — see the mapping below.
+        requirement: { select: { id: true, title: true, skills: true, companyId: true, interviewers: true } },
+        fromCompany: { select: { id: true, name: true } },
+        toCompany: { select: { id: true, name: true } },
+        // The hop this row came up, so "how they came" is read off the
+        // chain rather than off the stored kind (`submissionKindWord`).
+        parentSubmission: { select: { fromCompany: { select: { name: true } } } },
+        // Where each candidate has got to, so a row can say it without a
+        // second call per row. Four fields — no feedback, no panel, no
+        // notes: this list is read by both sides of the trade, and what
+        // an interviewer wrote is the client's alone.
+        interviews: {
+          select: { id: true, round: true, state: true, outcome: true, scheduledAt: true },
+          orderBy: { round: 'asc' },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.submission.count({ where }),
+  ])
+
+  // The contract behind each row, keyed the way the award keys its own
+  // idempotency — one person, one requisition — so a row that already
+  // has a line says so and one that has none can still be placed.
+  const lines = submissions.length
+    ? await prisma.sellContract.findMany({
+        where: { OR: submissions.map((s) => ({ requirementId: s.requirementId, personId: s.personId })) },
+        select: { id: true, requirementId: true, personId: true },
+      })
+    : []
+  const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
+  const mayHire = hasPermission(caller.permissions, 'requirements.write')
+
+  return NextResponse.json({
+    data: {
+      submissions: submissions.map((s) => ({
+        id: s.id,
+        person: s.person,
+        requirement: {
+          id: s.requirement.id,
+          title: s.requirement.title,
+          skills: s.requirement.skills,
+          // The hiring panel is the client's own list of names, and the
+          // same reasoning that keeps interview feedback off this list
+          // keeps the panel off it: a supplier learns who is in the room
+          // when a round is proposed to it, not before.
+          interviewers:
+            s.requirement.companyId === deskId ? s.requirement.interviewers : null,
+        },
+        fromCompany: s.fromCompany,
+        toCompany: s.toCompany,
+        kind: s.kind,
+        // Whether it came up from another firm's submission, and that
+        // firm's name only to the firm that bought from it — a client never
+        // learns the name of a rung below the one it pays.
+        came: {
+          chained: !!s.parentSubmission,
+          through: s.parentSubmission && s.fromCompanyId === deskId ? s.parentSubmission.fromCompany.name : null,
+        },
+        // What the firm asked for the person is the selling desk's to
+        // read; a seat with no desk reads its own row without it.
+        rate: ownOnly ? null : s.rate,
+        status: s.status,
+        submittedAt: s.submittedAt.toISOString(),
+        // Whether it has been sent on, so the list can offer the button
+        // — and, once used, say plainly that it was used. The route was
+        // built and nothing in the product could reach it.
+        forwardedAt: s.forwardedAt?.toISOString() ?? null,
+        forwardedVia: s.forwardedVia,
+        forwardedToEmail: s.forwardedToEmail,
+        // Rounds so far, oldest first. Empty for the great majority —
+        // most submissions never reach an interview at all.
+        interviews: s.interviews.map((i) => ({
+          id: i.id,
+          round: i.round,
+          state: i.state,
+          outcome: i.outcome,
+          scheduledAt: i.scheduledAt?.toISOString() ?? null,
+        })),
+        // The line the award wrote for this person on this requisition,
+        // where there is one — the row links to the placement.
+        contractId: lineFor.get(`${s.requirementId}:${s.personId}`) ?? null,
+        // Whether this reader may place this candidate, asked of the
+        // same function the award route refuses on, so "Place" is never
+        // offered to a desk the route would turn away.
+        award: (() => {
+          const door = awardDoor({
+            callerCompanyId: caller.company?.id ?? null,
+            callerCompanyName: caller.company?.name ?? null,
+            mayHire,
+            requirementCompanyId: s.requirement.companyId,
+            fromCompanyId: s.fromCompanyId,
+            fromCompanyName: s.fromCompany.name,
+            toCompanyId: s.toCompanyId,
+            toCompanyName: s.toCompany.name,
+            personName: s.person.name,
+            status: s.status,
+            contractId: lineFor.get(`${s.requirementId}:${s.personId}`) ?? null,
+          })
+          return { open: door.open, says: door.says }
+        })(),
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // Whose book was read. Said out loud so the screen can say it too:
+      // a program office reading nine submissions should never have to
+      // work out whether they are its own or the client's.
+      desk: {
+        companyId: deskId,
+        companyName: desk?.companyName ?? caller.company?.name ?? null,
+        seated: !!desk?.seat,
+        // Only the submissions naming the reader, and no rates (round five).
+        ownOnly,
+        ownSays: ownOnly ? ownSubmissionsSays(caller.company?.name ?? null) : null,
+        says: desk?.seat
+          ? `You are at ${desk.companyName}'s desk. These are the people put in front of ${desk.companyName}, not ${caller.company?.name ?? 'your firm'}.`
+          : null,
+      },
+    },
+  })
+}
+
+/**
+ * The firms on this firm's network: its own active counterparties and the
+ * firms that hold it on theirs.
+ *
+ * The same rule Bench → Your network reads (`app/api/bench`, scope
+ * network), so a person offered on that screen is a person this door will
+ * take, and one it will not is not offered there either. Read here rather
+ * than imported because that rule lives inside etyme-supply's route.
+ */
+async function networkOf(companyId: string): Promise<Set<string>> {
+  const [mine, theirs] = await Promise.all([
+    prisma.counterparty.findMany({ where: { companyId, status: 'ACTIVE' }, select: { otherCompanyId: true } }),
+    prisma.counterparty.findMany({ where: { otherCompanyId: companyId, status: 'ACTIVE' }, select: { companyId: true } }),
+  ])
+  return new Set([...mine.map((c) => c.otherCompanyId), ...theirs.map((c) => c.companyId)])
+}

@@ -1,0 +1,1183 @@
+/**
+ * The money layers the spine never wrote.
+ *
+ * ── What was missing ─────────────────────────────────────────────────
+ *
+ * The seeded world has 38 placements, both legs of each, four weeks of
+ * hours apiece, invoices and payments. What it did not have was anything
+ * ABOVE or BELOW the invoice:
+ *
+ *   above   the order that authorized the spend in the first place. No
+ *           `WorkOrder` existed anywhere, so every ceiling was unreachable,
+ *           the milestones screen was permanently empty, and
+ *           `cron/auto-approve` read `autoApproveTimesheets` off a row
+ *           that did not exist — false on every timesheet in the world,
+ *           from the day the job was written.
+ *   below   the books. Nothing accumulated against a project, nothing
+ *           posted to a ledger, no AP run was ever assembled, and no rate
+ *           had ever changed.
+ *
+ * ── Fill from the work, not from data entry ──────────────────────────
+ *
+ * Every row here is derived from something the world seed already wrote,
+ * through the same function the product uses where one exists:
+ *
+ *   `postAssertion` (lib/order-postings)  the route that signs a week
+ *   `orderFor`                            opens the project order
+ *   `entryFor`/`onInvoice` (lib/gl)       decide which accounts are hit
+ *
+ * Nothing invents a placement, a person or a firm. If a figure here is
+ * wrong, it is wrong because the contract it was read off is wrong.
+ *
+ * ── Honest gap, written down rather than implied ─────────────────────
+ *
+ * No production route writes `JournalEntry`, `LedgerAccount` or
+ * `JournalLine` — `lib/gl` has known how to post since it was written and
+ * nothing calls it. So the ledger below is the seed applying gl's own
+ * rules to postings the product did make. It fills the export screen; it
+ * does not mean a real customer's ledger fills itself. That is a build
+ * owed, not a build done.
+ */
+
+import type { Prisma } from '@prisma/client'
+import { prisma as db } from '@/lib/db'
+import { day } from '@/lib/seed-days'
+import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
+import { postAssertion, removeWithdrawnPostings } from '@/lib/order-postings'
+import { DEFAULT_ACCOUNTS, entryFor, onInvoice, onCreditNote, onReceipt, type Entry } from '@/lib/gl'
+import { alreadyOnABill, type BillOnRecord } from '@/lib/money/billed-elsewhere'
+
+export interface SeedContext {
+  firmBySlug: Map<string, { id: string }>
+  seatBySlug: Map<string, { personId: string; email: string }>
+  domain: string
+  prefix: string
+  /**
+   * Every company the world seed writes, by slug. Read instead of the
+   * prefix, because a real firm can be born with a `world-` slug and a
+   * seed must never write into it.
+   */
+  roster: string[]
+}
+
+export interface OrderToCash {
+  orders: number
+  milestones: number
+  projectOrders: number
+  postings: number
+  journalEntries: number
+  expenses: number
+}
+
+/** The desk that pays, at a seeded client program. */
+async function deskAt(ctx: SeedContext, clientSlug: string, key: string) {
+  return db.person.findUnique({
+    where: { primaryEmail: `${ctx.prefix}${clientSlug}-${key}@${ctx.domain}` },
+    select: { id: true },
+  })
+}
+
+/** Cents to whole currency, for the columns that are Decimal. */
+const whole = (cents: number) => cents / 100
+
+/**
+ * The ids of every company on the world's roster.
+ *
+ * Every read in this layer is bounded by it and every write lands inside
+ * it. A production database holds real firms and every visitor's demo
+ * sandbox beside the world, and until 2026-09-29 the books read every
+ * posting, invoice and payment in the database and opened a ledger for any
+ * firm with a posting — so on production the step was both more than one
+ * function call could finish and a seed writing journal entries into
+ * books that were not the world's. The postings and the pipeline were
+ * unbounded the same way. A seed writes the demo world and nothing else.
+ */
+/**
+ * What a seeded invoice receipt from a firm below may honestly hold: the
+ * weeks the paying firm itself accepted, none already on a bill that firm
+ * generated here, priced at the leg's rate on the hours the payer
+ * accepted. Null where nothing is left, and then nothing is written.
+ *
+ * It was "four weeks at the rate" — 160 hours over day -32 to day -4 —
+ * whatever had been accepted or billed, so INV-CPRLJK held a week
+ * Computer Systems had not accepted and overlapped bills Techpeple had
+ * already been paid on (2026-09-30).
+ *
+ * Only the weeks after the last one already billed are taken, so the
+ * period the receipt states never spans a billed week, and the check a
+ * payer's intake runs (`alreadyOnABill`) is asked once more over the
+ * whole period before anything is priced.
+ */
+// How a payer accepts a week it pays for. A firm carrying the hours of a
+// supplier that is not on the platform (Pinnacle over Bluecrest) is the
+// lowest firm on the system and signs as the employer; that signature is
+// still its acceptance of what it pays.
+const PAYER_ACCEPTS: ('PASS_THROUGH' | 'CLIENT_APPROVAL' | 'EMPLOYER_ACCEPTANCE')[] =
+  ['PASS_THROUGH', 'CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE']
+
+export async function acceptedWeeksToBill(input: {
+  payerId: string
+  vendorId: string
+  personIds: string[]
+  rateCents: number
+  since: Date
+}): Promise<{ periodStart: Date; periodEnd: Date; totalCents: number; hours: number } | null> {
+  if (!input.personIds.length || !input.rateCents) return null
+  const sheets = await db.timesheet.findMany({
+    where: {
+      personId: { in: input.personIds },
+      periodStart: { gte: input.since },
+      assertions: { some: { companyId: input.payerId, state: 'LIVE', role: { in: PAYER_ACCEPTS } } },
+    },
+    select: {
+      id: true, personId: true, periodStart: true, periodEnd: true, days: true,
+      person: { select: { name: true } },
+      assertions: {
+        where: { companyId: input.payerId, state: 'LIVE', role: { in: PAYER_ACCEPTS } },
+        select: { hours: true },
+      },
+      invoiceLines: {
+        where: { sellContract: { companyId: input.vendorId, clientCompanyId: input.payerId } },
+        select: { invoice: { select: { number: true, status: true } } },
+      },
+    },
+    orderBy: { periodStart: 'asc' },
+  })
+  const liveBill = (l: { invoice: { status: string } }) => !['VOID', 'CANCELLED', 'CREDITED'].includes(l.invoice.status)
+  const billed = sheets.filter((t) => t.invoiceLines.some(liveBill))
+  const lastBilled = billed.length ? billed[billed.length - 1].periodEnd : null
+  const weeks = sheets.filter((t) => !t.invoiceLines.some(liveBill) && (!lastBilled || t.periodStart > lastBilled))
+  if (!weeks.length) return null
+  const periodStart = weeks[0].periodStart
+  const periodEnd = weeks[weeks.length - 1].periodEnd
+  const bills: BillOnRecord[] = billed.map((t) => ({
+    number: t.invoiceLines.find(liveBill)!.invoice.number,
+    vendorName: '',
+    lines: [{ personId: t.personId, personName: t.person.name, days: (t.days ?? {}) as Record<string, number> }],
+  }))
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  if (alreadyOnABill({ periodStart: iso(periodStart), periodEnd: iso(periodEnd), personIds: input.personIds }, bills)) return null
+  const hours = weeks.reduce((n, t) => n + Number(t.assertions[0]?.hours ?? 0), 0)
+  if (hours <= 0) return null
+  return { periodStart, periodEnd, hours, totalCents: Math.round(hours * input.rateCents) }
+}
+
+async function worldCompanyIds(ctx: SeedContext): Promise<string[]> {
+  const rows = await db.company.findMany({ where: { slug: { in: ctx.roster } }, select: { id: true } })
+  return rows.map((r) => r.id)
+}
+
+/**
+ * The four parts of this layer, each able to run on its own call.
+ *
+ * The world seeds in steps that each fit inside one function call
+ * (lib/seed-steps), and this layer alone was nine thousand queries on a
+ * fresh world — more than a minute against a database in another
+ * building. Each part reads what it needs back from the database rather
+ * than from the part before it, so a part can run in a later call, in a
+ * different process, and write what it would have written in one pass.
+ *
+ *   orders    the client's coding, the order layer, milestone billing
+ *   postings  what each project earned and cost, off every signed week
+ *   books     a chart of accounts, a balanced entry per posting, invoice
+ *             and receipt, and the one credit note
+ *   rest      the rate on file, expenses, and the buy side's bills and run
+ */
+export const ORDER_TO_CASH_PARTS = ['orders', 'postings', 'books', 'rest'] as const
+export type OrderToCashPart = (typeof ORDER_TO_CASH_PARTS)[number]
+
+/**
+ * The parts cut again into shares, and how many — one step each, because
+ * one function call cannot hold them whole against a distant database.
+ *
+ *   postings  sixteen. Each signed week goes through the product's own
+ *             `postAssertion`, about twenty queries a week, so a share is
+ *             the one thing here whose cost grows with the world. Sixteen
+ *             keeps a share near three hundred queries on a fresh world;
+ *             a world that signs more weeks raises this, and
+ *             `__integration__/seed-step-size.test.ts` says when.
+ *   books     four. Written in batches a share costs a few dozen queries
+ *             whatever it holds; the cut keeps each share's transaction
+ *             short and a share lost to a timeout small.
+ */
+export const PART_SHARES: Partial<Record<OrderToCashPart, number>> = { postings: 16, books: 4 }
+
+export async function seedOrderToCash(
+  ctx: SeedContext,
+  parts: readonly OrderToCashPart[] = ORDER_TO_CASH_PARTS,
+  /**
+   * Postings and books only: which share to do — the `index`th of `of`
+   * contiguous shares, by id. Posting a week goes through the product's
+   * own `postAssertion`, about twenty queries a week, so the postings are
+   * cut to keep a share inside one call; the books are cut so a share's
+   * writes stay one short transaction.
+   */
+  slice?: Share
+): Promise<OrderToCash> {
+  const want = (part: OrderToCashPart) => parts.includes(part)
+  const out: OrderToCash = {
+    orders: 0, milestones: 0, projectOrders: 0, postings: 0, journalEntries: 0, expenses: 0,
+  }
+  let worldIds: string[] | null = null
+  const world = async () => (worldIds ??= await worldCompanyIds(ctx))
+
+  if (want('orders')) {
+    // ── 1. The client's own coding ──────────────────────────────────────
+    //
+    // Interface only. It exists so a figure leaving here lands on the right
+    // line in the client's own ERP, and it is carried outward by every
+    // project order opened underneath it. Written before the orders below,
+    // because `orderFor` copies it off the requirement.
+    const clients = await db.company.findMany({
+      where: { slug: { in: ctx.roster }, kind: 'CLIENT' },
+      select: { id: true, slug: true, name: true },
+    })
+    for (const client of clients) {
+      const code = `IO-${client.id.slice(-4).toUpperCase()}-4711`
+      const io =
+        (await db.internalOrder.findFirst({ where: { companyId: client.id, code } })) ??
+        (await db.internalOrder.create({
+          data: {
+            companyId: client.id, code,
+            name: 'Contingent labor — technology',
+            budgetCents: 4_000_000_00, currency: 'USD',
+            opensAt: day(-365), isActive: true,
+          },
+        }))
+      // Onto the requisitions it pays for, which is how the code reaches a
+      // supplier's books at all.
+      await db.requirement.updateMany({
+        where: { companyId: client.id, internalOrderId: null },
+        data: { internalOrderId: io.id },
+      })
+    }
+
+    // ── 2. The order layer ──────────────────────────────────────────────
+    //
+    // One commercial document with three names: the buyer raises a purchase
+    // order, the seller files the same paper as its sales order, and the
+    // trade calls it a work order. `lib/order-naming` decides which word a
+    // given reader is shown; the row here carries both numbers, because an
+    // invoice quoting the wrong one is a fortnight of AP email.
+    //
+    // One order per (buyer, seller) pair rather than one per placement —
+    // that is what an order IS. A five-person project is one commitment and
+    // five contracts, and the ceiling is the control over all five.
+    const running = await db.sellContract.findMany({
+      where: {
+        state: { in: ['IN_PROGRESS', 'PAUSED'] },
+        company: { slug: { in: ctx.roster } },
+        clientCompany: { slug: { in: ctx.roster } },
+      },
+      select: {
+        id: true, companyId: true, clientCompanyId: true, billRate: true,
+        startDate: true, endDate: true, engagementId: true, msaId: true,
+        company: { select: { name: true } },
+        clientCompany: { select: { id: true, name: true, kind: true, slug: true } },
+      },
+    })
+
+    interface Pair {
+      buyerId: string; sellerId: string; buyerKind: string; buyerSlug: string
+      sellerName: string
+      rateCents: number; start: Date; end: Date | null
+      engagementId: string | null; msaId: string | null
+    }
+    const pairs = new Map<string, Pair>()
+    for (const c of running) {
+      if (!c.startDate) continue
+      const key = `${c.clientCompanyId}:${c.companyId}`
+      const at = pairs.get(key)
+      if (!at) {
+        pairs.set(key, {
+          buyerId: c.clientCompanyId, sellerId: c.companyId,
+          buyerKind: c.clientCompany.kind, buyerSlug: c.clientCompany.slug,
+          sellerName: c.company.name,
+          rateCents: c.billRate, start: c.startDate, end: c.endDate,
+          engagementId: c.engagementId, msaId: c.msaId,
+        })
+      } else {
+        at.rateCents += c.billRate
+        if (c.startDate < at.start) at.start = c.startDate
+        if (c.endDate && (!at.end || c.endDate > at.end)) at.end = c.endDate
+      }
+    }
+
+    // Where the work happens, for the order's ship-to. Seeded by
+    // `seed-standing`, which runs before this.
+    const sites = await db.companyLocation.findMany({
+      where: { isPrimary: true, companyId: { in: await world() } },
+      select: { id: true, companyId: true },
+    })
+    const siteOf = new Map(sites.map((s) => [s.companyId, s.id]))
+
+    // Every order the world's buyers have raised, read once and kept
+    // current as this loop raises and renames them — rather than three
+    // lookups a pair. A number is unique at its buyer, so each lookup below
+    // has at most one answer, exactly as the query it replaces did.
+    const raisedBy = await db.workOrder.findMany({
+      where: { issuedById: { in: [...new Set([...pairs.values()].map((p) => p.buyerId))] } },
+      select: { id: true, issuedById: true, issuedToId: true, number: true },
+    })
+    const orderAt = (buyerId: string, number: string, to: (sellerId: string) => boolean) =>
+      raisedBy.find((o) => o.issuedById === buyerId && o.number === number && to(o.issuedToId))
+
+    for (const p of pairs.values()) {
+      // Deterministic from the two ids, so a second seeding finds the order
+      // it wrote the first time rather than raising a duplicate against the
+      // unique on (issuedById, number).
+      //
+      // From BOTH ids, which the comment above claimed and the code did
+      // not: keyed on the seller alone, three different clients buying
+      // from one supplier each raised a purchase order carrying the same
+      // number, and the supplier read three of its clients' orders under
+      // one reference. A purchase order number is the buyer's own
+      // document, so the buyer leads it and the counterparty distinguishes
+      // it. Same five-character shape, so nothing that reads a number
+      // changes.
+      //
+      // Two characters of the seller can be the same for two sellers one
+      // buyer uses — ids are random — and then the second pair found the
+      // first pair's order, took it for its own and raised none: a world
+      // came out one order short at random, which the rebuild test caught
+      // on 2026-09-29. Where the short number already belongs to another
+      // seller at this buyer, the seller's last four characters go in.
+      const short =
+        `PO-${day(0).getUTCFullYear()}-` +
+        `${p.buyerId.slice(-3)}${p.sellerId.slice(-2)}`.toUpperCase()
+      const taken = orderAt(p.buyerId, short, (to) => to !== p.sellerId)
+      const number = taken
+        ? `PO-${day(0).getUTCFullYear()}-${p.buyerId.slice(-3)}${p.sellerId.slice(-4)}`.toUpperCase()
+        : short
+      // A world seeded under the seller-only shape is renamed in place
+      // rather than given a second order, so a re-seed stays a no-op.
+      const legacyNumber = `PO-${day(0).getUTCFullYear()}-${p.sellerId.slice(-5).toUpperCase()}`
+      if (legacyNumber !== number) {
+        const legacy = orderAt(p.buyerId, legacyNumber, (to) => to === p.sellerId)
+        if (legacy) {
+          await db.workOrder.update({ where: { id: legacy.id }, data: { number } })
+          legacy.number = number
+        }
+      }
+      const already = orderAt(p.buyerId, number, (to) => to === p.sellerId)
+      let orderId = already?.id ?? null
+      if (!orderId) {
+        // A year of the placements underneath it at full time, rounded up
+        // to the nearest thousand. A ceiling is a round number somebody
+        // signed, never a computed cent — and it has to sit above what has
+        // already been billed or the order reads as exhausted on day one.
+        const yearCents = p.rateCents * 40 * 52
+        const amount = Math.ceil(yearCents / 100_000) * 1_000
+
+        // Silence counts as approval only where the CLIENT said so, on the
+        // client's own order. Cavanaugh Glassworks is the program that
+        // agreed it; the other two answer their weeks by hand, which is the
+        // ordinary case and the one the queue on the desk is for.
+        const autoApproves = p.buyerSlug === `${ctx.prefix}corning`
+
+        const raised = await db.workOrder.create({
+          data: {
+            number,
+            sellerNumber: `SO-${p.buyerId.slice(-5).toUpperCase()}`,
+            title: `Contingent staffing — ${p.sellerName}`,
+            issuedById: p.buyerId,
+            issuedToId: p.sellerId,
+            // The buyer raised it. A supplier recording paper it was handed
+            // is `lib/off-system`'s case and there is no shell here.
+            recordedById: p.buyerId,
+            amount, currency: 'USD',
+            billingBasis: 'TIME', billFrequency: 'MONTHLY',
+            paymentTerms: 45,
+            autoApproveTimesheets: autoApproves,
+            approvalWindowDays: autoApproves ? 5 : null,
+            shipToId: siteOf.get(p.buyerId) ?? null,
+            engagementId: p.engagementId, msaId: p.msaId,
+            status: 'OPEN',
+            startDate: p.start,
+            // A month past the last placement on it, because an order that
+            // closes the day the work does cannot carry the final invoice.
+            endDate: p.end ? new Date(p.end.getTime() + 30 * 86_400_000) : null,
+            createdAt: p.start,
+          },
+          select: { id: true },
+        })
+        orderId = raised.id
+        raisedBy.push({ id: raised.id, issuedById: p.buyerId, issuedToId: p.sellerId, number })
+        out.orders++
+      }
+
+      // Attach what was already running with no order, exactly as
+      // `POST /api/purchase-orders` does — without this the order exists
+      // and every invoice still fails the match, which reads as the
+      // feature not working.
+      await db.sellContract.updateMany({
+        where: {
+          companyId: p.sellerId, clientCompanyId: p.buyerId,
+          workOrderId: null, state: { in: ['IN_PROGRESS', 'PAUSED'] },
+        },
+        data: { workOrderId: orderId },
+      })
+      // And the buyer's own leg where it bought from this supplier. Never a
+      // W2 leg: a purchase order raised to your own employee is a
+      // contradiction, which is why `BuyContract.workOrderId` is nullable.
+      await db.buyContract.updateMany({
+        where: {
+          companyId: p.buyerId, vendorCompanyId: p.sellerId,
+          workOrderId: null, state: { in: ['IN_PROGRESS', 'PAUSED'] },
+        },
+        data: { workOrderId: orderId },
+      })
+    }
+
+    // Every invoice quotes the order its contract bills against, so the
+    // three-way match has a PO to check rather than a blank. The world's
+    // invoices only: a real firm's invoice is its own to put an order on.
+    const linesToOrder = await db.invoiceLine.findMany({
+      where: {
+        sellContract: { workOrderId: { not: null }, companyId: { in: await world() } },
+        invoice: { workOrderId: null },
+      },
+      select: { invoiceId: true, sellContract: { select: { workOrderId: true } } },
+    })
+    const invoiceOrder = new Map<string, string>()
+    for (const l of linesToOrder) {
+      if (l.sellContract?.workOrderId) invoiceOrder.set(l.invoiceId, l.sellContract.workOrderId)
+    }
+    for (const [invoiceId, workOrderId] of invoiceOrder) {
+      await db.invoice.update({ where: { id: invoiceId }, data: { workOrderId } })
+    }
+
+    // ── 3. Milestone billing ────────────────────────────────────────────
+    //
+    // A fixed-price piece of work beside the hourly book: three payments on
+    // delivery rather than on hours. Three milestones in three states, so
+    // the screen shows the whole shape — one accepted and billed, one
+    // handed over and waiting on the client, one not due yet.
+    //
+    // The gap between `deliveredAt` and `acceptedAt` is the interesting
+    // part and the reason both columns exist.
+    const gsi = ctx.firmBySlug.get('teleworld')
+    const aero = ctx.firmBySlug.get('corveldt')
+    if (gsi && aero) {
+      const number = `PO-${day(0).getUTCFullYear()}-MS-${gsi.id.slice(-4).toUpperCase()}`
+      let order = await db.workOrder.findFirst({
+        where: { issuedById: aero.id, number },
+        select: { id: true, engagementId: true },
+      })
+      if (!order) {
+        const eng = await db.engagement.findFirst({
+          where: { msa: { vendorId: gsi.id, clientId: aero.id } },
+          select: { id: true, msaId: true },
+        })
+        order = await db.workOrder.create({
+          data: {
+            number,
+            sellerNumber: `SO-MS-${aero.id.slice(-4).toUpperCase()}`,
+            title: 'DO-178C certification evidence — fixed price',
+            issuedById: aero.id, issuedToId: gsi.id, recordedById: aero.id,
+            amount: 285_000, currency: 'USD',
+            billingBasis: 'MILESTONE', billFrequency: 'CUSTOM',
+            paymentTerms: 45, status: 'OPEN',
+            shipToId: siteOf.get(aero.id) ?? null,
+            engagementId: eng?.id ?? null, msaId: eng?.msaId ?? null,
+            startDate: day(-120), endDate: day(180),
+            createdAt: day(-120),
+          },
+          select: { id: true, engagementId: true },
+        })
+        out.orders++
+      }
+
+      const plan: {
+        name: string; amountCents: number; dueOn: number; sortOrder: number
+        status: string; deliveredOn?: number; acceptedOn?: number; note?: string
+      }[] = [
+        {
+          name: 'Requirements and test plan signed off', amountCents: 95_000_00,
+          dueOn: -60, sortOrder: 1, status: 'ACCEPTED', deliveredOn: -64, acceptedOn: -58,
+          note: 'Accepted with the traceability matrix attached.',
+        },
+        {
+          name: 'Verification dry run complete', amountCents: 95_000_00,
+          dueOn: -2, sortOrder: 2, status: 'DELIVERED', deliveredOn: -5,
+          note: 'Handed over on the 5th; the DER has it.',
+        },
+        {
+          name: 'Certification evidence pack', amountCents: 95_000_00,
+          dueOn: 60, sortOrder: 3, status: 'PENDING',
+        },
+      ]
+      const accepted: { id: string; name: string; amountCents: number }[] = []
+      for (const m of plan) {
+        const exists = await db.orderMilestone.findFirst({
+          where: { orderId: order.id, name: m.name },
+          select: { id: true, name: true, amountCents: true, status: true },
+        })
+        const by = await deskAt(ctx, 'corveldt', 'programme')
+        const row =
+          exists ??
+          (await db.orderMilestone.create({
+            data: {
+              orderId: order.id, name: m.name, amountCents: m.amountCents,
+              dueOn: day(m.dueOn), sortOrder: m.sortOrder, status: m.status,
+              deliveredAt: m.deliveredOn == null ? null : day(m.deliveredOn),
+              deliveredById: m.deliveredOn == null ? null : ctx.seatBySlug.get('teleworld')?.personId ?? null,
+              acceptedAt: m.acceptedOn == null ? null : day(m.acceptedOn),
+              acceptedById: m.acceptedOn == null ? null : by?.id ?? null,
+              note: m.note ?? null,
+              createdAt: day(-120),
+            },
+            select: { id: true, name: true, amountCents: true, status: true },
+          }))
+        if (!exists) out.milestones++
+        if (m.status === 'ACCEPTED' || row.status === 'INVOICED') accepted.push(row)
+      }
+
+      // The accepted one rides on an invoice as a line of its own: no
+      // person, no contract, the acceptance as its receipt.
+      for (const m of accepted) {
+        if (await db.invoiceLine.findFirst({ where: { milestoneId: m.id } })) continue
+        if (!order.engagementId) break
+        const inv = await db.invoice.create({
+          data: {
+            engagementId: order.engagementId,
+            workOrderId: order.id,
+            number: `IN-MS-${m.id.slice(-8).toUpperCase()}`,
+            periodStart: day(-90), periodEnd: day(-58),
+            currency: 'USD',
+            total: whole(m.amountCents), paid: 0,
+            issuedAt: day(-56), dueAt: day(-11),
+            status: 'SUBMITTED',
+          },
+          select: { id: true },
+        })
+        await db.invoiceLine.create({
+          data: {
+            invoiceId: inv.id, milestoneId: m.id,
+            hours: 0, rateCents: 0, amountCents: m.amountCents,
+            description: `Milestone — ${m.name}`,
+          },
+        })
+        await db.orderMilestone.update({ where: { id: m.id }, data: { status: 'INVOICED' } })
+      }
+    }
+  }
+
+  if (want('postings')) {
+    // ── 4. What each project actually earned and cost ───────────────────
+    //
+    // Through `postAssertion`, which is the function the assert route calls
+    // when a week is signed, so the books are the product's own arithmetic
+    // and not the seed's. Posted to the month the work was done rather
+    // than the month it was signed.
+    //
+    // The hop-ledger rule (lib/money/hop-ledger): each signature is the
+    // payer's acceptance on the rung it buys on.
+    //   · it is REVENUE to that rung's seller, at the seller's own sell
+    //     rate — the client's approval to the firm selling it the top
+    //     rung, a middle firm's acceptance to the firm below it;
+    //   · where the payer itself sells the rung above, the same hours are
+    //     its own cost, at its own buy rate (a PAY row in its books);
+    //   · the employer's acceptance is PAY at hop 0, with BURDEN only
+    //     where the firm employs the person.
+    // So every live signature posts itself, the middle firms' included.
+    //
+    // The world's signatures only. A real firm's weeks were posted by the
+    // route that signed them, and a seed has no business in its books.
+    const assertions = await db.workAssertion.findMany({
+      where: { state: 'LIVE', companyId: { in: await world() } },
+      select: { id: true, byId: true, role: true, companyId: true },
+      orderBy: { id: 'asc' },
+    })
+    // A contiguous share of them where the caller asked for one, so the
+    // shares run in the same order one pass would.
+    const share = shareOf(assertions, slice)
+
+    // A week whose every posting is already written is passed over rather
+    // than posted again. `postAssertion` would only read its way to the
+    // same rows — its writes skip a kind already held — and those reads
+    // were nearly all of a re-walk's cost: about twenty queries a week,
+    // every week, on every new deployment. Complete means what the
+    // signature writes:
+    //   · a client's approval — REVENUE;
+    //   · a middle firm's acceptance — REVENUE in the books of the firm
+    //     below, and its own PAY where it sells the rung above (a middle
+    //     firm does, by being in the middle; one whose rung above is not
+    //     linked is posted again, harmlessly, and writes nothing);
+    //   · the employer's acceptance — PAY. BURDEN is not required: only
+    //     `postAssertion` knows whether the firm employs the person, and a
+    //     one-person corporation or a supplier paying corp-to-corp carries
+    //     none.
+    const written = new Map<string, { kind: string; companyId: string }[]>()
+    for (const p of await db.orderPosting.findMany({
+      where: { source: 'TIMESHEET', sourceId: { in: share.map((a) => a.id) } },
+      select: { sourceId: true, kind: true, companyId: true },
+    })) {
+      if (!p.sourceId) continue
+      written.set(p.sourceId, [...(written.get(p.sourceId) ?? []), { kind: p.kind, companyId: p.companyId }])
+    }
+    const complete = (a: { id: string; role: string; companyId: string }) => {
+      const rows = written.get(a.id)
+      if (!rows) return false
+      if (a.role === 'CLIENT_APPROVAL') return rows.some((r) => r.kind === 'REVENUE')
+      if (a.role === 'PASS_THROUGH') {
+        return rows.some((r) => r.kind === 'REVENUE' && r.companyId !== a.companyId) &&
+          rows.some((r) => r.kind === 'PAY' && r.companyId === a.companyId)
+      }
+      if (a.role === 'EMPLOYER_ACCEPTANCE') return rows.some((r) => r.kind === 'PAY')
+      return false
+    }
+
+    for (const a of share) {
+      if (complete(a)) {
+        out.postings += written.get(a.id)!.length
+        continue
+      }
+      try {
+        const posted = await postAssertion(a.id, a.byId)
+        out.postings += (posted ?? []).filter(Boolean).length
+      } catch {
+        // A settled order refuses a posting, and an order with no rate for
+        // the day refuses one too. Neither is a reason to stop seeding the
+        // rest of the world.
+      }
+    }
+
+    // A signature the seed withdrew or superseded — Halcyon's acceptance
+    // of Colleen Byrne's weeks when they moved to her own company's line
+    // (lib/seed-doors), the client approval replaced by emailed evidence
+    // (lib/seed-week-approval) — takes its postings with it. Once, on the
+    // last share, so a seeded world never carries a posting under a
+    // signature that no longer stands.
+    if (lastShare(slice)) {
+      await removeWithdrawnPostings({ companyIds: await world() })
+    }
+    out.projectOrders = await db.projectOrder.count({ where: { companyId: { in: await world() } } })
+  }
+
+  if (want('books')) {
+    // ── 5. The books ────────────────────────────────────────────────────
+    //
+    // A chart of accounts for every firm that has postings, and one
+    // balanced entry per posting, through `lib/gl`'s own table. Plus the
+    // move an invoice makes — out of unbilled revenue, into receivable —
+    // and the one a receipt makes, out of receivable into cash.
+    //
+    // ── Why it is written as it is ─────────────────────────────────────
+    //
+    // On 2026-09-29 this part timed out on production six calls running.
+    // It read every posting, invoice and payment in the database — real
+    // firms and demo sandboxes included — and wrote each entry as its own
+    // transaction, five round trips apiece: 1,728 queries for the world
+    // alone, and more for everything that was not the world. Now it reads
+    // the world's rows only, lists every entry it would book in the order
+    // one pass books them, takes its share of that list, and writes the
+    // share's entries and lines together in one short transaction. A share
+    // is a few dozen queries however many entries it holds, and a share
+    // cut off half way leaves no entry without its lines.
+    const ids = await world()
+    const posted = await db.orderPosting.findMany({
+      where: { companyId: { in: ids } },
+      select: {
+        id: true, companyId: true, kind: true, amountCents: true, currency: true,
+        postedAt: true, says: true, source: true, projectOrderId: true,
+        personId: true, clientCompanyId: true,
+      },
+      orderBy: { id: 'asc' },
+    })
+    const firmsWithBooks = new Set(posted.map((p) => p.companyId))
+    const booksOf = [...firmsWithBooks]
+    const accountOf = new Map<string, string>() // `${companyId}:${code}` → id
+    // Read once, the missing ones written once, read again: three round
+    // trips for the whole chart rather than two per account per firm. An
+    // account a firm already has is left exactly as it is.
+    const readAccounts = async () => {
+      for (const a of await db.ledgerAccount.findMany({
+        where: { companyId: { in: booksOf } }, select: { id: true, companyId: true, code: true },
+      })) {
+        accountOf.set(`${a.companyId}:${a.code}`, a.id)
+      }
+    }
+    await readAccounts()
+    const missingAccounts = booksOf.flatMap((companyId) =>
+      DEFAULT_ACCOUNTS.filter((a) => !accountOf.has(`${companyId}:${a.code}`)).map((a) => ({
+        companyId, code: a.code, name: a.name,
+        type: a.type as never, normalSide: a.normalSide as never,
+      }))
+    )
+    if (missingAccounts.length) {
+      await db.ledgerAccount.createMany({ data: missingAccounts, skipDuplicates: true })
+      await readAccounts()
+    }
+
+    /** One entry this layer books, keyed the way the journal's unique key is. */
+    interface Booking {
+      companyId: string
+      source: string
+      sourceId: string
+      entry: Entry
+      dims: { projectOrderId?: string | null; personId?: string | null; clientCompanyId?: string | null }
+    }
+
+    /**
+     * Book what is not on the books yet: one read to find what is, then
+     * every new entry and every line under it in one transaction. Keyed
+     * on (source, sourceId), so a second seeding writes nothing.
+     */
+    async function book(items: Booking[]): Promise<void> {
+      if (items.length === 0) return
+      const onBooks = new Set(
+        (await db.journalEntry.findMany({
+          where: { sourceId: { in: items.map((i) => i.sourceId) } },
+          select: { source: true, sourceId: true },
+        })).map((e) => `${e.source}:${e.sourceId}`)
+      )
+      const fresh: { key: string; head: Prisma.JournalEntryCreateManyInput; lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] }[] = []
+      for (const it of items) {
+        const key = `${it.source}:${it.sourceId}`
+        if (onBooks.has(key)) continue
+        const lines: Omit<Prisma.JournalLineCreateManyInput, 'entryId'>[] = []
+        for (const l of it.entry.lines) {
+          const accountId = accountOf.get(`${it.companyId}:${l.accountCode}`)
+          if (!accountId) break
+          lines.push({
+            accountId,
+            debitCents: l.debitCents, creditCents: l.creditCents, currency: 'USD',
+            personId: it.dims.personId ?? null,
+            clientCompanyId: it.dims.clientCompanyId ?? null,
+            memo: l.memo ?? null,
+          })
+        }
+        // An entry with a line whose account is missing is not booked at
+        // all, rather than booked lopsided.
+        if (lines.length !== it.entry.lines.length) continue
+        onBooks.add(key)
+        fresh.push({
+          key,
+          head: {
+            companyId: it.companyId, postedAt: it.entry.postedAt, source: it.source as never, sourceId: it.sourceId,
+            memo: it.entry.memo,
+            projectOrderId: it.dims.projectOrderId ?? null,
+          },
+          lines,
+        })
+      }
+      if (fresh.length === 0) return
+      // Both inserts or neither: an entry on the books with no lines would
+      // read as booked to the next call and never be finished.
+      await db.$transaction(
+        async (tx) => {
+          const heads = await tx.journalEntry.createManyAndReturn({
+            data: fresh.map((f) => f.head),
+            select: { id: true, source: true, sourceId: true },
+          })
+          const idOf = new Map(heads.map((h) => [`${h.source}:${h.sourceId}`, h.id]))
+          await tx.journalLine.createMany({
+            data: fresh.flatMap((f) => f.lines.map((l) => ({ ...l, entryId: idOf.get(f.key)! }))),
+          })
+        },
+        // Two statements, however long the list. The allowance is for a
+        // database in another building, not for the work.
+        { maxWait: 10_000, timeout: 20_000 }
+      )
+      out.journalEntries += fresh.length
+    }
+
+    const issued = booksOf.length === 0 ? [] : await db.invoice.findMany({
+      where: {
+        status: { in: ['SUBMITTED', 'APPROVED', 'PAID'] },
+        invoiceLines: { some: { sellContract: { companyId: { in: booksOf } } } },
+      },
+      select: {
+        id: true, number: true, total: true, issuedAt: true, periodEnd: true,
+        invoiceLines: { select: { sellContract: { select: { companyId: true, clientCompanyId: true } } }, take: 1 },
+      },
+      orderBy: { id: 'asc' },
+    })
+    const receipts = booksOf.length === 0 ? [] : await db.payment.findMany({
+      // Applied cash only. Unapplied cash is ordinary and belongs in the
+      // queue somebody works, not in the books against an invoice nobody
+      // has decided on yet.
+      where: {
+        appliedAt: { not: null }, invoiceId: { not: null },
+        receivedByCompanyId: { in: booksOf },
+      },
+      select: {
+        id: true, amount: true, appliedAt: true, receivedByCompanyId: true, payerCompanyId: true,
+        invoice: { select: { number: true } },
+      },
+      orderBy: { id: 'asc' },
+    })
+
+    // Every entry this layer books, in the order one pass books them: the
+    // postings, then the invoices, then the receipts.
+    const all: Booking[] = [
+      ...posted.map((p): Booking => ({
+        companyId: p.companyId, source: p.source, sourceId: p.id,
+        entry: entryFor({ kind: p.kind as never, amountCents: p.amountCents, postedAt: p.postedAt, says: p.says }),
+        dims: { projectOrderId: p.projectOrderId, personId: p.personId, clientCompanyId: p.clientCompanyId },
+      })),
+      ...issued.flatMap((inv): Booking[] => {
+        const sell = inv.invoiceLines[0]?.sellContract
+        if (!sell || !firmsWithBooks.has(sell.companyId)) return []
+        return [{
+          companyId: sell.companyId, source: 'INVOICE', sourceId: inv.id,
+          entry: onInvoice(Math.round(Number(inv.total) * 100), inv.issuedAt ?? inv.periodEnd, inv.number),
+          dims: { clientCompanyId: sell.clientCompanyId },
+        }]
+      }),
+      ...receipts.flatMap((r): Booking[] => {
+        if (!r.receivedByCompanyId || !r.invoice || !firmsWithBooks.has(r.receivedByCompanyId)) return []
+        return [{
+          companyId: r.receivedByCompanyId, source: 'MANUAL', sourceId: r.id,
+          entry: onReceipt(Math.round(Number(r.amount) * 100), r.appliedAt!, r.invoice.number),
+          dims: { clientCompanyId: r.payerCompanyId },
+        }]
+      }),
+    ]
+    await book(shareOf(all, slice))
+
+    // ── 6. A credit note, and the exception somebody signed for ─────────
+    //
+    // Both are AP and AR facts a finance desk meets in its first week, and
+    // both were unreachable: nothing had ever been credited back and the
+    // three-way match exception queue was empty.
+    //
+    // Once, with the last share, so it lands after every entry above as it
+    // does in one pass. Against the world's own invoice: this used to take
+    // the first paid invoice in the database, whoever's it was.
+    const toCredit = !lastShare(slice) ? null : await db.invoice.findFirst({
+      where: {
+        status: 'PAID',
+        invoiceLines: { some: { timesheetId: { not: null }, sellContract: { companyId: { in: ids } } } },
+      },
+      select: {
+        id: true, number: true, total: true, issuedAt: true, periodEnd: true,
+        invoiceLines: { select: { rateCents: true, sellContract: { select: { companyId: true, clientCompanyId: true } } }, take: 1 },
+      },
+      orderBy: { number: 'asc' },
+    })
+    if (toCredit && !(await db.creditNote.findFirst({ where: { invoiceId: toCredit.id } }))) {
+      // Four hours the client disputed, at the rate the line was billed at.
+      // Not a round number somebody liked: the hours times the rate on the
+      // invoice, which is what a credit note actually is.
+      const rate = toCredit.invoiceLines[0]?.rateCents ?? 0
+      const cents = rate * 4
+      const seller = toCredit.invoiceLines[0]?.sellContract
+      if (cents > 0 && seller) {
+        const by = ctx.seatBySlug.get('computer-systems')?.personId ?? null
+        await db.creditNote.create({
+          data: {
+            invoiceId: toCredit.id,
+            amount: whole(cents),
+            reasonCode: 'HOURS_DISPUTED',
+            note: 'Four hours on the Thursday were the client’s own outage. Credited back rather than argued about.',
+            issuedAt: day(-3),
+            appliedAt: day(-3),
+            createdById: by,
+          },
+        })
+        // Into the period the invoice belonged to, not today. March revenue
+        // credited in June is a March correction.
+        if (firmsWithBooks.has(seller.companyId)) {
+          await book([{
+            companyId: seller.companyId, source: 'REVERSAL', sourceId: `credit:${toCredit.id}`,
+            entry: onCreditNote(cents, toCredit.issuedAt ?? toCredit.periodEnd, toCredit.number, 'HOURS_DISPUTED'),
+            dims: { clientCompanyId: seller.clientCompanyId },
+          }])
+        }
+      }
+    }
+
+    // A match exception, waived by the desk that pays, with the sentence it
+    // was waived on. A waiver with no reason is a waiver nobody can defend.
+    //
+    // The same invoice the credit note is against, which is the honest
+    // pairing: the client disputed four hours, so the invoice bills more
+    // than the client approved and QUANTITY fails. AP waives it because the
+    // credit note is on file — and QUANTITY is waivable for exactly this,
+    // while paying twice and arithmetic are not.
+    if (toCredit) {
+      const payerId = toCredit.invoiceLines[0]?.sellContract?.clientCompanyId ?? null
+      if (payerId && !(await db.invoiceMatchOverride.findFirst({ where: { invoiceId: toCredit.id } }))) {
+        // Whoever settles bills there. The AP seat where the firm has one,
+        // and the seat that was granted first where it does not — a small
+        // supplier has one desk doing all of it.
+        const ap =
+          (await db.context.findFirst({
+            where: { companyId: payerId, type: 'EMPLOYEE', role: { name: { contains: 'AP' } } },
+            select: { personId: true }, orderBy: { grantedAt: 'asc' },
+          })) ??
+          (await db.context.findFirst({
+            where: { companyId: payerId, type: 'EMPLOYEE' },
+            select: { personId: true }, orderBy: { grantedAt: 'asc' },
+          }))
+        if (ap) {
+          await db.invoiceMatchOverride.create({
+            data: {
+              invoiceId: toCredit.id,
+              code: 'QUANTITY',
+              reason:
+                'Four hours on the Thursday were our own outage and they have credited them back. Paying the invoice against the credit note rather than asking for it to be reissued.',
+              byId: ap.personId,
+              invoiceTotalCentsAtOverride: Math.round(Number(toCredit.total) * 100),
+              createdAt: day(-2),
+            },
+          })
+        }
+      }
+    }
+  }
+
+  if (want('rest')) {
+    // ── 7. The rate on file, and the rise nobody has signed yet ─────────
+    //
+    // The rate in force on a day is resolved from APPROVED rows only, so
+    // the opening row has to be exactly what the contract says or every
+    // invoice starts failing the PRICE check. The rise is PROPOSED and
+    // therefore does not bill — which is the whole point of it being a
+    // separate state.
+    const contracts = await db.sellContract.findMany({
+      where: { state: 'IN_PROGRESS', company: { slug: { in: ctx.roster } } },
+      select: { id: true, billRate: true, startDate: true, companyId: true, personId: true },
+      orderBy: { id: 'asc' },
+    })
+    // Two reads and one write for every contract at once, rather than
+    // three queries a contract: which already have a rate on file, and the
+    // first seat at each firm, who records it.
+    const rated = new Set(
+      (await db.rateHistory.findMany({
+        where: { contractType: 'SELL', contractId: { in: contracts.map((c) => c.id) } },
+        select: { contractId: true },
+      })).map((r) => r.contractId)
+    )
+    const firstSeat = new Map<string, { personId: string }>()
+    for (const s of await db.context.findMany({
+      where: { companyId: { in: [...new Set(contracts.map((c) => c.companyId))] }, type: 'EMPLOYEE' },
+      select: { companyId: true, personId: true },
+      orderBy: [{ grantedAt: 'asc' }, { id: 'asc' }],
+    })) {
+      if (s.companyId && !firstSeat.has(s.companyId)) firstSeat.set(s.companyId, { personId: s.personId })
+    }
+    const opening: Prisma.RateHistoryCreateManyInput[] = []
+    for (const c of contracts) {
+      if (!c.startDate || rated.has(c.id)) continue
+      const seat = firstSeat.get(c.companyId)
+      if (!seat) continue
+      opening.push({
+        contractType: 'SELL', contractId: c.id,
+        rate: c.billRate, rateType: 'HOURLY',
+        fromDate: c.startDate, toDate: null,
+        reason: 'Agreed at award',
+        changedById: seat.personId,
+        approvalState: 'APPROVED',
+        approvedById: seat.personId, approvedAt: c.startDate,
+        createdAt: c.startDate,
+      })
+    }
+    if (opening.length) await db.rateHistory.createMany({ data: opening })
+    // One asked-for rise, waiting on somebody. Five per cent, on the
+    // longest-running placement in the world — which is the conversation
+    // that actually happens at renewal.
+    const oldest = contracts[0]
+    if (oldest && !(await db.rateHistory.findFirst({ where: { contractId: oldest.id, approvalState: 'PROPOSED' } }))) {
+      const seat = await db.context.findFirst({
+        where: { companyId: oldest.companyId, type: 'EMPLOYEE' },
+        select: { personId: true }, orderBy: { grantedAt: 'asc' },
+      })
+      if (seat) {
+        await db.rateHistory.create({
+          data: {
+            contractType: 'SELL', contractId: oldest.id,
+            rate: Math.round(oldest.billRate * 1.05), rateType: 'HOURLY',
+            fromDate: day(30), reason: 'Asked for at extension — market has moved and they have the ledger migration work.',
+            changedById: seat.personId,
+            previousRate: oldest.billRate,
+            approvalState: 'PROPOSED',
+            createdAt: day(-2),
+          },
+        })
+      }
+    }
+
+    // ── 8. Expenses, filed by the person who incurred them ──────────────
+    //
+    // Three, because the path has three interesting places to be: one on
+    // the desk waiting to be approved, one approved and billable that will
+    // ride the next invoice as a line of its own, and one approved and not
+    // billable — the firm's own cost, which is the case that proves
+    // `billable` is doing work.
+    const forExpenses = await db.sellContract.findMany({
+      where: { state: 'IN_PROGRESS', company: { slug: { in: ctx.roster } } },
+      select: { id: true, companyId: true, personId: true },
+      orderBy: { id: 'asc' },
+      take: 3,
+    })
+    const expensePlan: {
+      category: string; billable: boolean; description: string; status: string
+      items: { description: string; quantity: number; unitPrice: number }[]
+      submittedOn: number; approvedOn?: number
+    }[] = [
+      {
+        category: 'TRAVEL', billable: true, status: 'SUBMITTED',
+        description: 'Client site visit — two nights',
+        items: [
+          { description: 'Flight, SJC–MSN return', quantity: 1, unitPrice: 412.4 },
+          { description: 'Hotel, two nights', quantity: 2, unitPrice: 189 },
+        ],
+        submittedOn: -4,
+      },
+      {
+        category: 'TRAVEL', billable: true, status: 'APPROVED',
+        description: 'Quarterly on-site week',
+        items: [
+          { description: 'Flight, CLT–EWR return', quantity: 1, unitPrice: 288.6 },
+          { description: 'Cab fares', quantity: 6, unitPrice: 24.5 },
+        ],
+        submittedOn: -18, approvedOn: -15,
+      },
+      {
+        category: 'EQUIPMENT', billable: false, status: 'APPROVED',
+        description: 'Replacement laptop charger',
+        items: [{ description: 'USB-C 96W charger', quantity: 1, unitPrice: 79 }],
+        submittedOn: -25, approvedOn: -24,
+      },
+    ]
+    for (const [i, e] of expensePlan.entries()) {
+      const c = forExpenses[i]
+      if (!c) break
+      const existing = await db.expense.findFirst({
+        where: { sellContractId: c.id, description: e.description }, select: { id: true },
+      })
+      if (existing) continue
+      const total = e.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0)
+      const approver = await db.context.findFirst({
+        where: { companyId: c.companyId, type: 'EMPLOYEE' },
+        select: { personId: true }, orderBy: { grantedAt: 'asc' },
+      })
+      await db.expense.create({
+        data: {
+          companyId: c.companyId, sellContractId: c.id, personId: c.personId,
+          category: e.category, billable: e.billable, description: e.description,
+          periodStart: day(e.submittedOn - 7), periodEnd: day(e.submittedOn),
+          items: e.items as never,
+          total: Math.round(total * 100) / 100,
+          status: e.status,
+          submittedAt: day(e.submittedOn),
+          approvedById: e.approvedOn == null ? null : approver?.personId ?? null,
+          approvedAt: e.approvedOn == null ? null : day(e.approvedOn),
+          createdAt: day(e.submittedOn),
+        },
+      })
+      out.expenses++
+    }
+
+    // ── 9. The buy side, and the run that settles it ────────────────────
+    //
+    // Every prime and integrator in this world bought somebody from a bench
+    // vendor, and only one of those legs had ever been billed. A supplier's
+    // own AP book opened on one row, so nothing could be assembled into a
+    // run — and a payment run is how AP actually pays, one batch on a day,
+    // never a bill at a time.
+    const legs = await db.buyContract.findMany({
+      where: {
+        state: 'IN_PROGRESS',
+        vendorCompanyId: { not: null },
+        company: { slug: { in: ctx.roster } },
+        vendorCompany: { slug: { in: ctx.roster } },
+      },
+      select: {
+        id: true, companyId: true, vendorCompanyId: true, workOrderId: true,
+        candidates: { select: { payRate: true, personId: true } },
+      },
+      orderBy: { id: 'asc' },
+    })
+    for (const [i, leg] of legs.entries()) {
+      if (!leg.vendorCompanyId) continue
+      const rate = leg.candidates[0]?.payRate ?? 0
+      if (!rate) continue
+      if (await db.vendorBill.findFirst({ where: { buyContractId: leg.id } })) continue
+      const number = `INV-${leg.id.slice(-6).toUpperCase()}`
+      if (await db.vendorBill.findFirst({
+        where: { companyId: leg.companyId, vendorCompanyId: leg.vendorCompanyId, number },
+      })) continue
+      // Only the weeks this payer accepted and nobody has billed it for,
+      // at the rate the leg below already says (acceptedWeeksToBill).
+      const due = await acceptedWeeksToBill({
+        payerId: leg.companyId, vendorId: leg.vendorCompanyId,
+        personIds: leg.candidates.map((c) => c.personId), rateCents: rate, since: day(-42),
+      })
+      if (!due) continue
+      await db.vendorBill.create({
+        data: {
+          companyId: leg.companyId, vendorCompanyId: leg.vendorCompanyId,
+          number, buyContractId: leg.id, workOrderId: leg.workOrderId,
+          periodStart: due.periodStart, periodEnd: due.periodEnd,
+          currency: 'USD', totalCents: due.totalCents,
+          // Received after the last week it holds, never before it.
+          receivedAt: new Date(Math.min(day(-1).getTime(), due.periodEnd.getTime() + 2 * 86_400_000)), dueAt: day(25),
+          // Two out of three cleared by whoever checks them; the rest still
+          // to be looked at, which is what an AP queue looks like on any
+          // ordinary Tuesday.
+          status: i % 3 === 2 ? 'RECEIVED' : 'APPROVED',
+          createdAt: day(-5),
+        },
+      })
+    }
+
+    // The run itself, on the desk of the firm with the most to pay — in
+    // the world. Across the whole database this once picked whichever firm
+    // had the most approved bills, and a real firm's AP desk would have
+    // found a payment run it never assembled.
+    const payers = await db.vendorBill.groupBy({
+      by: ['companyId'],
+      where: { status: 'APPROVED', paidAt: null, companyId: { in: await world() } },
+      _count: { _all: true },
+      orderBy: { _count: { companyId: 'desc' } },
+      take: 1,
+    })
+    const payerId = payers[0]?.companyId
+    if (payerId) {
+      const bills = await db.vendorBill.findMany({
+        where: { companyId: payerId, status: 'APPROVED', paidAt: null },
+        select: { id: true, totalCents: true, number: true, vendorCompany: { select: { name: true } } },
+        orderBy: { dueAt: 'asc' },
+        take: 6,
+      })
+      const existing = await db.paymentRun.findFirst({
+        where: { companyId: payerId, scheduledFor: day(3) }, select: { id: true },
+      })
+      if (!existing && bills.length > 0) {
+        const seat = await db.context.findFirst({
+          where: { companyId: payerId, type: 'EMPLOYEE' },
+          select: { personId: true }, orderBy: { grantedAt: 'asc' },
+        })
+        await db.paymentRun.create({
+          data: {
+            companyId: payerId, currency: 'USD', status: 'APPROVED',
+            scheduledFor: day(3),
+            totalCents: bills.reduce((s, b) => s + b.totalCents, 0),
+            createdById: seat?.personId ?? null,
+            approvedById: seat?.personId ?? null,
+            createdAt: day(-1),
+            // With the run, in one write: a run cut off before its items
+            // would be found by the next call and never filled.
+            items: {
+              createMany: {
+                data: bills.map((b) => ({
+                  vendorBillId: b.id, amountCents: b.totalCents,
+                  // What the remittance advice says it covers. A supplier
+                  // reading a bank line with no reference has to ring somebody.
+                  remittance: `${b.number} — ${b.vendorCompany.name}`,
+                })),
+              },
+            },
+          },
+          select: { id: true },
+        })
+      }
+    }
+  }
+
+  return out
+}

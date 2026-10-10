@@ -1,0 +1,162 @@
+/**
+ * Which console a seat opens on.
+ *
+ * ── Why this is one function ─────────────────────────────────────────
+ *
+ * There are three doors onto the same question and they had three
+ * answers. `/dashboard` redirected for itself, the demo door decided a
+ * landing page for itself, and the sidebar decided for itself what its
+ * own "Dashboard" link pointed at. Three places, one question, and the
+ * browser walk of 2026-09-21 found all three wrong at once:
+ *
+ *   · An integrator — Teleworld Solutions, Sundara Systems, and a
+ *     validation engineer holding two read permissions — opened
+ *     `/dashboard` and was shown **Corveldt Aerospace's own program**:
+ *     "2 contractors on site through 2 suppliers. $43,680 this month."
+ *     Two competing suppliers read the buyer's headcount and its spend,
+ *     because `kind === 'GSI'` was in the same list as CLIENT and MSP.
+ *     A GSI is a seller. It holds no seat anywhere and it has no
+ *     program to open.
+ *   · A consultant typing `/dashboard` got the vendor console —
+ *     "PIPELINE $0K monthly revenue · ON BENCH 0" — and four refusals
+ *     behind it, on a page their own menu does not name.
+ *   · A one-person nursing corporation got the same console: a bench of
+ *     one, a pipeline of nothing, and a menu of a staffing agency's
+ *     departments.
+ *
+ * So the answer is computed once, here, from four facts, and the three
+ * doors read it. A program office is the only firm that opens somebody
+ * else's program, and only where that client has granted it a desk
+ * (`lib/program-seat`) — never merely because it trades there.
+ */
+
+export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+/** The three consoles this product has. */
+export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY
+
+/**
+ * Where a one-person firm opens: the first page of her own Today.
+ *
+ * She used to open on "Your work", which a firm only has on its menu once
+ * a placement makes its owner a worker, so a new firm of one landed on a
+ * page her menu did not name (sign-up walk, round two, item 38). Her
+ * Today is the firm's queue, and the first page on it is what needs her.
+ * `__tests__/invariants/console-home.test.ts` holds it to the first link
+ * of the solo menu in lib/nav-table, so the two cannot drift apart.
+ */
+export const SOLO_TODAY = '/dashboard/decisions' as const
+
+export interface Reader {
+  /** What the firm is on the register. Null for somebody with no firm. */
+  kind?: CompanyKind | null
+  /** The seat is a CONSULTANT context — on a bench, of no firm. */
+  isConsultant?: boolean
+  /**
+   * This firm holds a live desk in a client's own program office. Only
+   * a program office ever does; `seatFor` in lib/program-seat answers it.
+   */
+  seated?: boolean
+  /**
+   * Also somebody the work is about — an integrator's own engineer, who
+   * holds a seat at the firm and is placed by it.
+   */
+  worker?: boolean
+  /** What the seat holds. Null or absent while it is not yet known. */
+  permissions?: readonly string[] | null
+}
+
+/**
+ * The two reads every delivery engineer's seat holds: the work they are
+ * on, and their own hours. Nothing on a firm's Today is about them.
+ */
+export const OWN_WORK_READS: ReadonlySet<string> = new Set(['assignments.read', 'timesheets.read'])
+
+/**
+ * The seat reads nothing at the firm beyond its holder's own work.
+ *
+ * Karthik Menon, Teleworld's validation engineer, opened Teleworld's
+ * Today and read "2 items need your attention", a recruiter's target
+ * and the firm's pipeline revenue — none of it his work (worker tester,
+ * 2026-10-03). A seat that holds more than these two reads staffs,
+ * sells or pays something, and the firm's Today is its desk.
+ */
+export function readsOnlyOwnWork(permissions: readonly string[] | null | undefined): boolean {
+  if (permissions == null) return false
+  return permissions.every((p) => OWN_WORK_READS.has(p))
+}
+
+export interface Verdict {
+  href: Console
+  /** Why, in a sentence, so a test reads as English and a log can say it. */
+  says: string
+}
+
+export function consoleHome(reader: Reader): Verdict {
+  const { kind, isConsultant = false, seated = false, worker = false } = reader
+
+  // A person before a firm. Somebody on a bench has a company — that is
+  // what a bench is — and is not of it, so the seat type decides and the
+  // company never does.
+  if (isConsultant || !kind) {
+    return {
+      href: '/dashboard/my-work',
+      says: 'A consultant opens on their own work. The firm’s console is about them, not theirs.',
+    }
+  }
+
+  // The company of one. She is the person the work is about and the firm
+  // that bills for it, and the firm's half is three pages — not a
+  // staffing agency's pipeline, bench and commission run.
+  if (kind === 'CONSULTANT_CORP') {
+    return {
+      href: SOLO_TODAY,
+      says: 'A one-person corporation opens on the first page of its own Today: what needs her, the whole book being hers.',
+    }
+  }
+
+  // Staff of a firm who are also the person the work is about, and whose
+  // seat reads nothing else there. Their firm's menu stays; the front
+  // door is their own work, because the firm's Today has nothing on it
+  // for them to do.
+  if (worker && readsOnlyOwnWork(reader.permissions)) {
+    return {
+      href: '/dashboard/my-work',
+      says: 'A worker whose seat reads only their own work opens on that work, not on the firm’s desk.',
+    }
+  }
+
+  // A colleague seated as Member and not yet given a desk holds no
+  // permission at all, or only the reads of their own work. The firm's
+  // console is a desk; theirs is their own work, empty until there is
+  // some (sign-up walk, round three, item 5; round five, problems 3–7).
+  if (readsOnlyOwnWork(reader.permissions)) {
+    return {
+      href: '/dashboard/my-work',
+      says: 'A seat with no desk yet opens on its own work, not on the firm’s console.',
+    }
+  }
+
+  if (kind === 'CLIENT') {
+    return { href: '/dashboard/program', says: 'A client opens on the program it runs.' }
+  }
+
+  // A program office runs somebody else's program from a desk that
+  // client granted it. Without the desk it has no program to open, and
+  // guessing one from a trading relationship is how a supplier ended up
+  // reading a buyer's spend.
+  if (kind === 'MSP' && seated) {
+    return {
+      href: '/dashboard/program',
+      says: 'A program office opens on the client’s program, because the client granted it that desk.',
+    }
+  }
+
+  return {
+    href: '/dashboard',
+    says:
+      kind === 'GSI'
+        ? 'An integrator sells; it opens on its own book, never on a client’s program.'
+        : 'A firm that sells opens on its own book.',
+  }
+}

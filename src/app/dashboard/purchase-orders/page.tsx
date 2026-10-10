@@ -1,0 +1,448 @@
+'use client'
+
+import { readJson } from '@/lib/read-response'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { Chip, EmptyState, ErrorState, Field, FormMessage, Input, Lbl, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton } from '@/components/ui'
+import { lineName, lineDoes, type LineSide, type OrderSide } from '@/lib/order-naming'
+import { booksFrom, booksHref, otherBooks, switchLabel, BOOKS_PARAM, type Books } from '@/lib/money/books-view'
+import { orderReferenceLabel } from '@/lib/money/order-reference'
+import { useSession } from '@/components/session-provider'
+import { usePageSection } from '@/components/page-section'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { ordersStance, ordersWords } from '@/lib/money/po-words'
+
+/**
+ * What has been authorized, and how much of it is left.
+ *
+ * Purchase orders were read in five places and created in none. The three
+ * way match asks whether an invoice quotes a valid, open, unexhausted
+ * purchase order — so on a real company with no way to raise one, that
+ * check could only ever fail, and the money chain stopped at the first
+ * customer who was not seeded.
+ *
+ * A purchase order running out is invisible until a supplier chases a
+ * payment that will not match, so the ones near their ceiling lead.
+ */
+
+/** One line on the document: a person, at a site, at a rate. */
+interface POLine {
+  id: string
+  side: LineSide
+  personName: string
+  siteName: string | null
+  /** Cents per hour. Null on a buy line for a desk that does not read pay. */
+  rate: number | null
+  /** True where what the firm pays on this line is the payroll desks' to read, not this reader's. */
+  payWithheld?: boolean
+  currency: string
+  state: string
+  startDate: string
+  endDate: string | null
+  /** Whole currency, billed against the ceiling. Null on a buy line. */
+  billed: number | null
+  /** The firm we pay on a buy line. Null where we employ them. */
+  paidToName: string | null
+}
+
+interface PO {
+  id: string
+  number: string
+  /** What this reader calls it: "purchase order" or "sales order". */
+  noun: string
+  /** PO · SO. One row, read from whichever end you stand at. */
+  short: string
+  /** Their number, or ours where we kept one. */
+  reference: string
+  /** Said out loud where the other end has not joined. */
+  offSystem: string | null
+  direction: 'issued' | 'received'
+  counterparty: { id: string; name: string }
+  currency: string
+  amount: number
+  invoiced: number
+  remaining: number
+  consumedPercent: number
+  overdrawn: boolean
+  expired: boolean
+  canInvoice: boolean
+  reason: string
+  status: string
+  startDate: string
+  endDate: string | null
+  contractsAgainst: number
+  /** BUYER · SELLER · BYSTANDER — which end of it the reader is at. */
+  side: OrderSide
+  lines: POLine[]
+}
+
+function money(n: number, ccy: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy, maximumFractionDigits: 0 }).format(n)
+}
+
+/** The bar. Clay once it is nearly gone, because that is when it matters. */
+function Consumed({ po }: { po: PO }) {
+  const pct = Math.min(100, po.consumedPercent)
+  const tone = po.overdrawn || po.expired
+    ? 'bg-etyme-attention'
+    : pct >= 90
+      ? 'bg-etyme-attention'
+      : 'bg-etyme-action'
+  return (
+    <div className="w-full h-1.5 bg-etyme-rule rounded-full overflow-hidden">
+      <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
+export default function PurchaseOrdersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { company, loading: sessionLoading } = useSession()
+  // The section of the reader's own menu, read off the identity the
+  // sidebar is drawn from; null while unknown, and then nothing is drawn.
+  const eyebrow = usePageSection('/dashboard/purchase-orders')
+  const [pos, setPos] = useState<PO[] | null>(null)
+  const [canRaise, setCanRaise] = useState(false)
+  const [needsAttention, setNeedsAttention] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([])
+
+  // Whose orders are on screen. A program office in a client's seat
+  // reads the client's, and the switch is how it gets back to its own.
+  const [reading, setReading] = useState<
+    { company: string; inASeat: boolean; says: string | null } | null
+  >(null)
+  // Whose orders, read out of the URL and written back into it, so a
+  // refresh keeps the choice and a link says what it opens.
+  const books = booksFrom(searchParams.get(BOOKS_PARAM))
+  const ownBooks = books === 'own'
+  const readInstead = useCallback(
+    (next: Books) => router.replace(booksHref('/dashboard/purchase-orders', next) as any, { scroll: false }),
+    [router]
+  )
+
+  const [number, setNumber] = useState('')
+  const [supplierId, setSupplierId] = useState('')
+  const [amount, setAmount] = useState('')
+  const [endDate, setEndDate] = useState('')
+
+  const load = useCallback(async () => {
+    setError(null)
+    try {
+      const res = await fetch(booksHref('/api/purchase-orders', books))
+      // A refusal is not an empty list: the page draws the sentence alone.
+      if (res.status === 403) {
+        setRefusedSaid(refusalOf(res.status, await res.json().catch(() => null)))
+        return
+      }
+      setRefusedSaid(null)
+      const body = await readJson(res)
+      setPos(body.data.orders)
+      setCanRaise(body.data.canRaise)
+      setNeedsAttention(body.data.needsAttention)
+      setReading(body.data.reading ?? null)
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }, [books])
+
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!adding) return
+    // The buyer's own suppliers, from the book the order will be written
+    // on — the client's in a seat, ours with `?books=own` — never every
+    // company this firm has heard of.
+    fetch(booksHref('/api/companies/suppliers', books))
+      .then((r) => r.json())
+      .then((b) => setSuppliers((b.data?.companies ?? []).filter((c: any) => c.kind !== 'CLIENT')))
+      .catch(() => setSuppliers([]))
+  }, [adding, books])
+
+  async function raise() {
+    setBusy(true); setError(null); setFlash(null)
+    try {
+      // Into the book on screen: the client's in a seat, ours with
+      // `?books=own` — the route writes where the list was read from.
+      const res = await fetch(booksHref('/api/purchase-orders', books), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number,
+          issuedToId: supplierId,
+          amount: Number(amount),
+          endDate: endDate || null,
+        }),
+      })
+      const body = await readJson(res)
+      setFlash(body.data.message)
+      setNumber(''); setSupplierId(''); setAmount(''); setEndDate(''); setAdding(false)
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
+  }
+  // Refused: the sentence and nothing else (sign-up walk, round four, #5).
+  const refused = refusedRead(refusedSaid, { what: 'Orders', kind: company.kind, company: company.name })
+  if (refused) {
+    return <RefusedState says={refused} />
+  }
+  if (!pos) {
+    return error ? <ErrorState says={error} /> : <LoadingState says="Opening the orders…" />
+  }
+
+  // The reader's end of the orders, in the same words the rows use (#9).
+  const words = ordersWords(ordersStance({ kind: company.kind, sides: pos.map((p) => p.side), inASeat: !!reading?.inASeat }))
+
+  const attention = pos.filter((p) => p.overdrawn || p.expired || p.consumedPercent >= 90)
+  const rest = pos.filter((p) => !attention.includes(p))
+
+  return (
+    <>
+      {/* The section of the reader's own menu, and none until it is known. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title={words.title}
+        subtitle={words.subtitle}
+        actions={canRaise && (
+          <button
+            onClick={() => setAdding(!adding)}
+            className="btn-secondary text-[13px]"
+          >
+            {adding ? 'Cancel' : 'Raise one'}
+          </button>
+        )}
+      />
+
+      {(reading?.inASeat || ownBooks) && (
+        <div className="panel mb-5">
+          <p className="text-[13px] text-etyme-ink">
+            {reading?.inASeat
+              ? reading.says
+              : 'Your own orders. The program you run is on this same page.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => readInstead(otherBooks(books))}
+            className="mt-2 text-[13px] text-etyme-action underline"
+          >
+            {switchLabel(books, 'orders')}
+          </button>
+        </div>
+      )}
+
+      {flash && <div className="mb-5"><FormMessage tone="ok">{flash}</FormMessage></div>}
+      {error && <div className="mb-5"><ErrorState says={error} /></div>}
+
+      {adding && (
+        <Panel title="Raise a purchase order" className="mb-5">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Number your finance team will recognize">
+              <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="PO-2026-0412" className="font-mono" />
+            </Field>
+            <Field label="Supplier">
+              <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+                <option value="">Choose…</option>
+                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </Select>
+            </Field>
+            <Field label="Authorized amount">
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="250000" className="tabular-nums" />
+            </Field>
+            <Field label="Runs until (optional)">
+              <Input value={endDate} onChange={(e) => setEndDate(e.target.value)} type="date" />
+            </Field>
+          </div>
+          <p className="text-[12px] text-etyme-muted mt-3">
+            Any contract already running with this supplier and no purchase order will be attached
+            to this one, so their invoices start matching.
+          </p>
+          <SubmitButton
+            type="button"
+            onClick={raise}
+            pending={busy}
+            pendingLabel="Raising…"
+            disabled={!number.trim() || !supplierId || !Number(amount)}
+            className="mt-3"
+          >
+            Raise it
+          </SubmitButton>
+        </Panel>
+      )}
+
+      {pos.length === 0 && !adding && (
+        <EmptyState says={words.empty} />
+      )}
+
+      {pos.length > 0 && (
+        <ListSurface<PO>
+          name="purchase-orders"
+          defaultView="feed"
+          columns={PO_COLUMNS}
+          data={[...attention, ...rest]}
+          rowKey={(po) => po.id}
+          exportName="purchase-orders"
+          defaultPageSize={50}
+          searchPlaceholder="Search by number or firm…"
+          searchFilter={(po, q) => `${po.number} ${po.counterparty.name}`.toLowerCase().includes(q)}
+          card={(po) => <Row po={po} />}
+        />
+      )}
+    </>
+  )
+}
+
+
+/**
+ * An order number with the reader's own word in front of it — and not
+ * a second time where the number already opens with it. "PO
+ * PO-2026-K6KU1" is nobody's writing.
+ */
+function OrderRef({
+  reference,
+  short,
+  sizeClass = '',
+}: {
+  reference: string
+  short: string
+  sizeClass?: string
+}) {
+  const label = orderReferenceLabel(reference, short)
+  if (!label) return null
+  return (
+    <>
+      {label.prefix && (
+        <span className={`text-etyme-faint mr-1.5 ${sizeClass}`}>{label.prefix}</span>
+      )}
+      {label.reference}
+    </>
+  )
+}
+
+const PO_COLUMNS: Column<PO>[] = [
+  // A client reads its own purchase orders; a supplier reads the same
+  // rows as its sales orders. One list, and each row says which it is —
+  // a GSI has both in the same week.
+  { key: 'number', label: 'Reference', render: (po) => (
+    <span className="font-mono text-etyme-ink">
+      <OrderRef reference={po.reference} short={po.short} />
+    </span>
+  ), sortValue: (po) => po.reference },
+  { key: 'counterparty', label: 'With', render: (po) => <span className="text-etyme-muted">{po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}</span>, sortValue: (po) => po.counterparty.name },
+  { key: 'amount', label: 'Ceiling', align: 'right', render: (po) => <span className="tabular-nums">{money(po.amount, po.currency)}</span> },
+  { key: 'invoiced', label: 'Invoiced', align: 'right', render: (po) => <span className="tabular-nums">{money(po.invoiced, po.currency)}</span>, hideOnMobile: true },
+  { key: 'remaining', label: 'Left', align: 'right', render: (po) => <span className={`tabular-nums ${po.overdrawn ? 'text-etyme-attention' : ''}`}>{money(po.remaining, po.currency)}</span> },
+  { key: 'consumedPercent', label: 'Used', align: 'right', render: (po) => <span className="tabular-nums">{po.consumedPercent}%</span> },
+  { key: 'lines', label: 'Lines', align: 'right', render: (po) => (
+    <span className="tabular-nums text-etyme-muted">{po.lines.length}</span>
+  ), sortValue: (po) => po.lines.length, hideOnMobile: true },
+  { key: 'canInvoice', label: 'Standing', render: (po) => <Chip tone={po.overdrawn || po.expired ? 'attention' : 'verified'}>{po.overdrawn ? 'Overdrawn' : po.expired ? 'Expired' : 'Open'}</Chip>, sortValue: (po) => (po.canInvoice ? 1 : 0) },
+]
+
+/** Cents per hour, as a person reads a rate. */
+function rate(cents: number, ccy: string): string {
+  return `${new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy, maximumFractionDigits: 2 }).format(cents / 100)}/hr`
+}
+
+/**
+ * The lines under the document they are on.
+ *
+ * A header with a ceiling and no names is half the paper. Five people on
+ * one order is one ceiling and five lines, and which of them is eating
+ * it is the question this page is open for — so each line carries what
+ * it has billed rather than the header's total divided by the headcount,
+ * which would be a figure nobody could stand behind.
+ */
+function Lines({ po }: { po: PO }) {
+  if (po.lines.length === 0) {
+    return (
+      <p className="text-[12px] text-etyme-faint mt-2">
+        No lines on it yet. Nothing has been billed against this ceiling.
+      </p>
+    )
+  }
+  return (
+    <div className="mt-3 border-t border-etyme-rule pt-2">
+      <Lbl>{po.lines.length === 1 ? 'Its line' : `Its ${po.lines.length} lines`}</Lbl>
+      <ul className="mt-1.5 space-y-1.5">
+        {po.lines.map((l, i) => (
+          <li key={l.id} className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] text-etyme-ink">
+              <span className="text-etyme-faint text-[11px] mr-1.5 tabular-nums">{i + 1}</span>
+              {lineName({ side: l.side, personName: l.personName, siteName: l.siteName })}
+              <span className="text-[11px] text-etyme-muted ml-2">
+                {lineDoes(
+                  { side: l.side, personName: l.personName, paidToName: l.paidToName },
+                  po.side
+                )}
+              </span>
+            </span>
+            <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
+              {l.payWithheld
+                ? <span title="What each person is paid is shown only to the desks that run pay.">Pay not shown</span>
+                : l.rate == null ? "—" : rate(l.rate, l.currency)}
+              {l.billed != null && (
+                <span className="text-etyme-ink ml-2">
+                  {money(l.billed, l.currency)} billed
+                </span>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function Row({ po }: { po: PO }) {
+  return (
+    <Panel as="article">
+      {po.offSystem && (
+        <p className="text-[12px] text-etyme-muted mb-2">{po.offSystem}</p>
+      )}
+      <div className="flex items-baseline justify-between gap-4 mb-2">
+        <div>
+          <span className="text-[14px] font-mono text-etyme-ink">
+            <OrderRef reference={po.reference} short={po.short} sizeClass="text-[12px]" />
+          </span>
+          <span className="ml-3 text-[13px] text-etyme-muted">
+            {po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}
+          </span>
+          {po.contractsAgainst > 0 && (
+            <span className="ml-2 text-[12px] text-etyme-faint tabular-nums">
+              · {po.contractsAgainst} contract{po.contractsAgainst === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+        <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">
+          {money(po.remaining, po.currency)} <span className="text-etyme-faint">left of {money(po.amount, po.currency)}</span>
+        </span>
+      </div>
+
+      <Consumed po={po} />
+
+      <p className={`text-[12px] mt-2 ${po.canInvoice ? 'text-etyme-muted' : 'text-etyme-attention'}`}>
+        {po.reason}
+        {po.endDate && <span className="text-etyme-faint"> · runs to {po.endDate}</span>}
+      </p>
+
+      <Lines po={po} />
+    </Panel>
+  )
+}

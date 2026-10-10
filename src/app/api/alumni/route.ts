@@ -1,0 +1,358 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { readsOnlyOwnWork } from '@/lib/console-home'
+import { notYoursToRead } from '@/lib/releasing-soon'
+import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { logBulkAccess } from '@/lib/access-log'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { askBack } from './ask-back-standing'
+import { askDesk } from './ask-desk'
+import { emptyAlumniSays } from './ask-back-standing'
+import { addWeeks, hoursOnRecord, EMPTY_TALLY, type HoursTally } from './hours-on-record'
+// etyme-architect, 2026-09-17. A cross-domain edit in etyme-supply's
+// file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
+// the prime's to keep unless the client's agreement with the prime says
+// otherwise, and one rule landing in three routes at once is a rule, not
+// three changes. Nothing else in this file was touched — who is eligible,
+// and from when, is unchanged.
+import { mayNameSubVendors, namesForClient, firmsOnARow, type SeenName } from '@/lib/chain-names'
+
+/**
+ * GET /api/alumni
+ *
+ * "Worked here before" — the alumni memory surface.
+ *
+ * BRD + Addendum D: Alumni re-engagement is the strongest demand-side
+ * feature in the platform. Addendum E §E.2.3 gates it: the "ask them
+ * back" action checks the TenureLedger before it is offered. Inside a
+ * break period, show the eligibility date instead of the button.
+ *
+ * Returns every person who has ever had a SellContract at this client,
+ * aggregated across all vendors, with re-engagement eligibility.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  // A seat that reads only its holder's own work — a worker's two reads,
+  // or none — is not a desk that reads this (sign-up walk round five).
+  if (readsOnlyOwnWork(caller.permissions)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notYoursToRead('Past contractors', caller.company?.name) } },
+      { status: 403 }
+    )
+  }
+
+  const url = request.nextUrl
+
+  // Entitlement-checked: the caller is either this client, or a vendor
+  // with a real placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, seat, error: clientError } = await resolveClientCompany(
+    caller,
+    url.searchParams.get('clientCompanyId')
+  )
+  if (clientError) return clientError
+
+  const now = new Date()
+
+  // All sell contracts at this end client (active + ended + paused)
+  // Uses endClientFilter: matches endClientCompanyId OR clientCompanyId when no
+  // separate end client is set (direct placement — paying customer IS the end client)
+  const contracts = await prisma.sellContract.findMany({
+    where: {
+      ...endClientFilter(clientCompany.id),
+      state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+    },
+    include: {
+      person: {
+        select: {
+          id: true,
+          name: true,
+          consultant: { select: { headline: true, skills: true } },
+        },
+      },
+      company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
+      engagement: { select: { title: true } },
+      timesheets: {
+        where: { status: 'APPROVED' },
+        select: { totalHours: true },
+      },
+    },
+    orderBy: { startDate: 'asc' },
+  })
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // "Released May 2026 · Techpeple" named the prime's sub-vendor on the
+  // client's own page, and the vendor list beside it did the same. Who
+  // worked here and when is the client's; which firm below its supplier
+  // employed them is the prime's, unless the agreement says otherwise.
+  // A supplier reading this page reads its own chain unmasked.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        contracts.map(c => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /**
+   * What this reader may call a firm on a row.
+   *
+   * A firm that holds somebody on its bench and has never placed them
+   * here is not a rung of anybody's chain at this client, so it is not in
+   * the map and keeps its own name — the client met it on the bench, not
+   * behind a prime.
+   */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId,
+      name: trueName,
+      masked: false,
+      through: null,
+      phrase: trueName,
+      says: trueName,
+    }
+
+  // Load governance rules for tenure eligibility check
+  const tenureRule = await prisma.governanceRule.findFirst({
+    where: {
+      policy: { companyId: clientCompany.id, isActive: true },
+      ruleType: 'TENURE_CAP',
+      isActive: true,
+    },
+  })
+
+  const breakRule = await prisma.governanceRule.findFirst({
+    where: {
+      policy: { companyId: clientCompany.id, isActive: true },
+      ruleType: 'BREAK_IN_SERVICE',
+      isActive: true,
+    },
+  })
+
+  // Read raw, the way the ledger (/api/tenure) reads them, so the two
+  // pages are fed the same rules.
+  const limitRules = {
+    capMonths: tenureRule ? (tenureRule.parameters as any).maxMonths ?? null : null,
+    breakDays: breakRule ? (breakRule.parameters as any).breakDays ?? null : null,
+  }
+
+  // Group by person
+  const personMap = new Map<string, {
+    name: string
+    skill: string | null
+    skills: string[]
+    department: string | null
+    vendors: Map<string, string>
+    totalDays: number
+    hours: HoursTally
+    contractCount: number
+    hasActive: boolean
+    lastEndDate: Date | null
+    latestVendor: { id: string; name: string } | null
+  }>()
+
+  // Days on site per person, overlaps counted once — a prime's contract
+  // and its sub's are the same weeks, and summed per row they doubled.
+  const periodsByPerson = new Map<string, { startDate: Date; endDate: Date | null; state: string }[]>()
+  for (const c of contracts) {
+    periodsByPerson.set(c.personId, [...(periodsByPerson.get(c.personId) ?? []), c])
+  }
+
+  for (const c of contracts) {
+    const days = daysOnSite(periodsByPerson.get(c.personId) ?? [], now)
+    const isActive = c.state === 'IN_PROGRESS' || c.state === 'PAUSED'
+
+    const existing = personMap.get(c.personId)
+    if (existing) {
+      existing.vendors.set(c.company.id, c.company.name)
+      existing.totalDays = days
+      existing.hours = addWeeks(existing.hours, c.timesheets)
+      existing.contractCount++
+      if (isActive) existing.hasActive = true
+      if (c.endDate && (!existing.lastEndDate || c.endDate > existing.lastEndDate)) {
+        existing.lastEndDate = c.endDate
+        existing.latestVendor = c.company
+      }
+      // Use the latest engagement for department
+      if (c.engagement?.title) {
+        existing.department = c.engagement.title
+      }
+    } else {
+      const vendorMap = new Map<string, string>()
+      vendorMap.set(c.company.id, c.company.name)
+      personMap.set(c.personId, {
+        name: c.person.name,
+        skill: (c.person as any).consultant?.headline ?? null,
+        skills: (c.person as any).consultant?.skills ?? [],
+        department: c.engagement?.title ?? null,
+        vendors: vendorMap,
+        totalDays: days,
+        hours: addWeeks(EMPTY_TALLY, c.timesheets),
+        contractCount: 1,
+        hasActive: isActive,
+        lastEndDate: c.endDate ?? null,
+        latestVendor: isActive ? null : c.company,
+      })
+    }
+  }
+
+  // Check bench availability for non-active people
+  const allPersonIds = Array.from(personMap.keys())
+  const benchListings = await prisma.benchListing.findMany({
+    where: {
+      consultant: { personId: { in: allPersonIds } },
+    },
+    include: {
+      consultant: { select: { personId: true } },
+      company: { select: { id: true, name: true } },
+    },
+  })
+
+  const benchByPerson = new Map<string, { id: string; name: string }>()
+  for (const bl of benchListings) {
+    benchByPerson.set(bl.consultant.personId, bl.company)
+  }
+
+  // Build alumni list
+  const alumni = Array.from(personMap.entries()).map(([personId, data]) => {
+    // Whole months, the ledger's count: half a month is not a month served.
+    const totalMonths = monthsOf(data.totalDays)
+    const extensions = Math.max(0, data.contractCount - 1)
+
+    // Classify state
+    let state: 'placed' | 'available' | 'ended' = 'ended'
+    let detail = ''
+    // The firm holding them on its bench, as this reader may know it.
+    // The id goes with the name: a withheld firm handed over as an id is
+    // a name the next screen can look up, which is the same leak wearing
+    // a different column.
+    let currentVendor: { id: string | null; name: string } | null = null
+
+    if (data.hasActive) {
+      state = 'placed'
+      detail = 'On contract here'
+    } else {
+      const benchVendor = benchByPerson.get(personId)
+      if (benchVendor) {
+        state = 'available'
+        const seen = shown(benchVendor.id, benchVendor.name)
+        detail = `Available now · ${seen.name}`
+        currentVendor = { id: seen.masked ? null : benchVendor.id, name: seen.name }
+      } else {
+        state = 'ended'
+        const endStr = data.lastEndDate
+          ? data.lastEndDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          : 'Unknown'
+        const vendorName = data.latestVendor
+          ? shown(data.latestVendor.id, data.latestVendor.name).name
+          : 'Unknown'
+        detail = `Released ${endStr} · ${vendorName}`
+      }
+    }
+
+    // Re-engagement eligibility (Addendum E §E.2.3), read off the one
+    // standing the ledger and the award read — never a copy of its
+    // arithmetic. Inside a break: the day, not a button. Past the limit
+    // with no break rule: no button and no day.
+    const { canReengage, reengageBlockReason, eligibleDate, ledgerStatus } = askBack(
+      (periodsByPerson.get(personId) ?? []).map((c) => ({
+        startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED',
+      })),
+      limitRules,
+      now
+    )
+
+    return {
+      personId,
+      name: data.name,
+      skill: data.skill,
+      department: data.department,
+      totalMonths,
+      // Null with no approved week here: not a zero (round seven, 14).
+      totalHours: hoursOnRecord(data.hours),
+      extensions,
+      state,
+      detail,
+      currentVendor,
+      // ── The firms on this person's row ──
+      //
+      // Folded, not listed. A person bought through a chain has a rung
+      // per firm, and a withheld sub-vendor's name IS the name of the
+      // prime it comes through — so the row read "Computer Systems Inc,
+      // Supplied through Computer Systems Inc", which looks like one
+      // firm entered twice and is two rungs of one chain.
+      //
+      // `firmsOnARow` names the firm the client pays once and says how
+      // many firms sit below it. Nothing newly hidden and nothing newly
+      // disclosed: the count is the client's own exposure, the name
+      // below is the prime's to keep. The raw per-rung array is gone
+      // rather than kept beside it, because a list of answers is a list
+      // the next screen comma-joins — which is exactly how this read
+      // "Computer Systems Inc, Supplied through Computer Systems Inc"
+      // in the first place.
+      firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
+      canReengage,
+      reengageBlockReason,
+      eligibleDate,
+      ledgerStatus,
+    }
+  })
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  const alumniPersonIds = alumni.map((a) => a.personId)
+  if (alumniPersonIds.length > 0) {
+    logBulkAccess(alumniPersonIds, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'TENURE_VIEW',
+      reason: `Alumni view at ${clientCompany.name}`,
+    })
+  }
+
+  // Sort: available first (demo value), then placed, then ended
+  const stateOrder = { available: 0, placed: 1, ended: 2 }
+  alumni.sort((a, b) => stateOrder[a.state] - stateOrder[b.state])
+
+  const summary = {
+    total: alumni.length,
+    placed: alumni.filter(a => a.state === 'placed').length,
+    available: alumni.filter(a => a.state === 'available').length,
+    ended: alumni.filter(a => a.state === 'ended').length,
+  }
+
+  return NextResponse.json({
+    data: {
+      client: { id: clientCompany.id, name: clientCompany.name },
+      // Whether this desk may ask somebody back — the same check the
+      // ask-back request makes — so the page draws no button it would refuse.
+      askBack: await askDesk(caller, seat, clientCompany),
+      alumni,
+      summary,
+      // An empty program is a page with a sentence, never an error and
+      // never a bare zero (sign-up walk, round two, item 17).
+      says: emptyAlumniSays(clientCompany.name, alumni.length),
+    },
+  })
+}

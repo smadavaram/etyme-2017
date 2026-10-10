@@ -1,0 +1,183 @@
+'use client'
+
+import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
+import { refusalSentence } from '@/lib/refusal-words'
+import { Chip, EmptyState, ErrorState, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
+
+import { useEffect, useState } from 'react'
+
+/**
+ * What has been said to consultants, and what came back.
+ *
+ * The screen behind the data integrity layer. Everything clever in this
+ * product sits on a bench record, and the bench record rots — somebody
+ * free at $78 three weeks ago took a contract on Tuesday and nobody
+ * updated it, because updating records is nobody's job.
+ *
+ * The number at the top is the one that matters: how much of this bench
+ * nobody has heard from. It is the number the whole loop exists to move.
+ *
+ * Scoped to one vendor, and that is not a formality. A consultant on two
+ * benches must never learn that from us.
+ */
+
+interface Message {
+  id: string
+  person: { id: string; name: string }
+  kind: string
+  direction: 'OUT' | 'IN'
+  body: string
+  status: string
+  statusNote: string
+  read: string | null
+  at: string
+}
+
+interface Feed {
+  messages: Message[]
+  bench: { total: number; unconfirmed: number; noEmail: number; optedOut: number; says: string }
+  provider: string
+}
+
+function when(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+const KIND: Record<string, string> = {
+  FRESHNESS: 'still looking?',
+  CONSENT: 'ok to submit?',
+  OUTCOME: 'what happened',
+  PLACED: 'you got it',
+  LINK: 'reply',
+}
+
+export default function TextsPage() {
+  // Read off the menu this reader is actually shown, never the company's
+  // whole one: a seat with no desk was headed "Supply" over a page its
+  // menu does not have (sign-up walk, round seven, problem 3). Null while
+  // the session loads and where the menu does not list the page.
+  const eyebrow = usePageSection('/dashboard/texts')
+  const [f, setF] = useState<Feed | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  // A refusal is the page: its sentence alone. The heading and the line
+  // about a record saying somebody is free at a rate are for the desks
+  // that read check-ins, and a reader who may not open the page is not
+  // shown either (round seven, problem 6).
+  const [refused, setRefused] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/texts')
+      .then(async (r) => {
+        if (r.status === 403) {
+          const body = await r.json().catch(() => ({}))
+          setRefused(
+            refusalSentence(typeof body?.error === 'string' ? body.error : body?.error?.message) ||
+              'Bench check-ins is not part of your seat. Ask your company’s owner if you need it.'
+          )
+          return
+        }
+        const body = await readJson(r)
+        setF(body.data)
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (refused) return <RefusedState says={refused} />
+  // Nothing about whose bench this is until the read says it may be read.
+  if (loading) return <LoadingState says="Opening bench check-ins…" />
+
+  return (
+    <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
+      {/* The section the reader's own menu puts this page under — a
+          bench firm files it under Procure, an integrator and a program
+          office under Supply. It read "Talent" until the menus were
+          organized, and by then no menu had a Talent section at all. */}
+      <PageHead
+        eyebrow={eyebrow}
+        title="Bench check-ins"
+        subtitle={f && (
+          <>
+            A record that says somebody is free at $78 was true three weeks
+            ago. Everything else here sits on top of it, so we ask — one
+            question, one tap, in your name.
+          </>
+        )}
+      />
+
+      {f && (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Stat
+              label="Not confirmed"
+              value={<>{f.bench.unconfirmed}<span className="text-[16px] text-etyme-faint">/{f.bench.total}</span></>}
+              tone={f.bench.unconfirmed > 0 ? 'attention' : 'default'}
+            />
+            <Stat label="No email" value={f.bench.noEmail} />
+            <Stat label="Asked us to stop" value={f.bench.optedOut} />
+          </div>
+
+          <p className="text-[13px] text-etyme-muted">{f.bench.says}</p>
+
+          {f.provider.startsWith('not set up') && (
+            <div className="rounded-panel border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
+              Messages are being written down but not sent — no email
+              provider is set up yet. Everything below is what would have
+              gone out.
+            </div>
+          )}
+        </>
+      )}
+
+      {error && <ErrorState says={error} />}
+
+      {f && f.messages.length === 0 && (
+        <EmptyState
+          says="Nothing sent yet"
+          detail="The check-in runs every fortnight for anybody on the bench who is not currently working. The consent ask goes out with each submission."
+        />
+      )}
+
+      <div className="space-y-2">
+        {f?.messages.map((m) => (
+          <div
+            key={m.id}
+            className={`rounded-md border px-3 py-2 ${
+              m.direction === 'IN'
+                ? 'border-etyme-rule bg-etyme-raised'
+                : 'border-transparent bg-etyme-canvas'
+            }`}
+          >
+            <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-[12px]">
+                <span className="font-medium text-etyme-ink">{m.person.name}</span>
+                <span className="text-etyme-faint">
+                  {' '}
+                  · {m.direction === 'IN' ? 'replied' : KIND[m.kind] ?? m.kind.toLowerCase()} ·{' '}
+                  {when(m.at)}
+                </span>
+              </span>
+              <span className="flex items-center gap-2">
+                {m.read && <Chip tone="action">{m.read.toLowerCase()}</Chip>}
+                {m.direction === 'OUT' && m.status !== 'SENT' && (
+                  <Chip tone={m.status === 'FAILED' ? 'danger' : 'passive'} title={m.statusNote}>
+                    {m.status === 'NOT_CONFIGURED' ? 'not sent' : m.status.toLowerCase()}
+                  </Chip>
+                )}
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-etyme-ink">
+              {m.body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
