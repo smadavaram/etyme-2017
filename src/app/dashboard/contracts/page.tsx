@@ -885,16 +885,16 @@ function ContractDetailDrawer({
         <div className="p-6 space-y-6">
           {/* Rolloff warning */}
           {isRolloff && isActive && (
-            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line">
               <div className="flex items-center gap-2">
                 <span className="evidence-dot evidence-dot--pending" />
-                <span className="text-sm font-semibold text-amber-800">
+                <span className="text-sm font-semibold text-etyme-ink">
                   {contract.daysUntilEnd === 0
                     ? 'Contract ends today'
                     : `Contract ends in ${contract.daysUntilEnd} day${contract.daysUntilEnd !== 1 ? 's' : ''}`}
                 </span>
               </div>
-              <p className="text-xs text-amber-700 mt-1 ml-4">
+              <p className="text-xs text-etyme-ink mt-1 ml-4">
                 Extend or initiate rolloff before the end date.
               </p>
             </div>
@@ -1055,7 +1055,7 @@ function ContractDetailDrawer({
                     <button
                       onClick={() => handleActivation('cancel', 'Cancel')}
                       disabled={activating}
-                      className="btn-secondary flex-1 disabled:opacity-50 text-red-600 border-red-200 hover:bg-red-50"
+                      className="btn-secondary flex-1 disabled:opacity-50 text-etyme-danger border-etyme-danger-line hover:bg-etyme-danger-wash"
                     >
                       Cancel
                     </button>
@@ -1197,14 +1197,14 @@ function ContractDetailDrawer({
               <span className="text-xl">⚠️</span>
               <h3 className="text-base font-semibold">Governance warning</h3>
             </div>
-            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 mb-4">
-              <p className="text-sm text-amber-800">{governanceWarn.message}</p>
+            <div className="px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line mb-4">
+              <p className="text-sm text-etyme-ink">{governanceWarn.message}</p>
               {governanceWarn.evaluations.length > 0 && (
                 <ul className="mt-2 space-y-1">
                   {governanceWarn.evaluations
                     .filter((e: any) => e.outcome === 'WARN')
                     .map((e: any, i: number) => (
-                      <li key={i} className="text-[12px] text-amber-700">
+                      <li key={i} className="text-[12px] text-etyme-ink">
                         • <strong>{e.ruleType}</strong>: {e.reason}
                       </li>
                     ))
@@ -1607,8 +1607,8 @@ export default function ContractsPage() {
       {toast && (
         <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
           toast.type === 'success'
-            ? 'bg-green-50 border border-green-200 text-green-800'
-            : 'bg-red-50 border border-red-200 text-red-700'
+            ? 'bg-etyme-verified-wash border border-etyme-verified-line text-etyme-verified'
+            : 'bg-etyme-danger-wash border border-etyme-danger-line text-etyme-danger'
         }`}>
           {toast.message}
         </div>
@@ -1653,7 +1653,7 @@ export default function ContractsPage() {
 
       {ownEmpty ? null : (<>
       {/* Stats row */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Active" value={activeCount} sub="contracts" />
         <Stat
           label="Rolloffs"
@@ -1686,16 +1686,16 @@ export default function ContractsPage() {
 
       {/* Rolloff warnings banner */}
       {rolloffWarnings.length > 0 && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+        <div className="mb-6 px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line">
           <div className="flex items-center gap-2 mb-1">
             <span className="evidence-dot evidence-dot--pending" />
-            <span className="text-sm font-semibold text-amber-800">
+            <span className="text-sm font-semibold text-etyme-ink">
               {rolloffWarnings.length} contract{rolloffWarnings.length !== 1 ? 's' : ''} ending within 28 days
             </span>
           </div>
           <div className="ml-4 space-y-1">
             {rolloffWarnings.map((c) => (
-              <p key={c.id} className="text-xs text-amber-700">
+              <p key={c.id} className="text-xs text-etyme-ink">
                 <strong>{c.personName}</strong>
                 {c.counterpartyName && ` at ${c.counterpartyName}`}
                 {' — '}
@@ -1739,7 +1739,7 @@ export default function ContractsPage() {
         }
         rowClassName={(row) =>
           row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
-            ? '!bg-amber-50/30'
+            ? '!bg-etyme-attention-wash/40'
             : ''
         }
       />

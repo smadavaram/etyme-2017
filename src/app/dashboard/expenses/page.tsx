@@ -414,7 +414,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
                     type="button"
                     onClick={() => removeItem(idx)}
                     disabled={items.length <= 1}
-                    className="text-etyme-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed pt-2"
+                    className="text-etyme-faint hover:text-etyme-danger disabled:opacity-30 disabled:cursor-not-allowed pt-2"
                     title="Remove item"
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -772,7 +772,7 @@ export default function ExpensesPage() {
       )}
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Total expenses" value={formatUSD(totals.grand)} sub={`${stats.total} reports`} />
         <Stat label="Client-billable" value={formatUSD(totals.billable)} sub={`${totals.billableCount} reports`} />
         <Stat label="Internal" value={formatUSD(totals.internal)} sub={`${totals.internalCount} reports`} />

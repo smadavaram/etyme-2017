@@ -364,7 +364,7 @@ function Mirror({ book }: { book: any }) {
 
   return (
     <section className="space-y-4 border-b border-etyme-rule pb-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {bothSides && (
           <Stat
             label="Days to get paid"

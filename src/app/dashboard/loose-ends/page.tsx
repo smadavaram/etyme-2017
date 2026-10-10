@@ -82,7 +82,7 @@ export default function LooseEndsPage() {
       {error && <ErrorState says={error} />}
 
       {data?.standing && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Stat label="Loose" value={data.standing.total} />
           {data.standing.atRiskCents > 0 && (
             <Stat label="Billed with no cost behind it" value={money(data.standing.atRiskCents)} tone="attention" />

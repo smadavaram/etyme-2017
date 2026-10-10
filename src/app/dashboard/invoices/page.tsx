@@ -172,8 +172,8 @@ function agingColor(bucket: string): string {
     'current': 'text-etyme-verified',
     '1-30':    'text-etyme-attention',
     '31-60':   'text-etyme-attention',
-    '61-90':   'text-red-600',
-    '90+':     'text-red-700',
+    '61-90':   'text-etyme-danger',
+    '90+':     'text-etyme-danger',
   }
   return map[bucket] ?? 'text-etyme-muted'
 }
@@ -1068,7 +1068,7 @@ export default function InvoicesPage() {
       )}
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           label="Outstanding"
           value={fmtMinor(outstandingMinor, bookCcy)}
@@ -1211,8 +1211,8 @@ export default function InvoicesPage() {
           </>
         )}
         rowClassName={(row) =>
-          row.aging === '90+' ? 'bg-red-50/30' :
-          row.aging === '61-90' ? 'bg-red-50/20' :
+          row.aging === '90+' ? 'bg-etyme-danger-wash/50' :
+          row.aging === '61-90' ? 'bg-etyme-danger-wash/30' :
           ''
         }
         defaultPageSize={20}

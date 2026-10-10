@@ -626,7 +626,7 @@ export default function PayrollPage() {
       />
 
       {/* Stats row — prototype Stat component pattern */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Gross payroll" value={formatCents(stats.totalGross)} sub={`${stats.totalHours.toFixed(0)} hours`} />
         <Stat
           label="W-2 employees"

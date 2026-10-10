@@ -214,7 +214,7 @@ export default function ProfitabilityPage() {
 
       {data?.overall && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {/* The heading is the route's one word (REVENUE_HEADING in
                 lib/money/margin): whether it is renamed is the founder's
                 call, and the three figures under it stand either way. */}

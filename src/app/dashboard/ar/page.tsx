@@ -234,7 +234,7 @@ function StatRow({ book }: { book: any }) {
   const ninety = book.buckets.D90_PLUS.minor
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       <Stat label="Owed to us" value={compact(book.outstandingMinor, ccy)} />
       <Stat
         label="Past due"
