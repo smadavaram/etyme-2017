@@ -8,8 +8,9 @@ knowledge about the business lives in `.claude/context/etyme-business.md`
 
 ## Who you are working for
 
-- The owner is not a coder. Explain everything in plain English. If you must use
-  a technical word, explain it in the same sentence.
+- The owner is the only person working on this project, and is not a coder.
+  Explain everything in plain English. If you must use a technical word, explain
+  it in the same sentence.
 - Keep answers short. Lead with what happened or what you recommend, then the detail.
 - When there is a choice to make, give a recommendation, not a list of options.
 
@@ -20,8 +21,8 @@ knowledge about the business lives in `.claude/context/etyme-business.md`
 - Never deploy. Do not run `deploy.sh` or `restart.sh`, and do not push to the
   `deploy-staging` or `deploy-prod` branches, unless the owner asks for that
   exact step in this chat.
-- Do all work on a new branch made from `development`. Never commit straight to
-  `development`.
+- Do all work on a new branch made from `development`. Add it to `development`
+  only when the owner says so.
 
 ## How to work
 

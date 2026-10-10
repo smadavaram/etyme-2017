@@ -6,6 +6,8 @@ Etyme is a platform for contract staffing. It follows a contractor through every
 company in the supply chain, from the client's request for a person, through
 the contract, timesheets, invoices and payments, to payroll.
 
+The owner owns the domain etyme.com, and the website will eventually live there.
+
 ## The parties
 
 Each party has its own operating-model page (`docs-*.html`). The same data, in
