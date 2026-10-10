@@ -69,7 +69,7 @@ describe('16: a client reads no supplier words while its session loads', () => {
     const ts = read('src/app/dashboard/timesheets/page.tsx')
     // Round four (f4a10d3b7) added a third condition: a failed read shows its
     // sentence instead of the figures, so the cards also wait for no error.
-    expect(ts).toMatch(/\{company\?\.kind && readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
+    expect(ts).toMatch(/\{company\?\.kind && readOnce && !error && \(\s*<div className="grid[^"]*">\s*<Stat /)
   })
 
   it('the supplier sentence under the submissions heading waits for the reader too', () => {

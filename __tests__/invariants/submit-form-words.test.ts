@@ -10,12 +10,14 @@ const modal = PAGE.slice(PAGE.indexOf('function SubmitToRequirementModal'), PAGE
 
 describe('the submit form', () => {
   it('the person being put forward is labelled Consultant, not Who', () => {
-    expect(modal).toContain('>Consultant *</label>')
+    // The label is the shared Field's, which ties it to the select.
+    expect(modal).toContain('label="Consultant *"')
     expect(modal).not.toContain('>Who *</label>')
+    expect(modal).not.toContain('label="Who *"')
   })
 
   it('the rate is labelled Rate with the unit per hour, and no dollar sign sits beside the currency', () => {
-    expect(modal).toContain('>Rate *</label>')
+    expect(modal).toContain('label="Rate *"')
     expect(modal).toContain('per hour')
     expect(modal).not.toContain('$/hr')
   })

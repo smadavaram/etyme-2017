@@ -3,6 +3,7 @@
 import { usePageSection } from '@/components/page-section'
 import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
+import { PageHead, Field, Input, Textarea, SubmitButton, FormMessage, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, NETWORK_FILTERS, type NetworkFilter } from '@/lib/network-filters'
 
@@ -274,38 +275,32 @@ export default function PeoplePage() {
   ]
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          {section && <p className="eyebrow">{section}</p>}
-          <h1 className="headline-serif text-[30px] leading-tight">Contractors</h1>
-          <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-            Everyone who has been put in front of you, one entry each, merged across suppliers.
-            Every fact here sits in a different vendor&rsquo;s system and none of them can see the others.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHead
+        eyebrow={section}
+        title="Contractors"
+        subtitle={<>
+          Everyone who has been put in front of you, one entry each, merged across suppliers.
+          Every fact here sits in a different vendor&rsquo;s system and none of them can see the others.
+        </>}
+        actions={<>
           <button
             onClick={() => { setAsking((v) => !v); setSaid(null) }}
-            className="rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[13px] text-etyme-ink hover:border-etyme-ink"
+            className="btn-secondary"
           >
             {asking ? 'Not now' : 'Ask somebody you know'}
           </button>
           <ViewToggle view={view} onChange={setView} />
-        </div>
-      </header>
+        </>}
+      />
 
       {asking && <AskForm busy={busy} onSubmit={ask} />}
 
-      {said && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-ink">{said}</p>
-        </div>
-      )}
+      {said && <FormMessage tone="ok">{said}</FormMessage>}
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
@@ -314,21 +309,19 @@ export default function PeoplePage() {
         <FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Opening your contractors…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && rows.length === 0 && pending.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nobody yet. This fills in as suppliers put people forward — and if there is
+        <EmptyState
+          says="Nobody yet."
+          detail={<>
+            This fills in as suppliers put people forward — and if there is
             somebody you already want, ask them yourself.
-          </p>
-        </div>
+          </>}
+          action={asking ? undefined : { label: 'Ask somebody you know', onClick: () => { setAsking(true); setSaid(null) } }}
+        />
       )}
 
       {/* ── Pending: asked by you, not yet put forward by anybody ── */}
@@ -426,15 +419,14 @@ export default function PeoplePage() {
           must stand down — it fired anyway and showed the suppliers
           sentence under a perfectly full Pending list. */}
       {!loading && filter !== 'PENDING' && rows.length > 0 && shown.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{emptyWord(filter, place, 'people')}</p>
-        </div>
+        <EmptyState
+          says={emptyWord(filter, place, 'people')}
+          action={{ label: 'Show everyone', onClick: () => { setFilter('ALL'); setPlace(null) } }}
+        />
       )}
 
       {!loading && filter === 'PENDING' && pending.length === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{emptyWord('PENDING', place, 'people')}</p>
-        </div>
+        <EmptyState says={emptyWord('PENDING', place, 'people')} />
       )}
 
       {view === 'table' && filter !== 'PENDING' && rows.length > 0 && (
@@ -598,33 +590,24 @@ function AskForm({ busy, onSubmit }: {
         Somebody you have worked with, or been referred. They hear from you by email.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="lbl">Their name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Lucía Fernández"
-            className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-        </label>
-        <label className="block">
-          <span className="lbl">Their email</span>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="lucia@example.com"
-            className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-        </label>
+        <Field label="Their name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Lucía Fernández" />
+        </Field>
+        <Field label="Their email">
+          <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="lucia@example.com" />
+        </Field>
       </div>
-      <label className="block">
-        <span className="lbl">What they do</span>
-        <input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Demand planning, S&amp;OP"
-          className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-      </label>
-      <label className="block">
-        <span className="lbl">Why you want them</span>
-        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2}
-          placeholder="Finished a twelve-month stint on our planning team last year and we would take her back."
-          className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
-      </label>
+      <Field label="What they do">
+        <Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Demand planning, S&amp;OP" />
+      </Field>
+      <Field label="Why you want them">
+        <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2}
+          placeholder="Finished a twelve-month stint on our planning team last year and we would take her back." />
+      </Field>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={!ready || busy}
-          className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
+        <SubmitButton pending={busy} pendingLabel="Asking…" disabled={!ready}>
           Ask them
-        </button>
+        </SubmitButton>
         <p className="text-[12px] text-etyme-muted">
           This does not hire them. You contract through suppliers, so they will be asked who
           represents them — and if nobody does, you pick one of your own firms to take them on.

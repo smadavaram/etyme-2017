@@ -112,9 +112,9 @@ describe('4: a seat with no desk reads only the submissions that name it, and no
     const p = page('submissions')
     // Round seven, problem 5: the route's sentence is now the heading
     // itself, and the Submit button sits inside the desk's furniture.
-    expect(p).toContain('<p>{head.says}</p>')
-    expect(p.indexOf('{!own && (')).toBeGreaterThan(-1)
-    expect(p.indexOf('+ {framing.create}')).toBeGreaterThan(p.indexOf('{!own && ('))
+    expect(p).toContain('subtitle={head.says}')
+    expect(p.indexOf('!own ? (')).toBeGreaterThan(-1)
+    expect(p.indexOf('+ {framing.create}')).toBeGreaterThan(p.indexOf('!own ? ('))
   })
 })
 
@@ -178,7 +178,9 @@ describe('14: a refusal reads as a refusal, in the page’s own name, alone', ()
   it('Milestones draws the refusal alone and never as "Could not load milestones"', () => {
     const p = page('program/milestones')
     expect(p).toMatch(/refusedBy\(res, 'Milestones'\)/)
-    expect(p.indexOf('if (refused)')).toBeLessThan(p.indexOf('Could not load milestones'))
+    expect(p).not.toContain('Could not load milestones')
+    expect(p.indexOf('if (refused)')).toBeGreaterThan(-1)
+    expect(p.indexOf('if (refused)')).toBeLessThan(p.indexOf('<ErrorState'))
   })
 
   it('Agreements draws the refusal in its own name and adds no second sentence about a contract manager', () => {
@@ -190,7 +192,7 @@ describe('14: a refusal reads as a refusal, in the page’s own name, alone', ()
   it('the job request page and Shared with you draw a refusal with no "Try again" under it', () => {
     for (const p of ['requisitions/[id]', 'invitations']) {
       const s = page(p)
-      expect(s, p).toMatch(/if \(refused\)[\s\S]{0,20}return <p className="[^"]*">\{refused\}<\/p>/)
+      expect(s, p).toMatch(/if \(refused\)[\s\S]{0,20}return <RefusedState says=\{refused\} \/>/)
       // The refusal returns before the failure branch that carries "Try again".
       const tryAgain = s.indexOf('Try again', s.indexOf('{refused}'))
       const failure = s.lastIndexOf('error', tryAgain)
@@ -202,7 +204,7 @@ describe('14: a refusal reads as a refusal, in the page’s own name, alone', ()
 describe('15: Program office waits for its read before saying who sits there', () => {
   it('the page says "Loading…" until the first read is back, never "Nobody outside this company sits in this program"', () => {
     const p = page('program/seats')
-    expect(p).toMatch(/if \(!readOnce\) \{\s*return <p[^>]*>Loading…<\/p>/)
+    expect(p).toMatch(/if \(!readOnce\) \{\s*return <LoadingState says="Loading…" \/>/)
     expect(p.indexOf('if (!readOnce)')).toBeLessThan(p.indexOf('{live.length === 0 && !nothingYet'))
   })
 })

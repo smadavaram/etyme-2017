@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import Link from 'next/link'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { PageHead, Stat, FilterChips, RefusedState } from '@/components/ui'
 import { readJson, statusMeans } from '@/lib/read-response'
 import { refusalFor } from '../own-refusal'
 import {
@@ -309,7 +310,7 @@ export default function AgreementsPage() {
   // The sentence alone: the door's refusal already says who to ask, and a
   // second sentence beside it read as a second rule (round five, #14).
   if (trouble?.denied) {
-    return <p className="text-[14px] text-etyme-muted py-8">{trouble.says}</p>
+    return <RefusedState says={trouble.says} />
   }
 
   return (
@@ -320,7 +321,7 @@ export default function AgreementsPage() {
           this way and a person should know whether this screen wants
           anything from them before they read a row. ── */}
       {!loading && !trouble && (
-        <div className="panel mt-6">
+        <div className="panel">
           <p className="font-serif text-xl tracking-[-0.02em] text-etyme-ink">
             {headline(queue)}
           </p>
@@ -394,20 +395,12 @@ export default function AgreementsPage() {
         exportName="agreements"
         onRowClick={(r) => setOpen(open === r.id ? null : r.id)}
         filters={
-          <div className="flex flex-wrap gap-1.5">
-            {FILTERS.map((f) => {
-              const count = all.filter((r) => matchesFilter(r, f.key)).length
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`filter-tab ${filter === f.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-                >
-                  {f.label} ({count})
-                </button>
-              )
-            })}
-          </div>
+          <FilterChips
+            label="Which agreements"
+            value={filter}
+            onChange={setFilter}
+            options={FILTERS.map((f) => ({ key: f.key, label: f.label, count: all.filter((r) => matchesFilter(r, f.key)).length }))}
+          />
         }
       />
 
@@ -442,16 +435,16 @@ function Head() {
   // Not on any menu itself, it is headed by the program page that opens it.
   const section = usePageSection('/dashboard/program')
   return (
-    <div className="mb-1">
-      {section && <div className="eyebrow mb-1">{section}</div>}
-      <h1 className="font-serif text-2xl font-semibold tracking-[-0.02em]">Agreements</h1>
-      <p className="mt-1 max-w-2xl text-sm text-etyme-muted">
+    <PageHead
+      eyebrow={section}
+      title="Agreements"
+      subtitle={<>
         Whether we are allowed to trade with somebody, until when, and whether both sides
         actually signed. Everything below an agreement inherits from it — payment days, the
         margin floor, how many people it permits. An order carries a ceiling; a contract
         carries a rate; this carries permission.
-      </p>
-    </div>
+      </>}
+    />
   )
 }
 
@@ -1747,33 +1740,3 @@ function Field({
   )
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string
-  value: number | string
-  sub?: string
-  tone?: 'attention' | 'action' | 'verified'
-}) {
-  const tones = {
-    attention: 'text-etyme-attention',
-    action: 'text-etyme-action',
-    verified: 'text-etyme-verified',
-  }
-  return (
-    <div className="card px-4 py-3">
-      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
-        {label}
-      </p>
-      <p
-        className={`font-serif text-2xl font-semibold tabular-nums ${tone ? tones[tone] : 'text-etyme-ink'}`}
-      >
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-[10px] text-etyme-faint">{sub}</p>}
-    </div>
-  )
-}

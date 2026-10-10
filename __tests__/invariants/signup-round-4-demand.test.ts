@@ -18,7 +18,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), 'src/app/dashboard'
 
 /** The page keeps the door's own sentence on a 403, and returns it alone. */
 const REFUSED_HELD = /res\.status === 403\)[\s\S]{0,200}setRefused\(/
-const REFUSED_ALONE = /if \(refused\) \{\s*return <p className="[^"]*">\{refused\}<\/p>\s*\}/
+// The shared primitive takes the sentence and nothing else (components/ui/states).
+const REFUSED_ALONE = /if \(refused\) \{\s*return <RefusedState says=\{refused\} \/>\s*\}/
 
 const REFUSING_PAGES = [
   'timesheets', 'program', 'requirements', 'submissions', 'requisitions', 'people',
@@ -40,8 +41,8 @@ describe('3: a page the door refused draws the refusal sentence and nothing else
     const src = read('timesheets')
     const gate = src.search(REFUSED_ALONE)
     expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(src.indexOf('<p className="stat-label">Pending approval</p>'))
-    expect(gate).toBeLessThan(src.indexOf('<p className="stat-label">Approved value</p>'))
+    expect(gate).toBeLessThan(src.indexOf('label="Pending approval"'))
+    expect(gate).toBeLessThan(src.indexOf('label="Approved value"'))
   })
 
   it('the Timesheets tiles are drawn only after a read that answered, never beside a failure', () => {
@@ -52,7 +53,7 @@ describe('3: a page the door refused draws the refusal sentence and nothing else
     const src = read('program')
     expect(src).toMatch(/\.catch\(\(err: any\) => \{\s*setTenure\(null\)\s*setTenureSays\(/)
     expect(src).toMatch(/tenure === null && tenureSays && <p[^>]*>\{tenureSays\}<\/p>/)
-    expect(src).toMatch(/tenure === null && !tenureSays && <p[^>]*>Reading…<\/p>/)
+    expect(src).toMatch(/tenure === null && !tenureSays && <LoadingState compact says="Reading…" \/>/)
   })
 
   it('on the program dashboard the Tenure tile is not drawn at all when tenure was refused', () => {
@@ -99,7 +100,8 @@ describe('15: an eyebrow names the section the page sits under on the reader’s
 
   it('all three draw no eyebrow at all while the reader’s menu is not known', () => {
     for (const p of ['suppliers', 'program/budget', 'program/team']) {
-      expect(read(p), p).toMatch(/\{section && <(p|div) className="eyebrow">\{section\}<\/(p|div)>\}/)
+      // PageHead draws the eyebrow only when the menu gives one (shared-primitives).
+      expect(read(p), p).toMatch(/\{section && <(p|div) className="eyebrow">\{section\}<\/(p|div)>\}|<PageHead\s+eyebrow=\{section\}/)
     }
   })
 })
@@ -110,12 +112,14 @@ describe('21: a count is drawn only after the first read has answered', () => {
     expect(src).toMatch(/setReadOnce\(true\)/)
     const gate = src.indexOf('{readOnce && !error && (')
     expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(src.indexOf('<p className="stat-label">Total</p>'))
+    expect(gate).toBeLessThan(src.indexOf('<Stat label="Total"'))
   })
 
   it('Job requests draws no number on its All, Draft and Awaiting approval tabs until the first read is back', () => {
     const src = read('requisitions')
-    expect(src).toMatch(/\{label\}\{summary && <> <span className="tabular-nums opacity-60">\{n\}<\/span><\/>\}/)
+    // The stage chips carry a count only when the summary is back; until
+    // then the count is undefined and FilterChips draws none.
+    expect(src).toMatch(/count: summary\s*\?/)
     expect(src).not.toMatch(/\{label\} <span className="tabular-nums opacity-60">\{n\}<\/span>/)
   })
 
@@ -126,8 +130,8 @@ describe('21: a count is drawn only after the first read has answered', () => {
   })
 
   it('a supplier’s Job requests list and Needs attention draw their counts only once the first read is back', () => {
-    expect(read('requirements')).toMatch(/\{readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
-    expect(read('decisions')).toMatch(/\{readOnce && !error && \(\s*<div className="flex gap-3 mb-6 flex-wrap">/)
+    expect(read('requirements')).toMatch(/\{readOnce && !error && \(\s*<div className="grid[^"]*">\s*<Stat /)
+    expect(read('decisions')).toMatch(/\{readOnce && !error && \(\s*<div className="grid[^"]*">\s*<Stat /)
   })
 })
 

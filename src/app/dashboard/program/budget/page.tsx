@@ -8,6 +8,7 @@ import { readJson } from '@/lib/read-response'
 import { ListSurface, type Column } from '@/components/list-surface'
 import type { View } from '@/components/network-view'
 import { usePageSection } from '@/components/page-section'
+import { PageHead, Stat, RefusedState, LoadingState, ErrorState, EmptyState, FormMessage } from '@/components/ui'
 
 /**
  * What is left of the budget, and what every contract is doing to it.
@@ -165,34 +166,30 @@ export default function BudgetPage() {
   ], [anywhere, me])
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[1040px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Budget</h1>
-        <p className="mt-2 max-w-[62ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={section}
+        title="Budget"
+        subtitle={<>
           What each cost center may spend this period, what is committed against it, and what
           is left. You buy contract labor — there is no bill here, only your own plan and what
           it is being drawn down by.
-        </p>
-      </header>
+        </>}
+      />
 
       {summary && (
-        <section className="grid grid-cols-2 gap-4 border-y border-etyme-rule py-4 sm:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ['Budget', cash(summary.budgetCents), `${period}`],
             ['Committed', cash(summary.committedCents), 'signed, not yet worked'],
             ['Spent', cash(summary.actualCents), 'work you accepted'],
             ['Left', cash(summary.budgetCents == null ? null : summary.budgetCents - summary.committedCents - summary.actualCents), 'budget less both'],
           ].map(([label, value, note]) => (
-            <div key={label}>
-              <p className="stat-label">{label}</p>
-              <p className="font-serif text-[26px] leading-none tabular-nums text-etyme-ink">{value}</p>
-              <p className="mt-1 text-[11px] text-etyme-faint">{note}</p>
-            </div>
+            <Stat key={label} label={label} value={value} sub={note} />
           ))}
         </section>
       )}
@@ -212,9 +209,9 @@ export default function BudgetPage() {
         </p>
       )}
 
-      {said && <div className="panel"><p className="text-[13px] text-etyme-ink">{said}</p></div>}
-      {error && <div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div>}
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {said && <FormMessage tone="ok">{said}</FormMessage>}
+      {error && <ErrorState says={error} />}
+      {loading && <LoadingState says="Opening the budget…" />}
 
       {!loading && centers.length > 0 && (
         <ListSurface<Center>
@@ -306,11 +303,11 @@ export default function BudgetPage() {
       )}
 
       {!loading && centers.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            No cost centers yet. Add them under Program team, then set a budget against each.
-          </p>
-        </div>
+        <EmptyState
+          says="No cost centers yet."
+          detail="Add them under Program team, then set a budget against each."
+          action={{ label: 'Open Program team', href: '/dashboard/program/team' }}
+        />
       )}
     </div>
   )

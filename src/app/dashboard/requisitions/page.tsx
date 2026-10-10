@@ -9,6 +9,7 @@ import { deskOf as deskOfSession } from '@/components/shell/sidebar-props'
 import { rowActions, raiseVerdict, NOT_YOURS_TO_RAISE } from './row-actions'
 import { jobListWord } from '../requirements/words'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { Stat, PageHead, FilterChips, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { STAGES, stageOf, closedBecause, type Stage } from '@/lib/requisition-stage'
 import { missingForApproval, missingSays } from './facts'
 import {
@@ -72,22 +73,6 @@ interface Requisition {
   approvals: Approval[]
   counts: { submissions: number; invitations: number }
   createdAt: string
-}
-
-function Stat({ label, value, tone = 'default', sub }: {
-  label: string; value: string | number; tone?: 'default' | 'attention' | 'verified'; sub?: string
-}) {
-  const color =
-    tone === 'attention' ? 'text-etyme-attention'
-    : tone === 'verified' ? 'text-etyme-verified'
-    : 'text-etyme-ink'
-  return (
-    <div>
-      <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
-    </div>
-  )
 }
 
 /**
@@ -572,7 +557,6 @@ export default function RequisitionsPage() {
   // The door's own sentence when it refused this reader, drawn alone
   // (sign-up walk, round four, problem 3).
   const [refused, setRefused] = useState<string | null>(null)
-  const [q, setQ] = useState('')
   const [stage, setStage] = useState<Tab>('ALL')
   /**
    * Archived rows are off the working list by default.
@@ -731,66 +715,61 @@ export default function RequisitionsPage() {
     }
   }
 
-  const term = q.trim().toLowerCase()
   // The working list is everything not put away; Archived is its own
   // tab, so a settled row has a place to be found rather than a
   // checkbox to remember.
   const working = reqs.filter(r => stageOf(r) !== 'ARCHIVED')
   const archived = reqs.filter(r => stageOf(r) === 'ARCHIVED')
   const onTheList = stage === 'ARCHIVED' ? archived : working
-  const visible = onTheList.filter(r =>
-    (stage === 'ALL' || stageOf(r) === stage)
-  ).filter(r =>
-    term.length === 0 ||
+  const visible = onTheList.filter(r => stage === 'ALL' || stageOf(r) === stage)
+  // The list's own search box, over the words a manager searches by. The
+  // page drew a second box above the list before the list searched
+  // itself; one box, the list's, is the one the reader learns.
+  const matchesSearch = (r: Requisition, term: string) =>
     r.title.toLowerCase().includes(term) ||
     (r.costCenter?.code ?? '').toLowerCase().includes(term) ||
     (r.location ?? '').toLowerCase().includes(term) ||
     r.skills.some(s => s.toLowerCase().includes(term))
-  )
+  const mayRaise = raiseVerdict(session, permissions)
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          {/* The eyebrow and the heading both said something the menu no
-              longer says — "Program" for a section now called Workforce,
-              "Requisitions" for an entry since called Job requests on a
-              client's menu. A menu item and the heading of the page it
-              opens are one promise made twice, so the heading reads the
-              word from lib/page-framing, where the menu's word lives. */}
-          {section && <Lbl>{section}</Lbl>}
-          <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-            {jobListWord(company?.kind, book && company && book.id !== company.id ? { seated: true, companyName: book.name } : null).plural}
-          </h1>
-          <p className="text-etyme-muted mt-2 max-w-2xl">
-            What your managers need. Most clear the moment they are raised — only
-            those over plan, over budget or above the going rate go to a person.
-          </p>
-        </div>
-        {/* Raising one is the hiring manager's and the program office's.
-            The approver who decides it, the clerk who pays for it and the
-            viewer who reads the program are told what they are looking
-            at rather than handed a button the route will refuse. */}
-        {raiseVerdict(session, permissions) === 'RAISE' ? (
-          <button onClick={() => setRaising(true)}
-            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
+      {/* The eyebrow and the heading both said something the menu no
+          longer says — "Program" for a section now called Workforce,
+          "Requisitions" for an entry since called Job requests on a
+          client's menu. A menu item and the heading of the page it
+          opens are one promise made twice, so the heading reads the
+          word from lib/page-framing, where the menu's word lives. */}
+      {/* Raising one is the hiring manager's and the program office's.
+          The approver who decides it, the clerk who pays for it and the
+          viewer who reads the program are told what they are looking
+          at rather than handed a button the route will refuse. */}
+      <PageHead
+        eyebrow={section}
+        title={jobListWord(company?.kind, book && company && book.id !== company.id ? { seated: true, companyName: book.name } : null).plural}
+        subtitle={<>
+          What your managers need. Most clear the moment they are raised — only
+          those over plan, over budget or above the going rate go to a person.
+        </>}
+        actions={mayRaise === 'RAISE' ? (
+          <button onClick={() => setRaising(true)} className="btn-primary">
             Raise one
           </button>
-        ) : raiseVerdict(session, permissions) === 'NOT_YOURS' ? (
-          <p className="text-xs text-etyme-muted shrink-0 max-w-[14rem] text-right">
+        ) : mayRaise === 'NOT_YOURS' ? (
+          <p className="text-xs text-etyme-muted max-w-[14rem] sm:text-right">
             {NOT_YOURS_TO_RAISE}
           </p>
         ) : null}
-      </div>
+      />
 
       {decision && <DecisionPanel decision={decision} onDismiss={() => setDecision(null)} />}
 
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Stat label="Open" value={summary.open} />
           <Stat label="Cleared automatically" value={summary.autoCleared} tone="verified"
             sub="no human needed" />
@@ -803,62 +782,46 @@ export default function RequisitionsPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {TABS.map(([key, label]) => {
-          // Counted over the same set the tab will show, or the number lies.
-          const n =
-            key === 'ALL' ? working.length
-            : key === 'ARCHIVED' ? archived.length
-            : working.filter(r => stageOf(r) === key).length
-          return (
-            <button
-              key={key}
-              onClick={() => setStage(key)}
-              className={`filter-tab ${stage === key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-            >
-              {/* A count only once the first read is back: "All 0" while
-                  loading is a guess drawn as an answer (round four, 21). */}
-              {label}{summary && <> <span className="tabular-nums opacity-60">{n}</span></>}
-            </button>
-          )
-        })}
-      </div>
-
-      <input
-        value={q}
-        onChange={e => setQ(e.target.value)}
-        placeholder="Search by job, budget code, skill or location…"
-        className="w-full px-3 py-2 mb-6 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
-      />
-
-      {loading && <div className="text-etyme-muted py-12 text-center">Loading…</div>}
+      {loading && <LoadingState says="Opening job requests…" />}
 
       {!loading && error && (
-        <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-          <div className="text-etyme-attention font-medium">{error}</div>
-          <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
-        </div>
+        <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
       )}
 
-      {!loading && !error && visible.length === 0 && (
-        <div className="border border-etyme-rule rounded-lg p-12 text-center">
-          <p className="font-serif text-lg text-etyme-ink">
-            {term ? 'Nothing matches that search' : 'No job requests yet'}
-          </p>
-          <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
-            {term ? 'Try a different job or budget code.'
-                  : 'Raise one and it will either open straight away or go to whoever needs to see it.'}
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && visible.length > 0 && (
+      {!loading && !error && (
         <ListSurface<Requisition>
           name="requirements"
           defaultView="feed"
           columns={REQ_COLUMNS}
           data={visible}
           rowKey={(r) => r.id}
+          searchPlaceholder="Search by job, budget code, skill or location…"
+          searchFilter={matchesSearch}
+          filters={
+            <FilterChips<Tab>
+              label="Stage"
+              value={stage}
+              onChange={setStage}
+              options={TABS.map(([key, label]) => ({
+                key,
+                label,
+                // Counted over the same set the tab will show, or the
+                // number lies — and only once the first read is back:
+                // "All 0" while loading is a guess drawn as an answer
+                // (round four, 21).
+                count: summary
+                  ? key === 'ALL' ? working.length
+                    : key === 'ARCHIVED' ? archived.length
+                    : working.filter(r => stageOf(r) === key).length
+                  : undefined,
+              }))}
+            />
+          }
+          emptyMessage={stage === 'ALL' ? 'No job requests yet.' : 'No job requests at this stage.'}
+          emptyDetail={stage === 'ALL'
+            ? 'Raise one and it will either open straight away or go to whoever needs to see it.'
+            : undefined}
+          emptyAction={stage === 'ALL' && mayRaise === 'RAISE' ? { label: 'Raise one', onClick: () => setRaising(true) } : undefined}
           exportName="requirements"
           defaultPageSize={50}
           onRowClick={(r) => { window.location.href = `/dashboard/requisitions/${r.id}` }}

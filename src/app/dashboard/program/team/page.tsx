@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
+import { PageHead, RefusedState, LoadingState } from '@/components/ui'
 
 /**
  * The program team — who approves, who leads, who owns which budget.
@@ -198,22 +199,10 @@ export default function ProgramTeamPage() {
   }, [])
 
   if (unreadable) {
-    return (
-      <div className="animate-fade-in">
-        <div className="panel py-16 text-center">
-          <p className="text-sm text-etyme-muted">{unreadable}</p>
-        </div>
-      </div>
-    )
+    return <RefusedState says={unreadable} />
   }
   if (!team) {
-    return (
-      <div className="animate-fade-in">
-        <div className="panel py-16 text-center">
-          <p className="text-body-sm text-etyme-muted">Reading the program team…</p>
-        </div>
-      </div>
-    )
+    return <LoadingState says="Reading the program team…" />
   }
 
   // One form, shown under whichever heading opened it: naming a desk
@@ -327,14 +316,14 @@ export default function ProgramTeamPage() {
 
   return (
     <div className="animate-fade-in max-w-4xl">
-      <div className="page-head">
-        {section && <div className="eyebrow">{section}</div>}
-        <h1 className="headline-serif text-heading text-etyme-ink">Program team</h1>
-        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
+      <PageHead
+        eyebrow={section}
+        title="Program team"
+        subtitle={<>
           Who reads the job, who reads the suppliers, and who is answerable
           for each budget. Most job requests clear without any of them.
-        </p>
-      </div>
+        </>}
+      />
 
       {team.warnings.length > 0 && (
         <div className="card mb-6 border-etyme-attention/40 bg-etyme-attention/5">

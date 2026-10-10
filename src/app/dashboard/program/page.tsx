@@ -8,6 +8,7 @@ import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { deskCounts, deskHeadline, deskItems, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
@@ -401,27 +402,19 @@ export default function ProgramPage() {
   }
 
   if (loading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-4 w-40 rounded bg-etyme-rule/50" />
-        <div className="h-9 w-2/3 rounded bg-etyme-rule/50" />
-        <div className="h-4 w-1/2 rounded bg-etyme-rule/40" />
-        <div className="h-40 rounded bg-etyme-rule/30 mt-8" />
-      </div>
-    )
+    return <LoadingState says="Opening your desk…" />
   }
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   if (error || !data) {
     return (
-      <div className="panel p-6">
-        <p className="text-sm text-etyme-attention font-medium">This desk could not be read.</p>
-        <p className="text-sm text-etyme-muted mt-1">{error}</p>
-        <button onClick={() => { setError(null); setLoading(true); loadData() }} className="btn-secondary mt-4">Try again</button>
-      </div>
+      <ErrorState
+        says={<>This desk could not be read.{error ? <> {error}</> : null}</>}
+        action={{ label: 'Try again', onClick: () => { setError(null); setLoading(true); loadData() } }}
+      />
     )
   }
 
@@ -561,27 +554,6 @@ function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`
 }
 
-// ── Stat ──────────────────────────────────────────────────
-
-function Stat({ label, value, sub, tone, href }: {
-  label: string
-  value: number | string
-  sub?: string
-  tone?: 'attention' | 'action' | 'verified'
-  href?: string
-}) {
-  const color = tone === 'attention' ? 'text-etyme-attention' : tone === 'action' ? 'text-etyme-action' : tone === 'verified' ? 'text-etyme-verified' : 'text-etyme-ink'
-  const body = (
-    <>
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-etyme-faint mb-1">{label}</p>
-      <p className={`font-serif text-3xl leading-none tabular-nums ${color}`}>{value}</p>
-      {sub && <p className="text-[11px] text-etyme-muted mt-1.5">{sub}</p>}
-    </>
-  )
-  const cls = 'block bg-etyme-surface border border-etyme-rule rounded-lg px-4 py-3'
-  return href ? <a href={href} className={`${cls} hover:border-etyme-muted transition-colors`}>{body}</a> : <div className={cls}>{body}</div>
-}
-
 // ── Today ─────────────────────────────────────────────────
 
 /**
@@ -664,7 +636,7 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
           {whoseBook && <p className="text-xs text-etyme-muted max-w-2xl">{whoseBook}</p>}
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-          {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
+          {!queueLoaded && <LoadingState compact says="Reading…" />}
           {queueLoaded && queueSays && <p className="p-4 text-sm text-etyme-muted">{queueSays}</p>}
           {queueLoaded && !queueSays && queue.length === 0 && others.length === 0 && (
             <p className="p-4 text-sm text-etyme-muted">
@@ -794,7 +766,7 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
         {!tenureSays && <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />}
         {/* What is open, and nothing promised about how fast it fills —
             a public or product sentence promises no speed (CLAUDE.md). */}
-        <Stat label={jobListWord('CLIENT').plural} value={s.openRoles} sub="published or drafted" tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
+        <Stat label={jobListWord('CLIENT').plural} value={s.openRoles} sub="published or drafted" href="/dashboard/requisitions" />
       </div>
 
       {/* The one figure here that is an estimate says so, under the row
@@ -842,7 +814,7 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
             <h2 className="font-serif text-lg text-etyme-ink mb-3">Tenure to watch</h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
               {tenure === null && tenureSays && <p className="p-4 text-sm text-etyme-muted">{tenureSays}</p>}
-              {tenure === null && !tenureSays && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
+              {tenure === null && !tenureSays && <LoadingState compact says="Reading…" />}
               {tenure !== null && watchList.length === 0 && (
                 <p className="p-4 text-sm text-etyme-muted">
                   {tenure.summary.totalTracked === 0

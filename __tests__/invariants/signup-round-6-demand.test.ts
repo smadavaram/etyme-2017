@@ -133,7 +133,8 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
   it('the rate column says who reads a withheld rate, and the tile draws a dash rather than $0', () => {
     const page = src('app/dashboard/timesheets/page.tsx')
     expect(page).toMatch(/row\.rate\.withheld \? RATE_WITHHELD_CELL : 'not recorded'/)
-    expect(page).toMatch(/totals\.approvedValueCents == null\s*\?\s*'—'/)
+    // A null value is drawn by the shared Stat as a dash (shared-primitives).
+    expect(page).toMatch(/totals\.approvedValueCents == null\s*\?\s*null/)
     expect(RATE_WITHHELD_CELL).toBe('Rate is read by the billing desk')
   })
 
@@ -188,7 +189,7 @@ describe('11: Timesheets tells somebody with no company whose page it is', () =>
 
   it('the page draws that sentence alone, never "your firm" or "your consultants"', () => {
     const page = src('app/dashboard/timesheets/page.tsx')
-    expect(page).toMatch(/if \(!sessionLoading && !company\) \{\s*return <p[^>]*>\{TIMESHEETS_NOT_AT_A_COMPANY\}<\/p>/)
+    expect(page).toMatch(/if \(!sessionLoading && !company\) \{\s*return <RefusedState says=\{TIMESHEETS_NOT_AT_A_COMPANY\} \/>/)
   })
 
   it('the route’s filing line says the same to a reader with no company', () => {
@@ -272,7 +273,8 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
     it(`${href} reads its heading from the reader’s own menu and draws none while the menu is loading`, () => {
       const page = src(file)
       expect(page).toContain(`usePageSection('${href}')`)
-      expect(page).toMatch(/\{section && <(p|Lbl)[^>]*>\{section\}<\/(p|Lbl)>\}/)
+      // PageHead draws the eyebrow only when the menu gives one (shared-primitives).
+      expect(page).toMatch(/\{section && <(p|Lbl)[^>]*>\{section\}<\/(p|Lbl)>\}|<PageHead\s+eyebrow=\{section\}/)
       expect(page).not.toMatch(TYPED)
     })
   }
@@ -288,7 +290,7 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
     const page = src('app/dashboard/requisitions/[id]/page.tsx')
     expect(page).toContain("usePageSection('/dashboard/requisitions')")
     expect(page).not.toMatch(/<Lbl>\{r\.orgUnit\?\.name \?/)
-    expect(page).toMatch(/\{r\.orgUnit\?\.name && <div[^>]*>Job request · \{r\.orgUnit\.name\}<\/div>\}/)
+    expect(page).toMatch(/subtitle=\{r\.orgUnit\?\.name \? `Job request · \$\{r\.orgUnit\.name\}` : undefined\}/)
   })
 
   it('a job’s page heads with the section of the list the reader opened it from, and names the hiring company under the title instead', () => {
@@ -296,7 +298,7 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
     expect(page).toMatch(/listHref = company\?\.kind === 'CLIENT' \? '\/dashboard\/requisitions' : '\/dashboard\/requirements'/)
     expect(page).toContain('usePageSection(listHref)')
     expect(page).not.toContain('<div className="eyebrow mb-2">{requirement.company.name}</div>')
-    expect(page).toContain('<p className="text-[13px] text-etyme-muted mb-2">{requirement.company.name}</p>')
+    expect(page).toContain('subtitle={requirement.company.name}')
   })
 })
 

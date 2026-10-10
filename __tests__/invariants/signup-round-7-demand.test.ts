@@ -37,13 +37,13 @@ describe('5: a worker never reads the firm’s words or its Submit button, befor
   it('Submissions draws "Loading…" alone until its read answers, and no firm sentence of its own beside the route’s', () => {
     const page = src('app/dashboard/submissions/page.tsx')
     expect(page).toMatch(/const head = listHead\(\{/)
-    expect(page).toMatch(/if \(head\.state === 'LOADING'\) \{\s*return <p[^>]*>Loading…<\/p>/)
-    expect(page).toContain('<p>{head.says}</p>')
+    expect(page).toMatch(/if \(head\.state === 'LOADING'\) \{\s*return <LoadingState says="Loading…" \/>/)
+    expect(page).toContain('subtitle={head.says}')
   })
 
   it('Submissions draws neither the Submit button nor the Sent and Received toggle for a seat that reads only its own rows', () => {
     const page = src('app/dashboard/submissions/page.tsx')
-    const at = page.indexOf('{!own && (')
+    const at = page.indexOf('!own ? (')
     expect(at).toBeGreaterThan(-1)
     expect(page.indexOf('+ {framing.create}')).toBeGreaterThan(at)
     expect(page.indexOf('Received\n')).toBeGreaterThan(at)
@@ -54,7 +54,7 @@ describe('5: a worker never reads the firm’s words or its Submit button, befor
   it('Timesheets draws "Loading…" alone until its read answers, then the route’s own sentence or the desk’s', () => {
     const page = src('app/dashboard/timesheets/page.tsx')
     expect(page).toMatch(/const head = listHead\(\{ readOnce, ownSays, firmSays: framing\.subtitle \}\)/)
-    expect(page).toContain('<p>{head.says}</p>')
+    expect(page).toContain('subtitle={head.says}')
     expect(page).not.toContain('{ownSays ?? framing.subtitle}')
   })
 })
@@ -69,7 +69,7 @@ describe('6: Duplicate check refused is the sentence alone', () => {
   it('the refusal and the first load are drawn before the heading and the page’s prose', () => {
     const refusal = page.indexOf('if (refused) return')
     const loading = page.indexOf('if (!readOnce) return')
-    const heading = page.indexOf('>Duplicate check</h1>')
+    const heading = page.indexOf('title="Duplicate check"')
     expect(refusal).toBeGreaterThan(-1)
     expect(loading).toBeGreaterThan(-1)
     expect(refusal).toBeLessThan(heading)
@@ -83,21 +83,23 @@ describe('12: a job request another company raised is refused in a full sentence
   })
 
   it('the client’s job request page draws its back link only where the reader’s menu has the list', () => {
-    expect(src('app/dashboard/requisitions/[id]/page.tsx')).toMatch(/\{section && <a href="\/dashboard\/requisitions"/)
+    expect(src('app/dashboard/requisitions/[id]/page.tsx')).toMatch(/back=\{section \? \{ href: '\/dashboard\/requisitions'/)
   })
 
   it('the job request page draws a refusal alone, with no back link above it', () => {
     const page = src('app/dashboard/requirements/[id]/page.tsx')
     expect(page).toMatch(/if \(reqRes\.status === 403\)/)
-    expect(page).toMatch(/if \(refused\) \{\s*return <p[^>]*>\{refused\}<\/p>/)
+    expect(page).toMatch(/if \(refused\) \{\s*return <RefusedState says=\{refused\} \/>/)
   })
 
   it('the job request page draws its back link only where the reader’s menu has the list', () => {
     const page = src('app/dashboard/requirements/[id]/page.tsx')
+    // Two ways back: the failure branch's own link, and the head's.
     const links = page.split('← {listWord}').length - 1
     const gated = page.split(/\{section && \(\s*<div className="mb-\d">\s*<Link href=\{listHref as any\}/).length - 1
-    expect(links).toBe(2)
-    expect(gated).toBe(2)
+    expect(links).toBe(1)
+    expect(gated).toBe(1)
+    expect(page).toMatch(/back=\{section \? \{ href: listHref, label: listWord \} : undefined\}/)
   })
 })
 

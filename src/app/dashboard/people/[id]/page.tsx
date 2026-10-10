@@ -1,6 +1,8 @@
 'use client'
 
-import { readJson } from '@/lib/read-response'
+import { readJson, statusMeans } from '@/lib/read-response'
+import { Chip, Lbl, SubmitButton, FormMessage, RefusedState, LoadingState, ErrorState } from '@/components/ui'
+import { DetailHead } from '@/components/ui/detail-head'
 import { usePageSection } from '@/components/page-section'
 import { Star } from '@/components/network-view'
 import Link from 'next/link'
@@ -60,6 +62,9 @@ export default function PersonPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<Person | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // The route's sentence when this person was never put in front of this
+  // company, or the seat may not read them. Drawn alone.
+  const [refused, setRefused] = useState<string | null>(null)
   const [requirementId, setRequirementId] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -67,7 +72,13 @@ export default function PersonPage() {
 
   const load = useCallback(async () => {
     try {
-      const body = await readJson(await fetch(`/api/people/${id}`))
+      const res = await fetch(`/api/people/${id}`)
+      if (res.status === 403 || res.status === 404) {
+        const said = await res.json().catch(() => ({}))
+        setRefused(said?.error?.message ?? statusMeans(res.status))
+        return
+      }
+      const body = await readJson(res)
       setData(body.data)
       setRequirementId((cur) => cur || body.data.openRequirements[0]?.id || '')
     } catch (err: any) {
@@ -100,38 +111,39 @@ export default function PersonPage() {
     }
   }
 
-  if (error) return <div className="mx-auto max-w-[900px] px-4 py-6"><div className="panel"><p className="text-[13px] text-etyme-attention">{error}</p></div></div>
-  if (!data) return <div className="mx-auto max-w-[900px] px-4 py-6 text-[13px] text-etyme-muted">Reading…</div>
+  if (refused) return <RefusedState says={refused} />
+  if (error) return <ErrorState says={error} action={{ label: 'Try again', onClick: () => { setError(null); load() } }} />
+  if (!data) return <LoadingState says="Opening their page…" />
   const { person, tenure } = data
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
-      <p className="text-[12px]"><Link href={{ pathname: '/dashboard/people' }} className="text-etyme-action hover:underline">← Contractors</Link></p>
-
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1 className="headline-serif text-[30px] leading-tight flex items-center gap-3">
-            {person.name}
-            <Star on={data.favorite} onClick={star} name={person.name} />
-          </h1>
-          <p className="mt-1 text-[13px] text-etyme-muted">
-            {['Contractor', ...([person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean) as string[])].join(' · ')}{!person.headline && !person.location && !person.workAuth ? ' · No profile on file yet.' : ''}
-          </p>
-          {person.skills.length > 0 && <p className="mt-1 text-[12px] text-etyme-faint">{person.skills.join(' · ')}</p>}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {data.onSite && <span className="chip chip--verified">On site</span>}
-          {data.blocked && <span className="chip chip--attention">Blocked</span>}
-          {data.favorite && <span className="chip chip--action">Take again</span>}
-        </div>
-      </header>
+      {/* The eyebrow is the section Contractors sits under on the reader's
+          own menu; the way back is offered only where that menu has it. */}
+      <DetailHead
+        from="/dashboard/people"
+        back={section ? { href: '/dashboard/people', label: 'Contractors' } : undefined}
+        title={<span className="inline-flex items-center gap-3">
+          {person.name}
+          <Star on={data.favorite} onClick={star} name={person.name} />
+        </span>}
+        subtitle={<>
+          {['Contractor', ...([person.headline, person.location, person.workAuth ? `work authorization ${person.workAuth}` : null].filter(Boolean) as string[])].join(' · ')}{!person.headline && !person.location && !person.workAuth ? ' · No profile on file yet.' : ''}
+        </>}
+        meta={(data.onSite || data.blocked || data.favorite) ? <>
+          {data.onSite && <Chip tone="verified">On site</Chip>}
+          {data.blocked && <Chip tone="attention">Blocked</Chip>}
+          {data.favorite && <Chip tone="action">Take again</Chip>}
+        </> : undefined}
+      >
+        {person.skills.length > 0 && <p className="mt-1 text-[12px] text-etyme-faint">{person.skills.join(' · ')}</p>}
+      </DetailHead>
 
       <p className={`border-b border-etyme-rule pb-4 text-[14px] ${data.blocked || tenure.status === 'BREAK_REQUIRED' ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{data.says}</p>
 
       {/* ── Ask for this person ─────────────────────────────────────── */}
       <section className="panel space-y-3">
-        <p className="stat-label">Ask for this person</p>
+        <Lbl>Ask for this person</Lbl>
         {data.blocked ? (
           <p className="text-[13px] text-etyme-muted">{person.name} is blocked here — {data.blocked.reason}. Lift the block on the Blocked list first.</p>
         ) : data.askGoesTo.firms.length === 0 ? (
@@ -151,17 +163,17 @@ export default function PersonPage() {
                 here, so this sentence never names one. */}
             <p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>
             <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Job request" value={requirementId} onChange={(e) => setRequirementId(e.target.value)} className="rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]">
+              <select aria-label="Job request" value={requirementId} onChange={(e) => setRequirementId(e.target.value)} className="input w-auto">
                 {data.openRequirements.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
               </select>
-              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="A line for the supplier (optional)" className="flex-1 min-w-[200px] rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-              <button onClick={ask} disabled={busy || !requirementId} className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
-                {busy ? 'Asking…' : 'Ask for them'}
-              </button>
+              <input aria-label="A line for the supplier (optional)" value={note} onChange={(e) => setNote(e.target.value)} placeholder="A line for the supplier (optional)" className="input flex-1 min-w-[200px]" />
+              <SubmitButton type="button" onClick={ask} pending={busy} pendingLabel="Asking…" disabled={!requirementId}>
+                Ask for them
+              </SubmitButton>
             </div>
           </>
         )}
-        {said && <p className={`text-[13px] ${said.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{said.text}</p>}
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
         {data.asks.length > 0 && (
           <ul className="border-t border-etyme-rule pt-3 space-y-1">
             {data.asks.map((a) => (
@@ -177,7 +189,7 @@ export default function PersonPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* ── Tenure ── */}
         <section className="panel">
-          <p className="stat-label">Time here, across every supplier</p>
+          <Lbl>Time here, across every supplier</Lbl>
           <p className="mt-1 font-serif text-[28px] leading-none text-etyme-ink tabular-nums">{tenure.months}<span className="ml-1 text-[13px] font-sans text-etyme-muted">months{tenure.capMonths ? ` of ${tenure.capMonths}` : ''}</span></p>
           <p className={`mt-2 text-[13px] ${tenure.status === 'BREAK_REQUIRED' || tenure.status === 'WARNING' ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
             {TENURE_WORD[tenure.status] ?? tenure.status}
@@ -194,7 +206,7 @@ export default function PersonPage() {
 
         {/* ── Represented by ── */}
         <section className="panel">
-          <p className="stat-label">Who can put them forward</p>
+          <Lbl>Who can put them forward</Lbl>
           {data.representedBy.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Nobody yet.</p>}
           <ul className="mt-1 space-y-1">
             {data.representedBy.map((r) => (
@@ -207,7 +219,7 @@ export default function PersonPage() {
 
       {/* ── Engagements here ── */}
       <section className="panel">
-        <p className="stat-label">Engagements here</p>
+        <Lbl>Engagements here</Lbl>
         {data.engagements.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Never on site here.</p>}
         {/* One line for the firms, above the rows. A prime is named once
             here rather than once by name and once as "Supplied through"
@@ -237,7 +249,7 @@ export default function PersonPage() {
 
       {/* ── Submissions ── */}
       <section className="panel">
-        <p className="stat-label">Every submission</p>
+        <Lbl>Every submission</Lbl>
         {data.submissions.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Never submitted here.</p>}
         <div className="overflow-x-auto">
           <table className="mt-2 w-full text-[13px]">
@@ -262,7 +274,7 @@ export default function PersonPage() {
 
       {/* ── Paperwork ── */}
       <section className="panel">
-        <p className="stat-label">Paperwork</p>
+        <Lbl>Paperwork</Lbl>
         {data.paperwork.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Nothing on file yet. The supplier collects it before a start.</p>}
         <ul className="mt-2 space-y-1">
           {data.paperwork.map((p, i) => (

@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
 import { saveForm } from '@/lib/form-save'
-import { readJson } from '@/lib/read-response'
+import { readJson, statusMeans } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
+import { Chip, Field, Input, SubmitButton, FormMessage, RefusedState, LoadingState, ErrorState, Lbl } from '@/components/ui'
+import { DetailHead } from '@/components/ui/detail-head'
 import { ENGAGEMENT_WORDS, type EngagementType } from '@/lib/award/hire-terms'
 
 /**
@@ -52,6 +55,10 @@ export default function TermsPage() {
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<Terms | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // The route's own sentence when it refuses this reader — the client,
+  // a firm above in the chain, a colleague without the desk. Drawn alone.
+  const [refused, setRefused] = useState<string | null>(null)
+  const section = usePageSection('/dashboard/submissions')
   const [type, setType] = useState<EngagementType>('W2')
   const [rate, setRate] = useState('')
   const [busy, setBusy] = useState(false)
@@ -59,7 +66,13 @@ export default function TermsPage() {
 
   const load = useCallback(async () => {
     try {
-      const j = await readJson<{ data: Terms }>(await fetch(`/api/submissions/${id}/terms`))
+      const res = await fetch(`/api/submissions/${id}/terms`)
+      if (res.status === 403 || res.status === 404) {
+        const body = await res.json().catch(() => ({}))
+        setRefused(body?.error?.message ?? statusMeans(res.status))
+        return
+      }
+      const j = await readJson<{ data: Terms }>(res)
       setData(j.data)
     } catch (e: any) {
       setLoadError(e.message)
@@ -93,22 +106,23 @@ export default function TermsPage() {
     if (r) setData(r.data)
   }
 
-  if (loadError) return <p className="py-12 text-center text-etyme-danger">{loadError}</p>
-  if (!data) return <p className="py-12 text-center text-etyme-muted">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (loadError) return <ErrorState says={loadError} action={{ label: 'Try again', onClick: () => { setLoadError(null); void load() } }} />
+  if (!data) return <LoadingState says="Opening the terms…" />
 
   const t = data.terms
   return (
     <div className="mx-auto max-w-xl space-y-6 py-6">
-      <div>
-        <p className="eyebrow">{data.you === 'PERSON' ? 'Your terms' : 'Terms of engagement'}</p>
-        <h1 className="headline-serif text-[26px] text-etyme-ink">
-          {data.you === 'PERSON' ? `${data.role} through ${data.firm.name}` : `${data.person.name} — ${data.role}`}
-        </h1>
-        <p className="mt-1 text-[13px] text-etyme-muted">
+      <DetailHead
+        from="/dashboard/submissions"
+        back={data.you === 'FIRM' && section ? { href: '/dashboard/submissions', label: 'Submissions' } : undefined}
+        title={data.you === 'PERSON' ? `${data.role} through ${data.firm.name}` : `${data.person.name} — ${data.role}`}
+        subtitle={<>
           {data.firm.name} sells this work to {data.soldTo}. Start date {day(data.startDate)}.
           {data.placement ? ` Status: ${data.placement.word}.` : ''}
-        </p>
-      </div>
+        </>}
+        meta={<Chip>{data.you === 'PERSON' ? 'Your terms' : 'Terms of engagement'}</Chip>}
+      />
 
       <section className="rounded-lg border border-etyme-rule bg-etyme-surface p-5">
         <p className="text-[14px] text-etyme-ink">{data.says}</p>
@@ -134,20 +148,16 @@ export default function TermsPage() {
             Saying yes records that you agree to work as {t?.engagementWords.toLowerCase()} at {t?.payRateWords}.
             Nothing starts until you do. If these are not the terms you agreed, do not say yes — reply to {data.firm.name} instead.
           </p>
-          {error && <p className="mt-2 text-[13px] text-etyme-danger">{error}</p>}
-          <button
-            onClick={agree}
-            disabled={busy}
-            className="mt-3 rounded-md bg-etyme-action px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50"
-          >
-            {busy ? 'Saving…' : 'Yes, I agree these terms'}
-          </button>
+          {error && <div className="mt-2"><FormMessage tone="error">{error}</FormMessage></div>}
+          <SubmitButton type="button" onClick={agree} pending={busy} pendingLabel="Saving…" className="mt-3">
+            Yes, I agree these terms
+          </SubmitButton>
         </section>
       )}
 
       {data.may.state && (
         <section className="rounded-lg border border-etyme-rule bg-etyme-raised p-5">
-          <p className="eyebrow mb-2">{t ? 'Change the terms' : 'State the terms'}</p>
+          <Lbl className="mb-2">{t ? 'Change the terms' : 'State the terms'}</Lbl>
           <fieldset className="space-y-1">
             <legend className="mb-1 text-[13px] text-etyme-muted">How does {data.firm.name} engage {data.person.name}?</legend>
             {CHOICES.map((c) => (
@@ -158,31 +168,26 @@ export default function TermsPage() {
               </label>
             ))}
           </fieldset>
-          <label className="mt-3 block text-[13px] text-etyme-muted" htmlFor="terms-rate">
-            Pay, dollars per hour
-          </label>
-          <input
-            id="terms-rate"
-            type="number"
-            step="0.01"
-            min="0"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            className="mt-1 w-40 rounded-md border border-etyme-rule px-3 py-2 text-sm tabular-nums"
-          />
-          <p className="mt-2 text-[12px] text-etyme-muted">
-            {data.employee
+          <Field
+            className="mt-3"
+            label="Pay, dollars per hour"
+            help={data.employee
               ? `${data.person.name} is your employee, so they are told rather than asked.`
               : `${data.person.name} reads exactly this and says yes on their own page before anybody starts.`}
-          </p>
-          {error && <p className="mt-2 text-[13px] text-etyme-danger">{error}</p>}
-          <button
-            onClick={state}
-            disabled={busy}
-            className="mt-3 rounded-md bg-etyme-action px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50"
           >
-            {busy ? 'Saving…' : data.employee ? 'Set the pay' : 'Send the terms'}
-          </button>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className="w-40 tabular-nums"
+            />
+          </Field>
+          {error && <div className="mt-2"><FormMessage tone="error">{error}</FormMessage></div>}
+          <SubmitButton type="button" onClick={state} pending={busy} pendingLabel="Saving…" className="mt-3">
+            {data.employee ? 'Set the pay' : 'Send the terms'}
+          </SubmitButton>
         </section>
       )}
     </div>

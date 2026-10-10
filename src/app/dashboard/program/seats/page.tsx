@@ -3,6 +3,7 @@
 import { usePageSection } from '@/components/page-section'
 import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
+import { PageHead, Chip, FormMessage, RefusedState, LoadingState, EmptyState } from '@/components/ui'
 
 /**
  * Program office — the desks this client has given to firms that are
@@ -100,17 +101,11 @@ export default function ProgramSeatsPage() {
   }, [])
 
   if (unreadable) {
-    return (
-      <div className="animate-fade-in">
-        <div className="panel py-16 text-center">
-          <p className="text-sm text-etyme-muted">{unreadable}</p>
-        </div>
-      </div>
-    )
+    return <RefusedState says={unreadable} />
   }
 
   if (!readOnce) {
-    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+    return <LoadingState says="Loading…" />
   }
 
   const live = seats.filter((s) => s.live)
@@ -118,19 +113,15 @@ export default function ProgramSeatsPage() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div>
-        {section && <p className="lbl">{section}</p>}
-        <h1 className="font-serif text-[28px] leading-tight tracking-[-0.02em] text-etyme-ink text-balance">
-          Program office
-        </h1>
-        <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-          {side === 'CLIENT'
-            ? 'A firm that runs your program places nobody, so nothing ties it to you the way a placement ties a supplier. You say so here. It acts at one of your own desks, under your rules rather than its own, and every read it makes leaves a trail you can read back.'
-            : 'The programs you have been given a desk in. Each one is somebody else’s workforce: you act at their desk, under their rules, and they can take the desk back at any time.'}
-        </p>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Program office"
+        subtitle={side === 'CLIENT'
+          ? 'A firm that runs your program places nobody, so nothing ties it to you the way a placement ties a supplier. You say so here. It acts at one of your own desks, under your rules rather than its own, and every read it makes leaves a trail you can read back.'
+          : 'The programs you have been given a desk in. Each one is somebody else’s workforce: you act at their desk, under their rules, and they can take the desk back at any time.'}
+      />
 
-      {error && <p className="text-[13px] text-etyme-danger">{error}</p>}
+      {error && <FormMessage tone="error">{error}</FormMessage>}
 
       {nothingYet && (
         <div className="panel p-5">
@@ -139,14 +130,12 @@ export default function ProgramSeatsPage() {
       )}
 
       {live.length === 0 && !nothingYet && (
-        <div className="panel p-5">
-          <p className="text-[14px] text-etyme-muted">
-            Nobody outside {side === 'CLIENT' ? 'this company' : 'your own firm'} sits in this program.
-            {side === 'CLIENT'
-              ? ' That is the ordinary case: your own people run it from their own desks.'
-              : ''}
-          </p>
-        </div>
+        <EmptyState
+          says={<>Nobody outside {side === 'CLIENT' ? 'this company' : 'your own firm'} sits in this program.</>}
+          detail={side === 'CLIENT'
+            ? 'That is the ordinary case: your own people run it from their own desks.'
+            : undefined}
+        />
       )}
 
       {live.map((seat) => (
@@ -158,7 +147,7 @@ export default function ProgramSeatsPage() {
               </h2>
               <p className="mt-1 text-[13px] text-etyme-muted">{seat.says}</p>
             </div>
-            <span className="chip chip-verified">In the seat</span>
+            <Chip tone="verified">In the seat</Chip>
           </div>
 
           <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-ink">{seat.reason}</p>

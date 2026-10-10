@@ -11,6 +11,8 @@ import { mayEdit } from '@/lib/requisition-stage'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { JobMatches } from './matches'
+import { RefusedState, LoadingState, ErrorState, Chip, Lbl, FormMessage, Field, Input, Textarea, SubmitButton, EmptyState } from '@/components/ui'
+import { DetailHead } from '@/components/ui/detail-head'
 
 /**
  * Requirement detail — the core revenue workflow.
@@ -222,17 +224,11 @@ export default function RequirementDetailPage() {
   // ── Loading / Error ────────────────────────────────
 
   if (loading) {
-    return (
-      <div className="animate-fade-in">
-        <div className="panel text-center py-16">
-          <p className="text-body-sm text-etyme-muted">Loading job request…</p>
-        </div>
-      </div>
-    )
+    return <LoadingState says="Opening the job request…" />
   }
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   if (error || !requirement) {
@@ -246,9 +242,7 @@ export default function RequirementDetailPage() {
             </Link>
           </div>
         )}
-        <div className="panel text-center py-16">
-          <p className="text-sm text-etyme-danger">{error ?? 'Job request not found'}</p>
-        </div>
+        <ErrorState says={error ?? 'Job request not found'} />
       </div>
     )
   }
@@ -262,46 +256,23 @@ export default function RequirementDetailPage() {
 
   return (
     <div className="animate-fade-in">
-      {/* Breadcrumb */}
       {/* Back to the list this reader's menu opens, in its word, and only
           where the reader's menu has it. A client's menu opens its job
-          requests at /dashboard/requisitions. */}
-      {section && (
-        <div className="mb-6">
-          <Link href={listHref as any} className="text-[12px] text-etyme-action hover:underline">
-            ← {listWord}
-          </Link>
-        </div>
-      )}
-
-      {/* Requirement header — decision surface */}
-      <div className="panel mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-          <div className="min-w-0">
-            {section && <div className="eyebrow mb-2">{section}</div>}
-            <h1 className="headline-serif text-heading text-etyme-ink mb-1">
-              {requirement.title}
-            </h1>
-            <p className="text-[13px] text-etyme-muted mb-2">{requirement.company.name}</p>
-            {/* A sentence, not a code. Somebody who opens a role that was
-                withdrawn should read why on the way in, rather than find
-                out by submitting into it. */}
-            {stoppedBecause && (
-              <p className="text-[12px] text-etyme-muted">
-                {requirement.status === 'CANCELLED'
-                  ? `${requirement.company.name} withdrew this job — ${stoppedBecause}`
-                  : `This job request is archived — ${stoppedBecause}.`}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`chip ${statusCls}`}>{statusText}</span>
+          requests at /dashboard/requisitions. The eyebrow is that list's
+          section, which DetailHead reads from the reader's own menu. */}
+      <DetailHead
+        from={listHref}
+        back={section ? { href: listHref, label: listWord } : undefined}
+        title={requirement.title}
+        subtitle={requirement.company.name}
+        meta={<span className={`chip ${statusCls}`}>{statusText}</span>}
+        actions={<>
             {/* What arrived, and what is worth reading. The buyer's half of
                 the same job — matching finds people, screening decides
                 which of the ones sent are worth an afternoon. */}
             <Link
               href={`/dashboard/requirements/${requirement.id}/pile` as any}
-              className="btn-secondary text-[12px] px-4 py-1.5"
+              className="btn-secondary"
             >
               Read what was submitted
             </Link>
@@ -320,7 +291,7 @@ export default function RequirementDetailPage() {
             {requirement.status === 'OPEN' && mayEdit(requirement) && raiser && (
               <button
                 onClick={() => setShowDistribute(true)}
-                className="btn-primary text-[12px] px-4 py-1.5"
+                className="btn-primary"
               >
                 Send to suppliers
               </button>
@@ -331,30 +302,39 @@ export default function RequirementDetailPage() {
               <button
                 onClick={passOn}
                 disabled={passing}
-                className="btn-primary text-[12px] px-4 py-1.5 disabled:opacity-50"
+                className="btn-primary disabled:opacity-50"
               >
                 {passing ? 'Opening…' : 'Send to your own suppliers'}
               </button>
             )}
-          </div>
-        </div>
+        </>}
+      >
+        {/* A sentence, not a code. Somebody who opens a role that was
+            withdrawn should read why on the way in, rather than find
+            out by submitting into it. */}
+        {stoppedBecause && (
+          <p className="mt-2 text-[13px] text-etyme-muted">
+            {requirement.status === 'CANCELLED'
+              ? `${requirement.company.name} withdrew this job — ${stoppedBecause}`
+              : `This job request is archived — ${stoppedBecause}.`}
+          </p>
+        )}
+      </DetailHead>
 
+      {/* The job's facts — decision surface */}
+      <div className="panel mb-6">
         {/* Distribute result banner */}
         {distributeResult && (
-          <div className={`mt-4 px-4 py-3 rounded-lg text-sm ${
-            distributeResult.startsWith('Error')
-              ? 'bg-red-50 border border-red-200 text-red-700'
-              : 'bg-emerald-50 border border-emerald-200 text-etyme-verified'
-          }`}>
-            {distributeResult}
+          <div className="mb-4">
+            <FormMessage tone={distributeResult.startsWith('Error') ? 'error' : 'ok'}>{distributeResult}</FormMessage>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <DetailField label="Skills" value={
             <div className="flex flex-wrap gap-1 mt-1">
               {requirement.skills.map((s) => (
-                <span key={s} className="chip chip--passive text-[9px]">{s}</span>
+                <Chip key={s}>{s}</Chip>
               ))}
             </div>
           } />
@@ -406,7 +386,7 @@ export default function RequirementDetailPage() {
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="eyebrow mb-1">{label}</div>
+      <Lbl className="mb-1">{label}</Lbl>
       {typeof value === 'string' ? (
         <p className="text-[13px] text-etyme-ink">{value}</p>
       ) : (
@@ -564,9 +544,9 @@ function DistributeModal({
               </button>
             </div>
             {loadingVendors ? (
-              <p className="text-[12px] text-etyme-muted py-4 text-center">Reading your suppliers…</p>
+              <LoadingState compact says="Reading your suppliers…" />
             ) : vendors.length === 0 ? (
-              <p className="text-[12px] text-etyme-muted py-4 text-center">No suppliers on file yet. Add one from Suppliers first.</p>
+              <EmptyState compact says="No suppliers on file yet." detail="Add one from Suppliers first." />
             ) : (
               <div className="border border-etyme-rule rounded-lg max-h-48 overflow-y-auto">
                 {vendors.map((v) => (
@@ -594,72 +574,57 @@ function DistributeModal({
 
           {/* Rate band — per CLAUDE.md: "Rate bands live on RequirementInvitation, never on Requirement" */}
           <div>
-            <label className="block text-[12px] font-medium text-etyme-ink mb-2">
-              Pay rate band <span className="text-[10px] text-etyme-faint font-normal">(optional, $/hr)</span>
-            </label>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <input
+            <div className="flex items-end gap-3">
+              <Field label="Pay rate band, from ($/hr, optional)" className="flex-1">
+                <Input
                   type="number"
                   placeholder="Min"
                   value={payMin}
                   onChange={(e) => setPayMin(e.target.value)}
                   min="0"
                   step="1"
-                  className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none tabular-nums"
+                  className="tabular-nums"
                 />
-              </div>
-              <span className="flex items-center text-etyme-faint text-[12px]">to</span>
-              <div className="flex-1">
-                <input
+              </Field>
+              <Field label="to" className="flex-1">
+                <Input
                   type="number"
                   placeholder="Max"
                   value={payMax}
                   onChange={(e) => setPayMax(e.target.value)}
                   min="0"
                   step="1"
-                  className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none tabular-nums"
+                  className="tabular-nums"
                 />
-              </div>
+              </Field>
             </div>
-            <p className="text-[10px] text-etyme-faint mt-1">
+            <p className="text-[12px] text-etyme-muted mt-1.5">
               Each vendor sees only their own band — never another vendor's rate.
             </p>
           </div>
 
           {/* Expiry */}
-          <div>
-            <label className="block text-[12px] font-medium text-etyme-ink mb-1">
-              Expires <span className="text-etyme-attention">*</span>
-            </label>
-            <input
+          <Field label={<>Expires <span className="text-etyme-attention">*</span></>}>
+            <Input
               type="date"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none"
             />
-          </div>
+          </Field>
 
           {/* Message */}
-          <div>
-            <label className="block text-[12px] font-medium text-etyme-ink mb-1">
-              Message <span className="text-[10px] text-etyme-faint font-normal">(optional)</span>
-            </label>
-            <textarea
+          <Field label="Message (optional)">
+            <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
               placeholder="Additional context for vendors…"
-              className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
+              className="resize-none"
             />
-          </div>
+          </Field>
 
           {/* Error */}
-          {error && (
-            <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
+          {error && <FormMessage tone="error">{error}</FormMessage>}
         </div>
 
         {/* Footer */}
@@ -667,15 +632,16 @@ function DistributeModal({
           <button onClick={onClose} className="btn-secondary text-[12px]">
             Cancel
           </button>
-          <button
+          <SubmitButton
+            type="button"
             onClick={handleDistribute}
-            disabled={distributing || selectedVendors.size === 0}
-            className="btn-primary text-[12px] disabled:opacity-50"
+            pending={distributing}
+            pendingLabel="Sending…"
+            disabled={selectedVendors.size === 0}
+            className="text-[12px]"
           >
-            {distributing
-              ? 'Sending…'
-              : `Send to ${selectedVendors.size} supplier${selectedVendors.size !== 1 ? 's' : ''}`}
-          </button>
+            {`Send to ${selectedVendors.size} supplier${selectedVendors.size !== 1 ? 's' : ''}`}
+          </SubmitButton>
         </div>
       </div>
     </div>

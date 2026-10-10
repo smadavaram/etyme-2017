@@ -8,6 +8,7 @@ import { amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
 import { chipsFor, emptyBook, type TypeFilter } from './chips'
+import { PageHead, Stat, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
  * Decisions — what needs a person right now.
@@ -267,105 +268,69 @@ export default function DecisionsPage() {
   const empty = emptyBook(session.company?.kind ?? null, hasPermission(session.permissions, 'assignments.write'))
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <>
       {/* Head — decision surface */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          {section && <p className="eyebrow">{section}</p>}
-          <h1>Needs attention</h1>
-          <p>Items that need your attention right now — approvals, reviews, and actions across all working surfaces.</p>
-        </div>
-
-        <button
-          onClick={fetchDecisions}
-          className="btn-secondary text-[13px] mt-3 shrink-0"
-        >
-          Refresh
-        </button>
-      </div>
+      <PageHead
+        eyebrow={section}
+        title="Needs attention"
+        subtitle="Items that need your attention right now — approvals, reviews, and actions across all working surfaces."
+        actions={
+          <button onClick={fetchDecisions} className="btn-secondary text-[13px]">
+            Refresh
+          </button>
+        }
+      />
 
       {/* Stats row — only once the read is back and answered. */}
       {readOnce && !error && (
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Pending</p>
-          <p className="stat-value text-etyme-ink">{decisions.length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">decisions</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Urgent</p>
-          <p className={`stat-value ${highCount > 0 ? 'text-red-600' : 'text-etyme-ink'}`}>{highCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">need immediate action</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Soon</p>
-          <p className={`stat-value ${medCount > 0 ? 'text-amber-600' : 'text-etyme-ink'}`}>{medCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">this week</p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Pending" value={decisions.length} sub="decisions" />
+        <Stat label="Urgent" value={highCount} tone={highCount > 0 ? 'attention' : 'default'} sub="need immediate action" />
+        <Stat label="Soon" value={medCount} sub="this week" />
         {totalAmount > 0 && (
-          <div className="panel flex-1 min-w-[140px]">
-            <p className="stat-label">Value</p>
-            <p className="stat-value text-etyme-ink">
-              {/* Through the one formatter: a hand-rolled one printed "$3,622.4". */}
-              {amount(Math.round(totalAmount * 100))}
-            </p>
-            <p className="text-[11px] text-etyme-faint mt-0.5">at stake</p>
-          </div>
+          // Through the one formatter: a hand-rolled one printed "$3,622.4".
+          <Stat label="Value" value={amount(Math.round(totalAmount * 100))} sub="at stake" />
         )}
       </div>
       )}
 
       {/* Type filters */}
-      <div className="flex gap-1.5 flex-wrap mb-5">
-        {filterOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setTypeFilter(opt.key)}
-            className={`filter-tab ${
-              typeFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-            {opt.count > 0 && (
-              <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">{opt.count}</span>
-            )}
-          </button>
-        ))}
+      <div className="mb-5">
+        <FilterChips<TypeFilter>
+          label="What kind"
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={filterOptions.map((opt) => ({ key: opt.key, label: opt.label, count: opt.count > 0 ? opt.count : undefined }))}
+        />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          {error}
+        <div className="mb-4">
+          <ErrorState says={error} action={{ label: 'Try again', onClick: fetchDecisions }} />
         </div>
       )}
 
       {/* Loading */}
-      {loading && (
-        <div className="py-16 text-center text-etyme-muted">Loading decisions…</div>
-      )}
+      {loading && <LoadingState says="Opening what needs you…" />}
 
       {/* Empty state */}
       {!loading && filtered.length === 0 && (
-        <div className="panel text-center py-16">
-          <p className="text-lg text-etyme-verified font-medium mb-1">
-            {decisions.length === 0 ? empty.lead : 'No items in this category.'}
-          </p>
-          <p className="text-sm text-etyme-faint">
-            {decisions.length === 0
-              ? empty.says
-              : 'Try a different filter to see other pending items.'}
-          </p>
-          {decisions.length === 0 && empty.href && empty.action && (
-            <Link href={empty.href as any} className="btn-primary inline-block mt-4 text-[13px]">
-              {empty.action}
-            </Link>
-          )}
-        </div>
+        decisions.length === 0
+          ? <EmptyState
+              says={empty.lead}
+              detail={empty.says}
+              action={empty.href && empty.action ? { label: empty.action, href: empty.href } : undefined}
+            />
+          : <EmptyState
+              says="No items in this category."
+              detail="Try a different filter to see other pending items."
+              action={{ label: 'Show all', onClick: () => setTypeFilter('all') }}
+            />
       )}
 
       {/* Decision list */}

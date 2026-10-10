@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { PageHead, Stat, FilterChips, RefusedState, LoadingState, FormMessage } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -330,8 +331,8 @@ function CreateTimesheetModal({
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
+          <div className="mb-4">
+            <FormMessage tone="error">{error}</FormMessage>
           </div>
         )}
 
@@ -1058,14 +1059,14 @@ export default function TimesheetsPage() {
   ]
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   // Somebody signed in with no company — a candidate on nobody's bench —
   // reads whose page this is and where her own work is, never "your
   // firm" or "your consultants" (round six, problem 11).
   if (!sessionLoading && !company) {
-    return <p className="text-[14px] text-etyme-muted py-8">{TIMESHEETS_NOT_AT_A_COMPANY}</p>
+    return <RefusedState says={TIMESHEETS_NOT_AT_A_COMPANY} />
   }
 
   // Nothing framed until the list's own read has answered: a worker read
@@ -1073,91 +1074,53 @@ export default function TimesheetsPage() {
   // the route said his were his own (sign-up walk, round seven, problem 5).
   const head = listHead({ readOnce, ownSays, firmSays: framing.subtitle })
   if (head.state === 'LOADING') {
-    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+    return <LoadingState says="Loading…" />
   }
 
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          {/* A seat reading only its own weeks is told so, not handed a
-              desk's "hours your people worked" (round six, problem 4). */}
-          <p>{head.says}</p>
-        </div>
-        {/* Only the worker files a week, and only the server knows who
-            is one — a firm's desk is told who files instead of being
-            offered a form the door would refuse. */}
-        {filing?.may && framing.create && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
-            + {framing.create}
-          </button>
-        )}
-        {filing && !filing.may && filing.says && (
-          <p className="text-[12px] text-etyme-muted mt-3 max-w-xs">{filing.says}</p>
-        )}
-      </div>
+      {/* A seat reading only its own weeks is told so, not handed a
+          desk's "hours your people worked" (round six, problem 4). */}
+      {/* Only the worker files a week, and only the server knows who
+          is one — a firm's desk is told who files instead of being
+          offered a form the door would refuse. */}
+      <PageHead
+        eyebrow={framing.eyebrow}
+        title={framing.title}
+        subtitle={head.says}
+        actions={<>
+          {filing?.may && framing.create && (
+            <button onClick={() => setShowCreate(true)} className="btn-primary">
+              + {framing.create}
+            </button>
+          )}
+          {filing && !filing.may && filing.says && (
+            <p className="text-[12px] text-etyme-muted max-w-xs">{filing.says}</p>
+          )}
+        </>}
+      />
 
       {/* Stats row — prototype Stat component pattern. Drawn once the
           reader and the first read are both known, never as zeros. */}
       {company?.kind && readOnce && !error && (
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Hours listed</p>
-          <p className="stat-value text-etyme-ink">{totals.hours.toFixed(0)}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.hoursSays}</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Pending approval</p>
-          <p className={`stat-value ${pendingApproval > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {pendingApproval}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{pendingApproval > 0 ? 'need review' : 'all clear'}</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Flagged</p>
-          <p className={`stat-value ${totals.flagged > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {totals.flagged}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.flaggedSays}</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Overtime to decide</p>
-          <p className={`stat-value ${toDecide > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {toDecide}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">
-            {toDecide > 0 ? 'weeks over the hours' : 'nothing waiting'}
-          </p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Approved value</p>
-          <p className="stat-value text-etyme-verified">
-            {totals.approvedValueCents == null
-              ? '—'
-              : `$${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{totals.approvedSays}</p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-5">
+        <Stat label="Hours listed" value={totals.hours.toFixed(0)} sub={totals.hoursSays} />
+        <Stat label="Pending approval" value={pendingApproval} sub={pendingApproval > 0 ? 'need review' : 'all clear'}
+          tone={pendingApproval > 0 ? 'attention' : 'default'} />
+        <Stat label="Flagged" value={totals.flagged} sub={totals.flaggedSays} tone={totals.flagged > 0 ? 'attention' : 'default'} />
+        <Stat label="Overtime to decide" value={toDecide} sub={toDecide > 0 ? 'weeks over the hours' : 'nothing waiting'}
+          tone={toDecide > 0 ? 'attention' : 'default'} />
+        <Stat
+          label="Approved value"
+          tone="verified"
+          value={totals.approvedValueCents == null
+            ? null
+            : `$${(totals.approvedValueCents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+          sub={totals.approvedSays}
+        />
       </div>
       )}
-
-      {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       {/* Somebody was sent here about one week. */}
       {onlyId && (
@@ -1182,6 +1145,14 @@ export default function TimesheetsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, client, or engagement…"
+        filters={
+          <FilterChips<StatusFilter>
+            label="Status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+          />
+        }
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} timesheets.` : 'No timesheets yet.'}
         emptyDetail={
           // A client reads its own sites, never the supplier's contract

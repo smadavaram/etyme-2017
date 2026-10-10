@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { PageHead, Stat, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
  * The paste box, and the seats it collapses into.
@@ -314,21 +315,19 @@ export default function LeadsPage() {
   const unwritten = seats.filter((s) => s.requirements.length === 0).length
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[880px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight" style={{ textWrap: 'balance' } as any}>
-          Leads
-        </h1>
-        <p className="mt-1 max-w-[62ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={section}
+        title="Leads"
+        subtitle={<>
           Demand does not arrive as a job request. It arrives as adverts, and
           the same seat arrives four times. This puts them together.
-        </p>
-      </header>
+        </>}
+      />
 
       {/* Offered once the first read says this reader has the page. */}
       {readOnce && (
@@ -347,41 +346,26 @@ export default function LeadsPage() {
       )}
 
       {seats.length > 0 && (
-        <div className="flex flex-wrap items-baseline gap-6 border-b border-etyme-rule pb-4">
-          <div>
-            <p className="stat-label">Seats</p>
-            <p className="stat-value">{seats.length}</p>
-          </div>
-          <div>
-            <p className="stat-label">Seen more than once</p>
-            <p className="stat-value" style={{ color: multiRoute > 0 ? 'var(--color-attention)' : undefined }}>
-              {multiRoute}
-            </p>
-          </div>
-          <div>
-            <p className="stat-label">Not written up</p>
-            <p className="stat-value">{unwritten}</p>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Stat label="Seats" value={seats.length} />
+          <Stat label="Seen more than once" value={multiRoute} tone={multiRoute > 0 ? 'attention' : 'default'} />
+          <Stat label="Not written up" value={unwritten} />
         </div>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Opening your leads…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />}
 
       {!loading && !error && seats.length === 0 && (
-        <div className="panel">
-          <h2 className="headline-serif text-[19px]">Nothing yet</h2>
-          <p className="mt-1 max-w-[58ch] text-[13px] text-etyme-muted">
+        <EmptyState
+          says="No leads yet."
+          detail={<>
             Paste an advert above. One is enough to start — the value shows
             up on the second one for the same seat, which is usually the
             same afternoon.
-          </p>
-        </div>
+          </>}
+        />
       )}
 
       <div className="space-y-4">

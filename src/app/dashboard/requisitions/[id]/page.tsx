@@ -20,6 +20,8 @@ import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { JobMatches } from '../../requirements/[id]/matches'
 import { jobFacts, day, checkedSays, withoutRepeat, filledSays, stillOpen } from '../facts'
 import { submissionStatusWord } from '../../submissions/words'
+import { Lbl, Chip, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
+import { DetailHead } from '@/components/ui/detail-head'
 
 /**
  * One requisition, worked end to end.
@@ -72,24 +74,12 @@ interface Candidate {
   award?: { open: boolean; says: string }
 }
 
-function Lbl({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">{children}</div>
-}
-
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
-}
-
-function Panel({ title, count, children }: {
+/**
+ * A heading over a flush list. Not the shared Panel: these rows carry
+ * their own padding and dividers edge to edge, and the shared one pads
+ * its body, which would double every row's inset.
+ */
+function ListSection({ title, count, children }: {
   title: string; count?: number; children: React.ReactNode
 }) {
   return (
@@ -174,7 +164,7 @@ function Why({ fit }: { fit: Fit }) {
 function Discussion({ requisitionId, title }: { requisitionId: string; title: string }) {
   const [count, setCount] = useState<number>(0)
   return (
-    <Panel title="Discussion" count={count > 0 ? count : undefined}>
+    <ListSection title="Discussion" count={count > 0 ? count : undefined}>
       <Thread
         topic="REQUIREMENT"
         topicId={requisitionId}
@@ -184,7 +174,7 @@ function Discussion({ requisitionId, title }: { requisitionId: string; title: st
         words={OWN_NOTES_ON_A_ROLE}
         onChanged={setCount}
       />
-    </Panel>
+    </ListSection>
   )
 }
 
@@ -226,7 +216,7 @@ function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
   const current = suppliers.find((f) => f.id === open) ?? null
 
   return (
-    <Panel title="Suppliers" count={suppliers.length > 0 ? suppliers.length : undefined}>
+    <ListSection title="Suppliers" count={suppliers.length > 0 ? suppliers.length : undefined}>
       {suppliers.length === 0 ? (
         <p className="p-4 text-sm text-etyme-muted">
           Nobody is on this job yet. Send it to suppliers and you can write to each of them here.
@@ -272,7 +262,7 @@ function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
           )}
         </>
       )}
-    </Panel>
+    </ListSection>
   )
 }
 
@@ -524,12 +514,11 @@ export default function RequisitionDetail() {
     await load()
   }
 
-  if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+  if (loading) return <LoadingState says="Opening the job request…" />
+  if (refused) return <RefusedState says={refused} />
   if (error) return (
-    <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-      <div className="text-etyme-attention font-medium">{error}</div>
-      <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">Try again</button>
+    <div className="max-w-3xl">
+      <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
     </div>
   )
   if (!data) return null
@@ -565,30 +554,32 @@ export default function RequisitionDetail() {
 
   return (
     <div className="max-w-3xl">
-      {/* Back only to a list the reader's own menu has (round seven, #12). */}
-      {section && <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← {jobListWord(company?.kind).plural}</a>}
-
-      <div className="mt-4 mb-8">
-        {/* The heading is the list's section on the reader's own menu.
-            A code is not a heading: the team, where there is one, is the
-            subtitle; the cost center is a fact below, in words. */}
-        {section && <Lbl>{section}</Lbl>}
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">{r.title}</h1>
-          {mayEdit(r) &&
-            (me?.id === r.owner?.id || me?.id === r.raisedBy?.id || hasPermission(permissions, 'governance.write')) && (
-            <button type="button" onClick={() => setEditing(true)} className="btn-secondary self-start shrink-0 md:mt-1">
-              Edit
-            </button>
-          )}
-        </div>
-        {editing && (
-          <EditRequisition req={r} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} />
-        )}
+      {/* Back only to a list the reader's own menu has (round seven, #12).
+          The heading is the list's section on the reader's own menu,
+          which DetailHead reads and leaves out while the menu loads. A
+          code is not a heading: the team, where there is one, is the
+          subtitle; the cost center is a fact below, in words. */}
+      <DetailHead
+        from="/dashboard/requisitions"
+        back={section ? { href: '/dashboard/requisitions', label: jobListWord(company?.kind).plural } : undefined}
+        title={r.title}
+        subtitle={r.orgUnit?.name ? `Job request · ${r.orgUnit.name}` : undefined}
+        actions={mayEdit(r) &&
+          (me?.id === r.owner?.id || me?.id === r.raisedBy?.id || hasPermission(permissions, 'governance.write')) ? (
+          <button type="button" onClick={() => setEditing(true)} className="btn-secondary">
+            Edit
+          </button>
+        ) : undefined}
+      >
         {/* Whose need it is, then who typed it — said twice only when
             they are two different people. */}
-        {r.orgUnit?.name && <div className="text-etyme-muted mt-2">Job request · {r.orgUnit.name}</div>}
-        {whoFor(r) && <div className="text-etyme-muted mt-2">{whoFor(r)}</div>}
+        {whoFor(r) && <p className="mt-2 text-[14px] text-etyme-muted">{whoFor(r)}</p>}
+      </DetailHead>
+      {editing && (
+        <EditRequisition req={r} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} />
+      )}
+
+      <div className="mb-8">
 
         {/* Over, said first. A filled job that still offered "Send to
             suppliers" read as a job still to fill. */}
@@ -665,7 +656,7 @@ export default function RequisitionDetail() {
       </div>
 
       {/* 1 — Approval, read by desk */}
-      <Panel title="Approval">
+      <ListSection title="Approval">
         <div className="p-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
@@ -724,13 +715,13 @@ export default function RequisitionDetail() {
             </p>
           )}
         </div>
-      </Panel>
+      </ListSection>
 
       {/* 2 — Distribution. Not drawn at all on a filled job: the sentence
           at the top already says who filled it, and a "Send to suppliers"
           box under it read as a job still to fill. */}
       {r.status !== 'FILLED' && (
-      <Panel title="Send to suppliers">
+      <ListSection title="Send to suppliers">
         {!jobOpen
           ? <div className="p-4 text-sm text-etyme-muted">
               {r.status === 'CANCELLED'
@@ -752,12 +743,12 @@ export default function RequisitionDetail() {
                     ? 'This was rejected, so it goes to no supplier. Raising a fresh one is the way back.'
                     : 'Not sent for approval yet. Suppliers see it once it has been through the desks.'}
             </div>}
-      </Panel>
+      </ListSection>
       )}
 
       {/* 3 — Responses */}
       {data.invitations.length > 0 && (
-        <Panel title="Who was asked" count={data.invitations.length}>
+        <ListSection title="Who was asked" count={data.invitations.length}>
           <div className="divide-y divide-etyme-rule">
             {data.invitations.map((i: Invitation) => (
               <div key={i.id} className="p-4 flex items-center gap-4">
@@ -780,19 +771,18 @@ export default function RequisitionDetail() {
               </div>
             ))}
           </div>
-        </Panel>
+        </ListSection>
       )}
 
       {/* 4 — Candidates */}
-      <Panel title="Candidates" count={data.candidates.length}>
+      <ListSection title="Candidates" count={data.candidates.length}>
         {data.candidates.length === 0 ? (
-          <div className="p-6 text-center">
-            <p className="text-sm text-etyme-muted">
-              {s.invited === 0
-                ? 'Nobody has been asked yet.'
-                : 'Asked, but nobody has been put forward yet.'}
-            </p>
-          </div>
+          <EmptyState
+            compact
+            says={s.invited === 0
+              ? 'Nobody has been asked yet.'
+              : 'Asked, but nobody has been put forward yet.'}
+          />
         ) : (
           <div className="divide-y divide-etyme-rule">
             {[...data.candidates]
@@ -845,7 +835,7 @@ export default function RequisitionDetail() {
             ))}
           </div>
         )}
-      </Panel>
+      </ListSection>
 
       {/* 4b — Who is available, before anybody new is asked. The same
           section the matches page draws (`JobMatches`), here because this

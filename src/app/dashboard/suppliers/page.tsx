@@ -8,6 +8,7 @@ import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWo
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { usePageSection } from '@/components/page-section'
+import { PageHead, Lbl, Field, Input, SubmitButton, FormMessage, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
  * Your suppliers.
@@ -146,6 +147,9 @@ export default function SuppliersPage() {
   // The door's own sentence when it refused this reader, drawn alone
   // (sign-up walk, round four, problem 3).
   const [refused, setRefused] = useState<string | null>(null)
+  // Whether the list's first read has answered, so "Who you buy from" says
+  // it is opening rather than drawing an empty list that is not empty.
+  const [readOnce, setReadOnce] = useState(false)
   // The section this page sits under on the reader's own menu: Supply for
   // a program office, Network for a client (round four, problem 15).
   const section = usePageSection('/dashboard/suppliers')
@@ -257,6 +261,8 @@ export default function SuppliersPage() {
       setMayNotJoinSays(dup?.data?.mayNotJoinSays ?? '')
     } catch (err: any) {
       setError(err.message)
+    } finally {
+      setReadOnce(true)
     }
   }, [loadRequests])
 
@@ -465,51 +471,55 @@ export default function SuppliersPage() {
   ]
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8 px-4">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          {section && <p className="eyebrow">{section}</p>}
-          <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
-          <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-            Who you buy from, and where each stands. A firm becomes a supplier when your lead, Procurement, HR and
-            Finance have each said yes — anybody who raises a job request can recommend one.
-          </p>
-        </div>
-        {mayRecommend && !recommending && (
-          <button
-            onClick={() => setRecommending(true)}
-            className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
-          >
+      <PageHead
+        eyebrow={section}
+        title="Suppliers"
+        subtitle={<>
+          Who you buy from, and where each stands. A firm becomes a supplier when your lead, Procurement, HR and
+          Finance have each said yes — anybody who raises a job request can recommend one.
+        </>}
+        actions={mayRecommend && !recommending ? (
+          <button onClick={() => setRecommending(true)} className="btn-primary">
             Recommend a supplier
           </button>
-        )}
-      </header>
+        ) : undefined}
+      />
 
       {/* ── Recommend one ───────────────────────────────────────────── */}
       {recommending && (
         <section className="panel space-y-3">
-          <p className="stat-label">Recommend a supplier</p>
+          <Lbl>Recommend a supplier</Lbl>
           <p className="text-[13px] text-etyme-muted">
             It walks four desks: your department lead confirms the need, Procurement qualifies the firm — experience,
             references, revenue and delivery proofs, proposal, D&amp;B — HR clears compliance and screening, and Finance
             checks the W-9 and bank details. The firm gets a link of its own to supply its side. You are told at each step.
           </p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <input value={rec.name} onChange={(e) => setRec({ ...rec, name: e.target.value })} placeholder="Firm" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-            <input value={rec.contactEmail} onChange={(e) => setRec({ ...rec, contactEmail: e.target.value })} placeholder="Contact email (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-            <input value={rec.contactName} onChange={(e) => setRec({ ...rec, contactName: e.target.value })} placeholder="Contact name (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-            <input value={rec.skills} onChange={(e) => setRec({ ...rec, skills: e.target.value })} placeholder="What they supply — jobs, skills (HR reads this)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
-            <input value={rec.reason} onChange={(e) => setRec({ ...rec, reason: e.target.value })} placeholder="Why — who they placed for you, what they are good at" className="rounded border border-etyme-rule px-3 py-2 text-[13px] sm:col-span-2" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Firm">
+              <Input value={rec.name} onChange={(e) => setRec({ ...rec, name: e.target.value })} placeholder="Firm" />
+            </Field>
+            <Field label="Contact email (optional)">
+              <Input type="email" value={rec.contactEmail} onChange={(e) => setRec({ ...rec, contactEmail: e.target.value })} placeholder="Contact email (optional)" />
+            </Field>
+            <Field label="Contact name (optional)">
+              <Input value={rec.contactName} onChange={(e) => setRec({ ...rec, contactName: e.target.value })} placeholder="Contact name (optional)" />
+            </Field>
+            <Field label="What they supply" help="Jobs and skills. HR reads this.">
+              <Input value={rec.skills} onChange={(e) => setRec({ ...rec, skills: e.target.value })} placeholder="What they supply — jobs, skills (HR reads this)" />
+            </Field>
+            <Field label="Why" className="sm:col-span-2">
+              <Input value={rec.reason} onChange={(e) => setRec({ ...rec, reason: e.target.value })} placeholder="Why — who they placed for you, what they are good at" />
+            </Field>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={recommend} disabled={busy || !rec.name.trim() || !rec.reason.trim()}
-              className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
-              {busy ? 'Sending…' : 'Recommend'}
-            </button>
+            <SubmitButton type="button" onClick={recommend} pending={busy} pendingLabel="Sending…" disabled={!rec.name.trim() || !rec.reason.trim()}>
+              Recommend
+            </SubmitButton>
             <button onClick={() => setRecommending(false)} className="text-[12px] text-etyme-muted hover:underline">Not now</button>
           </div>
         </section>
@@ -518,7 +528,7 @@ export default function SuppliersPage() {
       {/* ── In the pipeline ─────────────────────────────────────────── */}
       {requests.some((r) => r.state === 'RECOMMENDED' || r.state === 'IN_REVIEW') && (
         <section className="space-y-3">
-          <p className="stat-label">In the pipeline</p>
+          <Lbl>In the pipeline</Lbl>
           {requests.filter((r) => r.state === 'RECOMMENDED' || r.state === 'IN_REVIEW').map((r) => (
             <article key={r.id} className="panel space-y-4">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -742,7 +752,7 @@ export default function SuppliersPage() {
       {/* ── Not approved ────────────────────────────────────────────── */}
       {requests.some((r) => r.state === 'DECLINED') && (
         <section className="space-y-2">
-          <p className="stat-label">Not approved</p>
+          <Lbl>Not approved</Lbl>
           {requests.filter((r) => r.state === 'DECLINED').slice(0, 5).map((r) => (
             <p key={r.id} className="text-[12.5px] text-etyme-muted">
               <span className="text-etyme-ink">{r.name}</span> — {r.decidedBy ?? 'a desk'}: {r.decisionNote}
@@ -751,22 +761,10 @@ export default function SuppliersPage() {
         </section>
       )}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
-      {told && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{told}</p>
-        </div>
-      )}
-      {done && (
-        <div className="panel">
-          <p className="text-[13px]" style={{ color: 'var(--color-verified)' }}>{done}</p>
-        </div>
-      )}
+      {told && <FormMessage tone="error">{told}</FormMessage>}
+      {done && <FormMessage tone="ok">{done}</FormMessage>}
 
       {/* ── What it made of the paste ─────────────────────────────── */}
       {rows && (
@@ -832,7 +830,7 @@ export default function SuppliersPage() {
       {/* ── The same firm, listed twice ───────────────────────────── */}
       {pairs.length > 0 && (
         <section className="space-y-3">
-          <p className="stat-label">The same firm, listed twice</p>
+          <Lbl>The same firm, listed twice</Lbl>
           {pairs.map((p) => (
             <article key={p.domain} className="panel">
               <p className="text-[13px] text-etyme-ink">{p.says}</p>
@@ -868,7 +866,7 @@ export default function SuppliersPage() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="stat-label">Who you buy from</p>
+            <Lbl>Who you buy from</Lbl>
             <p className="text-[13px] text-etyme-muted">{listSummary}</p>
           </div>
           {suppliers.length > 0 && <ViewToggle view={view} onChange={setView} />}
@@ -878,10 +876,13 @@ export default function SuppliersPage() {
           <FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />
         )}
 
+        {!readOnce && !error && <LoadingState compact says="Opening your suppliers…" />}
+
         {suppliers.length > 0 && shown.length === 0 && (
-          <div className="panel">
-            <p className="text-[13px] text-etyme-muted">{emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}</p>
-          </div>
+          <EmptyState
+            says={emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}
+            action={{ label: 'Show everyone', onClick: () => { setFilter('ALL'); setPlace(null) } }}
+          />
         )}
 
         {view === 'table' && suppliers.length > 0 && (

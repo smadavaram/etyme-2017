@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { PageHead, Stat, FilterChips, RefusedState, LoadingState, FormMessage, Field, Input, Select, Textarea, SubmitButton } from '@/components/ui'
 import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
@@ -479,8 +480,8 @@ function SubmitToRequirementModal({
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
+          <div className="mb-4">
+            <FormMessage tone="error">{error}</FormMessage>
           </div>
         )}
 
@@ -495,20 +496,15 @@ function SubmitToRequirementModal({
             <button type="button" onClick={onClose} className="btn-primary w-full">Close</button>
           </div>
         ) : loadingOptions ? (
-          <div className="py-8 text-center text-sm text-etyme-faint animate-pulse">
-            Loading job requests and consultants…
-          </div>
+          <LoadingState compact says="Loading job requests and consultants…" />
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Requirement select */}
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Job request *</label>
-              <select
+            <Field label="Job request *" help={requirements.length === 0 ? 'No open job requests found.' : undefined}>
+              <Select
                 required
                 value={form.requirementId}
                 onChange={(e) => { setForm({ ...form, requirementId: e.target.value }); setNeedsReason(null) }}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
                 <option value="">Select a job request…</option>
                 {requirements.map((r) => (
@@ -516,16 +512,18 @@ function SubmitToRequirementModal({
                     {r.title} — {r.company.name}
                   </option>
                 ))}
-              </select>
-              {requirements.length === 0 && (
-                <p className="text-[11px] text-etyme-faint mt-1">No open job requests found.</p>
-              )}
-            </div>
+              </Select>
+            </Field>
 
             {/* Consultant select */}
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Consultant *</label>
-              <select
+              <Field
+                label="Consultant *"
+                help={consultants.length === 0 && ourPeople.length === 0 && network.length === 0
+                  ? 'Nobody to put forward yet. Invite your own team, ask a consultant for a bench listing, or add a supplier who offers its people.'
+                  : selectedOwn && ourPeopleSays ? ourPeopleSays : undefined}
+              >
+              <Select
                 required
                 value={form.offeredBy ? `${form.personId}|${form.offeredBy}` : form.personId}
                 onChange={(e) => {
@@ -534,8 +532,6 @@ function SubmitToRequirementModal({
                   // A warning about one person is not a warning about the next.
                   setNeedsReason(null)
                 }}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
                 <option value="">Select somebody…</option>
                 {ourPeople.length > 0 && (
@@ -570,36 +566,26 @@ function SubmitToRequirementModal({
                     ))}
                   </optgroup>
                 )}
-              </select>
+              </Select>
+              </Field>
               {selectedOffer && (
-                <div className="mt-3">
-                  <label className="block text-xs font-semibold text-etyme-muted mb-1">
-                    What {selectedOffer.supplierName} charges you, per hour *
-                  </label>
-                  <input
+                <Field
+                  className="mt-3"
+                  label={<>What {selectedOffer.supplierName} charges you, per hour *</>}
+                  help={<>
+                    {selectedOffer.supplierName} holds {selectedOffer.name}’s consent and supplies them to you at this
+                    rate. The client sees your rate and your name, never {selectedOffer.supplierName}’s.
+                  </>}
+                >
+                  <Input
                     type="number"
                     required
                     min="1"
                     step="0.01"
                     value={form.payRate}
                     onChange={(e) => setForm({ ...form, payRate: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                    aria-describedby="pay-rate-help"
                   />
-                  <p id="pay-rate-help" className="text-[11px] text-etyme-muted mt-1">
-                    {selectedOffer.supplierName} holds {selectedOffer.name}’s consent and supplies them to you at this
-                    rate. The client sees your rate and your name, never {selectedOffer.supplierName}’s.
-                  </p>
-                </div>
-              )}
-              {selectedOwn && ourPeopleSays && (
-                <p className="text-[11px] text-etyme-muted mt-1">{ourPeopleSays}</p>
-              )}
-              {consultants.length === 0 && ourPeople.length === 0 && network.length === 0 && (
-                <p className="text-[11px] text-etyme-faint mt-1">
-                  Nobody to put forward yet. Invite your own team, ask a consultant for a bench listing, or add a supplier who offers its people.
-                </p>
+                </Field>
               )}
             </div>
 
@@ -661,27 +647,19 @@ function SubmitToRequirementModal({
                 submission records no currency of its own, and a picker
                 whose answer the route threw away was a form that lied. */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <label htmlFor="submit-rate" className="block text-xs font-semibold text-etyme-muted mb-1">Rate *</label>
+              <Field className="sm:col-span-2" label="Rate *" help={bandHint(bands[form.requirementId]) ?? RATE_HELP}>
                 <div className="flex items-center gap-2">
-                  <input
-                    id="submit-rate"
+                  <Input
                     type="number"
                     required
                     min="1"
                     step="0.01"
                     value={form.rate}
                     onChange={(e) => setForm({ ...form, rate: e.target.value })}
-                    aria-describedby="submit-rate-help"
-                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                   />
                   <span className="text-sm text-etyme-muted shrink-0">per hour</span>
                 </div>
-                <p id="submit-rate-help" className="text-[11px] text-etyme-muted mt-1">
-                  {bandHint(bands[form.requirementId]) ?? RATE_HELP}
-                </p>
-              </div>
+              </Field>
               <div>
                 <span className="block text-xs font-semibold text-etyme-muted mb-1">Currency</span>
                 <p className="px-3 py-2 text-sm text-etyme-ink">USD</p>
@@ -690,37 +668,29 @@ function SubmitToRequirementModal({
             </div>
 
             {/* Cover note */}
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Cover note</label>
-              <textarea
+            <Field label="Cover note">
+              <Textarea
                 rows={3}
                 value={form.coverNote}
                 onChange={(e) => setForm({ ...form, coverNote: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-y
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                className="resize-y"
                 placeholder="Why this consultant is a good fit for this job."
               />
-            </div>
+            </Field>
 
             {needsReason && (
               <div className="rounded-lg border border-etyme-attention/40 bg-etyme-canvas px-4 py-3">
                 <p className="text-sm text-etyme-attention mb-2">{needsReason}</p>
-                <label htmlFor="submit-reason" className="block text-xs font-semibold text-etyme-muted mb-1">
-                  Reason to go ahead *
-                </label>
-                <textarea
-                  id="submit-reason"
-                  rows={2}
-                  required
-                  minLength={10}
-                  value={form.reason}
-                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-y
-                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                />
-                <p className="text-[11px] text-etyme-muted mt-1">
-                  The reason is recorded with the submission, under your name.
-                </p>
+                <Field label="Reason to go ahead *" help="The reason is recorded with the submission, under your name.">
+                  <Textarea
+                    rows={2}
+                    required
+                    minLength={10}
+                    value={form.reason}
+                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                    className="resize-y"
+                  />
+                </Field>
               </div>
             )}
 
@@ -728,9 +698,9 @@ function SubmitToRequirementModal({
               <button type="button" onClick={onClose} className="btn-secondary flex-1">
                 Cancel
               </button>
-              <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50">
-                {submitting ? 'Submitting…' : needsReason ? 'Submit with this reason' : 'Submit consultant'}
-              </button>
+              <SubmitButton pending={submitting} pendingLabel="Submitting…" className="flex-1">
+                {needsReason ? 'Submit with this reason' : 'Submit consultant'}
+              </SubmitButton>
             </div>
           </form>
         )}
@@ -1519,7 +1489,7 @@ export default function SubmissionsPage() {
   ]
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   // Somebody signed in with no company — a candidate on nobody's bench —
@@ -1527,7 +1497,7 @@ export default function SubmissionsPage() {
   // for ever was the page waiting on a company that was not coming
   // (round five, problem 17).
   if (!sessionLoading && !company && !urlRequirementId) {
-    return <p className="text-[14px] text-etyme-muted py-8">{SUBMISSIONS_NOT_AT_A_COMPANY}</p>
+    return <RefusedState says={SUBMISSIONS_NOT_AT_A_COMPANY} />
   }
 
   // Nothing framed until the list's own read has answered: only the route
@@ -1546,26 +1516,24 @@ export default function SubmissionsPage() {
           : 'Candidates other suppliers submitted to your job requests.',
   })
   if (head.state === 'LOADING') {
-    return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+    return <LoadingState says="Loading…" />
   }
   const own = head.state === 'OWN'
 
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          {/* A seat that reads only its own rows is told whose they are,
-              in the route's sentence, and never the firm's. */}
-          <p>{head.says}</p>
-        </div>
-
-        {/* The firm's furniture — the Submit button and which way the
-            firm's list faces — is a desk's, never a worker's. */}
-        {!own && (
-        <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
+      {/* A seat that reads only its own rows is told whose they are,
+          in the route's sentence, and never the firm's. */}
+      <PageHead
+        eyebrow={framing.eyebrow}
+        title={framing.title}
+        subtitle={head.says}
+        actions={
+        /* The firm's furniture — the Submit button and which way the
+           firm's list faces — is a desk's, never a worker's. */
+        !own ? (
+        <>
           {/* Submit button — a client receives candidates, never submits
               them, and neither does a program office at a client's desk.
               The label and whether there is one at all come from the same
@@ -1578,9 +1546,10 @@ export default function SubmissionsPage() {
           )}
 
           {/* Direction toggle — prototype segmented control */}
-          <div className="flex bg-etyme-canvas rounded-md p-0.5">
+          <div role="group" aria-label="Which way" className="flex bg-etyme-canvas rounded-md p-0.5">
             <button
               onClick={() => { faceThisWay('sent'); setStatusFilter('ALL') }}
+              aria-pressed={direction === 'sent'}
               className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
                 direction === 'sent'
                   ? 'bg-white shadow-sm text-etyme-ink'
@@ -1591,6 +1560,7 @@ export default function SubmissionsPage() {
             </button>
             <button
               onClick={() => { faceThisWay('received'); setStatusFilter('ALL') }}
+              aria-pressed={direction === 'received'}
               className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
                 direction === 'received'
                   ? 'bg-white shadow-sm text-etyme-ink'
@@ -1600,9 +1570,9 @@ export default function SubmissionsPage() {
               Received
             </button>
           </div>
-        </div>
-        )}
-      </div>
+        </>
+        ) : undefined}
+      />
 
       {/* Whose desk this is, where it is not the reader's own firm. */}
       {atDesk?.says && (
@@ -1614,52 +1584,17 @@ export default function SubmissionsPage() {
       {/* Stats row — prototype Stat component pattern. Drawn once the
           first read is back, never as zeros before it. */}
       {readOnce && !error && (
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Total</p>
-          <p className="stat-value text-etyme-ink">{stats.total}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">submissions</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Pending</p>
-          <p className={`stat-value ${stats.submitted > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {stats.submitted}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">awaiting review</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">In process</p>
-          <p className={`stat-value ${(stats.shortlisted + stats.interview) > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
-            {stats.shortlisted + stats.interview}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">shortlisted + interview</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Placed</p>
-          <p className="stat-value text-etyme-verified">{stats.placed}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Total" value={stats.total} sub="submissions" />
+        <Stat label="Pending" value={stats.submitted} sub="awaiting review" tone={stats.submitted > 0 ? 'attention' : 'default'} />
+        <Stat label="In process" value={stats.shortlisted + stats.interview} sub="shortlisted + interview" />
+        <Stat label="Placed" value={stats.placed} sub="placements" tone="verified" />
       </div>
       )}
 
-      {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
       {said && (
-        <div className="mb-4 rounded-md border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
-          {said}
+        <div className="mb-4">
+          <FormMessage tone="ok">{said}</FormMessage>
         </div>
       )}
 
@@ -1672,6 +1607,14 @@ export default function SubmissionsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, job request, company, or status…"
+        filters={
+          <FilterChips<StatusFilter>
+            label="Stage"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+          />
+        }
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} submissions.` : own ? 'You have not been put forward yet.' : 'No submissions yet.'}
         emptyDetail={
           own

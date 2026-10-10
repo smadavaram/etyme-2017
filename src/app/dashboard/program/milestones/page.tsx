@@ -5,7 +5,7 @@ import { refusedBy } from '../own-refusal'
 import { usePageSection } from '@/components/page-section'
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { PageHead, Stat, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
  * Milestones — what has been handed over, and what is waiting on somebody.
@@ -157,41 +157,33 @@ export default function MilestonesPage() {
   }
 
   if (loading) {
-    return (
-      <div className="card text-center py-16">
-        <p className="text-sm text-etyme-muted">Loading milestones…</p>
-      </div>
-    )
+    return <LoadingState says="Opening milestones…" />
   }
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   if (error) {
-    return (
-      <div className="card text-center py-16">
-        <p className="text-sm text-etyme-danger">Could not load milestones: {error}</p>
-      </div>
-    )
+    return <ErrorState says={`Milestones could not be read: ${error}`} action={{ label: 'Try again', onClick: load }} />
   }
 
   const orders = data?.orders ?? []
 
   return (
     <>
-      <div className="mb-1">
-        {section && <div className="eyebrow mb-1">{section}</div>}
-        <h1 className="text-2xl font-semibold tracking-[-0.02em] font-serif">Milestones</h1>
-        <p className="text-sm text-etyme-muted mt-1 max-w-2xl">
+      <PageHead
+        eyebrow={section}
+        title="Milestones"
+        subtitle={<>
           A milestone bills because somebody accepted it, never because a date passed. What
           is waiting here is money that cannot be billed yet, split by whose move it is.
-        </p>
-      </div>
+        </>}
+      />
 
       {data && orders.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-6 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <Stat
               label="Ready to bill"
               value={money(data.overall.billableCents)}
@@ -233,22 +225,17 @@ export default function MilestonesPage() {
       )}
 
       {orders.length === 0 && (
-        <div className="card text-center py-14 mt-6">
-          <p className="text-lg font-serif text-etyme-ink mb-1">No orders with deliverables.</p>
-          <p className="text-sm text-etyme-muted max-w-lg mx-auto">
+        <EmptyState
+          says="No orders with deliverables."
+          detail={<>
             Milestones sit on a sales order — the document that carries a ceiling and says how
             much may be spent. Nothing in the product raises one yet, so this stays empty
             until one exists. An order carries a ceiling; a contract carries a rate; a
-            milestone is a payment that falls due on delivery rather than on a date.
-          </p>
-          <p className="text-xs text-etyme-faint mt-4">
-            The{' '}
-            <Link href={{ pathname: '/dashboard/program/agreements' }} className="text-etyme-action underline">
-              agreements
-            </Link>{' '}
-            behind them are already here.
-          </p>
-        </div>
+            milestone is a payment that falls due on delivery rather than on a date. The
+            agreements behind them are already here.
+          </>}
+          action={{ label: 'Open the agreements', href: '/dashboard/program/agreements' }}
+        />
       )}
 
       <div className="space-y-6 mt-6">
@@ -396,31 +383,3 @@ function money(cents: number): string {
   return `$${Math.round(cents / 100).toLocaleString('en-US')}`
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  label: string
-  value: string
-  sub?: string
-  tone?: 'attention' | 'action' | 'verified'
-}) {
-  const tones = {
-    attention: 'text-etyme-attention',
-    action: 'text-etyme-action',
-    verified: 'text-etyme-verified',
-  }
-  return (
-    <div className="card py-3 px-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">
-        {label}
-      </p>
-      <p className={`text-2xl font-semibold tabular-nums font-serif ${tone ? tones[tone] : 'text-etyme-ink'}`}>
-        {value}
-      </p>
-      {sub && <p className="text-[10px] text-etyme-faint mt-0.5">{sub}</p>}
-    </div>
-  )
-}

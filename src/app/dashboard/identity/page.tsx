@@ -5,6 +5,7 @@ import { usePageSection } from '@/components/page-section'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 
 import { useEffect, useState, useCallback } from 'react'
+import { PageHead, Field, Input, FormMessage, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
  * Two records that might be one human.
@@ -105,44 +106,37 @@ export default function IdentityPage() {
     }
   }
 
-  if (refused) return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-  if (!readOnce) return <p className="text-[14px] text-etyme-muted py-8">Loading…</p>
+  if (refused) return <RefusedState says={refused} />
+  if (!readOnce) return <LoadingState says="Loading…" />
 
   return (
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
-      <header>
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="headline-serif text-[30px] leading-tight">Duplicate check</h1>
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
+      <PageHead
+        eyebrow={section}
+        title="Duplicate check"
+        subtitle={<>
           When a supplier in the middle of a chain is not on Etyme, one
           contractor can arrive twice under two records — and their tenure here
           reads as two shorter spells instead of one long one.
-        </p>
-      </header>
+        </>}
+      />
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
-      {done && (
-        <div className="panel">
-          <p className="text-[13px]" style={{ color: 'var(--color-verified)' }}>{done}</p>
-        </div>
-      )}
+      {done && <FormMessage tone="ok">{done}</FormMessage>}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState compact says="Checking again…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && matches.length === 0 && !error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nobody looks like a duplicate. This fills in as suppliers put people
+        <EmptyState
+          says="Nobody looks like a duplicate."
+          detail={<>
+            This fills in as suppliers put people
             forward through chains we can only see part of.
-          </p>
-        </div>
+          </>}
+        />
       )}
 
       {matches.map((m) => (
@@ -183,31 +177,31 @@ export default function IdentityPage() {
               <button
                 onClick={() => decide(m, true)}
                 disabled={busy}
-                className="rounded bg-etyme-action px-4 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
+                className="btn-primary disabled:opacity-40"
               >
                 Yes, one person
               </button>
               <button
                 onClick={() => setDismissing(`${m.aId}:${m.bId}`)}
                 disabled={busy}
-                className="rounded border border-etyme-rule px-4 py-2 text-[12px] text-etyme-muted"
+                className="btn-secondary"
               >
                 No, two people
               </button>
             </div>
           ) : (
             <div className="mt-4 space-y-2">
-              <input
-                autoFocus
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Why are they not the same person?"
-                className="w-full rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]"
-              />
-              <p className="text-[11px] text-etyme-faint">
-                In six months nobody will remember why two obvious duplicates
-                were left apart.
-              </p>
+              <Field
+                label="Why are they not the same person?"
+                help="In six months nobody will remember why two obvious duplicates were left apart."
+              >
+                <Input
+                  autoFocus
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Why are they not the same person?"
+                />
+              </Field>
               <div className="flex gap-2">
                 <button
                   onClick={() => decide(m, false)}

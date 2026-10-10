@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { Field, Input, Select, Textarea, Check, SubmitButton, FormMessage, FilterChips, Lbl, PageHead, Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -184,61 +185,49 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
         </div>
 
         {/* Mode toggle — paste or manual */}
-        <div className="flex gap-1.5 mb-4">
-          <button
-            type="button"
-            onClick={() => setMode('paste')}
-            className={`filter-tab ${mode === 'paste' ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-          >
-            Paste &amp; parse
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('form')}
-            className={`filter-tab ${mode === 'form' ? 'filter-tab--active' : 'filter-tab--inactive'}`}
-          >
-            Manual entry
-          </button>
+        <div className="mb-4">
+          <FilterChips<'paste' | 'form'>
+            label="How to enter it"
+            value={mode}
+            onChange={setMode}
+            options={[{ key: 'paste', label: 'Paste & parse' }, { key: 'form', label: 'Manual entry' }]}
+          />
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
+          <div className="mb-4">
+            <FormMessage tone="error">{error}</FormMessage>
           </div>
         )}
 
         {/* Paste mode — textarea + parse button */}
         {mode === 'paste' && (
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">
-                Paste job description, email, or VMS export
-              </label>
-              <textarea
+            <Field
+              label="Paste job description, email, or VMS export"
+              help="Extracts title, skills, rate, location, duration. Flagged fields show low confidence — review before submitting."
+            >
+              <Textarea
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={8}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
-                           resize-y"
+                className="resize-y"
                 placeholder={"Job title: Senior SAP BRIM Consultant\nLocation: Remote\nSkills: SAP BRIM, Revenue Accounting, S/4HANA\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for a consultant with 5+ years of SAP BRIM experience..."}
               />
-              <p className="text-[10px] text-etyme-faint mt-1">
-                Extracts title, skills, rate, location, duration. Flagged fields show low confidence — review before submitting.
-              </p>
-            </div>
+            </Field>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={onClose} className="btn-secondary">
                 Cancel
               </button>
-              <button
+              <SubmitButton
                 type="button"
                 onClick={handleParse}
-                disabled={parsing || pasteText.trim().length < 10}
-                className="btn-primary disabled:opacity-50"
+                pending={parsing}
+                pendingLabel="Parsing…"
+                disabled={pasteText.trim().length < 10}
               >
-                {parsing ? 'Parsing…' : 'Parse & fill form →'}
-              </button>
+                Parse &amp; fill form →
+              </SubmitButton>
             </div>
           </div>
         )}
@@ -255,114 +244,81 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">
-              Title *{parseConfidence.title?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.title.confidence) * 100)}%`}>⚠</span>}
-            </label>
-            <input
+          <Field label={<>Title *{parseConfidence.title?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.title.confidence) * 100)}%`}>⚠</span>}</>}>
+            <Input
               type="text"
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Senior SAP BRIM Consultant — Remote"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">
-              Required skills (comma-separated){parseConfidence.skills?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.skills.confidence) * 100)}%`}>⚠</span>}
-            </label>
-            <input
+          <Field label={<>Required skills (comma-separated){parseConfidence.skills?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.skills.confidence) * 100)}%`}>⚠</span>}</>}>
+            <Input
               type="text"
               value={form.skills}
               onChange={(e) => setForm({ ...form, skills: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="SAP BRIM, Revenue Accounting, S/4HANA"
             />
-          </div>
+          </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Bill min ($/hr)</label>
-              <input
+            <Field label="Bill min ($/hr)">
+              <Input
                 type="number"
                 value={form.billMin}
                 onChange={(e) => setForm({ ...form, billMin: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="80"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Bill max ($/hr)</label>
-              <input
+            </Field>
+            <Field label="Bill max ($/hr)">
+              <Input
                 type="number"
                 value={form.billMax}
                 onChange={(e) => setForm({ ...form, billMax: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="120"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Duration (months)</label>
-              <input
+            </Field>
+            <Field label="Duration (months)">
+              <Input
                 type="number"
                 value={form.months}
                 onChange={(e) => setForm({ ...form, months: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="12"
               />
-            </div>
+            </Field>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Location</label>
-            <input
+          <Field label="Location">
+            <Input
               type="text"
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Remote / Dallas, TX / Hybrid"
             />
-          </div>
+          </Field>
 
           {/* Rate transparency — Addendum D §D.3.1 & D.3.2 */}
           <div className="border-t border-etyme-rule pt-4 mt-2">
-            <div className="stat-label text-[9px] mb-2">Rate Transparency</div>
+            <Lbl className="mb-2">Rate Transparency</Lbl>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-etyme-muted mb-1">Margin class</label>
-                <select
+              <Field label="Margin class" help="Distinguishes how margin is earned on this job">
+                <Select
                   value={form.marginClass}
                   onChange={(e) => setForm({ ...form, marginClass: e.target.value as '' | 'ARBITRAGE' | 'EXPERTISE' })}
-                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 >
                   <option value="">Not set</option>
                   <option value="EXPERTISE">Expertise — capability-based</option>
                   <option value="ARBITRAGE">Arbitrage — opacity-based</option>
-                </select>
-                <p className="text-[9px] text-etyme-faint mt-0.5">
-                  Distinguishes how margin is earned on this job
-                </p>
-              </div>
+                </Select>
+              </Field>
               <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.rateVisible}
-                    onChange={(e) => setForm({ ...form, rateVisible: e.target.checked })}
-                    className="w-4 h-4 rounded border-etyme-rule text-etyme-action
-                               focus:ring-etyme-action/20 focus:ring-2"
-                  />
-                  <span className="text-sm text-etyme-ink">Rate visible to vendors</span>
-                </label>
+                <Check
+                  label="Rate visible to vendors"
+                  checked={form.rateVisible}
+                  onChange={(e) => setForm({ ...form, rateVisible: e.target.checked })}
+                />
               </div>
             </div>
           </div>
@@ -371,9 +327,9 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Create job request'}
-            </button>
+            <SubmitButton pending={submitting} pendingLabel="Creating…">
+              Create job request
+            </SubmitButton>
           </div>
         </form>
         )}
@@ -635,62 +591,31 @@ export default function RequirementsPage() {
   ]
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + action */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
-        <div className="page-head">
-          <p className="eyebrow">{framing.eyebrow}</p>
-          <h1>{framing.title}</h1>
-          <p>{framing.subtitle}</p>
-        </div>
-        <button onClick={() => setShowNew(true)} className="btn-primary self-start md:mt-3 shrink-0">
-          New job request
-        </button>
-      </div>
+      <PageHead
+        eyebrow={framing.eyebrow}
+        title={framing.title}
+        subtitle={framing.subtitle}
+        actions={
+          <button onClick={() => setShowNew(true)} className="btn-primary">
+            New job request
+          </button>
+        }
+      />
 
       {/* Stats row — drawn once the first read is back, never as zeros. */}
       {readOnce && !error && (
-      <div className="flex gap-3 mb-6 flex-wrap">
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">{statusWord('OPEN')}</p>
-          <p className={`stat-value ${openCount > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
-            {openCount}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">open to suppliers</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Matches</p>
-          <p className={`stat-value ${totalMatches > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
-            {totalMatches}
-          </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">across all job requests</p>
-        </div>
-        <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">{ARCHIVED_WORD}</p>
-          <p className="stat-value text-etyme-ink">{archivedCount}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">filled or closed</p>
-        </div>
+      <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-3">
+        <Stat label={statusWord('OPEN')} value={openCount} sub="open to suppliers" />
+        <Stat label="Matches" value={totalMatches} sub="across all job requests" tone={totalMatches > 0 ? 'verified' : 'default'} />
+        <Stat label={ARCHIVED_WORD} value={archivedCount} sub="filled or closed" />
       </div>
       )}
-
-      {/* Status filters — prototype filter-tab pattern */}
-      <div className="flex gap-1.5 mb-5 flex-wrap">
-        {statusOptions.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setStatusFilter(opt.key)}
-            className={`filter-tab ${
-              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
 
       {/* Data table */}
       <ListSurface<Requirement>
@@ -701,6 +626,15 @@ export default function RequirementsPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by title, skill, location, or status…"
+        filters={
+          <FilterChips<StatusFilter>
+            label="Stage"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={statusOptions}
+          />
+        }
+        emptyAction={statusFilter === 'ALL' ? { label: 'New job request', onClick: () => setShowNew(true) } : undefined}
         emptyMessage={statusFilter !== 'ALL' ? `No ${filterWordLower(statusFilter)} job requests.` : 'No job requests yet.'}
         emptyDetail="Create your first job request to start matching consultants, or import them from your VMS."
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.id}` as any)}

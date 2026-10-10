@@ -45,7 +45,7 @@ describe('a job request is called what the reader’s menu calls it', () => {
   })
 
   it('the way back from one job request names the list in the reader’s word', () => {
-    expect(DETAIL).toContain('← {jobListWord(company?.kind).plural}</a>')
+    expect(DETAIL).toContain("label: jobListWord(company?.kind).plural")
     expect(DETAIL).not.toContain('← Requirements')
   })
 

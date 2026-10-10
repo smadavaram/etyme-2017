@@ -5,6 +5,7 @@ import { confidenceWords } from './confidence-words'
 import { readJson } from '@/lib/read-response'
 import { range } from '@/lib/money-display'
 import { submitFields } from '@/lib/bench-filter'
+import { EmptyState, LoadingState, FormMessage } from '@/components/ui'
 
 /**
  * The matches on one job request, grouped the way they rank.
@@ -518,8 +519,8 @@ export function AddFirmDialog({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {loadError && <p className="text-[12px] text-etyme-danger">{loadError}</p>}
-          {!info && !loadError && <p className="text-[12px] text-etyme-muted">Loading…</p>}
+          {loadError && <FormMessage tone="error">{loadError}</FormMessage>}
+          {!info && !loadError && <LoadingState compact says="Loading…" />}
           {info && (
             <>
               <p className="text-[13px] text-etyme-muted">{info.says}</p>
@@ -694,14 +695,12 @@ export function JobMatches({
         </p>
       )}
       {!loaded ? (
-        <p className="text-[12px] text-etyme-muted">Reading the matches…</p>
+        <LoadingState compact says="Reading the matches…" />
       ) : matches.length === 0 || !viewer ? (
-        <div className="panel text-center py-8">
-          <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
-          <p className="text-xs text-etyme-muted">
-            {mayRun ? 'Check who is available before this goes to anyone new.' : 'Nobody has run matching on this job yet.'}
-          </p>
-        </div>
+        <EmptyState
+          says="No matches yet."
+          detail={mayRun ? 'Check who is available before this goes to anyone new.' : 'Nobody has run matching on this job yet.'}
+        />
       ) : (
         <MatchList
           requirementId={requirementId}

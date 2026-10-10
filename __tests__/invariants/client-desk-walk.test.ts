@@ -248,9 +248,9 @@ describe('a job request says what the job is before anybody approves it', () => 
   it('the job request page shows the job before its approval, and what the approval checked', () => {
     const page = read('src/app/dashboard/requisitions/[id]/page.tsx')
     expect(page.indexOf('aria-label="The job"')).toBeGreaterThan(-1)
-    expect(page.indexOf('aria-label="The job"')).toBeLessThan(page.indexOf('<Panel title="Approval">'))
+    expect(page.indexOf('aria-label="The job"')).toBeLessThan(page.indexOf('<ListSection title="Approval">'))
     expect(page).toContain('<CheckedAgainst checked={data.checked ?? null} approvalState={r.approvalState} />')
-    expect(page).toContain('<Panel title="Send to suppliers">')
+    expect(page).toContain('<ListSection title="Send to suppliers">')
     expect(page).not.toContain('Send to vendors')
     expect(page).not.toContain('Gone quiet')
   })

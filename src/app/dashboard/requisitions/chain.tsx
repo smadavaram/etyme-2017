@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { said } from '@/lib/requisition-change'
 import { stageOf } from '@/lib/requisition-stage'
+import { Lbl, Chip } from '@/components/ui'
 
 /**
  * The approval chain, as a client reads it.
@@ -32,33 +33,9 @@ export interface Approval {
   decidedAt: string | null
 }
 
-export function Lbl({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">
-      {children}
-    </div>
-  )
-}
-
-
-export function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>
-      {children}
-    </span>
-  )
-}
-
-
+// The label and the chip are the shared ones (components/ui), re-exported
+// here so the list and the job request's own page keep one import.
+export { Lbl, Chip }
 
 // ─────────────────────────────────────────────────────────────────────
 // THE CHAIN, READ BY DESK

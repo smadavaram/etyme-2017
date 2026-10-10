@@ -8,6 +8,7 @@ import { useSession } from '@/components/session-provider'
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact as money } from '@/lib/money-display'
+import { Lbl, Stat, Chip, PageHead, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState, Field, Input, Select, Textarea, Check, SubmitButton, FormMessage } from '@/components/ui'
 
 /**
  * Invitations — demand arriving from a client.
@@ -56,52 +57,6 @@ interface Summary {
   declined: number
   expired: number
   openPositions: number
-}
-
-// ── Small shared pieces, per the prototype vocabulary ──────
-
-function Lbl({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium">
-      {children}
-    </div>
-  )
-}
-
-function Stat({ label, value, sub, tone = 'default' }: {
-  label: string
-  value: string | number
-  sub?: string
-  tone?: 'default' | 'attention' | 'verified'
-}) {
-  const color =
-    tone === 'attention' ? 'text-etyme-attention'
-    : tone === 'verified' ? 'text-etyme-verified'
-    : 'text-etyme-ink'
-  return (
-    <div>
-      <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
-      {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-function Chip({ children, tone = 'passive' }: {
-  children: React.ReactNode
-  tone?: 'attention' | 'verified' | 'action' | 'passive'
-}) {
-  const tones = {
-    attention: 'bg-etyme-attention/10 text-etyme-attention',
-    verified: 'bg-etyme-verified/10 text-etyme-verified',
-    action: 'bg-etyme-action/10 text-etyme-action',
-    passive: 'bg-etyme-rule/50 text-etyme-muted',
-  }
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>
-      {children}
-    </span>
-  )
 }
 
 function daysUntil(iso: string): number {
@@ -165,7 +120,7 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
   if (sent) {
     return (
       <div className="mt-5 border-t border-etyme-rule pt-4">
-        <p className="text-sm" style={{ color: 'var(--color-verified)' }}>{sent}</p>
+        <FormMessage tone="ok">{sent}</FormMessage>
         <button
           onClick={() => setSent(null)}
           className="mt-3 text-xs text-etyme-muted underline"
@@ -184,39 +139,41 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
         because you sent them, not the other way round.
       </p>
 
-      <textarea
-        value={cv}
-        onChange={e => setCv(e.target.value)}
-        rows={6}
-        placeholder="Paste the CV here"
-        className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised font-mono
-                   text-xs leading-relaxed text-etyme-ink placeholder:text-etyme-faint
-                   focus:outline-none focus:border-etyme-action"
-      />
+      <Field label="The CV">
+        <Textarea
+          value={cv}
+          onChange={e => setCv(e.target.value)}
+          rows={6}
+          placeholder="Paste the CV here"
+          className="font-mono text-xs leading-relaxed"
+        />
+      </Field>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-        <input
-          value={name} onChange={e => setName(e.target.value)}
-          placeholder="Name (read from CV)"
-          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
-                     text-etyme-ink placeholder:text-etyme-faint"
-        />
-        <input
-          value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="Email (read from CV)"
-          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
-                     text-etyme-ink placeholder:text-etyme-faint"
-        />
-        <input
-          value={rate} onChange={e => setRate(e.target.value)}
-          inputMode="decimal"
-          placeholder={ceiling ? `Rate — up to ${money(ceiling)}` : 'Rate per hour'}
-          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
-                     text-etyme-ink placeholder:text-etyme-faint tabular-nums"
-        />
-        <select
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+        <Field label="Name">
+          <Input
+            value={name} onChange={e => setName(e.target.value)}
+            placeholder="Name (read from CV)"
+          />
+        </Field>
+        <Field label="Email">
+          <Input
+            type="email"
+            value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="Email (read from CV)"
+          />
+        </Field>
+        <Field label="Rate per hour">
+          <Input
+            value={rate} onChange={e => setRate(e.target.value)}
+            inputMode="decimal"
+            placeholder={ceiling ? `Rate — up to ${money(ceiling)}` : 'Rate per hour'}
+            className="tabular-nums"
+          />
+        </Field>
+        <Field label="Work permit">
+        <Select
           value={workAuth} onChange={e => setWorkAuth(e.target.value)}
-          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs text-etyme-ink"
         >
           <option value="">Work permit…</option>
           <option value="US_CITIZEN">US Citizen</option>
@@ -225,7 +182,8 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
           <option value="EAD">EAD</option>
           <option value="OPT">OPT</option>
           <option value="TN">TN</option>
-        </select>
+        </Select>
+        </Field>
       </div>
 
       {/* Never read out of a CV. "Visa" in a CV is as likely to be a
@@ -235,31 +193,32 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
         The permit is never read from the CV — say what they hold.
       </p>
 
-      <label className="flex items-start gap-2 mt-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={mayRepresent}
-          onChange={e => setMayRepresent(e.target.checked)}
-          className="mt-0.5"
-        />
-        <span className="text-xs text-etyme-muted">
-          This person knows I am putting them forward for this job. Recorded
-          against you — being submitted blind is what makes consultants stop
-          answering, and when two vendors send the same person the client
-          rejects both.
-        </span>
-      </label>
+      <Check
+        className="mt-3 !items-start"
+        checked={mayRepresent}
+        onChange={e => setMayRepresent(e.target.checked)}
+        label={
+          <span className="text-xs text-etyme-muted">
+            This person knows I am putting them forward for this job. Recorded
+            against you — being submitted blind is what makes consultants stop
+            answering, and when two vendors send the same person the client
+            rejects both.
+          </span>
+        }
+      />
 
-      {error && <p className="mt-3 text-sm text-etyme-attention">{error}</p>}
+      {error && <div className="mt-3"><FormMessage tone="error">{error}</FormMessage></div>}
 
-      <button
+      <SubmitButton
+        type="button"
         onClick={send}
-        disabled={busy || cv.trim().length < 60 || !mayRepresent || !rate}
-        className="mt-3 px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium
-                   hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+        pending={busy}
+        pendingLabel="Sending…"
+        disabled={cv.trim().length < 60 || !mayRepresent || !rate}
+        className="mt-3"
       >
-        {busy ? 'Sending…' : 'Send this one'}
-      </button>
+        Send this one
+      </SubmitButton>
     </div>
   )
 }
@@ -372,23 +331,19 @@ function InvitationCard({ inv, onRespond, onSent }: {
       {(accepted || open) && mayAnswer && <AnswerBox inv={inv} onSent={onSent} />}
 
       {error && (
-        <div className="mt-4 text-sm text-etyme-attention">{error}</div>
+        <div className="mt-4"><FormMessage tone="error">{error}</FormMessage></div>
       )}
 
       {/* Answering. A decline asks why, because that is the useful signal. */}
       {open && !declining && (
         <div className="mt-5 flex items-center gap-3">
-          <button
-            onClick={() => act('accept')}
-            disabled={busy}
-            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {busy ? 'Sending…' : 'Work this job request'}
-          </button>
+          <SubmitButton type="button" onClick={() => act('accept')} pending={busy} pendingLabel="Sending…">
+            Work this job request
+          </SubmitButton>
           <button
             onClick={() => setDeclining(true)}
             disabled={busy}
-            className="px-4 py-2 border border-etyme-rule text-etyme-muted rounded text-sm hover:text-etyme-ink disabled:opacity-50"
+            className="btn-secondary disabled:opacity-50"
           >
             Decline
           </button>
@@ -397,28 +352,21 @@ function InvitationCard({ inv, onRespond, onSent }: {
 
       {open && declining && (
         <div className="mt-5">
-          <label className="block">
-            <Lbl>Why are you declining?</Lbl>
-            <p className="text-xs text-etyme-muted mt-1 mb-2">
-              The client sees this. Telling them you have nobody at this rate is
-              more useful to them — and to you next time — than silence.
-            </p>
-            <input
+          <Field
+            label="Why are you declining?"
+            help="The client sees this. Telling them you have nobody at this rate is more useful to them — and to you next time — than silence."
+          >
+            <Input
               autoFocus
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder="No available SAP MM consultants at this rate"
-              className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
             />
-          </label>
+          </Field>
           <div className="mt-3 flex items-center gap-3">
-            <button
-              onClick={() => act('decline')}
-              disabled={busy}
-              className="px-4 py-2 bg-etyme-ink text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? 'Sending…' : 'Send decline'}
-            </button>
+            <SubmitButton type="button" onClick={() => act('decline')} pending={busy} pendingLabel="Sending…">
+              Send decline
+            </SubmitButton>
             <button
               onClick={() => { setDeclining(false); setReason('') }}
               className="text-sm text-etyme-muted hover:text-etyme-ink"
@@ -501,25 +449,23 @@ export default function InvitationsPage() {
     )
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8">
-        {section && <Lbl>{section}</Lbl>}
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-          Shared with you
-        </h1>
-        <p className="text-etyme-muted mt-2 max-w-2xl">
+      <PageHead
+        eyebrow={section}
+        title="Shared with you"
+        subtitle={<>
           Job requests clients have put in front of you. The rate band on each is
           yours — other vendors asked to the same job request see their own, and
           cannot see this one.
-        </p>
-      </div>
+        </>}
+      />
 
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <Stat
             label="Awaiting your answer"
             value={summary.awaitingResponse}
@@ -531,48 +477,41 @@ export default function InvitationsPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 mb-6">
+      {/* Search on every list. These are cards to decide on, not a table,
+          so the page keeps its one box — there is no second one under it. */}
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center">
         <input
+          type="search"
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search by job, client, skill or location…"
-          className="flex-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-surface text-sm text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
+          aria-label="Search by job, client, skill or location"
+          className="input flex-1"
         />
-        <button
-          onClick={() => setFilter(f => (f === 'OPEN' ? 'ALL' : 'OPEN'))}
-          className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-muted hover:text-etyme-ink whitespace-nowrap"
-        >
-          {filter === 'OPEN' ? 'Show all' : 'Live only'}
-        </button>
+        <FilterChips<'OPEN' | 'ALL'>
+          label="Which invitations"
+          value={filter}
+          onChange={setFilter}
+          options={[{ key: 'OPEN', label: 'Live only' }, { key: 'ALL', label: 'All' }]}
+        />
       </div>
 
       {/* The missing states, per CLAUDE.md's eighth thing. */}
-      {loading && <div className="text-etyme-muted py-12 text-center">Loading…</div>}
+      {loading && <LoadingState says="Opening what clients shared with you…" />}
 
       {!loading && error && (
-        <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
-          <div className="text-etyme-attention font-medium">{error}</div>
-          <button onClick={load} className="mt-3 text-sm text-etyme-action hover:underline">
-            Try again
-          </button>
-        </div>
+        <ErrorState says={error} action={{ label: 'Try again', onClick: load }} />
       )}
 
       {!loading && !error && visible.length === 0 && (
-        <div className="border border-etyme-rule rounded-lg p-12 text-center">
-          <p className="font-serif text-lg text-etyme-ink">
-            {term
-              ? 'Nothing matches that search'
-              : filter === 'OPEN'
-                ? 'No open invitations'
-                : 'No invitations yet'}
-          </p>
-          <p className="text-sm text-etyme-muted mt-2 max-w-md mx-auto">
-            {term
-              ? 'Try a different job, client or skill.'
-              : 'When a client sends you a job request it arrives here, with the rate band they are offering you.'}
-          </p>
-        </div>
+        term
+          ? <EmptyState says={`Nothing matches “${q.trim()}”.`} detail="Try a different job, client or skill."
+              action={{ label: 'Clear the search', onClick: () => setQ('') }} />
+          : <EmptyState
+              says={filter === 'OPEN' ? 'No open invitations.' : 'No invitations yet.'}
+              detail="When a client sends you a job request it arrives here, with the rate band they are offering you."
+              action={filter === 'OPEN' && invitations.length > 0 ? { label: 'Show all', onClick: () => setFilter('ALL') } : undefined}
+            />
       )}
 
       {!loading && !error && visible.length > 0 && (

@@ -4,6 +4,7 @@ import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { rateFindingSays } from './rate-finding'
+import { PageHead, Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 
 /**
  * The multi-manager org view — Addendum E client workforce governance.
@@ -154,26 +155,19 @@ export default function ProgramOrgPage() {
   }, [load])
 
   if (loading || sessionLoading) {
-    return (
-      <div className="animate-pulse space-y-4">
-        <div className="h-8 w-2/3 rounded bg-etyme-rule/50" />
-        <div className="h-4 w-1/2 rounded bg-etyme-rule/40" />
-        <div className="h-32 rounded bg-etyme-rule/30 mt-8" />
-      </div>
-    )
+    return <LoadingState says="Opening the org view…" />
   }
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   if (error) {
     return (
-      <div className="panel p-6">
-        <p className="text-sm text-etyme-attention font-medium">Could not load the org view</p>
-        <p className="text-sm text-etyme-muted mt-1">{error}</p>
-        <button onClick={load} className="btn-secondary mt-4">Try again</button>
-      </div>
+      <ErrorState
+        says={<>The org view could not be read. {error}</>}
+        action={{ label: 'Try again', onClick: load }}
+      />
     )
   }
 
@@ -185,9 +179,9 @@ export default function ProgramOrgPage() {
   return (
     <>
       {/* Head — the finding, stated as prose */}
-      <div className="page-head mb-8">
-        {section && <p className="eyebrow">{section}</p>}
-        <h1 className="text-balance">
+      <PageHead
+        eyebrow={section}
+        title={<>
           {summary.managers} manager{summary.managers === 1 ? '' : 's'}.{' '}
           {summary.vendors} vendor{summary.vendors === 1 ? '' : 's'}.
           {hasFinding && (
@@ -195,14 +189,12 @@ export default function ProgramOrgPage() {
               {' '}${summary.annualSaving.toLocaleString()} of rate variance.
             </span>
           )}
-        </h1>
-        <p>
-          {rateFindingSays({ headcount: summary.headcount, comparedSkills: summary.comparedSkills ?? 0, annualSaving: summary.annualSaving })}
-        </p>
-      </div>
+        </>}
+        subtitle={rateFindingSays({ headcount: summary.headcount, comparedSkills: summary.comparedSkills ?? 0, annualSaving: summary.annualSaving })}
+      />
 
       {/* Stat row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-px bg-etyme-rule border border-etyme-rule mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-10">
         {[
           {
             label: 'Annual run rate',
@@ -218,11 +210,7 @@ export default function ProgramOrgPage() {
           { label: 'One-time vendors', value: String(summary.oneTimeVendors), note: `of ${summary.vendors} · full onboarding each` },
           { label: 'Unassigned', value: String(summary.unassigned), note: 'no named manager' },
         ].map((s) => (
-          <div key={s.label} className="bg-etyme-raised px-5 py-5">
-            <p className="stat-label">{s.label}</p>
-            <p className={`stat-value mt-1.5 ${s.tone ? 'text-etyme-attention' : ''}`}>{s.value}</p>
-            <p className="text-[12px] text-etyme-muted mt-1.5">{s.note}</p>
-          </div>
+          <Stat key={s.label} label={s.label} value={s.value} sub={s.note} tone={s.tone ? 'attention' : 'default'} />
         ))}
       </div>
 

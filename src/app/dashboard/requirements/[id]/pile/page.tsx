@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { usePageSection } from '@/components/page-section'
+import { PageHead, Stat, RefusedState, LoadingState, ErrorState, EmptyState, Lbl } from '@/components/ui'
 
 /**
  * The pile.
@@ -126,21 +127,20 @@ export default function PilePage() {
   const arrived = pile ? pile.show.length + pile.more.length + pile.heldBack.length : 0
 
   if (refused) {
-    return <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
+    return <RefusedState says={refused} />
   }
 
   return (
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
-      <header>
-        {/* The reader's own menu section for job requests — a client's
-            Workforce, a supplier's Sell — never "Program", which is on no
-            client's menu (round five, #18). Blank until the seat is known. */}
-        <p className="eyebrow">{section ?? ''}</p>
-        <h1 className="headline-serif text-[30px] leading-tight">
-          {pile?.title ?? 'The pile'}
-        </h1>
+      {/* The reader's own menu section for job requests — a client's
+          Workforce, a supplier's Sell — never "Program", which is on no
+          client's menu (round five, #18). Blank until the seat is known. */}
+      <PageHead
+        eyebrow={section}
+        title={pile?.title ?? 'The pile'}
+        subtitle={<>
         {pile?.role && (
-          <p className="mt-1 text-[13px] text-etyme-faint">
+          <span className="mb-2 block text-[13px] text-etyme-faint">
             {[
               pile.role.location,
               pile.role.billMin && pile.role.billMax
@@ -152,36 +152,19 @@ export default function PilePage() {
             ]
               .filter(Boolean)
               .join(' · ')}
-          </p>
+          </span>
         )}
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           Everything your suppliers sent for this job, and what is worth your
           afternoon. The ones held back are named, with what the vendor has to
           fix.
-        </p>
-      </header>
+        </>}
+      />
 
       {pile && !pile.neverRun && (
-        <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-4">
-          <div>
-            <p className="stat-label">Arrived</p>
-            <p className="stat-value">{arrived}</p>
-          </div>
-          <div>
-            <p className="stat-label">Worth reading</p>
-            <p className="stat-value" style={{ color: 'var(--color-verified)' }}>
-              {pile.show.length + pile.more.length}
-            </p>
-          </div>
-          <div>
-            <p className="stat-label">Held back</p>
-            <p
-              className="stat-value"
-              style={{ color: pile.heldBack.length ? 'var(--color-attention)' : undefined }}
-            >
-              {pile.heldBack.length}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Stat label="Arrived" value={arrived} />
+          <Stat label="Worth reading" value={pile.show.length + pile.more.length} tone="verified" />
+          <Stat label="Held back" value={pile.heldBack.length} tone={pile.heldBack.length ? 'attention' : 'default'} />
         </div>
       )}
 
@@ -194,8 +177,7 @@ export default function PilePage() {
         <button
           onClick={screen}
           disabled={screening || loading}
-          className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
-                     disabled:cursor-not-allowed disabled:opacity-40"
+          className="btn-primary disabled:cursor-not-allowed disabled:opacity-40"
         >
           {screening ? 'Screening…' : pile?.neverRun ? 'Screen what has arrived' : 'Screen again'}
         </button>
@@ -205,26 +187,18 @@ export default function PilePage() {
       </div>
       )}
 
-      {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
+      {loading && <LoadingState says="Opening what was submitted…" />}
 
-      {error && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-attention">{error}</p>
-        </div>
-      )}
+      {error && <ErrorState says={error} />}
 
       {!loading && pile && arrived === 0 && (
-        <div className="panel">
-          <p className="text-[13px] text-etyme-muted">
-            Nothing has arrived for this job yet. Nothing to screen.
-          </p>
-        </div>
+        <EmptyState says="Nothing has arrived for this job yet." detail="Nothing to screen." />
       )}
 
       {/* ── Worth reading ─────────────────────────────────────────── */}
       {pile && pile.show.length > 0 && (
         <section className="space-y-3">
-          <p className="stat-label">Worth reading</p>
+          <Lbl>Worth reading</Lbl>
           {pile.show.map((r) => (
             <article key={r.submissionId} className="panel">
               <div className="flex items-baseline justify-between gap-4">
@@ -276,7 +250,7 @@ export default function PilePage() {
 
       {pile && pile.more.length > 0 && (
         <section className="space-y-2">
-          <p className="stat-label">Also cleared</p>
+          <Lbl>Also cleared</Lbl>
           <div className="panel">
             <ul className="space-y-1.5">
               {pile.more.map((r) => (
@@ -294,7 +268,7 @@ export default function PilePage() {
       {/* ── Held back ─────────────────────────────────────────────── */}
       {pile && pile.heldBack.length > 0 && (
         <section className="space-y-3">
-          <p className="stat-label">Held back</p>
+          <Lbl>Held back</Lbl>
           <p className="max-w-[58ch] text-[12px] text-etyme-faint">
             Not a judgment on the person. These do not reach a hiring manager
             until somebody fixes what is named — and the vendor is told exactly

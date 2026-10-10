@@ -141,7 +141,10 @@ describe('the duplicate check takes its eyebrow from the reader’s menu', () =>
   it('draws the section from usePageSection and nothing while it loads, never a typed "Governance"', () => {
     const page = read('src/app/dashboard/identity/page.tsx')
     expect(page).toMatch(/usePageSection\('\/dashboard\/identity'\)/)
-    expect(page).toMatch(/\{section && <p className="eyebrow">\{section\}<\/p>\}/)
+    // PageHead draws the eyebrow only when the menu gives one
+    // (shared-primitives), so passing the section is drawing nothing while it loads.
+    expect(page).toMatch(/<PageHead\s+eyebrow=\{section\}/)
     expect(page).not.toMatch(/<p className="eyebrow">Governance<\/p>/)
+    expect(page).not.toMatch(/eyebrow="Governance"/)
   })
 })
