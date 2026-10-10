@@ -3,6 +3,7 @@
 import { useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import type { DemoTarget } from './flow'
+import { count } from './count'
 
 /**
  * "See this step in the demo": one click seats the reader at the right
@@ -46,6 +47,8 @@ export function DemoLink({ target, label, className }: { target: DemoTarget; lab
       })
       const answer = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(answer?.error?.message ?? 'Could not open the example program.')
+      // A seat was taken: counted first-party, nothing personal (./count).
+      count('demo_started')
       router.push(req.then as any)
     } catch (err: any) {
       setError(err.message)

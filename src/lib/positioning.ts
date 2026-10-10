@@ -599,7 +599,11 @@ const VERBS = [
   'is', 'are', 'was', 'were', 'be', 'can', 'cannot', 'may', 'will', 'do', 'does', 'have', 'has',
   'add', 'adds', 'answer', 'answers', 'arrive', 'arrives', 'ask', 'asks', 'block', 'blocks',
   'buy', 'buys', 'call', 'calls', 'change', 'changes', 'charge', 'charges', 'check', 'checks',
-  'come', 'comes', 'cost', 'costs', 'count', 'counts', 'cover', 'covers', 'end', 'ends',
+  'come', 'comes',
+  // "Connect. Control. Reconcile." — the three steps of the founder's
+  // brief for the home page, 2026-10-09. Three imperatives, three verbs.
+  'connect', 'connects', 'control', 'controls',
+  'cost', 'costs', 'count', 'counts', 'cover', 'covers', 'end', 'ends',
   'file', 'files', 'find', 'finds', 'fix', 'fixes', 'get', 'gets', 'give', 'gives', 'go', 'goes',
   'hire', 'hires', 'hold', 'holds',
   // "Join forces with global teams around the world" — the founder's line,
@@ -608,7 +612,7 @@ const VERBS = [
   'keep', 'keeps', 'know', 'knows', 'land', 'lands',
   'leave', 'leaves', 'list', 'lists', 'look', 'looks', 'make', 'makes', 'match', 'matches',
   'move', 'moves', 'name', 'names', 'need', 'needs', 'open', 'opens', 'pay', 'pays',
-  'put', 'puts', 'read', 'reads', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
+  'put', 'puts', 'read', 'reads', 'reconcile', 'reconciles', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
   'say', 'says', 'see', 'sees', 'send', 'sends', 'settle', 'settled', 'show', 'shows',
   'sign', 'signs', 'sit', 'sits', 'spend', 'spends', 'stay', 'stays', 'stop', 'stops',
   // "Supply people to a program instead?" — the supplier's door on the

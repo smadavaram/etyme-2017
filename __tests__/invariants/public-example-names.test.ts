@@ -34,6 +34,8 @@ import { frameCopy } from '@/lib/public-site/nav'
 import { closeBandCopy, WAYS_FORWARD } from '@/lib/public-site/funnel'
 import { ASK_COPY } from '@/lib/public-site/leads'
 import { CENSUS_COPY, promises } from '@/lib/census-copy'
+import { sampleFirms } from '@/lib/public-site/sample-desk'
+import { SAMPLE_LABEL } from '@/lib/public-site/sample-desk-view'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -178,18 +180,33 @@ describe('An invented company never reads as a customer', () => {
   })
 
   it('every screen on the home page is captioned as showing demo companies, not customers, because a screenshot lists names the text guard cannot read', () => {
-    // The hero screen shows a supplier panel naming three seeded firms side
-    // by side, and the invoices screen names two. A PNG is opaque to a
-    // test, so the caption under each screen carries the disclaimer for
-    // everything on it.
+    // Three screens since 2026-10-09 (the founder's brief: a product
+    // showcase of real screens from the demo). A PNG is opaque to a test,
+    // so the caption under each carries the disclaimer for everything on it.
     const page = read('src/app/page.tsx')
-    const screens = (page.match(/<img/g) ?? []).length
-    expect(screens).toBe(2)
-    expect(page).toContain('every firm on this screen is a demo company — not a customer.')
-    expect(/caption: '([^']+)'/.exec(page.slice(page.indexOf('const STEP_SCREEN')))?.[1])
-      .toContain('Every firm on this screen is a demo company — not a customer.')
+    const showcase = page.slice(page.indexOf('const SHOWCASE'), page.indexOf('const DESKS'))
+    const captions = [...showcase.matchAll(/caption: '([^']+)'/g)].map((m) => m[1])
+    expect(captions).toHaveLength(3)
+    for (const c of captions) expect(c).toContain('Every firm on this screen is a demo company — not a customer.')
+    // One img tag, drawn once per screen in the list, and each figure has its caption.
+    expect((page.match(/<img/g) ?? []).length).toBe(1)
+    expect(page).toContain('<figcaption className={CAPTION}>{s.caption}</figcaption>')
     // And the word that did not land is gone from what a reader reads.
     expect(copyFrom(page).join(' ')).not.toMatch(/\binvented\b/)
+  })
+
+  it('the sample program under the hero names only firms the seeds build, and says on its frame and under it that it is sample data from demo companies, not customers', () => {
+    // The sample is drawn by the product's own list from rows the test in
+    // sample-desk.test.ts holds to the seed. Its names are seeded firms; a
+    // real company or an unseeded name would be a customer claim.
+    for (const firm of sampleFirms()) expect(FIRMS, firm).toContain(firm)
+    expect(SAMPLE_LABEL).toBe('Sample data from the demo')
+    const view = read('src/lib/public-site/sample-desk-view.tsx')
+    expect(view).toContain('{SAMPLE_LABEL}</span>')
+    const page = read('src/app/page.tsx')
+    const figure = page.slice(page.indexOf('<SampleDesk />'), page.indexOf('</figure>', page.indexOf('<SampleDesk />')))
+    expect(figure).toContain('Northbend Athletic and every firm on this sample is a demo company — not a customer.')
+    expect(page).toContain('aria-label={SAMPLE_LABEL}')
   })
 
   it('catches a caption that names a seeded firm as if it were a customer', () => {

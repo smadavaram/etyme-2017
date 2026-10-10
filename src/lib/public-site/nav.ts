@@ -60,6 +60,8 @@ export interface NavGroup {
 
 export interface NavMenu {
   label: string
+  /** Where the label itself goes: a band on the home page, the top of a page elsewhere. */
+  href: { home: string; away: string }
   groups: NavGroup[]
 }
 
@@ -138,46 +140,54 @@ export const SPEND_AUDIT: NavItem = {
   href: GET_THE_AUDIT.href,
 }
 
+/**
+ * ── Platform, Solutions, How It Works, Security. Decided 2026-10-09 ───
+ *
+ * The founder's brief for the public site replaced the four menus —
+ * Product, Solutions, Resources, Company — with a compact header: two
+ * menus, two links, and the primary button. Each label goes somewhere
+ * real on its own, and the menus still open on hover and on keyboard
+ * focus with no script:
+ *
+ *   Platform      the home page's #platform band; elsewhere, the first
+ *                 step's page. Its panel is the eight parts by step.
+ *   Solutions     the home page's #solutions band, written to the
+ *                 client's desks; elsewhere, the program office's page.
+ *                 Its panel is the desks.
+ *   How It Works  the home page's three steps; elsewhere, the process
+ *                 documentation, which starts at its own top.
+ *   Security      the security position.
+ *
+ * On the home page a label lands on a band of that same page. On every
+ * other page it opens the top of a page, never the middle of the home
+ * page — the rule of 2026-09-30, kept. What the Resources and Company
+ * menus carried is in the phone sheet and the footer.
+ */
 export const NAV_MENUS: NavMenu[] = [
-  { label: 'Product', groups: PRODUCT_STAGES },
-  { label: 'Solutions', groups: [{ heading: 'By role', items: ROLES }] },
-  {
-    label: 'Resources',
-    groups: [
-      {
-        heading: 'Read',
-        items: [
-          DOCS_LINK,
-          { t: 'Security position', d: 'What is done, what is not, and when.', href: '/security' },
-          { t: 'Data processing addendum', d: 'Retention by category, and who processes what.', href: '/dpa' },
-        ],
-      },
-      {
-        heading: 'Try',
-        items: [
-          { t: 'Open the example program', d: SEE_IT.d, href: SEE_IT.href },
-          { t: ASK_A_PERSON.t, d: ASK_A_PERSON.d, href: ASK_A_PERSON.href },
-          SPEND_AUDIT,
-        ],
-      },
-    ],
-  },
-  {
-    label: 'Company',
-    groups: [
-      {
-        heading: 'Company',
-        items: [
-          { t: 'About Etyme', d: 'What we build, how we work, where we are.', href: '/about' },
-          { t: 'Contact', d: 'Durham, North Carolina. A person answers.', href: '/contact' },
-        ],
-      },
-    ],
-  },
+  { label: 'Platform', href: { home: '#platform', away: '/requisitions' }, groups: PRODUCT_STAGES },
+  { label: 'Solutions', href: { home: '#solutions', away: '/docs/process' }, groups: [{ heading: 'By desk', items: ROLES }] },
 ]
 
-/** The filled button on the right of every header. */
-export const PRIMARY = SEE_IT
+/** The two plain links beside the menus. */
+export const NAV_LINKS: { label: string; href: { home: string; away: string } }[] = [
+  { label: 'How It Works', href: { home: '#how-it-works', away: '/docs/process' } },
+  { label: 'Security', href: { home: '/security', away: '/security' } },
+]
+
+/** What the phone sheet carries under the menus, from the two menus that left the header. */
+export const SHEET_MORE: NavItem[] = [
+  DOCS_LINK,
+  { t: 'About Etyme', href: '/about' },
+  { t: 'Contact', href: '/contact' },
+  { t: SEE_IT.t, href: SEE_IT.href },
+]
+
+/**
+ * The filled button on the right of every header: the spend audit, since
+ * 2026-10-09 (the founder's brief: the primary call to action is the
+ * audit, the demo the secondary). It was the demo until then.
+ */
+export const PRIMARY = GET_THE_AUDIT
 
 /** Every item in one menu, across its groups. */
 export function itemsOf(menu: NavMenu): NavItem[] {
@@ -190,28 +200,30 @@ export interface FooterGroup {
   note?: string
 }
 
+/**
+ * The footer: Platform, Solutions, Company and Legal, every link a real
+ * route. Reworked 2026-10-09 with the compact header, so the pages the
+ * header no longer lists — documentation, about, contact, the DPA — are
+ * one tap from the bottom of every page.
+ */
 export const FOOTER: FooterGroup[] = [
   {
-    heading: 'Product',
+    heading: 'Platform',
     links: PRODUCT_ITEMS.map((i) => ({ label: i.t, href: i.href })),
   },
   {
-    heading: 'Read',
-    links: [
-      { label: 'Documentation', href: '/docs' },
-      { label: 'The process', href: '/docs/process' },
-      { label: 'Time and money', href: '/docs/time-and-money' },
-      { label: 'Integrations', href: '/docs/integrations' },
-      { label: 'Security position', href: '/security' },
-    ],
+    heading: 'Solutions',
+    links: ROLES.map((r) => ({ label: r.t, href: r.href })),
   },
   {
     heading: 'Company',
     links: [
+      { label: 'Security position', href: '/security' },
+      { label: 'Documentation', href: '/docs' },
       { label: 'About Etyme', href: '/about' },
       { label: 'Contact', href: '/contact' },
       { label: SPEND_AUDIT.t, href: SPEND_AUDIT.href },
-      { label: 'Open the example program', href: '/demo' },
+      { label: SEE_IT.t, href: SEE_IT.href },
       { label: 'Sign in', href: '/login' },
     ],
   },
@@ -240,7 +252,9 @@ export const ADDRESS = {
 /** Every href the header and footer draw, for the test. */
 export function everyFrameLink(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.href)),
+    ...NAV_MENUS.flatMap((m) => [m.href.home, m.href.away, ...itemsOf(m).map((i) => i.href)]),
+    ...NAV_LINKS.flatMap((l) => [l.href.home, l.href.away]),
+    ...SHEET_MORE.map((i) => i.href),
     PRIMARY.href,
     '/login',
     ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
@@ -254,6 +268,8 @@ export function frameCopy(): string[] {
       m.label,
       ...m.groups.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
     ]),
+    ...NAV_LINKS.map((l) => l.label),
+    ...SHEET_MORE.flatMap((i) => [i.t, i.d ?? '']),
     PRIMARY.t,
     PRIMARY.short ?? '',
     'Sign in',
@@ -266,5 +282,5 @@ export function frameCopy(): string[] {
  * guard that refuses a button promising an account.
  */
 export function frameButtons(): string[] {
-  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...NAV_MENUS.map((m) => m.label)]
+  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...NAV_MENUS.map((m) => m.label), ...NAV_LINKS.map((l) => l.label), 'Menu']
 }

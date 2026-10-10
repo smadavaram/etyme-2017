@@ -42,7 +42,7 @@ export const EDGE = 'border-b border-etyme-rule'
 export const PAD = 'py-10 md:py-14'
 
 /** The same column in every band: one width, one gutter, one left edge. */
-export const COLUMN = 'mx-auto max-w-6xl w-full px-5 sm:px-6'
+export const COLUMN = 'mx-auto max-w-6xl w-full px-4 sm:px-6'
 
 /** A band's column with its padding. */
 export const BAND = `${COLUMN} ${PAD}`

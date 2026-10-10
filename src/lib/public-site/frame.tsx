@@ -1,32 +1,39 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, type NavMenu } from './nav'
+import { NAV_MENUS, NAV_LINKS, SHEET_MORE, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, itemsOf, type NavMenu } from './nav'
+import { SheetCloser } from './sheet-closer'
+import { CountedLink } from './counted-link'
 import { CloseBand } from './close-band'
 
 /**
  * The header and footer every page of the public site shares, the home
  * page included since 2026-09-27.
  *
- * The header is four menus — Product by stage, Solutions by role,
- * Resources, Company — with Sign in and one filled button on the right
+ * The header is two menus — Platform by step, Solutions by desk — and
+ * two links, How It Works and Security, with Sign in and one filled
+ * button on the right since 2026-10-09
  * (see `./nav` for where the structure came from and which of its words
  * were corrected). Links are plain anchors on purpose: every page here is
  * a server-rendered document that works with JavaScript off, and a
  * marketing page is the one surface where that still matters. The menus
  * open on hover and on keyboard focus, with no script.
  *
- * On a phone the menus fold into one disclosure carrying the same four
- * groups, so a reader who arrives on a module page from a search result
+ * On a phone the menus fold into one sheet carrying the same links, so a reader who arrives on a module page from a search result
  * has every link the desktop reader has.
  */
 
 const LINK = 'text-etyme-muted underline-offset-2 transition-colors hover:text-etyme-ink hover:underline'
 
+/** One focus ring for everything a reader can press in the frame. */
+const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40'
+
+/** A top-level word in the desktop header. */
+const TOP_LINK =
+  `rounded-md px-3 py-2 text-etyme-muted transition-colors hover:text-etyme-ink focus-visible:text-etyme-ink ${FOCUS}`
+
 /** How wide each menu's panel is, by how many groups sit side by side. */
 const PANEL: Record<string, string> = {
-  Product: 'w-[min(52rem,calc(100vw-3rem))] grid gap-2 lg:grid-cols-4',
+  Platform: 'w-[min(52rem,calc(100vw-3rem))] grid gap-2 lg:grid-cols-4',
   Solutions: 'w-[26rem]',
-  Resources: 'w-[36rem] grid gap-2 lg:grid-cols-2',
-  Company: 'w-80',
 }
 
 function MenuPanel({ menu }: { menu: NavMenu }) {
@@ -38,7 +45,7 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
             {group.heading}
           </p>
           {group.items.map((item) => (
-            <a key={item.t} href={item.href} className="block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas">
+            <a key={item.t} href={item.href} className={`block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas ${FOCUS}`}>
               <span className="block text-[13px] font-medium text-etyme-ink">{item.t}</span>
               {item.d && (
                 <span className="mt-0.5 block text-[12px] leading-snug text-etyme-muted">{item.d}</span>
@@ -61,47 +68,53 @@ function MenuPanel({ menu }: { menu: NavMenu }) {
  * anchor — and a band the home page settles on — lands under the header
  * rather than behind it, on every page that draws it.
  *
- * One row at every width since 2026-09-28 (night): the founder read the
- * phone header and found no Sign in, and a second row carrying only
- * "Menu". So on a phone the row is the logo, Sign in, the demo button
- * under its short label, and Menu, whose drawer opens under the header
- * rather than inside it. The height is 61 pixels on a phone and 69 from
- * `lg`, measured in WebKit and Chromium at 390 and 1440 wide; a change to
- * the header's padding changes these.
+ * ── Compact, since 2026-10-09 ────────────────────────────────────────
  *
- * The phone drawer scrolls inside itself, because a drawer taller than
- * the screen would leave its last links out of reach.
+ * The founder's brief: Platform, Solutions, How It Works, Security, and
+ * the primary button, which is the spend audit. `onHome` sends each label
+ * to its band on the home page; on any other page it opens the top of a
+ * page (see `NAV_MENUS` in `./nav`).
+ *
+ * One row at every width, as before: on a phone the row is the logo, Sign
+ * in, the audit under its short label, and Menu, which opens a sheet
+ * under the header with every link the desktop reader has, large enough
+ * to tap. The height is 61 pixels on a phone and 69 from `lg`; a change
+ * to the header's padding changes these.
  */
-export function SiteHeader() {
+export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
+  const to = (h: { home: string; away: string }) => (onHome ? h.home : h.away)
   return (
     <header
-      className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas
+      className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas/95 backdrop-blur
                  [html:has(&)]:scroll-pt-[61px] lg:[html:has(&)]:scroll-pt-[69px]"
     >
-      <nav className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-5 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
-        <a href="/" aria-label="Etyme — home" className="shrink-0">
+      <nav aria-label="Main" className="relative mx-auto flex max-w-6xl items-center gap-x-1 px-4 py-3 sm:gap-x-2 sm:px-6 lg:py-4">
+        <a href="/" aria-label="Etyme — home" className={`shrink-0 rounded-md ${FOCUS}`}>
           <EtymeLogo size="md" />
         </a>
 
         <ul className="ml-6 hidden items-center gap-1 text-sm lg:flex">
           {NAV_MENUS.map((menu) => (
             <li key={menu.label} className="group relative">
-              <button
-                type="button"
-                className="rounded-md px-3 py-2 text-etyme-muted transition-colors hover:text-etyme-ink
-                           focus-visible:text-etyme-ink focus-visible:outline-none
-                           focus-visible:ring-2 focus-visible:ring-etyme-action/40"
-              >
+              <a href={to(menu.href)} aria-haspopup="true" className={`${TOP_LINK} inline-flex items-center gap-1`}>
                 {menu.label}
-              </button>
+                <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="text-etyme-faint">
+                  <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </a>
               <div
                 className="invisible absolute left-0 top-full z-20 -translate-y-1 pt-2 opacity-0
-                           transition-all duration-100 group-hover:visible group-hover:translate-y-0
+                           transition-[opacity,transform,visibility] duration-150 group-hover:visible group-hover:translate-y-0
                            group-hover:opacity-100 group-focus-within:visible
-                           group-focus-within:translate-y-0 group-focus-within:opacity-100"
+                           group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:transition-none"
               >
                 <MenuPanel menu={menu} />
               </div>
+            </li>
+          ))}
+          {NAV_LINKS.map((l) => (
+            <li key={l.label}>
+              <a href={to(l.href)} className={TOP_LINK}>{l.label}</a>
             </li>
           ))}
         </ul>
@@ -109,58 +122,76 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <a
             href="/login"
-            className="whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium text-etyme-muted transition-colors
-                       hover:text-etyme-ink sm:px-3"
+            className={`whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium text-etyme-muted transition-colors
+                       hover:text-etyme-ink sm:px-3 ${FOCUS}`}
           >
             {'Sign in'}
           </a>
-          <a
+          <CountedLink
             href={PRIMARY.href}
-            className="whitespace-nowrap rounded-lg bg-etyme-action px-3 py-2 text-sm font-semibold text-white shadow-sm
-                       transition-opacity hover:opacity-90 sm:px-4"
+            event="audit_cta_clicked"
+            className={`whitespace-nowrap rounded-lg bg-etyme-action px-3 py-2 text-sm font-semibold text-white shadow-sm
+                       transition-opacity hover:opacity-90 sm:px-4 ${FOCUS}`}
           >
             <span className="sm:hidden">{PRIMARY.short ?? PRIMARY.t}</span>
             <span className="hidden sm:inline">{PRIMARY.t}</span>
-          </a>
+          </CountedLink>
         </div>
 
-        {/* The phone drawer. `details` needs no script, and closes by tapping the same word. */}
-        <details className="group/menu lg:hidden">
+        {/* The phone sheet. A details element needs no script; SheetCloser adds
+            Escape and closes it when a link in it is followed. */}
+        <details id="site-sheet" className="group/menu lg:hidden">
           <summary
-            className="cursor-pointer list-none whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium
-                       text-etyme-muted hover:text-etyme-ink [&::-webkit-details-marker]:hidden"
+            className={`cursor-pointer list-none whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium
+                       text-etyme-muted hover:text-etyme-ink [&::-webkit-details-marker]:hidden ${FOCUS}`}
           >
-            {'Menu'}
+            <span className="group-open/menu:hidden">{'Menu'}</span>
+            <span className="hidden group-open/menu:inline">{'Close'}</span>
           </summary>
           <div
-            className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] space-y-6 overflow-y-auto overscroll-contain
-                       border-b border-etyme-rule bg-etyme-canvas px-5 pb-6 pt-4 shadow-lg sm:px-6"
+            className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain
+                       border-b border-etyme-rule bg-etyme-canvas px-4 pb-6 pt-2 shadow-lg sm:px-6"
           >
-            {NAV_MENUS.map((menu) => (
-              <div key={menu.label}>
-                <p className="eyebrow">{menu.label}</p>
-                <div className="mt-2 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                  {menu.groups.map((group) => (
-                    <div key={group.heading}>
-                      {menu.groups.length > 1 && (
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-etyme-faint">
-                          {group.heading}
-                        </p>
-                      )}
-                      <ul className="mt-1.5 space-y-1.5">
-                        {group.items.map((item) => (
-                          <li key={item.t}>
-                            <a href={item.href} className={`text-[14px] ${LINK}`}>{item.t}</a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+            <ul className="divide-y divide-etyme-rule">
+              {NAV_MENUS.map((menu) => (
+                <li key={menu.label} className="py-3">
+                  <a href={to(menu.href)} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>
+                    {menu.label}
+                  </a>
+                  <ul className="mt-1 grid gap-x-6 sm:grid-cols-2">
+                    {itemsOf(menu).map((item) => (
+                      <li key={item.t}>
+                        <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+              {NAV_LINKS.map((l) => (
+                <li key={l.label} className="py-3">
+                  <a href={to(l.href)} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>{l.label}</a>
+                </li>
+              ))}
+              <li className="py-3">
+                <ul className="grid gap-x-6 sm:grid-cols-2">
+                  {SHEET_MORE.map((item) => (
+                    <li key={item.t}>
+                      <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
+                    </li>
                   ))}
-                </div>
-              </div>
-            ))}
+                </ul>
+              </li>
+            </ul>
+            <CountedLink
+              href={PRIMARY.href}
+              event="audit_cta_clicked"
+              className={`mt-3 block rounded-lg bg-etyme-action px-4 py-3 text-center text-[15px] font-semibold text-white ${FOCUS}`}
+            >
+              {PRIMARY.t}
+            </CountedLink>
           </div>
         </details>
+        <SheetCloser id="site-sheet" />
       </nav>
     </header>
   )
@@ -173,7 +204,7 @@ export function SiteFooter() {
           left edge; the link groups run two to a row on a phone, so the
           footer is no taller than a screen and a half at 390 (it was
           1,423 pixels, the tallest block on the home page). */}
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 md:py-14">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:py-14">
         <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-10">
           <div className="col-span-2 lg:col-span-1">
             <EtymeLogo size="md" />

@@ -14,6 +14,9 @@ import {
   stillWaiting,
   conversion,
   ASK_COPY,
+  AUDIT_COPY,
+  auditProblems,
+  auditAsk,
   leadArrivedNotice,
   shouldTellStaff,
   whoHearsSays,
@@ -90,6 +93,36 @@ export async function POST(request: NextRequest) {
   }
 
   const source = str('source') || 'HOME_PAGE'
+
+  // ── The contractor spend audit, from the home page's inline form ──
+  //
+  // Its own fields, checked by the same function the browser ran, and
+  // then recorded as a lead: the name and company on the row, and the
+  // contractor range in one sentence, nothing the visitor did not say.
+  const audit = body.kind === 'AUDIT'
+  if (audit) {
+    const typed = {
+      email: str('email'),
+      name: str('name'),
+      companyName: str('companyName'),
+      contractorRange: str('contractorRange'),
+    }
+    const wrong = auditProblems(typed)
+    if (wrong.length > 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'AUDIT_NOT_SENT',
+            message: wrong[0].says,
+            fields: wrong.map((p) => ({ field: p.field, says: p.says })),
+          },
+        },
+        { status: 400 }
+      )
+    }
+    body.asked = auditAsk(typed)
+  }
+
   const input = {
     email: str('email'),
     name: tidy(str('name')),
@@ -158,7 +191,7 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  return NextResponse.json({ data: { says: ASK_COPY.thanks } })
+  return NextResponse.json({ data: { says: audit ? AUDIT_COPY.thanks : ASK_COPY.thanks } })
 }
 
 /**

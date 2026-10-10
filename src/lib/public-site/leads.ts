@@ -32,6 +32,8 @@
  * Nothing here touches the database. The route does that.
  */
 
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
+
 // ── Where somebody came from ────────────────────────────────────────
 
 /**
@@ -63,7 +65,7 @@ export interface AskInput {
 }
 
 export interface Problem {
-  field: 'email' | 'source' | 'asked' | 'name'
+  field: 'email' | 'source' | 'asked' | 'name' | 'companyName' | 'contractorRange'
   says: string
 }
 
@@ -150,6 +152,122 @@ export function problems(input: AskInput): Problem[] {
 
   return out
 }
+
+// ── The contractor spend audit, asked for on the home page ──────────
+
+/**
+ * The home page's audit form. Decided 2026-10-09, on the founder's brief
+ * for the public site: the page ends its argument in an inline form that
+ * asks for the company, a work email, roughly how many contractors and
+ * suppliers, and what the company runs today.
+ *
+ * ── Why it is a lead and not a census request ─────────────────────────
+ *
+ * The census (`/api/census/request`) is the audit itself, and it needs a
+ * name, a desk and a choice of what to send — three things this form
+ * does not ask. Filling them in for the visitor would put words in a
+ * record that the census then promises things about. So the form records
+ * what was actually typed as a lead (`MarketingLead`), which a person at
+ * Etyme is emailed about the first time an address writes and reads on
+ * the lead list, and the thanks sends the visitor on to the census page
+ * when they want to start it themselves.
+ *
+ * ── Checked twice, in the same words ─────────────────────────────────
+ *
+ * The browser runs this before it sends, so a mistake is shown without a
+ * round trip, and the route runs it again, because a form is not the
+ * only thing that can post to an open endpoint.
+ */
+export interface AuditInput {
+  /** A business email. A personal address is refused. */
+  email?: string | null
+  name?: string | null
+  companyName?: string | null
+  /** Optional. One of CONTRACTOR_RANGES, or empty. */
+  contractorRange?: string | null
+}
+
+/**
+ * The optional contractor range, as the form offers it. A question, not a
+ * limit on who may ask: every range is offered, and "rather not say" is
+ * the default. Updated 2026-10-10 on the founder's feedback: four short
+ * fields and nothing else until a person has qualified the ask.
+ */
+export const CONTRACTOR_RANGES = ['1–19', '20–49', '50–199', '200–999', '1,000 or more'] as const
+
+export function auditProblems(a: AuditInput): Problem[] {
+  const out: Problem[] = []
+
+  const typed = (a.email ?? '').trim()
+  const emailProblem = problems({ email: typed, source: 'HOME_PAGE' }).find((p) => p.field === 'email')
+  if (emailProblem) {
+    out.push(emailProblem)
+  } else {
+    const domain = domainOfEmail(typed)
+    if (domain && isConsumerDomain(domain)) {
+      out.push({
+        field: 'email',
+        says:
+          `"${typed}" is a personal address. The audit is about your company’s own contractors, ` +
+          'so the answer goes to your business email.',
+      })
+    }
+  }
+
+  const name = tidy(a.name)
+  if (!name) {
+    out.push({ field: 'name', says: 'Your name, so the person who answers can write to you by name.' })
+  } else if (name.length > 200) {
+    out.push({ field: 'name', says: 'That is longer than a name. A first and last name is enough.' })
+  }
+
+  const company = tidy(a.companyName)
+  if (!company) {
+    out.push({ field: 'companyName', says: 'Your company’s name, so the person who answers knows who is asking.' })
+  } else if (company.length > 200) {
+    out.push({ field: 'companyName', says: 'That is longer than a company name. The name alone is enough.' })
+  }
+
+  const range = tidy(a.contractorRange)
+  if (range && !(CONTRACTOR_RANGES as readonly string[]).includes(range)) {
+    out.push({ field: 'contractorRange', says: `"${range}" is not one of the ranges offered. Pick one, or leave it blank.` })
+  }
+
+  return out
+}
+
+/**
+ * What the lead row carries in `asked`, in a sentence a person at Etyme
+ * reads on the lead list and in the email. Only what was typed: no
+ * figure is added, and a range left blank says so.
+ */
+export function auditAsk(a: AuditInput): string {
+  const range = tidy(a.contractorRange)
+  return (
+    'Contractor spend audit, asked for on the home page. ' +
+    `Contractors: ${range ? `about ${range}` : 'not said'}.`
+  )
+}
+
+/** The words on the home page's audit form, and on the screen after it. */
+export const AUDIT_COPY = {
+  emailLabel: 'Business email',
+  nameLabel: 'Your name',
+  companyLabel: 'Company',
+  rangeLabel: 'Roughly how many contractors?',
+  rangeOptional: 'Optional',
+  rangeNone: 'Rather not say',
+  button: 'Ask for the audit',
+  sending: 'Sending…',
+  thanks: 'Got it. Your ask is stored, and a person at Etyme reads it.',
+  next: [
+    'They write to you by name, at the address you gave.',
+    'They tell you what to send: your contractor list and the latest invoice receipts from each supplier, in any form.',
+    'One page comes back inside five working days of your files arriving, as the audit page promises.',
+  ],
+  failed: 'That did not send. Your answers are still here. Try again, or write to us from the contact page.',
+  dropped: 'That did not send. The connection dropped. Your answers are still here. Try again.',
+} as const
 
 // ── A script, not a person ──────────────────────────────────────────
 

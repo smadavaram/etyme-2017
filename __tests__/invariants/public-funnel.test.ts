@@ -63,8 +63,9 @@ describe('One ladder, named once', () => {
 
   it('the three ways forward are see it, get the audit, ask a person, in that order', () => {
     expect(WAYS_FORWARD).toEqual([SEE_IT, GET_THE_AUDIT, ASK_A_PERSON])
-    expect(SEE_IT).toMatchObject({ t: 'See it with a month of data', href: '/demo' })
-    expect(GET_THE_AUDIT).toMatchObject({ t: 'Get your contractor spend audit', href: '/census' })
+    // The founder's words for the two buttons, 2026-10-09.
+    expect(SEE_IT).toMatchObject({ t: 'Explore the Live Demo', href: '/demo' })
+    expect(GET_THE_AUDIT).toMatchObject({ t: 'Get a Free Contractor Spend Audit', href: '/census' })
     // The top of the contact page, never a section in its middle (2026-09-30).
     expect(ASK_A_PERSON).toMatchObject({ t: 'Ask a person', href: '/contact' })
     // The form the third rung leads to is really on the contact page.
@@ -72,11 +73,17 @@ describe('One ladder, named once', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain("b.id === 'ask'")
   })
 
-  it('the filled button in every header is the first rung, and the home page’s hero opens on the first two', () => {
-    expect(PRIMARY).toBe(SEE_IT)
-    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeGreaterThan(-1)
-    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeLessThan(HOME.indexOf('{GET_THE_AUDIT.t}'))
-    expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeLessThan(HOME.indexOf('<figure'))
+  it('the filled button in every header is the spend audit, and the home page’s hero opens on the audit and then the demo', () => {
+    // The founder's brief, 2026-10-09: the primary call to action is the
+    // audit, the secondary the demo. It was the demo first until then.
+    expect(PRIMARY).toBe(GET_THE_AUDIT)
+    expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeGreaterThan(-1)
+    expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeLessThan(HOME.indexOf('{`${SEE_IT.t} →`}'))
+    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeLessThan(HOME.indexOf('<figure'))
+    // The audit is the filled one, the demo the outlined one.
+    const audit = HOME.slice(HOME.lastIndexOf('<CountedLink', HOME.indexOf('{GET_THE_AUDIT.t}')), HOME.indexOf('{GET_THE_AUDIT.t}'))
+    expect(audit).toContain('className={PRIMARY_BUTTON}')
+    expect(HOME).toMatch(/const PRIMARY_BUTTON =\s*`[^`]*bg-etyme-action/)
   })
 
   it('every public page ends in the same three ways forward: see it, get the audit, ask a person', () => {
@@ -103,8 +110,9 @@ describe('One ladder, named once', () => {
     expect(see).toBeGreaterThan(-1)
     expect(see).toBeLessThan(audit)
     expect(audit).toBeLessThan(ask)
-    // One filled button in the close: the first rung.
+    // One filled button in the close: the spend audit, since 2026-10-09.
     expect((CLOSE.match(/bg-etyme-action/g) ?? []).length).toBe(1)
+    expect(CLOSE.slice(CLOSE.indexOf('bg-etyme-action'))).toMatch(/^[^}]*\}?[\s\S]{0,400}\{GET_THE_AUDIT\.t\}/)
   })
 
   it('the census is the audit itself, so it ends in its own form rather than in a ladder back to itself', () => {
@@ -137,7 +145,8 @@ describe('No button promises what the site cannot give', () => {
       ...SITE_SOURCES.flatMap((f) => buttonLabels(read(f))),
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
-    expect(labels).toContain('See it with a month of data')
+    expect(labels).toContain('Explore the Live Demo')
+    expect(labels).toContain('Get a Free Contractor Spend Audit')
     expect(labels).toContain('A supplier’s desk →')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
@@ -152,7 +161,7 @@ describe('No button promises what the site cannot give', () => {
 
   it('lets a door say what it leads to, and lets a page say nobody needs an account', () => {
     expect(promisesAnAccount([
-      'See it with a month of data', 'Get your contractor spend audit', 'Ask a person', 'Sign in',
+      'Explore the Live Demo', 'Get a Free Contractor Spend Audit', 'Free audit', 'Ask a person', 'Sign in',
       'Open the example program', 'No card. No sign-up.', 'No card and no sign-up.', 'Ask for your census',
     ])).toEqual([])
   })

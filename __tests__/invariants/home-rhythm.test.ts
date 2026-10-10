@@ -12,6 +12,11 @@ import { SCREEN, EDGE, PAD, COLUMN, BAND, H2, UNDER_HEADING } from '@/lib/public
  * that. Measured the same day at 1280 by 800: all five bands 731 pixels,
  * the screen less the 69-pixel header, and each settle landed exactly
  * under the header.
+ *
+ * Eight bands and the close since 2026-10-09, the founder's brief for the
+ * public site: hero, problem, platform, product, solutions, how it works,
+ * audit, security. The rules are the same: every band at least one
+ * screen, one column, one padding, one heading size, grounds alternating.
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
@@ -26,16 +31,15 @@ const sections = [...PAGE.matchAll(/<section[^>]*>/g)]
 describe('Every home page band is one whole screen, the same shape as the others', () => {
 
   it('every home page band uses the same padding and width, so each settles as one whole screen', () => {
-    expect(sections).toHaveLength(4)
+    expect(sections).toHaveLength(8)
     for (const s of sections) {
       expect(s, 'a band that is not one screen').toContain(SCREEN)
       expect(s, 'a band with no hairline under it').toContain(EDGE)
     }
-    // The column and its padding come from one place. The dark band
-    // writes its column out for the mural's own tests; it is the same one.
-    expect((PAGE.match(/className=\{BAND\}/g) ?? []).length).toBe(3)
-    expect(PAGE).toContain('className={`w-full ${PAD}`}')
-    expect(PAGE).toContain(`"${COLUMN} grid`)
+    // The column and its padding come from one place, in every band.
+    expect((PAGE.match(/className=\{BAND\}/g) ?? []).length).toBe(7)
+    expect(PAGE).toContain('className={`${BAND} grid')
+    expect(PAGE).not.toMatch(/max-w-6xl/)
     expect(BAND).toBe(`${COLUMN} ${PAD}`)
     // Nobody pads a band by hand again.
     expect(PAGE).not.toMatch(/\b(?:md:)?(?:py|pt|pb)-(?:16|20|24)\b/)
@@ -59,11 +63,11 @@ describe('Every home page band is one whole screen, the same shape as the others
   })
 
   it('every section heading under the hero is one size, with the same space under it', () => {
-    expect((PAGE.match(/className=\{H2\}/g) ?? []).length).toBe(2)
+    expect((PAGE.match(/className=\{H2\}/g) ?? []).length).toBe(7)
     expect(CLOSE).toContain('onHome ? H2')
     expect(H2).toMatch(/text-\[30px\]/)
     expect(H2).toMatch(/md:text-\[40px\]/)
-    expect((PAGE.match(/\$\{UNDER_HEADING\}/g) ?? []).length).toBe(3)
+    expect((PAGE.match(/\$\{UNDER_HEADING\}/g) ?? []).length).toBe(6)
     expect(CLOSE).toContain('onHome ? UNDER_HEADING')
     expect(UNDER_HEADING).toBe('mt-6 md:mt-10')
   })
@@ -73,7 +77,7 @@ describe('Every home page band is one whole screen, the same shape as the others
     const close = 'canvas'
     const footer = FRAME.match(/<footer[^>]*bg-etyme-(\w+)/)![1]
     const order = [...grounds, close, footer]
-    expect(order).toEqual(['canvas', 'surface', 'canvas', 'ink', 'canvas', 'surface'])
+    expect(order).toEqual(['canvas', 'surface', 'canvas', 'surface', 'canvas', 'surface', 'canvas', 'surface', 'canvas', 'surface'])
     for (let i = 1; i < order.length; i++) {
       expect(order[i] === 'canvas', `bands ${i} and ${i + 1} share a ground`).not.toBe(order[i - 1] === 'canvas')
     }
@@ -88,9 +92,10 @@ describe('Every home page band is one whole screen, the same shape as the others
   })
 
   it('every side-by-side band splits into two equal halves, and every heading under the hero is one size', () => {
-    // The founder, 2026-09-30: side by side "as long as it's symmetrical",
-    // and the join band's heading matches the others.
-    const spans = [...PAGE.matchAll(/(?:lg|md):col-span-(\d+)/g)].map((m) => Number(m[1]))
+    // The founder, 2026-09-30: side by side "as long as it's symmetrical".
+    // A span of 2 is the product band's first screen taking both columns
+    // of a two-column grid, which is full width rather than a split.
+    const spans = [...PAGE.matchAll(/(?:lg|md):col-span-(\d+)/g)].map((m) => Number(m[1])).filter((n) => n !== 2)
     expect(spans.length).toBeGreaterThan(0)
     for (const n of spans) expect(n, `a column spans ${n} of 12`).toBe(6)
     expect(PAGE).not.toMatch(/md:text-\[48px\]/)

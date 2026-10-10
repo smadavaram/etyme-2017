@@ -82,15 +82,15 @@ const boxesSayWho = (boxes: FlowBox[]) => boxes.every((b) => b.who !== undefined
 
 describe('The four steps are the one spine of the site', () => {
 
-  it('the home page’s four steps lead to the four step pages, one to one and in order', () => {
+  it('the home page summarizes the four steps as three — Connect, Control, Reconcile — and its Platform band still draws the four steps with every part under its step', () => {
+    // The founder's brief, 2026-10-09: the four steps stay the spine of the
+    // product pages and the documentation; the home page says them as three.
     const page = read('src/app/page.tsx')
-    const block = page.slice(page.indexOf('const STEPS'), page.indexOf('const STEP_SCREEN'))
-    const home = [...block.matchAll(/\{ n: '0(\d)', t: '([^']+)', href: '([^']+)' \}/g)]
-      .map(([, n, t, href]) => ({ n: Number(n), t, href }))
-    expect(home).toHaveLength(4)
-    expect(home.map((s) => s.href)).toEqual(STEPS.map((s) => s.route))
-    expect(home.map((s) => s.t)).toEqual(STEPS.map((s) => s.home))
-    expect(home.map((s) => s.n)).toEqual([1, 2, 3, 4])
+    const how = page.slice(page.indexOf('const HOW'), page.indexOf('const SECURITY_DONE'))
+    expect([...how.matchAll(/n: '0\d', t: '([^']+)'/g)].map((m) => m[1])).toEqual(['Connect', 'Control', 'Reconcile'])
+    expect(page).toContain('Read the whole process, step by step')
+    expect(page).toContain('PRODUCT_STAGES.map((stage)')
+    expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(STEPS.map((s) => s.route))
   })
 
   it('the first step is Source, never Hire, on every menu, page and chart', () => {

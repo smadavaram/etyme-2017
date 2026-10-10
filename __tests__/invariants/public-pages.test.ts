@@ -31,7 +31,7 @@ import { modulePage } from '@/lib/public-site/module-page'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
 import {
-  NAV_MENUS, FOOTER, SPEND_AUDIT, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES, PRIMARY,
+  NAV_MENUS, NAV_LINKS, SHEET_MORE, FOOTER, SPEND_AUDIT, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES, PRIMARY,
   everyFrameLink, frameCopy, itemsOf,
 } from '@/lib/public-site/nav'
 
@@ -425,28 +425,56 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('every page carries the same header: product by step, solutions by role, resources, company', () => {
-    // The structure the founder preferred in the marketing thread,
-    // 2026-09-27. One header, drawn by one component, on every page.
-    expect(NAV_MENUS.map((m) => m.label)).toEqual(['Product', 'Solutions', 'Resources', 'Company'])
+  it('every page carries the same compact header: Platform, Solutions, How It Works and Security', () => {
+    // The founder's brief, 2026-10-09, replacing Product, Solutions,
+    // Resources and Company (the marketing thread's structure, 2026-09-27).
+    // One header, drawn by one component, on every page.
+    expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
+    expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
-    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By role'])
-    expect(NAV_MENUS[2].groups.map((g) => g.heading)).toEqual(['Read', 'Try'])
-    expect(itemsOf(NAV_MENUS[2]).map((i) => i.href)).toEqual(['/docs', '/security', '/dpa', '/demo', '/contact', '/census'])
-    expect(itemsOf(NAV_MENUS[3]).map((i) => i.href)).toEqual(['/about', '/contact'])
-    // Every item says what it is in one line under its name.
+    expect(NAV_MENUS[0].groups).toBe(PRODUCT_STAGES)
+    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By desk'])
+    expect(itemsOf(NAV_MENUS[1])).toEqual(ROLES)
+    // Every item in a menu says what it is in one line under its name.
     for (const m of NAV_MENUS) for (const i of itemsOf(m)) expect(i.d, i.t).toBeTruthy()
-    // The home page draws the same header, rather than a copy of it.
+    // What the two menus that left carried is still one tap away: the
+    // phone sheet and the footer reach the documentation, About, Contact
+    // and the demo.
+    for (const h of ['/docs', '/about', '/contact', '/demo']) {
+      expect(SHEET_MORE.map((i) => i.href), h).toContain(h)
+      expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
+    }
+    // The home page draws the same header, rather than a copy of it, and
+    // tells it it is on the home page so the labels land on its bands.
     const home = read('src/app/page.tsx')
-    expect(home).toContain('<SiteHeader />')
+    expect(home).toContain('<SiteHeader onHome />')
     expect(home).not.toContain('const NAV_MENUS')
     for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
-    // And a phone reads the same four menus, each with its groups.
+    // And a phone reads the same menus and links, in a sheet.
     const frame = read('src/lib/public-site/frame.tsx')
-    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the bar and the drawer both draw every menu').toBe(2)
-    expect(frame).toContain('menu.groups.map')
+    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the bar and the sheet both draw every menu').toBe(2)
+    expect(frame.match(/NAV_LINKS\.map/g)?.length, 'the bar and the sheet both draw every link').toBe(2)
+    expect(frame).toContain('SHEET_MORE.map')
+  })
+
+  it('each header label goes somewhere real: a band of the home page on the home page, the top of a page anywhere else', () => {
+    const home = read('src/app/page.tsx')
+    const labels = [...NAV_MENUS.map((m) => ({ label: m.label, href: m.href })), ...NAV_LINKS]
+    expect(labels.map((l) => [l.label, l.href.home])).toEqual([
+      ['Platform', '#platform'], ['Solutions', '#solutions'], ['How It Works', '#how-it-works'], ['Security', '/security'],
+    ])
+    for (const l of labels) {
+      if (l.href.home.startsWith('#')) expect(home, `${l.label}: no band ${l.href.home} on the home page`).toContain(`id="${l.href.home.slice(1)}"`)
+      // Away from the home page a label never lands in the middle of another page.
+      expect(l.href.away, l.label).not.toContain('#')
+    }
+    // Solutions is the band written to four of the client's desks (the
+    // founder's feedback, 2026-10-10), each opening its screen in the demo.
+    const desks = home.slice(home.indexOf('const DESKS'), home.indexOf('const HOW'))
+    expect([...desks.matchAll(/\n    t: '([^']+)'/g)].map((m) => m[1])).toEqual(['Contingent Workforce Director', 'Procurement', 'HR Operations', 'Finance'])
+    expect(home.slice(home.indexOf('id="solutions"'))).toMatch(/^[^]*?DESKS\.map[^]*?<DemoLink target=\{d\.demo\}/)
   })
 
   it('the Product menu names all eight parts, each under the step it belongs to, the step’s own page first', () => {
@@ -514,8 +542,10 @@ describe('One header and footer on every new page', () => {
     expect(chain).toEqual(['A prime', 'A sub', 'A bench vendor'])
   })
 
-  it('the right of every header is Sign in and one filled button, which leads to the example program', () => {
-    expect(PRIMARY.href).toBe('/demo')
+  it('the right of every header is Sign in and one filled button, which leads to the spend audit', () => {
+    // The audit since 2026-10-09 (the founder's brief); the example
+    // program until then.
+    expect(PRIMARY.href).toBe('/census')
     const frame = read('src/lib/public-site/frame.tsx')
     const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('<details'))
     expect(right).toContain('href="/login"')
@@ -550,9 +580,15 @@ describe('One header and footer on every new page', () => {
 
   it('every link in the header and footer goes to a registered public page, the demo, sign-in or a section of the home page', () => {
     const routes = new Set([...PUBLIC_PAGES.map((p) => p.route), '/login'])
+    const home = read('src/app/page.tsx')
     for (const href of everyFrameLink()) {
       const path = href.split('#')[0]
       if (href.startsWith('/#')) continue
+      // A band of the home page, drawn only on the home page.
+      if (href.startsWith('#')) {
+        expect(home, href).toContain(`id="${href.slice(1)}"`)
+        continue
+      }
       expect(routes.has(path), href).toBe(true)
     }
   })

@@ -53,9 +53,14 @@ export interface Way {
   href: string
 }
 
-/** The first rung: the example program. The primary button, everywhere. */
+/**
+ * The first rung: the example program. The primary button everywhere
+ * until 2026-10-09, when the founder's brief made the audit the primary
+ * call to action and this the secondary; the ladder's order is unchanged.
+ */
 export const SEE_IT: Way = {
-  t: 'See it with a month of data',
+  // The founder's words for the secondary button, 2026-10-09.
+  t: 'Explore the Live Demo',
   short: 'See the demo',
   d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and bills. No card. No sign-up.',
   href: '/demo',
@@ -82,7 +87,10 @@ export const SEE_IT: Way = {
  * (`/api/census/request`); an attachment in an inbox does none of that.
  */
 export const GET_THE_AUDIT: Way = {
-  t: 'Get your contractor spend audit',
+  // The founder's words for the primary button, 2026-10-09, and the
+  // filled button in every header since (`PRIMARY` in ./nav).
+  t: 'Get a Free Contractor Spend Audit',
+  short: 'Free audit',
   d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the invoice receipts you hold. ' +
     'A named person sends back one page inside five working days.',
   href: '/census',
