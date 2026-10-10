@@ -26,8 +26,8 @@ const fromUi = (src: string, name: string) =>
   new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '@/components/ui'`).test(src)
 
 describe('supply’s pages draw the shared layer', () => {
-  it('Training, Ending soon, Consultants and Our scorecard say a refusal through the one shared refusal, the sentence alone', () => {
-    for (const f of ['training/page.tsx', 'rolloff/page.tsx', 'consultants/page.tsx']) {
+  it('Training, Ending soon, Consultants, Supplier scorecards and Our scorecard say a refusal through the one shared refusal, the sentence alone', () => {
+    for (const f of ['training/page.tsx', 'rolloff/page.tsx', 'consultants/page.tsx', 'scorecards/page.tsx']) {
       const page = code(read(f))
       expect(fromUi(page, 'RefusedState'), f).toBe(true)
       expect(page, f).toContain('return <RefusedState says={refused} />')
@@ -71,6 +71,24 @@ describe('supply’s pages draw the shared layer', () => {
       expect(page, f).not.toMatch(/\nfunction Stat\(/)
     }
     expect(code(read('bench/bench-profit.tsx'))).toContain("data.utilization.billingPct == null ? '—'")
+  })
+
+  it('the Bench page counts with the shared number and keeps no stat chip of its own, and Add to bench says a failure through the shared form message', () => {
+    const bench = code(read('bench/page.tsx'))
+    expect(fromUi(bench, 'Stat')).toBe(true)
+    expect(fromUi(bench, 'FormMessage')).toBe(true)
+    expect(bench).not.toMatch(/\nfunction (Stat|StatChip|Chip)\(/)
+    expect(bench).not.toContain('<StatChip')
+    expect(bench).toContain('<FormMessage tone="error">{error}</FormMessage>')
+    expect(bench).not.toMatch(/\b(bg|text|border)-red-\d{2,3}\b/)
+  })
+
+  it('Ending soon marks urgency with the shared chip in the kit’s danger and attention colors, never an off-brand red or amber', () => {
+    const rolloff = code(read('rolloff/page.tsx'))
+    expect(fromUi(rolloff, 'Chip')).toBe(true)
+    expect(rolloff).toContain('<Chip tone="danger">Overdue</Chip>')
+    expect(rolloff).toContain('<Chip tone="attention">Urgent — {daysUntilEnd}d</Chip>')
+    expect(rolloff).not.toMatch(/\b(?:hover:)?(bg|text|border|border-l)-(red|amber)-\d{2,3}\b/)
   })
 
   it('“What we need” asks partners through the shared form: every box under its label, and the button says “Saving…” while it sends', () => {

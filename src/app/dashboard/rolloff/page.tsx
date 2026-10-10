@@ -7,7 +7,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { clientEndingChoices } from '@/lib/releasing-soon'
-import { RefusedState, LoadingState, EmptyState } from '@/components/ui'
+import { RefusedState, LoadingState, EmptyState, Chip } from '@/components/ui'
 
 // ── Types — match API response shape ─────────────────────
 
@@ -195,18 +195,18 @@ function ClientChoices({
 
 function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
   if (daysUntilEnd <= 0) {
-    return <span className="pill text-[10px] bg-red-50 text-red-600 border border-red-200">Overdue</span>
+    return <Chip tone="danger">Overdue</Chip>
   }
   if (daysUntilEnd <= 7) {
-    return <span className="pill text-[10px] bg-red-50 text-red-600 border border-red-200">Critical — {daysUntilEnd}d</span>
+    return <Chip tone="danger">Critical — {daysUntilEnd}d</Chip>
   }
   if (daysUntilEnd <= 14) {
-    return <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">Urgent — {daysUntilEnd}d</span>
+    return <Chip tone="attention">Urgent — {daysUntilEnd}d</Chip>
   }
   if (daysUntilEnd <= 28) {
-    return <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">{daysUntilEnd}d remaining</span>
+    return <Chip tone="attention">{daysUntilEnd}d remaining</Chip>
   }
-  return <span className="pill text-[10px] bg-etyme-canvas text-etyme-muted">{daysUntilEnd}d remaining</span>
+  return <Chip tone="passive">{daysUntilEnd}d remaining</Chip>
 }
 
 // ── Page ───────────────────────────────────────────────────
@@ -468,7 +468,7 @@ export default function RolloffPage() {
 
       {/* Error */}
       {error && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-6 px-4 py-3 rounded-lg bg-etyme-danger-wash border border-etyme-danger-line text-sm text-etyme-danger">
           {isClient ? 'Could not load who is ending' : 'Could not load rolloff events'}: {error}
         </div>
       )}
@@ -494,9 +494,9 @@ export default function RolloffPage() {
             <h2 className="text-sm font-semibold text-etyme-ink">
               {isClient ? 'Ending — the supplier has not started offboarding' : 'Contracts ending soon — no rolloff event yet'}
             </h2>
-            <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">
+            <Chip tone="attention">
               {isClient ? untracked.length : `${untracked.length} untracked`}
-            </span>
+            </Chip>
           </div>
           <ListSurface<UntrackedContract>
             name="rolloff-untracked"
@@ -508,7 +508,7 @@ export default function RolloffPage() {
             defaultPageSize={50}
             card={(c) => (
               <div key={c.sellContractId} className={`card border-l-4 ${
-                c.daysLeft <= 7 ? 'border-l-red-400' : c.daysLeft <= 14 ? 'border-l-amber-400' : 'border-l-etyme-rule'
+                c.daysLeft <= 7 ? 'border-l-etyme-danger' : c.daysLeft <= 14 ? 'border-l-etyme-attention' : 'border-l-etyme-rule'
               }`}>
                 <div className="flex items-start justify-between">
                   <div>
@@ -565,7 +565,7 @@ export default function RolloffPage() {
             card={(event) => {
               const progress = checklistProgress(event.checklist)
               return (
-                <div key={event.id} className={`card ${event.daysLeft <= 7 ? 'border-red-200' : event.daysLeft <= 14 ? 'border-amber-200' : ''}`}>
+                <div key={event.id} className={`card ${event.daysLeft <= 7 ? 'border-etyme-danger-line' : event.daysLeft <= 14 ? 'border-etyme-attention-line' : ''}`}>
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <div className="flex items-center gap-3 mb-1">
@@ -574,7 +574,7 @@ export default function RolloffPage() {
                         {event.outcome && (
                           <span className={`pill text-[10px] ${
                             event.outcome === 'REDEPLOYED' ? 'bg-etyme-verified-wash text-etyme-verified' :
-                            event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-attention' :
+                            event.outcome === 'BENCH' ? 'bg-etyme-attention-wash text-etyme-attention' :
                             'bg-etyme-canvas text-etyme-muted'
                           }`}>
                             {event.outcome}
@@ -625,7 +625,7 @@ export default function RolloffPage() {
                               onClick={() => handleResolve(event.id, 'BENCH')}
                               disabled={resolving === event.id}
                               className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule
-                                         text-etyme-attention hover:bg-amber-50 transition-colors
+                                         text-etyme-attention hover:bg-etyme-attention-wash transition-colors
                                          disabled:opacity-50"
                             >
                               {resolving === event.id ? '…' : 'Back on bench'}

@@ -1,7 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
-import { LoadingState, EmptyState, ErrorState } from '@/components/ui'
+import { LoadingState, EmptyState, ErrorState, RefusedState } from '@/components/ui'
 import { onlyHereSays } from '@/lib/scorecard'
 import { usePageSection } from '@/components/page-section'
 
@@ -286,12 +286,7 @@ export default function ScorecardsPage() {
   // promises standing, concentration or scores.
   const refused = doors.scored && doors.risk && doors.shape ? doors.scored : null
   if (refused) {
-    return (
-      <div className="mx-auto max-w-[860px] px-4 py-6">
-        {section && <p className="eyebrow">{section}</p>}
-        <p className="text-[14px] text-etyme-muted py-8">{refused}</p>
-      </div>
-    )
+    return <RefusedState says={refused} />
   }
 
   return (

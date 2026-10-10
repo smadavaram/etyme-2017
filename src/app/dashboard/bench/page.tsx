@@ -17,7 +17,7 @@ import { hasPermission } from '@/lib/permissions'
 import { READS_PAY } from '@/lib/money/pay-visibility'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
-import { FilterChips } from '@/components/ui'
+import { FilterChips, Stat, FormMessage } from '@/components/ui'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -370,8 +370,8 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
         </div>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
+          <div className="mb-4">
+            <FormMessage tone="error">{error}</FormMessage>
           </div>
         )}
 
@@ -1149,12 +1149,12 @@ export default function BenchPage() {
       {/* Stats row */}
       {scope !== 'payroll' && !loading && entries.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
-          <StatChip label="Total" value={stats.total} />
-          <StatChip label={TIER_WORD.RETAINED} value={stats.retained} tone="verified" />
-          <StatChip label={scope === 'network' ? 'Shown to you' : TIER_WORD.MARKETING} value={stats.marketing} tone="action" />
-          <StatChip label="Invited, waiting" value={stats.waiting} tone="attention" />
-          <StatChip label="Free now" value={stats.availNow} tone="verified" />
-          <StatChip label="Free within 14 days" value={stats.availSoon} tone="attention" />
+          <Stat label="Total" value={stats.total} />
+          <Stat label={TIER_WORD.RETAINED} value={stats.retained} tone="verified" />
+          <Stat label={scope === 'network' ? 'Shown to you' : TIER_WORD.MARKETING} value={stats.marketing} />
+          <Stat label="Invited, waiting" value={stats.waiting} tone="attention" />
+          <Stat label="Free now" value={stats.availNow} tone="verified" />
+          <Stat label="Free within 14 days" value={stats.availSoon} tone="attention" />
         </div>
       )}
 
@@ -1498,10 +1498,10 @@ function RosterSurface({
         <div className="panel mb-6">
           <p className="text-body-sm text-etyme-ink">{summary.says}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-            <StatChip label="On your payroll" value={summary.total} />
-            <StatChip label="On a project" value={summary.onProject} tone="verified" />
-            <StatChip label="Free to allocate" value={summary.betweenProjects} tone="attention" />
-            <StatChip label="Nothing on record" value={summary.notOnTheRecord} />
+            <Stat label="On your payroll" value={summary.total} />
+            <Stat label="On a project" value={summary.onProject} tone="verified" />
+            <Stat label="Free to allocate" value={summary.betweenProjects} tone="attention" />
+            <Stat label="Nothing on record" value={summary.notOnTheRecord} />
           </div>
           {summary.skillsUnknown > 0 && (
             <p className="text-[12px] text-etyme-muted mt-3">
@@ -1691,32 +1691,6 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Stat chip ────────────────────────────────────────
-
-function StatChip({
-  label, value, tone = 'default',
-}: {
-  label: string
-  value: number
-  tone?: 'default' | 'verified' | 'action' | 'attention'
-}) {
-  const color = {
-    default: 'text-etyme-ink',
-    verified: 'text-etyme-verified',
-    action: 'text-etyme-action',
-    attention: 'text-etyme-attention',
-  }[tone]
-
-  return (
-    <div className="panel py-3 px-4">
-      <div className="stat-label text-[9px] mb-1">{label}</div>
-      <div className={`text-xl font-serif font-medium tabular-nums ${color}`}>
-        {value}
-      </div>
     </div>
   )
 }
