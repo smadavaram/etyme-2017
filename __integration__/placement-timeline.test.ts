@@ -134,14 +134,31 @@ describe('a placement waiting on its first day, read by each side in its own wor
     expect(p.startSays).not.toMatch(/\bstarted\b/)
   })
 
-  it('on the client’s screen the next thing due is an invoice receipt it expects, never a bill to raise', async () => {
+  // The next *bill*, not the next thing. `timeline.next` is the earliest
+  // date anybody owes on the placement — the sentence in the first block
+  // above — and whether that is hours or a bill is the calendar's: the
+  // US pack bills on the 15th and month-end and asks for hours the Monday
+  // after each Saturday, so a placement starting before the 15th meets
+  // its first bill first, and one starting after it meets its first
+  // week's hours first. These two used to read `next`, and went red on
+  // 2026-10-10, the first world born late enough in the month for
+  // Ingrid's start (a week out) to fall past the 15th. What they hold is
+  // whose words a bill is in, and that does not move with the date.
+  const nextBill = (p: { timeline: { bill: { label: string; dueOn: string; done: boolean }[] } }) =>
+    p.timeline.bill.find((d) => !d.done) ?? null
+
+  it('on the client’s screen the next bill due is an invoice receipt it expects, never a bill to raise', async () => {
     const p = await read(clientSeat)
-    expect(p.timeline.next?.label).toBe('Invoice receipt expected')
+    expect(nextBill(p)?.label).toBe('Invoice receipt expected')
+    const all = [...p.timeline.hours, ...p.timeline.pay, ...p.timeline.bill]
+    expect(all.map((d: { label: string }) => d.label)).not.toContain('Bill to raise')
   })
 
   it('on the supplier’s screen the same date is the bill it raises', async () => {
+    const client = await read(clientSeat)
     const p = await read(supplierSeat)
-    expect(p.timeline.next?.label).toBe('Bill to raise')
+    expect(nextBill(p)?.label).toBe('Bill to raise')
+    expect(nextBill(p)?.dueOn).toBe(nextBill(client)?.dueOn)
   })
 })
 
