@@ -74,14 +74,45 @@ rule set, the nightly run. What is short of that:
 
 ## Time-limit rule — etyme-regulatory
 
-Regulatory's own list was sent in its report, which this file's author
-did not receive. Seen in its code and to be confirmed by regulatory:
+What is built: `src/lib/twin/rules/tenure.ts` reads the client's own time
+limit and break, every supplier's lines at the client, and names the
+people 90, 60 and 30 days from the limit and those past it. The warning
+days come from the company's rule set (`ruleSetFor`), and every person
+read is on the access log under the program owner and the twin's kind
+(`TWIN`, `PROGRAM_MANAGER`). What is short of that:
 
-- The warning days were a typed default until the `RuleSet` table; the
-  table and `ruleSetFor` now exist and `tenureWarnings` is called with
-  the company's days by `src/lib/twin/run.ts`.
-- `tenureWarnings` logs its reads under the program owner, because the
-  twin is not yet an actor in the access log (see 3 above).
+1. **The database half is untested against Postgres.** The arithmetic is
+   tested in `__tests__/invariants/twin-tenure-rule.test.ts`, and the
+   read and its access-log rows against an in-memory record. The query
+   itself — the end-client filter, the states, a chain's rungs — and the
+   demo person landing 60 days out on a seeded world are not run against
+   a database by any test of this rule.
+2. **One time limit per client.** The rule reads the first active
+   TENURE_CAP and BREAK_IN_SERVICE rule it finds across the client's
+   policies, in no stated order. A client with a different limit per
+   business unit or per site is warned on one of them, and which one is
+   not chosen on purpose.
+3. **A line that was not running is not counted.** Only IN_PROGRESS,
+   PAUSED and ENDED lines are read. A line CANCELLED after work started
+   drops the days already worked, so the count can read low; a VERIFIED
+   line that starts next week is not read, so somebody away who is about
+   to come back past the limit is not warned until they are on site.
+4. **One person is one `Person` row.** Days are added up by person id.
+   The same human entered by two suppliers as two records is two short
+   stays, and neither is warned. Cross-supplier identity resolution is
+   not done here, and no probable match is raised for a person to
+   confirm.
+5. **Suppliers are named, not identified.** A warning carries the names
+   of the firms the client pays, never their ids, and a sub-vendor's
+   name not at all. That is why the run cannot yet tell a supplier
+   (architect's item 6): the act needs the firm's id, and the rule must
+   still never hand a sub-vendor's name to the client.
+6. **The eighteen-month default is a product default, not a law.** Where
+   a client set no time limit the rule warns against eighteen months and
+   says "default" in the citation. A client that wants no limit at all
+   has no way to say so through the rule set; only a caller passing
+   `capMonths: null` turns it off. A warning keyed to a limit day also
+   repeats its tier if the contract dates move that day.
 
 ## Invoice rule — etyme-money
 

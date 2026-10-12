@@ -103,10 +103,14 @@ export type AccessAction =
   | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
   | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
 
-interface LogAccessParams {
+interface LogAccessBase {
   /** The person whose data was accessed */
   subjectId: string
-  /** The person doing the accessing (if known) */
+  /**
+   * The person doing the accessing (if known). Where a twin made the
+   * read, this is the person whose authority it acted on — the program
+   * owner — and `actorKind` says it was the twin, not them.
+   */
   actorPersonId?: string
   /** The company context of the accessor */
   actorCompanyId?: string
@@ -116,6 +120,40 @@ interface LogAccessParams {
   allowed?: boolean
   /** Why it was refused, or context for the access */
   reason?: string
+}
+
+/** The twins that may read. One today; the column is a string so the next is a line here. */
+export type TwinKind = 'PROGRAM_MANAGER'
+
+/**
+ * Who made the read. PERSON, the default, is somebody at a desk. TWIN is
+ * the job twin acting on `actorPersonId`'s authority, and then the row
+ * must say which twin — so the trail reads "the program manager twin, for
+ * Dana Whitfield", never as though Dana had looked herself.
+ */
+type ActorFields =
+  | { actorKind?: 'PERSON'; actorTwinKind?: never }
+  | { actorKind: 'TWIN'; actorTwinKind: TwinKind }
+
+type LogAccessParams = LogAccessBase & ActorFields
+
+/** `Omit` that keeps the PERSON/TWIN pairing instead of flattening it. */
+type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+
+/**
+ * The two actor columns, as written. A TWIN row with no twin named is
+ * refused here rather than written as a read nobody can attribute; a
+ * PERSON row never carries a twin kind.
+ */
+export function actorColumns(p: { actorKind?: 'PERSON' | 'TWIN'; actorTwinKind?: TwinKind }): {
+  actorKind: 'PERSON' | 'TWIN'
+  actorTwinKind: TwinKind | null
+} {
+  if (p.actorKind === 'TWIN') {
+    if (!p.actorTwinKind) throw new Error('A read made by a twin must name which twin made it.')
+    return { actorKind: 'TWIN', actorTwinKind: p.actorTwinKind }
+  }
+  return { actorKind: 'PERSON', actorTwinKind: null }
 }
 
 /**
@@ -132,6 +170,7 @@ interface LogAccessParams {
  */
 export function logAccess(params: LogAccessParams): void {
   const { subjectId, actorPersonId, actorCompanyId, action, allowed = true, reason } = params
+  const actor = actorColumns(params)
 
   // Fire-and-forget — don't await, don't block the response
   prisma.accessLog
@@ -140,6 +179,7 @@ export function logAccess(params: LogAccessParams): void {
         subjectId,
         actorPersonId: actorPersonId ?? null,
         actorCompanyId: actorCompanyId ?? null,
+        ...actor,
         action,
         allowed,
         reason: reason ?? null,
@@ -163,14 +203,16 @@ export function logAccess(params: LogAccessParams): void {
  */
 export function logBulkAccess(
   subjectIds: string[],
-  params: Omit<LogAccessParams, 'subjectId'>
+  params: Without<LogAccessParams, 'subjectId'>
 ): void {
   if (subjectIds.length === 0) return
+  const actor = actorColumns(params)
 
   const data = subjectIds.map((subjectId) => ({
     subjectId,
     actorPersonId: params.actorPersonId ?? null,
     actorCompanyId: params.actorCompanyId ?? null,
+    ...actor,
     action: params.action,
     allowed: params.allowed ?? true,
     reason: params.reason ?? null,
@@ -217,15 +259,17 @@ export function logBulkAccess(
  */
 export async function recordAccess(
   subjectIds: string[],
-  params: Omit<LogAccessParams, 'subjectId'>,
+  params: Without<LogAccessParams, 'subjectId'>,
   db: AccessLogWriter = prisma
 ): Promise<number> {
   if (subjectIds.length === 0) return 0
+  const actor = actorColumns(params)
   const written = await db.accessLog.createMany({
     data: subjectIds.map((subjectId) => ({
       subjectId,
       actorPersonId: params.actorPersonId ?? null,
       actorCompanyId: params.actorCompanyId ?? null,
+      ...actor,
       action: params.action,
       allowed: params.allowed ?? true,
       reason: params.reason ?? null,
@@ -265,16 +309,19 @@ export async function recordRefusal(
   subjectIds: readonly string[],
   // `allowed: false` may be written at the call site so the route reads
   // as what it is; nothing else is accepted, because this is refusals only.
-  params: Omit<LogAccessParams, 'subjectId' | 'allowed'> & { allowed?: false }
+  params: Without<LogAccessParams, 'subjectId' | 'allowed'> & { allowed?: false }
 ): Promise<number> {
   const subjects = [...new Set(subjectIds)]
   if (subjects.length === 0) return 0
   try {
+    // Inside the try: a refusal is a refusal even when its actor is malformed.
+    const actor = actorColumns(params)
     const written = await prisma.accessLog.createMany({
       data: subjects.map((subjectId) => ({
         subjectId,
         actorPersonId: params.actorPersonId ?? null,
         actorCompanyId: params.actorCompanyId ?? null,
+        ...actor,
         action: params.action,
         allowed: false,
         reason: params.reason ?? null,

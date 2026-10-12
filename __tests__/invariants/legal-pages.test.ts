@@ -515,7 +515,11 @@ describe('The security posture is as plain about what is absent as what is prese
     expect(POSTURE).toContain(`| Unprompted — the system did it and nobody asked | **${unprompted.length}** |`)
     expect(POSTURE).toContain(`| Enforcement — the system decided what a person was allowed to do | **${kinds.ENFORCEMENT}** |`)
     expect(POSTURE).toContain(`| Attributed — a person did it and the row is the record | **${kinds.ATTRIBUTED}** |`)
-    expect(rules.length, 'all but one unprompted action is a plain rule').toBe(unprompted.length - 1)
+    expect(rules.length).toBe(unprompted.length - 3)
+    expect(
+      unprompted.filter((k) => ACTIONS[k].basis !== 'RULE').sort(),
+      'every unprompted action is a plain rule except proactive matching and the twin’s two recorded acts, as section 7 says'
+    ).toEqual(['PROACTIVE_MATCH', 'TWIN_DREW_UP', 'TWIN_TOLD'])
   })
 
   it('every file the security posture names actually exists', () => {

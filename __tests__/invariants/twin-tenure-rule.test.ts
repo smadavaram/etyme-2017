@@ -1,6 +1,8 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
+import { prisma } from '@/lib/db'
 import {
   tenureWarningsFor,
+  tenureWarnings,
   tenureActionTier,
   TENURE_TWIN_ACTIONS,
   DEFAULT_TENURE_RULES,
@@ -136,5 +138,35 @@ describe('the job twin’s time-limit rule', () => {
       expect(at60[0].tier).toBe('WARN_60')
       expect(at60[0].suppliers).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
     }
+  })
+
+  it('the twin’s reads of the tenure ledger are logged under the program owner and the twin’s kind, never as a bare person', async () => {
+    // The record, in memory: one Northbend line, no company rule set, no governance rule.
+    const db = prisma as unknown as Record<string, unknown>
+    const saved = { ...db }
+    const createMany = vi.fn(async ({ data }: { data: unknown[] }) => ({ count: data.length }))
+    Object.assign(db, {
+      governanceRule: { findMany: vi.fn(async () => []) },
+      ruleSet: { findFirst: vi.fn(async () => null) },
+      sellContract: { findMany: vi.fn(async () => [
+        { personId: 'tobias', clientCompanyId: 'northbend', startDate: ago(487), endDate: null, state: 'IN_PROGRESS',
+          person: { name: 'Tobias Lindqvist' }, company: { name: 'Pinnacle Resourcing' } },
+      ]) },
+      accessLog: { create: vi.fn(), createMany },
+    })
+    try {
+      await tenureWarnings('northbend', undefined, { now: NOW, actor: { personId: 'dana-owner', companyId: 'northbend' } })
+    } finally {
+      for (const k of Object.keys(db)) if (!(k in saved)) delete db[k]
+      Object.assign(db, saved)
+    }
+
+    expect(createMany).toHaveBeenCalledTimes(1)
+    const rows = createMany.mock.calls[0][0].data as Record<string, unknown>[]
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      subjectId: 'tobias', actorPersonId: 'dana-owner', actorCompanyId: 'northbend',
+      actorKind: 'TWIN', actorTwinKind: 'PROGRAM_MANAGER', action: 'TENURE_VIEW', allowed: true,
+    })
   })
 })

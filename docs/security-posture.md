@@ -301,7 +301,7 @@ systems drop and the half an investigation needs.
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
 **Coverage, stated honestly.** 44 route files write an access-log row
-through `src/lib/access-log.ts`, out of 298 API route files. They are the routes that
+through `src/lib/access-log.ts`, out of 303 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -331,6 +331,16 @@ on any new one: the week-approval seam in `src/lib/week-approval.ts`,
 which waits for its row and reports a failure to staff without failing
 the request, and two bench routes that write the row on the same
 transaction as the change it records.
+
+**Reads made by the job twin.** The twin is a program that reads the
+record on a person's authority, so its reads and refusals are on the same
+access log, filed under two names: the person it acted for (the client's
+program owner) and the twin's kind (`actorKind` is `TWIN`,
+`actorTwinKind` is `PROGRAM_MANAGER`). A row for a person at a desk says
+`PERSON`. So the trail never shows a twin's read as though the person
+had looked, and never shows it as a read by nobody; a twin row with no
+twin named is refused by the log itself. Today the twin reads one thing,
+the tenure ledger, and those rows are written before it acts on them.
 
 ---
 
@@ -424,26 +434,29 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-10-08:
+Recomputed from the module on 2026-10-12:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **191** |
-| Unprompted — the system did it and nobody asked | **30** |
-| Enforcement — the system decided what a person was allowed to do | **10** |
-| Attributed — a person did it and the row is the record | **151** |
+| Actions named in the automation log | **200** |
+| Unprompted — the system did it and nobody asked | **34** |
+| Enforcement — the system decided what a person was allowed to do | **11** |
+| Attributed — a person did it and the row is the record | **155** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the thirty unprompted actions, **twenty-nine are plain rules** — a date
+Of the thirty-four unprompted actions, **thirty-one are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
-says both. The odd one out is proactive matching, whose basis is read from
-the row rather than asserted, because the match engine falls back to
-arithmetic when no model key is set and a week where the key was
-misconfigured must not read as a week the model got free.
+says both. Three are not asserted as rules. Proactive matching's basis is
+read from the row, because the match engine falls back to arithmetic
+when no model key is set and a week where the key was misconfigured must
+not read as a week the model got free. The job twin telling a person
+something (`TWIN_TOLD`) and drawing up a summary (`TWIN_DREW_UP`) are
+recorded the same way, because what the twin wrote is in its ledger
+beside the act.
 
 Three arrived on 2026-09-20 with the contractor census, and they are the
 two ends of one clock plus the thing that stops it. Calling off a
@@ -748,7 +761,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 44 route files of 298 (section 4).
+- Access logging covers 44 route files of 303 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their

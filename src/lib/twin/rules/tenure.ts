@@ -23,16 +23,15 @@
  *
  * **The numbers are the company's.** The time limit and the break are the
  * client's own TENURE_CAP and BREAK_IN_SERVICE rules — the setting every
- * door already reads. The warning days are a rule set the company sets.
- * TODO(etyme-architect): the twin's per-company `RuleSet` table is not in
- * `prisma/schema.prisma` yet. Until it lands, the warning days are the
- * typed default below, passed in by the caller; when it lands, the caller
- * reads the row and passes it, and nothing in this file changes.
+ * door already reads. The warning days are the company's twin rule set,
+ * read through `ruleSetFor` in lib/twin/rule-set: the nightly run passes
+ * them in, and a caller that passes nothing gets the same row read here.
  */
 
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { logBulkAccess } from '@/lib/access-log'
+import { recordAccess } from '@/lib/access-log'
+import { DEFAULT_RULE_SET, ruleSetFor } from '@/lib/twin/rule-set'
 import {
   bookedLimitDay,
   linesCounted,
@@ -64,11 +63,11 @@ export const DEFAULT_TIME_LIMIT_MONTHS = 18
 
 /**
  * The default rule set: warn at 90, 60 and 30 days, the limit and break
- * read from the company's own governance rules.
- * TODO(etyme-architect): replace with the company's `RuleSet` row once it
- * exists; this is the value that row defaults to.
+ * read from the company's own governance rules. The days are the twin
+ * rule set's own default, so a company with no `RuleSet` row is warned on
+ * the same days whichever door reads it.
  */
-export const DEFAULT_TENURE_RULES: TenureRuleSet = { warnAtDays: [90, 60, 30] }
+export const DEFAULT_TENURE_RULES: TenureRuleSet = { warnAtDays: DEFAULT_RULE_SET.tenureWarnAtDays }
 
 // ── What the twin may do with a warning ───────────────────────────────
 
@@ -237,20 +236,24 @@ export function tenureWarningsFor(
  * same lines the tenure ledger reads.
  *
  * Every person read is a read of their data, so it writes an AccessLog
- * row per person under `actor` — the program owner the twin acts for.
- * TODO(etyme-architect): the twin actor kind on the logs is not in the
- * schema yet; until it is, the row names the owner and says "time-limit
- * rule" in its reason.
+ * row per person, filed under the pair: `actor` — the program owner whose
+ * authority the twin acts on — and the twin's kind, PROGRAM_MANAGER. A
+ * reader of the trail sees the twin made the read for that person, never
+ * that the person looked. The rows are awaited before any warning is
+ * returned: a nightly run has no reader waiting, and a read with no row
+ * behind it is the one thing the log exists to prevent. If the rows
+ * cannot be written this throws, and the run reports it for this client.
  *
  * Writes nothing else. Recording a warning and telling anybody is the
  * twin runner's, through the role contract, against `TENURE_TWIN_ACTIONS`.
  */
 export async function tenureWarnings(
   companyId: string,
-  rules: TenureRuleSet = DEFAULT_TENURE_RULES,
+  rules?: TenureRuleSet,
   opts: { now?: Date; actor?: { personId?: string; companyId?: string } } = {}
 ): Promise<TenureWarning[]> {
   const now = opts.now ?? new Date()
+  if (!rules) rules = { warnAtDays: (await ruleSetFor(companyId)).tenureWarnAtDays }
   const govern = await prisma.governanceRule.findMany({
     where: { policy: { companyId, isActive: true }, isActive: true, ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] } },
     select: { ruleType: true, parameters: true },
@@ -274,9 +277,11 @@ export async function tenureWarnings(
   })
 
   const personIds = [...new Set(rows.map((r) => r.personId))]
-  logBulkAccess(personIds, {
+  await recordAccess(personIds, {
     actorPersonId: opts.actor?.personId,
     actorCompanyId: opts.actor?.companyId ?? companyId,
+    actorKind: 'TWIN',
+    actorTwinKind: 'PROGRAM_MANAGER',
     action: 'TENURE_VIEW',
     reason: 'Time-limit rule, read by the job twin for the program owner',
   })
