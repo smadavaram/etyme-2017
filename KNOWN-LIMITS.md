@@ -205,3 +205,48 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 15. **`/ready` does not show the bot yet.** `teamsBotEdge` and
     `teamsBotFacts` (`lib/teams/readiness`) are written; the row is the
     architect's to add in `lib/readiness`.
+
+## The twin's conversation panel — etyme-conversation
+
+- **The route is `POST /api/conversations/twin`, not `/api/twin-chat`.**
+  `app/api/twin-chat` had no owner in `lib/domains`, so a file there
+  fails `domain-ownership` on its commit; `app/api/conversations` is
+  conversation's already. The pure answering (`ask.ts`) and the reads
+  (`read.ts`) sit beside the route, on the `submissions/kind.ts`
+  precedent.
+- **The variance question reads the twin's recorded receipts, then
+  re-runs the rule on each.** "This quarter" is the calendar quarter in
+  UTC, by the day the twin recorded its verdict, not by the week the
+  hours were worked. Clean and not-clean are today's reading, so a
+  receipt fixed since the twin recorded it reads clean. One
+  `invoiceVerdict` (a full three-way check) per receipt, capped at 200 —
+  fine at a demo's size.
+- **Hours over accepted counts accepted weeks only**, summed as
+  billed minus accepted where billed is higher. Weeks nobody accepted are
+  shown apart, never folded in, and a supplier with no accepted week
+  reads "No week accepted yet" rather than zero. Hours under accepted
+  are not shown.
+- **Suppliers are grouped by display name**, because the verdict carries
+  the name and not the id. Two suppliers with one name would share a row.
+- **"What needs me" lists only the twin's own questions** (pending
+  `TwinApproval`s this seat holds the desk for, never one asked on its
+  own authority). Exceptions the twin told a desk about are in the
+  ledger, not in this list. A supplier reading a client's twin gets
+  none: the twin asks people at its own company.
+- **"Approve 1" refers to the order of the list at the moment of
+  asking**, re-read on every message. If a colleague answers one in
+  between, the numbers move; the confirm card names the receipt, so the
+  person sees which before pressing.
+- **Entry links go to `/dashboard/twin#entry-<id>`.** The twin page does
+  not yet put `id="entry-<id>"` on its rows, so the link opens the page
+  at the top. Invoice receipts and people open on their own pages.
+- **The model's run is filed in `AgentRun` under `recordType:
+  'TWIN_LEDGER'`, cast**, because `RecordType` in `lib/agent-run` has no
+  word for it. The column is a string, so the row is honest; the type
+  needs the word added (architect's file).
+- **The model's reply is not checked for claims beyond the lines it was
+  given.** It is labeled as the model's, its cited ids are kept only if
+  they are real lines, and it cannot act. A check that each figure in
+  the reply appears on a cited line is not built.
+- **The variance table is a plain table, not `ListSurface`.** It sits in
+  a chat bubble with a handful of rows; the invariant reads pages only.
