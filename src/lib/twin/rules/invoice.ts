@@ -57,6 +57,7 @@ import { ruleSetFor } from '@/lib/twin/rule-set'
 import { CHECK_NAME, decimalToCents, type MatchCode } from '@/lib/three-way-match'
 import { matchInvoice, type MatchWithLines, type LineFact } from '@/lib/invoice-match'
 import { amount } from '@/lib/money-display'
+import { formatDay } from '@/lib/format-date'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 
 // ── The rule set ─────────────────────────────────────────────────────
@@ -170,9 +171,7 @@ function clause(reason: string): string {
 
 function plain(isoDay: string | null): string {
   if (!isoDay) return ''
-  return new Date(`${isoDay}T00:00:00Z`).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
-  })
+  return formatDay(isoDay)
 }
 
 function weekOf(l: { personName: string; periodStart: string | null; periodEnd: string | null }): string {
