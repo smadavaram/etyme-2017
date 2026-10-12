@@ -58,6 +58,20 @@ import { partiesOf } from '@/lib/money/invoice-parties'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // The job twin (2026-10-12). Its ledger and its questions are what the
+  // nightly run or a person wrote, each with the moment it happened; a
+  // seeded entry would claim the twin acted on a night it did not run.
+  // The world holds what the twin reads — Northbend's contractor 60 days
+  // from the limit and its three receipts — and DEMO.md's first step runs
+  // GET /api/cron/twin once, which writes the warning, the two questions
+  // and the flagged mismatch from that seed.
+  twinAction: 'written by the twin’s nightly run, or by a person answering it',
+  twinApproval: 'written when the twin’s nightly run asks a person before approving an invoice receipt',
+  // A company with no row reads the shipped defaults (version 0); a row is
+  // a named person changing them, with the reason.
+  roleContract: 'written when the settings desk changes what the twin may do, with the reason',
+  ruleSet: 'written when the settings desk changes the twin’s warning days or hours tolerance, with the reason',
+  teamsConversation: 'written when a person first opens Etyme in Microsoft Teams and the bot binds them to their seat',
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',

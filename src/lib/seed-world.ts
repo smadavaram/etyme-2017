@@ -246,6 +246,9 @@ export function worldStepNames(): string[] {
     ...PLACEMENTS.map((_, i) => `placement:${i}`),
     'bench', 'in-flight', 'payroll', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
+    // The job twin's demo at Northbend: a contractor near the time limit,
+    // and two more invoice receipts (one clean, one over the accepted hours).
+    'twin-tenure-demo', 'twin-invoice-demo',
     'program-office-seat', 'supplier-desks', 'compliance-desk', 'doors',
     'rate-change', 'sector-suppliers', 'internal-moves', 'bench-profit', 'week-approval',
     ...STANDING_PARTS.map((part) => `standing:${part}`),
