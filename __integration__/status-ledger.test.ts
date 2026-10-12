@@ -205,9 +205,15 @@ describe('the ledger: one placement, every table, every station', () => {
     // days ago, worked Monday to Friday, inside the contract that started
     // two weeks ago. Its hours were due the Monday after its Saturday,
     // which is always before the award.
+    //
+    // The first week is trimmed to the start day, the way the worker's own
+    // page offers it (`openWeeks`): on a Monday the contract started two
+    // weeks ago on a Monday, and that week's Sunday is not the placement's
+    // to claim. Every other weekday the whole week sits inside it.
     const sat = new Date(+day(-3) - ((day(-3).getUTCDay() + 1) % 7) * DAY)
     it_.weekEnd = sat
-    const WEEK = { periodStart: isoOf(new Date(+sat - 6 * DAY)), periodEnd: isoOf(sat) }
+    const start = (await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract } })).startDate
+    const WEEK = { periodStart: isoOf(new Date(Math.max(+sat - 6 * DAY, +start))), periodEnd: isoOf(sat) }
     const days: Record<string, number> = {}
     for (let i = 1; i <= 5; i++) days[isoOf(new Date(+sat - 6 * DAY + i * DAY))] = 8
     const r = await json(await fileTimesheet(req('POST', '/api/timesheets', { sellContractId: it_.contract, ...WEEK, days })))
