@@ -710,7 +710,15 @@ written down so they are not re-derived:
   and the twin's two recorded acts, named as such on the governance page
   and in the security posture.
 
-**Open for the founder:** whether the 2% hours tolerance should also
+**The hours tolerance is 0.5%, not 2%. Decided by the founder,
+2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
+default rule set raises an invoice receipt whose billed hours differ from
+the accepted hours by more than half a percent; at or under the line is
+clean. A company may still set its own figure on the rules page, recorded
+with who and why. The seeded Northbend desk is unchanged by it: 40
+against 40 is clean and 41.5 against 40 is 3.75% over.
+
+**Open for the founder:** whether the 0.5% hours tolerance should also
 clear payment (money kept payment strict, per "bill only accepted
 hours"); whether the program manager's desk may edit the role contract
 (the editors ask for `settings.manage`, so the account owner does it in
