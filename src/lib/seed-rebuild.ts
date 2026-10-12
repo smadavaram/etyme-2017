@@ -94,6 +94,13 @@ export const DELETE_ORDER = [
   'JournalLine', 'ErpAccountMap', 'OrderPosting', 'ContractCostAllocation', 'InvoiceLine',
   'InvoiceMatchOverride', 'IntercompanyPosition', 'RateHistory', 'Blacklist', 'SupplierRequest',
   'ContractorInvitation', 'Favorite', 'Message', 'Notification', 'RolloffEvent', 'JobRun', 'AutomationLog',
+  // The twin (2026-10-12). The two point at each other: a question names
+  // the entry that asked it, and a person's answer names the question. The
+  // entries go first; a question is deleted with the entry that asked it
+  // (onDelete: Cascade), so none is left pointing at nothing, and is listed
+  // after so the count of any left over is kept. The entries go before the
+  // role contract they were acted under.
+  'TwinAction', 'TwinApproval', 'RoleContract', 'RuleSet', 'TeamsConversation',
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation', 'Enrollment',
   'DocumentShareItem', 'DocumentShareAccess', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
@@ -148,6 +155,15 @@ export const ORPHANED_WITH_THE_WORLD = ['Engagement'] as const
  */
 export type LooseRole = 'OWNED' | 'LINK' | 'RECORD'
 export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
+  // The twin's ledger is history: who acted and about what, kept as it was.
+  // The actor is a person's id or the twin's kind, so it is no row's key.
+  'TwinAction.actorId': { as: 'RECORD' },
+  // Polymorphic by entityType — an invoice receipt, a person, a bill.
+  'TwinAction.entityId': { as: 'RECORD' },
+  // A list of every company the record concerns, read by a supplier's feed.
+  'TwinAction.partyCompanyIds': { as: 'RECORD' },
+  // A Microsoft Entra tenant id, not a row here.
+  'TeamsConversation.tenantId': { as: 'RECORD' },
   // ── Owned: goes with what it names ──
   'Notification.personId': { as: 'OWNED', to: ['Person'] },
   'Import.companyId': { as: 'OWNED', to: ['Company'] },
