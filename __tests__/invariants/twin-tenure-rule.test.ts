@@ -149,9 +149,10 @@ describe('the job twin’s time-limit rule', () => {
       governanceRule: { findMany: vi.fn(async () => []) },
       ruleSet: { findFirst: vi.fn(async () => null) },
       sellContract: { findMany: vi.fn(async () => [
-        { personId: 'tobias', clientCompanyId: 'northbend', startDate: ago(487), endDate: null, state: 'IN_PROGRESS',
+        { id: 'line-1', personId: 'tobias', companyId: 'pinnacle', clientCompanyId: 'northbend', startDate: ago(487), endDate: null, state: 'IN_PROGRESS',
           person: { name: 'Tobias Lindqvist' }, company: { name: 'Pinnacle Resourcing' } },
       ]) },
+      masterAgreement: { findMany: vi.fn(async () => []) },
       accessLog: { create: vi.fn(), createMany },
     })
     try {

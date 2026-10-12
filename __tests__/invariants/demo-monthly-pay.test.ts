@@ -295,6 +295,8 @@ describe('what the override may be asked to do', () => {
       const rel = relative(process.cwd(), full)
       if (rel === 'src/lib/contract-cycles.ts') continue
       if (/^src\/lib\/(seed-|demo-)/.test(rel)) continue
+      // The twin's time-limit demo person, seeded beside lib/seed-programmes (2026-10-12).
+      if (rel === 'src/lib/twin/seed-tenure-demo.ts') continue
       const text = readFileSync(full, 'utf8')
       // An import, not a mention: the matrix's own row may say the name in prose.
       if (/import[^;]*\bDEMO_MONTHLY_PAY\b[^;]*from/.test(text)) offenders.push(`${rel} imports DEMO_MONTHLY_PAY`)

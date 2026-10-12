@@ -31,6 +31,7 @@
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { recordAccess } from '@/lib/access-log'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { DEFAULT_RULE_SET, ruleSetFor } from '@/lib/twin/rule-set'
 import {
   bookedLimitDay,
@@ -109,9 +110,11 @@ export interface TenureLine extends SiteLine {
   personId: string
   personName: string
   /**
-   * The firm the client pays for this line — named only on the rung the
-   * client pays. Null on a lower rung: the days count, the sub-vendor's
-   * name is the prime's to keep.
+   * The firm on this line, as the client may read it (`lib/chain-names`):
+   * the rung the client pays by name, a lower rung only where the
+   * client's agreement with the prime requires disclosure. Null where the
+   * name is withheld: the days count, the sub-vendor's name is the
+   * prime's to keep.
    */
   supplierName: string | null
 }
@@ -270,11 +273,29 @@ export async function tenureWarnings(
   const rows = await prisma.sellContract.findMany({
     where: { ...endClientFilter(companyId), state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
     select: {
-      personId: true, clientCompanyId: true, startDate: true, endDate: true, state: true,
+      id: true, personId: true, clientCompanyId: true, companyId: true, startDate: true, endDate: true, state: true,
       person: { select: { name: true } },
       company: { select: { name: true } },
     },
   })
+
+  // Whose name the program owner may read. The warning goes to the
+  // client, so a firm is named through lib/chain-names: the rung the
+  // client pays by name, a sub-vendor below it only where the client's
+  // agreement with that prime requires disclosure. A withheld firm's days
+  // still count; the firm is simply not listed.
+  const disclosureTerms = await prisma.masterAgreement.findMany({
+    where: { clientId: companyId },
+    select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+  })
+  const seenNames = namesForClient(
+    rows.map((r) => ({
+      id: r.id, personId: r.personId, companyId: r.companyId,
+      companyName: r.company.name, clientCompanyId: r.clientCompanyId,
+    })),
+    companyId,
+    (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, companyId, primeCompanyId)
+  )
 
   const personIds = [...new Set(rows.map((r) => r.personId))]
   await recordAccess(personIds, {
@@ -290,7 +311,10 @@ export async function tenureWarnings(
     rows.map((r) => ({
       personId: r.personId,
       personName: r.person.name,
-      supplierName: r.clientCompanyId === companyId ? r.company.name : null,
+      supplierName: (() => {
+        const seen = seenNames.get(r.companyId)
+        return seen && !seen.masked ? seen.name : null
+      })(),
       startDate: r.startDate,
       endDate: r.endDate,
       live: r.state !== 'ENDED',
