@@ -1,0 +1,128 @@
+/**
+ * One pass of the program manager's twin over one client program.
+ *
+ * The rules are regulatory's and money's; this only takes what they found
+ * and puts each finding through `act`, so every finding is one ledger
+ * entry and every act passes the role contract:
+ *
+ *   a person near or past the time limit   recorded, then the program
+ *                                          owner told — each once per
+ *                                          tier and limit day
+ *   an invoice receipt                     its verdict recorded; a
+ *                                          mismatch or a held receipt
+ *                                          told to the paying desk; a
+ *                                          clean receipt the three-way
+ *                                          check would pay put to a
+ *                                          person to approve
+ *
+ * Why a mismatched receipt is not put up for approval: approving one is
+ * refused by money's own three-way check (lib/invoice-match), which the
+ * tolerance does not loosen. Asking a person a question whose only
+ * possible yes is refused would be a card nobody can act on, so a
+ * mismatch is told to the desk that resolves it instead. Whether two per
+ * cent should also clear payment is with the founder.
+ *
+ * The numbers are the company's `RuleSet` (lib/twin/rule-set); the time
+ * limit and break stay its own governance rules.
+ */
+
+import { prisma } from '@/lib/db'
+import { tenureWarnings } from '@/lib/twin/rules/tenure'
+import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
+import { ruleSetFor } from '@/lib/twin/rule-set'
+import { act, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
+import { invoiceSupplierId } from '@/lib/twin/performers'
+
+/** The role the twin acts in, by its name on a client's roles. */
+export const PROGRAM_MANAGER_ROLE = 'Program Manager'
+
+/**
+ * The person whose seat the twin acts under. A desk nobody has named
+ * falls back rather than refusing (CLAUDE.md, Addendum E): with no
+ * Program Manager seated, the twin still records what it finds, on the
+ * authority of the role and no person, and the notices that need a
+ * person are refused in the ledger with the reason.
+ */
+export async function programManagerAt(companyId: string): Promise<Authority> {
+  const seat = await prisma.context.findFirst({
+    where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: PROGRAM_MANAGER_ROLE } },
+    orderBy: { id: 'asc' },
+    select: { personId: true, person: { select: { name: true } } },
+  })
+  return seat
+    ? { personId: seat.personId, role: PROGRAM_MANAGER_ROLE, personName: seat.person.name }
+    : { personId: null, role: `${PROGRAM_MANAGER_ROLE} (nobody seated)`, personName: null }
+}
+
+export interface RunSummary {
+  companyId: string
+  warnings: number
+  receipts: number
+  outcomes: Record<ActResult['outcome'], number>
+}
+
+export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
+  const surface = opts.surface ?? 'CRON'
+  const authority = await programManagerAt(companyId)
+  const rules = await ruleSetFor(companyId)
+  const outcomes: RunSummary['outcomes'] = { PERFORMED: 0, AWAITING_APPROVAL: 0, REFUSED: 0, ALREADY: 0, FAILED: 0 }
+  const tally = (r: ActResult) => { outcomes[r.outcome]++; return r }
+
+  // ── The time limit ──
+  const warnings = await tenureWarnings(companyId, { warnAtDays: rules.tenureWarnAtDays }, {
+    now: opts.now,
+    actor: { personId: authority.personId ?? undefined, companyId },
+  })
+  for (const w of warnings) {
+    const entity = { type: 'Person', id: w.personId, partyCompanyIds: [companyId] }
+    const payload = { tier: w.tier, daysOnSite: w.daysOnSite, daysToLimit: w.daysToLimit, limitOn: w.limitOn.toISOString(), capMonths: w.capMonths, suppliers: w.suppliers, ruleSetVersion: rules.version }
+    const recorded = tally(await act({
+      companyId, action: 'tenure.warning.record', entity, rule: w.ruleCited, rationale: w.rationale,
+      surface, authority, payload, dedupKey: w.key,
+    }))
+    if (recorded.outcome !== 'PERFORMED') continue
+    tally(await act({
+      companyId, action: 'tenure.warning.notify_program_owner', entity, rule: w.ruleCited, rationale: w.rationale,
+      surface, authority, dedupKey: w.key,
+      payload: { ...payload, title: w.tier === 'BREACH' ? `${w.personName} is at the time limit` : `${w.personName} is ${w.daysToLimit} days from the time limit` },
+    }))
+  }
+
+  // ── Invoice receipts ──
+  const verdicts = await pendingReceiptsFor(companyId, { hoursTolerancePct: rules.hoursTolerancePct, source: rules.source })
+  for (const v of verdicts) {
+    const supplier = await invoiceSupplierId(v.invoiceId)
+    const entity = { type: 'Invoice', id: v.invoiceId, partyCompanyIds: supplier ? [companyId, supplier] : [companyId] }
+    const payload = { number: v.number, supplierName: v.supplierName, verdict: v.verdict, payable: v.payable, failing: v.failing, ruleSetVersion: rules.version }
+    const key = `${v.invoiceId}:${v.verdict}`
+    const recorded = tally(await act({
+      companyId, action: 'invoice_receipt.record', entity, rule: v.ruleCited, rationale: v.rationale,
+      surface, authority, payload, dedupKey: key,
+    }))
+    if (recorded.outcome !== 'PERFORMED') continue
+    if (v.verdict !== 'CLEAN') {
+      tally(await act({
+        companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
+        surface, authority, payload, dedupKey: key,
+      }))
+    } else if (v.payable) {
+      tally(await act({
+        companyId, action: 'invoice_receipt.approve', entity, rule: v.ruleCited, rationale: v.rationale,
+        surface, authority, payload, dedupKey: v.invoiceId,
+      }))
+    }
+  }
+
+  return { companyId, warnings: warnings.length, receipts: verdicts.length, outcomes }
+}
+
+/** The client programs the nightly run reads: real or demo, never a census sandbox. */
+export async function programsToRun(take = 200): Promise<string[]> {
+  const rows = await prisma.company.findMany({
+    where: { kind: 'CLIENT', isCensusSandbox: false },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+    take,
+  })
+  return rows.map((r) => r.id)
+}

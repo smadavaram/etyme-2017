@@ -88,3 +88,45 @@ export function refusalSentence(
   }
   return `${what} is for the ${orList(desks)} desk${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
 }
+
+// ── The program manager's twin, refused ───────────────────────────────
+//
+// The twin is refused in the same kind of sentence a person is: what it
+// tried, why it may not, and who does it instead. Pure, like the rest of
+// this file; the twin's ledger (src/lib/twin/ledger.ts) writes the
+// refusal down before the sentence is returned.
+
+export type TwinRefusalWhy =
+  /** The role contract puts this act in the never tier. */
+  | 'NEVER'
+  /** The name is not in the twin's vocabulary at all. */
+  | 'UNKNOWN'
+  /** The entity is not one this company is a party to. */
+  | 'OTHER_COMPANY'
+  /** The twin asked for this itself. */
+  | 'OWN_DRAFT'
+  /** The person whose authority the twin acts on asked for it. */
+  | 'OWN_AUTHORITY'
+
+export function twinRefusal(args: {
+  why: TwinRefusalWhy
+  /** What it tried, as a phrase: "Release a payroll run." */
+  doing: string
+  /** The person whose authority it acts on, where there is one. */
+  authorityName?: string | null
+}): string {
+  const doing = args.doing.trim().replace(/\.$/, '')
+  const lower = doing.charAt(0).toLowerCase() + doing.slice(1)
+  switch (args.why) {
+    case 'NEVER':
+      return `The program manager’s twin may not ${lower}. Its role contract keeps that with a person, so it is on their list instead.`
+    case 'UNKNOWN':
+      return `The program manager’s twin was asked to do something its role contract does not name (${doing}). Anything not named is refused.`
+    case 'OTHER_COMPANY':
+      return 'The program manager’s twin works only on records its own company is a party to. This one belongs to another company, so it was not touched.'
+    case 'OWN_DRAFT':
+      return 'The program manager’s twin asked for this itself, so it cannot be the one to approve it. A person at the desk that decides it does.'
+    case 'OWN_AUTHORITY':
+      return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else at the desk that decides it does.`
+  }
+}

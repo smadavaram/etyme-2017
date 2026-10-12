@@ -32,6 +32,14 @@ model Person {
   accessedBy              AccessLog[]              @relation("subject")
   programSeatsGranted     ProgramSeat[]            @relation("seatGrantedBy")
   programSeatsRevoked     ProgramSeat[]            @relation("seatRevokedBy")
+  /// The twin's role contracts this person set, one row per version.
+  roleContractsSet        RoleContract[]           @relation("roleContractSetBy")
+  /// The twin's rule sets this person set, one row per version.
+  ruleSetsSet             RuleSet[]                @relation("ruleSetSetBy")
+  /// Twin acts done on the authority of this person's seat.
+  twinActsOnAuthority     TwinAction[]             @relation("twinAuthority")
+  /// Twin approvals this person decided.
+  twinApprovalsDecided    TwinApproval[]           @relation("twinApprover")
   benchWantsWritten       BenchWant[]              @relation("benchWantAuthor")
   benchWantsReceived      BenchWant[]              @relation("benchWantReceiver")
   benchHolidaySwitches    BenchHolidaySwitch[]     @relation("benchHolidaySubject")
@@ -472,6 +480,13 @@ model AccessLog {
   actorCompany   Company? @relation(fields: [actorCompanyId], references: [id])
   action         String // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
   allowed        Boolean  @default(true)
+  /// PERSON · TWIN. TWIN where a twin made the read on the authority of
+  /// `actorPersonId`'s seat, so the row carries both names: the person
+  /// whose authority it was, and the twin that used it (2026-10-12). The
+  /// grant it acted under is the twin's ledger entry, named in `reason`.
+  actorKind      String   @default("PERSON")
+  /// Which twin, where `actorKind` is TWIN — PROGRAM_MANAGER first.
+  actorTwinKind  String?
   reason         String? // why it was refused
   at             DateTime @default(now())
 
@@ -707,6 +722,10 @@ model Company {
   accessLogs            AccessLog[]
   programSeatsGranted   ProgramSeat[]           @relation("seatClient")
   programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
+  roleContracts         RoleContract[]
+  twinRuleSets          RuleSet[]
+  twinActions           TwinAction[]
+  twinApprovals         TwinApproval[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -6580,9 +6599,13 @@ model Event {
   /// Who did it. Null when nobody did — a cycle falling due has no actor.
   actorPersonId String?
   actorPerson   Person? @relation("eventActor", fields: [actorPersonId], references: [id])
-  /// PERSON · AUTOMATION · SERVICE — a service account is not a person
-  /// and an auditor needs to see which one moved the money.
+  /// PERSON · AUTOMATION · SERVICE · TWIN — a service account is not a
+  /// person and an auditor needs to see which one moved the money. TWIN
+  /// is a twin acting on the authority of `actorPersonId`'s seat
+  /// (2026-10-12), so the event names the person and the twin together.
   actorKind     String  @default("PERSON")
+  /// Which twin, where `actorKind` is TWIN — PROGRAM_MANAGER first.
+  actorTwinKind String?
 
   /// The facts of the event, enough to act on without reading the row it
   /// came from. Deliberately a blob: this is a log, and the shape of an
@@ -8179,4 +8202,242 @@ model CensusRead {
   @@index([fileId])
   @@index([readerEmail, at])
   @@index([actorPersonId])
+}
+
+// ─────────────────────────────────────────────
+// THE TWIN — a headless agent in a human role, governed as data
+// ─────────────────────────────────────────────
+//
+// Decided by the founder, 2026-10-12: a twin acts in the role of a
+// contingent-workforce program manager on the record that already
+// exists. Governance is the product, so three things are rows and not
+// prose: what the twin may do (`RoleContract`), what it did and why
+// (`TwinAction`), and the person who said yes or no where it had to ask
+// (`TwinApproval`). Nothing here is a second copy of a contract, a
+// timesheet or an invoice; every entry points at the record it is about.
+// The design is reports/Muse digital twin for Etyme.md. The one door is
+// `act` in src/lib/twin/ledger.ts — a twin act that does not pass
+// through it has no entry, and an act with no entry is not allowed.
+
+/// Which human role a twin acts in. One kind today, on purpose.
+enum TwinKind {
+  PROGRAM_MANAGER
+}
+
+/// Who wrote a ledger entry: the twin, a person deciding what it asked,
+/// or the platform itself.
+enum TwinActorType {
+  TWIN
+  PERSON
+  SYSTEM
+}
+
+/// Where the act or the answer came from.
+enum TwinSurface {
+  TEAMS
+  WEB
+  CRON
+}
+
+/// The three tiers of a role contract, as the system reads them.
+enum TwinTier {
+  ACTS_ALONE
+  NEEDS_APPROVAL
+  NEVER
+}
+
+/// What happened to one act: done, waiting on a person, refused, or
+/// turned down by the person asked.
+enum TwinOutcome {
+  PERFORMED
+  AWAITING_APPROVAL
+  REFUSED
+  REJECTED
+}
+
+enum TwinApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// What a company's twin may do alone, what it must ask for, and what it
+/// never touches — one version per row, never overwritten.
+///
+/// Each list holds action names from the twin's vocabulary
+/// (`TWIN_ACTS` in src/lib/autonomy.ts). An edit is a new row with the
+/// next version, who set it and why, so "what was the twin allowed to do
+/// on 3 March" is one query and never a guess. No row at all means the
+/// shipped default in src/lib/twin/role-contract.ts, which mirrors
+/// CLAUDE.md: reversible, rule-flagged things alone; money, external
+/// messages and anything irreversible asked for; payroll, signatures,
+/// placements and other companies' data never.
+model RoleContract {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  twinKind  TwinKind @default(PROGRAM_MANAGER)
+  /// 1, 2, 3 … per company and twin. The shipped default is version 0
+  /// and is not a row.
+  version   Int
+
+  actsAlone     String[]
+  needsApproval String[]
+  neverTouches  String[]
+
+  /// Who set it. Always a person, holding `settings.manage`.
+  setByPersonId String
+  setBy         Person   @relation("roleContractSetBy", fields: [setByPersonId], references: [id])
+  setAt         DateTime @default(now())
+  /// Why, in their words. Not optional: a widened grant with no reason
+  /// is the finding.
+  reason        String
+
+  actions TwinAction[]
+
+  @@unique([companyId, twinKind, version])
+  @@index([setByPersonId])
+}
+
+/// One line of the twin's ledger: one act, by whom, on whose authority,
+/// under which rule, and why, in words.
+///
+/// Append-only. Every act the twin attempts writes exactly one entry —
+/// performed, waiting for a person, or refused — and a person's answer to
+/// what the twin asked writes one more, pointing at the approval.
+model TwinAction {
+  id String   @id @default(cuid())
+  ts DateTime @default(now())
+
+  /// The company whose program the twin works in.
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  twinKind  TwinKind @default(PROGRAM_MANAGER)
+
+  actorType TwinActorType
+  /// The twin's name (its kind) where actorType is TWIN, the person's id
+  /// where PERSON, the job's name where SYSTEM.
+  actorId   String
+
+  /// The human role the twin acted under — "Program Manager" — and the
+  /// person whose seat that is. Both names on every row, so an auditor
+  /// can ask what this twin did for this person.
+  onAuthorityOfRole String
+  authorityPersonId String?
+  authorityPerson   Person? @relation("twinAuthority", fields: [authorityPersonId], references: [id])
+
+  /// The role contract in force when it acted. Null with version 0 means
+  /// the shipped default, because the company had not written one.
+  roleContractId      String?
+  roleContract        RoleContract? @relation(fields: [roleContractId], references: [id])
+  roleContractVersion Int           @default(0)
+
+  /// The tier the contract put this act in, and what happened.
+  tier    TwinTier
+  outcome TwinOutcome
+
+  /// A name from the twin's vocabulary (`TWIN_ACTS` in lib/autonomy).
+  action          String
+  entityType      String
+  entityId        String
+  /// Every company the entity concerns — the payer and the supplier on an
+  /// invoice receipt. A supplier's ledger feed is read through this at
+  /// the query, never filtered on a screen.
+  partyCompanyIds String[]
+
+  /// The rule it cited, by name, and the reason in plain English.
+  ruleCited String
+  rationale String
+  surface   TwinSurface
+
+  /// On a person's answer: the approval it answers.
+  approvalId String?
+  approval   TwinApproval? @relation("twinApprovalDecision", fields: [approvalId], references: [id])
+
+  /// What it acted on and what came back. A log, so a blob.
+  payload Json
+
+  /// A rule's own key for one finding — a person, a warning tier and a
+  /// limit day — so a daily run records a finding once, not once a day.
+  /// Null where the act has no such key.
+  dedupKey String?
+
+  /// The approval this entry asked for, where it asked for one.
+  approvalRequested TwinApproval? @relation("twinApprovalRequest")
+
+  @@unique([companyId, action, dedupKey])
+  @@index([companyId, ts])
+  @@index([authorityPersonId])
+  @@index([roleContractId])
+  @@index([approvalId])
+  @@index([entityType, entityId])
+}
+
+/// A question the twin put to a person, and the person's answer.
+///
+/// Bound to one ledger entry — this invoice receipt, this supplier — so a
+/// yes is an answer to one question and never a standing permission.
+model TwinApproval {
+  id String @id @default(cuid())
+
+  /// The entry that asked.
+  twinActionId String     @unique
+  twinAction   TwinAction @relation("twinApprovalRequest", fields: [twinActionId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The desk that may answer, as the permission the act needs —
+  /// `payments.record` for an invoice receipt.
+  needsPermission String
+
+  requestedAt DateTime @default(now())
+
+  approverPersonId   String?
+  approver           Person?              @relation("twinApprover", fields: [approverPersonId], references: [id])
+  decision           TwinApprovalDecision @default(PENDING)
+  decidedAt          DateTime?
+  /// Where the answer came from; null while nobody has answered.
+  surface            TwinSurface?
+  reasonFromApprover String?
+
+  /// The entry recording the answer.
+  decisions TwinAction[] @relation("twinApprovalDecision")
+
+  @@index([companyId, decision])
+  @@index([approverPersonId])
+}
+
+/// The numbers a company sets for the twin's rules, one version per row,
+/// never overwritten.
+///
+/// Only the numbers that are the twin's own. The time limit and the
+/// break stay the client's TENURE_CAP and BREAK_IN_SERVICE governance
+/// rules, which every door already reads; a second copy here would be
+/// two places for one fact. The rate band has no knob on purpose: it is
+/// the contract's rate (src/lib/twin/rules/invoice.ts says why). No row
+/// means the shipped defaults in src/lib/twin/rule-set.ts.
+model RuleSet {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// 1, 2, 3 … per company. The shipped defaults are version 0 and not a row.
+  version   Int
+
+  /// Days before the time limit at which the twin warns, widest first.
+  tenureWarnAtDays  Int[]
+  /// How far billed hours may sit from accepted hours before the twin
+  /// raises an invoice receipt to a person, in basis points (200 = 2%).
+  /// It decides what is raised, never what is paid.
+  hoursToleranceBps Int
+
+  setByPersonId String
+  setBy         Person   @relation("ruleSetSetBy", fields: [setByPersonId], references: [id])
+  setAt         DateTime @default(now())
+  reason        String
+
+  @@unique([companyId, version])
+  @@index([setByPersonId])
 }

@@ -63,6 +63,9 @@ export const DOMAINS: Domain[] = [
       'difference between attesting that a check happened and declaring a person fit.',
     l2: ['L2.2.3', 'L2.7.1', 'L2.7.3', 'L2.7.4'],
     owns: [
+      // The job twin's time-limit rule and its one demo contractor (2026-10-12).
+      // The twin's door is the architect's (lib/twin); the rule is regulatory's.
+      'lib/twin/rules/tenure', 'lib/twin/seed-tenure-demo',
       'app/dashboard/governance', 'app/dashboard/tenure', 'app/dashboard/blacklist',
       'app/api/governance', 'app/api/tenure', 'app/api/blacklist', 'app/api/bar',
       'app/api/roles', 'app/api/documents', 'app/api/document-shares',
@@ -140,6 +143,9 @@ export const DOMAINS: Domain[] = [
       'has actually been paid. Refuses to show a number it cannot stand behind.',
     l2: ['L2.4.1', 'L2.4.2', 'L2.4.3', 'L2.5.1', 'L2.5.2', 'L2.5.3', 'L2.6.1', 'L2.6.2'],
     owns: [
+      // The job twin's invoice-receipt rule and its three demo receipts
+      // (2026-10-12). The twin's door is the architect's (lib/twin).
+      'lib/twin/rules/invoice', 'lib/twin/seed-demo',
       'app/dashboard/rate-history', 'app/dashboard/reports',
       'app/api/rate-history', 'app/api/holidays',
       // The whole contracts API, activation included. Settled 2026-09-17
@@ -346,8 +352,12 @@ export const DOMAINS: Domain[] = [
       'The things every domain depends on and none of them may change alone: the ' +
       'schema, the database client, authentication, company identity, the design ' +
       'system, and the agent loop itself.',
-    l2: ['L2.1.5', 'L2.2.2', 'L2.6.3'],
+    l2: ['L2.1.5', 'L2.2.2', 'L2.6.3', 'L2.7.6'],
     owns: [
+      // The job twin's door (2026-10-12): the role contract, the rule set,
+      // the ledger, the performers and the routes. The rules under
+      // lib/twin/rules are the domains whose arithmetic they are.
+      'lib/twin', 'app/api/twin',
       'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
       'app/(auth)',
       'app/api/settings', 'app/api/imports', 'app/api/integrations',
@@ -639,6 +649,15 @@ export const SHARED: string[] = [
  */
 export const TEST_FOLDERS: string[] = ['__tests__/', '__integration__/']
 
+/**
+ * Files every builder appends to, each under its own heading. Started
+ * 2026-10-12 with the job twin: `KNOWN-LIMITS.md` lists every shortcut
+ * and untested path, and a shortcut is known first by whoever took it.
+ * The same rule as the test folders: write your own section, never edit
+ * another domain's.
+ */
+export const OPEN_TO_BUILDERS: string[] = ['KNOWN-LIMITS.md']
+
 export function isTest(path: string): boolean {
   const p = path.replace(/^\.?\/?/, '')
   return TEST_FOLDERS.some((t) => p.startsWith(t))
@@ -692,6 +711,13 @@ export function mayWrite(agent: string, path: string): Verdict {
             `${path} is shared and changes to it serialize through the architect. ` +
             `Say what you need and why; do not edit it.`,
         }
+  }
+
+  if (OPEN_TO_BUILDERS.includes(path.replace(/^\.?\/?/, ''))) {
+    const builder = agent === 'etyme-architect' || DOMAINS.some((d) => d.agent === agent)
+    return builder
+      ? { mayWrite: true, owner: null, says: `${path} is open to every builder. Add to your own section; never edit another domain's.` }
+      : { mayWrite: false, owner: null, says: `${path} is written by builders; ${agent} reads.` }
   }
 
   if (isTest(path)) {

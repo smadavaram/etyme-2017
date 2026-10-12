@@ -37,6 +37,8 @@ import { prisma as db } from '@/lib/db'
 import { renameRetiredFirms } from '@/lib/seed-renames'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES } from '@/lib/seed-programmes'
+import { seedTenureDemo } from '@/lib/twin/seed-tenure-demo'
+import { seedTwinInvoiceDemo } from '@/lib/twin/seed-demo'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
 import { anchorSeed, day, at, seedPlanYear } from '@/lib/seed-days'
 import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
@@ -1540,6 +1542,19 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       counts.people += programs.people
     })
   }
+
+  // ── The job twin's demo at Northbend Athletic, 2026-10-12 ──────────
+  //
+  // One contractor sixty days from the time limit (regulatory's) and two
+  // more invoice receipts from Pinnacle, one clean and one with an hours
+  // mismatch (money's). Both read the world the programs just wrote and
+  // write nothing on a second run.
+  await step('twin-tenure-demo', async () => {
+    await seedTenureDemo({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+  })
+  await step('twin-invoice-demo', async () => {
+    await seedTwinInvoiceDemo()
+  })
 
   // ── A program office in a seat, at one of the three programs ───────
   //

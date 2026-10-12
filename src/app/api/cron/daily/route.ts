@@ -50,6 +50,9 @@ const JOBS = [
   { path: 'bench-stays', does: 'ends the bench stays people chose that have run out, and reminds them before one does' },
   { path: 'proactive-match', does: 'looks for people worth putting forward' },
   { path: 'freshness-ping', does: 'asks the bench whether they are still looking' },
+  // After end-contracts and the cycle jobs, so the time limit and the
+  // invoice receipts it reads are tonight's.
+  { path: 'twin', does: 'has the program manager\u2019s twin read each client program and record, tell or ask about what it finds' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },
   { path: 'watch', does: 'runs the saved watches' },
   { path: 'reap-demos', does: 'removes visitors\u2019 demo sandboxes nobody used for thirty days, and warns a week before' },

@@ -307,6 +307,38 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     says:
       'A deadline passed with no notice recorded against it. It is said out loud, every night, until somebody records the notice or closes the breach — a missed clock that stops being mentioned is a missed clock nobody fixes.',
   },
+
+  // ── The program manager's twin, 2026-10-12 ───────────────────────────
+  //
+  // A twin is a headless agent working in a human role under a role
+  // contract (src/lib/twin). Its own ledger (`TwinAction`) holds the
+  // detail — which act, on whose authority, under which rule. These rows
+  // are the same acts on the ladder, so a buyer asking "how autonomous is
+  // your agent" reads the same levels as for everything else.
+  TWIN_NOTED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin read the record and wrote what it found into its own ledger — a time-limit warning, once per tier. It told nobody and changed nothing.',
+  },
+  TWIN_TOLD: {
+    rung: 'L0',
+    basis: 'RECORDED',
+    says:
+      'The program manager\u2019s twin told a person at its own company something the record shows — a check that did not match, a reminder, a time-limit warning. It changed nothing on the record, and a message once sent cannot be unsent.',
+  },
+  TWIN_DREW_UP: {
+    rung: 'L2',
+    basis: 'RECORDED',
+    says:
+      'The program manager\u2019s twin wrote up a summary and left it in its ledger for a person to read. Nothing on the record moved; the draft is all it did.',
+  },
+  TWIN_APPROVAL_REQUESTED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin would have done something its role contract keeps for a person, so it asked the desk that decides and waited. Nothing happens unless that person says yes.',
+  },
 }
 
 // ── The things that are governance, not autonomy ─────────
@@ -367,6 +399,15 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says:
       'A non-disclosure agreement this line requires is still unsigned, and the start proceeds with the reason captured and whoever owes the signature told. It warns rather than blocks because a signature page is contractual rather than legally grounded, and a system that stops work over one gets worked around by email.',
+  },
+  // The twin asked to do something its role contract never allows, or
+  // something it may not do because it asked for it itself. Refused in a
+  // sentence and kept, like any other refusal.
+  TWIN_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin tried something its role contract never allows — releasing pay, signing an agreement, deciding a placement, reading another company\u2019s data, or approving what it asked for itself — and was refused in a sentence. The refusal is aimed at the twin, and it is kept like any other.',
   },
 }
 
@@ -468,6 +509,15 @@ ATTRIBUTED.CENSUS_DELIVERED = { basis: 'RECORDED' }
 // rather than recorded, so no row of that kind exists.
 ATTRIBUTED.DOCUMENT_REQUIREMENT_SET = { basis: 'RECORDED' }
 ATTRIBUTED.DOCUMENT_REQUIREMENT_WAIVED = { basis: 'RECORDED' }
+
+// The twin's three person rows, 2026-10-12 (src/lib/twin). A person
+// answered what the twin asked — yes, and the act was done on that yes,
+// or no — or a person rewrote what the twin may do. Each is a person's
+// own act; the twin's part is its own row above.
+ATTRIBUTED.TWIN_ACT_APPROVED = { basis: 'RULE' }
+ATTRIBUTED.TWIN_ACT_REJECTED = { basis: 'RULE' }
+ATTRIBUTED.TWIN_ROLE_CONTRACT_SET = { basis: 'RULE' }
+ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 
 ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
@@ -621,6 +671,136 @@ export const PLANNED: Record<string, PlannedAct> = {
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
 
+// ── What a twin may be asked to do ───────────────────
+//
+// The twin's action vocabulary (2026-10-12). A role contract
+// (`RoleContract`) puts each of these names in one of three tiers —
+// acts alone, needs approval, never — and `tierOf` in
+// src/lib/twin/role-contract.ts reads it. What is here is a property of
+// the act itself, the same on every contract: whether it moves money,
+// whether it leaves the company, whether it can be put back, and which
+// desk decides it when a person has to.
+//
+// `floor` acts never leave the never tier, whatever a contract says.
+// They are the ones CLAUDE.md and the law keep with a person: pay,
+// signatures, who is placed and who is let go, another company's data,
+// and deciding what the twin itself asked for. A company may tighten
+// anything; it may not loosen these.
+//
+// These are not automation-log names. What the twin did lands in the
+// automation log under the TWIN_ names above, by outcome; the act's own
+// name — dotted and lower case, so the two are never confused — is in
+// the twin's ledger.
+
+export interface TwinAct {
+  /** What it is, for the person reading a role contract. */
+  says: string
+  /** Moves money, or decides whether money moves. Never acts alone. */
+  money: boolean
+  /** Speaks to somebody outside the twin's own company. Never acts alone. */
+  external: boolean
+  /** Can the record be put back afterwards. Irreversible never acts alone. */
+  reversible: boolean
+  /** Decides something somebody asked for — the segregation rule applies. */
+  decides: boolean
+  /** Prepares something a person may later decide. */
+  drafts: boolean
+  /** Never leaves the never tier. */
+  floor: boolean
+  /** The permission of the desk that answers when the act needs approval. */
+  approverNeeds?: string
+  /** Where it acts alone: which automation-log rung it is recorded at. */
+  alone?: 'NOTED' | 'TOLD' | 'DREW_UP'
+}
+
+export const TWIN_ACTS: Record<string, TwinAct> = {
+  // ── Alone, by default ──
+  'tenure.warning.record': {
+    says: 'Write a time-limit warning into the twin\u2019s ledger. It tells nobody and changes nothing about the person.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'NOTED',
+  },
+  'tenure.warning.notify_program_owner': {
+    says: 'Tell the program owner, inside the client, that somebody is nearing or past the time limit. It does not clear or silence the warning.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'TOLD',
+  },
+  'invoice_receipt.record': {
+    says: 'Write the twin\u2019s verdict on an invoice receipt — clean, a mismatch, or held — into its ledger. It tells nobody and changes nothing.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'payments.record', alone: 'NOTED',
+  },
+  'invoice_receipt.flag_mismatch': {
+    says: 'Tell the desk that pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'payments.record', alone: 'TOLD',
+  },
+  'reminder.send': {
+    says: 'Remind a person at this company that something is waiting on them.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'TOLD',
+  },
+  'summary.draft': {
+    says: 'Write up a summary for a person to read. It changes nothing on the record.',
+    money: false, external: false, reversible: false, decides: false, drafts: true, floor: false,
+    approverNeeds: 'governance.read', alone: 'DREW_UP',
+  },
+  // ── Asked for, by default ──
+  'invoice_receipt.approve': {
+    says: 'Approve a supplier\u2019s invoice receipt that cleared the three-way check, so it can be paid.',
+    money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
+    approverNeeds: 'payments.record',
+  },
+  'tenure.warning.notify_supplier': {
+    says: 'Write to the supplier whose person is nearing or past the client\u2019s time limit.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'vendors.manage',
+  },
+  // ── Never ──
+  'payroll.release': {
+    says: 'Release a payroll run.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'agreement.sign': {
+    says: 'Sign an agreement, an order or a contract on the company\u2019s behalf.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.award': {
+    says: 'Choose who is placed on a job.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'submission.reject': {
+    says: 'Turn a candidate down.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.end': {
+    says: 'End somebody\u2019s placement.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.extend': {
+    says: 'Extend somebody\u2019s placement past its end date.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'alumni.ask_back': {
+    says: 'Ask somebody back after they left.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'other_company.read': {
+    says: 'Read another company\u2019s data.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: true,
+  },
+  'approval.decide': {
+    says: 'Answer a question the twin itself put to a person.',
+    money: false, external: false, reversible: false, decides: true, drafts: false, floor: true,
+  },
+}
+
+export const ALL_TWIN_ACTS: string[] = Object.keys(TWIN_ACTS).sort()
+
+export function isTwinAct(name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(TWIN_ACTS, name)
+}
+
 // ── The whole inventory ──────────────────────────────
 
 export const ACTIONS: Record<string, Act> = {}
@@ -679,6 +859,13 @@ export const JOBS: Record<string, Job> = {
     basis: 'RULE',
     says: 'Reads which cycles fall due inside a week and tells somebody. Changes nothing.',
     writes: ['DUE_CYCLES_SCAN'],
+  },
+  twin: {
+    job: 'twin',
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the paying desk, and asks a person before anything is approved. Everything it does goes through its role contract, and it writes its own rows from there rather than from this job.',
+    writes: [],
   },
   'visa-watch': {
     job: 'visa-watch',

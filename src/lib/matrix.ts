@@ -1843,7 +1843,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/invoice-one-door.test.ts', '__tests__/invariants/what-we-owe.test.ts',
             '__tests__/invariants/billed-elsewhere.test.ts'] },
         { code: 'L3.5.2.2', name: 'Three-way match', owner: 'AP clerk', status: B,
-          tasks: ['A check is waived only by the firm being asked to pay, at a desk that pays, judged by the seat; the invoice is found only in the reader\u2019s own books', 'Pay, the pay form and Place it are drawn only for a seat whose desk pays, judged by the seat; anybody else reads what is owed and who pays it', 'BUILT 2026-09-30 by etyme-money, founder (\u201cI can\u2019t see anything about the job except the title \u2014 how can anyone approve such content\u201d): a row the client is asked to pay shows who worked, on what job, the hours signed against the hours billed, the check in words (\u201cMatches the signed hours and the contract rate\u201d or \u201cBills 40 h; 38 h were signed\u201d), the order with what is left on it, the due date and status, and Pay only where the check passed and the supplier submitted it, beside Ask the supplier; its page says the same per person-week (lib/money/receipt-read). Nothing is paid that does not pass the check at the moment it is paid. BUILT the same day: Hold with a reason \u2014 only the paying desk, only from submitted or part paid, a reason required, the supplier told who and why, nothing paid until the hold is lifted (lib/money/invoice-hold, POST /api/invoices/:id/hold)', 'PO, receipt of work, invoice', 'Tolerance and exception queue', 'Exceptions routed to the AP desk',
+          tasks: ['A check is waived only by the firm being asked to pay, at a desk that pays, judged by the seat; the invoice is found only in the reader\u2019s own books', 'Pay, the pay form and Place it are drawn only for a seat whose desk pays, judged by the seat; anybody else reads what is owed and who pays it', 'BUILT 2026-09-30 by etyme-money, founder (\u201cI can\u2019t see anything about the job except the title \u2014 how can anyone approve such content\u201d): a row the client is asked to pay shows who worked, on what job, the hours signed against the hours billed, the check in words (\u201cMatches the signed hours and the contract rate\u201d or \u201cBills 40 h; 38 h were signed\u201d), the order with what is left on it, the due date and status, and Pay only where the check passed and the supplier submitted it, beside Ask the supplier; its page says the same per person-week (lib/money/receipt-read). Nothing is paid that does not pass the check at the moment it is paid. BUILT the same day: Hold with a reason \u2014 only the paying desk, only from submitted or part paid, a reason required, the supplier told who and why, nothing paid until the hold is lifted (lib/money/invoice-hold, POST /api/invoices/:id/hold)', 'PO, receipt of work, invoice', 'BUILT 2026-10-12 (etyme-money), as the job twin\u2019s surfacing layer: Tolerance and exception queue \u2014 a receipt is clean, a mismatch or held, read off the three-way check, with the company\u2019s hours tolerance deciding only what the twin raises, never what is paid (src/lib/twin/rules/invoice.ts). The twin records each verdict, tells the paying desk of a mismatch and asks a person before a clean receipt is approved (src/lib/twin/run.ts)', 'Exceptions routed to the AP desk',
             'A premium somebody signed is read from the decision, not called bad arithmetic',
             'A bill for part of a billing period passes \u2014 the receipt is the signed week, and three signed weeks inside one August are a part-period bill, not a period the contract does not have',
             'A bill whose dates cross from one billing period into the next fails, and the sentence names the period it spilled out of so somebody can split it',
@@ -1851,10 +1851,10 @@ export const MATRIX: L1[] = [
             'The receipt behind a bill upward is the payer\u2019s own signature, never the timesheet\u2019s status, so a bill is not held for the rungs below it; the hours are checked against the payer\u2019s accepted hours',
             'A week the paying firm has not accepted fails the receipt check, which nobody can waive, in a sentence naming the week and who must accept it',
             'FIXED 2026-10-03 by etyme-money, client tester: every check names its dates the way a clerk writes them (\u201cAug 31, 2026\u201d), and a bill of one line says \u201cThe one line is backed\u201d, never \u201cAll 1 lines\u201d'],
-          implementedBy: ['src/app/api/invoices/[id]/match/override/route.ts', 'src/lib/money/books-view.ts', 'src/lib/money/pay-desk.ts', 'src/app/dashboard/ar/page.tsx', 'src/lib/money/invoice-hold.ts', 'src/app/api/invoices/[id]/hold/route.ts', 'src/lib/money/receipt-read.ts', 'src/app/api/invoices/route.ts', 'src/app/api/invoices/[id]/route.ts', 'src/app/api/invoices/[id]/payments/route.ts', 'src/app/dashboard/invoices/page.tsx', 'src/lib/three-way-match.ts', 'src/lib/invoice-match.ts', 'src/app/api/ap/bills/route.ts',
+          implementedBy: ['src/lib/twin/rules/invoice.ts', 'src/lib/twin/seed-demo.ts', 'src/app/api/invoices/[id]/match/override/route.ts', 'src/lib/money/books-view.ts', 'src/lib/money/pay-desk.ts', 'src/app/dashboard/ar/page.tsx', 'src/lib/money/invoice-hold.ts', 'src/app/api/invoices/[id]/hold/route.ts', 'src/lib/money/receipt-read.ts', 'src/app/api/invoices/route.ts', 'src/app/api/invoices/[id]/route.ts', 'src/app/api/invoices/[id]/payments/route.ts', 'src/app/dashboard/invoices/page.tsx', 'src/lib/three-way-match.ts', 'src/lib/invoice-match.ts', 'src/app/api/ap/bills/route.ts',
             'src/app/api/invoices/[id]/match/route.ts', 'src/app/dashboard/ap/page.tsx',
             'src/app/dashboard/invoices/[id]/page.tsx', 'src/app/api/decisions/route.ts'],
-          testedBy: ['__integration__/waive-a-check.test.ts', '__tests__/invariants/pay-desk.test.ts', '__tests__/invariants/invoice-hold.test.ts', '__integration__/invoice-hold.test.ts', '__tests__/invariants/receipt-read.test.ts', '__integration__/seat-pays.test.ts', '__tests__/invariants/three-way-match.test.ts', '__tests__/invariants/vendor-bill-match.test.ts',
+          testedBy: ['__tests__/invariants/twin-invoice-rule.test.ts', '__integration__/waive-a-check.test.ts', '__tests__/invariants/pay-desk.test.ts', '__tests__/invariants/invoice-hold.test.ts', '__integration__/invoice-hold.test.ts', '__tests__/invariants/receipt-read.test.ts', '__integration__/seat-pays.test.ts', '__tests__/invariants/three-way-match.test.ts', '__tests__/invariants/vendor-bill-match.test.ts',
             '__tests__/invariants/money-moves.test.ts', '__tests__/invariants/invoice-overtime.test.ts',
             '__tests__/invariants/partial-period-bill.test.ts', '__tests__/invariants/match-in-words.test.ts',
             '__integration__/seat-pays.test.ts',
@@ -2082,7 +2082,7 @@ export const MATRIX: L1[] = [
     groups: [
       { code: 'L2.7.1', name: 'Workforce risk', domain: 'REGULATORY', processes: [
         { code: 'L3.7.1.1', name: 'Tenure and co-employment', owner: 'Compliance', status: B,
-          tasks: ['Aggregated across every supplier', 'Break in service and eligibility date',
+          tasks: ['BUILT 2026-10-12 (etyme-regulatory), the job twin\u2019s time-limit rule: warnings at 90, 60 and 30 days and a breach, read off the same standing every door reads, each citing the days, the suppliers and the date; the twin records and tells the program owner alone, asks before telling a supplier, and never ends, extends or asks anybody back. Northbend holds Tobias Lindqvist sixty days from the limit on the day the world is born', 'Aggregated across every supplier', 'Break in service and eligibility date',
             'Somebody past the time limit reads the real share of it and how far past \u2014 740 days against eighteen months is 135% and over the limit by 6 months, never a bar-stopped 100% \u2014 counted in the days the block counts',
             'The day somebody may come back reads as a person says it, and the page says time limit and every supplier rather than tenure cap, cross-vendor or exposure',
             'The day somebody reaches the time limit is named, counted the way the block counts it, and a running contract booked past it is flagged in a sentence',
@@ -2091,11 +2091,11 @@ export const MATRIX: L1[] = [
             'OWED BY etyme-regulatory, found 2026-10-06: lib/governance defaults maxMonths to 18 and breakDays to 30 when a rule row lacks the key, while the ledger and alumni read them as stored \u2014 a rule row without the key would make the award and the ledger disagree. One reading of the rule\u2019s parameters for every door',
             'BUILT 2026-10-06, client tester 6.3 (Luc\u00eda Fern\u00e1ndez, 426 of 548 days, a contract to Sep 3, 2027): a line booked past the day the person reaches the client\u2019s time limit is refused in a sentence naming the date \u2014 endsPastLimit in lib/governance over bookedPastLimit in lib/tenure-days, counted across every supplier, a chain counted once, a break the client requires resetting the count even when it is still ahead; a WARN rule warns with a reason, never silent. The ledger says the contract already running past it and what to do: \u201cShorten it or plan the break.\u201d DONE 2026-10-06 by etyme-money: the call at POST /api/contracts and [id]/extend. OPEN for etyme-demand, in progress: the award. The same sentence on the placement page is built, below',
             'BUILT 2026-10-06 (etyme-architect): the placement says it too \u2014 a live line that runs past the person\u2019s time-limit day reads runsPastSentence under the start, the day read through endsPastLimit with the line standing as itself, the firm named only where the reader may name it'],
-          implementedBy: ['src/app/api/tenure/route.ts', 'src/app/dashboard/tenure/page.tsx',
+          implementedBy: ['src/lib/twin/rules/tenure.ts', 'src/lib/twin/seed-tenure-demo.ts', 'src/app/api/tenure/route.ts', 'src/app/dashboard/tenure/page.tsx',
             'src/lib/tenure-days.ts', 'src/app/dashboard/tenure/words.ts', 'src/lib/governance.ts',
             'src/app/api/alumni/route.ts', 'src/app/api/alumni/ask-back/route.ts', 'src/app/api/alumni/ask-back-standing.ts',
             'src/app/api/placements/[id]/route.ts', 'src/app/dashboard/placements/[id]/page.tsx'],
-          testedBy: ['__tests__/invariants/signup-round-4-supply.test.ts', '__tests__/invariants/tenure.test.ts', '__tests__/invariants/time-limit-overrun.test.ts',
+          testedBy: ['__tests__/invariants/twin-tenure-rule.test.ts', '__tests__/invariants/signup-round-4-supply.test.ts', '__tests__/invariants/tenure.test.ts', '__tests__/invariants/time-limit-overrun.test.ts',
             '__integration__/compliance-sees-the-held-start.test.ts', '__tests__/invariants/time-limit-day.test.ts',
             '__tests__/invariants/time-limit-standing.test.ts', '__integration__/time-limit-one-answer.test.ts',
             '__tests__/invariants/alumni-ask-back.test.ts', '__integration__/alumni-ask-back.test.ts',
@@ -2492,6 +2492,36 @@ export const MATRIX: L1[] = [
       // the reason it was set aside, and an offer excluded on principle —
       // the master-vendor model below — is re-proposed by somebody who
       // never heard that it was excluded at all.
+      // The job twin, decided by the founder 2026-10-12 (CLAUDE.md, "The
+      // job twin"). PARTIAL, not BUILT: the door, the ledger, the role
+      // contract, the approval route and the nightly run exist and are
+      // tested, and there is no screen and no Teams card yet. A row that
+      // said BUILT because the routes answer would be the thing this
+      // matrix exists to catch.
+      { code: 'L2.7.6', name: 'The program manager\u2019s twin', domain: 'PLATFORM', processes: [
+        { code: 'L3.7.6.1', name: 'Role contract, ledger and approval', owner: 'Program manager', status: P,
+          tasks: [
+            'DONE: A role contract per company in three tiers \u2014 acts alone, needs approval, never \u2014 stored as versions, never overwritten, each change with who and why on the automation log; with none written, a shipped default that keeps money, outside messages and anything irreversible for a person \u2014 src/lib/twin/role-contract.ts, src/app/api/twin/role-contract/route.ts',
+            'DONE: Pay, signatures, who is placed or let go, another company\u2019s data and answering its own questions never leave the never tier, whatever a contract says; money and outside messages never act alone \u2014 src/lib/twin/role-contract.ts, TWIN_ACTS in src/lib/autonomy.ts',
+            'DONE: No twin act without a ledger entry: one door (act) reads the contract and refuses in a sentence, asks the desk that decides, or does it, and writes exactly one entry naming the twin, the role and person it acted under, the rule and the reason \u2014 the record\u2019s writes, the entry and the automation-log row in one transaction \u2014 src/lib/twin/ledger.ts, src/lib/twin/performers.ts',
+            'DONE: A ledger write that fails is reported to staff and the act is not done; a refusal whose entry failed still stands \u2014 src/lib/twin/ledger.ts',
+            'DONE: A person answers what the twin asked from one route the web and Teams both call; only the desk the act needs, never the person on whose authority the twin asked, and the record is checked again before a yes is done \u2014 src/app/api/twin/approvals/[id]/route.ts',
+            'DONE: The ledger is scoped at the query: the program owner reads all, a supplier only entries about its own records, without the payload \u2014 src/app/api/twin/ledger/route.ts',
+            'DONE: The numbers the twin\u2019s rules run on are a company rule set, versioned \u2014 src/lib/twin/rule-set.ts, src/app/api/twin/rule-set/route.ts',
+            'DONE: Every night the twin reads each client program, records each time-limit warning and invoice-receipt verdict once, tells the program owner and the paying desk, and asks before a receipt is approved \u2014 src/lib/twin/run.ts, src/app/api/cron/twin/route.ts',
+            'OPEN, ARCHITECT: The Teams card and bot route; the screens for the ledger, the questions waiting and the contract editor. Nothing a person can click yet.',
+            'OPEN, REGULATORY: The access log and the event stream do not yet write the twin as an actor \u2014 the columns exist (AccessLog.actorKind, actorTwinKind; Event.actorTwinKind) and lib/access-log and lib/events must carry them. Until then a twin\u2019s read is filed under the program owner, with the twin named in the reason.',
+            'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
+          ],
+          implementedBy: [
+            'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts', 'src/lib/twin/performers.ts',
+            'src/lib/twin/rule-set.ts', 'src/lib/twin/run.ts', 'src/lib/autonomy.ts', 'src/lib/refusal-words.ts',
+            'src/app/api/twin/approvals/[id]/route.ts', 'src/app/api/twin/ledger/route.ts',
+            'src/app/api/twin/role-contract/route.ts', 'src/app/api/twin/rule-set/route.ts',
+            'src/app/api/cron/twin/route.ts', 'prisma/schema.prisma',
+          ],
+          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts'] },
+      ]},
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
         // It had no implementedBy while it was NONE, on purpose, and the
         // matrix test rightly refuses a NONE row that names files: the
