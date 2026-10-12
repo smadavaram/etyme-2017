@@ -51,6 +51,13 @@ export interface NavItem {
   t: string
   d?: string
   href: string
+  /**
+   * A section of the home page rather than a page: drawn only in the home
+   * page's own header, where `href` is a bare anchor on the same page.
+   * Away from the home page the item is not drawn, because there it would
+   * land a reader in the middle of another page (the rule of 2026-09-30).
+   */
+  homeOnly?: boolean
 }
 
 export interface NavGroup {
@@ -105,6 +112,24 @@ export const PRODUCT_STAGES: NavGroup[] = STEPS.map((s) => ({
   heading: `Step ${s.n} · ${s.name}`,
   items: [s.route, ...s.more].map((href) => ({ ...PART[href], href })),
 }))
+
+/**
+ * The home page's section on specialist teams around the world, under
+ * Platform. Decided by the founder, 2026-10-12, with the prototype he
+ * approved: "Add a menu entry … under Platform". It is a band of the home
+ * page and has no page of its own, so it is drawn only in the home page's
+ * header (see `homeOnly`). Its line claims only what
+ * `lib/packet-derivation` does by country.
+ */
+export const AROUND_THE_WORLD: NavGroup = {
+  heading: 'Around the world',
+  items: [{
+    t: 'Specialist teams around the world',
+    d: 'People in many countries on one record, with each country’s paperwork asked for by its own rules.',
+    href: '#specialist-teams',
+    homeOnly: true,
+  }],
+}
 
 /** The eight parts in the order of the four steps. */
 export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
@@ -177,7 +202,7 @@ export const SPEND_AUDIT: NavItem = {
  * menus carried is in the phone sheet and the footer.
  */
 export const NAV_MENUS: NavMenu[] = [
-  { label: 'Platform', href: { home: '#platform', away: '/requisitions' }, groups: PRODUCT_STAGES },
+  { label: 'Platform', href: { home: '#platform', away: '/requisitions' }, groups: [...PRODUCT_STAGES, AROUND_THE_WORLD] },
   { label: 'Solutions', href: { home: '#solutions', away: '/docs/process' }, groups: [{ heading: 'By desk', items: ROLES }] },
 ]
 
@@ -205,6 +230,16 @@ export const PRIMARY = GET_THE_AUDIT
 /** Every item in one menu, across its groups. */
 export function itemsOf(menu: NavMenu): NavItem[] {
   return menu.groups.flatMap((g) => g.items)
+}
+
+/**
+ * The groups of one menu as a header draws them: on the home page every
+ * item; anywhere else, the items that are pages, and no group left empty.
+ */
+export function groupsShown(menu: NavMenu, onHome: boolean): NavGroup[] {
+  return menu.groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => onHome || !i.homeOnly) }))
+    .filter((g) => g.items.length > 0)
 }
 
 export interface FooterGroup {

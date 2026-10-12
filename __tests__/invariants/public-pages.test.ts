@@ -432,7 +432,11 @@ describe('One header and footer on every new page', () => {
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
     expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
-    expect(NAV_MENUS[0].groups).toBe(PRODUCT_STAGES)
+    // Platform is the four steps, and since 2026-10-12 one more entry, the
+    // home page's band on specialist teams around the world, drawn only on
+    // the home page (see positioning.test.ts).
+    expect(NAV_MENUS[0].groups.slice(0, 4)).toEqual(PRODUCT_STAGES)
+    expect(NAV_MENUS[0].groups.slice(4).map((g) => g.heading)).toEqual(['Around the world'])
     expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By desk'])
     expect(itemsOf(NAV_MENUS[1])).toEqual(ROLES)
     // Every item in a menu says what it is in one line under its name.

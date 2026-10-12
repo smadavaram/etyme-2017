@@ -79,7 +79,7 @@ describe('One ladder, named once', () => {
     expect(PRIMARY).toBe(GET_THE_AUDIT)
     expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeGreaterThan(-1)
     expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeLessThan(HOME.indexOf('{`${SEE_IT.t} →`}'))
-    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeLessThan(HOME.indexOf('<figure'))
+    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeLessThan(HOME.indexOf('<Screen s={SHOWCASE[0]}'))
     // The audit is the filled one, the demo the outlined one.
     const audit = HOME.slice(HOME.lastIndexOf('<CountedLink', HOME.indexOf('{GET_THE_AUDIT.t}')), HOME.indexOf('{GET_THE_AUDIT.t}'))
     expect(audit).toContain('className={PRIMARY_BUTTON}')
@@ -170,7 +170,11 @@ describe('No button promises what the site cannot give', () => {
     // A buyer-side review, 2026-09-27: "No card and no sign-up." became
     // "No card. No sign-up." everywhere.
     expect(SEE_IT.d).toContain('No card. No sign-up.')
-    expect(HOME).toContain('No card. No sign-up.')
+    // The home page says it in its close, the same card every page ends
+    // in; its hero caption said it too until the founder's edit of
+    // 2026-10-12 put a real screen there.
+    expect(CLOSE_BAND.cards.see).toContain('No card. No sign-up.')
+    expect(HOME).toContain('<CloseBand id="close" withForm>')
     const said = [...SITE_SOURCES.map(read), read('src/lib/public-site/funnel.ts'), read('src/lib/public-site/leads.ts')]
       .map((src) => copyFrom(src).join(' ')).join(' ')
     expect(said).not.toMatch(/no card and no sign-up/i)

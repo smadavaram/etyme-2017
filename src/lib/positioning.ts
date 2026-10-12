@@ -989,7 +989,11 @@ export function incumbentComparison(text: string): string[] {
 const UNVERIFIABLE: { pattern: RegExp; says: string }[] = [
   { pattern: /\b(?:seamless(?:ly)?|effortless(?:ly)?|powerful|revolutionary|game[- ]chang(?:er|ing)|cutting[- ]edge|state[- ]of[- ]the[- ]art|next[- ]generation|world[- ]class|best[- ]in[- ]class|robust|blazing(?:ly)?|lightning[- ]fast|supercharge[sd]?|unparalleled|unrivall?ed|magic(?:al|ally)?|delightful|intuitive|frictionless|turnkey)\b/i,
     says: 'a hype adjective nobody can check' },
-  { pattern: /\b(?:the )?(?:best|fastest|easiest|smartest|simplest|most (?:powerful|advanced|complete|comprehensive|trusted|secure))\b(?! practice)/i,
+  // Two phrases set aside, each because it ranks nothing of Etyme's: "best
+  // practice", and "the best people for the job" — the client's choice of
+  // whom to work with, in the heading of the band on specialist teams the
+  // founder approved on 2026-10-12. "The best platform" is still refused.
+  { pattern: /\b(?:the )?(?:best|fastest|easiest|smartest|simplest|most (?:powerful|advanced|complete|comprehensive|trusted|secure))\b(?! practice| people for the job)/i,
     says: 'a superlative nobody can check' },
   { pattern: /\b(?:industry[- ]leading|market[- ]leading|leading provider|enterprise[- ]grade|bank[- ](?:level|grade)|military[- ]grade|trusted by|loved by|used by (?:thousands|hundreds|leading))\b/i,
     says: 'a badge nobody has awarded' },

@@ -64,11 +64,9 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 import { MODULES, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
-import { NAV_MENUS as SITE_MENUS, NAV_LINKS as SITE_LINKS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
-import { MODULE_ICON } from '@/lib/public-site/module-icons'
+import { NAV_MENUS as SITE_MENUS, NAV_LINKS as SITE_LINKS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES, AROUND_THE_WORLD, groupsShown } from '@/lib/public-site/nav'
 import { ASK_COPY, AUDIT_COPY } from '@/lib/public-site/leads'
-import { sampleRows, sampleWeek, sampleCheck } from '@/lib/public-site/sample-desk'
-import { SAMPLE_LABEL } from '@/lib/public-site/sample-desk-view'
+import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
@@ -82,7 +80,6 @@ const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
  * list, 2026-09-28. Said once, where a reader first meets the term.
  */
 const THREE_WAY_CHECK = 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.'
-const ICONS_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/module-icons.tsx'), 'utf8')
 
 /** Every word on a module page, as the public-pages guard reads it. */
 const onModule = (slug: string): string => {
@@ -387,28 +384,23 @@ describe('The reader finds words that are actually on the page', () => {
  * Everything a reader reads on the home page below the fold. The close is
  * drawn from the funnel every page ends in, so its words are read from
  * that data and added here, where the page's own guards can see them.
- * The eight parts are drawn from the Product menu's own data, and came
- * back to the page on 2026-09-28 after a day away, so their names and
- * lines are read here too.
+ * The four step cards under the platform take their heading and title
+ * from the Platform menu's own data (since 2026-10-12, when the eight
+ * icon tiles were folded into them), so those are read here too.
  */
-const TILE_COPY = PRODUCT_STAGES.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])])
+const TILE_COPY = PRODUCT_STAGES.flatMap((g) => [g.heading, g.items[0].t])
 /**
- * And, since 2026-10-09, the sample program under the hero (drawn from
- * lib/public-site/sample-desk), the audit form's own words, and the
- * desks' demo labels — every word a reader reads, so the guards see it.
+ * And what each screen proves, under "Screen n of 3". The captions start
+ * in lower case after the screen's number, so the string-literal reader
+ * in copyFrom does not pick them up; they are read here instead.
  */
-const SAMPLE_COPY = [
-  SAMPLE_LABEL,
-  ...sampleRows().flatMap((r) => [r.person, r.job, r.supplier, r.rate, r.onSite, r.status]),
-  sampleWeek().flag ?? '',
-  sampleCheck().says,
-]
+const SCREEN_CAPTIONS = [...PAGE.matchAll(/caption: '([^']+)'/g)].map((m) => m[1])
 const AUDIT_FORM_COPY = Object.values(AUDIT_COPY).flatMap((v) => (typeof v === 'string' ? [v] : [...v]))
 const DRAWN = [
   ...closeBandCopy(),
   GET_THE_AUDIT.d,
   ...TILE_COPY,
-  ...SAMPLE_COPY,
+  ...SCREEN_CAPTIONS,
   ...AUDIT_FORM_COPY,
 ]
 const body = [...words.slice(FOLD), ...DRAWN].join(' ')
@@ -533,9 +525,9 @@ describe('Below the hero, the page says what the business is', () => {
   it('is written to the client’s desks by name — program manager, CFO, procurement', () => {
     // The client is the customer, decided 2026-09-10. Writing to "a
     // company" is writing to nobody. The home page names the program
-    // manager's desk under its first screen; the header names each desk
-    // as a way in; About names the CFO who asks.
-    expect(PAGE).toContain('The program manager’s desk')
+    // manager under its first screen; the header names each desk as a way
+    // in; About names the CFO who asks.
+    expect(PAGE).toContain('the program manager answers the question in the headline')
     expect(SITE_ROLES.map((r) => r.t)).toEqual(expect.arrayContaining(['The program office', 'Procurement', 'Finance', 'Hiring managers']))
     for (const desk of ['program manager', 'CFO', 'procurement']) {
       expect(ABOUT_PAGE, desk).toContain(desk)
@@ -757,17 +749,18 @@ describe('Below the hero, the page says what the business is', () => {
     expect(longSentences(line, 30)).toEqual([])
     expect(check({ hero: [words[0], line, words[2]], body: [] }).map((f) => f.rule)).not.toContain('category-first')
   })
-  it('keeps the hero to the headline, the support line, the category, the two ways in, three short lines and the sample', () => {
+  it('keeps the hero to the headline, the support line, the category, the two ways in, the first screen beside them and three short lines', () => {
     // The founder's brief, 2026-10-09, and his feedback the next day: the
     // audit is the primary button, the demo the secondary, then the
-    // problem, the outcome and the next step in three short lines, then
-    // the sample program labeled as sample data.
+    // problem, the outcome and the next step in three short lines. Since
+    // his edit of 2026-10-12 the first real screen sits beside the
+    // headline, where the sample program drawn in code used to sit under it.
     expect(live.hero).toHaveLength(3)
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="problem"'))
-    expect((top.match(/<CountedLink/g) ?? []).length).toBe(3)
+    expect((top.match(/<CountedLink/g) ?? []).length).toBe(2)
     expect(top.indexOf('href={GET_THE_AUDIT.href}')).toBeLessThan(top.indexOf('href={SEE_IT.href}'))
-    expect(top.indexOf('GLANCE.map')).toBeGreaterThan(top.indexOf('href={SEE_IT.href}'))
-    expect(top.indexOf('<SampleDesk />')).toBeGreaterThan(top.indexOf('GLANCE.map'))
+    expect(top.indexOf('<Screen s={SHOWCASE[0]}')).toBeGreaterThan(top.indexOf('href={SEE_IT.href}'))
+    expect(top.indexOf('GLANCE.map')).toBeGreaterThan(top.indexOf('<Screen s={SHOWCASE[0]}'))
     const glance = PAGE.slice(PAGE.indexOf('const GLANCE'), PAGE.indexOf('const SPLIT'))
     expect([...glance.matchAll(/t: '([^']+)'/g)].map((m) => m[1])).toEqual(['The problem', 'The outcome', 'The next step'])
     for (const line of [...glance.matchAll(/d: '([^']+)'/g)].map((m) => m[1])) {
@@ -1253,36 +1246,48 @@ const SCREENS = [...PAGE.matchAll(/\/screens\/[\w-]+\.png/g)].map((m) => m[0])
 
 describe('The page shows the product before it describes it', () => {
 
-  it('shows the product before it describes it: a sample program, drawn with the product’s own list, sits under the hero', () => {
+  it('shows the product before it describes it: the first of three real screens, the program dashboard, sits beside the headline', () => {
     // Screens before sentences (2026-09-20) still holds. Since the
-    // founder's brief of 2026-10-09 the first thing under the buttons is
-    // the seeded demo's shape drawn by the product's own list component,
-    // labeled as sample data, and the real screenshots follow in their own
-    // band, the program dashboard first.
+    // founder's edit of 2026-10-12 the page carries three real screens and
+    // no more, and the first is the program manager's dashboard beside the
+    // headline, answering the question the headline asks.
     const hero = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="problem"'))
-    expect(hero).toContain('<SampleDesk />')
-    expect(hero).toContain('aria-label={SAMPLE_LABEL}')
-    const view = readFileSync(join(process.cwd(), 'src/lib/public-site/sample-desk-view.tsx'), 'utf8')
-    expect(view).toContain("from '@/components/list-surface'")
-    expect(view).toContain('<ListSurface')
-    expect(at('product')).toBeGreaterThan(at('problem'))
+    expect(hero).toContain('<Screen s={SHOWCASE[0]} n={1} eager />')
+    expect(hero).not.toContain('<SampleDesk')
     expect(SCREENS[0]).toBe('/screens/program-dashboard.png')
     expect(existsSync(join(process.cwd(), 'public/screens/program-dashboard.png'))).toBe(true)
   })
   it('every screenshot on the page is a file that exists under public/screens', () => {
-    // Three since 2026-10-09: the program dashboard, a week being signed,
-    // and the bills paid only against signed weeks. Each is a checked-in
-    // file, never hotlinked, with alternative text and a caption, and a
-    // width and height so nothing jumps while it loads.
+    // Three: the program dashboard, a week being signed, and the bills
+    // paid only against signed weeks. Each is a checked-in file, never
+    // hotlinked, with alternative text and a caption, and a width and
+    // height so nothing jumps while it loads.
     expect(new Set(SCREENS).size, 'the page draws three screens').toBe(3)
     for (const src of SCREENS) expect(existsSync(join(process.cwd(), 'public', src)), src).toBe(true)
-    const showcase = PAGE.slice(PAGE.indexOf('const SHOWCASE'), PAGE.indexOf('const DESKS'))
+    const showcase = PAGE.slice(PAGE.indexOf('const SHOWCASE'), PAGE.indexOf('const ON_SCREEN'))
     expect((showcase.match(/alt: '/g) ?? []).length).toBe(3)
     expect((showcase.match(/caption: '/g) ?? []).length).toBe(3)
     const tag = PAGE.slice(PAGE.indexOf('<img'), PAGE.indexOf('/>', PAGE.indexOf('<img')))
     expect(tag).toContain('alt={s.alt}')
     expect(tag).toContain('width={1440}')
-    expect(PAGE).toContain('<figcaption className={CAPTION}>{s.caption}</figcaption>')
+    expect(PAGE).toContain('{`Screen ${n} of ${SHOWCASE.length}`}')
+    expect(PAGE).toContain('{` · ${s.caption}`}')
+  })
+  it('puts one screen beside the headline, one under Control and one under Reconcile, and none under Connect', () => {
+    // The founder's edit of 2026-10-12: "Three real screens, not eleven."
+    // One real screen per thing it proves. Connect carries none, because
+    // the hero's screen already shows the record that step fills; the
+    // separate band of screens is gone.
+    expect(SCREEN_CAPTIONS).toEqual([
+      'the program manager answers the question in the headline',
+      'the hiring manager signs a week',
+      'a bill with no signed week behind it is not paid',
+    ])
+    expect(PAGE).toContain("const SCREEN_UNDER: Record<string, number> = { Control: 1, Reconcile: 2 }")
+    expect((PAGE.match(/<Screen s=\{/g) ?? []).length, 'the hero and the steps draw every screen').toBe(2)
+    expect(band('how-it-works')).toContain('<Screen s={SHOWCASE[SCREEN_UNDER[h.t]]}')
+    expect(PAGE).not.toContain('id="product"')
+    expect(PAGE).not.toContain('These are the screens your desks use')
   })
   it('every screenshot was captured after the town and title renames', () => {
     // The seeded world is renamed from time to time — a town on
@@ -1315,11 +1320,12 @@ describe('The page shows the product before it describes it', () => {
     }
   })
 
-  it('the top of the page reads in seconds: the headline, one support line, the category, and three lines of under fifteen words before the sample', () => {
+  it('the top of the page reads in seconds: the headline, one support line, the category, and three lines of under fifteen words under the first screen', () => {
     // The founder's feedback, 2026-10-10: "problem, outcome, next step in
-    // seconds." Between the headline and the sample a reader meets the
-    // support line, the category, two buttons and three short lines.
-    const top = PAGE.slice(PAGE.indexOf('<h1'), PAGE.indexOf('<SampleDesk />'))
+    // seconds." Between the headline and the first screen a reader meets
+    // the support line, the category and two buttons; three short lines
+    // follow.
+    const top = PAGE.slice(PAGE.indexOf('<h1'), PAGE.indexOf('<Screen s={SHOWCASE[0]}'))
     const prose = copyFrom(top)
     expect(prose).toEqual([
       'Know what every contractor costs, across every supplier.',
@@ -1409,7 +1415,9 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     expect(SEE_IT.href).toBe('/demo')
     expect(PAGE).toContain('href={SEE_IT.href}')
     expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
-    expect(PAGE).toContain('Northbend Athletic and every firm on this sample is a demo company — not a customer.')
+    // Since 2026-10-12 the page names no demo company in its words at all;
+    // the screens carry the label under each instead.
+    expect(PAGE).toContain("const ON_SCREEN = 'Every firm on this screen is a demo company — not a customer.'")
     expect(namedCompanies(all)).toEqual([])
   })
   it('names the three programs the seed actually builds, so no door opens on nothing', () => {
@@ -1894,7 +1902,7 @@ function readerWords(): number {
   const close = [...closeBandCopy()]
   const ask = [ASK_COPY.eyebrow, ASK_COPY.heading, ASK_COPY.body,
     ASK_COPY.emailLabel, ASK_COPY.emailHint, ASK_COPY.askLabel, ASK_COPY.askHint, ASK_COPY.button]
-  return [copyFrom(jsx), copyFrom(data), labels, hero, close, ask, TILE_COPY, SAMPLE_COPY, AUDIT_FORM_COPY].reduce((n, part) => n + count(part.join(' ')), 0)
+  return [copyFrom(jsx), copyFrom(data), labels, hero, close, ask, TILE_COPY, SCREEN_CAPTIONS, AUDIT_FORM_COPY].reduce((n, part) => n + count(part.join(' ')), 0)
 }
 
 /** The most words the home page may carry between its header and footer. */
@@ -1906,7 +1914,11 @@ function readerWords(): number {
 // feedback the next day asked for twelve parts on the page, including a
 // sample program, the audit's explanation, four desk cards and a security
 // band; measured at 1,289 words, the ceiling sits eleven above it.
-const CEILING = 1300
+// 2026-10-12: 1,300 → 1,375. The founder's three edits: the sample desk
+// and the band of screens went, the eight tiles became four cards, and a
+// new band on specialist teams around the world came in, word for word
+// from the prototype he approved. Measured at 1,366 the same day.
+const CEILING = 1375
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1934,7 +1946,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(words).toBeGreaterThan(600)
 
     const ids = [...PAGE.matchAll(/<section id="([\w-]+)"/g)].map((m) => m[1])
-    expect(ids).toEqual(['top', 'problem', 'platform', 'product', 'solutions', 'how-it-works', 'audit', 'security'])
+    expect(ids).toEqual(['top', 'problem', 'platform', 'specialist-teams', 'solutions', 'how-it-works', 'audit', 'security'])
     expect((PAGE.match(/<CloseBand/g) ?? []).length, 'the page ends in the shared close').toBe(1)
     expect(PAGE.lastIndexOf('<section')).toBeLessThan(PAGE.indexOf('<CloseBand'))
     expect((PAGE.match(/<h2/g) ?? []).length, 'one headline per band under the hero').toBe(7)
@@ -1946,7 +1958,11 @@ describe('The home page reads as a product page, and every band leads deeper', (
       if (item.d === THREE_WAY_CHECK) continue
       expect(longSentences(item.d!, 11), item.d).toEqual([])
     }
-    // Every band under the hero leads somewhere deeper.
+    // Every band under the hero leads somewhere deeper, but one: the band
+    // on specialist teams around the world is a statement and its per-site
+    // settings, word for word as the founder approved it on 2026-10-12,
+    // with no link of its own, the way the founder's earlier line on
+    // global teams was a quiet band.
     const deeper = /href=\{?\s*['"`(]*\/[a-z]|href=\{(?:s|m|d)\.href|target=\{d\.demo\}|<AuditForm \/>/
     for (const id of ['problem', 'platform', 'solutions', 'how-it-works', 'audit', 'security']) {
       expect(band(id), `#${id} links to no page`).toMatch(deeper)
@@ -1954,7 +1970,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // The Platform band is the header's Platform menu, from the same data.
     expect(band('platform')).toContain('PRODUCT_STAGES.map')
     expect(SITE_MENUS[0].label).toBe('Platform')
-    expect(SITE_MENUS[0].groups).toBe(PRODUCT_STAGES)
+    expect(SITE_MENUS[0].groups).toEqual([...PRODUCT_STAGES, AROUND_THE_WORLD])
   })
   it('every section taken off the home page lives on a public page', () => {
     // Moved, not deleted. Each row is a section that was on the home page
@@ -1994,7 +2010,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // The sections that left have no anchor here any more — except #why,
     // which is the one line on price the close still carries, and
     // #modules, which left on 2026-09-27 and came back the next day.
-    expect(SITE_MENUS[0].groups).toBe(PRODUCT_STAGES)
+    expect(SITE_MENUS[0].groups.slice(0, 4)).toEqual(PRODUCT_STAGES)
     expect(PRODUCT_STAGES.flatMap((g) => g.items)).toHaveLength(8)
     for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance', 'gap', 'ways']) {
       expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
@@ -2009,22 +2025,31 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(MODULES.find((m) => m.slug === 'contracts')!.refuses.some((r) => r.phrase === 'cannot start without')).toBe(true)
   })
 
-  it('the eight parts are one band of tiles under Platform, grouped by the four steps the way the Platform menu groups them, with no screenshot in any tile', () => {
+  it('the four steps are four cards under Platform, each with its step, its title and one line, and no icon and no screenshot in any card', () => {
+    // The founder's edit of 2026-10-12 folded the eight icon tiles into the
+    // four step cards, in the prototype's words. Each card's heading and
+    // title come from the Platform menu's own data, and the title opens
+    // the step's page; the eight parts stay one tap away in the menu.
     expect(PAGE).not.toContain('const TILES')
     const tiles = band('platform')
     expect(at('platform')).toBeGreaterThan(at('problem'))
-    expect(at('platform')).toBeLessThan(at('product'))
+    expect(at('platform')).toBeLessThan(at('specialist-teams'))
     expect(tiles).toContain('PRODUCT_STAGES.map')
     expect(tiles).toContain('{stage.heading}')
     expect(tiles).toContain('{m.t}')
-    expect(tiles).toContain('{m.d}')
+    expect(tiles).toContain('{STEP_LINE[m.href]}')
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
-    expect(tiles).not.toMatch(/<img|\/screens\//)
-    expect(tiles).toContain('<ModuleIcon href={m.href}')
-    for (const m of PRODUCT_ITEMS) expect(Object.keys(MODULE_ICON), m.href).toContain(m.href)
-    expect(ICONS_SRC).toContain('aria-hidden="true"')
-    expect(ICONS_SRC).toContain('stroke="currentColor"')
-    expect(ICONS_SRC).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/)
+    expect(PRODUCT_STAGES.map((g) => g.items[0].t)).toEqual(['Job requests & suppliers', 'Contracts & onboarding', 'Timesheets & expenses', 'Bills & the three-way check'])
+    const lines = PAGE.slice(PAGE.indexOf('const STEP_LINE'), PAGE.indexOf('const TERMS'))
+    expect([...lines.matchAll(/'(\/\w+)': '([^']+)'/g)].map((m) => [m[1], m[2]])).toEqual([
+      ['/requisitions', 'Sent only to the suppliers Procurement cleared. Governance blocks where the law is behind it; warns elsewhere.'],
+      ['/contracts', 'Every supplier’s people for one job, side by side. Written by the award, papers checked before day one. Time on site per person, across every supplier.'],
+      ['/timesheets', 'The worker files the week; nobody approves their own.'],
+      ['/invoices', 'The hours, the invoice receipt, and the contract rate must all agree. Each firm sees its own level; insurance shows at every depth.'],
+    ])
+    expect(tiles).not.toMatch(/<img|\/screens\/|<Screen/)
+    expect(tiles).not.toContain('ModuleIcon')
+    expect(PAGE).not.toContain("from '@/lib/public-site/module-icons'")
     expect(MODULES).toHaveLength(8)
     expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual(MODULES.map((m) => m.route))
     for (const m of MODULES) {
@@ -2032,7 +2057,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
       expect(item?.t, m.route).toBe(m.title)
       expect(existsSync(join(process.cwd(), 'public', m.screen.img)), m.screen.img).toBe(true)
     }
-    // The three trade words are defined once, under the tiles.
+    // The three trade words are defined once, under the cards.
     const terms = PAGE.slice(PAGE.indexOf('const TERMS'), PAGE.indexOf('const SHOWCASE'))
     expect([...terms.matchAll(/t: '([^']+)'/g)].map((m) => m[1])).toEqual(['Invoice receipt', 'Three-way check', 'Time limit'])
     expect(terms).toContain(THREE_WAY_CHECK.replace('The three-way check: ', '').replace(/^t/, 'T'))
@@ -2127,6 +2152,87 @@ describe('The line about teams around the world', () => {
     // And the record is drawn at a readable size, not a sliver: at least
     // a third of the phone's width.
     expect(rec[1] * (phone / H)).toBeGreaterThan(390 / 3)
+  })
+})
+
+// ── Specialist teams around the world. Added 2026-10-12 ─────────────
+//
+// The founder approved a prototype of the home page with one new band and
+// said "Build it". The words are his, held here word for word so a
+// rewrite is a decision rather than a drift. "Global" is where a sentence
+// can claim more than the record does, so the one claim the record
+// already backs is read against the code that makes it true.
+
+const WORLD_SRC = PAGE.slice(PAGE.indexOf('const WORLD'), PAGE.indexOf('const PER_SITE:'))
+const PER_SITE_SRC = PAGE.slice(PAGE.indexOf('const PER_SITE:'), PAGE.indexOf('const PER_SITE_NOTE'))
+
+describe('The band on specialist teams around the world', () => {
+
+  it('sits after the platform and before the desks, under its eyebrow and the founder’s heading', () => {
+    expect(at('specialist-teams')).toBeGreaterThan(at('platform'))
+    expect(at('specialist-teams')).toBeLessThan(at('solutions'))
+    const b = band('specialist-teams')
+    expect(b).toContain('<p className="eyebrow mb-3">Specialist teams around the world</p>')
+    expect(headlinesFrom(PAGE)).toContain('Work with the best people for the job, wherever they are, and govern them as one workforce')
+  })
+
+  it('says its five points word for word as the founder approved them, each numbered', () => {
+    const points = [...WORLD_SRC.matchAll(/\{ t: '([^']+)', d: '([^']+)' \}/g)].map((m) => m[1])
+    expect(points).toEqual([
+      'One record, many countries.',
+      'Each country’s rules, applied where the person sits.',
+      'Hours signed once, in the worker’s own time zone.',
+      'Bills in the currency you agreed.',
+      'Paperwork that never lapses quietly.',
+    ])
+    expect(band('specialist-teams')).toContain('{i + 1}')
+  })
+
+  it('shows what a client sets once per site, and says the values are the demo’s settings', () => {
+    const rows = [...PER_SITE_SRC.matchAll(/\{ t: '([^']+)', v: '([^']+)' \}/g)].map((m) => m[1])
+    expect(rows).toEqual(['Working week and days off', 'Time limit and break', 'Required paperwork', 'Currency and billing rhythm', 'Who may approve'])
+    expect(PAGE).toContain("const PER_SITE_NOTE = 'Demo settings. Suppliers never see each other’s rates; the client sees the supplier it pays.'")
+    expect(band('specialist-teams')).toContain('What you set once, per site')
+  })
+
+  it('asks each country for its own paperwork, which is the one claim of the band the code already makes true', () => {
+    // "The visa, permit or form each country needs": the supplier's packet
+    // differs by the country the work is in.
+    const keys = (country: string) => deriveSupplierPacket({ country }).items.map((i) => i.key)
+    expect(keys('US')).toContain('W9')
+    expect(keys('GB')).toContain('VAT_REG')
+    expect(keys('IN')).toContain('GST_REG')
+    expect(keys('GB')).not.toContain('W9')
+    expect(deriveStartPacket({ country: 'US', onSite: true }).items.length).toBeGreaterThan(0)
+  })
+
+  it('reads the band against every guard the rest of the page passes', () => {
+    // Each point, row and value read on its own, the way a reader meets it.
+    const units = [...WORLD_SRC.matchAll(/'([^']{4,})'/g), ...PER_SITE_SRC.matchAll(/'([^']{4,})'/g)].map((m) => m[1])
+    const text = units.join(' ')
+    expect(unverifiableClaims(text)).toEqual([])
+    expect(namedCompanies(text)).toEqual([])
+    expect(sizesTheBuyer(text)).toEqual([])
+    for (const u of units) expect(longSentences(u, 25), u).toEqual([])
+    expect(check({ hero: ['Know what every contractor costs, across every supplier.'], body: [text] }).filter((f) => f.severity === 'WRONG')).toEqual([])
+  })
+
+  it('does not refuse “the best people for the job” as a superlative, because it ranks the client’s choice of people, and still refuses “the best platform”', () => {
+    expect(unverifiableClaims('Work with the best people for the job, wherever they are.')).toEqual([])
+    expect(unverifiableClaims('The best platform for contractors.')).not.toEqual([])
+    expect(unverifiableClaims('Best practice, kept.')).toEqual([])
+  })
+
+  it('is reached from the Platform menu on the home page, and the entry is not drawn on any other page, so no link lands in the middle of another page', () => {
+    const entry = AROUND_THE_WORLD.items[0]
+    expect(entry.t).toBe('Specialist teams around the world')
+    expect(entry.href).toBe('#specialist-teams')
+    expect(entry.homeOnly).toBe(true)
+    expect(PAGE).toContain('id="specialist-teams"')
+    expect(SITE_MENUS[0].groups).toContain(AROUND_THE_WORLD)
+    expect(groupsShown(SITE_MENUS[0], true).flatMap((g) => g.items)).toContainEqual(entry)
+    expect(groupsShown(SITE_MENUS[0], false).flatMap((g) => g.items)).not.toContainEqual(entry)
+    expect(groupsShown(SITE_MENUS[0], false)).toEqual(PRODUCT_STAGES)
   })
 })
 

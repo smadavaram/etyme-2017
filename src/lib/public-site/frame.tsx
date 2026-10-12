@@ -1,5 +1,5 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, NAV_LINKS, SHEET_MORE, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, itemsOf, type NavMenu } from './nav'
+import { NAV_MENUS, NAV_LINKS, SHEET_MORE, PRIMARY, SPEND_AUDIT, FOOTER, ADDRESS, groupsShown, type NavMenu } from './nav'
 import { SheetCloser } from './sheet-closer'
 import { CountedLink } from './counted-link'
 import { CloseBand } from './close-band'
@@ -36,10 +36,15 @@ const PANEL: Record<string, string> = {
   Solutions: 'w-[26rem]',
 }
 
-function MenuPanel({ menu }: { menu: NavMenu }) {
+/**
+ * One menu's panel. A home-page section in a menu is drawn only on the
+ * home page (`groupsShown` in `./nav`), so no item lands a reader in the
+ * middle of another page.
+ */
+function MenuPanel({ menu, onHome }: { menu: NavMenu; onHome: boolean }) {
   return (
     <div className={`rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-xl ${PANEL[menu.label] ?? 'w-80'}`}>
-      {menu.groups.map((group) => (
+      {groupsShown(menu, onHome).map((group) => (
         <div key={group.heading}>
           <p className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-etyme-faint">
             {group.heading}
@@ -108,7 +113,7 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
                            group-hover:opacity-100 group-focus-within:visible
                            group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:transition-none"
               >
-                <MenuPanel menu={menu} />
+                <MenuPanel menu={menu} onHome={onHome} />
               </div>
             </li>
           ))}
@@ -159,7 +164,7 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
                     {menu.label}
                   </a>
                   <ul className="mt-1 grid gap-x-6 sm:grid-cols-2">
-                    {itemsOf(menu).map((item) => (
+                    {groupsShown(menu, onHome).flatMap((g) => g.items).map((item) => (
                       <li key={item.t}>
                         <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
                       </li>
