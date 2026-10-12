@@ -760,6 +760,36 @@ inside a dashboard page by the people building the dashboard reads as a
 form. The prototype-before-code rule from the home page applies to a
 product screen the founder will look at, not only to public pages.
 
+**Ask Etyme is the app. Decided by the founder, 2026-10-12** (*"absolutely
+build the Etyme app just like Elon Musk"*, on the seven moves below).
+- **The chat is the first screen.** After sign-in a desk lands in Ask
+  Etyme, and the greeting is its dashboard: what needs it, what waits on
+  another desk and which, who is near the time limit. Lists and tables
+  stay one click behind for the person who wants to search and sort.
+- **It does things, inside the rules.** Every act a desk can take in the
+  product is offered as a card in the chat, Yes and Not now, and goes
+  through the one approval route under the role contract's three tiers.
+  An act on the NEVER floor (extend, end, award, payroll, sign) is
+  refused in a sentence that says who may do it; the chat never grows a
+  second door. A new act in the chat is a new act kind in the role
+  contract first, with its tier, before any card is drawn.
+- **Teams first**, because that is where a manager's day is. The bot
+  route and the cards are built; the keys and the sideload are the
+  founder's.
+- **One number: acts per day in the chat** (web and Teams), counted from
+  the ledger's surface, shown on the twin's page, expected to climb
+  weekly. If it does not, the answers or the questions are wrong.
+- **Cut what the chat makes redundant.** The Program twin page keeps the
+  ledger and the two editors; its four stats and its "waiting for you"
+  list are the greeting now. Needs attention and the greeting are one
+  list; one of them goes.
+- **The boundary is a feature.** Nothing leaves the tenant unless the
+  client turns the model on; every read logged; every act ledgered. Said
+  on the first screen.
+- **Held back, on purpose:** free text to the model stays off until the
+  client turns it on, and sends only what the rules did not answer.
+  Rules first; the buyer is an IT person.
+
 **The hours tolerance is 0.5%, not 2%. Decided by the founder,
 2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
 default rule set raises an invoice receipt whose billed hours differ from
