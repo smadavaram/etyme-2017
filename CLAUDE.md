@@ -678,6 +678,45 @@ What is decided, and the reason each stands on:
 - **The words stay Etyme's** on every screen and card: job request, time
   limit, invoice receipt, bill.
 
+**Built 2026-10-12, M1 to M3, on the existing record.** The rules
+(`lib/twin/rules/tenure`, `lib/twin/rules/invoice`), the role contract,
+the ledger and the one approval door (`lib/twin/ledger`,
+`POST /api/twin/approvals/[id]`), the nightly run (`cron/twin`), the
+Teams door (`POST /api/teams/messages`, `lib/teams`, no new dependency:
+the route speaks the Bot Framework protocol itself and every card action
+calls `decideApproval` with surface TEAMS), the program twin page with
+its contract and rule-set editors (`/dashboard/twin`), and the
+conversation panel (`POST /api/conversations/twin`, rules first, the
+model describes only). `DEMO.md` is the 90-second path;
+`KNOWN-LIMITS.md` lists every shortcut by owner. Three things learned,
+written down so they are not re-derived:
+
+- **A supplier's invoice has no "approved for payment" status, and gets
+  none.** The match is the approval: the AP desk's waiver with a reason
+  is what passes a difference, and a status beside it would be a second
+  gate nobody sets. One gate, `mayPayInvoiceReceipt` in
+  `lib/invoice-match`, is read by the payment route and by the twin, so
+  the two cannot disagree about what is payable. A DRAFT invoice is now
+  refused as not submitted; a check that returns nothing refuses.
+- **The twin cannot ask the program manager.** It acts on the program
+  manager's authority, and nobody signs their own, so its questions go to
+  the desk that holds the permission (the AP clerk for a receipt) and the
+  program manager reads why under each one. A mismatched receipt is never
+  put up for a yes; the twin tells the paying desk instead.
+- **The twin's reads are logged as the twin, under the person it acts
+  for.** `AccessLog.actorKind` TWIN with `actorTwinKind`; a twin row that
+  names no twin is refused by the log. Three of the automation ladder's
+  thirty-four unprompted acts are now not plain rules: proactive matching
+  and the twin's two recorded acts, named as such on the governance page
+  and in the security posture.
+
+**Open for the founder:** whether the 2% hours tolerance should also
+clear payment (money kept payment strict, per "bill only accepted
+hours"); whether the program manager's desk may edit the role contract
+(the editors ask for `settings.manage`, so the account owner does it in
+the demo); and the Teams keys and app sideload, after which `/ready`'s
+"Teams bot" row moves from MISSING.
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in
