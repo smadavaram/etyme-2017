@@ -9,22 +9,22 @@ another's (`OPEN_TO_BUILDERS` in `src/lib/domains.ts`).
 What is built: the role contract, the ledger, the approval route, the
 rule set, the nightly run. What is short of that:
 
-1. **Nothing to click.** There is no screen for the ledger, the
-   questions waiting, the role contract or the rule set. The routes
-   answer; no page calls them. The matrix row L3.7.6.1 says PARTIAL for
-   this reason.
-2. **No Teams card and no bot route.** `POST /api/twin/approvals/:id`
-   is the one route Teams will call, and it takes `surface: "TEAMS"`, but
-   it asks for a signed-in session. A card answered from Teams needs the
-   bot adapter, and the identity binding from the Teams user to the
-   Etyme seat. Neither exists.
-3. **The twin is not yet a named actor in the access log or the event
-   stream.** The columns exist (`AccessLog.actorKind`,
-   `AccessLog.actorTwinKind`, `Event.actorTwinKind`). Nothing writes
-   them, because the writers are `lib/access-log` (regulatory) and
-   `lib/events` (conversation). Until they carry the twin, a read the
-   twin makes is filed under the program owner with the twin named only
-   in the reason, and the twin emits no events.
+1. **The screens are built; nothing has walked them as every desk.**
+   `/dashboard/twin` (the picture, the questions waiting, the feed and
+   its CSV export), `/dashboard/twin/contract` and `/dashboard/twin/rules`
+   exist and were screenshotted as the Northbend program manager only.
+   No page test reads them; the founder's rule allows no new test file.
+2. **The Teams door is built and has never met Teams.** Conversation's
+   bot route (`POST /api/teams/messages`, ee4393f69) checks the Bot
+   Framework token, binds the account to a live seat and sends every
+   Approve or Reject to `POST /api/twin/approvals/:id`'s own door with
+   surface TEAMS. Until the founder's three bot keys are set in Vercel and
+   the app is sideloaded, every post is refused and `/ready` reads the
+   Teams bot row MISSING; the web's Waiting for you is the door meanwhile.
+3. **The event stream can carry the twin and the twin emits nothing into
+   it.** `lib/events` writes `actorTwinKind` when asked, and the access
+   log carries the twin since regulatory's 49ca56cd4. No twin act calls
+   `lib/events` yet, so a subscriber hears nothing the twin does.
 4. **Approving an `Invoice` writes no state on the invoice.** A receipt
    keyed in as a `VendorBill` moves from RECEIVED to APPROVED, which is
    what a payment run reads. An `Invoice` a supplier sent through Etyme
@@ -71,6 +71,37 @@ rule set, the nightly run. What is short of that:
 13. **`partyCompanyIds` has no index.** A supplier's feed is a filter on
     an array inside one client's rows. Fine at a demo's size; an index
     (GIN) is the change when it is not.
+
+14. **The program owner's twin page reads the program's numbers from the
+    desk's own routes** (`/api/program`, `/api/tenure`). A seat that may
+    read the ledger and not those routes reads a dash with the reason, not
+    a zero. "Time-limit risks" is warnings plus people past the limit, as
+    `/api/tenure` counts them, not the twin's own ledger.
+15. **The feed is the last 200 entries.** The CSV export is what the page
+    holds — the ledger as the reader may read it, at most 200 rows. A
+    full audit export over a date range is a route that does not exist.
+16. **A client's other desks now read the whole program's entries,
+    without what the rules found** (view PROGRAM), where the door said
+    only entries on their own authority. CLAUDE.md says "a client its
+    program", and the AP clerk who answers the twin read nothing before.
+    A hiring manager and a viewer hold none of the three desks the route
+    asks for and are refused in a sentence.
+17. **A mismatched receipt cannot be rejected on the twin's page**,
+    because it is never put up for approval (5 above). The demo's
+    "reject the mismatch" step reads the twin's flag in the feed instead;
+    see `DEMO.md`.
+18. **Edits of the contract and the rules are read into the feed from
+    the automation log**, not written as twin ledger entries, because an
+    edit has no tier and `TwinAction.tier` is required. Only the program
+    owner's view shows them, and the export carries them.
+19. **The conversation panel is found by webpack's listing of
+    conversation's folder** (`require.context`), so the page builds
+    whether or not it has landed. The nightly digest is a plain dynamic
+    import inside a try: a module that will not load reads ABSENT, one
+    that throws reads FAILED and is reported, and a digest that went by
+    email rather than the bot is counted as a fallback, never as Teams.
+20. **`TeamsConversation` has a table and no writer of the
+    architect's.** Conversation's bot binds and reads it.
 
 ## Time-limit rule — etyme-regulatory
 

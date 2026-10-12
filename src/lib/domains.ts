@@ -226,6 +226,11 @@ export const DOMAINS: Domain[] = [
       'lib/watch', 'lib/events',
       'app/dashboard/interviews', 'app/dashboard/notifications',
       'app/api/interviews', 'app/api/notifications', 'app/api/answer', 'app/api/claim',
+      // The twin's second door (2026-10-12): the Teams bot, its cards, the
+      // proactive digest and the conversation panel on the twin's page.
+      // The approval itself is the architect's one route (app/api/twin);
+      // how it is said, and on which channel, is conversation's.
+      'lib/teams', 'app/api/teams', 'teams', 'components/twin-conversation',
     ],
   },
   {
@@ -358,6 +363,9 @@ export const DOMAINS: Domain[] = [
       // the ledger, the performers and the routes. The rules under
       // lib/twin/rules are the domains whose arithmetic they are.
       'lib/twin', 'app/api/twin',
+      // Its screens: the program owner's page, the role-contract and rule-set
+      // editors. The conversation panel on it is conversation's.
+      'app/dashboard/twin',
       'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
       'app/(auth)',
       'app/api/settings', 'app/api/imports', 'app/api/integrations',

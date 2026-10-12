@@ -18,6 +18,7 @@ import { readsOnlyOwnWork, OWN_WORK_READS } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
+import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -978,6 +979,11 @@ const CLIENT_NAV: NavSection[] = [
       // Where a chain we can only see part of makes one person look like
       // two, and the tenure number quietly goes wrong.
       { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
+      // The program manager's twin (2026-10-12): what it did, what it is
+      // waiting on a person for, and what it may do. Read by the three
+      // desks its ledger route asks for (lib/twin/readers); the page also
+      // calls the questions waiting, the role contract and the rule set.
+      { label: 'Program twin', href: '/dashboard/twin', icon: '◎', group: 'Oversight', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },
       // The same two links every other party gets, from the same
       // description of them. A client has a compliance officer holding
       // the same governance read, and an AP clerk with data held about

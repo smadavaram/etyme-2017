@@ -67,6 +67,13 @@ export interface ReadinessFacts {
   email: { sent: number; unsent: number }
   /** Workflows links saved, retired links still saved, and posts a Workflows link accepted. */
   teams: TeamsFacts
+  /**
+   * The Teams bot, the twin's second door: its edge already worded by
+   * conversation (`teamsBotEdge` in lib/teams/readiness), read in
+   * lib/readiness-facts so this file stays free of the database. Absent
+   * where nothing measured it.
+   */
+  teamsBot?: { state: 'MISSING' | 'SET' | 'PROVEN'; says: string; fix?: string }
   cron: {
     tracked: boolean
     lastRunAt: Date | null
@@ -243,6 +250,16 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
   {
     const t = teamsEdge(f.teams)
     edges.push({ key: 'teams', name: 'Teams', state: t.state, required: true, says: t.says, ...(t.fix ? { fix: t.fix } : {}) })
+  }
+
+  // ── The Teams bot answers ────────────────────────────────────────────
+  //
+  // Not required: the twin's questions are answered on the web until the
+  // founder's bot keys exist. Proven once somebody answered the twin from
+  // Teams or a digest went out through the bot.
+  if (f.teamsBot) {
+    const b = f.teamsBot
+    edges.push({ key: 'teams-bot', name: 'Teams bot', state: b.state, required: false, says: b.says, ...(b.fix ? { fix: b.fix } : {}) })
   }
 
   // ── The daily job runs, and leaves a trace ───────────────────────────

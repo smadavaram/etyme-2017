@@ -31,9 +31,11 @@
  * ── Who reads it ─────────────────────────────────────────────────────
  *
  * `ledgerFeed` scopes at the query: the program owner reads every entry
- * of its company's twin; anybody else at that company reads the entries
- * made on their own authority; another company — a supplier — reads only
- * entries about records it is a party to, without the payload.
+ * of its company's twin with what the rules found; the client's other
+ * desks read the program's entries without it; another company — a
+ * supplier — reads only entries about records it is a party to, without
+ * the payload. Who may open the feed at all is `TWIN_FEED_READERS` in
+ * lib/twin/readers, asked by the route.
  */
 
 import type { Prisma } from '@prisma/client'
@@ -46,6 +48,8 @@ import { logBulkAccess } from '@/lib/access-log'
 import type { CallerContext } from '@/lib/api-context'
 import { contractFor, tierIn, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
 import { PERFORMERS, type PerformContext } from '@/lib/twin/performers'
+import { OWNER_DESKS } from '@/lib/twin/readers'
+import { feedLine } from '@/lib/twin/feed-words'
 
 export type Surface = 'TEAMS' | 'WEB' | 'CRON'
 export type ActorType = 'TWIN' | 'PERSON' | 'SYSTEM'
@@ -628,28 +632,35 @@ export async function decideApproval(args: {
 
 // ── Reading the ledger ────────────────────────────────────────────────
 
-export type FeedView = 'OWNER' | 'OWN_AUTHORITY' | 'PARTY'
+/**
+ * OWNER    the program owner: every entry, with what the rules found
+ * PROGRAM  another desk at the client: every entry of its program, without it
+ * PARTY    another company: only entries about a record it is a party to
+ */
+export type FeedView = 'OWNER' | 'PROGRAM' | 'PARTY'
 
-/** Desks that read every entry of their own company's twin. */
-export const OWNER_DESKS: readonly Permission[] = ['governance.read', 'settings.manage']
+export { OWNER_DESKS }
 
 /**
  * Which entries a reader may see, as a query. Null where none.
  *
- * Pure, so the scope is one place: the program owner reads all of its
- * company's; anybody else there reads what was done on their own
- * authority; another company reads only what concerns a record it is a
- * party to.
+ * Pure, so the scope is one place. CLAUDE.md, "The job twin": a supplier
+ * reads only its own entries, a client its program, the program owner
+ * all. `companyId` null asks for every program that names the reader —
+ * a supplier opening the page with no client chosen.
  */
 export function feedWhere(
-  companyId: string,
+  companyId: string | null,
   reader: Pick<CallerContext, 'company' | 'person' | 'permissions'>
 ): { where: Prisma.TwinActionWhereInput; view: FeedView } | null {
   if (!reader.company) return null
+  if (companyId === null) {
+    return { where: { companyId: { not: reader.company.id }, partyCompanyIds: { has: reader.company.id } }, view: 'PARTY' }
+  }
   if (reader.company.id === companyId) {
     return hasAnyPermission(reader.permissions, OWNER_DESKS)
       ? { where: { companyId }, view: 'OWNER' }
-      : { where: { companyId, authorityPersonId: reader.person.id }, view: 'OWN_AUTHORITY' }
+      : { where: { companyId }, view: 'PROGRAM' }
   }
   return { where: { companyId, partyCompanyIds: { has: reader.company.id } }, view: 'PARTY' }
 }
@@ -657,8 +668,11 @@ export function feedWhere(
 export interface FeedRow {
   id: string
   ts: Date
+  /** TWIN, PERSON or SYSTEM; CHANGE for an edit of the role contract or the rules. */
   actorType: string
   actorId: string
+  /** The person who answered or changed something, where this reader may know who. */
+  actorName: string | null
   onAuthorityOfRole: string
   action: string
   says: string
@@ -666,6 +680,12 @@ export interface FeedRow {
   outcome: string
   entityType: string
   entityId: string
+  /** The record in the reader's words: an invoice number, a person's name, a version. */
+  label: string | null
+  /** The client whose twin it is. */
+  program: string | null
+  /** The entry in one plain line, without the time (lib/twin/feed-words). */
+  line: string
   ruleCited: string
   rationale: string
   surface: string
@@ -675,25 +695,72 @@ export interface FeedRow {
   roleContractVersion?: number
 }
 
+/** Names for the records and the people on a page of entries. Never throws. */
+async function namesFor(rows: { entityType: string; entityId: string; actorType: string; actorId: string; companyId: string }[], extraPeople: string[] = []) {
+  const ids = (t: string[]) => [...new Set(rows.filter((r) => t.includes(r.entityType)).map((r) => r.entityId))]
+  const people = [...new Set([...ids(['Person']), ...rows.filter((r) => r.actorType === 'PERSON').map((r) => r.actorId), ...extraPeople])]
+  const companies = [...new Set(rows.map((r) => r.companyId))]
+  const label = new Map<string, string>()
+  const person = new Map<string, string>()
+  const company = new Map<string, string>()
+  const safely = async <T>(read: () => Promise<T[]>): Promise<T[]> => {
+    try { return (await read()) ?? [] } catch { return [] }
+  }
+  const [invoices, bills, persons, firms] = await Promise.all([
+    safely(() => prisma.invoice.findMany({ where: { id: { in: ids(['Invoice']) } }, select: { id: true, number: true } })),
+    safely(() => prisma.vendorBill.findMany({ where: { id: { in: ids(['VendorBill']) } }, select: { id: true, number: true } })),
+    safely(() => people.length ? prisma.person.findMany({ where: { id: { in: people } }, select: { id: true, name: true } }) : Promise.resolve([])),
+    safely(() => prisma.company.findMany({ where: { id: { in: companies } }, select: { id: true, name: true } })),
+  ])
+  for (const i of invoices) label.set(`Invoice:${i.id}`, i.number)
+  for (const b of bills) label.set(`VendorBill:${b.id}`, b.number)
+  for (const p of persons) { label.set(`Person:${p.id}`, p.name); person.set(p.id, p.name) }
+  for (const c of firms) company.set(c.id, c.name)
+  return { label, person, company }
+}
+
+/** The contract and rule-set edits, as feed rows, for the program owner. */
+async function changesAt(companyId: string, take: number) {
+  try {
+    const rows = await prisma.automationLog.findMany({
+      where: { companyId, action: { in: ['TWIN_ROLE_CONTRACT_SET', 'TWIN_RULE_SET_SET'] } },
+      orderBy: { at: 'desc' },
+      take,
+      select: { id: true, at: true, action: true, summary: true, reason: true, payload: true },
+    })
+    return rows ?? []
+  } catch {
+    return []
+  }
+}
+
 export async function ledgerFeed(
-  companyId: string,
+  companyId: string | null,
   reader: Pick<CallerContext, 'company' | 'person' | 'permissions'>,
   opts: { take?: number } = {}
 ): Promise<{ view: FeedView; rows: FeedRow[] } | null> {
   const scope = feedWhere(companyId, reader)
   if (!scope) return null
+  const take = Math.min(Math.max(opts.take ?? 100, 1), 500)
   const rows = await prisma.twinAction.findMany({
     where: scope.where,
     orderBy: { ts: 'desc' },
-    take: Math.min(Math.max(opts.take ?? 100, 1), 500),
+    take,
     select: {
-      id: true, ts: true, actorType: true, actorId: true, onAuthorityOfRole: true, action: true,
+      id: true, ts: true, companyId: true, actorType: true, actorId: true, onAuthorityOfRole: true, action: true,
       tier: true, outcome: true, entityType: true, entityId: true, ruleCited: true, rationale: true,
       surface: true, approvalId: true, payload: true, roleContractVersion: true,
     },
   })
-  // A person named in an entry is a person whose data was read.
-  const people = [...new Set(rows.filter((r) => r.entityType === 'Person').map((r) => r.entityId))]
+  const owner = scope.view === 'OWNER'
+  const party = scope.view === 'PARTY'
+  const changes = owner && companyId ? await changesAt(companyId, take) : []
+  const changedBy = changes.map((c) => String((c.payload as Record<string, unknown> | null)?.byPersonId ?? '')).filter(Boolean)
+  const names = await namesFor(rows, changedBy)
+
+  // A person named in an entry is a person whose data was read. A
+  // supplier is shown no person's name, so it reads nobody's.
+  const people = party ? [] : [...new Set(rows.filter((r) => r.entityType === 'Person').map((r) => r.entityId))]
   if (people.length) {
     logBulkAccess(people, {
       actorPersonId: reader.person.id,
@@ -702,18 +769,122 @@ export async function ledgerFeed(
       reason: 'Read in the program manager’s twin’s ledger',
     })
   }
-  const owner = scope.view === 'OWNER'
-  return {
-    view: scope.view,
-    rows: rows.map((r) => ({
+
+  const acts: FeedRow[] = rows.map((r) => {
+    // A supplier reads that a person answered, not which person, and no
+    // person's name at all.
+    const label = r.entityType === 'Person' && party ? null : names.label.get(`${r.entityType}:${r.entityId}`) ?? null
+    const actorName = r.actorType === 'PERSON' && !party ? names.person.get(r.actorId) ?? null : null
+    return {
       id: r.id, ts: r.ts, actorType: r.actorType,
-      // A supplier reads that a person answered, not which person.
       actorId: owner || r.actorType === 'TWIN' ? r.actorId : 'PERSON',
+      actorName,
       onAuthorityOfRole: r.onAuthorityOfRole, action: r.action,
       says: TWIN_ACTS[r.action]?.says ?? r.action,
       tier: r.tier, outcome: r.outcome, entityType: r.entityType, entityId: r.entityId,
+      label,
+      program: names.company.get(r.companyId) ?? null,
+      line: feedLine({ actorType: r.actorType, actorName, action: r.action, outcome: r.outcome, entityType: r.entityType, label, onAuthorityOfRole: r.onAuthorityOfRole, surface: r.surface }),
       ruleCited: r.ruleCited, rationale: r.rationale, surface: r.surface, approvalId: r.approvalId,
       ...(owner ? { payload: r.payload, roleContractVersion: r.roleContractVersion } : {}),
-    })),
-  }
+    }
+  })
+
+  const edits: FeedRow[] = changes.map((c) => {
+    const p = (c.payload ?? {}) as Record<string, unknown>
+    const by = typeof p.byPersonId === 'string' ? p.byPersonId : ''
+    const actorName = names.person.get(by) ?? null
+    const isContract = c.action === 'TWIN_ROLE_CONTRACT_SET'
+    const entityType = isContract ? 'RoleContract' : 'RuleSet'
+    const label = p.version != null ? String(p.version) : null
+    return {
+      id: c.id, ts: c.at, actorType: 'CHANGE', actorId: by, actorName,
+      onAuthorityOfRole: '', action: isContract ? 'role_contract.set' : 'rule_set.set',
+      says: c.summary, tier: '', outcome: 'PERFORMED', entityType,
+      entityId: String((isContract ? p.roleContractId : p.ruleSetId) ?? ''),
+      label, program: companyId ? names.company.get(companyId) ?? null : null,
+      line: feedLine({ actorType: 'CHANGE', actorName, action: '', outcome: 'PERFORMED', entityType, label, onAuthorityOfRole: '', surface: 'WEB' }),
+      ruleCited: isContract ? 'Only a person holding settings.manage changes what the twin may do' : 'Only a person holding settings.manage changes the twin’s numbers',
+      rationale: c.reason ?? '', surface: 'WEB', approvalId: null,
+      payload: p, roleContractVersion: isContract && typeof p.version === 'number' ? p.version : undefined,
+    }
+  })
+
+  const all = [...acts, ...edits].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime()).slice(0, take)
+  return { view: scope.view, rows: all }
+}
+
+// ── The questions waiting ─────────────────────────────────────────────
+
+export interface WaitingQuestion {
+  id: string
+  requestedAt: Date
+  action: string
+  /** "Approve invoice receipt INV-1" — the question as a heading. */
+  entityType: string
+  entityId: string
+  label: string | null
+  ruleCited: string
+  rationale: string
+  onAuthorityOfRole: string
+  authorityName: string | null
+  needsPermission: string
+  /** Whether this reader may answer it; where not, `whyNot` says why in a sentence. */
+  mayDecide: boolean
+  whyNot: string | null
+}
+
+/**
+ * What the twin is waiting on a person for, at the reader's own company.
+ *
+ * The owner desks read every question; any other desk, the questions it
+ * may answer. Each says whether this reader may answer it, so a screen
+ * draws a button only where the route will take the answer (CLAUDE.md:
+ * a button the route will refuse is a button that lies).
+ */
+export async function waitingQuestions(
+  reader: Pick<CallerContext, 'company' | 'person' | 'permissions'>,
+  opts: { take?: number } = {}
+): Promise<WaitingQuestion[]> {
+  if (!reader.company) return []
+  const owner = hasAnyPermission(reader.permissions, OWNER_DESKS)
+  const rows = await prisma.twinApproval.findMany({
+    where: { companyId: reader.company.id, decision: 'PENDING' },
+    orderBy: { requestedAt: 'desc' },
+    take: Math.min(Math.max(opts.take ?? 50, 1), 200),
+    select: {
+      id: true, requestedAt: true, needsPermission: true,
+      twinAction: {
+        select: {
+          action: true, entityType: true, entityId: true, ruleCited: true, rationale: true,
+          onAuthorityOfRole: true, authorityPersonId: true, payload: true, companyId: true,
+          actorType: true, actorId: true,
+          authorityPerson: { select: { name: true } },
+        },
+      },
+    },
+  })
+  const visible = rows.filter((r) => owner || hasPermission(reader.permissions, r.needsPermission as Permission))
+  const names = await namesFor(visible.map((r) => r.twinAction))
+  return visible.map((r) => {
+    const a = r.twinAction
+    const payload = (a.payload ?? {}) as Record<string, unknown>
+    const holds = hasPermission(reader.permissions, r.needsPermission as Permission)
+    const own = reader.person.id === a.authorityPersonId || reader.person.id === payload.requestedByPersonId
+    const whyNot = !holds
+      ? askTheDesk({ doing: 'Answering this question from the twin', needs: r.needsPermission as Permission, kind: reader.company!.kind, companyName: reader.company!.name })
+      : own
+        ? 'The twin asked this on your authority, so another desk answers it. Nobody signs their own.'
+        : null
+    return {
+      id: r.id, requestedAt: r.requestedAt, action: a.action,
+      entityType: a.entityType, entityId: a.entityId,
+      label: names.label.get(`${a.entityType}:${a.entityId}`) ?? (typeof payload.number === 'string' ? payload.number : null),
+      ruleCited: a.ruleCited, rationale: a.rationale, onAuthorityOfRole: a.onAuthorityOfRole,
+      authorityName: a.authorityPerson?.name ?? null,
+      needsPermission: r.needsPermission,
+      mayDecide: holds && !own,
+      whyNot,
+    }
+  })
 }

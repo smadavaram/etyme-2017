@@ -7,6 +7,7 @@ import { getNavForKind, mayOpen, openBecause, OPEN_TO_EVERY_SEAT } from '@/compo
 import { plusMenuFor } from '@/components/shell/header'
 import { RECEIVABLE, PAYABLE } from '@/lib/money/desks'
 import { MAY_READ } from '@/app/api/blacklist/desks'
+import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -863,6 +864,7 @@ describe('a menu offers only what this seat can actually open', () => {
     'hasAnyPermission:SETS_UP_A_PARTY': SETS_UP_A_PARTY,
     'hasAnyPermission:ENDING_SOON_READERS': ENDING_SOON_READERS,
     'hasAnyPermission:CHECK_IN_READERS': CHECK_IN_READERS,
+    'hasAnyPermission:TWIN_FEED_READERS': TWIN_FEED_READERS,
   }
 
   /**

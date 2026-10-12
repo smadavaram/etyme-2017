@@ -12,6 +12,7 @@ import { staffAddresses } from '@/lib/alerts'
 import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
 import { INBOUND_SECRET_ENV } from '@/lib/texts'
+import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -105,6 +106,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     imports: { total: importsTotal, committed: importsCommitted },
     email: { sent: emailSent, unsent: emailUnsent },
     teams,
+    // Never throws (teamsBotFacts counts what it cannot read as nothing).
+    teamsBot: teamsBotEdge(await teamsBotFacts()),
     cron: { tracked: true, lastRunAt: lastRun ? (lastRun.finishedAt ?? lastRun.startedAt) : null, lastBroke: lastRun?.broke ?? 0 },
     watch: { staffConfigured: staffAddresses().length > 0, alertsSent: runsTold + incidentsTold, incidentsToday },
     demo: { seeded: Boolean(nike), current: Boolean(nike && nikeHr) },

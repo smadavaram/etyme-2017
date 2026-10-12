@@ -45,6 +45,8 @@ export type RecordType =
   | 'INVOICE'
   | 'TIMESHEET'
   | 'LEAD'
+  /** The twin's conversation panel reading the twin's ledger (app/api/conversations/twin). */
+  | 'TWIN_LEDGER'
 
 /**
  * Dollars per million tokens, as of the pricing table this was written

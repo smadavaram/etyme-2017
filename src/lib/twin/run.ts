@@ -27,6 +27,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { reportError } from '@/lib/alerts'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
 import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
 import { ruleSetFor } from '@/lib/twin/rule-set'
@@ -59,6 +60,42 @@ export interface RunSummary {
   warnings: number
   receipts: number
   outcomes: Record<ActResult['outcome'], number>
+  /**
+   * The morning digest, counted by how each person was reached: by the
+   * Teams bot, by the in-app and email fallback, or not at all. ABSENT
+   * where the digest module could not be loaded; FAILED where it threw.
+   */
+  teamsDigest: { bot: number; fallback: number; nothing: number } | 'ABSENT' | 'FAILED'
+}
+
+/**
+ * Conversation's proactive digest (`tellProgramOwnerOnTeams` in
+ * lib/teams/digest), loaded when it is asked for and never at build
+ * time, so a run is never stopped by it: a module that will not load is
+ * ABSENT, and a digest that throws is reported to staff and is FAILED.
+ * The run's own entries are written before this is asked and stand
+ * either way. The count says how each person was actually reached, so a
+ * fallback to email is never reported as a Teams message.
+ */
+async function tellOnTeams(companyId: string): Promise<RunSummary['teamsDigest']> {
+  let tell: ((companyId: string) => Promise<{ via: 'BOT' | 'FALLBACK' | 'NOTHING' }[]>) | null = null
+  try {
+    tell = (await import('@/lib/teams/digest')).tellProgramOwnerOnTeams
+  } catch {
+    return 'ABSENT'
+  }
+  if (typeof tell !== 'function') return 'ABSENT'
+  try {
+    const sent = (await tell(companyId)) ?? []
+    return {
+      bot: sent.filter((r) => r.via === 'BOT').length,
+      fallback: sent.filter((r) => r.via === 'FALLBACK').length,
+      nothing: sent.filter((r) => r.via === 'NOTHING').length,
+    }
+  } catch (err) {
+    await reportError('twin/teams-digest', err, { companyId }).catch(() => undefined)
+    return 'FAILED'
+  }
 }
 
 export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
@@ -113,7 +150,8 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
     }
   }
 
-  return { companyId, warnings: warnings.length, receipts: verdicts.length, outcomes }
+  const teamsDigest = await tellOnTeams(companyId)
+  return { companyId, warnings: warnings.length, receipts: verdicts.length, outcomes, teamsDigest }
 }
 
 /** The client programs the nightly run reads: real or demo, never a census sandbox. */

@@ -25,7 +25,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
-import { matchInvoice } from '@/lib/invoice-match'
+import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 
@@ -117,9 +117,12 @@ const approveInvoiceReceipt: Performer = {
       if (directionFrom(parties, c.companyId) !== 'PAYABLE') {
         return 'That invoice is not one this company is being asked to pay.'
       }
-      const match = await matchInvoice(c.entity.id)
-      if (!match) return 'That invoice receipt could not be checked against its order and its weeks.'
-      if (!match.matched) return `It did not clear the three-way check: ${match.summary}`
+      // The AP desk's own gate (money, lib/invoice-match): submitted, not
+      // held, not already paid, and through the three-way check. The twin
+      // asks the same question the desk asks and adds nothing to it.
+      const g = await mayPayInvoiceReceipt(c.entity.id)
+      if (!g) return 'That invoice receipt is not on the record.'
+      if (!g.ok) return g.says
       return null
     }
     if (c.entity.type === 'VendorBill') {

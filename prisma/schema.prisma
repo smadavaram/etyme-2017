@@ -40,6 +40,8 @@ model Person {
   twinActsOnAuthority     TwinAction[]             @relation("twinAuthority")
   /// Twin approvals this person decided.
   twinApprovalsDecided    TwinApproval[]           @relation("twinApprover")
+  /// Where Teams may write to this person unprompted, one per company seat.
+  teamsConversations      TeamsConversation[]
   benchWantsWritten       BenchWant[]              @relation("benchWantAuthor")
   benchWantsReceived      BenchWant[]              @relation("benchWantReceiver")
   benchHolidaySwitches    BenchHolidaySwitch[]     @relation("benchHolidaySubject")
@@ -726,6 +728,7 @@ model Company {
   twinRuleSets          RuleSet[]
   twinActions           TwinAction[]
   twinApprovals         TwinApproval[]
+  teamsConversations    TeamsConversation[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -8407,6 +8410,33 @@ model TwinApproval {
 
   @@index([companyId, decision])
   @@index([approverPersonId])
+}
+
+/// Where the twin may write to a person on Microsoft Teams without being
+/// asked first: the conversation reference the bot is handed the first
+/// time the person talks to it, kept so the nightly digest can reach them.
+///
+/// Asked for by etyme-conversation for `tellProgramOwnerOnTeams`
+/// (lib/teams). Nothing here is a message; it is the address. One row per
+/// person per company seat, replaced when Teams hands over a new one.
+model TeamsConversation {
+  id String @id @default(cuid())
+
+  personId  String
+  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The Microsoft Entra tenant the conversation lives in.
+  tenantId              String
+  /// Teams' own ConversationReference, stored as handed over, so a
+  /// proactive message can be sent back into the same conversation.
+  conversationReference Json
+  boundAt               DateTime @default(now())
+
+  @@unique([personId, companyId])
+  @@index([companyId])
+  @@index([tenantId])
 }
 
 /// The numbers a company sets for the twin's rules, one version per row,
