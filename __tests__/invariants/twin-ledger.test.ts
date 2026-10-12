@@ -99,7 +99,7 @@ beforeEach(fresh)
 
 const base = {
   companyId: CLIENT, surface: 'CRON' as const, authority: AUTHORITY,
-  rule: 'PR-2026-0442 bills 41.5 hours against 40 accepted, 3.75% over the 2% allowed.',
+  rule: 'PR-2026-0442 bills 41.5 hours against 40 accepted, 3.75% over the 0.5% allowed.',
   rationale: 'Ask Pinnacle Resourcing to bill the hours accepted.',
 }
 

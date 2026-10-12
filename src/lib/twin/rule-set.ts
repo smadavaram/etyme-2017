@@ -21,7 +21,7 @@ export interface TwinRuleSet {
   source: 'DEFAULT' | 'COMPANY'
   /** Widest first: [90, 60, 30]. */
   tenureWarnAtDays: number[]
-  /** Basis points: 200 is 2%. */
+  /** Basis points: 50 is 0.5%. */
   hoursToleranceBps: number
   /** The same number as a per cent, the unit the invoice rule reads. */
   hoursTolerancePct: number
@@ -31,8 +31,9 @@ export const DEFAULT_RULE_SET: TwinRuleSet = {
   version: 0,
   source: 'DEFAULT',
   tenureWarnAtDays: [90, 60, 30],
-  hoursToleranceBps: 200,
-  hoursTolerancePct: 2,
+  // The founder's figure, 2026-10-12: half of one per cent.
+  hoursToleranceBps: 50,
+  hoursTolerancePct: 0.5,
 }
 
 /** Why these numbers cannot be saved, in sentences. Empty when they can. */

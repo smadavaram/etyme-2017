@@ -116,7 +116,7 @@ export default function TwinRulesPage() {
                   <Field label="Warning days" help="Whole days from 1 to 365, separated by commas: 90, 60, 30.">
                     <Input value={days} onChange={(e) => setDays(e.target.value)} inputMode="numeric" required />
                   </Field>
-                  <Field label="Hours tolerance, in per cent" help="From 0 to 25. 2 means two per cent.">
+                  <Field label="Hours tolerance, in per cent" help="From 0 to 25. 0.5 means half of one per cent, the shipped figure.">
                     <Input value={pct} onChange={(e) => setPct(e.target.value)} inputMode="decimal" required />
                   </Field>
                 </div>

@@ -48,7 +48,7 @@ const receipt: InvoiceApprovalFacts = {
   currency: 'USD',
   dueAt: '2026-10-20T00:00:00.000Z',
   variances: ['Helena Marsh: 41.5 h billed, 40 h accepted (+3.75%)'],
-  ruleCited: 'Billed hours are within 2% of the 40 hours Northbend Athletic accepted for Sep 27 – Oct 3.',
+  ruleCited: 'Billed hours are within 0.5% of the 40 hours Northbend Athletic accepted for Sep 27 – Oct 3.',
   rationale: 'Pinnacle Staffing’s invoice receipt matches the signed hours and the contract rate, so it can be approved for payment.',
 }
 
