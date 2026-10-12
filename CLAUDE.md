@@ -335,6 +335,37 @@ presented as real (sample data is labelled as the demo's), plain
 English, and the client as the reader. The lead form posts to a real
 route and says success only on a real success.
 
+### Three screens and a global section — decided by the founder, 2026-10-12
+
+The founder, on the home page: *"Too many screenshots on home page"*,
+and, on how to change it: *"Don't write code. Prototype the page first
+and then take it."* Decided, after two prototypes and his choosing the
+live page's bones over a page from scratch:
+
+- **A page is prototyped before it is built.** A home-page change is
+  drawn first, as a clickable page with every change marked, and the
+  founder reads it; code starts on his "build it". A prototype is not
+  a wireframe of grey boxes: it is the live page's own words and
+  screens with the edits applied, because he reads the difference, not
+  the drawing.
+- **Three real screens, one per step it proves.** The dashboard in the
+  hero answers the headline's question; a week being signed sits under
+  Control; a matched bill under Reconcile. No mock cards in the hero,
+  no separate "screens" section, no icon grid. Eleven screens read as a
+  gallery; three read as proof.
+- **One section on specialist teams around the world**, in the page's
+  voice: what the record does per country, and what a client sets once
+  per site. It is the global reading of the same category, not a new
+  category and not a size claim.
+- **"Each desk sees its own work" stays.** It is the parties section,
+  written to the client. The mural of every party does not return to the
+  home page: it speaks to four audiences at once, it is a picture of how
+  it is built, and it competes with the one screen. The full picture
+  lives on a "who uses it" page and in the documentation.
+- **The header stays as it is live**: wordmark, Sign in, Free audit,
+  Menu. Documentation is linked from the menu, the trust card and the
+  footer, never a section of its own.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
