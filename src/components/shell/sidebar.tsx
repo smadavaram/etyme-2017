@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { EtymeLogo } from '@/components/logo'
+import { EtymeLogo, EtymeMark } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { consoleHome } from '@/lib/console-home'
-import { getNavForKind, activeHref, type CompanyKind } from '@/lib/nav-table'
+import { getNavForKind, activeHref, pinnedOn, ETYME_MARK_ICON, type CompanyKind, type NavItem } from '@/lib/nav-table'
 
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -89,7 +89,11 @@ export function Sidebar({
     permissions,
   }).href
 
-  const current = activeHref(sections, pathname, searchParams, dashboardHref)
+  // Ask Etyme, above every section, where this menu has Conversations
+  // (lib/nav-table). Read with the sections, so on its own page it is the
+  // one link lit, and Conversations is not.
+  const pinned = pinnedOn(sections)
+  const current = activeHref([{ label: '', items: pinned }, ...sections], pathname, searchParams, dashboardHref)
 
   // The link for the page being read is brought into view when the menu
   // opens. A worker who is also staff reads their firm's sections first
@@ -158,6 +162,13 @@ export function Sidebar({
             Your own pages ↓
           </button>
         )}
+        {pinned.length > 0 && (
+          <div className="mt-3" data-section="pinned">
+            {pinned.map((item) => (
+              <NavLink key={item.label} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} />
+            ))}
+          </div>
+        )}
         {sections.map((section) => (
           <div key={section.label} className="mb-1" data-section={section.label}>
             <div className="eyebrow px-2.5 pt-4 pb-1">
@@ -201,9 +212,7 @@ export function Sidebar({
                     {active && (
                       <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-pill bg-etyme-action" />
                     )}
-                    <span aria-hidden="true" className={`w-4 text-center text-[11px] ${active ? 'opacity-90' : 'opacity-50'}`}>
-                      {item.icon}
-                    </span>
+                    <NavIcon icon={item.icon} active={active} />
                     <span className="truncate">{item.label}</span>
                     {item.badge !== undefined && (
                       <span className="ml-auto text-[10px] font-semibold text-etyme-attention
@@ -249,5 +258,49 @@ export function Sidebar({
 
       {footer}
     </aside>
+  )
+}
+
+
+/** A menu icon: the Etyme mark where the table names it, else the glyph. */
+function NavIcon({ icon, active }: { icon: string; active: boolean }) {
+  if (icon === ETYME_MARK_ICON) {
+    return (
+      <span aria-hidden="true" className="w-4 flex items-center justify-center">
+        <EtymeMark size={14} />
+      </span>
+    )
+  }
+  return (
+    <span aria-hidden="true" className={`w-4 text-center text-[11px] ${active ? 'opacity-90' : 'opacity-50'}`}>
+      {icon}
+    </span>
+  )
+}
+
+/** One entry above the sections: the same row the sections draw, with no heading over it. */
+function NavLink({ item, active, sheet, onDismiss }: { item: NavItem; active: boolean; sheet?: boolean; onDismiss?: () => void }) {
+  return (
+    <Link
+      href={item.href as any}
+      onClick={onDismiss}
+      data-current={active ? 'true' : undefined}
+      aria-current={active ? 'page' : undefined}
+      className={`
+        relative flex items-center gap-2.5 px-2.5 rounded-nav
+        ${sheet ? 'py-2.5 text-[14px]' : 'py-1.5 text-[13px]'}
+        transition-colors duration-fast
+        ${active
+          ? 'bg-etyme-action-wash text-etyme-action-press font-medium'
+          : 'text-etyme-ink hover:bg-etyme-sunk/70'
+        }
+      `}
+    >
+      {active && (
+        <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-pill bg-etyme-action" />
+      )}
+      <NavIcon icon={item.icon} active={active} />
+      <span className="truncate">{item.label}</span>
+    </Link>
   )
 }

@@ -22,8 +22,8 @@ import { TwinConversationSlot } from './conversation-slot'
  * Three things, in the order somebody acts on them: what the program
  * looks like today (the program desk's own numbers), what the twin is
  * waiting on a person for, and what it did — one line per entry, on
- * whose authority and where. The conversation with the twin sits between
- * them, and is etyme-conversation's.
+ * whose authority and where. Between them, one line to Ask Etyme, the
+ * conversation with the record, which is etyme-conversation's.
  *
  * Who reads what is decided at the query (`ledgerFeed`): the owner reads
  * all, the client's other desks the program, a supplier only entries
@@ -327,7 +327,7 @@ export default function TwinPage() {
         </Panel>
       )}
 
-      {isClient && <div className="mb-6"><TwinConversationSlot companyId={session.company?.id ?? null} /></div>}
+      {isClient && <div className="mb-6"><TwinConversationSlot /></div>}
 
       <Panel title="What the twin did" subtitle="Every act, on whose authority and where. The export is the ledger as you are allowed to read it.">
         {failed

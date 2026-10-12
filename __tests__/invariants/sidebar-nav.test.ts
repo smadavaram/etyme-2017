@@ -16,6 +16,7 @@ import { PERMISSIONS } from '@/lib/permissions'
 import { rolesFor } from '@/lib/company-defaults'
 import { BENCH_PROFIT_DESKS } from '@/lib/bench-profit'
 import { BENCH_PAY_DESKS } from '@/lib/bench-holiday-switch'
+import { pinnedOn, activeHref, ASK_ETYME_HREF, ETYME_MARK_ICON } from '@/lib/nav-table'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -1357,5 +1358,55 @@ describe('a program office’s menu offers nothing it does not do', () => {
     // What it does do stays: its suppliers and how they score.
     expect(labels).toContain('Suppliers')
     expect(labels).toContain('Supplier scorecards')
+  })
+})
+
+/**
+ * Ask Etyme (founder, 2026-10-12): one entry above every section, first in
+ * the sidebar, on every menu that has Conversations. It is not a section:
+ * Today is still the first named section on every menu, and the table in
+ * CLAUDE.md that the tests above read is unchanged.
+ */
+describe('Ask Etyme sits above the sections, wherever Conversations is', () => {
+  const kinds = ['CLIENT', 'MSP', 'VENDOR', 'GSI', 'CONSULTANT_CORP'] as const
+
+  it('is the first entry on every firm\u2019s menu, above its first section, which is still Today (Workforce at a client)', () => {
+    for (const kind of kinds) {
+      const menu = getNavForKind(kind, false)
+      expect(pinnedOn(menu).map((i) => i.href), kind).toEqual([ASK_ETYME_HREF])
+      expect(menu[0].label, kind).toBe(kind === 'CLIENT' ? 'Workforce' : 'Today')
+    }
+  })
+
+  it('reaches a seat with no desk too, because its Today keeps Conversations', () => {
+    const deskless = getNavForKind('CLIENT', false, { permissions: [] })
+    expect(itemsOf(deskless).map((i) => i.href)).toContain('/dashboard/conversations')
+    expect(pinnedOn(deskless).map((i) => i.label)).toEqual(['Ask Etyme'])
+  })
+
+  it('is not drawn on a menu that has no Conversations', () => {
+    const menu = getNavForKind(null, true)
+    const has = itemsOf(menu).some((i) => i.href === '/dashboard/conversations')
+    expect(pinnedOn(menu).length).toBe(has ? 1 : 0)
+  })
+
+  it('asks for exactly what Conversations asks for, so it never offers a door that refuses', () => {
+    expect(openBecause(ASK_ETYME_HREF)).toBe(openBecause('/dashboard/conversations'))
+    expect(mayOpen(ASK_ETYME_HREF, [])).toBe(true)
+  })
+
+  it('is the one link lit on its own page, and Conversations is lit on its own', () => {
+    const menu = getNavForKind('CLIENT', false)
+    const all = [{ label: '', items: pinnedOn(menu) }, ...menu]
+    const none = { get: () => null }
+    expect(activeHref(all, ASK_ETYME_HREF, none, '/dashboard/program')).toBe(ASK_ETYME_HREF)
+    expect(activeHref(all, '/dashboard/conversations', none, '/dashboard/program')).toBe('/dashboard/conversations')
+  })
+
+  it('carries the Etyme mark as its icon, not an emoji', () => {
+    expect(pinnedOn(getNavForKind('VENDOR', false))[0].icon).toBe(ETYME_MARK_ICON)
+    const sidebar = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
+    expect(sidebar).toContain('icon === ETYME_MARK_ICON')
+    expect(sidebar).toContain('<EtymeMark')
   })
 })

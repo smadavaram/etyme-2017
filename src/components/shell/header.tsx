@@ -34,7 +34,7 @@ import { NotificationBell } from '@/components/notification-bell'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen } from '@/lib/nav-table'
+import { getNavForKind, mayOpen, pinnedOn } from '@/lib/nav-table'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -346,7 +346,9 @@ export function reachablePagesFor(
   isConsultant: boolean,
   seat: Parameters<typeof getNavForKind>[2]
 ): SearchResult[] {
-  return getNavForKind(kind, isConsultant, seat).flatMap((section) =>
+  // Ask Etyme first, where the menu draws it above the sections.
+  const sections = getNavForKind(kind, isConsultant, seat)
+  return [{ label: '', items: pinnedOn(sections) }, ...sections].flatMap((section) =>
     section.items.map((item) => ({
       label: item.label,
       type: 'page',

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { plusMenuFor, reachablePagesFor } from '@/components/shell/header'
 import { deskOf, sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { getNavForKind } from '@/components/shell/sidebar'
+import { pinnedOn } from '@/lib/nav-table'
 import { rolesFor } from '@/lib/company-defaults'
 import { hasAnyPermission } from '@/lib/permissions'
 import { SUPPLIER_SEATS, ALL_SEATS } from '@/app/demo/seats'
@@ -105,11 +106,14 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
     const found = reachablePagesFor(desk.companyKind, desk.isConsultant, {
       worker: desk.worker, permissions: desk.permissions, seatedAtClient: desk.seatedAtClient,
     }).map((p) => p.href)
-    const sidebar = getNavForKind(desk.companyKind, false, {
+    const menu = getNavForKind(desk.companyKind, false, {
       permissions: desk.permissions, seatedAtClient: desk.seatedAtClient,
-    }).flatMap((s) => s.items.map((i) => i.href))
+    })
+    // Ask Etyme first: the sidebar draws it above the sections (lib/nav-table, pinnedOn).
+    const sidebar = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
     expect(found).toEqual(sidebar)
-    const clientHrefs = new Set(getNavForKind('CLIENT', false).flatMap((s) => s.items.map((i) => i.href)))
+    const client = getNavForKind('CLIENT', false)
+    const clientHrefs = new Set([...pinnedOn(client), ...client.flatMap((s) => s.items)].map((i) => i.href))
     for (const href of found) expect(clientHrefs, href).toContain(href)
   })
 

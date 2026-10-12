@@ -233,6 +233,8 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard': ADDRESSED,
   '/dashboard/decisions': ADDRESSED,
   '/dashboard/conversations': ADDRESSED,
+  // Ask Etyme, pinned above the sections: the same door as Conversations.
+  '/dashboard/conversations/etyme': ADDRESSED,
   '/dashboard/notifications': ADDRESSED,
   '/dashboard/leads': SCOPED,
   '/dashboard/invitations': SCOPED,
@@ -314,6 +316,31 @@ export function openBecause(href: string): string | null {
  * `href` is typed as `string` because a few destinations carry a query
  * (`?side=sell`) and Next.js typedRoutes would reject them.
  */
+
+/**
+ * Ask Etyme — the one entry above every section (founder, 2026-10-12, on
+ * the "Ask Etyme" prototype). A chat with the record, pinned inside
+ * Conversations at /dashboard/conversations/etyme; the chat is
+ * conversation's.
+ *
+ * It is not a section. Today is still the first named section on every
+ * menu, and CLAUDE.md's navigation table is unchanged: this entry is drawn
+ * above the sections, on its own, wherever the reader's menu has
+ * Conversations, and nowhere else. It asks for exactly what Conversations
+ * asks for — nothing; everybody reads what is addressed to them — so a
+ * seat that is shown Conversations is shown this, and a seat that is not
+ * is not. Read with `pinnedOn` below, never typed into a section.
+ */
+export const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
+/** The icon value the sidebar draws as the Etyme mark (components/logo), not an emoji. */
+export const ETYME_MARK_ICON = 'etyme-mark'
+export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON }
+
+/** The entries drawn above this menu's sections: Ask Etyme where the menu has Conversations. */
+export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
+  const hasConversations = sections.some((s) => s.items.some((i) => i.href === '/dashboard/conversations'))
+  return hasConversations ? [ASK_ETYME] : []
+}
 
 /** The queue every firm opens on. Four items, so it needs no headings. */
 const TODAY: NavItem[] = [

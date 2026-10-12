@@ -94,12 +94,15 @@ rule set, the nightly run. What is short of that:
     the automation log**, not written as twin ledger entries, because an
     edit has no tier and `TwinAction.tier` is required. Only the program
     owner's view shows them, and the export carries them.
-19. **The conversation panel is found by webpack's listing of
-    conversation's folder** (`require.context`), so the page builds
-    whether or not it has landed. The nightly digest is a plain dynamic
-    import inside a try: a module that will not load reads ABSENT, one
-    that throws reads FAILED and is reported, and a digest that went by
-    email rather than the bot is counted as a fallback, never as Teams.
+19. **The conversation is Ask Etyme, not a panel on this page.** The
+    twin's page carries one line to it (`/dashboard/conversations/etyme`),
+    and the sidebar draws "Ask Etyme" above the sections wherever a menu
+    has Conversations. The chat page is conversation's; until it lands,
+    the line and the menu entry open a page that does not exist. The
+    nightly digest is a plain dynamic import inside a try: a module that
+    will not load reads ABSENT, one that throws reads FAILED and is
+    reported, and a digest that went by email rather than the bot is
+    counted as a fallback, never as Teams.
 20. **`TeamsConversation` has a table and no writer of the
     architect's.** Conversation's bot binds and reads it.
 
