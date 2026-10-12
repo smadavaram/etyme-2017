@@ -1918,7 +1918,10 @@ function readerWords(): number {
 // and the band of screens went, the eight tiles became four cards, and a
 // new band on specialist teams around the world came in, word for word
 // from the prototype he approved. Measured at 1,366 the same day.
-const CEILING = 1375
+// Then 1,375 → 1,385 the same day: the band was reworded so it claims only
+// what is built (the week and days off per company until the site layer
+// exists), which says more words to say less. Measured at 1,379.
+const CEILING = 1385
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -2181,18 +2184,30 @@ describe('The band on specialist teams around the world', () => {
     expect(points).toEqual([
       'One record, many countries.',
       'Each country’s rules, applied where the person sits.',
-      'Hours signed once, in the worker’s own time zone.',
+      'Hours signed once.',
       'Bills in the currency you agreed.',
       'Paperwork that never lapses quietly.',
     ])
     expect(band('specialist-teams')).toContain('{i + 1}')
   })
 
-  it('shows what a client sets once per site, and says the values are the demo’s settings', () => {
+  it('shows what a client sets once, and says the values are the defaults as shipped and that per-site settings are not built yet', () => {
     const rows = [...PER_SITE_SRC.matchAll(/\{ t: '([^']+)', v: '([^']+)' \}/g)].map((m) => m[1])
     expect(rows).toEqual(['Working week and days off', 'Time limit and break', 'Required paperwork', 'Currency and billing rhythm', 'Who may approve'])
-    expect(PAGE).toContain("const PER_SITE_NOTE = 'Demo settings. Suppliers never see each other’s rates; the client sees the supplier it pays.'")
-    expect(band('specialist-teams')).toContain('What you set once, per site')
+    expect(PAGE).toContain("const PER_SITE_NOTE = 'Defaults as shipped. Per-site settings arrive with the site layer; not built yet.'")
+    expect(band('specialist-teams')).toContain('<p className="stat-label">What you set once</p>')
+    // Reworded 2026-10-12 so nothing claims what is not built: no city
+    // examples, no time zone, and the week and days off said per company.
+    const values = [...PER_SITE_SRC.matchAll(/v: '([^']+)'/g)].map((m) => m[1])
+    expect(values).toEqual([
+      'Sunday to Saturday, with the days off you choose, per company today',
+      '18 months and a 90-day break by default, yours to change',
+      'The visa, permit or form each country needs, per person’s country',
+      'What you are billed in, how often, net days, on the order',
+      'The chain, and nobody signs their own',
+    ])
+    expect(WORLD_SRC).toContain('The working week, days off and overtime are set per company now, and move to the site when the site layer is built.')
+    expect(PAGE).not.toMatch(/time zone|Dubai|Demo settings/)
   })
 
   it('asks each country for its own paperwork, which is the one claim of the band the code already makes true', () => {

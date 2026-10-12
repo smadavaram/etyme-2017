@@ -178,23 +178,26 @@ const SCREEN_UNDER: Record<string, number> = { Control: 1, Reconcile: 2 }
 /**
  * Specialist teams around the world, word for word from the prototype
  * the founder approved on 2026-10-12: five points, and what a client sets
- * once per site. The panel's values are the demo's settings and say so.
+ * once. Reworded the same day by the coordinator on the founder's behalf,
+ * under his trust rule, so the band claims only what is built: the
+ * working week, days off and overtime are per company until the site
+ * layer exists, and the panel says so.
  */
 const WORLD: { t: string; d: string }[] = [
   { t: 'One record, many countries.', d: 'A person in Bangalore, a person in Guadalajara and a person in Leeds sit on one list, with the supplier and the site beside each.' },
-  { t: 'Each country’s rules, applied where the person sits.', d: 'Work authorization, the working week, days off, overtime and the time limit follow the site, not one company default.' },
-  { t: 'Hours signed once, in the worker’s own time zone.', d: 'The worker files their week. The manager signs it. Every supplier below bills from the same signed hours.' },
+  { t: 'Each country’s rules, applied where the person sits.', d: 'Work authorization and the paperwork a country needs follow the person’s site today. The working week, days off and overtime are set per company now, and move to the site when the site layer is built.' },
+  { t: 'Hours signed once.', d: 'The worker files their week. The manager signs it. Every supplier below bills from the same signed hours.' },
   { t: 'Bills in the currency you agreed.', d: 'Each supplier’s invoice is checked against the signed hours and the contract rate before it is paid.' },
   { t: 'Paperwork that never lapses quietly.', d: 'Visas, work permits, insurance and certificates are watched by date. A lapse blocks; a gap warns and records a reason.' },
 ]
 const PER_SITE: { t: string; v: string }[] = [
-  { t: 'Working week and days off', v: 'Sun to Sat · Fri off in Dubai, Sat working in Bangalore' },
-  { t: 'Time limit and break', v: '18 months · 90 days away before return' },
-  { t: 'Required paperwork', v: 'The visa, permit or form each country needs' },
-  { t: 'Currency and billing rhythm', v: 'What you are billed in, how often, net days' },
-  { t: 'Who may approve', v: 'The chain per site, nobody signs their own' },
+  { t: 'Working week and days off', v: 'Sunday to Saturday, with the days off you choose, per company today' },
+  { t: 'Time limit and break', v: '18 months and a 90-day break by default, yours to change' },
+  { t: 'Required paperwork', v: 'The visa, permit or form each country needs, per person’s country' },
+  { t: 'Currency and billing rhythm', v: 'What you are billed in, how often, net days, on the order' },
+  { t: 'Who may approve', v: 'The chain, and nobody signs their own' },
 ]
-const PER_SITE_NOTE = 'Demo settings. Suppliers never see each other’s rates; the client sees the supplier it pays.'
+const PER_SITE_NOTE = 'Defaults as shipped. Per-site settings arrive with the site layer; not built yet.'
 
 /**
  * The four desks the page is written to (the founder's feedback,
@@ -445,7 +448,7 @@ export default function LandingPage() {
               ))}
             </ol>
             <div className="rounded-panel border border-etyme-rule bg-etyme-raised p-5 lg:col-span-6">
-              <p className="stat-label">What you set once, per site</p>
+              <p className="stat-label">What you set once</p>
               <dl className="mt-2 divide-y divide-etyme-rule">
                 {PER_SITE.map((r) => (
                   <div key={r.t} className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:justify-between sm:gap-4">
