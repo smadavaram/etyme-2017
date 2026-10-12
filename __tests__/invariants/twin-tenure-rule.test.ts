@@ -43,7 +43,7 @@ describe('the job twin’s time-limit rule', () => {
     expect(w.daysOnSite).toBe(487)
     expect(w.suppliers).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
     expect(w.limitOn.toISOString().slice(0, 10)).toBe('2026-12-11')
-    expect(w.ruleCited).toBe('On site 487 days across two suppliers; the 18-month time limit falls on 2026-12-11, in 60 days.')
+    expect(w.ruleCited).toBe('On site 487 days across two suppliers; the 18-month time limit falls on Dec 11, 2026, in 60 days.')
     expect(w.rationale).toContain('Brightmoor Staffing, Pinnacle Resourcing')
     expect(w.rationale).toContain('every supplier')
     expect(`${w.ruleCited} ${w.rationale}`).not.toMatch(/\bcap\b/i)
@@ -75,7 +75,7 @@ describe('the job twin’s time-limit rule', () => {
 
     // A breach says the limit fell, and that a person decides — never that the twin ends anything.
     const b = tenureWarningsFor([kDaysOut(-40, 18)], { capMonths: 18, breakDays: 90, warnAtDays: [90, 60, 30] }, NOW)[0]
-    expect(b.ruleCited).toMatch(/time limit fell on \d{4}-\d{2}-\d{2}, 40 days ago\.$/)
+    expect(b.ruleCited).toMatch(/time limit fell on [A-Z][a-z]{2} \d{1,2}, \d{4}, 40 days ago\.$/)
     expect(b.rationale).toContain('A person decides')
 
     // Somebody whose contract ends before the limit is not warned about paper nobody signed.

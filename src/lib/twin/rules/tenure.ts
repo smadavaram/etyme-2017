@@ -16,7 +16,7 @@
  *
  * **It attests, it does not decide.** A warning is a fact about the
  * record with the numbers that make it: "On site 487 days across two
- * suppliers; the 18-month time limit falls on 2026-12-11, in 60 days."
+ * suppliers; the 18-month time limit falls on Dec 11, 2026, in 60 days."
  * It never says a person must leave, and the twin may not end, extend or
  * ask anybody back (`TENURE_TWIN_ACTIONS`). Those are BLOCK decisions
  * under Addendum E and employment decisions that stay with a person.
@@ -31,6 +31,7 @@
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { recordAccess } from '@/lib/access-log'
+import { formatDay } from '@/lib/format-date'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { DEFAULT_RULE_SET, ruleSetFor } from '@/lib/twin/rule-set'
 import {
@@ -205,13 +206,13 @@ export function tenureWarningsFor(
     const personName = own[0].personName
     const days = standing.countedDays
     const across = suppliers.length > 0 ? ` across ${count(suppliers.length, 'supplier')}` : ''
-    const since = standing.countsFrom ? ` since a break ended ${isoDay(standing.countsFrom)}` : ''
+    const since = standing.countsFrom ? ` since a break ended ${formatDay(standing.countsFrom)}` : ''
     const which = rules.limitIsDefault ? `default ${capMonths}-month time limit` : `${capMonths}-month time limit`
     const when = daysToLimit > 0
-      ? `falls on ${isoDay(limitOn)}, in ${daysToLimit} day${daysToLimit === 1 ? '' : 's'}`
+      ? `falls on ${formatDay(limitOn)}, in ${daysToLimit} day${daysToLimit === 1 ? '' : 's'}`
       : daysToLimit === 0
-        ? `falls today, ${isoDay(limitOn)}`
-        : `fell on ${isoDay(limitOn)}, ${-daysToLimit} day${daysToLimit === -1 ? '' : 's'} ago`
+        ? `falls today, ${formatDay(limitOn)}`
+        : `fell on ${formatDay(limitOn)}, ${-daysToLimit} day${daysToLimit === -1 ? '' : 's'} ago`
     const ruleCited = `On site ${days} days${since}${across}; the ${which} ${when}.`
     const firms = suppliers.length ? ` (${suppliers.join(', ')})` : ''
     const rationale = tier === 'BREACH'
