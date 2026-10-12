@@ -61,7 +61,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // Where the home page's long middle went on 2026-09-27, when it became a
 // product page. A fact that moved is pinned where it now lives, so a
 // section cannot fall off both pages at once.
-import { MODULES, copyOfModule, spelled } from '@/lib/public-site/modules'
+import { MODULES, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
 import { NAV_MENUS as SITE_MENUS, NAV_LINKS as SITE_LINKS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES } from '@/lib/public-site/nav'
@@ -1478,11 +1478,15 @@ describe('The claim about how much of this is a model is computed, not asserted'
   const unprompted = acts.filter((a) => a.kind === 'UNPROMPTED')
   const byRule = unprompted.filter((a) => a.basis === 'RULE')
 
+  // Spelled by the page's own helper and checked here against a table
+  // written out by hand, so the helper is tested and not just trusted.
   const NUMBERS: Record<number, string> = {
-    6: 'Six', 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen',
+    1: 'One', 2: 'Two', 3: 'Three', 6: 'Six', 11: 'Eleven', 12: 'Twelve', 13: 'Thirteen', 14: 'Fourteen', 15: 'Fifteen',
     16: 'Sixteen', 17: 'Seventeen', 18: 'Eighteen', 19: 'Nineteen', 20: 'Twenty',
     21: 'Twenty-one', 22: 'Twenty-two', 23: 'Twenty-three', 24: 'Twenty-four',
     25: 'Twenty-five', 26: 'Twenty-six', 27: 'Twenty-seven', 28: 'Twenty-eight', 29: 'Twenty-nine', 30: 'Thirty',
+    31: 'Thirty-one', 32: 'Thirty-two', 33: 'Thirty-three', 34: 'Thirty-four', 35: 'Thirty-five',
+    36: 'Thirty-six', 37: 'Thirty-seven', 38: 'Thirty-eight', 39: 'Thirty-nine', 40: 'Forty',
   }
 
   it('counts the things that happen without anybody asking, and says that number on the page', () => {
@@ -1505,12 +1509,30 @@ describe('The claim about how much of this is a model is computed, not asserted'
     ).toContain(`${NUMBERS[byRule.length]} of the ${NUMBERS[unprompted.length].toLowerCase()} are a date, a threshold or a count`)
   })
 
-  it('says what the one that is not a rule does, rather than leaving it to the imagination', () => {
-    const notARule = unprompted.filter((a) => a.basis !== 'RULE')
-    expect(notARule.length).toBe(1)
-    expect(notARule[0].says.toLowerCase()).toContain('scored people against an open job')
+  it('names every unprompted act that is not a plain rule, and they are proactive matching and the twin’s two recorded acts', () => {
+    const notARule = ALL_ACTIONS.filter((n) => ACTIONS[n].kind === 'UNPROMPTED' && ACTIONS[n].basis !== 'RULE')
+    expect(notARule.sort()).toEqual(['PROACTIVE_MATCH', 'TWIN_DREW_UP', 'TWIN_TOLD'])
+    expect(byRule.length).toBe(unprompted.length - notARule.length)
+  })
+
+  it('says how many are left that are not a rule, and says what each of them does', () => {
+    const notARule = ALL_ACTIONS.filter((n) => ACTIONS[n].kind === 'UNPROMPTED' && ACTIONS[n].basis !== 'RULE')
+    expect(GOVERNANCE_PAGE).toContain(`The ${NUMBERS[notARule.length].toLowerCase()} that are left`)
+    for (const name of notARule) {
+      expect(WHAT_IS_LEFT[name], `${name} has no plain clause on the governance page`).toBeTruthy()
+      expect(GOVERNANCE_PAGE, `${name} is not described on the governance page`).toContain(WHAT_IS_LEFT[name])
+    }
+  })
+
+  it('says matching scores a person against a job and falls back to arithmetic when there is no model', () => {
+    expect((ACTIONS.PROACTIVE_MATCH as { says: string }).says.toLowerCase()).toContain('scored people against an open job')
     expect(GOVERNANCE_PAGE).toContain('scores a person against a job')
     expect(GOVERNANCE_PAGE).toContain('falls back to arithmetic')
+  })
+
+  it('says the twin tells a desk what a rule found and drafts a summary a person reads, and nothing more', () => {
+    expect(GOVERNANCE_PAGE).toContain('The twin tells a desk what a rule found.')
+    expect(GOVERNANCE_PAGE).toContain('The twin drafts a summary that a person reads.')
   })
 
   it('states the denominator, because it is the automation log and not the whole product', () => {

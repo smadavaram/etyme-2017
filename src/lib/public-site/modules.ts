@@ -145,6 +145,39 @@ export interface More {
 const UNPROMPTED = ALL_ACTIONS.map((name) => ACTIONS[name]).filter((a) => a.kind === 'UNPROMPTED')
 const BY_RULE = UNPROMPTED.filter((a) => a.basis === 'RULE')
 
+/**
+ * What each unprompted act that is not a plain rule does, in one short
+ * sentence (plain English: one idea a sentence, never past twenty-five words), keyed by its name on the ladder. The page lists exactly the acts
+ * the ladder says are not a rule, so a new one added there reaches the
+ * page in its own words (the ladder's sentence) until somebody writes the
+ * short clause here, and the test checks every one is described.
+ */
+export const WHAT_IS_LEFT: Record<string, string> = {
+  PROACTIVE_MATCH:
+    'Matching scores a person against a job, and falls back to arithmetic when there is no model to call.',
+  TWIN_TOLD: 'The twin tells a desk what a rule found.',
+  TWIN_DREW_UP: 'The twin drafts a summary that a person reads.',
+}
+
+const NOT_A_RULE = ALL_ACTIONS.filter((name) => {
+  const a = ACTIONS[name]
+  return a.kind === 'UNPROMPTED' && a.basis !== 'RULE'
+})
+
+const clauseFor = (name: string): string => {
+  if (WHAT_IS_LEFT[name]) return WHAT_IS_LEFT[name]
+  const a = ACTIONS[name]
+  return a.kind === 'UNPROMPTED' ? a.says : name
+}
+
+/** The sentence about the acts that are not a rule, computed from the ladder. */
+function whatIsLeft(): string {
+  const clauses = NOT_A_RULE.map(clauseFor)
+  if (clauses.length === 0) return 'None is left: every one of them is a plain rule.'
+  if (clauses.length === 1) return `The one that is left does one thing. ${clauses[0]}`
+  return `The ${spelled(clauses.length)} that are left each do one thing. ${clauses.join(' ')}`
+}
+
 const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
   'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
@@ -789,7 +822,7 @@ const AS_WRITTEN: Omit<ModulePage, 'n'>[] = [
         `${capital(spelled(UNPROMPTED.length))} things in here happen without anybody asking for them. ` +
           `${capital(spelled(BY_RULE.length))} of the ${spelled(UNPROMPTED.length)} are a date, a threshold or a count: ` +
           'a permit running out, an agreement past its term, a retention period that has ended.',
-        'The one that is left scores a person against a job, and it falls back to arithmetic when there is no model to call.',
+        whatIsLeft(),
       ],
       items: [
         {
