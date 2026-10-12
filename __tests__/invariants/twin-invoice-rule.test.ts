@@ -79,22 +79,31 @@ function judge(id: string, weeks: Week[], rules: InvoiceRuleSet = DEFAULT_INVOIC
 }
 
 describe('the job twin reads an invoice receipt', () => {
-  it('a receipt within two percent of accepted hours and inside the rate band is clean', () => {
+  it('a receipt within half a percent of accepted hours and inside the rate band is clean', () => {
     const exact = judge('R-1', [{ hoursBilled: 40, hoursAccepted: 40 }])
     expect(exact.verdict).toBe('CLEAN')
     expect(exact.payable).toBe(true)
     expect(exact.ruleCited).toBe("Hours 40 against 40 accepted, at the contract's $98.00/hr.")
 
-    const close = judge('R-2', [{ hoursBilled: 40.5, hoursAccepted: 40 }])
+    const close = judge('R-2', [{ hoursBilled: 40.1, hoursAccepted: 40 }])
     expect(close.verdict).toBe('CLEAN')
-    expect(close.ruleCited).toBe('Hours 40.5 against 40 accepted, 1.25% over, inside the 2% allowed.')
+    expect(close.ruleCited).toBe('Hours 40.1 against 40 accepted, 0.25% over, inside the 0.5% allowed.')
 
-    const edge = judge('R-3', [{ hoursBilled: 40.8, hoursAccepted: 40 }])
-    expect(edge.verdict).toBe('CLEAN')
+    // The line itself is clean: 40.2 against 40 is exactly 0.5%, and at or
+    // under the line is inside the rule, over or under accepted alike.
+    const atTheLine = judge('R-3', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
+    expect(atTheLine.verdict).toBe('CLEAN')
+    expect(atTheLine.ruleCited).toBe('Hours 40.2 against 40 accepted, 0.5% over, inside the 0.5% allowed.')
+    expect(judge('R-3b', [{ hoursBilled: 39.8, hoursAccepted: 40 }]).verdict).toBe('CLEAN')
+
+    // Past the line is not: 40.5 against 40 is 1.25%.
+    const past = judge('R-3c', [{ hoursBilled: 40.5, hoursAccepted: 40 }])
+    expect(past.verdict).toBe('MISMATCH')
+    expect(past.ruleCited).toBe('Hours 40.5 against 40 accepted, 1.25% over the 0.5% allowed.')
   })
 
   it('a clean verdict inside the tolerance never says the bill can be paid without the AP desk', () => {
-    const close = judge('R-4', [{ hoursBilled: 40.5, hoursAccepted: 40 }])
+    const close = judge('R-4', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
     expect(close.payable).toBe(false)
     expect(close.failing).toContain('QUANTITY')
     expect(close.rationale).toMatch(/AP desk still records the difference before it is paid/)
@@ -103,7 +112,7 @@ describe('the job twin reads an invoice receipt', () => {
   it('a receipt three point seven five percent over accepted hours is a mismatch that cites the rule and the numbers', () => {
     const v = judge('R-5', [{ hoursBilled: 41.5, hoursAccepted: 40 }])
     expect(v.verdict).toBe('MISMATCH')
-    expect(v.ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over the 2% allowed.')
+    expect(v.ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over the 0.5% allowed.')
     expect(v.rationale).toMatch(/Ask Pinnacle Resourcing to bill the hours accepted/)
     expect(v.lines[0].hoursOffPct).toBeCloseTo(3.75, 10)
   })
@@ -111,7 +120,7 @@ describe('the job twin reads an invoice receipt', () => {
   it('hours billed under what was accepted are judged by the same tolerance', () => {
     const v = judge('R-6', [{ hoursBilled: 38, hoursAccepted: 40 }])
     expect(v.verdict).toBe('MISMATCH')
-    expect(v.ruleCited).toBe('Hours 38 against 40 accepted, 5% under the 2% allowed.')
+    expect(v.ruleCited).toBe('Hours 38 against 40 accepted, 5% under the 0.5% allowed.')
   })
 
   it('a rate other than the contract rate is a mismatch however close, because the band is the contract rate on the day worked', () => {
@@ -122,7 +131,7 @@ describe('the job twin reads an invoice receipt', () => {
   })
 
   it('a receipt that includes a week nobody accepted is blocked whatever the tolerance', () => {
-    for (const hoursTolerancePct of [2, 25]) {
+    for (const hoursTolerancePct of [0.5, 25]) {
       const v = judge('R-8', [
         { hoursBilled: 40, hoursAccepted: 40 },
         { hoursBilled: 44, hoursAccepted: 44, accepted: false },
@@ -140,7 +149,7 @@ describe('the job twin reads an invoice receipt', () => {
     expect(loose.verdict).toBe('CLEAN')
     expect(loose.ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over, inside the 5% allowed.')
     expect(loose.rationale).toMatch(/inside your 5%/)
-    expect(judge('R-10', [{ hoursBilled: 40.5, hoursAccepted: 40 }]).rationale).toMatch(/inside the default 2%/)
+    expect(judge('R-10', [{ hoursBilled: 40.2, hoursAccepted: 40 }]).rationale).toMatch(/inside the default 0\.5%/)
   })
 
   it('a tolerance nobody can stand behind is refused in a sentence rather than used', () => {
@@ -167,7 +176,7 @@ describe('the job twin reads an invoice receipt', () => {
     expect(verdicts.filter((v) => v.verdict === 'CLEAN')).toHaveLength(2)
     const mismatches = verdicts.filter((v) => v.verdict === 'MISMATCH')
     expect(mismatches).toHaveLength(1)
-    expect(mismatches[0].ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over the 2% allowed.')
+    expect(mismatches[0].ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over the 0.5% allowed.')
     // Every week in the plan was accepted by Northbend, so nothing in the demo is blocked.
     expect(verdicts.some((v) => v.verdict === 'BLOCKED')).toBe(false)
   })
@@ -189,8 +198,8 @@ describe("the twin's yes and the AP desk read one payment gate", () => {
     expect(refused('HELD')).toBe('HELD')
     expect(refused('CANCELLED')).toBe('INVALID_STATE')
     expect(refused('PAID')).toBe('INVALID_STATE')
-    // Inside the tolerance is not a payment: the check still fails on 40.5 against 40.
-    const inside = judge('INV-INSIDE', [{ hoursBilled: 40.5, hoursAccepted: 40 }])
+    // Inside the tolerance is not a payment: the check still fails on 40.2 against 40.
+    const inside = judge('INV-INSIDE', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
     expect(inside.verdict).toBe('CLEAN')
     const g = payGate({ number: 'INV-2', status: 'SUBMITTED' }, { matched: inside.payable, summary: 'hours differ' })
     expect(g).toEqual({

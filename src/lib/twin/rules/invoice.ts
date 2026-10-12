@@ -23,7 +23,7 @@
  * three-way check still fails QUANTITY on any difference, and the AP
  * desk still records a reason before a bill that differs is paid. So a
  * receipt clean under the tolerance carries `payable: false` and says so
- * in its rationale. Whether two per cent should also pass the payment
+ * in its rationale. Whether half a per cent should also pass the payment
  * gate is a money decision against the founder's own rule ("a firm
  * bills only the hours the firm above it accepted") and is put to him,
  * not made here.
@@ -76,8 +76,12 @@ export interface InvoiceRuleSet {
   source: 'DEFAULT' | 'COMPANY'
 }
 
-/** The founder's seed rule: hours within two per cent. */
-export const DEFAULT_INVOICE_RULES: InvoiceRuleSet = { hoursTolerancePct: 2, source: 'DEFAULT' }
+/**
+ * The founder's rule, 2026-10-12: hours within half a per cent (50 basis
+ * points), at or under the line inside. It was two per cent until he
+ * said: "Not % but .5% is better".
+ */
+export const DEFAULT_INVOICE_RULES: InvoiceRuleSet = { hoursTolerancePct: 0.5, source: 'DEFAULT' }
 
 /**
  * The rules a company runs under: its own numbers where it saved some,
@@ -159,7 +163,7 @@ function hrs(n: number): string {
   return String(Math.round(n * 100) / 100)
 }
 
-/** "3.75%" · "2%" — at most two decimals, no trailing zeroes. */
+/** "3.75%" · "0.5%" — at most two decimals, no trailing zeroes. */
 function pct(n: number): string {
   return `${Math.round(n * 100) / 100}%`
 }

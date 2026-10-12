@@ -147,12 +147,12 @@ read is on the access log under the program owner and the twin's kind
 
 ## Invoice rule — etyme-money
 
-- **The tolerance decides what the twin raises, not what is paid.** A
-  receipt two per cent over is CLEAN to the twin and still fails the
-  three-way check's QUANTITY, so it carries `payable: false` and the AP
-  desk records the difference with a reason before it is paid. Whether
-  two per cent should also clear payment is put to the founder, not
-  decided here.
+- **The tolerance decides what the twin raises, not what is paid.** The
+  default is 0.5% (founder, 2026-10-12), and a receipt at or under it is
+  CLEAN to the twin. It still fails the three-way check's QUANTITY, so it
+  carries `payable: false` and the AP desk records the difference with a
+  reason before it is paid. Whether 0.5% should also clear payment is put
+  to the founder, not decided here.
 - **`seedTwinInvoiceDemo` finds Northbend and Pinnacle by display name**,
   not by slug or id. A renamed demo company seeds no receipts and says
   nothing.
