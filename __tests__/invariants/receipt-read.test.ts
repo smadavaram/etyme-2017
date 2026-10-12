@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { payGate } from '@/lib/invoice-match'
 import { readReceipt, type ReceiptLine } from '@/lib/money/receipt-read'
 
 /**
@@ -95,7 +96,17 @@ describe('the payer’s list and page read the check, and offer Pay only where i
 
   it('nothing is paid that does not pass the check at the moment it is paid', () => {
     const route = src('app/api/invoices/[id]/payments/route.ts')
-    expect(route).toContain('const now = await matchInvoice(id)')
-    expect(route).toContain("code: 'MATCH_FAILED'")
+    // The payer's branch goes through the one gate, which runs the check
+    // again now, before any payment row is written.
+    const gate = route.indexOf('payGate(invoice, await matchInvoice(id))')
+    expect(gate).toBeGreaterThan(-1)
+    expect(route).toContain('receiptStateRefusal(invoice)')
+    expect(gate).toBeLessThan(route.indexOf('tx.payment.create'))
+    // And the gate refuses a receipt the check fails, in the desk's words.
+    expect(payGate({ number: 'INV-9', status: 'SUBMITTED' }, { matched: false, summary: 'hours differ' })).toEqual({
+      ok: false, code: 'MATCH_FAILED',
+      says: 'Invoice INV-9 does not pass the check now: hours differ. Fix it or record an exception with a reason on its page, then pay it.',
+    })
+    expect(payGate({ number: 'INV-9', status: 'SUBMITTED' }, { matched: true, summary: '' })).toEqual({ ok: true })
   })
 })
