@@ -21,11 +21,11 @@ billed at 41.5 hours against 40 accepted.
 | 1 | Open the twin's question | Northbend **AP clerk** | Teams card — **needs your keys**. Until then: `/demo` → Northbend Athletic → AP desk → **Program twin** (Governance) | "Waiting for you": two questions, "Approve invoice receipt …" |
 | 2 | Press **Approve** on the first receipt | AP clerk | same | "Done, and recorded in the twin's ledger under your name." The question leaves the list. |
 | 3 | Press **Reject** on the second, type a reason, **Say no** | AP clerk | same | "Recorded as no, with your reason." See the note below about the mismatch. |
-| 4 | Switch desk | Northbend **program manager** | `/demo` → Northbend Athletic → Program desk → **Program twin** | The four numbers at the top: on site, this month, time-limit risks, waiting for approval. |
+| 4 | Switch desk | Northbend **program manager** | `/demo` → Northbend Athletic → Program desk → **Program twin** | The four numbers at the top: on site, this month, time-limit risks, hours and expenses waiting. |
 | 5 | Press **Why?** on "Twin recorded a time-limit warning for …" | program manager | the feed, "What the twin did" | The rule (the time limit, the warning day) and the reason in words. |
 | 6 | Read the feed | program manager | same | One line per act, each saying who, which record, on whose authority, where and when — e.g. "Twin approved invoice receipt PR-2026-0441 under Program Manager authority on the web — [AP clerk] said yes, Mon, Oct 12, 9:41 AM". |
 | 7 | Ask the twin: **"Show me invoice variance by supplier this quarter"** | program manager | the conversation panel on the same page | An answer with the figures and what they rest on. The panel is conversation's work. |
-| 8 | Open **What the twin may do**, move one act (for example "Remind a person…" to *Needs approval*), give a reason, **Save** | Northbend **account owner** | `/demo` → Northbend Athletic (no desk) → Program twin → **What it may do** | "Saved as version 1. Earlier versions are kept. The change is in the twin's ledger." |
+| 8 | Open **What the twin may do**, move one act (for example "Remind a person…" to *Needs approval*), give a reason, **Save** | Northbend **account owner** | `/demo` → Northbend Athletic → **Account owner** → Program twin → **What it may do** | "Saved as version 1. Earlier versions are kept. The change is in the twin's ledger." |
 | 9 | Go back to **Program twin** | account owner | the feed | The top line: "[Owner] changed the twin's role contract, version 1 on the web". |
 
 **Export.** On the feed, switch to **Table** and press **Export** for a

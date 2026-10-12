@@ -93,7 +93,7 @@ function fresh() {
   h.notifyBulk.mockClear()
 }
 
-import { act, ledger } from '../../src/lib/twin/ledger'
+import { act, ledger, decideApproval } from '../../src/lib/twin/ledger'
 
 beforeEach(fresh)
 
@@ -164,5 +164,32 @@ describe('the twin’s ledger', () => {
     })
     expect(written).toEqual({ ok: false })
     expect(h.reportError).toHaveBeenCalledTimes(1)
+  })
+  it('a person’s no carries their own reason in the ledger, and a refusal carries the sentence it was refused with', async () => {
+    T().vendorBill.push(
+      { id: 'bill-1', companyId: CLIENT, status: 'RECEIVED', buyContractId: null },
+      { id: 'bill-2', companyId: CLIENT, status: 'RECEIVED', buyContractId: null },
+    )
+    const one = await act({ ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-1' } })
+    const two = await act({ ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-2' } })
+    if (one.outcome !== 'AWAITING_APPROVAL' || two.outcome !== 'AWAITING_APPROVAL') throw new Error('the twin did not ask')
+
+    const ap = { personId: 'pat', personName: 'Pat Okafor', companyId: CLIENT, permissions: ['payments.record'] }
+    const why = 'Pinnacle agreed to rebill this month at the new rate.'
+    const no = await decideApproval({ approvalId: one.approvalId, decider: ap, decision: 'REJECTED', reason: why, surface: 'WEB' })
+    expect(no).toMatchObject({ ok: true, outcome: 'REJECTED' })
+    const rejected = T().twinAction.find((e) => e.outcome === 'REJECTED')!
+    expect(rejected.rationale).toBe(why)
+    expect(rejected.payload.twinRationale).toBe(base.rationale)
+
+    // The program manager the twin asked on behalf of cannot answer; the
+    // entry's reason is the sentence she was refused with.
+    const dana = { personId: 'dana', personName: 'Dana Whitfield', companyId: CLIENT, permissions: ['payments.record', 'governance.read'] }
+    const refusedAnswer = await decideApproval({ approvalId: two.approvalId, decider: dana, decision: 'APPROVED', surface: 'WEB' })
+    expect(refusedAnswer.ok).toBe(false)
+    const said = refusedAnswer.ok ? '' : refusedAnswer.says
+    const refusal = T().twinAction.filter((e) => e.actorType === 'PERSON' && e.outcome === 'REFUSED').pop()!
+    expect(refusal.rationale).toBe(said)
+    expect(refusal.rationale).not.toBe(base.rationale)
   })
 })

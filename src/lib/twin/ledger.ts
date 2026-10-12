@@ -524,14 +524,27 @@ export async function decideApproval(args: {
     rationale: asked.rationale,
     surface: args.surface,
     approvalId: approval.id,
-    payload: { askedIn: asked.id, decision: args.decision, reason: args.reason ?? null },
+    // The twin's own note stays with the entry, under its name; the line's
+    // reason is the person's (below), because an auditor reading a no must
+    // read why the person said it.
+    payload: { askedIn: asked.id, decision: args.decision, reason: args.reason ?? null, twinRationale: asked.rationale },
   }
   const refused = async (status: 403 | 422, says: string, rule: string): Promise<DecideResult> => {
     // Awaited before the refusal goes out; reported, never thrown, on failure.
-    await ledger({ ...person, outcome: 'REFUSED', ruleCited: rule, payload: { ...person.payload, said: says } })
+    // The reason on a refusal is the sentence the person was refused with.
+    await ledger({ ...person, outcome: 'REFUSED', ruleCited: rule, rationale: says, payload: { ...person.payload, said: says } })
     return { ok: false, status, says }
   }
 
+  // Nobody signs their own first: a person the twin asked on behalf of is
+  // told somebody else answers, never invited to widen a desk that would
+  // still be refused.
+  if (args.decider.personId === asked.authorityPersonId || args.decider.personId === payload.requestedByPersonId) {
+    return refused(403, twinRefusal({
+      why: 'OWN_AUTHORITY', doing: TWIN_ACTS[asked.action]?.says ?? asked.action,
+      authorityName: args.decider.personId === asked.authorityPersonId ? asked.authorityPerson?.name : args.decider.personName,
+    }), 'Segregation of duties: nobody signs their own')
+  }
   if (!hasPermission(args.decider.permissions, approval.needsPermission as Permission)) {
     return refused(403, askTheDesk({
       doing: 'Answering this question from the twin',
@@ -539,12 +552,6 @@ export async function decideApproval(args: {
       kind: args.decider.companyKind,
       companyName: args.decider.companyName,
     }), 'Only the desk the contract names decides')
-  }
-  if (args.decider.personId === asked.authorityPersonId || args.decider.personId === payload.requestedByPersonId) {
-    return refused(403, twinRefusal({
-      why: 'OWN_AUTHORITY', doing: TWIN_ACTS[asked.action]?.says ?? asked.action,
-      authorityName: args.decider.personId === asked.authorityPersonId ? asked.authorityPerson?.name : args.decider.personName,
-    }), 'Segregation of duties: nobody signs their own')
   }
 
   const reason = args.reason?.trim() || null
@@ -557,7 +564,7 @@ export async function decideApproval(args: {
           data: { decision: 'REJECTED', approverPersonId: args.decider.personId, decidedAt: new Date(), surface: args.surface, reasonFromApprover: reason },
         })
         if (moved.count !== 1) throw new Error('ALREADY_DECIDED')
-        const row = await writeEntry(tx, { ...person, outcome: 'REJECTED' })
+        const row = await writeEntry(tx, { ...person, outcome: 'REJECTED', rationale: reason })
         await tx.automationLog.create({
           data: {
             companyId: approval.companyId,
@@ -804,7 +811,7 @@ export async function ledgerFeed(
       entityId: String((isContract ? p.roleContractId : p.ruleSetId) ?? ''),
       label, program: companyId ? names.company.get(companyId) ?? null : null,
       line: feedLine({ actorType: 'CHANGE', actorName, action: '', outcome: 'PERFORMED', entityType, label, onAuthorityOfRole: '', surface: 'WEB' }),
-      ruleCited: isContract ? 'Only a person holding settings.manage changes what the twin may do' : 'Only a person holding settings.manage changes the twin’s numbers',
+      ruleCited: isContract ? 'Only the desk that holds the company’s settings changes what the twin may do.' : 'Only the desk that holds the company’s settings changes the twin’s numbers.',
       rationale: c.reason ?? '', surface: 'WEB', approvalId: null,
       payload: p, roleContractVersion: isContract && typeof p.version === 'number' ? p.version : undefined,
     }
@@ -866,16 +873,24 @@ export async function waitingQuestions(
   })
   const visible = rows.filter((r) => owner || hasPermission(reader.permissions, r.needsPermission as Permission))
   const names = await namesFor(visible.map((r) => r.twinAction))
+  // The contract as it stands now: an act moved to Never since the twin
+  // asked is refused on a yes, so no button is offered for it.
+  const contract = visible.length ? await contractFor(reader.company.id) : null
   return visible.map((r) => {
     const a = r.twinAction
     const payload = (a.payload ?? {}) as Record<string, unknown>
     const holds = hasPermission(reader.permissions, r.needsPermission as Permission)
     const own = reader.person.id === a.authorityPersonId || reader.person.id === payload.requestedByPersonId
-    const whyNot = !holds
-      ? askTheDesk({ doing: 'Answering this question from the twin', needs: r.needsPermission as Permission, kind: reader.company!.kind, companyName: reader.company!.name })
-      : own
-        ? 'The twin asked this on your authority, so another desk answers it. Nobody signs their own.'
-        : null
+    const never = contract ? tierIn(contract, a.action) === 'NEVER' : false
+    // The same order the answer is checked in (decideApproval): your own
+    // first, then the desk; and a yes the contract now forbids, last.
+    const whyNot = own
+      ? 'The twin asked this on your authority, so somebody else answers it. Nobody signs their own.'
+      : !holds
+        ? askTheDesk({ doing: 'Answering this question from the twin', needs: r.needsPermission as Permission, kind: reader.company!.kind, companyName: reader.company!.name })
+        : never
+          ? `${twinRefusal({ why: 'NEVER', doing: TWIN_ACTS[a.action]?.says ?? a.action })} Change the role contract first if it should be asked again.`
+          : null
     return {
       id: r.id, requestedAt: r.requestedAt, action: a.action,
       entityType: a.entityType, entityId: a.entityId,
@@ -883,7 +898,7 @@ export async function waitingQuestions(
       ruleCited: a.ruleCited, rationale: a.rationale, onAuthorityOfRole: a.onAuthorityOfRole,
       authorityName: a.authorityPerson?.name ?? null,
       needsPermission: r.needsPermission,
-      mayDecide: holds && !own,
+      mayDecide: holds && !own && !never,
       whyNot,
     }
   })

@@ -303,8 +303,8 @@ export default function TwinPage() {
           <Stat label="This month" value={picture?.spend != null ? compact(picture.spend) : null} sub={picture?.spendBasis ?? (picture ? 'The program could not be read.' : 'Reading…')} href="/dashboard/program/budget" />
           <Stat label="Time-limit risks" value={picture?.timeLimit ?? null} tone={picture?.timeLimit ? 'attention' : 'default'}
             sub={picture?.timeLimitSays ?? (picture ? 'near or at the limit, across every supplier' : 'Reading…')} href="/dashboard/tenure" />
-          <Stat label="Waiting for approval" value={picture?.pending ?? null} tone={picture?.pending ? 'attention' : 'default'}
-            sub={picture ? 'hours and expenses on the program desk' : 'Reading…'} href="/dashboard/program" />
+          <Stat label="Hours and expenses waiting" value={picture?.pending ?? null} tone={picture?.pending ? 'attention' : 'default'}
+            sub={picture ? 'for approval on the program desk' : 'Reading…'} href="/dashboard/program" />
         </section>
       )}
 
