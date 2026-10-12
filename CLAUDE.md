@@ -613,6 +613,71 @@ What it means, stated so nobody re-derives the old plan:
   Coordinator, AP Clerk, Compliance Officer already exist as a company
   kind. Etyme staff hold them in each client's program through the seat.
 
+## The job twin — decided by the founder, 2026-10-12
+
+The founder's brief: build the **job twin**, a headless agent that acts in
+the role of a contingent-workforce program manager. It watches the record,
+enforces the rules, and surfaces only exceptions and approvals to a person.
+Two doors, one twin, one ledger: **Microsoft Teams** for the ten-second
+approvals and alerts where people already work, and **Etyme's own
+conversation and dashboard** for configuration, investigation, analytics
+and governance. Quick actions and approvals surface on both doors;
+configuration, investigation and governance live only in Etyme.
+`reports/Muse digital twin for Etyme.md` is the design behind it.
+
+What is decided, and the reason each stands on:
+
+- **Governance is the product.** A **role contract** per company and twin
+  kind, stored as data and enforced in code, with three tiers: ACTS ALONE
+  (reversible, within rules: flag a mismatch, send a reminder, draft a
+  summary), NEEDS APPROVAL (money movement, external messages, anything
+  irreversible), NEVER TOUCHES (release payroll, sign agreements,
+  award, reject or end a placement, read another company's data, approve
+  what the twin drafted or what its own authority's person asked for).
+  Every edit of the contract is a new version and is ledgered.
+- **Rules first, the model second.** Business rules — the time limit and
+  its 90/60/30-day warnings, rate bands, the hours tolerance on an
+  invoice receipt, approval chains — are code and data; the twin never
+  improvises policy and never is the gate. Ambiguity escalates to a
+  person.
+- **No twin action without a ledger entry.** `TwinAction` records the
+  time, the actor (the twin and the human role it acted under), the
+  action, the entity, the rule cited, the rationale in plain English, the
+  surface (Teams, web, cron) and the approval where there is one. It
+  stands beside the access log and the automation log, not instead of
+  them, because an auditor asks who did what under whose authority.
+- **Identity binds at activation.** Single sign-on maps the corporate
+  identity to an Etyme seat and its permissions. Least privilege. The
+  identity that submits cannot approve.
+- **Isolation at the query**, never only the screen: a supplier reads
+  only its own entries, a client its program, the program owner all.
+- **It stands on the existing record.** No new company, person,
+  supplier, requirement, timesheet or invoice tables: those exist, are
+  seeded and are in production. New is only what the twin needs — the
+  role contract, the twin's ledger and approvals, a rule set per company,
+  and a twin actor kind on the logs. Rebuilding the record for the demo
+  would be the 2017 sprawl.
+- **The Teams bot is a route in this app**, not a second service; the
+  one new dependency is the bot adapter. Teams never writes state
+  directly: every card action calls the one approval route the web also
+  calls.
+- **The wedge, built first because it is the demo:** the time limit
+  watched daily with warnings at 90, 60 and 30 days, and invoice receipts
+  checked against accepted hours within a set tolerance and the
+  contracted band. The seeded Northbend Athletic desk holds one person
+  60 days from the limit and three pending receipts, two clean and one
+  with an hours mismatch.
+- **Testing budget, the founder's hard rule for this prototype:** tests
+  only for what can lose money or break trust — the rules against the
+  seed, a NEVER-tier act refused, and ledger integrity. No other new test
+  file without asking. The existing suite still has to pass, because
+  nothing ships on a red test. `KNOWN-LIMITS.md` lists every shortcut
+  plainly. Two passes: the demo path first; hardening only when asked.
+- **Not built:** a talent marketplace, more matching, general
+  procurement, company-size claims. "Enterprise" stays in titles.
+- **The words stay Etyme's** on every screen and card: job request, time
+  limit, invoice receipt, bill.
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in
