@@ -142,3 +142,66 @@ read is on the access log under the program owner and the twin's kind
   through `POST /api/invoices/:id/payments`. Batching them is a schema
   request (an optional `invoiceId` on `PaymentRunItem`), not made until a
   client asks.
+
+## Teams door — etyme-conversation
+
+What is built: `POST /api/teams/messages` (the bot), the identity
+binding, the invoice approval card, the time-limit card, the nightly
+digest `tellProgramOwnerOnTeams(companyId)`, the app package and
+`docs/teams-setup.md`. What is short of that:
+
+1. **No Bot Framework SDK.** `botbuilder` was asked for and not added:
+   `package.json` is shared and changes through the architect. The bot
+   speaks the protocol directly instead — the token check (published
+   keys, issuer, audience, expiry, serviceUrl, channel endorsement) in
+   `lib/teams/auth`, and the connector's REST calls in
+   `lib/teams/connector`. Swapping the SDK in later changes those two
+   files.
+2. **Never run against a real tenant.** Every piece is tested by shape
+   or by a token signed in the test; nothing has posted to Teams, and
+   `/ready` will say so until somebody answers a card there.
+3. **Identity is the member as Teams reports it, not an SSO token
+   exchange.** The bot reads the sign-in name back from Teams with its
+   own token (`getMember`) and matches it to `Person.primaryEmail`. A
+   true single sign-on exchange needs an OAuth connection on the Azure
+   Bot and `webApplicationInfo` in the manifest; neither is set up.
+4. **The tenant is not checked against the company.** A tenant can only
+   issue sign-in names on domains it verified, so the address is the
+   check. Etyme stores no Entra tenant id per company to compare with.
+5. **Single-tenant registration.** `docs/teams-setup.md` registers the
+   bot in Etyme's own tenant. A client in another tenant needs a
+   multi-tenant registration (or the client's own), which Azure now
+   discourages for new bots. Decide before the first client installs it.
+6. **The binding is re-made on every activity**, one connector call
+   each, so a revoked seat stops at once. No cache.
+7. **Acknowledge records nothing.** It answers "Nothing on the record
+   changed" and is true. There is no twin act for an acknowledgement;
+   if the founder wants one in the ledger, it is an act in
+   `TWIN_ACTS` (architect) and one line here.
+8. **Escalate opens the person in Etyme** unless the twin has asked
+   about writing to the supplier — which the nightly run does not yet do
+   (the architect's item 6). So in the demo Escalate is a link.
+9. **The program owner is never shown an Approve button.** The approval
+   door refuses the person on whose authority the twin asked, and the
+   twin asks on the program owner's. So invoice receipts go to the
+   people holding the desk the question needs (the AP desk), and the
+   program owner's card carries the time-limit risks. One card per
+   person, not one card to the owner, on purpose.
+10. **A digest item is said twice at most** — when it appears and two
+    days before an invoice receipt is due. What was said is read off the
+    digest's own notice rows (`entityId` `twin-digest:<company>`), the
+    way `cron/watch` does. A receipt with no due date is said once.
+11. **Contractor names on a card are not on the access log.** The card
+    reads the invoice receipt's lines through money's verdict, which
+    logs nothing; the time-limit card does log its person.
+12. **No channel cards.** In a channel the bot only says to open the
+    one-to-one chat, so amounts and names never reach a room.
+13. **The card is replaced after an answer** only where Teams sends the
+    card's own id (`replyToId`); otherwise the old buttons stay and a
+    second press is refused by the door ("Somebody has already answered
+    this.").
+14. **Icons are a placeholder** of the three rising strokes, drawn for
+    the package, not the brand kit's mark.
+15. **`/ready` does not show the bot yet.** `teamsBotEdge` and
+    `teamsBotFacts` (`lib/teams/readiness`) are written; the row is the
+    architect's to add in `lib/readiness`.

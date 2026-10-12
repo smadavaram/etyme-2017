@@ -103,8 +103,13 @@ export const EVENT_TYPES = [
 
 export type EventType = (typeof EVENT_TYPES)[number]
 
-/** PERSON did it, AUTOMATION did it unprompted, SERVICE is a machine caller. */
-export type ActorKind = 'PERSON' | 'AUTOMATION' | 'SERVICE'
+/**
+ * PERSON did it, AUTOMATION did it unprompted, SERVICE is a machine
+ * caller, TWIN is a job twin acting on the authority of
+ * `actorPersonId`'s seat (2026-10-12) — so the event names the person and
+ * the twin together, and an auditor reading "who moved this" sees both.
+ */
+export type ActorKind = 'PERSON' | 'AUTOMATION' | 'SERVICE' | 'TWIN'
 
 export interface EmitParams {
   type: EventType
@@ -118,6 +123,12 @@ export interface EmitParams {
   /** Who did it. Omit when nothing did — a cycle falling due has no actor. */
   actorPersonId?: string | null
   actorKind?: ActorKind
+  /**
+   * Which twin, where `actorKind` is TWIN — 'PROGRAM_MANAGER' first.
+   * Ignored for any other actor kind, so a person's event never carries
+   * a twin's name by accident.
+   */
+  actorTwinKind?: string | null
 }
 
 /**
@@ -138,6 +149,7 @@ export function emit(params: EmitParams): Promise<{ id: string } | null> {
         payload: params.payload as any,
         actorPersonId: params.actorPersonId ?? null,
         actorKind: params.actorKind ?? (params.actorPersonId ? 'PERSON' : 'AUTOMATION'),
+        actorTwinKind: params.actorKind === 'TWIN' ? (params.actorTwinKind ?? 'PROGRAM_MANAGER') : null,
       },
       select: { id: true },
     })
