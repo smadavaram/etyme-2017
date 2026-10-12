@@ -1,34 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond } from './ask'
+import { respond, today } from './ask'
 import { readersFor } from './read'
 
 /**
+ * GET  /api/conversations/twin                       the greeting
  * POST /api/conversations/twin   { text, companyId? }
  *
- * The twin's conversation, Door 2: one message in, one answer out, for
- * the signed-in seat. Rules first — what needs me, why, approve, reject,
+ * Ask Etyme, the twin's second door, in Conversations: one message in,
+ * one answer out, for the signed-in seat. The greeting is the first
+ * message of the chat — what needs this seat today, who else is asked,
+ * and who is near the time limit — built from the ledger and the rules,
+ * never the model. Rules first — what needs me, why, approve, reject,
  * invoice variance by supplier — answered from the ledger by plain code
  * (`respond` in ./ask); anything else goes to the model over the ledger
  * lines the seat may read, and only where a key is configured.
  *
  * This route writes nothing. An approve or a reject comes back as a
- * confirm card, and the panel sends the person's yes or no to
+ * confirm card, and the chat sends the person's yes or no to
  * POST /api/twin/approvals/:id, the one door the web and Teams share.
  *
  * `companyId` is the company whose twin is asked, the reader's own by
  * default; a supplier reads another company's twin only through the
  * ledger's own scope.
  */
+const NO_COMPANY = 'Ask Etyme answers about a company’s program. Choose your company’s seat first.'
+const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no answer. Staff have been told; try again in a minute.'
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
+  }
+  try {
+    const answer = await today(readersFor(caller, caller.company.id), { greeting: true })
+    return NextResponse.json({ data: { answer } })
+  } catch (err) {
+    await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
+    return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   if (!caller.company) {
-    return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'The twin answers a company seat. Choose one first.' } },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
 
   const body = await request.json().catch(() => ({}))
@@ -39,10 +58,7 @@ export async function POST(request: NextRequest) {
     const answer = await respond(text, readersFor(caller, companyId), { env: process.env })
     return NextResponse.json({ data: { answer } })
   } catch (err) {
-    await reportError('The twin’s conversation could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
-    return NextResponse.json(
-      { error: { code: 'NOT_ANSWERED', message: 'The twin could not read the ledger just now, so there is no answer. Staff have been told; try again in a minute.' } },
-      { status: 500 }
-    )
+    await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
+    return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
 }

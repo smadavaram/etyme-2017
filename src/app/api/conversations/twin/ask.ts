@@ -1,15 +1,20 @@
 /**
- * The twin's conversation, Door 2: what a person types into the panel
- * and what comes back. Pure — no database, no model, no network — so the
- * rules are tested as rules (`__tests__/invariants/twin-conversation.test.ts`).
+ * Ask Etyme: what a person types into the chat in Conversations and what
+ * comes back. Pure — no database, no model, no network — so the rules are
+ * tested as rules (`__tests__/invariants/twin-conversation.test.ts`).
  *
- * The founder's brief (CLAUDE.md, "The job twin"): rules first, the model
- * second. Five questions are answered from the ledger and the record by
- * plain code before any model is called:
+ * The founder named it "Ask Etyme" on 2026-10-12 and put it in
+ * Conversations; underneath it is the program manager twin's second door
+ * (CLAUDE.md, "The job twin"): rules first, the model second. These are
+ * answered from the ledger and the record by plain code before any model
+ * is called:
  *
- *   what needs me                         the twin's questions this seat may answer
+ *   what needs me (today)                 the twin's questions, who else is asked, the time limit
+ *   who is near the time limit            the twin's time-limit warnings, newest per person
+ *   what did we spend by supplier         invoice receipts billed to you this month, per supplier
+ *   which weeks are unsigned              weeks waiting for your signature, oldest first
  *   why <entry>                           the ledger's own rule and rationale
- *   approve <item>                        a confirm card; the panel calls the one approval route
+ *   approve <item>                        a confirm card; the chat calls the one approval route
  *   reject <item> because <reason>        the same, with the reason
  *   invoice variance by supplier …        per supplier, from the twin's invoice verdicts
  *
@@ -20,6 +25,9 @@
  * one door the web and Teams share.
  */
 
+import { formatDay, formatMonth } from '@/lib/format-date'
+import { format, fromMinor } from '@/lib/money'
+
 // ── What was asked ───────────────────────────────────────────────────
 
 export type Intent =
@@ -28,6 +36,9 @@ export type Intent =
   | { kind: 'WHY'; ref: string | null }
   | { kind: 'DECIDE'; decision: 'APPROVED' | 'REJECTED'; ref: string; reason: string | null }
   | { kind: 'VARIANCE' }
+  | { kind: 'TIME_LIMIT' }
+  | { kind: 'SPEND' }
+  | { kind: 'WEEKS' }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -77,18 +88,36 @@ export function readAsk(raw: string): Intent {
     if (ref) return { kind: 'DECIDE', decision: 'REJECTED', ref, reason }
   }
 
+  if (/\btime[- ]limits?\b|\btenure\b/.test(lower)) return { kind: 'TIME_LIMIT' }
+  if (/\b(spend|spent|spending)\b/.test(lower)) return { kind: 'SPEND' }
+  if (
+    /\bunsigned\b/.test(lower) ||
+    (/\b(weeks?|timesheets?)\b/.test(lower) && /\b(not signed|to sign|waiting|not approved|unapproved)\b/.test(lower))
+  ) return { kind: 'WEEKS' }
+
   return { kind: 'ASK', text }
 }
 
-/** The rule questions, as a reader would type them. Drawn as one-tap prompts. */
-export const RULE_QUESTIONS: readonly string[] = [
-  'What needs me?',
-  'Show me invoice variance by supplier this quarter',
+/**
+ * The four questions drawn as chips above the box, in the founder's
+ * prototype order. Each is answered by rules; none goes to the model.
+ */
+export const SUGGESTED_QUESTIONS: readonly string[] = [
+  'What needs me today?',
+  'Who is near the time limit?',
+  'What did we spend by supplier this month?',
+  'Which weeks are unsigned?',
 ]
 
+/** The line under the box, word for word from the approved prototype. */
+export const FOOTER_LINE =
+  'Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.'
+
 export const WHAT_I_ANSWER =
-  'I answer these from the ledger: “What needs me?”, “Why 1” (or why and an entry), ' +
-  '“Approve 1”, “Reject 1 because …”, and “Show me invoice variance by supplier this quarter”.'
+  'I answer these from the record and its rules: “What needs me today?”, “Who is near the time limit?”, ' +
+  '“What did we spend by supplier this month?”, “Which weeks are unsigned?”, ' +
+  '“Show me invoice variance by supplier this quarter”, “Why 1” (or why and an entry), ' +
+  '“Approve 1” and “Reject 1 because …”.'
 
 // ── The model ────────────────────────────────────────────────────────
 
@@ -215,7 +244,15 @@ export interface VarianceRow {
 
 export type Answer =
   | { kind: 'TEXT'; says: string; links?: Link[] }
-  | { kind: 'NEEDS'; says: string; items: WaitingItem[] }
+  /**
+   * What needs this seat. `more` carries who else is asked and the time
+   * limit; `greeting` marks the first message of the chat, which the
+   * screen opens with the reader's name.
+   */
+  | { kind: 'NEEDS'; says: string; items: WaitingItem[]; more?: string[]; links?: Link[]; greeting?: boolean }
+  | { kind: 'TIME_LIMIT'; says: string; rows: LimitRow[] }
+  | { kind: 'SPEND'; says: string; period: { from: string; to: string; label: string }; rows: SpendRow[] }
+  | { kind: 'WEEKS'; says: string; rows: WeekRow[]; more: number; links: Link[] }
   | { kind: 'WHY'; says: string; ruleCited: string; rationale: string; links: Link[] }
   | { kind: 'CONFIRM'; says: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; item: WaitingItem }
   | { kind: 'VARIANCE'; says: string; period: { from: string; to: string; label: string }; rows: VarianceRow[] }
@@ -277,7 +314,7 @@ export function varianceBySupplier(receipts: readonly VarianceReceipt[]): Varian
 
 /** The sentence over the variance table. */
 export function varianceSays(rows: readonly VarianceRow[], label: string): string {
-  if (rows.length === 0) return `The twin has recorded no invoice receipts in ${label}.`
+  if (rows.length === 0) return `Etyme has recorded no invoice receipts in ${label}.`
   const receipts = rows.reduce((s, r) => s + r.receipts, 0)
   const off = rows.reduce((s, r) => s + r.mismatch + r.held, 0)
   const over = rows.reduce((s, r) => s + (r.hoursOverAccepted ?? 0), 0)
@@ -290,10 +327,256 @@ export function varianceSays(rows: readonly VarianceRow[], label: string): strin
 
 /** The twin's questions, as a reply. */
 export function needsSays(items: readonly WaitingItem[]): string {
-  if (items.length === 0) return 'Nothing from the twin is waiting on you.'
+  if (items.length === 0) return 'Nothing from Etyme is waiting on you.'
   return items.length === 1
-    ? 'The twin is asking you one thing. Approve it here, or reject it with a reason.'
-    : `The twin is asking you ${items.length} things. Approve each here, or reject it with a reason.`
+    ? 'Etyme is asking you one thing. Approve it here, or reject it with a reason.'
+    : `Etyme is asking you ${counted(items.length, 'thing').toLowerCase()}. Approve each here, or reject it with a reason.`
+}
+
+// ── Today: who else is asked, and the time limit ─────────────────────
+
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+/** "Two invoice receipts", "12 questions". Sentence case, for the start of a line. */
+function counted(n: number, noun: string): string {
+  return `${n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n} ${noun}${n === 1 ? '' : 's'}`
+}
+
+/** "a", "a and b", "a, b and c". */
+function listed(xs: readonly string[]): string {
+  if (xs.length <= 1) return xs[0] ?? ''
+  return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+/** A question the twin asked that somebody else answers, from where this reader sits. */
+export interface OtherWaiting {
+  /** "PR-2026-0441" · a person's name. */
+  title: string
+  /** "invoice receipt" or "question". */
+  noun: string
+  /** The desks that hold the permission it needs, in the trade's words. */
+  desks: string[]
+  /** True where it was asked on this reader's own authority, so nobody here signs it. */
+  own: boolean
+  href: string
+}
+
+/**
+ * Who else is being asked, grouped by the desk that answers, in one line
+ * per desk: "Two invoice receipts are waiting for the AP Clerk:
+ * PR-2026-0441 and PR-2026-0443. Neither is yours to sign." Where Etyme
+ * asked on this reader's own authority — the program manager, whose
+ * authority the twin acts under — the line says why it is not theirs.
+ */
+export function othersSay(others: readonly OtherWaiting[]): string[] {
+  const out: string[] = []
+  const byDesk = new Map<string, OtherWaiting[]>()
+  for (const o of others) {
+    const desk = o.desks.length ? `the ${listed(o.desks).replace(/ and ([^,]+)$/, ' or $1')}` : 'another desk'
+    const key = `${desk}\u0000${o.own ? 'own' : ''}`
+    byDesk.set(key, [...(byDesk.get(key) ?? []), o])
+  }
+  for (const [key, xs] of byDesk) {
+    const [desk, own] = key.split('\u0000')
+    const noun = xs.every((x) => x.noun === xs[0].noun) ? xs[0].noun : 'question'
+    const not = xs.length === 1 ? 'It is not yours to sign' : xs.length === 2 ? 'Neither is yours to sign' : 'None is yours to sign'
+    const why = own ? ': Etyme asked on your authority, and nobody signs their own.' : '.'
+    out.push(`${counted(xs.length, noun)} ${xs.length === 1 ? 'is' : 'are'} waiting for ${desk}: ${listed(xs.map((x) => x.title))}. ${not}${why}`)
+  }
+  return out
+}
+
+/** A time-limit warning as the twin recorded it in its ledger. */
+export interface LimitEntry {
+  personId: string
+  personName: string | null
+  /** The day the limit is reached, as recorded. */
+  limitOn: string
+  capMonths: number | null
+  suppliers: string[]
+  /** When the twin recorded it. */
+  recordedAt: string
+}
+
+export interface LimitRow {
+  personId: string
+  name: string
+  /** Days from today to the limit; zero or less at or past it. */
+  daysToLimit: number
+  /** YYYY-MM-DD. */
+  limitOn: string
+  capMonths: number | null
+  suppliers: string[]
+  /** The day of the reading this row comes from, YYYY-MM-DD. */
+  readOn: string
+  href: string
+}
+
+const DAY_MS = 86_400_000
+const utcMidnight = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+
+/**
+ * The people near the time limit, from the twin's own warnings: the
+ * newest warning per person, days counted from today to the day the
+ * warning names, nearest first. A warning with no readable day is left
+ * out rather than guessed at.
+ */
+export function nearLimit(entries: readonly LimitEntry[], now: Date): LimitRow[] {
+  const newest = new Map<string, LimitEntry>()
+  for (const e of entries) {
+    const had = newest.get(e.personId)
+    if (!had || had.recordedAt < e.recordedAt) newest.set(e.personId, e)
+  }
+  const rows: LimitRow[] = []
+  for (const e of newest.values()) {
+    const on = new Date(e.limitOn)
+    if (Number.isNaN(on.getTime())) continue
+    rows.push({
+      personId: e.personId,
+      name: e.personName ?? 'A person on site',
+      daysToLimit: Math.round((utcMidnight(on) - utcMidnight(now)) / DAY_MS),
+      limitOn: on.toISOString().slice(0, 10),
+      capMonths: e.capMonths,
+      suppliers: e.suppliers,
+      readOn: e.recordedAt.slice(0, 10),
+      href: hrefFor('Person', e.personId),
+    })
+  }
+  return rows.sort((a, b) => a.daysToLimit - b.daysToLimit || a.name.localeCompare(b.name))
+}
+
+/** "the 18-month time limit", or "the time limit" where the warning did not say. */
+function limitWords(capMonths: number | null): string {
+  return capMonths ? `the ${capMonths}-month time limit` : 'the time limit'
+}
+
+/** One person against the limit, as a sentence. `day` formats a YYYY-MM-DD. */
+export function limitSays(r: LimitRow, day: (iso: string) => string): string {
+  if (r.daysToLimit > 0) return `${r.name} reaches ${limitWords(r.capMonths)} in ${r.daysToLimit} day${r.daysToLimit === 1 ? '' : 's'}, on ${day(r.limitOn)}.`
+  if (r.daysToLimit === 0) return `${r.name} reaches ${limitWords(r.capMonths)} today.`
+  return `${r.name} reached ${limitWords(r.capMonths)} on ${day(r.limitOn)}.`
+}
+
+/** The time-limit answer's sentence. */
+export function limitsSay(rows: readonly LimitRow[], day: (iso: string) => string): string {
+  if (rows.length === 0) return 'Nobody on your sites is inside a time-limit warning. Etyme reads every supplier’s contracts each night and warns at 90, 60 and 30 days.'
+  const newest = rows.reduce((d, r) => (r.readOn > d ? r.readOn : d), rows[0].readOn)
+  return (
+    `${counted(rows.length, 'person')} ${rows.length === 1 ? 'is' : 'are'} inside a time-limit warning, counted across every supplier. ` +
+    `${limitSays(rows[0], day)} From Etyme’s nightly reading, last on ${day(newest)}.`
+  )
+}
+
+// ── Spend by supplier ────────────────────────────────────────────────
+
+/** An invoice receipt billed to the reader's company, as the reader reads it. */
+export interface SpendReceipt {
+  invoiceId: string
+  number: string
+  /** The firm that billed it. Null where nothing behind the invoice names it. */
+  supplier: string | null
+  currency: string
+  totalMinor: number
+  paidMinor: number
+}
+
+export interface SpendRow {
+  supplier: string
+  currency: string
+  receipts: number
+  billedMinor: number
+  paidMinor: number
+  receiptLinks: Link[]
+}
+
+/**
+ * Invoice receipts per supplier, in minor units. One row per supplier
+ * and currency: amounts in two currencies are never added.
+ */
+export function spendBySupplier(receipts: readonly SpendReceipt[]): SpendRow[] {
+  const by = new Map<string, SpendRow>()
+  for (const r of receipts) {
+    const supplier = r.supplier?.trim() || NO_SUPPLIER
+    const currency = r.currency.toUpperCase()
+    const key = `${supplier}\u0000${currency}`
+    const row = by.get(key) ?? { supplier, currency, receipts: 0, billedMinor: 0, paidMinor: 0, receiptLinks: [] }
+    row.receipts++
+    row.billedMinor += Math.round(r.totalMinor)
+    row.paidMinor += Math.round(r.paidMinor)
+    row.receiptLinks.push({ label: r.number, href: hrefFor('Invoice', r.invoiceId) })
+    by.set(key, row)
+  }
+  return [...by.values()].sort((a, b) => a.currency.localeCompare(b.currency) || b.billedMinor - a.billedMinor || a.supplier.localeCompare(b.supplier))
+}
+
+/** The calendar month a day falls in, UTC: [from, to) and "October 2026". */
+export function monthOf(now: Date): { from: Date; to: Date; label: string } {
+  const y = now.getUTCFullYear()
+  const m = now.getUTCMonth()
+  const from = new Date(Date.UTC(y, m, 1))
+  return {
+    from,
+    to: new Date(Date.UTC(y, m + 1, 1)),
+    label: formatMonth(from),
+  }
+}
+
+/**
+ * The spend answer's sentence. `money` formats minor units in a
+ * currency. Totals are per currency, never across.
+ */
+export function spendSays(rows: readonly SpendRow[], label: string, undated: number, money: (minor: number, currency: string) => string): string {
+  const undatedLine = undated > 0
+    ? ` ${counted(undated, 'invoice receipt')} ${undated === 1 ? 'carries' : 'carry'} no billing date and ${undated === 1 ? 'is' : 'are'} not counted in any month.`
+    : ''
+  if (rows.length === 0) return `No supplier billed you in ${label}.${undatedLine}`
+  const currencies = [...new Set(rows.map((r) => r.currency))]
+  const sum = (c: string, f: (r: SpendRow) => number) => rows.filter((r) => r.currency === c).reduce((s, r) => s + f(r), 0)
+  const billed = listed(currencies.map((c) => money(sum(c, (r) => r.billedMinor), c)))
+  const paid = listed(currencies.map((c) => money(sum(c, (r) => r.paidMinor), c)))
+  const receipts = rows.reduce((s, r) => s + r.receipts, 0)
+  const suppliers = new Set(rows.map((r) => r.supplier)).size
+  return (
+    `${counted(suppliers, 'supplier')} billed you ${billed} in ${label}, on ${receipts} invoice receipt${receipts === 1 ? '' : 's'}, ` +
+    `counted by the day each was billed. ${paid} of it is paid.${undatedLine}`
+  )
+}
+
+// ── Unsigned weeks ───────────────────────────────────────────────────
+
+export interface WeekRow {
+  timesheetId: string
+  personId: string
+  person: string
+  /** YYYY-MM-DD. */
+  periodStart: string
+  periodEnd: string
+  hours: number
+  /** Whole days since it was filed (or since the week ended, where no filing day is kept). */
+  waitingDays: number
+  href: string
+}
+
+/** How many weeks the chat draws before it sends the reader to Timesheets. */
+export const WEEKS_SHOWN = 20
+
+/** The unsigned-weeks answer's sentence. */
+export function weeksSay(total: number, oldestDays: number | null, company: string): string {
+  if (total === 0) return `No week is waiting for a signature at ${company}.`
+  return (
+    `${counted(total, 'week')} ${total === 1 ? 'is' : 'are'} waiting for a signature at ${company}` +
+    (oldestDays != null && oldestDays > 0 ? `; the oldest has waited ${oldestDays} day${oldestDays === 1 ? '' : 's'}.` : '.') +
+    (total > WEEKS_SHOWN ? ` The ${WEEKS_SHOWN} oldest are below; the rest are on Timesheets.` : '')
+  )
+}
+
+/** The closing line of the greeting, word for word from the approved prototype. */
+export const GREETING_CLOSE = 'Ask me anything about the program. I answer from the record, and I never move money without a person.'
+
+/** "Good morning", by the reader's own clock. */
+export function partOfDay(hour: number): string {
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
 }
 
 /**
@@ -314,11 +597,11 @@ export function findItem(items: readonly WaitingItem[], ref: string): WaitingIte
 export function confirmSays(decision: 'APPROVED' | 'REJECTED', item: WaitingItem, reason: string | null): string {
   return decision === 'APPROVED'
     ? `Approve ${item.title}? ${item.says} It is recorded in the twin’s ledger under your name.`
-    : `Reject ${item.title}, because “${reason}”? The twin does nothing, and your reason is recorded in its ledger under your name.`
+    : `Reject ${item.title}, because “${reason}”? Etyme does nothing, and your reason is recorded in the twin’s ledger under your name.`
 }
 
 /**
- * The request the panel sends for a yes or a no. The one approval route
+ * The request the chat sends for a yes or a no. The one approval route
  * the web and Teams share, with the surface named; nothing else writes.
  */
 export function decisionRequest(approvalId: string, decision: 'APPROVED' | 'REJECTED', reason: string | null): {
@@ -337,12 +620,23 @@ export function decisionRequest(approvalId: string, decision: 'APPROVED' | 'REJE
 
 // ── Answering ────────────────────────────────────────────────────────
 
+/** A read the seat may be refused, with the sentence that says who reads it instead. */
+export type Refusable<T> = ({ ok: true } & T) | { ok: false; says: string; links?: Link[] }
+
 /** What the route reads. Every one is a read; none writes. */
 export interface Readers {
   waiting(): Promise<WaitingItem[]>
   /** An entry in the reader's scope by its id, its question's id, or the entity it is about. */
   entry(ref: string): Promise<{ id: string; says: string; ruleCited: string; rationale: string; entityType: string; entityId: string } | null>
   receiptsIn(from: Date, to: Date): Promise<VarianceReceipt[]>
+  /** The twin's questions this seat may not answer, and who does. */
+  othersWaiting(): Promise<OtherWaiting[]>
+  /** The twin's time-limit warnings, or the sentence for a seat that does not read what the rules found. */
+  limits(): Promise<Refusable<{ entries: LimitEntry[] }>>
+  /** Weeks waiting for this company's signature, oldest first, at most WEEKS_SHOWN, and how many in all. */
+  unsignedWeeks(): Promise<Refusable<{ rows: WeekRow[]; total: number; company: string }>>
+  /** Invoice receipts billed to this company in [from, to), and how many carry no date at all. */
+  spendIn(from: Date, to: Date): Promise<Refusable<{ receipts: SpendReceipt[]; undated: number }>>
   ledgerLines(): Promise<LedgerLine[]>
   /** Asks the model; only called where a key is configured. */
   model(system: string, question: string, context: string): Promise<string | null>
@@ -352,6 +646,37 @@ export interface Readers {
  * One answer to one message. Rules first; the model only for ASK, and
  * only where a key is configured.
  */
+/** A YYYY-MM-DD as a reader reads it, "Dec 11, 2026", through the one date formatter. */
+const day = (iso: string): string => formatDay(iso)
+/** Minor units in their currency, "$3,800.00", through the one money formatter. */
+export const money = (minor: number, currency: string): string => format(fromMinor(minor, currency))
+
+/**
+ * What needs this seat today: the twin's questions it may answer, as
+ * cards; who else is being asked; and who is near the time limit. All of
+ * it from the ledger and the rules, never the model. With `greeting`, it
+ * is the first message of the chat and closes with what Etyme answers.
+ */
+export async function today(read: Readers, opts: { now?: Date; greeting?: boolean } = {}): Promise<Answer> {
+  const now = opts.now ?? new Date()
+  const [items, others, limits] = await Promise.all([read.waiting(), read.othersWaiting(), read.limits()])
+  const near = limits.ok ? nearLimit(limits.entries, now) : []
+  const more = [...othersSay(others)]
+  const links: Link[] = []
+  if (near.length) {
+    more.push(
+      limitSays(near[0], day) +
+      (near.length > 1 ? ` ${counted(near.length - 1, 'more person')} ${near.length === 2 ? 'is' : 'are'} inside a warning; ask “Who is near the time limit?”.` : '')
+    )
+    links.push({ label: `Open ${near[0].name}`, href: near[0].href })
+  }
+  const says = items.length === 0 && others.length === 0 && near.length === 0
+    ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
+    : needsSays(items)
+  if (opts.greeting) more.push(GREETING_CLOSE)
+  return { kind: 'NEEDS', says, items, more, links, ...(opts.greeting ? { greeting: true } : {}) }
+}
+
 export async function respond(
   text: string,
   read: Readers,
@@ -363,9 +688,40 @@ export async function respond(
     case 'HELP':
       return { kind: 'TEXT', says: WHAT_I_ANSWER + (modelConfigured(opts.env) ? ' Anything else, I read from the ledger and say only what is on it.' : '') }
 
-    case 'NEEDS': {
-      const items = await read.waiting()
-      return { kind: 'NEEDS', says: needsSays(items), items }
+    case 'NEEDS':
+      return today(read, { now: opts.now })
+
+    case 'TIME_LIMIT': {
+      const limits = await read.limits()
+      if (!limits.ok) return { kind: 'TEXT', says: limits.says, links: limits.links }
+      const rows = nearLimit(limits.entries, opts.now ?? new Date())
+      return { kind: 'TIME_LIMIT', says: limitsSay(rows, day), rows }
+    }
+
+    case 'SPEND': {
+      const m = monthOf(opts.now ?? new Date())
+      const spend = await read.spendIn(m.from, m.to)
+      if (!spend.ok) return { kind: 'TEXT', says: spend.says, links: spend.links }
+      const rows = spendBySupplier(spend.receipts)
+      return {
+        kind: 'SPEND',
+        says: spendSays(rows, m.label, spend.undated, money),
+        period: { from: m.from.toISOString().slice(0, 10), to: m.to.toISOString().slice(0, 10), label: m.label },
+        rows,
+      }
+    }
+
+    case 'WEEKS': {
+      const weeks = await read.unsignedWeeks()
+      if (!weeks.ok) return { kind: 'TEXT', says: weeks.says, links: weeks.links }
+      const oldest = weeks.rows.reduce<number | null>((d, r) => (d == null || r.waitingDays > d ? r.waitingDays : d), null)
+      return {
+        kind: 'WEEKS',
+        says: weeksSay(weeks.total, oldest, weeks.company),
+        rows: weeks.rows,
+        more: Math.max(0, weeks.total - weeks.rows.length),
+        links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
+      }
     }
 
     case 'WHY': {
@@ -399,12 +755,12 @@ export async function respond(
         return {
           kind: 'TEXT',
           says: items.length === 0
-            ? 'Nothing from the twin is waiting on you, so there is nothing to answer.'
+            ? 'Nothing from Etyme is waiting on you, so there is nothing to answer.'
             : `“${intent.ref}” is not one of the ${items.length} thing${items.length === 1 ? '' : 's'} waiting on you. Ask “What needs me?” to see them by number.`,
         }
       }
       if (intent.decision === 'REJECTED' && !intent.reason) {
-        return { kind: 'TEXT', says: `Say why, so the twin and whoever reads the ledger know: “Reject ${item.n} because …”.` }
+        return { kind: 'TEXT', says: `Say why, so whoever reads the twin’s ledger knows: “Reject ${item.n} because …”.` }
       }
       return { kind: 'CONFIRM', says: confirmSays(intent.decision, item, intent.reason), decision: intent.decision, reason: intent.reason, item }
     }

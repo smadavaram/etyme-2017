@@ -1,20 +1,22 @@
 /**
- * The twin's conversation, Door 2 (CLAUDE.md, "The job twin"): rules
- * first, the model second, and the panel never writes state itself.
+ * Ask Etyme, the twin's second door (CLAUDE.md, "The job twin"), a chat
+ * inside Conversations since the founder's prototype of 2026-10-12:
+ * rules first, the model second, and the chat never writes state itself.
  *
  * One file, by the founder's testing rule for the twin. The rules are
- * tested through `respond` with the record's reads faked, so a test is
- * about what the panel answers and not about a seed; the "never writes"
- * sentence also reads the panel's own source, because a write added
- * tomorrow is a line of code, not a behavior a fake would show.
+ * tested through `respond` and `today` with the record's reads faked, so
+ * a test is about what the chat answers and not about a seed; the "never
+ * writes" sentence also reads the chat's own source, because a write
+ * added tomorrow is a line of code, not a behavior a fake would show.
  */
 
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  respond, readAsk, decisionRequest, varianceBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
-  type Readers, type WaitingItem, type VarianceReceipt,
+  respond, today, othersSay, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
+  SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
+  type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
@@ -42,9 +44,38 @@ const ENTRY_442 = {
   entityType: 'Invoice', entityId: 'inv-442',
 }
 
+// Tobias Lindqvist, sixty days from the limit on the day the world is
+// born, as the twin's nightly run records him; an older warning for him
+// is superseded by the newer one.
+const LIMITS: LimitEntry[] = [
+  { personId: 'p-tobias', personName: 'Tobias Lindqvist', limitOn: '2026-12-11T00:00:00.000Z', capMonths: 18, suppliers: ['Pinnacle Resourcing'], recordedAt: '2026-10-12T02:00:00.000Z' },
+  { personId: 'p-tobias', personName: 'Tobias Lindqvist', limitOn: '2026-12-12T00:00:00.000Z', capMonths: 18, suppliers: ['Pinnacle Resourcing'], recordedAt: '2026-09-12T02:00:00.000Z' },
+]
+
+// What the program manager reads as waiting on somebody else: the
+// receipts the AP clerk approves.
+const OTHERS: OtherWaiting[] = [
+  { title: 'PR-2026-0441', noun: 'invoice receipt', desks: ['AP Clerk'], own: false, href: '/dashboard/invoices/inv-441' },
+  { title: 'IN-XSWQQZ-20260901', noun: 'invoice receipt', desks: ['AP Clerk'], own: false, href: '/dashboard/invoices/inv-cs' },
+]
+
+const SPEND: SpendReceipt[] = [
+  { invoiceId: 'inv-441', number: 'PR-2026-0441', supplier: 'Pinnacle Resourcing', currency: 'USD', totalMinor: 380000, paidMinor: 0 },
+  { invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', currency: 'USD', totalMinor: 394250, paidMinor: 0 },
+  { invoiceId: 'inv-cs', number: 'IN-XSWQQZ-20260901', supplier: 'Computer Systems', currency: 'USD', totalMinor: 360000, paidMinor: 360000 },
+  { invoiceId: 'inv-uk', number: 'UK-1', supplier: 'Computer Systems', currency: 'GBP', totalMinor: 100000, paidMinor: 0 },
+]
+
 function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typeof vi.fn> } {
   return {
     waiting: vi.fn(async () => WAITING),
+    othersWaiting: vi.fn(async () => OTHERS),
+    limits: vi.fn(async () => ({ ok: true as const, entries: LIMITS })),
+    unsignedWeeks: vi.fn(async () => ({
+      ok: true as const, total: 1, company: 'Northbend Athletic',
+      rows: [{ timesheetId: 'ts-1', personId: 'p-helena', person: 'Helena Marsh', periodStart: '2026-10-04', periodEnd: '2026-10-10', hours: 44, waitingDays: 2, href: '/dashboard/weeks/ts-1' }],
+    })),
+    spendIn: vi.fn(async () => ({ ok: true as const, receipts: SPEND, undated: 1 })),
     entry: vi.fn(async (ref: string) => (ref === 'entry-442' || ref === 'PR-2026-0442' || ref === 'entry-441' ? (ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', ruleCited: WAITING[0].ruleCited, rationale: WAITING[0].rationale } : ENTRY_442) : null)),
     receiptsIn: vi.fn(async () => NORTHBEND_RECEIPTS),
     ledgerLines: vi.fn(async () => [{ id: 'entry-442', ts: NOW.toISOString(), says: ENTRY_442.says, outcome: 'PERFORMED', entityType: 'Invoice', entityId: 'inv-442', ruleCited: ENTRY_442.ruleCited, rationale: ENTRY_442.rationale }]),
@@ -83,7 +114,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(held[0]).toMatchObject({ held: 1, hoursOverAccepted: null, hoursNotAccepted: 44 })
   })
 
-  it('approve and reject in the panel call the one approval route and never write state themselves', async () => {
+  it('approve and reject in Ask Etyme call the one approval route and never write state themselves', async () => {
     const read = readers()
 
     const yes = await respond('approve 1', read, { env: NO_KEY })
@@ -102,25 +133,33 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     const no = await respond('reject 1 because the hours are over what we signed', read, { env: NO_KEY })
     expect(no).toMatchObject({ kind: 'CONFIRM', decision: 'REJECTED', reason: 'the hours are over what we signed' })
 
-    // The request the panel sends: the one approval route, from the web.
+    // The request the chat sends: the one approval route, from the web.
     const req = decisionRequest('appr-441', 'REJECTED', 'the hours are over what we signed')
     expect(req.url).toBe('/api/twin/approvals/appr-441')
     expect(req.init.method).toBe('POST')
     expect(JSON.parse(req.init.body)).toEqual({ decision: 'REJECTED', reason: 'the hours are over what we signed', surface: 'WEB' })
 
-    // And nothing in the panel, its route or its reads writes the record.
+    // And nothing in the chat, its route or its reads writes the record.
     const root = join(process.cwd(), 'src')
-    const files = ['app/api/conversations/twin/route.ts', 'app/api/conversations/twin/ask.ts', 'app/api/conversations/twin/read.ts', 'components/twin-conversation.tsx']
+    const files = [
+      'app/api/conversations/twin/route.ts', 'app/api/conversations/twin/ask.ts', 'app/api/conversations/twin/read.ts',
+      'app/dashboard/conversations/ask-etyme.tsx', 'components/twin-conversation.tsx',
+    ]
     for (const f of files) {
       const src = readFileSync(join(root, f), 'utf8')
       expect(src, f).not.toMatch(/prisma\.\w+\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/)
       expect(src, f).not.toMatch(/\$transaction|\bdecideApproval\b|\brequestApproval\b|from '@\/lib\/twin\/ledger'.*\bact\b/)
     }
-    const panel = readFileSync(join(root, 'components/twin-conversation.tsx'), 'utf8')
-    expect(panel).toContain('decisionRequest(item.approvalId, decision, reason)')
-    // The panel posts to two places only: its own question route, and the one approval route.
-    const posts = [...panel.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
-    expect(posts).toEqual(["'/api/conversations/twin'", 'url'])
+    const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    expect(chat).toContain('decisionRequest(item.approvalId, decision, reason)')
+    // The chat reaches two places only: its own question route (the
+    // greeting and each question), and the one approval route.
+    const calls = [...chat.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
+    expect(calls).toEqual(["'/api/conversations/twin'", "'/api/conversations/twin'", 'url'])
+    // After a yes the reply links to the record and to the ledger entry.
+    expect(chat).toContain("{ label: 'See it in the ledger', href: entryHref(entry) }")
+    // "Not now" changes nothing: it is the chat's own state, never a request.
+    expect(chat).toContain("const later = (item: WaitingItem) => setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))")
   })
 
   it('why on an entry answers with the ledger’s own rule and rationale', async () => {
@@ -142,10 +181,36 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(read.model).not.toHaveBeenCalled()
   })
 
-  it('with no model key the panel still answers the rule-based questions and says the model is not configured', async () => {
+  it('with no model key Ask Etyme still answers the rule-based questions and says the model is not configured', async () => {
     const read = readers()
 
     expect((await respond('What needs me?', read, { env: NO_KEY })).kind).toBe('NEEDS')
+
+    // The four chips are each answered by rules.
+    const [needs, limit, spend, weeks] = await Promise.all(SUGGESTED_QUESTIONS.map((q) => respond(q, read, { env: NO_KEY, now: NOW })))
+    expect(needs.kind).toBe('NEEDS')
+    expect(limit).toMatchObject({ kind: 'TIME_LIMIT', rows: [{ personId: 'p-tobias', daysToLimit: 60, limitOn: '2026-12-11' }] })
+    expect(limit.says).toContain('Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+    expect(weeks).toMatchObject({ kind: 'WEEKS', rows: [{ person: 'Helena Marsh', hours: 44 }] })
+    expect(weeks.says).toBe('One week is waiting for a signature at Northbend Athletic; the oldest has waited 2 days.')
+    expect(spend.kind).toBe('SPEND')
+    if (spend.kind !== 'SPEND') return
+    // This month, read by the calendar; never two currencies added.
+    expect(read.spendIn).toHaveBeenCalledWith(new Date('2026-10-01T00:00:00Z'), new Date('2026-11-01T00:00:00Z'))
+    expect(spend.rows.map((r) => [r.supplier, r.currency, r.billedMinor, r.paidMinor])).toEqual([
+      ['Computer Systems', 'GBP', 100000, 0],
+      ['Pinnacle Resourcing', 'USD', 774250, 0],
+      ['Computer Systems', 'USD', 360000, 360000],
+    ])
+    expect(spend.says).toBe(
+      'Two suppliers billed you £1,000.00 and $11,342.50 in Oct 2026, on 4 invoice receipts, counted by the day each was billed. ' +
+      '£0.00 and $3,600.00 of it is paid. One invoice receipt carries no billing date and is not counted in any month.'
+    )
+    expect(spendBySupplier([])).toEqual([])
+
+    // A seat that may not read a figure is told which desk does, in words.
+    const refused = await respond('Who is near the time limit?', readers({ limits: async () => ({ ok: false, says: 'Reading who is near the time limit is done by Program Manager at Northbend Athletic.' }) }), { env: NO_KEY })
+    expect(refused).toEqual({ kind: 'TEXT', says: 'Reading who is near the time limit is done by Program Manager at Northbend Athletic.', links: undefined })
     expect((await respond('show me invoice variance by supplier this quarter', read, { env: NO_KEY, now: NOW })).kind).toBe('VARIANCE')
     expect((await respond('why entry-442', read, { env: NO_KEY })).kind).toBe('WHY')
     expect((await respond('approve 1', read, { env: NO_KEY })).kind).toBe('CONFIRM')
@@ -163,5 +228,57 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(MODEL_SYSTEM).toContain(ASK_THE_DESK)
     expect(ASK_THE_DESK).toBe('I cannot do that; ask the desk.')
     expect(readAsk('please approve the receipt for me')).toEqual({ kind: 'ASK', text: 'please approve the receipt for me' })
+  })
+
+  it('Ask Etyme is the first conversation in the list and opens as a chat', () => {
+    const root = join(process.cwd(), 'src')
+    const list = readFileSync(join(root, 'app/dashboard/conversations/page.tsx'), 'utf8')
+    // Pinned above every thread, with the Etyme mark and "Always here", opening on its own address.
+    const pinned = list.indexOf('<Chip tone="action">Always here</Chip>')
+    expect(pinned).toBeGreaterThan(-1)
+    expect(pinned).toBeLessThan(list.indexOf('{filtered.map((c) => ('))
+    expect(list).toContain("const ASK_ETYME_HREF = '/dashboard/conversations/etyme'")
+    expect(list).toContain('<EtymeMark size={22} />')
+    expect(list).toContain('<AskEtyme />')
+    // On a phone one screen at a time: an open chat hides the list.
+    expect(list).toContain("${activeConvo || askOpen ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px]")
+    expect(readFileSync(join(root, 'app/dashboard/conversations/etyme/page.tsx'), 'utf8')).toContain('return <ConversationsPage />')
+
+    // A chat: the header says "Ask Etyme" and never "twin", four chips, the box, the footer line.
+    const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    const header = chat.slice(chat.indexOf('<header'), chat.indexOf('</header>'))
+    expect(header).toContain('Ask Etyme</h1>')
+    expect(header).not.toMatch(/\btwin\b(?!’s ledger)/i)
+    expect(header).toContain('aria-label="Back to Conversations"')
+    expect(header).toContain('aria-label="Close Ask Etyme"')
+    expect(SUGGESTED_QUESTIONS).toEqual(['What needs me today?', 'Who is near the time limit?', 'What did we spend by supplier this month?', 'Which weeks are unsigned?'])
+    expect(FOOTER_LINE).toBe('Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.')
+    expect(chat).toContain('{FOOTER_LINE}')
+    expect(chat).toContain('placeholder="Ask Etyme about your program…"')
+    // The twin's page links to it rather than drawing a second chat.
+    expect(readFileSync(join(root, 'components/twin-conversation.tsx'), 'utf8')).toContain("href={'/dashboard/conversations/etyme' as Route}")
+  })
+
+  it('the greeting is built from the rules — what waits on you, what waits on another desk, and who is near the time limit — and never from the model', async () => {
+    const read = readers()
+    const hello = await today(read, { now: NOW, greeting: true })
+    expect(hello).toMatchObject({ kind: 'NEEDS', greeting: true, items: WAITING })
+    if (hello.kind !== 'NEEDS') return
+    expect(hello.says).toBe('Etyme is asking you one thing. Approve it here, or reject it with a reason.')
+    expect(hello.more).toEqual([
+      'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign.',
+      'Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.',
+      GREETING_CLOSE,
+    ])
+    expect(hello.links).toEqual([{ label: 'Open Tobias Lindqvist', href: '/dashboard/people/p-tobias' }])
+    // The program manager, on whose authority Etyme asks, reads why none of it is theirs.
+    expect(othersSay(OTHERS.map((o) => ({ ...o, own: true })))).toEqual([
+      'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign: Etyme asked on your authority, and nobody signs their own.',
+    ])
+    expect(read.model).not.toHaveBeenCalled()
+
+    // A desk that does not read what the rules found is greeted without the time limit, not refused.
+    const quiet = await today(readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false, says: 'no' }) }), { now: NOW, greeting: true })
+    expect(quiet).toMatchObject({ kind: 'NEEDS', says: 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.', more: [GREETING_CLOSE] })
   })
 })

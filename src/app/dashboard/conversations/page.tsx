@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import type { Route } from 'next'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { EtymeMark } from '@/components/logo'
+import { AskEtyme } from './ask-etyme'
 import { useSession } from '@/components/session-provider'
 import { readJson } from '@/lib/read-response'
 import { conversationsFraming } from '@/lib/page-framing'
@@ -33,7 +37,15 @@ import {
  * (src/lib/threads.ts). The bell's deep link lands here with ?open=.
  *
  * Layout: two-panel — thread list (left) and message pane (right).
+ *
+ * Ask Etyme is pinned at the top of the list, always, with the Etyme
+ * mark and "Always here" (the founder's prototype, 2026-10-12). It opens
+ * at /dashboard/conversations/etyme, which draws this same screen with
+ * the chat in the right pane (`./ask-etyme`); on a phone one screen at a
+ * time, the list and then the chat, as for any thread.
  */
+
+const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
 
 // ── Types ────────────────────────────────────────────
 
@@ -242,6 +254,8 @@ function NewConversationModal({ isClient, onClose, onCreated }: {
 export default function ConversationsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const askOpen = pathname === ASK_ETYME_HREF
   const session = useSession()
   const { company, contextType } = session
   // Read off the menu on the left of this screen — the trimmed one this
@@ -413,6 +427,9 @@ export default function ConversationsPage() {
         </div>
       )}
 
+      {/* Ask Etyme open is a chat and nothing else: no page heading or
+          topic filters over it. The list beside it carries its own title. */}
+      <div className={askOpen ? 'hidden' : undefined}>
       {/* The heading the reader's own menu prints over this page: a firm
           files it under Today, a client under Workforce. It was typed as
           "Today" for everybody, and nothing until the company is known
@@ -449,22 +466,54 @@ export default function ConversationsPage() {
         </div>
       )}
 
+      </div>
+
       {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => { void fetchConversations() } }} /></div>}
 
       {loading && <LoadingState says="Opening conversations…" />}
 
       {/* Two-panel layout */}
       {!loading && (
-        <div className="flex gap-0 border border-etyme-rule rounded-xl overflow-hidden bg-white" style={{ height: 'calc(100vh - 280px)', minHeight: '460px' }}>
+        <div
+          className={`flex gap-0 overflow-hidden bg-white ${askOpen
+            ? '-mx-4 -mb-6 h-[calc(100dvh-150px)] min-h-[420px] border-y border-etyme-rule sm:mx-0 sm:mb-0 sm:rounded-xl sm:border md:h-[calc(100vh-130px)] md:min-h-[520px]'
+            : 'border border-etyme-rule rounded-xl h-[calc(100vh-280px)] min-h-[460px]'}`}
+        >
           {/* Left: thread list */}
-          <div className={`${activeConvo ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] border-r border-etyme-rule flex-shrink-0`}>
+          <div className={`${activeConvo || askOpen ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[340px] border-r border-etyme-rule flex-shrink-0`}>
             <div className="px-4 py-3 border-b border-etyme-rule bg-etyme-surface/50">
+              {askOpen && <h2 className="font-serif text-[20px] leading-tight tracking-[-0.02em] text-etyme-ink">Conversations</h2>}
               <p className="text-[11px] text-etyme-faint tabular-nums">
                 {filtered.length} conversation{filtered.length !== 1 ? 's' : ''}
               </p>
             </div>
 
             <div className="flex-1 overflow-y-auto">
+              {/* Ask Etyme, pinned first: it answers for a company seat,
+                  so a seat with no company is not offered it. */}
+              {company && (
+                <Link
+                  href={ASK_ETYME_HREF as Route}
+                  aria-current={askOpen ? 'page' : undefined}
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-etyme-rule/50 transition-colors ${
+                    askOpen ? 'bg-etyme-action/[0.05] border-l-2 border-l-etyme-action' : 'hover:bg-etyme-canvas/60'
+                  }`}
+                >
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden="true">
+                    <EtymeMark size={22} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-[13px] font-medium text-etyme-ink">Ask Etyme</span>
+                      <Chip tone="action">Always here</Chip>
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] text-etyme-muted">
+                      What needs you, the time limit, spend and unsigned weeks, from the record.
+                    </span>
+                  </span>
+                </Link>
+              )}
+
               {/* The sentence is the reader's own: a firm's desk, somebody
                   on a firm's bench, or somebody with no company at all
                   (conversationsFraming). */}
@@ -475,9 +524,9 @@ export default function ConversationsPage() {
               {filtered.map((c) => (
                 <div
                   key={c.id}
-                  onClick={() => setActiveConvo(c)}
+                  onClick={() => (askOpen ? router.push(`/dashboard/conversations?open=${c.id}` as Route) : setActiveConvo(c))}
                   className={`px-4 py-3 cursor-pointer transition-colors border-b border-etyme-rule/50 ${
-                    activeConvo?.id === c.id
+                    !askOpen && activeConvo?.id === c.id
                       ? 'bg-etyme-action/[0.05] border-l-2 border-l-etyme-action'
                       : 'hover:bg-etyme-canvas/60'
                   }`}
@@ -511,8 +560,10 @@ export default function ConversationsPage() {
           </div>
 
           {/* Right: message pane */}
-          <div className={`${activeConvo ? 'flex' : 'hidden md:flex'} flex-col flex-1`}>
-            {!activeConvo ? (
+          <div className={`${activeConvo || askOpen ? 'flex' : 'hidden md:flex'} flex-col flex-1 min-w-0`}>
+            {askOpen ? (
+              <AskEtyme />
+            ) : !activeConvo ? (
               <div className="flex-1 flex items-center justify-center">
                 <EmptyState compact says="Select a conversation" detail="Choose a thread from the list to view messages." />
               </div>

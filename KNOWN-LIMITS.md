@@ -237,7 +237,45 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 14. **Icons are a placeholder** of the three rising strokes, drawn for
     the package, not the brand kit's mark.
 
-## The twin's conversation panel — etyme-conversation
+## Ask Etyme (was the twin's conversation panel) — etyme-conversation
+
+- **The thread is kept for one page load, not stored.** A stored thread
+  needs a conversation that belongs to one person, and `Conversation`
+  belongs to a company and is listed to everybody at it. What is needed
+  from the architect: `Conversation.ownerPersonId String?` (null for
+  every thread today) with the company's list excluding rows that name
+  somebody else, and a topic value `ETYME`. Replies would go in the
+  existing `Message.metadata` with type `ETYME_ANSWER`. Until then
+  leaving the chat and coming back starts again from the greeting, which
+  is rebuilt from the ledger each time, so nothing in it goes stale.
+- **The pinned row says what Ask Etyme answers, not its last reply**,
+  because there is no stored last reply (above).
+- **"What did we spend by supplier this month?" counts invoice receipts
+  by the day each was billed** (`issuedAt`, else `submittedAt`), in the
+  UTC calendar month, never a draft, cancelled or void one, and only
+  those the reader's company is asked to pay. It is not hours times
+  rate. A receipt with neither date is counted in no month and the
+  answer says how many there are. Two currencies are never added.
+- **"Which weeks are unsigned?" is a client's question** — filed weeks
+  the client has not signed, inside the reader's account walls, no
+  supplier named because in a chain the week sits on a rung the client
+  may not know by name. A supplier asking is sent to Timesheets in a
+  sentence. A program office in a client's seat is not answered for the
+  client yet; it reads its own company.
+- **"Who is near the time limit?" reads the twin's own warnings in the
+  ledger**, newest per person, with days counted from today to the day
+  the warning names. A person whose contract ended after the warning
+  stays listed until the next reading supersedes it; the answer says the
+  day of the reading. Only the program owner's desks read it, as on the
+  twin's page.
+- **"Not now" changes nothing and is not recorded.** The question stays
+  waiting and comes back with "What needs me today?".
+- **"Ask Pinnacle for a corrected invoice" from the prototype is not
+  built.** The twin has no act that sends a supplier a message about a
+  receipt, and the approval route accepts none, so no card for it is
+  drawn. It needs an act kind in the role contract first (architect).
+
+### Before 2026-10-12, as the panel on the twin's page
 
 - **The route is `POST /api/conversations/twin`, not `/api/twin-chat`.**
   `app/api/twin-chat` had no owner in `lib/domains`, so a file there
