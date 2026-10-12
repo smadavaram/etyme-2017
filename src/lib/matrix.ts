@@ -2516,7 +2516,7 @@ export const MATRIX: L1[] = [
             'DONE: The role contract in three columns, the locked acts shown in Never, and the twin\u2019s numbers, each saved as a new version with a reason by the settings desk, and each save read into the feed; the ledger exports as CSV for the reader\u2019s scope \u2014 src/app/dashboard/twin/contract/page.tsx, src/app/dashboard/twin/rules/page.tsx',
             'DONE: The nightly run asks for conversation\u2019s Teams digest after it reads each program, and neither fails nor stops when that module is absent \u2014 src/lib/twin/run.ts; the table that keeps where Teams may reach a person \u2014 TeamsConversation in prisma/schema.prisma',
             'DONE: Teams door \u2014 POST /api/teams/messages checks the Bot Framework token and binds the account to a live seat; approval, time-limit and digest cards; card actions go through decideApproval with surface TEAMS; nightly digest tellProgramOwnerOnTeams, reported by how each person was reached (bot, fallback, nobody) \u2014 src/lib/teams/*, src/app/api/teams/messages/route.ts; the Teams bot row on /ready \u2014 src/lib/readiness.ts',
-            'DONE: The conversation panel on the twin\u2019s page answers by rules first \u2014 what needs me, why, invoice variance by supplier \u2014 approves and rejects through the one approval route with surface WEB, and the model only describes what the rules found \u2014 src/components/twin-conversation.tsx, src/app/api/conversations/twin/route.ts, src/app/api/conversations/twin/ask.ts, src/app/api/conversations/twin/read.ts',
+            'DONE: Ask Etyme, a conversation pinned first in Conversations at /dashboard/conversations/etyme and first in the sidebar: greeting from the rules, the four questions and variance by supplier answered by rules with tables and links, approval cards through the one approval route, the model only for free text when its key is set',
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
           ],
           implementedBy: [
@@ -2532,6 +2532,7 @@ export const MATRIX: L1[] = [
             'src/lib/teams/actions.ts', 'src/lib/teams/auth.ts', 'src/lib/teams/binding.ts', 'src/lib/teams/bot.ts', 'src/lib/teams/cards.ts', 'src/lib/teams/config.ts', 'src/lib/teams/connector.ts', 'src/lib/teams/digest.ts', 'src/lib/teams/facts.ts', 'src/lib/teams/readiness.ts', 'src/lib/teams/store.ts',
             'src/app/api/teams/messages/route.ts',
             'src/components/twin-conversation.tsx', 'src/app/api/conversations/twin/route.ts',
+            'src/app/dashboard/conversations/ask-etyme.tsx', 'src/app/dashboard/conversations/etyme/page.tsx', 'src/app/dashboard/conversations/page.tsx',
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/lib/agent-run.ts',
           ],
           testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts'] },

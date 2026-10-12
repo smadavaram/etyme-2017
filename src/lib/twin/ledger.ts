@@ -838,6 +838,12 @@ export interface WaitingQuestion {
   needsPermission: string
   /** Whether this reader may answer it; where not, `whyNot` says why in a sentence. */
   mayDecide: boolean
+  /**
+   * The reader is the person on whose authority the twin asked, or who
+   * asked for the thing themselves: somebody else answers it. A fact to
+   * read, so nobody has to match `whyNot`'s words.
+   */
+  own: boolean
   whyNot: string | null
 }
 
@@ -899,6 +905,7 @@ export async function waitingQuestions(
       authorityName: a.authorityPerson?.name ?? null,
       needsPermission: r.needsPermission,
       mayDecide: holds && !own && !never,
+      own,
       whyNot,
     }
   })

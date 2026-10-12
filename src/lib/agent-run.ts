@@ -45,7 +45,7 @@ export type RecordType =
   | 'INVOICE'
   | 'TIMESHEET'
   | 'LEAD'
-  /** The twin's conversation panel reading the twin's ledger (app/api/conversations/twin). */
+  /** Ask Etyme reading the twin's ledger (app/api/conversations/twin). */
   | 'TWIN_LEDGER'
 
 /**
