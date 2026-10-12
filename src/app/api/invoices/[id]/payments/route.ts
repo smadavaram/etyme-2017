@@ -9,7 +9,7 @@ import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
 import { fromPrismaDecimal } from '@/lib/money'
-import { matchInvoice } from '@/lib/invoice-match'
+import { matchInvoice, payGate, receiptStateRefusal } from '@/lib/invoice-match'
 
 /**
  * POST /api/invoices/:id/payments
@@ -160,51 +160,22 @@ export async function POST(
   // payroll").
   const doc = payer ? 'invoice' : 'bill'
   const Doc = payer ? 'Invoice' : 'Bill'
-  if (payer && invoice.status === 'ISSUED') {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_SUBMITTED',
-          message: `Invoice ${invoice.number} has not been submitted yet. Your supplier sends it through the three-way check first; it can be paid once it has.`,
-        },
-      },
-      { status: 409 }
-    )
-  }
-
-  // Held by the payer's own desk, with a reason: nobody pays it until
-  // the hold is lifted, in the same place it was put.
-  if (payer && invoice.status === 'HELD') {
-    return NextResponse.json(
-      {
-        error: {
-          code: 'HELD',
-          message: `Invoice ${invoice.number} is on hold at your desk. Lift the hold on its page first, then pay it.`,
-        },
-      },
-      { status: 409 }
-    )
-  }
-
   // A client pays what came through the match, and only that (CLAUDE.md,
-  // station 9). Submission ran the check once; the hours or the order
-  // behind it can move after, so it is run again at the moment money
-  // leaves. An exception somebody recorded with a reason counts as
-  // passing; a failure nobody answered does not.
+  // station 9) — through one gate, `payGate` in lib/invoice-match, which
+  // the job twin's approval reads too, so the desk and the twin cannot
+  // disagree about what is payable. In its order: an invoice still
+  // ISSUED has not been submitted, has not been checked against the
+  // hours and the purchase order, and is not yet a debt; one held by the
+  // payer's own desk waits until the hold is lifted where it was put;
+  // and the check is run again at the moment money leaves, because the
+  // hours or the order behind it can move after submission. An exception
+  // somebody recorded with a reason counts as passing; a failure nobody
+  // answered does not.
   if (payer) {
-    const now = await matchInvoice(id)
-    if (now && !now.matched) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'MATCH_FAILED',
-            message:
-              `Invoice ${invoice.number} does not pass the check now: ${now.summary}. ` +
-              `Fix it or record an exception with a reason on its page, then pay it.`,
-          },
-        },
-        { status: 409 }
-      )
+    const byState = receiptStateRefusal(invoice)
+    const gate = byState ?? payGate(invoice, await matchInvoice(id))
+    if (!gate.ok) {
+      return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: 409 })
     }
   }
 

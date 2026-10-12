@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { threeWayMatch, type MatchInput } from '@/lib/three-way-match'
-import type { MatchWithLines } from '@/lib/invoice-match'
+import { payGate, type MatchWithLines } from '@/lib/invoice-match'
 import {
   verdictFrom, exceptionsFirst, refuseRules, DEFAULT_INVOICE_RULES, type InvoiceRuleSet,
 } from '@/lib/twin/rules/invoice'
@@ -170,5 +170,32 @@ describe('the job twin reads an invoice receipt', () => {
     expect(mismatches[0].ruleCited).toBe('Hours 41.5 against 40 accepted, 3.75% over the 2% allowed.')
     // Every week in the plan was accepted by Northbend, so nothing in the demo is blocked.
     expect(verdicts.some((v) => v.verdict === 'BLOCKED')).toBe(false)
+  })
+})
+
+describe("the twin's yes and the AP desk read one payment gate", () => {
+  it("a twin's yes on an invoice receipt reads the AP desk's own payment gate: unsubmitted, held, cancelled, paid or unmatched is refused in the desk's words, and a clean match is payable", () => {
+    const clean = judge('INV-CLEAN', [{ hoursBilled: 40, hoursAccepted: 40 }])
+    expect(clean.verdict).toBe('CLEAN')
+    expect(clean.payable).toBe(true)
+    const matched = { matched: true, summary: 'all checks pass' }
+    expect(payGate({ number: 'INV-1', status: 'SUBMITTED' }, matched)).toEqual({ ok: true })
+
+    const refused = (status: string, m = matched) => {
+      const g = payGate({ number: 'INV-1', status }, m)
+      return g.ok ? null : g.code
+    }
+    expect(refused('ISSUED')).toBe('NOT_SUBMITTED')
+    expect(refused('HELD')).toBe('HELD')
+    expect(refused('CANCELLED')).toBe('INVALID_STATE')
+    expect(refused('PAID')).toBe('INVALID_STATE')
+    // Inside the tolerance is not a payment: the check still fails on 40.5 against 40.
+    const inside = judge('INV-INSIDE', [{ hoursBilled: 40.5, hoursAccepted: 40 }])
+    expect(inside.verdict).toBe('CLEAN')
+    const g = payGate({ number: 'INV-2', status: 'SUBMITTED' }, { matched: inside.payable, summary: 'hours differ' })
+    expect(g).toEqual({
+      ok: false, code: 'MATCH_FAILED',
+      says: 'Invoice INV-2 does not pass the check now: hours differ. Fix it or record an exception with a reason on its page, then pay it.',
+    })
   })
 })

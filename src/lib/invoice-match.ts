@@ -484,3 +484,98 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   })
   return { ...result, lines }
 }
+
+// ── The payer's gate: may this invoice receipt be paid now? ───────────
+//
+// One gate, read by every door that says "yes, pay it" on an `Invoice`
+// a supplier sent: the AP desk recording a payment
+// (POST /api/invoices/:id/payments) and the job twin approving a clean
+// receipt. Decided 2026-10-12, over adding an "approved for payment"
+// status: on an `Invoice` the match IS the approval. The payment door
+// re-runs the three-way check at the moment money leaves, and the AP
+// desk's decision on a variance is an exception with a reason
+// (`InvoiceMatchOverride`, POST /api/invoices/:id/match/override), which
+// the check reads as passing. A status beside that would be a second
+// gate nothing on the human path sets, and would let a stale "approved"
+// stand after the hours under it moved. So a twin's yes is a ledger
+// entry over this gate's answer; it moves no status and waives nothing.
+//
+// Order: the document's own state first (a cancelled or paid invoice
+// says so, rather than whatever its re-run match says), then the hold,
+// then the match.
+
+export type PayRefusalCode = 'NOT_SUBMITTED' | 'HELD' | 'INVALID_STATE' | 'MATCH_FAILED'
+
+export type PayGate =
+  | { ok: true }
+  | { ok: false; code: PayRefusalCode; says: string }
+
+/** The refusal the document's status alone decides, or null. No database. */
+export function receiptStateRefusal(inv: { number: string; status: string }): PayGate | null {
+  switch (inv.status) {
+    case 'ISSUED':
+      return {
+        ok: false, code: 'NOT_SUBMITTED',
+        says: `Invoice ${inv.number} has not been submitted yet. Your supplier sends it through the three-way check first; it can be paid once it has.`,
+      }
+    case 'DRAFT':
+      return {
+        ok: false, code: 'NOT_SUBMITTED',
+        says: `Invoice ${inv.number} is still a draft at your supplier. It can be paid once it is submitted and passes the three-way check.`,
+      }
+    case 'HELD':
+      return {
+        ok: false, code: 'HELD',
+        says: `Invoice ${inv.number} is on hold at your desk. Lift the hold on its page first, then pay it.`,
+      }
+    case 'CANCELLED':
+    case 'VOID':
+      return { ok: false, code: 'INVALID_STATE', says: 'Cannot record payment on a cancelled invoice' }
+    case 'PAID':
+      return { ok: false, code: 'INVALID_STATE', says: 'Invoice is already fully paid' }
+    default:
+      return null
+  }
+}
+
+/** The refusal the three-way check decides, or null. No database. */
+export function matchRefusal(number: string, match: { matched: boolean; summary: string } | null): PayGate | null {
+  if (!match) {
+    return {
+      ok: false, code: 'MATCH_FAILED',
+      says: `Invoice ${number} could not be checked against its order and its weeks, so it cannot be paid on the check's say-so.`,
+    }
+  }
+  if (match.matched) return null
+  return {
+    ok: false, code: 'MATCH_FAILED',
+    says:
+      `Invoice ${number} does not pass the check now: ${match.summary}. ` +
+      `Fix it or record an exception with a reason on its page, then pay it.`,
+  }
+}
+
+/** Both refusals in the gate's order, over facts already loaded. No database. */
+export function payGate(
+  inv: { number: string; status: string },
+  match: { matched: boolean; summary: string } | null,
+): PayGate {
+  return receiptStateRefusal(inv) ?? matchRefusal(inv.number, match) ?? { ok: true }
+}
+
+/**
+ * May the payer pay this invoice receipt now — the AP desk's own answer,
+ * for a caller that holds only the id (the twin's approval performer).
+ * Who the payer is and whether the caller sits at a desk that pays are
+ * the caller's questions, as they are for `matchInvoice`. Writes nothing.
+ */
+export async function mayPayInvoiceReceipt(
+  invoiceId: string,
+): Promise<(PayGate & { match: MatchWithLines | null }) | null> {
+  const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { number: true, status: true } })
+  if (!inv) return null
+  const byState = receiptStateRefusal(inv)
+  if (byState) return { ...byState, match: null }
+  const match = await matchInvoice(invoiceId)
+  return { ...payGate(inv, match), match }
+}

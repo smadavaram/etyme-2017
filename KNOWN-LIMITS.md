@@ -85,9 +85,29 @@ did not receive. Seen in its code and to be confirmed by regulatory:
 
 ## Invoice rule — etyme-money
 
-- `invoiceRulesFor` returns the default; `ruleSetFor` now exists and the
-  nightly run passes the company's tolerance in.
-- The founder has been asked whether two per cent should also clear
-  payment. Until he answers, the tolerance decides only what the twin
-  raises.
-- `seedTwinInvoiceDemo` finds Northbend and Pinnacle by display name.
+- **The tolerance decides what the twin raises, not what is paid.** A
+  receipt two per cent over is CLEAN to the twin and still fails the
+  three-way check's QUANTITY, so it carries `payable: false` and the AP
+  desk records the difference with a reason before it is paid. Whether
+  two per cent should also clear payment is put to the founder, not
+  decided here.
+- **`seedTwinInvoiceDemo` finds Northbend and Pinnacle by display name**,
+  not by slug or id. A renamed demo company seeds no receipts and says
+  nothing.
+- **`pendingReceiptsFor` runs `matchInvoice` once per open receipt**,
+  capped at 500 a company, and lists ISSUED and HELD receipts beside
+  submitted ones. Fine at a demo's size; a batched match is the change
+  when it is not. An ISSUED or HELD receipt is not payable, and the
+  payment gate (below) says so.
+- **Resolved 2026-10-12:** `invoiceRulesFor` now reads `ruleSetFor`, so
+  a company's saved tolerance is the one the rule uses.
+- **An `Invoice` has no approved-for-payment status, on purpose
+  (2026-10-12).** On a supplier's `Invoice` the match is the approval:
+  `payGate` in `lib/invoice-match` is the one gate, read by the AP
+  desk's payment door and offered to the twin as `mayPayInvoiceReceipt`.
+  A twin's yes is a ledger entry over that gate's answer and moves no
+  status. **No payment run reads an `Invoice`:** `PaymentRunItem` names a
+  `VendorBill` only, so a supplier's own invoice is paid one at a time
+  through `POST /api/invoices/:id/payments`. Batching them is a schema
+  request (an optional `invoiceId` on `PaymentRunItem`), not made until a
+  client asks.

@@ -53,6 +53,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { CHECK_NAME, decimalToCents, type MatchCode } from '@/lib/three-way-match'
 import { matchInvoice, type MatchWithLines, type LineFact } from '@/lib/invoice-match'
 import { amount } from '@/lib/money-display'
@@ -61,17 +62,11 @@ import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-pa
 // ── The rule set ─────────────────────────────────────────────────────
 
 /**
- * The numbers a company sets for the invoice rule.
- *
- * TODO(etyme-architect): `RuleSet` is not in the committed schema at
- * 9afa89b19; the architect's `lib/twin/rule-set` (`ruleSetFor`) is being
- * written beside this file and is not committed yet. Until it is, every
- * company reads the default below and `source` says so. When it lands,
- * the body of `invoiceRulesFor` becomes `return ruleSetFor(companyId)`
- * and nothing else here moves: `TwinRuleSet` already carries
- * `hoursTolerancePct` and `source`, so it is an `InvoiceRuleSet`, and the
- * daily run may pass it to `pendingReceiptsFor` today. The two refusal
- * ceilings agree (25%), so a number saved is a number this rule uses.
+ * The numbers a company sets for the invoice rule. Read through the
+ * twin's one rule-set door (`ruleSetFor` in lib/twin/rule-set), whose
+ * `TwinRuleSet` carries `hoursTolerancePct` and `source` and so is an
+ * `InvoiceRuleSet`. The two refusal ceilings agree (25%), so a number
+ * saved there is a number this rule uses.
  */
 export interface InvoiceRuleSet {
   /** How far billed hours may sit from accepted hours, in per cent, either way. */
@@ -84,12 +79,11 @@ export interface InvoiceRuleSet {
 export const DEFAULT_INVOICE_RULES: InvoiceRuleSet = { hoursTolerancePct: 2, source: 'DEFAULT' }
 
 /**
- * The rules a company runs under. The default today, for every company,
- * because nothing stores a company's own numbers yet (see the TODO
- * above). Async so callers are already shaped for the table.
+ * The rules a company runs under: its own numbers where it saved some,
+ * the default otherwise, and `source` says which.
  */
-export async function invoiceRulesFor(_companyId: string): Promise<InvoiceRuleSet> {
-  return DEFAULT_INVOICE_RULES
+export async function invoiceRulesFor(companyId: string): Promise<InvoiceRuleSet> {
+  return ruleSetFor(companyId)
 }
 
 /**
