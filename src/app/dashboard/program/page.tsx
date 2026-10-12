@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { deskCounts, deskHeadline, deskItems, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
@@ -1024,7 +1025,7 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
                 Approve
               </button>
               <button
-                onClick={() => router.push(`/dashboard/conversations?new=1`)}
+                onClick={() => router.push(`/dashboard/conversations?new=1` as Route)}
                 className="text-xs px-3 py-2 border border-etyme-rule rounded text-etyme-muted
                                  hover:text-etyme-ink transition-colors"
               >
