@@ -233,9 +233,6 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
     this.").
 14. **Icons are a placeholder** of the three rising strokes, drawn for
     the package, not the brand kit's mark.
-15. **`/ready` does not show the bot yet.** `teamsBotEdge` and
-    `teamsBotFacts` (`lib/teams/readiness`) are written; the row is the
-    architect's to add in `lib/readiness`.
 
 ## The twin's conversation panel — etyme-conversation
 
@@ -268,13 +265,6 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   asking**, re-read on every message. If a colleague answers one in
   between, the numbers move; the confirm card names the receipt, so the
   person sees which before pressing.
-- **Entry links go to `/dashboard/twin#entry-<id>`.** The twin page does
-  not yet put `id="entry-<id>"` on its rows, so the link opens the page
-  at the top. Invoice receipts and people open on their own pages.
-- **The model's run is filed in `AgentRun` under `recordType:
-  'TWIN_LEDGER'`, cast**, because `RecordType` in `lib/agent-run` has no
-  word for it. The column is a string, so the row is honest; the type
-  needs the word added (architect's file).
 - **The model's reply is not checked for claims beyond the lines it was
   given.** It is labeled as the model's, its cited ids are kept only if
   they are real lines, and it cannot act. A check that each figure in

@@ -15,7 +15,7 @@ import { TWIN_ACTS } from '@/lib/autonomy'
 import { hasPermission, type Permission } from '@/lib/permissions'
 import { invoiceVerdict, invoiceRulesFor } from '@/lib/twin/rules/invoice'
 import { logBulkAccess } from '@/lib/access-log'
-import { runAgent, type RecordType } from '@/lib/agent-run'
+import { runAgent } from '@/lib/agent-run'
 import { hrefFor, type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine } from './ask'
 
 const MODEL = 'claude-sonnet-5'
@@ -163,9 +163,7 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           {
             companyId: caller.company?.id ?? companyId,
             agent: 'twin.conversation',
-            // Not in agent-run's vocabulary yet; asked of the architect.
-            // The column is a string, so the row is honest about what ran.
-            recordType: 'TWIN_LEDGER' as RecordType,
+            recordType: 'TWIN_LEDGER',
             recordId: companyId,
           },
           async () => {

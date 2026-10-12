@@ -25,6 +25,7 @@
  */
 
 import { amount } from '@/lib/money-display'
+import { formatDay } from '@/lib/format-date'
 
 export const CARD_CONTENT_TYPE = 'application/vnd.microsoft.card.adaptive'
 const SCHEMA = 'http://adaptivecards.io/schemas/adaptive-card.json'
@@ -77,11 +78,14 @@ type Element = Record<string, unknown>
 const text = (t: string, extra: Element = {}): Element => ({ type: 'TextBlock', text: t, wrap: true, ...extra })
 const facts = (rows: [string, string][]): Element => ({ type: 'FactSet', facts: rows.map(([title, value]) => ({ title, value })) })
 
+/** "Oct 4, 2026", through the one date door; null for nothing, or for a day it cannot read. */
 function day(iso: string | null): string | null {
   if (!iso) return null
-  const d = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso)
-  if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  try {
+    return formatDay(iso)
+  } catch {
+    return null
+  }
 }
 
 /** "Sep 28 – Oct 4, 2026" · "Oct 4, 2026" · null */
