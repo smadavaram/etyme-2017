@@ -741,6 +741,25 @@ written down so they are not re-derived:
   and the twin's two recorded acts, named as such on the governance page
   and in the security posture.
 
+**It is called Ask Etyme, it lives in Conversations, and it looks like a
+chat. Decided by the founder, 2026-10-12**, on seeing the first build:
+*"First I thought you will call it 'Ask Etyme'. Second it would live in
+Conversations. Third, expected it to look like Claude or ChatGPT. You
+are making it look very clumsy."* So: the person's door to the twin is
+a conversation pinned at the top of the Conversations list and first in
+the sidebar above Today, one click from any page, never a popup and
+never a floating bubble. It is a thread, newest at the bottom, the
+composer fixed at the bottom, suggested questions as chips, and nothing
+else on the screen; a reply carries its table and its links inside the
+message; an act the twin needs a yes for is a card inside the reply with
+Yes and Not now, going through the one approval route. The Program twin
+page keeps the ledger and the editors; the chat is the front door. On a
+phone it is one screen at a time with a back arrow and a close in the
+header. The lesson, so it is not repeated: a chat built as a widget
+inside a dashboard page by the people building the dashboard reads as a
+form. The prototype-before-code rule from the home page applies to a
+product screen the founder will look at, not only to public pages.
+
 **The hours tolerance is 0.5%, not 2%. Decided by the founder,
 2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
 default rule set raises an invoice receipt whose billed hours differ from
