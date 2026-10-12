@@ -286,7 +286,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setShowNew(true)
-      router.replace('/dashboard/conversations', { scroll: false })
+      router.replace('/dashboard/conversations' as Route, { scroll: false })
     }
   }, [searchParams, router])
 
@@ -484,7 +484,12 @@ export default function ConversationsPage() {
             <div className="px-4 py-3 border-b border-etyme-rule bg-etyme-surface/50">
               {askOpen && <h2 className="font-serif text-[20px] leading-tight tracking-[-0.02em] text-etyme-ink">Conversations</h2>}
               <p className="text-[11px] text-etyme-faint tabular-nums">
-                {filtered.length} conversation{filtered.length !== 1 ? 's' : ''}
+                {/* Ask Etyme is in the list, so the count says so rather than reading "0". */}
+                {company
+                  ? (filtered.length === 0
+                      ? 'Ask Etyme, and no other conversations yet'
+                      : `Ask Etyme and ${filtered.length} other conversation${filtered.length !== 1 ? 's' : ''}`)
+                  : `${filtered.length} conversation${filtered.length !== 1 ? 's' : ''}`}
               </p>
             </div>
 
@@ -698,7 +703,7 @@ export default function ConversationsPage() {
           onCreated={(id) => {
             setToast('Conversation started')
             fetchConversations().then(() => {
-              if (id) router.replace(`/dashboard/conversations?open=${id}`, { scroll: false })
+              if (id) router.replace(`/dashboard/conversations?open=${id}` as Route, { scroll: false })
             })
           }}
         />
