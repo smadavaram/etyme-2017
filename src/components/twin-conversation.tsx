@@ -300,7 +300,7 @@ function VarianceTable({ rows, label }: { rows: VarianceRow[]; label: string }) 
             <th scope="col" className="py-1 pr-3 text-right font-medium">Clean</th>
             <th scope="col" className="py-1 pr-3 text-right font-medium">Not clean</th>
             <th scope="col" className="py-1 pr-3 text-right font-medium">Hours over accepted</th>
-            <th scope="col" className="py-1 font-medium">Receipts</th>
+            <th scope="col" className="py-1 font-medium">Open a receipt</th>
           </tr>
         </thead>
         <tbody>
