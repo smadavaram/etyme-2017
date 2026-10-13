@@ -70,6 +70,7 @@ import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
+import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 import { COLUMN } from '@/lib/public-site/rhythm'
 
@@ -2305,6 +2306,12 @@ function everyPublicPage(): [string, string][] {
   for (const route of docRoutes().filter((r) => r !== '/docs')) {
     const c = copyOfDoc(route.slice('/docs/'.length))
     if (c) out.push([route, [...c.hero, ...c.body].join(' ')])
+  }
+  // The four party doors, since 2026-10-13: every guard on this list
+  // reads them as it reads every other public page.
+  for (const p of PARTY_PAGES) {
+    const c = copyOfPartyPage(p)
+    out.push([p.route, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['the header and footer', frameCopy().join(' ')])
   out.push(['the close band', [...closeBandCopy(), SEE_IT.d, GET_THE_AUDIT.d].join(' ')])

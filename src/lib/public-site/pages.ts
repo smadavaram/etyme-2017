@@ -26,6 +26,7 @@
 
 import { PROCESS, partiesFor, processRoute } from './docs/process'
 import { TOPICS, topicRoute } from './docs/topics'
+import { PARTY_PAGES } from './parties'
 
 export type PageKind =
   /** The front door. */
@@ -38,6 +39,12 @@ export type PageKind =
   | 'DOCS'
   /** About, contact, the security position. */
   | 'COMPANY'
+  /**
+   * A door for one party who is not the client: suppliers and bench
+   * firms, program offices, integrators, contractors (2026-10-13). Reached
+   * by link or advertising, never from the home page's menu.
+   */
+  | 'PARTY'
   /** Terms, privacy, the DPA — regulatory's words, read by the guard for price and AI only. */
   | 'LEGAL'
 
@@ -125,6 +132,13 @@ export const PUBLIC_PAGES: PublicPage[] = [
   { route: '/security', title: 'Security position', kind: 'COMPANY', routeFile: `${SITE_GROUP}/security/page.tsx` },
   { route: '/about', title: 'About Etyme', kind: 'COMPANY', routeFile: `${SITE_GROUP}/about/page.tsx` },
   { route: '/contact', title: 'Contact', kind: 'COMPANY', routeFile: `${SITE_GROUP}/contact/page.tsx` },
+
+  ...PARTY_PAGES.map((p) => ({
+    route: p.route,
+    title: p.eyebrow,
+    kind: 'PARTY' as const,
+    routeFile: `${SITE_GROUP}${p.route}/page.tsx`,
+  })),
 
   { route: '/terms', title: 'Terms of service', kind: 'LEGAL', routeFile: 'src/app/terms/page.tsx' },
   { route: '/privacy', title: 'Privacy policy', kind: 'LEGAL', routeFile: 'src/app/privacy/page.tsx' },

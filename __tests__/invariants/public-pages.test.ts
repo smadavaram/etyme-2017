@@ -28,6 +28,8 @@ import {
   PARTIES, REFERENCE, INTEGRATIONS, TIME_AND_MONEY, docSlugs, partyAt, copyOfDoc, copyOfDocsHome, textOfHtml,
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
+import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, otherDoors, growLabel } from '@/lib/public-site/parties'
+import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEADER_MORE, FOOTER as SITE_FOOTER } from '@/lib/public-site/nav'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
 import {
@@ -52,6 +54,10 @@ function copyOf(route: string): Copy | null {
   if (c) return copyOfCompanyPage(c)
   if (route === '/docs') return copyOfDocsHome()
   if (route.startsWith('/docs/')) return copyOfDoc(route.slice('/docs/'.length))
+  if (route.startsWith('/for/')) {
+    const door = doorAt(route.slice('/for/'.length))
+    return door ? copyOfPartyPage(door) : null
+  }
   const page = pageAt(route)
   if (!page || !existsSync(join(ROOT, page.routeFile))) return null
   const words = copyFrom(read(page.routeFile))
@@ -61,7 +67,7 @@ function copyOf(route: string): Copy | null {
 /** The marketing pages: everything on the list except the legal documents. */
 const MARKETING = PUBLIC_PAGES.filter((p) => p.kind !== 'LEGAL')
 /** The pages whose words were written in this change, and are held to every rule. */
-const NEW_PAGES = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY'].includes(p.kind))
+const NEW_PAGES = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY', 'PARTY'].includes(p.kind))
 
 const all = (c: Copy) => [...c.hero, ...c.body].join(' ')
 
@@ -687,5 +693,111 @@ describe('An address that does not exist opens a page in the brand (sign-up walk
     expect(src).toContain('bg-etyme-canvas')
     expect(src).toContain('font-serif')
     expect(src).not.toMatch(/404|could not be found/)
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────
+// The four party doors. Decided 2026-10-13 (CLAUDE.md, "Nine decisions",
+// item 2), built from the four drawings the founder approved. Every rule
+// above already reads them, because they are on the public list as PARTY
+// pages; these are the template's own sentences.
+
+describe('Four doors for the parties who are not the client, reached by link and not from the home page', () => {
+
+  it('there are four doors, at /for/suppliers, /for/program-offices, /for/integrators and /for/contractors, each a three-line route over its words', () => {
+    expect(PARTY_PAGES.map((p) => p.route)).toEqual(['/for/suppliers', '/for/program-offices', '/for/integrators', '/for/contractors'])
+    for (const p of PARTY_PAGES) {
+      const page = pageAt(p.route)
+      expect(page?.kind, p.route).toBe('PARTY')
+      const route = read(page!.routeFile)
+      expect(route.trim().split('\n').length, p.route).toBeLessThanOrEqual(4)
+      expect(route).toContain(`<PartyPageView slug="${p.slug}" />`)
+    }
+  })
+
+  it('no door is on the home page\'s menu or in the shared header, and each door\'s footer links the other three', () => {
+    const header = [
+      ...HEADER_MENUS.flatMap((m) => [m.href.home, m.href.away, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
+      ...HEADER_LINKS.flatMap((l) => [l.href.home, l.href.away]),
+      ...HEADER_MORE.map((i) => i.href),
+      ...SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)),
+    ]
+    for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
+    expect(read('src/app/page.tsx')).not.toMatch(/\/for\//)
+    for (const p of PARTY_PAGES) {
+      expect(otherDoors(p).map((d) => d.href).sort(), p.route).toEqual(PARTY_PAGES.filter((o) => o !== p).map((o) => o.route).sort())
+    }
+    expect(read('src/lib/public-site/party-page.tsx')).toContain('<SiteFooter doors={otherDoors(p)} />')
+    expect(read('src/lib/public-site/party-page.tsx')).toContain('<SiteHeader />')
+  })
+
+  it('each door shows one real screen that exists and says every firm on it is a demo company', () => {
+    for (const p of PARTY_PAGES) {
+      expect(p.screen.img.startsWith('/screens/'), p.route).toBe(true)
+      expect(existsSync(join(ROOT, 'public', p.screen.img)), p.screen.img).toBe(true)
+      expect(all(copyOfPartyPage(p))).toContain('Demo company, not a customer.')
+    }
+  })
+
+  it('each door has eight day-one panels, five rules of what stays yours beside a who-sees-what panel, and three ways it grows', () => {
+    for (const p of PARTY_PAGES) {
+      expect(p.dayOne.panels, p.route).toHaveLength(8)
+      expect(p.dayOne.heading).toBe('Everything below is in the demo today, from your own desk')
+      expect(p.yours.points, p.route).toHaveLength(5)
+      expect(p.yours.rows.length, p.route).toBeGreaterThanOrEqual(5)
+      expect(p.grow.panels, p.route).toHaveLength(3)
+    }
+  })
+
+  it('each growth panel says Built or Being built as drawn, and every panel being built says it is not built yet or is next', () => {
+    const drawn: Record<string, string[]> = {
+      '/for/suppliers': ['Built · a match is a door', 'Built · the bench as a business', 'Being built · your expertise beside your rate'],
+      '/for/program-offices': ['Built · the seat', 'Being built · several clients, one view', 'Being built · the twin at your side'],
+      '/for/integrators': ['Built · the move and the match', 'Built · bench profit per person', 'Being built · utilization across projects'],
+      '/for/contractors': ['Built · the bench, by your consent', 'Being built · your evidence, not a forwarded CV', 'Being built · one record across employers'],
+    }
+    for (const p of PARTY_PAGES) {
+      expect(p.grow.panels.map(growLabel), p.route).toEqual(drawn[p.route])
+      for (const x of p.grow.panels.filter((x) => !x.built)) expect(x.d, `${p.route}: ${x.label}`).toMatch(/Not built yet\.|is next\.|the rest is next\./)
+      expect(p.grow.lede, p.route).toContain('no date is set')
+    }
+  })
+
+  it('each door asks the reader to sign up first, then to see the demo, then to ask a person, and a contractor signs up on the same form as a candidate', () => {
+    const view = read('src/lib/public-site/party-page.tsx')
+    const close = view.slice(view.indexOf('id="join"'))
+    const signUp = close.indexOf('{p.signUpLabel')
+    const demo = close.indexOf('<Demo p={p}')
+    const ask = close.indexOf('{ASK_A_PERSON.t}')
+    expect(signUp).toBeGreaterThan(-1)
+    expect(signUp).toBeLessThan(demo)
+    expect(demo).toBeLessThan(ask)
+    expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
+    for (const p of PARTY_PAGES) expect(p.signUpHref.startsWith('/signup'), p.route).toBe(true)
+    expect(doorAt('program-offices')!.signUpHref).toBe('/signup?type=msp')
+    expect(doorAt('integrators')!.signUpHref).toBe('/signup?type=gsi')
+    expect('candidate' in doorAt('contractors')!.demo).toBe(true)
+    for (const p of PARTY_PAGES) expect(all(copyOfPartyPage(p))).toContain('Free while testing. No price is set yet.')
+  })
+
+  it('no sentence on a door is longer than twenty-five words, and the word ecosystem is on none of them', () => {
+    for (const p of PARTY_PAGES) {
+      const c = copyOfPartyPage(p)
+      const long = [...c.hero, ...c.body].flatMap((line) => longSentences(line, 25))
+      expect(long, p.route).toEqual([])
+      expect(all(c), p.route).not.toMatch(/ecosystem/i)
+    }
+  })
+
+  it('no door claims Etyme places anybody, and the supplier and contractor doors say it never does', () => {
+    for (const p of PARTY_PAGES) expect(check(copyOfPartyPage(p)).filter((f) => f.rule === 'neutrality'), p.route).toEqual([])
+    expect(all(copyOfPartyPage(doorAt('suppliers')!))).toContain('Etyme never places anybody')
+    expect(all(copyOfPartyPage(doorAt('contractors')!))).toContain('Etyme never places anybody.')
+  })
+
+  it('the program office door offers Etyme\'s own program office once, in its two ways to use it, under the founder\'s two labels', () => {
+    const p = doorAt('program-offices')!
+    expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toHaveLength(1)
+    expect(p.yours.rows.map(([a]) => a)).toEqual(expect.arrayContaining(['Etyme as VMS software', 'Etyme as MSP provider']))
   })
 })

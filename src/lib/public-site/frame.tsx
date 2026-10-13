@@ -202,7 +202,13 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
   )
 }
 
-export function SiteFooter() {
+/**
+ * `doors` is the party pages' own row (2026-10-13): each of the four doors
+ * (`./parties`) links the other three from its footer, because they are
+ * reached by link and not from the home page's menu. Every other page
+ * draws the footer without it.
+ */
+export function SiteFooter({ doors }: { doors?: { label: string; href: string }[] } = {}) {
   return (
     <footer className="border-t border-etyme-rule bg-etyme-surface">
       {/* The same gutter as the bands above it, so the logo sits on their
@@ -244,6 +250,19 @@ export function SiteFooter() {
             </div>
           ))}
         </div>
+
+        {doors && doors.length > 0 && (
+          <nav aria-label="Other doors" className="mt-10 border-t border-etyme-rule pt-6">
+            <p className="stat-label">{'Also on Etyme'}</p>
+            <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+              {doors.map((d) => (
+                <li key={d.href}>
+                  <a href={d.href} className={`text-[14px] leading-snug ${LINK}`}>{d.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
 
         <div className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-etyme-rule pt-6">
           <p className="font-mono text-[11px] text-etyme-faint">
