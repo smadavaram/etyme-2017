@@ -117,7 +117,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
 
-const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centers', 'Cycles', 'Bench pay'] as const
+const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centers', 'Cycles', 'Ask Etyme', 'Bench pay'] as const
 /** Only a firm that carries people between projects has bench pay to set. */
 const BENCH_KINDS = ['VENDOR', 'GSI']
 type Tab = (typeof TABS)[number]
@@ -233,6 +233,7 @@ export default function SettingsPage() {
       {tab === 'Holidays' && <HolidaysTab data={data} send={send} busy={busy} />}
       {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} />}
       {tab === 'Cycles' && <CyclesTab data={data} send={send} busy={busy} />}
+      {tab === 'Ask Etyme' && <AskEtymePanel />}
       {tab === 'Bench pay' && <BenchPaySection />}
       </div>
     </>
@@ -746,7 +747,6 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
     </Panel>
     <WeekPanel canEdit={data.canEdit} />
     <PayrollPanel canEdit={data.canEdit} />
-    <AskEtymePanel />
     <WeekendShiftPanel data={data} send={send} busy={busy} />
     </>
   )
