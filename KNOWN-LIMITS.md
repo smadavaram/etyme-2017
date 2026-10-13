@@ -268,6 +268,12 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   stays listed until the next reading supersedes it; the answer says the
   day of the reading. Only the program owner's desks read it, as on the
   twin's page.
+- **A name in a never-floor question is matched by its full name** as
+  written, against the placements at this company inside the reader's
+  account walls (500 most recent), and a receipt by its number. A first
+  name alone, or a misspelling, links to the list instead.
+- **Told, not asked** lists at most the 20 latest receipts the twin
+  flagged, read again now; one corrected, waived or paid since drops off.
 - **"Not now" changes nothing and is not recorded.** The question stays
   waiting and comes back with "What needs me today?".
 - **"Ask Pinnacle for a corrected invoice" from the prototype is not
@@ -285,8 +291,10 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   precedent.
 - **The variance question reads the twin's recorded receipts, then
   re-runs the rule on each.** "This quarter" is the calendar quarter in
-  UTC, by the day the twin recorded its verdict, not by the week the
-  hours were worked. Clean and not-clean are today's reading, so a
+  UTC, by the day each receipt was billed (`issuedAt`, else
+  `submittedAt`) — the same day the spend answer counts by, so one
+  receipt falls in one period on both. A receipt with neither date is in
+  no quarter. Clean and not-clean are today's reading, so a
   receipt fixed since the twin recorded it reads clean. One
   `invoiceVerdict` (a full three-way check) per receipt, capped at 200 —
   fine at a demo's size.

@@ -76,6 +76,11 @@ function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typ
       rows: [{ timesheetId: 'ts-1', personId: 'p-helena', person: 'Helena Marsh', periodStart: '2026-10-04', periodEnd: '2026-10-10', hours: 44, waitingDays: 2, href: '/dashboard/weeks/ts-1' }],
     })),
     spendIn: vi.fn(async () => ({ ok: true as const, receipts: SPEND, undated: 1 })),
+    told: vi.fn(async () => []),
+    named: vi.fn(async (text: string) => ({
+      ...(/helena/i.test(text) ? { person: { name: 'Helena Marsh', contractId: 'sc-helena' } } : {}),
+      ...(/PR-2026-0441/.test(text) ? { receipt: { number: 'PR-2026-0441', invoiceId: 'inv-441' } } : {}),
+    })),
     entry: vi.fn(async (ref: string) => (ref === 'entry-442' || ref === 'PR-2026-0442' || ref === 'entry-441' ? (ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', ruleCited: WAITING[0].ruleCited, rationale: WAITING[0].rationale } : ENTRY_442) : null)),
     receiptsIn: vi.fn(async () => NORTHBEND_RECEIPTS),
     ledgerLines: vi.fn(async () => [{ id: 'entry-442', ts: NOW.toISOString(), says: ENTRY_442.says, outcome: 'PERFORMED', entityType: 'Invoice', entityId: 'inv-442', ruleCited: ENTRY_442.ruleCited, rationale: ENTRY_442.rationale }]),
@@ -105,6 +110,9 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(pinnacle.receiptLinks.map((l) => l.href)).toEqual(['/dashboard/invoices/inv-441', '/dashboard/invoices/inv-442'])
     expect(a.rows[1]).toMatchObject({ receipts: 1, clean: 1, mismatch: 0, hoursOverAccepted: 0 })
     expect(a.says).toContain('1.5 hours billed over what was accepted')
+    // Counted by the day each was billed, the same day spend counts by; nobody "asked" for the re-check.
+    expect(a.says).toContain('Counted by the day each was billed, and checked just now against the three-way check.')
+    expect(a.says).not.toContain('as you asked')
 
     // A week nobody accepted is never counted as over, and a supplier
     // with no accepted week has no figure rather than a zero.
@@ -269,7 +277,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(hello).toMatchObject({ kind: 'NEEDS', greeting: true, items: WAITING })
     if (hello.kind !== 'NEEDS') return
     expect(hello.says).toBe('Etyme is asking you one thing. Approve it here, or reject it with a reason.')
-    expect(hello.more).toEqual([
+    const says = (a: typeof hello) => (a.kind === 'NEEDS' ? (a.more ?? []).map((l) => l.says) : [])
+    expect(says(hello)).toEqual([
       'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign.',
       'Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.',
       // The program's picture, from /api/program's own counts and this month's invoice receipts, never two currencies added.
@@ -277,32 +286,51 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       'Suppliers billed you £1,000.00 and $11,342.50 so far in Oct 2026.',
       GREETING_CLOSE,
     ])
+    // Each receipt, the person and each figure link from inside the sentence.
+    expect(hello.more!.map((l) => l.links ?? [])).toEqual([
+      [{ text: 'PR-2026-0441', href: '/dashboard/invoices/inv-441' }, { text: 'IN-XSWQQZ-20260901', href: '/dashboard/invoices/inv-cs' }],
+      [{ text: 'Tobias Lindqvist', href: '/dashboard/people/p-tobias' }],
+      [{ text: '12 contractors', href: '/dashboard/people' }],
+      [{ text: '£1,000.00', href: '/dashboard/invoices' }, { text: '$11,342.50', href: '/dashboard/invoices' }],
+      [],
+    ])
     expect(hello.links).toEqual([
       { label: 'Open Tobias Lindqvist', href: '/dashboard/people/p-tobias' },
       { label: 'Open Contractors', href: '/dashboard/people' },
       { label: 'Open Invoice receipts', href: '/dashboard/invoices' },
     ])
+    // Told, not asked: the paying desk reads the receipt the twin told it about, first, with its link.
+    const ap = await today(readers({ told: async () => [{ invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }] }), { now: NOW, greeting: true })
+    expect(ap.kind === 'NEEDS' && ap.more![0]).toEqual({
+      says: 'PR-2026-0442 bills 41.5 hours against 40 accepted; it cannot be paid until Pinnacle Resourcing corrects it.',
+      links: [{ text: 'PR-2026-0442', href: '/dashboard/invoices/inv-442' }],
+    })
     // At most six lines before the closing sentence, however much is waiting.
     const busy = await today(readers({ othersWaiting: async () => Array.from({ length: 9 }, (_, i) => ({ ...OTHERS[0], title: `R-${i}`, desks: [`Desk ${i}`] })) }), { now: NOW, greeting: true, picture: { onSite: 12, suppliers: 4 } })
     expect(busy.kind === 'NEEDS' && busy.more!.length).toBe(5 + 1)
     // The program manager, on whose authority Etyme asks, reads why none of it is theirs.
-    expect(othersSay(OTHERS.map((o) => ({ ...o, own: true })))).toEqual([
+    expect(othersSay(OTHERS.map((o) => ({ ...o, own: true }))).map((l) => l.says)).toEqual([
       'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign: Etyme asked on your authority, and nobody signs their own.',
     ])
     expect(read.model).not.toHaveBeenCalled()
 
     // A desk that reads neither what the rules found nor the invoice book is greeted without those lines, not refused.
     const quiet = await today(readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false, says: 'no' }), spendIn: async () => ({ ok: false, says: 'no' }) }), { now: NOW, greeting: true })
-    expect(quiet).toMatchObject({ kind: 'NEEDS', says: 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.', more: [GREETING_CLOSE] })
+    expect(quiet).toMatchObject({ kind: 'NEEDS', says: 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.', more: [{ says: GREETING_CLOSE }] })
   })
 
   it('an act on the never floor asked in the chat is refused in a sentence that names who does it, and never reaches the model', async () => {
     const read = readers()
     const extend = await respond('Please extend Helena Marsh by three months', read, { env: KEY, companyKind: 'VENDOR' })
     expect(extend.kind).toBe('TEXT')
-    expect(extend.says).toMatch(/^Extending a placement is never Etyme’s to do\. Your .*Contract Manager.* does it on the placement’s page\.$/)
+    // One sentence, and the link opens the placement the question names.
+    expect(extend.says).toMatch(/^Extending Helena Marsh’s placement is never Etyme’s to do: your .*Contract Manager.* does it on the placement’s page\.$/)
     expect(extend.says).not.toContain('assignments.write')
-    expect(extend).toMatchObject({ links: [{ href: '/dashboard/contracts' }] })
+    expect(extend).toMatchObject({ links: [{ label: 'Open Helena Marsh’s placement', href: '/dashboard/placements/sc-helena' }] })
+    // Nobody named: the list where it is done.
+    const anyone = await respond('extend the placement', read, { env: KEY, companyKind: 'VENDOR' })
+    expect(anyone).toMatchObject({ links: [{ href: '/dashboard/contracts' }] })
+    expect(anyone.says).toMatch(/^Extending a placement is never Etyme’s to do: your .+ does it on the placement’s page\.$/)
 
     expect(neverAct('end Omar Haddad’s placement on Friday')).toBe('END')
     expect(neverAct('Award the job to Priya')).toBe('AWARD')
@@ -318,10 +346,11 @@ describe('the twin’s conversation answers from the ledger by rules before any 
 
     // A seat that holds the desk is told it does it itself.
     const own = await respond('extend Helena Marsh', read, { env: KEY, companyKind: 'CLIENT', permissions: ['assignments.write'] })
-    expect(own.says).toBe('Extending a placement is never Etyme’s to do. Your desk does it: you do it yourself on the placement’s page.')
+    expect(own.says).toBe('Extending Helena Marsh’s placement is never Etyme’s to do: your desk does it, so you do it yourself on the placement’s page.')
 
     const pay = await respond('pay PR-2026-0441', read, { env: KEY, companyKind: 'CLIENT' })
-    expect(pay.says).toMatch(/^Paying an invoice receipt is never Etyme’s to do\. Your .+ does it on the invoice receipt’s page\.$/)
+    expect(pay.says).toMatch(/^Paying PR-2026-0441 is never Etyme’s to do: your .+ does it on its page\.$/)
+    expect(pay).toMatchObject({ links: [{ label: 'Open PR-2026-0441', href: '/dashboard/invoices/inv-441' }] })
     expect(read.model).not.toHaveBeenCalled()
   })
 })

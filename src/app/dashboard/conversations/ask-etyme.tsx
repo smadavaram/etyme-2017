@@ -10,7 +10,7 @@ import { statusMeans } from '@/lib/read-response'
 import { formatDay, formatRange } from '@/lib/format-date'
 import {
   SUGGESTED_QUESTIONS, FOOTER_LINE, boundarySays, decisionRequest, entryHref, hrs, money, partOfDay,
-  type Answer, type Link as AnswerLink, type WaitingItem, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
+  type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
 } from '@/app/api/conversations/twin/ask'
 
 /**
@@ -277,6 +277,28 @@ function FromEtyme({ children }: { children: ReactNode }) {
   )
 }
 
+/** A sentence whose named phrases are links: a receipt number to its receipt, a count to its list. */
+function Rich({ line }: { line: RichLine }) {
+  const parts: ReactNode[] = []
+  let rest = line.says
+  let key = 0
+  // In the order they appear, each phrase once.
+  const links = [...(line.links ?? [])]
+    .filter((l) => l.text && line.says.includes(l.text))
+    .sort((a, b) => line.says.indexOf(a.text) - line.says.indexOf(b.text))
+  for (const l of links) {
+    const at = rest.indexOf(l.text)
+    if (at < 0) continue
+    if (at > 0) parts.push(rest.slice(0, at))
+    parts.push(
+      <Link key={key++} href={l.href as Route} className="text-etyme-action-press underline underline-offset-2 decoration-etyme-action-line hover:decoration-etyme-action-press">{l.text}</Link>
+    )
+    rest = rest.slice(at + l.text.length)
+  }
+  if (rest) parts.push(rest)
+  return <>{parts}</>
+}
+
 function Links({ links }: { links?: AnswerLink[] }) {
   if (!links?.length) return null
   return (
@@ -333,7 +355,7 @@ function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
               ))}
             </ol>
           )}
-          {(answer.more ?? []).map((line) => <p key={line} className="mt-2.5">{line}</p>)}
+          {(answer.more ?? []).map((line) => <p key={line.says} className="mt-2.5"><Rich line={line} /></p>)}
           <Links links={answer.links} />
         </>
       )

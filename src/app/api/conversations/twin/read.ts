@@ -26,7 +26,7 @@ import { fromPrismaDecimal } from '@/lib/money'
 import {
   hrefFor, WEEKS_SHOWN,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
-  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow,
+  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named,
 } from './ask'
 
 /** An invoice that was never sent, or was withdrawn, is nobody's spend. */
@@ -317,20 +317,33 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
     async receiptsIn(from, to): Promise<VarianceReceipt[]> {
       const scope = feedWhere(companyId, caller)
       if (!scope) return []
-      // The receipts the twin recorded a verdict on in the period, in the
-      // reader's scope, each read again through the twin's own rule now.
+      // The receipts the twin recorded a verdict on, in the reader's
+      // scope, counted by the day each was billed — the same day the
+      // spend answer counts by, so one receipt is in one period on both —
+      // and each read again through the twin's own rule now.
       const recorded = await prisma.twinAction.findMany({
-        where: { AND: [scope.where, { action: 'invoice_receipt.record', outcome: 'PERFORMED', entityType: 'Invoice', ts: { gte: from, lt: to } }] },
+        where: { AND: [scope.where, { action: 'invoice_receipt.record', outcome: 'PERFORMED', entityType: 'Invoice' }] },
         orderBy: { ts: 'desc' },
         distinct: ['entityId'],
         take: MAX_RECEIPTS,
         select: { entityId: true },
       })
       if (recorded.length === 0) return []
+      const billed = await prisma.invoice.findMany({
+        where: {
+          id: { in: recorded.map((r) => r.entityId) },
+          OR: [
+            { issuedAt: { gte: from, lt: to } },
+            { issuedAt: null, submittedAt: { gte: from, lt: to } },
+          ],
+        },
+        select: { id: true },
+      })
+      if (billed.length === 0) return []
       const rules = await invoiceRulesFor(companyId)
       const out: VarianceReceipt[] = []
-      for (const r of recorded) {
-        const v = await invoiceVerdict(r.entityId, rules)
+      for (const r of billed) {
+        const v = await invoiceVerdict(r.id, rules)
         if (!v) continue
         out.push({
           invoiceId: v.invoiceId,
@@ -338,6 +351,76 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           supplierName: v.supplierName,
           verdict: v.verdict,
           lines: v.lines.map((l) => ({ hoursBilled: l.hoursBilled, hoursAccepted: l.hoursAccepted, isHours: l.on !== 'NONE' })),
+        })
+      }
+      return out
+    },
+
+    async told(): Promise<ToldReceipt[]> {
+      // The twin tells the desk that pays (TWIN_ACTS: approverNeeds
+      // payments.record); only that desk, at the twin's own company, is told.
+      if (!ownCompany || !hasPermission(caller.permissions, 'payments.record')) return []
+      const flagged = await prisma.twinAction.findMany({
+        where: { companyId, action: 'invoice_receipt.flag_mismatch', outcome: 'PERFORMED', entityType: 'Invoice' },
+        orderBy: { ts: 'desc' },
+        distinct: ['entityId'],
+        take: 20,
+        select: { entityId: true },
+      })
+      if (flagged.length === 0) return []
+      const rules = await invoiceRulesFor(companyId)
+      const out: ToldReceipt[] = []
+      for (const f of flagged) {
+        // Read again now: a receipt corrected, waived or paid since is not told twice.
+        const v = await invoiceVerdict(f.entityId, rules)
+        if (!v || v.verdict === 'CLEAN' || v.payable) continue
+        const hours = v.lines.filter((l) => l.on !== 'NONE' && l.hoursAccepted != null)
+        out.push({
+          invoiceId: v.invoiceId,
+          number: v.number ?? 'An invoice receipt',
+          supplier: v.supplierName,
+          hoursBilled: hours.length ? hours.reduce((s, l) => s + l.hoursBilled, 0) : null,
+          hoursAccepted: hours.length ? hours.reduce((s, l) => s + (l.hoursAccepted ?? 0), 0) : null,
+        })
+      }
+      return out
+    },
+
+    async named(text: string): Promise<Named> {
+      const company = caller.company
+      if (!ownCompany || !company) return {}
+      const out: Named = {}
+      // A receipt by its number, among the invoices this company is a party to.
+      const numbers = [...new Set(text.match(/\b[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9]+)+\b/gi) ?? [])].slice(0, 5)
+      if (numbers.length) {
+        const inv = await prisma.invoice.findFirst({
+          where: { AND: [invoiceBetween(company.id), { number: { in: numbers.map((n) => n.toUpperCase()) } }] },
+          select: { id: true, number: true },
+        })
+        if (inv) out.receipt = { number: inv.number, invoiceId: inv.id }
+      }
+      // A person by name, among the placements at this company's sites or
+      // supplied by it, inside the reader's account walls.
+      const wall = await accountFilterFor(caller)
+      const lines = await prisma.sellContract.findMany({
+        where: andAll(
+          { OR: [endClientFilter(company.id), { companyId: company.id }] },
+          wall.where,
+          { state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] } },
+        ),
+        orderBy: { startDate: 'desc' },
+        take: 500,
+        select: { id: true, person: { select: { id: true, name: true } } },
+      })
+      const lower = text.toLowerCase()
+      const hit = lines.find((l) => l.person.name.trim().length > 2 && lower.includes(l.person.name.trim().toLowerCase()))
+      if (hit) {
+        out.person = { name: hit.person.name, contractId: hit.id }
+        logBulkAccess([hit.person.id], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: company.id,
+          action: 'CONTRACT_VIEW',
+          reason: 'Read in Ask Etyme: a placement named in a question',
         })
       }
       return out
