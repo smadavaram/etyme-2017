@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { askTheDesk, hasAnyPermission, hasPermission } from '@/lib/permissions'
+import { mayEditTwin, TWIN_EDITORS } from '@/lib/twin/readers'
+import { askTheDesk, hasAnyPermission } from '@/lib/permissions'
 import { ruleSetFor, setRuleSet } from '@/lib/twin/rule-set'
 
 /**
@@ -28,9 +29,9 @@ export async function PUT(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: 'Choose a company seat first.' } }, { status: 403 })
   }
-  if (caller.isService || !hasPermission(caller.permissions, 'settings.manage')) {
+  if (caller.isService || !mayEditTwin(caller.permissions)) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing the twin’s rules', needs: 'settings.manage', kind: caller.company.kind, companyName: caller.company.name }) } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing the twin’s rules', needs: [...TWIN_EDITORS], kind: caller.company.kind, companyName: caller.company.name }) } },
       { status: 403 }
     )
   }

@@ -813,9 +813,9 @@ export async function ledgerFeed(
       entityId: String((isContract ? p.roleContractId : isModel ? companyId : p.ruleSetId) ?? ''),
       label, program: companyId ? names.company.get(companyId) ?? null : null,
       line: feedLine({ actorType: 'CHANGE', actorName, action: '', outcome: 'PERFORMED', entityType, label, onAuthorityOfRole: '', surface: 'WEB' }),
-      ruleCited: isContract ? 'Only the desk that holds the company’s settings changes what the twin may do.'
+      ruleCited: isContract ? 'Only the program manager’s desk or the desk that holds the company’s settings changes what the twin may do.'
         : isModel ? 'Only the desk that holds the company’s settings lets Ask Etyme send anything to the model.'
-        : 'Only the desk that holds the company’s settings changes the twin’s numbers.',
+        : 'Only the program manager’s desk or the desk that holds the company’s settings changes the twin’s numbers.',
       rationale: c.reason ?? '', surface: 'WEB', approvalId: null,
       payload: p, roleContractVersion: isContract && typeof p.version === 'number' ? p.version : undefined,
     }

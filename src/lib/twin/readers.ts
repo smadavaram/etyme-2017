@@ -18,12 +18,23 @@
  * a sentence: the twin's ledger is about money and the time limit, and
  * neither desk acts on either.
  */
-import type { Permission } from '@/lib/permissions'
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
 
 export const TWIN_FEED_READERS: readonly Permission[] = ['governance.read', 'settings.manage', 'invoices.read']
 
 /** Desks that read every entry of their own company's twin, with what the rules found. */
 export const OWNER_DESKS: readonly Permission[] = ['governance.read', 'settings.manage']
 
-/** Who may change what the twin may do, or the numbers it runs on. */
-export const TWIN_EDITORS: Permission = 'settings.manage'
+/**
+ * Who may change what the twin may do, or the numbers it runs on: the
+ * desk that holds the company's settings, and the program manager's desk
+ * (governance.write), because the twin acts on the program manager's
+ * authority (founder, 2026-10-13). Every change is still a new version
+ * with its reason, in the twin's feed.
+ */
+export const TWIN_EDITORS: readonly Permission[] = ['settings.manage', 'governance.write']
+
+/** Whether a seat may change the role contract or the rule set. */
+export function mayEditTwin(permissions: readonly string[] | null | undefined): boolean {
+  return Array.isArray(permissions) && hasAnyPermission(permissions, TWIN_EDITORS)
+}

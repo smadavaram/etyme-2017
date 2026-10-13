@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
-import { hasPermission } from '@/lib/permissions'
+import { mayEditTwin } from '@/lib/twin/readers'
 import { tierWord } from '@/lib/twin/feed-words'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
@@ -52,7 +52,7 @@ function cannot(a: Act, t: Tier): string | null {
 export default function TwinContractPage() {
   const session = useSession()
   const eyebrow = usePageSection('/dashboard/twin')
-  const mayEdit = hasPermission(session.permissions, 'settings.manage')
+  const mayEdit = mayEditTwin(session.permissions)
 
   const [acts, setActs] = useState<Act[] | null>(null)
   const [version, setVersion] = useState<number | null>(null)
@@ -128,7 +128,7 @@ export default function TwinContractPage() {
       {acts && (
         <form onSubmit={save}>
           {!mayEdit && (
-            <p className="mb-4 text-[13px] text-etyme-muted">You can read the contract. Changing it is the desk that holds the company’s settings.</p>
+            <p className="mb-4 text-[13px] text-etyme-muted">You can read the contract. Changing it is the program manager’s desk or the desk that holds the company’s settings.</p>
           )}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {TIERS.map((col) => {

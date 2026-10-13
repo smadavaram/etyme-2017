@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
-import { hasPermission } from '@/lib/permissions'
+import { mayEditTwin } from '@/lib/twin/readers'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import {
@@ -30,7 +30,7 @@ interface Rules {
 export default function TwinRulesPage() {
   const session = useSession()
   const eyebrow = usePageSection('/dashboard/twin')
-  const mayEdit = hasPermission(session.permissions, 'settings.manage')
+  const mayEdit = mayEditTwin(session.permissions)
 
   const [rules, setRules] = useState<Rules | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
@@ -128,7 +128,7 @@ export default function TwinRulesPage() {
               </form>
             </Panel>
           ) : (
-            <p className="text-[13px] text-etyme-muted">Changing these is the desk that holds the company’s settings.</p>
+            <p className="text-[13px] text-etyme-muted">Changing these is the program manager’s desk or the desk that holds the company’s settings.</p>
           )}
         </>
       )}

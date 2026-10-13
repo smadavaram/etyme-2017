@@ -94,6 +94,8 @@ function fresh() {
 }
 
 import { act, decideApproval, ledgerFeed } from '../../src/lib/twin/ledger'
+import { mayEditTwin } from '../../src/lib/twin/readers'
+import { rolesFor } from '../../src/lib/company-defaults'
 import { checkContract, tierIn, DEFAULT_CONTRACT } from '../../src/lib/twin/role-contract'
 
 const AP_CLERK = {
@@ -238,5 +240,14 @@ describe('the program manager’s twin is held to its role contract', () => {
     const all = await ledgerFeed(CLIENT, owner)
     expect(all?.view).toBe('OWNER')
     expect(all?.rows.map((r) => r.entityId).sort()).toEqual(['computer-systems-receipt', 'internal', 'pinnacle-receipt'])
+  })
+  it('the program manager\u2019s desk and the settings desk may change what the twin may do, and a hiring manager may not', () => {
+    const role = (name: string) => rolesFor('CLIENT').find((r) => r.name === name)!.permissions as readonly string[]
+    expect(mayEditTwin(role('Program Manager'))).toBe(true)
+    expect(mayEditTwin(role('Owner'))).toBe(true)
+    expect(mayEditTwin(['settings.manage'])).toBe(true)
+    expect(mayEditTwin(role('Hiring Manager'))).toBe(false)
+    expect(mayEditTwin(role('AP Clerk'))).toBe(false)
+    expect(mayEditTwin([])).toBe(false)
   })
 })

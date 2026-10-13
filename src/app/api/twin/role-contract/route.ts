@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
-import { askTheDesk, hasAnyPermission, hasPermission } from '@/lib/permissions'
+import { mayEditTwin, TWIN_EDITORS } from '@/lib/twin/readers'
+import { askTheDesk, hasAnyPermission } from '@/lib/permissions'
 import { TWIN_ACTS, ALL_TWIN_ACTS } from '@/lib/autonomy'
 import { contractFor, setContract, tierIn } from '@/lib/twin/role-contract'
 
@@ -8,7 +9,8 @@ import { contractFor, setContract, tierIn } from '@/lib/twin/role-contract'
  * GET /api/twin/role-contract — what the program manager's twin may do
  * here, act by act, with the version and who set it.
  * PUT /api/twin/role-contract — a new version { actsAlone, needsApproval,
- * neverTouches, reason }. Never an overwrite; refused in sentences where
+ * neverTouches, reason }, by the program manager's desk or the settings desk
+ * (TWIN_EDITORS in lib/twin/readers). Never an overwrite; refused in sentences where
  * it would loosen what stays with a person (`checkContract`).
  */
 export async function GET(request: NextRequest) {
@@ -46,9 +48,9 @@ export async function PUT(request: NextRequest) {
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: 'Choose a company seat first.' } }, { status: 403 })
   }
-  if (caller.isService || !hasPermission(caller.permissions, 'settings.manage')) {
+  if (caller.isService || !mayEditTwin(caller.permissions)) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing what the twin may do', needs: 'settings.manage', kind: caller.company.kind, companyName: caller.company.name }) } },
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Changing what the twin may do', needs: [...TWIN_EDITORS], kind: caller.company.kind, companyName: caller.company.name }) } },
       { status: 403 }
     )
   }

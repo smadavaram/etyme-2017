@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 import { momentFor, readerZone } from '@/lib/when'
-import { hasPermission } from '@/lib/permissions'
+import { mayEditTwin } from '@/lib/twin/readers'
 import { outcomeWord, surfaceWord, tierWord } from '@/lib/twin/feed-words'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
@@ -102,7 +102,7 @@ export default function TwinPage() {
   const session = useSession()
   const eyebrow = usePageSection('/dashboard/twin')
   const isClient = session.company?.kind === 'CLIENT'
-  const mayEdit = hasPermission(session.permissions, 'settings.manage')
+  const mayEdit = mayEditTwin(session.permissions)
 
   const [rows, setRows] = useState<FeedRow[] | null>(null)
   const [view, setView] = useState<string | null>(null)
