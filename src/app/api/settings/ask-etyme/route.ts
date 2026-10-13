@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       ...model,
+      // Whether this deployment has a model at all. With the switch on and
+      // no key, nothing leaves, and the panel says so rather than implying
+      // questions go somewhere.
+      modelSetUp: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
       prompts,
     },

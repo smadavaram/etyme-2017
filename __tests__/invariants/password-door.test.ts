@@ -288,7 +288,7 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     const row = { usedAt: now, expiresAt: expiresAfter(24, now), supersededAt: now }
     expect(tokenUsable(row, 'VERIFY', now)).toEqual({ ok: false, reason: 'SUPERSEDED', says: SUPERSEDED })
     expect(tokenUsable(row, 'RESET', now)).toMatchObject({ reason: 'SUPERSEDED' })
-    expect(SUPERSEDED).toBe('A newer link was sent to this email. Use the link in the newest email.')
+    expect(SUPERSEDED).toBe('A newer link replaced this one. Use the newest link you were given.')
   })
 
   it('with no email sender, sign-up and reset say so before any form', () => {

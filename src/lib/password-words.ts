@@ -17,8 +17,12 @@ export const DEMO_REFUSAL =
 export const CONFIRMED_CODE = 'CONFIRMED'
 export const ALREADY_CONFIRMED = 'Your email is already confirmed. Sign in.'
 
-/** What a newer link does to an older one, said where the older one is opened. */
-export const SUPERSEDED = 'A newer link was sent to this email. Use the link in the newest email.'
+/**
+ * What a newer link does to an older one, said where the older one is
+ * opened. Says nothing about email, because the staff bootstrap reissues
+ * a link by hand and nothing is emailed then.
+ */
+export const SUPERSEDED = 'A newer link replaced this one. Use the newest link you were given.'
 
 /**
  * The opening of the email to somebody a firm put on the record, who

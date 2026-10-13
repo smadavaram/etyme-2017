@@ -336,7 +336,7 @@ describe('a password door, until the single sign-on keys exist', () => {
     const second = lastLink(email, 'verify')
     expect(second).not.toBe(first)
     expect(await verifyEmail(first)).toEqual({ ok: false, says: SUPERSEDED })
-    expect(SUPERSEDED).toBe('A newer link was sent to this email. Use the link in the newest email.')
+    expect(SUPERSEDED).toBe('A newer link replaced this one. Use the newest link you were given.')
     expect(await verifyEmail(second)).toMatchObject({ ok: true })
 
     // The same for a reset, and for a link a desk sends with an invitation.

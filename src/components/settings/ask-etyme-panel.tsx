@@ -29,6 +29,8 @@ interface PromptRow {
 
 interface ModelSetting {
   on: boolean
+  /** False when this deployment has no model key, so nothing can leave. */
+  modelSetUp: boolean
   setByName: string | null
   setAt: string | null
   canEdit: boolean
@@ -94,7 +96,9 @@ export function AskEtymePanel() {
     >
       <p className="mb-4 text-[13.5px] text-etyme-ink">
         {data.on
-          ? 'On. Questions the rules do not answer may go to the model, masked.'
+          ? data.modelSetUp
+            ? 'On. Questions the rules do not answer may go to the model, masked.'
+            : 'On, but no model is set up on this deployment, so nothing leaves.'
           : 'Off. Ask Etyme answers from the rules only and sends nothing to the model.'}
       </p>
       {data.canEdit && (
