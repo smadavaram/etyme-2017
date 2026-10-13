@@ -866,6 +866,21 @@ call, reversible by the founder in one sentence.
 9. **No more drawings until the drawn ones are built.** The coaching
    drawing waits for week 3's build; the voice is written, not drawn.
 
+**Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
+the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
+as vendor company"*), with five seats on etyme.com: sharath (Owner),
+support (Admin), hradmin (HR), oliver (Account Manager), timesheets (AP
+and Payroll); the desks are the coordinator's assignment and the owner
+changes them. Said once so it is a choice: the neutrality rule is that
+the record never supplies people; this tenant is the founder's training
+and placement business running on the record as a supplier like any
+other, and the platform is not a party to its deals. If it is ever read
+as the platform supplying people, the fix is the tenant's name and
+domain, not the record. Because production has no email key, the first
+seats are made by a staff bootstrap route behind the cron secret that
+returns one-time sign-in links; after that, seats come in through
+invitations like any firm's. Every gap this tenant hits is the roadmap.
+
 **The hours tolerance is 0.5%, not 2%. Decided by the founder,
 2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
 default rule set raises an invoice receipt whose billed hours differ from
