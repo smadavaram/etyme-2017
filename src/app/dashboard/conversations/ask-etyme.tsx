@@ -347,7 +347,15 @@ function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
         : ''
       return (
         <>
-          <p>{hello}{answer.says}</p>
+          {hello && <p>{hello.trim()}</p>}
+          {/* Recommendation first, as a card; the fact under it. */}
+          {answer.recommend && (
+            <div className={`${hello ? 'mt-2' : ''} mb-2.5 rounded-[12px] border border-etyme-action-line bg-etyme-action-wash/60 px-3.5 py-2.5`}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-etyme-action-press">Recommended</p>
+              <p className="mt-0.5 font-medium"><Rich line={answer.recommend} /></p>
+            </div>
+          )}
+          <p className={hello && !answer.recommend ? 'mt-2' : ''}>{answer.says}</p>
           {answer.items.length > 0 && (
             <ol className="mt-2 flex flex-col gap-2">
               {answer.items.map((item) => (

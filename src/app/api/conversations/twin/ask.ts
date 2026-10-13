@@ -41,6 +41,7 @@ export type Intent =
   | { kind: 'SPEND' }
   | { kind: 'WEEKS' }
   | { kind: 'NEVER'; act: NeverAct }
+  | { kind: 'MARGIN' }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -67,18 +68,27 @@ export function readAsk(raw: string): Intent {
   if (!text || /^(help|\?|what can you do\??|what do you answer\??)$/i.test(text)) return { kind: 'HELP' }
 
   const lower = text.toLowerCase()
-  if (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) return { kind: 'VARIANCE' }
+  if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
+  if (
+    (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
+    /\b(don'?t|do not|doesn'?t|does not) match\b|\bmismatch(ed|es)?\b|\bnot clean\b/.test(lower) && !/^why\b/.test(lower)
+  ) return { kind: 'VARIANCE' }
 
   if (
     /^(what|who|anything)\b.*\b(needs?|waiting on|waits? (for|on)|for)\s+me\b/.test(lower) ||
-    /^(needs me|my queue|waiting on me|what is waiting( on me)?)\??$/.test(lower)
+    /^(needs me|my queue|waiting on me|what is waiting( on me)?)\??$/.test(lower) ||
+    /^what do i (need|have) to do\b/.test(lower) ||
+    /^what('s| is) (on my plate|my day)\b/.test(lower)
   ) return { kind: 'NEEDS' }
 
   const never = neverAct(text)
   if (never) return { kind: 'NEVER', act: never }
 
   const why = text.match(/^why\b\s*(.*)$/i)
-  if (why) return { kind: 'WHY', ref: cleanRef(why[1]) }
+  if (why) {
+    const number = why[1].match(/\b[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9]+)+\b/i)
+    return { kind: 'WHY', ref: number ? number[0] : cleanRef(why[1]) }
+  }
 
   const approve = text.match(/^(approve|yes to|say yes to)\s+(.+)$/i)
   if (approve) {
@@ -93,11 +103,11 @@ export function readAsk(raw: string): Intent {
     if (ref) return { kind: 'DECIDE', decision: 'REJECTED', ref, reason }
   }
 
-  if (/\btime[- ]limits?\b|\btenure\b/.test(lower)) return { kind: 'TIME_LIMIT' }
-  if (/\b(spend|spent|spending)\b/.test(lower)) return { kind: 'SPEND' }
+  if (/\btime[- ]limits?\b|\btenure\b|\b18[- ]months?\b/.test(lower)) return { kind: 'TIME_LIMIT' }
+  if (/\b(spend|spent|spending)\b|\bbilled (us|you)\b|\bhow much have suppliers billed\b/.test(lower)) return { kind: 'SPEND' }
   if (
     /\bunsigned\b/.test(lower) ||
-    (/\b(weeks?|timesheets?)\b/.test(lower) && /\b(not signed|to sign|waiting|not approved|unapproved)\b/.test(lower))
+    (/\b(weeks?|timesheets?|hours)\b/.test(lower) && /\b(not signed|to sign|waiting|not approved|unapproved|approval)\b/.test(lower))
   ) return { kind: 'WEEKS' }
 
   return { kind: 'ASK', text }
@@ -153,15 +163,15 @@ export function matchPerson(text: string, roster: readonly RosterEntry[]): Pick<
   return {}
 }
 
-const NEVER_FLOOR: Record<NeverAct, { doing: string; needs: Permission; where: string; link: Link }> = {
-  EXTEND: { doing: 'Extending a placement', needs: 'assignments.write', where: 'on the placement’s page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
-  END: { doing: 'Ending a placement', needs: 'assignments.terminate', where: 'on the placement’s page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
-  AWARD: { doing: 'Awarding a job to a candidate', needs: 'requirements.write', where: 'on the submission, under its job request', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
-  REJECT_SUBMISSION: { doing: 'Rejecting a submission', needs: 'requirements.write', where: 'on the submission, under its job request', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
-  PAY: { doing: 'Paying an invoice receipt', needs: 'payments.record', where: 'on the invoice receipt’s page', link: { label: 'Open Invoice receipts', href: '/dashboard/invoices' } },
-  PAYROLL: { doing: 'Running or releasing payroll', needs: 'payroll.run', where: 'on Payroll', link: { label: 'Open Payroll', href: '/dashboard/payroll' } },
-  SIGN_AGREEMENT: { doing: 'Signing an agreement', needs: 'rates.write', where: 'on the agreement’s page', link: { label: 'Open Agreements', href: '/dashboard/program/agreements' } },
-  SIGN_WEEK: { doing: 'Signing a week of hours', needs: 'timesheets.approve', where: 'on Timesheets', link: { label: 'Open Timesheets', href: '/dashboard/timesheets' } },
+const NEVER_FLOOR: Record<NeverAct, { verb: string; needs: Permission; where: string; link: Link }> = {
+  EXTEND: { verb: 'extends a placement', needs: 'assignments.write', where: 'the placement page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  END: { verb: 'ends a placement', needs: 'assignments.terminate', where: 'the placement page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  AWARD: { verb: 'awards a job', needs: 'requirements.write', where: 'the submission', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
+  REJECT_SUBMISSION: { verb: 'rejects a submission', needs: 'requirements.write', where: 'the submission', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
+  PAY: { verb: 'pays an invoice receipt', needs: 'payments.record', where: 'the invoice receipt’s page', link: { label: 'Open Invoice receipts', href: '/dashboard/invoices' } },
+  PAYROLL: { verb: 'runs payroll', needs: 'payroll.run', where: 'Payroll', link: { label: 'Open Payroll', href: '/dashboard/payroll' } },
+  SIGN_AGREEMENT: { verb: 'signs an agreement', needs: 'rates.write', where: 'the agreement’s page', link: { label: 'Open Agreements', href: '/dashboard/program/agreements' } },
+  SIGN_WEEK: { verb: 'signs a week of hours', needs: 'timesheets.approve', where: 'Timesheets', link: { label: 'Open Timesheets', href: '/dashboard/timesheets' } },
 }
 
 /**
@@ -191,9 +201,14 @@ function orNames(xs: readonly string[]): string {
   return `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`
 }
 
+/** "Contract Manager", "AP Clerk or Program Manager": at most two desks, so the sentence stays short. */
+function twoDesks(desks: readonly string[]): string {
+  return orNames(desks.slice(0, 2))
+}
+
 /**
- * The one sentence for an act on the never floor: that it is never
- * Etyme's, who does it at this kind of company, and where.
+ * The one sentence for an act on the never floor: Etyme never does it,
+ * who does, and where — the door.
  */
 export function neverSays(
   act: NeverAct,
@@ -207,26 +222,45 @@ export function neverSays(
     const names = named.ambiguous.slice(0, 4)
     return { says: `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}?`, links: [] }
   }
-  const person = named.person && (act === 'EXTEND' || act === 'END' || act === 'SIGN_WEEK') ? named.person : null
+  // A week is signed on Timesheets, not on the placement, so only extend and end take the person's page.
+  const person = (act === 'EXTEND' || act === 'END') && named.person ? named.person : null
   const receipt = named.receipt && act === 'PAY' ? named.receipt : null
-  const doing = person
-    ? `${act === 'EXTEND' ? 'Extending' : act === 'END' ? 'Ending' : 'Signing a week on'} ${person.name}’s placement`
-    : receipt
-      ? `Paying ${receipt.number}`
-      : f.doing
-  const where = person ? 'on the placement’s page' : receipt ? 'on its page' : f.where
-  const desks = desksHolding(f.needs, companyKind).slice(0, 3)
+  const where = person ? `${person.name}’s placement page` : receipt ? `${receipt.number}’s page` : f.where
+  const desks = desksHolding(f.needs, companyKind)
   const who = permissions.includes(f.needs)
-    ? `your desk does it, so you do it yourself ${where}`
+    ? `you hold that desk, so do it on ${where}`
     : desks.length
-      ? `your ${orNames(desks)} does it ${where}`
-      : `a person at your company does it ${where}, and whoever manages roles there knows who holds that desk`
+      ? `your ${twoDesks(desks)} does it on ${where}`
+      : `the desk that does it works on ${where}`
   const link: Link = person
     ? { label: `Open ${person.name}’s placement`, href: `/dashboard/placements/${person.contractId}` }
     : receipt
       ? { label: `Open ${receipt.number}`, href: hrefFor('Invoice', receipt.invoiceId) }
       : f.link
-  return { says: `${doing} is never Etyme’s to do: ${who}.`, links: [link] }
+  return { says: `Etyme never ${f.verb}; ${who}.`, links: [link] }
+}
+
+/**
+ * A read this seat's desk does not hold, refused in one sentence that
+ * names the desk that does: "The AP Clerk reads what suppliers billed
+ * you; ask them." The door is the person at that desk.
+ */
+export function deskRefusal(reads: string, needs: Permission | readonly Permission[], companyKind: string | null | undefined): string {
+  const desks = desksHolding(needs, companyKind)
+  return desks.length
+    ? `Your ${twoDesks(desks)} ${reads}; ask them.`
+    : `No desk at your company ${reads.replace(/^reads\b/, 'reads')} yet; ask whoever manages roles.`
+}
+
+/**
+ * Margin is a firm's own (CLAUDE.md, "The model boundary"): refused, with
+ * the door to what this reader may see — a client what it pays each
+ * supplier, a supplier its own rates.
+ */
+export function marginRefusal(companyKind: string | null | undefined): { says: string; links: Link[] } {
+  return companyKind === 'CLIENT'
+    ? { says: 'Etyme never shows a firm’s margin to anybody else; your dashboard shows what you pay each supplier.', links: [{ label: 'Open the dashboard', href: '/dashboard/program' }] }
+    : { says: 'Etyme never shows a firm’s margin to anybody else; your own rates are on your contracts.', links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] }
 }
 
 /**
@@ -245,10 +279,57 @@ export const FOOTER_LINE =
   'Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.'
 
 export const WHAT_I_ANSWER =
-  'I answer these from the record and its rules: “What needs me today?”, “Who is near the time limit?”, ' +
-  '“What did we spend by supplier this month?”, “Which weeks are unsigned?”, ' +
-  '“Show me invoice variance by supplier this quarter”, “Why 1” (or why and an entry), ' +
-  '“Approve 1” and “Reject 1 because …”.'
+  'I answer these from the record: what needs you, the time limit, spend, unsigned weeks and invoice variance. ' +
+  'I also answer “Why 1”, “Approve 1” and “Reject 1 because …”.'
+
+/** The honest reply where the rules have no answer: the voice's rule twelve, word for word at the start. */
+export const NOT_YET = 'I cannot answer that yet.'
+
+// ── The voice ────────────────────────────────────────────────────────
+
+/**
+ * The twelve rules every reply is written to (docs/ask-etyme-voice.md,
+ * the founder's words from the four-week plan, 2026-10-13). One list:
+ * the guide prints it, the rules replies are tested against it, and
+ * where the model is on, it is the model's instruction.
+ */
+export const VOICE_RULES: readonly string[] = [
+  'Lead with the recommendation, then the fact. The why is one tap away.',
+  'Say when you looked: “Checked just now”, or the day of the reading.',
+  'A refusal is one sentence, and it names the door: who does it, and where.',
+  'No apology words: never sorry, unfortunately or afraid.',
+  'No hedging: never might, perhaps, probably or it seems. Say what the record says.',
+  'No exclamation marks.',
+  'Dry. Never funny about money or people.',
+  'Plain English for a global reader: common words, no idioms, every sentence under 20 words.',
+  'Use the trade’s words: job request, time limit, invoice receipt, bill.',
+  'Never speak for a person. Say what the record shows they did, not what they think.',
+  'Never say “I think” about money. A figure comes from the record, or it is not given.',
+  'When the record has no answer, say “I cannot answer that yet.” and point to where to look.',
+]
+
+/** Words the voice never uses, checked against every rules reply. */
+export const VOICE_BANNED: readonly RegExp[] = [
+  /\bsorry\b/i, /\bunfortunately\b/i, /\bafraid\b/i, /\bapolog/i,
+  /\bmight\b/i, /\bperhaps\b/i, /\bprobably\b/i, /\bit seems\b/i, /\bmaybe\b/i,
+  /\bI think\b/i, /!/,
+]
+
+/** Sentences in a reply, for the 20-word rule. */
+export function sentencesOf(text: string): string[] {
+  return text.split(/(?<=[.?;])\s+(?=[A-Z“"$£€0-9])/).map((x) => x.trim()).filter(Boolean)
+}
+
+/** Whether a reply keeps the voice; the broken rules, in words, where not. */
+export function voiceBreaks(text: string): string[] {
+  const out: string[] = []
+  for (const re of VOICE_BANNED) if (re.test(text)) out.push(`uses ${re}`)
+  for (const sentence of sentencesOf(text)) {
+    const n = sentence.split(/\s+/).filter(Boolean).length
+    if (n >= 20) out.push(`${n} words: ${sentence}`)
+  }
+  return out
+}
 
 // ── The model ────────────────────────────────────────────────────────
 
@@ -258,24 +339,26 @@ export function modelConfigured(env: Record<string, string | undefined>): boolea
 }
 
 export const NO_MODEL =
-  'The model is not set up on this deployment, so I can answer only the questions the rules cover. ' + WHAT_I_ANSWER
+  `${NOT_YET} Free text needs the model, and the model is off for this deployment. Try a question below.`
 
 /** The one sentence the model says for any act. Checked in the test, so it cannot drift. */
 export const ASK_THE_DESK = 'I cannot do that; ask the desk.'
 
 /**
- * The model's instruction. It may describe what the ledger lines say and
- * nothing more. The lines are the whole of what it knows; an act of any
- * kind gets the one sentence above, because the model is never the gate.
+ * The model's instruction: what it is given and may do, then the voice,
+ * word for word. Nothing here contradicts the voice; an act of any kind
+ * gets the one sentence above, because the model is never the gate.
  */
 export const MODEL_SYSTEM = [
   'You answer questions about a company’s contingent workforce program, for a person signed in to Etyme.',
   'You are given lines from the program manager twin’s ledger. They are the only facts you have.',
-  'Describe only what is on those lines. Do not guess, estimate or add a figure that is not on a line.',
+  'Describe only what is on those lines. Never add a figure that is not on a line.',
   'When you cite a line, give its id in square brackets, exactly as written, like [ck123].',
   `If you are asked to do anything — approve, reject, pay, send, change, end, sign or write — answer exactly: "${ASK_THE_DESK}"`,
-  'If the lines do not answer the question, say so in one sentence.',
-  'Use plain American English, short sentences, no more than eight lines. Say job request, time limit, invoice receipt and bill.',
+  `If the lines do not answer the question, answer exactly: "${NOT_YET}"`,
+  'Write in American English, in at most eight lines.',
+  'The voice:',
+  ...VOICE_RULES.map((r, i) => `${i + 1}. ${r}`),
 ].join('\n')
 
 export interface LedgerLine {
@@ -349,13 +432,20 @@ export interface WaitingItem {
   ruleCited: string
   rationale: string
   href: string
+  /** The twin's act asked about, by its key: "invoice_receipt.approve". */
+  action?: string
 }
+
+export type Verdict = 'CLEAN' | 'MISMATCH' | 'BLOCKED'
 
 export interface VarianceReceipt {
   invoiceId: string
   number: string | null
   supplierName: string | null
-  verdict: 'CLEAN' | 'MISMATCH' | 'BLOCKED'
+  /** The check run at the moment of the question. */
+  verdict: Verdict
+  /** What the twin's nightly run recorded, where it recorded one. */
+  nightly?: Verdict | null
   lines: ReadonlyArray<{ hoursBilled: number; hoursAccepted: number | null; isHours: boolean }>
 }
 
@@ -387,7 +477,7 @@ export type Answer =
    * limit; `greeting` marks the first message of the chat, which the
    * screen opens with the reader's name.
    */
-  | { kind: 'NEEDS'; says: string; items: WaitingItem[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
+  | { kind: 'NEEDS'; recommend?: RichLine; says: string; items: WaitingItem[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
   | { kind: 'TIME_LIMIT'; says: string; rows: LimitRow[] }
   | { kind: 'SPEND'; says: string; period: { from: string; to: string; label: string }; rows: SpendRow[] }
   | { kind: 'WEEKS'; says: string; rows: WeekRow[]; more: number; links: Link[] }
@@ -450,25 +540,45 @@ export function varianceBySupplier(receipts: readonly VarianceReceipt[]): Varian
     .sort((a, b) => (b.mismatch + b.held) - (a.mismatch + a.held) || a.supplier.localeCompare(b.supplier))
 }
 
-/** The sentence over the variance table. */
-export function varianceSays(rows: readonly VarianceRow[], label: string): string {
-  if (rows.length === 0) return `No invoice receipt Etyme has checked was billed in ${label}.`
+/** "clean" or "not clean", for a verdict in a sentence. */
+const verdictWord = (v: Verdict) => (v === 'CLEAN' ? 'clean' : 'not clean')
+
+/** Receipts whose nightly verdict the live check no longer agrees with. */
+export function staleVerdicts(receipts: readonly VarianceReceipt[]): VarianceReceipt[] {
+  return receipts.filter((r) => r.nightly != null && verdictWord(r.nightly) !== verdictWord(r.verdict))
+}
+
+/**
+ * The reply over the variance table: the recommendation where a receipt
+ * fails, then the count, then when it was checked, then any nightly
+ * verdict the live check overturned.
+ */
+export function varianceSays(rows: readonly VarianceRow[], label: string, stale: readonly VarianceReceipt[] = [], checked: readonly VarianceReceipt[] = []): string {
+  if (rows.length === 0) return `No supplier billed you an invoice receipt in ${label}. Checked just now.`
   const receipts = rows.reduce((s, r) => s + r.receipts, 0)
   const off = rows.reduce((s, r) => s + r.mismatch + r.held, 0)
   const over = rows.reduce((s, r) => s + (r.hoursOverAccepted ?? 0), 0)
-  return (
-    `${receipts} invoice receipt${receipts === 1 ? '' : 's'} from ${rows.length} supplier${rows.length === 1 ? '' : 's'} in ${label}` +
-    (off === 0 ? ', all clean.' : `; ${off} ${off === 1 ? 'is' : 'are'} not clean, ${hrs(over)} hours billed over what was accepted.`) +
-    ' Counted by the day each was billed, and checked just now against the three-way check.'
-  )
+  const parts: string[] = []
+  const failing = checked.filter((r) => r.verdict !== 'CLEAN')
+  if (failing.length === 1) parts.push(`Pay ${failing[0].number ?? 'the receipt marked not clean'} only after ${failing[0].supplierName ?? 'the supplier'} corrects it.`)
+  else if (off > 0) parts.push(`Pay none of the receipts marked not clean until their suppliers correct them.`)
+  parts.push(`${counted(receipts, 'invoice receipt')} from ${counted(rows.length, 'supplier').toLowerCase()} ${receipts === 1 ? 'was' : 'were'} billed in ${label}.`)
+  parts.push(off === 0
+    ? `All are clean.`
+    : `${counted(off, 'receipt')} ${off === 1 ? 'is' : 'are'} not clean${over > 0 ? `: ${hrs(over)} hours billed over what was accepted` : ''}.`)
+  parts.push('Counted by the day each was billed, and checked just now against the three-way check.')
+  for (const r of stale) {
+    parts.push(`Last night’s check called ${r.number ?? 'one receipt'} ${verdictWord(r.nightly!)}; it is ${verdictWord(r.verdict)} now.`)
+  }
+  return parts.join(' ')
 }
 
-/** The twin's questions, as a reply. */
+/** The twin's questions, as the fact line of a reply. */
 export function needsSays(items: readonly WaitingItem[]): string {
-  if (items.length === 0) return 'Nothing from Etyme is waiting on you.'
+  if (items.length === 0) return 'Nothing from Etyme waits on you.'
   return items.length === 1
-    ? 'Etyme is asking you one thing. Approve it here, or reject it with a reason.'
-    : `Etyme is asking you ${counted(items.length, 'thing').toLowerCase()}. Approve each here, or reject it with a reason.`
+    ? 'Etyme is asking you one thing; approve it below, or reject it with a reason.'
+    : `Etyme is asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
 }
 
 // ── Today: who else is asked, and the time limit ─────────────────────
@@ -496,6 +606,8 @@ export interface OtherWaiting {
   /** True where it was asked on this reader's own authority, so nobody here signs it. */
   own: boolean
   href: string
+  /** The people at this company who hold that desk, by name. */
+  people?: string[]
 }
 
 /**
@@ -509,7 +621,7 @@ export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
   const out: RichLine[] = []
   const byDesk = new Map<string, OtherWaiting[]>()
   for (const o of others) {
-    const desk = o.desks.length ? `the ${listed(o.desks).replace(/ and ([^,]+)$/, ' or $1')}` : 'another desk'
+    const desk = o.desks.length ? `the ${twoDesks(o.desks)}` : 'another desk'
     const key = `${desk}\u0000${o.own ? 'own' : ''}`
     byDesk.set(key, [...(byDesk.get(key) ?? []), o])
   }
@@ -517,13 +629,34 @@ export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
     const [desk, own] = key.split('\u0000')
     const noun = xs.every((x) => x.noun === xs[0].noun) ? xs[0].noun : 'question'
     const not = xs.length === 1 ? 'It is not yours to sign' : xs.length === 2 ? 'Neither is yours to sign' : 'None is yours to sign'
-    const why = own ? ': Etyme asked on your authority, and nobody signs their own.' : '.'
     out.push({
-      says: `${counted(xs.length, noun)} ${xs.length === 1 ? 'is' : 'are'} waiting for ${desk}: ${listed(xs.map((x) => x.title))}. ${not}${why}`,
+      says: `${counted(xs.length, noun)} ${xs.length === 1 ? 'waits' : 'wait'} for ${desk}: ${listed(xs.map((x) => x.title))}. ` +
+        `${not}${own ? ': Etyme asked on your authority.' : '.'}`,
       links: xs.map((x) => ({ text: x.title, href: x.href })),
     })
   }
   return out
+}
+
+/**
+ * Who to ask, for the receipts and questions waiting on another desk:
+ * "Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and
+ * IN-XSWQQZ-20260901." Names come from the seats that hold the desk;
+ * where nobody holds it, the desk alone.
+ */
+export function askOthersSays(others: readonly OtherWaiting[]): RichLine | null {
+  if (others.length === 0) return null
+  const first = others[0]
+  const same = others.filter((o) => o.desks.join() === first.desks.join())
+  const verb = same.every((o) => o.noun === 'invoice receipt') ? 'approve' : 'answer'
+  const desk = first.desks.length ? twoDesks(first.desks) : 'the desk that answers'
+  const people = (first.people ?? []).slice(0, 2)
+  const who = people.length ? `${orNames(people)}, ${desk},` : `your ${desk}`
+  const titles = same.slice(0, 3).map((o) => o.title)
+  return {
+    says: `Ask ${who} to ${verb} ${listed(titles)}${same.length > 3 ? ` and ${same.length - 3} more` : ''}.`,
+    links: same.slice(0, 3).map((o) => ({ text: o.title, href: o.href })),
+  }
 }
 
 /** A time-limit warning as the twin recorded it in its ledger. */
@@ -598,13 +731,26 @@ export function limitSays(r: LimitRow, day: (iso: string) => string): string {
 }
 
 /** The time-limit answer's sentence. */
-export function limitsSay(rows: readonly LimitRow[], day: (iso: string) => string): string {
-  if (rows.length === 0) return 'Nobody on your sites is inside a time-limit warning. Etyme reads every supplier’s contracts each night and warns at 90, 60 and 30 days.'
-  const newest = rows.reduce((d, r) => (r.readOn > d ? r.readOn : d), rows[0].readOn)
+export function limitsSay(rows: readonly LimitRow[], day: (iso: string) => string, stale: readonly string[] = []): string {
+  const staleLine = stale.length
+    ? ` Last night’s reading also listed ${listed([...stale])}; the live check does not.`
+    : ''
+  if (rows.length === 0) return `Nobody on your sites is inside a time-limit warning. Checked just now.${staleLine}`
   return (
+    `${planSays(rows[0])} ` +
     `${counted(rows.length, 'person')} ${rows.length === 1 ? 'is' : 'are'} inside a time-limit warning, counted across every supplier. ` +
-    `${limitSays(rows[0], day)} From Etyme’s nightly reading, last on ${day(newest)}.`
+    `${limitSays(rows[0], day)} Checked just now.${staleLine}`
   )
+}
+
+/** The time limit is a client's count: what a supplier, an MSP or a worker is told instead. */
+export const LIMIT_IS_THE_CLIENTS = 'Your client counts the time limit across every supplier; its program office reads it.'
+
+/** The recommendation for the person nearest the limit. */
+export function planSays(r: LimitRow): string {
+  return r.daysToLimit > 0
+    ? `Plan ${r.name}’s end date or break now.`
+    : `Decide today what happens to ${r.name}; the time limit has passed.`
 }
 
 // ── Spend by supplier ────────────────────────────────────────────────
@@ -667,9 +813,9 @@ export function monthOf(now: Date): { from: Date; to: Date; label: string } {
  */
 export function spendSays(rows: readonly SpendRow[], label: string, undated: number, money: (minor: number, currency: string) => string): string {
   const undatedLine = undated > 0
-    ? ` ${counted(undated, 'invoice receipt')} ${undated === 1 ? 'carries' : 'carry'} no billing date and ${undated === 1 ? 'is' : 'are'} not counted in any month.`
+    ? ` ${counted(undated, 'invoice receipt')} ${undated === 1 ? 'has' : 'have'} no billing date, so no month counts ${undated === 1 ? 'it' : 'them'}.`
     : ''
-  if (rows.length === 0) return `No supplier billed you in ${label}.${undatedLine}`
+  if (rows.length === 0) return `No supplier billed you in ${label}. Checked just now.${undatedLine}`
   const currencies = [...new Set(rows.map((r) => r.currency))]
   const sum = (c: string, f: (r: SpendRow) => number) => rows.filter((r) => r.currency === c).reduce((s, r) => s + f(r), 0)
   const billed = listed(currencies.map((c) => money(sum(c, (r) => r.billedMinor), c)))
@@ -677,8 +823,8 @@ export function spendSays(rows: readonly SpendRow[], label: string, undated: num
   const receipts = rows.reduce((s, r) => s + r.receipts, 0)
   const suppliers = new Set(rows.map((r) => r.supplier)).size
   return (
-    `${counted(suppliers, 'supplier')} billed you ${billed} in ${label}, on ${receipts} invoice receipt${receipts === 1 ? '' : 's'}, ` +
-    `counted by the day each was billed. ${paid} of it is paid.${undatedLine}`
+    `${counted(suppliers, 'supplier')} billed you ${billed} in ${label}, on ${receipts} invoice receipt${receipts === 1 ? '' : 's'}. ` +
+    `Of that, ${paid} is paid. Counted by the day each was billed, and checked just now.${undatedLine}`
   )
 }
 
@@ -701,11 +847,14 @@ export interface WeekRow {
 export const WEEKS_SHOWN = 20
 
 /** The unsigned-weeks answer's sentence. */
-export function weeksSay(total: number, oldestDays: number | null, company: string): string {
-  if (total === 0) return `No week is waiting for a signature at ${company}.`
+export function weeksSay(total: number, oldest: WeekRow | null, company: string, maySign = true): string {
+  if (total === 0 || !oldest) return `No week waits for a signature at ${company}. Checked just now.`
+  const waited = oldest.waitingDays > 0 ? `; it has waited ${oldest.waitingDays} day${oldest.waitingDays === 1 ? '' : 's'}` : ''
+  const rec = maySign
+    ? `Sign ${oldest.person}’s week first${waited}.`
+    : `Ask your hiring manager to sign ${oldest.person}’s week first${waited}.`
   return (
-    `${counted(total, 'week')} ${total === 1 ? 'is' : 'are'} waiting for a signature at ${company}` +
-    (oldestDays != null && oldestDays > 0 ? `; the oldest has waited ${oldestDays} day${oldestDays === 1 ? '' : 's'}.` : '.') +
+    `${rec} ${counted(total, 'week')} ${total === 1 ? 'waits' : 'wait'} for a signature at ${company}. Checked just now.` +
     (total > WEEKS_SHOWN ? ` The ${WEEKS_SHOWN} oldest are below; the rest are on Timesheets.` : '')
   )
 }
@@ -737,8 +886,8 @@ export function findItem(items: readonly WaitingItem[], ref: string): WaitingIte
 /** What a confirm card says the button will do, in the same words the result confirms. */
 export function confirmSays(decision: 'APPROVED' | 'REJECTED', item: WaitingItem, reason: string | null): string {
   return decision === 'APPROVED'
-    ? `Approve ${item.title}? ${item.says} It is recorded in the twin’s ledger under your name.`
-    : `Reject ${item.title}, because “${reason}”? Etyme does nothing, and your reason is recorded in the twin’s ledger under your name.`
+    ? `Approve ${item.title}? Your yes goes in the twin’s ledger under your name.`
+    : `Reject ${item.title}, because “${reason}”? Etyme does nothing, and your reason goes in the twin’s ledger.`
 }
 
 /**
@@ -769,17 +918,18 @@ export interface Readers {
   waiting(): Promise<WaitingItem[]>
   /** An entry in the reader's scope by its id, its question's id, or the entity it is about. */
   entry(ref: string): Promise<{ id: string; says: string; ruleCited: string; rationale: string; entityType: string; entityId: string } | null>
-  receiptsIn(from: Date, to: Date): Promise<VarianceReceipt[]>
+  /** Invoice receipts billed to this company in [from, to), each checked now, with the nightly verdict beside it. */
+  receiptsIn(from: Date, to: Date): Promise<Refusable<{ receipts: VarianceReceipt[] }>>
   /** The twin's questions this seat may not answer, and who does. */
   othersWaiting(): Promise<OtherWaiting[]>
   /** The twin's time-limit warnings, or the sentence for a seat that does not read what the rules found. */
-  limits(): Promise<Refusable<{ entries: LimitEntry[] }>>
+  limits(): Promise<Refusable<{ entries: LimitEntry[]; stale?: string[] }>>
   /** Receipts the twin told this seat's paying desk about that still fail the check; empty for any other desk. */
-  told(): Promise<ToldReceipt[]>
+  told(): Promise<{ told: ToldReceipt[]; stale: string[] }>
   /** A placement or a receipt the message names, at this company, where it names one. */
   named(text: string): Promise<Named>
   /** Weeks waiting for this company's signature, oldest first, at most WEEKS_SHOWN, and how many in all. */
-  unsignedWeeks(): Promise<Refusable<{ rows: WeekRow[]; total: number; company: string }>>
+  unsignedWeeks(): Promise<Refusable<{ rows: WeekRow[]; total: number; company: string; maySign: boolean }>>
   /** Invoice receipts billed to this company in [from, to), and how many carry no date at all. */
   spendIn(from: Date, to: Date): Promise<Refusable<{ receipts: SpendReceipt[]; undated: number }>>
   ledgerLines(): Promise<LedgerLine[]>
@@ -849,18 +999,45 @@ export interface ToldReceipt {
  * however many: "PR-2026-0442 bills 41.5 hours against 40 accepted; it
  * cannot be paid until Pinnacle Resourcing corrects it."
  */
-export function toldSays(told: readonly ToldReceipt[]): RichLine | null {
-  if (told.length === 0) return null
+export function toldSays(told: readonly ToldReceipt[], stale: readonly string[] = []): RichLine | null {
+  if (told.length === 0 && stale.length === 0) return null
   const one = (t: ToldReceipt) => {
     const what = t.hoursBilled != null && t.hoursAccepted != null && t.hoursBilled !== t.hoursAccepted
       ? `${t.number} bills ${hrs(t.hoursBilled)} hours against ${hrs(t.hoursAccepted)} accepted`
       : `${t.number} does not agree with the accepted hours or the contract rate`
-    return `${what}; it cannot be paid until ${t.supplier ?? 'the supplier'} corrects it`
+    return `${what}; it cannot be paid until ${t.supplier ?? 'the supplier'} corrects it.`
   }
+  const lines = told.map(one)
+  if (stale.length) lines.push(`${listed([...stale])}, flagged last night, ${stale.length === 1 ? 'passes' : 'pass'} the check now.`)
   return {
-    says: told.map(one).join('. ') + '.',
-    links: told.map((t) => ({ text: t.number, href: hrefFor('Invoice', t.invoiceId) })),
+    says: lines.join(' '),
+    links: [...told.map((t) => ({ text: t.number, href: hrefFor('Invoice', t.invoiceId) }))],
   }
+}
+
+/** The recommendation for the first receipt the paying desk was told about. */
+export function toldAskSays(t: ToldReceipt): RichLine {
+  const over = t.hoursBilled != null && t.hoursAccepted != null && t.hoursBilled > t.hoursAccepted
+    ? `; it bills ${hrs(t.hoursBilled - t.hoursAccepted)} hours over what was accepted`
+    : ''
+  return {
+    says: `Ask ${t.supplier ?? 'the supplier'} to correct ${t.number}${over}.`,
+    links: [{ text: t.number, href: hrefFor('Invoice', t.invoiceId) }],
+  }
+}
+
+/** The recommendation for the twin's own questions to this seat. */
+export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
+  if (items.length === 0) return null
+  const receipts = items.every((i) => i.action === 'invoice_receipt.approve')
+  if (items.length === 1) {
+    return receipts
+      ? { says: `Approve ${items[0].title}; it passes the three-way check.`, links: [{ text: items[0].title, href: items[0].href }] }
+      : { says: `Answer Etyme’s question on ${items[0].title} below.`, links: [{ text: items[0].title, href: items[0].href }] }
+  }
+  return receipts
+    ? { says: `Approve the ${counted(items.length, 'receipt').toLowerCase()} below; each passes the three-way check.` }
+    : { says: `Answer Etyme’s ${counted(items.length, 'question').toLowerCase()} below.` }
 }
 
 /** Lines in the greeting before its closing sentence, at most: the first line and five under it. */
@@ -882,30 +1059,43 @@ export async function today(read: Readers, opts: { now?: Date; greeting?: boolea
     opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
   ])
   const near = limits.ok ? nearLimit(limits.entries, now) : []
+
+  // Recommendation first: what this desk should do, in that order.
+  const recommend =
+    itemsAskSays(items) ??
+    (told.told.length ? toldAskSays(told.told[0]) : null) ??
+    askOthersSays(others) ??
+    (near.length ? { says: planSays(near[0]), links: [{ text: near[0].name, href: near[0].href }] } : null) ??
+    undefined
+
+  // Then the facts, each read at the moment of the question.
   const lines: RichLine[] = []
-  // Told, not asked, first: it is the one thing on this desk nobody can say yes to.
-  const toldLine = toldSays(told)
+  const toldLine = toldSays(told.told, told.stale)
   if (toldLine) lines.push(toldLine)
   lines.push(...othersSay(others))
   if (near.length) {
     lines.push({
       says: limitSays(near[0], day) +
-        (near.length > 1 ? ` ${counted(near.length - 1, 'more person')} ${near.length === 2 ? 'is' : 'are'} inside a warning; ask “Who is near the time limit?”.` : ''),
+        (near.length > 1 ? ` ${counted(near.length - 1, 'more person')} ${near.length === 2 ? 'is' : 'are'} inside a warning.` : ''),
       links: [{ text: near[0].name, href: near[0].href }],
     })
+  }
+  if (limits.ok && limits.stale?.length) {
+    lines.push({ says: `Last night’s reading also listed ${listed(limits.stale)}; the live check does not.` })
   }
   const onSite = opts.greeting ? pictureSays(opts.picture) : null
   if (onSite) lines.push(onSite)
   const billed = spend?.ok ? billedSays(spendBySupplier(spend.receipts), month.label) : null
   if (billed) lines.push(billed)
 
-  const more = lines.slice(0, GREETING_LINES - 1)
-  const says = items.length === 0 && others.length === 0 && near.length === 0 && told.length === 0
-    ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
-    : needsSays(items)
+  // Six lines at most before the closing sentence: the recommendation, the
+  // headline, and what fits of the facts.
+  const room = GREETING_LINES - 1 - (recommend ? 1 : 0)
+  const more = lines.slice(0, room)
+  const nothing = items.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
+  const says = (nothing ? 'Nothing needs you today, and nothing Etyme asked waits on anybody.' : needsSays(items)) + ' Checked just now.'
   if (opts.greeting) more.push({ says: GREETING_CLOSE })
-  // The links sit in the sentences (RichLine); no second row of the same links under them.
-  return { kind: 'NEEDS', says, items, more, ...(opts.greeting ? { greeting: true } : {}) }
+  return { kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, items, more, ...(opts.greeting ? { greeting: true } : {}) }
 }
 
 /**
@@ -935,11 +1125,14 @@ export async function respond(
     case 'NEVER':
       return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text)) }
 
+    case 'MARGIN':
+      return { kind: 'TEXT', ...marginRefusal(opts.companyKind) }
+
     case 'TIME_LIMIT': {
       const limits = await read.limits()
       if (!limits.ok) return { kind: 'TEXT', says: limits.says, links: limits.links }
       const rows = nearLimit(limits.entries, opts.now ?? new Date())
-      return { kind: 'TIME_LIMIT', says: limitsSay(rows, day), rows }
+      return { kind: 'TIME_LIMIT', says: limitsSay(rows, day, limits.stale ?? []), rows }
     }
 
     case 'SPEND': {
@@ -958,10 +1151,10 @@ export async function respond(
     case 'WEEKS': {
       const weeks = await read.unsignedWeeks()
       if (!weeks.ok) return { kind: 'TEXT', says: weeks.says, links: weeks.links }
-      const oldest = weeks.rows.reduce<number | null>((d, r) => (d == null || r.waitingDays > d ? r.waitingDays : d), null)
+      const oldest = weeks.rows.reduce<WeekRow | null>((d, r) => (d == null || r.waitingDays > d.waitingDays ? r : d), null)
       return {
         kind: 'WEEKS',
-        says: weeksSay(weeks.total, oldest, weeks.company),
+        says: weeksSay(weeks.total, oldest, weeks.company, weeks.maySign),
         rows: weeks.rows,
         more: Math.max(0, weeks.total - weeks.rows.length),
         links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
@@ -973,11 +1166,11 @@ export async function respond(
       let ref = intent.ref
       if (/^\d+$/.test(ref)) {
         const item = findItem(await read.waiting(), ref)
-        if (!item) return { kind: 'TEXT', says: `There is no item ${ref} waiting on you. Ask “What needs me?” to see the list.` }
+        if (!item) return { kind: 'TEXT', says: `There is no item ${ref} waiting on you. Ask “What needs me today?” to see the list.` }
         ref = item.entryId
       }
       const e = await read.entry(ref)
-      if (!e) return { kind: 'TEXT', says: `There is no ledger entry “${intent.ref}” you can read. Check the entry, or ask “What needs me?”.` }
+      if (!e) return { kind: 'TEXT', says: `There is no ledger entry “${intent.ref}” you can read. Check the entry, or ask “What needs me today?”.` }
       return {
         kind: 'WHY',
         says: e.says,
@@ -999,8 +1192,8 @@ export async function respond(
         return {
           kind: 'TEXT',
           says: items.length === 0
-            ? 'Nothing from Etyme is waiting on you, so there is nothing to answer.'
-            : `“${intent.ref}” is not one of the ${items.length} thing${items.length === 1 ? '' : 's'} waiting on you. Ask “What needs me?” to see them by number.`,
+            ? 'Nothing from Etyme waits on you, so there is nothing to answer.'
+            : `“${intent.ref}” is not one of the ${items.length} thing${items.length === 1 ? '' : 's'} waiting on you. Ask “What needs me today?” to see them by number.`,
         }
       }
       if (intent.decision === 'REJECTED' && !intent.reason) {
@@ -1011,10 +1204,12 @@ export async function respond(
 
     case 'VARIANCE': {
       const q = quarterOf(opts.now ?? new Date())
-      const rows = varianceBySupplier(await read.receiptsIn(q.from, q.to))
+      const got = await read.receiptsIn(q.from, q.to)
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      const rows = varianceBySupplier(got.receipts)
       return {
         kind: 'VARIANCE',
-        says: varianceSays(rows, q.label),
+        says: varianceSays(rows, q.label, staleVerdicts(got.receipts), got.receipts),
         period: { from: q.from.toISOString().slice(0, 10), to: q.to.toISOString().slice(0, 10), label: q.label },
         rows,
       }
@@ -1023,7 +1218,7 @@ export async function respond(
     case 'ASK': {
       if (!modelConfigured(opts.env)) return { kind: 'TEXT', says: NO_MODEL }
       const lines = await read.ledgerLines()
-      if (lines.length === 0) return { kind: 'TEXT', says: 'The twin’s ledger has nothing you can read yet, so there is nothing to describe. ' + WHAT_I_ANSWER }
+      if (lines.length === 0) return { kind: 'TEXT', says: `${NOT_YET} The twin’s ledger has nothing you can read yet. ${WHAT_I_ANSWER}` }
       const said = await read.model(MODEL_SYSTEM, intent.text, ledgerContext(lines))
       if (!said) return { kind: 'TEXT', says: 'The model did not answer just now. ' + WHAT_I_ANSWER }
       const byId = new Map(lines.map((l) => [l.id, l]))

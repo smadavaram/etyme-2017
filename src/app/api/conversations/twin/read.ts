@@ -12,7 +12,9 @@ import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
 import { feedWhere, ledgerFeed, waitingQuestions } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
-import { hasPermission, hasAnyPermission, askTheDesk, desksHolding, type Permission } from '@/lib/permissions'
+import { hasPermission, hasAnyPermission, desksHolding, type Permission } from '@/lib/permissions'
+import { tenureWarnings } from '@/lib/twin/rules/tenure'
+import { ruleSetFor } from '@/lib/twin/rule-set'
 import { invoiceVerdict, invoiceRulesFor } from '@/lib/twin/rules/invoice'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { logBulkAccess } from '@/lib/access-log'
@@ -24,10 +26,10 @@ import { daysWaiting } from '@/lib/auto-approval'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import {
-  hrefFor, WEEKS_SHOWN,
+  hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson,
-  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named,
+  type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
 
 /** An invoice that was never sent, or was withdrawn, is nobody's spend. */
@@ -44,6 +46,85 @@ function says(action: string): string {
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+}
+
+/** An invoice this company is asked to pay, with the day it was billed and who billed it. */
+interface Payable {
+  id: string
+  number: string
+  currency: string
+  total: { toString(): string }
+  paid: { toString(): string }
+  /** `issuedAt`, else `submittedAt`; null where neither is kept. */
+  dated: Date | null
+  supplier: string | null
+}
+
+/**
+ * Invoices this company is a party to and is asked to pay — its invoice
+ * receipts — never what it billed upward, because adding the two is how
+ * a book shows a balance to somebody who owes money. One read for spend
+ * and variance, so both count the same receipts by the same day.
+ */
+async function payablesOf(companyId: string): Promise<Payable[]> {
+  const rows = await prisma.invoice.findMany({
+    where: { AND: [invoiceBetween(companyId), { status: { notIn: NOT_SPEND } }] },
+    take: 2000,
+    select: {
+      id: true, number: true, currency: true, total: true, paid: true, issuedAt: true, submittedAt: true,
+      engagement: {
+        select: {
+          msa: {
+            select: {
+              vendorId: true, clientId: true,
+              vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      workOrder: {
+        select: {
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } },
+        },
+      },
+      invoiceLines: {
+        take: 5,
+        select: {
+          sellContract: {
+            select: {
+              companyId: true, clientCompanyId: true,
+              company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+    },
+  })
+  const out: Payable[] = []
+  for (const r of rows) {
+    const parties = partiesOf({
+      agreement: r.engagement?.msa ?? null,
+      order: r.workOrder ?? null,
+      lines: r.invoiceLines.map((l) => l.sellContract).filter((x): x is NonNullable<typeof x> => !!x),
+    })
+    if (directionFrom(parties, companyId) !== 'PAYABLE') continue
+    out.push({
+      id: r.id, number: r.number, currency: r.currency, total: r.total, paid: r.paid,
+      dated: r.issuedAt ?? r.submittedAt, supplier: parties.vendor?.name ?? null,
+    })
+  }
+  return out
+}
+
+/** The people seated at a company who hold one permission, by name. Owners holding everything are not listed. */
+async function peopleAtDesk(companyId: string, permission: string, take = 3): Promise<string[]> {
+  const rows = await prisma.context.findMany({
+    where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { permissions: { has: permission } } },
+    select: { person: { select: { name: true } } },
+    take,
+  })
+  return [...new Set(rows.map((r) => r.person.name))]
 }
 
 export function readersFor(caller: CallerContext, companyId: string): Readers {
@@ -105,15 +186,17 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           ruleCited: a.ruleCited,
           rationale: a.rationale,
           href: hrefFor(a.entityType, a.entityId, a.id),
+          action: a.action,
         }
       })
     },
 
     async othersWaiting(): Promise<OtherWaiting[]> {
       if (!ownCompany || !caller.company) return []
-      const questions = await waitingQuestions(caller)
+      const questions = (await waitingQuestions(caller)).filter((q) => !q.mayDecide)
+      const perms = [...new Set(questions.map((q) => q.needsPermission))]
+      const holders = new Map(await Promise.all(perms.map(async (p) => [p, await peopleAtDesk(caller.company!.id, p)] as const)))
       return questions
-        .filter((q) => !q.mayDecide)
         .map((q) => {
           const own = q.whyNot?.startsWith('The twin asked this on your authority') ?? false
           return {
@@ -122,61 +205,64 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
             desks: desksHolding(q.needsPermission as Permission, caller.company!.kind),
             own,
             href: hrefFor(q.entityType, q.entityId),
+            people: (holders.get(q.needsPermission) ?? []).filter((n) => n !== caller.person.name),
           }
         })
     },
 
     async limits() {
+      if (caller.company && caller.company.kind !== 'CLIENT') return { ok: false as const, says: LIMIT_IS_THE_CLIENTS }
       const scope = feedWhere(companyId, caller)
       // What the rules found is the program owner's reading; another desk
       // reads the program without it (feedWhere's PROGRAM view).
       if (!scope || scope.view !== 'OWNER') {
-        return {
-          ok: false as const,
-          says: askTheDesk({ doing: 'Reading who is near the time limit', needs: OWNER_DESKS, kind: caller.company?.kind, companyName: caller.company?.name }),
-        }
+        return { ok: false as const, says: deskRefusal('reads who is near the time limit', OWNER_DESKS, caller.company?.kind) }
       }
-      const rows = await prisma.twinAction.findMany({
-        where: { AND: [scope.where, { action: 'tenure.warning.record', outcome: 'PERFORMED', entityType: 'Person' }] },
-        orderBy: { ts: 'desc' },
-        take: 500,
-        select: { entityId: true, ts: true, payload: true },
+      // The rule run now, not last night's entries: the same reading the
+      // nightly run records, at the moment of the question.
+      const rules = await ruleSetFor(companyId)
+      const live = await tenureWarnings(companyId, { warnAtDays: rules.tenureWarnAtDays }, {
+        actor: { personId: caller.person.id, companyId: caller.company?.id },
       })
-      const ids = [...new Set(rows.map((r) => r.entityId))]
-      const names = ids.length
-        ? new Map((await prisma.person.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]))
-        : new Map<string, string>()
-      if (ids.length) logPeople(ids, 'Read in Ask Etyme: who is near the time limit')
-      const entries: LimitEntry[] = []
-      for (const r of rows) {
-        const p = asRecord(r.payload)
-        if (typeof p.limitOn !== 'string') continue
-        entries.push({
-          personId: r.entityId,
-          personName: names.get(r.entityId) ?? null,
-          limitOn: p.limitOn,
-          capMonths: typeof p.capMonths === 'number' ? p.capMonths : null,
-          suppliers: Array.isArray(p.suppliers) ? p.suppliers.filter((x): x is string => typeof x === 'string') : [],
-          recordedAt: new Date(r.ts).toISOString(),
-        })
-      }
-      return { ok: true as const, entries }
+      const now = new Date().toISOString()
+      const entries: LimitEntry[] = live.map((w) => ({
+        personId: w.personId,
+        personName: w.personName,
+        limitOn: w.limitOn.toISOString(),
+        capMonths: w.capMonths,
+        suppliers: w.suppliers,
+        recordedAt: now,
+      }))
+      // Who last night's reading listed that the live check no longer does.
+      const recorded = await prisma.twinAction.findMany({
+        where: { AND: [scope.where, { action: 'tenure.warning.record', outcome: 'PERFORMED', entityType: 'Person', ts: { gte: new Date(Date.now() - 36 * 3600_000) } }] },
+        distinct: ['entityId'],
+        select: { entityId: true },
+        take: 200,
+      })
+      const liveIds = new Set(live.map((w) => w.personId))
+      const goneIds = recorded.map((r) => r.entityId).filter((id) => !liveIds.has(id))
+      const stale = goneIds.length
+        ? (await prisma.person.findMany({ where: { id: { in: goneIds } }, select: { name: true } })).map((p) => p.name)
+        : []
+      if (goneIds.length) logPeople(goneIds, 'Read in Ask Etyme: who is near the time limit')
+      return { ok: true as const, entries, stale }
     },
 
     async unsignedWeeks() {
       const company = caller.company
       if (!ownCompany || !company) {
-        return { ok: false as const, says: 'Unsigned weeks are read at your own company. Choose its seat first.' }
+        return { ok: false as const, says: 'Unsigned weeks are read at your own company; choose its seat first.' }
       }
       if (company.kind !== 'CLIENT') {
         return {
           ok: false as const,
-          says: 'Unsigned weeks are a client’s question: the weeks waiting for its signature. Your own weeks, and the ones you accept, are on Timesheets.',
+          says: 'Your client signs those weeks; the ones you accept are on Timesheets.',
           links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
         }
       }
       if (!hasAnyPermission(caller.permissions, ['timesheets.read', 'timesheets.approve'])) {
-        return { ok: false as const, says: askTheDesk({ doing: 'Reading the weeks waiting for a signature', needs: 'timesheets.approve', kind: company.kind, companyName: company.name }) }
+        return { ok: false as const, says: deskRefusal('reads the weeks waiting for a signature', 'timesheets.approve', company.kind) }
       }
       // The same weeks the program dashboard lists to sign: filed, not yet
       // signed by the client, on a line at this client's sites, inside the
@@ -220,70 +306,26 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           reason: 'Read in Ask Etyme: which weeks are unsigned',
         })
       }
-      return { ok: true as const, rows, total, company: company.name }
+      return { ok: true as const, rows, total, company: company.name, maySign: hasPermission(caller.permissions, 'timesheets.approve') }
     },
 
     async spendIn(from, to) {
       const company = caller.company
       if (!ownCompany || !company) {
-        return { ok: false as const, says: 'Spend is read at your own company. Choose its seat first.' }
+        return { ok: false as const, says: 'Spend is read at your own company; choose its seat first.' }
       }
       if (!hasPermission(caller.permissions, 'invoices.read')) {
-        return { ok: false as const, says: askTheDesk({ doing: 'Reading what suppliers billed you', needs: 'invoices.read', kind: company.kind, companyName: company.name }) }
+        return { ok: false as const, says: deskRefusal('reads what suppliers billed you', 'invoices.read', company.kind) }
       }
-      // Invoices this company is a party to and is asked to pay — its
-      // invoice receipts — never what it billed upward, because adding the
-      // two is how a book shows a balance to somebody who owes money.
-      const rows = await prisma.invoice.findMany({
-        where: { AND: [invoiceBetween(company.id), { status: { notIn: NOT_SPEND } }] },
-        take: 2000,
-        select: {
-          id: true, number: true, currency: true, total: true, paid: true, issuedAt: true, submittedAt: true,
-          engagement: {
-            select: {
-              msa: {
-                select: {
-                  vendorId: true, clientId: true,
-                  vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } },
-                },
-              },
-            },
-          },
-          workOrder: {
-            select: {
-              issuedById: true, issuedToId: true,
-              issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } },
-            },
-          },
-          invoiceLines: {
-            take: 5,
-            select: {
-              sellContract: {
-                select: {
-                  companyId: true, clientCompanyId: true,
-                  company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } },
-                },
-              },
-            },
-          },
-        },
-      })
       const receipts: SpendReceipt[] = []
       let undated = 0
-      for (const r of rows) {
-        const parties = partiesOf({
-          agreement: r.engagement?.msa ?? null,
-          order: r.workOrder ?? null,
-          lines: r.invoiceLines.map((l) => l.sellContract).filter((x): x is NonNullable<typeof x> => !!x),
-        })
-        if (directionFrom(parties, company.id) !== 'PAYABLE') continue
-        const dated = r.issuedAt ?? r.submittedAt
-        if (!dated) { undated++; continue }
-        if (dated < from || dated >= to) continue
+      for (const r of await payablesOf(company.id)) {
+        if (!r.dated) { undated++; continue }
+        if (r.dated < from || r.dated >= to) continue
         receipts.push({
           invoiceId: r.id,
           number: r.number,
-          supplier: parties.vendor?.name ?? null,
+          supplier: r.supplier,
           currency: r.currency,
           totalMinor: fromPrismaDecimal(r.total, r.currency).minor,
           paidMinor: fromPrismaDecimal(r.paid, r.currency).minor,
@@ -315,32 +357,33 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       return { id: row.id, says: says(row.action), ruleCited: row.ruleCited, rationale: row.rationale, entityType: row.entityType, entityId: row.entityId }
     },
 
-    async receiptsIn(from, to): Promise<VarianceReceipt[]> {
-      const scope = feedWhere(companyId, caller)
-      if (!scope) return []
-      // The receipts the twin recorded a verdict on, in the reader's
-      // scope, counted by the day each was billed — the same day the
-      // spend answer counts by, so one receipt is in one period on both —
-      // and each read again through the twin's own rule now.
+    async receiptsIn(from, to) {
+      const company = caller.company
+      if (!ownCompany || !company) {
+        return { ok: false as const, says: 'Invoice variance is read at the paying company; choose its seat first.' }
+      }
+      if (!hasPermission(caller.permissions, 'invoices.read')) {
+        return { ok: false as const, says: deskRefusal('reads invoice variance by supplier', 'invoices.read', company.kind) }
+      }
+      // Every invoice receipt billed in the period, read and checked now —
+      // not only the ones the nightly run happened to record — counted by
+      // the day each was billed, the same day spend counts by.
+      const billed = (await payablesOf(company.id))
+        .filter((r) => r.dated && r.dated >= from && r.dated < to)
+        .slice(0, MAX_RECEIPTS)
+      if (billed.length === 0) return { ok: true as const, receipts: [] }
+      // What the nightly run recorded for each, so a verdict the live check
+      // overturned can be said.
       const recorded = await prisma.twinAction.findMany({
-        where: { AND: [scope.where, { action: 'invoice_receipt.record', outcome: 'PERFORMED', entityType: 'Invoice' }] },
+        where: { companyId, action: 'invoice_receipt.record', outcome: 'PERFORMED', entityType: 'Invoice', entityId: { in: billed.map((b) => b.id) } },
         orderBy: { ts: 'desc' },
         distinct: ['entityId'],
-        take: MAX_RECEIPTS,
-        select: { entityId: true },
+        select: { entityId: true, payload: true },
       })
-      if (recorded.length === 0) return []
-      const billed = await prisma.invoice.findMany({
-        where: {
-          id: { in: recorded.map((r) => r.entityId) },
-          OR: [
-            { issuedAt: { gte: from, lt: to } },
-            { issuedAt: null, submittedAt: { gte: from, lt: to } },
-          ],
-        },
-        select: { id: true },
-      })
-      if (billed.length === 0) return []
+      const nightly = new Map(recorded.map((r) => {
+        const v = asRecord(r.payload).verdict
+        return [r.entityId, v === 'CLEAN' || v === 'MISMATCH' || v === 'BLOCKED' ? (v as Verdict) : null] as const
+      }))
       const rules = await invoiceRulesFor(companyId)
       const out: VarianceReceipt[] = []
       for (const r of billed) {
@@ -348,33 +391,42 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         if (!v) continue
         out.push({
           invoiceId: v.invoiceId,
-          number: v.number,
-          supplierName: v.supplierName,
+          number: v.number ?? r.number,
+          supplierName: v.supplierName ?? r.supplier,
           verdict: v.verdict,
+          nightly: nightly.get(r.id) ?? null,
           lines: v.lines.map((l) => ({ hoursBilled: l.hoursBilled, hoursAccepted: l.hoursAccepted, isHours: l.on !== 'NONE' })),
         })
       }
-      return out
+      return { ok: true as const, receipts: out }
     },
 
-    async told(): Promise<ToldReceipt[]> {
+    async told(): Promise<{ told: ToldReceipt[]; stale: string[] }> {
       // The twin tells the desk that pays (TWIN_ACTS: approverNeeds
       // payments.record); only that desk, at the twin's own company, is told.
-      if (!ownCompany || !hasPermission(caller.permissions, 'payments.record')) return []
+      if (!ownCompany || !hasPermission(caller.permissions, 'payments.record')) return { told: [], stale: [] }
       const flagged = await prisma.twinAction.findMany({
         where: { companyId, action: 'invoice_receipt.flag_mismatch', outcome: 'PERFORMED', entityType: 'Invoice' },
         orderBy: { ts: 'desc' },
         distinct: ['entityId'],
         take: 20,
-        select: { entityId: true },
+        select: { entityId: true, ts: true },
       })
-      if (flagged.length === 0) return []
+      if (flagged.length === 0) return { told: [], stale: [] }
       const rules = await invoiceRulesFor(companyId)
       const out: ToldReceipt[] = []
+      const stale: string[] = []
+      // A flag from last night that the live check no longer agrees with is
+      // said once, the morning after; an older one is not repeated.
+      const lastNight = Date.now() - 36 * 3600_000
       for (const f of flagged) {
         // Read again now: a receipt corrected, waived or paid since is not told twice.
         const v = await invoiceVerdict(f.entityId, rules)
-        if (!v || v.verdict === 'CLEAN' || v.payable) continue
+        if (!v) continue
+        if (v.verdict === 'CLEAN' || v.payable) {
+          if (new Date(f.ts).getTime() >= lastNight && v.number) stale.push(v.number)
+          continue
+        }
         const hours = v.lines.filter((l) => l.on !== 'NONE' && l.hoursAccepted != null)
         out.push({
           invoiceId: v.invoiceId,
@@ -384,7 +436,7 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           hoursAccepted: hours.length ? hours.reduce((s, l) => s + (l.hoursAccepted ?? 0), 0) : null,
         })
       }
-      return out
+      return { told: out, stale }
     },
 
     async named(text: string): Promise<Named> {

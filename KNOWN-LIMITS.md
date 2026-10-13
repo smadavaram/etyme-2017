@@ -276,6 +276,20 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   is matched by its number.
 - **Told, not asked** lists at most the 20 latest receipts the twin
   flagged, read again now; one corrected, waived or paid since drops off.
+- **The greeting's recommendation is a card with links, not a button.**
+  "Ask Renata Okafor, AP Clerk, to approve …" names who holds the desk,
+  read from the seats; the prototype's "she is on today" is not on the
+  record (nobody's presence is), so it is not said. Sending her the ask
+  would be a new act kind in the role contract first (week 3).
+- **"Checked just now" is true per answer**: variance and the told line
+  run the three-way check on each receipt at the moment of the question,
+  and the time limit runs the tenure rule live. A nightly verdict the
+  live check overturned is said once, for 36 hours after the night it
+  was recorded, and not after.
+- **Variance now reads every invoice receipt billed in the quarter**,
+  not only the ones the nightly run recorded, at most 200 per question.
+  It is read at the paying company only; a supplier is refused with the
+  door.
 - **"Not now" changes nothing and is not recorded.** The question stays
   waiting and comes back with "What needs me today?".
 - **"Ask Pinnacle for a corrected invoice" from the prototype is not
