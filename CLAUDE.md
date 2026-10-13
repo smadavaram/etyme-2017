@@ -925,11 +925,16 @@ The first deletion of the part count. So:
   menus.
 - Built straight from the founder's sentence, no drawing first, because
   the sentence is the drawing: an icon, a number, a link.
-- **The logo is the door. Decided by the founder the same evening**
-  (*"Why not merge logo and notifications"*), on seeing two Etyme marks
-  in one phone header. The wordmark in the header is the Ask Etyme
-  door and carries the number; the second mark is deleted. One mark,
-  one number, one tap.
+- **One icon flips between the two screens. Decided by the founder the
+  same evening**, replacing the merge an hour earlier (*"Why can't you
+  use chat icon and dashboard icon to flip"*). The logo is the logo and
+  carries nothing. One control on the right of the header flips: on the
+  dashboard it is a chat icon with the number, opening Ask Etyme; on
+  Ask Etyme it is a dashboard icon, opening the desk's own Today
+  tables. The "Switch to dashboard" link and the number on the logo are
+  both gone. The sidebar's pinned Ask Etyme entry keeps its number.
+- **A prototype draws the real mark from the logo component**, never
+  a redrawn one; the founder caught a misdrawn mark twice.
 
 **Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
 the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
