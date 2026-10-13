@@ -36,14 +36,16 @@ export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP
 export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY
 
 /**
- * Where a one-person firm opens: the first page of her own Today.
+ * Where a one-person firm opens: Ask Etyme, which her menu draws first.
  *
  * She used to open on "Your work", which a firm only has on its menu once
  * a placement makes its owner a worker, so a new firm of one landed on a
- * page her menu did not name (sign-up walk, round two, item 38). Her
- * Today is the firm's queue, and the first page on it is what needs her.
- * `__tests__/invariants/console-home.test.ts` holds it to the first link
- * of the solo menu in lib/nav-table, so the two cannot drift apart.
+ * page her menu did not name (sign-up walk, round two, item 38). Then on
+ * Needs attention, the first page of her Today; since 2026-10-12 what
+ * needs her is Ask Etyme's greeting, drawn above Today, and Needs
+ * attention left the menu. `__tests__/invariants/console-home.test.ts`
+ * holds it to the entry the solo menu draws first, so the two cannot
+ * drift apart.
  */
 export const SOLO_TODAY = '/dashboard/conversations/etyme' as const
 
