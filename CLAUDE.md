@@ -889,6 +889,29 @@ decisions like Elon Musk", 2026-10-13.** Each reversible in a sentence.
     day hits goes ahead of the planned work; the roadmap is what the
     tenant could not do.
 
+**Notifications are deleted; Ask Etyme carries the number. Decided by
+the founder, 2026-10-13** (*"kill notification and place Ask Etyme icon
+instead of it, and show a number (like 5) which symbolizes 5 decisions
+or responses expected. Ask Etyme (primary) and dashboard (switch to)."*).
+The first deletion of the part count. So:
+- **The Notifications page and its menu entry go.** The Ask Etyme mark
+  sits where the bell was, in the header and first in the sidebar, with
+  one number on it: the decisions and answers this seat owes right now.
+  The number is the greeting's own count of what needs you, read from
+  the one decisions queue, so the badge and the first line of the chat
+  can never disagree. A seat that owes nothing shows no number.
+- **What a notice used to say becomes a line in the greeting**, under
+  "Since you last looked", read from the same rows the page listed, and
+  it is gone from the greeting once read. Email and Teams keep carrying
+  the decision card; the in-app bell is the part that is deleted.
+- **Ask Etyme is primary; the dashboard is "switch to".** The chat
+  header carries one link, "Switch to dashboard", which opens the desk's
+  own Today tables; every dashboard page carries the mark with the
+  number, one click back. The two are one app read two ways, never two
+  menus.
+- Built straight from the founder's sentence, no drawing first, because
+  the sentence is the drawing: an icon, a number, a link.
+
 **Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
 the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
 as vendor company"*), with five seats on etyme.com: sharath (Owner),
