@@ -150,6 +150,17 @@ export const OWN_ROWS_ON_READ: Readonly<Record<string, string>> = {
   // asking for anybody else's is refused. Where a worker was put forward
   // is the "You" promise; submitting anybody stays a desk's.
   submissions: 'A seat with no desk reads only the submissions that name it, with no rate on them.',
+  // The queue of what needs this seat (2026-10-13). It was on every
+  // desk-less menu as Needs attention until Ask Etyme's greeting became
+  // that list and the link left the menu; the greeting still reads it.
+  // Every part of app/api/decisions is gated on a desk's permission —
+  // approving hours, reading bills, writing placements, the ending-soon
+  // readers, reading submissions — or keyed to the caller by name: a
+  // requisition approval names its approver, and a supplier review asks
+  // mayActAt of this person. A seat with no desk holds none of those
+  // permissions, so it reads only what names it, and no colleague's
+  // rolloff or rate.
+  decisions: 'A seat with no desk reads only what names it — an approval it was named on — and nothing a desk’s permission gates.',
 }
 
 /**
