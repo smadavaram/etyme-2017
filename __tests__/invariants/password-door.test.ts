@@ -424,6 +424,13 @@ describe('round two of the sign-up walk, said as the walk found it', () => {
     expect(read('src/app/(auth)/signup/form.tsx')).toContain("tab === 'candidate' && !claimToken ? PASSWORD_HINT_PERSON : PASSWORD_HINT_COMPANY")
   })
 
+  it('a link with ?as=candidate opens the sign-up form on the candidate tab, and a supplier invitation keeps the company tab', () => {
+    const page = read('src/app/(auth)/signup/page.tsx')
+    expect(page).toContain("searchParams?.as === 'candidate' && !claimToken ? 'candidate' : 'company'")
+    expect(page).toContain('initialTab={tab}')
+    expect(read('src/app/(auth)/signup/form.tsx')).toContain('useState<Tab>(initialTab)')
+  })
+
   it('the sign-in page sits in the same frame as the other doors, says no false footer, and links the terms', () => {
     const page = read('src/app/(auth)/login/page.tsx')
     expect(page).toContain('<DoorFrame>')

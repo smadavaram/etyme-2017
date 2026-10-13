@@ -29,8 +29,13 @@ import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading } from '@/lib
 type Tab = 'company' | 'candidate'
 type Joins = { address: string; company: string; says: string } | null
 
-export function SignUpForm({ claimToken, initialType = null }: { claimToken: string | null; initialType?: string | null }) {
-  const [tab, setTab] = useState<Tab>('company')
+export function SignUpForm({ claimToken, initialType = null, initialTab = 'company' }: {
+  claimToken: string | null
+  initialType?: string | null
+  /** `?as=candidate` opens on the candidate tab: the contractors' door lands here. */
+  initialTab?: Tab
+}) {
+  const [tab, setTab] = useState<Tab>(initialTab)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')

@@ -16,7 +16,7 @@ import { COMPANY_TYPES } from '@/lib/onboarding'
  */
 export const dynamic = 'force-dynamic'
 
-export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string } }) {
+export default function SignUpPage({ searchParams }: { searchParams: { claim?: string; next?: string; type?: string; as?: string } }) {
   if (!doorOpen()) {
     return (
       <DoorFrame>
@@ -31,5 +31,9 @@ export default function SignUpPage({ searchParams }: { searchParams: { claim?: s
   // `?type=solo` opens the company form on the one-person firm, the link a
   // candidate's own page offers to become one (sign-up walk, round two, item 21).
   const type = COMPANY_TYPES.some((t) => t.key === searchParams?.type) ? searchParams.type! : null
-  return <SignUpForm claimToken={claimToken} initialType={type} />
+  // `?as=candidate` opens the form on the candidate tab, the link the
+  // contractors' door (/for/contractors) offers. A claim is a company's
+  // record, so it keeps the company tab whatever the link says.
+  const tab = searchParams?.as === 'candidate' && !claimToken ? 'candidate' : 'company'
+  return <SignUpForm claimToken={claimToken} initialType={type} initialTab={tab} />
 }
