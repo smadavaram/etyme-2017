@@ -26,6 +26,7 @@ import { fromPrismaDecimal } from '@/lib/money'
 import {
   hrefFor, WEEKS_SHOWN,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
+  matchPerson,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named,
 } from './ask'
 
@@ -412,11 +413,15 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         take: 500,
         select: { id: true, person: { select: { id: true, name: true } } },
       })
-      const lower = text.toLowerCase()
-      const hit = lines.find((l) => l.person.name.trim().length > 2 && lower.includes(l.person.name.trim().toLowerCase()))
-      if (hit) {
-        out.person = { name: hit.person.name, contractId: hit.id }
-        logBulkAccess([hit.person.id], {
+      const found = matchPerson(text, lines.map((l) => ({ personId: l.person.id, name: l.person.name, contractId: l.id })))
+      if (found.person) out.person = found.person
+      if (found.ambiguous) out.ambiguous = found.ambiguous
+      // The names read back are people on this company's placements: logged as read.
+      const seen = lines
+        .filter((l) => found.person?.contractId === l.id || found.ambiguous?.includes(l.person.name))
+        .map((l) => l.person.id)
+      if (seen.length) {
+        logBulkAccess([...new Set(seen)], {
           actorPersonId: caller.person.id,
           actorCompanyId: company.id,
           action: 'CONTRACT_VIEW',

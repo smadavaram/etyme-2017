@@ -118,7 +118,39 @@ export type NeverAct = 'EXTEND' | 'END' | 'AWARD' | 'REJECT_SUBMISSION' | 'PAY' 
 /** What a message names, found on the record: a person's placement, or an invoice receipt. */
 export interface Named {
   person?: { name: string; contractId: string }
+  /** Two or more people the words could mean: Etyme asks which, and links nowhere. */
+  ambiguous?: string[]
   receipt?: { number: string; invoiceId: string }
+}
+
+/** A person on this company's placements, newest placement first. */
+export interface RosterEntry { personId: string; name: string; contractId: string }
+
+const words = (x: string) => x.toLowerCase().normalize('NFC').split(/[^\p{L}\p{M}'’-]+/u).filter(Boolean)
+
+/**
+ * Who a message names, from the people on this company's placements.
+ * The full name wins. Otherwise a first or last name counts when exactly
+ * one person carries it; when several do, the answer is the question
+ * "Helena Marsh or Helena Ruiz?", never a guess.
+ */
+export function matchPerson(text: string, roster: readonly RosterEntry[]): Pick<Named, 'person' | 'ambiguous'> {
+  // One entry per person: the newest placement.
+  const people = new Map<string, RosterEntry>()
+  for (const r of roster) if (!people.has(r.personId)) people.set(r.personId, r)
+  const all = [...people.values()].filter((p) => p.name.trim().length > 2)
+  const lower = text.toLowerCase()
+  const full = all.filter((p) => lower.includes(p.name.trim().toLowerCase()))
+  if (full.length === 1) return { person: { name: full[0].name, contractId: full[0].contractId } }
+  if (full.length > 1) return { ambiguous: full.map((p) => p.name) }
+  const said = new Set(words(text).filter((w) => w.length >= 3))
+  const hits = all.filter((p) => {
+    const parts = words(p.name)
+    return parts.length > 0 && (said.has(parts[0]) || (parts.length > 1 && said.has(parts[parts.length - 1])))
+  })
+  if (hits.length === 1) return { person: { name: hits[0].name, contractId: hits[0].contractId } }
+  if (hits.length > 1) return { ambiguous: hits.map((p) => p.name).sort((a, b) => a.localeCompare(b)) }
+  return {}
 }
 
 const NEVER_FLOOR: Record<NeverAct, { doing: string; needs: Permission; where: string; link: Link }> = {
@@ -170,6 +202,11 @@ export function neverSays(
   named: Named = {},
 ): { says: string; links: Link[] } {
   const f = NEVER_FLOOR[act]
+  const asksWho = act === 'EXTEND' || act === 'END' || act === 'SIGN_WEEK'
+  if (asksWho && !named.person && named.ambiguous && named.ambiguous.length > 1) {
+    const names = named.ambiguous.slice(0, 4)
+    return { says: `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}?`, links: [] }
+  }
   const person = named.person && (act === 'EXTEND' || act === 'END' || act === 'SIGN_WEEK') ? named.person : null
   const receipt = named.receipt && act === 'PAY' ? named.receipt : null
   const doing = person
@@ -867,12 +904,8 @@ export async function today(read: Readers, opts: { now?: Date; greeting?: boolea
     ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
     : needsSays(items)
   if (opts.greeting) more.push({ says: GREETING_CLOSE })
-  // The lists behind the figures, also as a row under the reply.
-  const links: Link[] = []
-  if (near.length) links.push({ label: `Open ${near[0].name}`, href: near[0].href })
-  if (onSite && more.includes(onSite)) links.push({ label: 'Open Contractors', href: CONTRACTORS_HREF })
-  if (billed && more.includes(billed)) links.push({ label: 'Open Invoice receipts', href: RECEIPTS_HREF })
-  return { kind: 'NEEDS', says, items, more, links, ...(opts.greeting ? { greeting: true } : {}) }
+  // The links sit in the sentences (RichLine); no second row of the same links under them.
+  return { kind: 'NEEDS', says, items, more, ...(opts.greeting ? { greeting: true } : {}) }
 }
 
 /**

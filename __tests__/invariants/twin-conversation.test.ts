@@ -14,7 +14,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  respond, today, othersSay, neverAct, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
+  respond, today, othersSay, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
@@ -66,6 +66,14 @@ const SPEND: SpendReceipt[] = [
   { invoiceId: 'inv-uk', number: 'UK-1', supplier: 'Computer Systems', currency: 'GBP', totalMinor: 100000, paidMinor: 0 },
 ]
 
+// The people on Northbend's placements, newest placement first.
+const ROSTER = [
+  { personId: 'p-helena', name: 'Helena Marsh', contractId: 'sc-helena' },
+  { personId: 'p-helena', name: 'Helena Marsh', contractId: 'sc-helena-old' },
+  { personId: 'p-omar', name: 'Omar Haddad', contractId: 'sc-omar' },
+  { personId: 'p-tobias', name: 'Tobias Lindqvist', contractId: 'sc-tobias' },
+]
+
 function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typeof vi.fn> } {
   return {
     waiting: vi.fn(async () => WAITING),
@@ -78,7 +86,7 @@ function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typ
     spendIn: vi.fn(async () => ({ ok: true as const, receipts: SPEND, undated: 1 })),
     told: vi.fn(async () => []),
     named: vi.fn(async (text: string) => ({
-      ...(/helena/i.test(text) ? { person: { name: 'Helena Marsh', contractId: 'sc-helena' } } : {}),
+      ...matchPerson(text, ROSTER),
       ...(/PR-2026-0441/.test(text) ? { receipt: { number: 'PR-2026-0441', invoiceId: 'inv-441' } } : {}),
     })),
     entry: vi.fn(async (ref: string) => (ref === 'entry-442' || ref === 'PR-2026-0442' || ref === 'entry-441' ? (ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', ruleCited: WAITING[0].ruleCited, rationale: WAITING[0].rationale } : ENTRY_442) : null)),
@@ -294,11 +302,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       [{ text: '£1,000.00', href: '/dashboard/invoices' }, { text: '$11,342.50', href: '/dashboard/invoices' }],
       [],
     ])
-    expect(hello.links).toEqual([
-      { label: 'Open Tobias Lindqvist', href: '/dashboard/people/p-tobias' },
-      { label: 'Open Contractors', href: '/dashboard/people' },
-      { label: 'Open Invoice receipts', href: '/dashboard/invoices' },
-    ])
+    // No second row repeating the links the sentences already carry.
+    expect(hello.links).toBeUndefined()
     // Told, not asked: the paying desk reads the receipt the twin told it about, first, with its link.
     const ap = await today(readers({ told: async () => [{ invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }] }), { now: NOW, greeting: true })
     expect(ap.kind === 'NEEDS' && ap.more![0]).toEqual({
@@ -327,6 +332,16 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(extend.says).toMatch(/^Extending Helena Marsh’s placement is never Etyme’s to do: your .*Contract Manager.* does it on the placement’s page\.$/)
     expect(extend.says).not.toContain('assignments.write')
     expect(extend).toMatchObject({ links: [{ label: 'Open Helena Marsh’s placement', href: '/dashboard/placements/sc-helena' }] })
+    // The founder's own sentence: a first name is enough when one person on the placements carries it.
+    const founder = await respond('Extend Helena three months', read, { env: KEY, companyKind: 'CLIENT' })
+    expect(founder.says).toMatch(/^Extending Helena Marsh’s placement is never Etyme’s to do: your .+ does it on the placement’s page\.$/)
+    expect(founder).toMatchObject({ links: [{ label: 'Open Helena Marsh’s placement', href: '/dashboard/placements/sc-helena' }] })
+    // Two Helenas: one question naming both, and no link.
+    const twoHelenas = [...ROSTER, { personId: 'p-ruiz', name: 'Helena Ruiz', contractId: 'sc-ruiz' }]
+    const which = await respond('Extend Helena three months', readers({ named: async (t) => matchPerson(t, twoHelenas) }), { env: KEY, companyKind: 'CLIENT' })
+    expect(which).toEqual({ kind: 'TEXT', says: 'Helena Marsh or Helena Ruiz?', links: [] })
+    expect(matchPerson('Extend Helena Marsh three months', twoHelenas)).toEqual({ person: { name: 'Helena Marsh', contractId: 'sc-helena' } })
+    expect(matchPerson('extend Haddad', twoHelenas)).toEqual({ person: { name: 'Omar Haddad', contractId: 'sc-omar' } })
     // Nobody named: the list where it is done.
     const anyone = await respond('extend the placement', read, { env: KEY, companyKind: 'VENDOR' })
     expect(anyone).toMatchObject({ links: [{ href: '/dashboard/contracts' }] })

@@ -268,10 +268,12 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   stays listed until the next reading supersedes it; the answer says the
   day of the reading. Only the program owner's desks read it, as on the
   twin's page.
-- **A name in a never-floor question is matched by its full name** as
-  written, against the placements at this company inside the reader's
-  account walls (500 most recent), and a receipt by its number. A first
-  name alone, or a misspelling, links to the list instead.
+- **A name in a never-floor question** is matched against the people
+  on this company's placements inside the reader's account walls (500
+  most recent): the full name first, else a first or last name carried
+  by exactly one person; two or more and Etyme asks which ("Helena Marsh
+  or Helena Ruiz?"). A misspelling links to the list instead. A receipt
+  is matched by its number.
 - **Told, not asked** lists at most the 20 latest receipts the twin
   flagged, read again now; one corrected, waived or paid since drops off.
 - **"Not now" changes nothing and is not recorded.** The question stays
