@@ -27,7 +27,7 @@
 
 import { formatDay, formatMonth } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
-import { desksHolding, type Permission } from '@/lib/permissions'
+import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 
 // ── What was asked ───────────────────────────────────────────────────
@@ -247,8 +247,8 @@ function billsOnly(desk: string, companyKind: string | null | undefined): boolea
 
 /** Whether this seat pays out: the same rule as `payingDesks`, on the seat's own permissions. */
 function paysOut(permissions: readonly string[], companyKind: string | null | undefined): boolean {
-  if (!permissions.includes('payments.record')) return false
-  if (!permissions.includes('invoices.issue') || permissions.includes('payroll.run')) return true
+  if (!hasPermission(permissions, 'payments.record')) return false
+  if (!hasPermission(permissions, 'invoices.issue') || hasPermission(permissions, 'payroll.run')) return true
   // A money-in seat pays only where no desk at the company pays out apart from it.
   return desksHolding('payments.record', companyKind).every((d) => billsOnly(d, companyKind))
 }
