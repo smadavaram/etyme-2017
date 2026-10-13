@@ -1485,16 +1485,16 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(mark.match(/fetch\(/g)?.length).toBe(1)
   })
 
-  it('the bell is gone from the header and the logo is the Ask Etyme door, carrying the number', () => {
+  it('the bell is gone from the header and the flip stands on its right, carrying the number', () => {
     const header = shell('header.tsx')
     expect(header).not.toContain('NotificationBell')
     expect(existsSync(join(process.cwd(), 'src/components/notification-bell.tsx'))).toBe(false)
-    expect(header).toContain('<AskEtymeLogoLink n={owed} current={onAskEtyme} />')
+    expect(header).toContain('<AskEtymeFlip n={owed}')
     expect(header).not.toContain('AskEtymeMarkLink')
-    expect(shell('ask-etyme-mark.tsx')).toContain('href={ASK_ETYME_HREF as any}')
+    expect(shell('ask-etyme-mark.tsx')).toContain('href={(onAskEtyme ? dashboardHref : ASK_ETYME_HREF) as any}')
   })
 
-  it('the header makes the logo the door only for a seat whose menu pins Ask Etyme, and reads the number only for it', () => {
+  it('the header draws the flip only for a seat whose menu pins Ask Etyme, and reads the number only for it', () => {
     const header = shell('header.tsx')
     expect(header).toMatch(/const asks = pinnedOn\(getNavForKind\(/)
     expect(header).toContain('const owed = useOwedCount(asks)')
@@ -1506,12 +1506,11 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(sidebar).toContain('<OwedBadge n={owed}')
   })
 
-  it('on Ask Etyme the header carries one link, Switch to dashboard, opening the desk’s own Today tables', () => {
+  it('on Ask Etyme the flip opens the desk’s own Today tables, and Switch to dashboard is gone', () => {
     const header = shell('header.tsx')
     expect(header).toContain('const onAskEtyme = pathname === ASK_ETYME_HREF')
-    expect(header).toContain('Switch to dashboard')
+    expect(header).not.toContain('Switch to dashboard')
     // `home` is consoleHome(reader).href, the sidebar's own Dashboard link.
-    expect(header).toMatch(/asks && onAskEtyme && \(\s*<Link\s+href=\{home as any\}/)
-    expect(header.match(/>Switch to dashboard</g)?.length).toBe(1)
+    expect(header).toContain('dashboardHref={home}')
   })
 })

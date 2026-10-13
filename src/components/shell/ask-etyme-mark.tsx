@@ -13,7 +13,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { EtymeMark } from '@/components/logo'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { OWED_REFRESH_MS, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
 
@@ -79,25 +78,53 @@ export function OwedBadge({ n, className = '' }: { n: number | null; className?:
 }
 
 /**
- * The header's logo, which is the Ask Etyme door (founder, 2026-10-13,
- * "The logo is the door"). A phone header used to carry two Etyme marks —
- * the logo beside the menu button and the Ask Etyme mark on the right —
- * so they are one: the logo opens Ask Etyme and wears the number. The
- * number hangs off the logo's corner, so it adds no width at 375; the
- * label says Ask Etyme and the number, so a screen reader hears both.
+ * The flip (founder, 2026-10-13, "One icon flips between the two
+ * screens"). One icon-sized control on the right of the header, in the
+ * same slot on every page, for a seat whose menu pins Ask Etyme. On a
+ * dashboard page it is a chat bubble wearing the number and opens Ask
+ * Etyme; on Ask Etyme it is four squares and opens the desk's own Today
+ * tables. The number hangs off the icon's corner, so it adds no width at
+ * 375, and the label says Ask Etyme and the number, so a screen reader
+ * hears both. The logo carries nothing: it is the logo.
  */
-export function AskEtymeLogoLink({ n, current = false }: { n: number | null; current?: boolean }) {
-  const label = owedLabel(n)
+export function AskEtymeFlip({
+  n, onAskEtyme, dashboardHref,
+}: { n: number | null; onAskEtyme: boolean; dashboardHref: string }) {
+  const label = onAskEtyme ? 'Dashboard' : owedLabel(n)
   return (
     <Link
-      href={ASK_ETYME_HREF as any}
+      href={(onAskEtyme ? dashboardHref : ASK_ETYME_HREF) as any}
       aria-label={label}
-      aria-current={current ? 'page' : undefined}
       title={label}
-      className="relative shrink-0 rounded-nav flex items-center justify-center"
+      data-flip={onAskEtyme ? 'dashboard' : 'ask-etyme'}
+      className="relative w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
+                 text-etyme-ink transition-colors hover:bg-etyme-sunk"
     >
-      <EtymeMark size={26} />
-      <OwedBadge n={n} className="absolute -top-1.5 -right-2" />
+      {onAskEtyme ? <DashboardIcon /> : <ChatIcon />}
+      {!onAskEtyme && <OwedBadge n={n} className="absolute -top-1 -right-1.5" />}
     </Link>
+  )
+}
+
+/** A chat app's "Chats" icon: a rounded bubble, tail at the lower left, outline only. */
+function ChatIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 4h8a5 5 0 0 1 5 5v3a5 5 0 0 1-5 5h-6l-5 4v-4.5A5 5 0 0 1 3 12V9a5 5 0 0 1 5-5z" />
+    </svg>
+  )
+}
+
+/** The desk's tables: four rounded squares. */
+function DashboardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
   )
 }

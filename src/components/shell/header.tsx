@@ -17,11 +17,12 @@
  * so every phone screenshot arrived with its left edge cut off. Nothing
  * else on the page was wrong; the header pushed it.
  *
- * Below md the bar is now: ☰ · mark · company / role … search · + ·
- * avatar, all icons, in about 220px. The mark is the Ask Etyme door and
- * wears the number (founder, 2026-10-13, "The logo is the door"); the
- * second mark that stood where the bell was is gone, and the number
- * hangs off the logo's corner, so it adds no width. The search opens into its
+ * Below md the bar is now: ☰ · mark · company / role … search · flip ·
+ * + · avatar, all icons, in about 260px. The mark is the logo and goes
+ * home. The flip (founder, 2026-10-13, "One icon flips between the two
+ * screens") is a chat bubble with the number on a dashboard page and
+ * four squares on Ask Etyme; the number hangs off its corner, so it adds
+ * no width. The search opens into its
  * own row under the bar rather than living in it. The ☰ opens the same
  * sidebar the desktop shows (components/shell/mobile-nav), and the
  * company and role sit next to the mark the way the prototype's header
@@ -33,7 +34,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import { AskEtymeLogoLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { AskEtymeFlip, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
@@ -428,8 +429,8 @@ export function Header({ title }: HeaderProps) {
   // deleted; Ask Etyme carries the number"), for the seats whose menu pins
   // it — the sidebar's own rule, so the header never offers a door the
   // menu does not. Its number is the one decisions queue, read once a
-  // minute for the whole shell. On Ask Etyme itself the mark gives way to
-  // "Switch to dashboard": the desk's own Today tables, one click away.
+  // minute for the whole shell. On Ask Etyme itself the flip shows four
+  // squares instead: the desk's own Today tables, one click away.
   const pathname = usePathname()
   const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
     worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient,
@@ -570,8 +571,7 @@ export function Header({ title }: HeaderProps) {
     </div>
   )
 
-  // Company and role, beside the mark on a phone. Words, never their
-  // own link: the mark is the one door in this block.
+  // Company and role, beside the mark on a phone, inside the logo's link home.
   const whose = (
     <span className="min-w-0">
       {/* The chip first and never shrinking, the name truncating
@@ -605,21 +605,10 @@ export function Header({ title }: HeaderProps) {
             company, and "Northbend Athletic" beside "etyme" would be two
             names in 390px. The wordmark on a phone is at the top of the
             menu sheet, which is the rail itself (sidebar.tsx). */}
-        {asks ? (
-          // The logo is the door (founder, 2026-10-13): for a seat whose
-          // menu pins Ask Etyme, the mark opens it and wears the number,
-          // and the company and role beside it are words, not a second
-          // link. Every other seat's mark goes home, as it always did.
-          <div className="md:hidden flex items-center gap-2.5 min-w-0">
-            <AskEtymeLogoLink n={owed} current={onAskEtyme} />
-            {whose}
-          </div>
-        ) : (
-          <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
-            <EtymeMark size={26} />
-            {whose}
-          </Link>
-        )}
+        <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
+          <EtymeMark size={26} />
+          {whose}
+        </Link>
 
         {/* Whose desk this is, from lg up: the company, and the seat the
             reader holds there — the prototype's header, beside the rail
@@ -709,19 +698,11 @@ export function Header({ title }: HeaderProps) {
           {searchIcon}
         </button>
 
-        {/* On Ask Etyme itself, the one link back to the desk's tables,
-            where the second mark used to stand. The mark is gone from
-            here: the logo is the door and carries the number. */}
-        {asks && onAskEtyme && (
-          <Link
-            href={home as any}
-            className="shrink-0 h-9 sm:h-8 px-2.5 rounded-nav flex items-center text-[13px] font-medium
-                       text-etyme-action-press hover:bg-etyme-action-wash transition-colors"
-          >
-            <span className="hidden sm:inline">Switch to dashboard</span>
-            <span className="sm:hidden">Dashboard</span>
-          </Link>
-        )}
+        {/* The flip (founder, 2026-10-13): one icon, this slot, every page
+            and every width. A chat bubble with the number on a dashboard
+            page, opening Ask Etyme; four squares on Ask Etyme, opening the
+            desk's own tables. A seat with no Ask Etyme has no flip. */}
+        {asks && <AskEtymeFlip n={owed} onAskEtyme={Boolean(onAskEtyme)} dashboardHref={home} />}
 
         {/* Plus button — the add menu (UX Stress Test #2). Absent for a
             seat with nothing of its own to create, which is a consultant:

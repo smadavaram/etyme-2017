@@ -177,33 +177,49 @@ describe('the sidebar props are read off the session the same way for both surfa
   })
 })
 
-describe('the logo is the Ask Etyme door and carries the number on a phone', () => {
-  it('the header draws one Etyme mark on a phone: the logo, which opens Ask Etyme for a seat whose menu pins it', () => {
-    expect(HEADER).toMatch(/\{asks \? \(\s*\/\/[\s\S]*?<div className="md:hidden flex items-center gap-2\.5 min-w-0">\s*<AskEtymeLogoLink n=\{owed\} current=\{onAskEtyme\} \/>/)
-    expect(MARK).toMatch(/export function AskEtymeLogoLink[\s\S]*href=\{ASK_ETYME_HREF as any\}/)
-    expect(HEADER).not.toContain('AskEtymeMarkLink')
-    expect(MARK).not.toContain('AskEtymeMarkLink')
-    // EtymeMark appears once in the header, in the branch for a seat with no Ask Etyme.
+describe('one icon on the header flips between Ask Etyme and the dashboard', () => {
+  it('the logo is the logo again: it carries no number and goes to the seat’s own home', () => {
+    expect(HEADER).toMatch(/<Link href=\{home as any\} className="md:hidden flex items-center gap-2\.5 min-w-0">\s*<EtymeMark size=\{26\} \/>/)
     expect(HEADER.match(/<EtymeMark\b/g)?.length).toBe(1)
+    expect(HEADER).not.toContain('AskEtymeLogoLink')
+    expect(MARK).not.toContain('AskEtymeLogoLink')
+    expect(MARK).not.toContain('EtymeMark')
   })
 
-  it('a seat with no Ask Etyme keeps a logo that goes where it always went, its own home', () => {
-    expect(HEADER).toMatch(/\) : \(\s*<Link href=\{home as any\} className="md:hidden flex items-center gap-2\.5 min-w-0">\s*<EtymeMark size=\{26\} \/>/)
+  it('on a dashboard page the flip is a chat bubble wearing the number and opens Ask Etyme', () => {
+    expect(MARK).toMatch(/href=\{\(onAskEtyme \? dashboardHref : ASK_ETYME_HREF\) as any\}/)
+    expect(MARK).toContain('{onAskEtyme ? <DashboardIcon /> : <ChatIcon />}')
+    expect(MARK).toContain('{!onAskEtyme && <OwedBadge n={n}')
   })
 
-  it('the number hangs off the logo’s corner, so it adds no width to the header at 375', () => {
-    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1.5 -right-2" />')
-    expect(MARK).toMatch(/AskEtymeLogoLink[\s\S]*className="relative shrink-0/)
+  it('the chat icon is a rounded speech bubble drawn inline, outline only, with its tail at the lower left', () => {
+    expect(MARK).toMatch(/function ChatIcon[\s\S]*fill="none" stroke="currentColor"[\s\S]*<path d="M8 4h8a5 5 0 0 1 5 5v3a5 5 0 0 1-5 5h-6l-5 4/)
+    expect(MARK).toContain('text-etyme-ink')
+  })
+
+  it('on Ask Etyme the flip is four squares, labelled Dashboard, opening the desk’s own Today tables', () => {
+    expect(MARK).toContain("const label = onAskEtyme ? 'Dashboard' : owedLabel(n)")
+    expect(MARK.match(/<rect /g)?.length).toBe(4)
+    // `home` is consoleHome(reader).href, the sidebar's own Dashboard link.
+    expect(HEADER).toContain('{asks && <AskEtymeFlip n={owed} onAskEtyme={Boolean(onAskEtyme)} dashboardHref={home} />}')
+  })
+
+  it('the flip stands in one slot at every width, and a seat with no Ask Etyme has none', () => {
+    expect(HEADER.match(/<AskEtymeFlip\b/g)?.length).toBe(1)
+    expect(HEADER).toMatch(/\{asks && <AskEtymeFlip/)
+  })
+
+  it('the flip is the size of the search and account buttons, and the number hangs off its corner, adding no width at 375', () => {
+    expect(MARK).toContain('relative w-9 h-9 sm:w-8 sm:h-8 shrink-0')
+    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1 -right-1.5" />')
     expect(MARK).not.toMatch(/(?<![\w:-])w-(\d{2,})\b/)
   })
 
-  it('a screen reader hears Ask Etyme and the number on the logo', () => {
-    expect(MARK).toMatch(/AskEtymeLogoLink[\s\S]*const label = owedLabel\(n\)[\s\S]*aria-label=\{label\}/)
+  it('a screen reader hears Ask Etyme and the number on the flip', () => {
+    expect(MARK).toMatch(/AskEtymeFlip[\s\S]*aria-label=\{label\}/)
   })
 
-  it('on a phone "Switch to dashboard" reads "Dashboard" and stands where the second mark used to', () => {
-    expect(HEADER).toContain('<span className="hidden sm:inline">Switch to dashboard</span>')
-    expect(HEADER).toContain('<span className="sm:hidden">Dashboard</span>')
-    expect(HEADER).toMatch(/\{asks && onAskEtyme && \(\s*<Link\s+href=\{home as any\}/)
+  it('"Switch to dashboard" is gone from the header', () => {
+    expect(HEADER).not.toContain('Switch to dashboard')
   })
 })
