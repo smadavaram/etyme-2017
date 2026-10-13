@@ -94,6 +94,7 @@ function fresh() {
 }
 
 import { act, ledger, decideApproval } from '../../src/lib/twin/ledger'
+import { actsPerDay } from '../../src/lib/twin/acts'
 
 beforeEach(fresh)
 
@@ -191,5 +192,24 @@ describe('the twin’s ledger', () => {
     const refusal = T().twinAction.filter((e) => e.actorType === 'PERSON' && e.outcome === 'REFUSED').pop()!
     expect(refusal.rationale).toBe(said)
     expect(refusal.rationale).not.toBe(base.rationale)
+  })
+  it('acts per day counts a person\u2019s yes or no in the chat or on Teams, and nothing the twin did on its own', async () => {
+    const now = new Date('2026-10-12T15:00:00Z')
+    const at = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86_400_000)
+    const entry = (actorType: string, surface: string, outcome: string, ts: Date) =>
+      ({ id: `e-${++h.db.seq}`, companyId: CLIENT, actorType, surface, outcome, ts, action: 'invoice_receipt.approve' })
+    T().twinAction.push(
+      entry('PERSON', 'WEB', 'PERFORMED', at(0)),    // a yes in the chat, today
+      entry('PERSON', 'TEAMS', 'REJECTED', at(1)),   // a no on Teams, yesterday
+      entry('TWIN', 'CRON', 'PERFORMED', at(0)),     // the twin on its own
+      entry('TWIN', 'WEB', 'AWAITING_APPROVAL', at(0)),
+      entry('PERSON', 'WEB', 'REFUSED', at(0)),      // refused, so nothing changed
+      entry('PERSON', 'WEB', 'PERFORMED', at(20)),   // outside the fourteen days
+    )
+    const days = await actsPerDay(CLIENT, 14, now)
+    expect(days).toHaveLength(14)
+    expect(days[13]).toEqual({ day: '2026-10-12', count: 1 })
+    expect(days[12]).toEqual({ day: '2026-10-11', count: 1 })
+    expect(days.reduce((n, d) => n + d.count, 0)).toBe(2)
   })
 })

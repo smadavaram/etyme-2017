@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasAnyPermission } from '@/lib/permissions'
 import { ledgerFeed } from '@/lib/twin/ledger'
 import { TWIN_FEED_READERS } from '@/lib/twin/readers'
+import { actsPerDay } from '@/lib/twin/acts'
 
 /**
  * GET /api/twin/ledger?companyId=…&take=…
@@ -38,5 +39,9 @@ export async function GET(request: NextRequest) {
   const take = Number(url.searchParams.get('take') ?? 100)
   const feed = await ledgerFeed(companyId, caller, { take: Number.isFinite(take) ? take : 100 })
   if (!feed) return NextResponse.json({ data: { view: null, rows: [] } })
-  return NextResponse.json({ data: feed })
+  // The one number, for the program's own desks: acts per day in Ask
+  // Etyme over the last fourteen days. A supplier reading entries about
+  // its own receipts is not shown the client's count.
+  const acts = companyId && feed.view !== 'PARTY' ? await actsPerDay(companyId, 14) : null
+  return NextResponse.json({ data: { ...feed, actsPerDay: acts } })
 }

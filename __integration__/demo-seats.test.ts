@@ -10,6 +10,7 @@ import {
 } from '@/app/demo/seats'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { getNavForKind } from '@/components/shell/sidebar'
+import { pinnedOn, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { seedWorld } from '@/lib/seed-world'
 
 import { POST as demo } from '@/app/api/demo/route'
@@ -148,7 +149,9 @@ describe('the seat you pick is the seat you get', () => {
     // GSI nav is Deliver → Supply → Operate and holds no /dashboard/program
     // at all, so landing there was a dead end with no way back.
     const { body } = await enter('GSI')
-    const hrefs = getNavForKind('GSI', false).flatMap((s) => s.items.map((i) => i.href))
+    const menu = getNavForKind('GSI', false)
+    // Ask Etyme counts: the menu draws it first, above the sections.
+    const hrefs = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
     expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
   }, 60_000)
 
@@ -227,11 +230,12 @@ describe('every seat on the demo page opens', () => {
     expect(who).toBe('Sunil Raghavan')
   })
 
-  it('lands that desk on a page the integrator’s own navigation offers', async () => {
+  it('lands that desk in Ask Etyme, which the integrator’s own navigation draws first (founder, 2026-10-12)', async () => {
     const { body } = await sit('world-teleworld')
-    const hrefs = getNavForKind('GSI', false).flatMap((s) => s.items.map((i) => i.href))
+    const menu = getNavForKind('GSI', false)
+    const hrefs = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
     expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
-    expect(body.landing).toBe('/dashboard/submissions')
+    expect(body.landing).toBe(ASK_ETYME_HREF)
   })
 
   it('shows that desk Karthik, Amara, Felix and Deepa under “On our payroll”', async () => {
@@ -276,7 +280,9 @@ describe('every seat on the demo page opens', () => {
       expect(res.status, d.who).toBe(200)
       const body = (await res.json()).data
       expect(body.role).toBe('Delivery Manager')
-      expect(body.landing).toBe('/dashboard/bench?scope=payroll')
+      // Ask Etyme is the first screen (founder, 2026-10-12); the firm's own
+      // bench is one click from the greeting.
+      expect(body.landing).toBe(ASK_ETYME_HREF)
       const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
       expect(await whoIsSitting(m![1])).toBe(d.who)
     }
@@ -732,15 +738,15 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     const { body } = await sit('world-aptiva')
     expect(body.kind).toBe('MSP')
     expect(body.seatedAt, 'the world no longer grants this office a desk').toBeTruthy()
-    const hrefs = getNavForKind('MSP', false, { seatedAtClient: body.seatedAt })
-      .flatMap((s) => s.items.map((i) => i.href))
+    const menu = getNavForKind('MSP', false, { seatedAtClient: body.seatedAt })
+    const hrefs = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
     expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
   }, 30_000)
 
-  it('lands a program office holding a client’s compliance desk on that desk’s own work', async () => {
+  it('lands a program office holding a client’s compliance desk in Ask Etyme, whose greeting is that desk’s work', async () => {
     const { body } = await sit('world-kestrel', 'compliance')
     expect(body.seatedAt, 'Talvern no longer grants Kestrel a desk').toBeTruthy()
-    expect(body.landing).toBe('/dashboard/compliance')
+    expect(body.landing).toBe(ASK_ETYME_HREF)
   }, 30_000)
 
   it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {

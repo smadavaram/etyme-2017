@@ -145,14 +145,15 @@ export default function StartPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ step, outcome }),
       }))
-      // The last answer lands on the dashboard, which says its own first-day sentence.
+      // The last answer lands on the desk: Ask Etyme, whose greeting says the first-day sentence.
       const nowPassed = [...passed, step]
       setPassed(nowPassed)
       const left = setup?.finishedAt
         ? (j.data.owed as SetupStep[]).filter((k) => !nowPassed.includes(k))
         : j.data.next ? [j.data.next] : []
       if (left.length === 0) {
-        router.push('/dashboard')
+        // Ask Etyme for any seat whose menu has Conversations (components/desk-home).
+        router.push((desk ?? '/dashboard') as any)
         return
       }
       await load()

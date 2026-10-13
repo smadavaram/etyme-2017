@@ -3,27 +3,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
-import { compact } from '@/lib/money-display'
 import { momentFor, readerZone } from '@/lib/when'
 import { hasPermission } from '@/lib/permissions'
-import { outcomeWord, questionLine, surfaceWord, tierWord } from '@/lib/twin/feed-words'
+import { outcomeWord, surfaceWord, tierWord } from '@/lib/twin/feed-words'
 import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { ListSurface, type Column } from '@/components/list-surface'
-import {
-  PageHead, Panel, Stat, Chip, RefusedState, LoadingState, ErrorState, EmptyState,
-  Field, Textarea, SubmitButton, FormMessage, type ChipTone,
-} from '@/components/ui'
+import { PageHead, Panel, Chip, RefusedState, ErrorState, type ChipTone } from '@/components/ui'
 import { TwinConversationSlot } from './conversation-slot'
 
 /**
  * The program twin, from the program owner's desk.
  *
- * Three things, in the order somebody acts on them: what the program
- * looks like today (the program desk's own numbers), what the twin is
- * waiting on a person for, and what it did — one line per entry, on
- * whose authority and where. Between them, one line to Ask Etyme, the
- * conversation with the record, which is etyme-conversation's.
+ * What the twin did — one line per entry, on whose authority and where —
+ * under one line to Ask Etyme and the one number: acts per day in Ask
+ * Etyme (founder, 2026-10-12, "Ask Etyme is the app"). The program's
+ * numbers and the questions waiting were here until that day; they are
+ * Ask Etyme's greeting now, and the page keeps only what the chat does
+ * not: the ledger with its export, and the two editors.
  *
  * Who reads what is decided at the query (`ledgerFeed`): the owner reads
  * all, the client's other desks the program, a supplier only entries
@@ -51,28 +48,7 @@ interface FeedRow {
   roleContractVersion?: number
 }
 
-interface Question {
-  id: string
-  requestedAt: string
-  action: string
-  entityType: string
-  label: string | null
-  ruleCited: string
-  rationale: string
-  onAuthorityOfRole: string
-  authorityName: string | null
-  mayDecide: boolean
-  whyNot: string | null
-}
 
-interface Picture {
-  onSite: number | null
-  spend: number | null
-  spendBasis: string | null
-  timeLimit: number | null
-  timeLimitSays: string | null
-  pending: number | null
-}
 
 const OUTCOME_TONE: Record<string, ChipTone> = {
   PERFORMED: 'verified',
@@ -103,64 +79,22 @@ function Why({ rule, reason, open, onToggle }: { rule: string; reason: string; o
   )
 }
 
-function QuestionCard({ q, onAnswered }: { q: Question; onAnswered: (says: string) => void }) {
-  const [why, setWhy] = useState(false)
-  const [rejecting, setRejecting] = useState(false)
-  const [reason, setReason] = useState('')
-  const [pending, setPending] = useState<'APPROVED' | 'REJECTED' | null>(null)
-  const [said, setSaid] = useState<string | null>(null)
+interface DayCount { day: string; count: number }
 
-  async function answer(decision: 'APPROVED' | 'REJECTED') {
-    setPending(decision)
-    setSaid(null)
-    try {
-      const res = await fetch(`/api/twin/approvals/${q.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision, reason: decision === 'REJECTED' ? reason : undefined, surface: 'WEB' }),
-      })
-      const body = await readJson(res)
-      onAnswered(body?.data?.note ?? 'Recorded.')
-    } catch (err: any) {
-      setSaid(err?.message ?? 'Your answer could not be recorded.')
-    } finally {
-      setPending(null)
-    }
-  }
-
+/** The one number as a line of figures, oldest day first. */
+function ActsPerDay({ days }: { days: DayCount[] }) {
+  const total = days.reduce((n, d) => n + d.count, 0)
   return (
-    <article className="rounded-panel border border-etyme-rule bg-etyme-raised px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-etyme-ink">{questionLine(q.action, q.entityType, q.label)}</h3>
-          <p className="mt-1 text-[12.5px] text-etyme-muted">
-            Asked under {q.onAuthorityOfRole} authority{q.authorityName ? ` (${q.authorityName})` : ''} · {when(q.requestedAt)}
-          </p>
-        </div>
-        {q.mayDecide && !rejecting && (
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <SubmitButton type="button" pending={pending === 'APPROVED'} pendingLabel="Approving…" onClick={() => answer('APPROVED')}>
-              Approve
-            </SubmitButton>
-            <button type="button" className="btn-secondary" onClick={() => setRejecting(true)}>Reject</button>
-          </div>
-        )}
-      </div>
-      <Why rule={q.ruleCited} reason={q.rationale} open={why} onToggle={() => setWhy(!why)} />
-      {!q.mayDecide && q.whyNot && <p className="mt-2 text-[12.5px] leading-relaxed text-etyme-muted">{q.whyNot}</p>}
-      {rejecting && (
-        <form className="mt-3 space-y-3" onSubmit={(e) => { e.preventDefault(); answer('REJECTED') }}>
-          <Field label="Why not?" help="The twin and whoever reads the ledger see this.">
-            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} required />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <SubmitButton pending={pending === 'REJECTED'} pendingLabel="Saying no…" disabled={!reason.trim()}>Say no</SubmitButton>
-            <button type="button" className="btn-secondary" onClick={() => { setRejecting(false); setReason('') }}>Cancel</button>
-          </div>
-        </form>
-      )}
-      {said && <div className="mt-2"><FormMessage tone="error">{said}</FormMessage></div>}
-    </article>
+    <section aria-label="Acts per day in Ask Etyme" className="mb-6">
+      <p className="eyebrow">Acts per day in Ask Etyme</p>
+      <p className="mt-1 font-mono text-[13px] tabular-nums text-etyme-ink">
+        {days.map((d) => d.count).join(' · ')}
+      </p>
+      <p className="mt-1 text-[12.5px] text-etyme-muted">
+        A person’s yes or no on the web or on Teams, each of the last {days.length} days, oldest first: {total} in all.
+        Nothing the twin did on its own is counted.
+      </p>
+    </section>
   )
 }
 
@@ -174,11 +108,8 @@ export default function TwinPage() {
   const [view, setView] = useState<string | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
-  const [questions, setQuestions] = useState<Question[] | null>(null)
-  const [questionsSay, setQuestionsSay] = useState<string | null>(null)
-  const [picture, setPicture] = useState<Picture | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
-  const [note, setNote] = useState<string | null>(null)
+  const [acts, setActs] = useState<DayCount[] | null>(null)
 
   const loadFeed = useCallback(async () => {
     try {
@@ -191,48 +122,14 @@ export default function TwinPage() {
       const body = await readJson(res)
       setRows(body.data.rows ?? [])
       setView(body.data.view ?? null)
+      setActs(body.data.actsPerDay ?? null)
       setFailed(null)
     } catch (err: any) {
       setFailed(err?.message ?? 'The twin’s ledger could not be read.')
     }
   }, [])
 
-  const loadQuestions = useCallback(async () => {
-    try {
-      const body = await readJson(await fetch('/api/twin/approvals'))
-      setQuestions(body.data.questions ?? [])
-      setQuestionsSay(null)
-    } catch (err: any) {
-      setQuestions([])
-      setQuestionsSay(err?.message ?? 'What the twin is waiting on could not be read.')
-    }
-  }, [])
-
   useEffect(() => { loadFeed() }, [loadFeed])
-  useEffect(() => { if (!refused) loadQuestions() }, [loadQuestions, refused])
-
-  // The program desk's own numbers, read from the routes the desk reads.
-  // Each is its own read: one that fails is a dash with its reason, never
-  // a zero.
-  useEffect(() => {
-    if (!isClient || refused) return
-    const p: Picture = { onSite: null, spend: null, spendBasis: null, timeLimit: null, timeLimitSays: null, pending: null }
-    Promise.allSettled([
-      fetch('/api/program').then(readJson).then((b) => {
-        const s = b?.data?.summary
-        if (!s) return
-        p.onSite = s.activeContractors ?? null
-        p.spend = s.monthlySpend ?? null
-        p.spendBasis = s.monthlySpendBasis ?? 'from current rates'
-        p.pending = s.pendingApprovals ?? null
-      }),
-      fetch('/api/tenure').then(readJson).then((b) => {
-        const s = b?.data?.summary
-        if (!s) return
-        p.timeLimit = (s.warning ?? 0) + (s.breakRequired ?? 0)
-      }).catch((err: any) => { p.timeLimitSays = err?.message ?? 'Tenure could not be read.' }),
-    ]).then(() => setPicture({ ...p }))
-  }, [isClient, refused])
 
   if (refused) return <RefusedState says={refused} />
 
@@ -297,37 +194,9 @@ export default function TwinPage() {
         ) : undefined}
       />
 
-      {isClient && (
-        <section aria-label="The program today" className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="On site" value={picture?.onSite ?? null} sub={picture ? 'contractors at work today' : 'Reading…'} href="/dashboard/program" />
-          <Stat label="This month" value={picture?.spend != null ? compact(picture.spend) : null} sub={picture?.spendBasis ?? (picture ? 'The program could not be read.' : 'Reading…')} href="/dashboard/program/budget" />
-          <Stat label="Time-limit risks" value={picture?.timeLimit ?? null} tone={picture?.timeLimit ? 'attention' : 'default'}
-            sub={picture?.timeLimitSays ?? (picture ? 'near or at the limit, across every supplier' : 'Reading…')} href="/dashboard/tenure" />
-          <Stat label="Hours and expenses waiting" value={picture?.pending ?? null} tone={picture?.pending ? 'attention' : 'default'}
-            sub={picture ? 'for approval on the program desk' : 'Reading…'} href="/dashboard/program" />
-        </section>
-      )}
+      {isClient && <div className="mb-4"><TwinConversationSlot /></div>}
 
-      {view !== 'PARTY' && (
-        <Panel title="Waiting for you" subtitle="What the twin will not do without a person. Approve, say no with a reason, or ask why." className="mb-6">
-          {note && <div className="mb-3"><FormMessage tone="ok">{note}</FormMessage></div>}
-          {questions === null
-            ? <LoadingState says="Opening what the twin is waiting on…" compact />
-            : questionsSay
-              ? <ErrorState says={questionsSay} action={{ label: 'Try again', onClick: loadQuestions }} />
-              : questions.length === 0
-                ? <EmptyState says="The twin is not waiting on anybody." detail="When it needs a yes, the question appears here and on Teams." compact />
-                : (
-                  <div className="space-y-3">
-                    {questions.map((q) => (
-                      <QuestionCard key={q.id} q={q} onAnswered={(says) => { setNote(says); loadQuestions(); loadFeed() }} />
-                    ))}
-                  </div>
-                )}
-        </Panel>
-      )}
-
-      {isClient && <div className="mb-6"><TwinConversationSlot /></div>}
+      {acts && acts.length > 0 && <ActsPerDay days={acts} />}
 
       <Panel title="What the twin did" subtitle="Every act, on whose authority and where. The export is the ledger as you are allowed to read it.">
         {failed

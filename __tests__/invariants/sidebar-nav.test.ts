@@ -734,7 +734,9 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     // submission with its rate, the counterparties, the contacts — are
     // not his reading, on the menu or by URL.
     expect(engineer.map((s) => s.label)).toEqual(['Today', 'You'])
-    expect(engineer[0].items.map((i) => i.label)).toEqual(['Needs attention', 'Conversations', 'Notifications'])
+    // Needs attention went on 2026-10-12: Ask Etyme's greeting, drawn above Today, is that list.
+    expect(engineer[0].items.map((i) => i.label)).toEqual(['Conversations', 'Notifications'])
+    expect(pinnedOn(engineer).map((i) => i.label)).toEqual(['Ask Etyme'])
   })
 
   it('a worker who holds a desk at the firm keeps every section of the firm’s menu and gains "You"', () => {
@@ -1408,5 +1410,13 @@ describe('Ask Etyme sits above the sections, wherever Conversations is', () => {
     const sidebar = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
     expect(sidebar).toContain('icon === ETYME_MARK_ICON')
     expect(sidebar).toContain('<EtymeMark')
+  })
+
+  it('has no Needs attention link any more, because the greeting it sits under is that list', () => {
+    for (const kind of kinds) {
+      const menu = getNavForKind(kind, false)
+      expect(itemsOf(menu).map((i) => i.label), kind).not.toContain('Needs attention')
+      expect(pinnedOn(menu).map((i) => i.label), kind).toEqual(['Ask Etyme'])
+    }
   })
 })

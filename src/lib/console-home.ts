@@ -45,7 +45,7 @@ export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work'
  * `__tests__/invariants/console-home.test.ts` holds it to the first link
  * of the solo menu in lib/nav-table, so the two cannot drift apart.
  */
-export const SOLO_TODAY = '/dashboard/decisions' as const
+export const SOLO_TODAY = '/dashboard/conversations/etyme' as const
 
 export interface Reader {
   /** What the firm is on the register. Null for somebody with no firm. */

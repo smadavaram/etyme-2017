@@ -9,7 +9,7 @@ import {
 } from '@/lib/setup-steps'
 import { rolesFor, countryFromDomain, packFor, MEMBER_ROLE, payRhythmForPack } from '@/lib/company-defaults'
 import { deskHome } from '@/components/desk-home'
-import { getNavForKind } from '@/lib/nav-table'
+import { getNavForKind, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { readsOnlyOwnWork } from '@/lib/console-home'
 
 /**
@@ -143,22 +143,26 @@ describe('setup asks five things, then stops', () => {
     }
   })
 
-  it('a colleague with a role lands on their own desk', () => {
+  it('a colleague with a role lands in Ask Etyme, whose greeting is their own desk', () => {
+    // Founder, 2026-10-12, "Ask Etyme is the app": the chat is the first
+    // screen for every seat whose menu has Conversations. The desk's own
+    // page (below) is one click from the greeting, and still the answer
+    // for a seat with no Conversations.
     const at = (kind: (typeof KINDS)[number], role: string) => {
       const seed = rolesFor(kind).find((r) => r.name === role)!
       return deskHome({ kind, isConsultant: false, role, permissions: seed.permissions })
     }
-    expect(at('VENDOR', 'Recruiter')).toBe('/dashboard/requirements')
-    expect(at('VENDOR', 'AP & Payroll')).toBe('/dashboard/payroll')
-    expect(at('VENDOR', 'Accounts Receivable')).toBe('/dashboard/ar')
-    expect(at('CLIENT', 'AP Clerk')).toBe('/dashboard/ap')
-    expect(at('CLIENT', 'Procurement Lead')).toBe('/dashboard/suppliers')
+    expect(at('VENDOR', 'Recruiter')).toBe(ASK_ETYME_HREF)
+    expect(at('VENDOR', 'AP & Payroll')).toBe(ASK_ETYME_HREF)
+    expect(at('CLIENT', 'AP Clerk')).toBe(ASK_ETYME_HREF)
+    expect(deskPageFor('Recruiter', ['/dashboard/requirements'], '/dashboard')).toBe('/dashboard/requirements')
+    expect(deskPageFor('AP Clerk', ['/dashboard/ap'], '/dashboard')).toBe('/dashboard/ap')
     // Never a page the seat's own menu does not offer, for any role at any kind.
     for (const kind of KINDS) {
       for (const role of rolesFor(kind)) {
         const href = deskHome({ kind, isConsultant: false, role: role.name, permissions: role.permissions })
         const menu = getNavForKind(kind, false, { permissions: role.permissions }).flatMap((s) => s.items).map((i) => i.href)
-        const consoles = ['/dashboard', '/dashboard/program', '/dashboard/my-work']
+        const consoles = ['/dashboard', '/dashboard/program', '/dashboard/my-work', ASK_ETYME_HREF]
         expect(menu.includes(href) || consoles.includes(href), `${kind} ${role.name} → ${href}`).toBe(true)
       }
     }

@@ -14,7 +14,7 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
-import { readsOnlyOwnWork, OWN_WORK_READS } from '@/lib/console-home'
+import { readsOnlyOwnWork, OWN_WORK_READS, consoleHome, type Reader } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
@@ -342,10 +342,38 @@ export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
   return hasConversations ? [ASK_ETYME] : []
 }
 
-/** The queue every firm opens on. Four items, so it needs no headings. */
+/**
+ * Where a seat lands after signing in and through the demo door (founder,
+ * 2026-10-12, "Ask Etyme is the app"): in Ask Etyme, wherever the seat's
+ * own menu has Conversations, because the greeting there is its desk.
+ * Anybody else — a consultant, whose menu has no Conversations — lands
+ * where lib/console-home says. One answer, read by the sign-in landing
+ * (components/desk-home) and the demo door (app/api/demo).
+ *
+ * The console is unchanged: `/dashboard` and the sidebar's Dashboard link
+ * still open the firm's console, so a person who wants the tables is one
+ * click from them.
+ */
+export function landingFor(reader: Reader & { seatedAtClient?: string | null }): string {
+  const menu = getNavForKind(reader.kind ?? null, Boolean(reader.isConsultant), {
+    worker: reader.worker,
+    permissions: reader.permissions ?? undefined,
+    seatedAtClient: reader.seatedAtClient ?? (reader.seated ? 'a client' : null),
+  })
+  return pinnedOn(menu).length > 0 ? ASK_ETYME_HREF : consoleHome(reader).href
+}
+
+/**
+ * The queue every firm opens on. Three items, so it needs no headings.
+ *
+ * "Needs attention" went on 2026-10-12: the greeting in Ask Etyme is that
+ * list now, drawn above this section on every menu that has Conversations
+ * (founder: "Needs attention and the greeting are one list; one of them
+ * goes"). Its page, /dashboard/decisions, still answers the + button's
+ * "Review approvals" and anybody who has it bookmarked.
+ */
 const TODAY: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '◉' },
-  { label: 'Needs attention', href: '/dashboard/decisions', icon: '⬡' },
   { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
   { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
 ]

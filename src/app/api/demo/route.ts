@@ -12,6 +12,7 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/l
 import { countDemoStarted } from '@/lib/events'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
 import { consoleHome } from '@/lib/console-home'
+import { landingFor, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { seatsHeldBy } from '@/lib/program-seat'
 
 /**
@@ -343,7 +344,7 @@ export async function POST(request: NextRequest) {
             ...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {}),
             ...(who ? { person: { name: who } } : {}),
           },
-          select: { person: { select: { primaryEmail: true } }, role: { select: { name: true } } },
+          select: { person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } } },
           orderBy: { grantedAt: 'asc' },
           take: 1,
         },
@@ -478,8 +479,18 @@ export async function POST(request: NextRequest) {
         // does not contain it, so landing one there was the same dead
         // end the integrator had: a page with no way back into its own
         // work.
+        // Founder, 2026-10-12 ("Ask Etyme is the app"): a seat whose menu
+        // has Conversations lands in Ask Etyme, whose greeting is its desk.
+        // Decided once, in lib/nav-table (landingFor), with the sign-in
+        // landing. The desk pages below stay the answer for a seat with no
+        // Conversations, and are one click away from the greeting.
         landing:
-          desk ? deskLanding(desk, company.kind)
+          landingFor({
+            kind: company.kind as any,
+            permissions: company.contexts[0]?.role?.permissions ?? null,
+            seatedAtClient: seatedAt ?? null,
+          }) === ASK_ETYME_HREF ? ASK_ETYME_HREF
+          : desk ? deskLanding(desk, company.kind)
           // An integrator lands on Submissions rather than on its own
           // Today: putting somebody off its own payroll in front of a
           // client is the one thing that seat exists to demonstrate,
@@ -598,14 +609,11 @@ export async function POST(request: NextRequest) {
       companyName: seeded.companyName,
       counts: seeded.counts,
       side,
-      // Same rule as the world seats above: an integrator's own sandbox
-      // lands where an integrator works, not on the client's overview
-      // its navigation does not offer.
+      // A firm's sandbox seats its owner, whose menu has Conversations, so it
+      // lands in Ask Etyme (lib/nav-table, landingFor); a candidate on their
+      // own work, as before.
       landing:
-        side === 'BENCH' || side === 'MSP' ? '/dashboard'
-        : side === 'CANDIDATE' ? '/dashboard/my-work'
-        : side === 'GSI' ? '/dashboard/submissions'
-        : '/dashboard/program',
+        side === 'CANDIDATE' ? '/dashboard/my-work' : ASK_ETYME_HREF,
       expiresInDays: DEMO_DAYS,
       resumed: false,
     },

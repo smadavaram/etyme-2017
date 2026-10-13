@@ -2517,6 +2517,8 @@ export const MATRIX: L1[] = [
             'DONE: The nightly run asks for conversation\u2019s Teams digest after it reads each program, and neither fails nor stops when that module is absent \u2014 src/lib/twin/run.ts; the table that keeps where Teams may reach a person \u2014 TeamsConversation in prisma/schema.prisma',
             'DONE: Teams door \u2014 POST /api/teams/messages checks the Bot Framework token and binds the account to a live seat; approval, time-limit and digest cards; card actions go through decideApproval with surface TEAMS; nightly digest tellProgramOwnerOnTeams, reported by how each person was reached (bot, fallback, nobody) \u2014 src/lib/teams/*, src/app/api/teams/messages/route.ts; the Teams bot row on /ready \u2014 src/lib/readiness.ts',
             'DONE: Ask Etyme, a conversation pinned first in Conversations at /dashboard/conversations/etyme and first in the sidebar: greeting from the rules, the four questions and variance by supplier answered by rules with tables and links, approval cards through the one approval route, the model only for free text when its key is set',
+            'DONE: Ask Etyme is the first screen: a seat whose menu has Conversations lands there after sign-in and through the demo door, decided once (landingFor in src/lib/nav-table.ts, read by src/components/desk-home.ts and src/app/api/demo/route.ts); Needs attention left the menu, the greeting being that list',
+            'DONE: The one number, acts per day in Ask Etyme \u2014 a person\u2019s yes or no on the web or Teams, read off the ledger, the last fourteen days \u2014 above the twin\u2019s ledger, which keeps its feed, table and export and the two editors; the stats and the questions waiting moved to the greeting \u2014 src/lib/twin/acts.ts, src/app/dashboard/twin/page.tsx',
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
           ],
           implementedBy: [
@@ -2529,6 +2531,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/twin/page.tsx', 'src/app/dashboard/twin/conversation-slot.tsx',
             'src/app/dashboard/twin/contract/page.tsx', 'src/app/dashboard/twin/rules/page.tsx',
             'src/lib/nav-table.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts',
+            'src/lib/twin/acts.ts', 'src/components/desk-home.ts', 'src/app/api/demo/route.ts', 'src/lib/console-home.ts',
             'src/lib/teams/actions.ts', 'src/lib/teams/auth.ts', 'src/lib/teams/binding.ts', 'src/lib/teams/bot.ts', 'src/lib/teams/cards.ts', 'src/lib/teams/config.ts', 'src/lib/teams/connector.ts', 'src/lib/teams/digest.ts', 'src/lib/teams/facts.ts', 'src/lib/teams/readiness.ts', 'src/lib/teams/store.ts',
             'src/app/api/teams/messages/route.ts',
             'src/components/twin-conversation.tsx', 'src/app/api/conversations/twin/route.ts',

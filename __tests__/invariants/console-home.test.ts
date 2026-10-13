@@ -18,6 +18,7 @@
 import { describe, it, expect } from 'vitest'
 import { consoleHome, readsOnlyOwnWork } from '@/lib/console-home'
 import { getNavForKind } from '@/components/shell/sidebar'
+import { pinnedOn } from '@/lib/nav-table'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -52,13 +53,14 @@ describe('a seat opens on its own book and nobody else’s', () => {
     expect(consoleHome({ kind: null }).href).toBe('/dashboard/my-work')
   })
 
-  it('a one-person corporation opens on the first page of her own Today, which her menu names from day one', () => {
-    expect(consoleHome({ kind: 'CONSULTANT_CORP' }).href).toBe('/dashboard/decisions')
+  it('a one-person corporation opens in Ask Etyme, which her menu draws first, above her own Today, from day one', () => {
+    expect(consoleHome({ kind: 'CONSULTANT_CORP' }).href).toBe('/dashboard/conversations/etyme')
     // A new firm of one has no placement yet, so nothing makes her a worker,
     // and she still lands on a page her own menu names (round two, item 38).
+    // What needs her is Ask Etyme's greeting since 2026-10-12.
     const fresh = getNavForKind('CONSULTANT_CORP', false)
     expect(fresh[0].label).toBe('Today')
-    expect(fresh[0].items[0].href).toBe(consoleHome({ kind: 'CONSULTANT_CORP' }).href)
+    expect(pinnedOn(fresh)[0].href).toBe(consoleHome({ kind: 'CONSULTANT_CORP' }).href)
     // Her own section is there before any placement says she is a worker.
     expect(fresh.map((s) => s.label)).toContain('You')
   })
@@ -73,9 +75,11 @@ describe('a seat opens on its own book and nobody else’s', () => {
 describe('the page a seat lands on is a page its own menu names', () => {
   // A door that drops somebody on a page with no way back is how the
   // integrator seat was lost for a week.
-  const reachable = (kind: any, isConsultant: boolean) =>
-    getNavForKind(kind, isConsultant, { worker: true })
-      .flatMap((s) => s.items.map((i) => i.href.split('?')[0]))
+  // Ask Etyme counts: the menu draws it above the sections (pinnedOn).
+  const reachable = (kind: any, isConsultant: boolean) => {
+    const menu = getNavForKind(kind, isConsultant, { worker: true })
+    return [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href.split('?')[0])
+  }
 
   it('a consultant can get back to the work they were landed on', () => {
     expect(reachable(null, true)).toContain(consoleHome({ kind: null }).href)
