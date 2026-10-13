@@ -935,6 +935,19 @@ The first deletion of the part count. So:
   both gone. The sidebar's pinned Ask Etyme entry keeps its number.
 - **A prototype draws the real mark from the logo component**, never
   a redrawn one; the founder caught a misdrawn mark twice.
+- **No words in the phone header. Decided by the founder the same
+  night** (*"This is still clutter"*, on a drawing that kept the company
+  name, the role, the pills and the demo line). On Ask Etyme the header
+  is the logo and the flip, nothing else, and no pill row. On every
+  other page it is the logo, the flip with the number and the menu.
+  The company, the role, the demo chip, search, plus and the initials
+  leave the header: the menu says who you are, the screen says where
+  you are, search and add live inside each list, the demo says so once
+  in the greeting and at the top of the drawer. Built without waiting
+  for "build it", on the founder's "what would Elon Musk do": a drawing
+  he has corrected twice is approved. **Next deletion, after Etyme's
+  first day on Etyme:** the phone menu shrinks to the nine links of the
+  part-count plan; the chat is the navigation.
 
 **Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
 the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
