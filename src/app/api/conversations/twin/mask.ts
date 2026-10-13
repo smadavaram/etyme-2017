@@ -21,6 +21,14 @@ export type TokenKind = 'PERSON' | 'FIRM' | 'RATE' | 'AMOUNT'
 export interface MaskVocabulary {
   people: readonly string[]
   firms: readonly string[]
+  /**
+   * Firms the reader may not see by name — a sub-vendor below the rung a
+   * client pays (lib/chain-names). Masked like any firm on the way out,
+   * and put back as `shownAs` ("supplied through Pinnacle Resourcing"),
+   * never as the name, so an answer can never print what the reader may
+   * not read.
+   */
+  withheld?: ReadonlyArray<{ name: string; shownAs: string }>
 }
 
 export interface Masker {
@@ -60,12 +68,19 @@ export function newMasker(vocab: MaskVocabulary): Masker {
   const tokenToReal = new Map<string, string>()
   let next = 1
 
+  /** What a token is put back as, where that is not the real value: a withheld firm's phrase. */
+  const shownAs = new Map<string, string>()
+  for (const w of vocab.withheld ?? []) shownAs.set(w.name.trim().replace(/\s+/g, ' ').toLowerCase(), w.shownAs)
+  const backAs = new Map<string, string>()
+
   const tokenFor = (kind: TokenKind, real: string, key = real.toLowerCase()): string => {
     const had = realToToken.get(`${kind}:${key}`)
     if (had) return had
     const token = `${kind}_${next++}`
     realToToken.set(`${kind}:${key}`, token)
     tokenToReal.set(token, real)
+    const phrase = shownAs.get(key)
+    if (phrase) backAs.set(token, phrase)
     return token
   }
 
@@ -87,6 +102,7 @@ export function newMasker(vocab: MaskVocabulary): Masker {
   }
   for (const p of vocab.people) add('PERSON', p)
   for (const f of vocab.firms) add('FIRM', f)
+  for (const w of vocab.withheld ?? []) add('FIRM', w.name)
   // Whole names before parts, and longer before shorter.
   names.sort((a, b) => b.pattern.source.length - a.pattern.source.length)
 
@@ -107,7 +123,7 @@ export function newMasker(vocab: MaskVocabulary): Masker {
       return out
     },
     unmask(text: string): string {
-      return text.replace(/\b(?:PERSON|FIRM|RATE|AMOUNT)_\d+\b/g, (t) => tokenToReal.get(t) ?? t)
+      return text.replace(/\b(?:PERSON|FIRM|RATE|AMOUNT)_\d+\b/g, (t) => backAs.get(t) ?? tokenToReal.get(t) ?? t)
     },
     realValues(): string[] {
       return [...new Set([...tokenToReal.values(), ...parts.values()])]

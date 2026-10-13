@@ -24,6 +24,7 @@ import type { MaskVocabulary } from './mask'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
+import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysWaiting } from '@/lib/auto-approval'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
@@ -505,29 +506,53 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       const company = caller.company
       if (!company) return { people: [], firms: [] }
       const wall = await accountFilterFor(caller)
-      const [lines, seats, payables] = await Promise.all([
+      const named = { person: { select: { name: true } }, company: { select: { name: true } }, clientCompany: { select: { name: true } } }
+      const [own, atSites, seats, payables, terms] = await Promise.all([
+        // The lines this company is a party to: it sells them or buys them,
+        // so every firm on them is one it trades with by name.
         prisma.sellContract.findMany({
-          where: andAll({ OR: [endClientFilter(company.id), { companyId: company.id }, { clientCompanyId: company.id }] }, wall.where),
+          where: andAll({ OR: [{ companyId: company.id }, { clientCompanyId: company.id }] }, wall.where),
           take: 1000,
-          select: {
-            person: { select: { name: true } },
-            company: { select: { name: true } },
-            clientCompany: { select: { name: true } },
-            endClientCompany: { select: { name: true } },
-          },
+          select: { ...named, endClientCompany: { select: { name: true } } },
         }),
+        // Every rung at this client's sites, for a client: the people on them,
+        // and the firms named as the client may read them (lib/chain-names).
+        company.kind === 'CLIENT'
+          ? prisma.sellContract.findMany({
+            where: andAll(endClientFilter(company.id), wall.where),
+            take: 1000,
+            select: { id: true, personId: true, companyId: true, clientCompanyId: true, ...named },
+          })
+          : Promise.resolve([]),
         prisma.context.findMany({ where: { companyId: company.id, revokedAt: null }, take: 1000, select: { person: { select: { name: true } } } }),
         hasPermission(caller.permissions, 'invoices.read') ? payablesOf(company.id) : Promise.resolve([] as Payable[]),
+        company.kind === 'CLIENT'
+          ? prisma.masterAgreement.findMany({ where: { clientId: company.id }, select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true } })
+          : Promise.resolve([]),
       ])
       const people = new Set<string>()
       const firms = new Set<string>([company.name])
-      for (const l of lines) {
+      for (const l of own) {
         people.add(l.person.name)
         for (const f of [l.company, l.clientCompany, l.endClientCompany]) if (f?.name) firms.add(f.name)
       }
+      // A firm below the rung the client pays is masked like any other on
+      // the way out, and comes back only as the client may read it.
+      const withheld: { name: string; shownAs: string }[] = []
+      const seen = namesForClient(
+        atSites.map((r) => ({ id: r.id, personId: r.personId, companyId: r.companyId, companyName: r.company.name, clientCompanyId: r.clientCompanyId })),
+        company.id,
+        (prime: string) => mayNameSubVendors(terms, company.id, prime),
+      )
+      for (const r of atSites) {
+        people.add(r.person.name)
+        const s = seen.get(r.companyId)
+        if (s && !s.masked) firms.add(s.name)
+        else withheld.push({ name: r.company.name, shownAs: s?.name ?? 'a supplier you do not see by name' })
+      }
       for (const c of seats) people.add(c.person.name)
       for (const p of payables) if (p.supplier) firms.add(p.supplier)
-      return { people: [...people], firms: [...firms] }
+      return { people: [...people], firms: [...firms].filter((f) => !withheld.some((w) => w.name === f)), withheld }
     },
 
     async model(system, question, context) {

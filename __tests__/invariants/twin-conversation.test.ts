@@ -499,6 +499,13 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     await respond('Which of my receipts did Northbend flag?', read, { env: KEY, companyKind: 'VENDOR' })
     const sent = (read.model.mock.calls[0] as [string, string, string]).slice(1).join('\n')
     for (const name of ['Tobias Lindqvist', 'Computer Systems', 'Pinnacle', 'Northbend']) expect(sent).not.toContain(name)
+    // A client's own answer never prints a firm below the rung it pays: a
+    // sub-vendor is masked on the way out and comes back only as the client may read it.
+    const forClient = newMasker({ people: [], firms: ['Pinnacle Resourcing'], withheld: [{ name: 'Sahasra Systems', shownAs: 'supplied through Pinnacle Resourcing' }] })
+    const out = forClient.mask('Sahasra Systems employs the person Pinnacle Resourcing bills for.')
+    expect(out).not.toContain('Sahasra')
+    expect(forClient.unmask(out)).toBe('supplied through Pinnacle Resourcing employs the person Pinnacle Resourcing bills for.')
+    expect(forClient.realValues()).toContain('Sahasra Systems')
     expect(await respond('Show me invoice variance by supplier this quarter', read, { env: KEY, companyKind: 'VENDOR' })).toEqual({
       kind: 'TEXT', says: 'Invoice variance is read at the paying company; choose its seat first.', links: undefined,
     })
