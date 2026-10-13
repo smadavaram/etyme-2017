@@ -17,10 +17,11 @@
  * so every phone screenshot arrived with its left edge cut off. Nothing
  * else on the page was wrong; the header pushed it.
  *
- * Below md the bar is now: ☰ · mark · company / role … search · Ask
- * Etyme · + · avatar, all icons, in about 260px. The Ask Etyme mark
- * stands where the bell was (founder, 2026-10-13) and its number hangs
- * off its corner, so the number adds no width. The search opens into its
+ * Below md the bar is now: ☰ · mark · company / role … search · + ·
+ * avatar, all icons, in about 220px. The mark is the Ask Etyme door and
+ * wears the number (founder, 2026-10-13, "The logo is the door"); the
+ * second mark that stood where the bell was is gone, and the number
+ * hangs off the logo's corner, so it adds no width. The search opens into its
  * own row under the bar rather than living in it. The ☰ opens the same
  * sidebar the desktop shows (components/shell/mobile-nav), and the
  * company and role sit next to the mark the way the prototype's header
@@ -32,7 +33,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import { AskEtymeMarkLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { AskEtymeLogoLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
@@ -569,6 +570,27 @@ export function Header({ title }: HeaderProps) {
     </div>
   )
 
+  // Company and role, beside the mark on a phone. Words, never their
+  // own link: the mark is the one door in this block.
+  const whose = (
+    <span className="min-w-0">
+      {/* The chip first and never shrinking, the name truncating
+          after it, so at 390 wide a long name loses letters and
+          the chip loses none. */}
+      <span className="flex items-center gap-1.5 min-w-0 leading-tight">
+        {demoChip}
+        <span className="block text-[13px] font-medium text-etyme-ink truncate leading-tight">
+          {company?.name ?? person?.name ?? 'etyme'}
+        </span>
+      </span>
+      {(roleName || contextType === 'CONSULTANT') && (
+        <span className="block text-[10.5px] text-etyme-faint truncate leading-tight">
+          {contextType === 'CONSULTANT' ? 'Consultant' : roleName}
+        </span>
+      )}
+    </span>
+  )
+
   return (
     <header className="sticky top-0 z-30 bg-etyme-canvas/90 backdrop-blur-md border-b border-etyme-rule">
       {/* relative: the phone dropdowns hang from this row. */}
@@ -583,25 +605,21 @@ export function Header({ title }: HeaderProps) {
             company, and "Northbend Athletic" beside "etyme" would be two
             names in 390px. The wordmark on a phone is at the top of the
             menu sheet, which is the rail itself (sidebar.tsx). */}
-        <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
-          <EtymeMark size={26} />
-          <span className="min-w-0">
-            {/* The chip first and never shrinking, the name truncating
-                after it, so at 390 wide a long name loses letters and
-                the chip loses none. */}
-            <span className="flex items-center gap-1.5 min-w-0 leading-tight">
-              {demoChip}
-              <span className="block text-[13px] font-medium text-etyme-ink truncate leading-tight">
-                {company?.name ?? person?.name ?? 'etyme'}
-              </span>
-            </span>
-            {(roleName || contextType === 'CONSULTANT') && (
-              <span className="block text-[10.5px] text-etyme-faint truncate leading-tight">
-                {contextType === 'CONSULTANT' ? 'Consultant' : roleName}
-              </span>
-            )}
-          </span>
-        </Link>
+        {asks ? (
+          // The logo is the door (founder, 2026-10-13): for a seat whose
+          // menu pins Ask Etyme, the mark opens it and wears the number,
+          // and the company and role beside it are words, not a second
+          // link. Every other seat's mark goes home, as it always did.
+          <div className="md:hidden flex items-center gap-2.5 min-w-0">
+            <AskEtymeLogoLink n={owed} current={onAskEtyme} />
+            {whose}
+          </div>
+        ) : (
+          <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
+            <EtymeMark size={26} />
+            {whose}
+          </Link>
+        )}
 
         {/* Whose desk this is, from lg up: the company, and the seat the
             reader holds there — the prototype's header, beside the rail
@@ -691,9 +709,10 @@ export function Header({ title }: HeaderProps) {
           {searchIcon}
         </button>
 
-        {/* Ask Etyme, where the bell was, with what this seat owes. On
-            Ask Etyme itself, the one link back to the desk's tables. */}
-        {asks && (onAskEtyme ? (
+        {/* On Ask Etyme itself, the one link back to the desk's tables,
+            where the second mark used to stand. The mark is gone from
+            here: the logo is the door and carries the number. */}
+        {asks && onAskEtyme && (
           <Link
             href={home as any}
             className="shrink-0 h-9 sm:h-8 px-2.5 rounded-nav flex items-center text-[13px] font-medium
@@ -702,9 +721,7 @@ export function Header({ title }: HeaderProps) {
             <span className="hidden sm:inline">Switch to dashboard</span>
             <span className="sm:hidden">Dashboard</span>
           </Link>
-        ) : (
-          <AskEtymeMarkLink n={owed} />
-        ))}
+        )}
 
         {/* Plus button — the add menu (UX Stress Test #2). Absent for a
             seat with nothing of its own to create, which is a consultant:

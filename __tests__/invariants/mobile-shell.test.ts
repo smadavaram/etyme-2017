@@ -177,19 +177,33 @@ describe('the sidebar props are read off the session the same way for both surfa
   })
 })
 
-describe('the Ask Etyme mark and its number fit a phone', () => {
-  it('the mark is one icon-sized button, the size of the search and account buttons beside it', () => {
-    expect(MARK).toContain('relative w-9 h-9 sm:w-8 sm:h-8 shrink-0')
+describe('the logo is the Ask Etyme door and carries the number on a phone', () => {
+  it('the header draws one Etyme mark on a phone: the logo, which opens Ask Etyme for a seat whose menu pins it', () => {
+    expect(HEADER).toMatch(/\{asks \? \(\s*\/\/[\s\S]*?<div className="md:hidden flex items-center gap-2\.5 min-w-0">\s*<AskEtymeLogoLink n=\{owed\} current=\{onAskEtyme\} \/>/)
+    expect(MARK).toMatch(/export function AskEtymeLogoLink[\s\S]*href=\{ASK_ETYME_HREF as any\}/)
+    expect(HEADER).not.toContain('AskEtymeMarkLink')
+    expect(MARK).not.toContain('AskEtymeMarkLink')
+    // EtymeMark appears once in the header, in the branch for a seat with no Ask Etyme.
+    expect(HEADER.match(/<EtymeMark\b/g)?.length).toBe(1)
   })
 
-  it('the number hangs off the mark’s corner, so it adds no width to the header', () => {
-    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1 -right-1" />')
+  it('a seat with no Ask Etyme keeps a logo that goes where it always went, its own home', () => {
+    expect(HEADER).toMatch(/\) : \(\s*<Link href=\{home as any\} className="md:hidden flex items-center gap-2\.5 min-w-0">\s*<EtymeMark size=\{26\} \/>/)
+  })
+
+  it('the number hangs off the logo’s corner, so it adds no width to the header at 375', () => {
+    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1.5 -right-2" />')
+    expect(MARK).toMatch(/AskEtymeLogoLink[\s\S]*className="relative shrink-0/)
     expect(MARK).not.toMatch(/(?<![\w:-])w-(\d{2,})\b/)
   })
 
-  it('on a phone "Switch to dashboard" reads "Dashboard" and takes the mark’s place rather than sitting beside it', () => {
+  it('a screen reader hears Ask Etyme and the number on the logo', () => {
+    expect(MARK).toMatch(/AskEtymeLogoLink[\s\S]*const label = owedLabel\(n\)[\s\S]*aria-label=\{label\}/)
+  })
+
+  it('on a phone "Switch to dashboard" reads "Dashboard" and stands where the second mark used to', () => {
     expect(HEADER).toContain('<span className="hidden sm:inline">Switch to dashboard</span>')
     expect(HEADER).toContain('<span className="sm:hidden">Dashboard</span>')
-    expect(HEADER).toMatch(/onAskEtyme \? \([\s\S]*?\) : \(\s*<AskEtymeMarkLink/)
+    expect(HEADER).toMatch(/\{asks && onAskEtyme && \(\s*<Link\s+href=\{home as any\}/)
   })
 })

@@ -78,19 +78,26 @@ export function OwedBadge({ n, className = '' }: { n: number | null; className?:
   )
 }
 
-/** The header's mark: one icon-sized link to Ask Etyme, the number on its corner. */
-export function AskEtymeMarkLink({ n }: { n: number | null }) {
+/**
+ * The header's logo, which is the Ask Etyme door (founder, 2026-10-13,
+ * "The logo is the door"). A phone header used to carry two Etyme marks —
+ * the logo beside the menu button and the Ask Etyme mark on the right —
+ * so they are one: the logo opens Ask Etyme and wears the number. The
+ * number hangs off the logo's corner, so it adds no width at 375; the
+ * label says Ask Etyme and the number, so a screen reader hears both.
+ */
+export function AskEtymeLogoLink({ n, current = false }: { n: number | null; current?: boolean }) {
   const label = owedLabel(n)
   return (
     <Link
       href={ASK_ETYME_HREF as any}
       aria-label={label}
+      aria-current={current ? 'page' : undefined}
       title={label}
-      className="relative w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
-                 transition-colors hover:bg-etyme-sunk"
+      className="relative shrink-0 rounded-nav flex items-center justify-center"
     >
-      <EtymeMark size={18} />
-      <OwedBadge n={n} className="absolute -top-1 -right-1" />
+      <EtymeMark size={26} />
+      <OwedBadge n={n} className="absolute -top-1.5 -right-2" />
     </Link>
   )
 }

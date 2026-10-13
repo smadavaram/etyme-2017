@@ -1485,15 +1485,16 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(mark.match(/fetch\(/g)?.length).toBe(1)
   })
 
-  it('the bell is gone from the header and the Ask Etyme mark with its number stands where it was', () => {
+  it('the bell is gone from the header and the logo is the Ask Etyme door, carrying the number', () => {
     const header = shell('header.tsx')
     expect(header).not.toContain('NotificationBell')
     expect(existsSync(join(process.cwd(), 'src/components/notification-bell.tsx'))).toBe(false)
-    expect(header).toContain('<AskEtymeMarkLink n={owed} />')
+    expect(header).toContain('<AskEtymeLogoLink n={owed} current={onAskEtyme} />')
+    expect(header).not.toContain('AskEtymeMarkLink')
     expect(shell('ask-etyme-mark.tsx')).toContain('href={ASK_ETYME_HREF as any}')
   })
 
-  it('the header offers the mark only to a seat whose menu pins Ask Etyme, and reads the number only for it', () => {
+  it('the header makes the logo the door only for a seat whose menu pins Ask Etyme, and reads the number only for it', () => {
     const header = shell('header.tsx')
     expect(header).toMatch(/const asks = pinnedOn\(getNavForKind\(/)
     expect(header).toContain('const owed = useOwedCount(asks)')
@@ -1510,7 +1511,7 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(header).toContain('const onAskEtyme = pathname === ASK_ETYME_HREF')
     expect(header).toContain('Switch to dashboard')
     // `home` is consoleHome(reader).href, the sidebar's own Dashboard link.
-    expect(header).toMatch(/onAskEtyme \? \(\s*<Link\s+href=\{home as any\}/)
+    expect(header).toMatch(/asks && onAskEtyme && \(\s*<Link\s+href=\{home as any\}/)
     expect(header.match(/>Switch to dashboard</g)?.length).toBe(1)
   })
 })
