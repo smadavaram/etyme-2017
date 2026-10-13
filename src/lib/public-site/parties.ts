@@ -358,7 +358,8 @@ export const CONTRACTORS: PartyPage = {
     signUp: 'An email and a password. Your own page, your paperwork, your weeks. A firm that places you finds you already there.',
     demo: { title: 'See a contractor’s own page in the demo', d: 'A month of a contractor’s work at a demo client, from their own page. No card. No sign-up.' },
   },
-  signUpHref: '/signup',
+  // The candidate's own form, opened on its tab (?as=candidate, 2026-10-13).
+  signUpHref: '/signup?as=candidate',
   demo: { candidate: true },
 }
 
