@@ -17,8 +17,10 @@
  * so every phone screenshot arrived with its left edge cut off. Nothing
  * else on the page was wrong; the header pushed it.
  *
- * Below md the bar is now: ☰ · mark · company / role … search · bell
- * · + · avatar, all icons, in about 260px. The search opens into its
+ * Below md the bar is now: ☰ · mark · company / role … search · Ask
+ * Etyme · + · avatar, all icons, in about 260px. The Ask Etyme mark
+ * stands where the bell was (founder, 2026-10-13) and its number hangs
+ * off its corner, so the number adds no width. The search opens into its
  * own row under the bar rather than living in it. The ☰ opens the same
  * sidebar the desktop shows (components/shell/mobile-nav), and the
  * company and role sit next to the mark the way the prototype's header
@@ -28,13 +30,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import { NotificationBell } from '@/components/notification-bell'
+import { AskEtymeMarkLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
-import { getNavForKind, mayOpen, pinnedOn } from '@/lib/nav-table'
+import { getNavForKind, mayOpen, pinnedOn, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
@@ -421,6 +423,19 @@ export function Header({ title }: HeaderProps) {
     permissions: desk.permissions,
   }).href
 
+  // Ask Etyme stands where the bell was (CLAUDE.md, "Notifications are
+  // deleted; Ask Etyme carries the number"), for the seats whose menu pins
+  // it — the sidebar's own rule, so the header never offers a door the
+  // menu does not. Its number is the one decisions queue, read once a
+  // minute for the whole shell. On Ask Etyme itself the mark gives way to
+  // "Switch to dashboard": the desk's own Today tables, one click away.
+  const pathname = usePathname()
+  const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
+    worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient,
+  })).length > 0
+  const owed = useOwedCount(asks)
+  const onAskEtyme = pathname === ASK_ETYME_HREF || pathname?.startsWith(ASK_ETYME_HREF + '/')
+
   // Close the account menu on an outside click, the same way the plus menu
   // does. A menu that stays open while you click elsewhere feels stuck.
   useEffect(() => {
@@ -676,8 +691,20 @@ export function Header({ title }: HeaderProps) {
           {searchIcon}
         </button>
 
-        {/* Notification bell — real-time via SSE */}
-        <NotificationBell />
+        {/* Ask Etyme, where the bell was, with what this seat owes. On
+            Ask Etyme itself, the one link back to the desk's tables. */}
+        {asks && (onAskEtyme ? (
+          <Link
+            href={home as any}
+            className="shrink-0 h-9 sm:h-8 px-2.5 rounded-nav flex items-center text-[13px] font-medium
+                       text-etyme-action-press hover:bg-etyme-action-wash transition-colors"
+          >
+            <span className="hidden sm:inline">Switch to dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
+          </Link>
+        ) : (
+          <AskEtymeMarkLink n={owed} />
+        ))}
 
         {/* Plus button — the add menu (UX Stress Test #2). Absent for a
             seat with nothing of its own to create, which is a consultant:

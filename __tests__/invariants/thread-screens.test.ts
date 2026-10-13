@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { notificationHref } from '@/lib/notify'
 
 /**
  * The screens and routes that carry a conversation across a deal.
@@ -21,7 +22,6 @@ const REQ_PAGE = read('src/app/dashboard/requisitions/[id]/page.tsx')
 const SUBS_PAGE = read('src/app/dashboard/submissions/page.tsx')
 const CONVOS = read('src/app/dashboard/conversations/page.tsx')
 const HEADER = read('src/components/shell/header.tsx')
-const BELL = read('src/components/notification-bell.tsx')
 const SUBMIT = read('src/app/api/submissions/route.ts')
 const INVITE = read('src/app/api/access/invite/route.ts')
 const RATE = read('src/app/api/me/submissions/[id]/rate/route.ts')
@@ -61,13 +61,13 @@ describe('the routes ask the rule, and answer in its words', () => {
     expect(OPEN).not.toMatch(/participants:\s*participantList\s*\?\s*participants/)
   })
 
-  it('every note rings the bell through one helper, and the bell opens the thread itself', () => {
+  it('every note on a thread goes through one helper, and the notice opens the thread itself', () => {
     expect(OPEN.match(/void tellThread\(/g)?.length).toBeGreaterThanOrEqual(2)
     expect(MESSAGES).toContain('void tellThread(')
     expect(NOTICES).toContain("type: 'CONVERSATION' as const")
     expect(NOTICES).toContain('entityId: thread.id')
-    expect(BELL).toContain("if (entityId && type === 'CONVERSATION') {")
-    expect(BELL).toContain('return `/dashboard/conversations?open=${entityId}`')
+    // The bell is gone (2026-10-13); where a notice opens is lib/notify's one answer.
+    expect(notificationHref('CONVERSATION', 'thread-1')).toBe('/dashboard/conversations?open=thread-1')
   })
 
   it("the consultant's rate thread is the vendor's own, not the one a client opened about them", () => {
@@ -129,7 +129,7 @@ describe('the Conversations page and the plus menu tell the truth', () => {
     expect(CONVOS).not.toMatch(/\{c\.topic\}<\/span>/)
   })
 
-  it('the bell lands on the thread it rang about', () => {
+  it('a notice about a thread lands on that thread', () => {
     expect(CONVOS).toContain("const openId = searchParams.get('open')")
   })
 

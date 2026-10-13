@@ -17,6 +17,7 @@ import { rolesFor } from '@/lib/company-defaults'
 import { BENCH_PROFIT_DESKS } from '@/lib/bench-profit'
 import { BENCH_PAY_DESKS } from '@/lib/bench-holiday-switch'
 import { pinnedOn, activeHref, ASK_ETYME_HREF, ETYME_MARK_ICON } from '@/lib/nav-table'
+import { owedFrom, owedBadge, owedLabel, mayRefresh, OWED_REFRESH_MS } from '@/lib/owed-count'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -735,7 +736,8 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     // not his reading, on the menu or by URL.
     expect(engineer.map((s) => s.label)).toEqual(['Today', 'You'])
     // Needs attention went on 2026-10-12: Ask Etyme's greeting, drawn above Today, is that list.
-    expect(engineer[0].items.map((i) => i.label)).toEqual(['Conversations', 'Notifications'])
+    // Notifications went on 2026-10-13: the mark carries the number instead.
+    expect(engineer[0].items.map((i) => i.label)).toEqual(['Conversations'])
     expect(pinnedOn(engineer).map((i) => i.label)).toEqual(['Ask Etyme'])
   })
 
@@ -807,9 +809,9 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
     expect(getNavForKind(null, true, { worker: false }).map((s) => s.label)).toEqual(['You'])
   })
 
-  it('offers the notifications page once, from Today, not twice', () => {
+  it('offers no notifications page at all, because the Ask Etyme mark carries the number', () => {
     const hrefs = engineer.flatMap((s) => s.items.map((i) => i.href))
-    expect(hrefs.filter((h) => h === '/dashboard/notifications').length).toBe(1)
+    expect(hrefs).not.toContain('/dashboard/notifications')
   })
 })
 
@@ -1418,5 +1420,97 @@ describe('Ask Etyme sits above the sections, wherever Conversations is', () => {
       expect(itemsOf(menu).map((i) => i.label), kind).not.toContain('Needs attention')
       expect(pinnedOn(menu).map((i) => i.label), kind).toEqual(['Ask Etyme'])
     }
+  })
+})
+
+/**
+ * Notifications are deleted; Ask Etyme carries the number (founder,
+ * 2026-10-13: "kill notification and place Ask Etyme icon instead of it,
+ * and show a number (like 5) which symbolizes 5 decisions or responses
+ * expected. Ask Etyme (primary) and dashboard (switch to).").
+ */
+describe('Ask Etyme carries the number the bell used to', () => {
+  const shell = (f: string) => readFileSync(join(process.cwd(), 'src/components/shell', f), 'utf8')
+  const kinds = ['CLIENT', 'VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const
+
+  it('no menu carries Notifications, for any party, any seat, or a consultant', () => {
+    const menus = [
+      ...kinds.map((k) => getNavForKind(k, false)),
+      ...kinds.map((k) => getNavForKind(k, false, { permissions: [] })),
+      ...kinds.map((k) => getNavForKind(k, false, { worker: true, permissions: ['assignments.read', 'timesheets.read'] })),
+      getNavForKind(null, true),
+    ]
+    for (const menu of menus) {
+      const items = menu.flatMap((s) => s.items)
+      expect(items.map((i) => i.label)).not.toContain('Notifications')
+      expect(items.map((i) => i.href)).not.toContain('/dashboard/notifications')
+    }
+    expect(openBecause('/dashboard/notifications')).toBeNull()
+  })
+
+  it('the number is the length of the one decisions queue this seat reads', () => {
+    expect(owedFrom({ data: { decisions: [{}, {}, {}, {}, {}], total: 5 } })).toBe(5)
+    expect(owedFrom({ data: { decisions: [{}, {}] } })).toBe(2)
+  })
+
+  it('a seat that owes nothing shows no number', () => {
+    expect(owedBadge(owedFrom({ data: { decisions: [], total: 0 } }))).toBeNull()
+    expect(owedLabel(0)).toBe('Ask Etyme')
+  })
+
+  it('a queue that cannot be read shows no number rather than a guess', () => {
+    expect(owedFrom(null)).toBeNull()
+    expect(owedFrom({ error: { message: 'refused' } })).toBeNull()
+    expect(owedFrom({ data: { total: -1 } })).toBeNull()
+    expect(owedBadge(null)).toBeNull()
+  })
+
+  it('reads the number as a person hears it, and past ninety-nine as 99+', () => {
+    expect(owedBadge(5)).toBe('5')
+    expect(owedLabel(1)).toBe('Ask Etyme, 1 thing needs you')
+    expect(owedLabel(5)).toBe('Ask Etyme, 5 things need you')
+    expect(owedBadge(140)).toBe('99+')
+  })
+
+  it('the queue is read when the page loads and then no more often than once a minute', () => {
+    expect(OWED_REFRESH_MS).toBe(60_000)
+    expect(mayRefresh(null, 0)).toBe(true)
+    expect(mayRefresh(1_000, 1_000 + 59_999)).toBe(false)
+    expect(mayRefresh(1_000, 1_000 + 60_000)).toBe(true)
+    const mark = shell('ask-etyme-mark.tsx')
+    expect(mark).toContain("fetch('/api/decisions'")
+    expect(mark).toContain('setInterval(read, OWED_REFRESH_MS)')
+    expect(mark).toContain('!mayRefresh(lastAt, now)')
+    // One store for every mark on screen: one fetch, however many subscribe.
+    expect(mark.match(/fetch\(/g)?.length).toBe(1)
+  })
+
+  it('the bell is gone from the header and the Ask Etyme mark with its number stands where it was', () => {
+    const header = shell('header.tsx')
+    expect(header).not.toContain('NotificationBell')
+    expect(existsSync(join(process.cwd(), 'src/components/notification-bell.tsx'))).toBe(false)
+    expect(header).toContain('<AskEtymeMarkLink n={owed} />')
+    expect(shell('ask-etyme-mark.tsx')).toContain('href={ASK_ETYME_HREF as any}')
+  })
+
+  it('the header offers the mark only to a seat whose menu pins Ask Etyme, and reads the number only for it', () => {
+    const header = shell('header.tsx')
+    expect(header).toMatch(/const asks = pinnedOn\(getNavForKind\(/)
+    expect(header).toContain('const owed = useOwedCount(asks)')
+  })
+
+  it('the pinned Ask Etyme entry in the sidebar carries the same number from the same read', () => {
+    const sidebar = shell('sidebar.tsx')
+    expect(sidebar).toContain('const owed = useOwedCount(pinned.length > 0)')
+    expect(sidebar).toContain('<OwedBadge n={owed}')
+  })
+
+  it('on Ask Etyme the header carries one link, Switch to dashboard, opening the desk’s own Today tables', () => {
+    const header = shell('header.tsx')
+    expect(header).toContain('const onAskEtyme = pathname === ASK_ETYME_HREF')
+    expect(header).toContain('Switch to dashboard')
+    // `home` is consoleHome(reader).href, the sidebar's own Dashboard link.
+    expect(header).toMatch(/onAskEtyme \? \(\s*<Link\s+href=\{home as any\}/)
+    expect(header.match(/>Switch to dashboard</g)?.length).toBe(1)
   })
 })

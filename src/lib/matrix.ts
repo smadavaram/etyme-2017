@@ -611,7 +611,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/companies/page.tsx', 'src/app/dashboard/checks/page.tsx',
             'src/app/dashboard/automation/page.tsx', 'src/app/dashboard/data/page.tsx', 'src/app/(auth)/start/page.tsx',
             'src/app/dashboard/texts/page.tsx', 'src/app/dashboard/interviews/page.tsx',
-            'src/app/dashboard/conversations/page.tsx', 'src/app/dashboard/notifications/page.tsx',
+            'src/app/dashboard/conversations/page.tsx',
             'src/app/dashboard/training/page.tsx', 'src/app/dashboard/rolloff/page.tsx',
             'src/app/dashboard/consultants/page.tsx', 'src/app/dashboard/my-work/page.tsx',
             'src/app/dashboard/bench/what-we-need.tsx', 'src/app/dashboard/requisitions/page.tsx'],
@@ -2527,6 +2527,7 @@ export const MATRIX: L1[] = [
             'DONE: The model boundary \u2014 a per-company switch, off until the settings desk turns it on, recorded with who, when and why and read into the twin\u2019s feed; every prompt that left logged masked with its answer, readable and exportable by the company on its settings page, and a text handed over unmasked withheld rather than kept \u2014 src/lib/model-boundary.ts, src/app/api/settings/ask-etyme/route.ts, src/components/settings/ask-etyme-panel.tsx',
             'DONE: Masking at the edge \u2014 every name, firm and figure becomes a token before free text leaves, only what the rules did not answer is sent, the tokens are put back on the way in, a firm below the rung the client pays is read through lib/chain-names so it is never in the vocabulary, and Ask Etyme says on its first screen which of switch, key and masking is true \u2014 src/app/api/conversations/twin/mask.ts, src/app/api/conversations/twin/ask.ts. Open: zero retention is the provider\u2019s business terms, not code; the no-cross-tenant read is enforced where data is fetched and has no model-side switch',
             'DONE: The program manager\u2019s desk (governance.write) may change what the twin may do and the numbers it runs on, beside the settings desk, because the twin acts on that desk\u2019s authority; each edit is a version with its reason in the feed \u2014 mayEditTwin in src/lib/twin/readers.ts',
+            'DONE 2026-10-13: Notifications left every menu and the bell left the header; the Ask Etyme mark stands where the bell was and first in the sidebar, with one number \u2014 the rows of the one decisions queue (GET /api/decisions) this seat owes, read when the page loads and once a minute after, no number at zero or when unread \u2014 and on Ask Etyme the header carries one link, \u201cSwitch to dashboard\u201d, to the desk\u2019s own Today tables \u2014 src/lib/owed-count.ts, src/components/shell/ask-etyme-mark.tsx, src/components/shell/header.tsx, src/components/shell/sidebar.tsx',
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
           ],
           implementedBy: [
@@ -2540,6 +2541,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/twin/contract/page.tsx', 'src/app/dashboard/twin/rules/page.tsx',
             'src/lib/nav-table.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts',
             'src/lib/twin/acts.ts', 'src/components/desk-home.ts', 'src/app/api/demo/route.ts', 'src/lib/console-home.ts',
+            'src/lib/owed-count.ts', 'src/components/shell/ask-etyme-mark.tsx', 'src/components/shell/header.tsx', 'src/components/shell/sidebar.tsx',
             'src/lib/model-boundary.ts', 'src/app/api/settings/ask-etyme/route.ts', 'src/components/settings/ask-etyme-panel.tsx',
             'src/app/api/conversations/twin/mask.ts', 'src/app/api/conversations/twin/ask.ts',
             'src/lib/teams/actions.ts', 'src/lib/teams/auth.ts', 'src/lib/teams/binding.ts', 'src/lib/teams/bot.ts', 'src/lib/teams/cards.ts', 'src/lib/teams/config.ts', 'src/lib/teams/connector.ts', 'src/lib/teams/digest.ts', 'src/lib/teams/facts.ts', 'src/lib/teams/readiness.ts', 'src/lib/teams/store.ts',
@@ -2548,7 +2550,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/conversations/ask-etyme.tsx', 'src/app/dashboard/conversations/etyme/page.tsx', 'src/app/dashboard/conversations/page.tsx',
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/lib/agent-run.ts',
           ],
-          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts'] },
+          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts'] },
       ]},
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
         // It had no implementedBy while it was NONE, on purpose, and the

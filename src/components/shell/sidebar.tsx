@@ -5,6 +5,8 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeLogo, EtymeMark } from '@/components/logo'
 import { DemoChip } from '@/components/shell/demo-chip'
+import { OwedBadge, useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { owedBadge, owedLabel } from '@/lib/owed-count'
 import { consoleHome } from '@/lib/console-home'
 import { getNavForKind, activeHref, pinnedOn, ETYME_MARK_ICON, type CompanyKind, type NavItem } from '@/lib/nav-table'
 
@@ -94,6 +96,8 @@ export function Sidebar({
   // one link lit, and Conversations is not.
   const pinned = pinnedOn(sections)
   const current = activeHref([{ label: '', items: pinned }, ...sections], pathname, searchParams, dashboardHref)
+  // The same number the header's mark carries, from the same one read.
+  const owed = useOwedCount(pinned.length > 0)
 
   // The link for the page being read is brought into view when the menu
   // opens. A worker who is also staff reads their firm's sections first
@@ -165,7 +169,7 @@ export function Sidebar({
         {pinned.length > 0 && (
           <div className="mt-3" data-section="pinned">
             {pinned.map((item) => (
-              <NavLink key={item.label} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} />
+              <NavLink key={item.label} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} owed={owed} />
             ))}
           </div>
         )}
@@ -279,13 +283,14 @@ function NavIcon({ icon, active }: { icon: string; active: boolean }) {
 }
 
 /** One entry above the sections: the same row the sections draw, with no heading over it. */
-function NavLink({ item, active, sheet, onDismiss }: { item: NavItem; active: boolean; sheet?: boolean; onDismiss?: () => void }) {
+function NavLink({ item, active, sheet, onDismiss, owed = null }: { item: NavItem; active: boolean; sheet?: boolean; onDismiss?: () => void; owed?: number | null }) {
   return (
     <Link
       href={item.href as any}
       onClick={onDismiss}
       data-current={active ? 'true' : undefined}
       aria-current={active ? 'page' : undefined}
+      aria-label={owedBadge(owed) ? owedLabel(owed) : undefined}
       className={`
         relative flex items-center gap-2.5 px-2.5 rounded-nav
         ${sheet ? 'py-2.5 text-[14px]' : 'py-1.5 text-[13px]'}
@@ -301,6 +306,7 @@ function NavLink({ item, active, sheet, onDismiss }: { item: NavItem; active: bo
       )}
       <NavIcon icon={item.icon} active={active} />
       <span className="truncate">{item.label}</span>
+      <OwedBadge n={owed} className="ml-auto" />
     </Link>
   )
 }

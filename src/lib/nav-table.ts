@@ -235,7 +235,6 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/conversations': ADDRESSED,
   // Ask Etyme, pinned above the sections: the same door as Conversations.
   '/dashboard/conversations/etyme': ADDRESSED,
-  '/dashboard/notifications': ADDRESSED,
   '/dashboard/leads': SCOPED,
   '/dashboard/invitations': SCOPED,
   '/dashboard/submissions': SCOPED,
@@ -371,11 +370,15 @@ export function landingFor(reader: Reader & { seatedAtClient?: string | null }):
  * (founder: "Needs attention and the greeting are one list; one of them
  * goes"). Its page, /dashboard/decisions, still answers the + button's
  * "Review approvals" and anybody who has it bookmarked.
+ *
+ * "Notifications" went on 2026-10-13 (founder: "kill notification and
+ * place Ask Etyme icon instead of it"). The Ask Etyme mark carries the
+ * number of what this seat owes, in the header and on the pinned entry,
+ * and what a notice used to say is a line in the greeting.
  */
 const TODAY: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: '◉' },
   { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
 ]
 
 /**
@@ -873,10 +876,9 @@ const YOURS: NavItem[] = [
 const CONSULTANT_NAV: NavSection[] = [
   {
     label: 'You',
-    // Notifications only here. A firm's menu already carries it under
-    // Today, and two doors onto one page is a question the reader has to
-    // answer before they can click.
-    items: [...YOURS, { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' }],
+    // No Notifications here either (founder, 2026-10-13: the page is
+    // deleted). A consultant's notices reach them by email.
+    items: [...YOURS],
   },
 ]
 

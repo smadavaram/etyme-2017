@@ -29,7 +29,7 @@ const MOBILE = read('src/components/shell/mobile-nav.tsx')
 const SIDEBAR = read('src/components/shell/sidebar.tsx')
 const LAYOUT = read('src/app/dashboard/layout.tsx')
 const SHELL = read('src/app/dashboard/shell.tsx')
-const BELL = read('src/components/notification-bell.tsx')
+const MARK = read('src/components/shell/ask-etyme-mark.tsx')
 const SIGN_OUT = read('src/components/shell/sign-out.ts')
 const SIGN_OUT_ROUTE = read('src/app/api/demo/sign-out/route.ts')
 
@@ -91,13 +91,11 @@ describe('the header fits a phone', () => {
   })
 
   it('hangs every dropdown from the header row on a phone, so none opens off the edge', () => {
-    // The plus menu and the account menu share one positioning constant;
-    // the bell carries the same classes itself.
+    // The plus menu and the account menu share one positioning constant.
+    // The bell that carried its own copy is gone (2026-10-13).
     expect(HEADER).toMatch(/const DROPDOWN =\s*\n?\s*'absolute inset-x-3 top-12 md:inset-x-auto md:right-0 md:top-10/)
     expect((HEADER.match(/\$\{DROPDOWN\}/g) ?? []).length).toBeGreaterThanOrEqual(2)
-    expect(BELL).toMatch(/inset-x-3 top-12 md:inset-x-auto md:right-0 md:top-10 md:w-80/)
     // Positioned wrappers only from md up — on a phone the row positions.
-    expect(BELL).toContain('className="md:relative" ref={containerRef}')
     expect(HEADER).toContain('className="md:relative" ref={plusRef}')
     expect(HEADER).toContain('className="md:relative" ref={accountRef}')
   })
@@ -176,5 +174,22 @@ describe('the sidebar props are read off the session the same way for both surfa
 
   it('gives a person with no company no company kind, rather than guessing vendor', () => {
     expect(sidebarPropsFrom({ ...base, contextType: 'CONSULTANT' }).companyKind).toBeNull()
+  })
+})
+
+describe('the Ask Etyme mark and its number fit a phone', () => {
+  it('the mark is one icon-sized button, the size of the search and account buttons beside it', () => {
+    expect(MARK).toContain('relative w-9 h-9 sm:w-8 sm:h-8 shrink-0')
+  })
+
+  it('the number hangs off the mark’s corner, so it adds no width to the header', () => {
+    expect(MARK).toContain('<OwedBadge n={n} className="absolute -top-1 -right-1" />')
+    expect(MARK).not.toMatch(/(?<![\w:-])w-(\d{2,})\b/)
+  })
+
+  it('on a phone "Switch to dashboard" reads "Dashboard" and takes the mark’s place rather than sitting beside it', () => {
+    expect(HEADER).toContain('<span className="hidden sm:inline">Switch to dashboard</span>')
+    expect(HEADER).toContain('<span className="sm:hidden">Dashboard</span>')
+    expect(HEADER).toMatch(/onAskEtyme \? \([\s\S]*?\) : \(\s*<AskEtymeMarkLink/)
   })
 })
