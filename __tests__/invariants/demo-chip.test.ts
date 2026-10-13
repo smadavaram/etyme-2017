@@ -106,18 +106,35 @@ describe('the shell says Demo in front of a demo company’s name', () => {
     expect(props.demo).toBe(false)
   })
 
-  it('a seeded demo company reads Demo before its name in the header', () => {
+  it('from lg up a seeded demo company reads Demo before its name in the header, as it did before the phone cut', () => {
     const HEADER = read('src/components/shell/header.tsx')
-    // The phone's name block: the chip, then the name, in that order.
-    expect(HEADER).toMatch(/\{demoChip\}\s*<span className="block text-\[13px\][^>]*>\s*\{company\?\.name/)
+    // The desktop name block: the chip, then the name, in that order.
+    expect(HEADER).toMatch(/className="hidden lg:flex[^"]*">\s*\{demoChip\}\s*<span className="font-medium text-etyme-ink truncate[^"]*">\s*\{company\?\.name/)
     // Only when the server said so, and only for a company.
     expect(HEADER).toContain('const demoChip = isDemo && company ? <DemoChip /> : null')
   })
 
-  it('the name truncates before the chip does, so the chip reads at phone width', () => {
+  it('from lg up the name truncates before the chip does, and the chip never shrinks', () => {
     expect(renderToStaticMarkup(createElement(DemoChip))).toContain('shrink-0')
     const HEADER = read('src/components/shell/header.tsx')
-    expect(HEADER).toMatch(/\{demoChip\}\s*<span className="block[^"]*truncate/)
+    expect(HEADER).toMatch(/\{demoChip\}\s*<span className="font-medium text-etyme-ink truncate/)
+  })
+
+  it('on a phone the header carries no words, so no Demo chip and no company name beside the logo', () => {
+    const HEADER = read('src/components/shell/header.tsx')
+    const phoneLogo = HEADER.match(/<Link href=\{home as any\} aria-label="Home" className=\{`md:hidden \$\{PHONE_ICON\}`\}>([\s\S]*?)<\/Link>/)
+    expect(phoneLogo![1].trim()).toBe('<EtymeMark size={22} />')
+    // Every place the chip is drawn in the header is desktop-only: the lg
+    // name block and the account menu, which is hidden below md.
+    expect((HEADER.match(/\{demoChip\}/g) ?? []).length).toBe(2)
+    expect(HEADER).toContain('className="hidden md:block md:relative" ref={accountRef}')
+  })
+
+  it('on a phone the Demo line sits at the top of the menu drawer, only in the demo and only for a company', () => {
+    const MOBILE = read('src/components/shell/mobile-nav.tsx')
+    expect(MOBILE).toContain('const demoCompany = session.isDemo && session.company ? session.company.name : null')
+    expect(MOBILE).toMatch(/\{demoCompany && \([\s\S]*?Demo · \{demoCompany\} is a sample company/)
+    expect(MOBILE.indexOf('Demo · {demoCompany}')).toBeLessThan(MOBILE.indexOf('<Sidebar'))
   })
 
   it('the chip is drawn in the brand’s action tokens and never the logo green', () => {

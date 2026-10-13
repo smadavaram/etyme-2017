@@ -49,9 +49,15 @@ describe('the dashboard carries the same logo as the pages around it', () => {
     expect(railBrand).toContain('<EtymeLogo size="md" />')
   })
 
-  it('on a phone the header keeps the mark beside the company name, so the bar never shows two names', () => {
-    expect(HEADER).toMatch(/className="md:hidden flex items-center gap-2\.5 min-w-0"[\s\S]*?<EtymeMark size=\{26\} \/>/)
+  it('on a phone the header carries the mark alone, with no company name and no wordmark, so the bar never shows a word', () => {
+    const phoneLogo = HEADER.match(/<Link href=\{home as any\} aria-label="Home" className=\{`md:hidden \$\{PHONE_ICON\}`\}>([\s\S]*?)<\/Link>/)
+    expect(phoneLogo, 'the phone logo link').not.toBeNull()
+    expect(phoneLogo![1].trim()).toBe('<EtymeMark size={22} />')
     expect(HEADER).not.toContain('<EtymeLogo')
+  })
+
+  it('from lg up the header still names the company beside the rail that carries the logo', () => {
+    expect(HEADER).toMatch(/className="hidden lg:flex[^"]*">\s*\{demoChip\}\s*<span[^>]*>\s*\{company\?\.name \?\? person\?\.name \?\? ''\}/)
   })
 })
 
