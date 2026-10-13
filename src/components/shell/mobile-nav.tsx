@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/shell/sidebar'
-import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { sidebarPropsFrom, deskOf } from '@/components/shell/sidebar-props'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
+import { mayOpen } from '@/lib/nav-table'
 
 /**
  * The navigation, on a phone.
@@ -30,16 +31,29 @@ import { useSession } from '@/components/session-provider'
  * inside that is positioned against the header box rather than the
  * viewport — a full-height sheet became a 56px strip.
  *
- * The account sits at the bottom of the sheet, with Sign out. On a
- * desktop that lives behind the avatar in the header; on a phone a
- * two-letter circle does not read as a menu, so the sheet says it in
- * words as well.
+ * The account sits at the bottom of the sheet: the person, their email
+ * and the role they hold here, then Settings and Sign out. On a desktop
+ * that lives behind the avatar in the header; on a phone the header has
+ * no words at all (founder, 2026-10-13, the phone header cut), so the
+ * sheet is where a phone reader finds who they are signed in as.
+ *
+ * In the demo the sheet opens on one quiet line, "Demo · Northbend
+ * Athletic is a sample company" — the chip that used to sit in the
+ * header, said once, where the company is named.
+ *
+ * The ☰ sits on the right of the header, after the flip, in the same box
+ * size as the logo and the flip. The header does not draw it on Ask
+ * Etyme.
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const session = useSession()
+  const desk = deskOf(session)
+  // "Demo" is a company's word, never a person's: a consultant with no
+  // firm is not a demo of one. The same rule the sidebar's chip reads.
+  const demoCompany = session.isDemo && session.company ? session.company.name : null
 
   // A new page means a destination was chosen; the sheet has done its job.
   useEffect(() => {
@@ -79,9 +93,19 @@ export function MobileNav() {
               className="absolute inset-0 w-full bg-etyme-ink/35 motion-safe:animate-fade-in"
             />
             <div
-              className="absolute inset-y-0 left-0 w-[min(300px,85vw)] bg-etyme-surface
+              className="absolute inset-y-0 left-0 w-[min(300px,85vw)] flex flex-col bg-etyme-surface
                          border-r border-etyme-rule shadow-float motion-safe:animate-slide-in-left"
             >
+              {demoCompany && (
+                <p
+                  role="note"
+                  data-demo-line
+                  className="shrink-0 border-b border-etyme-rule bg-etyme-sunk/60 px-5 py-2 text-[12px] leading-snug text-etyme-muted"
+                >
+                  Demo · {demoCompany} is a sample company
+                </p>
+              )}
+              <div className="flex-1 min-h-0">
               <Sidebar
                 {...sidebarPropsFrom(session)}
                 sheet
@@ -90,6 +114,10 @@ export function MobileNav() {
                   <Account
                     name={session.person?.name}
                     email={session.person?.email}
+                    role={desk.isConsultant ? 'Consultant' : desk.roleName}
+                    // The same gate the desktop account menu reads: a
+                    // button the route will refuse is a button that lies.
+                    mayOpenSettings={mayOpen('/dashboard/settings', desk.permissions)}
                     onSettings={() => {
                       close()
                       router.push('/dashboard/settings')
@@ -101,6 +129,7 @@ export function MobileNav() {
                   />
                 }
               />
+              </div>
             </div>
           </div>,
           document.body
@@ -117,7 +146,7 @@ export function MobileNav() {
         // Only while the sheet exists; a reference to an id that is not
         // in the document is worse for a screen reader than none.
         aria-controls={open ? 'mobile-nav' : undefined}
-        className="md:hidden -ml-1.5 w-10 h-10 shrink-0 rounded-nav flex items-center justify-center
+        className="md:hidden w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
                    text-etyme-ink hover:bg-etyme-sunk transition-colors"
       >
         <svg
@@ -142,11 +171,16 @@ export function MobileNav() {
 function Account({
   name,
   email,
+  role,
+  mayOpenSettings,
   onSettings,
   onSignOut,
 }: {
   name?: string
   email?: string
+  /** The role held here — the header no longer says it on a phone. */
+  role?: string | null
+  mayOpenSettings: boolean
   onSettings: () => void
   onSignOut: () => void
 }) {
@@ -154,7 +188,9 @@ function Account({
     <div className="px-4 py-3 border-t border-etyme-rule">
       <p className="text-[13px] font-medium text-etyme-ink truncate">{name || 'Signed in'}</p>
       {email && <p className="text-[12px] text-etyme-muted truncate">{email}</p>}
+      {role && <p className="text-[12px] text-etyme-faint truncate">{role}</p>}
       <div className="mt-3 flex items-center gap-2">
+        {mayOpenSettings && (
         <button
           type="button"
           onClick={onSettings}
@@ -163,6 +199,7 @@ function Account({
         >
           Settings
         </button>
+        )}
         <button
           type="button"
           onClick={onSignOut}

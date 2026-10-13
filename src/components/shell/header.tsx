@@ -10,24 +10,33 @@
  *
  * ── On a phone ────────────────────────────────────────────────────────
  *
- * This bar used to be wider than the screen it sat on. A fixed 224px
- * search box, a bell, a plus, an avatar, four gaps and 48px of side
- * padding came to about 440px, on phones that are 390 wide — and a
- * header wider than the viewport makes the whole page scroll sideways,
- * so every phone screenshot arrived with its left edge cut off. Nothing
- * else on the page was wrong; the header pushed it.
+ * No words in the header (founder, 2026-10-13, the phone header cut,
+ * version 4). Below md the bar is icons only, each in the same 36px box:
  *
- * Below md the bar is now: ☰ · mark · company / role … search · flip ·
- * + · avatar, all icons, in about 260px. The mark is the logo and goes
- * home. The flip (founder, 2026-10-13, "One icon flips between the two
- * screens") is a chat bubble with the number on a dashboard page and
- * four squares on Ask Etyme; the number hangs off its corner, so it adds
- * no width. The search opens into its
- * own row under the bar rather than living in it. The ☰ opens the same
- * sidebar the desktop shows (components/shell/mobile-nav), and the
- * company and role sit next to the mark the way the prototype's header
- * has them, because the rail that used to say whose workspace this is
- * is not on screen.
+ *   on Ask Etyme       the logo · the flip (four squares, "Dashboard")
+ *   on every other     the logo · the flip (chat bubble, the number) · ☰
+ *
+ * The logo is the logo and goes home. The flip (founder, 2026-10-13, "One
+ * icon flips between the two screens") carries the number off its corner,
+ * so it adds no width. What used to crowd the bar went where it is used:
+ *
+ * - Company and role, and the demo chip: the menu drawer says who you are
+ *   (the company at its foot, the person and their role in the account
+ *   block, and "Demo · … is a sample company" at its top, in the demo).
+ *   The screen says where you are.
+ * - Search and +: each list has its own search box and its own add, and
+ *   on Ask Etyme the composer is the search and the chat offers acts as
+ *   cards. Both stay in the bar from md up.
+ * - The initials: account, settings and sign out are at the bottom of the
+ *   menu drawer (components/shell/mobile-nav).
+ * - The ☰ on Ask Etyme: the chat is the first screen, and the menu is one
+ *   tap behind Dashboard.
+ *
+ * This bar was once wider than the screen it sat on, which made every
+ * phone page scroll sideways. Three icons cannot be.
+ *
+ * From md up nothing here changed: the rail, the search box, the flip,
+ * + New and the account menu.
  */
 
 import { useState, useRef, useEffect } from 'react'
@@ -381,6 +390,11 @@ const ICON_BUTTON =
   'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center ' +
   'transition-colors hover:bg-etyme-sunk hover:text-etyme-ink'
 
+/** The phone bar's one icon size: the logo, the flip and the ☰ all sit in
+ *  this box, the flip's own (components/shell/ask-etyme-mark). */
+const PHONE_ICON =
+  'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center'
+
 /** One row in any of this bar's menus. */
 const MENU_ROW =
   'w-full text-left px-3 py-2 text-[13px] text-etyme-ink transition-colors ' +
@@ -407,13 +421,8 @@ export function Header({ title }: HeaderProps) {
   const accountRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  // The phone's search row, under the bar. Separate from focus: the row
-  // is open or shut; focus is whether the results should show.
-  const [mobileSearch, setMobileSearch] = useState(false)
   const plusRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
-  const mobileSearchRef = useRef<HTMLDivElement>(null)
-  const mobileSearchToggleRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Same home the sidebar's Dashboard entry points at, from the same answer.
@@ -458,13 +467,8 @@ export function Header({ title }: HeaderProps) {
       if (plusRef.current && !plusRef.current.contains(t)) {
         setPlusOpen(false)
       }
-      const insideSearch =
-        searchRef.current?.contains(t) ||
-        mobileSearchRef.current?.contains(t) ||
-        mobileSearchToggleRef.current?.contains(t)
-      if (!insideSearch) {
+      if (!searchRef.current?.contains(t)) {
         setSearchFocused(false)
-        setMobileSearch(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
@@ -478,7 +482,6 @@ export function Header({ title }: HeaderProps) {
         setPlusOpen(false)
         setAccountOpen(false)
         setSearchFocused(false)
-        setMobileSearch(false)
         searchInputRef.current?.blur()
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -515,7 +518,6 @@ export function Header({ title }: HeaderProps) {
   function navigateTo(href: string) {
     setPlusOpen(false)
     setSearchFocused(false)
-    setMobileSearch(false)
     setSearchQuery('')
     router.push(href as any)
   }
@@ -537,7 +539,7 @@ export function Header({ title }: HeaderProps) {
     </svg>
   )
 
-  /** The same list under either search box. */
+  /** The list under the search box. */
   const results = showSearchResults && (
     <div className="bg-etyme-raised rounded-r-lg shadow-float border border-etyme-rule overflow-hidden">
       {searchResults.length === 0 ? (
@@ -571,43 +573,17 @@ export function Header({ title }: HeaderProps) {
     </div>
   )
 
-  // Company and role, beside the mark on a phone, inside the logo's link home.
-  const whose = (
-    <span className="min-w-0">
-      {/* The chip first and never shrinking, the name truncating
-          after it, so at 390 wide a long name loses letters and
-          the chip loses none. */}
-      <span className="flex items-center gap-1.5 min-w-0 leading-tight">
-        {demoChip}
-        <span className="block text-[13px] font-medium text-etyme-ink truncate leading-tight">
-          {company?.name ?? person?.name ?? 'etyme'}
-        </span>
-      </span>
-      {(roleName || contextType === 'CONSULTANT') && (
-        <span className="block text-[10.5px] text-etyme-faint truncate leading-tight">
-          {contextType === 'CONSULTANT' ? 'Consultant' : roleName}
-        </span>
-      )}
-    </span>
-  )
-
   return (
     <header className="sticky top-0 z-30 bg-etyme-canvas/90 backdrop-blur-md border-b border-etyme-rule">
       {/* relative: the phone dropdowns hang from this row. */}
       <div className="relative h-14 px-4 md:px-6 flex items-center gap-2 md:gap-4">
-        {/* ☰ — the navigation, below md. Renders nothing from md up. */}
-        <MobileNav />
-
-        {/* Whose workspace this is. The rail says so on a desktop; on a
-            phone the rail is off screen, so the header does — mark,
-            company, role, as the prototype's header has them. The mark
-            and not the wordmark, on purpose: this block names the
-            company, and "Northbend Athletic" beside "etyme" would be two
-            names in 390px. The wordmark on a phone is at the top of the
-            menu sheet, which is the rail itself (sidebar.tsx). */}
-        <Link href={home as any} className="md:hidden flex items-center gap-2.5 min-w-0">
-          <EtymeMark size={26} />
-          {whose}
+        {/* The logo, below md: the mark alone, in the same box as the
+            flip and the ☰, going home. No company, no role, no chip
+            beside it — the menu drawer says who you are. The wordmark on
+            a phone is at the top of the drawer, which is the rail itself
+            (sidebar.tsx). */}
+        <Link href={home as any} aria-label="Home" className={`md:hidden ${PHONE_ICON}`}>
+          <EtymeMark size={22} />
         </Link>
 
         {/* Whose desk this is, from lg up: the company, and the seat the
@@ -678,37 +654,18 @@ export function Header({ title }: HeaderProps) {
           )}
         </div>
 
-        <button
-          type="button"
-          ref={mobileSearchToggleRef}
-          onClick={() => {
-            // Opening focuses the row; closing clears it. The desktop box
-            // shows the same state from md up, so a query left behind
-            // here came back pre-opened, results and all, the moment the
-            // phone rotated past the breakpoint.
-            const next = !mobileSearch
-            setMobileSearch(next)
-            setSearchFocused(next)
-            if (!next) setSearchQuery('')
-          }}
-          aria-label="Search"
-          aria-expanded={mobileSearch}
-          className={`md:hidden ${ICON_BUTTON} text-etyme-muted ${mobileSearch ? 'bg-etyme-canvas' : ''}`}
-        >
-          {searchIcon}
-        </button>
-
         {/* The flip (founder, 2026-10-13): one icon, this slot, every page
             and every width. A chat bubble with the number on a dashboard
             page, opening Ask Etyme; four squares on Ask Etyme, opening the
             desk's own tables. A seat with no Ask Etyme has no flip. */}
         {asks && <AskEtymeFlip n={owed} onAskEtyme={Boolean(onAskEtyme)} dashboardHref={home} />}
 
-        {/* Plus button — the add menu (UX Stress Test #2). Absent for a
-            seat with nothing of its own to create, which is a consultant:
-            every item on it is somebody else's action about them. */}
+        {/* Plus button — the add menu (UX Stress Test #2), from md up.
+            On a phone each list has its own add. Absent for a seat with
+            nothing of its own to create, which is a consultant: every
+            item on it is somebody else's action about them. */}
         {plusMenu.length > 0 && (
-        <div className="md:relative" ref={plusRef}>
+        <div className="hidden md:block md:relative" ref={plusRef}>
           <button
             onClick={() => setPlusOpen(!plusOpen)}
             className={`h-9 w-9 sm:h-8 sm:w-auto sm:px-3 shrink-0 rounded-nav text-[13px] font-medium
@@ -766,8 +723,9 @@ export function Header({ title }: HeaderProps) {
         {/* Account menu.
             The avatar used to be a button that did nothing at all, which
             meant there was no way to sign out anywhere in the product —
-            somebody on a shared machine simply stayed signed in. */}
-        <div className="md:relative" ref={accountRef}>
+            somebody on a shared machine simply stayed signed in. From md
+            up; on a phone the account is at the foot of the menu drawer. */}
+        <div className="hidden md:block md:relative" ref={accountRef}>
           <button
             onClick={() => setAccountOpen(!accountOpen)}
             aria-haspopup="menu"
@@ -830,35 +788,12 @@ export function Header({ title }: HeaderProps) {
             </div>
           )}
         </div>
-      </div>
 
-      {/* The phone's search row. Its own line under the bar, full width,
-          results directly beneath rather than floating. */}
-      {mobileSearch && (
-        <div className="md:hidden px-4 pb-3" ref={mobileSearchRef}>
-          <div className="relative">
-            <input
-              type="text"
-              autoFocus
-              placeholder="Search pages"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onKeyDown={onSearchKey}
-              aria-label="Search pages"
-              className="w-full h-10 pl-9 pr-3 rounded-nav text-[16px]
-                         bg-etyme-raised border border-etyme-rule
-                         text-etyme-ink placeholder:text-etyme-faint
-                         focus:outline-none focus:border-etyme-action
-                         focus:shadow-[0_0_0_3px_var(--violet-wash)]"
-            />
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-etyme-faint">
-              {searchIcon}
-            </span>
-          </div>
-          {showSearchResults && <div className="mt-2">{results}</div>}
-        </div>
-      )}
+        {/* ☰ — the navigation, below md, on the right after the flip.
+            Not on Ask Etyme: the chat is the first screen, and the menu
+            is one tap behind the flip. Renders nothing from md up. */}
+        {!onAskEtyme && <MobileNav />}
+      </div>
     </header>
   )
 }

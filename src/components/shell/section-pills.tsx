@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { consoleHome } from '@/lib/console-home'
-import { getNavForKind, activeHref, type NavItem } from '@/lib/nav-table'
+import { getNavForKind, activeHref, ASK_ETYME_HREF, type NavItem } from '@/lib/nav-table'
 
 /**
  * On a phone, the pages beside the one being read, as a row of pills.
@@ -23,8 +23,16 @@ import { getNavForKind, activeHref, type NavItem } from '@/lib/nav-table'
  * page the menu does not.
  *
  * Nothing is drawn from md up, while the session loads, or where the
- * page's section has fewer than two pages to move between.
+ * page's section has fewer than two pages to move between — and never on
+ * Ask Etyme (founder, 2026-10-13, the phone header cut): the chat is the
+ * first screen, the header there is the logo and the flip, and a row of
+ * Conversations' neighbours above the greeting is the dashboard leaking
+ * into it.
  */
+export function pillsShownOn(pathname: string | null): boolean {
+  return !(pathname === ASK_ETYME_HREF || pathname?.startsWith(ASK_ETYME_HREF + '/'))
+}
+
 export function pillsFor(items: readonly NavItem[], current: string | null): NavItem[] {
   const here = items.find((i) => i.href === current)
   if (!here) return []
@@ -37,7 +45,7 @@ export function SectionPills() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const id = sidebarPropsFrom(session)
-  if (id.pending) return null
+  if (id.pending || !pillsShownOn(pathname)) return null
 
   const sections = getNavForKind(id.companyKind, id.isConsultant, {
     worker: id.worker, permissions: id.permissions, seatedAtClient: id.seatedAtClient, termsHref: id.termsHref,

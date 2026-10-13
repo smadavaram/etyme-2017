@@ -652,7 +652,7 @@ describe('a program office reads its own menu, not a bench firm’s', () => {
   })
 })
 
-describe('the + button and the search box say what the menu beside them says', () => {
+describe('the + button and the search box, in the header from md up, say what the menu beside them says', () => {
   // Both are doors into the same product and both had their own
   // hand-kept list. The client's + menu was still headed "Program", a
   // section the client's menu stopped having; the search offered every
@@ -687,6 +687,15 @@ describe('the + button and the search box say what the menu beside them says', (
     // cannot disagree if there is only one.
     expect(HEADER_SRC).toContain('getNavForKind(kind, isConsultant, seat)')
     expect(HEADER_SRC).not.toContain('CLIENT_SEARCH_LABELS')
+  })
+
+  it('on a phone the + button and the search box are gone from the header and found in the lists, each with its own search and add', () => {
+    // Founder, 2026-10-13, the phone header cut: no words in the header.
+    expect(HEADER_SRC).toContain('className="hidden md:block md:relative" ref={plusRef}')
+    expect(HEADER_SRC).toMatch(/className="relative hidden md:block" ref=\{searchRef\}/)
+    expect(HEADER_SRC).not.toContain('mobileSearch')
+    const LIST_SRC = readFileSync(join(process.cwd(), 'src/components/list-surface.tsx'), 'utf8')
+    expect(LIST_SRC).toContain('searchable = true')
   })
 })
 
