@@ -730,7 +730,7 @@ async function namesFor(rows: { entityType: string; entityId: string; actorType:
 async function changesAt(companyId: string, take: number) {
   try {
     const rows = await prisma.automationLog.findMany({
-      where: { companyId, action: { in: ['TWIN_ROLE_CONTRACT_SET', 'TWIN_RULE_SET_SET'] } },
+      where: { companyId, action: { in: ['TWIN_ROLE_CONTRACT_SET', 'TWIN_RULE_SET_SET', 'ASK_ETYME_MODEL_SET'] } },
       orderBy: { at: 'desc' },
       take,
       select: { id: true, at: true, action: true, summary: true, reason: true, payload: true },
@@ -802,16 +802,20 @@ export async function ledgerFeed(
     const by = typeof p.byPersonId === 'string' ? p.byPersonId : ''
     const actorName = names.person.get(by) ?? null
     const isContract = c.action === 'TWIN_ROLE_CONTRACT_SET'
-    const entityType = isContract ? 'RoleContract' : 'RuleSet'
-    const label = p.version != null ? String(p.version) : null
+    // The model switch (lib/model-boundary): who let Ask Etyme send to the model, and when.
+    const isModel = c.action === 'ASK_ETYME_MODEL_SET'
+    const entityType = isContract ? 'RoleContract' : isModel ? 'ModelSwitch' : 'RuleSet'
+    const label = isModel ? (p.on === true ? 'on' : 'off') : p.version != null ? String(p.version) : null
     return {
       id: c.id, ts: c.at, actorType: 'CHANGE', actorId: by, actorName,
-      onAuthorityOfRole: '', action: isContract ? 'role_contract.set' : 'rule_set.set',
+      onAuthorityOfRole: '', action: isContract ? 'role_contract.set' : isModel ? 'model_switch.set' : 'rule_set.set',
       says: c.summary, tier: '', outcome: 'PERFORMED', entityType,
-      entityId: String((isContract ? p.roleContractId : p.ruleSetId) ?? ''),
+      entityId: String((isContract ? p.roleContractId : isModel ? companyId : p.ruleSetId) ?? ''),
       label, program: companyId ? names.company.get(companyId) ?? null : null,
       line: feedLine({ actorType: 'CHANGE', actorName, action: '', outcome: 'PERFORMED', entityType, label, onAuthorityOfRole: '', surface: 'WEB' }),
-      ruleCited: isContract ? 'Only the desk that holds the company’s settings changes what the twin may do.' : 'Only the desk that holds the company’s settings changes the twin’s numbers.',
+      ruleCited: isContract ? 'Only the desk that holds the company’s settings changes what the twin may do.'
+        : isModel ? 'Only the desk that holds the company’s settings lets Ask Etyme send anything to the model.'
+        : 'Only the desk that holds the company’s settings changes the twin’s numbers.',
       rationale: c.reason ?? '', surface: 'WEB', approvalId: null,
       payload: p, roleContractVersion: isContract && typeof p.version === 'number' ? p.version : undefined,
     }

@@ -12,6 +12,7 @@ import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 // the setup's "How you work" step, so the two can never ask differently.
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel } from '@/components/settings/payroll-panel'
+import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
 import { ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 
 /**
@@ -745,6 +746,7 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
     </Panel>
     <WeekPanel canEdit={data.canEdit} />
     <PayrollPanel canEdit={data.canEdit} />
+    <AskEtymePanel />
     <WeekendShiftPanel data={data} send={send} busy={busy} />
     </>
   )

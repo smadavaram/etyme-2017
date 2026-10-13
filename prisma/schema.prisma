@@ -42,6 +42,8 @@ model Person {
   twinApprovalsDecided    TwinApproval[]           @relation("twinApprover")
   /// Where Teams may write to this person unprompted, one per company seat.
   teamsConversations      TeamsConversation[]
+  /// Prompts this person's free-text questions sent to a model, masked.
+  modelPrompts            ModelPrompt[]
   benchWantsWritten       BenchWant[]              @relation("benchWantAuthor")
   benchWantsReceived      BenchWant[]              @relation("benchWantReceiver")
   benchHolidaySwitches    BenchHolidaySwitch[]     @relation("benchHolidaySubject")
@@ -678,32 +680,39 @@ model Company {
   /// live from the same rows the dashboard reads, so nothing here can go
   /// out of date. A generated sentence about a company is a claim, and a
   /// claim that outlives its truth is worse than a plain page.
-  siteTagline         String?
-  siteIntro           String?
+  siteTagline          String?
+  siteIntro            String?
   /// Section names in their register rather than ours.
-  siteHeadings        Json?
+  siteHeadings         Json?
   /// MODEL or RULES, so a generated page is never mistaken for one
   /// somebody wrote.
-  siteWrittenBy       String?
-  siteWrittenAt       DateTime?
+  siteWrittenBy        String?
+  siteWrittenAt        DateTime?
   // What this company does by default when no signed agreement says
   // otherwise. Sits under the master agreement in the cascade
   // (src/lib/billing-cascade.ts) and above the platform's own assumption.
-  defaultPaymentTerms Int?
+  defaultPaymentTerms  Int?
   /// Whether invoices to this company must quote a purchase order. Set at
   /// the company because it is an accounts-payable policy, not a
   /// per-supplier negotiation.
-  poRequired          Boolean   @default(false)
+  poRequired           Boolean   @default(false)
   /// Whether this company offers time off instead of pay for extra hours
   /// ("time off in lieu"). Off by default: US law does not let a private
   /// employer bank a non-exempt worker's overtime as time off instead of
   /// paying it (CLAUDE.md, the week decision of 2026-09-30), so turning it
   /// on is a choice a company makes with the law said beside it, and the
   /// approve route and the overtime decision read it before offering it.
-  timeOffInLieu       Boolean   @default(false)
-  siteLiveAt          DateTime? // the ninety second promise
-  networkVerifiedAt   DateTime? // visibility to other companies waits for this
-  createdAt           DateTime  @default(now())
+  timeOffInLieu        Boolean   @default(false)
+  siteLiveAt           DateTime? // the ninety second promise
+  networkVerifiedAt    DateTime? // visibility to other companies waits for this
+  /// Whether Ask Etyme may send free-text questions to a model for this
+  /// company (founder, 2026-10-13, "The model boundary"). Off until the
+  /// company's settings desk turns it on; who and when are kept beside it.
+  /// One door: lib/model-boundary.
+  askEtymeModelOn      Boolean   @default(false)
+  askEtymeModelSetById String?
+  askEtymeModelSetAt   DateTime?
+  createdAt            DateTime  @default(now())
 
   contexts              Context[]
   roles                 Role[]
@@ -729,6 +738,7 @@ model Company {
   twinActions           TwinAction[]
   twinApprovals         TwinApproval[]
   teamsConversations    TeamsConversation[]
+  modelPrompts          ModelPrompt[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -8410,6 +8420,36 @@ model TwinApproval {
 
   @@index([companyId, decision])
   @@index([approverPersonId])
+}
+
+/// One free-text question that left for a model, and its answer, both
+/// masked: names, rates and pay are tokens before anything is sent, and
+/// nothing here is ever the unmasked text (founder, 2026-10-13, "The model
+/// boundary"). "What left" is a query on this table, readable by the
+/// company. One door: recordModelPrompt in lib/model-boundary.
+model ModelPrompt {
+  id String @id @default(cuid())
+
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Who asked.
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  ts        DateTime @default(now())
+
+  /// "anthropic"; the model's own name.
+  provider     String
+  model        String
+  /// What was sent and what came back, masked. Never the real text.
+  maskedPrompt String @db.Text
+  maskedAnswer String @db.Text
+  tokensIn     Int?
+  tokensOut    Int?
+  /// Why it was sent: ASK_ETYME for a question the rules did not answer.
+  purpose      String
+
+  @@index([companyId, ts])
+  @@index([personId])
 }
 
 /// Where the twin may write to a person on Microsoft Teams without being

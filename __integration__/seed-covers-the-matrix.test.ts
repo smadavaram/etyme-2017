@@ -72,6 +72,9 @@ const RUNTIME: Record<string, string> = {
   roleContract: 'written when the settings desk changes what the twin may do, with the reason',
   ruleSet: 'written when the settings desk changes the twin’s warning days or hours tolerance, with the reason',
   teamsConversation: 'written when a person first opens Etyme in Microsoft Teams and the bot binds them to their seat',
+  // The model boundary (2026-10-13): off for every company until its
+  // settings desk turns it on, so a seeded prompt would be one that never left.
+  modelPrompt: 'written when Ask Etyme sends a question the rules did not answer to the model, masked, for a company that turned it on',
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',

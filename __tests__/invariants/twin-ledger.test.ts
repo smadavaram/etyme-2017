@@ -59,6 +59,12 @@ function table(name: string, t: () => Tables) {
       return row
     },
     findMany: async ({ where }: { where?: Row } = {}) => rows().filter((r) => matches(r, where)),
+    update: async ({ where, data }: { where: Row; data: Row }) => {
+      const row = rows().find((r) => matches(r, where))
+      if (!row) throw new Error(`${name} not found`)
+      Object.assign(row, data)
+      return row
+    },
     updateMany: async ({ where, data }: { where: Row; data: Row }) => {
       const hit = rows().filter((r) => matches(r, where))
       hit.forEach((r) => Object.assign(r, data))
@@ -68,7 +74,7 @@ function table(name: string, t: () => Tables) {
 }
 function client(t: () => Tables): any {
   const c: any = {}
-  for (const n of ['roleContract', 'twinAction', 'twinApproval', 'automationLog', 'context', 'vendorBill', 'invoice']) c[n] = table(n, t)
+  for (const n of ['roleContract', 'twinAction', 'twinApproval', 'automationLog', 'context', 'vendorBill', 'invoice', 'company', 'modelPrompt', 'person']) c[n] = table(n, t)
   c.$transaction = async (fn: (tx: any) => Promise<unknown>) => {
     const copy: Tables = JSON.parse(JSON.stringify(h.db.tables), (_k, v) =>
       typeof v === 'string' && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v)
@@ -87,7 +93,7 @@ const T = () => h.db.tables
 const CLIENT = 'northbend'
 const AUTHORITY = { personId: 'dana', role: 'Program Manager', personName: 'Dana Whitfield' }
 function fresh() {
-  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: [], vendorBill: [], invoice: [] }
+  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: [], vendorBill: [], invoice: [], company: [], modelPrompt: [], person: [] }
   h.db.failOn = null
   h.reportError.mockClear()
   h.notifyBulk.mockClear()
@@ -95,6 +101,7 @@ function fresh() {
 
 import { act, ledger, decideApproval } from '../../src/lib/twin/ledger'
 import { actsPerDay } from '../../src/lib/twin/acts'
+import { modelOnFor, setModelOn, recordModelPrompt, WITHHELD } from '../../src/lib/model-boundary'
 
 beforeEach(fresh)
 
@@ -211,5 +218,53 @@ describe('the twin’s ledger', () => {
     expect(days[13]).toEqual({ day: '2026-10-12', count: 1 })
     expect(days[12]).toEqual({ day: '2026-10-11', count: 1 })
     expect(days.reduce((n, d) => n + d.count, 0)).toBe(2)
+  })
+  it('the model is off for a company until its settings desk turns it on, and who did is recorded', async () => {
+    T().company.push({ id: CLIENT, askEtymeModelOn: false, askEtymeModelSetById: null, askEtymeModelSetAt: null })
+    expect(await modelOnFor(CLIENT)).toBe(false)
+    // A change with no reason is refused, and nothing moves.
+    expect(await setModelOn(CLIENT, 'dana', true, '  ')).toMatchObject({ ok: false })
+    expect(await modelOnFor(CLIENT)).toBe(false)
+
+    const on = await setModelOn(CLIENT, 'dana', true, 'Pilot on Northbend for a month.')
+    expect(on).toMatchObject({ ok: true, on: true })
+    expect(await modelOnFor(CLIENT)).toBe(true)
+    const row = T().company.find((c) => c.id === CLIENT)!
+    expect(row.askEtymeModelSetById).toBe('dana')
+    expect(row.askEtymeModelSetAt).toBeInstanceOf(Date)
+    const log = T().automationLog.find((l) => l.action === 'ASK_ETYME_MODEL_SET')!
+    expect(log).toMatchObject({ companyId: CLIENT, reason: 'Pilot on Northbend for a month.', reversible: true })
+    expect(log.payload).toMatchObject({ on: true, byPersonId: 'dana' })
+  })
+
+  it('a prompt that left is logged masked, with its answer, and never unmasked', async () => {
+    const base = { companyId: CLIENT, personId: 'dana', provider: 'anthropic', model: 'claude', purpose: 'ASK_ETYME', tokensIn: 120, tokensOut: 40 }
+    const masked = await recordModelPrompt({
+      ...base,
+      maskedPrompt: 'Why is [PERSON_1] billed at [RATE_1] when [SUPPLIER_1] bills [RATE_2]?',
+      maskedAnswer: '[SUPPLIER_1] holds an older order; [PERSON_1] moved over in May.',
+      realValues: ['Tobias Lindqvist', '$118/hr', 'Pinnacle Resourcing'],
+    })
+    expect(masked).toMatchObject({ ok: true, withheld: false })
+    const kept = T().modelPrompt[0]
+    expect(kept.maskedPrompt).toContain('[PERSON_1]')
+    expect(kept.maskedAnswer).toContain('[SUPPLIER_1]')
+
+    // Handed a text with a real name still in it, the log keeps neither the
+    // name nor the text, and staff are told.
+    const leaked = await recordModelPrompt({
+      ...base,
+      maskedPrompt: 'Why is Tobias Lindqvist billed at $118/hr?',
+      maskedAnswer: 'Because Pinnacle Resourcing holds an older order.',
+      realValues: ['Tobias Lindqvist', '$118/hr', 'Pinnacle Resourcing'],
+    })
+    expect(leaked).toMatchObject({ ok: true, withheld: true })
+    const stored = T().modelPrompt[1]
+    expect(stored.maskedPrompt).toBe(WITHHELD)
+    expect(stored.maskedAnswer).toBe(WITHHELD)
+    for (const real of ['Tobias Lindqvist', '$118/hr', 'Pinnacle Resourcing']) {
+      expect(JSON.stringify(T().modelPrompt)).not.toContain(real)
+    }
+    expect(h.reportError).toHaveBeenCalled()
   })
 })

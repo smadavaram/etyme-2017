@@ -42,6 +42,8 @@ export function entityWords(type: string, label: string | null | undefined): str
       return l ? `the twin’s role contract, version ${l}` : 'the twin’s role contract'
     case 'RuleSet':
       return l ? `the twin’s rules, version ${l}` : 'the twin’s rules'
+    case 'ModelSwitch':
+      return l === 'on' ? 'Ask Etyme’s model switch to on' : l === 'off' ? 'Ask Etyme’s model switch to off' : 'Ask Etyme’s model switch'
     default:
       return l ?? 'a record'
   }

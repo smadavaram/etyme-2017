@@ -363,6 +363,9 @@ export const DOMAINS: Domain[] = [
       // the ledger, the performers and the routes. The rules under
       // lib/twin/rules are the domains whose arithmetic they are.
       'lib/twin', 'app/api/twin',
+      // The model boundary (2026-10-13): the per-company switch and the
+      // log of what left. The masking at the edge is conversation's.
+      'lib/model-boundary',
       // Its screens: the program owner's page, the role-contract and rule-set
       // editors. The conversation panel on it is conversation's.
       'app/dashboard/twin',

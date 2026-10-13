@@ -2519,6 +2519,7 @@ export const MATRIX: L1[] = [
             'DONE: Ask Etyme, a conversation pinned first in Conversations at /dashboard/conversations/etyme and first in the sidebar: greeting from the rules, the four questions and variance by supplier answered by rules with tables and links, approval cards through the one approval route, the model only for free text when its key is set',
             'DONE: Ask Etyme is the first screen: a seat whose menu has Conversations lands there after sign-in and through the demo door, decided once (landingFor in src/lib/nav-table.ts, read by src/components/desk-home.ts and src/app/api/demo/route.ts); Needs attention left the menu, the greeting being that list',
             'DONE: The one number, acts per day in Ask Etyme \u2014 a person\u2019s yes or no on the web or Teams, read off the ledger, the last fourteen days \u2014 above the twin\u2019s ledger, which keeps its feed, table and export and the two editors; the stats and the questions waiting moved to the greeting \u2014 src/lib/twin/acts.ts, src/app/dashboard/twin/page.tsx',
+            'PARTIAL, until masking lands: The model boundary \u2014 a per-company switch, off until the settings desk turns it on, recorded with who, when and why and read into the twin\u2019s feed; every prompt that left logged masked with its answer, readable and exportable by the company on its settings page, and a text handed over unmasked withheld rather than kept \u2014 src/lib/model-boundary.ts, src/app/api/settings/ask-etyme/route.ts, src/components/settings/ask-etyme-panel.tsx. Open: masking at the edge, zero retention and the no-cross-tenant read (conversation, week 2)',
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
           ],
           implementedBy: [
@@ -2532,6 +2533,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/twin/contract/page.tsx', 'src/app/dashboard/twin/rules/page.tsx',
             'src/lib/nav-table.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts',
             'src/lib/twin/acts.ts', 'src/components/desk-home.ts', 'src/app/api/demo/route.ts', 'src/lib/console-home.ts',
+            'src/lib/model-boundary.ts', 'src/app/api/settings/ask-etyme/route.ts', 'src/components/settings/ask-etyme-panel.tsx',
             'src/lib/teams/actions.ts', 'src/lib/teams/auth.ts', 'src/lib/teams/binding.ts', 'src/lib/teams/bot.ts', 'src/lib/teams/cards.ts', 'src/lib/teams/config.ts', 'src/lib/teams/connector.ts', 'src/lib/teams/digest.ts', 'src/lib/teams/facts.ts', 'src/lib/teams/readiness.ts', 'src/lib/teams/store.ts',
             'src/app/api/teams/messages/route.ts',
             'src/components/twin-conversation.tsx', 'src/app/api/conversations/twin/route.ts',

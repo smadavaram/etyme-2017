@@ -101,6 +101,8 @@ export const DELETE_ORDER = [
   // after so the count of any left over is kept. The entries go before the
   // role contract they were acted under.
   'TwinAction', 'TwinApproval', 'RoleContract', 'RuleSet', 'TeamsConversation',
+  // The log of what left for a model (lib/model-boundary): a person's and a company's.
+  'ModelPrompt',
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation', 'Enrollment',
   'DocumentShareItem', 'DocumentShareAccess', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
@@ -164,6 +166,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'TwinAction.partyCompanyIds': { as: 'RECORD' },
   // A Microsoft Entra tenant id, not a row here.
   'TeamsConversation.tenantId': { as: 'RECORD' },
+  // Who last turned the company's model switch; a person's id kept as history.
+  'Company.askEtymeModelSetById': { as: 'RECORD' },
   // ── Owned: goes with what it names ──
   'Notification.personId': { as: 'OWNED', to: ['Person'] },
   'Import.companyId': { as: 'OWNED', to: ['Company'] },
