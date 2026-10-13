@@ -925,6 +925,11 @@ The first deletion of the part count. So:
   menus.
 - Built straight from the founder's sentence, no drawing first, because
   the sentence is the drawing: an icon, a number, a link.
+- **The logo is the door. Decided by the founder the same evening**
+  (*"Why not merge logo and notifications"*), on seeing two Etyme marks
+  in one phone header. The wordmark in the header is the Ask Etyme
+  door and carries the number; the second mark is deleted. One mark,
+  one number, one tap.
 
 **Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
 the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
