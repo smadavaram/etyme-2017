@@ -99,7 +99,7 @@ export const MATRIX: L1[] = [
             'FIXED 2026-10-08, sign-up walk round five, demand (da2401405): a refusal at Milestones, Agreements, Seats and a job request’s own page is said in that page’s own name, not the Dashboard link the route sits under, and drawn alone with no Try again (program/own-refusal)',
             'FIXED 2026-10-08, sign-up walk round six (a7b856abd): a filled job request shows the client the line it pays, never a rung below'],
           implementedBy: ['src/app/api/requisitions/[id]/placed-line.ts', 'src/app/dashboard/program/own-refusal.ts', 
-            'src/app/dashboard/timesheets/page.tsx', 'src/app/dashboard/program/page.tsx', 'src/app/dashboard/submissions/page.tsx', 'src/app/dashboard/people/page.tsx', 'src/app/dashboard/decisions/page.tsx', 'src/app/dashboard/suppliers/page.tsx', 'src/app/dashboard/requisitions/row-actions.ts', 'src/app/dashboard/decisions/chips.ts', 'src/app/api/program/no-desk.ts',
+            'src/app/dashboard/timesheets/page.tsx', 'src/app/api/program/desk-findings.ts', 'src/app/dashboard/program/page.tsx', 'src/app/dashboard/submissions/page.tsx', 'src/app/dashboard/people/page.tsx', 'src/app/dashboard/decisions/page.tsx', 'src/app/dashboard/suppliers/page.tsx', 'src/app/dashboard/requisitions/row-actions.ts', 'src/app/dashboard/decisions/chips.ts', 'src/app/api/program/no-desk.ts',
             'src/app/api/program/budget/route.ts', 'src/app/api/program/org/route.ts', 'src/app/api/timesheets/route.ts', 
             'prisma/schema.prisma',
             'src/lib/requisition-approval.ts', 'src/lib/requisition-stage.ts', 'src/lib/requisition-change.ts',
