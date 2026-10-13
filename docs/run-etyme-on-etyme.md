@@ -12,7 +12,7 @@ You need two things:
 
 | What | Where |
 |---|---|
-| The production address | for example `https://etyme.com` |
+| The production address | today `https://etyme2040.vercel.app`, until etyme.com points at it |
 | The `CRON_SECRET` | Vercel → the project → Settings → Environment Variables |
 
 ## Step 1. Make the company and its five seats
@@ -20,7 +20,7 @@ You need two things:
 Run this once, from any terminal. Put your two values in the first two lines.
 
 ```bash
-ETYME_URL="https://etyme.com"
+ETYME_URL="https://etyme2040.vercel.app"
 CRON_SECRET="paste-the-secret-here"
 
 curl -sS -X POST "$ETYME_URL/api/staff/bootstrap-company" \
