@@ -154,8 +154,9 @@ read is on the access log under the program owner and the twin's kind
   default is 0.5% (founder, 2026-10-12), and a receipt at or under it is
   CLEAN to the twin. It still fails the three-way check's QUANTITY, so it
   carries `payable: false` and the AP desk records the difference with a
-  reason before it is paid. Whether 0.5% should also clear payment is put
-  to the founder, not decided here.
+  reason before it is paid. **Decided** (CLAUDE.md, "Nine decisions", item
+  3): payment stays strict; a payment tolerance is a setting a client asks
+  for, with its reason beside it.
 - **`seedTwinInvoiceDemo` finds Northbend and Pinnacle by display name**,
   not by slug or id. A renamed demo company seeds no receipts and says
   nothing.

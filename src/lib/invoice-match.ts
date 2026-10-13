@@ -555,7 +555,17 @@ export function matchRefusal(number: string, match: { matched: boolean; summary:
   }
 }
 
-/** Both refusals in the gate's order, over facts already loaded. No database. */
+/**
+ * Both refusals in the gate's order, over facts already loaded. No database.
+ *
+ * Payment is strict, and that is decided (CLAUDE.md, "Nine decisions",
+ * item 3): the job twin's 0.5% hours tolerance decides what the twin
+ * raises to a person, never what is paid. This gate pays only what passes
+ * the three-way check — the accepted hours at the contract rate — or a
+ * difference the AP desk waived with a reason. A client that wants a
+ * payment tolerance asks for it, and it becomes a setting with its reason
+ * beside it; nothing here reads the twin's tolerance.
+ */
 export function payGate(
   inv: { number: string; status: string },
   match: { matched: boolean; summary: string } | null,

@@ -23,10 +23,10 @@
  * three-way check still fails QUANTITY on any difference, and the AP
  * desk still records a reason before a bill that differs is paid. So a
  * receipt clean under the tolerance carries `payable: false` and says so
- * in its rationale. Whether half a per cent should also pass the payment
- * gate is a money decision against the founder's own rule ("a firm
- * bills only the hours the firm above it accepted") and is put to him,
- * not made here.
+ * in its rationale. That is decided (CLAUDE.md, "Nine decisions", item
+ * 3): the founder's own rule stands ("a firm bills only the hours the
+ * firm above it accepted"), payment stays strict, and a client wanting a
+ * payment tolerance asks for it as a setting with its reason beside it.
  *
  * ── Why the rate has no tolerance ────────────────────────────────────
  *
