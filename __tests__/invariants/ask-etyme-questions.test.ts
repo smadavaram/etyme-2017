@@ -220,12 +220,12 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “Extend Helena three months” and is refused in one sentence that names the door', async () => {
     await check('PM', 'Extend Helena three months', 'REFUSED',
-      'Etyme never extends a placement; you hold that desk, so do it on Helena Marsh’s placement page.')
+      'Etyme never extends a placement; you hold that desk, so do it from Helena Marsh’s line on Contracts.')
   })
 
   it('the program manager asks “End Omar Haddad\'s placement on Friday” and is refused in one sentence that names the door', async () => {
     await check('PM', 'End Omar Haddad\'s placement on Friday', 'REFUSED',
-      'Etyme never ends a placement; you hold that desk, so do it on Omar Haddad’s placement page.')
+      'Etyme never ends a placement; you hold that desk, so do it from Omar Haddad’s line on Contracts.')
   })
 
   it('the program manager asks “Sign the MSA with Veritan Talent” and is refused in one sentence that names the door', async () => {

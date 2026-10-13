@@ -72,6 +72,10 @@ export function readAsk(raw: string): Intent {
   if (/\b(mark-?up|margin)s?\b/.test(lower)) return { kind: 'MARGIN' }
   if (
     (/\bvariance\b/.test(lower) && /\bsuppliers?\b/.test(lower)) ||
+    // The twin page's own line, "how invoice receipts compare by supplier",
+    // and the chip-like "Compare invoice receipts by supplier".
+    /\bcompare\b.*\bby suppliers?\b/.test(lower) ||
+    /\binvoice receipts? by suppliers?\b/.test(lower) ||
     /\b(don'?t|do not|doesn'?t|does not) match\b|\bmismatch(ed|es)?\b|\bnot clean\b/.test(lower) && !/^why\b/.test(lower)
   ) return { kind: 'VARIANCE' }
 
@@ -164,9 +168,18 @@ export function matchPerson(text: string, roster: readonly RosterEntry[]): Pick<
   return {}
 }
 
+/**
+ * Each act's door is the screen that actually draws the control, checked
+ * against the page, not the screen where the thing is described. The
+ * placement page has no Extend and no Roll off: both are on a line's
+ * drawer under Contracts (a client also has them on its dashboard's
+ * ending-soon list). Award ("Place") and reject are on Submissions; Pay
+ * is on the invoice receipt's own page; "Record the signature" is on the
+ * agreement's page; Run payroll on Payroll; Approve on Timesheets.
+ */
 const NEVER_FLOOR: Record<NeverAct, { verb: string; needs: Permission; where: string; link: Link }> = {
-  EXTEND: { verb: 'extends a placement', needs: 'assignments.write', where: 'the placement page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
-  END: { verb: 'ends a placement', needs: 'assignments.terminate', where: 'the placement page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  EXTEND: { verb: 'extends a placement', needs: 'assignments.write', where: 'the line on Contracts', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  END: { verb: 'ends a placement', needs: 'assignments.terminate', where: 'the line on Contracts', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
   AWARD: { verb: 'awards a job', needs: 'requirements.write', where: 'the submission', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
   REJECT_SUBMISSION: { verb: 'rejects a submission', needs: 'requirements.write', where: 'the submission', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
   PAY: { verb: 'pays an invoice receipt', needs: 'payments.record', where: 'the invoice receipt’s page', link: { label: 'Open Invoice receipts', href: '/dashboard/invoices' } },
@@ -208,6 +221,39 @@ function twoDesks(desks: readonly string[]): string {
 }
 
 /**
+ * Which desks pay an invoice receipt, read off lib/permissions.
+ *
+ * `payments.record` is held by the desk that records money coming in as
+ * well as the desk that pays out, so on its own it names Accounts
+ * Receivable as somebody who pays. It does not: it bills. A desk that
+ * issues bills and runs no payroll is the money-in desk, and is left out.
+ * Where that would leave nobody — a firm whose one money desk does both,
+ * as at a program office — every holder of `payments.record` is named,
+ * because that desk is the one that pays there.
+ *
+ * Read off the permissions, never a list of names, so a role that gains
+ * or loses a permission changes the sentence in the same commit.
+ */
+export function payingDesks(companyKind: string | null | undefined): string[] {
+  const all = desksHolding('payments.record', companyKind)
+  const out = all.filter((d) => !billsOnly(d, companyKind))
+  return out.length ? out : all
+}
+
+/** A desk that issues bills and runs no payroll: the money-in desk. */
+function billsOnly(desk: string, companyKind: string | null | undefined): boolean {
+  return desksHolding('invoices.issue', companyKind).includes(desk) && !desksHolding('payroll.run', companyKind).includes(desk)
+}
+
+/** Whether this seat pays out: the same rule as `payingDesks`, on the seat's own permissions. */
+function paysOut(permissions: readonly string[], companyKind: string | null | undefined): boolean {
+  if (!permissions.includes('payments.record')) return false
+  if (!permissions.includes('invoices.issue') || permissions.includes('payroll.run')) return true
+  // A money-in seat pays only where no desk at the company pays out apart from it.
+  return desksHolding('payments.record', companyKind).every((d) => billsOnly(d, companyKind))
+}
+
+/**
  * The one sentence for an act on the never floor: Etyme never does it,
  * who does, and where — the door.
  */
@@ -223,21 +269,25 @@ export function neverSays(
     const names = named.ambiguous.slice(0, 4)
     return { says: `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}?`, links: [] }
   }
-  // A week is signed on Timesheets, not on the placement, so only extend and end take the person's page.
-  const person = (act === 'EXTEND' || act === 'END') && named.person ? named.person : null
+  // Extend and end are done from the person's line on Contracts, whose
+  // drawer holds Extend and Initiate rolloff; the placement page draws
+  // neither, so it is never the door. The person's name goes in the
+  // sentence; the link is Contracts, where the line is.
+  const onTheLine = act === 'EXTEND' || act === 'END'
+  const person = onTheLine && named.person ? named.person : null
   const receipt = named.receipt && act === 'PAY' ? named.receipt : null
-  const where = person ? `${person.name}’s placement page` : receipt ? `${receipt.number}’s page` : f.where
-  const desks = desksHolding(f.needs, companyKind)
-  const who = permissions.includes(f.needs)
-    ? `you hold that desk, so do it on ${where}`
+  const place = person ? `${person.name}’s line on Contracts` : receipt ? `${receipt.number}’s page` : f.where
+  const where = `${onTheLine ? 'from' : 'on'} ${place}`
+  const desks = act === 'PAY' ? payingDesks(companyKind) : desksHolding(f.needs, companyKind)
+  const holds = act === 'PAY' ? paysOut(permissions, companyKind) : permissions.includes(f.needs)
+  const who = holds
+    ? `you hold that desk, so do it ${where}`
     : desks.length
-      ? `your ${twoDesks(desks)} does it on ${where}`
-      : `the desk that does it works on ${where}`
-  const link: Link = person
-    ? { label: `Open ${person.name}’s placement`, href: `/dashboard/placements/${person.contractId}` }
-    : receipt
-      ? { label: `Open ${receipt.number}`, href: hrefFor('Invoice', receipt.invoiceId) }
-      : f.link
+      ? `your ${twoDesks(desks)} does it ${where}`
+      : `the desk that does it works ${where}`
+  const link: Link = receipt
+    ? { label: `Open ${receipt.number}`, href: hrefFor('Invoice', receipt.invoiceId) }
+    : f.link
   return { says: `Etyme never ${f.verb}; ${who}.`, links: [link] }
 }
 

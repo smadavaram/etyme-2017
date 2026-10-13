@@ -26,9 +26,10 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/alerts', () => ({ reportError: vi.fn(async () => undefined) }))
 import { recordModelPrompt, WITHHELD } from '@/lib/model-boundary'
 import { feedWhere } from '@/lib/twin/ledger'
+import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
 import {
-  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
+  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
@@ -252,6 +253,11 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     const refused = await respond('Who is near the time limit?', readers({ limits: async () => ({ ok: false, says: 'Reading who is near the time limit is done by Program Manager at Northbend Athletic.' }) }), { env: NO_KEY })
     expect(refused).toEqual({ kind: 'TEXT', says: 'Reading who is near the time limit is done by Program Manager at Northbend Athletic.', links: undefined })
     expect((await respond('show me invoice variance by supplier this quarter', read, { env: NO_KEY, now: NOW })).kind).toBe('VARIANCE')
+    // The twin page's own line, and the way a person repeats it, reach the same rule.
+    expect(readAsk('How do invoice receipts compare by supplier?')).toEqual({ kind: 'VARIANCE' })
+    expect(readAsk('Compare invoice receipts by supplier')).toEqual({ kind: 'VARIANCE' })
+    expect(readAsk('Invoice receipts by supplier')).toEqual({ kind: 'VARIANCE' })
+    expect(readAsk('What did we spend by supplier this month?')).toEqual({ kind: 'SPEND' })
     expect((await respond('why entry-442', read, { env: NO_KEY })).kind).toBe('WHY')
     expect((await respond('approve 1', read, { env: NO_KEY })).kind).toBe('CONFIRM')
 
@@ -363,14 +369,24 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     const read = readers()
     const extend = await respond('Please extend Helena Marsh by three months', read, { env: KEY, companyKind: 'VENDOR' })
     expect(extend.kind).toBe('TEXT')
-    // One sentence, and the link opens the placement the question names.
-    expect(extend.says).toMatch(/^Etyme never extends a placement; your .*Contract Manager.* does it on Helena Marsh’s placement page\.$/)
+    // One sentence naming the person, and the link opens Contracts, whose line drawer has Extend.
+    // The placement page draws no Extend, so it is never the door (release walk, 1716c047f).
+    expect(extend.says).toMatch(/^Etyme never extends a placement; your .*Contract Manager.* does it from Helena Marsh’s line on Contracts\.$/)
     expect(extend.says).not.toContain('assignments.write')
-    expect(extend).toMatchObject({ links: [{ label: 'Open Helena Marsh’s placement', href: '/dashboard/placements/sc-helena' }] })
+    expect(extend).toEqual({ kind: 'TEXT', says: extend.says, links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] })
     // The founder's own sentence: a first name is enough when one person on the placements carries it.
     const founder = await respond('Extend Helena three months', read, { env: KEY, companyKind: 'CLIENT' })
-    expect(founder.says).toMatch(/^Etyme never extends a placement; your .+ does it on Helena Marsh’s placement page\.$/)
-    expect(founder).toMatchObject({ links: [{ label: 'Open Helena Marsh’s placement', href: '/dashboard/placements/sc-helena' }] })
+    expect(founder.says).toMatch(/^Etyme never extends a placement; your .+ does it from Helena Marsh’s line on Contracts\.$/)
+    expect(founder).toMatchObject({ links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] })
+    // Ending is the same door: Initiate rolloff sits beside Extend on the line.
+    const end = await respond('End Omar Haddad’s placement on Friday', read, { env: KEY, companyKind: 'CLIENT' })
+    expect(end).toMatchObject({ links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] })
+    expect(end.says).toMatch(/does it from Omar Haddad’s line on Contracts\.$/)
+    // No never-floor act links to a placement page.
+    for (const q of ['Extend Helena', 'End Omar Haddad', 'Award the job to Priya', 'Pay PR-2026-0441', 'Run payroll', 'Sign the MSA with Veritan', 'Sign Helena’s week', 'Reject the submission from Brightmoor']) {
+      const a = await respond(q, read, { env: KEY, companyKind: 'CLIENT' })
+      for (const l of (a as { links?: { href: string }[] }).links ?? []) expect(l.href).not.toMatch(/^\/dashboard\/placements\//)
+    }
     // Two Helenas: one question naming both, and no link.
     const twoHelenas = [...ROSTER, { personId: 'p-ruiz', name: 'Helena Ruiz', contractId: 'sc-ruiz' }]
     const which = await respond('Extend Helena three months', readers({ named: async (t) => matchPerson(t, twoHelenas) }), { env: KEY, companyKind: 'CLIENT' })
@@ -380,7 +396,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     // Nobody named: the list where it is done.
     const anyone = await respond('extend the placement', read, { env: KEY, companyKind: 'VENDOR' })
     expect(anyone).toMatchObject({ links: [{ href: '/dashboard/contracts' }] })
-    expect(anyone.says).toMatch(/^Etyme never extends a placement; your .+ does it on the placement page\.$/)
+    expect(anyone.says).toMatch(/^Etyme never extends a placement; your .+ does it from the line on Contracts\.$/)
 
     expect(neverAct('end Omar Haddad’s placement on Friday')).toBe('END')
     expect(neverAct('Award the job to Priya')).toBe('AWARD')
@@ -396,11 +412,23 @@ describe('the twin’s conversation answers from the ledger by rules before any 
 
     // A seat that holds the desk is told it does it itself.
     const own = await respond('extend Helena Marsh', read, { env: KEY, companyKind: 'CLIENT', permissions: ['assignments.write'] })
-    expect(own.says).toBe('Etyme never extends a placement; you hold that desk, so do it on Helena Marsh’s placement page.')
+    expect(own.says).toBe('Etyme never extends a placement; you hold that desk, so do it from Helena Marsh’s line on Contracts.')
 
     const pay = await respond('pay PR-2026-0441', read, { env: KEY, companyKind: 'CLIENT' })
     expect(pay.says).toMatch(/^Etyme never pays an invoice receipt; your .+ does it on PR-2026-0441’s page\.$/)
     expect(pay).toMatchObject({ links: [{ label: 'Open PR-2026-0441', href: '/dashboard/invoices/inv-441' }] })
+
+    // A supplier asked to pay is told the desks that pay out, never Accounts Receivable, which bills.
+    const supplierPay = await respond('Pay IN-XSWQQZ-20260901', read, { env: KEY, companyKind: 'VENDOR' })
+    expect(supplierPay.says).toMatch(/^Etyme never pays an invoice receipt; your AP & Payroll or Finance does it on /)
+    expect(supplierPay.says).not.toContain('Accounts Receivable')
+    expect(payingDesks('VENDOR')).toEqual(desksHolding('payments.record', 'VENDOR').filter((d) => d !== 'Accounts Receivable'))
+    // An Accounts Receivable seat holds payments.record to record money in; it is not told it pays.
+    const arPay = await respond('Pay IN-XSWQQZ-20260901', read, { env: KEY, companyKind: 'VENDOR', permissions: ['invoices.read', 'invoices.issue', 'payments.record'] })
+    expect(arPay.says).not.toContain('you hold that desk')
+    // Where the one money desk both bills and pays, it is the desk that pays.
+    expect(payingDesks('MSP')).toEqual(['AP Clerk'])
+    expect(payingDesks('CLIENT')).toEqual(['AP Clerk'])
     expect(read.model).not.toHaveBeenCalled()
   })
 
