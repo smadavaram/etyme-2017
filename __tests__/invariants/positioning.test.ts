@@ -2350,20 +2350,16 @@ describe('The site says what it does and shows it, and claims nothing a reader c
   it('points a reader who checks before trusting at the public documentation and the security position, and at nothing it cannot show', () => {
     // The trust signals are the ones that exist: the demo with no account,
     // every flow in public documentation, and a security band that says
-    // what is done and what is not. Since 2026-10-09 the page names SOC 2
-    // and ISO 27001 — only to say plainly they are not held. No uptime, no
+    // what is done. Since 2026-10-13 (CLAUDE.md, "Nine decisions", item 1)
+    // the band is four cards of what is done, and what is not done yet is
+    // one link to the security page, which says it in order. A
+    // certification may be named only to say it is not held. No uptime, no
     // customer count, no customer proof of any kind, and never /ready.
     const close = PAGE.slice(PAGE.indexOf('<CloseBand'))
     expect(close).toContain("href={'/docs' as Route}")
     const security = PAGE.slice(PAGE.indexOf('id="security"'), PAGE.indexOf('<CloseBand'))
     expect(security).toContain("href={'/security' as Route}")
     expect(security).toContain("href={'/dpa' as Route}")
-    expect(all).toContain('No SOC 2 report and no ISO 27001 certificate.')
-    expect(all).toContain('A penetration test comes first, then SOC 2.')
-    for (const line of [
-      'A refused read is logged before the refusal is sent.',
-      'Each kind of record is kept for a set period, with the rule that requires it cited.',
-    ]) expect(all).toContain(line)
     for (const sentence of all.split(/(?<=[.!?])\s+/).filter((x) => /SOC ?2|ISO ?27001/.test(x))) {
       expect(sentence, 'a certification may be named only to say it is not held').toMatch(/No SOC 2 report|penetration test comes first, then SOC 2|not (?:yet )?held/)
     }
@@ -2373,6 +2369,38 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     expect(all).not.toMatch(/\b(?:certified|uptime|99\.\d+%|customers? (?:trust|use)|trusted by|testimonial)\b/i)
     expect(all).toContain('No card. No sign-up.')
   })
+  it('the home page says what is done in four cards, and sends the reader to the security page for what is not done yet and its order', () => {
+    // The honest-security sentence, kept in its new shape: the home page
+    // does not hide the gaps, it points at the one page that lists them,
+    // and that page says them in the order they will be done, with no date.
+    const security = PAGE.slice(PAGE.indexOf('id="security"'), PAGE.indexOf('<CloseBand'))
+    expect(security).toContain('What the record does with your people’s data')
+    for (const card of [
+      'Every read is logged',
+      'Every record has a keeping period',
+      'A breach is recorded the day it is noticed',
+      'A data processing addendum you can read now',
+    ]) expect(all, card).toContain(card)
+    for (const line of [
+      'A refused read is logged before the refusal is sent.',
+      'Each kind of record is kept for a set time, with the rule that requires it cited beside it.',
+      'What is not done yet, and the order it will be done in, is on the security page.',
+    ]) expect(all, line).toContain(line)
+    const page = COMPANY_PAGES.find((c) => c.route === '/security')!
+    const next = page.blocks.find((b) => b.id === 'not')!
+    expect(next.title).toBe('Next, in order')
+    expect(next.items!.map((i) => i.t)).toEqual(['1. A penetration test', '2. SOC 2 Type I', '3. SOC 2 Type II'])
+    const words = copyOfCompanyPage(page)
+    expect([...words.hero, ...words.body].join(' ')).toContain('No date is published here, because none is contracted.')
+  })
+
+  it('no public page says the application has no rate limiting or firewall rules; that stays in the internal posture document', () => {
+    for (const [route, text] of everyPublicPage()) {
+      expect(text, route).not.toMatch(/rate limiting|firewall/i)
+    }
+    expect(readFileSync(join(process.cwd(), 'docs/security-posture.md'), 'utf8')).toMatch(/No rate limiting/i)
+  })
+
   it('no public page limits who may buy by how many contractors they have', () => {
     for (const [route, text] of everyPublicPage()) {
       const found = sizesTheBuyer(text)

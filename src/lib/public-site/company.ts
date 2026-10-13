@@ -370,26 +370,35 @@ export const SECURITY: CompanyPage = {
         { t: 'Somebody is told when it breaks', d: 'A failure in any API route writes an incident and emails staff, and the daily job reports that it ran even on a day nothing broke.' },
       ],
     },
+    // Reworded 2026-10-13 (CLAUDE.md, "Nine decisions", item 1): the
+    // attestations are said as the order they will be done in, the other
+    // gaps stay listed as they were, and the rate-limiting and firewall
+    // line left the public site. It stays in docs/security-posture.md.
     {
       id: 'not',
-      title: 'What is not done',
+      title: 'Next, in order',
       items: [
-        { t: 'Attestation', d: 'No SOC 2 Type I or Type II, no ISO 27001, and no penetration test, ever.' },
-        { t: 'At the edge', d: 'No rate limiting, no firewall rules and no bot protection in the application, and no content security policy configured.' },
-        { t: 'Sign-in', d: 'Multi-factor sign-in is inherited from your corporate tenant, not enforced by Etyme. SSO enforcement and automated provisioning are not built.' },
-        { t: 'Recovery', d: 'No documented backup and restore procedure, no restore tested, and no disaster recovery plan.' },
-        { t: 'Encryption', d: 'Encryption at rest and in transit is what the hosting providers supply. It is not configured or verified by Etyme.' },
-        { t: 'People', d: 'No named security officer, and no formal access review of Etyme’s own staff.' },
-        { t: 'Disclosure', d: 'The vulnerability disclosure policy is written. Its mailbox is not live yet.' },
+        { t: '1. A penetration test', d: 'None has been run. It comes first, because an attestation written over controls nobody has attacked is the wrong way round.' },
+        { t: '2. SOC 2 Type I', d: 'An assessment of how the controls are designed. Not started.' },
+        { t: '3. SOC 2 Type II', d: 'The observation window, which commonly runs six months and cannot be shortened later. ISO 27001 follows the same evidence.' },
       ],
     },
     {
       id: 'when',
       title: 'When',
       paragraphs: [
-        'The order is decided. A penetration test comes first, because an attestation written over controls nobody has attacked is the wrong way round.',
-        'Then a SOC 2 Type I assessment of how the controls are designed, and then the Type II observation window, which commonly runs six months and cannot be shortened later. ISO 27001 follows the same evidence.',
         'No date is published here, because none is contracted. When one is, it goes on this page.',
+      ],
+    },
+    {
+      id: 'gaps',
+      title: 'Also not done yet',
+      items: [
+        { t: 'Sign-in', d: 'Multi-factor sign-in is inherited from your corporate tenant, not enforced by Etyme. SSO enforcement and automated provisioning are not built.' },
+        { t: 'Recovery', d: 'No documented backup and restore procedure, no restore tested, and no disaster recovery plan.' },
+        { t: 'Encryption', d: 'Encryption at rest and in transit is what the hosting providers supply. It is not configured or verified by Etyme.' },
+        { t: 'People', d: 'No named security officer, and no formal access review of Etyme’s own staff.' },
+        { t: 'Disclosure', d: 'The vulnerability disclosure policy is written. Its mailbox is not live yet.' },
       ],
     },
     {

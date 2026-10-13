@@ -45,7 +45,8 @@ import { SCREEN, EDGE, BAND, H2, UNDER_HEADING } from '@/lib/public-site/rhythm'
  *                 and screens two and three under Control and Reconcile
  *   #audit        what the audit delivers, needs, takes and leads to,
  *                 then four short fields posting a real lead
- *   #security     what is done and what is not, from the security page
+ *   #security     what is done, four cards; what is not done yet, and its
+ *                 order, is one link to the security page (2026-10-13)
  *   #close        the three ways forward, and the quiet rows: the
  *                 program office once, the price, the supplier's and the
  *                 contractor's doors
@@ -255,18 +256,22 @@ const AUDIT_STEPS: { t: string; d: string }[] = [
   { t: 'Next step', d: 'A named person at Etyme walks you through the page.' },
 ]
 
-/** What is done and what is not, from the security position (lib/public-site/company, SECURITY). */
-const SECURITY_DONE: string[] = [
-  'Every read of a person’s record is logged: who read it, why, and whether it was allowed.',
-  'A refused read is logged before the refusal is sent.',
-  'Each kind of record is kept for a set period, with the rule that requires it cited.',
-  'A breach is recorded the day it is noticed, and each notice names the person who sends it.',
+/**
+ * What the record does with a person's data, from the security position
+ * (lib/public-site/company, SECURITY). Four cards, all of them done.
+ * Decided 2026-10-13 (CLAUDE.md, "Nine decisions", item 1): the band says
+ * what is done, and what is not done yet, in the order it will be done,
+ * is one link away on the security page, where every gap is still listed.
+ * The fourth card, the DPA, carries its link in the band below.
+ */
+const SECURITY_DONE: { t: string; d: string }[] = [
+  { t: 'Every read is logged', d: 'Who read a person’s record, why, and whether it was allowed. A refused read is logged before the refusal is sent.' },
+  { t: 'Every record has a keeping period', d: 'Each kind of record is kept for a set time, with the rule that requires it cited beside it.' },
+  { t: 'A breach is recorded the day it is noticed', d: 'Each notice names the person who sends it.' },
 ]
-const SECURITY_NOT_YET: string[] = [
-  'No SOC 2 report and no ISO 27001 certificate.',
-  'No third-party penetration test.',
-  'No rate limiting or firewall rules in the application.',
-]
+const SECURITY_DPA = { t: 'A data processing addendum you can read now', d: 'Not on request. On the site, today.' }
+/** The one line under the cards, linking to the order of what is not done yet. */
+const SECURITY_NEXT = 'What is not done yet, and the order it will be done in, is on the security page.'
 
 const FIGURE = 'overflow-hidden rounded-r-lg border border-etyme-rule bg-etyme-raised shadow-lift'
 const CAPTION = 'px-4 py-3 text-[13px] leading-relaxed text-etyme-muted md:px-5'
@@ -542,50 +547,33 @@ export default function LandingPage() {
       </section>
 
       {/* ── Security and trust ───────────────────────────────── */}
-      {/* From the security position (/security), which lists the gaps as
-          plainly as the controls. No certification is claimed, because
-          none is held. */}
+      {/* What is done, as four cards, from the security position (/security).
+          What is not done yet, and the order it will be done in, is one link
+          to that page, which lists every gap. No certification is claimed,
+          because none is held. */}
       <section id="security" className={`${SCREEN} ${EDGE} bg-etyme-surface`}>
         <div className={BAND}>
           <p className="eyebrow mb-3">Security</p>
-          <h2 className={H2}>Here is what is done, and what is not yet</h2>
+          <h2 className={H2}>What the record does with your people’s data</h2>
 
-          <div className={`${UNDER_HEADING} grid gap-6 md:grid-cols-2`}>
+          <div className={`${UNDER_HEADING} grid gap-4 sm:grid-cols-2 lg:grid-cols-4`}>
+            {SECURITY_DONE.map((c) => (
+              <div key={c.t} className="rounded-panel border border-etyme-rule bg-etyme-raised p-5">
+                <h3 className="text-[16px] font-semibold leading-snug text-etyme-ink">{c.t}</h3>
+                <p className="mt-2 text-[15px] leading-snug text-etyme-muted">{c.d}</p>
+              </div>
+            ))}
             <div className="rounded-panel border border-etyme-rule bg-etyme-raised p-5">
-              <p className="stat-label">Done</p>
-              <ul className="mt-3 space-y-2.5">
-                {SECURITY_DONE.map((line) => (
-                  <li key={line} className="flex gap-2.5 text-[15px] leading-snug text-etyme-ink">
-                    <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified" />
-                    {line}
-                  </li>
-                ))}
-                <li className="flex gap-2.5 text-[15px] leading-snug text-etyme-ink">
-                  <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified" />
-                  <span>
-                    A data processing addendum you can read now.
-                    {' '}<Link href={'/dpa' as Route} className={TEXT_LINK}>Read the DPA</Link>
-                  </span>
-                </li>
-              </ul>
-            </div>
-            <div className="rounded-panel border border-etyme-rule bg-etyme-raised p-5">
-              <p className="stat-label">Not done yet</p>
-              <ul className="mt-3 space-y-2.5">
-                {SECURITY_NOT_YET.map((line) => (
-                  <li key={line} className="flex gap-2.5 text-[15px] leading-snug text-etyme-ink">
-                    <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-attention" />
-                    {line}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-[14px] leading-snug text-etyme-muted">
-                A penetration test comes first, then SOC 2. No date is published, because none is contracted.
+              <h3 className="text-[16px] font-semibold leading-snug text-etyme-ink">{SECURITY_DPA.t}</h3>
+              <p className="mt-2 text-[15px] leading-snug text-etyme-muted">
+                {SECURITY_DPA.d}
+                {' '}<Link href={'/dpa' as Route} className={TEXT_LINK}>Read the DPA</Link>
               </p>
             </div>
           </div>
-          <p className="mt-6 text-[15px]">
-            <Link href={'/security' as Route} className={TEXT_LINK}>Read the full security position →</Link>
+          <p className="mt-6 text-[15px] leading-snug text-etyme-muted">
+            {SECURITY_NEXT}
+            {' '}<Link href={'/security' as Route} className={TEXT_LINK}>Read the full security position →</Link>
           </p>
         </div>
       </section>
