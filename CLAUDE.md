@@ -827,6 +827,45 @@ One release a day to the preview, the fifty-question score beside it,
 never a red score shipped. The fifty questions are the one new test file
 the testing budget admits for this, approved with the plan.
 
+**Nine decisions made on the founder's instruction, 2026-10-13**
+(*"Think like Elon Musk and make decisions"*). Each is the coordinator's
+call, reversible by the founder in one sentence.
+1. **The home page's security band says what is done**, four plain cards;
+   "what is not done yet, and the order it will be done in" is one link
+   to the security page. The security page's "not done" list is reworded
+   as "next, in order": penetration test, then SOC 2 Type I, then Type
+   II, no date because none is contracted. The rate-limiting and
+   firewall line leaves every public page; it stays in the internal
+   posture document. Honest, and not a warning label.
+2. **The four party doors are built** from their drawings: suppliers and
+   bench firms, program offices, integrators, contractors. Reached by
+   link or advertising, sign-up first, not on the home page's menu.
+3. **The 0.5% tolerance decides what the twin raises, not what is paid.**
+   Payment stays strict: a bill is paid only on accepted hours at the
+   contract rate. A client who wants a tolerance on payment asks, and it
+   is a setting with the reason beside it.
+4. **The program manager may edit the role contract and the rule set.**
+   The twin acts on that desk's authority, so that desk sets its limits;
+   `governance.write` opens the editors beside `settings.manage`, every
+   edit a version in the ledger.
+5. **A supplier's Dashboard link keeps opening its own Today tables.**
+   One click behind Ask Etyme, as the rule says.
+6. **The model is small and rented**, masked at the edge, zero retention,
+   every prompt logged, off per company by default (option 1). An owned
+   model inside Etyme's environment is the switch for the first client
+   whose security review asks where the text goes; it is a second
+   runtime and waits for that client.
+7. **Week 3 is next after week 2 lands**: the two drawn acts become act
+   kinds first ("route a question to the right desk", acts alone; "send
+   a receipt back to the supplier for correction", needs approval, an
+   outside message), then cards; a correction becomes a rule; ten yeses
+   bring the promotion ask.
+8. **Ask Etyme ships to production on the next green pass and a "ships"
+   verdict from the walk**, the same way the last wave did. The reseed
+   and the twin run on production still need the founder's secret.
+9. **No more drawings until the drawn ones are built.** The coaching
+   drawing waits for week 3's build; the voice is written, not drawn.
+
 **The hours tolerance is 0.5%, not 2%. Decided by the founder,
 2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
 default rule set raises an invoice receipt whose billed hours differ from
