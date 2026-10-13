@@ -7,7 +7,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { chainTop, viaPhrase } from '@/lib/chain-top'
 import { rateSpread, type Placement } from '@/lib/census-page'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
-import { contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { startPaperwork, agreementsOnFile } from './desk-findings'
 import { tierWord } from '@/lib/supplier-tier'
 import { resolveProgram, unitsReachedBy } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -270,15 +270,14 @@ export async function GET(request: NextRequest) {
   // The standing this client gave each supplier, in the word the
   // suppliers page uses; an agreement on file counts as approved.
   const vendorIds = Array.from(vendorMap.keys())
-  const [standings, agreements] = await Promise.all([
+  const [standings, agreed] = await Promise.all([
     prisma.counterparty.findMany({
       where: { companyId: clientCompany.id, relationship: 'SUPPLIER', otherCompanyId: { in: vendorIds } },
       select: { otherCompanyId: true, tier: true },
     }),
-    prisma.masterAgreement.findMany({ where: { clientId: clientCompany.id, vendorId: { in: vendorIds } }, select: { vendorId: true } }),
+    agreementsOnFile(clientCompany.id, vendorIds),
   ])
   const tierOf = new Map(standings.map((x) => [x.otherCompanyId, x.tier]))
-  const agreed = new Set(agreements.map((a) => a.vendorId))
 
   const vendors = Array.from(vendorMap.values()).map(v => ({
     id: v.id,
@@ -365,7 +364,7 @@ export async function GET(request: NextRequest) {
   // and its number and state, and the refusal has to name them — "RN
   // 154-882, WI expired" can be checked against a register; "your license
   // expired" cannot.
-  const verificationShape = { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true } as const
+  // The columns read are `VERIFICATION_SHAPE` in ./desk-findings.
   // The one word for each, from the function every screen reads, so this
   // page and the contractor register cannot disagree about one person.
   //
@@ -379,33 +378,17 @@ export async function GET(request: NextRequest) {
   const termsFor = await termsOnRecordFor(notStarted.map((c) => c.id))
   const cleared = await Promise.all(
     notStarted.map(async (c) => {
-      const [personVerifications, supplierCertificates] = await Promise.all([
-        prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
-        prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: verificationShape }),
-      ])
-      const papers = contractClearance({
-        personName: c.person.name, personVerifications,
-        // Inside a sentence the desk reads, so the phrase: "the firm
-        // supplied through Computer Systems has no current certificate".
-        supplierName: shown(c.company.id, c.company.name).phrase, supplierCertificates,
-        clientName: clientCompany.name, on: c.startDate > now ? c.startDate : now,
-        // The role, so the preview runs the same packet activation will:
-        // a licensed role with no license on file reads as a block a week
-        // early rather than as a pass here and a refusal on the day. The
-        // last day says whether the license outlives the assignment.
-        role: c.requirement?.title ?? null,
-        through: c.endDate,
-        // What THIS client's own order asked for on this line, last, so
-        // it beats the shape above it. Without it the preview ran the
-        // default packet for the role and the client's own paper was
-        // invisible a week early: Cavanaugh Glassworks sent Wrenfield
-        // Technical a purchase order requiring a master service
-        // agreement, nobody ever signed one, and the desk read "nothing
-        // stops the start" until the day of the start. The spread also
-        // widens the firm's standing from the four insurance kinds above
-        // to everything the line asks about it — a suspended registration
-        // included.
-        ...(await lineExtras({ sellContractId: c.id })),
+      // The verdict is `startPaperwork`'s, the one `GET /api/decisions`
+      // reads too, so the queue and this panel cannot disagree about a
+      // start. Inside a sentence the desk reads, the supplier is the
+      // phrase: "the firm supplied through Computer Systems has no
+      // current certificate". What THIS client's own order asked for is
+      // read on the line, so a purchase order requiring an agreement
+      // nobody signed reads as held a week early, not on the day.
+      const papers = await startPaperwork(c, {
+        supplierPhrase: shown(c.company.id, c.company.name).phrase,
+        clientName: clientCompany.name,
+        now,
       })
       return {
         contractId: c.id,

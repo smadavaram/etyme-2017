@@ -289,11 +289,10 @@ describe('The job request page says each thing once and never contradicts itself
 // ── The client's dashboard (s1-1, s1-2, s1-3, s1-5, s6-1) ───────────
 
 describe('The client’s dashboard agrees with itself and every tile opens what it counts', () => {
-  const counts = deskCounts({
-    decisions: [],
-    startingSoon: [{ paperwork: { outcome: 'BLOCK' } }],
-    vendors: [{ agreement: false, headcount: 2 }],
-  })
+  // A held start and a supplier with no agreement are rows of the queue
+  // since 2026-10-13, so the box draws them; the sentence below is the
+  // guard for a box that ever reads empty under a headline that is not.
+  const counts = deskCounts({ decisions: [{ type: 'START_HELD' }, { type: 'NO_AGREEMENT' }] })
 
   it('under "2 things need you" the box never says nothing is waiting on you', () => {
     expect(deskHeadline(counts).says).toMatch(/^2 things need you/)
@@ -306,7 +305,7 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
   })
 
   it('a desk with truly nothing waiting still says so', () => {
-    const none = deskCounts({ decisions: [], startingSoon: [], vendors: [] })
+    const none = deskCounts({ decisions: [] })
     expect(emptyQueueSays({ counts: none, approvalsWithOthers: 0, doneToday: 0 })).toContain('Nothing is waiting on you.')
   })
 

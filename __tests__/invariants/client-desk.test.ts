@@ -18,6 +18,7 @@ describe('what the client desk is told', () => {
   const needsYou = read('src/app/dashboard/program/needs-you.ts')
   const volume = read('src/lib/demo-volume.ts')
   const seed = read('src/lib/seed-programmes.ts')
+  const findings = read('src/app/api/program/desk-findings.ts')
 
   it('a submitted week reaches the client desk that signs it, not only the supplier that pays for it', () => {
     expect(decisions).toContain('{ sellContract: endClientFilter(companyId), clientApprovedAt: null }')
@@ -45,7 +46,7 @@ describe('what the client desk is told', () => {
     // firms below the reader. Priced there it was blank for the client
     // and, before that, its supplier's supplier's rate. Walked up, Northbend Athletic
     // reads its own $145.
-    expect(decisions).toContain("import { payerRung, viaPhrase } from '@/lib/chain-top'")
+    expect(decisions).toContain("import { chainTop, payerRung, viaPhrase } from '@/lib/chain-top'")
     expect(decisions).toContain('const filed = rungs.find((r) => r.id === sc.id)')
     expect(decisions).toContain('payerRung(filed, rungs)')
     expect(decisions).toContain('paying && (!asClient || paying.clientCompanyId === companyId)')
@@ -92,6 +93,16 @@ describe('what the client desk is told', () => {
     expect(page).toContain('said.says')
   })
 
+  it('a question the twin is waiting on this desk for is counted in the queue, in the twin\u2019s own words, and opens Ask Etyme', () => {
+    expect(decisions).toContain("import { waitingQuestions } from '@/lib/twin/ledger'")
+    // Only what this seat may answer: never one asked on its own authority.
+    expect(decisions).toContain('(await waitingQuestions(caller)).filter((q) => q.mayDecide)')
+    expect(decisions).toContain("type: 'TWIN_QUESTION'")
+    expect(decisions).toContain('title: TWIN_ACTS[q.action]?.says ?? q.rationale')
+    expect(decisions).toContain('actionUrl: ASK_ETYME_HREF')
+    expect(page).toContain("TWIN_QUESTION: 'Ask Etyme'")
+  })
+
   it('a week that does not fit its contract is flagged in a sentence before anybody signs it', () => {
     expect(decisions).toContain("import { weekFlag, periodWord } from '@/lib/timesheet-flag'")
     expect(decisions).toContain('hoursPerWeek: sc.requirement?.hoursPerWeek ?? null')
@@ -129,11 +140,13 @@ describe('what the client desk is told', () => {
     // Glassworks' order to Wrenfield Technical requires a master service
     // agreement nobody ever signed; before this the desk read the default
     // packet for the role and saw nothing until the start date.
-    expect(program).toContain("import { contractClearance, lineExtras } from '@/lib/contract-clearance'")
-    expect(program).toContain('...(await lineExtras({ sellContractId: c.id })),')
+    // The verdict is read in one place, by the page and the queue alike.
+    expect(program).toContain("import { startPaperwork, agreementsOnFile } from './desk-findings'")
+    expect(findings).toContain("import { contractClearance, lineExtras } from '@/lib/contract-clearance'")
+    expect(findings).toContain('...(await lineExtras({ sellContractId: c.id })),')
     // Last inside the call, not first: the order's answer must not be
     // overwritten by the shape it was merged into.
-    const call = program.slice(program.indexOf('const papers = contractClearance({'))
+    const call = findings.slice(findings.indexOf('const papers = contractClearance({'))
     expect(call.indexOf('lineExtras')).toBeLessThan(call.indexOf('})'))
     expect(call.indexOf('through: c.endDate')).toBeLessThan(call.indexOf('lineExtras'))
   })
@@ -144,7 +157,7 @@ describe('what the client desk is told', () => {
     // every caller that named keys beginning INSURANCE_ went on reading
     // past it. `supplierCoverGate` decides for itself which kinds it has
     // an opinion about, so nobody else needs a list.
-    expect(program).toContain('{ where: { companyId: c.companyId, personId: null }, select: verificationShape }')
+    expect(findings).toContain('{ where: { companyId: c.companyId, personId: null }, select: VERIFICATION_SHAPE }')
     expect(program).not.toContain("const CERTS = ['INSURANCE_GL'")
   })
 

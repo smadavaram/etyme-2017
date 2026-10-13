@@ -4,7 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { payerRung, viaPhrase } from '@/lib/chain-top'
+import { chainTop, payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { weekFlag, periodWord } from '@/lib/timesheet-flag'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
@@ -17,6 +17,14 @@ import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
+import { waitingQuestions } from '@/lib/twin/ledger'
+import { TWIN_ACTS } from '@/lib/autonomy'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
+import { logBulkAccess } from '@/lib/access-log'
+import { accountFilterFor } from '@/lib/account-walls'
+import { andAll } from '@/lib/walls'
+import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
+import { deskItems } from '@/app/dashboard/program/needs-you'
 
 /**
  * GET /api/decisions
@@ -37,6 +45,9 @@ import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
  *   SUPPLIER_REVIEW    — a firm recommended, waiting on Procurement's paperwork and yes
  *   CONTRACT_PAPERING  — a placement won and still a draft: the contract desk's
  *   CONTRACT_START     — a contract papered and nobody started on it yet
+ *   TWIN_QUESTION      — the twin asked a person, and this seat may answer it
+ *   START_HELD         — a client's start the paperwork will refuse on the day
+ *   NO_AGREEMENT       — a client's supplier with people on site and no agreement on file
  *
  * Each decision has: type, title, subtitle, urgency (HIGH|MEDIUM|LOW),
  * entityType, entityId, dueDate (if applicable), and actionUrl.
@@ -713,6 +724,129 @@ export async function GET(request: NextRequest) {
         createdAt: inv.dueAt!.toISOString(),
       })
     }
+  }
+
+  // ── 7. A client's held starts, and suppliers with no paper ────────
+  //
+  // This route is the one count for a seat: the Ask Etyme mark, the
+  // greeting and the program page's headline all read its total. The
+  // program page used to add two kinds of its own on top — a start the
+  // paperwork will refuse, and a supplier with people on site and no
+  // agreement — so the dashboard said one number and the mark another.
+  // Both are here now, each for the desk that can act on it, and the
+  // verdict and the sentence are the program page's own
+  // (`startPaperwork`, `deskItems`), so the two cannot disagree.
+  //
+  // A client's book only: these are about who works on the client's site.
+  // A supplier's own unstarted lines are its activation desk's, read on
+  // its contracts. Inside a firm that separates its accounts, the same
+  // wall as the program page.
+  const isClient = caller.company?.kind === 'CLIENT'
+  const startsDesk = isClient && hasAnyPermission(caller.permissions, ['assignments.write'])
+  const supplierDesk = isClient && hasAnyPermission(caller.permissions, ['vendors.manage'])
+  if (startsDesk || supplierDesk) {
+    const wall = await accountFilterFor(caller)
+    const rungs = await prisma.sellContract.findMany({
+      where: andAll(endClientFilter(companyId), wall.where, {
+        state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
+      }),
+      select: {
+        id: true, personId: true, companyId: true, clientCompanyId: true, state: true,
+        startDate: true, endDate: true,
+        person: { select: { name: true } },
+        company: { select: { id: true, name: true } },
+        requirement: { select: { title: true } },
+      },
+    })
+    // The contract the client pays, one per person: the firm named is
+    // always the one the client buys from, never a rung below it.
+    const top = chainTop(rungs)
+    const clientName = caller.company!.name
+
+    const held = startsDesk
+      ? (await Promise.all(
+          top
+            .filter((c) => c.state !== 'IN_PROGRESS')
+            .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+            .map(async (c) => ({
+              contractId: c.id,
+              person: { name: c.person.name },
+              vendor: { name: c.company.name },
+              startDate: c.startDate,
+              paperwork: await startPaperwork(c, { supplierPhrase: c.company.name, clientName, now }),
+            }))
+        ))
+      : []
+
+    const onSiteBy = new Map<string, { id: string; name: string; headcount: number }>()
+    if (supplierDesk) {
+      for (const c of top.filter((x) => x.state === 'IN_PROGRESS')) {
+        const v = onSiteBy.get(c.company.id) ?? { id: c.company.id, name: c.company.name, headcount: 0 }
+        v.headcount++
+        onSiteBy.set(c.company.id, v)
+      }
+    }
+    const agreed = await agreementsOnFile(companyId, [...onSiteBy.keys()])
+    const vendors = [...onSiteBy.values()].map((v) => ({ ...v, agreement: agreed.has(v.id) }))
+
+    const startOf = new Map(held.map((h) => [h.contractId, h.startDate]))
+    for (const item of deskItems({ startingSoon: held, vendors })) {
+      const contractId = item.kind === 'START' ? item.key.replace(/^start-/, '') : null
+      const startsOn = contractId ? startOf.get(contractId) ?? null : null
+      decisions.push({
+        type: item.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT',
+        title: item.who,
+        subtitle: item.says,
+        // Neither has waited on anybody yet, so neither reads as "waited
+        // more than five days"; a start inside a week is the one that is.
+        urgency: startsOn && startsOn.getTime() - now.getTime() <= 7 * 86_400_000 ? 'HIGH' : 'MEDIUM',
+        entityType: item.kind === 'START' ? 'SELL_CONTRACT' : 'COMPANY',
+        entityId: contractId ?? item.key.replace(/^agreement-/, ''),
+        dueDate: startsOn ? startsOn.toISOString() : null,
+        actionUrl: item.href,
+        amount: null,
+        createdAt: (startsOn ?? now).toISOString(),
+      })
+    }
+  }
+
+  // ── 6. What the twin is waiting on this seat for ──────────────────
+  //
+  // The badge on the Ask Etyme mark and the greeting's headline both read
+  // this route's total, so a question the twin put to this desk has to be
+  // in it — otherwise the mark says "nothing" over a yes somebody is
+  // waiting for. Only the questions this seat may actually answer
+  // (`mayDecide`): not one asked on its own authority or that it asked for
+  // itself, which somebody else answers, not one for a desk it does not
+  // hold, and not one whose act the role contract has since moved to
+  // Never. The row is the twin's own sentence and opens Ask Etyme, where
+  // the card with Yes and Not now lives; the answer goes through the one
+  // approval route, never through here.
+  const twinAsks = (await waitingQuestions(caller)).filter((q) => q.mayDecide)
+  const askedAbout = twinAsks.filter((q) => q.entityType === 'Person').map((q) => q.entityId)
+  if (askedAbout.length > 0) {
+    logBulkAccess([...new Set(askedAbout)], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'TENURE_VIEW',
+      reason: 'Read in the decision queue: a question from the twin this desk may answer',
+    })
+  }
+  for (const q of twinAsks) {
+    const waited = Math.floor((now.getTime() - q.requestedAt.getTime()) / (1000 * 60 * 60 * 24))
+    decisions.push({
+      type: 'TWIN_QUESTION',
+      title: TWIN_ACTS[q.action]?.says ?? q.rationale,
+      subtitle: [q.label, q.rationale, waited <= 0 ? 'asked today' : `asked ${waited}d ago`]
+        .filter(Boolean).join(' · '),
+      urgency: waited >= 7 ? 'HIGH' : waited >= 3 ? 'MEDIUM' : 'LOW',
+      entityType: 'TWIN_APPROVAL',
+      entityId: q.id,
+      dueDate: null,
+      actionUrl: ASK_ETYME_HREF,
+      amount: null,
+      createdAt: q.requestedAt.toISOString(),
+    })
   }
 
   // ── Sort by urgency, then by created date ─────────

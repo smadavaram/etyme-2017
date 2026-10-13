@@ -32,17 +32,17 @@ describe('The headline and the box under it read one list', () => {
     { id: 'v3', name: 'Pinnacle', headcount: 1 },
   ]
 
-  it('the box draws every start paperwork will refuse and every supplier with no agreement, so the headline counts exactly its rows', () => {
+  it('every start paperwork will refuse and every supplier with no agreement is a row, and the headline counts the rows of the queue and nothing else', () => {
     const items = deskItems({ startingSoon, vendors })
-    const counts = deskCounts({ decisions: [], startingSoon, vendors })
     expect(items.map((i) => i.who)).toEqual(['Samuel Adeyinka — through Brightmoor', 'Wrenfield Technical'])
-    expect(deskHeadline(counts).total).toBe(items.length)
-    expect(deskHeadline(counts).says).toMatch(/^2 things need you\./)
+    const queue = items.map((i) => ({ type: i.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT' }))
+    expect(deskHeadline(deskCounts({ decisions: queue })).total).toBe(items.length)
+    expect(deskHeadline(deskCounts({ decisions: queue })).says).toMatch(/^2 things need you\./)
   })
 
-  it('with one decision in the queue the headline counts it and the two rows, three in all', () => {
-    const counts = deskCounts({ decisions: [{ type: 'TIMESHEET_APPROVAL' }], startingSoon, vendors })
-    expect(deskHeadline(counts).total).toBe(1 + deskItems({ startingSoon, vendors }).length)
+  it('with one decision beside the two rows the headline says three, the length of the queue', () => {
+    const counts = deskCounts({ decisions: [{ type: 'TIMESHEET_APPROVAL' }, { type: 'START_HELD' }, { type: 'NO_AGREEMENT' }] })
+    expect(deskHeadline(counts).total).toBe(3)
   })
 
   it('a start that only warns is not a row, because it refuses nobody', () => {
@@ -61,19 +61,30 @@ describe('The headline and the box under it read one list', () => {
     expect(agreement.href).toBe('/dashboard/program/agreements')
   })
 
-  it('the box says nothing is waiting only when the headline says nothing needs you', () => {
+  it('the program page, the Ask Etyme mark and the greeting say one number: the dashboard headline reads the decision queue and adds nothing of its own', () => {
     const page = src('src/app/dashboard/program/page.tsx')
-    expect(page).toContain('queue.length === 0 && others.length === 0')
-    expect(page).toContain('deskItems({ startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })')
+    expect(page).toContain('const counts = deskCounts({ decisions: queue })')
+    expect(page).not.toContain('deskItems(')
+    expect(page).toContain('queue.length === 0 && (')
+    const decisions = src('src/app/api/decisions/route.ts')
+    expect(decisions).toContain("import { deskItems } from '@/app/dashboard/program/needs-you'")
+    expect(decisions).toContain("type: item.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT'")
   })
 
-  it('every start paperwork will refuse is counted, not only the five nearest the panel shows', () => {
+  it('a held start reaches the desk that starts people, and a supplier with no agreement the desk that manages suppliers, at a client only', () => {
+    const decisions = src('src/app/api/decisions/route.ts')
+    expect(decisions).toContain("const isClient = caller.company?.kind === 'CLIENT'")
+    expect(decisions).toContain("const startsDesk = isClient && hasAnyPermission(caller.permissions, ['assignments.write'])")
+    expect(decisions).toContain("const supplierDesk = isClient && hasAnyPermission(caller.permissions, ['vendors.manage'])")
+  })
+
+  it('every start paperwork will refuse is counted, not only the five nearest the panel shows, and the queue and the panel read one verdict', () => {
     const route = src('src/app/api/program/route.ts')
     expect(route).not.toContain(".filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
     expect(route).toContain('startingSoon: cleared.slice(0, 5)')
-    expect(route).toContain("heldStarts: cleared.filter((c) => c.paperwork.outcome === 'BLOCK')")
-    const page = src('src/app/dashboard/program/page.tsx')
-    expect(page.match(/startingSoon: data\.heldStarts \?\? data\.startingSoon/g)?.length).toBe(3)
+    expect(route).toContain('const papers = await startPaperwork(c, {')
+    const decisions = src('src/app/api/decisions/route.ts')
+    expect(decisions).toContain('paperwork: await startPaperwork(c, { supplierPhrase: c.company.name, clientName, now })')
   })
 
   it('the panel shows the nearest starts first, by the day they start', () => {

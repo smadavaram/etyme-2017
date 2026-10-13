@@ -23,6 +23,9 @@ export type DecisionType =
   | 'CONTRACT_PAPERING'
   | 'CONTRACT_START'
   | 'INVOICE_OVERDUE'
+  | 'TWIN_QUESTION'
+  | 'START_HELD'
+  | 'NO_AGREEMENT'
 
 export type TypeFilter = 'all' | DecisionType
 
@@ -46,6 +49,13 @@ export const CHIP_PAGES: Readonly<Record<DecisionType, readonly string[]>> = {
   CONTRACT_PAPERING: ['/dashboard/submissions'],
   CONTRACT_START: ['/dashboard/submissions'],
   INVOICE_OVERDUE: ['/dashboard/invoices', '/dashboard/ar'],
+  // Offered only where a question is waiting: the twin's questions are
+  // answered in Ask Etyme, and an empty chip for them is a door to nothing.
+  TWIN_QUESTION: [],
+  // A client's held starts and suppliers with no paper: offered where one
+  // is waiting, the same way, so no other reader's chips change.
+  START_HELD: [],
+  NO_AGREEMENT: [],
 }
 
 const LABELS: ReadonlyArray<[DecisionType, string]> = [
@@ -57,6 +67,9 @@ const LABELS: ReadonlyArray<[DecisionType, string]> = [
   ['CONTRACT_PAPERING', 'To paper'],
   ['CONTRACT_START', 'To start'],
   ['INVOICE_OVERDUE', 'Bills'],
+  ['TWIN_QUESTION', 'Ask Etyme'],
+  ['START_HELD', 'Starts held'],
+  ['NO_AGREEMENT', 'No agreement'],
 ]
 
 export interface ChipReader {

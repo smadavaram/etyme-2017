@@ -27,18 +27,20 @@
  *   - a supplier with people on site and no agreement on file, which is
  *     one thing to fix however many people are under it
  *
- * Nothing here reads a database and nothing here fetches: the page has
- * all three lists already, and this is arithmetic over them.
+ * Nothing here reads a database and nothing here fetches. Since
+ * 2026-10-13 all three are rows of the one queue (`GET /api/decisions`),
+ * so the page's headline, the Ask Etyme mark and the greeting say one
+ * number; this is arithmetic over that queue.
  */
 
 export interface DeskCounts {
-  /** Decisions waiting on this desk. */
+  /** Everything waiting on this desk: the queue's length, which is the total. */
   queue: number
   /** Of those, the ones carrying an exception — a flag, a disputed bill. */
   exceptions: number
-  /** Starts that paperwork will refuse on the day. */
+  /** Of those, starts that paperwork will refuse on the day. */
   blockedStarts: number
-  /** Suppliers with somebody on site and no agreement on file. */
+  /** Of those, suppliers with somebody on site and no agreement on file. */
   suppliersWithNoAgreement: number
 }
 
@@ -49,20 +51,27 @@ export interface DeskHeadline {
   says: string
 }
 
-/** The three lists the page draws, reduced to what the sentence needs. */
+/**
+ * The queue, reduced to what the sentence needs.
+ *
+ * ── One number, 2026-10-13 ───────────────────────────────────────────
+ *
+ * This used to add the page's own held starts and suppliers with no
+ * agreement on top of the queue, so the dashboard said one number and the
+ * Ask Etyme mark — which reads `GET /api/decisions` — said another. Both
+ * kinds are in the queue now (START_HELD, NO_AGREEMENT), built from
+ * `deskItems` below by the route, for the desk that may act on each. So
+ * the total is the queue's length and nothing else, and the clauses name
+ * what in it is which.
+ */
 export function deskCounts(input: {
   decisions: { urgency?: string | null; flag?: unknown; type?: string | null }[]
-  startingSoon: { paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK' } }[]
-  vendors: { agreement?: boolean; headcount?: number }[]
 }): DeskCounts {
   return {
     queue: input.decisions.length,
     exceptions: input.decisions.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length,
-    blockedStarts: input.startingSoon.filter((c) => c.paperwork.outcome === 'BLOCK').length,
-    // `agreement === false` is the page's own test: undefined means the
-    // answer was never read, and counting an unknown as a finding is how
-    // a number nobody can stand behind gets onto a screen.
-    suppliersWithNoAgreement: input.vendors.filter((v) => v.agreement === false).length,
+    blockedStarts: input.decisions.filter((d) => d.type === 'START_HELD').length,
+    suppliersWithNoAgreement: input.decisions.filter((d) => d.type === 'NO_AGREEMENT').length,
   }
 }
 
@@ -77,7 +86,9 @@ function plural(n: number, one: string, many: string): string {
  * page with one approval on it is the same lie facing the other way.
  */
 export function deskHeadline(c: DeskCounts): DeskHeadline {
-  const total = c.queue + c.blockedStarts + c.suppliersWithNoAgreement
+  // The queue already holds the starts and the suppliers; adding them
+  // again is the two-numbers bug this replaced.
+  const total = c.queue
   if (total === 0) return { total, says: 'Nothing needs you today.' }
 
   const parts: string[] = [`${plural(total, 'thing needs', 'things need')} you.`]
@@ -193,9 +204,10 @@ export function emptyQueueSays(c: {
 }
 
 /**
- * The rows "Yours today" draws besides the decisions: one per start that
- * paperwork will refuse, one per supplier with people on site and no
- * agreement on file.
+ * The rows for a start that paperwork will refuse and a supplier with
+ * people on site and no agreement on file. Pure, so `GET /api/decisions`
+ * builds its START_HELD and NO_AGREEMENT rows from these sentences and
+ * the page draws them from the queue like any other row.
  *
  * ── One list, one count ──────────────────────────────────────────────
  *

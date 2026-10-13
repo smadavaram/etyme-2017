@@ -56,6 +56,9 @@ function typeIcon(type: string): string {
     CONTRACT_START:     '▷',
     INVOICE_OVERDUE:    '▧',
     RATE_CONFIRMATION:  '↕',
+    TWIN_QUESTION:      '✦',
+    START_HELD:         '■',
+    NO_AGREEMENT:       '§',
   }
   return map[type] ?? '●'
 }
@@ -73,6 +76,9 @@ function typeLabel(type: string): string {
     CONTRACT_START:     'To start',
     INVOICE_OVERDUE:    'Bill',
     RATE_CONFIRMATION:  'Rate',
+    TWIN_QUESTION:      'Ask Etyme',
+    START_HELD:         'Start held',
+    NO_AGREEMENT:       'No agreement',
   }
   return map[type] ?? type
 }

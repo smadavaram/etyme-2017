@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deskCounts, deskHeadline, whoseQueue } from '@/app/dashboard/program/needs-you'
+import { deskCounts, deskHeadline, deskItems, whoseQueue } from '@/app/dashboard/program/needs-you'
 import { supplierCoverGate } from '@/lib/document-stages'
 
 /**
@@ -10,7 +10,7 @@ import { supplierCoverGate } from '@/lib/document-stages'
  * desk.
  */
 describe('the sentence at the top of a client’s desk', () => {
-  const clear = { decisions: [], startingSoon: [], vendors: [] }
+  const clear = { decisions: [] as { type?: string; urgency?: string; flag?: unknown }[] }
 
   it('says nothing needs you only when the queue, the starts and the suppliers are all clear', () => {
     expect(deskHeadline(deskCounts(clear)).says).toBe('Nothing needs you today.')
@@ -18,7 +18,7 @@ describe('the sentence at the top of a client’s desk', () => {
 
   it('counts a start that paperwork will stop, even with an empty approval queue', () => {
     const said = deskHeadline(
-      deskCounts({ ...clear, startingSoon: [{ paperwork: { outcome: 'BLOCK' } }] })
+      deskCounts({ decisions: [{ type: 'START_HELD' }] })
     )
     expect(said.total).toBe(1)
     expect(said.says).toContain('1 thing needs you.')
@@ -26,33 +26,30 @@ describe('the sentence at the top of a client’s desk', () => {
   })
 
   it('counts a supplier with people on site and no agreement on file', () => {
-    const said = deskHeadline(deskCounts({ ...clear, vendors: [{ agreement: false, headcount: 1 }] }))
+    const said = deskHeadline(deskCounts({ decisions: [{ type: 'NO_AGREEMENT' }] }))
     expect(said.total).toBe(1)
     expect(said.says).toContain('no agreement on file')
   })
 
   it('counts a supplier once however many of its people are on site', () => {
-    const said = deskHeadline(deskCounts({ ...clear, vendors: [{ agreement: false, headcount: 6 }] }))
-    expect(said.total).toBe(1)
+    const rows = deskItems({ startingSoon: [], vendors: [{ id: 'v', name: 'Wrenfield', agreement: false, headcount: 6 }] })
+    expect(rows).toHaveLength(1)
   })
 
   it('a start whose paperwork only warns is not counted as needing somebody', () => {
-    const said = deskHeadline(
-      deskCounts({ ...clear, startingSoon: [{ paperwork: { outcome: 'WARN' } }, { paperwork: { outcome: 'PASS' } }] })
-    )
-    expect(said.says).toBe('Nothing needs you today.')
+    const start = (id: string, outcome: 'WARN' | 'PASS') =>
+      ({ contractId: id, person: { name: id }, vendor: { name: 'B' }, paperwork: { outcome, says: '', fix: null } })
+    expect(deskItems({ startingSoon: [start('a', 'WARN'), start('b', 'PASS')], vendors: [] })).toEqual([])
   })
 
   it('a supplier whose agreement was never read is not counted as missing one', () => {
-    expect(deskHeadline(deskCounts({ ...clear, vendors: [{ headcount: 3 }] })).says).toBe('Nothing needs you today.')
+    expect(deskItems({ startingSoon: [], vendors: [{ id: 'v', name: 'P', headcount: 3 }] })).toEqual([])
   })
 
-  it('adds the queue, the blocked starts and the suppliers into one number and names each', () => {
+  it('the one number is the queue, held starts and suppliers with no agreement among its rows, and names each', () => {
     const said = deskHeadline(
       deskCounts({
-        decisions: [{ urgency: 'HIGH', flag: 'OVER_CONTRACT' }, { type: 'APPROVAL' }],
-        startingSoon: [{ paperwork: { outcome: 'BLOCK' } }],
-        vendors: [{ agreement: false, headcount: 1 }, { agreement: true, headcount: 2 }],
+        decisions: [{ urgency: 'HIGH', flag: 'OVER_CONTRACT' }, { type: 'APPROVAL' }, { type: 'START_HELD' }, { type: 'NO_AGREEMENT' }],
       })
     )
     expect(said.total).toBe(4)

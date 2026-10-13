@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation'
 import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
-import { deskCounts, deskHeadline, deskItems, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
+import { deskCounts, deskHeadline, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -184,7 +184,13 @@ const KIND_WORD: Record<string, string> = {
   INVOICE_OVERDUE: 'Bill',
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',
+  TWIN_QUESTION: 'Ask Etyme',
+  START_HELD: 'Start held',
+  NO_AGREEMENT: 'No agreement',
 }
+
+/** Rows that say what is wrong and what to do, drawn in the attention color. */
+const HELD = new Set(['START_HELD', 'NO_AGREEMENT'])
 
 function ago(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -422,11 +428,11 @@ export default function ProgramPage() {
   const s = data.summary
   const queue = decisions ?? []
   const urgent = queue.filter((d) => d.urgency === 'HIGH').length
-  // The headline counts everything the page shows needs somebody — the
-  // queue, a start paperwork will refuse, a supplier with people on site
-  // and no agreement — rather than the queue alone, which read "Nothing
-  // needs you today." over both of the other two.
-  const counts = deskCounts({ decisions: queue, startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })
+  // The headline is the queue's total — the same figure the Ask Etyme
+  // mark and the greeting read from GET /api/decisions. A start paperwork
+  // will refuse and a supplier with people on site and no agreement are
+  // rows of that queue now, not a second sum added here.
+  const counts = deskCounts({ decisions: queue })
   const said = deskHeadline(counts)
   const exceptions = counts.exceptions
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
@@ -588,8 +594,6 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
 }) {
   const s = data.summary
   const whoseBook = whoseQueue(queueBook ?? {})
-  // Everything else the headline counts, drawn in the same box.
-  const others = deskItems({ startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors })
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -639,12 +643,12 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {!queueLoaded && <LoadingState compact says="Reading…" />}
           {queueLoaded && queueSays && <p className="p-4 text-sm text-etyme-muted">{queueSays}</p>}
-          {queueLoaded && !queueSays && queue.length === 0 && others.length === 0 && (
+          {queueLoaded && !queueSays && queue.length === 0 && (
             <p className="p-4 text-sm text-etyme-muted">
               {/* Never "nothing" under a headline that counted something
                   (`emptyQueueSays`): it says where those things are. */}
               {emptyQueueSays({
-                counts: deskCounts({ decisions: queue, startingSoon: data.heldStarts ?? data.startingSoon, vendors: data.vendors }),
+                counts: deskCounts({ decisions: queue }),
                 approvalsWithOthers: data.approvalQueue.length,
                 doneToday: data.today.length,
               })}
@@ -661,12 +665,12 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
             const who = whoIn(d.title)
             const asking = reasonFor === d.entityId
             return (
-              <div key={`${d.type}-${d.entityId}`} className={`p-4 ${d.flag ? 'bg-etyme-attention/[0.04]' : ''}`}>
+              <div key={`${d.type}-${d.entityId}`} className={`p-4 ${d.flag || HELD.has(d.type) ? 'bg-etyme-attention/[0.04]' : ''}`}>
                 <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
                   <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{KIND_WORD[d.type] ?? d.entityType.toLowerCase()}</span>
                   <div className="flex-1 min-w-[220px]">
                     <p className="text-sm text-etyme-ink">{who}</p>
-                    <p className="text-xs text-etyme-muted mt-0.5">{d.subtitle}</p>
+                    <p className={`text-xs mt-0.5 ${HELD.has(d.type) ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{d.subtitle}</p>
                     {d.flag && <p className="text-xs text-etyme-attention mt-1.5"><span className="font-mono mr-1.5">!</span>{d.flag}</p>}
                   </div>
                   <span className="text-xs text-etyme-faint tabular-nums pt-1">{ago(d.createdAt)}</span>
@@ -716,21 +720,6 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
               and {queue.length - 8} more
             </Link>
           )}
-          {/* The rest of what the headline counted, as rows in the same
-              box: a start paperwork will refuse, a supplier with people on
-              site and no agreement (`deskItems`). One list, one count. */}
-          {queueLoaded && others.map((o) => (
-            <div key={o.key} className="p-4 bg-etyme-attention/[0.04]">
-              <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-                <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{o.label}</span>
-                <div className="flex-1 min-w-[220px]">
-                  <p className="text-sm text-etyme-ink">{o.who}</p>
-                  <p className="text-xs text-etyme-attention mt-0.5">{o.says}</p>
-                </div>
-                <Link href={o.href as any} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas shrink-0">Open</Link>
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* ── Done today ── */}
