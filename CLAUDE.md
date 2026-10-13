@@ -1428,8 +1428,10 @@ Two things followed, both in `lib/nav-table` and one door in
   `__tests__/invariants/every-route-has-a-door.test.ts` fails on any API
   route that goes through none of the shared door, the cron check or the
   staff check and is not on the named list of public token routes.
-So Karthik's menu is now Today — Needs attention, Conversations,
-Notifications — and You, and he lands on Your work. The paragraph above
+So Karthik's menu is now Ask Etyme, then Today — Conversations,
+Notifications — and You, and since 2026-10-13 he lands in Ask Etyme
+like every seat whose menu has Conversations ("Ask Etyme is the app");
+his own work is one click behind it. The paragraph above
 still holds for a worker who holds a desk: a delivery manager who is
 also on a placement keeps the firm's sections and gains You. **For the
 founder to confirm:** this narrows what a firm's own W2 sees by default;
