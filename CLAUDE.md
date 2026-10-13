@@ -790,6 +790,43 @@ build the Etyme app just like Elon Musk"*, on the seven moves below).
   client turns it on, and sends only what the rules did not answer.
   Rules first; the buyer is an IT person.
 
+**The model boundary, and the four weeks. Decided by the founder,
+2026-10-13** (*"run it"*, on the plan below). The boundary stands on
+Etyme's own reason: the record holds several companies' people and money
+at once, so a client turning a model on must never expose a supplier's
+rates or a worker's pay.
+- **Per company, off by default.** A company switch, set by its settings
+  desk, recorded with who and when. Until it exists the first screen says
+  "turned on for this deployment", which is the truth today.
+- **Masked before it leaves.** Names, rates and pay become tokens before
+  anything is sent; only what the rules did not answer is sent; put back
+  on the way out. The model never sees a real name.
+- **Nothing retained by the provider**, under its business terms.
+- **Every prompt and answer logged on the record** beside the access
+  log, readable by the company. "What left" is a query.
+- **Suggestions only.** The model never reaches the approval route.
+- **No model feature ever reads across tenants.** Variance is across a
+  client's own suppliers; standing, never price, is what crosses firms;
+  the only cross-firm data is consented. No benchmark of a supplier's
+  rates across clients, ever. Enforced where data is fetched, not in a
+  prompt.
+
+The four weeks, as the founder approved them: **week 1** the feed and
+the voice (answers read the ledger live and say "checked just now"; a
+one-page voice guide — recommendation first, fact second, why on tap,
+one sentence per refusal with the door, no apology words, dry and never
+funny about money or people; fifty real questions with their right
+answers, run as a test every day); **week 2** the boundary as code (the
+switch, masking at the edge, zero retention, the prompt log, no
+cross-tenant read); **week 3** acts and memory (every act a card, each a
+new act kind in the role contract first; a correction becomes a rule the
+person can read and keeps on their yes; after ten yeses on one card the
+twin asks to do that one alone, ledgered, reversible); **week 4** Teams
+and the number (keys and sideload; acts per day reviewed every morning).
+One release a day to the preview, the fifty-question score beside it,
+never a red score shipped. The fifty questions are the one new test file
+the testing budget admits for this, approved with the plan.
+
 **The hours tolerance is 0.5%, not 2%. Decided by the founder,
 2026-10-12** (*"Not % but .5% is better"*), after the first walk. So the
 default rule set raises an invoice receipt whose billed hours differ from
