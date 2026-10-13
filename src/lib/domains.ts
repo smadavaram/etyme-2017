@@ -366,6 +366,9 @@ export const DOMAINS: Domain[] = [
       // The model boundary (2026-10-13): the per-company switch and the
       // log of what left. The masking at the edge is conversation's.
       'lib/model-boundary',
+      // Staff bootstrap of a real company on a deployment with no email key
+      // (2026-10-14, "Etyme runs on Etyme"), and the page staff follow.
+      'lib/staff-bootstrap', 'app/api/staff', 'docs/run-etyme-on-etyme.md',
       // Its screens: the program owner's page, the role-contract and rule-set
       // editors. The conversation panel on it is conversation's.
       'app/dashboard/twin',

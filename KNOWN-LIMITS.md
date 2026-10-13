@@ -106,6 +106,21 @@ rule set, the nightly run. What is short of that:
 20. **`TeamsConversation` has a table and no writer of the
     architect's.** Conversation's bot binds and reads it.
 
+## Staff bootstrap — etyme-architect (2026-10-14)
+
+1. **`POST /api/staff/bootstrap-company` exists because production has no
+   email key.** Sign-up confirms an address by email and an invitation is
+   an email, so neither works there. Staff hold the one-time links and
+   must hand each to its person privately; once the key is set, seats come
+   in through Users & permissions and this route is not needed.
+2. **The domain is verified on staff's word**, not by an identity
+   provider (`CompanyDomain.verifiedVia = 'STAFF'`), and the log says so.
+3. **It is not one transaction.** People, the company and the seats are
+   written in turn. A failure part-way leaves what was made; running it
+   again finds it and adds only what is missing.
+4. **Untested against a database.** The rules are tested as a plan
+   (`planBootstrap`); the writes are exercised only by running it.
+
 ## Time-limit rule — etyme-regulatory
 
 What is built: `src/lib/twin/rules/tenure.ts` reads the client's own time

@@ -522,6 +522,11 @@ ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 // (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
 // A person's act, reversible by the same switch; nothing turns it alone.
 ATTRIBUTED.ASK_ETYME_MODEL_SET = { basis: 'RULE' }
+// Staff made a real company, seated its first people and issued each a
+// one-time sign-in link, on a deployment with no email key
+// (src/lib/staff-bootstrap, 2026-10-14). `RECORDED`: the row says what
+// staff did, one row per thing made, never a password or the link.
+ATTRIBUTED.STAFF_BOOTSTRAP = { basis: 'RECORDED' }
 
 ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }

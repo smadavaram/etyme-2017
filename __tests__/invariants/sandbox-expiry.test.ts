@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { DEMO_DAYS } from '@/lib/demo-seed'
 import { DEMO_DAYS as CHAIN_DAYS } from '@/lib/demo-chain'
+import { readFileSync } from 'node:fs'
+import { isDemoCompany } from '@/lib/demo-company'
 import { sandboxHandle, sandboxVerdict, warningText, SANDBOX_UNUSED_DAYS, SANDBOX_WARN_DAYS } from '@/lib/sandbox-expiry'
 
 /**
@@ -45,6 +47,16 @@ describe('how long a visitor’s sandbox is kept', () => {
     expect(sandboxHandle('demo-270fead24d43-msp')).toBe('270fead24d43')
     expect(sandboxHandle('world-nike')).toBeNull()
     expect(sandboxHandle('acme-verify')).toBeNull()
+  })
+
+  it('never removes a company staff bootstrapped: it is not flagged a sandbox, its address is its own, and its verified domain makes it real', () => {
+    expect(sandboxHandle('etyme')).toBeNull()
+    expect(isDemoCompany({ isDemo: false, domain: 'etyme.com', domainVerified: true, seats: 5, realSeats: 5 })).toBe(false)
+    // The reaper reads only flagged sandboxes at demo- addresses, and the
+    // bootstrap makes its company through createCompany, which never flags one.
+    expect(readFileSync('src/lib/sandbox-expiry.ts', 'utf8')).toContain("where: { isDemo: true, slug: { startsWith: 'demo-' } }")
+    expect(readFileSync('src/lib/company-create.ts', 'utf8')).not.toContain('isDemo: true')
+    expect(readFileSync('src/lib/staff-bootstrap.ts', 'utf8')).not.toContain('isDemo')
   })
 
   it('the warning says the day it goes and that opening it keeps it, in plain words', () => {

@@ -11,6 +11,7 @@ import { rolesFor, countryFromDomain, packFor, MEMBER_ROLE, payRhythmForPack } f
 import { deskHome } from '@/components/desk-home'
 import { getNavForKind, ASK_ETYME_HREF } from '@/lib/nav-table'
 import { readsOnlyOwnWork } from '@/lib/console-home'
+import { planBootstrap, LINK_HOURS, type Existing } from '@/lib/staff-bootstrap'
 
 /**
  * Setup asks five things, then stops. Decided by the founder, 2026-10-07.
@@ -243,5 +244,58 @@ describe('setup after round two of the sign-up walk', () => {
     expect(src('src/app/api/onboarding/route.ts')).toContain('await beginClaimedSetup(')
     expect(src('src/app/(auth)/start/page.tsx')).toContain('{setup.claimedSays &&')
     expect(src('src/app/(auth)/verify/[token]/page.tsx')).toContain("b.data.already === false ? '/start'")
+  })
+})
+
+describe('staff bootstrap, on a deployment with no email', () => {
+  const ETYME = {
+    name: 'Etyme', domain: 'etyme.com', kind: 'VENDOR' as const, address: 'etyme',
+    seats: [
+      { email: 'sharath@etyme.com', role: 'Owner' },
+      { email: 'support@etyme.com', role: 'Admin' },
+      { email: 'hradmin@etyme.com', role: 'HR' },
+      { email: 'oliver@etyme.com', role: 'Account Manager' },
+      { email: 'timesheets@etyme.com', role: 'AP & Payroll' },
+    ],
+  }
+  const empty: Existing = { company: null, takenAddresses: new Set(['northbend']), people: {} }
+
+  it('staff can bootstrap a real company with its seats and one-time links on a deployment with no email, and running it twice adds nothing twice', () => {
+    const first = planBootstrap(ETYME, empty)
+    if (!first.ok) throw new Error(first.says)
+    expect(first.createCompany).toBe(true)
+    // Its own name, even though "etyme" is kept back from everybody else.
+    expect(first.address).toBe('etyme')
+    expect(first.seats.map((s) => s.does)).toEqual(Array(5).fill('CREATE_PERSON_AND_SEAT'))
+    expect(LINK_HOURS).toBe(7 * 24)
+
+    // The second run finds the company and the five seats, nobody having signed in yet.
+    const after: Existing = {
+      company: { id: 'c1', slug: 'etyme', name: 'Etyme' },
+      takenAddresses: new Set(['northbend']),
+      people: Object.fromEntries(ETYME.seats.map((s, i) => [s.email, { personId: `p${i}`, signedIn: false, seatRole: s.role }])),
+    }
+    const again = planBootstrap(ETYME, after)
+    if (!again.ok) throw new Error(again.says)
+    expect(again.createCompany).toBe(false)
+    expect(again.seats.map((s) => s.does)).toEqual(Array(5).fill('REISSUE_LINK'))
+
+    // Somebody who has signed in is never touched.
+    after.people['sharath@etyme.com'] = { personId: 'p0', signedIn: true, seatRole: 'Owner' }
+    const third = planBootstrap(ETYME, after)
+    if (!third.ok) throw new Error(third.says)
+    expect(third.seats[0]).toMatchObject({ does: 'LEAVE' })
+
+    // A personal provider and a demo-world domain are refused in a sentence.
+    expect(planBootstrap({ ...ETYME, domain: 'gmail.com', seats: [{ email: 'a@gmail.com', role: 'Owner' }] }, empty))
+      .toMatchObject({ ok: false, says: expect.stringContaining('personal mail provider') })
+    expect(planBootstrap({ ...ETYME, domain: 'demo.etyme.local', seats: [{ email: 'a@demo.etyme.local', role: 'Owner' }] }, empty))
+      .toMatchObject({ ok: false, says: expect.stringContaining('demo world') })
+
+    // The route is behind the staff secret, says why it exists, and never answers with a password.
+    const route = src('src/app/api/staff/bootstrap-company/route.ts')
+    expect(route).toContain('cronAuthorized(request)')
+    expect(route).toContain('no email key')
+    expect(src('src/lib/staff-bootstrap.ts')).not.toMatch(/password:\s/)
   })
 })
