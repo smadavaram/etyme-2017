@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { consoleHome } from '@/lib/console-home'
+import { landingFor } from '@/lib/nav-table'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { refusalSentence } from '@/lib/refusal-words'
 import { dashboardReads, NOT_YOURS, type DashboardReads } from '@/lib/dashboard-reads'
@@ -246,8 +247,21 @@ export default function DashboardPage() {
       worker: deskOf(session).worker,
       permissions: deskOf(session).permissions,
     })
+    // A firm whose console is this page (a supplier's Today) reads it
+    // here: its Dashboard link points at /dashboard, and the tables stay
+    // one click from Ask Etyme. Anybody else typing /dashboard goes where
+    // signing in and the demo door send them, through the one function
+    // the three doors share (`landingFor` in lib/nav-table): Ask Etyme
+    // where the seat's menu has Conversations, else lib/console-home's
+    // answer — My work for a consultant.
     if (home.href !== '/dashboard') {
-      router.replace(home.href as any)
+      router.replace(landingFor({
+        kind: session.company?.kind ?? null,
+        isConsultant: session.contextType === 'CONSULTANT',
+        seated: Boolean(session.seat),
+        worker: deskOf(session).worker,
+        permissions: deskOf(session).permissions,
+      }) as any)
       return
     }
     setSendingOn(false)

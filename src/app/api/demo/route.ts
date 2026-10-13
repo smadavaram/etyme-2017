@@ -219,11 +219,12 @@ export async function POST(request: NextRequest) {
   // somebody the page does not, and an address in the body is not a way
   // to be seated as anybody in the database.
   //
-  // Lands on /dashboard/my-work every time. It is the one page in this
-  // product that belongs to a person and not to a company — their
-  // placement, their hours, what has been asked of them — and landing a
-  // consultant on a company overview is how the integrator seat was lost
-  // for a week.
+  // Lands where the sign-in does, through the one function the three
+  // doors share (`landingFor` in lib/nav-table): Ask Etyme where the
+  // person's own menu has Conversations — Karthik Menon, an integrator's
+  // own W2, whose Today has it — and their own work where it does not, as
+  // for a consultant on a bench. Never a company overview: that is how the
+  // integrator seat was lost for a week.
   if (asPerson) {
     const door = CANDIDATE_SEATS.find((c) => c.slug === asPerson)
     if (!door) {
@@ -240,7 +241,7 @@ export async function POST(request: NextRequest) {
           id: true, name: true,
           contexts: {
             where: { revokedAt: null, suspendedAt: null },
-            select: { type: true, company: { select: { id: true, name: true, kind: true } } },
+            select: { type: true, company: { select: { id: true, name: true, kind: true } }, role: { select: { permissions: true } } },
             orderBy: { grantedAt: 'desc' },
             take: 1,
           },
@@ -282,7 +283,13 @@ export async function POST(request: NextRequest) {
         // the whole point of the seat.
         listedBy: seated.contexts[0].company?.name ?? null,
         contextType: seated.contexts[0].type,
-        landing: '/dashboard/my-work',
+        landing: landingFor({
+          kind: (seated.contexts[0].company?.kind ?? null) as any,
+          isConsultant: seated.contexts[0].type === 'CONSULTANT',
+          // A person seat is always somebody the work is about.
+          worker: true,
+          permissions: seated.contexts[0].role?.permissions ?? [],
+        }),
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(door.email), {

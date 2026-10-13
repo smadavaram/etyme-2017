@@ -178,7 +178,7 @@ export default function TwinPage() {
   const subtitle =
     view === 'PARTY'
       ? 'What your clients’ program twins did about your own invoice receipts. Nothing about anybody else’s.'
-      : 'What the program manager’s twin did, what it is waiting on a person for, and the rule behind each.'
+      : 'What the twin did and the rule behind each; what it is waiting on is in Ask Etyme.'
 
   return (
     <div>

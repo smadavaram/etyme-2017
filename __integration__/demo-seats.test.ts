@@ -400,13 +400,18 @@ describe('the six people the demo can be walked as', () => {
     }
   }, 60_000)
 
-  it('lands every candidate on their own work, and never on a company dashboard', async () => {
+  it('lands each person where signing in would — Ask Etyme where their own menu has Conversations, their own work where it does not — and never on a company dashboard', async () => {
     for (const c of CANDIDATE_SEATS) {
       const { body } = await sitAs(c.slug)
-      expect(body.landing, c.name).toBe('/dashboard/my-work')
+      // The same function the sign-in landing and /dashboard read.
+      const consultant = body.contextType === 'CONSULTANT'
+      expect(body.landing, c.name).toBe(consultant ? '/dashboard/my-work' : ASK_ETYME_HREF)
       expect(body.landing).not.toBe('/dashboard')
       expect(body.landing).not.toBe('/dashboard/program')
     }
+    // Karthik Menon is an integrator's own W2 with no desk: his Today has
+    // Conversations, so he lands in Ask Etyme, as he would signing in.
+    expect((await sitAs('karthik-menon')).body.landing).toBe(ASK_ETYME_HREF)
   }, 60_000)
 
   /**
