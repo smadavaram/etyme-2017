@@ -355,7 +355,7 @@ function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
               <p className="mt-0.5 font-medium"><Rich line={answer.recommend} /></p>
             </div>
           )}
-          <p className={hello && !answer.recommend ? 'mt-2' : ''}>{answer.says}</p>
+          <p className={hello && !answer.recommend ? 'mt-2' : ''}><Rich line={{ says: answer.says, links: answer.saysLinks }} /></p>
           {answer.items.length > 0 && (
             <ol className="mt-2 flex flex-col gap-2">
               {answer.items.map((item) => (
@@ -363,7 +363,7 @@ function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
               ))}
             </ol>
           )}
-          {(answer.more ?? []).map((line) => <p key={line.says} className="mt-2.5"><Rich line={line} /></p>)}
+          {(answer.more ?? []).map((line, i) => <p key={`${i}:${line.says}`} className="mt-2.5"><Rich line={line} /></p>)}
           <Links links={answer.links} />
         </>
       )

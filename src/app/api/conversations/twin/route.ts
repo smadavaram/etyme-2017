@@ -4,7 +4,9 @@ import { reportError } from '@/lib/alerts'
 import { respond, today, modelState, type Picture } from './ask'
 import { modelSwitchFor } from '@/lib/model-boundary'
 import { GET as programPicture } from '@/app/api/program/route'
+import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
+import { unreadNotices, markNoticesSeen } from './notices'
 
 /**
  * GET  /api/conversations/twin                       the greeting
@@ -19,9 +21,12 @@ import { readersFor } from './read'
  * (`respond` in ./ask); anything else goes to the model over the ledger
  * lines the seat may read, and only where a key is configured.
  *
- * This route writes nothing. An approve or a reject comes back as a
- * confirm card, and the chat sends the person's yes or no to
- * POST /api/twin/approvals/:id, the one door the web and Teams share.
+ * This route writes one thing: the greeting's "Since you last looked"
+ * marks the notices it said as read, the reader's own rows and only the
+ * ones shown (./notices). It acts on nothing. An approve or a reject
+ * comes back as a confirm card, and the chat sends the person's yes or
+ * no to POST /api/twin/approvals/:id, the one door the web and Teams
+ * share.
  *
  * `companyId` is the company whose twin is asked, the reader's own by
  * default; a supplier reads another company's twin only through the
@@ -48,6 +53,28 @@ async function pictureFor(request: NextRequest): Promise<Picture | null> {
   }
 }
 
+/**
+ * What needs this seat, as one number: GET /api/decisions' own `total`
+ * for this caller, the figure the Ask Etyme mark carries as its badge, so
+ * the headline and the badge cannot disagree. Null where the queue
+ * refuses the seat or cannot be read; the headline then says what the
+ * twin's own questions say.
+ */
+function needsFor(request: NextRequest): () => Promise<number | null> {
+  return async () => {
+    try {
+      const res = await decisionQueue(request)
+      if (!res.ok) return null
+      // The same field the mark reads (`owedFrom` in lib/owed-count): one
+      // answer, one figure.
+      const total = (await res.json())?.data?.total
+      return typeof total === 'number' && Number.isInteger(total) && total >= 0 ? total : null
+    } catch {
+      return null
+    }
+  }
+}
+
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Choose your company’s seat first.'
 const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no answer. Staff have been told; try again in a minute.'
 
@@ -58,9 +85,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   try {
-    const answer = await today(readersFor(caller, caller.company.id), { greeting: true, picture: await pictureFor(request) })
+    const notices = await unreadNotices(caller)
+    const answer = await today(readersFor(caller, caller.company.id), {
+      greeting: true, picture: await pictureFor(request), needs: needsFor(request), notices,
+    })
     // The boundary line reads the company's own switch, so it says what is true for this company.
     const model = modelState((await modelSwitchFor(caller.company.id)).on, process.env)
+    // Said, so read: the section empties itself on the next greeting.
+    await markNoticesSeen(caller, notices.shown.map((n) => n.id))
     return NextResponse.json({ data: { answer, model } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
@@ -80,7 +112,9 @@ export async function POST(request: NextRequest) {
   const companyId = typeof body.companyId === 'string' && body.companyId ? body.companyId : caller.company.id
 
   try {
-    const answer = await respond(text, readersFor(caller, companyId), { env: process.env, companyKind: caller.company.kind, permissions: caller.permissions })
+    const answer = await respond(text, readersFor(caller, companyId), {
+      env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: needsFor(request),
+    })
     return NextResponse.json({ data: { answer } })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })

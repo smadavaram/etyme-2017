@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { joinedSaid, welcomeSaid, joinedNotices, ACCESS_PAGE, JOINED_EVENT } from '@/lib/notify/joined'
 import { pageOf } from '@/lib/notify'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
 /**
  * A colleague who signs in on a claimed domain gets a seat at once, and
@@ -67,8 +68,14 @@ describe('when a colleague joins on the company domain', () => {
   })
 
   it('a link named on a notice that leads off the site is ignored, and the type’s own page is used', () => {
-    expect(pageOf('SYSTEM', null, { href: 'https://evil.example/x' })).toBe('/dashboard/notifications')
-    expect(pageOf('SYSTEM', null, { href: '/dashboard//evil.example' })).toBe('/dashboard/notifications')
+    expect(pageOf('SYSTEM', null, { href: 'https://evil.example/x' })).toBe(ASK_ETYME_HREF)
+    expect(pageOf('SYSTEM', null, { href: '/dashboard//evil.example' })).toBe(ASK_ETYME_HREF)
     expect(pageOf('SUBMISSION', null)).toBe('/dashboard/submissions')
+  })
+
+  it('a notice written before the notifications page was deleted, naming it, opens Ask Etyme instead', () => {
+    expect(pageOf('SYSTEM', null, { href: '/dashboard/notifications' })).toBe(ASK_ETYME_HREF)
+    expect(pageOf('BENCH', null, { href: '/dashboard/notifications?type=BENCH' })).toBe(ASK_ETYME_HREF)
+    expect(pageOf('BENCH', null, { href: '/dashboard/notifications-elsewhere' })).toBe('/dashboard/notifications-elsewhere')
   })
 })

@@ -3,6 +3,7 @@ import { routeFor, attemptDelivery, type Recipient } from '@/lib/notification-de
 import { configuredSenders } from '@/lib/senders'
 import { reportError } from '@/lib/alerts'
 import { appUrl } from '@/lib/app-url'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
 /**
  * Central notification creator. Used by APIs and cron jobs to create
@@ -115,6 +116,9 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
  */
 export function pageOf(type: string, entityId: string | null, data?: Record<string, unknown>): string {
   const href = data?.href
+  // A notice written before the Notifications page was deleted may still
+  // name it; it opens Ask Etyme, where its notices are read now.
+  if (typeof href === 'string' && /^\/dashboard\/notifications(\/|\?|$)/.test(href)) return ASK_ETYME_HREF
   if (typeof href === 'string' && /^\/dashboard(\/|\?|$)/.test(href) && !href.includes('//')) return href
   return notificationHref(type, entityId)
 }
@@ -388,7 +392,9 @@ export function notificationHref(type: string, entityId?: string | null): string
     CONTRACT: '/dashboard/contracts',
     ROLLOFF: '/dashboard/rolloff',
     CONVERSATION: '/dashboard/conversations',
-    SYSTEM: '/dashboard/notifications',
+    // The Notifications page is gone (2026-10-13); a notice with no page
+    // of its own reads in Ask Etyme's greeting, under "Since you last looked".
+    SYSTEM: ASK_ETYME_HREF,
     CYCLE_DUE: '/dashboard/timesheets',
     VISA_EXPIRY: '/dashboard/compliance',
     INTERVIEW: '/dashboard/submissions',
@@ -396,7 +402,7 @@ export function notificationHref(type: string, entityId?: string | null): string
     BENCH: '/dashboard/bench',
   }
 
-  const base = routes[type] ?? '/dashboard/notifications'
+  const base = routes[type] ?? ASK_ETYME_HREF
 
   // For requirement-linked types, entityId is the requirement ID
   if (entityId && type === 'MATCH_READY') {

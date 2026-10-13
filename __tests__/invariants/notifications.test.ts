@@ -20,6 +20,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { notify, notifyBulk, notificationHref, type NotificationType, type NotificationChannel } from '@/lib/notify'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 
 // ── Notification routing ──────────────────────────────
 
@@ -53,8 +54,8 @@ describe('Notification routing — notificationHref()', () => {
     expect(notificationHref('CONVERSATION')).toBe('/dashboard/conversations')
   })
 
-  it('a SYSTEM notification routes to /dashboard/notifications', () => {
-    expect(notificationHref('SYSTEM')).toBe('/dashboard/notifications')
+  it('a SYSTEM notification opens Ask Etyme, where notices read now that the notifications page is gone', () => {
+    expect(notificationHref('SYSTEM')).toBe(ASK_ETYME_HREF)
   })
 
   it('a CYCLE_DUE notification routes to /dashboard/timesheets', () => {
@@ -73,8 +74,8 @@ describe('Notification routing — notificationHref()', () => {
     expect(notificationHref('MATCH_READY', 'req_abc123')).toBe('/dashboard/requirements/req_abc123')
   })
 
-  it('an unknown notification type falls back to /dashboard/notifications', () => {
-    expect(notificationHref('UNKNOWN_TYPE')).toBe('/dashboard/notifications')
+  it('an unknown notification type falls back to Ask Etyme, never to the deleted notifications page', () => {
+    expect(notificationHref('UNKNOWN_TYPE')).toBe(ASK_ETYME_HREF)
   })
 })
 

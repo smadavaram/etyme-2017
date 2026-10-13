@@ -26,7 +26,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pageFraming, sectionFor, sectionOfHref, sectionForReader, notificationsFraming, conversationsFraming, headingEveryReaderSees, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
+import { pageFraming, sectionFor, sectionOfHref, sectionForReader, conversationsFraming, headingEveryReaderSees, headingsOf, REGISTER_HEADINGS, type PageKey, type ReaderIdentity } from '@/lib/page-framing'
 import { getNavForKind } from '@/lib/nav-table'
 import type { CompanyKind } from '@/components/session-provider'
 
@@ -761,33 +761,6 @@ describe('sign-up walk, round two', () => {
     expect(pageFraming(null, 'contracts.sell', null, OWNER).title).not.toBe('Sell Contracts')
   })
 
-  it('a worker\'s notifications are headed by her own menu and list only her own kinds of notice', () => {
-    const f = notificationsFraming('VENDOR', true)
-    expect(f.eyebrow).toBe('You')
-    expect(f.eyebrow).not.toBe('Today')
-    expect(f.subtitle).not.toMatch(/bill|invoice/i)
-    const keys = f.kinds.map((k) => k.key)
-    expect(keys).not.toContain('INVOICE')
-    expect(keys).not.toContain('ROLLOFF')
-    expect(keys).not.toContain('SYSTEM')
-    expect(keys).toContain('INTERVIEW')
-    expect(keys).toContain('TIMESHEET')
-  })
-
-  it('a firm\'s notifications are headed by the section its own menu files them under', () => {
-    expect(notificationsFraming('VENDOR', false).eyebrow).toBe(sectionOfHref('VENDOR', '/dashboard/notifications') ?? '')
-    expect(notificationsFraming('VENDOR', false).kinds.map((k) => k.key)).toContain('INVOICE')
-  })
-
-  it('a client\'s notifications call what its suppliers send invoice receipts, never bills', () => {
-    const f = notificationsFraming('CLIENT', false)
-    expect(f.subtitle).not.toMatch(/\bbills\b/i)
-    expect(f.kinds.find((k) => k.key === 'INVOICE')?.label).toBe('Invoice receipts')
-  })
-
-  it('while the reader is unknown, notifications show their title and nothing else', () => {
-    expect(notificationsFraming(null, false)).toEqual({ eyebrow: '', title: 'Notifications', subtitle: '', kinds: [] })
-  })
 })
 
 describe('sign-up walk, round three: the do-not-return list is headed by the reader’s own menu', () => {

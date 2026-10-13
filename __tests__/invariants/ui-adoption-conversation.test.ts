@@ -9,7 +9,7 @@
  * not change; only what draws them does.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
 const create = vi.fn()
@@ -21,7 +21,6 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const TEXTS = read('src/app/dashboard/texts/page.tsx')
 const INTERVIEWS = read('src/app/dashboard/interviews/page.tsx')
 const CONVOS = read('src/app/dashboard/conversations/page.tsx')
-const NOTICES = read('src/app/dashboard/notifications/page.tsx')
 
 describe('the conversation pages draw the shared layer', () => {
   it('Bench check-ins is its refusal sentence alone, waits with a sentence, and heads itself with the shared page head and figures', () => {
@@ -66,13 +65,11 @@ describe('the conversation pages draw the shared layer', () => {
     expect(CONVOS).toContain('pendingLabel="Starting…"')
   })
 
-  it('Notifications heads itself with the shared page head and filters by the reader’s own kinds with the shared chips', () => {
-    expect(NOTICES).toContain('<PageHead')
-    expect(NOTICES).toContain('<FilterChips')
-    expect(NOTICES).toContain('...framing.kinds')
-    expect(NOTICES).toContain('<Chip tone={typeTone(n.type)}>{typeLabel(n.type)}</Chip>')
-    expect(NOTICES).toContain('<LoadingState says="Opening notifications…" />')
-    expect(NOTICES).not.toContain('filter-tab')
+  it('the notifications page is gone and its notices read in the greeting', () => {
+    expect(existsSync(join(process.cwd(), 'src/app/dashboard/notifications'))).toBe(false)
+    const route = read('src/app/api/conversations/twin/route.ts')
+    expect(route).toContain('unreadNotices(caller)')
+    expect(route).toContain('markNoticesSeen(caller, notices.shown.map((n) => n.id))')
   })
 })
 

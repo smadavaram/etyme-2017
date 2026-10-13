@@ -18,8 +18,18 @@ import { join } from 'node:path'
 // faked here so the sentence about withholding a leak runs without a
 // database. Nothing in Ask Etyme's own answering touches either.
 const stored: Array<{ maskedPrompt: string; maskedAnswer: string; model: string; purpose: string }> = []
+const noticeCalls: Array<{ op: string; args: any }> = []
+const UNREAD = [
+  { id: 'n-1', type: 'TIMESHEET', title: 'Helena Marsh filed her week', entityId: null, data: null },
+  { id: 'n-2', type: 'SYSTEM', title: 'Priya joined Northbend Athletic', entityId: null, data: { href: '/dashboard/settings/users' } },
+]
 vi.mock('@/lib/db', () => ({
   prisma: {
+    notification: {
+      findMany: vi.fn(async (args: any) => { noticeCalls.push({ op: 'findMany', args }); return UNREAD }),
+      count: vi.fn(async (args: any) => { noticeCalls.push({ op: 'count', args }); return 7 }),
+      updateMany: vi.fn(async (args: any) => { noticeCalls.push({ op: 'updateMany', args }); return { count: args.where.id.in.length } }),
+    },
     modelPrompt: { create: vi.fn(async ({ data }: { data: { maskedPrompt: string; maskedAnswer: string; model: string; purpose: string } }) => { stored.push(data); return { id: `mp-${stored.length}` } }) },
   },
 }))
@@ -30,7 +40,7 @@ import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
 import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
-  SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
+  SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
@@ -537,5 +547,101 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(await respond('Show me invoice variance by supplier this quarter', read, { env: KEY, companyKind: 'VENDOR' })).toEqual({
       kind: 'TEXT', says: 'Invoice variance is read at the paying company; choose its seat first.', links: undefined,
     })
+  })
+})
+
+describe('Ask Etyme carries the number, and the notices the notifications page used to list', () => {
+  const NOTICES = {
+    shown: [
+      { id: 'n-1', title: 'Helena Marsh filed her week', href: '/dashboard/timesheets' },
+      { id: 'n-2', title: 'Priya joined Northbend Athletic', href: '/dashboard/settings/users' },
+    ],
+    older: 0,
+  }
+  const lines = (a: Awaited<ReturnType<typeof today>>) => (a.kind === 'NEEDS' ? (a.more ?? []).map((l) => l.says) : [])
+
+  it('the greeting’s count of what needs you is the decisions queue’s own total, the figure on the Ask Etyme mark, and the twin’s own questions are said after it as also', async () => {
+    const hello = await today(readers(), { now: NOW, greeting: true, needs: async () => 5 })
+    expect(hello.kind === 'NEEDS' && hello.says).toBe(
+      'Five things need you; the most urgent is first under Needs attention. ' +
+      'Etyme is also asking you one thing; approve it below, or reject it with a reason. Checked just now.')
+    expect(hello.kind === 'NEEDS' && hello.saysLinks).toEqual([{ text: 'Needs attention', href: DECISIONS_HREF }])
+    const one = await today(readers({ waiting: async () => [] }), { now: NOW, greeting: true, needs: async () => 1 })
+    expect(one.kind === 'NEEDS' && one.says).toBe('One thing needs you; the most urgent is first under Needs attention. Checked just now.')
+    expect(voiceBreaks(hello.says)).toEqual([])
+  })
+
+  it('a seat the decisions queue owes nothing, and Etyme asks nothing, reads that nothing needs it; a queue that could not be read leaves the headline to the twin’s own questions', async () => {
+    const quiet = { waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }) }
+    const none = await today(readers(quiet), { now: NOW, greeting: true, needs: async () => 0 })
+    expect(none.kind === 'NEEDS' && none.says).toBe('Nothing needs you today, and nothing Etyme asked waits on anybody. Checked just now.')
+    expect(none.kind === 'NEEDS' && none.saysLinks).toBeUndefined()
+    // Owing the queue something is never "nothing", whatever the twin asked.
+    const owes = await today(readers(quiet), { now: NOW, greeting: true, needs: async () => 3 })
+    expect(owes.kind === 'NEEDS' && owes.says).toMatch(/^Three things need you;/)
+    const unread = await today(readers(), { now: NOW, greeting: true, needs: async () => { throw new Error('down') } })
+    expect(unread.kind === 'NEEDS' && unread.says).toBe('Etyme is asking you one thing; approve it below, or reject it with a reason. Checked just now.')
+  })
+
+  it('asking “What needs me today?” reads the same decisions count as the greeting', async () => {
+    const asked = await respond('What needs me today?', readers(), { env: NO_KEY, now: NOW, needs: async () => 5 })
+    expect(asked.kind === 'NEEDS' && asked.says).toMatch(/^Five things need you;/)
+  })
+
+  it('notices not yet read appear under “Since you last looked”, one line each linking to the page the notice opened, after the recommendation, the decisions and the facts, and before the closing line', async () => {
+    const hello = await today(readers(), { now: NOW, greeting: true, needs: async () => 5, notices: NOTICES })
+    if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect(hello.recommend).toBeDefined()
+    const said = lines(hello)
+    const at = said.indexOf(SINCE_HEADING)
+    expect(at).toBeGreaterThan(0)
+    expect(said.slice(at)).toEqual([SINCE_HEADING, 'Helena Marsh filed her week.', 'Priya joined Northbend Athletic.', GREETING_CLOSE])
+    expect(hello.more!.slice(at + 1, at + 3).map((l) => l.links)).toEqual([
+      [{ text: 'Helena Marsh filed her week', href: '/dashboard/timesheets' }],
+      [{ text: 'Priya joined Northbend Athletic', href: '/dashboard/settings/users' }],
+    ])
+    // A question to the chat, not the greeting, never carries the notices.
+    const asked = await today(readers(), { now: NOW, notices: NOTICES })
+    expect(lines(asked)).not.toContain(SINCE_HEADING)
+  })
+
+  it('with no unread notices the greeting draws no “Since you last looked” heading at all', async () => {
+    const hello = await today(readers(), { now: NOW, greeting: true, notices: { shown: [], older: 0 } })
+    expect(lines(hello)).not.toContain(SINCE_HEADING)
+    expect(sinceSays([])).toEqual([])
+  })
+
+  it('two notices with the same title and page are one line with a count, and older notices beyond the five shown are said in one line and kept for the next greeting', () => {
+    const same = { title: 'A week was filed!', href: '/dashboard/timesheets' }
+    expect(sinceSays([{ id: 'a', ...same }, { id: 'b', ...same }], 3).map((l) => l.says)).toEqual([
+      SINCE_HEADING, 'A week was filed (2 times).', 'Three older notices wait; they show the next time you open Ask Etyme.',
+    ])
+    for (const l of sinceSays([{ id: 'a', ...same }], 1)) expect(voiceBreaks(l.says)).toEqual([])
+  })
+
+  it('the greeting reads the reader’s own unread notices at this seat, and marks read only the ones it said and only the reader’s own', async () => {
+    const { unreadNotices, markNoticesSeen } = await import('@/app/api/conversations/twin/notices')
+    const caller = { person: { id: 'p-dana' }, company: { id: 'c-northbend' } } as any
+    noticeCalls.length = 0
+    const got = await unreadNotices(caller)
+    expect(got.shown).toEqual([
+      { id: 'n-1', title: 'Helena Marsh filed her week', href: '/dashboard/timesheets' },
+      { id: 'n-2', title: 'Priya joined Northbend Athletic', href: '/dashboard/settings/users' },
+    ])
+    // Seven unread, two shown: five wait for the next greeting.
+    expect(got.older).toBe(5)
+    const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
+    expect(where).toMatchObject({ personId: 'p-dana', status: 'UNREAD', OR: [{ companyId: 'c-northbend' }, { companyId: null }] })
+    // The account's own sign-up and reset mail stays out, as it did on the page.
+    expect(where.NOT).toBeDefined()
+    expect(await markNoticesSeen(caller, got.shown.map((n) => n.id))).toBe(2)
+    expect(noticeCalls.find((c) => c.op === 'updateMany')!.args.where).toEqual({ id: { in: ['n-1', 'n-2'] }, personId: 'p-dana', status: 'UNREAD' })
+    expect(await markNoticesSeen(caller, [])).toBe(0)
+    // The route marks read after the greeting is composed, from the notices it passed in.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
+    expect(route.indexOf('markNoticesSeen(caller, notices.shown.map((n) => n.id))')).toBeGreaterThan(route.indexOf('const answer = await today('))
+    // And the one write is the notice's own read mark, nothing else.
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/notices.ts'), 'utf8')
+    expect([...src.matchAll(/prisma\.(\w+)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/g)].map((m) => `${m[1]}.${m[2]}`)).toEqual(['notification.updateMany'])
   })
 })

@@ -553,7 +553,7 @@ export type Answer =
    * limit; `greeting` marks the first message of the chat, which the
    * screen opens with the reader's name.
    */
-  | { kind: 'NEEDS'; recommend?: RichLine; says: string; items: WaitingItem[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
+  | { kind: 'NEEDS'; recommend?: RichLine; says: string; saysLinks?: { text: string; href: string }[]; items: WaitingItem[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
   | { kind: 'TIME_LIMIT'; says: string; rows: LimitRow[] }
   | { kind: 'SPEND'; says: string; period: { from: string; to: string; label: string }; rows: SpendRow[] }
   | { kind: 'WEEKS'; says: string; rows: WeekRow[]; more: number; links: Link[] }
@@ -647,6 +647,67 @@ export function varianceSays(rows: readonly VarianceRow[], label: string, stale:
     parts.push(`Last night’s check called ${r.number ?? 'one receipt'} ${verdictWord(r.nightly!)}; it is ${verdictWord(r.verdict)} now.`)
   }
   return parts.join(' ')
+}
+
+/** The page that lists every decision a seat owes, under its own title "Needs attention". */
+export const DECISIONS_HREF = '/dashboard/decisions'
+
+/**
+ * The headline, where the decisions queue was read: "Five things need
+ * you; the most urgent is first under Needs attention." The number is
+ * GET /api/decisions' own `total` for this seat — the figure on the Ask
+ * Etyme mark — never counted a second way here. The twin's own questions
+ * are not in that queue, so they are said after it as "also". Null where
+ * the queue owes nothing, so the caller says what it said before.
+ */
+export function needsCountSays(needs: number, items: readonly WaitingItem[]): { says: string; links: { text: string; href: string }[] } | null {
+  if (needs <= 0) return null
+  const head = `${counted(needs, 'thing')} ${needs === 1 ? 'needs' : 'need'} you; the most urgent is first under Needs attention.`
+  const also = items.length === 0 ? ''
+    : items.length === 1
+      ? ' Etyme is also asking you one thing; approve it below, or reject it with a reason.'
+      : ` Etyme is also asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
+  return { says: head + also, links: [{ text: 'Needs attention', href: DECISIONS_HREF }] }
+}
+
+/** A notice this person has not read, as the greeting says it. */
+export interface NoticeLine {
+  id: string
+  /** The notice's own title, as it was written when it was sent. */
+  title: string
+  /** The page the notice opened, the same one the notifications page and the email link to. */
+  href: string
+}
+
+/** Notices said in one greeting, at most; the rest wait for the next one. */
+export const NOTICES_SHOWN = 5
+
+export const SINCE_HEADING = 'Since you last looked:'
+
+/**
+ * "Since you last looked", one line per notice, each linking to the page
+ * it is about. Two notices with the same title and page are one line
+ * with a count. `older` is how many unread notices were not shown; they
+ * are said in one line and shown the next time. Empty when there is
+ * nothing, so the greeting draws no heading at all.
+ */
+export function sinceSays(notices: readonly NoticeLine[], older = 0): RichLine[] {
+  if (notices.length === 0) return []
+  const groups: { title: string; href: string; n: number }[] = []
+  for (const n of notices) {
+    const title = n.title.replace(/[\s.!:;,]+$/u, '').replace(/!/g, '').trim() || 'A notice'
+    const same = groups.find((g) => g.title === title && g.href === n.href)
+    if (same) same.n++
+    else groups.push({ title, href: n.href, n: 1 })
+  }
+  const out: RichLine[] = [{ says: SINCE_HEADING }]
+  for (const g of groups) {
+    out.push({ says: g.n > 1 ? `${g.title} (${g.n} times).` : `${g.title}.`, links: [{ text: g.title, href: g.href }] })
+  }
+  if (older > 0) {
+    out.push({ says: `${counted(older, 'older notice')} ${older === 1 ? 'waits' : 'wait'}; ${older === 1 ? 'it shows' : 'they show'} the next time you open Ask Etyme.` })
+  }
+  return out
 }
 
 /** The twin's questions, as the fact line of a reply. */
@@ -1133,12 +1194,13 @@ export const GREETING_LINES = 6
  * the record and the rules, never the model. With `greeting`, it is the
  * first message of the chat and closes with what Etyme answers.
  */
-export async function today(read: Readers, opts: { now?: Date; greeting?: boolean; picture?: Picture | null } = {}): Promise<Answer> {
+export async function today(read: Readers, opts: TodayOptions = {}): Promise<Answer> {
   const now = opts.now ?? new Date()
   const month = monthOf(now)
-  const [items, others, limits, told, spend] = await Promise.all([
+  const [items, others, limits, told, spend, needs] = await Promise.all([
     read.waiting(), read.othersWaiting(), read.limits(), read.told(),
     opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
+    opts.needs ? opts.needs().catch(() => null) : Promise.resolve(null),
   ])
   const near = limits.ok ? nearLimit(limits.entries, now) : []
 
@@ -1174,10 +1236,36 @@ export async function today(read: Readers, opts: { now?: Date; greeting?: boolea
   // headline, and what fits of the facts.
   const room = GREETING_LINES - 1 - (recommend ? 1 : 0)
   const more = lines.slice(0, room)
-  const nothing = items.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
-  const says = (nothing ? 'Nothing needs you today, and nothing Etyme asked waits on anybody.' : needsSays(items)) + ' Checked just now.'
+  // The headline. Where the decisions queue was read, its count leads, so
+  // the number on the Ask Etyme mark and this line are one figure.
+  const headline = needs != null ? needsCountSays(needs, items) : null
+  const nothing = (needs ?? 0) === 0 && items.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
+  const says = (headline ? headline.says
+    : nothing ? 'Nothing needs you today, and nothing Etyme asked waits on anybody.' : needsSays(items)) + ' Checked just now.'
+  // What the notices said, after the recommendation, the decisions and the
+  // facts, and never counted in the six lines: a notice is not lost to the
+  // cap, because the route marks read only the ones it passed in here.
+  if (opts.greeting && opts.notices) more.push(...sinceSays(opts.notices.shown, opts.notices.older))
   if (opts.greeting) more.push({ says: GREETING_CLOSE })
-  return { kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, items, more, ...(opts.greeting ? { greeting: true } : {}) }
+  return {
+    kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
+    items, more, ...(opts.greeting ? { greeting: true } : {}),
+  }
+}
+
+/** What the route hands `today` beyond the readers. */
+export interface TodayOptions {
+  now?: Date
+  greeting?: boolean
+  picture?: Picture | null
+  /**
+   * GET /api/decisions' `total` for this seat, read by the route. Null or
+   * absent where it could not be read, and the headline says what the
+   * twin's own questions say, as before.
+   */
+  needs?: () => Promise<number | null>
+  /** Unread notices for the greeting's "Since you last looked", and how many older ones wait. */
+  notices?: { shown: readonly NoticeLine[]; older: number }
 }
 
 /**
@@ -1201,7 +1289,7 @@ export function boundarySays(state: ModelState): string {
 export async function respond(
   text: string,
   read: Readers,
-  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[] }
+  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[]; needs?: () => Promise<number | null> }
 ): Promise<Answer> {
   const intent = readAsk(text)
 
@@ -1210,7 +1298,7 @@ export async function respond(
       return { kind: 'TEXT', says: WHAT_I_ANSWER + (modelConfigured(opts.env) ? ' Anything else, I read from the ledger and say only what is on it.' : '') }
 
     case 'NEEDS':
-      return today(read, { now: opts.now })
+      return today(read, { now: opts.now, needs: opts.needs })
 
     case 'NEVER':
       return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text)) }
