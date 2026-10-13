@@ -518,6 +518,10 @@ ATTRIBUTED.TWIN_ACT_APPROVED = { basis: 'RULE' }
 ATTRIBUTED.TWIN_ACT_REJECTED = { basis: 'RULE' }
 ATTRIBUTED.TWIN_ROLE_CONTRACT_SET = { basis: 'RULE' }
 ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
+// A settings desk turned Ask Etyme's model on or off for its company
+// (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
+// A person's act, reversible by the same switch; nothing turns it alone.
+ATTRIBUTED.ASK_ETYME_MODEL_SET = { basis: 'RULE' }
 
 ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
 ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }

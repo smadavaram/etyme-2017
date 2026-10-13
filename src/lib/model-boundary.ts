@@ -50,7 +50,11 @@ export async function modelSwitchFor(companyId: string): Promise<ModelSwitch> {
   }
 }
 
-/** The automation-log action every turn of the switch writes; the twin's feed reads it. */
+/**
+ * The automation-log action every turn of the switch writes; the twin's
+ * feed reads it. Written out whole where it is written, so the autonomy
+ * ladder can see it (`ATTRIBUTED.ASK_ETYME_MODEL_SET` in lib/autonomy).
+ */
 export const MODEL_SWITCH_ACTION = 'ASK_ETYME_MODEL_SET'
 
 /**
@@ -79,7 +83,7 @@ export async function setModelOn(
     await tx.automationLog.create({
       data: {
         companyId,
-        action: MODEL_SWITCH_ACTION,
+        action: 'ASK_ETYME_MODEL_SET',
         summary: on
           ? 'Ask Etyme may now send free-text questions to the model, masked, for this company.'
           : 'Ask Etyme no longer sends anything to the model for this company.',
