@@ -889,6 +889,20 @@ decisions like Elon Musk", 2026-10-13.** Each reversible in a sentence.
     day hits goes ahead of the planned work; the roadmap is what the
     tenant could not do.
 
+**Four models, one platform: the founder's shorthand, 2026-10-13.**
+*"Model X is enterprise, S is GSI and MSP, Model Y is supplier and
+Model 3 candidate."* Internal only, never on a page or screen. X is the
+enterprise client (Workforce and Governance, low volume, pays per year
+and funds the rest); S is the integrator and the program office
+(Deliver, Supply, Demand, the seat, the internal bench); Y is the
+supplier and bench firm (Sell, Procure, Operate, Grow; free while
+testing, comes because its client is there); 3 is the candidate (You;
+never pays; the volume and the brand, so the one that must feel
+finished). The rule the analogy carries: one platform, four bodies. The
+record, the approval route, the decision card and the ledger are never
+forked per party; the menu table, the eyebrows and the party page are
+the body. A feature that only works for one model is a body panel.
+
 **Notifications are deleted; Ask Etyme carries the number. Decided by
 the founder, 2026-10-13** (*"kill notification and place Ask Etyme icon
 instead of it, and show a number (like 5) which symbolizes 5 decisions
