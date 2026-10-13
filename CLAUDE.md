@@ -866,6 +866,29 @@ call, reversible by the founder in one sentence.
 9. **No more drawings until the drawn ones are built.** The coaching
    drawing waits for week 3's build; the voice is written, not drawn.
 
+**Five more decisions, on the founder's "deploy when ready and many
+decisions like Elon Musk", 2026-10-13.** Each reversible in a sentence.
+10. **Green is ready.** A wave ships to production on a green release
+    pass (type check, unit, integration, build) and the walk reads
+    production afterwards, not a preview before. This replaces the
+    second half of decision 8: a walk on a tree that is still moving
+    proves nothing, and from the 14th the founder's own day on the
+    record is the walk that counts.
+11. **The email key is the fix; the bootstrap is the fallback.** The
+    founder puts the email key into Vercel; from then on seats come in
+    through the ordinary sign-up and invitation doors. The staff
+    bootstrap exists for the first morning only and is never extended.
+12. **Commits are stamped when made, never re-stamped in a loop.** The
+    re-stamping rebase stalled for an hour and cost a half-shipped
+    preview. A step that fails silently is removed, not retried.
+13. **The production address is `etyme2040.vercel.app` until the
+    founder points `etyme.com` at it.** Every page and command says the
+    address that works today; no document names an address that does
+    not resolve.
+14. **Week 3 starts after Etyme's first day on Etyme.** Every gap that
+    day hits goes ahead of the planned work; the roadmap is what the
+    tenant could not do.
+
 **Etyme runs on Etyme from 2026-10-14, as a vendor company. Decided by
 the founder, 2026-10-13** (*"Let's run Etyme for Etyme starting tomorrow
 as vendor company"*), with five seats on etyme.com: sharath (Owner),
