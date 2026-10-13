@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today } from './ask'
+import { respond, today, modelConfigured, type Picture } from './ask'
+import { GET as programPicture } from '@/app/api/program/route'
 import { readersFor } from './read'
 
 /**
@@ -25,6 +26,27 @@ import { readersFor } from './read'
  * default; a supplier reads another company's twin only through the
  * ledger's own scope.
  */
+/**
+ * People on site today and the suppliers they come through, as the
+ * program dashboard counts them: `/api/program`'s own answer, read for
+ * this caller, never counted a second way here. Null for a seat that is
+ * not at a client's program, or where the dashboard refuses it.
+ */
+async function pictureFor(request: NextRequest): Promise<Picture | null> {
+  try {
+    const res = await programPicture(request)
+    if (!res.ok) return null
+    const body = await res.json()
+    const summary = body?.data?.summary
+    if (typeof summary?.activeContractors !== 'number') return null
+    const contractors: Array<{ state?: string; vendor?: { id?: string } | null }> = Array.isArray(body.data.contractors) ? body.data.contractors : []
+    const suppliers = new Set(contractors.filter((c) => c.state === 'IN_PROGRESS' && c.vendor?.id).map((c) => c.vendor!.id))
+    return { onSite: summary.activeContractors, suppliers: suppliers.size }
+  } catch {
+    return null
+  }
+}
+
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Choose your company’s seat first.'
 const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no answer. Staff have been told; try again in a minute.'
 
@@ -35,8 +57,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   try {
-    const answer = await today(readersFor(caller, caller.company.id), { greeting: true })
-    return NextResponse.json({ data: { answer } })
+    const answer = await today(readersFor(caller, caller.company.id), { greeting: true, picture: await pictureFor(request) })
+    return NextResponse.json({ data: { answer, modelOn: modelConfigured(process.env) } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -55,7 +77,7 @@ export async function POST(request: NextRequest) {
   const companyId = typeof body.companyId === 'string' && body.companyId ? body.companyId : caller.company.id
 
   try {
-    const answer = await respond(text, readersFor(caller, companyId), { env: process.env })
+    const answer = await respond(text, readersFor(caller, companyId), { env: process.env, companyKind: caller.company.kind, permissions: caller.permissions })
     return NextResponse.json({ data: { answer } })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })

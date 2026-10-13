@@ -27,6 +27,7 @@
 
 import { formatDay, formatMonth } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
+import { desksHolding, type Permission } from '@/lib/permissions'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ export type Intent =
   | { kind: 'TIME_LIMIT' }
   | { kind: 'SPEND' }
   | { kind: 'WEEKS' }
+  | { kind: 'NEVER'; act: NeverAct }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -72,6 +74,9 @@ export function readAsk(raw: string): Intent {
     /^(needs me|my queue|waiting on me|what is waiting( on me)?)\??$/.test(lower)
   ) return { kind: 'NEEDS' }
 
+  const never = neverAct(text)
+  if (never) return { kind: 'NEVER', act: never }
+
   const why = text.match(/^why\b\s*(.*)$/i)
   if (why) return { kind: 'WHY', ref: cleanRef(why[1]) }
 
@@ -96,6 +101,69 @@ export function readAsk(raw: string): Intent {
   ) return { kind: 'WEEKS' }
 
   return { kind: 'ASK', text }
+}
+
+// ── The never floor ──────────────────────────────────────────────────
+
+/**
+ * Acts that are never Etyme's, whatever a role contract says (CLAUDE.md,
+ * "The job twin": NEVER TOUCHES; "Ask Etyme is the app"): extending or
+ * ending a placement, awarding, rejecting a submission, paying, running
+ * payroll and signing. Asked in the chat, each is answered by this rule
+ * in one sentence naming the desk that does it, with the page where it is
+ * done. It never reaches the model and never becomes a card.
+ */
+export type NeverAct = 'EXTEND' | 'END' | 'AWARD' | 'REJECT_SUBMISSION' | 'PAY' | 'PAYROLL' | 'SIGN_AGREEMENT' | 'SIGN_WEEK'
+
+const NEVER_FLOOR: Record<NeverAct, { doing: string; needs: Permission; where: string; link: Link }> = {
+  EXTEND: { doing: 'Extending a placement', needs: 'assignments.write', where: 'on the placement’s page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  END: { doing: 'Ending a placement', needs: 'assignments.terminate', where: 'on the placement’s page', link: { label: 'Open Contracts', href: '/dashboard/contracts' } },
+  AWARD: { doing: 'Awarding a job to a candidate', needs: 'requirements.write', where: 'on the submission, under its job request', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
+  REJECT_SUBMISSION: { doing: 'Rejecting a submission', needs: 'requirements.write', where: 'on the submission, under its job request', link: { label: 'Open Submissions', href: '/dashboard/submissions' } },
+  PAY: { doing: 'Paying an invoice receipt', needs: 'payments.record', where: 'on the invoice receipt’s page', link: { label: 'Open Invoice receipts', href: '/dashboard/invoices' } },
+  PAYROLL: { doing: 'Running or releasing payroll', needs: 'payroll.run', where: 'on Payroll', link: { label: 'Open Payroll', href: '/dashboard/payroll' } },
+  SIGN_AGREEMENT: { doing: 'Signing an agreement', needs: 'rates.write', where: 'on the agreement’s page', link: { label: 'Open Agreements', href: '/dashboard/program/agreements' } },
+  SIGN_WEEK: { doing: 'Signing a week of hours', needs: 'timesheets.approve', where: 'on Timesheets', link: { label: 'Open Timesheets', href: '/dashboard/timesheets' } },
+}
+
+/**
+ * Whether a message asks Etyme to do an act on the never floor. Read as
+ * an instruction — the verb first, after an optional "please" or "can
+ * you" — so a question about the act ("who extended Helena?") is not
+ * refused. "Reject 1 because …" stays an answer to Etyme's own question;
+ * only a submission or a candidate makes "reject" an act on the floor.
+ */
+export function neverAct(raw: string): NeverAct | null {
+  const t = raw.trim().toLowerCase().replace(/\s+/g, ' ')
+    .replace(/^(etyme,?\s+)?(please\s+|can you\s+|could you\s+|would you\s+|will you\s+|go ahead and\s+)*/, '')
+  if (/^(extend|renew)\b/.test(t)) return 'EXTEND'
+  if (/^(end|terminate|roll ?off|let\b.+\bgo\b)/.test(t)) return 'END'
+  if (/^(award|hire)\b/.test(t)) return 'AWARD'
+  if (/^(reject|decline|turn down)\b/.test(t) && /\b(submission|candidate|applicant)s?\b/.test(t)) return 'REJECT_SUBMISSION'
+  if (/^(run|release|process)\b.*\bpayroll\b/.test(t) || /^pay\b.*\b(payroll|salar(y|ies)|wages?)\b/.test(t)) return 'PAYROLL'
+  if (/^pay\b/.test(t)) return 'PAY'
+  if (/^(sign|countersign|approve)\b.*\b(week|hours|timesheets?)\b/.test(t) && /^(sign|countersign)\b/.test(t)) return 'SIGN_WEEK'
+  if (/^(sign|countersign|execute)\b/.test(t)) return 'SIGN_AGREEMENT'
+  return null
+}
+
+/** "Contract Manager or Resource Manager". */
+function orNames(xs: readonly string[]): string {
+  if (xs.length <= 1) return xs[0] ?? ''
+  return `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`
+}
+
+/**
+ * The one sentence for an act on the never floor: that it is never
+ * Etyme's, who does it at this kind of company, and where.
+ */
+export function neverSays(act: NeverAct, companyKind: string | null | undefined, permissions: readonly string[] = []): { says: string; links: Link[] } {
+  const f = NEVER_FLOOR[act]
+  const desks = desksHolding(f.needs, companyKind).slice(0, 3)
+  const who = permissions.includes(f.needs)
+    ? `Your desk does it: you do it yourself ${f.where}.`
+    : desks.length ? `Your ${orNames(desks)} does it ${f.where}.` : `A person at your company does it ${f.where}; ask whoever manages roles there who holds that desk.`
+  return { says: `${f.doing} is never Etyme’s to do. ${who}`, links: [f.link] }
 }
 
 /**
@@ -657,30 +725,85 @@ export const money = (minor: number, currency: string): string => format(fromMin
  * it from the ledger and the rules, never the model. With `greeting`, it
  * is the first message of the chat and closes with what Etyme answers.
  */
-export async function today(read: Readers, opts: { now?: Date; greeting?: boolean } = {}): Promise<Answer> {
+/** The program's picture as `/api/program` counts it: people on site today and the suppliers they come through. */
+export interface Picture {
+  onSite: number
+  suppliers: number
+}
+
+/** "12 contractors are on site today, through 4 suppliers." Null when nobody is. */
+export function pictureSays(p: Picture | null | undefined): string | null {
+  if (!p || p.onSite <= 0) return null
+  return (
+    `${counted(p.onSite, 'contractor')} ${p.onSite === 1 ? 'is' : 'are'} on site today` +
+    (p.suppliers > 0 ? `, through ${counted(p.suppliers, 'supplier').toLowerCase()}.` : '.')
+  )
+}
+
+/** "Suppliers billed you $42,587.00 so far in Oct 2026." Per currency, never added across. Null when nothing was billed. */
+export function billedSays(rows: readonly SpendRow[], label: string): string | null {
+  const currencies = [...new Set(rows.filter((r) => r.billedMinor !== 0).map((r) => r.currency))]
+  if (currencies.length === 0) return null
+  const total = listed(currencies.map((c) => money(rows.filter((r) => r.currency === c).reduce((s, r) => s + r.billedMinor, 0), c)))
+  return `Suppliers billed you ${total} so far in ${label}.`
+}
+
+/** Lines in the greeting before its closing sentence, at most: the first line and five under it. */
+export const GREETING_LINES = 6
+
+/**
+ * What needs this seat today: the twin's questions it may answer, as
+ * cards; who else is being asked; who is near the time limit; and, in
+ * the greeting, the program's picture — people on site and this month's
+ * invoice receipts — where they are not zero. All of it from the ledger,
+ * the record and the rules, never the model. With `greeting`, it is the
+ * first message of the chat and closes with what Etyme answers.
+ */
+export async function today(read: Readers, opts: { now?: Date; greeting?: boolean; picture?: Picture | null } = {}): Promise<Answer> {
   const now = opts.now ?? new Date()
-  const [items, others, limits] = await Promise.all([read.waiting(), read.othersWaiting(), read.limits()])
+  const month = monthOf(now)
+  const [items, others, limits, spend] = await Promise.all([
+    read.waiting(), read.othersWaiting(), read.limits(),
+    opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
+  ])
   const near = limits.ok ? nearLimit(limits.entries, now) : []
-  const more = [...othersSay(others)]
-  const links: Link[] = []
+  const lines: { says: string; link?: Link }[] = othersSay(others).map((says) => ({ says }))
   if (near.length) {
-    more.push(
-      limitSays(near[0], day) +
-      (near.length > 1 ? ` ${counted(near.length - 1, 'more person')} ${near.length === 2 ? 'is' : 'are'} inside a warning; ask “Who is near the time limit?”.` : '')
-    )
-    links.push({ label: `Open ${near[0].name}`, href: near[0].href })
+    lines.push({
+      says: limitSays(near[0], day) +
+        (near.length > 1 ? ` ${counted(near.length - 1, 'more person')} ${near.length === 2 ? 'is' : 'are'} inside a warning; ask “Who is near the time limit?”.` : ''),
+      link: { label: `Open ${near[0].name}`, href: near[0].href },
+    })
   }
+  const onSite = opts.greeting ? pictureSays(opts.picture) : null
+  if (onSite) lines.push({ says: onSite, link: { label: 'Open Contractors', href: '/dashboard/people' } })
+  const billed = spend?.ok ? billedSays(spendBySupplier(spend.receipts), month.label) : null
+  if (billed) lines.push({ says: billed, link: { label: 'Open Invoice receipts', href: '/dashboard/invoices' } })
+
+  const kept = lines.slice(0, GREETING_LINES - 1)
   const says = items.length === 0 && others.length === 0 && near.length === 0
     ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
     : needsSays(items)
+  const more = kept.map((l) => l.says)
   if (opts.greeting) more.push(GREETING_CLOSE)
+  const links = kept.flatMap((l) => (l.link ? [l.link] : []))
   return { kind: 'NEEDS', says, items, more, links, ...(opts.greeting ? { greeting: true } : {}) }
+}
+
+/**
+ * The boundary, said on the first screen (CLAUDE.md, "Ask Etyme is the
+ * app"). The last clause follows whether a model can be asked here.
+ */
+export function boundarySays(modelOn: boolean): string {
+  return 'Your data stays in your company. Every read is logged. ' + (modelOn
+    ? 'Free-text questions go to the model turned on for this deployment; the rules answer first.'
+    : 'Nothing leaves to a model unless your company turns it on.')
 }
 
 export async function respond(
   text: string,
   read: Readers,
-  opts: { env: Record<string, string | undefined>; now?: Date }
+  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[] }
 ): Promise<Answer> {
   const intent = readAsk(text)
 
@@ -690,6 +813,9 @@ export async function respond(
 
     case 'NEEDS':
       return today(read, { now: opts.now })
+
+    case 'NEVER':
+      return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions) }
 
     case 'TIME_LIMIT': {
       const limits = await read.limits()

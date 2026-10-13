@@ -14,7 +14,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  respond, today, othersSay, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
+  respond, today, othersSay, neverAct, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
@@ -255,30 +255,73 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(FOOTER_LINE).toBe('Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.')
     expect(chat).toContain('{FOOTER_LINE}')
     expect(chat).toContain('placeholder="Ask Etyme about your program…"')
+    // The boundary is said on the first screen, and says the truth about the model.
+    expect(chat).toContain('{boundarySays(modelOn)}')
+    expect(boundarySays(false)).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model unless your company turns it on.')
+    expect(boundarySays(true)).toBe('Your data stays in your company. Every read is logged. Free-text questions go to the model turned on for this deployment; the rules answer first.')
     // The twin's page links to it rather than drawing a second chat.
     expect(readFileSync(join(root, 'components/twin-conversation.tsx'), 'utf8')).toContain("href={'/dashboard/conversations/etyme' as Route}")
   })
 
   it('the greeting is built from the rules — what waits on you, what waits on another desk, and who is near the time limit — and never from the model', async () => {
     const read = readers()
-    const hello = await today(read, { now: NOW, greeting: true })
+    const hello = await today(read, { now: NOW, greeting: true, picture: { onSite: 12, suppliers: 4 } })
     expect(hello).toMatchObject({ kind: 'NEEDS', greeting: true, items: WAITING })
     if (hello.kind !== 'NEEDS') return
     expect(hello.says).toBe('Etyme is asking you one thing. Approve it here, or reject it with a reason.')
     expect(hello.more).toEqual([
       'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign.',
       'Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.',
+      // The program's picture, from /api/program's own counts and this month's invoice receipts, never two currencies added.
+      '12 contractors are on site today, through four suppliers.',
+      'Suppliers billed you £1,000.00 and $11,342.50 so far in Oct 2026.',
       GREETING_CLOSE,
     ])
-    expect(hello.links).toEqual([{ label: 'Open Tobias Lindqvist', href: '/dashboard/people/p-tobias' }])
+    expect(hello.links).toEqual([
+      { label: 'Open Tobias Lindqvist', href: '/dashboard/people/p-tobias' },
+      { label: 'Open Contractors', href: '/dashboard/people' },
+      { label: 'Open Invoice receipts', href: '/dashboard/invoices' },
+    ])
+    // At most six lines before the closing sentence, however much is waiting.
+    const busy = await today(readers({ othersWaiting: async () => Array.from({ length: 9 }, (_, i) => ({ ...OTHERS[0], title: `R-${i}`, desks: [`Desk ${i}`] })) }), { now: NOW, greeting: true, picture: { onSite: 12, suppliers: 4 } })
+    expect(busy.kind === 'NEEDS' && busy.more!.length).toBe(5 + 1)
     // The program manager, on whose authority Etyme asks, reads why none of it is theirs.
     expect(othersSay(OTHERS.map((o) => ({ ...o, own: true })))).toEqual([
       'Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign: Etyme asked on your authority, and nobody signs their own.',
     ])
     expect(read.model).not.toHaveBeenCalled()
 
-    // A desk that does not read what the rules found is greeted without the time limit, not refused.
-    const quiet = await today(readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false, says: 'no' }) }), { now: NOW, greeting: true })
+    // A desk that reads neither what the rules found nor the invoice book is greeted without those lines, not refused.
+    const quiet = await today(readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false, says: 'no' }), spendIn: async () => ({ ok: false, says: 'no' }) }), { now: NOW, greeting: true })
     expect(quiet).toMatchObject({ kind: 'NEEDS', says: 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.', more: [GREETING_CLOSE] })
+  })
+
+  it('an act on the never floor asked in the chat is refused in a sentence that names who does it, and never reaches the model', async () => {
+    const read = readers()
+    const extend = await respond('Please extend Helena Marsh by three months', read, { env: KEY, companyKind: 'VENDOR' })
+    expect(extend.kind).toBe('TEXT')
+    expect(extend.says).toMatch(/^Extending a placement is never Etyme’s to do\. Your .*Contract Manager.* does it on the placement’s page\.$/)
+    expect(extend.says).not.toContain('assignments.write')
+    expect(extend).toMatchObject({ links: [{ href: '/dashboard/contracts' }] })
+
+    expect(neverAct('end Omar Haddad’s placement on Friday')).toBe('END')
+    expect(neverAct('Award the job to Priya')).toBe('AWARD')
+    expect(neverAct('pay PR-2026-0441')).toBe('PAY')
+    expect(neverAct('can you run payroll for October')).toBe('PAYROLL')
+    expect(neverAct('sign the MSA with Veritan')).toBe('SIGN_AGREEMENT')
+    expect(neverAct('sign Helena’s week')).toBe('SIGN_WEEK')
+    expect(neverAct('reject the submission from Brightmoor')).toBe('REJECT_SUBMISSION')
+    // Not acts: Etyme's own question answered, a question about an act, the unsigned-weeks chip.
+    expect(neverAct('reject 1 because the hours are over')).toBeNull()
+    expect(neverAct('who extended Helena?')).toBeNull()
+    expect(neverAct('Which weeks are unsigned?')).toBeNull()
+
+    // A seat that holds the desk is told it does it itself.
+    const own = await respond('extend Helena Marsh', read, { env: KEY, companyKind: 'CLIENT', permissions: ['assignments.write'] })
+    expect(own.says).toBe('Extending a placement is never Etyme’s to do. Your desk does it: you do it yourself on the placement’s page.')
+
+    const pay = await respond('pay PR-2026-0441', read, { env: KEY, companyKind: 'CLIENT' })
+    expect(pay.says).toMatch(/^Paying an invoice receipt is never Etyme’s to do\. Your .+ does it on the invoice receipt’s page\.$/)
+    expect(read.model).not.toHaveBeenCalled()
   })
 })
