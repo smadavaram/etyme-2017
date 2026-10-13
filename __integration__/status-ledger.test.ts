@@ -224,10 +224,22 @@ describe('the ledger: one placement, every table, every station', () => {
     const s = await call(sendTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/submit`, it_.timesheet, {})
     expect(s.body?.error, JSON.stringify(s.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('SUBMITTED')
-    // The week ended before the award, so its own hours-due day was never
-    // written. The earliest reminder of its kind belongs to a later week —
-    // a whole cycle after this one ended — and is not claimed by it.
-    expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_SUBMIT.done).toBe(0)
+    // The week's own hours-due day is the Monday after its Saturday. On
+    // most days that Monday is already gone at the award, so it was never
+    // written, and the earliest reminder of its kind — a later week's — is
+    // not claimed by this one. On a Tuesday after a Monday holiday (Columbus
+    // Day, Labor Day) the holiday moves the Monday to the Tuesday, which is
+    // the award's own day, so it is written, and it is this week's own: the
+    // week closes it. Either way, no later week's reminder is ever closed.
+    const submits = await prisma.cycle.findMany({
+      where: { sellContractId: it_.contract, kind: 'TIMESHEET_SUBMIT' },
+      select: { dueOn: true, completedAt: true },
+      orderBy: { dueOn: 'asc' },
+    })
+    const ownSubmit = (due: Date) => +due >= +it_.weekEnd - DAY && +due <= +it_.weekEnd + 6 * DAY
+    const seen = JSON.stringify(submits.slice(0, 3))
+    expect(submits.filter((c) => !ownSubmit(c.dueOn) && c.completedAt), seen).toEqual([])
+    expect(submits.filter((c) => ownSubmit(c.dueOn) && !c.completedAt), seen).toEqual([])
   })
 
   it('both signatures: timesheet APPROVED, and the approval date it closes is its own week’s, never the next week’s', async () => {
@@ -316,8 +328,12 @@ describe('the ledger: one placement, every table, every station', () => {
     // hours were due before the award and never written; its approval date
     // is done where it was written.
     expect(doneKinds).toEqual(expect.arrayContaining(['INVOICE_GENERATE']))
-    expect(doneKinds).not.toContain('TIMESHEET_SUBMIT')
+    // An hours-due date reads done only where it is that week's own — the
+    // Tuesday a Monday holiday moved it to, on the day of the award.
     const lastOfWeek = isoOf(new Date(+it_.weekEnd + 6 * DAY))
+    const firstOfOwn = isoOf(new Date(+it_.weekEnd - DAY))
+    expect(t.hours.filter((d: any) => d.done && d.kind === 'TIMESHEET_SUBMIT'
+      && (String(d.dueOn).slice(0, 10) < firstOfOwn || String(d.dueOn).slice(0, 10) > lastOfWeek))).toEqual([])
     expect(t.hours.filter((d: any) => d.done && String(d.dueOn).slice(0, 10) > lastOfWeek)).toEqual([])
     // The work began two weeks before the award, marked as under way. A
     // reminder is never written for a day already gone (audit, 2026-10-05),
