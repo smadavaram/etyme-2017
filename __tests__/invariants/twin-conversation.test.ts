@@ -13,8 +13,22 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+// The prompt log is the architect's (lib/model-boundary); its store is
+// faked here so the sentence about withholding a leak runs without a
+// database. Nothing in Ask Etyme's own answering touches either.
+const stored: Array<{ maskedPrompt: string; maskedAnswer: string; model: string; purpose: string }> = []
+vi.mock('@/lib/db', () => ({
+  prisma: {
+    modelPrompt: { create: vi.fn(async ({ data }: { data: { maskedPrompt: string; maskedAnswer: string; model: string; purpose: string } }) => { stored.push(data); return { id: `mp-${stored.length}` } }) },
+  },
+}))
+vi.mock('@/lib/alerts', () => ({ reportError: vi.fn(async () => undefined) }))
+import { recordModelPrompt, WITHHELD } from '@/lib/model-boundary'
+import { feedWhere } from '@/lib/twin/ledger'
+import { newMasker } from '@/app/api/conversations/twin/mask'
 import {
-  respond, today, othersSay, VOICE_RULES, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
+  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
@@ -93,7 +107,15 @@ function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typ
     entry: vi.fn(async (ref: string) => (ref === 'entry-442' || ref === 'PR-2026-0442' || ref === 'entry-441' ? (ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', ruleCited: WAITING[0].ruleCited, rationale: WAITING[0].rationale } : ENTRY_442) : null)),
     receiptsIn: vi.fn(async () => ({ ok: true as const, receipts: NORTHBEND_RECEIPTS })),
     ledgerLines: vi.fn(async () => [{ id: 'entry-442', ts: NOW.toISOString(), says: ENTRY_442.says, outcome: 'PERFORMED', entityType: 'Invoice', entityId: 'inv-442', ruleCited: ENTRY_442.ruleCited, rationale: ENTRY_442.rationale }]),
-    model: vi.fn(async () => 'One receipt is over the hours accepted [entry-442].'),
+    // The company switch on, and the names this reader may read.
+    modelOn: vi.fn(async () => true),
+    vocabulary: vi.fn(async () => ({ people: ['Helena Marsh', 'Tobias Lindqvist'], firms: ['Pinnacle Resourcing', 'Computer Systems Inc', 'Northbend Athletic'] })),
+    // The model sees tokens and answers in tokens: it names the first firm it was given.
+    model: vi.fn(async (_system: string, _question: string, context: string) => ({
+      text: `${context.match(/FIRM_\d+/)?.[0] ?? 'A supplier'} billed over the hours accepted [entry-442].`,
+      model: SMALL_MODEL, tokensIn: 120, tokensOut: 14,
+    })),
+    logPrompt: vi.fn(async () => undefined),
     ...over,
   } as Readers & { model: ReturnType<typeof vi.fn> }
 }
@@ -281,9 +303,10 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(chat).toContain('{FOOTER_LINE}')
     expect(chat).toContain('placeholder="Ask Etyme about your program…"')
     // The boundary is said on the first screen, and says the truth about the model.
-    expect(chat).toContain('{boundarySays(modelOn)}')
-    expect(boundarySays(false)).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model unless your company turns it on.')
-    expect(boundarySays(true)).toBe('Your data stays in your company. Every read is logged. Free-text questions go to the model turned on for this deployment; the rules answer first.')
+    expect(chat).toContain('{boundarySays(model)}')
+    expect(boundarySays('OFF')).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model; your company has not turned it on.')
+    expect(boundarySays('ON')).toBe('Your data stays in your company. Every read is logged. Free-text questions go to the model your company turned on, masked; every prompt is logged under Settings.')
+    expect(boundarySays('NO_KEY')).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model; it is not set up on this deployment.')
     // The twin's page links to it rather than drawing a second chat.
     expect(readFileSync(join(root, 'components/twin-conversation.tsx'), 'utf8')).toContain("href={'/dashboard/conversations/etyme' as Route}")
   })
@@ -379,5 +402,105 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(pay.says).toMatch(/^Etyme never pays an invoice receipt; your .+ does it on PR-2026-0441’s page\.$/)
     expect(pay).toMatchObject({ links: [{ label: 'Open PR-2026-0441', href: '/dashboard/invoices/inv-441' }] })
     expect(read.model).not.toHaveBeenCalled()
+  })
+
+  it('free text leaves only when the company switch and the key are both on, masked, and is logged with its answer', async () => {
+    const q = 'Which supplier is slowest to send its invoice?'
+
+    // The switch off: the honest reply, nothing read for masking, nothing sent, nothing logged.
+    const off = readers({ modelOn: vi.fn(async () => false) })
+    expect(await respond(q, off, { env: KEY })).toEqual({ kind: 'TEXT', says: NO_SWITCH })
+    expect(NO_SWITCH).toBe('I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+    expect(off.model).not.toHaveBeenCalled()
+    expect(off.vocabulary).not.toHaveBeenCalled()
+    expect(off.logPrompt).not.toHaveBeenCalled()
+
+    // The switch on and no key on this deployment: the deployment's sentence, and still nothing sent.
+    const noKey = readers()
+    expect(await respond(q, noKey, { env: NO_KEY })).toEqual({ kind: 'TEXT', says: NO_MODEL })
+    expect(noKey.model).not.toHaveBeenCalled()
+
+    // Both on: it leaves masked, the small model answers, the real names come back, and the call is logged.
+    const on = readers()
+    const a = await respond(q, on, { env: KEY })
+    expect(on.model).toHaveBeenCalledTimes(1)
+    const [system, sentQuestion, sentLines] = on.model.mock.calls[0] as [string, string, string]
+    expect(system).toBe(SYSTEM)
+    for (const real of ['Pinnacle Resourcing', 'Pinnacle', 'Helena Marsh', 'Tobias Lindqvist', 'Computer Systems Inc']) {
+      expect(sentLines).not.toContain(real)
+      expect(sentQuestion).not.toContain(real)
+    }
+    expect(sentLines).toMatch(/FIRM_\d+/)
+    expect(a).toMatchObject({ kind: 'MODEL', says: 'Pinnacle Resourcing billed over the hours accepted [entry-442].' })
+    expect(SMALL_MODEL).toBe('claude-haiku-4-5')
+    expect(on.logPrompt).toHaveBeenCalledTimes(1)
+    const logged = (on.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(logged).toMatchObject({ model: 'claude-haiku-4-5', maskedAnswer: expect.stringMatching(/^FIRM_\d+ billed over/), tokensIn: 120, tokensOut: 14 })
+    expect(logged.maskedPrompt).toContain('Question: Which supplier is slowest to send its invoice?')
+    expect(logged.maskedPrompt).not.toContain('Pinnacle')
+    expect(logged.realValues).toEqual(expect.arrayContaining(['Pinnacle Resourcing']))
+
+    // Figures leave as tokens too: a rate, an amount and a margin percentage.
+    const m = newMasker({ people: ['Helena Marsh'], firms: ['Pinnacle Resourcing'] })
+    const masked = m.mask('Helena Marsh at $98.00/hr; Pinnacle billed $3,920.00 with an 18% margin. Marsh signed.')
+    expect(masked).toMatch(/^PERSON_\d+ at RATE_\d+; FIRM_\d+ billed AMOUNT_\d+ with an RATE_\d+\. PERSON_\d+ signed\.$/)
+    const persons = masked.match(/PERSON_\d+/g)!
+    expect(persons[0]).toBe(persons[1]) // one person, one token, by full name or by part
+    for (const real of ['Helena', 'Marsh', 'Pinnacle', '$98.00/hr', '$3,920.00', '18%']) expect(masked).not.toContain(real)
+    // Put back on the way in; a part comes back as the whole name.
+    expect(m.unmask(masked)).toBe('Helena Marsh at $98.00/hr; Pinnacle Resourcing billed $3,920.00 with an 18% margin. Helena Marsh signed.')
+  })
+
+  it('a leaked real value is withheld by the log', async () => {
+    stored.length = 0
+    const clean = await recordModelPrompt({
+      companyId: 'co-nb', personId: 'p-lorena', provider: 'anthropic', model: SMALL_MODEL,
+      maskedPrompt: 'Question: what did FIRM_1 bill?', maskedAnswer: 'FIRM_1 billed AMOUNT_2.',
+      purpose: 'ASK_ETYME', realValues: ['Pinnacle Resourcing', '$3,920.00'],
+    })
+    expect(clean).toMatchObject({ ok: true, withheld: false })
+    expect(stored[0]).toMatchObject({ maskedAnswer: 'FIRM_1 billed AMOUNT_2.', model: 'claude-haiku-4-5', purpose: 'ASK_ETYME' })
+
+    const leaked = await recordModelPrompt({
+      companyId: 'co-nb', personId: 'p-lorena', provider: 'anthropic', model: SMALL_MODEL,
+      maskedPrompt: 'Question: what did FIRM_1 bill?', maskedAnswer: 'Pinnacle Resourcing billed AMOUNT_2.',
+      purpose: 'ASK_ETYME', realValues: ['Pinnacle Resourcing', '$3,920.00'],
+    })
+    expect(leaked).toMatchObject({ ok: true, withheld: true })
+    expect(stored[1].maskedAnswer).toBe(WITHHELD)
+    expect(stored[1].maskedPrompt).toBe('Question: what did FIRM_1 bill?')
+  })
+
+  it('a supplier’s question never sees a client’s people or another supplier’s receipts, and the lines sent never name a company it may not read', async () => {
+    // Scoped at the query: a supplier reading a client's twin reads only
+    // entries about records it is a party to (lib/twin/ledger's feedWhere).
+    const supplier = { company: { id: 'co-pinnacle', kind: 'VENDOR', name: 'Pinnacle Resourcing' }, person: { id: 'p-am' }, permissions: ['invoices.read'] }
+    const scope = feedWhere('co-northbend', supplier as never)
+    expect(scope).toEqual({ where: { companyId: 'co-northbend', partyCompanyIds: { has: 'co-pinnacle' } }, view: 'PARTY' })
+    expect(feedWhere(null, supplier as never)?.where).toEqual({ companyId: { not: 'co-pinnacle' }, partyCompanyIds: { has: 'co-pinnacle' } })
+
+    // Every read Ask Etyme makes goes through that scope or the reader's own company.
+    const reads = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
+    expect(reads).toContain('const feed = await ledgerFeed(companyId, caller, { take: 60 })')
+    for (const own of ['async spendIn', 'async receiptsIn', 'async unsignedWeeks']) {
+      const body = reads.slice(reads.indexOf(own), reads.indexOf(own) + 400)
+      expect(body, own).toContain('if (!ownCompany || !company)')
+    }
+    expect(reads).toContain("where: { companyId: company.id, revokedAt: null }")
+
+    // What the supplier sends, from its own scoped lines and its own vocabulary,
+    // names nobody: not the client's people, not another supplier, not itself.
+    const pinnacleLines = [{ id: 'entry-442', ts: NOW.toISOString(), says: ENTRY_442.says, outcome: 'PERFORMED', entityType: 'Invoice', entityId: 'inv-442', ruleCited: ENTRY_442.ruleCited, rationale: ENTRY_442.rationale }]
+    const read = readers({
+      ledgerLines: vi.fn(async () => pinnacleLines),
+      vocabulary: vi.fn(async () => ({ people: ['Helena Marsh'], firms: ['Pinnacle Resourcing', 'Northbend Athletic'] })),
+      receiptsIn: vi.fn(async () => ({ ok: false as const, says: 'Invoice variance is read at the paying company; choose its seat first.' })),
+    })
+    await respond('Which of my receipts did Northbend flag?', read, { env: KEY, companyKind: 'VENDOR' })
+    const sent = (read.model.mock.calls[0] as [string, string, string]).slice(1).join('\n')
+    for (const name of ['Tobias Lindqvist', 'Computer Systems', 'Pinnacle', 'Northbend']) expect(sent).not.toContain(name)
+    expect(await respond('Show me invoice variance by supplier this quarter', read, { env: KEY, companyKind: 'VENDOR' })).toEqual({
+      kind: 'TEXT', says: 'Invoice variance is read at the paying company; choose its seat first.', links: undefined,
+    })
   })
 })

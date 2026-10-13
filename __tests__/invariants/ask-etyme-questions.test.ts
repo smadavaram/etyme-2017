@@ -12,7 +12,8 @@
  *
  * Every reply is also held to the voice (docs/ask-etyme-voice.md): no
  * apology or hedge, no exclamation mark, every sentence under twenty
- * words. The model is off throughout, as it is by default.
+ * words. The company's model switch is off throughout, as it is by
+ * default, so a question the rules cannot answer says so.
  *
  * The one new test file the founder approved with the plan.
  */
@@ -128,7 +129,11 @@ function seat(desk: Desk): Seat {
       : ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', says: APPROVE_441.says, ruleCited: APPROVE_441.ruleCited, rationale: APPROVE_441.rationale, entityId: 'inv-441' }
       : null),
     ledgerLines: async () => [],
+    // The company's switch is off, as it is by default: nothing may reach the model.
+    modelOn: async () => false,
+    vocabulary: async () => { throw new Error('The model is off: nothing is masked because nothing leaves.') },
     model: async () => { throw new Error('The model is off: no question may reach it.') },
+    logPrompt: async () => { throw new Error('The model is off: nothing is logged because nothing left.') },
   }
   return { kind, permissions, read }
 }
@@ -235,22 +240,22 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “How many open job requests do we have?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'How many open job requests do we have?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the program manager asks “Which documents expire this month?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Which documents expire this month?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the program manager asks “What is our average bill rate for data engineers?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'What is our average bill rate for data engineers?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the program manager asks “Who starts next week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Who starts next week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
 })
@@ -308,12 +313,12 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
 
   it('the AP clerk asks “Which invoice receipts are due this week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('AP', 'Which invoice receipts are due this week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the AP clerk asks “How much did we pay Computer Systems last quarter?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('AP', 'How much did we pay Computer Systems last quarter?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the AP clerk asks “What can you do?” and the rules answer it', async () => {
@@ -361,17 +366,17 @@ describe('the hiring manager at Northbend Athletic', () => {
 
   it('the hiring manager asks “How many candidates were submitted for the data engineer job?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'How many candidates were submitted for the data engineer job?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the hiring manager asks “When is Omar Haddad\'s interview?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'When is Omar Haddad\'s interview?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('the hiring manager asks “Who is ending in the next 30 days?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'Who is ending in the next 30 days?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
 })
@@ -409,22 +414,22 @@ describe('the account manager at Pinnacle Resourcing', () => {
 
   it('a supplier’s account manager asks “Which of my invoices to Northbend are unpaid?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Which of my invoices to Northbend are unpaid?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('a supplier’s account manager asks “Did Northbend sign Helena\'s week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Did Northbend sign Helena\'s week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('a supplier’s account manager asks “How many of my people are on site at Northbend?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'How many of my people are on site at Northbend?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
   it('a supplier’s account manager asks “Can you send Pinnacle a reminder about PR-2026-0442?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Can you send Pinnacle a reminder about PR-2026-0442?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and the model is off for this deployment. Try a question below.')
+      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
   })
 
 })

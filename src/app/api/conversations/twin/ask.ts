@@ -28,6 +28,7 @@
 import { formatDay, formatMonth } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission } from '@/lib/permissions'
+import { newMasker, type MaskVocabulary } from './mask'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -340,6 +341,31 @@ export function modelConfigured(env: Record<string, string | undefined>): boolea
 
 export const NO_MODEL =
   `${NOT_YET} Free text needs the model, and the model is off for this deployment. Try a question below.`
+
+/** The company switch is off (lib/model-boundary): the honest reply, with the door. */
+export const NO_SWITCH =
+  `${NOT_YET} Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.`
+
+/**
+ * The model free text goes to: small, by the founder's word ("we don't
+ * want a large model"), the smallest of the family this deployment
+ * prices in lib/agent-run. One constant; the prompt log names it.
+ */
+export const SMALL_MODEL = 'claude-haiku-4-5'
+
+/** Who answered a free-text question, and what it cost, for the prompt log. */
+export interface ModelReply { text: string; model: string; tokensIn: number | null; tokensOut: number | null }
+
+/** One prompt that left, masked, as the log keeps it (lib/model-boundary's recordModelPrompt). */
+export interface PromptLog {
+  model: string
+  maskedPrompt: string
+  maskedAnswer: string
+  tokensIn: number | null
+  tokensOut: number | null
+  /** The real values the masker replaced, so the log can refuse a text that still holds one. Never stored. */
+  realValues: string[]
+}
 
 /** The one sentence the model says for any act. Checked in the test, so it cannot drift. */
 export const ASK_THE_DESK = 'I cannot do that; ask the desk.'
@@ -933,8 +959,14 @@ export interface Readers {
   /** Invoice receipts billed to this company in [from, to), and how many carry no date at all. */
   spendIn(from: Date, to: Date): Promise<Refusable<{ receipts: SpendReceipt[]; undated: number }>>
   ledgerLines(): Promise<LedgerLine[]>
-  /** Asks the model; only called where a key is configured. */
-  model(system: string, question: string, context: string): Promise<string | null>
+  /** Whether this company's settings desk turned the model on (lib/model-boundary's switch). */
+  modelOn(): Promise<boolean>
+  /** The people and firms this reader may read, for masking; read only when something is about to leave. */
+  vocabulary(): Promise<MaskVocabulary>
+  /** Asks the model, masked text in, masked text out; only called with the switch and the key both on. */
+  model(system: string, question: string, context: string): Promise<ModelReply | null>
+  /** Logs one prompt that left and its answer, masked. Never throws. */
+  logPrompt(entry: PromptLog): Promise<void>
 }
 
 /**
@@ -1102,10 +1134,18 @@ export async function today(read: Readers, opts: { now?: Date; greeting?: boolea
  * The boundary, said on the first screen (CLAUDE.md, "Ask Etyme is the
  * app"). The last clause follows whether a model can be asked here.
  */
-export function boundarySays(modelOn: boolean): string {
-  return 'Your data stays in your company. Every read is logged. ' + (modelOn
-    ? 'Free-text questions go to the model turned on for this deployment; the rules answer first.'
-    : 'Nothing leaves to a model unless your company turns it on.')
+export type ModelState = 'OFF' | 'ON' | 'NO_KEY'
+
+/** The switch and the key together: ON only when both are on. */
+export function modelState(companyOn: boolean, env: Record<string, string | undefined>): ModelState {
+  return !companyOn ? 'OFF' : modelConfigured(env) ? 'ON' : 'NO_KEY'
+}
+
+export function boundarySays(state: ModelState): string {
+  return 'Your data stays in your company. Every read is logged. ' + (
+    state === 'ON' ? 'Free-text questions go to the model your company turned on, masked; every prompt is logged under Settings.'
+      : state === 'NO_KEY' ? 'Nothing leaves to a model; it is not set up on this deployment.'
+        : 'Nothing leaves to a model; your company has not turned it on.')
 }
 
 export async function respond(
@@ -1216,11 +1256,30 @@ export async function respond(
     }
 
     case 'ASK': {
-      if (!modelConfigured(opts.env)) return { kind: 'TEXT', says: NO_MODEL }
+      // Free text leaves only when the company turned the model on AND the
+      // deployment has a key; the company's switch is said first, because
+      // it is the one a person can change.
+      const state = modelState(await read.modelOn(), opts.env)
+      if (state === 'OFF') return { kind: 'TEXT', says: NO_SWITCH }
+      if (state === 'NO_KEY') return { kind: 'TEXT', says: NO_MODEL }
       const lines = await read.ledgerLines()
       if (lines.length === 0) return { kind: 'TEXT', says: `${NOT_YET} The twin’s ledger has nothing you can read yet. ${WHAT_I_ANSWER}` }
-      const said = await read.model(MODEL_SYSTEM, intent.text, ledgerContext(lines))
-      if (!said) return { kind: 'TEXT', says: 'The model did not answer just now. ' + WHAT_I_ANSWER }
+      // Masked at the edge: the question and at most 60 lines, every name
+      // and figure a token, the map kept for this request only.
+      const masker = newMasker(await read.vocabulary())
+      const maskedQuestion = masker.mask(intent.text)
+      const maskedContext = masker.mask(ledgerContext(lines))
+      const reply = await read.model(MODEL_SYSTEM, maskedQuestion, maskedContext)
+      if (!reply) return { kind: 'TEXT', says: 'The model did not answer just now. ' + WHAT_I_ANSWER }
+      await read.logPrompt({
+        model: reply.model,
+        maskedPrompt: `Ledger lines:\n${maskedContext}\n\nQuestion: ${maskedQuestion}`,
+        maskedAnswer: reply.text,
+        tokensIn: reply.tokensIn,
+        tokensOut: reply.tokensOut,
+        realValues: masker.realValues(),
+      })
+      const said = masker.unmask(reply.text)
       const byId = new Map(lines.map((l) => [l.id, l]))
       return {
         kind: 'MODEL',

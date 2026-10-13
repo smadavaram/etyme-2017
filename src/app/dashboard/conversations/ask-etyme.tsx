@@ -9,7 +9,7 @@ import { RefusedState, Textarea, FormMessage } from '@/components/ui'
 import { statusMeans } from '@/lib/read-response'
 import { formatDay, formatRange } from '@/lib/format-date'
 import {
-  SUGGESTED_QUESTIONS, FOOTER_LINE, boundarySays, decisionRequest, entryHref, hrs, money, partOfDay,
+  SUGGESTED_QUESTIONS, FOOTER_LINE, boundarySays, type ModelState, decisionRequest, entryHref, hrs, money, partOfDay,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
 } from '@/app/api/conversations/twin/ask'
 
@@ -62,7 +62,7 @@ export function AskEtyme() {
   const [deciding, setDeciding] = useState<string | null>(null)
   // Whether free text may go to a model here, from the greeting's answer;
   // null until it lands, so the boundary line never says the wrong one.
-  const [modelOn, setModelOn] = useState<boolean | null>(null)
+  const [model, setModel] = useState<ModelState | null>(null)
   const next = useRef(1)
   const end = useRef<HTMLDivElement>(null)
   const firstName = session.person?.name?.trim().split(/\s+/)[0] ?? null
@@ -78,7 +78,7 @@ export function AskEtyme() {
         if (!live) return
         if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
         if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
-        setModelOn(body.data.modelOn === true)
+        setModel(body.data.model === 'ON' || body.data.model === 'NO_KEY' ? body.data.model : 'OFF')
         add({ from: 'etyme', answer: body.data.answer as Answer })
       })
       .catch(() => { if (live) add({ from: 'note', text: 'Etyme could not be reached. Check your connection, then ask a question.' }) })
@@ -175,7 +175,7 @@ export function AskEtyme() {
           <h1 className="font-serif text-[20px] leading-tight tracking-[-0.02em] text-etyme-ink">Ask Etyme</h1>
           <p className="truncate text-[12px] text-etyme-muted">{SUBTITLE}</p>
           {/* The boundary, said on the first screen. */}
-          {modelOn !== null && <p className="text-[11.5px] leading-snug text-etyme-faint">{boundarySays(modelOn)}</p>}
+          {model !== null && <p className="text-[11.5px] leading-snug text-etyme-faint">{boundarySays(model)}</p>}
         </div>
         <Link
           href={'/dashboard/conversations' as Route}

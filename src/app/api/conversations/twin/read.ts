@@ -19,6 +19,8 @@ import { invoiceVerdict, invoiceRulesFor } from '@/lib/twin/rules/invoice'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { logBulkAccess } from '@/lib/access-log'
 import { runAgent } from '@/lib/agent-run'
+import { modelOnFor, recordModelPrompt } from '@/lib/model-boundary'
+import type { MaskVocabulary } from './mask'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
@@ -26,7 +28,7 @@ import { daysWaiting } from '@/lib/auto-approval'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import {
-  hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS,
+  hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
@@ -35,7 +37,6 @@ import {
 /** An invoice that was never sent, or was withdrawn, is nobody's spend. */
 const NOT_SPEND = ['DRAFT', 'CANCELLED', 'VOID']
 
-const MODEL = 'claude-sonnet-5'
 
 /** Receipts read for one variance answer, at most. Each is a three-way check. */
 const MAX_RECEIPTS = 200
@@ -491,6 +492,44 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       }))
     },
 
+    async modelOn() {
+      return caller.company ? modelOnFor(caller.company.id) : false
+    },
+
+    async vocabulary(): Promise<MaskVocabulary> {
+      // Every name this reader may read and that a ledger line or a
+      // question could carry: the people on its company's placements (both
+      // sides, inside its account walls), its own colleagues, the firms it
+      // trades with and its own name. Read only when something is about
+      // to leave, and never sent anywhere itself.
+      const company = caller.company
+      if (!company) return { people: [], firms: [] }
+      const wall = await accountFilterFor(caller)
+      const [lines, seats, payables] = await Promise.all([
+        prisma.sellContract.findMany({
+          where: andAll({ OR: [endClientFilter(company.id), { companyId: company.id }, { clientCompanyId: company.id }] }, wall.where),
+          take: 1000,
+          select: {
+            person: { select: { name: true } },
+            company: { select: { name: true } },
+            clientCompany: { select: { name: true } },
+            endClientCompany: { select: { name: true } },
+          },
+        }),
+        prisma.context.findMany({ where: { companyId: company.id, revokedAt: null }, take: 1000, select: { person: { select: { name: true } } } }),
+        hasPermission(caller.permissions, 'invoices.read') ? payablesOf(company.id) : Promise.resolve([] as Payable[]),
+      ])
+      const people = new Set<string>()
+      const firms = new Set<string>([company.name])
+      for (const l of lines) {
+        people.add(l.person.name)
+        for (const f of [l.company, l.clientCompany, l.endClientCompany]) if (f?.name) firms.add(f.name)
+      }
+      for (const c of seats) people.add(c.person.name)
+      for (const p of payables) if (p.supplier) firms.add(p.supplier)
+      return { people: [...people], firms: [...firms] }
+    },
+
     async model(system, question, context) {
       const key = process.env.ANTHROPIC_API_KEY
       if (!key) return null
@@ -504,8 +543,11 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
             recordId: companyId,
           },
           async () => {
+            // Masked text only: the question and the lines arrive here
+            // already tokenized by ask.ts. No per-request no-retention option
+            // exists in this client; see KNOWN-LIMITS.md, "Ask Etyme".
             const res = await client.messages.create({
-              model: MODEL,
+              model: SMALL_MODEL,
               max_tokens: 700,
               system,
               messages: [{ role: 'user', content: `Ledger lines:\n${context}\n\nQuestion: ${question}` }],
@@ -515,7 +557,11 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
               .map((b) => b.text)
               .join('')
               .trim()
-            return { result: text || null, model: MODEL, usage: res.usage }
+            return {
+              result: text ? { text, model: SMALL_MODEL, tokensIn: res.usage?.input_tokens ?? null, tokensOut: res.usage?.output_tokens ?? null } : null,
+              model: SMALL_MODEL,
+              usage: res.usage,
+            }
           }
         )
         return result
@@ -523,6 +569,22 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         // Falls back to the rule questions; a slow third party is not a broken panel.
         return null
       }
+    },
+
+    async logPrompt(entry) {
+      if (!caller.company) return
+      await recordModelPrompt({
+        companyId: caller.company.id,
+        personId: caller.person.id,
+        provider: 'anthropic',
+        model: entry.model,
+        maskedPrompt: entry.maskedPrompt,
+        maskedAnswer: entry.maskedAnswer,
+        tokensIn: entry.tokensIn,
+        tokensOut: entry.tokensOut,
+        purpose: 'ASK_ETYME',
+        realValues: entry.realValues,
+      })
     },
   }
 }

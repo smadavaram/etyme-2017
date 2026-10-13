@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelConfigured, type Picture } from './ask'
+import { respond, today, modelState, type Picture } from './ask'
+import { modelSwitchFor } from '@/lib/model-boundary'
 import { GET as programPicture } from '@/app/api/program/route'
 import { readersFor } from './read'
 
@@ -58,7 +59,9 @@ export async function GET(request: NextRequest) {
   }
   try {
     const answer = await today(readersFor(caller, caller.company.id), { greeting: true, picture: await pictureFor(request) })
-    return NextResponse.json({ data: { answer, modelOn: modelConfigured(process.env) } })
+    // The boundary line reads the company's own switch, so it says what is true for this company.
+    const model = modelState((await modelSwitchFor(caller.company.id)).on, process.env)
+    return NextResponse.json({ data: { answer, model } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })

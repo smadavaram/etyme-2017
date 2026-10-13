@@ -306,6 +306,28 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   not only the ones the nightly run recorded, at most 200 per question.
   It is read at the paying company only; a supplier is refused with the
   door.
+- **Zero retention is not set by the code.** The provider client in
+  this repository (`@anthropic-ai/sdk` 0.117.1) has no per-request
+  no-retention option or header, so none is sent. Whether the provider
+  keeps nothing depends on the organization's agreement with it, which
+  is the founder's to arrange and is not verified here.
+- **Masking knows names from the record, not from their shape**
+  (`newMasker` in `app/api/conversations/twin/mask.ts`). It masks the
+  people on the reader's company's placements and seats, the firms it
+  trades with, and its own name. A name typed into a question that is
+  on none of those leaves as typed. A first or last name alone is
+  masked only when written with its capital; a common word in a firm's
+  name ("Systems", "Staffing") is not masked on its own. Figures are
+  masked by pattern: a currency amount, a rate per hour, day, week,
+  month or year, and a percentage beside margin, markup, fee,
+  commission, discount or spread. A percentage elsewhere (the 0.5%
+  tolerance) leaves as written.
+- **The map lives for one request.** Nothing stores it; the log gets
+  the real values only so it can refuse a text that still holds one.
+- **The prompt log keeps the masked question and lines and the masked
+  answer**, not the system instruction, which is a constant in `ask.ts`.
+- **The model is `claude-haiku-4-5`**, one constant (`SMALL_MODEL`),
+  the smallest model this deployment prices in `lib/agent-run`.
 - **"Not now" changes nothing and is not recorded.** The question stays
   waiting and comes back with "What needs me today?".
 - **"Ask Pinnacle for a corrected invoice" from the prototype is not
