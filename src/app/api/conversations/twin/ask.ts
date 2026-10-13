@@ -1006,6 +1006,31 @@ export function partOfDay(hour: number): string {
   return 'Good evening'
 }
 
+/** The last word of a role that names a person; any other role is a desk ("Finance", "AP & Payroll"). */
+const PERSON_ROLES = new Set(['manager', 'clerk', 'officer', 'lead', 'partner', 'recruiter', 'owner', 'admin', 'coordinator', 'approver', 'viewer', 'desk', 'consultant'])
+
+/** A role as a sentence says it: lower case, except an acronym ("AP Clerk" reads "AP clerk"). */
+function roleWords(role: string): string {
+  return role.trim().split(/\s+/).map((w) => (/^[A-Z][a-z]/.test(w) ? w.toLowerCase() : w)).join(' ')
+}
+
+/**
+ * The greeting's first line after "Good evening, Marcus.": the desk this
+ * seat is and the company it is at, and in the demo that the company is a
+ * sample. The phone header carries no words (founder, 2026-10-13), so this
+ * is the one place in the chat that says where you are.
+ */
+export function seatSays(seat: { role: string | null; company: string | null; sample: boolean }): string | null {
+  const company = seat.company?.trim()
+  if (!company) return null
+  const at = `${company}${seat.sample ? ', a sample company' : ''}.`
+  const role = seat.role?.trim()
+  if (!role) return `You are signed in at ${at}`
+  const words = roleWords(role)
+  const last = words.split(' ').pop()!.toLowerCase()
+  return PERSON_ROLES.has(last) ? `You are the ${words} at ${at}` : `You are on the ${words} desk at ${at}`
+}
+
 /**
  * Find the item a person meant: its number in the list, its question's
  * id, its ledger entry's id, or the invoice receipt's number.
@@ -1247,6 +1272,9 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // cap, because the route marks read only the ones it passed in here.
   if (opts.greeting && opts.notices) more.push(...sinceSays(opts.notices.shown, opts.notices.older))
   if (opts.greeting) more.push({ says: GREETING_CLOSE })
+  // The boundary, the greeting's last line: said on the first screen, once,
+  // now that the phone draws no heading over the thread.
+  if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model) })
   return {
     kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
     items, more, ...(opts.greeting ? { greeting: true } : {}),
@@ -1266,6 +1294,8 @@ export interface TodayOptions {
   needs?: () => Promise<number | null>
   /** Unread notices for the greeting's "Since you last looked", and how many older ones wait. */
   notices?: { shown: readonly NoticeLine[]; older: number }
+  /** Whether a model can be asked here; the greeting closes on what that means for this company's data. */
+  model?: ModelState
 }
 
 /**

@@ -86,11 +86,12 @@ export async function GET(request: NextRequest) {
   }
   try {
     const notices = await unreadNotices(caller)
-    const answer = await today(readersFor(caller, caller.company.id), {
-      greeting: true, picture: await pictureFor(request), needs: needsFor(request), notices,
-    })
-    // The boundary line reads the company's own switch, so it says what is true for this company.
+    // The boundary line reads the company's own switch, so it says what is
+    // true for this company; it is the greeting's last line.
     const model = modelState((await modelSwitchFor(caller.company.id)).on, process.env)
+    const answer = await today(readersFor(caller, caller.company.id), {
+      greeting: true, picture: await pictureFor(request), needs: needsFor(request), notices, model,
+    })
     // Said, so read: the section empties itself on the next greeting.
     await markNoticesSeen(caller, notices.shown.map((n) => n.id))
     return NextResponse.json({ data: { answer, model } })

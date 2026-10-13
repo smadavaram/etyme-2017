@@ -40,7 +40,7 @@ import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
 import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
-  SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
+  SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
@@ -312,19 +312,55 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     const header = chat.slice(chat.indexOf('<header'), chat.indexOf('</header>'))
     expect(header).toContain('Ask Etyme</h1>')
     expect(header).not.toMatch(/\btwin\b(?!’s ledger)/i)
-    expect(header).toContain('aria-label="Back to Conversations"')
     expect(header).toContain('aria-label="Close Ask Etyme"')
     expect(SUGGESTED_QUESTIONS).toEqual(['What needs me today?', 'Who is near the time limit?', 'What did we spend by supplier this month?', 'Which weeks are unsigned?'])
     expect(FOOTER_LINE).toBe('Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.')
     expect(chat).toContain('{FOOTER_LINE}')
     expect(chat).toContain('placeholder="Ask Etyme about your program…"')
     // The boundary is said on the first screen, and says the truth about the model.
-    expect(chat).toContain('{boundarySays(model)}')
     expect(boundarySays('OFF')).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model; your company has not turned it on.')
     expect(boundarySays('ON')).toBe('Your data stays in your company. Every read is logged. Free-text questions go to the model your company turned on, masked; every prompt is logged under Settings.')
     expect(boundarySays('NO_KEY')).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model; it is not set up on this deployment.')
     // The twin's page links to it rather than drawing a second chat.
     expect(readFileSync(join(root, 'components/twin-conversation.tsx'), 'utf8')).toContain("href={'/dashboard/conversations/etyme' as Route}")
+  })
+
+  it('on a phone Ask Etyme draws no heading of its own: no back arrow, no title, no boundary line and no close under the header', () => {
+    const chat = readFileSync(join(process.cwd(), 'src', 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    const header = chat.slice(chat.indexOf('<header'), chat.indexOf('</header>'))
+    // Hidden below md, drawn from md up where the chat sits beside the list.
+    expect(header).toMatch(/<header className="hidden [^"]*md:flex"/)
+    expect(chat).not.toContain('Back to Conversations')
+    // The boundary is no longer in any heading; the greeting says it.
+    expect(chat).not.toContain('boundarySays')
+  })
+
+  it('the greeting closes on the boundary, once, as its last line, saying what is true about the model for this company', async () => {
+    for (const state of ['OFF', 'ON', 'NO_KEY'] as const) {
+      const hello = await today(readers(), { now: NOW, greeting: true, model: state })
+      const said = hello.kind === 'NEEDS' ? (hello.more ?? []).map((l) => l.says) : []
+      expect(said.slice(-2)).toEqual([GREETING_CLOSE, boundarySays(state)])
+      expect(said.filter((l) => l === boundarySays(state))).toHaveLength(1)
+    }
+    // A question to the chat, not the greeting, never repeats it.
+    const asked = await today(readers(), { now: NOW, model: 'OFF' })
+    expect(asked.kind === 'NEEDS' && (asked.more ?? []).map((l) => l.says)).not.toContain(boundarySays('OFF'))
+  })
+
+  it('the greeting says the desk and the company, and in the demo that the company is a sample', () => {
+    expect(seatSays({ role: 'Hiring Manager', company: 'Northbend Athletic', sample: true })).toBe('You are the hiring manager at Northbend Athletic, a sample company.')
+    expect(seatSays({ role: 'Hiring Manager', company: 'Acme Corp', sample: false })).toBe('You are the hiring manager at Acme Corp.')
+    // An acronym keeps its capitals; a department reads as a desk.
+    expect(seatSays({ role: 'AP Clerk', company: 'Northbend Athletic', sample: true })).toBe('You are the AP clerk at Northbend Athletic, a sample company.')
+    expect(seatSays({ role: 'Finance', company: 'Brightmoor', sample: false })).toBe('You are on the finance desk at Brightmoor.')
+    expect(seatSays({ role: 'HR', company: 'Brightmoor', sample: false })).toBe('You are on the HR desk at Brightmoor.')
+    // No role: where, without a desk it does not have. No company: nothing said.
+    expect(seatSays({ role: null, company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor.')
+    expect(seatSays({ role: 'Owner', company: null, sample: true })).toBeNull()
+    // The chat says it right after "Good evening, Marcus."
+    const chat = readFileSync(join(process.cwd(), 'src', 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    expect(chat).toContain("${firstName ? `, ${firstName}` : ''}.${seat ? ` ${seat}` : ''}")
+    expect(chat).toContain('sample: session.isDemo')
   })
 
   it('the greeting is built from the rules — what waits on you, what waits on another desk, and who is near the time limit — and never from the model', async () => {

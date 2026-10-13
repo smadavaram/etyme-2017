@@ -8,8 +8,9 @@ import { EtymeMark } from '@/components/logo'
 import { RefusedState, Textarea, FormMessage } from '@/components/ui'
 import { statusMeans } from '@/lib/read-response'
 import { formatDay, formatRange } from '@/lib/format-date'
+import { deskOf } from '@/components/shell/sidebar-props'
 import {
-  SUGGESTED_QUESTIONS, FOOTER_LINE, boundarySays, type ModelState, decisionRequest, entryHref, hrs, money, partOfDay,
+  SUGGESTED_QUESTIONS, FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
 } from '@/app/api/conversations/twin/ask'
 
@@ -60,12 +61,14 @@ export function AskEtyme() {
   const [refused, setRefused] = useState<string | null>(null)
   const [cards, setCards] = useState<Cards>({})
   const [deciding, setDeciding] = useState<string | null>(null)
-  // Whether free text may go to a model here, from the greeting's answer;
-  // null until it lands, so the boundary line never says the wrong one.
-  const [model, setModel] = useState<ModelState | null>(null)
   const next = useRef(1)
   const end = useRef<HTMLDivElement>(null)
   const firstName = session.person?.name?.trim().split(/\s+/)[0] ?? null
+  // Where you are, said once in the greeting: the phone header carries no
+  // words, so the desk, the company and, in the demo, that it is a sample
+  // are the greeting's first line (founder, 2026-10-13).
+  const desk = deskOf(session)
+  const seat = seatSays({ role: desk.isConsultant ? 'Consultant' : desk.roleName, company: desk.seatedAtClient ?? session.company?.name ?? null, sample: session.isDemo })
 
   const add = (t: DistributiveOmit<Turn, 'id'>) => setTurns((all) => [...all, { ...t, id: next.current++ } as Turn])
 
@@ -78,7 +81,6 @@ export function AskEtyme() {
         if (!live) return
         if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
         if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
-        setModel(body.data.model === 'ON' || body.data.model === 'NO_KEY' ? body.data.model : 'OFF')
         add({ from: 'etyme', answer: body.data.answer as Answer })
       })
       .catch(() => { if (live) add({ from: 'note', text: 'Etyme could not be reached. Check your connection, then ask a question.' }) })
@@ -161,21 +163,14 @@ export function AskEtyme() {
 
   return (
     <section aria-label="Ask Etyme" className="flex h-full min-h-0 flex-1 flex-col bg-etyme-canvas">
-      <header className="flex items-center gap-2 border-b border-etyme-rule bg-etyme-surface px-3 py-2.5 sm:px-4">
-        <Link
-          href={'/dashboard/conversations' as Route}
-          aria-label="Back to Conversations"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-etyme-rule bg-etyme-raised text-etyme-ink md:hidden"
-        >
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="M13 4l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </Link>
-        <div className="min-w-0 flex-1 text-center md:text-left">
+      {/* On a phone there is no heading: the header says where you are and
+          the flip is the way back (founder, 2026-10-13, "no words in the
+          header"). From md up the chat sits beside the list and keeps its
+          title and close. The boundary is the greeting's last line. */}
+      <header className="hidden items-center gap-2 border-b border-etyme-rule bg-etyme-surface px-3 py-2.5 sm:px-4 md:flex">
+        <div className="min-w-0 flex-1 text-left">
           <h1 className="font-serif text-[20px] leading-tight tracking-[-0.02em] text-etyme-ink">Ask Etyme</h1>
           <p className="truncate text-[12px] text-etyme-muted">{SUBTITLE}</p>
-          {/* The boundary, said on the first screen. */}
-          {model !== null && <p className="text-[11.5px] leading-snug text-etyme-faint">{boundarySays(model)}</p>}
         </div>
         <Link
           href={'/dashboard/conversations' as Route}
@@ -204,7 +199,7 @@ export function AskEtyme() {
                   {t.from === 'note' && <FromEtyme><FormMessage tone="error">{t.text}</FormMessage></FromEtyme>}
                   {t.from === 'etyme' && (
                     <FromEtyme>
-                      <Reply answer={t.answer} firstName={firstName} cards={cards} deciding={deciding} onDecide={decide} onLater={later} />
+                      <Reply answer={t.answer} firstName={firstName} seat={seat} cards={cards} deciding={deciding} onDecide={decide} onLater={later} />
                     </FromEtyme>
                   )}
                 </li>
@@ -310,9 +305,10 @@ function Links({ links }: { links?: AnswerLink[] }) {
   )
 }
 
-function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
+function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater }: {
   answer: Answer
   firstName: string | null
+  seat: string | null
   cards: Cards
   deciding: string | null
   onDecide: Decide
@@ -343,7 +339,7 @@ function Reply({ answer, firstName, cards, deciding, onDecide, onLater }: {
 
     case 'NEEDS': {
       const hello = answer.greeting
-        ? `${partOfDay(new Date().getHours())}${firstName ? `, ${firstName}` : ''}. `
+        ? `${partOfDay(new Date().getHours())}${firstName ? `, ${firstName}` : ''}.${seat ? ` ${seat}` : ''} `
         : ''
       return (
         <>
