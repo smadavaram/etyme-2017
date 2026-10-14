@@ -109,11 +109,17 @@ describe('asking for the papers when somebody is placed', () => {
       where: { primaryEmail: HR_AT_HALCYON },
       select: { id: true },
     })
-    const told = await prisma.notification.findFirst({
-      where: { personId: hr.id, entityId: contractId },
-      orderBy: { createdAt: 'desc' },
-    })
-    expect(told, 'the desk that must clear a start is the desk that hears one is coming').toBeTruthy()
+    // The award tells HR without waiting for the send, so on a busy machine
+    // the notice lands a moment after the award returns. Wait for it.
+    let told = null as Awaited<ReturnType<typeof prisma.notification.findFirst>>
+    for (let i = 0; i < 50 && !told; i++) {
+      told = await prisma.notification.findFirst({
+        where: { personId: hr.id, entityId: contractId },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (!told) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(told, 'the role that must clear a start is the role that hears one is coming').toBeTruthy()
     expect(told!.title).toContain('Samuel Adeyinka')
     expect(told!.title).toContain('Cavanaugh Glassworks')
     expect(told!.body).toMatch(/cannot start without/)
