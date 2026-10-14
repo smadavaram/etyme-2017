@@ -85,7 +85,7 @@ describe('4.4 · “What we need” sits at the top of Partner bench', () => {
 
   it('an ask reads in one line: skills, places, rate and who receives offers', () => {
     expect(wantSays({ skills: ['Process validation', 'GMP documentation'], places: ['Wichita, KS', 'Remote'], rateMinCents: 9_000, rateMaxCents: 12_000, roleName: 'Recruiter', personName: null }))
-      .toBe('Process validation, GMP documentation · Wichita, KS or Remote · $90–$120/hr · offers go to the Recruiter desk')
+      .toBe('Process validation, GMP documentation · Wichita, KS or Remote · $90–$120/hr · offers go to the Recruiter')
     expect(wantSays({ skills: ['GMP'], places: [], rateMinCents: null, rateMaxCents: null, roleName: null, personName: null }))
       .toBe('GMP · any place · rate not said · offers go to whoever reads Partner bench')
     expect(wantSays({ skills: ['GMP'], places: [], rateMinCents: null, rateMaxCents: null, roleName: 'Recruiter', personName: 'Priyanka Solis' }))

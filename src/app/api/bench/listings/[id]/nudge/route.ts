@@ -27,7 +27,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (error) return error
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Reaching somebody about ${possessive(caller.company?.name ?? 'your firm')} bench is for the desks that manage people there.` } },
+      { error: { code: 'FORBIDDEN', message: `Reaching somebody about ${possessive(caller.company?.name ?? 'your firm')} bench is for the recruiters, the resource manager and HR there.` } },
       { status: 403 }
     )
   }

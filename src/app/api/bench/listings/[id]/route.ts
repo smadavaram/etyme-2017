@@ -50,7 +50,7 @@ export async function PATCH(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Changing how a person is marketed is the recruiting desk’s call. Ask whoever runs your bench.',
+          message: 'Changing how a person is marketed is the recruiter’s call. Ask whoever runs your bench.',
         },
       },
       { status: 403 }

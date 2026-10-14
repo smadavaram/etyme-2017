@@ -65,7 +65,7 @@ export function ProfileEditor({ consultantId, skills, availableFrom, rateFloor, 
             className="mt-1 w-full border border-etyme-rule rounded px-2 py-1.5 text-sm tabular-nums text-etyme-ink" />
         </label>
       ) : (
-        <p className="text-[12px] text-etyme-muted">The lowest rate they take is pay, set by the desks that read pay or by the person.</p>
+        <p className="text-[12px] text-etyme-muted">The lowest rate they take is pay, set by payroll, finance or the person.</p>
       )}
       {said && <p className={`text-[12px] ${said.ok ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{said.text}</p>}
       <button disabled={busy} className="btn-primary text-[12px] disabled:opacity-50">{busy ? 'Saving…' : 'Save'}</button>

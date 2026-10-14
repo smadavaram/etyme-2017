@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (!hasPermission(caller.permissions, 'submissions.create') && !hasPermission(caller.permissions, 'assignments.write')) {
       return refuse(
         'NO_PERMISSION',
-        `Putting somebody forward to a client’s job request is for a delivery manager or the recruiting desk at ${caller.company!.name}.`
+        `Putting somebody forward to a client’s job request is for a delivery manager or a recruiter at ${caller.company!.name}.`
       )
     }
     const req = await prisma.requirement.findUnique({

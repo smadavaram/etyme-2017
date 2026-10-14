@@ -99,7 +99,7 @@ describe('what the bench costs', () => {
     const page = src('src/app/dashboard/bench/page.tsx')
     expect(page).toContain('hasPermission(session.permissions, READS_PAY)')
     expect(page).toContain("if (!readsPay) { setBurnLoading(false); return }")
-    expect(BURN_READ_BY).toBe('What the bench costs is read by the desks that read pay')
+    expect(BURN_READ_BY).toBe('What the bench costs is read by payroll and finance')
   })
 
   it('counts working days through the one door, with each person’s holiday answer, skips anybody placed and billing, and answers in cents', () => {

@@ -38,10 +38,10 @@ export function whoseDeskSays(clientName: string, deskNames: string[]): string {
   const names = [...new Set(deskNames)].sort()
   const who = names.length === 0
     ? `whoever raises ${word} there`
-    : names.length === 1 ? `the ${names[0]} desk` : `the ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]} desk`
-  // With no desk named, "whoever raises job requests there" already says
-  // which desk, and saying it twice read as a stutter.
-  const which = names.length === 0 ? '' : `, the desk that raises ${word}`
+    : names.length === 1 ? `the ${names[0]}` : `the ${names.slice(0, -1).join(', the ')} or the ${names[names.length - 1]}`
+  // With no role named, "whoever raises job requests there" already says
+  // who, and saying it twice read as a stutter.
+  const which = names.length === 0 ? '' : names.length === 1 ? `, who raises ${word} there` : `, who raise ${word} there`
   return `Asking somebody back to ${clientName} is for ${who}${which}. ` +
     `You can read who worked here before; ask them to put the request in.`
 }

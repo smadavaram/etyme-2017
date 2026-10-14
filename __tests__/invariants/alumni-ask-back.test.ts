@@ -126,9 +126,9 @@ describe('who an ask-back is written for, and who hears it', () => {
     expect(page).toContain('person.canReengage && desk && !desk.mayAsk')
   })
 
-  it('the sentence names the client’s desks that may ask, or says whoever raises job requests where none is named', () => {
+  it('the sentence names the client’s roles that may ask, or says whoever raises job requests where none is named', () => {
     expect(whoseDeskSays('Cavanaugh Glassworks', ['Hiring Manager', 'Program Manager', 'Hiring Manager']))
-      .toBe('Asking somebody back to Cavanaugh Glassworks is for the Hiring Manager or Program Manager desk, the desk that raises job requests. You can read who worked here before; ask them to put the request in.')
+      .toBe('Asking somebody back to Cavanaugh Glassworks is for the Hiring Manager or the Program Manager, who raise job requests there. You can read who worked here before; ask them to put the request in.')
     expect(whoseDeskSays('Cavanaugh Glassworks', [])).toContain('for whoever raises job requests there')
   })
 

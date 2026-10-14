@@ -35,7 +35,7 @@ describe('who reads bench profit', () => {
     const v = reader('Recruiter')
     expect(v.ok).toBe(false)
     if (v.ok) return
-    expect(v.message).toContain('owner, the admin and the finance desk')
+    expect(v.message).toContain('owner, the admin and finance')
     expect(v.message).toContain('(Recruiter)')
     for (const role of ['Account Manager', 'Resource Manager', 'AP & Payroll', 'HR', 'Delivery Manager', null]) {
       expect(reader(role).ok, String(role)).toBe(false)

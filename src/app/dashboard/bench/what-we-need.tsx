@@ -163,7 +163,7 @@ export function WhatWeNeed({ onSaid }: { onSaid: (said: { ok: boolean; text: str
           <Field label="Who receives offers">
             <Select value={desk} onChange={(e) => setDesk(e.target.value)}>
               <option value="">Whoever reads Partner bench</option>
-              <optgroup label="A desk">
+              <optgroup label="A role">
                 {data.desks.roles.map((r) => <option key={r.id} value={`role:${r.id}`}>{r.name}</option>)}
               </optgroup>
               <optgroup label="A person">

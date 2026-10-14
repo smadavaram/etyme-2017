@@ -45,7 +45,7 @@ export async function GET(
         actorCompanyId: caller.company?.id,
         action: 'PROFILE_VIEW',
         allowed: false,
-        reason: 'Refused: the reader’s desk does not read the people this firm has on its books.',
+        reason: 'Refused: the reader’s role does not read the people this firm has on its books.',
       })
     }
     return NextResponse.json(
@@ -245,7 +245,7 @@ export async function PATCH(
 
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Changing a consultant’s record or putting them on the bench is for the recruiting desk, the resource manager, HR or the owner. Ask one of them.' } },
+      { error: { code: 'FORBIDDEN', message: 'Changing a consultant’s record or putting them on the bench is for the recruiters, the resource manager, HR or the owner. Ask one of them.' } },
       { status: 403 }
     )
   }
@@ -317,7 +317,7 @@ export async function PATCH(
               error: {
                 code: 'FORBIDDEN',
                 message:
-                  'Only the consultant can set their own lowest rate, or a desk that sees what each person costs. ' +
+                  'Only the consultant can set their own lowest rate, or a role that sees what each person costs. ' +
                   askTheDesk({
                     doing: 'Setting somebody else’s lowest rate',
                     needs: 'consultants.cost',

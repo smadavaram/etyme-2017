@@ -242,7 +242,7 @@ export function notYoursToRead(surface: string, company: string | null | undefin
   if (!company) {
     return `${surface} is a company’s page, and you are not signed in at a company. Your own work is under Your work.`
   }
-  return `${surface} at ${company} is read by the desks that staff, run or pay its work. Your own work is on your own page.`
+  return `${surface} at ${company} is read by the people who staff, run or pay its work. Your own work is on your own page.`
 }
 
 // ── The rate on an Ending soon card ──────────────────────────────────────

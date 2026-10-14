@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
 
   // The desk must be this firm's own: a role it holds, or a person seated here.
   if (w.receivingRoleId && !(await prisma.role.findFirst({ where: { id: w.receivingRoleId, companyId }, select: { id: true } }))) {
-    return refuse('VALIDATION', 'That role is not one of your firm’s. Choose a desk from the list.', 422)
+    return refuse('VALIDATION', 'That role is not one of your firm’s. Choose a role from the list.', 422)
   }
   if (
     w.receivingPersonId &&

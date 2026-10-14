@@ -264,7 +264,7 @@ describe('14 · the finance desk reads bench profit from the Bench page', () => 
 
   it('a seat that reads no people is told whose page it is in a sentence, not a permission code', () => {
     expect(benchClosedSays('Pellwright Validation Partners')).toBe(
-      'The bench at Pellwright Validation Partners is read by the desks that work with consultants — the recruiters, the resource ' +
+      'The bench at Pellwright Validation Partners is read by the people who work with candidates — the recruiters, the resource ' +
         'manager, HR and the owner. Your seat is not one of them. Ask whoever manages roles there.'
     )
     expect(src('src/app/api/bench/route.ts')).not.toContain('You need consultants.read permission')

@@ -68,7 +68,7 @@ export function mayReadBenchProfit(r: BenchProfitReader): BenchProfitVerdict {
   if (r.consultantSeat) {
     return {
       ok: false, code: 'NOT_STAFF',
-      message: 'Bench profit is the firm’s own figure, read by its owner, admin and finance desks. Your own work is on your own page.',
+      message: 'Bench profit is the firm’s own figure, read by its owner, admin and finance. Your own work is on your own page.',
     }
   }
   if (!r.companyKind) {
@@ -86,7 +86,7 @@ export function mayReadBenchProfit(r: BenchProfitReader): BenchProfitVerdict {
   return {
     ok: false, code: 'NOT_THIS_DESK',
     message:
-      `Bench profit at ${r.companyName} is read by the owner, the admin and the finance desk. ` +
+      `Bench profit at ${r.companyName} is read by the owner, the admin and finance. ` +
       `Your seat${r.roleName ? ` (${r.roleName})` : ''} is none of them. Ask one of them, or ask whoever manages roles there.`,
   }
 }

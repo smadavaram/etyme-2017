@@ -555,7 +555,7 @@ export function submitLink(
 }
 
 /** Said on Bench where the seat does not read pay, in place of what the bench costs. */
-export const BURN_READ_BY = 'What the bench costs is read by the desks that read pay'
+export const BURN_READ_BY = 'What the bench costs is read by payroll and finance'
 
 /**
  * What an "Add to application" sends, from what the screen shows and what
@@ -607,7 +607,7 @@ export function profileEditBody(
   const body: { skills: string[]; availableFrom: string | null; rateFloor?: number | null } = { skills, availableFrom: day || null }
   const rate = typed.rateFloor.trim()
   if (rate) {
-    if (!mayRate) return { ok: false, says: 'The lowest rate somebody takes is pay, set by the desks that read pay or by the person.' }
+    if (!mayRate) return { ok: false, says: 'The lowest rate somebody takes is pay, set by payroll, finance or the person.' }
     const n = Number(rate)
     if (!Number.isFinite(n) || n <= 0) return { ok: false, says: 'Say the lowest hourly rate as a number of dollars.' }
     body.rateFloor = Math.round(n * 100)
@@ -823,7 +823,7 @@ export function notAtACompany(thing: string): string {
 export function benchClosedSays(firm: string | null | undefined): string {
   if (!firm) return notAtACompany('bench')
   return (
-    `The bench at ${firm} is read by the desks that work with consultants — the recruiters, the resource ` +
+    `The bench at ${firm} is read by the people who work with candidates — the recruiters, the resource ` +
     'manager, HR and the owner. Your seat is not one of them. Ask whoever manages roles there.'
   )
 }
@@ -1196,7 +1196,7 @@ export function readWant(body: unknown): { ok: true; want: WantFields } | { ok: 
   const receivingRoleId = id(b.receivingRoleId)
   const receivingPersonId = id(b.receivingPersonId)
   if (receivingRoleId && receivingPersonId) {
-    return { ok: false, field: 'desk', says: 'Choose one desk to receive offers: a role or a person, not both.' }
+    return { ok: false, field: 'desk', says: 'Choose who receives offers: a role or a person, not both.' }
   }
   return { ok: true, want: { skills, places, rateMinCents, rateMaxCents, receivingRoleId, receivingPersonId } }
 }
@@ -1204,7 +1204,7 @@ export function readWant(body: unknown): { ok: true; want: WantFields } | { ok: 
 /**
  * One ask in a line, the same for the firm that wrote it and the partner
  * reading it: "Process validation, Cleaning validation · Wichita, KS or
- * Remote · $90–$120/hr · offers go to the Recruiter desk".
+ * Remote · $90–$120/hr · offers go to the Recruiter".
  */
 export function wantSays(w: {
   skills: string[]
@@ -1217,7 +1217,7 @@ export function wantSays(w: {
 }): string {
   const where = w.places.length === 0 ? 'any place' : w.places.length === 1 ? w.places[0] : `${w.places.slice(0, -1).join(', ')} or ${w.places[w.places.length - 1]}`
   const pay = w.rateMinCents == null && w.rateMaxCents == null ? 'rate not said' : range(w.rateMinCents, w.rateMaxCents, w.currency ?? 'USD')
-  const desk = w.personName ? `offers go to ${w.personName}` : w.roleName ? `offers go to the ${w.roleName} desk` : 'offers go to whoever reads Partner bench'
+  const desk = w.personName ? `offers go to ${w.personName}` : w.roleName ? `offers go to the ${w.roleName}` : 'offers go to whoever reads Partner bench'
   return `${w.skills.join(', ')} · ${where} · ${pay} · ${desk}`
 }
 
@@ -1236,7 +1236,7 @@ export function mayWriteWant(r: { companyKind: string | null; writesPeople: bool
   if (!r.writesPeople) {
     return {
       ok: false,
-      says: 'What your firm asks its partners for is written by the desks that run the bench — the recruiters, the resource manager, HR and the owner. Ask one of them.',
+      says: 'What your firm asks its partners for is written by the people who run the bench — the recruiters, the resource manager, HR and the owner. Ask one of them.',
     }
   }
   return { ok: true }

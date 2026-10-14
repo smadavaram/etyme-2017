@@ -275,12 +275,12 @@ describe('who reads it', () => {
     expect(f.body.data.courses).toEqual(owner.body.data.courses)
   })
 
-  it('the recruiter is refused in a sentence naming the desks that read it, and is shown no figure', async () => {
+  it('the recruiter is refused in a sentence naming the roles that read it, and is shown no figure', async () => {
     const r = await read(RECRUITER)
     expect(r.status).toBe(403)
     expect(r.body.data).toBeUndefined()
     expect(r.body.error.message).toBe(
-      'Bench profit at Pellwright Validation Partners is read by the owner, the admin and the finance desk. ' +
+      'Bench profit at Pellwright Validation Partners is read by the owner, the admin and finance. ' +
         'Your seat (Recruiter) is none of them. Ask one of them, or ask whoever manages roles there.'
     )
   })

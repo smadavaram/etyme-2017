@@ -142,7 +142,7 @@ describe('the own-work seat · routes its menu reaches answer it with its own wo
 
   it('the refusal sends a worker to his own page, in words and without a permission key', () => {
     const says = notYoursToRead('Past contractors', 'Teleworld Solutions')
-    expect(says).toBe('Past contractors at Teleworld Solutions is read by the desks that staff, run or pay its work. Your own work is on your own page.')
+    expect(says).toBe('Past contractors at Teleworld Solutions is read by the people who staff, run or pay its work. Your own work is on your own page.')
     expect(says).not.toMatch(/\.read|\.write/)
   })
 

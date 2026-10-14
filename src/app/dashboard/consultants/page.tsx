@@ -1082,7 +1082,7 @@ export default function ConsultantsPage() {
             <span className="text-etyme-faint">—</span>
           )
         ) : (
-          <span className="text-etyme-faint text-[11px]">Read by the pay desks</span>
+          <span className="text-etyme-faint text-[11px]">Read by payroll and finance</span>
         )
       ),
       sortValue: (row) => row.rateMin ?? 0,
