@@ -348,7 +348,7 @@ function howYouCameIn(c: Pick<Company, 'slug' | 'domain' | 'domainVerified'>): s
       'It is not editable, and it decides who joins this company automatically.'
   }
   return `Your company signed up with an email and a password, so its Etyme address is ${c.slug}.etyme.com and it has no verified domain. ` +
-    'Colleagues join by invitation, or by signing up with that address, and are seated as Member until you give them a desk.'
+    'Colleagues join by invitation, or by signing up with that address, and are seated as Member until you give them a role.'
 }
 
 function CompanyTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {

@@ -219,7 +219,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="SUPPLIER">A supplier — we buy from them</option>
                 <option value="CLIENT">A client — they buy from us</option>
                 <option value="PRIME">A prime — our work flows through them</option>
-                <option value="MSP">A program office — they run the program we work in</option>
+                <option value="MSP">An MSP — they run the program we work in</option>
               </select>
             </div>
             <div>
@@ -710,7 +710,7 @@ export default function CompaniesPage() {
         <Stat label="Total" value={companies.length} sub="companies" />
         <Stat label="Suppliers" value={vendorCount} sub="staffing" />
         <Stat label="Clients" value={clientCount} sub="enterprise" />
-        <Stat label="Program offices" value={mspCount} sub="managed" />
+        <Stat label="MSPs" value={mspCount} sub="managed" />
         <Stat label="Integrators" value={gsiCount} sub="integrators" />
       </div>
 

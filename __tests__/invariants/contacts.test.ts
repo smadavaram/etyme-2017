@@ -152,8 +152,8 @@ describe('a desk at another firm is filed under the desk it actually is', () => 
     expect(chip('HR Partner', 'CLIENT')).toBe('HR')
   })
 
-  it('a client’s program manager is the program office, not an executive', () => {
-    expect(chip('Program Manager', 'CLIENT')).toBe('Program office')
+  it('a client’s program manager is filed as the program manager, not an executive', () => {
+    expect(chip('Program Manager', 'CLIENT')).toBe('Program manager')
   })
 
   it('a client’s hiring manager is the hiring manager and its owner is not', () => {

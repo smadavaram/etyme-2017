@@ -64,7 +64,7 @@ const WAITING: WaitingItem[] = [{
 }]
 
 const ENTRY_442 = {
-  id: 'entry-442', says: 'Tell the desk that pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
+  id: 'entry-442', says: 'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
   ruleCited: 'Hours 41.5 against 40 accepted, 3.75% over the 0.5% allowed.',
   rationale: 'Ask Pinnacle Resourcing to bill the hours accepted, or have the paying desk record why the difference stands. Nothing is paid until the three-way check passes.',
   entityType: 'Invoice', entityId: 'inv-442',

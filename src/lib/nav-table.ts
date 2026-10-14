@@ -221,7 +221,7 @@ const SCOPED =
  * lines that name its holder.
  */
 const SCOPED_TO_A_DESK =
-  'No one permission opens it: it scopes itself to your company, and a seat holding no desk that reads it is refused, or shown only the weeks and lines that name you.'
+  'No one permission opens it: it scopes itself to your company, and a seat that sees only its own work is refused, or shown only the weeks and lines that name you.'
 const ABOUT_THEM = 'It answers this person about this person.'
 const ADDRESSED = 'Everybody reads what is addressed to them.'
 const DRAWN_FROM = 'No route of its own: the page is drawn from routes that each check their own reader.'
@@ -1024,7 +1024,7 @@ const CLIENT_NAV: NavSection[] = [
       // it back here too. Gated on the governance read its own route
       // asks for, which every oversight desk already holds: a standing
       // grant that only the person who made it can see is not a control.
-      { label: 'Program office', href: '/dashboard/program/seats', icon: '⌂', group: 'Who runs it', needs: ['governance.read'] },
+      { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', group: 'Who runs it', needs: ['governance.read'] },
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Who runs it' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight', needs: ['governance.read'] },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },

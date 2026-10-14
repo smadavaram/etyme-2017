@@ -52,7 +52,7 @@ export type ContactKind =
  */
 export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = {
   HIRING_MANAGER: { label: 'Hiring manager', callAbout: 'open jobs, interview feedback, extensions' },
-  PROGRAM: { label: 'Program office', callAbout: 'the program itself — who may supply, which jobs go out, the rules' },
+  PROGRAM: { label: 'Program manager', callAbout: 'the program itself — who may supply, which jobs go out, the rules' },
   PROCUREMENT: { label: 'Procurement', callAbout: 'agreements, rate cards, onboarding as a supplier' },
   AP: { label: 'Accounts payable', callAbout: 'unpaid bills and remittance — they pay' },
   BILLING: { label: 'Billing', callAbout: 'the invoices they send and what is still unpaid — they bill' },
@@ -64,7 +64,7 @@ export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = 
   // A colleague seated on arrival with the Member role: they read their
   // own work and nothing else, so they are somebody you know, not a desk
   // you call about anything (lib/company-defaults MEMBER_ROLE).
-  MEMBER: { label: 'Team member', callAbout: 'their own work only — they hold no desk yet' },
+  MEMBER: { label: 'Team member', callAbout: 'their own work only — they hold no role yet' },
   OTHER: { label: 'Other', callAbout: 'whatever they were saved for — add a note' },
 }
 

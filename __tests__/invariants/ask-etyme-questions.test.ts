@@ -78,7 +78,7 @@ const WEEKS: WeekRow[] = [
 const TOLD_442: ToldReceipt = { invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }
 
 const ENTRY_442 = {
-  id: 'entry-442', says: 'Tell the desk that pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
+  id: 'entry-442', says: 'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
   ruleCited: 'Hours 41.5 against 40 accepted, 3.75% over the 0.5% allowed.',
   rationale: 'Ask Pinnacle Resourcing to bill the hours accepted, or have the paying desk record why the difference stands.',
   entityType: 'Invoice', entityId: 'inv-442',
@@ -283,7 +283,7 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
 
   it('the AP clerk asks “Why is PR-2026-0442 not clean?” and the rules answer it', async () => {
     await check('AP', 'Why is PR-2026-0442 not clean?', 'ANSWERED',
-      'Tell the desk that pays that an invoice receipt and the accepted hours or the contract rate do not agree.')
+      'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.')
   })
 
   it('the AP clerk asks “Why 1” and the rules answer it', async () => {

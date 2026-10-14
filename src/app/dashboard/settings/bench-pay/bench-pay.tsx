@@ -73,7 +73,7 @@ export function BenchPaySection({ head }: { head?: React.ReactNode } = {}) {
       const res = await fetch('/api/settings/bench')
       if (res.status === 403) {
         const body = await res.json().catch(() => null)
-        setRefused(body?.error?.message ?? 'This desk cannot read bench pay.')
+        setRefused(body?.error?.message ?? 'Your role cannot read bench pay.')
         return
       }
       try {

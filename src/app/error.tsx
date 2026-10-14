@@ -48,7 +48,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
             Try again
           </button>
           <a href="/dashboard" className="btn-secondary inline-flex items-center">
-            Back to your desk
+            Back to your work
           </a>
         </div>
         {error.digest && <p className="mt-8 font-mono text-meta text-etyme-faint">Reference {error.digest}</p>}

@@ -76,7 +76,7 @@ export function checkOvertimeMethodChange(input: ChangeInput): ChangeVerdict {
     return {
       ok: false, status: 403, code: 'FORBIDDEN',
       says:
-        `Only a desk that can see what ${who} is paid can change how their overtime is priced. ` +
+        `Only somebody who can see what ${who} is paid can change how their overtime is priced. ` +
         `Ask whoever runs pay at your firm.`,
     }
   }

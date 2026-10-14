@@ -132,7 +132,7 @@ describe('bench pay, set from the firm’s settings', () => {
   it('a recruiter cannot change the bench pay policy, and is told who can', async () => {
     const r = await call(recruiter, changeBenchPay, 'PATCH', '/api/settings/bench', { benchPolicy: 'FULL_PAY' })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('is set by the owner, the admin and the finance desk')
+    expect(r.body.error.message).toContain('is set by the owner, an admin or finance')
     const read = await call(recruiter, readBenchPay, 'GET', '/api/settings/bench')
     expect(read.status).toBe(403)
     expect((await prisma.company.findUniqueOrThrow({ where: { id: vendorId } })).benchPolicy).toBe('REDUCED_RATE')

@@ -116,7 +116,7 @@ describe('a demo door that cannot be opened says which ones can', () => {
     const route = read('src/app/api/demo/route.ts')
     expect(route).toContain('deskRefusal(')
     const lib = read('src/lib/demo-desks.ts')
-    expect(lib).toContain('these desks are seated')
+    expect(lib).toContain('these roles are seated')
     // And a firm that is not in the world at all is a different sentence
     // from a firm that is there with nobody at that desk.
     expect(lib).toContain("There is no ${asWorld} in this deployment's world")

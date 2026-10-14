@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            askTheDesk({ doing: 'Putting a client on your register — the same desk that records a contract —', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
+            askTheDesk({ doing: 'Putting a client on your register — the same role that records a contract —', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }

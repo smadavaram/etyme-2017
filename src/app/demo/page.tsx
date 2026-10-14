@@ -82,7 +82,7 @@ export default async function DemoPage() {
         </div>
 
         {/* ── The client's own desk ─────────────────────────────── */}
-        <p className="eyebrow">A running program, from your desk</p>
+        <p className="eyebrow">A running program, from your seat</p>
         <h1
           className="mt-2 max-w-3xl font-serif text-[34px] leading-[1.1] tracking-[-0.02em] sm:text-[42px]"
           style={{ textWrap: 'balance' }}
@@ -92,7 +92,7 @@ export default async function DemoPage() {
         <div className="mt-4 max-w-2xl text-[15px] leading-relaxed text-etyme-muted">
           <p>
             Three companies buy contract work from several suppliers. Each has a year of history.
-            Something is waiting at every desk today:
+            Something is waiting for every role today:
           </p>
           <ul className="mt-2 list-disc space-y-0.5 pl-5">
             <li>a week of hours to sign</li>
@@ -101,7 +101,7 @@ export default async function DemoPage() {
             <li>a person past the time limit on how long one person may stay</li>
           </ul>
           <p className="mt-3">
-            Pick your desk. There is nothing to set up and nothing to sign. The data is shared:
+            Pick your role. There is nothing to set up and nothing to sign. The data is shared:
             everybody else at that company sees what you change.
           </p>
         </div>
@@ -123,7 +123,7 @@ export default async function DemoPage() {
         </div>
 
         <div className="mt-6 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
-          <p>Each desk opens on its own work:</p>
+          <p>Each role opens on its own work:</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
             <li>The hiring manager needs somebody.</li>
             <li>The approver signs for the money.</li>
@@ -150,7 +150,7 @@ export default async function DemoPage() {
               <li>Primes: the suppliers the client pays.</li>
               <li>Not only IT: a nurse staffing firm and a plant maintenance staffing firm.</li>
               <li>A bench vendor below a prime: it keeps workers waiting for a project, and trains them. The client never learns its name.</li>
-              <li>Two program offices, which work inside a client&rsquo;s program without being the client.</li>
+              <li>Two MSPs, which work inside a client&rsquo;s program without being the client.</li>
               <li>Two integrators, which staff a job with their own employees.</li>
             </ul>
             <p>

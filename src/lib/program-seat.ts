@@ -342,10 +342,10 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       code: 'SELF_GRANT',
       says:
         ask.grantorCompany.kind === 'CLIENT'
-          ? `A program office cannot grant itself a seat. ${ask.grantorCompany.name} already runs its own ` +
-            `program from its own desks; a seat is for a firm that is not the client.`
-          : `A program office cannot grant itself a seat. The desk is the client's to give — ask an owner ` +
-            `or the program manager there to grant ${ask.grantorCompany.name} a seat in their program office.`,
+          ? `An MSP cannot grant itself a seat. ${ask.grantorCompany.name} already runs its own ` +
+            `program with its own people; a seat is for a firm that is not the client.`
+          : `An MSP cannot grant itself a seat. The seat is the client's to give — ask an owner ` +
+            `or the program manager there to grant ${ask.grantorCompany.name} a seat in their program.`,
     }
   }
 
@@ -355,7 +355,7 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       code: 'NOT_A_CLIENT',
       says:
         `A seat in a program is the client's to give, and ${ask.grantorCompany.name} is not the ` +
-        `client here. Whoever owns the program grants the desk.`,
+        `client here. Whoever owns the program grants the seat.`,
     }
   }
 
@@ -365,7 +365,7 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       code: 'NOT_YOURS_TO_GRANT',
       says:
         `Only an owner or the program manager may grant a seat. A seat lets another firm read ` +
-        `this whole program, so it is granted from the desk that owns the rules.`,
+        `this whole program, so it is granted by whoever owns the rules.`,
     }
   }
 
@@ -381,7 +381,7 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
     return {
       ok: false,
       code: 'NO_SUCH_ROLE',
-      says: 'No such desk at this company. A seat holds one of your own roles — Program Manager, most often.',
+      says: 'No such role at this company. A seat holds one of your own roles — Program Manager, most often.',
     }
   }
 
@@ -391,7 +391,7 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       code: 'NOT_YOUR_ROLE',
       says:
         `A seat holds one of ${ask.grantorCompany.name}'s own roles, not the other firm's. That is what ` +
-        `"under the client's rules" means: they act as your desk does, and change when you change it.`,
+        `"under the client's rules" means: they act as your own role does, and change when you change it.`,
     }
   }
 
@@ -411,7 +411,7 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
       code: 'ALREADY_SEATED',
       says:
         `${ask.officeCompany.name} already holds a live seat in this program. Revoke that one first if the ` +
-        `desk it sits at has changed.`,
+        `role it holds has changed.`,
     }
   }
 
@@ -430,8 +430,8 @@ export function mayGrantSeat(ask: GrantAsk): GrantVerdict {
 export function noSeatYet(officeName: string): string {
   return (
     `${officeName} is not tied to a client yet. A role belongs to the company that is hiring, and a ` +
-    `program office runs a client's program rather than supplying people — it places nobody by design, ` +
+    `an MSP runs a client's program rather than supplying people — it places nobody by design, ` +
     `and it acts in a seat the client grants it, under the client's own rules and with every read logged. ` +
-    `Ask an owner or the program manager at that client to grant ${officeName} a seat in their program office.`
+    `Ask an owner or the program manager at that client to grant ${officeName} a seat in their program.`
   )
 }

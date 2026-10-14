@@ -129,7 +129,7 @@ export const MEMBER_ROLE = 'Member'
 
 const MEMBER: RoleSeed = {
   name: MEMBER_ROLE,
-  blurb: 'Sees their own work and their own hours. Nothing else until somebody gives them a desk.',
+  blurb: 'Sees their own work and their own hours. Nothing else until somebody gives them a role.',
   permissions: [],
 }
 
@@ -242,7 +242,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     // The one-person finance desk at a small firm: both of the above,
     // and the month-end.
     name: 'Finance',
-    blurb: 'Bills, pays, and closes the month — the whole desk at a small firm.',
+    blurb: 'Bills, pays, and closes the month — the whole finance team at a small firm.',
     // Runs payroll, so reads the pay line, for the same reason as above.
     permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, READ_PAY, ['pnl.read']),
   },
@@ -384,6 +384,8 @@ export const RENAMED_ROLES: Record<string, string> = {
   'Programme Manager': 'Program Manager',
   // A staffing firm calls the desk that bills and pays Finance.
   'Accountant': 'Finance',
+  // Nobody says desk (founder, 2026-10-14): the role is named for what it does.
+  'Contractor Desk': 'Contractor Sourcing',
 }
 
 /**
@@ -414,19 +416,19 @@ export const GRANTED_SINCE: {
     role: 'Account Manager',
     kinds: ['VENDOR', 'GSI'],
     permissions: ['requirements.write'],
-    why: 'A prime buys as well as sells, and the desk that sold the person awards them onto the prime\u2019s own job request.',
+    why: 'A prime buys as well as sells, and the account manager who sold the person awards them onto the prime\u2019s own job request.',
   },
   {
     role: 'Resource Manager',
     kinds: ['VENDOR', 'GSI'],
     permissions: ['requirements.write'],
-    why: 'The desk that decides who goes where awards the seat it is filling.',
+    why: 'The resource manager decides who goes where, so awards the seat they are filling.',
   },
   {
     role: 'AP & Payroll',
     kinds: ['VENDOR', 'GSI'],
     permissions: ['consultants.cost'],
-    why: 'The desk that runs payroll reads what each person is paid and chooses how overtime is paid on their pay line.',
+    why: 'Whoever runs payroll reads what each person is paid and chooses how overtime is paid on their pay line.',
   },
   {
     role: 'Finance',
@@ -462,7 +464,7 @@ export function rolesFor(kind: CompanyKind): RoleSeed[] {
           permissions: uniq(['vendors.read', 'vendors.manage'], SEE_DEMAND, SEE_SUPPLY, SEE_OUTSIDE, ['assignments.read', 'rates.read']),
         },
         {
-          name: 'Contractor Desk',
+          name: 'Contractor Sourcing',
           blurb: 'Hires contractors from outside. The only people here who see the market.',
           permissions: uniq(SEE_PEOPLE, ['consultants.write'], SEE_DEMAND, SEND_SUPPLY, SEE_WORK, SEE_OUTSIDE, ['vendors.read']),
         },

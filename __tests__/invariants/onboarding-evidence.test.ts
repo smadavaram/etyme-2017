@@ -106,7 +106,7 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     )
     expect(screening.ok).toBe(false)
     expect(screening.needsDates).toBe(false)
-    expect(screening.says).toContain('this desk’s own check')
+    expect(screening.says).toContain('is your own check')
   })
 
   it('a signed agreement is not a verification, because an agreement is not a thing that gets chased for renewal', () => {
@@ -283,7 +283,7 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     expect(mixed.ok).toBe(true)
     expect(mixed.rows.map((r) => r.type)).toEqual(['INSURANCE_GL'])
     expect(mixed.says).toContain('Background check')
-    expect(mixed.says).toContain('not this desk’s to render')
+    expect(mixed.says).toContain('not yours to render')
   })
 
   it('one table says who renders a check, and this file keeps no second list of its own', () => {
@@ -389,7 +389,7 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     )
     expect(verdict.ok).toBe(false)
     expect(verdict.says).not.toContain('nothing here expires')
-    expect(verdict.says).not.toContain('this desk\u2019s own check')
+    expect(verdict.says).not.toContain('is your own check')
   })
 
   it('a passport is the employer of record\u2019s to look at, and the refusal names them rather than blaming the desk', () => {
@@ -467,6 +467,6 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     expect(verdict.ok).toBe(true)
     expect(verdict.rows.map((r) => r.type)).toEqual(['INSURANCE_GL'])
     expect(verdict.says).toContain('Passport')
-    expect(verdict.says).toContain('not this desk\u2019s to render')
+    expect(verdict.says).toContain('not yours to render')
   })
 })

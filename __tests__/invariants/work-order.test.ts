@@ -209,7 +209,7 @@ describe('who may write the order', () => {
     })
     expect(v.ok).toBe(false)
     expect(v.says).toContain('theirs to raise')
-    expect(v.says).toContain('Ask their program office or AP desk')
+    expect(v.says).toContain('Ask their MSP or AP clerk')
   })
 
   it('a firm that is neither end of the deal cannot write the order at all', () => {

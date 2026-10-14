@@ -141,7 +141,7 @@ export function checkCutOvertimeChange(input: CutChangeInput): CutChangeVerdict 
     return {
       ok: false, status: 403, code: 'FORBIDDEN',
       says:
-        `Only a desk that can see what ${who} is paid can change how their overtime is paid when fewer hours are accepted. ` +
+        `Only somebody who can see what ${who} is paid can change how their overtime is paid when fewer hours are accepted. ` +
         'Ask whoever runs pay at your firm.',
     }
   }

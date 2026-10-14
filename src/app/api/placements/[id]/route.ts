@@ -148,7 +148,7 @@ export async function GET(
         action: 'CONTRACT_VIEW',
         allowed: false,
         reason: notTheirs && isParty
-          ? 'A seat with no desk reads only a placement that names it'
+          ? 'A seat that sees only its own work reads only a placement that names it'
           : 'Not a party to this placement',
       })
     }

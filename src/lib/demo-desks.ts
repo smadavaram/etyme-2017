@@ -141,9 +141,9 @@ export function deskRefusal(input: {
     // visitor who asked for something narrower must not be handed it.
     const ways: string[] = []
     if (open.length > 0) ways.push(`At ${company.name} you can ask for ${orList(open.map((d) => `"${d}"`))} by name.`)
-    ways.push(`Ask with no desk to sit as the ${seated[0]}.`)
+    ways.push(`Ask for no role to sit as the ${seated[0]}.`)
     return {
-      message: `There is no "${input.unknown}" desk in the demo, so no seat was taken. ${ways.join(' ')}`,
+      message: `There is no "${input.unknown}" role in the demo, so no seat was taken. ${ways.join(' ')}`,
       desks: open,
     }
   }
@@ -154,11 +154,11 @@ export function deskRefusal(input: {
   if (open.length > 0) {
     ways.push(`Ask for ${orList(open.map((d) => `"${d}"`))} by name.`)
   }
-  ways.push(`Ask with no desk to sit as the ${seated[0]}.`)
+  ways.push(`Ask for no role to sit as the ${seated[0]}.`)
   return {
     message:
-      `Nobody holds the ${asked} desk at ${company.name} in the demo; ` +
-      `these desks are seated: ${seated.join(', ')}. ${ways.join(' ')}`,
+      `Nobody holds the ${asked} role at ${company.name} in the demo; ` +
+      `these roles are seated: ${seated.join(', ')}. ${ways.join(' ')}`,
     desks: open,
   }
 }
@@ -188,7 +188,7 @@ export function whoRefusal(input: {
   const desk = deskName(input.desk, input.company.kind)
   const holders = Array.from(new Set(input.holders.filter(Boolean)))
   const tail = holders.length > 0
-    ? ` The ${desk} desk there is held by ${orList(holders)}.`
-    : ` Nobody holds the ${desk} desk there.`
-  return `${input.who} does not hold the ${desk} desk at ${input.company.name} in the demo, so no seat was taken.${tail}`
+    ? ` The ${desk} role there is held by ${orList(holders)}.`
+    : ` Nobody holds the ${desk} role there.`
+  return `${input.who} does not hold the ${desk} role at ${input.company.name} in the demo, so no seat was taken.${tail}`
 }

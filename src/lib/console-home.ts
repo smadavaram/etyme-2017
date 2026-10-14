@@ -124,7 +124,7 @@ export function consoleHome(reader: Reader): Verdict {
   if (worker && readsOnlyOwnWork(reader.permissions)) {
     return {
       href: '/dashboard/my-work',
-      says: 'A worker whose seat reads only their own work opens on that work, not on the firm’s desk.',
+      says: 'A worker whose seat reads only their own work opens on that work, not on the firm’s dashboard.',
     }
   }
 
@@ -135,7 +135,7 @@ export function consoleHome(reader: Reader): Verdict {
   if (readsOnlyOwnWork(reader.permissions)) {
     return {
       href: '/dashboard/my-work',
-      says: 'A seat with no desk yet opens on its own work, not on the firm’s console.',
+      says: 'A seat that sees only its own work opens on that work, not on the firm’s console.',
     }
   }
 
@@ -150,7 +150,7 @@ export function consoleHome(reader: Reader): Verdict {
   if (kind === 'MSP' && seated) {
     return {
       href: '/dashboard/program',
-      says: 'A program office opens on the client’s program, because the client granted it that desk.',
+      says: 'An MSP opens on the client’s program, because the client granted it that seat.',
     }
   }
 

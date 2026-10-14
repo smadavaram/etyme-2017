@@ -98,7 +98,7 @@ export function mayChangeBenchPay(r: BenchPayReader): Verdict {
   if (r.consultantSeat) {
     return {
       ok: false, code: 'NOT_STAFF',
-      message: 'Bench pay is set by the firm, by its owner, admin and finance desks. Your own pay is on your own page.',
+      message: 'Bench pay is set by the firm: its owner, its admins and finance. Your own pay is on your own page.',
     }
   }
   if (!r.companyKind) {
@@ -114,7 +114,7 @@ export function mayChangeBenchPay(r: BenchPayReader): Verdict {
   return {
     ok: false, code: 'NOT_THIS_DESK',
     message:
-      `Bench pay at ${r.companyName} is set by the owner, the admin and the finance desk. ` +
+      `Bench pay at ${r.companyName} is set by the owner, an admin or finance. ` +
       `Your seat${r.roleName ? ` (${r.roleName})` : ''} is none of them. Ask one of them to change it.`,
   }
 }

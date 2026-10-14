@@ -91,8 +91,8 @@ describe('a seat with no desk opens only what its menu shows it', () => {
     }
   })
 
-  it('the routes the menu marks as answering a seat with no desk themselves are let through to answer it in their own words', () => {
-    const marked = Object.keys(OPEN_TO_EVERY_SEAT).filter((h) => openBecause(h)?.includes('a seat holding no desk'))
+  it('the routes the menu marks as answering a seat that sees only its own work themselves are let through to answer it in their own words', () => {
+    const marked = Object.keys(OPEN_TO_EVERY_SEAT).filter((h) => openBecause(h)?.includes('a seat that sees only its own work'))
     expect(marked.length).toBeGreaterThanOrEqual(5)
     for (const href of marked) {
       const path = '/api/' + href.split('?')[0].replace('/dashboard/', '')

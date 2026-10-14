@@ -92,7 +92,7 @@ describe('adding a firm you trade with does not make you its owner', () => {
   it('a firm added from inside a seat must say what it is to us', () => {
     const v = mayAddCompany({ ...employee, permissions: ['*'], relationship: null })
     expect(v.ok).toBe(false)
-    expect(v.says).toContain('a client, a supplier, a prime or a program office')
+    expect(v.says).toContain('a client, a supplier, a prime or an MSP')
   })
 
   it('somebody with no seat anywhere registering their own firm becomes its owner', () => {

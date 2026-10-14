@@ -28,7 +28,7 @@ export default function NotFound() {
               Go to the home page
             </Link>
             <Link href="/dashboard" className="btn-secondary inline-flex items-center">
-              Back to your desk
+              Back to your work
             </Link>
           </div>
         </div>

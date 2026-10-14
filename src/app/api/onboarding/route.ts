@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
         action: 'JOIN',
         companyId: decision.companyId,
         companyName: decision.companyName,
-        message: `You are in ${decision.companyName} as ${MEMBER_ROLE}. You can see your own work now. An owner there gives you a desk.`,
+        message: `You are in ${decision.companyName} as ${MEMBER_ROLE}. You can see your own work now. An owner there gives you a role.`,
         role: MEMBER_ROLE,
       },
     })

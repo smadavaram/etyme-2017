@@ -1145,7 +1145,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         companyId: co('aptiva').id,
         roleId: analystRole.id,
         type: 'EMPLOYEE',
-        grantReason: 'Program office — vendor management practice',
+        grantReason: 'MSP — vendor management practice',
       },
     })
   }

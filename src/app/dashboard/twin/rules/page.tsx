@@ -128,7 +128,7 @@ export default function TwinRulesPage() {
               </form>
             </Panel>
           ) : (
-            <p className="text-[13px] text-etyme-muted">Changing these is the program manager’s desk or the desk that holds the company’s settings.</p>
+            <p className="text-[13px] text-etyme-muted">Changing these is for the program manager, or whoever holds the company’s settings.</p>
           )}
         </>
       )}

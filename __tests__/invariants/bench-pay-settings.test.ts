@@ -22,12 +22,12 @@ const turn = (paid: boolean, day: string, name = 'Rahul Iyer', personId: string 
 })
 
 describe('who sets bench pay', () => {
-  it('the owner, the admin and the finance desk may change bench pay, and a recruiter is told who can', () => {
+  it('the owner, an admin or finance may change bench pay, and a recruiter is told who can', () => {
     for (const desk of ['Owner', 'Admin', 'Finance']) expect(mayChangeBenchPay(reader(desk)).ok, desk).toBe(true)
     const r = mayChangeBenchPay(reader('Recruiter'))
     expect(r.ok).toBe(false)
     if (!r.ok) {
-      expect(r.message).toContain('set by the owner, the admin and the finance desk')
+      expect(r.message).toContain('set by the owner, an admin or finance')
       expect(r.message).toContain('(Recruiter)')
     }
   })

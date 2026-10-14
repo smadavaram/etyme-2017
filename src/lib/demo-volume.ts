@@ -85,7 +85,7 @@ const ROLES: Role[] = [
   { title: 'Oracle Retail consultant', skills: ['Oracle Retail', 'RMS', 'PL/SQL'], band: [12000, 14000],
     says: 'Merchandising system upgrade, 14 to 19. Functional and technical. Store count is 340 and the allocation module is customized in ways the vendor does not support.' },
   { title: 'Murex support analyst', skills: ['Murex', 'FX', 'MxML'], band: [12500, 14500],
-    says: 'FX desk, follow-the-sun support, London hours. Production incidents, MxML workflow changes, and the monthly release regression. Not a build role.' },
+    says: 'FX trading, follow-the-sun support, London hours. Production incidents, MxML workflow changes, and the monthly release regression. Not a build role.' },
   { title: 'Business analyst', skills: ['Requirements', 'Process mapping', 'SQL'], band: [7500, 9500],
     says: 'Claims process re-engineering. Sit with the adjusters, map what actually happens, write it up so the platform team can build against it. Insurance background helps, listening skills matter more.' },
   { title: 'QA automation engineer', skills: ['Selenium', 'Playwright', 'CI'], band: [8000, 10000],

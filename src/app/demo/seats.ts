@@ -213,7 +213,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
   // published requisition, so a desk that stops being the last yes
   // breaks the build rather than the founder's walk.
   { desk: '', label: 'Account owner',
-    waiting: 'People, roles and desks. And the last yes on the job request over $250k, after the approver.' },
+    waiting: 'People, roles and permissions. And the last yes on the job request over $250k, after the approver.' },
 ]
 
 /**
@@ -254,7 +254,7 @@ export const SUPPLIER_DESKS: ClientDesk[] = [
   { desk: 'payroll', label: 'AP & payroll',
     waiting: 'Pays the consultant and the sub-vendor. Never issues a client bill.' },
   { desk: 'finance', label: 'Finance',
-    waiting: 'Bills, pays and closes the month. At a small firm, this is the whole desk.' },
+    waiting: 'Bills, pays and closes the month. At a small firm, this is the whole finance team.' },
   { desk: 'compliance', label: 'Compliance officer',
     waiting: 'Whose insurance is running out, and whose paperwork is missing.' },
   { desk: '', label: 'Owner',
@@ -265,13 +265,13 @@ export const SUPPLIER_SEATS: Program[] = [
   {
     slug: 'world-brightmoor',
     name: 'Brightmoor Staffing',
-    where: 'Prime supplier, every desk seated',
+    where: 'Prime supplier, every role seated',
     industry: 'Staffing · retail systems and supply planning',
     waiting:
       'Its liability insurance runs out in twenty days. That is the compliance officer’s work today.',
     about:
       'Sells three contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
-      'a bench vendor and sells them to a retailer. A person sits at each of its nine desks.',
+      'a bench vendor and sells them to a retailer. A person holds each of its nine roles.',
     desks: SUPPLIER_DESKS,
   },
   {
@@ -378,17 +378,17 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
   {
     slug: 'world-kestrel',
     name: 'Kestrel MSP',
-    where: 'Program office, at the client’s compliance desk',
-    industry: 'Program office · compliance',
+    where: 'MSP, in the client’s compliance officer seat',
+    industry: 'MSP · compliance',
     waiting:
       'Talvern Medical’s time-on-site record across every supplier, whose insurance is current, ' +
       'and what is held on each person.',
     about:
       'Places nobody at Talvern, so no contract links the two firms. Talvern granted Kestrel a ' +
-      'compliance officer desk, and every read Kestrel makes is logged.',
+      'compliance officer seat, and every read Kestrel makes is logged.',
     desks: [
       { desk: 'compliance', label: 'Compliance officer',
-        waiting: 'Talvern Medical’s time-on-site record and paperwork, from the desk Talvern granted.' },
+        waiting: 'Talvern Medical’s time-on-site record and paperwork, from the seat Talvern granted.' },
       { desk: '', label: 'Owner',
         waiting: 'The office’s own records, and the programs it runs.' },
     ],
@@ -396,8 +396,8 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
   {
     slug: 'world-aptiva',
     name: 'Aptiva Workforce',
-    where: 'Managed program office',
-    industry: 'Program office · healthcare',
+    where: 'Managed program (MSP)',
+    industry: 'MSP · healthcare',
     waiting:
       'Both sides signed two weeks of its analyst’s hours, and nobody has billed them. The ' +
       'hospital signed a third week, which waits for Aptiva to accept it as the employer.',

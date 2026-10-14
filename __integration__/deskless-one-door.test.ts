@@ -229,7 +229,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const body = await res.json()
     expect(body.error.message).toBe('That placement is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
     const logged = await prisma.accessLog.findFirst({
-      where: { actorPersonId: karthik, allowed: false, reason: 'A seat with no desk reads only a placement that names it' },
+      where: { actorPersonId: karthik, allowed: false, reason: 'A seat that sees only its own work reads only a placement that names it' },
     })
     expect(logged).not.toBeNull()
   })

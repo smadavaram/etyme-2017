@@ -86,7 +86,7 @@ export function refusalSentence(
   if (desks.length === 0) {
     return `${what} is not part of your seat${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
   }
-  return `${what} is for the ${orList(desks)} desk${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
+  return `${what} is for the ${orList(desks)}${company ? ` at ${company}` : ''}. Ask your company’s owner if you need it.`
 }
 
 // ── The program manager's twin, refused ───────────────────────────────
@@ -125,8 +125,8 @@ export function twinRefusal(args: {
     case 'OTHER_COMPANY':
       return 'The program manager’s twin works only on records its own company is a party to. This one belongs to another company, so it was not touched.'
     case 'OWN_DRAFT':
-      return 'The program manager’s twin asked for this itself, so it cannot be the one to approve it. A person at the desk that decides it does.'
+      return 'The program manager’s twin asked for this itself, so it cannot be the one to approve it. The person who decides it does.'
     case 'OWN_AUTHORITY':
-      return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else at the desk that decides it does.`
+      return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else who may decide it does.`
   }
 }

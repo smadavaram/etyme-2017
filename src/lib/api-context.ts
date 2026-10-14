@@ -653,7 +653,7 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
           actorCompanyId: caller.company.id,
           action: 'PROFILE_VIEW',
           allowed: false,
-          reason: `${path} is at another company than ${caller.company.name}, refused to a seat with no desk as not there`,
+          reason: `${path} is at another company than ${caller.company.name}, refused to a seat that sees only its own work as not there`,
         })
       }
       return NextResponse.json({ error: { code: 'NOT_FOUND', message: named.strangerSays } }, { status: 404 })
@@ -673,7 +673,7 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
       actorCompanyId: companyId,
       action: 'PROFILE_VIEW',
       allowed: false,
-      reason: `${path} at ${caller.company.name} refused to a seat with no desk: ${verdict.says}`,
+      reason: `${path} at ${caller.company.name} refused to a seat that sees only its own work: ${verdict.says}`,
     })
   }
   return NextResponse.json({ error: { code: 'NO_DESK', message: verdict.says } }, { status: 403 })

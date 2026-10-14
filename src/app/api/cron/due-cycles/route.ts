@@ -254,8 +254,8 @@ export async function GET(request: NextRequest) {
             (b.pastDue > 0 ? `, ${b.pastDue} already past` : '') +
             `: ${kinds}.`,
           reason:
-            'A cycle is money due on a date decided in advance. The desk that can act ' +
-            'on it is the desk that is told.',
+            'A cycle is money due on a date decided in advance. Whoever can act ' +
+            'on it is the one who is told.',
           payload: {
             due: b.due,
             pastDue: b.pastDue,

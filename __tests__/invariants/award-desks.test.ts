@@ -78,7 +78,7 @@ describe('a prime awarding a sub-vendor’s consultant onto its own requisition'
 
   it('a recruiter who submitted the person does not also hand them the job', () => {
     expect(can('VENDOR', 'Recruiter')).toBe(false)
-    expect(can('GSI', 'Contractor Desk')).toBe(false)
+    expect(can('GSI', 'Contractor Sourcing')).toBe(false)
   })
 
   it('a prime’s HR and compliance desks are unchanged, because awarding is not their act', () => {

@@ -71,10 +71,10 @@ export const DESKS: Record<MoneyKind, readonly Desk[]> = {
     { at: 'SELL_COMPANY', needs: 'invoices.issue', because: 'Accounts receivable raises the bill.' },
   ],
   SALARY_CALCULATE: [
-    { at: 'BUY_COMPANY', needs: 'payroll.run', because: 'Payroll is the employer’s own desk.' },
+    { at: 'BUY_COMPANY', needs: 'payroll.run', because: 'Payroll is the employer’s own job.' },
   ],
   SALARY_PAY: [
-    { at: 'BUY_COMPANY', needs: 'payroll.run', because: 'Payroll is the employer’s own desk.' },
+    { at: 'BUY_COMPANY', needs: 'payroll.run', because: 'Payroll is the employer’s own job.' },
   ],
   VENDOR_BILL_GENERATE: [
     { at: 'BUY_COMPANY', needs: 'payments.record', because: 'Accounts payable records the supplier’s invoice.' },

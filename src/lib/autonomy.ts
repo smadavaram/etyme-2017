@@ -99,7 +99,7 @@ export const LADDER: Record<Rung, Level> = {
   L2: {
     rung: 'L2',
     name: 'Draft',
-    says: 'It prepared the work and put it on somebody’s desk to finish.',
+    says: 'It prepared the work and put it in front of somebody to finish.',
   },
   L3: {
     rung: 'L3',
@@ -165,7 +165,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   ROLLOFF_SCAN: {
     rung: 'L2',
     basis: 'RULE',
-    says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready on somebody’s desk. The desk decides what happens to the person.',
+    says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready for somebody to work. That person decides what happens to the worker.',
   },
   DEMO_SANDBOX_EXPIRY_WARNED: {
     rung: 'L0',
@@ -204,7 +204,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   REQUISITION_ROUTED: {
     rung: 'L2',
     basis: 'RULE',
-    says: 'It worked out which desks have to sign this job request and put it in front of each of them. Every decision is still a person’s.',
+    says: 'It worked out who has to sign this job request and put it in front of each of them. Every decision is still a person’s.',
   },
   BENCH_STAY_ENDED: {
     rung: 'L3',
@@ -259,12 +259,12 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   REQUISITION_AUTO_CLEARED: {
     rung: 'L4',
     basis: 'RULE',
-    says: 'This job request published itself because it sat inside the plan already approved — every desk cleared by rule and by name, nobody signing their own.',
+    says: 'This job request published itself because it sat inside the plan already approved — every approver cleared by rule and by name, nobody signing their own.',
   },
   AGREEMENT_TERM_WATCH: {
     rung: 'L5',
     basis: 'RULE',
-    says: 'Every night it reads the end date on every agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contracting desk at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
+    says: 'Every night it reads the end date on every agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contract manager at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
   },
   CONTRACTS_ENDED: {
     rung: 'L5',
@@ -337,7 +337,7 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     rung: 'L1',
     basis: 'RULE',
     says:
-      'The program manager\u2019s twin would have done something its role contract keeps for a person, so it asked the desk that decides and waited. Nothing happens unless that person says yes.',
+      'The program manager\u2019s twin would have done something its role contract keeps for a person, so it asked the person who decides and waited. Nothing happens unless that person says yes.',
   },
 }
 
@@ -740,7 +740,7 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     approverNeeds: 'payments.record', alone: 'NOTED',
   },
   'invoice_receipt.flag_mismatch': {
-    says: 'Tell the desk that pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
+    says: 'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
     money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'payments.record', alone: 'TOLD',
   },
@@ -873,7 +873,7 @@ export const JOBS: Record<string, Job> = {
     job: 'twin',
     rung: 'L1',
     basis: 'RULE',
-    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the paying desk, and asks a person before anything is approved. Everything it does goes through its role contract, and it writes its own rows from there rather than from this job.',
+    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the AP clerk, and asks a person before anything is approved. Everything it does goes through its role contract, and it writes its own rows from there rather than from this job.',
     writes: [],
   },
   'visa-watch': {
@@ -901,7 +901,7 @@ export const JOBS: Record<string, Job> = {
     job: 'rolloff-scan',
     rung: 'L2',
     basis: 'RULE',
-    says: 'Opens a rolloff for every contract ending inside eight weeks, ready for a desk to work.',
+    says: 'Opens a rolloff for every contract ending inside eight weeks, ready for somebody to work.',
     writes: ['ROLLOFF_SCAN'],
   },
   'cold-openings': {

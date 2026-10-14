@@ -1085,7 +1085,7 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
   }
   if (!onTheWeek(r, c)) {
     if (desklessOutsider(r, c)) {
-      await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', 'A week at another company, asked for from a seat with no desk')
+      await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', 'A week at another company, asked for from a seat that sees only its own work')
       return refuse(404, 'NOT_FOUND', 'That week is not here.')
     }
     const says = 'This week is not on a contract your company is on.'
@@ -1236,7 +1236,7 @@ export async function readEvidenceFile(
     return refuse(403, 'NO_DESK', stranger)
   }
   if (desklessOutsider(r, c)) {
-    await writeReadLog(r, c, { ok: false, says: 'An approval on a week at another company, asked for from a seat with no desk' })
+    await writeReadLog(r, c, { ok: false, says: 'An approval on a week at another company, asked for from a seat that sees only its own work' })
     return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
   }
   const v = mayReadEvidence({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, a.contracts.map((x) => x.sellContractId), c.ladder)

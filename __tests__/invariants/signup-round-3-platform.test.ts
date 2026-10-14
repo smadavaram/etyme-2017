@@ -82,8 +82,8 @@ describe('an empty firm reads a sentence, not a zero (item 12)', () => {
 })
 
 describe('System activity says what a new company is, never the picker label (item 14)', () => {
-  it('a new program office joined Etyme as a program office', () => {
-    expect(joinedSentence('Keel Program Office', 'MSP')).toBe('Keel Program Office joined Etyme as a program office')
+  it('a new MSP joined Etyme as an MSP', () => {
+    expect(joinedSentence('Keel Program Office', 'MSP')).toBe('Keel Program Office joined Etyme as an MSP')
   })
 
   it('every kind reads as a noun, and a supplier says how it sells', () => {

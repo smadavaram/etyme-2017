@@ -265,7 +265,7 @@ describe('every seat on the demo page opens', () => {
     const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'ap' }) as NextRequest)
     expect(res.status).toBe(404)
     const err = (await res.json()).error
-    expect(err.message).toMatch(/^Nobody holds the AP & Payroll desk at Teleworld Solutions in the demo; these desks are seated: Owner/)
+    expect(err.message).toMatch(/^Nobody holds the AP & Payroll role at Teleworld Solutions in the demo; these roles are seated: Owner/)
     expect(err.message).not.toMatch(/nobody is seated/i)
     // And the door the sentence points at does open.
     const { body } = await sit('world-teleworld')
@@ -305,7 +305,7 @@ describe('every seat on the demo page opens', () => {
     expect(res.status).toBe(404)
     expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
     const err = (await res.json()).error
-    expect(err.message).toMatch(/^Nobody Here does not hold the Delivery Manager desk at Teleworld Solutions in the demo, so no seat was taken\./)
+    expect(err.message).toMatch(/^Nobody Here does not hold the Delivery Manager role at Teleworld Solutions in the demo, so no seat was taken\./)
     expect(err.message).toContain('Ingrid Solberg')
     expect(err.message).toContain('Rahul Deshpande')
   })
@@ -316,8 +316,8 @@ describe('every seat on the demo page opens', () => {
     expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
     const err = (await res.json()).error
     expect(err.code).toBe('UNKNOWN_DESK')
-    expect(err.message).toMatch(/^There is no "owner" desk in the demo, so no seat was taken\./)
-    expect(err.message).toContain('Ask with no desk to sit as the Owner.')
+    expect(err.message).toMatch(/^There is no "owner" role in the demo, so no seat was taken\./)
+    expect(err.message).toContain('Ask for no role to sit as the Owner.')
   })
 
   it('offers both integrators, and only firms that employ people they can submit', async () => {

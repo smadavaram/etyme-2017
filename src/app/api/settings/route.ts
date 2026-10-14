@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
           code: 'FORBIDDEN',
           message:
             `How ${caller.company.name} is set up — its roles, who may see outside it, its ` +
-            `calendar and its cost centers — is not something this desk reads. ` +
+            `calendar and its cost centers — is not something your role reads. ` +
             askTheDesk({
               doing: 'Reading a company’s own setup',
               needs: 'settings.manage',

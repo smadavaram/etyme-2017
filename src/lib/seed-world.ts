@@ -100,7 +100,7 @@ interface Firm {
 const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
 
 const FIRMS: Firm[] = [
-  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program office', who: 'Grace Whitmore' },
+  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program manager', who: 'Grace Whitmore' },
   { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent program', who: 'Daniel Achebe' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing', who: 'Ines Marquardt' },
   { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office', who: 'Olav Brekke' },
@@ -1239,7 +1239,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
         {
           round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'DONE', inDays: -6, atHourUtc: 14,
           interviewers: ['Sarah Kwan, Risk Technology'],
-          outcome: 'ADVANCE', feedback: 'Knows the book. Send to the desk.',
+          outcome: 'ADVANCE', feedback: 'Knows the book. Send to the trading team.',
         },
         {
           round: 2, stage: 'TECHNICAL', mode: 'VIDEO', state: 'PROPOSED', inDays: 6, atHourUtc: 18,
@@ -1599,7 +1599,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
             validFrom: day(-210),
             reason:
               'Aptiva runs our contingent program. We have no workforce office of our own and they ' +
-              'place nobody here, so they sit at our program manager desk under our own rules.',
+              'place nobody here, so they sit in our program manager seat under our own rules.',
           },
         })
       }
@@ -1688,7 +1688,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           await db.context.create({
             data: {
               personId: who.id, companyId: brightmoor.id, roleId: role.id, type: 'EMPLOYEE',
-              grantReason: `Seeded supplier desk — ${d.role}`,
+              grantReason: `Seeded supplier seat — ${d.role}`,
             },
           })
         }
@@ -1719,7 +1719,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           await db.context.create({
             data: {
               personId: who.id, companyId: techpeple.id, roleId: role.id, type: 'EMPLOYEE',
-              grantReason: `Seeded supplier desk — ${d.role}`,
+              grantReason: `Seeded supplier seat — ${d.role}`,
             },
           })
         }
@@ -1764,7 +1764,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
             validFrom: day(-150),
             reason:
               'Kestrel answers for compliance across our suppliers — tenure, work authorization and ' +
-              'cover — so they sit at our own compliance desk under our rules, and every read of a ' +
+              'cover — so they sit in our own compliance officer seat under our rules, and every read of a ' +
               'contractor’s record is logged against them.',
           },
         })
@@ -1789,7 +1789,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
         await db.context.create({
           data: {
             personId: who.id, companyId: kestrel.id, roleId: kestrelRole.id, type: 'EMPLOYEE',
-            grantReason: 'Seeded program office desk — Compliance Officer',
+            grantReason: 'Seeded MSP seat — Compliance Officer',
           },
         })
       }

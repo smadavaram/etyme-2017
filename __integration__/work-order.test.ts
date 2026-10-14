@@ -295,7 +295,7 @@ describe('the purchase order the client handed them', () => {
     )
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('theirs to raise')
-    expect(r.body.error.message).toContain('Ask their program office or AP desk')
+    expect(r.body.error.message).toContain('Ask their MSP or AP clerk')
   })
 
   it('a firm that is neither end of the deal cannot write the order at all', async () => {

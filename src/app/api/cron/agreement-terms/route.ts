@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
         data: {
           companyId,
           action: 'AGREEMENT_TERM_WATCH',
-          summary: `Told the contracting desk about ${theirs.length} agreement${theirs.length === 1 ? '' : 's'} running out.`,
+          summary: `Told the contract manager about ${theirs.length} agreement${theirs.length === 1 ? '' : 's'} running out.`,
           reason: 'Nightly scan of agreement end dates.',
           payload: {
             agreements: theirs.map((t) => ({ counterparty: t.counterparty, milestone: t.milestone })),

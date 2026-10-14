@@ -246,7 +246,7 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
       ok: false,
       ownsIt: false,
       says:
-        `Adding a firm to ${ask.seatedAt.name}'s register is the desk that manages who you ` +
+        `Adding a firm to ${ask.seatedAt.name}'s register is for whoever manages who you ` +
         `trade with. Ask whoever runs your suppliers and clients to add it, or ask them for ` +
         `that access.`,
     }
@@ -258,8 +258,8 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
       ok: false,
       ownsIt: false,
       says:
-        `Say what this firm is to ${ask.seatedAt.name} — a client, a supplier, a prime or a ` +
-        `program office. A company on the register with no relationship on it is a name ` +
+        `Say what this firm is to ${ask.seatedAt.name} — a client, a supplier, a prime or an ` +
+        `MSP. A company on the register with no relationship on it is a name ` +
         `nothing can point at.`,
     }
   }

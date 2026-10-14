@@ -101,7 +101,7 @@ export function directoryScope(reader: Reader): Verdict {
         says: reader.isDemo
           ? 'This is a sandbox. You see your own companies and nobody else’s.'
           : 'You see the firms you trade with: on your register, under an agreement, ' +
-            'on a contract, on an invitation, or at a desk granted either way.',
+            'on a contract, on an invitation, or in a seat granted either way.',
       }
 
     case 'NOBODY':
@@ -126,7 +126,7 @@ export function directoryCopy(kind: CompanyKind | null): { title: string; subtit
     case 'CLIENT':
       return {
         title: 'Companies',
-        subtitle: 'The suppliers and program offices you buy through, and your own entry.',
+        subtitle: 'The suppliers and MSPs you buy through, and your own entry.',
       }
     case 'MSP':
       return {

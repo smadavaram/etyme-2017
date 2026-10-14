@@ -69,7 +69,7 @@ export const PARTIES: readonly Position[] = [
   },
   {
     party: 'MSP',
-    word: 'Program office',
+    word: 'MSP',
     kind: 'MSP',
     buys: true,
     supplies: false,
@@ -171,7 +171,7 @@ export function positionsOpenTo(kind: CompanyKind): Party[] {
 const KIND_WORDS: Record<CompanyKind, { word: string; label: string }> = {
   VENDOR: { word: 'Supplier', label: 'Supplier · Staffing' },
   CLIENT: { word: 'Client', label: 'Client · Enterprise' },
-  MSP: { word: 'Program office', label: 'Program office · MSP' },
+  MSP: { word: 'MSP', label: 'MSP · Managed program' },
   GSI: { word: 'Integrator', label: 'Integrator · Delivery' },
   CONSULTANT_CORP: { word: 'Own company', label: 'Own company · One person' },
 }

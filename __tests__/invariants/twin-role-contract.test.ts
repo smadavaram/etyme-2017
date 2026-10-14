@@ -204,7 +204,7 @@ describe('the program manager’s twin is held to its role contract', () => {
       rule: 'Clean.', rationale: 'Matches.', surface: 'CRON', authority: AUTHORITY,
     })
     expect(twice.outcome).toBe('REFUSED')
-    if (twice.outcome === 'REFUSED') expect(twice.says).toBe('The program manager’s twin asked for this itself, so it cannot be the one to approve it. A person at the desk that decides it does.')
+    if (twice.outcome === 'REFUSED') expect(twice.says).toBe('The program manager’s twin asked for this itself, so it cannot be the one to approve it. The person who decides it does.')
 
     // And the person whose authority it acted on cannot sign it either.
     const dana = await decideApproval({
@@ -212,7 +212,7 @@ describe('the program manager’s twin is held to its role contract', () => {
       decider: { ...AP_CLERK, personId: 'dana', personName: 'Dana Whitfield' },
     })
     expect(dana).toMatchObject({ ok: false, status: 403 })
-    if (!dana.ok) expect(dana.says).toBe('Dana Whitfield asked for this, and the twin acts on their authority, so neither may approve it. Somebody else at the desk that decides it does.')
+    if (!dana.ok) expect(dana.says).toBe('Dana Whitfield asked for this, and the twin acts on their authority, so neither may approve it. Somebody else who may decide it does.')
     expect(T().vendorBill[0].status).toBe('RECEIVED')
     expect(T().twinApproval[0].decision).toBe('PENDING')
     // Every refusal is on the ledger, the person's included.

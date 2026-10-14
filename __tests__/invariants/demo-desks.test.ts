@@ -12,7 +12,7 @@ describe('the demo door says which desks a firm actually has', () => {
   it('asking for the AP desk at Teleworld names the AP & Payroll desk as the one nobody holds, and lists the seats that are held', () => {
     const r = deskRefusal({ asWorld: 'world-teleworld', company: teleworld, desk: 'ap', heldRoles: teleworldSeats })
     expect(r.message).toContain(
-      'Nobody holds the AP & Payroll desk at Teleworld Solutions in the demo; these desks are seated: Owner, Validation Engineer'
+      'Nobody holds the AP & Payroll role at Teleworld Solutions in the demo; these roles are seated: Owner, Validation Engineer'
     )
   })
 
@@ -21,9 +21,9 @@ describe('the demo door says which desks a firm actually has', () => {
     expect(r.message).not.toMatch(/nobody is seated/i)
   })
 
-  it('says how to open the seat that is there: asking with no desk sits you as the first seat granted', () => {
+  it('says how to open the seat that is there: asking for no role sits you as the first seat granted', () => {
     const r = deskRefusal({ asWorld: 'world-teleworld', company: teleworld, desk: 'ap', heldRoles: teleworldSeats })
-    expect(r.message).toContain('Ask with no desk to sit as the Owner.')
+    expect(r.message).toContain('Ask for no role to sit as the Owner.')
   })
 
   it('names the desk keys that would open, so a visitor can ask again by name', () => {
@@ -82,14 +82,14 @@ describe('the demo door never hands the Owner seat to a desk nobody asked for', 
 
   it('an unknown desk is refused in a sentence that says no seat was taken and names the desks this firm has', () => {
     const r = deskRefusal({ asWorld: 'world-brightmoor', company: brightmoor, desk: null, heldRoles: seats, unknown: 'owner' })
-    expect(r.message).toContain('There is no "owner" desk in the demo, so no seat was taken.')
+    expect(r.message).toContain('There is no "owner" role in the demo, so no seat was taken.')
     expect(r.message).toContain('At Brightmoor Staffing you can ask for "ap", "account", "recruiter" or "payroll" by name.')
     expect(r.desks).toEqual(['ap', 'account', 'recruiter', 'payroll'])
   })
 
-  it('the refusal of an unknown desk says the Owner seat is opened only by asking with no desk', () => {
+  it('the refusal of an unknown desk says the Owner seat is opened only by asking for no role', () => {
     const r = deskRefusal({ asWorld: 'world-brightmoor', company: brightmoor, desk: null, heldRoles: seats, unknown: 'admin' })
-    expect(r.message).toContain('Ask with no desk to sit as the Owner.')
+    expect(r.message).toContain('Ask for no role to sit as the Owner.')
   })
 
   it('the demo route refuses an unknown desk before it reads anybody\'s seat as the caller\'s', () => {
@@ -122,8 +122,8 @@ describe('the demo door seats a delivery manager, and the right one where two ho
   it('asking for somebody who does not hold the desk is refused in a sentence that names who does', () => {
     const m = whoRefusal({ company: teleworld, desk: 'delivery', who: 'Sunil Raghavan', holders: ['Ingrid Solberg', 'Rahul Deshpande'] })
     expect(m).toBe(
-      'Sunil Raghavan does not hold the Delivery Manager desk at Teleworld Solutions in the demo, so no seat was taken. ' +
-      'The Delivery Manager desk there is held by Ingrid Solberg or Rahul Deshpande.'
+      'Sunil Raghavan does not hold the Delivery Manager role at Teleworld Solutions in the demo, so no seat was taken. ' +
+      'The Delivery Manager role there is held by Ingrid Solberg or Rahul Deshpande.'
     )
   })
 

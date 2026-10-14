@@ -233,7 +233,7 @@ export function mayWriteOrder(input: {
       says:
         `${buyer.name} is on Etyme, so the purchase order is theirs to raise — recording ` +
         `it for them would put a commitment in their name that nobody at their firm made. ` +
-        `Ask their program office or AP desk to raise it, and it will appear here against ` +
+        `Ask their MSP or AP clerk to raise it, and it will appear here against ` +
         `your contracts.`,
     }
   }

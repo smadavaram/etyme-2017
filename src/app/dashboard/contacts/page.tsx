@@ -27,7 +27,7 @@ const PEOPLE_COLUMNS: Column<any>[] = [
   { key: 'name', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.name}</span> },
   { key: 'at', label: 'Firm', render: (c) => <span className="text-etyme-muted">{c.at.name}</span>, sortValue: (c) => c.at.name },
   { key: 'title', label: 'Role', render: (c) => <span className="text-etyme-muted">{c.title ?? '—'}</span>, hideOnMobile: true },
-  { key: 'kindLabel', label: 'Desk', render: (c) => <Chip>{c.kindLabel}</Chip> },
+  { key: 'kindLabel', label: 'Team', render: (c) => <Chip>{c.kindLabel}</Chip> },
   { key: 'email', label: 'Email', render: (c) => c.email ? <a href={`mailto:${c.email}`} className="text-etyme-action" onClick={(e) => e.stopPropagation()}>{c.email}</a> : '—' },
   { key: 'joined', label: 'Here', render: (c) => (c.joined ? <Chip tone="verified">on the platform</Chip> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
 ]

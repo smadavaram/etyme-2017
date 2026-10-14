@@ -123,7 +123,7 @@ export async function PATCH(request: NextRequest) {
           companyId,
           action: 'BENCH_PAY_POLICY_CHANGED',
           summary: `${caller.person.name} changed the bench pay policy: ${policySentence(after)}`,
-          reason: 'Edited in settings by the owner, admin or finance desk',
+          reason: 'Edited in settings by the owner, an admin or finance',
           payload: {
             changed: policyChange.changed,
             before: {
@@ -147,7 +147,7 @@ export async function PATCH(request: NextRequest) {
           companyId,
           action: 'BENCH_HOLIDAY_PAY_SWITCHED',
           summary: `${caller.person.name} switched ${holidayPay ? 'on' : 'off'} paying public holidays on the bench for ${firm.name}`,
-          reason: 'Turned in settings by the owner, admin or finance desk',
+          reason: 'Turned in settings by the owner, an admin or finance',
           payload: { paid: holidayPay, personId: null, byPersonId: caller.person.id },
           // Turning it back is one more row; this one stays as history.
           reversible: true,

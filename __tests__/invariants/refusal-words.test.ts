@@ -11,17 +11,17 @@ import { refusalSentence, namesAPermission } from '@/lib/refusal-words'
  */
 const CODE = /\b[a-z]+\.(read|write|manage|issue|run|approve|cost|create|record)\b/
 
-describe('a refusal names the desk the page is for, never a permission code', () => {
-  it('a refusal names the desk the page is for, never a permission code', () => {
+describe('a refusal names the role the page is for, never a permission code', () => {
+  it('a refusal names the role the page is for, never a permission code', () => {
     const said = refusalSentence('You need consultants.read permission', { kind: 'GSI', company: 'Teleworld Solutions' })
     expect(said).not.toMatch(CODE)
-    expect(said).toMatch(/^This page is for the .+ desk at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+    expect(said).toMatch(/^This page is for the .+ at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
   })
 
-  it('a route that refuses with "Requires invoices.issue permission" is read as the desk that bills', () => {
+  it('a route that refuses with "Requires invoices.issue permission" is read as the role that bills', () => {
     const said = refusalSentence('Requires invoices.issue permission', { kind: 'VENDOR', what: 'This' })
     expect(said).not.toMatch(CODE)
-    expect(said).toMatch(/^This is for the .*Accounts Receivable.* desk\./)
+    expect(said).toMatch(/^This is for the .*Accounts Receivable.*\. Ask/)
   })
 
   it('a refusal that is already a sentence is shown in the route’s own words, untouched', () => {

@@ -223,15 +223,15 @@ function rendersElsewhereSays(keys: string[]): string {
 
   if (who === 'EMPLOYER') {
     return (
-      `${what} is the employer of record’s own check, not a document a desk reads the dates off. ${because} ` +
-      `Keep what this desk was shown on the checklist; nothing recorded here discharges the firm that employs ` +
+      `${what} is the employer of record’s own check, not a document a reviewer reads the dates off. ${because} ` +
+      `Keep what you were shown on the checklist; nothing recorded here discharges the firm that employs ` +
       `the person from running its own.`
     )
   }
 
   return (
-    `${what} is a verdict a screening company renders, not a document a desk can read the dates off. ${because} ` +
-    `No desk in Etyme renders it, so nothing goes on the compliance record from here — what would go on it is ` +
+    `${what} is a verdict a screening company renders, not a document a reviewer can read the dates off. ${because} ` +
+    `Nobody in Etyme renders it, so nothing goes on the compliance record from here — what would go on it is ` +
     `their report, with the company that ran it, their reference number and the day they ran it. Your note and ` +
     `the file stay on the checklist, which is the honest record of what the firm sent.`
   )
@@ -314,7 +314,7 @@ export function verificationFromChecklistItem(
     // stop.
     if (ours.length === 0) {
       return nothing(
-        `${item.label} is this desk’s own check rather than a document with a life of its own, ` +
+        `${item.label} is your own check rather than a document with a life of its own, ` +
           `so nothing here expires and there is nothing for the watch to chase. It stays on the checklist.`
       )
     }
@@ -333,7 +333,7 @@ export function verificationFromChecklistItem(
 
     return nothing(
       `${labelsOf(ours)} is not something the compliance record can hold — it has no type for it — ` +
-        `so nothing goes on the record and the nightly watch will not chase it. What this desk was ` +
+        `so nothing goes on the record and the nightly watch will not chase it. What you were ` +
         `shown stays on the checklist, and if the document has an expiry somebody has to watch it ` +
         `somewhere else.`
     )
@@ -403,7 +403,7 @@ export function verificationFromChecklistItem(
       // whole job.
       (theirs.length > 0
         ? ` ${labelsOf(theirs)} ${theirs.length === 1 ? 'is not on it, because it is' : 'are not on it, because they are'} ` +
-          `not this desk’s to render. ${whoRendersCheck(checkKindOf(theirs[0])!).says}`
+          `not yours to render. ${whoRendersCheck(checkKindOf(theirs[0])!).says}`
         : ''),
   }
 }

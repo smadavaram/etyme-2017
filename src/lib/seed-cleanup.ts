@@ -173,7 +173,7 @@ const SAYS: Record<CleanupKind, string> = {
   resumes: 'CVs a seed wrote for a real person.',
   journalEntries: 'Journal entries a seed posted in a real firm’s books, with their lines.',
   ledgerAccounts: 'Ledger accounts a seed opened for a real firm, left with nothing on them.',
-  paymentRuns: 'A payment run a seed raised on a real firm’s desk, with its items.',
+  paymentRuns: 'A payment run a seed raised on a real firm’s books, with its items.',
   creditNotes: 'A credit note a seed wrote against a real firm’s invoice.',
   matchOverrides: 'A waived match check a seed recorded on a real firm’s invoice.',
   visaPetitions: 'Visa petitions a seed walked for a real person, with their events and files.',

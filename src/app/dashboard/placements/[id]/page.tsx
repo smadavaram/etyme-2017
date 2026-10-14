@@ -283,7 +283,7 @@ function Document({
         </div>
       ) : (
         <p className="mt-2 text-[13px] text-etyme-faint">
-          What this document authorizes is money, and this desk does not read money.
+          What this document authorizes is money, and your role does not read money.
         </p>
       )}
       {o.says && o.ceiling != null && (

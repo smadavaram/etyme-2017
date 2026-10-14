@@ -103,8 +103,8 @@ describe('every desk that uses the supplier list today still gets in', () => {
     }
   })
 
-  it('an integrator’s delivery managers, supplier manager and contractor desk still open the supplier list', () => {
-    for (const name of ['Delivery Manager', 'Supplier Manager', 'Contractor Desk']) {
+  it('an integrator’s delivery managers, supplier manager and contractor sourcing still open the supplier list', () => {
+    for (const name of ['Delivery Manager', 'Supplier Manager', 'Contractor Sourcing']) {
       expect(maySeeSuppliers(role('GSI', name)), name).toBe(true)
     }
   })

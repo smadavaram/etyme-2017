@@ -95,7 +95,7 @@ export function ProgramDoors({ programs }: { programs: ClientProgram[] }) {
             <p className="mt-3 text-[14px] leading-relaxed">{p.waiting}</p>
             <p className="mt-2 text-[13px] leading-relaxed text-etyme-muted">{p.about}</p>
 
-            <p className="lbl mt-auto pt-5 text-etyme-faint">Sit at a desk</p>
+            <p className="lbl mt-auto pt-5 text-etyme-faint">Pick a role</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {CLIENT_DESKS.map((d) => {
                 const key = `${p.slug}:${d.desk}`

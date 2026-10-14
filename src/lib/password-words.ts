@@ -42,7 +42,7 @@ export function soloFromCandidate(company: string, keepsPassword: boolean): stri
 
 /** What a colleague reads once they are seated as Member. */
 export function memberWelcome(company: string): string {
-  return `You are in ${company} as Member. Your owner has been told; you will see more once they give you a desk.`
+  return `You are in ${company} as Member. Your owner has been told; you will see more once they give you a role.`
 }
 
 /**

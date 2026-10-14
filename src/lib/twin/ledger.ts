@@ -374,7 +374,7 @@ export async function act(input: ActInput): Promise<ActResult> {
     const asked = await requestApproval(base, needs)
     if (!asked.ok) return { outcome: 'FAILED', says: NOT_RECORDED }
     void tellTheDesk(input, needs, asked.approvalId).catch((err) =>
-      report(`Asked for approval of ${input.action} and could not tell the desk.`, err, input.companyId, input.authority.personId)
+      report(`Asked for approval of ${input.action} and could not tell the approver.`, err, input.companyId, input.authority.personId)
     )
     return {
       outcome: 'AWAITING_APPROVAL',
@@ -551,7 +551,7 @@ export async function decideApproval(args: {
       needs: approval.needsPermission as Permission,
       kind: args.decider.companyKind,
       companyName: args.decider.companyName,
-    }), 'Only the desk the contract names decides')
+    }), 'Only the role the contract names decides')
   }
 
   const reason = args.reason?.trim() || null
@@ -813,9 +813,9 @@ export async function ledgerFeed(
       entityId: String((isContract ? p.roleContractId : isModel ? companyId : p.ruleSetId) ?? ''),
       label, program: companyId ? names.company.get(companyId) ?? null : null,
       line: feedLine({ actorType: 'CHANGE', actorName, action: '', outcome: 'PERFORMED', entityType, label, onAuthorityOfRole: '', surface: 'WEB' }),
-      ruleCited: isContract ? 'Only the program manager’s desk or the desk that holds the company’s settings changes what the twin may do.'
-        : isModel ? 'Only the desk that holds the company’s settings lets Ask Etyme send anything to the model.'
-        : 'Only the program manager’s desk or the desk that holds the company’s settings changes the twin’s numbers.',
+      ruleCited: isContract ? 'Only the program manager, or whoever holds the company’s settings, changes what the twin may do.'
+        : isModel ? 'Only whoever holds the company’s settings lets Ask Etyme send anything to the model.'
+        : 'Only the program manager, or whoever holds the company’s settings, changes the twin’s numbers.',
       rationale: c.reason ?? '', surface: 'WEB', approvalId: null,
       payload: p, roleContractVersion: isContract && typeof p.version === 'number' ? p.version : undefined,
     }

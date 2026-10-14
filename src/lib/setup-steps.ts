@@ -160,7 +160,7 @@ export function recordStep(
     return {
       ok: false,
       message: kind === 'MSP'
-        ? 'A program office places nobody, so it has no contractor list to bring in.'
+        ? 'An MSP places nobody, so it has no contractor list to bring in.'
         : 'A one-person firm has no contractor list or team to set up.',
     }
   }
@@ -384,7 +384,7 @@ export const DESK_PAGES: Record<string, readonly string[]> = {
   'Supplier Manager': ['/dashboard/suppliers'],
   Coordinator: ['/dashboard/requirements', '/dashboard/submissions'],
   'Delivery Manager': ['/dashboard/bench', '/dashboard/requirements'],
-  'Contractor Desk': ['/dashboard/requirements', '/dashboard/consultants'],
+  'Contractor Sourcing': ['/dashboard/requirements', '/dashboard/consultants'],
   'Team Lead': ['/dashboard/timesheets'],
   Member: ['/dashboard/my-work', '/dashboard/timesheets'],
 }
@@ -404,7 +404,7 @@ export function deskPageFor(roleName: string | null | undefined, menu: readonly 
 const KIND_NOUNS: Record<string, string> = {
   CLIENT: 'a client',
   GSI: 'an integrator',
-  MSP: 'a program office',
+  MSP: 'an MSP',
   VENDOR: 'a supplier',
   CONSULTANT_CORP: 'a one-person company',
 }

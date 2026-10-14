@@ -200,7 +200,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
     await db.context.create({
       data: {
         personId: admin.id, companyId: firm.id, roleId: adminRole.id, type: 'EMPLOYEE',
-        grantReason: `Seeded supplier desk — ${ADMIN.role}`,
+        grantReason: `Seeded supplier seat — ${ADMIN.role}`,
       },
     })
   }

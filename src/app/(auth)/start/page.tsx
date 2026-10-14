@@ -175,7 +175,7 @@ export default function StartPage() {
           </h1>
           <p className="text-etyme-muted mt-3">{memberWelcome(state.company.name)}</p>
           <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
-            Go to your desk
+            Go to your work
           </a>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function StartPage() {
           </h1>
           <p className="text-etyme-muted mt-3">{joined.message}</p>
           <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
-            Go to your desk
+            Go to your work
           </a>
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function StartPage() {
             </h1>
             <p className="text-etyme-muted mt-3">{state.message}</p>
             <p className="text-sm text-etyme-muted mt-4">
-              You join as Member. You can see your own work at once. An owner there gives you a desk.
+              You join as Member. You can see your own work at once. An owner there gives you a role.
             </p>
             <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
               {busy ? 'Joining…' : `Join ${state.company?.name ?? state.companyName}`}

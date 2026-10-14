@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     : null
   if (!kind) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A rule is on the money (VALUE), or names the HR or the Procurement desk.', field: 'kind' } },
+      { error: { code: 'VALIDATION', message: 'A rule is on the money (VALUE), or names HR or Procurement.', field: 'kind' } },
       { status: 422 }
     )
   }
@@ -149,13 +149,13 @@ export async function POST(request: NextRequest) {
   if (kind !== 'VALUE') {
     if (approverIds.length !== 1) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION', message: `The ${kind === 'HR' ? 'HR' : 'Procurement'} desk is one person for the unit.`, field: 'approverIds' } },
+        { error: { code: 'VALIDATION', message: `${kind === 'HR' ? 'HR' : 'Procurement'} is one person for the unit.`, field: 'approverIds' } },
         { status: 422 }
       )
     }
     if (!body.orgUnitId) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'Name the business unit this desk sits in — desks are named per unit, not company-wide.', field: 'orgUnitId' } },
+        { error: { code: 'VALIDATION', message: 'Name the business unit this approver sits in — HR and Procurement are named per unit, not company-wide.', field: 'orgUnitId' } },
         { status: 422 }
       )
     }

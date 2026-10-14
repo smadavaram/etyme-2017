@@ -131,9 +131,9 @@ describe('what production says about itself tonight', () => {
     expect(edge('watch').fix).toContain('ETYME_STAFF_EMAILS')
   })
 
-  it('the stale demo world is reported with the desk it lacks, and does not count against ready', () => {
+  it('the stale demo world is reported with the approver it lacks, and does not count against ready', () => {
     expect(edge('demo')).toMatchObject({ state: 'SET', required: false })
-    expect(edge('demo').says).toContain('Northbend Athletic has no HR or Procurement desk')
+    expect(edge('demo').says).toContain('Northbend Athletic has no HR or Procurement approver')
   })
 
   it('the model key is optional and off, not missing', () => {

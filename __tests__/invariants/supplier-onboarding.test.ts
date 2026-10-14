@@ -499,7 +499,7 @@ describe('a desk is never told nothing when its click recorded nothing', () => {
     const note = evidenceNoteFor(item, 'veritan', now)!
     expect(note.onRecord).toBe(true)
     expect(note.says).toContain('goes on the compliance record')
-    expect(note.says).toContain('not this desk’s to render')
+    expect(note.says).toContain('not yours to render')
   })
 
   it('who renders a verdict is asked of regulation’s own table, never of a list kept here', () => {

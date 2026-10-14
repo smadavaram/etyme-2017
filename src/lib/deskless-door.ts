@@ -56,14 +56,14 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // placement that names it and no other. app/api/placements/[id] tells
   // the seat a colleague's is not part of it (round six, problem 15) and
   // answers a stranger to the firm as a placement that does not exist.
-  'placements/*': 'A seat with no desk reads only a placement that names it.',
+  'placements/*': 'A seat that sees only its own work reads only a placement that names it.',
   // Round six, problem 3: every week on Your work links "Open this week"
   // to /dashboard/weeks/:id, which reads this route. lib/week-approval
   // refuses a desk-less seat anybody's week but its holder's own, in the
   // door's words, and the worker may send the client's approver the link
   // or attach the approval on their own week (CLAUDE.md, 2026-09-30).
-  'week-approvals': 'A seat with no desk reads and acts on the client’s approval of its own week, and no other.',
-  'week-approvals/*/file': 'A seat with no desk opens the evidence of an approval on its own week, and no other.',
+  'week-approvals': 'A seat that sees only its own work reads and acts on the client’s approval of its own week, and no other.',
+  'week-approvals/*/file': 'A seat that sees only its own work opens the evidence of an approval on its own week, and no other.',
   // The worker's own rate conversation, opened from where they were put
   // forward on their own page; the route refuses a submission that does
   // not name its caller.
@@ -74,7 +74,7 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   // document is about reads their own, a seat at the issuer without the
   // paperwork desk is refused in a sentence, and a stranger is told
   // nothing is there.
-  'documents/*/file': 'A seat with no desk opens a document that is about its holder, and no other.',
+  'documents/*/file': 'A seat that sees only its own work opens a document that is about its holder, and no other.',
 }
 
 /**
@@ -149,7 +149,7 @@ export const OWN_ROWS_ON_READ: Readonly<Record<string, string>> = {
   // desk reads the submissions that name its holder, with no rate, and
   // asking for anybody else's is refused. Where a worker was put forward
   // is the "You" promise; submitting anybody stays a desk's.
-  submissions: 'A seat with no desk reads only the submissions that name it, with no rate on them.',
+  submissions: 'A seat that sees only its own work reads only the submissions that name it, with no rate on them.',
   // The queue of what needs this seat (2026-10-13). It was on every
   // desk-less menu as Needs attention until Ask Etyme's greeting became
   // that list and the link left the menu; the greeting still reads it.
@@ -157,10 +157,10 @@ export const OWN_ROWS_ON_READ: Readonly<Record<string, string>> = {
   // approving hours, reading bills, writing placements, the ending-soon
   // readers, reading submissions — or keyed to the caller by name: a
   // requisition approval names its approver, and a supplier review asks
-  // mayActAt of this person. A seat with no desk holds none of those
+  // mayActAt of this person. A seat that sees only its own work holds none of those
   // permissions, so it reads only what names it, and no colleague's
   // rolloff or rate.
-  decisions: 'A seat with no desk reads only what names it — an approval it was named on — and nothing a desk’s permission gates.',
+  decisions: 'A seat that sees only its own work reads only what names it — an approval it was named on — and nothing a role’s permission gates.',
 }
 
 /**

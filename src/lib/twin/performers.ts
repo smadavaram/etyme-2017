@@ -132,7 +132,7 @@ const approveInvoiceReceipt: Performer = {
       })
       if (!bill || bill.companyId !== c.companyId) return 'That invoice receipt is not on this company’s books.'
       if (bill.status === 'DISPUTED') {
-        return 'A check failed on this invoice receipt. The AP desk records an exception with a reason before it can be approved.'
+        return 'A check failed on this invoice receipt. The AP clerk records an exception with a reason before it can be approved.'
       }
       if (bill.status !== 'RECEIVED') return 'This invoice receipt has already been approved, paid or cancelled.'
       if (bill.buyContractId && bill.periodStart && bill.periodEnd) {

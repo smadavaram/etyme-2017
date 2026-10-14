@@ -62,6 +62,6 @@ export function dashboardReads(
 
 /** What a panel the seat may not read says, in place of its numbers. */
 export const NOT_YOURS = {
-  bench: 'Not yours to see: the bench opens for the desks that read consultants.',
-  automation: 'Not yours to see: what the system did opens for the desks that read governance.',
+  bench: 'Not yours to see: the bench opens for the roles that read consultants.',
+  automation: 'Not yours to see: what the system did opens for the roles that read governance.',
 } as const

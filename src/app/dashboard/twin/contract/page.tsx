@@ -128,7 +128,7 @@ export default function TwinContractPage() {
       {acts && (
         <form onSubmit={save}>
           {!mayEdit && (
-            <p className="mb-4 text-[13px] text-etyme-muted">You can read the contract. Changing it is the program manager’s desk or the desk that holds the company’s settings.</p>
+            <p className="mb-4 text-[13px] text-etyme-muted">You can read the contract. Changing it is for the program manager, or whoever holds the company’s settings.</p>
           )}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {TIERS.map((col) => {

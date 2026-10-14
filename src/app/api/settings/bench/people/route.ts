@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         actorCompanyId: caller.company?.id,
         action: 'PAYROLL_VIEW',
         allowed: false,
-        reason: 'Not the owner, admin or finance desk of a firm with a bench',
+        reason: 'Not the owner, an admin or finance at a firm with a bench',
       })
     }
     return refused
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         companyId,
         action: 'BENCH_HOLIDAY_PAY_SWITCHED',
         summary: `${caller.person.name} switched ${s.paid ? 'on' : 'off'} holiday pay on the bench for ${subject.name}`,
-        reason: 'Turned by the owner, admin or finance desk',
+        reason: 'Turned by the owner, an admin or finance',
         payload: { paid: s.paid, personId: subject.id, byPersonId: caller.person.id },
         reversible: true,
       },

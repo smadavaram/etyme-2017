@@ -97,7 +97,7 @@ export function emptyWord(filter: NetworkFilter, place: string | null, of: 'firm
     case 'PENDING':
       return of === 'people'
         ? `Nobody waiting${where}. Ask somebody you already know and they show here until a supplier puts them forward.`
-        : `Nothing in the pipeline${where}. Recommend a supplier and it shows here until every desk has said yes.`
+        : `Nothing in the pipeline${where}. Recommend a supplier and it shows here until every approver has said yes.`
     case 'BLOCKED': return `Nobody blocked${where}.`
     default: return `Nobody${where}.`
   }

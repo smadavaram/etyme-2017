@@ -72,8 +72,8 @@ const PHRASES: Record<string, { past: (e: string) => string; inf: (e: string) =>
     inf: (e) => `check ${e}`,
   },
   'invoice_receipt.flag_mismatch': {
-    past: (e) => `told the paying desk that ${e} does not match the accepted hours or the rate`,
-    inf: (e) => `tell the paying desk that ${e} does not match`,
+    past: (e) => `told the AP clerk that ${e} does not match the accepted hours or the rate`,
+    inf: (e) => `tell the AP clerk that ${e} does not match`,
   },
   'invoice_receipt.approve': {
     past: (e) => `approved ${e}`,

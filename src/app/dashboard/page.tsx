@@ -646,7 +646,7 @@ function ProgramOfficeWithoutProgram({ d, userName, officeName }: { d: Dashboard
             <h2 className="headline-serif text-[18px] text-etyme-ink mb-3">No program yet</h2>
             <ul className="space-y-2 text-[13px] text-etyme-ink">
               <li>{officeName} does not run a client&rsquo;s program yet.</li>
-              <li>A client grants you a seat in its program office. You then act under its rules, and every read is logged.</li>
+              <li>A client grants you a seat in its program. You then act under its rules, and every read is logged.</li>
               <li>Ask an owner or the program manager at the client to grant {officeName} a seat.</li>
               <li className="text-etyme-muted">Once they do, this page opens on their program: the people on site, the suppliers, the hours waiting and the decisions.</li>
             </ul>
