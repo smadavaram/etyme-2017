@@ -107,7 +107,7 @@ describe('a firm\'s own compliance page', () => {
     expect(body.data).toBeUndefined()
     const says: string = body.error.message
     expect(says).toContain('visas, I-9s and background results')
-    expect(says).toContain('Ask the Compliance Officer, HR')
+    expect(says).toContain('Ask your Compliance Officer, HR')
     expect(says).toContain('Teleworld')
     expect(says).not.toMatch(/governance\.read|FORBIDDEN/)
   })

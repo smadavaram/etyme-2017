@@ -33,7 +33,7 @@ describe('a refused compliance page', () => {
     // it, because a heading over a refusal reads as a page that loaded.
     expect(html).toContain('data-state="refused"')
     expect(html).not.toContain('<h1')
-    expect(html).toContain('Ask the Owner desk at Teleworld Solutions')
+    expect(html).toContain('Ask your Owner at Teleworld Solutions')
     expect(html).not.toMatch(/>\s*0\s*</)
     expect(html).not.toMatch(/Clear rate|Total checks|Evaluations|Policies|Verifications|Classification|Visas/)
   })
@@ -133,7 +133,7 @@ describe('the pages beside compliance, when the route will not answer', () => {
 describe('Data requests, when the routes will not answer or have not answered yet', () => {
   const ok = <T,>(data: T) => ({ data, error: null })
   const no = (error: string) => ({ data: null, error })
-  const NOT_YOURS = 'Reading data requests is the compliance desk’s job here.'
+  const NOT_YOURS = 'Reading data requests is the compliance officer’s job here.'
 
   it('a refused desk shows the route’s sentence alone — no "Nothing is waiting", no "Requests 0", no "Holds 0"', () => {
     const v = privacyView({ loading: false, requests: no(NOT_YOURS), holds: no('Holds are not yours.'), incidents: no('Nor these.'), open: 0, urgent: 0 })
@@ -145,16 +145,16 @@ describe('Data requests, when the routes will not answer or have not answered ye
     expect(v).toEqual({ show: 'loading' })
   })
 
-  it('"Nothing is waiting on this desk today" is said only after the queue was read and found empty', () => {
+  it('"Nothing is waiting on you today" is said only after the queue was read and found empty', () => {
     const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: ok([]), open: 0, urgent: 0 })
-    expect(v.show === 'page' && v.headline).toBe('Nothing is waiting on this desk today.')
+    expect(v.show === 'page' && v.headline).toBe('Nothing is waiting on you today.')
   })
 
   it('a refused incidents read is drawn as its sentence, never as "Incidents 0" and an all-clear', () => {
-    const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: no('Reading a security incident is the compliance desk’s job here.'), open: 0, urgent: 0 })
+    const v = privacyView({ loading: false, requests: ok([]), holds: ok([]), incidents: no('Reading a security incident is the compliance officer’s job here.'), open: 0, urgent: 0 })
     expect(v.show).toBe('page')
     if (v.show !== 'page') return
-    expect(v.incidents).toEqual({ show: 'refused', says: 'Reading a security incident is the compliance desk’s job here.' })
+    expect(v.incidents).toEqual({ show: 'refused', says: 'Reading a security incident is the compliance officer’s job here.' })
   })
 
   it('an incidents list read and found empty is the all-clear, because the read succeeded', () => {

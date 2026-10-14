@@ -35,8 +35,8 @@ function change(over: Partial<DeskChange> = {}): DeskChange {
 }
 
 describe('changing a desk', () => {
-  it('a Member row reads "Member · give them a desk", and every other desk reads its own name', () => {
-    expect(deskLine('Member')).toBe('Member · give them a desk')
+  it('a Member row reads "Member · give them a role", and every other desk reads its own name', () => {
+    expect(deskLine('Member')).toBe('Member · give them a role')
     expect(deskLine('Recruiter')).toBe('Recruiter')
   })
 
@@ -63,10 +63,10 @@ describe('changing a desk', () => {
     expect(v.allowed).toBe(false)
   })
 
-  it('the last person who can give desks cannot be moved off it, so nobody locks the company out', () => {
+  it('the last person who can give roles cannot be moved off it, so nobody locks the company out', () => {
     const v = assessDeskChange(change({ fromRole: 'Admin', fromCanGiveDesks: true, othersWhoCanGiveDesks: 0 }))
     expect(v.allowed).toBe(false)
-    if (!v.allowed) expect(v.says).toContain('the only one here who can give desks')
+    if (!v.allowed) expect(v.says).toContain('the only one here who can give roles')
     expect(assessDeskChange(change({ fromRole: 'Admin', fromCanGiveDesks: true, othersWhoCanGiveDesks: 1 })).allowed).toBe(true)
   })
 
@@ -75,9 +75,9 @@ describe('changing a desk', () => {
     expect(v).toEqual({ allowed: false, says: 'Priya Nair already works as Recruiter.' })
   })
 
-  it('Users & permissions offers "Change desk" on every row of "Everyone with access", from the company’s own desks', () => {
+  it('Users & permissions offers "Change role" on every row of "Everyone with access", from the company’s own desks', () => {
     const page = read('src/app/dashboard/access/page.tsx')
-    expect(page).toContain('Change desk')
+    expect(page).toContain('Change role')
     expect(page).toContain('desksOffered(roles, data.actorIsOwner === true)')
     expect(page).toContain('{p.line}')
     const route = read('src/app/api/access/route.ts')
@@ -165,7 +165,7 @@ describe('round two of the sign-up walk', () => {
     expect(never).toBe(false)
     expect(seatPlace({ roleName: 'AP Clerk', signedIn: never })).toBe('WAITING')
     expect(waitingLine({ invited: true, signedIn: never, days: 0, desk: 'AP Clerk' }))
-      .toBe('Invited today, not yet signed in · will have the AP Clerk desk')
+      .toBe('Invited today, not yet signed in · will have the AP Clerk role')
     // The route sorts by this rule, whatever the desk.
     const route = read('src/app/api/access/route.ts')
     expect(route).toContain("=== 'WITH_ACCESS')")
@@ -185,10 +185,10 @@ describe('round two of the sign-up walk', () => {
 
   it('a person whose desk changed is told by email as well as in the app', () => {
     const n = deskChangedNotice({ roleName: 'Hiring Manager', companyName: 'Walk Co', expiresAt: null, landing: '/dashboard/program' })
-    expect(n.body).toBe('You now have the Hiring Manager desk at Walk Co. Sign in to see it.')
+    expect(n.body).toBe('You now have the Hiring Manager role at Walk Co. Sign in to see it.')
     expect(n.href).toBe('/dashboard/program')
     const dated = deskChangedNotice({ roleName: 'Admin', companyName: 'Walk Co', expiresAt: new Date('2027-01-05T00:00:00Z'), landing: '/dashboard' })
-    expect(dated.body).toBe('You now have the Admin desk at Walk Co. Sign in to see it. It runs until Jan 5, 2027.')
+    expect(dated.body).toBe('You now have the Admin role at Walk Co. Sign in to see it. It runs until Jan 5, 2027.')
     const route = read('src/app/api/access/route.ts')
     expect(route).toMatch(/type: 'SYSTEM',\s*channel: 'EMAIL',/)
     expect(route).toContain('data: { href: notice.href }')
@@ -248,7 +248,7 @@ describe('sign-up walk, round three: Users & permissions counts and says what is
  * "This ends on 2027-01-06 unless renewed." — the alert is the route's
  * own `message`, so the route prints the day.
  */
-describe('sign-up walk, round four: the Change desk confirmation says a day', () => {
+describe('sign-up walk, round four: the Change role confirmation says a day', () => {
   const route = read('src/app/api/access/route.ts')
 
   it('the confirmation after changing a desk prints its end date as a day a person reads, never as 2027-01-06', () => {

@@ -104,7 +104,7 @@ describe('a refusal names the desk, not the key', () => {
     const many = desksHolding('consultants.read', 'GSI')
     expect(many.length).toBeGreaterThan(4)
     const says = askTheDesk({ doing: 'Seeing the people on the books', needs: 'consultants.read', kind: 'GSI' })
-    expect(says).toContain('among other desks there')
+    expect(says).toContain('among other roles there')
     expect((says.match(/’s/g) ?? []).length).toBeLessThanOrEqual(4)
   })
 

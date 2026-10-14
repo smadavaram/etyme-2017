@@ -116,7 +116,7 @@ describe('Users & permissions', () => {
     const src = page('access')
     expect(src).toContain('<Stat label="Waiting"')
     expect(src).toContain('<Field label="What can they do?">')
-    expect(src).toContain('<Field label="New desk">')
+    expect(src).toContain('<Field label="New role">')
     expect(src).toContain('pending={inviting} pendingLabel="Inviting…"')
     expect(src).toContain('<RefusedState says={refused} />')
     expect(src).toContain("<ErrorState says={error} action={{ label: 'Try again', onClick: load }} />")

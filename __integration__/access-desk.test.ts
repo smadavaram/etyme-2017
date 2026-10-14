@@ -43,12 +43,12 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     }
   })
 
-  it('a Member reads "Member · give them a desk" on Everyone with access', async () => {
+  it('a Member reads "Member · give them a role" on Everyone with access', async () => {
     as(OWNER)
     const r = await json(await access(req('GET', '/api/access')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const row = r.body.data.people.find((p: any) => p.contextId === it_.memberContext)
-    expect(row.line).toBe('Member · give them a desk')
+    expect(row.line).toBe('Member · give them a role')
     expect(r.body.data.actorIsOwner).toBe(true)
   })
 
@@ -148,7 +148,7 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const list = await json(await access(req('GET', '/api/access')))
     const waiting = list.body.data.waitingForAccess.find((w: any) => w.person.primaryEmail === email)
-    expect(waiting.said).toBe('Invited today, not yet signed in · will have the HR desk')
+    expect(waiting.said).toBe('Invited today, not yet signed in · will have the HR role')
     expect(waiting.role).toBe('HR')
     expect(list.body.data.people.find((p: any) => p.person.primaryEmail === email)).toBeUndefined()
     it_.patContext = waiting.contextId
@@ -165,13 +165,13 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     let row: any = null
     for (let i = 0; i < 50 && !row; i++) {
       row = await prisma.notification.findFirst({
-        where: { personId: meera.id, title: 'You now have the HR desk' },
+        where: { personId: meera.id, title: 'You now have the HR role' },
         orderBy: { createdAt: 'desc' },
       })
       if (!row) await new Promise((res) => setTimeout(res, 100))
     }
     expect(row, 'no notice written').not.toBeNull()
-    expect(row.body).toMatch(/^You now have the HR desk at Brightmoor Staffing\. Sign in to see it\./)
+    expect(row.body).toMatch(/^You now have the HR role at Brightmoor Staffing\. Sign in to see it\./)
     expect(row.channel).not.toBe('IN_APP')
     expect((row.data as any).href).toMatch(/^\/dashboard/)
   })

@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
         person: personOf(c),
         role: c.role!.name,
         roleId: c.role!.id,
-        // "Member · give them a desk" for the seat everybody arrives on.
+        // "Member · give them a role" for the seat everybody arrives on.
         line: deskLine(c.role!.name),
         sensitivity: sensitivityOf(c.role!.permissions),
         grantedAt: c.grantedAt.toISOString(),
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
         waiting: waiting.length,
         withAccess: withAccess.length,
         // Every review finding plus every Member waiting for a desk: a
-        // Member reads "give them a desk" on the list, so it is counted.
+        // Member reads "give them a role" on the list, so it is counted.
         needsAttention: needsDecisionCount(
           review,
           withAccess.map(c => ({ contextId: c.id, roleName: c.role!.name })),

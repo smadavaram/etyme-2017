@@ -369,13 +369,13 @@ describe('a program office is told what it is missing, rather than shown an empt
     expect(body.data.desk.missing).not.toMatch(/[A-Z]{3,}_[A-Z]/)
   })
 
-  it('an MSP nobody has seated is told a desk is the client’s to grant, and who at the client can grant it', async () => {
+  it('an MSP nobody has seated is told a role in the client’s program is the client’s to grant, and who at the client can grant it', async () => {
     as(HALVARD_COMPLIANCE)
     const { status, body } = await json(await deskQueue(req('GET', '/api/data-requests')))
     expect(status).toBe(200)
     expect(body.data.requests).toEqual([])
     expect(body.data.desk.missing).toContain('Halvard Program Partners')
-    expect(body.data.desk.missing).toContain('program office')
+    expect(body.data.desk.missing).toContain('a role in the client’s program')
     expect(body.data.desk.missing).toContain('granted by the client')
     expect(body.data.desk.missing).toContain('owner or the')
     expect(body.data.desk.missing).not.toContain('not built yet')
@@ -679,7 +679,7 @@ describe('the compliance desk reads its own page', () => {
     const said = deskRefusal({ requests: requests.error, holds: holds.error })
     expect(said).not.toBeNull()
     expect(said!).toBe(requests.error)
-    expect(said!).toContain('compliance desk')
+    expect(said!).toContain('compliance officer')
     expect(said!).toContain('Users and permissions')
   })
 })

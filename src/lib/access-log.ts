@@ -105,13 +105,16 @@ export type AccessAction =
   // ── The shared sample seat the home page frames ────────────────────
   //
   // `lib/sample-seat` (etyme-architect, 2026-10-14): anybody, with no
-  // account, reads the seeded Northbend program manager's screens, and
-  // every write is refused at the caller check. The refusal is a row of
-  // its own so "what did strangers try to change through the sample" is
-  // one query. Its subject is the person whose seat the sample borrows,
+  // account, reads Northbend's program screens through a seat of its own,
+  // held by a seeded person named 'Shared sample' who holds the Program
+  // Manager role at a Context of their own. It borrows nobody's seat: the
+  // seeded program manager is a different person and never appears on
+  // these rows. Every write is refused at the caller check. The refusal
+  // is a row of its own so "what did strangers try to change through the
+  // sample" is one query. Its subject is the 'Shared sample' person,
   // because the row needs a person and that is the seat the write was
-  // tried in; its actor is SAMPLE, never her. It holds the method and the
-  // route and nothing about the visitor: no address, no browser.
+  // tried in; its actor is SAMPLE. It holds the method and the route and
+  // nothing about the visitor: no address, no browser.
   | 'SAMPLE_WRITE'              // the shared sample tried to change something, and was refused
 
 interface LogAccessBase {
@@ -146,12 +149,14 @@ export type ActorKind = 'PERSON' | 'TWIN' | 'SAMPLE'
  * Dana Whitfield", never as though Dana had looked herself.
  *
  * SAMPLE is the shared sample seat the home page frames (`lib/sample-seat`):
- * a stranger with no account, reading through the seeded program
- * manager's seat. The row must name the seat (`actorSampleSeat`, the
- * Context id), and it never carries the person who holds that seat:
- * unlike a twin, the sample acts on nobody's authority, and her own
- * access review must not read strangers as her. The seat is written into
- * the reason, because the table has no column for it (no schema change).
+ * a stranger with no account, reading through the sample's own seat — the
+ * seeded 'Shared sample' person holding the Program Manager role at a
+ * Context of its own, never the seeded program manager's seat. The row
+ * must name the seat (`actorSampleSeat`, the Context id), and it carries
+ * no actor person: unlike a twin, the sample acts on nobody's authority,
+ * and no real person's access review may read strangers as them. The seat
+ * is written into the reason, because the table has no column for it (no
+ * schema change).
  */
 type ActorFields =
   | { actorKind?: 'PERSON'; actorTwinKind?: never; actorSampleSeat?: never }
@@ -187,8 +192,8 @@ export function actorColumns(p: { actorKind?: ActorKind; actorTwinKind?: TwinKin
  * Everything on a row except the subject, the action and `allowed`: the
  * actor columns, and the person and reason as they may be written for
  * that actor. A SAMPLE row drops the person whatever the caller passed —
- * it is the sample, never the person whose seat it borrows — and its
- * reason begins with the seat, so the row can be read back whole.
+ * the actor is the sample, never a person — and its reason begins with
+ * the seat, so the row can be read back whole.
  */
 function actorRow(p: LogAccessBase & { actorKind?: ActorKind; actorTwinKind?: TwinKind; actorSampleSeat?: string }): {
   actorPersonId: string | null

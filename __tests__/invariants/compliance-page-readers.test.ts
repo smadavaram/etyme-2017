@@ -65,7 +65,7 @@ describe('what somebody refused the compliance page is told', () => {
     const says = complianceRefusal('Teleworld Solutions', desksThatHold(teleworld, 'governance.read'))
     expect(says).toBe(
       'The compliance page at Teleworld Solutions shows other people\'s visas, I-9s and background results, ' +
-        'and your desk does not read them. Ask the Compliance Officer, HR, Admin or Owner desk at ' +
+        'and your role does not read them. Ask your Compliance Officer, HR, Admin or Owner at ' +
         'Teleworld Solutions if you need something from it.'
     )
   })
@@ -83,10 +83,10 @@ describe('what somebody refused the compliance page is told', () => {
     expect(desks).toEqual(['Compliance', 'People', 'Owner'])
   })
 
-  it('a firm where no desk reads it is told to ask whoever manages seats, never given an empty name', () => {
+  it('a firm where no desk reads it is told to ask whoever manages roles, never given an empty name', () => {
     const says = complianceRefusal('Wrenfield Technical', [])
-    expect(says).toContain('Ask whoever manages seats at Wrenfield Technical')
-    expect(says).not.toMatch(/Ask the {2}|the desk at/)
+    expect(says).toContain('Ask whoever manages roles at Wrenfield Technical')
+    expect(says).not.toMatch(/Ask {2}|Ask at|your at|desk/)
   })
 
   it('the refusal never shows a permission key or a code', () => {

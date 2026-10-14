@@ -70,6 +70,6 @@ describe('the Document requests page', () => {
   })
 
   it('tells a seat that cannot send which desks can', () => {
-    expect(emptyRequestsSays(false)).toContain('The compliance desk, or a desk that manages suppliers or people, can.')
+    expect(emptyRequestsSays(false)).toContain('The compliance officer, or a role that manages suppliers or people, can.')
   })
 })

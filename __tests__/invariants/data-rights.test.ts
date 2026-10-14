@@ -113,10 +113,10 @@ describe('the compliance desk is one page and four kinds of firm open it', () =>
     expect(deskFraming('GSI', 'Teleworld Solutions').says).toContain('employs or places')
   })
 
-  it('a program office with no seat anywhere is told a desk is the client’s to grant, and who can grant it', () => {
+  it('an MSP with no seat anywhere is told a role in the client’s program is the client’s to grant, and who can grant it', () => {
     const msp = deskFraming('MSP', 'Aptiva Workforce')
     expect(msp.missing).not.toBeNull()
-    expect(msp.missing!).toContain('program office')
+    expect(msp.missing!).toContain('a role in the client’s program')
     expect(msp.missing!).toContain('granted by the client')
     expect(msp.missing!).toContain('owner or the')
     // The seat was built on 2026-09-20 and this sentence went on saying
@@ -158,10 +158,10 @@ describe('the compliance desk is one page and four kinds of firm open it', () =>
 
   it('a seat that could read neither is told in the route’s own words, not in a second copy of them', () => {
     const said = deskRefusal({
-      requests: 'Reading the queue of data requests is the compliance desk’s job here, and this seat does not hold it.',
-      holds: 'Reading the legal holds this company placed is the compliance desk’s job here.',
+      requests: 'Reading the queue of data requests is the compliance officer’s job here, and this seat does not hold it.',
+      holds: 'Reading the legal holds this company placed is the compliance officer’s job here.',
     })
-    expect(said).toContain('compliance desk')
+    expect(said).toContain('compliance officer')
     expect(said).toContain('does not hold it')
   })
 
@@ -244,7 +244,7 @@ describe('who may read a breach at all', () => {
   it('a seat without the compliance permission is refused, and told who at their company does hold it', () => {
     const v = mayWorkBreach({ isStaff: false, hasCompliancePermission: false, companyIsAffected: true })
     expect(v.ok).toBe(false)
-    expect(v.says).toContain('compliance desk')
+    expect(v.says).toContain('compliance officer')
     expect(v.says).toContain('Users and permissions')
   })
 

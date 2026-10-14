@@ -293,7 +293,7 @@ describe('A rule on the money is still honored, at the final rank', () => {
     const d = evaluateRequisition(withLead({ headcount: 8 }), [])
     const role = step(d, 'ROLE')
     expect(role.outcome).toBe('AUTO_CLEARED')
-    expect(role.reason).toContain('no HR desk named for Technology, so cleared with this note. Name one under Program team.')
+    expect(role.reason).toContain('nobody named as HR for Technology, so cleared with this note. Name one under Program team.')
   })
 })
 
@@ -301,7 +301,7 @@ describe('Nothing passes silently', () => {
   it('a routed check with no desk configured still clears, and says so in the row', () => {
     const d = evaluateRequisition(withLead({ billMaxCents: 17_000, skillMedianCents: 13_400 }), [])
     expect(step(d, 'SOURCING').outcome).toBe('AUTO_CLEARED')
-    expect(step(d, 'SOURCING').reason).toMatch(/above the .* you already pay .* no Procurement desk named/)
+    expect(step(d, 'SOURCING').reason).toMatch(/above the .* you already pay .* nobody named as Procurement/)
   })
 
   it('the notes survive even when a desk clears — every check is kept', () => {

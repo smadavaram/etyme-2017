@@ -487,6 +487,6 @@ describe('a breach opens a clock, or says that nobody has decided one', () => {
     as(`world-corning-ap${D}`)
     const { status, body } = await json(await breachList(req('GET', '/api/breaches')))
     expect(status).toBe(403)
-    expect(body.error).toContain('compliance desk')
+    expect(body.error).toContain('compliance officer')
   })
 })
