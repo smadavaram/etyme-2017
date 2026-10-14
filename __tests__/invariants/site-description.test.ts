@@ -1,3 +1,4 @@
+import { CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -92,20 +93,20 @@ describe('what the site says it is, outside the home page', () => {
 describe('the demo door back into the funnel', () => {
   const page = read('src/app/demo/page.tsx')
 
-  it('the demo door offers a person, and the audit only until the platform takes it off, never an account', () => {
-    // The words come from the funnel, imported rather than retyped, so the
-    // demo cannot drift from the ladder every other page draws. The audit
-    // left every other page on 2026-10-14; /demo is the platform's and still
-    // links it, which public-funnel.test.ts names as the one place left.
-    // When it goes, the two audit lines here go with it.
+  it('the demo door ends on sign up or a person, in the same words as every other page, and never the audit', () => {
+    // The audit left every page on 2026-10-14 (founder: "useless"). A buyer
+    // signs up after seeing it, so the demo's last line offers the one
+    // account door every page uses, through the shared constant, and a
+    // person. Sign up is the one label allowed to promise an account,
+    // because it links to the password door.
     expect(page).toContain("from '@/lib/public-site/funnel'")
-    expect(page).toContain('GET_THE_AUDIT.href')
+    expect(page).toContain('CLIENT_SIGN_UP.href')
     expect(page).toContain('ASK_A_PERSON.href')
-    expect(GET_THE_AUDIT.href).toBe('/census')
+    expect(page).not.toMatch(/GET_THE_AUDIT|\/census/)
+    expect(CLIENT_SIGN_UP).toEqual({ t: 'Sign up', href: '/signup' })
     expect(ASK_A_PERSON.href).toBe('/contact')
 
-    const line = `${NEXT_STEP_LEAD} ${GET_THE_AUDIT.t}, or ${ASK_A_PERSON.t.toLowerCase()}.`
-    expect(promisesAnAccount([NEXT_STEP_LEAD, GET_THE_AUDIT.t, ASK_A_PERSON.t, line])).toEqual([])
+    const line = `${NEXT_STEP_LEAD} ${CLIENT_SIGN_UP.t}, or ${ASK_A_PERSON.t.toLowerCase()}.`
     expect(priceClaims(line)).toEqual([])
     expect(namedCompanies(line)).toEqual([])
   })

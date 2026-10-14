@@ -13,6 +13,7 @@ import {
 } from './seats'
 import { doorFacts } from './door-facts'
 import { ASK_A_PERSON } from '@/lib/public-site/funnel'
+import { CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
 
 /**
  * The second page a client sees, one click after the home page.
@@ -193,8 +194,8 @@ export default async function DemoPage() {
         {/* ── The next step, quietly ───────────────────────────── */}
         <p className="mt-16 border-t border-etyme-rule pt-6 text-[14px] leading-relaxed text-etyme-muted">
           {NEXT_STEP_LEAD}{' '}
-          <a href="/signup" className="text-etyme-action hover:underline">
-            Sign up
+          <a href={CLIENT_SIGN_UP.href} className="text-etyme-action hover:underline">
+            {CLIENT_SIGN_UP.t}
           </a>
           , or{' '}
           <a href={ASK_A_PERSON.href} className="text-etyme-action hover:underline">
