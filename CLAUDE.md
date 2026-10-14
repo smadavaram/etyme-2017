@@ -408,6 +408,33 @@ and can the reader check it by clicking something on this page.
   screen, and how many of those sign up or ask for the audit. A page
   element that does not move it is deleted the next week.
 
+### Every product page and party door follows the home page's structure — decided by the founder, 2026-10-14
+
+*"Make sure even the sub pages and doors follow the same structure."*
+One skeleton for every public page that sells or explains the product:
+
+1. **One question as the headline**, the reader's own, and one line
+   under it saying what this page is for.
+2. **The live product in the page**, the same read-only frame, opened at
+   the step this page is about (a module page at its step; a party door
+   at the screen that party acts on). No screenshots anywhere.
+3. **At most three short lines** under the frame: what you do here, who
+   is involved, what happens next. No card grids, no "day one" panels,
+   no growth story, no bands.
+4. **The sign-up band**, the same as the home page, with every party's
+   door on its one line.
+5. **One security line, and the footer.**
+
+About a hundred and fifty words at most, checked by a test, the same
+cut test as the home page: which reader asked for it, and can they
+check it by clicking something on this page.
+
+What keeps its own shape, because it is reference, not selling: the
+documentation (the four-step spine, Previous and Next, flow charts);
+the security position (whole, honest); the legal pages; the census and
+demo doors (their forms). They share the header and the footer, and
+nothing else is forced on them.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
