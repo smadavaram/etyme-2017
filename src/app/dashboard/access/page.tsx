@@ -27,7 +27,7 @@ interface Waiting {
   role: string | null
   roleId: string | null
   /**
-   * "Invited today, not yet signed in · will have the AP Clerk desk", or
+   * "Invited today, not yet signed in · will have the AP Clerk role", or
    * "joined 3 days ago". An invited person who never signed in waits here
    * whatever desk they were given, never under "Everyone with access".
    */
@@ -38,7 +38,7 @@ interface Person {
   person: { id: string; name: string; primaryEmail: string }
   role: string
   roleId: string
-  /** The role, or "Member · give them a desk". */
+  /** The role, or "Member · give them a role". */
   line: string
   sensitivity: string
   expiresAt: string | null
@@ -278,7 +278,7 @@ export default function AccessPage() {
         fetch('/api/roles'),
       ])
       const a = await ar.json().catch(() => ({} as any))
-      if (ar.status === 403) { setRefused(a.error?.message ?? 'This desk does not read the access register.'); return }
+      if (ar.status === 403) { setRefused(a.error?.message ?? 'Your role does not read the access register.'); return }
       if (a.error) throw new Error(a.error.message)
       const r = rr.ok ? await rr.json().catch(() => ({} as any)) : {}
       setData(a.data)
@@ -289,7 +289,7 @@ export default function AccessPage() {
   useEffect(() => { load() }, [load])
 
   async function grant(contextId: string) {
-    if (!form.roleId) { alert('Pick a desk'); return }
+    if (!form.roleId) { alert('Pick a role'); return }
     const res = await fetch('/api/access', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -315,7 +315,7 @@ export default function AccessPage() {
     await load()
   }
 
-  if (loading) return <LoadingState says="Reading who holds which desk…" />
+  if (loading) return <LoadingState says="Reading who holds which role…" />
   // A refusal is the route's sentence alone: no heading over it, no
   // counters and no forms, each of which the same route would refuse.
   if (refused) return (
@@ -338,7 +338,7 @@ export default function AccessPage() {
       <PageHead
         eyebrow={section}
         title="Users & permissions"
-        subtitle="Anyone signing in on your company’s email domain joins automatically as a Member. A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a desk."
+        subtitle="Anyone signing in on your company’s email domain joins automatically as a Member. A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a role."
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -399,7 +399,7 @@ export default function AccessPage() {
                     <button
                       onClick={() => setGranting(granting === w.contextId ? null : w.contextId)}
                       className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
-                      {granting === w.contextId ? 'Cancel' : w.role ? 'Change desk' : 'Give them access'}
+                      {granting === w.contextId ? 'Cancel' : w.role ? 'Change role' : 'Give them access'}
                     </button>
                   )}
                 </div>
@@ -506,16 +506,16 @@ export default function AccessPage() {
                       setForm({ roleId: '', days: '', reason: '' })
                     }}
                     className="px-3 py-1.5 border border-etyme-rule rounded text-[13px] text-etyme-action hover:bg-etyme-action/5 shrink-0">
-                    {granting === p.contextId ? 'Cancel' : 'Change desk'}
+                    {granting === p.contextId ? 'Cancel' : 'Change role'}
                   </button>
                 )}
               </div>
 
               {granting === p.contextId && (
                 <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-                  <Field label="New desk">
+                  <Field label="New role">
                     <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
-                      <option value="">— pick a desk —</option>
+                      <option value="">— pick a role —</option>
                       {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </Select>
                   </Field>
@@ -529,7 +529,7 @@ export default function AccessPage() {
                       className="w-40 tabular-nums" />
                   </Field>
                   <SubmitButton type="button" onClick={() => grant(p.contextId)} className="self-start">
-                    Change desk
+                    Change role
                   </SubmitButton>
                 </div>
               )}

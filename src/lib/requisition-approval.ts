@@ -361,7 +361,7 @@ export function evaluateRequisition(
       // note in plain sight, and says who to name so the next one is read.
       steps.push({
         stage, rank: 1, approverId: null, approverName: null, outcome: 'AUTO_CLEARED',
-        reason: `${misses.map((c) => c.reason).join('; ')} — no ${deskWord} desk named for ${unit}, so cleared with this note. Name one under Program team.`,
+        reason: `${misses.map((c) => c.reason).join('; ')} — nobody named as ${deskWord} for ${unit}, so cleared with this note. Name one under Program team.`,
       })
     }
   }
@@ -423,7 +423,7 @@ export function evaluateRequisition(
       stage: 'FINAL', rank: 2, approverId: null, approverName: null, outcome: 'AUTO_CLEARED',
       reason:
         `Nobody is named to give the final word — cleared with this note. ` +
-        `Name who owns ${facts.costCenter ? `cost center ${facts.costCenter.code}` : 'the cost center'}, or a desk under Program team.` +
+        `Name who owns ${facts.costCenter ? `cost center ${facts.costCenter.code}` : 'the cost center'}, or an HR or Procurement contact under Program team.` +
         `${notes.length ? ` ${notes.join('. ')}.` : ''}`,
     })
   } else {

@@ -12,5 +12,5 @@ export function emptyRequestsSays(canAsk: boolean): string {
         'what you need — a W-9, an insurance certificate, a renewal — with no account and no ' +
         'back-and-forth email.'
     : 'You have not asked anybody for documents yet, and this seat cannot send a request. The ' +
-        'compliance desk, or a desk that manages suppliers or people, can.'
+        'compliance officer, or a role that manages suppliers or people, can.'
 }

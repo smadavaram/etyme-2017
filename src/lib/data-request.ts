@@ -330,19 +330,19 @@ export function deskFraming(
         missing: seated
           ? mayReadQueue
             ? `This page is ${possessive(companyName, '’')} own. ${seated.clientName} has also seated ` +
-              `${companyName} at its ${seated.roleName} desk, and a request from one of ` +
+              `${companyName} as its ${seated.roleName}, and a request from one of ` +
               `${possessive(seated.clientName, '’')} contractors belongs to ${possessive(seated.clientName, '’')} queue rather ` +
               `than this one — name that program to open it, and every read there is logged ` +
               'against the seat.'
             : `This page is ${possessive(companyName, '’')} own. ${seated.clientName} has seated ${companyName} ` +
-              `at its ${seated.roleName} desk, and that desk does not read data requests — a ` +
+              `as its ${seated.roleName}, and that role does not read data requests — a ` +
               `request from one of ${possessive(seated.clientName, '’')} contractors is answered from ` +
-              `${possessive(seated.clientName, '’')} own compliance desk. An owner or the program manager there ` +
-              `can seat ${companyName} at a desk that reads it.`
+              `${possessive(seated.clientName, '’')} own compliance officer. An owner or the program manager there ` +
+              `can give ${companyName} a role that reads it.`
           : `${companyName} runs somebody else's program and places nobody, so nothing here ` +
             'ties it to a client. A request from one of a client’s contractors is answered ' +
-            `by that client’s own compliance desk, and reading one from here needs a desk in ` +
-            `the client’s program office — granted by the client, the way it grants one to ` +
+            `by that client’s own compliance officer, and reading one from here needs a role in ` +
+            `the client’s program — granted by the client, the way it grants one to ` +
             `its own people. No client has granted ${companyName} one yet: ask an owner or the ` +
             'program manager at that client. So this page shows ' +
             `${possessive(companyName, '’')} own and says so rather than showing an empty list.`,
@@ -1842,7 +1842,7 @@ export async function privacyDesk(
     return {
       ok: false,
       status: 403,
-      says: 'A compliance desk is a company’s, and you are not signed in at one.',
+      says: 'A compliance officer works for a company, and you are not signed in at one.',
     }
   }
 
@@ -1854,7 +1854,7 @@ export async function privacyDesk(
         ok: false,
         status: 403,
         says:
-          `${company.name} runs its own program from its own desks, so this page is its own book. ` +
+          `${company.name} runs its own program with its own people, so this page is its own book. ` +
           'A seat is for a firm that is not the client.',
       }
     }

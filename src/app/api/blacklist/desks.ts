@@ -102,9 +102,9 @@ export const READING_DESKS: readonly string[] = [
 export const CANNOT_READ =
   'The do-not-return list names the people and the firms this company has decided not to ' +
   'work with again, and it is meant to be read before somebody is put forward. Reading it ' +
-  'belongs to a desk that deals with people or with suppliers here — a recruiter, an ' +
-  'account manager, HR, the program office, or the compliance officer who owns it. Ask ' +
-  'whoever manages roles at your company to seat you there.'
+  'belongs to the roles that deal with people or with suppliers here — a recruiter, an ' +
+  'account manager, HR, the program manager, or the compliance officer who owns it. Ask ' +
+  'whoever manages roles at your company to give you one of those roles.'
 
 // ── Writing ──────────────────────────────────────────────────────────
 
@@ -139,13 +139,13 @@ export const BARRING_DESKS: Record<Target, readonly string[]> = {
 export function cannotBar(target: Target): string {
   return target === 'PERSON'
     ? 'Keeping somebody off this company’s work is a compliance record with a real consequence for ' +
-      'that person, so writing it belongs to the desk that decides who gets put forward — a ' +
+      'that person, so writing it belongs to the roles that decide who gets put forward — a ' +
       'recruiter or resource manager at a supplier, HR, or the program manager at a client. You ' +
       'can read the list. Ask whoever manages roles at your company to seat you where it is ' +
       'written.'
-    : 'Barring a whole firm takes it off this company’s supplier panel, so it belongs to the desk ' +
-      'that owns suppliers — the program manager, a procurement lead, or a supplier manager — ' +
-      'rather than to the desk that puts people forward. You can read the list. Ask whoever ' +
+    : 'Barring a whole firm takes it off this company’s supplier panel, so it belongs to the roles ' +
+      'that own suppliers — the program manager, a procurement lead, or a supplier manager — ' +
+      'rather than to the roles that put people forward. You can read the list. Ask whoever ' +
       'manages roles at your company to seat you where it is written.'
 }
 
@@ -153,11 +153,11 @@ export function cannotBar(target: Target): string {
 export function cannotLift(target: Target): string {
   return target === 'PERSON'
     ? 'Lifting a bar lets this person be put forward here again, which is the same decision as ' +
-      'placing it, made in reverse. It belongs to the desk that decides who gets put forward — a ' +
+      'placing it, made in reverse. It belongs to the roles that decide who gets put forward — a ' +
       'recruiter or resource manager at a supplier, HR, or the program manager at a client. Ask ' +
       'whoever manages roles at your company to seat you there.'
     : 'Lifting a bar puts this firm back on the supplier panel, which is the same decision as ' +
-      'placing it, made in reverse. It belongs to the desk that owns suppliers — the program ' +
+      'placing it, made in reverse. It belongs to the roles that own suppliers — the program ' +
       'manager, a procurement lead, or a supplier manager. Ask whoever manages roles at your ' +
       'company to seat you there.'
 }

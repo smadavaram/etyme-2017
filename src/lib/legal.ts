@@ -386,7 +386,7 @@ export const HELD: HeldCategory[] = [
       'is suspended or ended — and every act taken from it: a job request raised, an ' +
       'approval given or refused with the reason in words, somebody else’s week of hours ' +
       'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
-      'supplier decided at a desk, a payment run approved, a legal hold placed, an ' +
+      'supplier decided by a role, a payment run approved, a legal hold placed, an ' +
       'incident opened. An agreement carries the signer’s own name, title and email as they ' +
       'appear on the paper. An order names the company that raised it and not a person, ' +
       'so nothing here claims one.',
@@ -411,7 +411,7 @@ export const HELD: HeldCategory[] = [
     examples:
       'What a client sent us before they were a customer, so we could give them one page ' +
       'of numbers about their own contingent workforce: the company name, the contact name ' +
-      'and work address typed on a page with no login behind it, the desk they sit at, who ' +
+      'and work address typed on a page with no login behind it, the team they work in, who ' +
       'accepted the one-page census agreement and which edition, and the files themselves — ' +
       'a filled template or their own invoice receipts and timesheets. The files are ' +
       'deleted on a day fixed when they arrived; the row saying how many there were and ' +
@@ -945,7 +945,7 @@ export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
           'rather than refused, the person is told that a hold applies and in whose ' +
           'words, and it runs by itself the day the last hold is lifted. The holder’s own ' +
           'case reference is never shown to the person.',
-        'A request that arrives by email is logged by the compliance desk at a company ' +
+        'A request that arrives by email is logged by the compliance officer at a company ' +
           'that actually holds the person, and the clock counts from the day it arrived ' +
           'rather than the day it was typed in. Correction and objection are still ' +
           'handled by hand.',
@@ -1100,7 +1100,7 @@ export const DPA: { title: string; intro: string; sections: Section[] } = {
       paragraphs: [
         'A data subject can ask for everything held about them, or ask to be forgotten, ' +
           'from their own page, without going through a customer at all. A customer ' +
-          'compliance desk can log a request that arrived by email against somebody it ' +
+          'compliance officer can log a request that arrived by email against somebody it ' +
           'holds, see what is due and when, and answer it from one page.',
         'The deadline on each request is stored with the reason for it in words, rather ' +
           'than recomputed from a constant, so a period counsel corrects next year does ' +
@@ -1582,7 +1582,7 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
       ask: 'Your rights',
       answer:
         'A data subject asks from their own page without going through a customer at ' +
-        'all, and a customer compliance desk can log a request that arrived by email ' +
+        'all, and a customer compliance officer can log a request that arrived by email ' +
         'and answer it from one page.',
       href: '#assisting-the-customer-with-data-subject-requests',
     },

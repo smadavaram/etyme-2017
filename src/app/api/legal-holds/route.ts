@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'Reading the legal holds this company placed is the compliance desk’s job here, ' +
+          'Reading the legal holds this company placed is the compliance officer’s job here, ' +
           'and this seat does not hold it. An owner or administrator can add it under ' +
           'Users and permissions.',
       },

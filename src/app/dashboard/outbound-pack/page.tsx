@@ -403,7 +403,7 @@ export default function OutboundPackPage() {
             ) : (
               <span className="ml-auto max-w-[420px] text-[12px] text-etyme-faint">
                 {data?.cannotSend ??
-                  'Sending this firm’s own documents out is somebody else’s desk here.'}
+                  'Sending this firm’s own documents out is another role’s job here.'}
               </span>
             )}
           </div>

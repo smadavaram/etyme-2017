@@ -313,7 +313,7 @@ export const OWNER_DESK = 'Owner'
  * to do about it. Every other desk is just its name.
  */
 export function deskLine(roleName: string): string {
-  return roleName === MEMBER_DESK ? `${MEMBER_DESK} · give them a desk` : roleName
+  return roleName === MEMBER_DESK ? `${MEMBER_DESK} · give them a role` : roleName
 }
 
 /**
@@ -373,12 +373,12 @@ export function assessDeskChange(c: DeskChange): DeskVerdict {
     return { allowed: false, says: 'Only an Owner can make somebody an Owner.' }
   }
   if (c.fromRole === OWNER_DESK && !c.actorIsOwner) {
-    return { allowed: false, says: `${c.personName} is an Owner. Only an Owner can change an Owner's desk.` }
+    return { allowed: false, says: `${c.personName} is an Owner. Only an Owner can change an Owner's role.` }
   }
   if (c.fromCanGiveDesks && !c.toCanGiveDesks && c.othersWhoCanGiveDesks === 0) {
     return {
       allowed: false,
-      says: `${c.personName} is the only one here who can give desks. Give that to somebody else first, then change this one.`,
+      says: `${c.personName} is the only one here who can give roles. Give that to somebody else first, then change this one.`,
     }
   }
   return { allowed: true }
@@ -402,7 +402,7 @@ export function waitingLine(w: { invited: boolean; signedIn: boolean; days: numb
   const when = w.days <= 0 ? 'today' : w.days === 1 ? 'yesterday' : `${w.days} days ago`
   if (w.invited && !w.signedIn) {
     const base = `${w.days <= 0 ? 'Invited today' : `Invited ${when}`}, not yet signed in`
-    return w.desk ? `${base} · will have the ${w.desk} desk` : base
+    return w.desk ? `${base} · will have the ${w.desk} role` : base
   }
   return `joined ${when}`
 }
@@ -449,8 +449,8 @@ export function deskChangedNotice(n: {
   // A day a person reads, never a machine date (round three, #6).
   const runs = n.expiresAt ? ` It runs until ${formatDay(n.expiresAt)}.` : ''
   return {
-    title: `You now have the ${n.roleName} desk`,
-    body: `You now have the ${n.roleName} desk at ${n.companyName}. Sign in to see it.${runs}`,
+    title: `You now have the ${n.roleName} role`,
+    body: `You now have the ${n.roleName} role at ${n.companyName}. Sign in to see it.${runs}`,
     href: n.landing,
   }
 }
@@ -501,7 +501,7 @@ export interface InviteLetter {
 export function inviteLetter(l: InviteLetter): { lines: string[]; link: string | null } {
   const youAre = l.roleName
     ? `You are in ${l.companyName} as ${l.roleName}.`
-    : `You are in ${l.companyName}. Somebody there will give you a desk once you are in.`
+    : `You are in ${l.companyName}. Somebody there will give you a role once you are in.`
   const days = l.linkHours >= 24 ? `${Math.round(l.linkHours / 24)} days` : `${l.linkHours} hours`
 
   if (l.door === 'PASSWORD' && l.setPasswordUrl) {

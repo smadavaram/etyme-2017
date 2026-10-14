@@ -258,11 +258,11 @@ export function seatMayRead(
   return {
     ok: false,
     says:
-      `${seat.clientCompany.name} seated ${seat.officeCompany.name} at its ${seat.role.name} desk, ` +
-      `and that desk does not read ${what} here. What a program office may do is exactly what the ` +
-      `desk it was given may do, so this changes when ${seat.clientCompany.name} changes the desk — ` +
-      `an owner or the program manager there can seat ${seat.officeCompany.name} at a desk that ` +
-      `reads it, or widen this one.`,
+      `${seat.clientCompany.name} seated ${seat.officeCompany.name} as its ${seat.role.name}, ` +
+      `and that role does not read ${what} here. What an MSP may do is exactly what the ` +
+      `role it was given may do, so this changes when ${seat.clientCompany.name} changes the role — ` +
+      `an owner or the program manager there can give ${seat.officeCompany.name} a role that ` +
+      `reads it, or add it to this one.`,
   }
 }
 
@@ -337,10 +337,10 @@ function orList(names: readonly string[]): string {
 export function complianceRefusal(companyName: string, desks: readonly string[]): string {
   const said =
     `The compliance page at ${companyName} shows other people's visas, I-9s and background results, ` +
-    `and your desk does not read them.`
+    `and your role does not read them.`
   if (desks.length === 0) {
-    return `${said} Ask whoever manages seats at ${companyName} to give you a desk that does.`
+    return `${said} Ask whoever manages roles at ${companyName} to give you a role that does.`
   }
   const named = desks.slice(0, 4)
-  return `${said} Ask the ${orList(named)} desk at ${companyName} if you need something from it.`
+  return `${said} Ask your ${orList(named)} at ${companyName} if you need something from it.`
 }

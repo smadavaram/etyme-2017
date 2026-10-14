@@ -208,7 +208,7 @@ export function checkAsk(ask: Ask): CheckedAsk {
   if (!(DESKS as readonly string[]).includes(desk)) {
     return {
       ok: false,
-      says: 'Tell us which desk you sit at — program, finance or procurement — or choose other. It decides how the page is written.',
+      says: 'Tell us which team you work in — program, finance or procurement — or choose other. It decides how the page is written.',
       fields: null,
     }
   }

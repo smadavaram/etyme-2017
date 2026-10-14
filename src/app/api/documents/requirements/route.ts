@@ -169,7 +169,7 @@ async function standingOn(caller: CallerContext, target: Target, write: boolean)
         ok: false,
         response: refuse(
           `Changing what ${target.says} asks for is the program manager’s or the compliance officer’s to do here. ` +
-            `Ask one of them, or have an owner widen your desk.`
+            `Ask one of them, or have an owner add it to your role.`
         ),
       }
     }
@@ -183,7 +183,7 @@ async function standingOn(caller: CallerContext, target: Target, write: boolean)
       response: refuse(
         `What ${target.says} asks for is ${possessive(target.buyerName, '’')} own rulebook, and this is not ${target.buyerName}. ` +
           `A firm supplying against an order cannot change what that order requires of it. ` +
-          `If you run this program for ${target.buyerName}, ask them for a seat at the desk that does.`
+          `If you run this program for ${target.buyerName}, ask them for a seat in the role that does.`
       ),
     }
   }
@@ -192,8 +192,8 @@ async function standingOn(caller: CallerContext, target: Target, write: boolean)
     return {
       ok: false,
       response: refuse(
-        `${target.buyerName} seated ${seat.officeCompany.name} at its ${seat.role.name} desk, and that desk does not ` +
-          `change what an order asks for. What a program office may do is exactly what the desk it was given may do.`
+        `${target.buyerName} seated ${seat.officeCompany.name} as its ${seat.role.name}, and that role does not ` +
+          `change what an order asks for. What an MSP may do is exactly what the role it was given may do.`
       ),
     }
   }

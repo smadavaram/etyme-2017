@@ -367,16 +367,16 @@ export function askTheDesk(args: {
 
   if (desks.length === 0) {
     return (
-      `${args.doing} is not something this desk does, and no desk at ${where} is set up for it ` +
+      `${args.doing} is not part of your role, and no role at ${where} is set up for it ` +
       `either. Ask whoever manages roles at ${where}.`
     )
   }
 
-  const among = desks.length > AT_MOST ? ', among other desks there' : ''
+  const among = desks.length > AT_MOST ? ', among other roles there' : ''
   const ask = desks.length === 1 ? 'Ask them' : 'Ask one of them'
   return (
     `${args.doing} is done by ${orDesks(desks)} at ${where}${among}. ${ask}, or ask ` +
-    `whoever manages roles there to widen your desk.`
+    `whoever manages roles there to add it to your role.`
   )
 }
 

@@ -5,7 +5,7 @@
  * check. Round five of the sign-up walk found the page saying three
  * untrue things, each a confident all-clear:
  *
- *   - "Nothing is waiting on this desk today." over a refusal, and before
+ *   - "Nothing is waiting on you today." over a refusal, and before
  *     the first read had come back at all;
  *   - "Requests 0" and "Holds 0" on a desk the reader could not see;
  *   - "Incidents 0 … Nothing has gone anywhere it should not have." under
@@ -53,7 +53,7 @@ function list<T>(read: Read<T[]>): ListView<T> {
  * what is due inside a day, because the clock is the page's.
  */
 export function privacyHeadline(open: number, urgent: number): string {
-  if (open === 0) return 'Nothing is waiting on this desk today.'
+  if (open === 0) return 'Nothing is waiting on you today.'
   return (
     `${open} request${open === 1 ? '' : 's'} need${open === 1 ? 's' : ''} you.` +
     (urgent > 0 ? ` ${urgent} ${urgent === 1 ? 'is' : 'are'} due inside a day.` : '')

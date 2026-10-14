@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const why = standing.ok
     ? standing.staffOfIssuer
-      ? `${issuer.name} asked for this document and its paperwork desk is reading the answer.`
+      ? `${issuer.name} asked for this document and its paperwork team is reading the answer.`
       : mine
         ? 'Their own document.'
         : 'The company the document is about.'

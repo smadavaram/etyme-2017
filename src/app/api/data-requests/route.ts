@@ -38,7 +38,7 @@ const readRefusal = () =>
   NextResponse.json(
     {
       error:
-        'Reading the queue of data requests is the compliance desk’s job here, and this ' +
+        'Reading the queue of data requests is the compliance officer’s job here, and this ' +
         'seat does not hold it. An owner or administrator can add it under Users and ' +
         'permissions.',
     },
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   if (!caller.company) {
-    return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
+    return NextResponse.json({ error: 'This page belongs to a company’s compliance officer.' }, { status: 403 })
   }
 
   // ── Whose queue ─────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     action: desk.seat ? 'PROGRAM_READ' : 'DATA_EXPORT',
     reason: desk.seat
       ? seatTrail(desk.seat, `Queue of ${rows.length} data requests read`)
-      : `Read the compliance desk’s queue of ${rows.length} data requests.`,
+      : `Read the compliance officer’s queue of ${rows.length} data requests.`,
   })
   if (desk.seat) {
     const named = [...new Set(rows.map((r) => r.subjectPerson?.id).filter((id): id is string => Boolean(id)))]
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
             says:
               `Requests from the people on ${possessive(desk.companyName, '’')} sites and from its own staff, the ` +
               `records that program has asked to keep, and any incident its records were in. ` +
-              `${caller.company.name} is reading them from the ${desk.seat.role.name} desk ` +
+              `${caller.company.name} is reading them as the ${desk.seat.role.name} role ` +
               `${desk.companyName} granted it, and every read here is logged against that seat.`,
             missing: null,
           }
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
   if (!caller.company) {
-    return NextResponse.json({ error: 'This page belongs to a company’s compliance desk.' }, { status: 403 })
+    return NextResponse.json({ error: 'This page belongs to a company’s compliance officer.' }, { status: 403 })
   }
   if (!hasPermission(caller.permissions, TO_ACT)) return actRefusal()
 

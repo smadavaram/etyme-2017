@@ -183,7 +183,7 @@ export function mayWorkBreach(input: {
     return {
       ok: false,
       says:
-        'Reading a security incident is the compliance desk’s job here. Ask whoever holds ' +
+        'Reading a security incident is the compliance officer’s job here. Ask whoever holds ' +
         'that seat at your company; if that should be you, an owner or administrator can ' +
         'add it under Users and permissions.',
     }
@@ -196,7 +196,7 @@ export function mayWorkBreach(input: {
         'be on this page, and you would have been written to as well.',
     }
   }
-  return { ok: true, says: 'Your company’s records were in this, so your compliance desk may read it.' }
+  return { ok: true, says: 'Your company’s records were in this, so your compliance officer may read it.' }
 }
 
 /** A breach is not closed while a decided deadline has no notice against it. */
