@@ -40,6 +40,11 @@ const DELIBERATE: Record<string, string> = {
     'A week is seven days. Seven inputs at fifty pixels is not a week ' +
     'anybody can type into, so it is four across on a phone — two rows ' +
     'of a week, which is still a week — and seven where there is room.',
+  'src/app/embed/demo/screens.tsx':
+    'The home page\'s live frame, read-only. Its four figures sit two ' +
+    'across on a phone, as the program page does, and each card on a phone ' +
+    'reads label beside value (Supplier / Brightmoor), which is one short ' +
+    'line, not two columns of text. Measured at 375: no sideways scroll.',
   'src/app/dashboard/program/page.tsx':
     'Six numbers with one figure each. Two across at 390 is still ' +
     'readable; one across is a page of scrolling before the first list.',
