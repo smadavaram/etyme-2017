@@ -435,6 +435,25 @@ the security position (whole, honest); the legal pages; the census and
 demo doors (their forms). They share the header and the footer, and
 nothing else is forced on them.
 
+### The audit form is deleted and the menu is an icon — decided by the founder, 2026-10-14
+
+*"Menu into icon. Does anyone need the audit form? I think it's
+useless."* So:
+- **The public header is the logo, "Sign in" and a menu icon.** The
+  word "Menu" and the "Free audit" button go.
+- **"Get a Free Contractor Spend Audit" leaves every page**: the header,
+  the sign-up band, the footer, the documentation. The sign-up band has
+  one button, Sign up. This reverses the 2026-10-09 line that made the
+  audit the primary call; nobody had used it, and a second call on
+  every page is a decision the buyer has to make before the one that
+  matters.
+- **`/census` stays reachable for 30 days, linked from nowhere**, so a
+  link already sent or advertised does not land on a missing page;
+  then it is deleted with its form and route. A buyer who is not ready
+  to sign up has "Contact" in the footer.
+- The program office offer (Etyme as MSP provider) loses its door with
+  it. It returns, if it returns, as one line on Contact, not as a form.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
