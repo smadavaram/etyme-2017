@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { MAP_COOKIE, keyOpens } from '@/lib/map-gate'
+import {
+  EMBED_FRAME_HEADERS, SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_COOKIE_PATHS, SAMPLE_COOKIE_SECONDS,
+  isEmbedPath, isSampleCookie,
+} from '@/lib/sample-seat'
 
 /**
  * Working out whose company a visitor arrived at.
@@ -78,6 +82,34 @@ async function mapGate(request: NextRequest): Promise<NextResponse> {
   return NextResponse.rewrite(closed)
 }
 
+/**
+ * The frame the home page shows (`lib/sample-seat`, founder 2026-10-14).
+ *
+ * Two things only middleware can do for a server-rendered page: say who
+ * may frame it — this site, nobody else — and give the browser the sample
+ * cookie, scoped to the frame and the API calls it makes, so a button
+ * pressed inside the frame is answered as the read-only sample seat
+ * rather than as nobody. Plain and the same for everybody: it grants
+ * reading what the home page already shows, and the seat it opens refuses
+ * every write in `lib/api-context`. SameSite=Lax, so another site cannot
+ * ride it.
+ */
+function embedResponse(request: NextRequest, res: NextResponse): NextResponse {
+  for (const [name, value] of Object.entries(EMBED_FRAME_HEADERS)) res.headers.set(name, value)
+  if (!isSampleCookie(request.cookies.get(SAMPLE_COOKIE)?.value)) {
+    // One cookie per path, appended rather than set: a cookie jar keys on
+    // name and path, so both are kept.
+    const secure = request.nextUrl.protocol === 'https:'
+    for (const path of SAMPLE_COOKIE_PATHS) {
+      res.headers.append(
+        'Set-Cookie',
+        `${SAMPLE_COOKIE}=${SAMPLE_COOKIE_VALUE}; Path=${path}; Max-Age=${SAMPLE_COOKIE_SECONDS}; HttpOnly; SameSite=Lax${secure ? '; Secure' : ''}`
+      )
+    }
+  }
+  return res
+}
+
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/map') return mapGate(request)
   const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
@@ -127,7 +159,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.rewrite(url, { request: { headers } })
   }
 
-  return NextResponse.next({ request: { headers } })
+  const res = NextResponse.next({ request: { headers } })
+  return isEmbedPath(path) ? embedResponse(request, res) : res
 }
 
 export const config = {

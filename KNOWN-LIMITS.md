@@ -121,6 +121,31 @@ rule set, the nightly run. What is short of that:
 4. **Untested against a database.** The rules are tested as a plan
    (`planBootstrap`); the writes are exercised only by running it.
 
+## The sample seat and the home page's frame — etyme-architect (2026-10-14)
+
+1. **A refused write is answered and not written to the access log.** The
+   log's actions are a named list in `lib/access-log` (regulatory's), and
+   none of them is "a write refused to the sample". A refused write reads
+   nobody, so the read invariant holds; the trail of who tried is what is
+   missing. Asked of `etyme-regulatory`: a `SAMPLE_WRITE` action, after
+   which `sampleCaller` in `lib/api-context` records it before the 403.
+2. **A stranger's reads are logged as the program manager's.** Every read
+   the sample seat makes is filed under Lorena Kellerman as a PERSON, so
+   Northbend's access log cannot tell her from the public. A `SAMPLE`
+   actor kind beside PERSON and TWIN is the fix, also regulatory's.
+3. **The full demo door still writes to the seeded world.** `POST /api/demo
+   {"as":"world-nike"}` seats a stranger at the real seeded desk with every
+   permission. Only the sample seat is read-only; "nothing a stranger does
+   can touch the seeded world" is true of the frame, not of that door.
+4. **A GET that writes is not caught.** The door refuses every method but
+   GET, HEAD and OPTIONS; a route that changes state on a GET would change
+   it for the sample too. The five screens' reads were checked against the seeded world; the
+   other routes were not, and the access log is written on reads by design.
+5. **The screens are the dashboard's rows, drawn again.** The dashboard
+   pages fetch in the browser after load; the frame calls the same routes
+   on the server and draws its own compact markup, so the numbers agree
+   and the layout is the frame's.
+
 ## Time-limit rule — etyme-regulatory
 
 What is built: `src/lib/twin/rules/tenure.ts` reads the client's own time

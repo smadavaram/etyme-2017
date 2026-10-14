@@ -4,7 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accounts'
 import { cookies } from 'next/headers'
-import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
+import { DEMO_COOKIE, read as readDemo, reservedAddress } from '@/lib/demo-session'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import {
+  SAMPLE_COOKIE, SAMPLE_WORLD, SAMPLE_DESK, isSampleCookie, sampleMay, sampleRefusalBody,
+} from '@/lib/sample-seat'
+import { DESK_ROLES } from '@/lib/demo-desks'
 import { staffAddresses } from '@/lib/alerts'
 import { desklessDoor, recordNamedBy, type RecordFamily } from '@/lib/deskless-door'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
@@ -86,6 +91,17 @@ export interface CallerContext {
    * Only a route that asks for `caller.staff` by name lets them in.
    */
   staff?: boolean
+  /**
+   * True when the caller is the shared sample seat the home page frames
+   * (`lib/sample-seat`): anybody, with no account, reading the seeded
+   * Northbend Athletic program manager's screens.
+   *
+   * Set in exactly one place, `sampleCaller` below, and read off which
+   * door resolved the caller — never off a header, a body field or a
+   * query string. A read-only caller never reaches a route on a write:
+   * the check refuses it first, so no route has to remember to.
+   */
+  readOnly?: boolean
 }
 
 /**
@@ -274,6 +290,105 @@ async function demoEmail(): Promise<string | null> {
 }
 
 /**
+ * The embed's own reads, made in-process as the sample seat.
+ *
+ * The frame on the home page draws its rows on the server by calling the
+ * same GET handlers the dashboard calls, inside this scope, so its numbers
+ * are the dashboard's numbers. Inside it the caller is the sample seat
+ * whoever is signed in: a buyer who happens to hold a real seat sees the
+ * sample in the frame, never their own book.
+ *
+ * Only server code can enter the scope. Nothing on the wire can.
+ */
+const sampleScope = new AsyncLocalStorage<true>()
+
+export function asSampleSeat<T>(read: () => Promise<T>): Promise<T> {
+  return sampleScope.run(true, read)
+}
+
+/** Whether this request carries the sample cookie. Read off the request where there is one. */
+async function sampleCookieOn(request?: NextRequest): Promise<boolean> {
+  const onRequest = request?.cookies?.get(SAMPLE_COOKIE)?.value
+  if (onRequest !== undefined) return isSampleCookie(onRequest)
+  try {
+    const jar = await cookies()
+    return isSampleCookie(jar.get(SAMPLE_COOKIE)?.value)
+  } catch {
+    // Outside a request scope: a cron job, a script. No visitor.
+    return false
+  }
+}
+
+/**
+ * The shared sample seat: the seeded Northbend Athletic program manager,
+ * read-only (`lib/sample-seat`).
+ *
+ * The seat is the world's own — the person, the role and the company the
+ * full demo door opens — so every read answers exactly as it does there.
+ * What differs is the flag, and what follows from it here, once, for
+ * every route:
+ *
+ * - a write is refused with the sample's sentence and its two doors,
+ *   before any route code runs, and the refusal never reaches the world;
+ * - so is a caller with no request to read a method off, which is a page
+ *   rather than a route: the seat fails closed;
+ * - `lastUsedAt` is not touched, because a stranger looking is not the
+ *   program manager working, and the access review must not read it so;
+ * - the person must be at a domain nobody can register, so a deployment
+ *   where the slug somehow names a real company opens nothing.
+ */
+async function sampleCaller(
+  request?: NextRequest
+): Promise<{ caller: CallerContext; error: null } | { caller: null; error: NextResponse }> {
+  const seat = await prisma.context.findFirst({
+    where: {
+      revokedAt: null, suspendedAt: null,
+      company: { slug: SAMPLE_WORLD },
+      role: { name: { in: DESK_ROLES[SAMPLE_DESK] } },
+    },
+    include: {
+      person: { select: { id: true, name: true, primaryEmail: true, timezone: true } },
+      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
+      role: { select: { id: true, name: true, permissions: true } },
+    },
+    orderBy: { grantedAt: 'asc' },
+  })
+
+  if (!seat || !seat.company || !reservedAddress(seat.person.primaryEmail)) {
+    return {
+      caller: null,
+      error: NextResponse.json(
+        {
+          error: {
+            code: 'SAMPLE_NOT_SEEDED',
+            message: 'The sample company is not on this deployment yet, so there is nothing to show. Open the demo instead.',
+          },
+        },
+        { status: 404 }
+      ),
+    }
+  }
+
+  const caller: CallerContext = {
+    person: seat.person,
+    context: { id: seat.id, type: seat.type, companyId: seat.companyId, roleId: seat.roleId },
+    company: seat.company,
+    permissions: (seat.role?.permissions as string[]) ?? [],
+    orgUnitId: seat.orgUnitId,
+    staff: false,
+    readOnly: true,
+  }
+
+  if (!sampleMay(request?.method)) {
+    return { caller: null, error: NextResponse.json(sampleRefusalBody(), { status: 403 }) }
+  }
+
+  const refused = await desklessRefusal(caller, request)
+  if (refused) return { caller: null, error: refused }
+  return { caller, error: null }
+}
+
+/**
  * Resolve the authenticated caller's person, active context, company, and permissions.
  *
  * Uses the `x-context-id` header when present; otherwise falls back to the
@@ -292,6 +407,12 @@ export async function getCallerContext(
   // Checked before any person is looked up, because a service account is
   // not a person and giving an integration somebody's login is how a
   // leaver's departure breaks the nightly ERP feed — or worse, does not.
+  // ── The frame's own reads ───────────────────────────────────────────
+  //
+  // First, before a key or a session: inside the embed's scope the caller
+  // is the sample seat whoever is signed in (`asSampleSeat`).
+  if (sampleScope.getStore()) return sampleCaller(request)
+
   const machine = await callerFromApiKey(request)
   if (machine) return machine
 
@@ -308,6 +429,10 @@ export async function getCallerContext(
   const sessionEmail = await getSessionEmail()
 
   if (!sessionEmail) {
+    // Nobody signed in and no demo of their own: a visitor looking at the
+    // home page's frame is the sample seat, read-only. Last, never first —
+    // see lib/sample-seat.
+    if (await sampleCookieOn(request)) return sampleCaller(request)
     return {
       caller: null,
       error: NextResponse.json(

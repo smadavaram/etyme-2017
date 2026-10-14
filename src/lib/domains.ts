@@ -368,6 +368,11 @@ export const DOMAINS: Domain[] = [
       'lib/model-boundary',
       // The number on the Ask Etyme mark, where the bell was (2026-10-13).
       'lib/owed-count',
+      // The product inside the home page, read-only (founder, 2026-10-14):
+      // the shared sample seat's rules, read by the middleware and the one
+      // caller check, and the frame the home page shows. The home page that
+      // frames it is market's.
+      'lib/sample-seat', 'app/embed',
       // Staff bootstrap of a real company on a deployment with no email key
       // (2026-10-14, "Etyme runs on Etyme"), and the page staff follow.
       'lib/staff-bootstrap', 'app/api/staff', 'docs/run-etyme-on-etyme.md',

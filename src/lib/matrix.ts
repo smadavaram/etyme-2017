@@ -956,6 +956,7 @@ export const MATRIX: L1[] = [
             'BUILT 2026-09-30, from a browser walk: a desk nobody holds is refused with what is true \u2014 \u201cNobody holds the AP & Payroll desk at Teleworld Solutions in the demo; these desks are seated: Owner, \u2026\u201d \u2014 listing every seat\u2019s own role, the desk keys that would open, and that asking with no desk sits you as the first seat, where it had said nobody was seated at a firm whose owner\u2019s door opened. \u201cAP\u201d at a firm that sells is its AP & Payroll desk and lands on Payroll (lib/demo-desks)',
             'BUILT 2026-10-05, from an outside review of the live demo: the bench vendor has a door \u2014 Pellwright Validation Partners, \u201cBench vendor, below a prime\u201d, glossed as workers waiting for a project \u2014 with its owner and finance desks, each a seat the seed writes and the route answers to; the finance desk lands on its invoices and reads bench profit on Our bench',
             'FIXED 2026-10-06, from the chain audit: a desk word that is not a desk \u2014 \u201cowner\u201d, a desk one letter wrong \u2014 is refused in a sentence naming the desks the firm has and saying no seat was taken, where it fell through to the firm\u2019s first seat, the Owner (deskAsked in lib/demo-desks). Asking with no desk still opens the first seat. The real sign-in path was read for the same fallback and has none: joining by domain grants no role, and a caller is only ever read off their own seat (lib/api-context). And Techpeple\u2019s door no longer says a sub-vendor never learns which hospital the job is at: it knows the site, and the hospital does not see its name unless the agreement with the prime asks for it',
+            'DONE 2026-10-14 by etyme-architect, for the home page the founder approved that day: a shared read-only sample seat \u2014 the seeded Northbend Athletic program manager, reached with no account and no sandbox \u2014 and the frame the home page shows, GET /embed/demo (the program dashboard) and /embed/demo/source, /submit, /approve and /pay, drawn on the server from the dashboard\u2019s own routes with no menus, framed by this site only (frame-ancestors \u2019self\u2019). Every write from the seat is refused at the one caller check (lib/api-context), never per route, in one sentence \u2014 \u201cThis is a shared sample, so nothing here can be changed: open your own demo to try it, or sign up.\u201d \u2014 with the two doors beside it; the flag is set only by the door that resolved the caller, never by a header or a body; the seat cannot read another company\u2019s program, and a stranger\u2019s reads leave the program manager\u2019s last use alone',
             'FIXED 2026-10-06, from the demo testers of 2026-10-03: the demo door seats a delivery manager \u2014 each of Teleworld\u2019s two by name, Ingrid Solberg in Tualatin and Rahul Deshpande in San Jose, on Our bench. A desk held by two people takes a name with it (`who`), read only alongside a desk; a name that does not hold the desk takes no seat and is told who does; and the Teleworld door says how many days ago Karthik Menon left his last project, read from his contract (app/demo/door-facts), where it said \u201cthree weeks ago\u201d against a record of thirty-one days'
           ],
           implementedBy: [
@@ -975,6 +976,10 @@ export const MATRIX: L1[] = [
             'src/lib/seed-cleanup.ts', 'src/app/api/seed-world/cleanup/route.ts',
             'src/lib/seed-owners.ts', 'src/lib/account-lifecycle.ts', 'src/lib/sandbox-expiry.ts', 'src/app/api/cron/reap-demos/route.ts',
             'src/lib/demo-desks.ts', 'src/lib/seed-renames.ts',
+            // The product inside the home page, read-only (2026-10-14).
+            'src/lib/sample-seat.ts', 'src/lib/api-context.ts', 'src/middleware.ts',
+            'src/app/embed/demo/page.tsx', 'src/app/embed/demo/[step]/page.tsx',
+            'src/app/embed/demo/read.ts', 'src/app/embed/demo/screens.tsx', 'src/app/embed/demo/try-it.tsx',
           ],
           testedBy: [
             '__tests__/invariants/seed-renames.test.ts', '__integration__/retired-demo-firm-renamed.test.ts',
@@ -988,6 +993,7 @@ export const MATRIX: L1[] = [
             '__integration__/seed-step-size.test.ts', '__integration__/seed-stays-in-its-world.test.ts',
             '__tests__/invariants/seed-shares.test.ts', '__integration__/seeded-worker-pay.test.ts',
             '__tests__/invariants/demo-chip.test.ts',
+            '__tests__/invariants/sample-seat.test.ts', '__integration__/sample-seat.test.ts',
             '__integration__/demo-seats.test.ts', '__integration__/reseed-gate.test.ts',
             '__tests__/invariants/three-doors-one-desk.test.ts', '__integration__/three-doors-one-desk.test.ts',
             '__integration__/reseed-across-days.test.ts', '__tests__/invariants/demo-names.test.ts',
