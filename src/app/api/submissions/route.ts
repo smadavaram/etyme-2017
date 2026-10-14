@@ -28,6 +28,7 @@ import { actingDesk } from '@/lib/program-seat'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays, clientSubmissionsRefused } from './own-only'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
  * POST /api/submissions
@@ -1373,6 +1374,7 @@ export async function POST(request: NextRequest) {
       where: {
         companyId: toCompanyId,
         role: { permissions: { hasSome: ['submissions.read'] } },
+        ...NOT_THE_SAMPLE_SEAT,
       },
       select: { personId: true },
       take: 5,

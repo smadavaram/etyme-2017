@@ -23,6 +23,7 @@ import { amount } from '@/lib/money-display'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import { topDown, signersOf, turnOf, tellNext, signedBy, type Signer } from '../../chain-turn'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
  * POST /api/timesheets/:id/approve
@@ -976,6 +977,7 @@ export async function POST(
         companyId: nextSigner.companyId,
         revokedAt: null,
         role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+        ...NOT_THE_SAMPLE_SEAT,
       },
       select: { personId: true },
       take: 5,

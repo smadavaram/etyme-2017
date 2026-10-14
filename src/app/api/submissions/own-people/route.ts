@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { offeredForWork } from './who'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
  * GET /api/submissions/own-people — our own W2s, who need no bench listing
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
       revokedAt: null,
       suspendedAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      ...NOT_THE_SAMPLE_SEAT,
     },
     select: {
       personId: true,

@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
  * GET /api/program/team — who runs this client's contingent program.
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest) {
 
   const [seats, rules, orgUnits, costCentres] = await Promise.all([
     prisma.context.findMany({
-      where: { companyId, revokedAt: null, NOT: { roleId: null } },
+      where: { companyId, revokedAt: null, NOT: { roleId: null }, ...NOT_THE_SAMPLE_SEAT },
       orderBy: { grantedAt: 'asc' },
       select: {
         id: true, grantedAt: true, expiresAt: true,

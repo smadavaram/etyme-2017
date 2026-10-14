@@ -590,3 +590,22 @@ describe('A role that is already closed is not offered a cancellation', () => {
     expect(code(LIST_PAGE)).toContain('{can.cancel && (')
   })
 })
+
+describe('the shared sample seat on the requisition pickers', () => {
+  // The home page's live frame reads Northbend as a seeded person of its
+  // own, "Shared sample", who holds the Program Manager role
+  // (src/lib/sample-seat.ts). The requisition screens fill their owner,
+  // panel and approver pickers from /api/program/team, and the supplier
+  // walk asks whoever holds a desk's permission, so both have to leave
+  // that seat out where they read who is at the company.
+  it('the shared sample is never offered as a requisition owner, approver or panel member', () => {
+    const team = code(read('src/app/api/program/team/route.ts'))
+    expect(team).toContain("import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'")
+    expect(team).toMatch(/prisma\.context\.findMany\(\{\s*where: \{ companyId, revokedAt: null, NOT: \{ roleId: null \}, \.\.\.NOT_THE_SAMPLE_SEAT \}/)
+    // The pickers read that route and no other list of people.
+    for (const page of [LIST_PAGE, DETAIL_PAGE]) expect(page).toContain("fetch('/api/program/team')")
+    // A desk asked by permission on a supplier's walk is not the sample either.
+    const desks = code(read('src/lib/supplier-desks.ts'))
+    expect(desks).toMatch(/permissions: \{ has: permission \} \}, \.\.\.NOT_THE_SAMPLE_SEAT/)
+  })
+})

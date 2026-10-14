@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import type { Desks } from '@/lib/supplier-onboarding'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
  * The desks a supplier walks, as the requisition chain already names
@@ -65,7 +66,7 @@ export async function deskPeople(
   if (stage === 'HR' && free(desks.hrId)) return [desks.hrId!]
   const permission = stage === 'PROCUREMENT' ? 'vendors.manage' : stage === 'FINANCE' ? 'payments.record' : 'governance.write'
   const rows = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, role: { permissions: { has: permission } } },
+    where: { companyId, revokedAt: null, role: { permissions: { has: permission } }, ...NOT_THE_SAMPLE_SEAT },
     select: { personId: true },
   })
   const ids = new Set(rows.map((r) => r.personId))
