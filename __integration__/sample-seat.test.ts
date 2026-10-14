@@ -13,8 +13,9 @@ vi.mock('next-auth/next', () => ({ getServerSession: async () => null }))
 import { NextRequest } from 'next/server'
 import { req, freshWorld, prisma, as } from './harness'
 import { asSampleSeat, getCallerContext } from '@/lib/api-context'
-import { SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_REFUSAL, EMBED_STEPS } from '@/lib/sample-seat'
+import { SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_REFUSAL, EMBED_STEPS, SAMPLE_PERSON_EMAIL, SAMPLE_PERSON_NAME } from '@/lib/sample-seat'
 import { readStep } from '@/app/embed/demo/read'
+import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
 import EmbedStepPage from '@/app/embed/demo/[step]/page'
 import EmbedDemoPage from '@/app/embed/demo/page'
 
@@ -34,11 +35,22 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 
 const SAMPLE = { cookie: `${SAMPLE_COOKIE}=${SAMPLE_COOKIE_VALUE}` }
 
+/** The program manager who works at Northbend: never the sample. */
+const LORENA = 'world-nike-programme@demo.etyme.local'
+
+/** The sample's own seat: its person and its Context. */
+async function sampleSeat() {
+  return prisma.context.findFirstOrThrow({
+    where: { company: { slug: 'world-nike' }, person: { primaryEmail: SAMPLE_PERSON_EMAIL } },
+    select: { id: true, personId: true, companyId: true, person: { select: { name: true } }, role: { select: { name: true } } },
+  })
+}
+
 /** What a stranger could have changed, counted and read back whole. */
 async function theWorld() {
   const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
   const pm = await prisma.context.findFirstOrThrow({
-    where: { companyId: northbend.id, role: { name: 'Program Manager' } },
+    where: { companyId: northbend.id, person: { primaryEmail: LORENA } },
     select: { lastUsedAt: true },
   })
   return {
@@ -99,6 +111,24 @@ describe('the shared sample seat the home page frames', () => {
     expect(html).not.toMatch(/<nav[\s>]/)
   }, 60_000)
 
+  it('the embedded overview lists exactly the people its on-site figure counts', async () => {
+    as('')
+    const reads = await readStep('overview')
+    expect(reads.program.ok).toBe(true)
+    const onSiteFigure = (reads.program as any).data.summary.activeContractors as number
+    const html = renderToStaticMarkup(await EmbedStepPage({ params: { step: 'overview' } }))
+    const panel = html.slice(html.indexOf('>Contractors<'), html.indexOf('>By supplier<'))
+    const body = panel.slice(panel.indexOf('<tbody>'), panel.indexOf('</tbody>'))
+    const names = [...body.matchAll(/<tr[^>]*><td[^>]*>([^<]*)<\/td>/g)].map((m) => m[1])
+    expect(onSiteFigure).toBe(7)
+    expect(names).toHaveLength(onSiteFigure)
+    expect(new Set(names).size).toBe(onSiteFigure)
+    // Somebody signed who starts after today is not a row beside the figure;
+    // they are named under the table as yet to start.
+    expect(body).not.toContain('Ingrid Sørensen')
+    expect(panel).toMatch(/Yet to start, not counted above:[^<]*Ingrid Sørensen/)
+  }, 60_000)
+
   it('a screen that is not one of the five is not found rather than drawn empty', async () => {
     await expect(EmbedStepPage({ params: { step: 'payroll' } })).rejects.toThrow()
   })
@@ -111,7 +141,7 @@ describe('the shared sample seat the home page frames', () => {
     expect((reads.program as any).data.client.name).toBe('Northbend Athletic')
   }, 60_000)
 
-  it('the sample cookie alone, with no account, reads the program as the Northbend program manager', async () => {
+  it('the sample cookie alone, with no account, reads the program with the Northbend program manager\u2019s role', async () => {
     as('')
     const res = await program(req('GET', '/api/program', undefined, SAMPLE))
     expect(res.status).toBe(200)
@@ -136,12 +166,10 @@ describe('the shared sample seat the home page frames', () => {
     expect(await theWorld()).toEqual(before)
   }, 60_000)
 
-  it('a refused write from the shared sample is in the access log before the refusal is sent, filed as the sample and never as the program manager whose seat it borrows', async () => {
+  it('a refused write from the shared sample is in the access log before the refusal is sent, filed as the sample under its own seat and never as the program manager who works there', async () => {
     as('')
-    const pm = await prisma.context.findFirstOrThrow({
-      where: { company: { slug: 'world-nike' }, role: { name: 'Program Manager' } },
-      select: { id: true, personId: true, companyId: true },
-    })
+    const seat = await sampleSeat()
+    const lorena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: LORENA }, select: { id: true } })
     const since = new Date()
     const res = await setWeek(req('PATCH', '/api/settings/week', { daysOff: [5, 6], reason: 'try' }, SAMPLE))
     expect(res.status).toBe(403)
@@ -149,12 +177,68 @@ describe('the shared sample seat the home page frames', () => {
     const rows = await prisma.accessLog.findMany({ where: { action: 'SAMPLE_WRITE', at: { gte: since } } })
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({
-      subjectId: pm.personId, actorPersonId: null, actorCompanyId: pm.companyId,
+      subjectId: seat.personId, actorPersonId: null, actorCompanyId: seat.companyId,
       actorKind: 'SAMPLE', actorTwinKind: null, allowed: false,
     })
-    expect(rows[0].reason).toBe(`Through the shared sample, seat ${pm.id}. Refused PATCH /api/settings/week: the shared sample is read-only.`)
-    // Nothing is filed as her for it.
-    expect(await prisma.accessLog.count({ where: { actorPersonId: pm.personId, at: { gte: since } } })).toBe(0)
+    expect(rows[0].reason).toBe(`Through the shared sample, seat ${seat.id}. Refused PATCH /api/settings/week: the shared sample is read-only.`)
+    // Nothing is filed as her for it, as actor or as subject.
+    expect(await prisma.accessLog.count({ where: { OR: [{ actorPersonId: lorena.id }, { subjectId: lorena.id }], at: { gte: since } } })).toBe(0)
+  }, 60_000)
+
+  it('the shared sample is a seeded person of its own, at a domain nobody can register, holding the program manager\u2019s role at Northbend Athletic', async () => {
+    const seat = await sampleSeat()
+    expect(seat.person.name).toBe(SAMPLE_PERSON_NAME)
+    expect(SAMPLE_PERSON_EMAIL.endsWith('.local')).toBe(true)
+    expect(seat.role?.name).toBe('Program Manager')
+    const lorena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: LORENA }, select: { id: true } })
+    expect(seat.personId).not.toBe(lorena.id)
+  })
+
+  it('a read through the sample is filed under the shared sample\u2019s own seat and never under a program manager who works there', async () => {
+    as('')
+    const seat = await sampleSeat()
+    const lorena = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: LORENA }, select: { id: true } })
+    const asLorena = () => prisma.accessLog.count({ where: { actorPersonId: lorena.id } })
+    const asSample = () => prisma.accessLog.count({
+      where: { OR: [{ actorPersonId: seat.personId }, { actorKind: 'SAMPLE', reason: { startsWith: `Through the shared sample, seat ${seat.id}.` } }] },
+    })
+    const lorenaBefore = await asLorena()
+    const sampleBefore = await asSample()
+    for (const step of EMBED_STEPS) await readStep(step)
+    expect(await asLorena()).toBe(lorenaBefore)
+    expect(await asSample()).toBeGreaterThan(sampleBefore)
+  }, 60_000)
+
+  it('a world seeded before the sample had a person of its own shows nothing, says so, and tells staff, rather than reading as the program manager', async () => {
+    as('')
+    const seat = await sampleSeat()
+    const incidentsBefore = await prisma.incident.count()
+    await prisma.context.update({ where: { id: seat.id }, data: { revokedAt: new Date() } })
+    try {
+      const res = await program(req('GET', '/api/program', undefined, SAMPLE))
+      expect(res.status).toBe(404)
+      const body = await res.json()
+      expect(body.error.code).toBe('SAMPLE_NOT_SEEDED')
+      expect(body.error.message).toBe('The sample is not set up on this deployment yet, so there is nothing to show. Open the demo instead.')
+      expect(JSON.stringify(body)).not.toContain('Northbend Athletic')
+      expect(await prisma.incident.count()).toBeGreaterThan(incidentsBefore)
+    } finally {
+      await prisma.context.update({ where: { id: seat.id }, data: { revokedAt: null } })
+    }
+  }, 60_000)
+
+  it('no demo door seats a visitor at the shared sample\u2019s seat: asking for it by name is answered with who holds the desk', async () => {
+    as('')
+    const { POST: demo } = await import('@/app/api/demo/route')
+    const res = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme', who: SAMPLE_PERSON_NAME }))
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.message).toBe(
+      'Shared sample does not hold the Program Manager desk at Northbend Athletic in the demo, so no seat was taken. The Program Manager desk there is held by Lorena Kellerman.'
+    )
+    const plain = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme' }))
+    expect(plain.status).toBeLessThan(400)
+    const cookie = (plain.headers.get('set-cookie') ?? '').match(new RegExp(`${DEMO_COOKIE}=([^;]+)`))?.[1]
+    expect(readDemo(cookie)).toBe(LORENA)
   }, 60_000)
 
   it('reading every screen as the sample seat changes nothing, not even the program manager’s own last use, so the access review does not read strangers as her', async () => {

@@ -45,6 +45,7 @@ import { weekDueFor } from '@/lib/days-off'
 import { shareOf, lastShare, type Share } from '@/lib/seed-steps'
 import { newChecklist } from '@/lib/supplier-onboarding'
 import { newApplyToken } from '@/lib/supplier-link'
+import { SAMPLE_WORLD, SAMPLE_DESK, SAMPLE_PERSON_NAME, SAMPLE_PERSON_EMAIL } from '@/lib/sample-seat'
 
 export interface World {
   firmBySlug: Map<string, { id: string }>
@@ -646,6 +647,30 @@ export async function seedProgrammes(
         })
       }
       desk[d.key] = { personId: who.id, email }
+    }
+
+    // ── The shared sample's seat, at Northbend only ────────────────
+    //
+    // The home page frames this program read-only (`lib/sample-seat`).
+    // The frame reads as a person of its own holding the program
+    // manager's role, so every access-log row it causes names that
+    // person and never Lorena Kellerman. Granted after her, and left out
+    // of `people`: it is a seat for strangers, not somebody in the story.
+    if (slug === SAMPLE_WORLD) {
+      const programmeRole = DESKS.find((d) => d.key === SAMPLE_DESK)!.role
+      const sample = await db.person.upsert({
+        where: { primaryEmail: SAMPLE_PERSON_EMAIL },
+        update: { name: SAMPLE_PERSON_NAME },
+        create: { name: SAMPLE_PERSON_NAME, primaryEmail: SAMPLE_PERSON_EMAIL },
+      })
+      if (!(await db.context.findFirst({ where: { personId: sample.id, companyId: client.id } }))) {
+        await db.context.create({
+          data: {
+            personId: sample.id, companyId: client.id, roleId: roleByName.get(programmeRole)!.id, type: 'EMPLOYEE',
+            side: 'BUY', grantReason: 'Shared sample seat for the home page frame; read-only at the caller check.',
+          },
+        })
+      }
     }
 
     // ── The standing desks, as rules per business unit ─────────────

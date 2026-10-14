@@ -138,6 +138,14 @@ function Overview({ program }: { program: Read<any> }) {
   if (!program.ok) return <Refused says={program.says} />
   const p = program.data
   const s = p.summary
+  // The table lists exactly whom the "On site" figure counts: a live line
+  // in IN_PROGRESS, the program route's own rule (`onSite` in
+  // app/api/program). Somebody signed who starts later is a line under
+  // the table, as the program page's Contractors tab says "yet to start",
+  // never a row beside a figure that does not count them.
+  const contractors = (p.contractors as any[]) ?? []
+  const onSite = contractors.filter((c) => c.state === 'IN_PROGRESS')
+  const later = contractors.filter((c) => c.state !== 'IN_PROGRESS' && c.state !== 'ENDED')
   return (
     <>
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -148,7 +156,7 @@ function Overview({ program }: { program: Read<any> }) {
       </div>
       <Panel title="Contractors" sub="Every contractor on site, the supplier, and the rate you pay.">
         <Rows
-          rows={p.contractors as any[]}
+          rows={onSite}
           rowKey={(c) => c.contractId}
           empty="Nobody is on site yet."
           cols={[
@@ -159,6 +167,12 @@ function Overview({ program }: { program: Read<any> }) {
             { label: 'Ends', cell: (c) => day(c.endDate) },
           ]}
         />
+        {later.length > 0 && (
+          <p className="mt-2 text-xs text-etyme-muted" data-yet-to-start="">
+            Yet to start, not counted above:{' '}
+            {later.map((c) => `${c.person?.name} on ${day(c.startDate)}`).join('; ')}.
+          </p>
+        )}
       </Panel>
       <Panel title="By supplier" sub={s.monthlySpendBasis}>
         <Rows

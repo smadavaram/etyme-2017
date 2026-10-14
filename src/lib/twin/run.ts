@@ -28,6 +28,7 @@
 
 import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
 import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
 import { ruleSetFor } from '@/lib/twin/rule-set'
@@ -46,7 +47,9 @@ export const PROGRAM_MANAGER_ROLE = 'Program Manager'
  */
 export async function programManagerAt(companyId: string): Promise<Authority> {
   const seat = await prisma.context.findFirst({
-    where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: PROGRAM_MANAGER_ROLE } },
+    // Never the shared sample's seat, which holds the role to read as
+    // the program manager does and acts on nobody's authority.
+    where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: PROGRAM_MANAGER_ROLE }, ...NOT_THE_SAMPLE_SEAT },
     orderBy: { id: 'asc' },
     select: { personId: true, person: { select: { name: true } } },
   })

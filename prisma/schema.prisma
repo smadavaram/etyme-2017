@@ -484,10 +484,14 @@ model AccessLog {
   actorCompany   Company? @relation(fields: [actorCompanyId], references: [id])
   action         String // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
   allowed        Boolean  @default(true)
-  /// PERSON · TWIN. TWIN where a twin made the read on the authority of
-  /// `actorPersonId`'s seat, so the row carries both names: the person
-  /// whose authority it was, and the twin that used it (2026-10-12). The
-  /// grant it acted under is the twin's ledger entry, named in `reason`.
+  /// PERSON · TWIN · SAMPLE. TWIN where a twin made the read on the
+  /// authority of `actorPersonId`'s seat, so the row carries both names:
+  /// the person whose authority it was, and the twin that used it
+  /// (2026-10-12). The grant it acted under is the twin's ledger entry,
+  /// named in `reason`. SAMPLE where a stranger read through the shared
+  /// sample seat the home page frames (2026-10-14); that seat is a seeded
+  /// person of its own ("Shared sample"), never a program manager who
+  /// works there, and `reason` names its Context.
   actorKind      String   @default("PERSON")
   /// Which twin, where `actorKind` is TWIN — PROGRAM_MANAGER first.
   actorTwinKind  String?

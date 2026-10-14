@@ -1,3 +1,4 @@
+import { SAMPLE_PERSON_EMAIL, NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { deskAsked, deskRefusal, whoAsked, whoRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
@@ -349,7 +350,10 @@ export async function POST(request: NextRequest) {
             // off the role rather than off the address, so a firm whose
             // desks were seeded under any other handle still opens.
             ...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {}),
-            ...(who ? { person: { name: who } } : {}),
+            // Never the shared sample's seat: it holds the program
+            // manager's role for the home page's frame, and is opened
+            // read-only by the sample door alone (`lib/sample-seat`).
+            person: { primaryEmail: { not: SAMPLE_PERSON_EMAIL }, ...(who ? { name: who } : {}) },
           },
           select: { person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } } },
           orderBy: { grantedAt: 'asc' },
@@ -387,7 +391,7 @@ export async function POST(request: NextRequest) {
     // The desk is held, but not by the person asked for: say who does.
     if (company && desk && who && !email) {
       const holders = await prisma.context.findMany({
-        where: { companyId: company.id, revokedAt: null, role: { name: { in: DESK_ROLES[desk] } } },
+        where: { companyId: company.id, revokedAt: null, role: { name: { in: DESK_ROLES[desk] } }, ...NOT_THE_SAMPLE_SEAT },
         select: { person: { select: { name: true } } },
         orderBy: { grantedAt: 'asc' },
       })
@@ -422,7 +426,7 @@ export async function POST(request: NextRequest) {
       // opens never reaches it.
       const held = company
         ? await prisma.context.findMany({
-            where: { companyId: company.id, revokedAt: null, NOT: { roleId: null } },
+            where: { companyId: company.id, revokedAt: null, NOT: { roleId: null }, ...NOT_THE_SAMPLE_SEAT },
             select: { role: { select: { name: true } } },
             orderBy: { grantedAt: 'asc' },
           })

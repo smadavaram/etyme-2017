@@ -7,10 +7,10 @@ import { cookies } from 'next/headers'
 import { DEMO_COOKIE, read as readDemo, reservedAddress } from '@/lib/demo-session'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import {
-  SAMPLE_COOKIE, SAMPLE_WORLD, SAMPLE_DESK, isSampleCookie, sampleMay, sampleRefusalBody,
+  SAMPLE_COOKIE, SAMPLE_WORLD, SAMPLE_DESK, SAMPLE_PERSON_EMAIL, isSampleCookie, isSamplePerson, sampleMay, sampleRefusalBody,
 } from '@/lib/sample-seat'
 import { DESK_ROLES } from '@/lib/demo-desks'
-import { staffAddresses } from '@/lib/alerts'
+import { staffAddresses, reportError } from '@/lib/alerts'
 import { desklessDoor, recordNamedBy, type RecordFamily } from '@/lib/deskless-door'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
@@ -281,7 +281,12 @@ export async function getSessionEmail(): Promise<string | null> {
 async function demoEmail(): Promise<string | null> {
   try {
     const jar = await cookies()
-    return readDemo(jar.get(DEMO_COOKIE)?.value)
+    const email = readDemo(jar.get(DEMO_COOKIE)?.value)
+    // The shared sample's person is a seat for strangers, read-only, and
+    // only the sample door opens it. A demo cookie naming it — however it
+    // was signed — would hand somebody that seat with the program
+    // manager's writes, under the sample's name. It is nobody.
+    return isSamplePerson(email) ? null : email
   } catch {
     // cookies() throws outside a request scope, which is where the cron
     // jobs call this from. No cookie, no demo visitor.
@@ -320,22 +325,26 @@ async function sampleCookieOn(request?: NextRequest): Promise<boolean> {
 }
 
 /**
- * The shared sample seat: the seeded Northbend Athletic program manager,
- * read-only (`lib/sample-seat`).
+ * The shared sample seat: a person of its own at Northbend Athletic,
+ * holding the program manager's role, read-only (`lib/sample-seat`).
  *
- * The seat is the world's own — the person, the role and the company the
- * full demo door opens — so every read answers exactly as it does there.
- * What differs is the flag, and what follows from it here, once, for
- * every route:
+ * The seat is its own — the person `SAMPLE_PERSON_EMAIL`, seeded beside
+ * the Northbend desks — and the role is the program manager's, so every
+ * read answers as it does for her while every access-log row the routes
+ * write names the sample, never her (measured 2026-10-14: ninety-four
+ * routes write `caller.person.id`). What differs is the flag, and what
+ * follows from it here, once, for every route:
  *
  * - a write is refused with the sample's sentence and its two doors,
  *   before any route code runs, and the refusal never reaches the world;
  * - so is a caller with no request to read a method off, which is a page
  *   rather than a route: the seat fails closed;
- * - `lastUsedAt` is not touched, because a stranger looking is not the
- *   program manager working, and the access review must not read it so;
+ * - `lastUsedAt` is not touched, because a stranger looking is not use;
  * - the person must be at a domain nobody can register, so a deployment
- *   where the slug somehow names a real company opens nothing.
+ *   where the slug somehow names a real company opens nothing;
+ * - a world seeded before the sample's person existed opens nothing
+ *   either: it says so and staff are told, and it never falls back to
+ *   the program manager's own seat, which is the bug this replaced.
  */
 async function sampleCaller(
   request?: NextRequest
@@ -344,6 +353,7 @@ async function sampleCaller(
     where: {
       revokedAt: null, suspendedAt: null,
       company: { slug: SAMPLE_WORLD },
+      person: { primaryEmail: SAMPLE_PERSON_EMAIL },
       role: { name: { in: DESK_ROLES[SAMPLE_DESK] } },
     },
     include: {
@@ -355,13 +365,26 @@ async function sampleCaller(
   })
 
   if (!seat || !seat.company || !reservedAddress(seat.person.primaryEmail)) {
+    // The company is there and the sample's own seat is not: a world
+    // seeded before the seat existed. Staff hear it; the visitor reads a
+    // sentence. Nothing here reaches for another seat at the company.
+    const company = await prisma.company.findUnique({ where: { slug: SAMPLE_WORLD }, select: { id: true } })
+    if (company) {
+      await reportError(
+        'sample seat: missing',
+        'The shared sample has no seat of its own at Northbend Athletic, so the home page frame shows nothing. Reseed the world to make it.',
+        { companyId: company.id }
+      ).catch(() => undefined)
+    }
     return {
       caller: null,
       error: NextResponse.json(
         {
           error: {
             code: 'SAMPLE_NOT_SEEDED',
-            message: 'The sample company is not on this deployment yet, so there is nothing to show. Open the demo instead.',
+            message: company
+              ? 'The sample is not set up on this deployment yet, so there is nothing to show. Open the demo instead.'
+              : 'The sample company is not on this deployment yet, so there is nothing to show. Open the demo instead.',
           },
         },
         { status: 404 }

@@ -53,6 +53,44 @@ export const SAMPLE_COOKIE_SECONDS = 24 * 60 * 60
 export const SAMPLE_WORLD = 'world-nike'
 export const SAMPLE_DESK = 'programme' as const
 
+/**
+ * The person the sample seat is: a seeded person of its own, never the
+ * program manager who works at Northbend.
+ *
+ * Measured 2026-10-14 by etyme-regulatory: the seat used to be the seeded
+ * program manager's own, and ninety-four routes write `caller.person.id`
+ * into the access log, so one look at the home page's frame was filed
+ * under her name and her access review read strangers as her. The fix is
+ * the seat, not the routes: the sample holds the program manager's role
+ * at its own Context, so every row the existing code writes names this
+ * person. Seeded in `lib/seed-programmes` beside the Northbend desks.
+ *
+ * At a domain nobody can register, like every seeded person
+ * (`docs/demo-names.md`). The address is the one flag this person
+ * carries: nothing in the schema marks a person as not a person, and a
+ * column for one seat is not worth a migration.
+ */
+export const SAMPLE_PERSON_NAME = 'Shared sample'
+export const SAMPLE_PERSON_EMAIL = 'world-nike-sample@demo.etyme.local'
+
+/** Whether an address is the sample's person. */
+export function isSamplePerson(email: string | null | undefined): boolean {
+  return !!email && email.trim().toLowerCase() === SAMPLE_PERSON_EMAIL
+}
+
+/**
+ * A `Context` filter that leaves the sample's seat out.
+ *
+ * The one place a list of seats, or a lookup by role, says "not the
+ * sample". The seat holds the Program Manager role so it reads what she
+ * reads; without this a lookup by that role could hand a visitor her
+ * desk as the sample, or the sample her decisions. Spread it inside an
+ * `AND` where the query already filters on `person`.
+ */
+export const NOT_THE_SAMPLE_SEAT = {
+  person: { primaryEmail: { not: SAMPLE_PERSON_EMAIL } },
+} as const
+
 /** Whether a cookie value is the sample's. */
 export function isSampleCookie(value: string | null | undefined): boolean {
   return value === SAMPLE_COOKIE_VALUE
