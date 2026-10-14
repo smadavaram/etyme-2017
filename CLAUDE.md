@@ -330,7 +330,7 @@ not explaining the complete functional process."* Decided:
   **less prose, practical daily English, and neat flow charts**: a
   process is shown as a flow chart first (boxes and arrows, who does
   each step), with short lines under it, never as paragraphs.
-- **"Source", not "Hire"** (founder, the same day). The first stage of
+- **"Source", not "Hire"** (founder, the same day; superseded 2026-10-14 by Job, Candidates, Timesheets, Invoices — see below). The first stage of
   the process is **Source** on every menu, page and flow chart: a
   contingent worker is sourced from a supplier, not hired. And a job
   request is a requirement: one object (`Requirement`), one screen
@@ -486,6 +486,34 @@ useless."* So:
   to sign up has "Contact" in the footer.
 - The program office offer (Etyme as MSP provider) loses its door with
   it. It returns, if it returns, as one line on Contact, not as a form.
+
+### The page shows the product working, and the four steps are the trade's words — decided by the founder, 2026-10-14
+
+"Build it", on the drawing at https://claude.ai/artifact/CtD3WDgeDiQNffeBTzSzo8,
+after he found the live frame either blank or a wall of raw tables,
+too large, and without Ask Etyme doing anything.
+
+- **The big live frame is replaced by one compact panel** on the home
+  page and on every product page and door. It plays the four steps on
+  its own, a step every few seconds, as an Ask Etyme conversation (a
+  question, an answer, a decision card that presses itself) beside the
+  table that answer changes. The chips jump to a step; each page starts
+  at its own step. About two thirds of the old frame's height; on a
+  phone the chat sits over a short table. "Open the demo, no account"
+  stays under it.
+- **It is drawn from the seeded demo's own names and figures and cannot
+  be blank**: it does not wait on a frame, a reseed or a network call.
+  A test checks every name and figure in it against the seed, so the
+  page never shows something the demo does not.
+- **The four steps are Job, Candidates, Timesheets, Invoices**, on the
+  chips, the product pages, the documentation spine, the menus and the
+  flow charts. This replaces Source, Submit, Approve and Pay (the
+  "Source, not Hire" line of 2026-09-30 is superseded): they are the
+  four nouns a buyer already has on their own desk, and each is the
+  thing the step produces. Machine names and routes do not move.
+- **Every line in it is the trade's phrasing**: send the job to approved
+  suppliers; who applied; schedule an interview; approve a timesheet;
+  pay an invoice; on hold.
 
 ### Why this is written down
 
