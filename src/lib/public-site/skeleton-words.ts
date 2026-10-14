@@ -63,6 +63,20 @@ export const BAND = {
   doorsLead: 'Your door:',
   audit: 'Get a free contractor spend audit',
 }
+/**
+ * The band on the contractors' door, the one reader who is not setting up
+ * a company (coordinator, 2026-10-14, on the founder's skeleton). Same
+ * band, same doors line, its own two lines and the candidate's sign-up;
+ * no spend audit, which is a company's question.
+ */
+export const BAND_FOR_SELF = {
+  heading: 'Seen enough? Set up your own page.',
+  line: 'Two minutes. Your weeks, your pay and your paperwork in one place. Free.',
+}
+
+/** Which band a page draws: a company's, or a person's own. */
+export type BandKind = 'COMPANY' | 'SELF'
+
 /** The client's sign-up, the band's filled button unless a door names its own. */
 export const CLIENT_SIGN_UP = { t: 'Sign up', href: '/signup' }
 
@@ -78,15 +92,17 @@ export const SECURITY = {
  * for the guard that counts a page: the frame's strip and its line, the
  * chips, the button under the frame, the band and the security line.
  */
-export function copyOfSkeleton(o: { caption?: string; label?: string; button: string; primary?: { t: string } }): string[] {
+export function copyOfSkeleton(o: { caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind }): string[] {
+  const self = o.band === 'SELF'
   return [
     FRAME.chrome,
     ...(o.caption ? [o.caption] : []),
     o.label ?? ON_SCREEN,
     CHIPS_LABEL, ...CHIPS.map((c) => c.t),
     o.button,
-    BAND.heading, BAND.line, BAND.doorsLead, ...DOORS.map((d) => d.t),
-    (o.primary ?? CLIENT_SIGN_UP).t, BAND.audit,
+    self ? BAND_FOR_SELF.heading : BAND.heading, self ? BAND_FOR_SELF.line : BAND.line,
+    BAND.doorsLead, ...DOORS.map((d) => d.t),
+    (o.primary ?? CLIENT_SIGN_UP).t, ...(self ? [] : [BAND.audit]),
     SECURITY.line, SECURITY.link, SECURITY.docs,
   ]
 }

@@ -22,6 +22,7 @@ export function ModulePageView({ m }: { m: ModulePage }) {
       purpose={m.purpose}
       step={m.step}
       lines={m.lines}
+      link={m.link}
       demo={{ label: OPEN_DEMO, target: m.demo }}
     />
   )

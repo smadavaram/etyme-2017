@@ -31,6 +31,7 @@ import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt } from '@/lib/public-site/parties'
 import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
+import { PROCESS } from '@/lib/public-site/docs/process'
 import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEADER_MORE, FOOTER as SITE_FOOTER } from '@/lib/public-site/nav'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
@@ -286,6 +287,32 @@ describe('Every product page and party door is the home page’s shape, opened a
     const chain = all(copyOfModule(MODULES.find((m) => m.slug === 'chain')!))
     expect(chain).toContain('A sub-vendor’s name and rates stay private.')
     expect(chain).toContain('You see who employs the person, and whether they are insured and authorized.')
+  })
+
+  it('the governance page’s last line links to the top of the documentation page that names what is not a rule', () => {
+    const g = MODULES.find((m) => m.slug === 'governance')!
+    expect(g.link!.href).not.toContain('#')
+    expect(pageAt(g.link!.href), g.link!.href).toBeTruthy()
+    expect(VIEW).toContain('<a href={link.href}')
+  })
+
+  it('every refusal the product pages quoted is on the documentation page of the step where it happens, in the words of the file that says it', () => {
+    const quoted = PROCESS.flatMap((p) => (p.refuses ?? []).map((r) => ({ at: p.slug, ...r })))
+    expect(quoted.length).toBeGreaterThanOrEqual(15)
+    for (const r of quoted) {
+      expect(r.says, `${r.at}: the phrase must be part of the sentence`).toContain(r.phrase)
+      expect(existsSync(join(ROOT, r.source)), r.source).toBe(true)
+      expect(read(r.source), `${r.at}: "${r.phrase}" is not in ${r.source}`).toContain(r.phrase)
+    }
+    const at = (phrase: string) => quoted.find((r) => r.phrase === phrase)?.at
+    expect(at('cannot start without')).toBe('contract-to-onboard')
+    expect(at('Nobody approves their own hours.')).toBe('work-to-approve')
+    expect(at('No line on this invoice is backed by an approved timesheet or expense')).toBe('approve-to-pay')
+    expect(at('not among the suppliers Procurement cleared for this requirement')).toBe('source-to-contract')
+    // Each stage that stops something also shows one thing it lets through with a reason or sends to a desk.
+    for (const p of PROCESS.filter((x) => x.refuses?.some((r) => r.kind === 'BLOCK') && x.refuses.length > 1)) {
+      expect(p.refuses!.some((r) => r.kind !== 'BLOCK'), p.slug).toBe(true)
+    }
   })
 
   it('the invoices page never claims an order’s ceiling cannot be overridden, and says a receipt with no signed week behind it is not paid', () => {
@@ -735,7 +762,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
     expect(DOORS[0]).toEqual({ t: 'Clients', href: '/signup' })
     const view = read('src/lib/public-site/sub-page.tsx')
-    expect(view).toContain('<SignUpBand primary={signUp} />')
+    expect(view).toContain('<SignUpBand primary={signUp} band={band} />')
     expect(view).toContain('<SkeletonFooter />')
   })
 
@@ -751,13 +778,28 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     for (const p of PARTY_PAGES) {
       expect(p.signUp.href.startsWith('/signup'), p.route).toBe(true)
-      expect(all(copyOfPartyPage(p))).toContain(BAND.heading)
-      expect(all(copyOfPartyPage(p))).toContain('Free while we are testing.')
+      if (p.slug !== 'contractors') {
+        expect(all(copyOfPartyPage(p))).toContain(BAND.heading)
+        expect(all(copyOfPartyPage(p))).toContain('Free while we are testing.')
+      }
     }
     expect(doorAt('program-offices')!.signUp.href).toBe('/signup?type=msp')
     expect(doorAt('integrators')!.signUp.href).toBe('/signup?type=gsi')
     expect(doorAt('contractors')!.signUp.href).toBe('/signup?as=candidate')
     expect('candidate' in doorAt('contractors')!.demo).toBe(true)
+  })
+
+  it('the contractors door’s band asks a person to set up their own page, with the candidate sign-up, the doors line and no spend audit', () => {
+    const c = all(copyOfPartyPage(doorAt('contractors')!))
+    expect(c).toContain('Seen enough? Set up your own page.')
+    expect(c).toContain('Two minutes. Your weeks, your pay and your paperwork in one place. Free.')
+    expect(c).not.toContain('Set up your company')
+    expect(c).not.toContain(BAND.audit)
+    expect(c).toContain('Your door:')
+    expect(doorAt('contractors')!.band).toBe('SELF')
+    // Every other door and every product page keeps the company band.
+    for (const p of PARTY_PAGES.filter((x) => x.slug !== 'contractors')) expect(all(copyOfPartyPage(p)), p.route).toContain(BAND.heading)
+    expect(read('src/lib/public-site/skeleton.tsx')).toContain("const words = band === 'SELF' ? BAND_FOR_SELF : BAND")
   })
 
   it('no sentence on a door is longer than twenty-five words, and the word ecosystem is on none of them', () => {

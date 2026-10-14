@@ -28,6 +28,8 @@ export interface TopicPage {
   /** The product page that shows it, if one does. */
   product?: string
   demo?: DemoTarget
+  /** Short sections under the lines (`DocSection` in `./process`). */
+  more?: { id: string; title: string; lines: string[] }[]
 }
 
 export const GROUP_TITLE: Record<TopicGroup, string> = {
@@ -95,6 +97,20 @@ export const TOPICS: TopicPage[] = [
       'A supplier whose insurance lapsed can submit nobody until it is back in date.',
       'A supplier brings its own team: account managers, recruiters, HR, contract managers and finance.',
       'A client can star a firm it would use again, or block one.',
+    ],
+    more: [
+      {
+        id: 'positions',
+        title: 'Prime, sub and bench are positions, not kinds of firm',
+        lines: [
+          'Prime, sub and bench are positions on a deal, not kinds of company.',
+          'The same firm is a prime this week and a sub next week.',
+          'A prime sends a job to its sub without giving up the client’s name.',
+          'A sub prices a job against the real band before it answers.',
+          'A bench vendor’s worker stays unnamed until there is a signed right to represent them.',
+          'The client sees the supplier it pays and whether the employer is insured and authorized.',
+        ],
+      },
     ],
     parties: ['prime-vendor', 'sub-vendor', 'bench-vendor', 'systems-integrator', 'self-employed'],
     product: '/requisitions',

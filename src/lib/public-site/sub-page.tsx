@@ -3,6 +3,7 @@ import { TryDemo } from '@/components/try-demo'
 import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
 import type { DemoTarget } from './flow'
+import type { BandKind } from './skeleton-words'
 import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
 
 /**
@@ -32,10 +33,14 @@ export interface SubPageProps {
   caption?: string
   label?: string
   lines: readonly string[]
+  /** A link at the end of the last line, to the top of the page that says the rest. */
+  link?: { t: string; href: string }
   /** The button under the frame. */
   demo: { label: string; target: DemoTarget } | { label: string; candidate: true }
   /** The band's filled button, where it is not the client's sign-up. */
   signUp?: { t: string; href: string }
+  /** The band: a company's, or a person's own (the contractors' door). */
+  band?: BandKind
 }
 
 function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
@@ -43,7 +48,8 @@ function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
   return <DemoLink target={demo.target} label={demo.label} className={PRIMARY_BUTTON} />
 }
 
-export function SubPageView({ question, purpose, step, caption, label, lines, demo, signUp }: SubPageProps) {
+export function SubPageView({ question, purpose, step, caption, label, lines, link, demo, signUp, band }: SubPageProps) {
+  const shown = lines.slice(0, 3)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
       <SiteHeader />
@@ -64,12 +70,20 @@ export function SubPageView({ question, purpose, step, caption, label, lines, de
 
         {/* ── At most three lines: what you do, who, what next ── */}
         <ul id="lines" className="mt-8 max-w-[760px] space-y-2 border-l-2 border-etyme-rule pl-4">
-          {lines.slice(0, 3).map((l) => (
-            <li key={l} className="text-[16px] leading-snug text-etyme-ink">{l}</li>
+          {shown.map((l, i) => (
+            <li key={l} className="text-[16px] leading-snug text-etyme-ink">
+              {l}
+              {link && i === shown.length - 1 && (
+                <>
+                  {' '}
+                  <a href={link.href} className="font-medium text-etyme-action-press underline-offset-4 hover:underline">{link.t}</a>
+                </>
+              )}
+            </li>
           ))}
         </ul>
 
-        <SignUpBand primary={signUp} />
+        <SignUpBand primary={signUp} band={band} />
         <SecurityLine />
       </main>
 

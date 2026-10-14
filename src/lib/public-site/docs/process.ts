@@ -32,6 +32,39 @@
 
 import type { DemoTarget, FlowBox } from '../flow'
 import { PARTIES, type PartyDoc } from './index'
+import { notARuleLines } from '../modules'
+
+/**
+ * A short section added under a page's lines: a title and its lines, one
+ * idea each. Added 2026-10-14, when the product pages were cut to the
+ * home page's shape and the facts they carried moved here, to the page
+ * whose step they belong to (coordinator, the same day: "the facts that
+ * left the public pages must not leave the site").
+ */
+export interface DocSection {
+  id: string
+  title: string
+  lines: string[]
+}
+
+/**
+ * A refusal, quoted as the software says it, with what happens next. The
+ * phrase is found verbatim in the source file by the public-pages guard,
+ * so a refusal quoted here cannot drift from the sentence a user is shown.
+ * Moved from the product pages' "What it refuses" on 2026-10-14.
+ */
+export interface DocRefusal {
+  says: string
+  then: string
+  /** Stops it, warns and lets it through with a reason, or sends it to the desk that owns it. */
+  kind: 'BLOCK' | 'WARN' | 'ROUTE'
+  source: string
+  phrase: string
+}
+
+/** What a refusal's chip says. */
+export const REFUSAL_KIND: Record<DocRefusal['kind'], string> = { BLOCK: 'Stops', WARN: 'Warns', ROUTE: 'Goes to a desk' }
+export const REFUSES_TITLE = 'What it refuses, in its own words'
 
 export interface ProcessPage {
   slug: string
@@ -47,6 +80,10 @@ export interface ProcessPage {
   /** The id of the party pages' section that draws this stage, if any. */
   section: string | null
   demo?: DemoTarget
+  /** Short sections under the lines. */
+  more?: DocSection[]
+  /** The refusals that happen at this stage, quoted. */
+  refuses?: DocRefusal[]
 }
 
 export const PROCESS: ProcessPage[] = [
@@ -74,6 +111,45 @@ export const PROCESS: ProcessPage[] = [
       'Each supplier’s rate band is on its own invitation, so no supplier sees another’s.',
       'Consent to be put forward is the worker’s own, and only theirs to give.',
       'The award raises the order and its first line. A supplier cannot award its own.',
+    ],
+    refuses: [
+      {
+        says: 'This supplier was not among the suppliers Procurement cleared for this requirement.',
+        then: 'Not sent. Ask Procurement to add the supplier, or leave it out.',
+        kind: 'BLOCK', source: 'src/app/api/requisitions/[id]/distribute/route.ts',
+        phrase: 'not among the suppliers Procurement cleared for this requirement',
+      },
+      {
+        says: '$140/hr is 17% above the $120/hr you already pay for this skill',
+        then: 'Not refused, and not let through quietly. It goes to Procurement, which owns the rate.',
+        kind: 'ROUTE', source: 'src/lib/requisition-approval.ts', phrase: '/hr you already pay for this skill',
+      },
+      {
+        says: 'Bill rate $152/hr exceeds maximum $150/hr.',
+        then: 'Warned, not blocked. The manager records a reason, and it stays on the row with their name.',
+        kind: 'WARN', source: 'src/lib/governance.ts', phrase: 'exceeds maximum $',
+      },
+      {
+        says: 'This supplier has no current insurance verification on file.',
+        then: 'Nobody can be submitted through it until its cover is back in date.',
+        kind: 'BLOCK', source: 'src/lib/governance.ts', phrase: 'has no current insurance verification on file.',
+      },
+      {
+        says: 'This person has already been submitted to this requirement. First submission wins.',
+        then: 'The second firm is told it was second, rather than finding out at the interview.',
+        kind: 'BLOCK', source: 'src/app/api/submissions/route.ts',
+        phrase: 'This person has already been submitted to this requirement. First submission wins.',
+      },
+      {
+        says: '$124/hr is above the $118/hr ceiling you were given',
+        then: 'A warning, not a refusal. The client sees the rate against the band before shortlisting.',
+        kind: 'WARN', source: 'src/app/api/submissions/route.ts', phrase: 'ceiling you were given',
+      },
+      {
+        says: 'You are sending this on at $98/hr, which is less than the $104/hr you were quoted.',
+        then: 'A warning, not a block. A firm sending a person up the chain is told when the price goes the wrong way.',
+        kind: 'WARN', source: 'src/lib/forwarding.ts', phrase: 'you were quoted.',
+      },
     ],
     section: 'l1-1',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
@@ -103,6 +179,23 @@ export const PROCESS: ProcessPage[] = [
       'A missing background check warns, and the reason is recorded.',
       'Activation moves both lines: the sell line and the buy line.',
     ],
+    refuses: [
+      {
+        says: 'Priya Raghunathan cannot start without I-9 and E-Verify.',
+        then: 'Get it on file, then activate. Nobody can wave a missing US work form (I-9) through.',
+        kind: 'BLOCK', source: 'src/lib/contract-clearance.ts', phrase: 'cannot start without',
+      },
+      {
+        says: 'Still waiting on background check for Ravi Adebayo. The contract can start with a reason recorded.',
+        then: 'The reason keeps the name of whoever gave it. The verdict on a background check is the screening provider’s.',
+        kind: 'WARN', source: 'src/lib/contract-clearance.ts', phrase: 'The contract can start with a reason recorded.',
+      },
+      {
+        says: 'Kwame Mensah has 24 months tenure (time limit: 18).',
+        then: 'Blocked where the client’s rule blocks. No extension, award or start until the break is served.',
+        kind: 'BLOCK', source: 'src/lib/governance.ts', phrase: 'months tenure (time limit: ',
+      },
+    ],
     section: 'l1-2',
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/contracts', seat: 'the program manager' },
   },
@@ -128,6 +221,18 @@ export const PROCESS: ProcessPage[] = [
       'The client signs first. Then each firm below accepts the same week, in turn.',
       'Two companies sign one row of hours, never one row per level.',
       'A milestone the client accepted is another kind of receipt.',
+    ],
+    refuses: [
+      {
+        says: 'Nobody approves their own hours.',
+        then: 'The person who filed the week cannot sign it. Only the company being billed approves.',
+        kind: 'BLOCK', source: 'src/app/api/timesheets/[id]/approve/route.ts', phrase: 'Nobody approves their own hours.',
+      },
+      {
+        says: '44h claimed on a 40h-a-week job.',
+        then: 'Flagged and shown first. An approval anyway carries the reason on the signature.',
+        kind: 'WARN', source: 'src/lib/timesheet-flag.ts', phrase: 'h-a-week job.',
+      },
     ],
     section: 'l1-3',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
@@ -209,6 +314,19 @@ export const PROCESS: ProcessPage[] = [
       'Tax data goes to the payroll bureau: 1099 and W-2 data.',
       'In a chain, each firm above does the same for the firm below it.',
     ],
+    refuses: [
+      {
+        says: 'No line on this invoice is backed by an approved timesheet or expense',
+        then: 'Not paid, and nobody can waive it. Finance can see who has the week.',
+        kind: 'BLOCK', source: 'src/lib/three-way-match.ts',
+        phrase: 'No line on this invoice is backed by an approved timesheet or expense',
+      },
+      {
+        says: 'PO-2026-SET8P has $3,200 left; this invoice is $7,400, over by $4,200',
+        then: 'Not paid until the order is raised, or a person with the authority records a reason.',
+        kind: 'WARN', source: 'src/lib/three-way-match.ts', phrase: 'this invoice is',
+      },
+    ],
     section: 'l1-5',
     demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
   },
@@ -256,6 +374,43 @@ export const PROCESS: ProcessPage[] = [
       'The system records everything it does on its own, with why, and whether it can be undone.',
       'Every read of another person’s data leaves a row, refusals too.',
       'The company keeps its own do-not-return list.',
+    ],
+    more: [
+      {
+        id: 'adds-up',
+        title: 'How time on site adds up',
+        lines: [
+          'One person worked fourteen months through one supplier.',
+          'Then three months through a second, and two through a third.',
+          'That is nineteen months on site at one client.',
+          'None of the three suppliers can see the other two.',
+          'Etyme counts each day once, across every supplier.',
+        ],
+      },
+      {
+        id: 'cost',
+        title: 'What it costs when somebody finally asks',
+        lines: [
+          'Nobody is fined on the day a contractor passes eighteen months.',
+          'The cost today is three weeks of asking, and a number nobody trusts.',
+          'When somebody checks, the cost is one of three things.',
+          'A co-employment claim counts every supplier together. It lands on the client, not on the supplier that billed the first year.',
+          'A supplier whose insurance lapsed keeps working. Etyme reads the certificate’s dates and stops a start until it is renewed.',
+          'A bill is paid with no signed week behind it. Etyme pays only what matches a signed week and an order.',
+        ],
+      },
+      {
+        id: 'not-a-rule',
+        title: 'What runs on its own, and what is not a plain rule',
+        lines: notARuleLines(),
+      },
+    ],
+    refuses: [
+      {
+        says: 'Lucía Fernández is at 14 of 18 months (78% of the time limit)',
+        then: 'A warning at three quarters of the time limit, so the manager sees the end months ahead.',
+        kind: 'WARN', source: 'src/lib/governance.ts', phrase: '% of the time limit)',
+      },
     ],
     section: 'l1-7',
     demo: { as: 'world-nike', desk: 'compliance', screen: '/dashboard/tenure', seat: 'the compliance officer' },

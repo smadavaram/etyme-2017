@@ -1,6 +1,6 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget } from './flow'
-import { copyOfSkeleton, ON_SCREEN_DOOR } from './skeleton-words'
+import { copyOfSkeleton, ON_SCREEN_DOOR, type BandKind } from './skeleton-words'
 
 /**
  * The four party doors: suppliers and bench firms, program offices,
@@ -60,6 +60,8 @@ export interface PartyPage {
   /** The button under the frame, and the desk it seats the reader at. A contractor's opens a person's own page. */
   demoLabel: string
   demo: { target: DemoTarget } | { candidate: true }
+  /** The sign-up band: a company's unless said; a contractor's is a person's own. */
+  band?: BandKind
 }
 
 export const SUPPLIERS: PartyPage = {
@@ -131,6 +133,7 @@ export const CONTRACTORS: PartyPage = {
   ],
   // The candidate's own form, opened on its tab (?as=candidate, 2026-10-13).
   signUp: { t: 'Sign up with your email', href: '/signup?as=candidate' },
+  band: 'SELF',
   demoLabel: 'Open a contractor’s page, no account',
   demo: { candidate: true },
 }
@@ -151,6 +154,6 @@ export function partyAt(slug: string): PartyPage | null {
 export function copyOfPartyPage(p: PartyPage): { hero: string[]; body: string[] } {
   return {
     hero: [p.question, p.purpose],
-    body: [...p.lines, ...copyOfSkeleton({ caption: p.caption, label: ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp })],
+    body: [...p.lines, ...copyOfSkeleton({ caption: p.caption, label: ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp, band: p.band })],
   }
 }

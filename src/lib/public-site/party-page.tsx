@@ -30,6 +30,7 @@ export function PartyPageView({ slug }: { slug: PartySlug }) {
       lines={p.lines}
       demo={demo}
       signUp={p.signUp}
+      band={p.band}
     />
   )
 }

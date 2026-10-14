@@ -60,6 +60,8 @@ export interface ModulePage {
   lines: [string, string, string]
   /** Where the button under the frame seats the reader: this page's own screen, at the right desk. */
   demo: DemoTarget
+  /** A link at the end of the last line, to the top of the page that says the rest. */
+  link?: { t: string; href: string }
 }
 
 // ── How much runs on its own, counted rather than typed ──────────────
@@ -84,6 +86,49 @@ export function spelled(n: number): string {
 }
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+/**
+ * What each unprompted act that is not a plain rule does, in one short
+ * sentence, keyed by its name on the ladder. Named in the documentation's
+ * page on time on site and the logs (`./docs/process`, govern-and-protect),
+ * one click from the governance page's last line, since 2026-10-14. A new
+ * act added to the ladder reaches the page in the ladder's own sentence
+ * until somebody writes the short clause here, and a test checks every one
+ * is described.
+ */
+export const WHAT_IS_LEFT: Record<string, string> = {
+  PROACTIVE_MATCH:
+    'Matching scores a person against a job, and falls back to arithmetic when there is no model to call.',
+  TWIN_TOLD: 'The twin tells a desk what a rule found.',
+  TWIN_DREW_UP: 'The twin drafts a summary that a person reads.',
+}
+
+const NOT_A_RULE = ALL_ACTIONS.filter((name) => {
+  const a = ACTIONS[name]
+  return a.kind === 'UNPROMPTED' && a.basis !== 'RULE'
+})
+
+const clauseFor = (name: string): string => {
+  if (WHAT_IS_LEFT[name]) return WHAT_IS_LEFT[name]
+  const a = ACTIONS[name]
+  return a.kind === 'UNPROMPTED' ? a.says : name
+}
+
+/**
+ * The lines that name what runs on its own and is not a plain rule, one
+ * idea a line, computed from the ladder: the count first, then each act.
+ */
+export function notARuleLines(): string[] {
+  const left = NOT_A_RULE.map(clauseFor)
+  return [
+    RULE_COUNT_LINE,
+    left.length === 0
+      ? 'None is left: every one of them is a plain rule.'
+      : `${capital(spelled(left.length))} ${left.length === 1 ? 'is' : 'are'} not a plain rule. Each does one thing:`,
+    ...left,
+    'None of them decides whether someone can legally work.',
+  ]
+}
 
 /** The governance page's counted line: how many things run unasked, and how many are a plain rule. */
 export const RULE_COUNT_LINE =
@@ -112,10 +157,11 @@ const AS_WRITTEN: Omit<ModulePage, 'n'>[] = [
     purpose: 'Rules for every job request, start and bill.',
     step: 'source',
     lines: [
-      'A rule blocks where the law is behind it. Elsewhere it warns and asks for a reason.',
+      'A rule blocks where the law is behind it, and warns with a reason elsewhere.',
       RULE_COUNT_LINE,
-      'Each block and warning is logged.',
+      'Each block is logged.',
     ],
+    link: { t: 'What is not a rule', href: '/docs/process/govern-and-protect' },
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/compliance', seat: 'the program manager' },
   },
   {
@@ -227,5 +273,8 @@ export function moduleAt(route: string): ModulePage | null {
  * shared skeleton draws around them (`./skeleton-words`).
  */
 export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } {
-  return { hero: [m.question, m.purpose], body: [...m.lines, ...copyOfSkeleton({ button: OPEN_DEMO })] }
+  return {
+    hero: [m.question, m.purpose],
+    body: [...m.lines, ...(m.link ? [m.link.t] : []), ...copyOfSkeleton({ button: OPEN_DEMO })],
+  }
 }

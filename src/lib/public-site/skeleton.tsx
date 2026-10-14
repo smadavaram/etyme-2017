@@ -4,7 +4,8 @@ import { HomeFooter } from './frame'
 import { CountedLink } from './counted-link'
 import { GET_THE_AUDIT } from './funnel'
 import {
-  CHIPS, CHIPS_LABEL, FRAME, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, CLIENT_SIGN_UP, SECURITY,
+  CHIPS, CHIPS_LABEL, FRAME, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
+  type BandKind,
 } from './skeleton-words'
 
 /**
@@ -61,8 +62,13 @@ export function LiveDemo({
   )
 }
 
-/** Sign-up, right under the product. A party door names its own sign-up; the rest is the same. */
-export function SignUpBand({ primary = CLIENT_SIGN_UP }: { primary?: { t: string; href: string } }) {
+/**
+ * Sign-up, right under the product. A party door names its own sign-up;
+ * the contractors' door draws a person's band (`BAND_FOR_SELF`), with no
+ * audit beside it. Everything else is the same band.
+ */
+export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY' }: { primary?: { t: string; href: string }; band?: BandKind }) {
+  const words = band === 'SELF' ? BAND_FOR_SELF : BAND
   return (
     <section
       id="sign-up"
@@ -70,9 +76,9 @@ export function SignUpBand({ primary = CLIENT_SIGN_UP }: { primary?: { t: string
     >
       <div className="min-w-0">
         <h2 className="text-balance font-serif text-[26px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[28px]">
-          {BAND.heading}
+          {words.heading}
         </h2>
-        <p className="mt-1.5 text-[15px] leading-snug text-etyme-muted">{BAND.line}</p>
+        <p className="mt-1.5 text-[15px] leading-snug text-etyme-muted">{words.line}</p>
         <p className="mt-2 text-[14px] leading-snug text-etyme-muted">
           {BAND.doorsLead}{' '}
           {DOORS.map((d, i) => (
@@ -85,9 +91,11 @@ export function SignUpBand({ primary = CLIENT_SIGN_UP }: { primary?: { t: string
       </div>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
         <a href={primary.href} className={PRIMARY_BUTTON}>{primary.t}</a>
-        <CountedLink href={GET_THE_AUDIT.href} event="audit_cta_clicked" className={SECOND_BUTTON}>
-          {BAND.audit}
-        </CountedLink>
+        {band === 'COMPANY' && (
+          <CountedLink href={GET_THE_AUDIT.href} event="audit_cta_clicked" className={SECOND_BUTTON}>
+            {BAND.audit}
+          </CountedLink>
+        )}
       </div>
     </section>
   )

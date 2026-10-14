@@ -61,7 +61,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // Where the home page's long middle went on 2026-09-27, when it became a
 // product page. A fact that moved is pinned where it now lives, so a
 // section cannot fall off both pages at once.
-import { MODULES, RULE_COUNT_LINE, copyOfModule, spelled } from '@/lib/public-site/modules'
+import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { BAND, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
@@ -73,6 +73,7 @@ import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 import { EMBED_STEPS, embedStep } from '@/lib/sample-seat'
+import { PROCESS } from '@/lib/public-site/docs/process'
 
 /**
  * The home page as a reader meets it: the page's own question and
@@ -97,6 +98,17 @@ const onModule = (slug: string): string => {
 const COMPLIANCE_PAGE = onModule('compliance')
 const CHAIN_PAGE = onModule('chain')
 const GOVERNANCE_PAGE = onModule('governance')
+/**
+ * Where the facts the product pages carried until 2026-10-14 live now: the
+ * documentation page of the step each belongs to (coordinator, the same
+ * day: "the facts that left the public pages must not leave the site").
+ */
+const onDoc = (path: string): string => {
+  const c = copyOfDoc(path)!
+  return [...c.hero, ...c.body].join(' ')
+}
+const TIME_ON_SITE_DOC = onDoc('process/govern-and-protect')
+const SUPPLIERS_DOC = onDoc('master-data/suppliers')
 const ABOUT_PAGE = (() => {
   const c = copyOfCompanyPage(ABOUT)
   return [...c.hero, ...c.body].join(' ')
@@ -466,6 +478,10 @@ describe('Below the hero, the page says what the business is', () => {
     // time-limit screen show the sum in numbers instead.
     expect(body).not.toContain('One person worked 14 months')
     expect(COMPLIANCE_PAGE).toContain('added up across every supplier')
+    // And the arithmetic is on the documentation's time-limit page.
+    expect(TIME_ON_SITE_DOC).toContain('One person worked fourteen months through one supplier.')
+    expect(TIME_ON_SITE_DOC).toContain('That is nineteen months on site at one client.')
+    expect(TIME_ON_SITE_DOC).toContain('None of the three suppliers can see the other two.')
   })
 
   it('keeps the business case off the front door, and the compliance page to what a reader can check in the frame', () => {
@@ -481,6 +497,22 @@ describe('Below the hero, the page says what the business is', () => {
     expect(PRODUCT_ITEMS.map((i) => i.href)).toContain('/compliance')
     expect(COMPLIANCE_PAGE).toContain('time limit')
     expect(COMPLIANCE_PAGE).toContain('A lapsed insurance certificate stops work.')
+    // The business case lives on the documentation's time-limit page.
+    expect(TIME_ON_SITE_DOC).toContain('Nobody is fined on the day a contractor passes eighteen months.')
+    expect(TIME_ON_SITE_DOC.toLowerCase()).toContain('co-employment')
+  })
+
+  it('names the three things the exposure actually is, on the documentation’s time-limit page', () => {
+    for (const line of [
+      'A co-employment claim counts every supplier together.',
+      'A supplier whose insurance lapsed keeps working.',
+      'A bill is paid with no signed week behind it.',
+    ]) expect(TIME_ON_SITE_DOC, line).toContain(line)
+  })
+
+  it('says prime, sub and bench are positions on a deal rather than kinds of company, on the suppliers page of the master data', () => {
+    expect(SUPPLIERS_DOC).toContain('Prime, sub and bench are positions on a deal, not kinds of company.')
+    expect(SUPPLIERS_DOC).toContain('The same firm is a prime this week and a sub next week.')
   })
 
   it('does not lead with a penalty, because nobody is fined at month nineteen', () => {
@@ -651,8 +683,7 @@ describe('Below the hero, the page says what the business is', () => {
     // The governance page opens on exactly this, and always did; the
     // home page's paragraph repeating it moved nowhere, because it was
     // already there.
-    expect(GOVERNANCE_PAGE).toContain('A rule blocks where the law is behind it.')
-    expect(GOVERNANCE_PAGE).toContain('Elsewhere it warns and asks for a reason.')
+    expect(GOVERNANCE_PAGE).toContain('A rule blocks where the law is behind it, and warns with a reason elsewhere.')
   })
 
   it('says plainly that the price is not settled, rather than saying nothing about money', () => {
@@ -1458,11 +1489,32 @@ describe('The claim about how much of this is a model is computed, not asserted'
     expect(byRule.length).toBe(unprompted.length - notARule.length)
   })
 
-  // Until 2026-10-14 the governance page also named each act that is not
-  // a rule — matching, and the twin's two recorded acts — in a sentence
-  // each, and three sentences here held them. The founder's skeleton cut
-  // the page to three lines; the count of what is a rule stays on it, and
-  // the ladder's own test above still names the three.
+  it('says how many are left that are not a rule, and says what each of them does, one click from the governance page', () => {
+    // The governance page is three lines since 2026-10-14; the acts that are
+    // not a plain rule are named on the documentation's page on time on site
+    // and the logs, and the governance page's last line links to its top.
+    const notARule = ALL_ACTIONS.filter((n) => ACTIONS[n].kind === 'UNPROMPTED' && ACTIONS[n].basis !== 'RULE')
+    expect(TIME_ON_SITE_DOC).toContain(`${NUMBERS[notARule.length]} are not a plain rule.`)
+    for (const name of notARule) {
+      expect(WHAT_IS_LEFT[name], `${name} has no plain clause`).toBeTruthy()
+      expect(TIME_ON_SITE_DOC, `${name} is not described in the documentation`).toContain(WHAT_IS_LEFT[name])
+    }
+    expect(TIME_ON_SITE_DOC).toContain(RULE_COUNT_LINE)
+    const governance = MODULES.find((m) => m.slug === 'governance')!
+    expect(governance.link).toEqual({ t: 'What is not a rule', href: '/docs/process/govern-and-protect' })
+  })
+
+  it('says matching scores a person against a job and falls back to arithmetic when there is no model', () => {
+    expect((ACTIONS.PROACTIVE_MATCH as { says: string }).says.toLowerCase()).toContain('scored people against an open job')
+    expect(TIME_ON_SITE_DOC).toContain('scores a person against a job')
+    expect(TIME_ON_SITE_DOC).toContain('falls back to arithmetic')
+  })
+
+  it('says the twin tells a desk what a rule found and drafts a summary a person reads, and nothing more', () => {
+    expect(TIME_ON_SITE_DOC).toContain('The twin tells a desk what a rule found.')
+    expect(TIME_ON_SITE_DOC).toContain('The twin drafts a summary that a person reads.')
+    expect(TIME_ON_SITE_DOC).toContain('None of them decides whether someone can legally work.')
+  })
 
   it('states the denominator, because it is the automation log and not the whole product', () => {
     expect(GOVERNANCE_PAGE).toContain('things that run without anybody asking')
@@ -2282,6 +2334,9 @@ const over = (fg: number[], alpha: number, ground: number[]) => fg.map((c, i) =>
 /** A public page's words with the product's own sentences set aside. */
 function inOurWords(text: string): string {
   let t = text
+  // A refusal quoted in the documentation is the product's own sentence,
+  // verbatim from the file that says it (`refuses` in docs/process).
+  for (const p of PROCESS) for (const r of p.refuses ?? []) t = t.split(r.says).join(' ')
   // A product screen named by its own title is the product's word. The
   // client's own screen for what its suppliers send is titled "Invoice
   // receipts": what a firm receives from below (lib/page-framing).

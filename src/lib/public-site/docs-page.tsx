@@ -3,7 +3,7 @@ import {
   PARTIES, REFERENCE, DOCS_HOME, PROCESS_HOME, partyAt, referenceAt,
   type PartyDoc, type ReferenceDoc,
 } from './docs/index'
-import { PROCESS, processAt, partiesFor, processRoute, sectionOf, sectionsOf } from './docs/process'
+import { PROCESS, processAt, partiesFor, processRoute, sectionOf, sectionsOf, REFUSAL_KIND, REFUSES_TITLE, type DocSection, type DocRefusal } from './docs/process'
 import { TOPICS, GROUP_TITLE, GROUP_LEDE, topicAt, topicsIn, topicRoute } from './docs/topics'
 import { FlowChart, Lines } from './flow-chart'
 import { PrevNext, Contents, type ContentsItem, type SeqLink } from './sequence'
@@ -163,6 +163,38 @@ function Layout({ current, children }: { current: string; children: React.ReactN
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="mt-12 font-serif text-[25px] leading-tight tracking-[-0.02em] text-etyme-ink">{children}</h2>
+}
+
+/**
+ * The short sections and the quoted refusals a page carries under its
+ * lines, since 2026-10-14: the facts the product pages carried before
+ * they were cut to the home page's shape, each on the page of its step.
+ */
+function Kept({ more, refuses }: { more?: DocSection[]; refuses?: DocRefusal[] }) {
+  return (
+    <>
+      {(more ?? []).map((s) => (
+        <section key={s.id} id={s.id} className="scroll-mt-24">
+          <H2>{s.title}</H2>
+          <div className="mt-4"><Lines lines={s.lines} /></div>
+        </section>
+      ))}
+      {refuses && refuses.length > 0 && (
+        <section id="refuses" className="scroll-mt-24">
+          <H2>{REFUSES_TITLE}</H2>
+          <ul className="mt-4 max-w-[68ch] space-y-4">
+            {refuses.map((r) => (
+              <li key={r.says} className="border-l-2 border-etyme-rule pl-4">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-etyme-muted">{REFUSAL_KIND[r.kind]}</p>
+                <p className="mt-1 font-mono text-[13.5px] leading-relaxed text-etyme-ink">{`“${r.says}”`}</p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">{r.then}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  )
 }
 
 /** "See this in the demo", at the end of a page, as the right desk. */
@@ -355,6 +387,7 @@ export function ProcessPageView({ slug, party }: { slug: string; party?: string 
         <Layout current={processRoute(p.slug)}>
           <FlowChart label={`${p.title}, in ${p.flow.length} steps`} boxes={p.flow} />
           <div className="mt-8"><Lines lines={p.lines} /></div>
+          <Kept more={p.more} refuses={p.refuses} />
           {step && (
             <p className="mt-6 text-[14.5px] text-etyme-muted">
               {'On the product pages: '}
@@ -416,6 +449,7 @@ export function TopicPageView({ group, slug }: { group: string; slug: string }) 
         <Layout current={here}>
           <FlowChart label={`${t.title}, in ${t.flow.length} steps`} boxes={t.flow} />
           <div className="mt-8"><Lines lines={t.lines} /></div>
+          <Kept more={t.more} />
           <div className="mt-10">
             <Contents
               title={GROUP_TITLE[t.group]}

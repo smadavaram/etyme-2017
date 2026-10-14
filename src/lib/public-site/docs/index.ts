@@ -54,7 +54,7 @@
  * links to it.
  */
 
-import { PROCESS, processAt, partiesFor, processRoutes } from './process'
+import { PROCESS, processAt, partiesFor, processRoutes, REFUSES_TITLE } from './process'
 import { TOPICS, topicAt, topicRoute, GROUP_TITLE } from './topics'
 import { flowWords } from '../flow'
 import { DOC as client } from './client'
@@ -321,7 +321,12 @@ function copyOfNestedDoc(path: string): { hero: string[]; body: string[] } | nul
     if (parts[2] && !partiesFor(p).some((d) => d.slug === parts[2])) return null
     return {
       hero: [p.title, p.lede],
-      body: [...flowWords(p.flow), ...p.lines, ...PROCESS.map((x) => x.title)],
+      body: [
+        ...flowWords(p.flow), ...p.lines,
+        ...(p.more ?? []).flatMap((s) => [s.title, ...s.lines]),
+        ...(p.refuses?.length ? [REFUSES_TITLE, ...p.refuses.flatMap((r) => [r.says, r.then])] : []),
+        ...PROCESS.map((x) => x.title),
+      ],
     }
   }
   if ((parts[0] === 'master-data' || parts[0] === 'recruiting') && parts.length === 2) {
@@ -329,7 +334,7 @@ function copyOfNestedDoc(path: string): { hero: string[]; body: string[] } | nul
     if (!t) return null
     return {
       hero: [t.title, t.lede],
-      body: [GROUP_TITLE[t.group], ...flowWords(t.flow), ...t.lines],
+      body: [GROUP_TITLE[t.group], ...flowWords(t.flow), ...t.lines, ...(t.more ?? []).flatMap((s) => [s.title, ...s.lines])],
     }
   }
   return null
