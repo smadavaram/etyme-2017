@@ -1685,8 +1685,9 @@ describe('The footer is where a company keeps its papers', () => {
     expect(FOOTER_LINKS).toContain('/terms')
     expect(FOOTER_LINKS).toContain('/privacy')
     expect(HOME_FOOTER_LINKS.map((l) => l.t)).toEqual([
-      'Documentation', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
+      'Documentation', 'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
     ])
+    expect(HOME_FOOTER_LINKS.find((l) => l.t === 'Clients')?.href).toBe('/')
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toEqual(expect.arrayContaining(['/terms', '/privacy', '/dpa', '/contact', '/docs', '/security']))
     // And each page draws its footer, and the footer draws the list,
     // rather than it sitting in a file as data nothing renders.
