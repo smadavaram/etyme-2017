@@ -71,7 +71,7 @@ export function ownSubmissionsSays(company: string | null | undefined): string {
   const at = company?.trim() ? ` by ${company.trim().replace(/\.$/, '')}` : ''
   return (
     `These are the times you were put forward${at}. ` +
-    'Your colleagues’ submissions and every rate are read by the recruiting desk.'
+    'Your colleagues’ submissions and every rate are read by the recruiters.'
   )
 }
 

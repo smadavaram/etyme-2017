@@ -362,7 +362,7 @@ export async function GET(request: NextRequest) {
       payWithheldSays: anyWithheld ? PAY_WITHHELD_SAYS : null,
       billWithheldSays: anyBillWithheld ? BILL_WITHHELD_SAYS : null,
       marginWithheldSays: rows.some((r) => r.contracts.some((c) => c.marginWithheld))
-        ? 'The margin on each contract is shown only to the desks that read margin — the owner and the admin.'
+        ? 'The margin on each contract is shown only to the roles that read margin — the owner and the admin.'
         : null,
       agreements: rows,
       summary: {

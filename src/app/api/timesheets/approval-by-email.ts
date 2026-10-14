@@ -457,7 +457,7 @@ export function mayActForTheClient(
 
   return {
     ok: false,
-    says: `Only ${week.personName}, or the timesheet desk at a supplier on this placement, can attach the client’s approval.`,
+    says: `Only ${week.personName}, or whoever handles timesheets at a supplier on this placement, can attach the client’s approval.`,
   }
 }
 
@@ -586,13 +586,13 @@ export type SentFrom =
 /**
  * The sender as `senderAsTheClientSees` (lib/week-approval) hands it over
  * today: a name and a firm, where a desk below the client's supplier comes
- * as "The timesheet desk" at "<supplier>’s side of this placement". Read
+ * as "The timesheet team" at "<supplier>’s side of this placement". Read
  * back into the two cases so the letter can say each plainly. Once that
  * function passes `sentFrom` itself, this reading is no longer needed.
  */
 const BELOW_SUFFIX = '’s side of this placement'
 export function sentFromOf(senderName: string, senderFirm: string): SentFrom {
-  if (senderName === 'The timesheet desk' && senderFirm.endsWith(BELOW_SUFFIX)) {
+  if (senderName === 'The timesheet team' && senderFirm.endsWith(BELOW_SUFFIX)) {
     return { kind: 'BELOW', askFirm: senderFirm.slice(0, -BELOW_SUFFIX.length) }
   }
   return { kind: 'NAMED', name: senderName, firm: senderFirm }

@@ -51,7 +51,7 @@ describe('four desks, in order', () => {
     expect(nextStage('LEAD')).toBe('PROCUREMENT'); expect(nextStage('PROCUREMENT')).toBe('HR'); expect(nextStage('HR')).toBe('FINANCE'); expect(nextStage('FINANCE')).toBe('DONE')
     const steps = stepsOf('HR', 'IN_REVIEW', [dec('LEAD', 'lead'), dec('PROCUREMENT', 'proc')])
     expect(steps.map((s) => `${s.word}:${s.status}`)).toEqual(['Department lead:done', 'Procurement:done', 'HR:now', 'Finance:next', 'Supplier:next'])
-    expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program office')
+    expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program manager')
     expect(STAGE_VERB).toEqual({ LEAD: 'Confirm the need', PROCUREMENT: 'Qualified', HR: 'Cleared compliance', FINANCE: 'Approve as a supplier' })
   })
 })
@@ -154,8 +154,8 @@ describe('a desk nobody has named', () => {
   it('and when the approver is the one who recommended the firm, their own rule cannot stand in for them', () => {
     expect(read('src/lib/supplier-desks.ts')).toContain("rules.filter((r) => r.kind === 'VALUE' && r.approverId !== recommendedById)")
   })
-  it('the stepper says Program office, not Department lead, so whoever decides knows they are standing in', () => {
-    expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program office')
+  it('the stepper says Program manager, not Department lead, so whoever decides knows they are standing in', () => {
+    expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program manager')
     expect(stepsOf('LEAD', 'RECOMMENDED', [], true)[0].word).toBe('Department lead')
   })
 })

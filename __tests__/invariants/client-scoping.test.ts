@@ -153,7 +153,7 @@ describe('A supplier reading the client it supplies', () => {
     const body = await result.error!.json()
 
     expect(body.error.message).toContain('Talvern Medical')
-    expect(body.error.message).toMatch(/seat in their program office/)
+    expect(body.error.message).toMatch(/seat in their program\./)
     expect(body.error.message).toMatch(/own placements, contracts, weeks and bills/)
   })
 
@@ -382,7 +382,7 @@ describe('A program office in a seat the client granted', () => {
     expect(r.client).toBeNull()
     const body = await r.error!.json()
     expect(body.error.message).toContain('Kestrel MSP')
-    expect(body.error.message).toMatch(/seat in their program office/)
+    expect(body.error.message).toMatch(/seat in their program\./)
     expect(body.error.message).toMatch(/owner or the program manager/)
   })
 

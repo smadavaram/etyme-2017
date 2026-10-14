@@ -495,7 +495,7 @@ export default function SuppliersPage() {
         <section className="panel space-y-3">
           <Lbl>Recommend a supplier</Lbl>
           <p className="text-[13px] text-etyme-muted">
-            It walks four desks: your department lead confirms the need, Procurement qualifies the firm — experience,
+            It needs four approvals: your department lead confirms the need, Procurement qualifies the firm — experience,
             references, revenue and delivery proofs, proposal, D&amp;B — HR clears compliance and screening, and Finance
             checks the W-9 and bank details. The firm gets a link of its own to supply its side. You are told at each step.
           </p>
@@ -755,7 +755,7 @@ export default function SuppliersPage() {
           <Lbl>Not approved</Lbl>
           {requests.filter((r) => r.state === 'DECLINED').slice(0, 5).map((r) => (
             <p key={r.id} className="text-[12.5px] text-etyme-muted">
-              <span className="text-etyme-ink">{r.name}</span> — {r.decidedBy ?? 'a desk'}: {r.decisionNote}
+              <span className="text-etyme-ink">{r.name}</span> — {r.decidedBy ?? 'an approver'}: {r.decisionNote}
             </p>
           ))}
         </section>

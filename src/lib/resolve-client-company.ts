@@ -332,7 +332,7 @@ function notYourProgram(callerName: string, clientName: string | null): string {
       `${callerName} is not tied to a client yet. A client's program — its headcount, its spend ` +
       `and the other firms it buys from — is read by the client itself and by a firm holding a ` +
       `seat the client granted. Supplying people there does not open it. Ask an owner or the ` +
-      `program manager at that client to grant ${callerName} a seat in their program office.`
+      `program manager at that client to grant ${callerName} a seat in their program.`
     )
   }
   return (
@@ -340,7 +340,7 @@ function notYourProgram(callerName: string, clientName: string | null): string {
     `what a client spends and which other firms it buys from is its own picture. ` +
     `${callerName} reads its own placements, contracts, weeks and bills wherever they are. ` +
     `If ${callerName} runs this program rather than supplying people, ask an owner or the program ` +
-    `manager at ${clientName} to grant ${callerName} a seat in their program office.`
+    `manager at ${clientName} to grant ${callerName} a seat in their program.`
   )
 }
 

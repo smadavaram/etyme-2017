@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   const name = String(body?.name ?? '').trim()
   const reason = String(body?.reason ?? '').trim()
   if (!name) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Which firm? A name, at least.', field: 'name' } }, { status: 422 })
-  if (!reason) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say why — the program office reads this first.', field: 'reason' } }, { status: 422 })
+  if (!reason) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say why — whoever approves it reads this first.', field: 'reason' } }, { status: 422 })
   const skills: string[] = Array.isArray(body?.skills) ? body.skills.map((x: unknown) => String(x).trim()).filter(Boolean)
     : typeof body?.skills === 'string' ? body.skills.split(/[,;]/).map((x: string) => x.trim()).filter(Boolean) : []
   const contactEmail = typeof body?.contactEmail === 'string' && body.contactEmail.includes('@') ? body.contactEmail.trim().toLowerCase() : null
@@ -170,12 +170,12 @@ export async function POST(request: NextRequest) {
 
   // The recommender's own lead hears, by email as well as in the app.
   const desks = await desksFor(companyId, caller.person.id)
-  const leadWord = desks.leadId ? 'your department lead' : 'the program office'
+  const leadWord = desks.leadId ? 'your department lead' : 'the program manager'
   for (const personId of (await deskPeople(companyId, 'LEAD', desks, [caller.person.id])).filter((p) => p !== caller.person.id)) {
     void notify({
       personId, companyId, type: 'SYSTEM', entityId: row.id, channel: 'EMAIL',
       title: `Supplier recommended — ${name}`,
-      body: `${caller.person.name} recommends ${name}${skills.length ? ` for ${skills.join(', ')}` : ''}: ${reason}. It is on your desk to confirm the need, then Procurement, HR and Finance take it in turn. Open Suppliers to decide.`,
+      body: `${caller.person.name} recommends ${name}${skills.length ? ` for ${skills.join(', ')}` : ''}: ${reason}. It is yours to confirm the need, then Procurement, HR and Finance approve it in turn. Open Suppliers to decide.`,
       data: { href: '/dashboard/suppliers' },
     })
   }
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     data: {
       request: { id: row.id, stage: row.stage, link: applyUrl(row.token) },
       delivery,
-      says: `${name} is with ${leadWord}. It walks four desks — ${desks.leadId ? 'your lead' : 'the program office'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? ` ${name} has been sent a link to supply its paperwork.` : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
+      says: `${name} is with ${leadWord}. It needs four approvals — ${desks.leadId ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? ` ${name} has been sent a link to supply its paperwork.` : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
     },
   }, { status: 201 })
 }

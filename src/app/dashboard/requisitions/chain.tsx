@@ -246,7 +246,7 @@ export function alsoWaitingSays(
   const names = rows.map((r) => {
     const desk = DESKS.find((d) => d.key === deskOf({ ...r, approver: r.approver as any }, desks))
     const who = r.approver?.name ?? null
-    const what = desk ? desk.heading.split('—').pop()!.trim() : 'another desk'
+    const what = desk ? desk.heading.split('—').pop()!.trim() : 'another approver'
     return who ? `${what} (${who})` : what
   })
   const list =
@@ -563,7 +563,7 @@ export function DecideModal({ req, action, sourcing, suppliers, onClose, onDone 
             placeholder={
               action === 'reject' ? 'Why this is not going ahead.'
               : action === 'changes' ? 'Bring it to $120 an hour and I will sign.'
-              : 'Anything the next desk should know.'
+              : 'Anything the next approver should know.'
             }
           />
         </div>
@@ -747,7 +747,7 @@ export function EditRequisition({
             : req.approvalState === 'CHANGES_REQUESTED'
               ? 'Handed back for changes. Saving sends it round again.'
               : req.approvalState === 'PENDING_APPROVAL'
-                ? 'Still with a desk. Nothing has gone to a supplier, so nobody outside is told.'
+                ? 'Still with an approver. Nothing has gone to a supplier, so nobody outside is told.'
                 : 'Still a draft. Nobody has been asked to look at it yet.'}
         </p>
 

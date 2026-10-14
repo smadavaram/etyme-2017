@@ -393,7 +393,7 @@ export async function PATCH(
         error: {
           code: 'FORBIDDEN',
           message:
-            `Only the manager this is for, whoever raised it, or the program office at ${desk!.companyName} can change it. ` +
+            `Only the manager this is for, whoever raised it, or the program manager at ${desk!.companyName} can change it. ` +
             'An approver asks for changes instead.',
         },
       },

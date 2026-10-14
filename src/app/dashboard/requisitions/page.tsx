@@ -477,7 +477,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               </ul>
               <p className="text-xs text-etyme-faint mt-2">
                 Within plan, budget and rate, none of them is asked — it clears
-                itself and every desk records why.
+                itself, and why is recorded for each.
               </p>
             </div>
           )}

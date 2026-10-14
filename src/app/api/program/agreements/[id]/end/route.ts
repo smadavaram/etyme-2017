@@ -115,7 +115,7 @@ export async function POST(
         error: {
           code: 'NOT_ALLOWED',
           message:
-            'Ending an agreement is the contracting desk’s work — everything underneath it ' +
+            'Ending an agreement is for the contract manager — everything underneath it ' +
             'inherits its terms. Ask your contract manager to end it, or an owner to give ' +
             'you rate permissions.',
         },

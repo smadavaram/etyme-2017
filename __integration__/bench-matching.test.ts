@@ -283,7 +283,7 @@ describe('asking to add the firm behind a suggestion', () => {
     expect(choices.status, JSON.stringify(choices.body)).toBe(200)
     const ways = choices.body.data.ways
     expect(ways.map((w: any) => w.comesInAs)).toEqual(['PRIME_VENDOR', 'SUB_UNDER_MSP', 'SUB_UNDER_PRIME'])
-    expect(ways[1].under).toContainEqual({ id: null, name: 'Etyme’s program office' })
+    expect(ways[1].under).toContainEqual({ id: null, name: 'Etyme, as your MSP' })
     expect(ways[2].under.map((u: any) => u.name)).toContain('Computer Systems Inc')
     expect(choices.body.data.says).toContain('Etyme is never a prime vendor')
 
@@ -297,7 +297,7 @@ describe('asking to add the firm behind a suggestion', () => {
       matchId: s.suggestion, comesInAs: 'PRIME_VENDOR',
     }), withId(s.job)))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.says).toContain('walks four desks')
+    expect(r.body.data.says).toContain('needs four approvals')
     const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: r.body.data.request.id } })
     expect(row).toMatchObject({
       requirementId: s.job, matchId: s.suggestion, firmCompanyId: s.orchid, comesInAs: 'PRIME_VENDOR',
@@ -321,7 +321,7 @@ describe('asking to add the firm behind a suggestion', () => {
       matchId: s.suggestion, comesInAs: 'PRIME_VENDOR',
     }), withId(s.job)))
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('the hiring manager or the program office')
+    expect(r.body.error.message).toContain('the hiring manager or the program manager')
   })
 
   it('once the firm is approved, the suggestion is an ordinary match and the person can be asked for', async () => {

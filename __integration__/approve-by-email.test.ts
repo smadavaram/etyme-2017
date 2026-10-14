@@ -104,7 +104,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     as(BRIGHTMOOR)
     const link = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
     expect(link.status).toBe(403)
-    expect(link.body.error.message).toBe('Only Helena Marsh, or the timesheet desk at a supplier on this placement, can attach the client’s approval.')
+    expect(link.body.error.message).toBe('Only Helena Marsh, or whoever handles timesheets at a supplier on this placement, can attach the client’s approval.')
     const ev = await attach({ timesheetId: it_.week, how: 'EVIDENCE', ...DANA, kind: 'EMAIL', pastedText: 'Approved' })
     expect(ev.status).toBe(403)
     const logged = await prisma.accessLog.findMany({ where: { subjectId: it_.helena, allowed: false, action: { in: ['APPROVAL_LINK_SEND', 'APPROVAL_EVIDENCE_ATTACH'] } } })

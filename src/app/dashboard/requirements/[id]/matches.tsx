@@ -354,7 +354,7 @@ export function MatchList({
                           </button>
                         ) : (
                           <span className="text-[11px] text-etyme-muted max-w-[28ch]">
-                            Adding a supplier is for the hiring manager or the program office.
+                            Adding a supplier is for the hiring manager or the program manager.
                           </span>
                         )
                       )}
@@ -443,7 +443,7 @@ interface Way {
 
 const WAY_WORD: Record<Way['comesInAs'], string> = {
   PRIME_VENDOR: 'As a prime vendor',
-  SUB_UNDER_MSP: 'Under your program office',
+  SUB_UNDER_MSP: 'Under your MSP',
   SUB_UNDER_PRIME: 'Under one of your prime vendors',
 }
 
@@ -550,10 +550,10 @@ export function AddFirmDialog({
 
               {way !== 'PRIME_VENDOR' && (
                 <label className="block text-[12px] text-etyme-ink">
-                  {way === 'SUB_UNDER_PRIME' ? 'Which prime vendor' : 'Which program office'}
+                  {way === 'SUB_UNDER_PRIME' ? 'Which prime vendor' : 'Which MSP'}
                   {options.length === 0 ? (
                     <span className="block mt-1 text-[12px] text-etyme-muted">
-                      You have no prime vendor to put them under yet. Add them as a prime vendor, or under a program office.
+                      You have no prime vendor to put them under yet. Add them as a prime vendor, or under an MSP.
                     </span>
                   ) : (
                     <select
@@ -570,7 +570,7 @@ export function AddFirmDialog({
               )}
 
               <label className="block text-[12px] text-etyme-ink">
-                Anything the desks should know <span className="text-etyme-faint">(optional)</span>
+                Anything the approvers should know <span className="text-etyme-faint">(optional)</span>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
@@ -580,7 +580,7 @@ export function AddFirmDialog({
               </label>
 
               <p className="text-[11px] text-etyme-faint">
-                The request walks your supplier onboarding: department lead or program office, then Procurement, HR and Finance.
+                The request walks your supplier onboarding: department lead or program manager, then Procurement, HR and Finance.
                 The person&apos;s name and rate stay with {match.firm.name} until it is approved.
               </p>
               {error && <p className="text-[12px] text-etyme-danger" role="alert">{error}</p>}

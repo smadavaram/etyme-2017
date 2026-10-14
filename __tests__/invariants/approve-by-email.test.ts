@@ -171,7 +171,7 @@ describe('who may send the link or attach the evidence', () => {
 
   it('a stranger cannot attach, and is told who can', () => {
     const v = mayActForTheClient(desk('elsewhere', ['*']), HELENA, LADDER, 'Northbend Athletic')
-    expect(v).toEqual({ ok: false, says: 'Only Helena Marsh, or the timesheet desk at a supplier on this placement, can attach the client’s approval.' })
+    expect(v).toEqual({ ok: false, says: 'Only Helena Marsh, or whoever handles timesheets at a supplier on this placement, can attach the client’s approval.' })
   })
 
   it('the client’s own desk is told to approve in Etyme instead', () => {

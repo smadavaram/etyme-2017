@@ -90,9 +90,9 @@ export function ownWeeksSays(company: string | null | undefined): string {
   const at = company?.trim() ? ` at ${company.trim().replace(/\.$/, '')}` : ''
   return (
     `These are your own weeks${at}. ` +
-    'Your colleagues’ weeks and what the client is billed are read by the timesheet and billing desks.'
+    'Your colleagues’ weeks and what the client is billed are read by the people who approve timesheets and send bills.'
   )
 }
 
 /** Said in a blank where a rate is on file and this reader may not read it. Never "not recorded", never $0. */
-export const RATE_WITHHELD_CELL = 'Rate is read by the billing desk'
+export const RATE_WITHHELD_CELL = 'Rate is read by the billing team'

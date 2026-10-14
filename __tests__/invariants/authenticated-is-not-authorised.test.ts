@@ -78,9 +78,9 @@ describe('only the company that raised a requirement may put it in front of supp
     expect(DISTRIBUTE).toMatch(/caller\.company\?\.id !== requisition\.companyId/)
   })
 
-  it('refuses a desk that does not hold the supplier panel, naming the program office', () => {
+  it('refuses a desk that does not hold the supplier panel, naming the program manager', () => {
     expect(DISTRIBUTE).toContain("'requirements.distribute'")
-    expect(DISTRIBUTE).toContain('program office')
+    expect(DISTRIBUTE).toContain('program manager')
   })
 
   it('refuses a requirement the approval chain has not cleared', () => {

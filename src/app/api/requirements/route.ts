@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
+          ? `You are working in ${desk.companyName}'s program. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
       },
       },
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
+          ? `You are working in ${desk.companyName}'s program. These are ${desk.companyName}'s jobs, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
       },
     },
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
           code: 'NOT_HIRING',
           message:
             `Opening a job is for whoever is hiring at ${desk?.companyName ?? 'your company'} — ` +
-            'a hiring manager, or the desk that owns the account. Ask them to raise it.',
+            'a hiring manager, or the account manager. Ask them to raise it.',
         },
       },
       { status: 403 }

@@ -74,9 +74,9 @@ export function maySeeSuppliers(permissions: readonly string[]): boolean {
 
 /** What is missing and who to ask. Never a permission code. */
 export const CANNOT_SEE_SUPPLIERS =
-  'The supplier list belongs to the desks that choose and pay suppliers here — Procurement, ' +
-  'the program office, whoever raises a job, and the finance desk that checks a new ' +
-  "supplier's bank details. Ask whoever manages roles at your company to seat you at one of them."
+  'The supplier list belongs to the people who choose and pay suppliers here — Procurement, ' +
+  'the program manager, whoever raises a job, and the finance team that checks a new ' +
+  "supplier's bank details. Ask whoever manages roles at your company to give you one of those roles."
 
 // ── Who may add a supplier by pasting a list ─────────────────────────
 //
@@ -97,10 +97,10 @@ export const ADDS_SUPPLIERS = 'vendors.manage' as const
 
 /** What is missing and who to ask. Never a permission code. */
 export const CANNOT_ADD_SUPPLIER =
-  'Adding suppliers from a list belongs to the desk that owns the supplier panel — Procurement, ' +
-  'a supplier manager or the program office. To bring in a new firm, recommend it from the ' +
-  'Suppliers page and the desks will review it, or ask whoever manages roles at your company ' +
-  'to seat you at that desk.'
+  'Adding suppliers from a list belongs to whoever manages the approved suppliers — Procurement, ' +
+  'a supplier manager or the program manager. To bring in a new firm, recommend it from the ' +
+  'Suppliers page and the approvers will review it, or ask whoever manages roles at your company ' +
+  'to give you that role.'
 
 /**
  * Joining two records of one firm is the same desk's act, and a heavier
@@ -109,9 +109,9 @@ export const CANNOT_ADD_SUPPLIER =
  */
 export const CANNOT_JOIN_SUPPLIERS =
   'Joining two records of one supplier moves everything from one to the other and cannot be ' +
-  'undone, so it belongs to the desk that owns the supplier panel — Procurement, a supplier ' +
-  'manager or the program office. Ask one of them to join these, or ask whoever manages roles ' +
-  'at your company to seat you at that desk.'
+  'undone, so it belongs to whoever manages the approved suppliers — Procurement, a supplier ' +
+  'manager or the program manager. Ask one of them to join these, or ask whoever manages roles ' +
+  'at your company to give you that role.'
 
 
 /**

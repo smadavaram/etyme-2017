@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NO_PERMISSION',
           message:
-            `Putting somebody in front of a client is a recruiting desk's job at ` +
+            `Putting somebody in front of a client is for the recruiting team at ` +
             `${desk?.companyName ?? 'your firm'} — a recruiter, a resource manager or the ` +
             `account manager. Ask one of them to submit this candidate.`,
         },
@@ -554,7 +554,7 @@ export async function POST(request: NextRequest) {
         item.status = 'error'
         item.code = 'NOT_YOUR_EMPLOYEE'
         item.error = deliveryDeskSays(person.name, desk?.companyName ?? 'your firm')
-        await refused(`Delivery desk refused: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`)
+        await refused(`Refused to a delivery manager: ${person.name} is not employed by ${desk?.companyName ?? 'this firm'}`)
         results.push(item)
         continue
       }
@@ -1687,7 +1687,7 @@ export async function GET(request: NextRequest) {
         ownOnly,
         ownSays: ownOnly ? ownSubmissionsSays(caller.company?.name ?? null) : null,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are the people put in front of ${desk.companyName}, not ${caller.company?.name ?? 'your firm'}.`
+          ? `You are working in ${desk.companyName}'s program. These are the people put in front of ${desk.companyName}, not ${caller.company?.name ?? 'your firm'}.`
           : null,
       },
     },

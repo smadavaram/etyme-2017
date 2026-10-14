@@ -342,8 +342,8 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOT_YOURS',
           message:
-            `${center.code} belongs to somebody else's desk. Its owner can set its budget, ` +
-            'and so can the program office — ask whichever of those you are nearer.',
+            `${center.code} belongs to somebody else's team. Its owner can set its budget, ` +
+            'and so can the program manager — ask whichever of those you are nearer.',
         },
       },
       { status: 403 }

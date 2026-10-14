@@ -83,7 +83,7 @@ describe('who a job request waits on is said once', () => {
   })
 
   it('a desk nobody is named for is said as one, and a settled chain waits on nobody', () => {
-    expect(waitingOnSays([row(1, 'PENDING', null)])).toBe('Waiting on a desk nobody is named for')
+    expect(waitingOnSays([row(1, 'PENDING', null)])).toBe('Waiting on an approver nobody has named yet')
     expect(waitingOnSays([row(1, 'APPROVED', 'Dana Whitfield')])).toBeNull()
   })
 
@@ -239,7 +239,7 @@ describe('a job request says what the job is before anybody approves it', () => 
   it('the raise form asks for what the desks check and what an approver reads, in one sentence', () => {
     const empty = { title: 'Payroll data analyst', skills: '', billMax: '', months: '', hoursPerWeek: '', costCenterId: '', description: '', justification: '', location: '' }
     expect(missingSays(missingForApproval(empty, { costCentersOffered: true }))).toBe(
-      'Say what the work is, the skills it needs, the most you will pay an hour, how many months, the hours a week, where the work is, which budget pays for it and why it is needed. The desks check the job against these, and whoever approves it reads them.'
+      'Say what the work is, the skills it needs, the most you will pay an hour, how many months, the hours a week, where the work is, which budget pays for it and why it is needed. HR and Procurement check the job against these, and whoever approves it reads them.'
     )
     const full = { ...empty, skills: 'SQL', billMax: '115', months: '6', hoursPerWeek: '40', costCenterId: 'cc', description: 'Reports.', justification: 'Backfill.', location: 'Tualatin, OR' }
     expect(missingForApproval(full, { costCentersOffered: true })).toEqual([])

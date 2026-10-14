@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const item = checklist.find((i) => i.key === key)
     if (!item) return NextResponse.json({ error: { code: 'VALIDATION', message: 'That is not on the checklist.' } }, { status: 422 })
     if (item.desk !== stage) {
-      return NextResponse.json({ error: { code: 'NOT_YOUR_ITEM', message: `${item.label} is ${STAGE_WORD[item.desk]}’s to verify, not this desk’s.` } }, { status: 409 })
+      return NextResponse.json({ error: { code: 'NOT_YOUR_ITEM', message: `${item.label} is ${STAGE_WORD[item.desk]}’s to verify, not yours at this step.` } }, { status: 409 })
     }
     const state = body?.state as ItemState
     if (!['HELD', 'WAIVED', 'MISSING'].includes(state)) {
@@ -288,7 +288,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         void notify({
           personId, companyId, type: 'SYSTEM', entityId: id, channel: 'EMAIL',
           title: `Supplier to review — ${row.name}`,
-          body: `${caller.person.name} (${STAGE_WORD[stage]}) cleared ${row.name}${note ? `: ${note}` : ''}. It is on your desk now.`,
+          body: `${caller.person.name} (${STAGE_WORD[stage]}) cleared ${row.name}${note ? `: ${note}` : ''}. It is with you now.`,
           data: { href: '/dashboard/suppliers' },
         })
       }
@@ -414,7 +414,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
               : ` The link for ${claim.to} to take ${row.name}’s account did not go out: ${claim.note}`
             : '') +
           (recorded > 0
-            ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your desks verified ` +
+            ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your team verified ` +
               `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +
               `${recorded === 1 ? 'its renewal' : 'the renewals'} before ${recorded === 1 ? 'it runs' : 'they run'} out.`
             : '') +

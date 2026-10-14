@@ -118,7 +118,7 @@ function dayWords(at: Date): string {
  */
 export function deskPhraseFor(desks: readonly Seat[]): string {
   const named = desks.map((d) => (d.roleName ? `${d.personName} (${d.roleName})` : d.personName))
-  if (named.length === 0) return 'nobody at your firm holds the contract desk yet'
+  if (named.length === 0) return 'nobody at your firm handles contracts yet'
   if (named.length === 1) return named[0]
   if (named.length === 2) return `${named[0]} and ${named[1]}`
   return `${named[0]} and ${named.length - 1} others who paper contracts here`
@@ -174,7 +174,7 @@ export function awardHandoff(facts: AwardFacts, seats: readonly Seat[]): Handoff
         title: `Won — ${facts.personName} at ${facts.clientName}`,
         body:
           `${subject} was awarded ${rateClause}. ` +
-          `Papering it is the contract desk's, not yours, so it has gone to ${deskPhrase}. ` +
+          `Papering it is the contract manager's job, not yours, so it has gone to ${deskPhrase}. ` +
           'You will see it start once the contract is verified and the paperwork clears.',
       }
     : null
@@ -182,7 +182,7 @@ export function awardHandoff(facts: AwardFacts, seats: readonly Seat[]): Handoff
   const says = papering.length > 0
     ? `${facts.personName}'s contract is a draft with ${deskPhrase} to paper.`
     : `${facts.personName}'s contract is a draft and ${deskPhrase}. ` +
-      'Give somebody the contract desk on Users & permissions, or nobody can start them.'
+      'Give somebody the Contract Manager role on Users & permissions, or nobody can start them.'
 
   return { toPaper, toSell, deskPhrase, says }
 }
@@ -195,12 +195,12 @@ export function awardHandoff(facts: AwardFacts, seats: readonly Seat[]): Handoff
  */
 export function mayPaper(held: Held, desks: readonly Seat[]): { ok: boolean; says: string } {
   if (holdsContractDesk(held)) {
-    return { ok: true, says: 'You hold the contract desk here.' }
+    return { ok: true, says: 'You handle contracts here.' }
   }
   return {
     ok: false,
     says:
-      'Winning the job and papering it are two desks here, which is why nobody ' +
+      'Winning the job and papering it are two jobs here, which is why nobody ' +
       `can do both. ${deskPhraseFor(desks)} papers this one` +
       (desks.length > 0 ? ' and has already been told it is waiting.' : '.'),
   }
@@ -348,6 +348,6 @@ export function tellSelected(f: SelectedFacts): { title: string; body: string } 
     body:
       `${f.buyerName} has a client decision: ${f.personName} was selected for ${f.roleTitle}` +
       `${money ? `, at the ${money} you asked` : ''}. ` +
-      `${f.buyerName} places them with you next, and your contract desk is asked to paper it then.`,
+      `${f.buyerName} places them with you next, and your contract manager is asked to paper it then.`,
   }
 }

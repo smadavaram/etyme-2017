@@ -93,7 +93,7 @@ describe('4: a seat with no desk reads only the submissions that name it, and no
 
   it('the line over a desk-less seat’s own submissions says whose they are and that rates are the recruiting desk’s', () => {
     expect(ownSubmissionsSays('Teleworld Solutions')).toBe(
-      'These are the times you were put forward by Teleworld Solutions. Your colleagues’ submissions and every rate are read by the recruiting desk.'
+      'These are the times you were put forward by Teleworld Solutions. Your colleagues’ submissions and every rate are read by the recruiters.'
     )
   })
 

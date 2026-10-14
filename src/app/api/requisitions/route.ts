@@ -141,10 +141,10 @@ async function whoIsHiring(
           error: {
             code: 'NOT_HIRING',
             message:
-              `${caller.company.name} is not tied to a client yet. A program office places ` +
+              `${caller.company.name} is not tied to a client yet. An MSP places ` +
               `nobody, so the jobs it opens are a client's — and it opens them from a seat ` +
               `the client granted it. Ask an owner or the program manager at that client to ` +
-              `grant ${caller.company.name} a seat in their program office.`,
+              `grant ${caller.company.name} a seat in their program.`,
           },
         },
         { status: 403 }
@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
           code: 'NOT_HIRING',
           message:
             `Raising a job request is for whoever is hiring at ${client.name} — ` +
-            'a hiring manager or the program office. Ask them to open the job.',
+            'a hiring manager or the program manager. Ask them to open the job.',
         },
       },
       { status: 403 }
@@ -509,7 +509,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'OUTSIDE_YOUR_SEAT',
           message:
-            `${caller.company!.name}'s desk at ${client.name} covers one part of the program, and this job ` +
+            `${caller.company!.name}'s role at ${client.name} covers one part of the program, and this job ` +
             `sits outside it. Raise it in a team your seat covers, or ask ${client.name} to widen the seat.`,
         },
       },

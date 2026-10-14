@@ -707,6 +707,6 @@ describe('what two suppliers charge for one role', () => {
     expect(status).toBe(403)
     expect(body.error.message).toContain('Cavanaugh Glassworks')
     expect(body.error.message).toContain('Halcyon Talent')
-    expect(body.error.message).toMatch(/seat in their program office/)
+    expect(body.error.message).toMatch(/seat in their program\./)
   })
 })

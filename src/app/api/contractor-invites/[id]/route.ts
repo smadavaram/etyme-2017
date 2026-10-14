@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       void notify({
         personId, companyId, type: 'SYSTEM', entityId: req.id, channel: 'EMAIL',
         title: `Supplier recommended — ${firmName}`,
-        body: `${caller.person.name} asked ${row.name} onto the network and ${firmName} represents them. It is on your desk to confirm the need, then Procurement, HR and Finance take it in turn.`,
+        body: `${caller.person.name} asked ${row.name} onto the network and ${firmName} represents them. It is yours to confirm the need, then Procurement, HR and Finance approve it in turn.`,
         data: { href: '/dashboard/suppliers' },
       })
     }
@@ -134,7 +134,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         state: row.state,
         says:
-          `${firmName} is with your department lead and walks four desks — lead, Procurement, HR, Finance. ` +
+          `${firmName} is with your department lead and needs four approvals — lead, Procurement, HR, Finance. ` +
           `${row.name.split(' ')[0]} joins your network when it clears and puts them forward.`,
         supplierRequestId: req.id,
         link: applyUrl((await prisma.supplierRequest.findUniqueOrThrow({ where: { id: req.id }, select: { token: true } })).token),

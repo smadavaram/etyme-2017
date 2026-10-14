@@ -240,7 +240,7 @@ export function marginFloorFinding(
       code: 'MARGIN_WITHHELD',
       severity: 'NOTE',
       says:
-        `Whether ${contract.personName} clears the ${minMarginPct}% floor is checked by the desks ` +
+        `Whether ${contract.personName} clears the ${minMarginPct}% floor is checked by the roles ` +
         `that read margin — the owner and the admin — because the answer shows what we pay.`,
       subjectType: 'CONTRACT',
       subjectId: contract.id,

@@ -696,7 +696,7 @@ export default function RequisitionDetail() {
           {data.approvals.length === 0 ? (
             <p className="mt-3 text-sm text-etyme-muted">
               {r.approvalState === 'AUTO_APPROVED'
-                ? 'Cleared the moment it was raised — inside plan, inside budget, inside the going rate. No desk was needed.'
+                ? 'Cleared the moment it was raised — inside plan, inside budget, inside the going rate. No approval was needed.'
                 : 'Not sent for approval yet. Nobody has been asked to look at this.'}
             </p>
           ) : (
@@ -736,12 +736,12 @@ export default function RequisitionDetail() {
                   "This requisition is changes requested." A refusal says
                   what is missing and what to do about it. */}
               {r.approvalState === 'PENDING_APPROVAL'
-                ? 'Still with the desks above. Suppliers see it once every one of them has said yes.'
+                ? 'Still with the approvers above. Suppliers see it once every one of them has said yes.'
                 : r.approvalState === 'CHANGES_REQUESTED'
-                  ? 'Sent back for changes. Edit it and it goes round again — to the desk that asked, not back to the start.'
+                  ? 'Sent back for changes. Edit it and it goes round again — to the approver who asked, not back to the start.'
                   : r.approvalState === 'REJECTED'
                     ? 'This was rejected, so it goes to no supplier. Raising a fresh one is the way back.'
-                    : 'Not sent for approval yet. Suppliers see it once it has been through the desks.'}
+                    : 'Not sent for approval yet. Suppliers see it once it has been through approval.'}
             </div>}
       </ListSection>
       )}

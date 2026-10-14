@@ -62,7 +62,7 @@ export function raiseVerdict(session: { loading: boolean; error?: string | null 
 }
 
 /** The line a reader sees when the answer is no. */
-export const NOT_YOURS_TO_RAISE = 'Raising a job request needs the hiring manager\u2019s role or the program office\u2019s.'
+export const NOT_YOURS_TO_RAISE = 'Raising a job request needs the hiring manager\u2019s role or the program manager\u2019s.'
 
 /** Whether this reader may raise a job request — what POST /api/requisitions asks. */
 export function mayRaise(permissions: readonly string[] | null | undefined): boolean {

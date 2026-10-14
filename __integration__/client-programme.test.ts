@@ -169,7 +169,7 @@ describe('2 · the program office sends it to suppliers, and a supplier answers'
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }],
     })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toMatch(/program office/)
+    expect(r.body.error.message).toMatch(/program manager/)
   })
 
   it('the program office sends it to Pinnacle with a band Pinnacle alone can see', async () => {

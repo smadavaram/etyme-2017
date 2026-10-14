@@ -150,7 +150,7 @@ export function whoseQueue(reading: {
   if (!mine || !theirs) return null
   return (
     `These are ${possessive(mine)} own to decide. The seat ${theirs} granted you does not ` +
-    `carry ${possessive(theirs)} queue — its weeks are signed from its own desks.`
+    `carry ${possessive(theirs)} queue — its own people approve its timesheets.`
   )
 }
 

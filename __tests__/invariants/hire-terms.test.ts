@@ -184,7 +184,7 @@ describe('the award travels down the chain', () => {
     expect(t.title).toBe('Selected — Ana Ruiz for Supply planning analyst')
     expect(t.body).toBe(
       'Techpeple has a client decision: Ana Ruiz was selected for Supply planning analyst, at the $115/hr you asked. ' +
-      'Techpeple places them with you next, and your contract desk is asked to paper it then.'
+      'Techpeple places them with you next, and your contract manager is asked to paper it then.'
     )
   })
 

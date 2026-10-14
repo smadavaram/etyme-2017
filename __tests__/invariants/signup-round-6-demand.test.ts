@@ -113,7 +113,7 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
   it('weeks whose rate is withheld from the reader show no approved value at all, never $0', () => {
     const t = listTotals([week(), week({ totalHours: 8 })], { onServer: 2, payBasis: false })
     expect(t.approvedValueCents).toBeNull()
-    expect(t.approvedSays).toBe('2 weeks approved since Jun 1, 2026; their value is read by the billing desk')
+    expect(t.approvedSays).toBe('2 weeks approved since Jun 1, 2026; their value is read by the billing team')
     expect(t.approvedSays).not.toContain('no rate on file')
   })
 
@@ -123,7 +123,7 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
       { onServer: 3, payBasis: false }
     )
     expect(t.approvedValueCents).toBe(400_000)
-    expect(t.approvedSays).toBe('billable, from 3 weeks approved since Jun 1, 2026; 1 more whose rate is read by the billing desk; 1 more with no rate on file')
+    expect(t.approvedSays).toBe('billable, from 3 weeks approved since Jun 1, 2026; 1 more whose rate is read by the billing team; 1 more with no rate on file')
   })
 
   it('the timesheets route marks a rate it withholds, rather than sending a bare null', () => {
@@ -135,12 +135,12 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
     expect(page).toMatch(/row\.rate\.withheld \? RATE_WITHHELD_CELL : 'not recorded'/)
     // A null value is drawn by the shared Stat as a dash (shared-primitives).
     expect(page).toMatch(/totals\.approvedValueCents == null\s*\?\s*null/)
-    expect(RATE_WITHHELD_CELL).toBe('Rate is read by the billing desk')
+    expect(RATE_WITHHELD_CELL).toBe('Rate is read by the billing team')
   })
 
   it('a seat reading only its own weeks is told they are its own, not "hours your people worked"', () => {
     expect(ownWeeksSays('Teleworld Solutions')).toBe(
-      'These are your own weeks at Teleworld Solutions. Your colleagues’ weeks and what the client is billed are read by the timesheet and billing desks.'
+      'These are your own weeks at Teleworld Solutions. Your colleagues’ weeks and what the client is billed are read by the people who approve timesheets and send bills.'
     )
     // Round seven, problem 5: through listHead, which also waits for the read.
     expect(src('app/dashboard/timesheets/page.tsx')).toMatch(/listHead\(\{ readOnce, ownSays, firmSays: framing\.subtitle \}\)/)

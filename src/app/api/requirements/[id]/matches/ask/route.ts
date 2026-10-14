@@ -49,7 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   if (!hasPermission(viewer.permissions, 'requirements.write')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Asking a supplier for somebody is for whoever raises job requests here — the hiring manager or the program office.' } },
+      { error: { code: 'FORBIDDEN', message: 'Asking a supplier for somebody is for whoever raises job requests here — the hiring manager or the program manager.' } },
       { status: 403 }
     )
   }

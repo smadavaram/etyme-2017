@@ -59,7 +59,7 @@ async function load(request: NextRequest, requirementId: string, matchId: string
     return {
       ok: false,
       res: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Asking to add a supplier is for whoever raises job requests here — the hiring manager or the program office.' } },
+        { error: { code: 'FORBIDDEN', message: 'Asking to add a supplier is for whoever raises job requests here — the hiring manager or the program manager.' } },
         { status: 403 }
       ),
     }
@@ -139,8 +139,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         { comesInAs: 'PRIME_VENDOR', says: `${entry.firmName} bills you directly, under its own agreement with you.` },
         {
           comesInAs: 'SUB_UNDER_MSP',
-          says: `${entry.firmName} works in the program your program office runs. Etyme's program office can run it for you if you have none.`,
-          under: [...options.msps.map((m) => ({ id: m.id, name: m.name })), { id: null, name: 'Etyme’s program office' }],
+          says: `${entry.firmName} works in the program your MSP runs. Etyme can be your MSP if you have none.`,
+          under: [...options.msps.map((m) => ({ id: m.id, name: m.name })), { id: null, name: 'Etyme, as your MSP' }],
         },
         {
           comesInAs: 'SUB_UNDER_PRIME',
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ],
       says:
         `${entry.firmName} is not your supplier yet. Asking to add it starts your supplier onboarding: your department lead ` +
-        '(or the program office), Procurement, HR and Finance, in turn. Etyme is never a prime vendor.',
+        '(or the program manager), Procurement, HR and Finance approve it in turn. Etyme is never a prime vendor.',
     },
   })
 }
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const comesInAs = String(body?.comesInAs ?? '') as ComesInAs
   if (!COMES_IN_AS.includes(comesInAs)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Say how the firm comes in: as a prime vendor, under your program office, or under one of your primes.', field: 'comesInAs' } },
+      { error: { code: 'VALIDATION', message: 'Say how the firm comes in: as a prime vendor, under your MSP, or under one of your primes.', field: 'comesInAs' } },
       { status: 422 }
     )
   }
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const msp = options.msps.find((m) => m.id === underId)
     if (!msp) {
       return NextResponse.json(
-        { error: { code: 'NOT_YOUR_MSP', message: 'That firm does not run your program. Pick your program office, or Etyme’s.', field: 'underCompanyId' } },
+        { error: { code: 'NOT_YOUR_MSP', message: 'That firm does not run your program. Pick your MSP, or Etyme.', field: 'underCompanyId' } },
         { status: 422 }
       )
     }
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   })
   if (open) {
     return NextResponse.json(
-      { error: { code: 'ALREADY_RECOMMENDED', message: `${entry.firmName} is already in your supplier onboarding. It walks the desks once; you will be told when it is decided.` } },
+      { error: { code: 'ALREADY_RECOMMENDED', message: `${entry.firmName} is already in your supplier onboarding. It goes through the approvals once; you will be told when it is decided.` } },
       { status: 409 }
     )
   }
@@ -262,8 +262,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         request: { id: opened.row.id, stage: opened.row.stage, comesInAs, underCompanyId: underId },
         says:
-          `${entry.firmName} is with ${opened.leadNamed ? 'your department lead' : 'the program office'}. It walks four desks — ` +
-          `${opened.leadNamed ? 'your lead' : 'the program office'}, Procurement, HR, Finance — and comes in ${how} when the last one says yes. ` +
+          `${entry.firmName} is with ${opened.leadNamed ? 'your department lead' : 'the program manager'}. It needs four approvals — ` +
+          `${opened.leadNamed ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and comes in ${how} when the last one says yes. ` +
           `Then this person can be put forward, if they still agree.`,
       },
     },

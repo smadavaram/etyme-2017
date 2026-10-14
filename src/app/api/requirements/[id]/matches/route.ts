@@ -230,7 +230,7 @@ export async function POST(
         error: {
           code: 'NO_PERMISSION',
           message:
-            `Matching your bench against a job is the recruiting desk's job at ${viewer.companyName} — ` +
+            `Matching your bench against a job is for the recruiting team at ${viewer.companyName} — ` +
             'a recruiter, a resource manager or the account manager.',
         },
       },

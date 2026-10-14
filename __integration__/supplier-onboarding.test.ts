@@ -87,7 +87,7 @@ describe('a supplier walks four desks', () => {
     const d = await json(await decisions(req('GET', '/api/decisions')))
     const mine = d.body.data.decisions.find((x: any) => x.type === 'SUPPLIER_REVIEW' && x.entityId === it_.id)
     expect(mine?.title).toBe('Review supplier — Harbor Staffing')
-    expect(mine?.subtitle).toContain('Department lead desk')
+    expect(mine?.subtitle).toContain('with Department lead')
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'Two planning roles open next quarter.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toBe('Harbor Staffing cleared Department lead and is with Procurement now.')

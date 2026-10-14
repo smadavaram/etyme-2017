@@ -103,7 +103,7 @@ export function says(invite: Invite): { now: string; next: string | null } {
       if (named) {
         return {
           now: `${first} is represented by ${named}, which is not one of your suppliers.`,
-          next: `Recommend ${named} as a supplier and it walks your desks, or pick one of your own firms to take ${first} on.`,
+          next: `Recommend ${named} as a supplier and it goes through your approvals, or pick one of your own firms to take ${first} on.`,
         }
       }
       return {
@@ -115,7 +115,7 @@ export function says(invite: Invite): { now: string; next: string | null } {
       return {
         now: invite.supplierName
           ? `${invite.supplierName} represents ${first} and has been asked to put them forward.`
-          : `${first} named a firm you do not have yet. It is walking your supplier desks.`,
+          : `${first} named a firm you do not have yet. It is going through your supplier approvals.`,
         next: null,
       }
     case 'JOINED':

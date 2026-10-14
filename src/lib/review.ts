@@ -235,7 +235,7 @@ export const QUEUE_OPENS_FOR = 'submissions.read' as const
 export const CANNOT_SEE_QUEUE =
   "The check queue is where somebody who reads submissions here looks over the machine's " +
   'judgment of the people put forward. Ask whoever manages roles at your company to seat ' +
-  'you at a desk that reads submissions — recruiting, hiring or the program office.'
+  'you in a role that reads submissions — a recruiter, the hiring manager or the program manager.'
 
 /**
  * Whether a check's record is a submission, and so a judgment about a

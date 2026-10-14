@@ -59,7 +59,7 @@ export default function ProgramSeatsPage() {
     const res = await fetch('/api/program/seats')
     const body = await readJson(res)
     const data = body?.data
-    if (!data) throw new Error('The program office came back empty.')
+    if (!data) throw new Error('The MSP list came back empty.')
     setSeats(Array.isArray(data.seats) ? data.seats : [])
     setSide(data.side === 'OFFICE' ? 'OFFICE' : 'CLIENT')
     setNothingYet(typeof data.says === 'string' ? data.says : null)
@@ -67,7 +67,7 @@ export default function ProgramSeatsPage() {
   }
 
   async function revoke(seat: Seat) {
-    const why = window.prompt(`Why is ${seat.office.name} coming out of the ${seat.role.name} desk?`)
+    const why = window.prompt(`Why is ${seat.office.name} losing the ${seat.role.name} role?`)
     if (why === null) return
     setBusy(true)
     setError(null)
@@ -94,7 +94,7 @@ export default function ProgramSeatsPage() {
         await reload()
       } catch (err: any) {
         if (!live) return
-        setUnreadable(err?.message ?? 'The program office could not be read.')
+        setUnreadable(err?.message ?? 'The MSP list could not be read.')
       }
     })()
     return () => { live = false }
@@ -115,10 +115,10 @@ export default function ProgramSeatsPage() {
     <div className="animate-fade-in space-y-6">
       <PageHead
         eyebrow={section}
-        title="Program office"
+        title="MSPs"
         subtitle={side === 'CLIENT'
-          ? 'A firm that runs your program places nobody, so nothing ties it to you the way a placement ties a supplier. You say so here. It acts at one of your own desks, under your rules rather than its own, and every read it makes leaves a trail you can read back.'
-          : 'The programs you have been given a desk in. Each one is somebody else’s workforce: you act at their desk, under their rules, and they can take the desk back at any time.'}
+          ? 'An MSP that runs your program places nobody, so nothing ties it to you the way a placement ties a supplier. You say so here. It holds one of your own roles, under your rules rather than its own, and every read it makes leaves a trail you can read back.'
+          : 'The programs where you have been given a role. Each one is somebody else’s workforce: you act in their role, under their rules, and they can take the role back at any time.'}
       />
 
       {error && <FormMessage tone="error">{error}</FormMessage>}
@@ -133,7 +133,7 @@ export default function ProgramSeatsPage() {
         <EmptyState
           says={<>Nobody outside {side === 'CLIENT' ? 'this company' : 'your own firm'} sits in this program.</>}
           detail={side === 'CLIENT'
-            ? 'That is the ordinary case: your own people run it from their own desks.'
+            ? 'That is the ordinary case: your own people run it themselves.'
             : undefined}
         />
       )}
@@ -154,7 +154,7 @@ export default function ProgramSeatsPage() {
 
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
-              <dt className="lbl">Desk</dt>
+              <dt className="lbl">Role</dt>
               <dd className="text-[14px] text-etyme-ink">{seat.role.name}</dd>
             </div>
             <div>
@@ -177,7 +177,7 @@ export default function ProgramSeatsPage() {
               disabled={busy}
               className="mt-4 btn-secondary text-[13px]"
             >
-              Take the desk back
+              Take the role back
             </button>
           )}
         </div>

@@ -163,7 +163,7 @@ describe('the client decides how she is represented — it never engages her its
     as(HIRING)
     const r = await call(actOnInvite, 'PATCH', `/api/contractor-invites/${it_.invite}`, it_.invite, { action: 'sponsor' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.says).toContain('four desks')
+    expect(r.body.data.says).toContain('four approvals')
     const request = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: r.body.data.supplierRequestId } })
     expect(request.name).toBe('Harbor Staffing')
     expect(request.stage).toBe('LEAD')

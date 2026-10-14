@@ -39,7 +39,7 @@ export async function DELETE(
   // caller's own. Book and permissions from one answer, never apart.
   const desk = await actingDesk(caller)
   const deskPermissions = desk?.permissions ?? caller.permissions
-  const notStaff = staffOnly(caller, 'The program office')
+  const notStaff = staffOnly(caller, 'The MSP list')
   if (notStaff) return notStaff
 
   const { id } = await params
@@ -73,7 +73,7 @@ export async function DELETE(
           code: 'NOT_YOURS_TO_REVOKE',
           message:
             `A seat is taken back by the client that granted it. ${seat.clientCompany.name} gave this ` +
-            `desk, so ${seat.clientCompany.name} is who ends it.`,
+            `role, so ${seat.clientCompany.name} is who ends it.`,
         },
       },
       { status: 403 }
@@ -86,7 +86,7 @@ export async function DELETE(
         error: {
           code: 'NOT_YOURS_TO_GRANT',
           message:
-            'Only an owner or the program manager may take a seat back, the same desk that granted it.',
+            'Only an owner or the program manager may take a seat back, because they are the ones who grant it.',
         },
       },
       { status: 403 }
@@ -121,7 +121,7 @@ export async function DELETE(
     data: {
       id: seat.id,
       says:
-        `${seat.officeCompany.name} is out of ${seat.clientCompany.name}'s ${seat.role.name} desk as of now. ` +
+        `As of now, ${seat.officeCompany.name} no longer holds the ${seat.role.name} role at ${seat.clientCompany.name}. ` +
         `The next thing they open here is refused.`,
     },
   })

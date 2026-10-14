@@ -138,7 +138,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     void notify({
       personId, companyId: row.companyId, type: 'SYSTEM', entityId: row.id,
       title: `${row.name} sent its paperwork`,
-      body: `${provided.length} of ${vendorItems(checklist).length} items are in from ${row.name}. Verify them when it reaches your desk.`,
+      body: `${provided.length} of ${vendorItems(checklist).length} items are in from ${row.name}. Verify them when it reaches you.`,
       data: { href: '/dashboard/suppliers' },
     })
   }

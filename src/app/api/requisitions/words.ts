@@ -77,7 +77,7 @@ export function waitingOnSays(
     a.localeCompare(b)
   )
   const unnamed = atLowest.some((a) => !a.approver)
-  const who = [...named, ...(unnamed ? ['a desk nobody is named for'] : [])]
+  const who = [...named, ...(unnamed ? ['an approver nobody has named yet'] : [])]
   const list = who.length <= 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`
   return `Waiting on ${list}`
 }

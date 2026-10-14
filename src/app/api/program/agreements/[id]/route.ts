@@ -136,7 +136,7 @@ export async function PATCH(
         error: {
           code: 'NOT_ALLOWED',
           message:
-            'Changing the terms of an agreement is the contracting desk’s work — payment ' +
+            'Changing the terms of an agreement is for the contract manager — payment ' +
             'days decide when every bill under it falls due, and the margin floor decides ' +
             'what anybody may price at. Ask an owner to give you rate permissions, or ask ' +
             'your contract manager to make the change.',

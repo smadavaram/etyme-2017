@@ -461,7 +461,7 @@ export async function GET(request: NextRequest) {
         companyName: desk?.companyName ?? caller.company?.name ?? null,
         seated: !!desk?.seat,
         says: desk?.seat
-          ? `You are at ${desk.companyName}'s desk. These are the weeks worked at ${desk.companyName}'s sites, not ${caller.company?.name ?? 'your firm'}'s.`
+          ? `You are working in ${desk.companyName}'s program. These are the weeks worked at ${desk.companyName}'s sites, not ${caller.company?.name ?? 'your firm'}'s.`
           : null,
         // A seat that reads only its own weeks is told so, rather than
         // reading a desk's "hours your people worked" (round six, problem 4).
@@ -486,7 +486,7 @@ export async function GET(request: NextRequest) {
               ? TIMESHEETS_NOT_AT_A_COMPANY
               : asClient
               ? `Hours are filed by the person who worked them, from their own page. ` +
-                `${desk?.companyName ?? caller.company?.name ?? 'This desk'} buys the work and signs for it.`
+                `${desk?.companyName ?? caller.company?.name ?? 'This company'} buys the work and signs for it.`
               : `Hours are filed by the person who worked them, from their own page. ` +
                 `${caller.company?.name ?? 'Your firm'} accepts them once the client has signed.`,
       },

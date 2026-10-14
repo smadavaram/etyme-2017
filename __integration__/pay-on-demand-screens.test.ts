@@ -228,7 +228,7 @@ describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and 
       expect(c.marginPct).toBeNull()
       expect(c.marginWithheld).toBe(true)
     }
-    expect(body.data.marginWithheldSays).toContain('desks that read margin')
+    expect(body.data.marginWithheldSays).toContain('roles that read margin')
   })
 
   it('on the timesheets list Karthik reads only his own weeks; a colleague’s week is not shown to him at all, and asking for it by name is refused in a sentence', async () => {

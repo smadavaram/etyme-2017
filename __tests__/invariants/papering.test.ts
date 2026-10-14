@@ -57,7 +57,7 @@ describe('When a candidate is placed, the baton passes from the desk that sold t
 
     expect(verdict.ok).toBe(false)
     expect(verdict.says).toContain('Anwar Bhatt (Contract Manager)')
-    expect(verdict.says).toContain('two desks')
+    expect(verdict.says).toContain('two jobs here')
     // A sentence, never a code.
     expect(verdict.says).not.toMatch(/FORBIDDEN|assignments\.write/)
   })
@@ -79,7 +79,7 @@ describe('When a candidate is placed, the baton passes from the desk that sold t
   it('a firm that has seated nobody on the contract desk is told to seat one, rather than told nothing', () => {
     const h = awardHandoff(PLACEMENT, [ACCOUNT_MANAGER, AP])
     expect(h.toPaper).toBeNull()
-    expect(h.says).toContain('nobody at your firm holds the contract desk yet')
+    expect(h.says).toContain('nobody at your firm handles contracts yet')
     expect(h.says).toContain('Users & permissions')
   })
 

@@ -70,6 +70,6 @@ describe('a delivery manager and the firm’s own people', () => {
     )
     expect(await prisma.submission.count({ where: { requirementId: s.job, personId: s.tamsin, fromCompanyId: s.teleworld } })).toBe(0)
     const trail = await prisma.accessLog.findFirstOrThrow({ where: { subjectId: s.tamsin, action: 'SUBMIT', allowed: false }, orderBy: { at: 'desc' } })
-    expect(trail.reason).toContain('Delivery desk refused')
+    expect(trail.reason).toContain('Refused to a delivery manager')
   })
 })

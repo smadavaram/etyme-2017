@@ -100,7 +100,7 @@ export async function POST(
           error: {
             code: 'OUTSIDE_YOUR_SEAT',
             message:
-              `${caller.company!.name}'s desk at ${requisition.company.name} covers one part of the program, ` +
+              `${caller.company!.name}'s role at ${requisition.company.name} covers one part of the program, ` +
               'and this job sits outside it.',
           },
         },
@@ -118,7 +118,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Choosing which suppliers see a job request is the program office\'s call. Ask them to send it out.',
+          message: 'Sending a job request to suppliers is the program manager\'s call. Ask them to send it out.',
         },
       },
       { status: 403 }

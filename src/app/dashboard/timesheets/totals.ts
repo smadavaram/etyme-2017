@@ -145,10 +145,10 @@ export function listTotals(rows: TotalsRow[], opts: { onServer: number; payBasis
         : allWithheld
           ? `${weeks(approved.length)} ${counted}` +
             (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
-            '; their value is read by the billing desk'
+            '; their value is read by the billing team'
           : `${opts.payBasis ? 'your pay for' : 'billable, from'} ${weeks(approved.length)} ${counted}` +
             (approvedFirst ? ` since ${day(approvedFirst)}` : '') +
-            (withheld > 0 ? `; ${withheld} more whose rate is read by the billing desk` : '') +
+            (withheld > 0 ? `; ${withheld} more whose rate is read by the billing team` : '') +
             (unpriced > 0 ? `; ${unpriced} more with no rate on file` : ''),
   }
 }

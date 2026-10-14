@@ -25,7 +25,7 @@ describe('the supplier checklist says one true thing per line', () => {
 
   it('names a screening company as the one whose result the sanctions and litigation screening is, never the desk', () => {
     const screening = list.find((i) => i.key === 'VENDOR_SCREENING')!
-    expect(suppliedByWords(screening)).toBe('a screening company’s result, recorded by this desk')
-    expect(suppliedByWords(screening)).not.toBe('this desk')
+    expect(suppliedByWords(screening)).toBe('a screening company’s result, recorded at this step')
+    expect(suppliedByWords(screening)).not.toBe('this step')
   })
 })

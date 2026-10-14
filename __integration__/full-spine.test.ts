@@ -1038,7 +1038,7 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     const named = await json(await complianceView(req('GET', `/api/compliance?clientCompanyId=${co.adobe}`)))
     expect(named.status).toBe(403)
     expect(named.body.error.message).toContain('Auralis Software')
-    expect(named.body.error.message).toMatch(/seat in their program office/)
+    expect(named.body.error.message).toMatch(/seat in their program\./)
 
     const own = await json(await complianceView(req('GET', '/api/compliance')))
     expect(own.body?.error, JSON.stringify(own.body)).toBeUndefined()

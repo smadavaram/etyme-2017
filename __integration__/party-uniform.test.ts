@@ -289,7 +289,7 @@ describe('1 · a role is posted', () => {
     const said = it_.turnedAway.MSP
     expect(said.ok, said.says).toBe(false)
     expect(said.says).toMatch(/[a-z]{3,}\s+[a-z]{2,}/i)
-    expect(said.says).toMatch(/hiring manager or the program office|seat in their program office/)
+    expect(said.says).toMatch(/hiring manager or the program manager|seat in their program\./)
 
     // And nothing was written under its name, or under anybody else's.
     const none = await prisma.requirement.findFirst({

@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
   const unit = await prisma.orgUnit.create({ data: { companyId, name, kind: kind as never, parentId }, select: { id: true } })
   return NextResponse.json(
-    { data: { id: unit.id, existing: false, says: `${name} added. Name its HR and Procurement desks, or it inherits the unit above.` } },
+    { data: { id: unit.id, existing: false, says: `${name} added. Name its HR and Procurement approvers, or it inherits the unit above.` } },
     { status: 201 }
   )
 }

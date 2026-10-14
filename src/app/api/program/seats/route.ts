@@ -41,7 +41,7 @@ const TO_READ = 'governance.read'
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const notStaff = staffOnly(caller, 'The program office')
+  const notStaff = staffOnly(caller, 'The MSP list')
   if (notStaff) return notStaff
   if (!hasPermission(caller.permissions, TO_READ)) {
     return NextResponse.json(
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            'Who has been given a desk in this program is governance. Whoever owns the rules here can show you.',
+            'Who has been given a role in this program is governance. Whoever owns the rules here can show you.',
         },
       },
       { status: 403 }
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     // out from four dates. A revoked seat still shows, because taking a
     // desk away is a fact somebody may have to account for later.
     says: seatIsLive(r, now)
-      ? `${r.officeCompany.name} sits at ${r.clientCompany.name}'s ${r.role.name} desk` +
+      ? `${r.officeCompany.name} holds the ${r.role.name} role at ${r.clientCompany.name}` +
         `${r.orgUnit ? `, in ${r.orgUnit.name}` : ''}.`
       : r.revokedAt
         ? `Revoked${r.revokedBy ? ` by ${r.revokedBy.name}` : ''}${r.revokeReason ? `: ${r.revokeReason}` : '.'}`
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
   // caller's own. Book and permissions from one answer, never apart.
   const desk = await actingDesk(caller)
   const deskPermissions = desk?.permissions ?? caller.permissions
-  const notStaff = staffOnly(caller, 'The program office')
+  const notStaff = staffOnly(caller, 'The MSP list')
   if (notStaff) return notStaff
 
   const company = caller.company!
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: seat.id,
         says:
-          `${office!.name} now sits at ${company.name}'s ${role!.name} desk. They act under your rules, ` +
+          `${office!.name} now holds the ${role!.name} role at ${company.name}. They act under your rules, ` +
           `not their own, and every read they make here is on the record.`,
       },
     },

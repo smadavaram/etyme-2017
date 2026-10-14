@@ -405,7 +405,7 @@ export async function GET(request: NextRequest) {
           title: `Review supplier — ${w.name}`,
           subtitle: required.length > 0
             ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]}: ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
-            : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]} desk: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
+            : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · with ${STAGE_WORD[stage]}: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
           urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
           entityType: 'SUPPLIER_REQUEST',
           entityId: w.id,
@@ -829,7 +829,7 @@ export async function GET(request: NextRequest) {
       actorPersonId: caller.person.id,
       actorCompanyId: companyId,
       action: 'TENURE_VIEW',
-      reason: 'Read in the decision queue: a question from the twin this desk may answer',
+      reason: 'Read in the decision queue: a question from the twin this role may answer',
     })
   }
   for (const q of twinAsks) {

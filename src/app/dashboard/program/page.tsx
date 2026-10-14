@@ -283,7 +283,7 @@ export default function ProgramPage() {
       const res = await fetch('/api/program')
       if (res.status === 403) {
         const said = await res.json().catch(() => ({}))
-        setRefused(said.error?.message ?? 'The program desk is not part of your seat. Ask your company\'s owner if you need it.')
+        setRefused(said.error?.message ?? 'The program dashboard is not part of your role. Ask your company\'s owner if you need it.')
         return
       }
       const body = await readJson(res)
@@ -409,7 +409,7 @@ export default function ProgramPage() {
   }
 
   if (loading) {
-    return <LoadingState says="Opening your desk…" />
+    return <LoadingState says="Opening your dashboard…" />
   }
 
   if (refused) {
@@ -419,7 +419,7 @@ export default function ProgramPage() {
   if (error || !data) {
     return (
       <ErrorState
-        says={<>This desk could not be read.{error ? <> {error}</> : null}</>}
+        says={<>This dashboard could not be read.{error ? <> {error}</> : null}</>}
         action={{ label: 'Try again', onClick: () => { setError(null); setLoading(true); loadData() } }}
       />
     )
@@ -457,7 +457,7 @@ export default function ProgramPage() {
         <div className="max-w-2xl">
           <p className="eyebrow">Workforce · {data.client.name}</p>
           <h1 className="mt-1 font-serif text-3xl md:text-4xl leading-tight tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-            {decisions === null ? 'Reading your desk…' : queueSays ? 'Your queue could not be read.' : said.says}
+            {decisions === null ? 'Reading what needs you…' : queueSays ? 'Your queue could not be read.' : said.says}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
             {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}

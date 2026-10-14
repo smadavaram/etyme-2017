@@ -114,7 +114,7 @@ export async function POST(
         error: {
           code: 'NOT_ALLOWED',
           message:
-            'Recording a signature on an agreement is the contracting desk’s work. Ask ' +
+            'Recording a signature on an agreement is for the contract manager. Ask ' +
             'your contract manager to record it, or an owner to give you rate permissions.',
         },
       },

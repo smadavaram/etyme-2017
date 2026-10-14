@@ -132,7 +132,7 @@ export default function ProgramTeamPage() {
     // and what stops one HR partner answering for a company of forty
     // thousand. The route refuses it too; asking here saves the click.
     if (draft.kind !== 'VALUE' && !draft.teamId) {
-      setError('Say which business unit this desk sits in. Desks are named per unit, and the unit below inherits them.')
+      setError('Say which business unit this approver is for. Approvers are named per unit, and the unit below inherits them.')
       return
     }
     setBusy(true)
@@ -233,9 +233,9 @@ export default function ProgramTeamPage() {
                 rule on the money answers to a figure. */}
             <p className="sm:col-span-2 text-[13px] text-etyme-ink">
               {draft.kind === 'HR'
-                ? 'Naming the HR desk. One person, for one business unit — they read whether a job is a real job and whether it is in the plan.'
+                ? 'Naming the HR approver. One person, for one business unit — they read whether a job is a real job and whether it is in the plan.'
                 : draft.kind === 'PROCUREMENT'
-                  ? 'Naming the Procurement desk. One person, for one business unit — they read who may supply a job and at what rate.'
+                  ? 'Naming the Procurement approver. One person, for one business unit — they read who may supply a job and at what rate.'
                   : 'A rule on the money. Somebody asked on top of whoever owns the budget, above a figure or whenever a check routes something.'}
             </p>
             <label className="block">
@@ -297,7 +297,7 @@ export default function ProgramTeamPage() {
               <p className="mt-1 text-[11px] text-etyme-muted">
                 {draft.kind === 'VALUE'
                   ? 'A rule on a team is responsible for everything beneath it too.'
-                  : 'Everything beneath this unit inherits the desk, so name it as high as it is true.'}
+                  : 'Everything beneath this unit inherits the approver, so name them as high as it is true.'}
               </p>
             </label>
             <div className="flex items-center gap-2 sm:col-span-2">
@@ -344,7 +344,7 @@ export default function ProgramTeamPage() {
           Apps" had no screen that answered it, and the chain quietly
           cleared those stages with a note nobody read. */}
       <section className="panel mb-6">
-        <h2 className="headline-serif text-[17px] text-etyme-ink">Desks</h2>
+        <h2 className="headline-serif text-[17px] text-etyme-ink">Approvers</h2>
         <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
           HR reads the job — is this a job for a contractor, and is it in the plan.
           Procurement reads the suppliers and the rate. One person each, per
@@ -363,7 +363,7 @@ export default function ProgramTeamPage() {
             <tbody>
               {team.desks.length === 0 && (
                 <tr><td colSpan={3} className="py-3 text-etyme-muted">
-                  No business units yet, so there is nowhere to put a desk.
+                  No business units yet, so there is nowhere to name an approver.
                 </td></tr>
               )}
               {team.desks.map((d) => (
@@ -596,7 +596,7 @@ function AddUnit({ teams, onAdded }: { teams: { id: string; name: string }[]; on
   return (
     <section className="mb-10">
       <h2 className="headline-serif text-[17px] text-etyme-ink">Add a unit</h2>
-      <p className="text-[13px] text-etyme-muted mt-1 mb-3">A business unit, practice, account, project or department. A desk named on the unit above answers for it until you name its own.</p>
+      <p className="text-[13px] text-etyme-muted mt-1 mb-3">A business unit, practice, account, project or department. An approver named on the unit above answers for it until you name its own.</p>
       {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
       {err && <p className="mb-2 text-sm text-etyme-attention">{err}</p>}
       <form onSubmit={add} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">

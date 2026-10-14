@@ -32,7 +32,7 @@ describe('the agreements screen and what we pay', () => {
     expect(f.code).toBe('MARGIN_WITHHELD')
     expect(f.severity).toBe('NOTE')
     expect(f.says).not.toMatch(/\$|\/hr/)
-    expect(f.says).toContain('desks that read margin')
+    expect(f.says).toContain('roles that read margin')
   })
 
   it('a withheld margin is never reported as a missing pay figure', () => {

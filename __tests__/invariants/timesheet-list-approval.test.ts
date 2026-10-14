@@ -38,16 +38,16 @@ describe('who asked for the letter to the client’s approver', () => {
   })
 
   it('the letter reads a desk below plainly from the names the week’s door hands over today', () => {
-    expect(sentFromOf('The timesheet desk', 'Computer Systems Inc’s side of this placement'))
+    expect(sentFromOf('The timesheet team', 'Computer Systems Inc’s side of this placement'))
       .toEqual({ kind: 'BELOW', askFirm: 'Computer Systems Inc' })
-    const l = letterToApprover({ ...base, senderName: 'The timesheet desk', senderFirm: 'Computer Systems Inc’s side of this placement' })
-    expect(l.body).not.toContain('The timesheet desk at')
+    const l = letterToApprover({ ...base, senderName: 'The timesheet team', senderFirm: 'Computer Systems Inc’s side of this placement' })
+    expect(l.body).not.toContain('The timesheet team at')
     expect(l.body).toContain('If anything in it looks wrong, ask Computer Systems Inc.')
   })
 
   it('a person who happens to be named like a desk at a firm the client pays is still named', () => {
-    expect(sentFromOf('The timesheet desk', 'Computer Systems Inc'))
-      .toEqual({ kind: 'NAMED', name: 'The timesheet desk', firm: 'Computer Systems Inc' })
+    expect(sentFromOf('The timesheet team', 'Computer Systems Inc'))
+      .toEqual({ kind: 'NAMED', name: 'The timesheet team', firm: 'Computer Systems Inc' })
   })
 
   it('the letter from a desk below carries the hours and never a rate', () => {

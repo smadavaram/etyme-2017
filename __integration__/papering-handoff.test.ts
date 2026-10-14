@@ -144,7 +144,7 @@ describe('The award is the handoff, and both desks hear about it in their own wo
   it('an account manager cannot paper the contract they won, and is told who can', async () => {
     const toSeller = await noticeFor(who.seller, it_.contract)
     expect(toSeller.body).toContain('Anwar Bhatt (Contract Manager)')
-    expect(toSeller.body).toContain("contract desk's, not yours")
+    expect(toSeller.body).toContain("contract manager's job, not yours")
 
     // And the permission model agrees with the sentence: she is refused
     // on the route, in words rather than a code.

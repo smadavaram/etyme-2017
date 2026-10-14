@@ -470,9 +470,9 @@ export function withOrderedItems(
 export function suppliedByWords(item: Pick<ChecklistItem, 'key' | 'by' | 'answers'>): string {
   if (item.by === 'VENDOR') return 'from the firm'
   if (item.key === 'VENDOR_SCREENING' || whoRendersItem(item) === 'PROVIDER') {
-    return 'a screening company’s result, recorded by this desk'
+    return 'a screening company’s result, recorded at this step'
   }
-  return 'this desk'
+  return 'this step'
 }
 
 /**
@@ -575,18 +575,18 @@ export function mayActAt(input: {
       ok: false,
       code: 'NOBODY_ELSE',
       message:
-        `Nobody else at ${here} can take the ${STAGE_WORD[stage]} desk on ${firmName}. ` +
+        `Nobody else at ${here} can approve ${firmName} for ${STAGE_WORD[stage]}. ` +
         'Everybody who could either recommended the firm or has already decided an ' +
-        'earlier desk, and nobody signs their own. Invite a second person under Users ' +
+        'earlier step, and nobody signs their own. Invite a second person under Users ' +
         'and permissions, or have somebody else recommend the firm.',
     }
   }
 
   if (callerId === input.recommendedById) {
-    return { ok: false, code: 'OWN_RECOMMENDATION', message: `You recommended ${firmName}, so the desks decide it without you. Nobody signs their own.` }
+    return { ok: false, code: 'OWN_RECOMMENDATION', message: `You recommended ${firmName}, so the approvers decide it without you. Nobody signs their own.` }
   }
   if (input.decisions.some((d) => d.byId === callerId)) {
-    return { ok: false, code: 'DECIDED_BEFORE', message: `You already decided an earlier desk on ${firmName}. Somebody else takes this one.` }
+    return { ok: false, code: 'DECIDED_BEFORE', message: `You already decided an earlier step on ${firmName}. Somebody else takes this one.` }
   }
   const pmo = hasPermission(permissions, 'governance.write')
   const onDesk =
@@ -595,7 +595,7 @@ export function mayActAt(input: {
     : stage === 'HR' ? (barred(input.desks.hrId) ? pmo : callerId === input.desks.hrId)
     : hasPermission(permissions, 'payments.record')
   if (!onDesk) {
-    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is on the ${STAGE_WORD[stage]} desk. That desk decides it; you will be told what they said.` }
+    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is with ${STAGE_WORD[stage]}. They decide it; you will be told what they said.` }
   }
   return { ok: true }
 }
@@ -629,7 +629,7 @@ export function readiness(firmName: string, checklist: ChecklistItem[], stage: S
   const toVerify = required.filter((i) => i.state === 'PROVIDED').map((i) => shortLabel(i.key, i.label))
   const verb = stage === 'FINANCE' ? 'be approved' : stage === 'PROCUREMENT' ? 'be qualified' : stage === 'HR' ? 'clear compliance' : 'move on'
   if (missing.length === 0 && toVerify.length === 0) {
-    return { ok: true, held, of: required.length, missing, toVerify, says: required.length ? `${firmName} has everything this desk asks for, verified, and can ${verb}.` : `${firmName} can ${verb}.` }
+    return { ok: true, held, of: required.length, missing, toVerify, says: required.length ? `${firmName} has everything this step asks for, verified, and can ${verb}.` : `${firmName} can ${verb}.` }
   }
   const parts: string[] = []
   if (missing.length) parts.push(`${list(missing)} ${missing.length === 1 ? 'is' : 'are'} still missing`)
@@ -759,7 +759,7 @@ export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]
       : i < idx || state === 'APPROVED' ? 'done'
       : i === idx && state !== 'DECLINED' ? 'now'
       : 'next'
-    const word = s === 'DONE' ? 'Supplier' : s === 'LEAD' && !leadNamed ? 'Program office' : STAGE_WORD[s]
+    const word = s === 'DONE' ? 'Supplier' : s === 'LEAD' && !leadNamed ? 'Program manager' : STAGE_WORD[s]
     return { stage: s, word, status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
   })
 }

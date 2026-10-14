@@ -78,7 +78,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
       paymentTerms: 60,
     })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('contracting desk')
+    expect(r.body.error.message).toContain('is for the contract manager')
     expect(r.body.error.message).toContain('contract manager')
     const unchanged = await prisma.masterAgreement.findUniqueOrThrow({ where: { id: it_.msa } })
     expect(unchanged.paymentTerms).toBe(it_.originalPaymentTerms)

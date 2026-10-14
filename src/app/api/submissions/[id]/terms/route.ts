@@ -127,7 +127,7 @@ async function refuseColleague(
   await recordRefusal([l.sub.personId], {
     actorPersonId: caller.person.id, actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW', allowed: false,
-    reason: 'Asked for a colleague’s terms of engagement from a seat with no desk that reads them',
+    reason: 'Asked for a colleague’s terms of engagement from a seat with no role that reads them',
   })
   return refuse('NO_DESK', colleaguesTermsRefused(caller.company?.name), 403)
 }
@@ -284,7 +284,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   if (you !== 'FIRM' || !holdsContractDesk(caller.permissions ?? [])) {
     return refuse(
       'NOT_THE_CONTRACT_DESK',
-      `Stating ${l.sub.person.name}’s terms is for the contract desk at ${l.sub.fromCompany.name}.`,
+      `Stating ${l.sub.person.name}’s terms is for the contract manager at ${l.sub.fromCompany.name}.`,
       403
     )
   }

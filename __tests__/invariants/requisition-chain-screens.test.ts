@@ -232,10 +232,10 @@ describe('The chain is read by desk, not as a list of names', () => {
     // "This requisition is changes requested." was the column, lower-cased.
     expect(code(DETAIL_PAGE)).not.toContain("r.approvalState.toLowerCase()")
     expect(DETAIL_PAGE).toContain(
-      'Still with the desks above. Suppliers see it once every one of them has said yes.'
+      'Still with the approvers above. Suppliers see it once every one of them has said yes.'
     )
     expect(DETAIL_PAGE).toContain(
-      'Sent back for changes. Edit it and it goes round again — to the desk that asked, not back to the start.'
+      'Sent back for changes. Edit it and it goes round again — to the approver who asked, not back to the start.'
     )
   })
 
@@ -428,10 +428,10 @@ describe('The program team names a desk per unit and says what is missing', () =
 
   it('a unit with no HR desk is told what that means for a requisition over the plan', () => {
     expect(TEAM_ROUTE).toContain(
-      'Job requests over the plan in ${u.name} clear with a note — name an HR desk for ${u.name}, or for the unit above it.'
+      'Job requests over the plan in ${u.name} clear with a note — name an HR approver for ${u.name}, or for the unit above it.'
     )
     expect(TEAM_ROUTE).toContain(
-      'Job requests above the going rate in ${u.name} clear with a note — name a Procurement desk for ${u.name}, or for the unit above it.'
+      'Job requests above the going rate in ${u.name} clear with a note — name a Procurement approver for ${u.name}, or for the unit above it.'
     )
     expect(TEAM_ROUTE).toContain(
       '${c.code} has nobody answerable for it, so nothing charged to it has a lead to give the final word.'
@@ -452,7 +452,7 @@ describe('The program team names a desk per unit and says what is missing', () =
 
   it('a desk must be given a business unit before it can be named', () => {
     expect(TEAM_PAGE).toContain(
-      'Say which business unit this desk sits in. Desks are named per unit, and the unit below inherits them.'
+      'Say which business unit this approver is for. Approvers are named per unit, and the unit below inherits them.'
     )
     expect(TEAM_PAGE).toContain('kind: draft.kind')
   })

@@ -27,7 +27,7 @@ export function comesInWords(as: ComesInAs, underName: string | null): string {
     case 'SUB_UNDER_MSP':
       return underName
         ? `as a supplier in the program ${underName} runs for you`
-        : 'as a supplier in the program Etyme’s program office runs for you'
+        : 'as a supplier in the program Etyme runs for you as your MSP'
     case 'SUB_UNDER_PRIME':
       return `as a sub-vendor under ${underName ?? 'one of your prime vendors'}, who bills you`
   }
@@ -88,7 +88,7 @@ export async function openSupplierRequest(input: OpenInput) {
     void notify({
       personId, companyId: input.companyId, type: 'SYSTEM', entityId: row.id, channel: 'EMAIL',
       title: `Supplier recommended — ${input.name}`,
-      body: `${input.recommender.name} recommends ${input.name}${input.skills.length ? ` for ${input.skills.join(', ')}` : ''}: ${input.reason}. It is on your desk to confirm the need, then Procurement, HR and Finance take it in turn. Open Suppliers to decide.`,
+      body: `${input.recommender.name} recommends ${input.name}${input.skills.length ? ` for ${input.skills.join(', ')}` : ''}: ${input.reason}. It is yours to confirm the need, then Procurement, HR and Finance approve it in turn. Open Suppliers to decide.`,
       data: { href: '/dashboard/suppliers' },
     })
   }
