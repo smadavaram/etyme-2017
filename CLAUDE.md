@@ -41,6 +41,18 @@ This file uses both words throughout its older sections, written before
 the rule; read them as the replacements above. New text here follows
 the rule.
 
+**And the sentence around them is the trade's too** (founder, the same
+day, on "Who came in for the Java developer?": *"Who uses this
+sentence? In the HR world it's who applied, or who matches my job, or
+who is available."*). Ask Etyme, every card, every page and every
+email says what a recruiter, a hiring manager or an AP clerk says out
+loud: who applied, candidates, who matches this job, who is available,
+approved suppliers, send the job, schedule an interview, approve a
+timesheet, pay an invoice, months here, on hold. Never a phrase that
+only reads well to the people who built it. The test is the same as
+for a screen: would somebody who has done this job for ten years say
+this sentence?
+
 ## What Etyme is — say this, not something else
 
 **Etyme is the system of record for contingent workers: the layer between
