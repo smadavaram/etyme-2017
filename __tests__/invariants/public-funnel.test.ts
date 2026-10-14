@@ -140,10 +140,8 @@ describe('One ladder, named once', () => {
     expect(CLIENT_SIGN_UP).toEqual({ t: 'Sign up', href: '/signup' })
     expect(HOME).toMatch(/const PRIMARY_BUTTON =\s*`[^`]*bg-etyme-action/)
 
-    // The one public page still linking it is the platform's /demo, owned
-    // by etyme-architect and reported to them. This list may only shrink:
-    // when /demo drops the link, this line fails and is deleted.
-    expect(read('src/app/demo/page.tsx')).toContain('GET_THE_AUDIT.href')
+    // /demo dropped the last link to it on 2026-10-14.
+    expect(read('src/app/demo/page.tsx')).not.toMatch(/GET_THE_AUDIT|\/census/)
   })
 
   it('every public page ends in the same ways forward: see it, ask a person', () => {

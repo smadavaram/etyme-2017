@@ -12,7 +12,7 @@ import {
   fillDoors,
 } from './seats'
 import { doorFacts } from './door-facts'
-import { GET_THE_AUDIT, ASK_A_PERSON } from '@/lib/public-site/funnel'
+import { ASK_A_PERSON } from '@/lib/public-site/funnel'
 
 /**
  * The second page a client sees, one click after the home page.
@@ -193,8 +193,8 @@ export default async function DemoPage() {
         {/* ── The next step, quietly ───────────────────────────── */}
         <p className="mt-16 border-t border-etyme-rule pt-6 text-[14px] leading-relaxed text-etyme-muted">
           {NEXT_STEP_LEAD}{' '}
-          <a href={GET_THE_AUDIT.href} className="text-etyme-action hover:underline">
-            {GET_THE_AUDIT.t}
+          <a href="/signup" className="text-etyme-action hover:underline">
+            Sign up
           </a>
           , or{' '}
           <a href={ASK_A_PERSON.href} className="text-etyme-action hover:underline">
