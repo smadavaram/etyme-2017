@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SCREEN } from '@/lib/public-site/rhythm'
 import { gridsWithoutBreakpoint } from '@/lib/positioning'
 
 /**
@@ -15,14 +14,23 @@ import { gridsWithoutBreakpoint } from '@/lib/positioning'
  * line for security and the footer. Three short sections read in one or
  * two scrolls, so nothing on the page is sized to a screen and nothing
  * moves the scroll; the sentences about bands went with the bands, and
- * these hold the new shape instead. The party pages keep the one-screen
- * bands (`lib/public-site/rhythm`), held by the last sentence here.
+ * these hold the new shape instead.
+ *
+ * The party pages kept one-screen bands (`lib/public-site/rhythm`) for one
+ * more day, and a sentence here held their height against the header's.
+ * On 2026-10-14 the founder put every product page and party door in the
+ * home page's shape ("make sure even the sub pages and doors follow the
+ * same structure"), so the bands, the file and that sentence went.
+ * The frame, the band and the security line are drawn by the skeleton
+ * the home page shares with those pages (`lib/public-site/skeleton`), and
+ * are read here with the page.
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
-const PAGE = read('src/app/page.tsx')
+const OWN = read('src/app/page.tsx')
+const SKELETON = read('src/lib/public-site/skeleton.tsx')
+const PAGE = [OWN, SKELETON].join('\n')
 const DEMO = read('src/lib/public-site/home-demo.tsx')
-const FRAME = read('src/lib/public-site/frame.tsx')
 
 /** The opening tag of every section written on the page, in order. */
 const sections = [...PAGE.matchAll(/<section[\s\S]*?>/g)].map((m) => m[0])
@@ -30,10 +38,13 @@ const sections = [...PAGE.matchAll(/<section[\s\S]*?>/g)].map((m) => m[0])
 describe('The home page is three short sections in one column, at every width', () => {
 
   it('is one column with a 16px gutter on a phone, and every section sits inside it', () => {
-    const main = PAGE.slice(PAGE.indexOf('<main'), PAGE.indexOf('</main>'))
-    expect(PAGE).toContain('<main className="mx-auto max-w-6xl px-4 sm:px-6">')
+    const main = OWN.slice(OWN.indexOf('<main'), OWN.indexOf('</main>'))
+    expect(OWN).toContain('<main className="mx-auto max-w-6xl px-4 sm:px-6">')
     expect(sections.map((s) => s.match(/id="([\w-]+)"/)![1])).toEqual(['top', 'demo', 'sign-up'])
-    for (const s of sections) expect(main).toContain(s)
+    // The hero is the page's own; the frame, the band and the security
+    // line are the skeleton's, drawn inside the same column.
+    expect(main).toContain(sections[0])
+    expect(main).toMatch(/<LiveDemo>[\s\S]*<SignUpBand \/>[\s\S]*<SecurityLine \/>/)
     // Nothing is wider than the screen: the page clips any stray overflow
     // rather than scrolling sideways at 375.
     expect(PAGE).toContain('overflow-x-hidden')
@@ -41,7 +52,7 @@ describe('The home page is three short sections in one column, at every width', 
 
   it('sizes no section to a whole screen and never moves the reader’s scroll', () => {
     expect(PAGE).not.toContain('${SCREEN}')
-    expect(PAGE).not.toContain(SCREEN)
+    expect(PAGE).not.toMatch(/min-h-\[calc\(100svh/)
     expect(PAGE).not.toContain('SettleOnBands')
     expect(PAGE).not.toMatch(/\bsnap-(?:y|mandatory|proximity|start)\b/)
   })
@@ -80,13 +91,11 @@ describe('The home page is three short sections in one column, at every width', 
     }
   })
 
-  it('a band on a party page is still the screen less the sticky header, the height the header scrolls a band under', () => {
-    const phone = Number(FRAME.match(/\[html:has\(&\)\]:scroll-pt-\[(\d+)px\]/)![1])
-    const wide = Number(FRAME.match(/lg:\[html:has\(&\)\]:scroll-pt-\[(\d+)px\]/)![1])
-    expect(SCREEN).toContain(`min-h-[calc(100svh-${phone}px)]`)
-    expect(SCREEN).toContain(`lg:min-h-[calc(100svh-${wide}px)]`)
-    expect(SCREEN).toMatch(/\bflex\b/)
-    expect(SCREEN).toMatch(/\bflex-col\b/)
-    expect(SCREEN).toMatch(/\bjustify-center\b/)
+  it('every product page and party door is the same one column, with no section sized to a screen', () => {
+    const view = read('src/lib/public-site/sub-page.tsx')
+    expect(view).toContain('<main className="mx-auto max-w-6xl px-4 sm:px-6">')
+    expect(view).toContain('overflow-x-hidden')
+    expect(gridsWithoutBreakpoint(view)).toEqual([])
+    expect(view).not.toMatch(/min-h-\[calc\(100svh|SettleOnBands/)
   })
 })

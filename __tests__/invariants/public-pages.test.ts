@@ -28,7 +28,9 @@ import {
   PARTIES, REFERENCE, INTEGRATIONS, TIME_AND_MONEY, docSlugs, partyAt, copyOfDoc, copyOfDocsHome, textOfHtml,
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
-import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, otherDoors, growLabel } from '@/lib/public-site/parties'
+import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt } from '@/lib/public-site/parties'
+import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, countWords } from '@/lib/public-site/skeleton-words'
+import { EMBED_STEPS } from '@/lib/sample-seat'
 import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEADER_MORE, FOOTER as SITE_FOOTER } from '@/lib/public-site/nav'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
@@ -191,7 +193,17 @@ describe('No public page says what we agreed never to say', () => {
   })
 })
 
-describe('Every module page opens on a real screen from the demo', () => {
+describe('Every product page and party door is the home page’s shape, opened at its own step', () => {
+  // The founder, 2026-10-14: "Make sure even the sub pages and doors
+  // follow the same structure." One question, the live frame at the
+  // page's step, at most three lines, the sign-up band, one security line
+  // and the footer. Until that day these pages opened on a screenshot and
+  // carried capabilities, refusals quoted from the software, a complaint,
+  // a flow chart, day-one panels and a growth story; the sentences that
+  // held those sections were removed with them.
+  const VIEW = read('src/lib/public-site/sub-page.tsx')
+  const SKELETON = read('src/lib/public-site/skeleton.tsx')
+  const SKELETON_PAGES = PUBLIC_PAGES.filter((p) => p.kind === 'MODULE' || p.kind === 'PARTY')
 
   it('there are eight module pages, in the order a hire moves, one for each entry under Products', () => {
     expect(MODULES.map((m) => m.route)).toEqual([...MODULE_ROUTES])
@@ -199,104 +211,90 @@ describe('Every module page opens on a real screen from the demo', () => {
     expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual([...MODULE_ROUTES])
   })
 
-  it('every module page opens on a screen, and the file exists under public/screens', () => {
-    const view = read('src/lib/public-site/module-page.tsx')
-    // The screen is drawn straight after the lede, before the first section.
-    expect(view.indexOf('m.screen.img')).toBeLessThan(view.indexOf('title="Key capabilities"'))
-    for (const m of MODULES) {
-      expect(m.screen.img.startsWith('/screens/'), m.route).toBe(true)
-      expect(existsSync(join(ROOT, 'public', m.screen.img)), `${m.screen.img} does not exist`).toBe(true)
-    }
-  })
-
-  it('every screen names the desk and route it was taken from, and was taken after the last rename of the demo world', () => {
-    const RENAMES_DONE = Date.parse('2026-09-20T22:00:00Z')
-    for (const m of MODULES) {
-      expect(m.screen.from, m.route).toMatch(/\/dashboard\/.+ as the /)
-      expect(Date.parse(m.screen.capturedAt), m.route).toBeGreaterThan(RENAMES_DONE)
-      expect(m.screen.alt.length, `${m.route} describes its screen for somebody who cannot see it`).toBeGreaterThan(40)
-    }
-  })
-
-  it('the five screens taken for these pages are new files, and no two module pages open on the same one', () => {
-    const imgs = MODULES.map((m) => m.screen.img)
-    expect(new Set(imgs).size).toBe(imgs.length)
-    for (const f of ['requisitions', 'contracts', 'compliance', 'chain', 'governance']) {
-      expect(imgs).toContain(`/screens/${f}.png`)
-    }
-  })
-
-  it('every step page reads what you do, the real screen, who is involved, then what happens next, and ends on the demo', () => {
-    // The founder's order for a step page, 2026-09-30. The static site's
-    // six sections are still on it, between who is involved and what
-    // happens next.
-    const view = read('src/lib/public-site/module-page.tsx')
-    const step = view.slice(view.indexOf('export function StepPageView'), view.indexOf('export function MorePageView'))
-    const order = ['title="What you do"', 'title="The real screen"', 'title="Who is involved"', '<Capabilities', '<Refuses',
-      'title="More in this step"', 'title="Read the flow"', 'title="What happens next"', 'label="See this step in the demo"']
-      .map((t) => step.indexOf(t))
+  it('every product page and party door reads the question, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
+    const body = VIEW.slice(VIEW.indexOf('export function SubPageView'))
+    const order = ['<SiteHeader />', 'id="top"', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
+      .map((t) => body.indexOf(t))
     expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
+    // Both kinds draw the one view, and neither draws anything beside it.
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<SubPageView')
+    expect(read('src/lib/public-site/party-page.tsx')).toContain('<SubPageView')
+    // Every word the view draws comes from the page's data or the shared
+    // skeleton, so the count below counts what a reader reads.
+    expect(copyFrom(body)).toEqual([])
+    expect(copyFrom(SKELETON.slice(SKELETON.indexOf('export function LiveDemo')))).toEqual([])
   })
 
-  it('every page under a step opens on its real screen and keeps the static site’s six sections, in their order', () => {
-    const view = read('src/lib/public-site/module-page.tsx')
-    const more = view.slice(view.indexOf('export function MorePageView'), view.indexOf('export function ModulePageView'))
-    expect(more.indexOf('<Screen m={m} />')).toBeLessThan(more.indexOf('<Capabilities'))
-    const order = ['<Capabilities', 'title="What it looks like"', '<Refuses', '<Complaint', 'title="Read the flow"']
-      .map((t) => more.indexOf(t))
-    expect(order.every((i) => i > 0)).toBe(true)
-    expect([...order].sort((a, b) => a - b)).toEqual(order)
+  it('no product page or party door draws a screenshot, a card grid, day-one panels, a growth story or a band of its own', () => {
+    for (const src of [VIEW, read('src/lib/public-site/module-page.tsx'), read('src/lib/public-site/party-page.tsx')]) {
+      expect(src).not.toContain('<img')
+      expect(src).not.toMatch(/grid-cols-[2-9]/)
+      expect(src).not.toMatch(/dayOne|grow\.|<Capabilities|<Refuses|<Complaint|<FlowChart|<CloseBand/)
+      expect(src).not.toContain('<section id="day-one"')
+    }
+    expect(existsSync(join(ROOT, 'src/lib/public-site/rhythm.ts')), 'the one-screen bands left with the party pages').toBe(false)
   })
 
-  it('every refusal on a module page is the sentence the software says, found in the file that says it', () => {
-    for (const m of MODULES) {
-      for (const r of m.refuses) {
-        expect(r.says, `${m.route}: the phrase must be part of the sentence`).toContain(r.phrase)
-        expect(existsSync(join(ROOT, r.source)), r.source).toBe(true)
-        expect(read(r.source), `${m.route}: "${r.phrase}" is not in ${r.source}`).toContain(r.phrase)
-      }
+  it(`no product page or party door carries more than ${MOST_WORDS} words between its header and its footer`, () => {
+    expect(SKELETON_PAGES).toHaveLength(12)
+    for (const p of SKELETON_PAGES) {
+      const c = copyOf(p.route)!
+      const n = countWords([...c.hero, ...c.body])
+      expect(n, `${p.route} carries ${n} words`).toBeLessThanOrEqual(MOST_WORDS)
+      // And it is the same shape as the home page, not a stub of it.
+      expect(n, `${p.route} carries ${n} words`).toBeGreaterThan(100)
     }
   })
 
-  it('every module page shows one thing the software stops and one thing it lets through with a reason or sends to a desk', () => {
-    for (const m of MODULES) {
-      const kinds = m.refuses.map((r) => r.kind)
-      expect(kinds, m.route).toContain('BLOCK')
-      expect(kinds.some((k) => k === 'WARN' || k === 'ROUTE'), m.route).toBe(true)
+  it('every product page and party door has at most three lines under the frame, each one short', () => {
+    for (const x of [...MODULES, ...PARTY_PAGES]) {
+      expect(x.lines.length, x.route).toBeLessThanOrEqual(3)
+      for (const l of x.lines) expect(l.split(/\s+/).length, `${x.route}: ${l}`).toBeLessThanOrEqual(22)
     }
   })
 
-  it('a complaint is a situation with the desk that has it, never a quotation from somebody who did not say it', () => {
-    for (const m of MODULES) {
-      expect(m.complaint.text, m.route).not.toMatch(/^[“"]/)
-      expect(m.complaint.whose.length, m.route).toBeGreaterThan(10)
-    }
+  it('each product page opens the frame at its step: job requests and governance at Source, submissions, contracts and compliance at Submit, timesheets at Approve, bills and the chain at Pay', () => {
+    const at = Object.fromEntries(MODULES.map((m) => [m.route, m.step]))
+    expect(at).toEqual({
+      '/requisitions': 'source', '/governance': 'source',
+      '/contracts': 'submit', '/submissions': 'submit', '/compliance': 'submit',
+      '/timesheets': 'approve',
+      '/invoices': 'pay', '/chain': 'pay',
+    })
+    for (const m of MODULES) expect(EMBED_STEPS, m.route).toContain(m.step)
+    expect(VIEW).toContain('<LiveDemo step={step}')
   })
 
-  it('the chain page tells the client its supplier’s rates and sub-vendors’ names stay private, and that it always sees whether the employer is insured and authorized', () => {
+  it('each party door opens the frame at the screen its party acts on: suppliers and integrators at Submit, program offices at Source, contractors at Approve', () => {
+    const at = Object.fromEntries(PARTY_PAGES.map((p) => [p.route, p.step]))
+    expect(at).toEqual({
+      '/for/suppliers': 'submit', '/for/program-offices': 'source', '/for/integrators': 'submit', '/for/contractors': 'approve',
+    })
+  })
+
+  it('each product page’s button under the frame seats the reader at that page’s own screen in the full demo', () => {
+    for (const m of MODULES) {
+      const screen = m.demo.screen.replace('/dashboard', '')
+      expect(existsSync(join(ROOT, 'src/app/dashboard', screen, 'page.tsx')), `${m.route} opens ${m.demo.screen}`).toBe(true)
+      expect(m.demo.as, m.route).toBe('world-nike')
+    }
+    expect(VIEW).toContain('<DemoLink target={demo.target}')
+  })
+
+  it('the chain page says a sub-vendor’s name and rates stay private, and that the client always sees whether the employer on its site is insured and authorized', () => {
     const chain = all(copyOfModule(MODULES.find((m) => m.slug === 'chain')!))
-    expect(chain).toContain('Your supplier’s rates and its sub-vendors’ names stay private.')
-    expect(chain).toContain('You always see whether the firm employing the person on your site is insured and authorized.')
-    // And the name opens only on the client's own agreement, never on the platform's say-so.
-    expect(chain).toMatch(/agreement with (it|a supplier|that supplier) requires/)
+    expect(chain).toContain('A sub-vendor’s name and rates stay private.')
+    expect(chain).toContain('You see who employs the person, and whether they are insured and authorized.')
   })
 
-  it('the invoices page never claims an order’s ceiling cannot be overridden, because a named person can override it', () => {
+  it('the invoices page never claims an order’s ceiling cannot be overridden, and says a receipt with no signed week behind it is not paid', () => {
     const invoices = all(copyOfModule(MODULES.find((m) => m.slug === 'invoices')!))
     expect(invoices).not.toMatch(/nobody (may )?overrides? the (line|cap|order)/i)
     const match = read('src/lib/three-way-match.ts')
     expect(match).toMatch(/PO_BALANCE: true/)
     expect(match).toMatch(/RECEIPT: false/)
-    expect(invoices).toContain('nobody can waive it')
-  })
-
-  it('every module page links to the flow it describes in the documentation, at the top of a page that exists', () => {
-    for (const m of MODULES) {
-      expect(m.flow.href, m.route).not.toContain('#')
-      expect(pageAt(m.flow.href), `${m.route} links to ${m.flow.href}`).toBeTruthy()
-      expect(m.flow.href.startsWith('/docs/'), m.route).toBe(true)
-    }
+    expect(invoices).toContain('A receipt with no signed week behind it is not paid.')
   })
 })
 
@@ -462,9 +460,12 @@ describe('One header and footer on every new page', () => {
     const header = read('src/lib/public-site/frame.tsx')
     expect(header).toContain("${onHome ? '' : 'lg:flex'}")
     expect(header).toContain("${onHome ? '' : 'lg:hidden'}")
-    for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
+    for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
+    // The product pages and the party doors draw the same header in the
+    // home page's shape (2026-10-14).
+    expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SiteHeader />')
     // And a phone reads the same menus and links, in a sheet.
     const frame = read('src/lib/public-site/frame.tsx')
     expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the bar and the sheet both draw every menu').toBe(2)
@@ -549,8 +550,6 @@ describe('One header and footer on every new page', () => {
     expect(section('l1-1')).toMatch(/Procurement/)
     expect(section('l1-2')).toMatch(/HR/)
     expect(section('l1-3')).toMatch(/Hiring Manager/)
-    const chain = MODULES.find((m) => m.slug === 'chain')!.more!.items!.map((i) => i.t)
-    expect(chain).toEqual(['A prime', 'A sub', 'A bench vendor'])
   })
 
   it('the solutions menu opens on the four client desks, then adds hiring managers and suppliers', () => {
@@ -626,11 +625,16 @@ describe('One header and footer on every new page', () => {
     for (const h of ['/terms', '/privacy', '/dpa', '/contact', '/security']) expect(hrefs, h).toContain(h)
   })
 
-  it('every new page is drawn inside the one frame', () => {
-    for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
+  it('every new page is drawn inside the one frame, or in the home page’s shape', () => {
+    for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       const src = read(`src/lib/public-site/${f}`)
       expect(src, f).toContain('<SiteFrame>')
     }
+    // The product pages and the party doors, since 2026-10-14: the shared
+    // header, the home page's skeleton and its one-row footer.
+    const view = read('src/lib/public-site/sub-page.tsx')
+    expect(view).toContain('<SiteHeader />')
+    expect(view).toContain('<SkeletonFooter />')
   })
 })
 
@@ -712,11 +716,12 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
   })
 
-  it('no door is in the shared header or footer; the home page carries all four in its sign-up band and its own footer; each door\'s footer links the other three', () => {
+  it('no door is in the shared header or footer; the home page and every product page and door carry all four in the sign-up band and the one-row footer', () => {
     // Decided 2026-10-13: the doors are reached by link, not from the menu.
     // The founder's home page of 2026-10-14 adds one small line in the
-    // sign-up band, "Your door:", Clients first, and the same links in the
-    // home page's own footer. The shared header and footer still carry none.
+    // sign-up band, "Your door:", Clients first, and the same links in its
+    // one-row footer; since the same day every product page and door draws
+    // that band and that footer. The shared header and footer carry none.
     const header = [
       ...HEADER_MENUS.flatMap((m) => [m.href, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
       ...HEADER_LINKS.map((l) => l.href),
@@ -724,68 +729,35 @@ describe('Four doors for the parties who are not the client, reached by link and
       ...SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)),
     ]
     for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
-    const home = read('src/app/page.tsx')
-    const doors = home.slice(home.indexOf('const DOORS'), home.indexOf('const FOOTER_LINKS'))
-    const footer = home.slice(home.indexOf('const FOOTER_LINKS'), home.indexOf('const FOCUS'))
     for (const p of PARTY_PAGES) {
-      expect(doors, p.route).toContain(`href: '${p.route}'`)
-      expect(footer, p.route).toContain(`href: '${p.route}'`)
+      expect(DOORS.map((d) => d.href), p.route).toContain(p.route)
+      expect(SKELETON_FOOTER.map((d) => d.href), p.route).toContain(p.route)
     }
-    expect(doors.indexOf("t: 'Clients'")).toBeLessThan(doors.indexOf('/for/'))
-    for (const p of PARTY_PAGES) {
-      expect(otherDoors(p).map((d) => d.href).sort(), p.route).toEqual(PARTY_PAGES.filter((o) => o !== p).map((o) => o.route).sort())
-    }
-    expect(read('src/lib/public-site/party-page.tsx')).toContain('<SiteFooter doors={otherDoors(p)} />')
-    expect(read('src/lib/public-site/party-page.tsx')).toContain('<SiteHeader />')
+    expect(DOORS[0]).toEqual({ t: 'Clients', href: '/signup' })
+    const view = read('src/lib/public-site/sub-page.tsx')
+    expect(view).toContain('<SignUpBand primary={signUp} />')
+    expect(view).toContain('<SkeletonFooter />')
   })
 
-  it('each door shows one real screen that exists and says every firm on it is a demo company', () => {
+  it('each door says whose screen the frame shows, and that every firm on it is a demo company', () => {
     for (const p of PARTY_PAGES) {
-      expect(p.screen.img.startsWith('/screens/'), p.route).toBe(true)
-      expect(existsSync(join(ROOT, 'public', p.screen.img)), p.screen.img).toBe(true)
-      expect(all(copyOfPartyPage(p))).toContain('Demo company, not a customer.')
+      expect(p.caption, p.route).toMatch(/screen/)
+      expect(all(copyOfPartyPage(p))).toContain(ON_SCREEN_DOOR)
     }
+    expect(ON_SCREEN_DOOR).toBe('Every firm on this screen is a demo company, not a customer.')
   })
 
-  it('each door has eight day-one panels, five rules of what stays yours beside a who-sees-what panel, and three ways it grows', () => {
-    for (const p of PARTY_PAGES) {
-      expect(p.dayOne.panels, p.route).toHaveLength(8)
-      expect(p.dayOne.heading).toBe('Everything below is in the demo today, from your own desk')
-      expect(p.yours.points, p.route).toHaveLength(5)
-      expect(p.yours.rows.length, p.route).toBeGreaterThanOrEqual(5)
-      expect(p.grow.panels, p.route).toHaveLength(3)
-    }
-  })
-
-  it('each growth panel says Built or Being built as drawn, and every panel being built says it is not built yet or is next', () => {
-    const drawn: Record<string, string[]> = {
-      '/for/suppliers': ['Built · a match is a door', 'Built · the bench as a business', 'Being built · your expertise beside your rate'],
-      '/for/program-offices': ['Built · the seat', 'Being built · several clients, one view', 'Being built · the twin at your side'],
-      '/for/integrators': ['Built · the move and the match', 'Built · bench profit per person', 'Being built · utilization across projects'],
-      '/for/contractors': ['Built · the bench, by your consent', 'Being built · your evidence, not a forwarded CV', 'Being built · one record across employers'],
-    }
-    for (const p of PARTY_PAGES) {
-      expect(p.grow.panels.map(growLabel), p.route).toEqual(drawn[p.route])
-      for (const x of p.grow.panels.filter((x) => !x.built)) expect(x.d, `${p.route}: ${x.label}`).toMatch(/Not built yet\.|is next\.|the rest is next\./)
-      expect(p.grow.lede, p.route).toContain('no date is set')
-    }
-  })
-
-  it('each door asks the reader to sign up first, then to see the demo, then to ask a person, and a contractor signs up on the same form as a candidate', () => {
-    const view = read('src/lib/public-site/party-page.tsx')
-    const close = view.slice(view.indexOf('id="join"'))
-    const signUp = close.indexOf('{p.signUpLabel')
-    const demo = close.indexOf('<Demo p={p}')
-    const ask = close.indexOf('{ASK_A_PERSON.t}')
-    expect(signUp).toBeGreaterThan(-1)
-    expect(signUp).toBeLessThan(demo)
-    expect(demo).toBeLessThan(ask)
+  it('each door’s filled button is its own sign-up, the rest of the band is the home page’s, and a contractor signs up on the same form as a candidate', () => {
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
-    for (const p of PARTY_PAGES) expect(p.signUpHref.startsWith('/signup'), p.route).toBe(true)
-    expect(doorAt('program-offices')!.signUpHref).toBe('/signup?type=msp')
-    expect(doorAt('integrators')!.signUpHref).toBe('/signup?type=gsi')
+    for (const p of PARTY_PAGES) {
+      expect(p.signUp.href.startsWith('/signup'), p.route).toBe(true)
+      expect(all(copyOfPartyPage(p))).toContain(BAND.heading)
+      expect(all(copyOfPartyPage(p))).toContain('Free while we are testing.')
+    }
+    expect(doorAt('program-offices')!.signUp.href).toBe('/signup?type=msp')
+    expect(doorAt('integrators')!.signUp.href).toBe('/signup?type=gsi')
+    expect(doorAt('contractors')!.signUp.href).toBe('/signup?as=candidate')
     expect('candidate' in doorAt('contractors')!.demo).toBe(true)
-    for (const p of PARTY_PAGES) expect(all(copyOfPartyPage(p))).toContain('Free while testing. No price is set yet.')
   })
 
   it('no sentence on a door is longer than twenty-five words, and the word ecosystem is on none of them', () => {
@@ -806,6 +778,7 @@ describe('Four doors for the parties who are not the client, reached by link and
   it('the program office door offers Etyme\'s own program office once, in its two ways to use it, under the founder\'s two labels', () => {
     const p = doorAt('program-offices')!
     expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toHaveLength(1)
-    expect(p.yours.rows.map(([a]) => a)).toEqual(expect.arrayContaining(['Etyme as VMS software', 'Etyme as MSP provider']))
+    expect(p.lines.join(' ')).toContain('Etyme as VMS software')
+    expect(p.lines.join(' ')).toContain('Etyme as MSP provider')
   })
 })

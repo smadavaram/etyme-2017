@@ -17,7 +17,10 @@ import { join } from 'node:path'
  */
 
 const ROUTE = readFileSync(join(__dirname, '../../src/app/api/demo/route.ts'), 'utf8')
-const PAGE = readFileSync(join(__dirname, '../../src/app/page.tsx'), 'utf8')
+// The home page's doors are written in the skeleton it shares with the
+// product pages and the party doors (2026-10-14).
+const PAGE = ['../../src/app/page.tsx', '../../src/lib/public-site/skeleton-words.ts', '../../src/lib/public-site/skeleton.tsx']
+  .map((f) => readFileSync(join(__dirname, f), 'utf8')).join('\n')
 const TRY_DEMO = readFileSync(join(__dirname, '../../src/components/try-demo.tsx'), 'utf8')
 
 describe('the candidate demo is a real third door, not just the other two relabelled', () => {
@@ -43,9 +46,12 @@ describe('the candidate demo is a real third door, not just the other two relabe
     // text link, never a button: a primary door is marked
     // `bg-etyme-action` on this page, and the doors line draws none.
     expect(PAGE).toContain("{ t: 'Workers', href: '/for/contractors' }")
-    const line = PAGE.slice(PAGE.indexOf('DOORS.map'), PAGE.indexOf('</p>', PAGE.indexOf('DOORS.map')))
+    const band = PAGE.slice(PAGE.indexOf('export function SignUpBand'))
+    const line = band.slice(band.indexOf('DOORS.map'), band.indexOf('</p>', band.indexOf('DOORS.map')))
     expect(line).not.toContain('bg-etyme-action')
-    const doors = readFileSync(join(process.cwd(), 'src/lib/public-site/party-page.tsx'), 'utf8')
+    // The contractors' door, drawn by the view every door shares, seats a
+    // candidate from the button under its frame.
+    const doors = readFileSync(join(process.cwd(), 'src/lib/public-site/sub-page.tsx'), 'utf8')
     expect(doors).toContain('<TryDemo side="CANDIDATE"')
   })
 })

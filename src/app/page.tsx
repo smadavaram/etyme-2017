@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { SiteHeader, HomeFooter } from '@/lib/public-site/frame'
+import { SiteHeader } from '@/lib/public-site/frame'
 import { CountedLink } from '@/lib/public-site/counted-link'
-import { HomeDemo } from '@/lib/public-site/home-demo'
-import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
+import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
+import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
+import { SEE_IT } from '@/lib/public-site/funnel'
 
 /**
  * The front door.
@@ -44,6 +45,14 @@ import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
  * size of buyer, no claim a reader cannot check, plain words, written to
  * the client. `lib/positioning` holds each and `positioning.test.ts`
  * reads this file against them.
+ *
+ * ── The pieces every other page shares ───────────────────────────────
+ *
+ * The frame, the four chips, the sign-up band, the security line and the
+ * footer live in `lib/public-site/skeleton`, since 2026-10-14, because
+ * the eight product pages and the four party doors draw the same ones
+ * (the founder: "make sure even the sub pages and doors follow the same
+ * structure"). This page adds only its question and the category.
  */
 
 /**
@@ -55,64 +64,6 @@ import { SEE_IT, GET_THE_AUDIT } from '@/lib/public-site/funnel'
 export const metadata: Metadata = {
   title: { absolute: 'Etyme | Enterprise contingent workforce management' },
 }
-
-/**
- * The four chips under the product. Each moves the frame to its step.
- * The overview is the frame's first screen and no chip is lit until one
- * is pressed, because the overview is none of the four steps.
- */
-const CHIPS: { t: string; href: string }[] = [
-  { t: 'Source', href: '/embed/demo/source' },
-  { t: 'Submit', href: '/embed/demo/submit' },
-  { t: 'Approve', href: '/embed/demo/approve' },
-  { t: 'Pay', href: '/embed/demo/pay' },
-]
-
-/**
- * The frame the product sits in. The chrome strip says whose screens
- * these are, in the drawing's words; the line under the frame says every
- * firm on them is a demo company, not a customer, and is always visible
- * (the founder's label, 2026-09-27). The two are drawn together by one
- * component and read together by `public-example-names.test.ts`.
- */
-const FRAME = {
-  src: '/embed/demo',
-  name: 'home-demo',
-  title: 'Live demo of Northbend Athletic, a demo company, not a customer: the program manager’s screens',
-  chrome: 'Live demo · Northbend Athletic, a sample company',
-  fallback: { t: 'The demo did not load here.', link: 'Open it on its own page' },
-}
-const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'
-
-/** Every party's door, on one small line in the sign-up band. Clients first. */
-const DOORS: { t: string; href: string }[] = [
-  { t: 'Clients', href: '/signup' },
-  { t: 'Program offices', href: '/for/program-offices' },
-  { t: 'Integrators', href: '/for/integrators' },
-  { t: 'Suppliers', href: '/for/suppliers' },
-  { t: 'Workers', href: '/for/contractors' },
-]
-
-/** The footer: the documentation, the same four doors, security, the legal pages, contact. */
-const FOOTER_LINKS: { t: string; href: string }[] = [
-  { t: 'Documentation', href: '/docs' },
-  { t: 'Program offices', href: '/for/program-offices' },
-  { t: 'Integrators', href: '/for/integrators' },
-  { t: 'Suppliers', href: '/for/suppliers' },
-  { t: 'Workers', href: '/for/contractors' },
-  { t: 'Security', href: '/security' },
-  { t: 'Privacy', href: '/privacy' },
-  { t: 'Terms', href: '/terms' },
-  { t: 'DPA', href: '/dpa' },
-  { t: 'Contact', href: '/contact' },
-]
-
-const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
-const PRIMARY_BUTTON =
-  `whitespace-nowrap rounded-lg bg-etyme-action px-5 py-3 text-center text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 ${FOCUS}`
-const SECOND_BUTTON =
-  `whitespace-nowrap rounded-lg border border-etyme-rule bg-etyme-surface px-5 py-3 text-center text-[15px] font-semibold text-etyme-ink transition-colors hover:border-etyme-ink ${FOCUS}`
-const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`
 
 export default function LandingPage() {
   return (
@@ -130,64 +81,21 @@ export default function LandingPage() {
           </p>
         </section>
 
-        {/* ── The product, live and read-only ───────────────────── */}
-        <section id="demo" aria-label="Live demo" className="pb-4">
-          <HomeDemo
-            name={FRAME.name}
-            src={FRAME.src}
-            title={FRAME.title}
-            chrome={FRAME.chrome}
-            label={ON_SCREEN}
-            chipsLabel={'The four steps'}
-            chips={CHIPS}
-            fallback={FRAME.fallback}
-          >
-            <CountedLink href={SEE_IT.href} event="demo_cta_clicked" className={PRIMARY_BUTTON}>
-              Open the demo, no account
-            </CountedLink>
-          </HomeDemo>
-        </section>
+        {/* ── The product, live and read-only, at the overview ──── */}
+        <LiveDemo>
+          <CountedLink href={SEE_IT.href} event="demo_cta_clicked" className={PRIMARY_BUTTON}>
+            {OPEN_DEMO}
+          </CountedLink>
+        </LiveDemo>
 
         {/* ── Sign-up, right under the product ──────────────────── */}
-        <section
-          id="sign-up"
-          className="my-9 grid gap-5 rounded-r-lg border border-etyme-rule bg-etyme-surface p-6 md:grid-cols-[1fr_auto] md:items-center md:p-7"
-        >
-          <div className="min-w-0">
-            <h2 className="text-balance font-serif text-[26px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[28px]">
-              Seen enough? Set up your company.
-            </h2>
-            <p className="mt-1.5 text-[15px] leading-snug text-etyme-muted">
-              Two minutes. Your suppliers and contractors go where the sample ones are. Free while we are testing.
-            </p>
-            <p className="mt-2 text-[14px] leading-snug text-etyme-muted">
-              Your door:{' '}
-              {DOORS.map((d, i) => (
-                <span key={d.href}>
-                  {i > 0 && <span aria-hidden="true"> · </span>}
-                  <a href={d.href} className={TEXT_LINK}>{d.t}</a>
-                </span>
-              ))}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
-            <a href="/signup" className={PRIMARY_BUTTON}>Sign up</a>
-            <CountedLink href={GET_THE_AUDIT.href} event="audit_cta_clicked" className={SECOND_BUTTON}>
-              Get a free contractor spend audit
-            </CountedLink>
-          </div>
-        </section>
+        <SignUpBand />
 
         {/* ── Security: one line and the link ───────────────────── */}
-        <p id="security" className="mb-10 text-[15px] leading-snug text-etyme-muted">
-          Security: what is done, and what is next in order.{' '}
-          <a href="/security" className={TEXT_LINK}>Read the security position</a>
-          <span aria-hidden="true"> · </span>
-          <a href="/docs" className={TEXT_LINK}>Documentation</a>
-        </p>
+        <SecurityLine />
       </main>
 
-      <HomeFooter links={FOOTER_LINKS} />
+      <SkeletonFooter />
     </div>
   )
 }

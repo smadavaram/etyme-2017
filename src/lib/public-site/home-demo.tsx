@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { EmbedStep } from '@/lib/sample-seat'
 
 /**
  * The live product inside the home page (founder, 2026-10-14): the
@@ -30,17 +31,37 @@ import { useEffect, useRef, useState } from 'react'
  * nothing at all after twelve seconds, shows one quiet line with a link
  * to the same screen on its own page. The line is never shown while the
  * frame is still loading.
+ *
+ * ── One frame for every page, opened at that page's step ─────────────
+ *
+ * Since 2026-10-14 every product page and party door draws this same
+ * frame (founder: "make sure even the sub pages and doors follow the
+ * same structure"). A page says which step it opens at, and the chip for
+ * that step is lit from the start; the home page opens at the overview,
+ * which is none of the four, so no chip is lit there. An optional caption
+ * says, in one line, what this page's reader is looking at.
  */
+
+/** Where the frame's screens are served. A step is a path under it. */
+export const EMBED_BASE = '/embed/demo'
+
+/** The frame's address for a step: the overview is the base itself. */
+export function embedSrc(step: EmbedStep = 'overview'): string {
+  return step === 'overview' ? EMBED_BASE : `${EMBED_BASE}/${step}`
+}
 
 const LOAD_WAIT_MS = 12_000
 const DESKTOP = '(min-width: 768px)'
 
 export interface HomeDemoProps {
   name: string
-  src: string
+  /** The step the frame opens at. The overview when not given. */
+  step?: EmbedStep
   title: string
   chrome: string
   label: string
+  /** One line about what this page's reader is looking at, above the label. */
+  caption?: string
   chipsLabel: string
   chips: { t: string; href: string }[]
   fallback: { t: string; link: string }
@@ -50,7 +71,8 @@ export interface HomeDemoProps {
 
 const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
 
-export function HomeDemo({ name, src, title, chrome, label, chipsLabel, chips, fallback, children }: HomeDemoProps) {
+export function HomeDemo({ name, step, title, chrome, label, caption, chipsLabel, chips, fallback, children }: HomeDemoProps) {
+  const src = embedSrc(step)
   const frame = useRef<HTMLIFrameElement>(null)
   const [path, setPath] = useState(src)
   const [failed, setFailed] = useState(false)
@@ -133,7 +155,8 @@ export function HomeDemo({ name, src, title, chrome, label, chipsLabel, chips, f
       </div>
 
       <p className="mt-3 text-[14px] leading-snug text-etyme-muted sm:hidden">{chrome}</p>
-      <p className="mt-3 text-[15px] leading-snug text-etyme-ink sm:mt-3">{label}</p>
+      {caption && <p className="mt-3 text-[15px] leading-snug text-etyme-ink">{caption}</p>}
+      <p className={`${caption ? 'mt-1 text-etyme-muted' : 'mt-3 text-etyme-ink'} text-[15px] leading-snug`}>{label}</p>
       {failed && (
         <p role="status" className="mt-1 text-[14px] text-etyme-muted">
           {fallback.t}{' '}

@@ -28,6 +28,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { copyFrom } from '@/lib/positioning'
 import { MODULES, copyOfModule } from '@/lib/public-site/modules'
+import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
+import { ON_SCREEN } from '@/lib/public-site/skeleton-words'
 import { COMPANY_PAGES, copyOfCompanyPage } from '@/lib/public-site/company'
 import { docSlugs, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/index'
 import { frameCopy } from '@/lib/public-site/nav'
@@ -105,17 +107,26 @@ function everything(): Said[] {
   // in the drawing's words, and says under the frame that every firm on
   // it is a demo company and not a customer (2026-10-14). The two are one
   // caption, drawn together by one component, so they are read as one.
-  const front = read('src/app/page.tsx')
+  // Since the same day the frame and its caption are drawn from the
+  // skeleton the home page shares with every product page and party door.
+  const front = read('src/app/page.tsx') + '\n' + read('src/lib/public-site/skeleton-words.ts')
   const chrome = front.match(/chrome: '([^']+)'/)![1]
   const onScreen = front.match(/const ON_SCREEN = '([^']+)'/)![1]
-  add('/', copyFrom(front).filter((t) => t !== chrome && t !== onScreen))
+  const doorScreen = front.match(/const ON_SCREEN_DOOR = '([^']+)'/)![1]
+  add('/', copyFrom(front).filter((t) => t !== chrome && t !== onScreen && t !== doorScreen))
   out.push({ where: '/ (the frame’s caption)', unit: `${chrome} ${onScreen}` })
 
+  // A product page and a party door draw the same frame with the same
+  // caption under it; a door's caption line says whose screen it is.
   for (const m of MODULES) {
     const c = copyOfModule(m)
-    const cards = new Set(m.refuses.flatMap((r) => [r.says, r.then]))
-    add(m.route, [...c.hero, ...c.body].filter((t) => !cards.has(t)))
-    for (const r of m.refuses) out.push({ where: `${m.route} (what it refuses)`, unit: `${r.says} ${r.then}` })
+    add(m.route, [...c.hero, ...c.body].filter((t) => t !== chrome && t !== onScreen))
+    out.push({ where: `${m.route} (the frame’s caption)`, unit: `${chrome} ${onScreen}` })
+  }
+  for (const p of PARTY_PAGES) {
+    const c = copyOfPartyPage(p)
+    add(p.route, [...c.hero, ...c.body].filter((t) => t !== chrome && t !== doorScreen))
+    out.push({ where: `${p.route} (the frame’s caption)`, unit: `${chrome} ${doorScreen}` })
   }
 
   for (const p of COMPANY_PAGES) {
@@ -199,11 +210,13 @@ describe('An invented company never reads as a customer', () => {
     // the label under it carries the disclaimer for everything on it: one
     // line, drawn by the one component that draws the frame, never hidden
     // at any width.
+    // Since 2026-10-14 the same label sits under the frame on every product
+    // page, and a door's says the same of every firm under its own caption.
     const page = read('src/app/page.tsx')
-    expect(page).toContain("const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'")
-    expect(page).toContain('label={ON_SCREEN}')
+    expect(ON_SCREEN).toBe('You are the program manager. Every firm on this screen is a demo company, not a customer.')
+    expect(read('src/lib/public-site/skeleton.tsx')).toContain('label = ON_SCREEN')
     const frame = read('src/lib/public-site/home-demo.tsx')
-    const line = frame.match(/<p className="([^"]+)">\{label\}<\/p>/)
+    const line = frame.match(/<p className=\{`([^`]+)`\}>\{label\}<\/p>/)
     expect(line, 'the label is drawn as its own line').not.toBeNull()
     expect(line![1]).not.toMatch(/(?:^|\s)(?:hidden|sr-only|sm:hidden|md:hidden)(?:\s|$)/)
     expect(page).not.toContain('<img')

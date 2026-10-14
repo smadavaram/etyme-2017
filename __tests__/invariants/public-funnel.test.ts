@@ -24,11 +24,18 @@ import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-c
 import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { CONTACT } from '@/lib/public-site/company'
+import { OPEN_DEMO, BAND, CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
+import { PARTY_PAGES } from '@/lib/public-site/parties'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 
-const HOME = read('src/app/page.tsx')
+/**
+ * The home page as a reader meets it: its own question and category, and
+ * the skeleton it shares with every product page and party door
+ * (2026-10-14) — the frame, the sign-up band, the security line.
+ */
+const HOME = ['src/app/page.tsx', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/skeleton.tsx'].map(read).join('\n')
 const FRAME = read('src/lib/public-site/frame.tsx')
 const CLOSE = read('src/lib/public-site/close-band.tsx')
 const CENSUS = read('src/app/census/page.tsx')
@@ -59,6 +66,9 @@ const SITE_SOURCES = [
   'src/lib/public-site/frame.tsx',
   'src/lib/public-site/close-band.tsx',
   'src/lib/public-site/module-page.tsx',
+  'src/lib/public-site/party-page.tsx',
+  'src/lib/public-site/sub-page.tsx',
+  'src/lib/public-site/skeleton.tsx',
   'src/lib/public-site/docs-page.tsx',
   'src/lib/public-site/company-page.tsx',
 ]
@@ -89,8 +99,12 @@ describe('One ladder, named once', () => {
     expect(HOME.indexOf('href={SEE_IT.href}')).toBeLessThan(HOME.indexOf('href={GET_THE_AUDIT.href}'))
     const audit = HOME.slice(HOME.indexOf('href={GET_THE_AUDIT.href}'), HOME.indexOf('</CountedLink>', HOME.indexOf('href={GET_THE_AUDIT.href}')))
     expect(audit).toContain('className={SECOND_BUTTON}')
-    expect(audit).toContain('Get a free contractor spend audit')
-    expect(HOME).toMatch(/<a href="\/signup" className=\{PRIMARY_BUTTON\}>Sign up<\/a>/)
+    expect(audit).toContain('{BAND.audit}')
+    expect(BAND.audit).toBe('Get a free contractor spend audit')
+    // The band's filled button is the client's sign-up on the home page and
+    // the product pages, and a door's own sign-up on a door.
+    expect(HOME).toContain('<a href={primary.href} className={PRIMARY_BUTTON}>{primary.t}</a>')
+    expect(CLIENT_SIGN_UP).toEqual({ t: 'Sign up', href: '/signup' })
     expect(HOME).toMatch(/const PRIMARY_BUTTON =\s*`[^`]*bg-etyme-action/)
   })
 
@@ -102,17 +116,19 @@ describe('One ladder, named once', () => {
     expect(frame.indexOf('<main>')).toBeLessThan(frame.indexOf('<CloseBand />'))
     expect(frame.indexOf('<CloseBand />')).toBeLessThan(frame.indexOf('<SiteFooter />'))
     expect(frame).not.toMatch(/close\??:\s*boolean/)
-    for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
+    for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       const src = read(`src/lib/public-site/${f}`)
       expect(src, f).toContain('<SiteFrame>')
     }
-    const framed = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY'].includes(p.kind))
+    const framed = PUBLIC_PAGES.filter((p) => ['DOCS', 'COMPANY'].includes(p.kind))
     expect(framed.length).toBeGreaterThan(20)
-    // The home page is the one exception since 2026-10-14: it ends in its
-    // sign-up band, which already carries the three — the demo under the
-    // product, the audit beside sign-up, and a person through Contact in
-    // its footer.
+    // The home page, the eight product pages and the four party doors are
+    // the exception since 2026-10-14: they end in the sign-up band, which
+    // already carries the three — the demo under the product, the audit
+    // beside sign-up, and a person through Contact in the footer.
     expect(HOME).not.toContain('<CloseBand')
+    expect(read('src/lib/public-site/sub-page.tsx')).not.toContain('<CloseBand')
+    expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SignUpBand')
     expect(HOME).toContain('href={SEE_IT.href}')
     expect(HOME).toContain('href={GET_THE_AUDIT.href}')
     expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
@@ -158,6 +174,9 @@ describe('No button promises what the site cannot give', () => {
         { ...NOTHING_YET, requestId: 'r', uploadToken: 't' },
       ].flatMap((state) => offered(state).map((step) => step.button ?? '')),
       ...SITE_SOURCES.flatMap((f) => buttonLabels(read(f))),
+      // The buttons the shared skeleton draws from data (2026-10-14): the
+      // demo under the frame, the audit in the band, each door's demo.
+      OPEN_DEMO, BAND.audit, ...PARTY_PAGES.map((p) => p.demoLabel),
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('Explore the Live Demo')
@@ -165,8 +184,9 @@ describe('No button promises what the site cannot give', () => {
     expect(labels).toContain('Open the demo, no account')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
-    // The one that may, and the door it opens, which is real.
-    expect(HOME).toMatch(/<a href="\/signup" className=\{PRIMARY_BUTTON\}>Sign up<\/a>/)
+    // The ones that may, and the door they open, which is real: the
+    // client's "Sign up" and each door's own sign-up, every one to /signup.
+    for (const s of [CLIENT_SIGN_UP, ...PARTY_PAGES.map((p) => p.signUp)]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)
   })

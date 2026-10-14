@@ -338,7 +338,10 @@ describe('The list of people who wrote to us is ours, not a tenant’s', () => {
 
 // ── What the page promises ──────────────────────────────────────────
 
-const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
+// The home page and the skeleton it shares with the product pages and
+// the party doors (2026-10-14), where its footer's links are written.
+const PAGE = ['src/app/page.tsx', 'src/lib/public-site/skeleton-words.ts']
+  .map((f) => readFileSync(join(process.cwd(), f), 'utf8')).join('\n')
 const FORM = readFileSync(join(process.cwd(), 'src/app/site/ask.tsx'), 'utf8')
 const CLOSE = readFileSync(join(process.cwd(), 'src/lib/public-site/close-band.tsx'), 'utf8')
 const COPY = Object.values(ASK_COPY).join(' ')

@@ -109,8 +109,11 @@ describe('The public site counts its own clicks, first-party and with nothing pe
   })
 
   it('counts the home page’s audit and demo buttons, the header’s audit button, the form, and a seat taken from a demo link', () => {
+    // The audit button is in the sign-up band the home page shares with
+    // the product pages and the party doors (2026-10-14), so it is counted
+    // on every one of them.
     const page = read('src/app/page.tsx')
-    expect(page).toContain('event="audit_cta_clicked"')
+    expect(read('src/lib/public-site/skeleton.tsx')).toContain('event="audit_cta_clicked"')
     expect(page).toContain('event="demo_cta_clicked"')
     expect(read('src/lib/public-site/frame.tsx')).toContain('event="audit_cta_clicked"')
     const form = read('src/lib/public-site/audit-form.tsx')
