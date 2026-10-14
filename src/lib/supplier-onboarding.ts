@@ -595,7 +595,7 @@ export function mayActAt(input: {
     : stage === 'HR' ? (barred(input.desks.hrId) ? pmo : callerId === input.desks.hrId)
     : hasPermission(permissions, 'payments.record')
   if (!onDesk) {
-    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is with ${STAGE_WORD[stage]}. They decide it; you will be told what they said.` }
+    return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is with ${stage === 'LEAD' ? 'the department lead' : STAGE_WORD[stage]} now. You will be told what they decide.` }
   }
   return { ok: true }
 }

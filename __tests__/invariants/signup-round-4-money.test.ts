@@ -71,13 +71,14 @@ describe('a refused money page draws one sentence and no figure', () => {
     expect(refusalOf(500, { error: { message: 'boom' } })).toBeNull()
   })
 
-  it('a refusal that names a permission key reaches the reader as the desk that does the work', () => {
+  it('a refusal that names a permission key reaches the reader as the role that does the work', () => {
     const says = refusedRead('Requires invoices.read permission', {
       what: 'Invoice receipts', kind: 'CLIENT', company: 'Northbend Athletic',
     })!
     expect(says).not.toContain('invoices.read')
     expect(says).toContain('Northbend Athletic')
-    expect(says).toMatch(/^Invoice receipts is for the .+ desk at Northbend Athletic\./)
+    expect(says).toMatch(/^Invoice receipts is for the .+ at Northbend Athletic\./)
+    expect(says).not.toMatch(/\bdesk\b/i)
   })
 
   it('a refusal the route gave no words for still says whose seat it is and who to ask', () => {
