@@ -202,7 +202,7 @@ describe('when a document a line depends on runs out, every party it costs is to
       expect(row.reversible).toBe(false)
       // The row says who was told by role, never by name.
       const payload = row.payload as { told?: string }
-      expect(payload.told).toMatch(/desk/)
+      expect(payload.told).toMatch(/^the (firm that owes it|program manager and compliance officer|employer)$/)
     }
 
     // The same night again, and the same milestone: nothing new to say.

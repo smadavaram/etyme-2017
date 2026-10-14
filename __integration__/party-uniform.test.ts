@@ -643,7 +643,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
       reason: 'We would like a desk in Northbend’s program, thank you.',
     })
     expect(status).toBe(403)
-    expect(body.error.message).toContain('A program office cannot grant itself a seat')
+    expect(body.error.message).toContain('An MSP cannot grant itself a seat')
   })
 
   it('only an owner or the program manager at the client may grant a seat — a hiring manager cannot', async () => {

@@ -233,7 +233,7 @@ describe('the shared sample seat the home page frames', () => {
     const res = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme', who: SAMPLE_PERSON_NAME }))
     expect(res.status).toBe(404)
     expect((await res.json()).error.message).toBe(
-      'Shared sample does not hold the Program Manager desk at Northbend Athletic in the demo, so no seat was taken. The Program Manager desk there is held by Lorena Kellerman.'
+      'Shared sample does not hold the Program Manager role at Northbend Athletic in the demo, so no seat was taken. The Program Manager role there is held by Lorena Kellerman.'
     )
     const plain = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme' }))
     expect(plain.status).toBeLessThan(400)

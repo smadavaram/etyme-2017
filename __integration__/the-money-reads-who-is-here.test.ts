@@ -103,7 +103,7 @@ describe('the money screens read who is actually here', () => {
         })
       )
     )
-    expect(body.error.message).toMatch(/ask their program office or AP desk/i)
+    expect(body.error.message).toMatch(/ask their MSP or AP clerk/i)
   })
 
   it('still lets a supplier record the order a client that is not here handed it on paper', async () => {

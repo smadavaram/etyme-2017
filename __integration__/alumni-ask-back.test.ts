@@ -163,7 +163,7 @@ describe('whose desk asks somebody back', () => {
     const before = await askBacksAt(cavanaugh)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+ desk/)
+    expect(r.body.error.message).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+, who raises? job requests there/)
     expect(r.body.error.message).toContain('You can read who worked here before')
     expect(await askBacksAt(cavanaugh), 'nothing written').toBe(before)
   })
@@ -176,7 +176,7 @@ describe('the alumni list draws Ask back only for the desk that may ask', () => 
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.alumni.find((a: any) => a.name === 'Nadia Petrova')?.canReengage, 'the ledger reads her eligible').toBe(true)
     expect(r.body.data.askBack.mayAsk).toBe(false)
-    expect(r.body.data.askBack.says).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+ desk/)
+    expect(r.body.data.askBack.says).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+, who raises? job requests there/)
 
     // The same sentence the request refuses with, word for word.
     const post = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia })))
