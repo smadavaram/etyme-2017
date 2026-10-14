@@ -93,7 +93,7 @@ export const FOUR_ANSWERS: { q: string; screen: string; route: string; etyme: st
 export const TWO_WAYS: { label: string; says: string }[] = [
   {
     label: 'VMS software',
-    says: 'Your own program office runs the program on Etyme. Your people hold the seats. Etyme holds the record and the rules.',
+    says: 'Your own program manager runs the program on Etyme. Your people hold the seats. Etyme holds the record and the rules.',
   },
   {
     label: 'MSP provider',
@@ -114,7 +114,7 @@ export const ABOUT: CompanyPage = {
   eyebrow: 'About Etyme',
   title: 'One record for every contractor. That is the whole company.',
   lede:
-    'Etyme builds the system a program office uses to see every contractor on its sites, which supplier sent them, and what they cost. ' +
+    'Etyme builds the system a program manager uses to see every contractor on its sites, which supplier sent them, and what they cost. ' +
     'It also builds the rules that keep that record honest.',
   blocks: [
     {
@@ -133,7 +133,7 @@ export const ABOUT: CompanyPage = {
         // the trade's order, is what stops any one of them reading as the
         // product.
         'Job request, suppliers, submissions, screening, interviews, onboarding, timesheets, bills, compliance. ' +
-          'One record holds all of it, and each desk opens the part that is its own.',
+          'One record holds all of it, and each person opens the part that is theirs.',
       ],
     },
     // ── Four blocks moved from the home page, 2026-09-27 ──────────────
@@ -200,7 +200,7 @@ export const ABOUT: CompanyPage = {
       ],
       items: [
         { t: 'Raised', d: 'A manager needs somebody, with a budget and a rate band. It can stop here.' },
-        { t: 'Released', d: 'To the suppliers your program office cleared.' },
+        { t: 'Released', d: 'To the suppliers your Procurement team cleared.' },
         { t: 'Awarded', d: 'One person, one seat, and the order that pays for it. It can stop here.' },
         { t: 'Cleared', d: 'Work authorization, checks and insurance, before day one. It can stop here.' },
         { t: 'Working', d: 'Hours signed, bills matched, everybody paid.' },
@@ -245,7 +245,7 @@ export const ABOUT: CompanyPage = {
       id: 'ways',
       title: 'The record is the product, and your own people run the program on it',
       paragraphs: [
-        'Most clients staff the program office themselves. The record is the same either way and it stays yours.',
+        'Most clients run the program with their own people. The record is the same either way and it stays yours.',
         'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier. ' +
           'Your people keep the decisions that are yours: which jobs to open, who to hire, and what to approve.',
         'If you are a staffing supplier, you are on it because your client is. ' +
@@ -260,7 +260,7 @@ export const ABOUT: CompanyPage = {
       paragraphs: [
         'The record sits between a company and every supplier it uses, so it can only work if no supplier has to compete with it. ' +
           'It has no contractors of its own to sell. It is built into how this works, not a policy we might change.',
-        'If you would rather not staff a program office, Etyme can run it for you on the same record. ' +
+        'If you would rather not run the program yourself, Etyme can run it for you on the same record. ' +
           'You keep every decision that is yours: who may supply, at what band, and who is chosen.',
       ],
     },
@@ -276,7 +276,7 @@ export const ABOUT: CompanyPage = {
         'Etyme is free while we prove it out with the first five firms. ' +
           'Founding firms keep the terms we agree with them, in writing, before they start. ' +
           'We will not put a number on this site that we would have to take back later.',
-        'Where Etyme runs the program, it is paid the way program offices are paid: ' +
+        'Where Etyme runs the program, it is paid the way MSPs are paid: ' +
           'a percentage the suppliers pay on their billings, disclosed to every supplier when they join.',
       ],
       items: [

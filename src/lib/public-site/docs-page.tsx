@@ -495,7 +495,7 @@ export function PartyDocView({ doc }: { doc: PartyDoc }) {
         <Head eyebrow={doc.eyebrow} title={doc.title} lede={doc.lede} />
         <Layout current={`/docs/${doc.slug}`}>
           <div className="etyme-docs" dangerouslySetInnerHTML={{ __html: opening }} />
-          <H2>{'The process, from this desk'}</H2>
+          <H2>{'The process, from this party'}</H2>
           <div className="mt-5">
             <Contents
               title={`Every stage, read as ${doc.title}`}

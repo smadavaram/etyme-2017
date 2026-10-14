@@ -37,14 +37,14 @@
  * a page, never a section in its middle (decided 2026-09-30). Six roles,
  * six real destinations; none was dropped.
  *
- * ── The spend audit is the census ────────────────────────────────────
+ * ── No audit, since 2026-10-14 ───────────────────────────────────────
  *
- * "Free contractor spend audit" is the census door, `/census`, and
- * nothing else. The test holds every link carrying those words to that
- * route, so a second, rebuilt audit cannot appear beside it.
+ * The founder deleted the contractor spend audit from every page. The
+ * header, the sheet and the footer carry no link to `/census`, and the
+ * test holds that no public page does.
  */
 
-import { SEE_IT, GET_THE_AUDIT, ASK_A_PERSON } from './funnel'
+import { SEE_IT } from './funnel'
 import { STEPS } from './steps'
 
 export interface NavItem {
@@ -134,7 +134,7 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  * said). Cutting the menu to four would drop that door.
  */
 export const ROLES: NavItem[] = [
-  { t: 'The program office', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
+  { t: 'The program manager', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
   { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/master-data/suppliers' },
   { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/process/contract-to-onboard' },
   { t: 'Finance', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
@@ -146,12 +146,6 @@ export const DOCS_LINK: NavItem = {
   t: 'Documentation',
   d: 'The process stage by stage, master data and recruiting. Public, with no sign-in.',
   href: '/docs',
-}
-
-export const SPEND_AUDIT: NavItem = {
-  t: 'Free contractor spend audit',
-  d: GET_THE_AUDIT.d,
-  href: GET_THE_AUDIT.href,
 }
 
 /**
@@ -178,7 +172,7 @@ export const SPEND_AUDIT: NavItem = {
  */
 export const NAV_MENUS: NavMenu[] = [
   { label: 'Platform', href: '/requisitions', groups: PRODUCT_STAGES },
-  { label: 'Solutions', href: '/docs/process', groups: [{ heading: 'By desk', items: ROLES }] },
+  { label: 'Solutions', href: '/docs/process', groups: [{ heading: 'By team', items: ROLES }] },
 ]
 
 /** The two plain links beside the menus. */
@@ -194,13 +188,6 @@ export const SHEET_MORE: NavItem[] = [
   { t: 'Contact', href: '/contact' },
   { t: SEE_IT.t, href: SEE_IT.href },
 ]
-
-/**
- * The filled button on the right of every header: the spend audit, since
- * 2026-10-09 (the founder's brief: the primary call to action is the
- * audit, the demo the secondary). It was the demo until then.
- */
-export const PRIMARY = GET_THE_AUDIT
 
 /** Every item in one menu, across its groups. */
 export function itemsOf(menu: NavMenu): NavItem[] {
@@ -244,7 +231,6 @@ export const FOOTER: FooterGroup[] = [
       { label: 'Documentation', href: '/docs' },
       { label: 'About Etyme', href: '/about' },
       { label: 'Contact', href: '/contact' },
-      { label: SPEND_AUDIT.t, href: SPEND_AUDIT.href },
       { label: SEE_IT.t, href: SEE_IT.href },
       { label: 'Sign in', href: '/login' },
     ],
@@ -277,7 +263,6 @@ export function everyFrameLink(): string[] {
     ...NAV_MENUS.flatMap((m) => [m.href, ...itemsOf(m).map((i) => i.href)]),
     ...NAV_LINKS.map((l) => l.href),
     ...SHEET_MORE.map((i) => i.href),
-    PRIMARY.href,
     '/login',
     ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
   ]
@@ -292,8 +277,6 @@ export function frameCopy(): string[] {
     ]),
     ...NAV_LINKS.map((l) => l.label),
     ...SHEET_MORE.flatMap((i) => [i.t, i.d ?? '']),
-    PRIMARY.t,
-    PRIMARY.short ?? '',
     'Sign in',
     ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
@@ -301,8 +284,21 @@ export function frameCopy(): string[] {
 
 /**
  * Every label on something a reader presses in the header, for the
- * guard that refuses a button promising an account.
+ * guard that refuses a button promising an account. Since 2026-10-14 the
+ * header is the logo, Sign in and the menu icon, whose accessible name is
+ * "Menu"; the menus and links are inside the sheet behind it.
  */
 export function frameButtons(): string[] {
-  return [PRIMARY.t, ...(PRIMARY.short ? [PRIMARY.short] : []), 'Sign in', ...NAV_MENUS.map((m) => m.label), ...NAV_LINKS.map((l) => l.label), 'Menu']
+  return ['Sign in', 'Menu', ...NAV_MENUS.map((m) => m.label), ...NAV_LINKS.map((l) => l.label)]
 }
+
+/**
+ * The header, as the founder decided it on 2026-10-14 ("Menu into
+ * icon"): the logo, Sign in and a menu icon, at every width. Read by the
+ * test, so the header cannot grow a second button again.
+ */
+export const HEADER = {
+  signIn: { t: 'Sign in', href: '/login' },
+  /** The icon's accessible name. The word is never drawn. */
+  menu: 'Menu',
+} as const

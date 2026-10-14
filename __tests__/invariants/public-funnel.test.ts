@@ -4,9 +4,16 @@
  * The founder, 2026-09-27: "create a high-impact page and lead funnel."
  * Until then the site had five doors under five names, and a button in
  * the marketing thread that said "Start free" on a product nobody can
- * sign up to. The ladder is now three rungs in one order — see it, get
- * the audit, ask a person — named once in `lib/public-site/funnel`,
+ * sign up to. The ladder is named once in `lib/public-site/funnel`,
  * drawn by one component, and read by the guard.
+ *
+ * Since 2026-10-14 it is two rungs — see it, ask a person — and the
+ * header is the logo, Sign in and a menu icon. The founder: "Menu into
+ * icon. Does anyone need the audit form? I think it's useless." The
+ * tests that held the audit as the primary call, the header's audit
+ * button, the band's second button and the audit's line in the menu were
+ * deleted with it; what replaces them is the sentence that no public
+ * page links to the audit.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -19,13 +26,18 @@ import {
 import {
   SEE_IT, GET_THE_AUDIT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
 } from '@/lib/public-site/funnel'
-import { PRIMARY, SPEND_AUDIT, NAV_MENUS, frameCopy, frameButtons, itemsOf } from '@/lib/public-site/nav'
+import { NAV_MENUS, HEADER, frameCopy, frameButtons, itemsOf, everyFrameLink } from '@/lib/public-site/nav'
 import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-copy'
 import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
-import { CONTACT } from '@/lib/public-site/company'
-import { OPEN_DEMO, BAND, CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
+import { CONTACT, COMPANY_PAGES } from '@/lib/public-site/company'
+import { OPEN_DEMO, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { PARTY_PAGES } from '@/lib/public-site/parties'
+import { MODULES } from '@/lib/public-site/modules'
+import { STEPS } from '@/lib/public-site/steps'
+import { TOPICS } from '@/lib/public-site/docs/topics'
+import { PROCESS } from '@/lib/public-site/docs/process'
+import { PARTIES, DOCS_HOME } from '@/lib/public-site/docs/index'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -75,43 +87,69 @@ const SITE_SOURCES = [
 
 describe('One ladder, named once', () => {
 
-  it('the three ways forward are see it, get the audit, ask a person, in that order', () => {
-    expect(WAYS_FORWARD).toEqual([SEE_IT, GET_THE_AUDIT, ASK_A_PERSON])
-    // The founder's words for the two buttons, 2026-10-09.
+  it('the ways forward are see it, then ask a person, in that order', () => {
+    expect(WAYS_FORWARD).toEqual([SEE_IT, ASK_A_PERSON])
+    // The founder's words for the demo button, 2026-10-09.
     expect(SEE_IT).toMatchObject({ t: 'Explore the Live Demo', href: '/demo' })
-    expect(GET_THE_AUDIT).toMatchObject({ t: 'Get a Free Contractor Spend Audit', href: '/census' })
     // The top of the contact page, never a section in its middle (2026-09-30).
     expect(ASK_A_PERSON).toMatchObject({ t: 'Ask a person', href: '/contact' })
-    // The form the third rung leads to is really on the contact page.
+    // The form the second rung leads to is really on the contact page.
     expect(CONTACT.blocks.find((b) => b.id === 'ask')).toBeDefined()
     expect(read('src/lib/public-site/company-page.tsx')).toContain("b.id === 'ask'")
   })
 
-  it('the filled button in every header is the spend audit, and on the home page the demo comes first and the audit second, beside sign-up', () => {
-    // The founder's brief, 2026-10-09: the primary call to action is the
-    // audit, and the header keeps it. His home page of 2026-10-14 puts the
-    // product in the page, so the one button under it opens the full demo,
-    // and the audit is the second call in the sign-up band, outlined beside
-    // the filled Sign up.
-    expect(PRIMARY).toBe(GET_THE_AUDIT)
-    expect(FRAME).toContain('href={PRIMARY.href}')
-    expect(HOME.indexOf('href={SEE_IT.href}')).toBeGreaterThan(-1)
-    expect(HOME.indexOf('href={SEE_IT.href}')).toBeLessThan(HOME.indexOf('href={GET_THE_AUDIT.href}'))
-    const audit = HOME.slice(HOME.indexOf('href={GET_THE_AUDIT.href}'), HOME.indexOf('</CountedLink>', HOME.indexOf('href={GET_THE_AUDIT.href}')))
-    expect(audit).toContain('className={SECOND_BUTTON}')
-    expect(audit).toContain('{BAND.audit}')
-    expect(BAND.audit).toBe('Get a free contractor spend audit')
-    // The band's filled button is the client's sign-up on the home page and
-    // the product pages, and a door's own sign-up on a door.
-    expect(HOME).toContain('<a href={primary.href} className={PRIMARY_BUTTON}>{primary.t}</a>')
+  it('no public page links to the audit, and the header is the logo, Sign in and a menu icon', () => {
+    // The header: three things at every width. No filled button, no word
+    // "Menu" drawn (it is the icon's accessible name), no menus beside it.
+    const header = FRAME.slice(FRAME.indexOf('export function SiteHeader'), FRAME.indexOf('</header>'))
+    expect(header).toContain('<EtymeLogo')
+    expect(header).toContain('href={HEADER.signIn.href}')
+    expect(HEADER.signIn).toEqual({ t: 'Sign in', href: '/login' })
+    expect(header).toContain('aria-label={HEADER.menu}')
+    expect(HEADER.menu).toBe('Menu')
+    expect(header).toMatch(/<summary[\s\S]*?<svg aria-hidden="true"[\s\S]*?M3\.5 6h15M3\.5 11h15M3\.5 16h15/)
+    expect(header).not.toMatch(/\{'Menu'\}|>Menu</)
+    expect(header).not.toContain('CountedLink')
+    expect(header).not.toContain('bg-etyme-action')
+    // One tap target for Sign in and the icon, at every width: no
+    // breakpoint hides either or swaps the header for another.
+    expect(FRAME).toMatch(/const TAP = '[^']*\bh-11\b/)
+    expect(header.match(/\$\{TAP\}/g)).toHaveLength(2)
+    expect(header).not.toMatch(/\b(?:sm|md|lg|xl):(?:hidden|flex|inline)\b/)
+    expect(header).not.toContain('onHome')
+    expect(frameButtons().slice(0, 2)).toEqual(['Sign in', 'Menu'])
+
+    // No link to the audit anywhere a public page draws: the header, the
+    // sheet, the footer, the bands, and the data every page is built from.
+    const audit = /\/census\b|GET_THE_AUDIT|SPEND_AUDIT|spend audit|free audit/i
+    expect(everyFrameLink().filter((h) => h.startsWith('/census'))).toEqual([])
+    expect([...frameCopy(), ...closeBandCopy()].filter((t) => audit.test(t))).toEqual([])
+    const drawers = SITE_SOURCES.filter((f) => !f.startsWith('src/app/census/'))
+      .concat(['src/lib/public-site/nav.ts', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/sub-page.tsx'])
+    // Code only: a comment that records why the audit left is history, not a link.
+    const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    for (const f of drawers) expect(code(read(f)), f).not.toMatch(audit)
+    const data = JSON.stringify([MODULES, PARTY_PAGES, STEPS, TOPICS, PROCESS, PARTIES, DOCS_HOME, COMPANY_PAGES, DOORS, FOOTER_LINKS])
+    expect(data).not.toMatch(audit)
+
+    // The sign-up band has one button, Sign up — a door's own sign-up on a
+    // door, the candidate's on the contractors' door.
+    const band = HOME.slice(HOME.indexOf('export function SignUpBand'), HOME.indexOf('export function SecurityLine'))
+    expect(band.match(/<a\b[^>]*className=\{PRIMARY_BUTTON\}/g)).toHaveLength(1)
+    expect(band).not.toContain('CountedLink')
     expect(CLIENT_SIGN_UP).toEqual({ t: 'Sign up', href: '/signup' })
     expect(HOME).toMatch(/const PRIMARY_BUTTON =\s*`[^`]*bg-etyme-action/)
+
+    // The one public page still linking it is the platform's /demo, owned
+    // by etyme-architect and reported to them. This list may only shrink:
+    // when /demo drops the link, this line fails and is deleted.
+    expect(read('src/app/demo/page.tsx')).toContain('GET_THE_AUDIT.href')
   })
 
-  it('every public page ends in the same three ways forward: see it, get the audit, ask a person', () => {
+  it('every public page ends in the same ways forward: see it, ask a person', () => {
     // The frame draws the close before the footer, with no switch to
-    // leave it off, and every module, documentation and company page is
-    // drawn in the frame.
+    // leave it off, and every documentation and company page is drawn in
+    // the frame.
     const frame = FRAME.slice(FRAME.indexOf('export function SiteFrame'))
     expect(frame.indexOf('<main>')).toBeLessThan(frame.indexOf('<CloseBand />'))
     expect(frame.indexOf('<CloseBand />')).toBeLessThan(frame.indexOf('<SiteFooter />'))
@@ -122,31 +160,33 @@ describe('One ladder, named once', () => {
     }
     const framed = PUBLIC_PAGES.filter((p) => ['DOCS', 'COMPANY'].includes(p.kind))
     expect(framed.length).toBeGreaterThan(20)
-    // The home page, the eight product pages and the four party doors are
-    // the exception since 2026-10-14: they end in the sign-up band, which
-    // already carries the three — the demo under the product, the audit
-    // beside sign-up, and a person through Contact in the footer.
+    // The home page, the eight product pages and the four party doors end
+    // in the sign-up band instead (2026-10-14): the demo under the product,
+    // Sign up, and a person through Contact in the footer.
     expect(HOME).not.toContain('<CloseBand')
     expect(read('src/lib/public-site/sub-page.tsx')).not.toContain('<CloseBand')
     expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SignUpBand')
     expect(HOME).toContain('href={SEE_IT.href}')
-    expect(HOME).toContain('href={GET_THE_AUDIT.href}')
     expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
-    // And the component draws the three rungs, in order, from the funnel.
+    // And the component draws the two rungs, in order, from the funnel.
     const see = CLOSE.indexOf('{`${SEE_IT.t} →`}')
-    const audit = CLOSE.indexOf('{GET_THE_AUDIT.t}')
     const ask = CLOSE.indexOf('{ask.t}')
     expect(see).toBeGreaterThan(-1)
-    expect(see).toBeLessThan(audit)
-    expect(audit).toBeLessThan(ask)
-    // One filled button in the close: the spend audit, since 2026-10-09.
+    expect(see).toBeLessThan(ask)
+    // One filled button in the close: the demo, since the audit left.
     expect((CLOSE.match(/bg-etyme-action/g) ?? []).length).toBe(1)
-    expect(CLOSE.slice(CLOSE.indexOf('bg-etyme-action'))).toMatch(/^[^}]*\}?[\s\S]{0,400}\{GET_THE_AUDIT\.t\}/)
+    expect(CLOSE.slice(CLOSE.indexOf('bg-etyme-action'))).toMatch(/^[^}]*\}?[\s\S]{0,400}\{`\$\{SEE_IT\.t\} →`\}/)
   })
 
-  it('the census is the audit itself, so it ends in its own form rather than in a ladder back to itself', () => {
-    // The one public page that is a rung does not end in the close band.
-    // It draws the shared header and footer, and its own form is its end.
+  it('the census, linked from nowhere until it closes, says at its top when it closes and where to write instead', () => {
+    // Kept reachable for thirty days so a link already sent does not land
+    // on a missing page (CLAUDE.md, 2026-10-14). It still draws the shared
+    // header and footer, and its own form is its end.
+    expect(CENSUS).toContain("'This page closes on November 13, 2026.'")
+    expect(CENSUS).toMatch(/lead: 'Write to us from', link: 'Contact', after: 'instead\.', href: '\/contact'/)
+    expect(CENSUS.indexOf('{CLOSES.says}')).toBeGreaterThan(CENSUS.indexOf('<SiteHeader />'))
+    expect(CENSUS.indexOf('{CLOSES.says}')).toBeLessThan(CENSUS.indexOf('{CENSUS_COPY.headline}'))
+    expect(read('KNOWN-LIMITS.md')).toMatch(/\/census[\s\S]{0,400}November 13, 2026/)
     expect(CENSUS).toContain('<SiteHeader />')
     expect(CENSUS).toContain('<SiteFooter />')
     expect(CENSUS).not.toContain('<CloseBand')
@@ -175,12 +215,11 @@ describe('No button promises what the site cannot give', () => {
       ].flatMap((state) => offered(state).map((step) => step.button ?? '')),
       ...SITE_SOURCES.flatMap((f) => buttonLabels(read(f))),
       // The buttons the shared skeleton draws from data (2026-10-14): the
-      // demo under the frame, the audit in the band, each door's demo.
-      OPEN_DEMO, BAND.audit, ...PARTY_PAGES.map((p) => p.demoLabel),
+      // demo under the frame and each door's demo.
+      OPEN_DEMO, ...PARTY_PAGES.map((p) => p.demoLabel),
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('Explore the Live Demo')
-    expect(labels).toContain('Get a Free Contractor Spend Audit')
     expect(labels).toContain('Open the demo, no account')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
@@ -230,26 +269,25 @@ describe('No button promises what the site cannot give', () => {
     expect(FRAME).toContain('SHEET_MORE')
   })
 
-  it('the spend audit is promised in the census’s own time everywhere, never a faster one', () => {
+  it('the census promises its own time, and nothing on the site promises a faster one', () => {
     // The header said "Your numbers back in 24 hours" for a day while the
-    // census page promised five working days. Every line leading to the
-    // census now says what the census says.
+    // census page promised five working days. The header no longer offers
+    // the census at all; the one place left that does (/demo) carries the
+    // census's own time.
     expect(CENSUS_COPY.standfirst).toContain('inside five working days')
-    for (const line of [GET_THE_AUDIT.d, SPEND_AUDIT.d ?? '']) {
-      expect(line).toContain('five working days')
-    }
+    expect(GET_THE_AUDIT.d).toContain('five working days')
     const everywhere = [...frameCopy(), ...closeBandCopy(), GET_THE_AUDIT.d].join(' ')
     expect(everywhere).not.toMatch(/24 hours|ten minutes|same day|within an hour/i)
   })
 })
 
-describe('The spend audit is where a lead is captured', () => {
+describe('The census, while it stays, says what to send and where', () => {
 
-  it('the audit offer says what to send and where, with a verb', () => {
+  it('the census offer says what to send and where, with a verb', () => {
     // A buyer-side review, 2026-09-27, read "Send what you already hold.
     // A named person sends one page back inside five working days." as a
-    // riddle. The line now opens on what to do, names where it is done,
-    // and names what to send in a CFO's own words.
+    // riddle. The line opens on what to do, names where it is done, and
+    // names what to send in a CFO's own words.
     const offer = GET_THE_AUDIT.d
     expect(offer).toMatch(/^(Ask|Upload|Send|Fill in)\b/)
     expect(offer).toContain('the audit page')
@@ -271,19 +309,13 @@ describe('The spend audit is where a lead is captured', () => {
     expect(CENSUS_COPY.standfirst).toMatch(/^Upload your contractor list/)
     expect(CENSUS_COPY.standfirst).toContain('invoice receipts you hold')
 
-    // One wording wherever the audit is offered: the menu's line is the
-    // funnel's, the close band draws the funnel's, and the riddle is gone.
-    expect(SPEND_AUDIT.d).toBe(offer)
-    // The close band carries the audit as a card with one short line
-    // since 2026-09-28 (night), saying the same promise.
-    expect(CLOSE).toContain('{CLOSE_BAND.cards.audit}')
-    expect(CLOSE_BAND.cards.audit).toContain('five working days')
+    // The riddle is gone everywhere.
     const everywhere = [...frameCopy(), ...closeBandCopy(), offer, CENSUS_COPY.standfirst, CENSUS].join(' ')
     expect(everywhere).not.toContain('what you already hold')
     expect(longSentences(offer, 30)).toEqual([])
   })
 
-  it('the spend audit asks for a work email and says who answers and when', () => {
+  it('the census asks for a work email and says who answers and when', () => {
     // Its first screen, before any scrolling: what it asks for, who
     // answers, and when. The page and the upload link go to a work
     // address, because a census is a company's own data.

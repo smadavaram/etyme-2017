@@ -36,7 +36,7 @@ import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEA
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
 import {
-  NAV_MENUS, NAV_LINKS, SHEET_MORE, FOOTER, SPEND_AUDIT, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES, PRIMARY,
+  NAV_MENUS, NAV_LINKS, SHEET_MORE, FOOTER, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES,
   everyFrameLink, frameCopy, itemsOf,
 } from '@/lib/public-site/nav'
 
@@ -444,7 +444,7 @@ describe('Security, About and Contact say only what can be checked', () => {
     const neutral = ABOUT.blocks.find((b) => b.id === 'neutral')!
     expect(neutral.title).toBe('Etyme never runs a bench and never places anybody')
     expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toEqual([
-      'If you would rather not staff a program office, Etyme can run it for you on the same record.',
+      'If you would rather not run the program yourself, Etyme can run it for you on the same record.',
     ])
   })
 
@@ -456,10 +456,11 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('every page carries the same compact header: Platform, Solutions, How It Works and Security', () => {
+  it('every page carries the same header, and its sheet holds Platform, Solutions, How It Works and Security', () => {
     // The founder's brief, 2026-10-09, replacing Product, Solutions,
     // Resources and Company (the marketing thread's structure, 2026-09-27).
-    // One header, drawn by one component, on every page.
+    // One header, drawn by one component, on every page. Since 2026-10-14
+    // the four live in the sheet behind the menu icon at every width.
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
     expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
@@ -467,7 +468,7 @@ describe('One header and footer on every new page', () => {
     // the home page's band on specialist teams around the world, the one
     // home-only entry, was cut with the band.
     expect(NAV_MENUS[0].groups).toEqual(PRODUCT_STAGES)
-    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By desk'])
+    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By team'])
     expect(itemsOf(NAV_MENUS[1])).toEqual(ROLES)
     // Every item in a menu says what it is in one line under its name.
     for (const m of NAV_MENUS) for (const i of itemsOf(m)) expect(i.d, i.t).toBeTruthy()
@@ -478,25 +479,25 @@ describe('One header and footer on every new page', () => {
       expect(SHEET_MORE.map((i) => i.href), h).toContain(h)
       expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
     }
-    // The home page draws the same header, rather than a copy of it, bare
-    // since 2026-10-14: the logo, Sign in, Free audit and Menu at every
-    // width, the menus and links in the sheet behind Menu.
+    // The home page draws the same header, rather than a copy of it: the
+    // logo, Sign in and the menu icon at every width, with no variant for
+    // the home page (2026-10-14).
     const home = read('src/app/page.tsx')
-    expect(home).toContain('<SiteHeader onHome />')
+    expect(home).toContain('<SiteHeader />')
     expect(home).not.toContain('const NAV_MENUS')
     const header = read('src/lib/public-site/frame.tsx')
-    expect(header).toContain("${onHome ? '' : 'lg:flex'}")
-    expect(header).toContain("${onHome ? '' : 'lg:hidden'}")
+    expect(header).not.toContain('onHome')
     for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
     // The product pages and the party doors draw the same header in the
     // home page's shape (2026-10-14).
     expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SiteHeader />')
-    // And a phone reads the same menus and links, in a sheet.
+    // And every reader, at every width, reads the menus and links in the
+    // one sheet; nothing is drawn a second time in the bar.
     const frame = read('src/lib/public-site/frame.tsx')
-    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the bar and the sheet both draw every menu').toBe(2)
-    expect(frame.match(/NAV_LINKS\.map/g)?.length, 'the bar and the sheet both draw every link').toBe(2)
+    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the sheet draws every menu, once').toBe(1)
+    expect(frame.match(/NAV_LINKS\.map/g)?.length, 'the sheet draws every link, once').toBe(1)
     expect(frame).toContain('SHEET_MORE.map')
   })
 
@@ -544,17 +545,17 @@ describe('One header and footer on every new page', () => {
   })
 
   it('every role in the solutions menu leads to a page written for that reader', () => {
-    // Six roles, and each one lands on a section somebody wrote from that
-    // desk: a stage of the client documentation, the finance reference, or
+    // Six entries, and each one lands on a page somebody wrote for that
+    // reader: a stage of the client documentation, the finance reference, or
     // the chain page's section a line per supplier position. Never the home
     // page, never About, never a section that is not there.
     expect(ROLES.map((r) => r.t)).toEqual([
-      'The program office', 'Procurement', 'HR and compliance', 'Finance', 'Hiring managers', 'Suppliers',
+      'The program manager', 'Procurement', 'HR and compliance', 'Finance', 'Hiring managers', 'Suppliers',
     ])
     // Since 2026-09-30 each lands on the top of a page written for that
-    // desk, never on a section in the middle of one.
+    // reader, never on a section in the middle of one.
     const written: Record<string, string> = {
-      'The program office': '/docs/process',
+      'The program manager': '/docs/process',
       Procurement: '/docs/master-data/suppliers',
       'HR and compliance': '/docs/process/contract-to-onboard',
       Finance: '/docs/time-and-money',
@@ -567,7 +568,7 @@ describe('One header and footer on every new page', () => {
       expect(pageAt(role.href), `${role.t} leads to ${role.href}, which is not a public page`).toBeTruthy()
       expect(['/', '/about', '/contact'], role.t).not.toContain(role.href)
     }
-    // The desks named in each client section are the ones the role is for.
+    // The jobs named in each client section are the ones the entry is for.
     const section = (id: string) => {
       const html = partyAt('client')!.html
       const at = html.indexOf(`id="${id}"`)
@@ -579,24 +580,24 @@ describe('One header and footer on every new page', () => {
     expect(section('l1-3')).toMatch(/Hiring Manager/)
   })
 
-  it('the solutions menu opens on the four client desks, then adds hiring managers and suppliers', () => {
-    // The home page's band of four desk cards left on 2026-10-14; the menu
-    // keeps their order — program office, Procurement, HR, Finance — and
+  it('the solutions menu opens on four client jobs, then adds hiring managers and suppliers', () => {
+    // The home page's band of four cards left on 2026-10-14; the menu
+    // keeps their order — program manager, Procurement, HR, Finance — and
     // two more: the hiring manager who signs weeks, and the suppliers' one
     // door to the chain page.
-    expect(ROLES.slice(0, 4).map((r) => r.t)).toEqual(['The program office', 'Procurement', 'HR and compliance', 'Finance'])
+    expect(ROLES.slice(0, 4).map((r) => r.t)).toEqual(['The program manager', 'Procurement', 'HR and compliance', 'Finance'])
     expect(ROLES.slice(4).map((r) => r.t)).toEqual(['Hiring managers', 'Suppliers'])
   })
 
-  it('the right of every header is Sign in and one filled button, which leads to the spend audit', () => {
-    // The audit since 2026-10-09 (the founder's brief); the example
-    // program until then.
-    expect(PRIMARY.href).toBe('/census')
+  it('the right of every header is Sign in and the menu icon, and no filled button', () => {
+    // The audit was the filled button from 2026-10-09 and the example
+    // program before it. Since 2026-10-14 the header carries no button to
+    // press but Sign in and the icon (the founder: "Menu into icon").
     const frame = read('src/lib/public-site/frame.tsx')
-    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('<details'))
-    expect(right).toContain('href="/login"')
-    expect(right).toContain('{PRIMARY.t}')
-    expect((right.match(/bg-etyme-action/g) ?? []).length, 'one filled button').toBe(1)
+    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</header>'))
+    expect(right).toContain('href={HEADER.signIn.href}')
+    expect(right).toContain('aria-label={HEADER.menu}')
+    expect(right).not.toContain('bg-etyme-action')
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {
@@ -639,12 +640,12 @@ describe('One header and footer on every new page', () => {
     }
   })
 
-  it('the spend audit link on every page goes to the census, and nowhere else', () => {
-    expect(SPEND_AUDIT.href).toBe('/census')
-    const audit = FOOTER.flatMap((g) => g.links).filter((l) => /spend audit/i.test(l.label))
-    expect(audit.length).toBeGreaterThan(0)
-    for (const l of audit) expect(l.href).toBe('/census')
-    expect(read('src/lib/public-site/frame.tsx')).toContain('href={SPEND_AUDIT.href}')
+  it('no link in the header, the sheet or the footer goes to the census', () => {
+    // It was the spend audit's one door; the audit left every page on
+    // 2026-10-14 and the census is linked from nowhere until it closes.
+    expect(everyFrameLink().filter((h) => h.startsWith('/census'))).toEqual([])
+    expect(FOOTER.flatMap((g) => g.links).filter((l) => /audit/i.test(l.label))).toEqual([])
+    expect(read('src/lib/public-site/frame.tsx')).not.toMatch(/SPEND_AUDIT|PRIMARY\./)
   })
 
   it('the footer reaches the terms, the privacy notice, the DPA, contact and the security position', () => {
@@ -694,9 +695,42 @@ describe('The documentation is written in plain English for a reader anywhere', 
     }
   })
 
+  /**
+   * Words the tables say that the drawings do not say yet. The founder
+   * ruled on 2026-10-14 that no page says "desk" or "program office", and
+   * the tables were reworded that day; the drawings are images drawn from
+   * `docs/lanes/streams.mjs`, which has no owner in `lib/domains.ts`, so
+   * they still carry the old words until somebody owns and redraws them
+   * (KNOWN-LIMITS.md, the market's section). Each entry is the table's
+   * words and the words still drawn. This list may only shrink: the test
+   * below fails on an entry the drawing has caught up with.
+   */
+  const DRAWN_AS: Record<string, string> = {
+    'after both · else program manager': 'after both · else program office',
+    'Exception → a person': 'Exception → desk',
+    'nobody decides two steps': 'nobody decides two desks',
+    'Three people clear it': 'Three desks clear it',
+    'no submission between two managers': 'no submission between two desks',
+    'the payroll team cannot raise a bill': 'the payroll desk cannot raise a bill',
+  }
+
+  it('every station renamed ahead of its drawing is still drawn in the old words, and only until it is redrawn', () => {
+    const streams = read('docs/lanes/streams.mjs')
+    const drawn = (s: string) => streams.includes(`'${s}'`)
+    const tables = PARTIES.map((p) => p.doc.html).join(' ')
+    for (const [now, was] of Object.entries(DRAWN_AS)) {
+      expect(tables, now).toContain(now)
+      expect(drawn(was), `“${was}” is no longer drawn: take “${now}” off DRAWN_AS`).toBe(true)
+      expect(drawn(now), `“${now}” is drawn now: take it off DRAWN_AS`).toBe(false)
+    }
+  })
+
   it('every station in the documentation’s tables is drawn in the same words, so the table and the drawing cannot drift', () => {
     const streams = read('docs/lanes/streams.mjs')
-    const drawn = (s: string) => streams.includes(`'${s.replace(/&amp;/g, '&')}'`)
+    const drawn = (s: string) => {
+      const t = s.replace(/&amp;/g, '&')
+      return streams.includes(`'${t}'`) || (t in DRAWN_AS && streams.includes(`'${DRAWN_AS[t]}'`))
+    }
     for (const p of PARTIES) {
       for (const [, label, what, rule] of p.doc.html.matchAll(
         /<tr><td><span class="num">[^<]*<\/span><\/td><td><b>((?:(?!<\/b>).)*)<\/b>.*?<\/td><td>.*?<\/td><td>((?:(?!<\/td>).)*)<\/td><td>((?:(?!<\/td>).)*)<\/td><\/tr>/g,
@@ -789,12 +823,12 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect('candidate' in doorAt('contractors')!.demo).toBe(true)
   })
 
-  it('the contractors door’s band asks a person to set up their own page, with the candidate sign-up, the doors line and no spend audit', () => {
+  it('the contractors door’s band asks a person to set up their own page, with the candidate sign-up and the doors line', () => {
     const c = all(copyOfPartyPage(doorAt('contractors')!))
     expect(c).toContain('Seen enough? Set up your own page.')
     expect(c).toContain('Two minutes. Your weeks, your pay and your paperwork in one place. Free.')
     expect(c).not.toContain('Set up your company')
-    expect(c).not.toContain(BAND.audit)
+    expect(c).not.toMatch(/spend audit/i)
     expect(c).toContain('Your door:')
     expect(doorAt('contractors')!.band).toBe('SELF')
     // Every other door and every product page keeps the company band.
@@ -817,7 +851,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(all(copyOfPartyPage(doorAt('contractors')!))).toContain('Etyme never places anybody.')
   })
 
-  it('the program office door offers Etyme\'s own program office once, in its two ways to use it, under the founder\'s two labels', () => {
+  it('the MSPs\' door offers Etyme\'s own team once, in its two ways to use it, under the founder\'s two labels', () => {
     const p = doorAt('program-offices')!
     expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toHaveLength(1)
     expect(p.lines.join(' ')).toContain('Etyme as VMS software')

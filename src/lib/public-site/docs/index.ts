@@ -220,14 +220,14 @@ export const DOCS_HOME = {
     { t: 'Recruiting', d: 'Matching, screening and tracking every submission to an award.', href: '/docs/recruiting/matching' },
   ],
   readAs:
-    'The same process, read from one desk. Each party page says where that party stands on a deal, then lists its stages.',
+    'The same process, read from one party. Each party page says where that party stands on a deal, then lists its stages.',
   reference: [
     { t: 'Time and money', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
     { t: 'Integrations', d: 'What crosses to your books and systems today, and what does not yet.', href: '/docs/integrations' },
     { t: 'Security position', d: 'What is done, what is not, and when. It includes the autonomy ladder, L0 to L5.', href: '/security' },
   ],
   example:
-    'The example program is the same flows with a month of data in them. Open it at any desk, with no account.',
+    'The example program is the same flows with a month of data in them. Open it as anyone on the team, with no account.',
 }
 
 export type AnyDocSlug = string
@@ -297,7 +297,7 @@ export const PROCESS_HOME = {
   lede:
     'Every stage a contractor and their supplier pass through, in order, on a page of its own. ' +
     'Each page opens with a flow chart and says who does each step.',
-  onePicture: 'One hire, in three drawings, from the client’s desk.',
+  onePicture: 'One hire, in three drawings, from the client’s side.',
 }
 
 /**

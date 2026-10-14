@@ -139,8 +139,8 @@ const NEUTRALITY = [
  */
 const THE_OFFER = [
   'runs the program', 'run the program', 'runs your program', 'run your program',
-  'runs it for you', 'run it for you', 'program office', 'msp provider',
-  'vms software', 'runs the program office',
+  'runs it for you', 'run it for you', 'msp provider',
+  'vms software',
 ]
 
 /**
@@ -779,6 +779,8 @@ const THE_OFFER_SENTENCE = [
   /\brun(?:s)? your program\b/i,
   /\bprogram office without hiring one\b/i,
   /\bEtyme(?:’s|'s)? (?:own )?program office runs\b/i,
+  // The MSPs' door since 2026-10-14, when "program office" left every page.
+  /\bEtyme(?:’s|'s)? own team runs\b/i,
 ]
 
 /**

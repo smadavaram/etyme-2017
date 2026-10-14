@@ -11,7 +11,7 @@ export const ACTOR_LABEL: Record<Actor, string> = {
   CLIENT: 'Client',
   SUPPLIER: 'Supplier',
   WORKER: 'Worker',
-  PROGRAM_OFFICE: 'Program office',
+  PROGRAM_OFFICE: 'Program manager',
   RULES: 'By rule',
   BOOKS: 'Your books',
 }

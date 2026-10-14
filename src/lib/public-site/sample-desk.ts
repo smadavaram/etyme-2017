@@ -226,7 +226,7 @@ export function sampleCheck() {
       { label: 'Invoice receipt', value: dollars(invoicedCents), ok: agrees },
     ],
     agrees,
-    says: agrees ? 'All three agree. Ready to pay.' : 'They do not agree. Held for the AP desk.',
+    says: agrees ? 'All three agree. Ready to pay.' : 'They do not agree. Held for the AP clerk.',
   }
 }
 

@@ -399,3 +399,35 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   the reply appears on a cited line is not built.
 - **The variance table is a plain table, not `ListSurface`.** It sits in
   a chat bubble with a handful of rows; the invariant reads pages only.
+
+## The public site — etyme-market (2026-10-14)
+
+1. **`/census` is to be deleted on November 13, 2026, with its form and
+   its route.** The founder deleted the audit from every page on
+   2026-10-14 ("Does anyone need the audit form? I think it's useless.").
+   Until that date the page stays reachable, linked from nowhere on the
+   public site, with one line at its top: "This page closes on November
+   13, 2026. Write to us from Contact instead." On that date: delete
+   `src/app/census/` and `src/lib/census-copy.ts` (market), the
+   `/api/census/*` routes and `lib/census` with their letters
+   (regulatory, money, conversation — each its own), the `AUDIT` kind in
+   `POST /api/market/leads` and its words in `lib/public-site/leads`
+   (market), the `/census` entry in `lib/public-site/pages`, and the
+   `GET_THE_AUDIT` constant in `lib/public-site/funnel`. Owner of the
+   date: market.
+2. **`/demo` still links the audit.** Its foot (`src/app/demo/page.tsx`
+   and the words in `src/app/demo/seats.ts`) is the platform's and was
+   not touched. `public-funnel.test.ts` names it as the one place left,
+   and fails when it is gone so the line can be deleted.
+3. **The documentation's drawings still say "desk" and "program
+   office".** The text of every public page says neither word since
+   2026-10-14. The lane drawings (`public/model/*.png`, drawn from
+   `docs/lanes/streams.mjs`) are images with those words inside them, and
+   `docs/lanes/` has no owner in `lib/domains.ts`, so nobody may redraw
+   them yet. Five station labels in the documentation's tables were
+   renamed ahead of the drawing; `public-pages.test.ts` maps each to the
+   words still drawn (`DRAWN_AS`), and that map may only shrink.
+4. **The page-view counts still name the audit.** `audit_cta_clicked`
+   and the two `audit_form_*` events stay in `lib/public-site/market-events`
+   because rows already written carry them; nothing on the site sends
+   them any more.

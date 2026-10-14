@@ -1,8 +1,6 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import { HomeDemo } from './home-demo'
 import { HomeFooter } from './frame'
-import { CountedLink } from './counted-link'
-import { GET_THE_AUDIT } from './funnel'
 import {
   CHIPS, CHIPS_LABEL, FRAME, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
   type BandKind,
@@ -32,8 +30,6 @@ import {
 export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
 export const PRIMARY_BUTTON =
   `whitespace-nowrap rounded-lg bg-etyme-action px-5 py-3 text-center text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 ${FOCUS}`
-const SECOND_BUTTON =
-  `whitespace-nowrap rounded-lg border border-etyme-rule bg-etyme-surface px-5 py-3 text-center text-[15px] font-semibold text-etyme-ink transition-colors hover:border-etyme-ink ${FOCUS}`
 const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`
 
 /**
@@ -63,9 +59,10 @@ export function LiveDemo({
 }
 
 /**
- * Sign-up, right under the product. A party door names its own sign-up;
- * the contractors' door draws a person's band (`BAND_FOR_SELF`), with no
- * audit beside it. Everything else is the same band.
+ * Sign-up, right under the product, with one button: Sign up. A party
+ * door names its own sign-up; the contractors' door draws a person's band
+ * (`BAND_FOR_SELF`) with the candidate's sign-up. The audit that stood
+ * beside it left every page on 2026-10-14.
  */
 export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY' }: { primary?: { t: string; href: string }; band?: BandKind }) {
   const words = band === 'SELF' ? BAND_FOR_SELF : BAND
@@ -91,11 +88,6 @@ export function SignUpBand({ primary = CLIENT_SIGN_UP, band = 'COMPANY' }: { pri
       </div>
       <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
         <a href={primary.href} className={PRIMARY_BUTTON}>{primary.t}</a>
-        {band === 'COMPANY' && (
-          <CountedLink href={GET_THE_AUDIT.href} event="audit_cta_clicked" className={SECOND_BUTTON}>
-            {BAND.audit}
-          </CountedLink>
-        )}
       </div>
     </section>
   )

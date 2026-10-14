@@ -78,25 +78,25 @@ export const SUPPLIERS: PartyPage = {
     'You bill from the week the client signed. Etyme never places anybody.',
   ],
   signUp: { t: 'Sign up as a supplier', href: '/signup' },
-  demoLabel: 'Open a supplier’s desk, no account',
+  demoLabel: 'Open as a supplier’s account manager, no account',
   demo: { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } },
 }
 
 export const PROGRAM_OFFICES: PartyPage = {
   slug: 'program-offices',
   route: '/for/program-offices',
-  eyebrow: 'For program offices',
-  question: 'Can one desk run a whole contractor program?',
-  purpose: 'For program offices: every supplier on one record.',
+  eyebrow: 'For MSPs',
+  question: 'Can one team run a whole contractor program?',
+  purpose: 'For MSPs: every supplier on one record.',
   step: 'source',
-  caption: 'Your desk’s screen for job requests.',
+  caption: 'The program manager’s screen for job requests.',
   lines: [
     'Decide who may supply, and at what band.',
     'You act in a seat the client grants, every read logged.',
-    'Etyme as VMS software: you run it. Etyme as MSP provider: Etyme’s own program office runs it.',
+    'Etyme as VMS software: you run it. Etyme as MSP provider: Etyme’s own team runs it.',
   ],
-  signUp: { t: 'Sign up as a program office', href: '/signup?type=msp' },
-  demoLabel: 'Open the program desk, no account',
+  signUp: { t: 'Sign up as an MSP', href: '/signup?type=msp' },
+  demoLabel: 'Open as the program manager, no account',
   demo: { target: { as: 'world-nike', desk: 'programme', screen: '/dashboard/program', seat: 'the program manager' } },
 }
 
@@ -114,7 +114,7 @@ export const INTEGRATORS: PartyPage = {
     'You bill up and pay down from one signed week.',
   ],
   signUp: { t: 'Sign up as an integrator', href: '/signup?type=gsi' },
-  demoLabel: 'Open an integrator’s desk, no account',
+  demoLabel: 'Open as an integrator’s delivery manager, no account',
   demo: { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
 }
 

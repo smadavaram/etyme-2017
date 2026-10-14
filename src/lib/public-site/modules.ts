@@ -99,7 +99,7 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 export const WHAT_IS_LEFT: Record<string, string> = {
   PROACTIVE_MATCH:
     'Matching scores a person against a job, and falls back to arithmetic when there is no model to call.',
-  TWIN_TOLD: 'The twin tells a desk what a rule found.',
+  TWIN_TOLD: 'The twin tells a person what a rule found.',
   TWIN_DREW_UP: 'The twin drafts a summary that a person reads.',
 }
 
@@ -229,7 +229,7 @@ const AS_WRITTEN: Omit<ModulePage, 'n'>[] = [
     step: 'pay',
     lines: [
       'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.',
-      'Your AP desk receives each supplier’s invoice as an invoice receipt.',
+      'Your AP clerk receives each supplier’s invoice as an invoice receipt.',
       'A receipt with no signed week behind it is not paid. A failed check says why.',
     ],
     demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },

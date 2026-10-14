@@ -229,7 +229,9 @@ describe('No link lands in the middle of another page', () => {
         // opens on, are pages too, outside the marketing list.
         const own = h.startsWith('/embed/demo') || h.split('?')[0] === '/signup'
         const path = h.split('#')[0]
-        expect(pageAt(path) !== null || own || ['/login', '/demo', '/census'].includes(path), `${route} links to ${h}`).toBe(true)
+        // Never /census: it is linked from nowhere since 2026-10-14.
+        expect(path, `${route} links to the census`).not.toBe('/census')
+        expect(pageAt(path) !== null || own || ['/login', '/demo'].includes(path), `${route} links to ${h}`).toBe(true)
       }
     }
   })

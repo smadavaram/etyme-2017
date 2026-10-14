@@ -46,8 +46,19 @@ import {
  * deadline — the only scarcity sentence on this page is the queue
  * position, which is a count of open censuses and nothing else.
  *
+ * ── It closes on November 13, 2026 ───────────────────────────────────
+ *
+ * The founder deleted the audit from every page on 2026-10-14. This page
+ * stays reachable, linked from nowhere on the site, for thirty days, so a
+ * link already sent or advertised does not land on a missing page; then
+ * it is deleted with its form and route (`KNOWN-LIMITS.md`, the market's
+ * section). The line at its top says so, and where to go instead.
+ *
  * Owned by etyme-market (`app/census` in `lib/domains.ts`).
  */
+
+/** The line at the top of the page until it is deleted. */
+const CLOSES = { says: 'This page closes on November 13, 2026.', lead: 'Write to us from', link: 'Contact', after: 'instead.', href: '/contact' }
 
 export const metadata: Metadata = {
   title: 'Contractor census',
@@ -64,6 +75,13 @@ export default function CensusPage() {
   return (
     <main className="min-h-screen bg-etyme-canvas">
       <SiteHeader />
+
+      {/* ── It closes ────────────────────────────────────────── */}
+      <p role="note" className="border-b border-etyme-rule bg-etyme-attention-wash px-4 py-3 text-center text-[14px] text-etyme-ink sm:px-6">
+        {CLOSES.says} {CLOSES.lead}{' '}
+        <a href={CLOSES.href} className="font-medium text-etyme-action underline underline-offset-4">{CLOSES.link}</a>{' '}
+        {CLOSES.after}
+      </p>
 
       {/* ── Hero ─────────────────────────────────────────────── */}
       {/* Category first: contractors and the suppliers behind them,

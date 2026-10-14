@@ -36,7 +36,7 @@ export const OPEN_DEMO = 'Open the demo, no account'
 /** Every party's door, on one small line in the sign-up band. Clients first. */
 export const DOORS: { t: string; href: string }[] = [
   { t: 'Clients', href: '/signup' },
-  { t: 'Program offices', href: '/for/program-offices' },
+  { t: 'MSPs', href: '/for/program-offices' },
   { t: 'Integrators', href: '/for/integrators' },
   { t: 'Suppliers', href: '/for/suppliers' },
   { t: 'Workers', href: '/for/contractors' },
@@ -45,7 +45,7 @@ export const DOORS: { t: string; href: string }[] = [
 /** The footer: the documentation, the four doors, security, the legal pages, contact. */
 export const FOOTER_LINKS: { t: string; href: string }[] = [
   { t: 'Documentation', href: '/docs' },
-  { t: 'Program offices', href: '/for/program-offices' },
+  { t: 'MSPs', href: '/for/program-offices' },
   { t: 'Integrators', href: '/for/integrators' },
   { t: 'Suppliers', href: '/for/suppliers' },
   { t: 'Workers', href: '/for/contractors' },
@@ -61,13 +61,11 @@ export const BAND = {
   heading: 'Seen enough? Set up your company.',
   line: 'Two minutes. Your suppliers and contractors go where the sample ones are. Free while we are testing.',
   doorsLead: 'Your door:',
-  audit: 'Get a free contractor spend audit',
 }
 /**
  * The band on the contractors' door, the one reader who is not setting up
  * a company (coordinator, 2026-10-14, on the founder's skeleton). Same
- * band, same doors line, its own two lines and the candidate's sign-up;
- * no spend audit, which is a company's question.
+ * band, same doors line, its own two lines and the candidate's sign-up.
  */
 export const BAND_FOR_SELF = {
   heading: 'Seen enough? Set up your own page.',
@@ -102,7 +100,7 @@ export function copyOfSkeleton(o: { caption?: string; label?: string; button: st
     o.button,
     self ? BAND_FOR_SELF.heading : BAND.heading, self ? BAND_FOR_SELF.line : BAND.line,
     BAND.doorsLead, ...DOORS.map((d) => d.t),
-    (o.primary ?? CLIENT_SIGN_UP).t, ...(self ? [] : [BAND.audit]),
+    (o.primary ?? CLIENT_SIGN_UP).t,
     SECURITY.line, SECURITY.link, SECURITY.docs,
   ]
 }

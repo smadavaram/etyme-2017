@@ -92,9 +92,12 @@ describe('what the site says it is, outside the home page', () => {
 describe('the demo door back into the funnel', () => {
   const page = read('src/app/demo/page.tsx')
 
-  it('the demo door offers the audit and a person, never an account', () => {
+  it('the demo door offers a person, and the audit only until the platform takes it off, never an account', () => {
     // The words come from the funnel, imported rather than retyped, so the
-    // demo cannot drift from the ladder every other page draws.
+    // demo cannot drift from the ladder every other page draws. The audit
+    // left every other page on 2026-10-14; /demo is the platform's and still
+    // links it, which public-funnel.test.ts names as the one place left.
+    // When it goes, the two audit lines here go with it.
     expect(page).toContain("from '@/lib/public-site/funnel'")
     expect(page).toContain('GET_THE_AUDIT.href')
     expect(page).toContain('ASK_A_PERSON.href')

@@ -63,7 +63,7 @@ export interface DocRefusal {
 }
 
 /** What a refusal's chip says. */
-export const REFUSAL_KIND: Record<DocRefusal['kind'], string> = { BLOCK: 'Stops', WARN: 'Warns', ROUTE: 'Goes to a desk' }
+export const REFUSAL_KIND: Record<DocRefusal['kind'], string> = { BLOCK: 'Stops', WARN: 'Warns', ROUTE: 'Goes to a person' }
 export const REFUSES_TITLE = 'What it refuses, in its own words'
 
 export interface ProcessPage {
@@ -299,14 +299,14 @@ export const PROCESS: ProcessPage[] = [
       { who: 'SUPPLIER', t: 'The supplier issues its invoice' },
       { who: 'CLIENT', t: 'It is received as an invoice receipt' },
       { who: 'RULES', t: 'The three-way check runs' },
-      { who: 'CLIENT', t: 'A failed check is a decision on a desk' },
+      { who: 'CLIENT', t: 'A failed check is a decision for the AP clerk' },
       { who: 'CLIENT', t: 'The payment run pays what matched' },
       { who: 'WORKER', t: 'The worker is paid by payroll' },
     ],
     lines: [
       'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.',
       'The supplier’s invoice keeps its own number. It is received, never raised.',
-      'A failed check is a decision on a desk, with a reason.',
+      'A failed check is a decision for the AP clerk, with a reason.',
       'Whoever approves the payment run is not the person who raised it.',
       'The remittance says what was paid, and for what.',
       'An employee is paid by payroll, on accepted hours only.',
@@ -362,7 +362,7 @@ export const PROCESS: ProcessPage[] = [
       { who: 'RULES', t: 'Each day on site is counted once per person' },
       { who: 'CLIENT', t: 'The compliance officer reads the ledger' },
       { who: 'RULES', t: 'Near the time limit it warns; at the limit it blocks' },
-      { who: 'RULES', t: 'Nobody decides two desks' },
+      { who: 'RULES', t: 'Nobody decides two steps' },
       { who: 'RULES', t: 'Every read and every automatic act is logged' },
     ],
     lines: [

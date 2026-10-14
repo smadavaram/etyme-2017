@@ -21,20 +21,21 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *               /embed/demo, labeled as a sample, with four chips —
  *               Source, Submit, Approve, Pay — each moving the frame to
  *               its step, and one button to the full demo
- *   #sign-up    "Seen enough? Set up your company.", sign-up first, the
- *               audit second, and every party's door on one small line,
- *               Clients first
+ *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
+ *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
  *
  * Cut, and where each went (CLAUDE.md, the same section): the problem
  * band (the demo answers the four questions on its first screen); the
  * platform band and its cards (the chips); specialist teams around the
- * world and what is set once (the documentation); the desks band and the
+ * world and what is set once (the documentation); the roles band and the
  * Platform, Solutions and How It Works items in this page's header (six
  * audiences on one page speak to none); the three screenshots and their
  * captions (the live product); the security band's four cards (one line
- * and the link); the audit form and the close (the audit is the second
- * call, on its own page); the trust card. Ask Etyme and Teams are not
+ * and the link); the audit form and the close; the trust card. And on
+ * the same day, later: the audit call itself, from the band and the
+ * header (the founder: "Does anyone need the audit form? I think it's
+ * useless."). Ask Etyme and Teams are not
  * sold here: Ask Etyme is the demo's first screen, and Teams waits for a
  * real card tapped in a real tenant.
  *
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
-      <SiteHeader onHome />
+      <SiteHeader />
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── Hero: the question and the category, word for word ── */}

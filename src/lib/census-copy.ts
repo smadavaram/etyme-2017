@@ -280,7 +280,7 @@ export const CENSUS_COPY = {
     companyHint: 'The name the page is addressed to.',
     emailLabel: 'Your work email',
     emailHint: 'A census is your company’s own data, so the page and the upload link go to a work address.',
-    deskLabel: 'Which desk do you sit at?',
+    deskLabel: 'What is your job?',
     deskHint: 'It decides how the page is written, and nothing else.',
     suppliersLabel: 'How many suppliers do you buy from?',
     suppliersHint: 'A round guess is fine, or leave it blank.',
@@ -316,7 +316,7 @@ export const CENSUS_COPY = {
   },
 
   desks: [
-    { value: 'PROGRAM', label: 'Program office' },
+    { value: 'PROGRAM', label: 'Program manager' },
     { value: 'FINANCE', label: 'Finance' },
     { value: 'PROCUREMENT', label: 'Procurement' },
     { value: 'OTHER', label: 'Other' },

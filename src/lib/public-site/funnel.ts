@@ -1,24 +1,23 @@
 /**
- * The three ways forward, said the same on every public page.
+ * The ways forward, said the same on every public page.
  *
  * ── Why one ladder ───────────────────────────────────────────────────
  *
  * The founder, 2026-09-27: "create a high-impact page and lead funnel."
- * Until then the site had five doors under five names — "Open an
- * example program", "Pick a client desk", "Start with a census", "Free
- * contractor spend audit", "Ask us something" — and a reader who met
- * two of them on two pages could not tell they were the same door. A
+ * Until then the site had five doors under five names, and a reader who
+ * met two of them on two pages could not tell they were the same door. A
  * funnel a buyer can follow is one ladder, named once, in the same order
  * everywhere:
  *
  *   1. See it     the example program, a month of data, no sign-up. It
  *                 is what made the CTO understand the product: a buyer
  *                 understands by seeing it used.
- *   2. The audit  the contractor census. It asks for the prospect's own
- *                 data, which is a far stronger signal than an address,
- *                 and it is the door to the program office service.
- *   3. A person   the "ask a person" form, for anybody who would rather
+ *   2. A person   the "ask a person" form, for anybody who would rather
  *                 talk first.
+ *
+ * The contractor spend audit was the second rung from 2026-09-27 and the
+ * primary call from 2026-10-09. It left every page on 2026-10-14 (see
+ * `GET_THE_AUDIT` below for why the constant is still here).
  *
  * ── What the first rung may not say ──────────────────────────────────
  *
@@ -29,14 +28,6 @@
  * claim `lib/positioning` exists to stop. `promisesAnAccount` there
  * refuses it, and the test reads every button on the site against it.
  *
- * ── What the audit may promise ───────────────────────────────────────
- *
- * The census page promises one page back "inside five working days"
- * from a named person (`lib/census-copy`). The header's audit line said
- * "Ten minutes, no card. Your numbers back in 24 hours" — two figures
- * nobody measured, one of them faster than the page it led to. Every
- * line here says what the census page says, and the test holds them to
- * it.
  */
 
 export interface Way {
@@ -67,28 +58,21 @@ export const SEE_IT: Way = {
 }
 
 /**
- * The second rung: the contractor census, which is the spend audit.
+ * The contractor census, which was the spend audit. Retired from every
+ * public page on 2026-10-14 (the founder: "Does anyone need the audit
+ * form? I think it's useless."). Nobody had used it, and a second call on
+ * every page is a decision the buyer has to make before the one that
+ * matters. `/census` stays reachable, linked from nowhere on this site,
+ * until November 13, 2026, and is then deleted with its form and route
+ * (`KNOWN-LIMITS.md`, the market's section).
  *
- * The line under it was "Send what you already hold. A named person sends
- * one page back inside five working days." A buyer-side review,
- * 2026-09-27, read it as a riddle: send what, and to where? So it says
- * what the census actually takes, in words a CFO already uses — the
- * contractor list (the template is one row per contractor, and a CSV or
- * an Excel file both open) or the invoice receipts they hold (option B;
- * "invoices", then "supplier bills", then "supplier invoices" on
- * 2026-09-28, until CLAUDE.md settled it: what a firm receives from
- * below is an invoice receipt, what it issues upward is a bill)
- * — and the order it happens in on the page the button leads to: ask
- * first, then upload.
- *
- * The destination is the census form, never a bare address. The form
- * keeps the file with the request it belongs to, puts the asker in the
- * line, and emails the named person at Etyme the moment it is sent
- * (`/api/census/request`); an attachment in an inbox does none of that.
+ * Kept as a constant for one reason: `/demo` (platform's,
+ * `src/app/demo/page.tsx`) still links it at its foot, and removing the
+ * export would break a file this domain may not edit. The test
+ * `public-funnel.test.ts` names that file as the one place left, and the
+ * list may only shrink. Nothing in `lib/public-site` draws it.
  */
 export const GET_THE_AUDIT: Way = {
-  // The founder's words for the primary button, 2026-10-09, and the
-  // filled button in every header since (`PRIMARY` in ./nav).
   t: 'Get a Free Contractor Spend Audit',
   short: 'Free audit',
   d: 'Ask on the audit page, then upload your contractor list — a spreadsheet is fine — or the invoice receipts you hold. ' +
@@ -105,25 +89,25 @@ export const ASK_A_PERSON: Way = {
   href: '/contact',
 }
 
-/** The ladder, in order. */
-export const WAYS_FORWARD: Way[] = [SEE_IT, GET_THE_AUDIT, ASK_A_PERSON]
+/** The ladder, in order: see it, then a person. The audit left it on 2026-10-14. */
+export const WAYS_FORWARD: Way[] = [SEE_IT, ASK_A_PERSON]
 
 /**
  * The band every public page ends in. The heading is a sentence with a
  * verb, like every other headline on the site.
  *
- * Three cards since 2026-09-28 (night), on the founder reading it on his
- * phone as too big and too wordy: everything the band does is send a
- * reader to the demo, the audit or a person, so each rung is a card with
- * one line and one button, and the ask form waits behind its button. The
- * line on each card is `CLOSE_BAND.cards`, a rung's own `d` being the
- * longer line the menus carry.
+ * Cards since 2026-09-28 (night), on the founder reading it on his phone
+ * as too big and too wordy: everything the band does is send a reader to
+ * the demo or a person, so each rung is a card with one line and one
+ * button, and the ask form waits behind its button. Two cards since
+ * 2026-10-14, when the audit left every page. The line on each card is
+ * `CLOSE_BAND.cards`, a rung's own `d` being the longer line the menus
+ * carry.
  */
 export const CLOSE_BAND = {
   heading: 'See it working before you talk to anybody',
   cards: {
     see: 'A month of work in a demo company — not a customer. No card. No sign-up.',
-    audit: 'Send your contractor list. One page back from a named person inside five working days.',
     ask: 'An email and a sentence. A person reads it and writes back.',
   },
 } as const

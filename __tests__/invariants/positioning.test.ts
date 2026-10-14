@@ -544,15 +544,15 @@ describe('Below the hero, the page says what the business is', () => {
     expect(ABOUT_PAGE).toContain('nobody you could ask is holding all')
   })
 
-  it('is written to the client’s desks by name — program manager, CFO, procurement', () => {
+  it('is written to the client’s people by job title — program manager, CFO, procurement', () => {
     // The client is the customer, decided 2026-09-10. Writing to "a
     // company" is writing to nobody. The home page seats the reader as the
     // program manager in the line under the live product (2026-10-14); the
-    // header names each desk as a way in; About names the CFO who asks.
+    // menu names each job as a way in; About names the CFO who asks.
     expect(PAGE).toContain("const ON_SCREEN = 'You are the program manager.")
-    expect(SITE_ROLES.map((r) => r.t)).toEqual(expect.arrayContaining(['The program office', 'Procurement', 'Finance', 'Hiring managers']))
-    for (const desk of ['program manager', 'CFO', 'procurement']) {
-      expect(ABOUT_PAGE, desk).toContain(desk)
+    expect(SITE_ROLES.map((r) => r.t)).toEqual(expect.arrayContaining(['The program manager', 'Procurement', 'Finance', 'Hiring managers']))
+    for (const job of ['program manager', 'CFO', 'procurement']) {
+      expect(ABOUT_PAGE, job).toContain(job)
     }
   })
 
@@ -623,13 +623,13 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('shows how a placement moves as the handful of milestones a person acts on', () => {
-    // Six milestones, not the internal lifecycle, on About. The header's
-    // program office role leads to the documentation's process overview,
-    // which carries the walk of one hire from the client's desk.
+    // Six milestones, not the internal lifecycle, on About. The menu's
+    // program manager entry leads to the documentation's process overview,
+    // which carries the walk of one hire from the client's side.
     const hire = aboutBlock('hire')!
     expect(hire.title).toBe('One hire moves through six milestones, and three of them can stop it')
     expect((hire.items ?? []).map((i) => i.t)).toEqual(['Raised', 'Released', 'Awarded', 'Cleared', 'Working', 'Ended'])
-    expect(SITE_ROLES.find((r) => r.t === 'The program office')?.href).toBe('/docs/process')
+    expect(SITE_ROLES.find((r) => r.t === 'The program manager')?.href).toBe('/docs/process')
     expect(PAGE).not.toContain('const LIFECYCLE')
   })
 
@@ -1024,21 +1024,21 @@ describe('Every claim about a screen is a thing that screen does', () => {
 // that runs its client's program. It stays in the section rather than
 // only in the footer.
 
-describe('The record is the product, and the program office is offered quietly', () => {
+describe('The record is the product, and Etyme running the program is offered quietly', () => {
 
-  it('leads with the record and leaves the program office offer to About, where it is said once and quietly', () => {
+  it('leads with the record and leaves the offer to run the program to About, where it is said once and quietly', () => {
     // Until 2026-10-14 the offer was one row of the home page's close.
     // The page the founder approved that day has no close and makes no
     // offer: the live product is the record, and the service is a second
-    // way to use it, explained on About. "Program offices" on the home
-    // page is the door for a firm that runs programs, not an offer.
+    // way to use it, explained on About. "MSPs" on the home page is the
+    // door for a firm that runs programs, not an offer.
     expect(offersTheProgramOffice(all)).toEqual([])
     expect(all).not.toContain('Have Etyme run your program office')
-    expect(ABOUT_PAGE).toContain('Most clients staff the program office themselves.')
+    expect(ABOUT_PAGE).toContain('Most clients run the program with their own people.')
     expect(all).not.toContain('You choose how to use it')
   })
 
-  it('never offers the program office service in a headline or in the hero', () => {
+  it('never offers to run the program in a headline or in the hero', () => {
     for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading]) {
       expect(offersTheProgramOffice(heading), heading).toEqual([])
     }
@@ -1101,8 +1101,8 @@ describe('The record is the product, and the program office is offered quietly',
     expect(SHEET_MORE.map((i) => i.href)).toContain('/about')
   })
 
-  it('says the program office is the second option and most clients take the first', () => {
-    expect(ABOUT_PAGE).toContain('Most clients staff the program office themselves.')
+  it('says Etyme running the program is the second option and most clients take the first', () => {
+    expect(ABOUT_PAGE).toContain('Most clients run the program with their own people.')
     expect(ABOUT_PAGE).toContain('The record is the same either way and it stays yours.')
   })
 
@@ -1153,7 +1153,7 @@ describe('The record is the product, and the program office is offered quietly',
     // money went. The home page keeps one line: no price, and free while
     // we prove it out.
     const sentence =
-      'Where Etyme runs the program, it is paid the way program offices are paid: a percentage the suppliers pay on their billings, disclosed to every supplier when they join.'
+      'Where Etyme runs the program, it is paid the way MSPs are paid: a percentage the suppliers pay on their billings, disclosed to every supplier when they join.'
     expect(ABOUT_PAGE).toContain(sentence)
     expect(ABOUT_PAGE.split('a percentage the suppliers pay on their billings')).toHaveLength(2)
     expect(all).not.toContain('a percentage the suppliers pay on their billings')
@@ -1175,14 +1175,14 @@ describe('The record is the product, and the program office is offered quietly',
     expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
-  it('opens the census door now that the page exists', () => {
-    // The census is the spend audit, the second call on the home page
-    // since 2026-10-14 (beside Sign up) and the filled button in every
-    // header, and the first step for a client weighing the service.
-    expect(GET_THE_AUDIT.href).toBe('/census')
-    expect(PAGE).toContain('href={GET_THE_AUDIT.href}')
-    expect(PAGE).toContain('Get a free contractor spend audit')
-    expect(CLOSE_SRC).toContain('{GET_THE_AUDIT.t}')
+  it('links the census from nowhere, now that the audit is deleted from every page', () => {
+    // The census was the spend audit, the primary call from 2026-10-09 and
+    // the second call from the morning of 2026-10-14. The founder deleted
+    // it the same day; the page stays reachable for thirty days, linked
+    // from nowhere (public-funnel.test.ts holds every public page to it).
+    expect(PAGE).not.toContain('GET_THE_AUDIT')
+    expect(PAGE).not.toMatch(/spend audit/i)
+    expect(CLOSE_SRC).not.toContain('GET_THE_AUDIT')
     expect(existsSync(join(process.cwd(), 'src/app/census/page.tsx'))).toBe(true)
   })
 
@@ -1423,7 +1423,8 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     const band = PAGE.slice(PAGE.indexOf('export function SignUpBand'))
     const line = band.slice(band.indexOf('{BAND.doorsLead}'), band.indexOf('</p>', band.indexOf('{BAND.doorsLead}')))
     expect(line).toContain('DOORS.map')
-    expect(HOME_DOORS.map((d) => d.t)).toEqual(['Clients', 'Program offices', 'Integrators', 'Suppliers', 'Workers'])
+    // "MSPs", never "program offices" (the founder, 2026-10-14).
+    expect(HOME_DOORS.map((d) => d.t)).toEqual(['Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers'])
     expect(copyFrom(PAGE).join(' ')).not.toContain('If you supply into a program instead')
   })
 
@@ -1510,8 +1511,8 @@ describe('The claim about how much of this is a model is computed, not asserted'
     expect(TIME_ON_SITE_DOC).toContain('falls back to arithmetic')
   })
 
-  it('says the twin tells a desk what a rule found and drafts a summary a person reads, and nothing more', () => {
-    expect(TIME_ON_SITE_DOC).toContain('The twin tells a desk what a rule found.')
+  it('says the twin tells a person what a rule found and drafts a summary a person reads, and nothing more', () => {
+    expect(TIME_ON_SITE_DOC).toContain('The twin tells a person what a rule found.')
     expect(TIME_ON_SITE_DOC).toContain('The twin drafts a summary that a person reads.')
     expect(TIME_ON_SITE_DOC).toContain('None of them decides whether someone can legally work.')
   })
@@ -1533,12 +1534,13 @@ describe('The claim about how much of this is a model is computed, not asserted'
 
 describe('The header reads as an enterprise product, not a job board', () => {
 
-  it('is the shared header, organized as Platform, Solutions, How It Works and Security', () => {
+  it('is the shared header, and its sheet is organized as Platform, Solutions, How It Works and Security', () => {
     // The founder's brief, 2026-10-09, replacing Product, Solutions,
-    // Resources and Company (2026-09-27). The home page draws the one
-    // header every public page draws, told it is home so its labels land
-    // on its own bands; `public-pages.test.ts` holds what is in each.
-    expect(PAGE).toContain('<SiteHeader onHome />')
+    // Resources and Company (2026-09-27). Since 2026-10-14 the header is
+    // the logo, Sign in and a menu icon at every width, and these four
+    // live in the sheet behind the icon; the home page draws the same
+    // header every public page draws.
+    expect(PAGE).toContain('<SiteHeader />')
     expect(SITE_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
     expect(SITE_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
   })
@@ -1695,7 +1697,7 @@ describe('The footer is where a company keeps its papers', () => {
     expect(FOOTER_LINKS).toContain('/terms')
     expect(FOOTER_LINKS).toContain('/privacy')
     expect(HOME_FOOTER_LINKS.map((l) => l.t)).toEqual([
-      'Documentation', 'Program offices', 'Integrators', 'Suppliers', 'Workers', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
+      'Documentation', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
     ])
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toEqual(expect.arrayContaining(['/terms', '/privacy', '/dpa', '/contact', '/docs', '/security']))
     // And each page draws its footer, and the footer draws the list,
@@ -1944,9 +1946,9 @@ describe('The home page reads as a product page, and every band leads deeper', (
       { was: 'gap', to: '/about', anchor: aboutBlock('answered')?.id, text: ABOUT_PAGE,
         phrase: 'The Workforce screen lists every contractor on site today, across every supplier.' },
       { was: 'ways', to: '/about', anchor: aboutBlock('ways')?.id, text: ABOUT_PAGE,
-        phrase: 'Most clients staff the program office themselves.' },
+        phrase: 'Most clients run the program with their own people.' },
       { was: 'the hero’s span line', to: '/about', anchor: aboutBlock('build')?.id, text: ABOUT_PAGE,
-        phrase: 'One record holds all of it, and each desk opens the part that is its own.' },
+        phrase: 'One record holds all of it, and each person opens the part that is theirs.' },
       // The third move, 2026-09-28: the hook line left the hero for About,
       // where the not-knowing was already said in full.
       { was: 'the hero’s hook line', to: '/about', anchor: aboutBlock('unanswered')?.id, text: ABOUT_PAGE,
@@ -2187,10 +2189,36 @@ function everyPublicPage(): [string, string][] {
     out.push([p.route, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['the header and footer', frameCopy().join(' ')])
-  out.push(['the close band', [...closeBandCopy(), SEE_IT.d, GET_THE_AUDIT.d].join(' ')])
+  out.push(['the close band', [...closeBandCopy(), SEE_IT.d].join(' ')])
   out.push(['/census', JSON.stringify(CENSUS_COPY)])
   return out
 }
+
+describe('Two words nobody uses (the founder, 2026-10-14)', () => {
+
+  it('no public page says program office or desk', () => {
+    // "Never use desk and program office — nobody uses those in the real
+    // world." The firm that runs a client's program is an MSP; the
+    // client's own person is the program manager; a desk is the person's
+    // job title, or "team". Read on every public page a stranger can open,
+    // the header, the sheet and the footer, the doors' lines, the census
+    // while it stays, and the words a screen reader hears on the
+    // documentation's drawings. Routes and keys (/for/program-offices,
+    // desk: 'ap') are addresses and are not read.
+    const two = /\b(?:program(?:me)?[ -]offices?|desks?)\b/i
+    const said = [
+      ...everyPublicPage().filter(([route]) => route !== '/census'),
+      ['the census', [...Object.values(CENSUS_COPY.form), ...CENSUS_COPY.desks.map((d) => d.label)].join(' ')],
+      ['the doors', JSON.stringify([...HOME_DOORS, ...SKELETON_FOOTER_LINKS].map((d) => d.t))],
+      ['the party doors', PARTY_PAGES.flatMap((p) => [p.demoLabel, p.signUp.t, p.caption ?? '']).join(' ')],
+      ['the drawings’ alt text', PARTIES.flatMap((p) => [...p.doc.html.matchAll(/\b(?:alt|title|aria-label)="([^"]*)"/g)].map((m) => m[1])).join(' ')],
+    ] as [string, string][]
+    for (const [where, text] of said) {
+      const found = text.match(new RegExp(`.{0,40}${two.source}.{0,30}`, 'gi')) ?? []
+      expect(found, where).toEqual([])
+    }
+  })
+})
 
 describe('The site says what it does and shows it, and claims nothing a reader cannot check', () => {
 
@@ -2492,7 +2520,7 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
-  it('the spend audit asks for the invoice receipts a client holds, what it received from its suppliers', () => {
+  it('the census asks for the invoice receipts a client holds, what it received from its suppliers', () => {
     for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
       expect(said).toContain('invoice receipts')
       expect(supplierSide(said), said.slice(0, 60)).not.toMatch(/\binvoic/i)
@@ -2580,17 +2608,16 @@ describe('The header stays, and one scroll lands on one band', () => {
     expect(header).toMatch(/max-h-\[calc\(100dvh-[\d.]+rem\)\][^"]*overflow-y-auto/)
   })
 
-  it('the phone header is one row carrying Sign in, the audit button under a short label, and Menu', () => {
+  it('the header is one row at every width: the logo, Sign in and the menu icon, which opens a sheet under it', () => {
     // The founder, 2026-09-28, on his phone: Sign in is never hidden at
-    // any width, and Menu opens a sheet under the header rather than a
-    // second row. The filled button is the audit since 2026-10-09, under
-    // the short label "Free audit" below sm.
+    // any width, and the menu opens a sheet under the header rather than
+    // a second row. Since 2026-10-14 ("Menu into icon") the menu is an
+    // icon named "Menu" for a screen reader, and the audit button is gone.
     const header = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteHeader'), FRAME_SRC.indexOf('export function SiteFooter'))
-    const signIn = header.match(/<a\s+href="\/login"\s+className=\{`([^`]+)`\}/)![1]
+    const signIn = header.match(/<a\s+href=\{HEADER\.signIn\.href\}\s+className=\{`([^`]+)`\}/)![1]
     expect(signIn).not.toMatch(/(?:^|\s)hidden\b/)
-    expect(header).toContain('{PRIMARY.short ?? PRIMARY.t}')
-    expect(GET_THE_AUDIT.short).toBe('Free audit')
-    expect(promisesAnAccount([GET_THE_AUDIT.short!])).toEqual([])
+    expect(header).not.toContain('PRIMARY')
+    expect(header).toContain('aria-label={HEADER.menu}')
     const nav = header.match(/<nav\s+aria-label="Main"\s+className="([^"]+)"/)![1]
     expect(nav).not.toMatch(/flex-wrap/)
     const sheet = header.slice(header.indexOf('<details'))

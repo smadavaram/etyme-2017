@@ -110,7 +110,9 @@ export const SITE_GROUP = 'src/app/(site)'
 
 export const PUBLIC_PAGES: PublicPage[] = [
   { route: '/', title: 'Home', kind: 'HOME', routeFile: 'src/app/page.tsx' },
-  { route: '/census', title: 'Free contractor spend audit', kind: 'DOOR', routeFile: 'src/app/census/page.tsx' },
+  // Linked from nowhere since 2026-10-14 and deleted on November 13, 2026;
+  // registered until then so every guard still reads what it says.
+  { route: '/census', title: 'Contractor census (closes November 13, 2026)', kind: 'DOOR', routeFile: 'src/app/census/page.tsx' },
   { route: '/demo', title: 'Open the example program', kind: 'DOOR', routeFile: 'src/app/demo/page.tsx' },
 
   ...MODULE_ROUTES.map((route) => ({

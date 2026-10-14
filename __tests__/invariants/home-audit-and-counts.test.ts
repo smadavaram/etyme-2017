@@ -1,12 +1,16 @@
 /**
- * The home page's spend audit form and its first-party counts.
+ * The lead route's audit kind and the public site's first-party counts.
  *
- * The form (the founder's feedback, 2026-10-10) asks four short things
- * and records a lead a person at Etyme reads; the counts record five
- * kinds of click under a random visit id and nothing personal.
+ * The home page's audit form (the founder's feedback, 2026-10-10) was
+ * deleted with the audit on 2026-10-14 ("Does anyone need the audit
+ * form? I think it's useless."). The route still takes the AUDIT kind
+ * until the census closes on November 13, 2026 (KNOWN-LIMITS.md), so
+ * its checks stay held here; the tests that read the form's own file
+ * were deleted with it. The counts record five kinds of click under a
+ * random visit id and nothing personal.
  */
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { auditProblems, auditAsk, AUDIT_COPY, CONTRACTOR_RANGES } from '@/lib/public-site/leads'
 import { readMarketEvent, summarize, MARKET_EVENTS, type MarketEventRow } from '@/lib/public-site/market-events'
@@ -15,7 +19,7 @@ import { sizesTheBuyer, unverifiableClaims, promisesAnAccount } from '@/lib/posi
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const ok = { email: 'dana@cavanaugh.example', name: 'Dana Whitfield', companyName: 'Cavanaugh Glassworks', contractorRange: '' }
 
-describe('The spend audit form asks four short things and records a real lead', () => {
+describe('The lead route’s audit kind, while it stays, asks four short things and records a real lead', () => {
 
   it('accepts a business email, a name and a company, with the contractor range left blank', () => {
     expect(auditProblems(ok)).toEqual([])
@@ -43,18 +47,18 @@ describe('The spend audit form asks four short things and records a real lead', 
     expect(auditAsk(ok)).toBe('Contractor spend audit, asked for on the home page. Contractors: not said.')
   })
 
-  it('posts to the lead route as an audit, says sent only on a 2xx, and keeps every typed value when it fails', () => {
-    const form = read('src/lib/public-site/audit-form.tsx')
-    expect(form).toContain("fetch('/api/market/leads'")
-    expect(form).toContain("kind: 'AUDIT'")
-    expect(form.indexOf("setState('sent')")).toBeGreaterThan(form.indexOf('if (!res.ok)'))
-    const failure = form.slice(form.indexOf('if (!res.ok)'), form.indexOf("count('audit_form_submitted')"))
-    expect(failure).not.toMatch(/setV\(/)
-    expect(failure).toContain('json?.error?.message')
+  it('the lead route checks an audit ask the same way and stores it as a lead', () => {
     const route = read('src/app/api/market/leads/route.ts')
     expect(route).toContain("body.kind === 'AUDIT'")
     expect(route).toContain('auditProblems(typed)')
     expect(route).toContain('prisma.marketingLead.upsert')
+  })
+
+  it('no public page draws the audit form any more', () => {
+    expect(existsSync(join(process.cwd(), 'src/lib/public-site/audit-form.tsx'))).toBe(false)
+    for (const f of ['src/app/page.tsx', 'src/lib/public-site/skeleton.tsx', 'src/lib/public-site/sub-page.tsx', 'src/lib/public-site/company-page.tsx']) {
+      expect(read(f), f).not.toContain('AuditForm')
+    }
   })
 
   it('says what happens next on screen once the ask is stored, and promises only what the census promises', () => {
@@ -108,17 +112,16 @@ describe('The public site counts its own clicks, first-party and with nothing pe
     expect(helper).not.toMatch(/document\.cookie|localStorage/)
   })
 
-  it('counts the home page’s audit and demo buttons, the header’s audit button, the form, and a seat taken from a demo link', () => {
-    // The audit button is in the sign-up band the home page shares with
-    // the product pages and the party doors (2026-10-14), so it is counted
-    // on every one of them.
+  it('counts the demo buttons and a seat taken from a demo link, and no audit button is left to count', () => {
+    // The audit buttons left the band and the header on 2026-10-14; the
+    // three audit events stay in the list because rows already written
+    // carry them, and nothing on the site sends them now.
     const page = read('src/app/page.tsx')
-    expect(read('src/lib/public-site/skeleton.tsx')).toContain('event="audit_cta_clicked"')
     expect(page).toContain('event="demo_cta_clicked"')
-    expect(read('src/lib/public-site/frame.tsx')).toContain('event="audit_cta_clicked"')
-    const form = read('src/lib/public-site/audit-form.tsx')
-    expect(form).toContain("count('audit_form_started')")
-    expect(form).toContain("count('audit_form_submitted')")
+    expect(read('src/lib/public-site/close-band.tsx')).toContain('event="demo_cta_clicked"')
+    for (const f of ['src/lib/public-site/skeleton.tsx', 'src/lib/public-site/frame.tsx', 'src/lib/public-site/close-band.tsx', 'src/app/page.tsx']) {
+      expect(read(f), f).not.toMatch(/audit_cta_clicked|audit_form_/)
+    }
     expect(read('src/lib/public-site/demo-link.tsx')).toContain("count('demo_started')")
   })
 })
