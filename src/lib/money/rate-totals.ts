@@ -32,7 +32,7 @@ export function activeRateTotals(rows: RateRow[]): RateTotals {
   if (withheld > 0) {
     return {
       byCurrency: [], lines: rows.length,
-      refusedBecause: `${withheld} of ${rows.length} running line${rows.length === 1 ? '' : 's'} ${withheld === 1 ? 'bills' : 'bill'} at a rate this desk does not read, so there is no total.`,
+      refusedBecause: `${withheld} of ${rows.length} running line${rows.length === 1 ? '' : 's'} ${withheld === 1 ? 'bills' : 'bill'} at a rate your role cannot see, so there is no total.`,
     }
   }
   const unset = rows.filter((r) => r.rate == null).length

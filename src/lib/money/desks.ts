@@ -70,8 +70,8 @@ export function maySeeBothSides(permissions: readonly string[]): boolean {
 export const BOTH_SIDES_WITHHELD =
   'What a client paid and what its supplier was paid for the same work are not shown ' +
   'together here, because the gap between them is the margin on it. What the firm owes ' +
-  'and when it falls due is all above. Ask whoever manages roles for the profitability ' +
-  'desk if you need the chains.'
+  'and when it falls due is all above. Ask whoever manages roles for a role that reads ' +
+  'profitability if you need the chains.'
 
 // ── The pages ────────────────────────────────────────────────────────
 
@@ -98,8 +98,8 @@ export const RECEIVABLE: MoneyPage = {
   desks: ['Accounts Receivable', 'Finance', 'Account Manager', 'Owner', 'Admin'],
   refusal:
     'Accounts receivable is the book of bills: what has been billed, what came in, and how ' +
-    'old the rest is. Reading it belongs to the desk that bills clients — Accounts ' +
-    'Receivable or Finance. Ask whoever manages roles at your company to seat you there.',
+    'old the rest is. Reading it belongs to whoever bills clients — Accounts ' +
+    'Receivable or Finance. Ask whoever manages roles at your company to give you that role.',
 }
 
 export const PAYABLE: MoneyPage = {
@@ -109,9 +109,9 @@ export const PAYABLE: MoneyPage = {
   desks: ['AP & Payroll', 'Finance', 'AP Clerk', 'Owner', 'Admin'],
   refusal:
     'Accounts payable is the book of invoice receipts: what suppliers have invoiced, when each falls due, ' +
-    'and how long the firm is taking to pay. Reading it belongs to the desk that pays them ' +
+    'and how long the firm is taking to pay. Reading it belongs to whoever pays them ' +
     '— AP & Payroll, Finance, or an AP clerk. Ask whoever manages roles at your company to ' +
-    'seat you there.',
+    'give you that role.',
 }
 
 export const MONEY_PAGES: readonly MoneyPage[] = [RECEIVABLE, PAYABLE]
@@ -166,6 +166,6 @@ export function mayRecordSupplierInvoice(permissions: readonly string[]): boolea
 }
 
 export const NOT_THE_PAYING_DESK =
-  'Recording what a supplier has invoiced belongs to the desk that pays them — AP & ' +
-  'Payroll, Finance, or an AP clerk. Ask whoever manages roles at your company to seat ' +
-  'you there.'
+  'Recording what a supplier has invoiced belongs to whoever pays them — AP & ' +
+  'Payroll, Finance, or an AP clerk. Ask whoever manages roles at your company to give ' +
+  'you that role.'

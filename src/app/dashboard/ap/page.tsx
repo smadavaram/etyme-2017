@@ -418,7 +418,7 @@ function Chains({ data }: { data: any; book: any }) {
         <p className="text-[13px] text-etyme-muted">
           A chain lays what a client paid beside what its supplier was paid for the same
           work, and the gap between those two numbers is the margin on that placement. So
-          the chains are not drawn for this desk. Everything the firm owes, and when each
+          the chains are not shown to your role. Everything the firm owes, and when each
           invoice receipt falls due, is above.
         </p>
       </div>

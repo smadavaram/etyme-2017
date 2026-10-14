@@ -103,7 +103,7 @@ export async function GET(
         error: {
           code: 'FORBIDDEN',
           message:
-            'Whether overtime is owed is judged on what each person is paid, and that is shown only to the desks that run pay — AP & Payroll, Finance, the owner and the admin.',
+            'Whether overtime is owed is judged on what each person is paid, and that is shown only to the people who run payroll — AP & Payroll, Finance, the owner and the admin.',
         },
       },
       { status: 403 }

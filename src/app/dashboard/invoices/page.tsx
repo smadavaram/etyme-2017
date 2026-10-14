@@ -222,7 +222,7 @@ function GenerateInvoiceModal({
       .then(async (r) => {
         const body = await r.json()
         if (!r.ok) {
-          setNothingToBill(body.error?.message ?? 'This desk cannot raise a bill.')
+          setNothingToBill(body.error?.message ?? 'Your role cannot raise a bill.')
           return
         }
         const list: EngagementOption[] = body.data?.engagements ?? []

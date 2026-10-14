@@ -526,7 +526,7 @@ export function receiptStateRefusal(inv: { number: string; status: string }): Pa
     case 'HELD':
       return {
         ok: false, code: 'HELD',
-        says: `Invoice ${inv.number} is on hold at your desk. Lift the hold on its page first, then pay it.`,
+        says: `Invoice ${inv.number} is on hold. Lift the hold on its page first, then pay it.`,
       }
     case 'CANCELLED':
     case 'VOID':

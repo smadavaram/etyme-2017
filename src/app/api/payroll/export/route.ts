@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'The payroll file is everybody’s wages, so only the desks that run pay may download it — AP & Payroll, Finance, the owner and the admin.',
+          message: 'The payroll file is everybody’s wages, so only the people who run payroll may download it — AP & Payroll, Finance, the owner and the admin.',
         },
       },
       { status: 403 }

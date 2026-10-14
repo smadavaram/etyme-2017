@@ -156,7 +156,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
   it('whether a colleague is owed overtime is refused to a desk that runs no pay in a sentence, because it is judged on their pay', async () => {
     const r = await call(hr, readExempt, `/api/contracts/${colleagueBuyId}/exempt`, { id: colleagueBuyId })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('shown only to the desks that run pay')
+    expect(r.body.error.message).toContain('shown only to the people who run payroll')
     const p = await call(payroll, readExempt, `/api/contracts/${colleagueBuyId}/exempt`, { id: colleagueBuyId })
     expect(p.status).toBe(200)
   })
@@ -168,7 +168,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     expect(r.body.error.message).toBe('Payroll is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
     const h = await call(hr, exportPayroll, '/api/payroll/export')
     expect(h.status).toBe(403)
-    expect(h.body.error.message).toContain('only the desks that run pay may download it')
+    expect(h.body.error.message).toContain('only the people who run payroll may download it')
     as(payroll.email)
     const p = await exportPayroll(req('GET', '/api/payroll/export', undefined, { 'x-context-id': payroll.id }))
     expect(p.status).toBe(200)
@@ -405,7 +405,7 @@ describe('what each person earns in commission is the payroll desk’s to read',
     as(ar.email)
     const refused = await json(await runCommissions(req('POST', '/api/payroll/commissions', period, { 'x-context-id': ar.id })))
     expect(refused.status).toBe(403)
-    expect(refused.body.error.message).toContain('the desk that runs payroll')
+    expect(refused.body.error.message).toContain('whoever runs payroll')
     as(desmond.email)
     const ran = await json(await runCommissions(req('POST', '/api/payroll/commissions', period, { 'x-context-id': desmond.id })))
     expect(ran.status).toBe(200)
@@ -414,7 +414,7 @@ describe('what each person earns in commission is the payroll desk’s to read',
   it('the account manager is refused what recruiters earn, in a sentence, and the refusal is on the trail', async () => {
     const r = await call(marisa, readCommissions, '/api/payroll/commissions')
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('shown only to the desks that run pay')
+    expect(r.body.error.message).toContain('shown only to the people who run payroll')
     const refused = await prisma.accessLog.findMany({
       where: { actorPersonId: marisa.personId, action: 'PAYROLL_VIEW', allowed: false, subjectId: tobias.personId },
     })

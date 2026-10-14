@@ -68,7 +68,7 @@ export function payChangeNotice(input: {
     input.backPayCents && input.backPayCents > 0
       ? ` Days since then were already paid at the old rate, so back pay of ` +
         `${amount(input.backPayCents, input.currency)} for ${weeksSay(input.backPayWeeks ?? [])} has been put ` +
-        `to ${input.employerName}'s payroll desk to approve. It is not paid yet.`
+        `to ${input.employerName}'s payroll team to approve. It is not paid yet.`
       : ''
   return {
     title: 'Your pay rate has changed',

@@ -106,7 +106,7 @@ describe('the job twin reads an invoice receipt', () => {
     const close = judge('R-4', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
     expect(close.payable).toBe(false)
     expect(close.failing).toContain('QUANTITY')
-    expect(close.rationale).toMatch(/AP desk still records the difference before it is paid/)
+    expect(close.rationale).toMatch(/AP clerk still records the difference before it is paid/)
   })
 
   it('a receipt three point seven five percent over accepted hours is a mismatch that cites the rule and the numbers', () => {

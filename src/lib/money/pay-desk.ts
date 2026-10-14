@@ -101,13 +101,13 @@ export function payDesk(input: {
     // A seat is always at a client, and the desk that pays there is the client's.
     const desks = either(desksThatPay('CLIENT'))
     const client = input.seat.clientName
-    const desk = input.seat.roleName ? `${input.seat.roleName} desk` : 'desk it granted you'
+    const role = input.seat.roleName ? `the ${input.seat.roleName} role` : 'a role'
     return {
       mayPay: false,
       says:
-        `${client} seated you at its ${desk}, and that desk does not pay invoice receipts. ` +
+        `${client} gave you ${role}, and that role does not pay invoices. ` +
         `${desks ? `${client}'s ${desks} pays them` : `${client} pays them itself`}, or ${client} ` +
-        `can seat you at a desk that pays.`,
+        `can give you a role that pays.`,
     }
   }
 
@@ -117,14 +117,14 @@ export function payDesk(input: {
     return {
       mayPay: false,
       says:
-        `Recording what a client paid belongs to the ${desks || 'finance'} desk${at}. ` +
-        `Your desk reads what is owed and does not record it.`,
+        `Recording what a client paid belongs to ${desks || 'finance'}${at}. ` +
+        `Your role can see what is owed, and does not record it.`,
     }
   }
   return {
     mayPay: false,
     says:
-      `The ${desks || 'finance'} desk${at} pays invoice receipts. Your desk reads what is owed ` +
+      `${desks || 'Finance'}${at} pays invoices. Your role can see what is owed ` +
       `and when it is due, and does not pay it.`,
   }
 }
@@ -158,7 +158,7 @@ export function runDesk(input: {
       says:
         `A payment run is drawn from your own firm's book, and a run for ` +
         `${input.inASeat.clientName} is not built yet. ${input.inASeat.clientName} pays its ` +
-        `suppliers from its own desk; switch to your own books to run your firm's payments.`,
+        `suppliers itself; switch to your own books to run your firm's payments.`,
     }
   }
   if (input.permissions == null) return { mayRun: false, says: null, readsRuns: true }
@@ -168,8 +168,8 @@ export function runDesk(input: {
     mayRun: false,
     readsRuns: true,
     says:
-      `Payment runs are assembled, approved and released by the ${desks || 'finance'} desk. ` +
-      `Your desk reads what would go and what went, and does not run it.`,
+      `Payment runs are put together, approved and released by ${desks || 'finance'}. ` +
+      `Your role can see what would go and what went, and does not run it.`,
   }
 }
 
@@ -216,13 +216,13 @@ export function waiveDesk(input: {
   if (input.seat) {
     const client = input.seat.clientName
     const desks = either(desksThatPay('CLIENT'))
-    const desk = input.seat.roleName ? `${input.seat.roleName} desk` : 'desk it granted you'
+    const role = input.seat.roleName ? `the ${input.seat.roleName} role` : 'a role'
     return {
       mayWaive: false,
       says:
-        `${client} seated you at its ${desk}, and that desk does not waive a check. ` +
-        `${desks ? `${client}'s ${desks} does` : `${client} does it itself`}, or ${client} can seat ` +
-        `you at a desk that pays.`,
+        `${client} gave you ${role}, and that role does not waive a check. ` +
+        `${desks ? `${client}'s ${desks} does` : `${client} does it itself`}, or ${client} can give ` +
+        `you a role that pays.`,
     }
   }
   const desks = either(desksThatPay(input.companyKind))
@@ -231,6 +231,6 @@ export function waiveDesk(input: {
     mayWaive: false,
     says:
       `Recording an exception is a decision to pay something that did not match, so it belongs ` +
-      `to the ${desks || 'finance'} desk${at}, which pays invoice receipts.`,
+      `to ${desks || 'finance'}${at}, who pays invoices.`,
   }
 }

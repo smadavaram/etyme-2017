@@ -77,7 +77,7 @@ async function deskFor(request: NextRequest, caller: CallerContext, id: string) 
   if (!verdict.mayWaive) {
     return {
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: verdict.says ?? 'This desk cannot waive a check.' } },
+        { error: { code: 'FORBIDDEN', message: verdict.says ?? 'Your role cannot waive a check.' } },
         { status: 403 }
       ),
     }

@@ -75,7 +75,7 @@ describe('a program office in a client’s seat is judged by the seat', () => {
     const d = payDesk({ permissions, companyKind: 'CLIENT', seat, side: 'PAYABLE' })
     expect(d.mayPay).toBe(false)
     expect(d.says).toMatch(/Cavanaugh Glassworks/)
-    expect(d.says).toMatch(/Program Manager desk/)
+    expect(d.says).toMatch(/Program Manager role/)
     expect(d.says).toMatch(/AP Clerk/)
   })
 

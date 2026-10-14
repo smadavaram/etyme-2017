@@ -48,7 +48,7 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
     as(AP)
     const r = await json(await pay(req('POST', `/api/invoices/${s.id}/payments`, { amount: s.outstanding, method: 'ACH' }), params()))
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toBe(`Invoice ${s.number} is on hold at your desk. Lift the hold on its page first, then pay it.`)
+    expect(r.body.error.message).toBe(`Invoice ${s.number} is on hold. Lift the hold on its page first, then pay it.`)
   })
 
   it('the supplier is told who held it and why', async () => {

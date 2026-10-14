@@ -49,7 +49,7 @@ export function holdInvoice(a: {
     return { ok: false, code: 'NOT_HOLDABLE', status: 409, says: `Invoice ${a.number} cannot be held: ${why}.` }
   }
   if (!reason) {
-    return { ok: false, code: 'REASON_REQUIRED', status: 422, says: 'Say why it is on hold. The supplier and the next person on this desk will read it.' }
+    return { ok: false, code: 'REASON_REQUIRED', status: 422, says: 'Say why it is on hold. The supplier and the next AP clerk to open it will read it.' }
   }
   return { ok: true, to: 'HELD', reason, says: `${a.by} put invoice ${a.number} on hold: ${reason}` }
 }

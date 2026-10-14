@@ -115,7 +115,7 @@ describe('back pay for a rise dated before days already paid', () => {
     const says = backPaySays(f, { personName: 'Priya Venkataraman', toCents: 7_000, currency: 'USD' })
     expect(says).toBe(
       'Back pay of $64.00 is proposed for Priya Venkataraman, for the weeks of June 15, 2026 and June 22, 2026, ' +
-        'which were paid before the change to $70/hr was approved. A payroll desk approves it as an off-cycle ' +
+        'which were paid before the change to $70/hr was approved. Payroll approves it as an off-cycle ' +
         'payment; nothing is paid until then.'
     )
   })

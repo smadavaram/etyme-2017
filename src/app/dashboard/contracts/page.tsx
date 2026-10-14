@@ -915,7 +915,7 @@ function ContractDetailDrawer({
                 <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
                   {contract.rateWithheld ? (
                     <span className="text-etyme-faint">
-                      {contract.side === 'buy' ? 'Shown only to the desks that run pay' : 'Shown only to the desks that price and bill it'}
+                      {contract.side === 'buy' ? 'Shown only to the people who run payroll' : 'Shown only to the people who price and bill it'}
                     </span>
                   ) : (
                     <>

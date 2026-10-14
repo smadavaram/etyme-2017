@@ -55,15 +55,15 @@ export const READS_PAY = 'consultants.cost' as const
 
 /** Said wherever a pay figure is withheld. Names the desks, never the key. */
 export const PAY_WITHHELD_SAYS =
-  'What each person is paid is shown only to the desks that run pay — AP & Payroll, Finance, the owner and the admin. ' +
+  'What each person is paid is shown only to the people who run payroll — AP & Payroll, Finance, the owner and the admin. ' +
   'Everything else about these lines is here.'
 
 /** The reason written on the trail for a withheld figure. */
 export const PAY_WITHHELD_REASON =
-  'Pay rate withheld from a buy line: this seat does not hold consultants.cost, the permission the desks that run pay hold.'
+  'Pay rate withheld from a buy line: this seat does not hold consultants.cost, the permission the people who run payroll hold.'
 
 /** The reason written on the trail for a figure that was shown. */
-export const PAY_SHOWN_REASON = 'Pay rate read on a buy line by a desk holding consultants.cost.'
+export const PAY_SHOWN_REASON = 'Pay rate read on a buy line by a role holding consultants.cost.'
 
 export interface PayViewer {
   permissions: readonly string[]
@@ -199,12 +199,12 @@ export function mayReadBillRate(viewer: BillViewer, line: BillLine): boolean {
 
 /** Said wherever a bill rate is withheld. Names the desks, never the key. */
 export const BILL_WITHHELD_SAYS =
-  'What each line bills at is shown only to the desks that price and bill it — Accounts Receivable, the account manager, the contract manager, Finance and the owner. ' +
+  'What each line bills at is shown only to the people who price and bill it — Accounts Receivable, the account manager, the contract manager, Finance and the owner. ' +
   'Everything else about these lines is here.'
 
 export const BILL_WITHHELD_REASON =
-  'Bill rate withheld from a sell line: this seat holds none of the permissions the price and billing desks hold.'
-export const BILL_SHOWN_REASON = 'Bill rate read on a sell line by a desk that prices, bills or pays it.'
+  'Bill rate withheld from a sell line: this seat holds none of the permissions the pricing and billing roles hold.'
+export const BILL_SHOWN_REASON = 'Bill rate read on a sell line by a role that prices, bills or pays it.'
 
 /** Who goes on the trail for a list of sell lines: each person once, never the reader themselves. */
 export function billTrail(

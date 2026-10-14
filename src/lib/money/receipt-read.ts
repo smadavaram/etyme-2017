@@ -112,7 +112,7 @@ export function readReceipt(input: {
   } else if (matches && waived.length === 0 && off.length === 0) {
     verdict = hours.length > 0 ? 'Matches the signed hours and the contract rate' : 'Matches what was approved'
   } else if (matches) {
-    verdict = `Matches, with ${plural(waived.length, 'exception', 'exceptions')} recorded by your desk`
+    verdict = `Matches, with ${plural(waived.length, 'exception', 'exceptions')} recorded by your team`
   } else if (off.length > 0) {
     verdict = off.length === 1 ? `${off[0].personName}: ${off[0].says}` : `${plural(off.length, 'line does', 'lines do')} not match — ${off[0].personName}: ${off[0].says}`
   } else {

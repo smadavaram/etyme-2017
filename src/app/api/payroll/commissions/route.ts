@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
   const others = [...new Set(all.filter((p) => !isOwn(p) && p.person).map((p) => p.person!.id))]
   await writeRateTrail(caller, everybody ? { refused: [], read: others } : { refused: others, read: [] }, {
     action: 'PAYROLL_VIEW',
-    refused: 'Commission earnings withheld: this seat does not hold payroll.read, the permission the payroll desk holds.',
-    read: 'Commission earnings read by a desk holding payroll.read.',
+    refused: 'Commission earnings withheld: this seat does not hold payroll.read, the permission payroll holds.',
+    read: 'Commission earnings read by a role holding payroll.read.',
   })
 
   if (!hasPermission(caller.permissions, 'payroll.read') && !ownAgreement && postings.length === 0) {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            `What each person earns in commission is shown only to the desks that run pay at ${caller.company!.name} — AP & Payroll, Finance, the owner and the admin. ` +
+            `What each person earns in commission is shown only to the people who run payroll at ${caller.company!.name} — AP & Payroll, Finance, the owner and the admin. ` +
             'Somebody on a commission agreement sees their own here.',
         },
       },
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            `A commission run pays people, so it is run by the desk that runs payroll at ${caller.company!.name} — AP & Payroll, Finance or the owner. ` +
+            `A commission run pays people, so it is run by whoever runs payroll at ${caller.company!.name} — AP & Payroll, Finance or the owner. ` +
             'Ask them to run the period.',
         },
       },

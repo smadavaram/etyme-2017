@@ -198,7 +198,7 @@ export function backPaySays(f: BackPayFigure, input: { personName: string; toCen
     parts.push(
       `Back pay of ${amount(f.totalCents, input.currency)} is proposed for ${input.personName}, for ` +
         `${weeksSay(f.weeks)}, which ${f.weeks.length === 1 ? 'was' : 'were'} paid before the change to ` +
-        `${rate(input.toCents, input.currency)} was approved. A payroll desk approves it as ` +
+        `${rate(input.toCents, input.currency)} was approved. Payroll approves it as ` +
         `${f.periods.length === 1 ? 'an off-cycle payment' : `${f.periods.length} off-cycle payments, one per pay period`}; ` +
         `nothing is paid until then.`
     )

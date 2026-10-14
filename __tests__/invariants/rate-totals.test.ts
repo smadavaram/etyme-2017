@@ -27,7 +27,7 @@ describe('the running bill rates are added one currency at a time', () => {
       { rate: null, currency: 'USD', withheld: true },
     ])
     expect(t.byCurrency).toEqual([])
-    expect(t.refusedBecause).toBe('1 of 2 running lines bills at a rate this desk does not read, so there is no total.')
+    expect(t.refusedBecause).toBe('1 of 2 running lines bills at a rate your role cannot see, so there is no total.')
   })
 
   it('a running line with no bill rate set blanks the total rather than counting as nothing', () => {

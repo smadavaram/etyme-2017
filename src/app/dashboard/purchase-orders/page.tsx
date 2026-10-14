@@ -395,7 +395,7 @@ function Lines({ po }: { po: PO }) {
             </span>
             <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
               {l.payWithheld
-                ? <span title="What each person is paid is shown only to the desks that run pay.">Pay not shown</span>
+                ? <span title="What each person is paid is shown only to the people who run payroll.">Pay not shown</span>
                 : l.rate == null ? "—" : rate(l.rate, l.currency)}
               {l.billed != null && (
                 <span className="text-etyme-ink ml-2">

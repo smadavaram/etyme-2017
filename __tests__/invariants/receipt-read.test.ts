@@ -73,7 +73,7 @@ describe('an invoice receipt row shows who worked, the hours signed against the 
       lines: [week({})],
       currency: 'USD',
     })
-    expect(r.verdict).toBe('Matches, with 1 exception recorded by your desk')
+    expect(r.verdict).toBe('Matches, with 1 exception recorded by your team')
     expect(r.row).toBe('1 person · 1 week · matches with exceptions')
   })
 })

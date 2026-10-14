@@ -156,8 +156,8 @@ export function whoseBooks(input: BooksInput): BooksDecision {
     // person is a code, and CLAUDE.md is explicit that the code is for
     // the machine and the sentence is the product.
     says:
-      `${client.name}'s books, read by ${seat.officeCompany.name} from the ${seat.role.name} ` +
-      `desk ${client.name} granted it. What may be done here is what that desk may do, and ` +
+      `${client.name}'s books, read by ${seat.officeCompany.name} in the ${seat.role.name} ` +
+      `role ${client.name} gave it. What may be done here is what that role may do, and ` +
       `every read is logged against it.`,
   }
 }
@@ -184,10 +184,10 @@ export function seatMayPay(seat: SeatFacts): PayVerdict {
   return {
     ok: false,
     says:
-      `${seat.officeCompany.name} sits at ${seat.clientCompany.name}'s ${seat.role.name} desk, ` +
-      `and that desk does not pay invoice receipts. ${seat.clientCompany.name} decides what the seat may ` +
-      `do — ask an owner or the program manager there to seat ${seat.officeCompany.name} at a ` +
-      `desk that pays, such as an AP clerk's, or have ${seat.clientCompany.name} record this ` +
+      `${seat.officeCompany.name} holds the ${seat.role.name} role at ${seat.clientCompany.name}, ` +
+      `and that role does not pay invoices. ${seat.clientCompany.name} decides what the seat may ` +
+      `do — ask an owner or the program manager there to give ${seat.officeCompany.name} a ` +
+      `role that pays, such as the AP clerk's, or have ${seat.clientCompany.name} record this ` +
       `payment itself.`,
   }
 }
@@ -195,8 +195,8 @@ export function seatMayPay(seat: SeatFacts): PayVerdict {
 /** What a seated reader is told when the desk they hold cannot open a page. */
 export function seatedRefusal(seat: SeatFacts, page: string): string {
   return (
-    `${page} is not part of the ${seat.role.name} desk ${seat.clientCompany.name} granted ` +
-    `${seat.officeCompany.name}. The seat may do exactly what that desk may do, so this is ` +
+    `${page} is not part of the ${seat.role.name} role ${seat.clientCompany.name} gave ` +
+    `${seat.officeCompany.name}. The seat may do exactly what that role may do, so this is ` +
     `${seat.clientCompany.name}'s to widen — ask an owner or the program manager there.`
   )
 }

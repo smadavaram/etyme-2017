@@ -470,7 +470,7 @@ function ChangeRate({ lines, onDone }: { lines: ChangeableLine[]; onDone: () => 
       await readJson(res)
       setSaid({
         ok: true,
-        text: `Recorded. A change of more than five per cent waits for a second desk to approve it; a smaller one applies from ${fromDate}.`,
+        text: `Recorded. A change of more than five per cent waits for a second person to approve it; a smaller one applies from ${fromDate}.`,
       })
       setNewRate('')
       setReason('')

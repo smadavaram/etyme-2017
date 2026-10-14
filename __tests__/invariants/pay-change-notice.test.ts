@@ -48,7 +48,7 @@ describe('the worker is told their new pay rate in one plain sentence', () => {
       backPayCents: 41_400, backPayWeeks: ['2026-06-15', '2026-06-22'], now: NOW,
     })
     expect(n.body).toContain('back pay of $414.00 for the weeks of June 15, 2026 and June 22, 2026')
-    expect(n.body).toContain("Brightmoor's payroll desk to approve. It is not paid yet.")
+    expect(n.body).toContain("Brightmoor's payroll team to approve. It is not paid yet.")
   })
 
   it('says nothing of back pay where none is owed', () => {

@@ -236,15 +236,15 @@ export default function ReportsPage() {
       const [sellRes, buyRes, benchRes, invoiceRes, bookRes] = await Promise.all([
         fetch('/api/contracts?side=sell&limit=100'),
         fetch('/api/contracts?side=buy&limit=100'),
-        reads.bench ? fetch('/api/bench?scope=company') : notAsked('The bench opens for the desks that read consultants.'),
-        reads.invoices ? fetch('/api/invoices?limit=100') : notAsked('Bills open for the desks that read them.'),
+        reads.bench ? fetch('/api/bench?scope=company') : notAsked('The bench is shown to the roles that see consultants.'),
+        reads.invoices ? fetch('/api/invoices?limit=100') : notAsked('Bills are shown to the roles that see them.'),
         // The margin, from the one door. `scope=live` because the panel
         // beside it is a monthly run rate, and a run rate over finished
         // work is not a run rate — the two figures on one row have to be
         // answering the same question about the same placements.
         reads.margin
           ? fetch('/api/profitability?by=book&scope=live')
-          : notAsked('What placements earn is read by the desks that read margin or the P&L, and yours does not.'),
+          : notAsked('What placements earn is shown to the roles that see margin or the P&L, and yours does not.'),
       ])
 
       // Parse responses — each might fail independently

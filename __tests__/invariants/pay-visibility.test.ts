@@ -190,7 +190,7 @@ describe('a commission run pays people, so it is the payroll desk’s', () => {
     const post = src.slice(src.indexOf('export async function POST'))
     expect(post).toMatch(/if \(!hasPermission\(caller\.permissions, 'payroll\.run'\)\) \{/)
     expect(post).not.toMatch(/invoices\.issue/)
-    expect(post).toContain('the desk that runs payroll')
+    expect(post).toContain('whoever runs payroll')
     for (const kind of ['VENDOR', 'GSI'] as const) {
       expect(perms(kind, 'Accounts Receivable')).not.toContain('payroll.run')
       expect(perms(kind, 'AP & Payroll')).toContain('payroll.run')

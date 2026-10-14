@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const reading = whose?.books ?? null
   if (!hasPermission(reading?.caller.permissions ?? caller.permissions, 'payments.record')) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Holding a payment is for the desk that pays. Ask whoever runs accounts payable.' } },
+      { error: { code: 'FORBIDDEN', message: 'Only the AP clerk, or whoever pays invoices, can put a payment on hold. Ask whoever runs accounts payable.' } },
       { status: 403 }
     )
   }

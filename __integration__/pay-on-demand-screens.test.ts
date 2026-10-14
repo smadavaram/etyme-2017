@@ -146,7 +146,7 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
     }
     const said = JSON.stringify(body.data.agreements)
     expect(said).not.toContain('/hr out')
-    expect(body.data.payWithheldSays).toContain('desks that run pay')
+    expect(body.data.payWithheldSays).toContain('people who run payroll')
     expect(await payTrail(it_.hr, it_.colleague, false)).toBeGreaterThan(0)
   })
 
@@ -199,7 +199,7 @@ describe('Karthik Menon at Teleworld cannot read what a colleague bills at, and 
       expect(c.billRateCents).toBeNull()
       expect(c.billWithheld).toBe(true)
     }
-    expect(body.data.billWithheldSays).toContain('desks that price and bill')
+    expect(body.data.billWithheldSays).toContain('people who price and bill')
     expect(await billTrailOf(it_.hr, it_.colleague, false)).toBeGreaterThan(0)
   })
 
