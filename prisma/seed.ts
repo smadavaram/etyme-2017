@@ -534,7 +534,7 @@ async function main() {
     { name: 'Priya Anand',  email: 'p.anand@ravensbourne.example',  role: 'Delivery Manager', unit: 'retail' },
     { name: 'Tom Rhys',     email: 't.rhys@ravensbourne.example',   role: 'Delivery Manager', unit: 'medical' },
     // The contractor desk. Firm-wide, and the only people here who can.
-    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.example',  role: 'Contractor Desk',  unit: null },
+    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.example',  role: 'Contractor Sourcing',  unit: null },
   ]
 
   const gsiStaff: Record<string, { id: string }> = {}
