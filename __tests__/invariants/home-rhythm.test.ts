@@ -21,7 +21,7 @@ import { gridsWithoutBreakpoint } from '@/lib/positioning'
  * On 2026-10-14 the founder put every product page and party door in the
  * home page's shape ("make sure even the sub pages and doors follow the
  * same structure"), so the bands, the file and that sentence went.
- * The frame, the band and the security line are drawn by the skeleton
+ * The panel, the band and the security line are drawn by the skeleton
  * the home page shares with those pages (`lib/public-site/skeleton`), and
  * are read here with the page.
  */
@@ -30,7 +30,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const OWN = read('src/app/page.tsx')
 const SKELETON = read('src/lib/public-site/skeleton.tsx')
 const PAGE = [OWN, SKELETON].join('\n')
-const DEMO = read('src/lib/public-site/home-demo.tsx')
+/** The panel that shows the product working, since it replaced the live frame (2026-10-14). */
+const DEMO = read('src/lib/public-site/story-panel.tsx')
 
 /** The opening tag of every section written on the page, in order. */
 const sections = [...PAGE.matchAll(/<section[\s\S]*?>/g)].map((m) => m[0])
@@ -66,25 +67,24 @@ describe('The home page is three short sections in one column, at every width', 
   })
 
   it('wraps the four chips onto a second line on a phone rather than scrolling them sideways', () => {
-    const chips = DEMO.slice(DEMO.indexOf('<nav aria-label="Move the demo to a step"'))
-    expect(chips).toMatch(/className="flex flex-wrap/)
+    const chips = DEMO.slice(DEMO.indexOf('role="group" aria-label={STORY_STEPS_LABEL}'))
+    expect(chips).toMatch(/className="flex w-full flex-wrap/)
     expect(DEMO).not.toMatch(/overflow-x-(?:auto|scroll)/)
   })
 
-  it('keeps the frame’s box before it loads, taller on a phone and wider from md, so nothing under it moves when it arrives', () => {
-    expect(DEMO).toMatch(/relative aspect-\[3\/4\] w-full[^"]*md:aspect-\[16\/10\]/)
-    expect(DEMO).toMatch(/className="absolute inset-0 h-full w-full border-0"/)
+  it('puts the chat over the table on a phone and beside it from md, so the table never scrolls sideways', () => {
+    expect(DEMO).toContain('grid md:min-h-[300px] md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]')
+    expect(DEMO).toContain('min-w-0 p-3.5')
   })
 
-  it('never waits on the frame: lazy as served, so a phone loads it under the fold, and eager on a desktop once the page is live', () => {
-    expect(DEMO).toContain('loading="lazy"')
-    expect(DEMO).toContain("const DESKTOP = '(min-width: 768px)'")
-    expect(DEMO).toContain("if (f && window.matchMedia(DESKTOP).matches) f.loading = 'eager'")
+  it('never waits on anything: no frame, no request, every step written into the page', () => {
+    expect(DEMO).not.toMatch(/<iframe|fetch\(|loading=/)
+    expect(DEMO).toContain('hidden={i !== cur}')
     // The page itself is a server page with no data to wait for.
     expect(PAGE).not.toMatch(/export const dynamic|await /)
   })
 
-  it('draws every color from the site’s tokens, so the page and the frame follow one theme', () => {
+  it('draws every color from the site’s tokens, so the page and the panel follow one theme', () => {
     for (const src of [PAGE, DEMO]) {
       expect(src).not.toMatch(/#[0-9a-fA-F]{3,6}\b/)
       expect(src).not.toMatch(/\b(?:bg|text|border)-(?:red|blue|green|gray|slate|zinc|neutral|white|black)-\d/)

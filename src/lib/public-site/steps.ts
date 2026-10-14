@@ -10,13 +10,17 @@
  * the home page are the one spine for the home page, the product pages
  * and the documentation, in the same order:
  *
- *   1. Source               /requisitions   more: /governance
- *   2. Choose and start     /contracts      more: /submissions, /compliance
- *   3. Approve the weeks    /timesheets
- *   4. Bill and pay         /invoices       more: /chain
+ *   1. Job          /requisitions   more: /governance
+ *   2. Candidates   /contracts      more: /submissions, /compliance
+ *   3. Timesheets   /timesheets
+ *   4. Invoices     /invoices       more: /chain
  *
- * The first step is Source, never Hire (the founder, the same day): a
- * contingent worker is sourced from a supplier, not hired.
+ * The names are the founder's of 2026-10-14 ("Build it", on the drawing
+ * of the panel that shows the product working): the four nouns a buyer
+ * already has on their own desk, each the thing its step produces. They
+ * replace Source, Choose and start, Approve the weeks, and Bill and pay;
+ * the "Source, never Hire" line of 2026-09-30 is superseded. The routes
+ * do not move.
  *
  * A step page says "Step n of 4", has Previous and Next at its top and
  * its bottom, and shows what you do, the real screen, who is involved and
@@ -64,7 +68,7 @@ export const STEPS: Step[] = [
   {
     n: 1,
     route: '/requisitions',
-    name: 'Source',
+    name: 'Job',
     home: 'Post a job to the suppliers you cleared',
     flow: [
       { who: 'CLIENT', t: 'The hiring manager raises a job request' },
@@ -89,7 +93,7 @@ export const STEPS: Step[] = [
   {
     n: 2,
     route: '/contracts',
-    name: 'Choose and start',
+    name: 'Candidates',
     home: 'Interview, choose, and the paperwork is written',
     flow: [
       { who: 'SUPPLIER', t: 'A supplier submits a person who agreed' },
@@ -114,7 +118,7 @@ export const STEPS: Step[] = [
   {
     n: 3,
     route: '/timesheets',
-    name: 'Approve the weeks',
+    name: 'Timesheets',
     home: 'Contractors file their weeks and your manager approves them',
     flow: [
       { who: 'WORKER', t: 'The worker files their own week' },
@@ -137,7 +141,7 @@ export const STEPS: Step[] = [
   {
     n: 4,
     route: '/invoices',
-    name: 'Bill and pay',
+    name: 'Invoices',
     home: 'Each supplier bills, and you pay what matched',
     flow: [
       { who: 'SUPPLIER', t: 'The supplier sends its invoice' },

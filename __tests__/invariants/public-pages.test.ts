@@ -463,7 +463,7 @@ describe('One header and footer on every new page', () => {
     // the four live in the sheet behind the menu icon at every width.
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
     expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Job', 'Step 2 · Candidates', 'Step 3 · Timesheets', 'Step 4 · Invoices'])
     // Platform is the four steps and nothing else since 2026-10-14, when
     // the home page's band on specialist teams around the world, the one
     // home-only entry, was cut with the band.
@@ -518,17 +518,17 @@ describe('One header and footer on every new page', () => {
   })
 
   it('the Product menu names all eight parts, each under the step it belongs to, the step’s own page first', () => {
-    // The four steps are the one spine, decided 2026-09-30; the first is
-    // Source, never Hire.
+    // The four steps are the one spine, decided 2026-09-30, named Job,
+    // Candidates, Timesheets and Invoices since 2026-10-14.
     const stageOf = (route: string) => PRODUCT_STAGES.find((g) => g.items.some((i) => i.href === route))?.heading
-    expect(stageOf('/requisitions')).toBe('Step 1 · Source')
-    expect(stageOf('/governance')).toBe('Step 1 · Source')
-    expect(stageOf('/contracts')).toBe('Step 2 · Choose and start')
-    expect(stageOf('/submissions')).toBe('Step 2 · Choose and start')
-    expect(stageOf('/compliance')).toBe('Step 2 · Choose and start')
-    expect(stageOf('/timesheets')).toBe('Step 3 · Approve the weeks')
-    expect(stageOf('/invoices')).toBe('Step 4 · Bill and pay')
-    expect(stageOf('/chain')).toBe('Step 4 · Bill and pay')
+    expect(stageOf('/requisitions')).toBe('Step 1 · Job')
+    expect(stageOf('/governance')).toBe('Step 1 · Job')
+    expect(stageOf('/contracts')).toBe('Step 2 · Candidates')
+    expect(stageOf('/submissions')).toBe('Step 2 · Candidates')
+    expect(stageOf('/compliance')).toBe('Step 2 · Candidates')
+    expect(stageOf('/timesheets')).toBe('Step 3 · Timesheets')
+    expect(stageOf('/invoices')).toBe('Step 4 · Invoices')
+    expect(stageOf('/chain')).toBe('Step 4 · Invoices')
     expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(['/requisitions', '/contracts', '/timesheets', '/invoices'])
     // Each item carries the module page's own name and leads to it.
     for (const m of MODULES) {

@@ -16,11 +16,13 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  * and can the reader check it by clicking something on this page.
  *
  *   hero        the question and the category line, word for word
- *   #demo       the live product, read-only, in a frame: the seeded
- *               Northbend Athletic program manager's screens from
- *               /embed/demo, labeled as a sample, with four chips —
- *               Source, Submit, Approve, Pay — each moving the frame to
- *               its step, and one button to the full demo
+ *   #demo       the product shown working, in one compact panel
+ *               (`lib/public-site/story-panel`, since the founder's
+ *               "Build it" later on 2026-10-14): Ask Etyme answers, a
+ *               decision card presses itself, the table changes, across
+ *               four chips — Job, Candidates, Timesheets, Invoices — with
+ *               every name and figure the seeded demo's, and one button
+ *               to the full demo
  *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
  *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
@@ -49,7 +51,7 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *
  * ── The pieces every other page shares ───────────────────────────────
  *
- * The frame, the four chips, the sign-up band, the security line and the
+ * The panel, the sign-up band, the security line and the
  * footer live in `lib/public-site/skeleton`, since 2026-10-14, because
  * the eight product pages and the four party doors draw the same ones
  * (the founder: "make sure even the sub pages and doors follow the same

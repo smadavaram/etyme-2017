@@ -1,36 +1,19 @@
 /**
- * The words the shared skeleton draws (`./skeleton`): the frame's strip
- * and its line, the four chips, the sign-up band with every party's door,
- * the security line and the footer's links. Constants, so the page that
- * draws them and the guard that counts them read one source.
+ * The words the shared skeleton draws (`./skeleton`): the line under the
+ * panel that shows the product working, the sign-up band with every
+ * party's door, the security line and the footer's links. Constants, so
+ * the page that draws them and the guard that counts them read one
+ * source. The panel's own words are `./story`.
  */
 
-/** The four chips under the product. Each moves the frame to its step. */
-export const CHIPS: { t: string; href: string }[] = [
-  { t: 'Source', href: '/embed/demo/source' },
-  { t: 'Submit', href: '/embed/demo/submit' },
-  { t: 'Approve', href: '/embed/demo/approve' },
-  { t: 'Pay', href: '/embed/demo/pay' },
-]
-export const CHIPS_LABEL = 'The four steps'
+import type { EmbedStep } from '@/lib/sample-seat'
+import { storyChromeCopy } from './story'
 
-/**
- * The frame the product sits in. The chrome strip says whose screens
- * these are; the line under the frame says every firm on them is a demo
- * company, not a customer, and is always visible (the founder's label,
- * 2026-09-27). Read together by `public-example-names.test.ts`.
- */
-export const FRAME = {
-  name: 'home-demo',
-  title: 'Live demo of Northbend Athletic, a demo company, not a customer: the program manager’s screens',
-  chrome: 'Live demo · Northbend Athletic, a sample company',
-  fallback: { t: 'The demo did not load here.', link: 'Open it on its own page' },
-}
-/** The line under the frame where the reader sits as the program manager: the home page and the product pages. */
+/** The line under the panel where the reader sits as the program manager: the home page and the product pages. */
 export const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'
-/** The line under the frame on a party door, whose reader is not the program manager. */
+/** The line under the panel on a party door, whose reader is not the program manager. */
 export const ON_SCREEN_DOOR = 'Every firm on this screen is a demo company, not a customer.'
-/** The button under the frame. */
+/** The button in the panel's footer. */
 export const OPEN_DEMO = 'Open the demo, no account'
 
 /** Every party's door, on one small line in the sign-up band. Clients first. */
@@ -87,17 +70,20 @@ export const SECURITY = {
 
 /**
  * Every word the shared pieces draw between the header and the footer,
- * for the guard that counts a page: the frame's strip and its line, the
- * chips, the button under the frame, the band and the security line.
+ * for the guard that counts a page: the panel's bar and its chips
+ * (`storyChromeCopy`), the button, the lines under the panel, the band
+ * and the security line. What the panel plays — each step's
+ * conversation, table and footer line — is the product shown working, as
+ * the frame's screens were, and is not counted. `step` is kept so a page
+ * says which step it opens at, for the reader of this call.
  */
-export function copyOfSkeleton(o: { caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind }): string[] {
+export function copyOfSkeleton(o: { step?: EmbedStep; caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind }): string[] {
   const self = o.band === 'SELF'
   return [
-    FRAME.chrome,
+    ...storyChromeCopy(),
+    o.button,
     ...(o.caption ? [o.caption] : []),
     o.label ?? ON_SCREEN,
-    CHIPS_LABEL, ...CHIPS.map((c) => c.t),
-    o.button,
     self ? BAND_FOR_SELF.heading : BAND.heading, self ? BAND_FOR_SELF.line : BAND.line,
     BAND.doorsLead, ...DOORS.map((d) => d.t),
     (o.primary ?? CLIENT_SIGN_UP).t,

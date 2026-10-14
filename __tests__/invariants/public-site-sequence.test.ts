@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({
   notFound: () => { throw new Error('not found') },
 }))
 
+import { STORY, storyIndex } from '@/lib/public-site/story'
 import { STEPS, SPINE_ORDER } from '@/lib/public-site/steps'
 import { MODULES } from '@/lib/public-site/modules'
 import { ModulePageView } from '@/lib/public-site/module-page'
@@ -83,27 +84,26 @@ const boxesSayWho = (boxes: FlowBox[]) => boxes.every((b) => b.who !== undefined
 
 describe('The four steps are the one spine of the site', () => {
 
-  it('the home page walks the four steps as four chips under the live product, Source first, and the Platform menu draws the four steps with every part under its step', () => {
+  it('the home page walks the four steps as four chips on the panel, Job first, and the Platform menu draws the four steps with every part under its step', () => {
     // The founder's home page of 2026-10-14 replaced the three steps of
     // 2026-10-09 (Connect, Control, Reconcile) and the four step cards with
-    // four chips that move the live product to each step. The four steps
-    // stay the spine of the product pages and the documentation.
-    // The chips are the skeleton's since 2026-10-14, drawn on the home
-    // page and under every product page's and party door's frame.
+    // four chips; his "Build it" the same evening put them on the panel
+    // that shows the product working, named Job, Candidates, Timesheets
+    // and Invoices. The four steps stay the spine of the product pages
+    // and the documentation, under the same names.
     const page = read('src/app/page.tsx')
-    const words = read('src/lib/public-site/skeleton-words.ts')
-    const chips = words.slice(words.indexOf('const CHIPS'), words.indexOf('const FRAME'))
-    const names = [...chips.matchAll(/t: '([^']+)'/g)].map((m) => m[1])
-    expect(names).toEqual(['Source', 'Submit', 'Approve', 'Pay'])
-    expect(names[0]).toBe(STEPS[0].name)
+    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STORY.map((s) => s.chip)).toEqual(STEPS.map((s) => s.name))
     expect(page).not.toContain('const HOW')
     expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(STEPS.map((s) => s.route))
   })
 
-  it('the first step is Source, never Hire, on every menu, page and chart', () => {
-    expect(STEPS[0].name).toBe('Source')
-    expect(PRODUCT_STAGES[0].heading).toBe('Step 1 · Source')
-    expect(PROCESS[0].title.startsWith('Source')).toBe(true)
+  it('the first step is Job, never Hire, on every menu, page and chart', () => {
+    // "Source, never Hire" (2026-09-30) is superseded by the founder's
+    // four nouns (2026-10-14); a contingent worker is still never hired.
+    expect(STEPS[0].name).toBe('Job')
+    expect(PRODUCT_STAGES[0].heading).toBe('Step 1 · Job')
+    expect(PROCESS[0].title.startsWith('Job')).toBe(true)
     for (const s of STEPS) expect(s.name, `step ${s.n}`).not.toMatch(/\bhire\b/i)
   })
 
@@ -126,18 +126,18 @@ describe('The four steps are the one spine of the site', () => {
   // screen the page's frame opens at, and the four chips under it walk the
   // rest. The step-by-step reading, with Previous and Next, is the
   // documentation's, held further down this file.
-  it('every product page opens its frame at its own step, with the four chips under it so a reader can walk on', () => {
+  it('every product page opens the panel at its own step, with the four chips on it so a reader can walk on', () => {
     for (const m of MODULES) {
       const page = html(createElement(ModulePageView, { m }))
-      expect(page, m.route).toContain(`src="/embed/demo/${m.step}"`)
-      for (const step of ['source', 'submit', 'approve', 'pay']) {
-        expect(page, `${m.route} has the ${step} chip`).toContain(`href="/embed/demo/${step}"`)
-      }
-      // The chip for the page's own step is lit from the start.
-      expect(page, m.route).toMatch(new RegExp(`href="/embed/demo/${m.step}"[^>]*aria-current="page"`))
+      const own = STORY[storyIndex(m.step)]
+      // The page's own step is the one shown before anything plays, and its chip is pressed.
+      expect(page, m.route).toMatch(new RegExp(`data-story-step="${own.n}"(?! hidden)`))
+      for (const s of STORY) expect(page, `${m.route} has the ${s.chip} chip`).toContain(`${s.chip}</button>`)
+      expect(page, m.route).toMatch(new RegExp(`aria-pressed="true"[^>]*>(?:<span[^>]*>${own.n}</span>)${own.chip}</button>`))
       // And it is the step the Platform menu files the page under.
       const under = STEPS.find((s) => s.route === m.route || s.more.includes(m.route))!
-      expect(m.step, m.route).toBe(['source', 'submit', 'approve', 'pay'][under.n - 1])
+      expect(own.n, m.route).toBe(under.n)
+      expect(page, m.route).not.toContain('<iframe')
     }
   })
 })
@@ -180,7 +180,7 @@ describe('“See this step in the demo” opens the exact screen as the right de
     const page = html(createElement(ModulePageView, { m }))
     const demo = page.slice(page.indexOf('id="demo"'))
     expect(demo).toMatch(/<a href="\/demo"/)
-    // And every firm on the frame is said to be a demo company, under it.
+    // And every firm on the panel is said to be a demo company, under it.
     expect(demo).toContain('Every firm on this screen is a demo company, not a customer.')
   })
 })

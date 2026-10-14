@@ -1,14 +1,15 @@
 import type { EmbedStep } from '@/lib/sample-seat'
-import { HomeDemo } from './home-demo'
+import { StoryPanel } from './story-panel'
+import { storyIndex } from './story'
 import { HomeFooter } from './frame'
 import {
-  CHIPS, CHIPS_LABEL, FRAME, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
+  ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
   type BandKind,
 } from './skeleton-words'
 
 /**
  * The pieces every page that sells or explains the product draws: the
- * live frame with its four chips, the sign-up band with every party's
+ * panel that shows the product working, the sign-up band with every party’s
  * door on one line, the one security line, and the one-row footer.
  *
  * ── Decided by the founder, 2026-10-14 ───────────────────────────────
@@ -33,27 +34,22 @@ export const PRIMARY_BUTTON =
 const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`
 
 /**
- * The live product, read-only, opened at a step. The button under it is
- * the page's own (it counts its click, or seats the reader at a desk).
+ * The product shown working, opened at a step: the one compact panel
+ * (`./story-panel`) every page that sells the product draws, since the
+ * founder replaced the big live frame with it on 2026-10-14. The button
+ * in its footer is the page's own (it counts its click, or seats the
+ * reader at the right job in the full demo). Under it, the page's one
+ * line about what its reader is looking at, and the label that says every
+ * firm on it is a demo company.
  */
 export function LiveDemo({
   step, caption, label = ON_SCREEN, children,
 }: { step?: EmbedStep; caption?: string; label?: string; children: React.ReactNode }) {
   return (
-    <section id="demo" aria-label="Live demo" className="pb-4">
-      <HomeDemo
-        name={FRAME.name}
-        step={step}
-        title={FRAME.title}
-        chrome={FRAME.chrome}
-        label={label}
-        caption={caption}
-        chipsLabel={CHIPS_LABEL}
-        chips={CHIPS}
-        fallback={FRAME.fallback}
-      >
-        {children}
-      </HomeDemo>
+    <section id="demo" aria-label="The product shown working" className="pb-4">
+      <StoryPanel start={storyIndex(step)}>{children}</StoryPanel>
+      {caption && <p className="mt-3 text-[15px] leading-snug text-etyme-ink">{caption}</p>}
+      <p className={`${caption ? 'mt-1 text-etyme-muted' : 'mt-3 text-etyme-ink'} text-[15px] leading-snug`}>{label}</p>
     </section>
   )
 }

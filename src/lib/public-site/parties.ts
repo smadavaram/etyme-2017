@@ -154,6 +154,6 @@ export function partyAt(slug: string): PartyPage | null {
 export function copyOfPartyPage(p: PartyPage): { hero: string[]; body: string[] } {
   return {
     hero: [p.question, p.purpose],
-    body: [...p.lines, ...copyOfSkeleton({ caption: p.caption, label: ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp, band: p.band })],
+    body: [...p.lines, ...copyOfSkeleton({ step: p.step, caption: p.caption, label: ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp, band: p.band })],
   }
 }

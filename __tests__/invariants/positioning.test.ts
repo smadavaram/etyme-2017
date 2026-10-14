@@ -62,6 +62,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // product page. A fact that moved is pinned where it now lives, so a
 // section cannot fall off both pages at once.
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
+import { STORY, storyCopy } from '@/lib/public-site/story'
 import { BAND, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
@@ -437,9 +438,9 @@ describe('Below the hero, the page says what the business is', () => {
       'Job request, suppliers, submissions, screening, interviews, ' +
       'onboarding, timesheets, bills, compliance'
     )
-    // Since 2026-09-30 the Product menu's groups are the home page's four
-    // steps, in order, and the first is Source, never Hire.
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
+    // Since 2026-09-30 the Product menu's groups are the four steps, in
+    // order; since 2026-10-14 they carry the founder's four nouns.
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Job', 'Step 2 · Candidates', 'Step 3 · Timesheets', 'Step 4 · Invoices'])
   })
 
   it('asks the four questions on About before it argues anything, and leaves the hero to say what the software is', () => {
@@ -1229,53 +1230,40 @@ describe('The record is the product, and Etyme running the program is offered qu
 
 /** Every screenshot the page draws, in source order. None since 2026-10-14. */
 const SCREENS = [...PAGE.matchAll(/\/screens\/[\w-]+\.png/g)].map((m) => m[0])
-/** The four chips under the live product, as the page writes them. */
-const CHIPS = [...PAGE.slice(PAGE.indexOf('const CHIPS'), PAGE.indexOf('const FRAME')).matchAll(/\{ t: '([^']+)', href: '([^']+)' \}/g)]
-  .map((m) => ({ t: m[1], href: m[2] }))
+/** The panel that shows the product working, since it replaced the frame (2026-10-14). */
+const PANEL = readFileSync(join(process.cwd(), 'src/lib/public-site/story-panel.tsx'), 'utf8')
 
 describe('The page shows the product before it describes it', () => {
 
-  it('shows the product before it describes it: the live program dashboard sits straight under the question', () => {
-    // Screens before sentences (2026-09-20) still holds, more than before:
-    // since the founder's page of 2026-10-14 the product is in the page,
-    // live and read-only — the sample program manager's screens from the
-    // frame route, opening on the program dashboard that answers the
-    // question in the headline.
-    // The home page opens it at the overview: no step given, so the frame
-    // loads `/embed/demo` itself (`embedSrc` in home-demo).
+  it('shows the product before it describes it: the panel showing it working sits straight under the question', () => {
+    // Screens before sentences (2026-09-20) still holds. Since the
+    // founder's "Build it" later on 2026-10-14 the product is shown working
+    // in one compact panel, from the seeded demo's own names and figures,
+    // in place of the live frame he found blank or a wall of tables.
     expect(PAGE).toContain('<LiveDemo>')
-    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/home-demo.tsx'), 'utf8')).toContain("export const EMBED_BASE = '/embed/demo'")
+    expect(PAGE).toContain('<StoryPanel start={storyIndex(step)}>')
     expect(PAGE.indexOf('<LiveDemo')).toBeGreaterThan(PAGE.indexOf('<h1'))
     expect(PAGE.indexOf('<LiveDemo')).toBeLessThan(PAGE.indexOf('<SignUpBand'))
-    expect(existsSync(join(process.cwd(), 'src/app/embed/demo/page.tsx'))).toBe(true)
     expect(PAGE).not.toContain('<SampleDesk')
   })
-  it('draws no screenshot, because the product itself is in the frame, and the frame opens a route that exists', () => {
-    // The three screenshots and "Screen 1 of 3" were cut on 2026-10-14: a
-    // picture of software is the clearest sign of a template page. The
-    // frame is an iframe with a title for a screen reader and a box sized
-    // before it loads, so nothing jumps.
+  it('draws no screenshot and no frame: the panel is the product shown working, written into the page', () => {
+    // The three screenshots and "Screen 1 of 3" were cut on 2026-10-14,
+    // and the frame that replaced them the same evening.
     expect(SCREENS).toEqual([])
     expect(PAGE).not.toContain('<img')
     expect(PAGE).not.toContain('Screen ${n} of')
-    const frame = readFileSync(join(process.cwd(), 'src/lib/public-site/home-demo.tsx'), 'utf8')
-    expect(frame).toContain('<iframe')
-    expect(frame).toContain('title={title}')
-    expect(frame).toMatch(/aspect-\[3\/4\][^"]*md:aspect-\[16\/10\]/)
+    expect(PAGE).not.toMatch(/<iframe|HomeDemo/)
+    expect(PANEL).not.toContain('<iframe')
+    expect(PANEL).toContain('aria-label={`Etyme shown working on ${STORY_BAR.company}, a sample company`}')
   })
-  it('walks the four steps as four chips — Source, Submit, Approve, Pay — each opening its own screen in the same frame', () => {
-    // The founder's page of 2026-10-14: "The four steps are walked, not
-    // read." Each chip is a plain link aimed at the frame by name, so it
-    // works with no script; the script only lights the chip pressed. The
-    // overview is the frame's first screen and no chip is lit until one is
-    // pressed, because the overview is none of the four steps.
-    expect(CHIPS.map((c) => c.t)).toEqual(['Source', 'Submit', 'Approve', 'Pay'])
-    expect(CHIPS.map((c) => c.href)).toEqual(['/embed/demo/source', '/embed/demo/submit', '/embed/demo/approve', '/embed/demo/pay'])
-    for (const c of CHIPS) expect(embedStep(c.href.split('/').pop()), c.href).not.toBeNull()
-    expect(EMBED_STEPS).toEqual(['overview', ...CHIPS.map((c) => c.t.toLowerCase())])
-    const frame = readFileSync(join(process.cwd(), 'src/lib/public-site/home-demo.tsx'), 'utf8')
-    expect(frame).toContain('target={name}')
-    expect(frame).toContain('useState(src)')
+  it('walks the four steps as four chips — Job, Candidates, Timesheets, Invoices — each playing its own step in the same panel', () => {
+    // The founder, 2026-10-14: the four nouns a buyer already has on their
+    // own desk. Each chip is the step's own, and the machine names of the
+    // sample screens (source, submit, approve, pay) do not move.
+    expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(EMBED_STEPS).toEqual(['overview', ...STORY.map((s) => s.embed)])
+    for (const s of STORY) expect(embedStep(s.embed), s.chip).not.toBeNull()
+    expect(PANEL).toContain('onClick={() => playStep(i)}')
     expect(PAGE).not.toContain('const SHOWCASE')
   })
   it('every screenshot was captured after the town and title renames', () => {
@@ -1981,7 +1969,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(PAGE).not.toContain('const TILES')
     expect(PAGE).not.toContain('const STEP_LINE')
     expect(PAGE).not.toContain('PRODUCT_STAGES.map')
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
+    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Job', 'Step 2 · Candidates', 'Step 3 · Timesheets', 'Step 4 · Invoices'])
     expect(PRODUCT_STAGES.map((g) => g.items[0].t)).toEqual(['Job requests & suppliers', 'Contracts & onboarding', 'Timesheets & expenses', 'Bills & the three-way check'])
     expect(PAGE).not.toContain("from '@/lib/public-site/module-icons'")
     expect(MODULES).toHaveLength(8)
@@ -2190,6 +2178,8 @@ function everyPublicPage(): [string, string][] {
   }
   out.push(['the header and footer', frameCopy().join(' ')])
   out.push(['the close band', [...closeBandCopy(), SEE_IT.d].join(' ')])
+  // The panel that shows the product working, on every page above (2026-10-14).
+  out.push(['the panel', storyCopy().join(' ')])
   out.push(['/census', JSON.stringify(CENSUS_COPY)])
   return out
 }
@@ -2373,6 +2363,11 @@ function inOurWords(text: string): string {
   t = t.replace(/\bBy role\b/g, ' ')
   // "A role for every seat" is an access role, on the security page.
   t = t.replace(/\bA role for every seat\b/g, ' ')
+  // "Invoices" is the fourth step's name, the founder's of 2026-10-14
+  // (Job, Candidates, Timesheets, Invoices): the step is paying what the
+  // suppliers sent, so its noun is theirs. Set aside as the chips and as
+  // "Step 4 · Invoices", nowhere else.
+  t = t.replace(/\bJob Candidates Timesheets Invoices\b/g, ' ').replace(/\bStep 4 · Invoices\b/g, ' ')
   return t
 }
 
@@ -2402,6 +2397,11 @@ function supplierSide(text: string): string {
     /\bsupplier’s\s+invoice\b/gi,
     /\bthe invoice a supplier is paid on\b/gi,
     /\bnever invoiced\b/gi,
+    // A named supplier's own document, as the panel says it in the trade's
+    // words (2026-10-14): "Pinnacle Resourcing’s invoices", "invoice
+    // PR-2026-0441" — the number is the supplier's, so the invoice is.
+    /\b(?:[A-Z][\w]+ )*[A-Z][\w]+(?:’s|'s) invoices?\b/g,
+    /\binvoice [A-Z]{2}-\d{4}-\d{4}\b/g,
   ]) t = t.replace(kept, ' ')
   return t
 }

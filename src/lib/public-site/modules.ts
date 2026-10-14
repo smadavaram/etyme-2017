@@ -275,6 +275,6 @@ export function moduleAt(route: string): ModulePage | null {
 export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } {
   return {
     hero: [m.question, m.purpose],
-    body: [...m.lines, ...(m.link ? [m.link.t] : []), ...copyOfSkeleton({ button: OPEN_DEMO })],
+    body: [...m.lines, ...(m.link ? [m.link.t] : []), ...copyOfSkeleton({ step: m.step, button: OPEN_DEMO })],
   }
 }

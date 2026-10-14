@@ -89,7 +89,7 @@ export interface ProcessPage {
 export const PROCESS: ProcessPage[] = [
   {
     slug: 'source-to-contract',
-    title: 'Source: job request to award',
+    title: 'Job: from job request to award',
     when: 'Steps 1 and 2',
     step: 1,
     lede: 'A hiring manager asks for a contractor, and the job goes only to the suppliers Procurement cleared.',

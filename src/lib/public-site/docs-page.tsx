@@ -334,10 +334,10 @@ export function ProcessHomeView() {
           <FlowChart
             label="The process, in order"
             boxes={[
-              { who: 'CLIENT', t: 'Source: a job request goes to cleared suppliers' },
-              { who: 'CLIENT', t: 'Award, and the papers before day one' },
-              { who: 'WORKER', t: 'The week is filed and signed' },
-              { who: 'SUPPLIER', t: 'Bill, check and pay' },
+              { who: 'CLIENT', t: 'Job: a job request goes to cleared suppliers' },
+              { who: 'CLIENT', t: 'Candidates: award, and the papers before day one' },
+              { who: 'WORKER', t: 'Timesheets: the week is filed and signed' },
+              { who: 'SUPPLIER', t: 'Invoices: bill, check and pay' },
               { who: 'BOOKS', t: 'Post to your books' },
               { who: 'RULES', t: 'The work ends; time on site stays' },
             ]}

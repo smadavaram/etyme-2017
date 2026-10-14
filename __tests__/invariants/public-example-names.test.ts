@@ -30,6 +30,7 @@ import { copyFrom } from '@/lib/positioning'
 import { MODULES, copyOfModule } from '@/lib/public-site/modules'
 import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { ON_SCREEN } from '@/lib/public-site/skeleton-words'
+import { STORY, STORY_BAR, storyChromeCopy } from '@/lib/public-site/story'
 import { COMPANY_PAGES, copyOfCompanyPage } from '@/lib/public-site/company'
 import { docSlugs, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/index'
 import { frameCopy } from '@/lib/public-site/nav'
@@ -103,30 +104,33 @@ function everything(): Said[] {
     for (const t of texts) for (const s of sentences(t)) out.push({ where, unit: s })
   }
 
-  // The home page's frame names the sample program in its chrome strip,
-  // in the drawing's words, and says under the frame that every firm on
-  // it is a demo company and not a customer (2026-10-14). The two are one
-  // caption, drawn together by one component, so they are read as one.
-  // Since the same day the frame and its caption are drawn from the
-  // skeleton the home page shares with every product page and party door.
+  // The panel that shows the product working (2026-10-14, replacing the
+  // live frame) names the sample program on its bar — "Northbend
+  // Athletic, a sample company" — and the line under it says every firm on
+  // it is a demo company and not a customer. The panel is the product
+  // shown working, as the frame's screens were: its rows name the seeded
+  // suppliers, every one checked against the seed (story-panel.test.ts),
+  // and its bar and the line under it are one caption, read as one.
   const front = read('src/app/page.tsx') + '\n' + read('src/lib/public-site/skeleton-words.ts')
-  const chrome = front.match(/chrome: '([^']+)'/)![1]
+  const chrome = `${STORY_BAR.company}, ${STORY_BAR.rest}`
   const onScreen = front.match(/const ON_SCREEN = '([^']+)'/)![1]
   const doorScreen = front.match(/const ON_SCREEN_DOOR = '([^']+)'/)![1]
-  add('/', copyFrom(front).filter((t) => t !== chrome && t !== onScreen && t !== doorScreen))
-  out.push({ where: '/ (the frame’s caption)', unit: `${chrome} ${onScreen}` })
+  const panel = new Set(storyChromeCopy().concat(STORY.map((s) => `${s.sum.big} ${s.sum.rest}`)))
+  const notPanel = (t: string) => !panel.has(t)
+  add('/', copyFrom(front).filter((t) => t !== onScreen && t !== doorScreen))
+  out.push({ where: '/ (the panel’s caption)', unit: `${chrome} ${onScreen}` })
 
-  // A product page and a party door draw the same frame with the same
+  // A product page and a party door draw the same panel with the same
   // caption under it; a door's caption line says whose screen it is.
   for (const m of MODULES) {
     const c = copyOfModule(m)
-    add(m.route, [...c.hero, ...c.body].filter((t) => t !== chrome && t !== onScreen))
-    out.push({ where: `${m.route} (the frame’s caption)`, unit: `${chrome} ${onScreen}` })
+    add(m.route, [...c.hero, ...c.body].filter((t) => notPanel(t) && t !== onScreen))
+    out.push({ where: `${m.route} (the panel’s caption)`, unit: `${chrome} ${onScreen}` })
   }
   for (const p of PARTY_PAGES) {
     const c = copyOfPartyPage(p)
-    add(p.route, [...c.hero, ...c.body].filter((t) => t !== chrome && t !== doorScreen))
-    out.push({ where: `${p.route} (the frame’s caption)`, unit: `${chrome} ${doorScreen}` })
+    add(p.route, [...c.hero, ...c.body].filter((t) => notPanel(t) && t !== doorScreen))
+    out.push({ where: `${p.route} (the panel’s caption)`, unit: `${chrome} ${doorScreen}` })
   }
 
   for (const p of COMPANY_PAGES) {
@@ -189,22 +193,21 @@ describe('An invented company never reads as a customer', () => {
     expect(lists, lists.join('\n  ')).toEqual([])
   })
 
-  it('the home page names one example company, the sample program in its frame, and only in a caption that says every firm on it is a demo company and not a customer', () => {
-    // Since 2026-10-14 the product is in the page: the sample program
-    // manager's screens at Northbend Athletic, live and read-only. The
-    // chrome strip names the program, in the drawing's words, and the line
-    // under the frame, always shown, carries the founder's label. The
-    // frame's title, read by a screen reader instead, says both at once.
+  it('the home page names one example company, the sample program on its panel, and only in a caption that says every firm on it is a demo company and not a customer', () => {
+    // Since 2026-10-14 the product is shown working in the page, at the
+    // sample program Northbend Athletic. The panel's bar names the program
+    // as a sample company, and the line under the panel, always shown,
+    // carries the founder's label.
     const home = SAID.filter((s) => s.where.startsWith('/') && s.where.split(' ')[0] === '/')
     const named = [...new Set(home.flatMap((s) => firmsIn(s.unit)))]
     expect(named).toEqual(['Northbend Athletic'])
     for (const s of home.filter((x) => firmsIn(x.unit).length > 0)) {
       expect(SAYS_IT_IS_A_DEMO(s.unit), s.unit).toBe(true)
     }
-    expect(home.some((s) => s.where === '/ (the frame’s caption)')).toBe(true)
+    expect(home.some((s) => s.where === '/ (the panel’s caption)')).toBe(true)
   })
 
-  it('the live product on the home page is labeled under it, always visible, because its screens list names the text guard cannot read', () => {
+  it('the product shown on the home page is labeled under it, always visible, because its rows name the seeded firms', () => {
     // The three screenshots and their captions left on 2026-10-14. The
     // frame shows the seeded world's real rows, which no test reads, so
     // the label under it carries the disclaimer for everything on it: one
@@ -215,7 +218,10 @@ describe('An invented company never reads as a customer', () => {
     const page = read('src/app/page.tsx')
     expect(ON_SCREEN).toBe('You are the program manager. Every firm on this screen is a demo company, not a customer.')
     expect(read('src/lib/public-site/skeleton.tsx')).toContain('label = ON_SCREEN')
-    const frame = read('src/lib/public-site/home-demo.tsx')
+    // Drawn under the panel by the skeleton since the panel replaced the
+    // frame (2026-10-14), and the panel's own bar says "a sample company".
+    const frame = read('src/lib/public-site/skeleton.tsx')
+    expect(read('src/lib/public-site/story.ts')).toContain("rest: 'a sample company · ")
     const line = frame.match(/<p className=\{`([^`]+)`\}>\{label\}<\/p>/)
     expect(line, 'the label is drawn as its own line').not.toBeNull()
     expect(line![1]).not.toMatch(/(?:^|\s)(?:hidden|sr-only|sm:hidden|md:hidden)(?:\s|$)/)
