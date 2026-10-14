@@ -78,7 +78,7 @@ describe('the Etyme bot in Teams', () => {
         companyKind: 'CLIENT', companyName: 'Northbend Athletic', permissions: ['payments.record', 'invoices.read'],
       },
     })
-    expect(said.says).toMatch(/^Approved\. It is recorded in the twin’s ledger under your name/)
+    expect(said.says).toMatch(/^Approved\. It is recorded under your name/)
 
     // The door the bot uses is the function the web's route uses.
     expect(DOOR.decide).toBe(decideApproval)
@@ -88,7 +88,7 @@ describe('the Etyme bot in Teams', () => {
     decide.mockClear()
     const noReason = await answerCardAction({ etyme: 'twin.approval', approvalId: 'appr_000001', decision: 'REJECTED' }, dana, deps)
     expect(decide).not.toHaveBeenCalled()
-    expect(noReason.says).toBe('Say why before rejecting, so the twin and whoever reads the ledger know. Nothing changed.')
+    expect(noReason.says).toBe('Give a reason before rejecting, so it is on the record. Nothing changed.')
 
     // What the door refuses, the bot says, word for word.
     decide.mockResolvedValueOnce({ ok: false, status: 403, says: 'Somebody has already answered this.' } as any)
@@ -144,7 +144,7 @@ describe('the Etyme bot in Teams', () => {
     // Where the record carries no total, the card says so rather than showing a number.
     const blank = invoiceApprovalCard({ ...receipt, amountMinor: null, variances: [] }) as Card
     expect(blank.body[1].facts[0]).toEqual({ title: 'Amount', value: 'Not on the invoice receipt' })
-    expect(allText(blank.body)).toContain('None. The hours and the rate agree with what was accepted and the contract.')
+    expect(allText(blank.body)).toContain('None. The hours match the approved timesheets, and the rate matches the contract.')
   })
 
   describe('with no bot keys', () => {
@@ -181,7 +181,7 @@ describe('the Etyme bot in Teams', () => {
   it('a Teams identity nobody at Etyme holds is refused in a sentence', () => {
     const nobody = chooseSeat({ userPrincipalName: 'stranger@northbend.example' }, null, [])
     expect(nobody).toEqual({ ok: false, code: 'NOBODY', says: NOBODY_HAS_THIS_EMAIL })
-    expect(NOBODY_HAS_THIS_EMAIL).toBe('Nobody at Etyme has this email. Ask your company’s owner for a seat.')
+    expect(NOBODY_HAS_THIS_EMAIL).toBe('Nobody at Etyme has this email. Ask your company’s owner to invite you.')
 
     const person = { id: 'person_dana', name: 'Dana Whitfield', primaryEmail: 'dana@northbend.example' }
     const seat = (s: Partial<Seat>): Seat => ({
@@ -250,13 +250,13 @@ describe('the Etyme bot in Teams', () => {
   })
 
   it('the digest says each thing when it appears and once more just before it is due, and is never sent empty', () => {
-    expect(digestHeading(3, 1)).toBe('3 invoice receipts need approval · 1 time-limit risk')
+    expect(digestHeading(3, 1)).toBe('3 invoice receipts need approval · 1 contractor near the time limit')
     expect(digestHeading(1, 0)).toBe('1 invoice receipt needs approval')
     expect(digestHeading(0, 0)).toBeNull()
     expect(digestCard([], [])).toBeNull()
 
     const card = digestCard([receipt], [risk]) as Card
-    expect(card.body[0].text).toBe('1 invoice receipt needs approval · 1 time-limit risk')
+    expect(card.body[0].text).toBe('1 invoice receipt needs approval · 1 contractor near the time limit')
     const sets = card.body.flatMap((b: any) => (b.items ?? []).filter((i: any) => i.type === 'ActionSet'))
     expect(sets.map((s: any) => s.actions.map((a: any) => a.title))).toEqual([['Approve', 'Reject', 'Why?'], ['Acknowledge', 'Escalate']])
 

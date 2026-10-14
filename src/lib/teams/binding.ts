@@ -68,7 +68,7 @@ export type Binding =
   | { ok: false; code: 'NO_ADDRESS' | 'NOBODY' | 'PERSONAL_ADDRESS' | 'CONSULTANT' | 'NO_SEAT' | 'WHICH_SEAT'; says: string }
 
 /** The coordinator's sentence, word for word: what is wrong and what to do. */
-export const NOBODY_HAS_THIS_EMAIL = 'Nobody at Etyme has this email. Ask your company’s owner for a seat.'
+export const NOBODY_HAS_THIS_EMAIL = 'Nobody at Etyme has this email. Ask your company’s owner to invite you.'
 
 const domainOf = (address: string) => address.slice(address.lastIndexOf('@') + 1).toLowerCase()
 const looksLikeAddress = (s: string | null | undefined): s is string => !!s && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.trim())
@@ -112,7 +112,7 @@ export function chooseSeat(
   if (business.length === 0) {
     return seats.length > 0
       ? { ok: false, code: 'CONSULTANT', says: 'You are on Etyme as a consultant, and Etyme writes to consultants by email, not in Teams. Nothing here needs you.' }
-      : { ok: false, code: 'NO_SEAT', says: 'Your seat at Etyme has ended or is paused, so the bot cannot act for you. Ask your company’s owner to give it back.' }
+      : { ok: false, code: 'NO_SEAT', says: 'Your Etyme account has ended or is paused, so the bot cannot act for you. Ask your company’s owner to turn it back on.' }
   }
   const onDomain = business.filter((s) => s.companyDomain && s.companyDomain.toLowerCase() === domain)
   const seat = onDomain.length === 1 ? onDomain[0] : business.length === 1 ? business[0] : null
@@ -120,7 +120,7 @@ export function chooseSeat(
     const names = [...new Set(business.map((s) => s.companyName))]
     return {
       ok: false, code: 'WHICH_SEAT',
-      says: `You hold seats at ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' and ' : ''}${names[names.length - 1]}, and none is the company on ${domain}. Teams acts for one company: ask the owner of the one you want to put ${domain} on it.`,
+      says: `You have accounts at ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' and ' : ''}${names[names.length - 1]}, and none is the company on ${domain}. Teams acts for one company: ask the owner of the one you want to put ${domain} on it.`,
     }
   }
   return {

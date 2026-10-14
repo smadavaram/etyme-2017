@@ -51,7 +51,7 @@ type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: str
 /** The twin's numbers, the hours tolerance among them: the architect's rules page. */
 const RULES_HREF = '/dashboard/twin/rules'
 
-const SUBTITLE = 'Answers from your record and its rules. Anything it does is in the twin’s ledger.'
+const SUBTITLE = 'Answers from your record and its rules. Anything it does is recorded.'
 
 export function AskEtyme() {
   const session = useSession()
@@ -460,7 +460,7 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
           className="mt-3 flex flex-col gap-2"
           onSubmit={(e) => { e.preventDefault(); if (reason.trim()) onDecide(item, 'REJECTED', reason.trim()) }}
         >
-          <label htmlFor={`why-${item.approvalId}`} className="text-[12.5px] text-etyme-muted">Why not? Your reason goes in the twin’s ledger under your name.</label>
+          <label htmlFor={`why-${item.approvalId}`} className="text-[12.5px] text-etyme-muted">Why not? Your reason is recorded under your name.</label>
           <Textarea id={`why-${item.approvalId}`} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
           <div className="flex flex-wrap gap-2">
             <button type="submit" className="btn-secondary text-[13px]" disabled={busy || !reason.trim()}>{busy ? 'Recording…' : 'Reject with this reason'}</button>
@@ -518,8 +518,8 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
   return (
     <>
       <ReplyTable
-        caption="Invoice variance by supplier"
-        head={[{ label: 'Supplier' }, { label: 'Receipts', n: true }, { label: 'Clean', n: true }, { label: 'Not clean', n: true }, { label: 'Hours over accepted', n: true }]}
+        caption="Invoice mismatches by supplier"
+        head={[{ label: 'Supplier' }, { label: 'Receipts', n: true }, { label: 'Match', n: true }, { label: 'Do not match', n: true }, { label: 'Hours over approved', n: true }]}
       >
         {rows.map((r) => {
           const off = r.mismatch + r.held
@@ -530,14 +530,14 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
               <td className={tdN}>{r.clean}</td>
               <td className={`${tdN} ${off > 0 ? 'font-semibold text-etyme-attention' : ''}`}>{off}{r.held > 0 ? ` (${r.held} held)` : ''}</td>
               <td className={`${tdN} ${(r.hoursOverAccepted ?? 0) > 0 ? 'font-semibold text-etyme-attention' : ''}`}>
-                {r.hoursOverAccepted == null ? 'No week accepted yet' : hrs(r.hoursOverAccepted)}
+                {r.hoursOverAccepted == null ? 'No timesheet approved yet' : hrs(r.hoursOverAccepted)}
               </td>
             </tr>
           )
         })}
       </ReplyTable>
       {notAccepted && (
-        <p className="text-[12px] text-etyme-muted">Hours billed on weeks nobody has accepted are not counted as over; they hold the receipt until the week is accepted.</p>
+        <p className="text-[12px] text-etyme-muted">Hours billed on timesheets nobody has approved are not counted as over; they hold the invoice until the timesheet is approved.</p>
       )}
     </>
   )
@@ -546,8 +546,8 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
 function LimitTable({ rows }: { rows: LimitRow[] }) {
   return (
     <ReplyTable
-      caption="People near the time limit"
-      head={[{ label: 'Person' }, { label: 'Days left', n: true }, { label: 'Limit reached' }, { label: 'Suppliers' }]}
+      caption="Contractors near the time limit"
+      head={[{ label: 'Contractor' }, { label: 'Days left', n: true }, { label: 'Limit reached' }, { label: 'Suppliers' }]}
     >
       {rows.map((r) => (
         <tr key={r.personId}>
@@ -584,8 +584,8 @@ function SpendTable({ rows }: { rows: SpendRow[] }) {
 function WeekTable({ rows }: { rows: WeekRow[] }) {
   return (
     <ReplyTable
-      caption="Weeks waiting for a signature"
-      head={[{ label: 'Person' }, { label: 'Week' }, { label: 'Hours', n: true }, { label: 'Waiting', n: true }]}
+      caption="Timesheets waiting for approval"
+      head={[{ label: 'Contractor' }, { label: 'Week' }, { label: 'Hours', n: true }, { label: 'Waiting', n: true }]}
     >
       {rows.map((r) => (
         <tr key={r.timesheetId}>

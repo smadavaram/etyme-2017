@@ -48,7 +48,7 @@ const APPROVE_441: WaitingItem = {
   href: '/dashboard/invoices/inv-441',
 }
 
-/** What the program manager reads as waiting on another desk: asked on her own authority. */
+/** What the program manager reads as waiting on somebody else: asked on her own authority. */
 const FOR_AP: OtherWaiting[] = [
   { title: 'PR-2026-0441', noun: 'invoice receipt', desks: ['AP Clerk'], own: true, href: '/dashboard/invoices/inv-441', people: ['Renata Kowal'] },
   { title: 'IN-XSWQQZ-20260901', noun: 'invoice receipt', desks: ['AP Clerk'], own: true, href: '/dashboard/invoices/inv-cs', people: ['Renata Kowal'] },
@@ -84,7 +84,7 @@ const ENTRY_442 = {
   entityType: 'Invoice', entityId: 'inv-442',
 }
 
-// ── The four desks ───────────────────────────────────────────────────
+// ── The four roles ───────────────────────────────────────────────────
 
 type Desk = 'PM' | 'AP' | 'HM' | 'SUPPLIER'
 
@@ -115,15 +115,15 @@ function seat(desk: Desk): Seat {
       ...(/PR-2026-0442/.test(text) && desk !== 'SUPPLIER' ? { receipt: { number: 'PR-2026-0442', invoiceId: 'inv-442' } } : {}),
     }),
     unsignedWeeks: async () => (kind !== 'CLIENT'
-      ? { ok: false as const, says: 'Your client signs those weeks; the ones you accept are on Timesheets.', links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }] }
+      ? { ok: false as const, says: 'Your client approves those timesheets; the ones you accept are on Timesheets.', links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }] }
       : !has('timesheets.read') && !has('timesheets.approve')
-        ? { ok: false as const, says: deskRefusal('reads the weeks waiting for a signature', 'timesheets.approve', kind) }
+        ? { ok: false as const, says: deskRefusal('reads the timesheets waiting for approval', 'timesheets.approve', kind) }
         : { ok: true as const, rows: WEEKS, total: WEEKS.length, company, maySign: has('timesheets.approve') }),
     spendIn: async () => (!has('invoices.read')
       ? { ok: false as const, says: deskRefusal('reads what suppliers billed you', 'invoices.read', kind) }
       : { ok: true as const, receipts: kind === 'CLIENT' ? SPEND : [], undated: 0 }),
     receiptsIn: async () => (!has('invoices.read')
-      ? { ok: false as const, says: deskRefusal('reads invoice variance by supplier', 'invoices.read', kind) }
+      ? { ok: false as const, says: deskRefusal('reads invoice mismatches by supplier', 'invoices.read', kind) }
       : { ok: true as const, receipts: kind === 'CLIENT' ? RECEIPTS : [] }),
     entry: async (ref) => (ref === 'PR-2026-0442' || ref === 'entry-442' ? ENTRY_442
       : ref === 'entry-441' ? { ...ENTRY_442, id: 'entry-441', says: APPROVE_441.says, ruleCited: APPROVE_441.ruleCited, rationale: APPROVE_441.rationale, entityId: 'inv-441' }
@@ -175,62 +175,62 @@ afterAll(() => {
 describe('Lorena, program manager at Northbend Athletic', () => {
   it('the program manager asks “What needs me today?” and the rules answer it', async () => {
     await check('PM', 'What needs me today?', 'ANSWERED',
-      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme waits on you. Checked just now. Two invoice receipts wait for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to approve: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Anything waiting on me?” and the rules answer it', async () => {
     await check('PM', 'Anything waiting on me?', 'ANSWERED',
-      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme waits on you. Checked just now. Two invoice receipts wait for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to sign: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to approve: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Who is near the time limit?” and the rules answer it', async () => {
     await check('PM', 'Who is near the time limit?', 'ANSWERED',
-      'Plan Tobias Lindqvist’s end date or break now. One person is inside a time-limit warning, counted across every supplier. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026. Checked just now.')
+      'Plan Tobias Lindqvist’s end date or break in service now. One contractor is near the time limit, counted across every supplier. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026. Checked just now.')
   })
 
-  it('the program manager asks “Is anyone close to 18 months?” and the rules answer it', async () => {
-    await check('PM', 'Is anyone close to 18 months?', 'ANSWERED',
-      'Plan Tobias Lindqvist’s end date or break now. One person is inside a time-limit warning, counted across every supplier. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026. Checked just now.')
+  it('the program manager asks “Is anyone close to 18 months here?” and the rules answer it', async () => {
+    await check('PM', 'Is anyone close to 18 months here?', 'ANSWERED',
+      'Plan Tobias Lindqvist’s end date or break in service now. One contractor is near the time limit, counted across every supplier. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026. Checked just now.')
   })
 
   it('the program manager asks “What did we spend by supplier this month?” and the rules answer it', async () => {
     await check('PM', 'What did we spend by supplier this month?', 'ANSWERED',
-      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoice receipts. Of that, $21,120.00 is paid. Counted by the day each was billed, and checked just now.')
+      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoices. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
   })
 
   it('the program manager asks “How much have suppliers billed us this month?” and the rules answer it', async () => {
     await check('PM', 'How much have suppliers billed us this month?', 'ANSWERED',
-      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoice receipts. Of that, $21,120.00 is paid. Counted by the day each was billed, and checked just now.')
+      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoices. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
   })
 
-  it('the program manager asks “Which weeks are unsigned?” and the rules answer it', async () => {
-    await check('PM', 'Which weeks are unsigned?', 'ANSWERED',
-      'Sign Helena Marsh’s week first; it has waited 2 days. Three weeks wait for a signature at Northbend Athletic. Checked just now.')
+  it('the program manager asks “Which timesheets are waiting for approval?” and the rules answer it', async () => {
+    await check('PM', 'Which timesheets are waiting for approval?', 'ANSWERED',
+      'Approve Helena Marsh’s timesheet first; it has waited 2 days. Three timesheets are waiting for approval at Northbend Athletic. Checked just now.')
   })
 
-  it('the program manager asks “Show me invoice variance by supplier this quarter” and the rules answer it', async () => {
-    await check('PM', 'Show me invoice variance by supplier this quarter', 'ANSWERED',
-      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoice receipts from two suppliers were billed in Q4 2026. One receipt is not clean: 1.5 hours billed over what was accepted. Counted by the day each was billed, and checked just now against the three-way check. Last night’s check called PR-2026-0441 not clean; it is clean now.')
+  it('the program manager asks “Show me invoice mismatches by supplier this quarter” and the rules answer it', async () => {
+    await check('PM', 'Show me invoice mismatches by supplier this quarter', 'ANSWERED',
+      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoices from two suppliers were received in Q4 2026. One invoice does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
   })
 
-  it('the program manager asks “Which invoice receipts don\'t match?” and the rules answer it', async () => {
-    await check('PM', 'Which invoice receipts don\'t match?', 'ANSWERED',
-      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoice receipts from two suppliers were billed in Q4 2026. One receipt is not clean: 1.5 hours billed over what was accepted. Counted by the day each was billed, and checked just now against the three-way check. Last night’s check called PR-2026-0441 not clean; it is clean now.')
+  it('the program manager asks “Which invoices don\'t match the timesheets?” and the rules answer it', async () => {
+    await check('PM', 'Which invoices don\'t match the timesheets?', 'ANSWERED',
+      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoices from two suppliers were received in Q4 2026. One invoice does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
   })
 
-  it('the program manager asks “Extend Helena three months” and is refused in one sentence that names the door', async () => {
-    await check('PM', 'Extend Helena three months', 'REFUSED',
-      'Etyme never extends a placement; you hold that desk, so do it from Helena Marsh’s line on Contracts.')
+  it('the program manager asks “Extend Helena Marsh\'s contract by three months” and is refused in one sentence that names the door', async () => {
+    await check('PM', 'Extend Helena Marsh\'s contract by three months', 'REFUSED',
+      'Etyme never extends a contract; you can, from Helena Marsh’s line on Contracts.')
   })
 
-  it('the program manager asks “End Omar Haddad\'s placement on Friday” and is refused in one sentence that names the door', async () => {
-    await check('PM', 'End Omar Haddad\'s placement on Friday', 'REFUSED',
-      'Etyme never ends a placement; you hold that desk, so do it from Omar Haddad’s line on Contracts.')
+  it('the program manager asks “End Omar Haddad\'s contract on Friday” and is refused in one sentence that names the door', async () => {
+    await check('PM', 'End Omar Haddad\'s contract on Friday', 'REFUSED',
+      'Etyme never ends a contract; you can, from Omar Haddad’s line on Contracts.')
   })
 
   it('the program manager asks “Sign the MSA with Veritan Talent” and is refused in one sentence that names the door', async () => {
     await check('PM', 'Sign the MSA with Veritan Talent', 'REFUSED',
-      'Etyme never signs an agreement; you hold that desk, so do it on the agreement’s page.')
+      'Etyme never signs an agreement; you can, on the agreement’s page.')
   })
 
   it('the program manager asks “What markup is Pinnacle making on Helena?” and is refused in one sentence that names the door', async () => {
@@ -238,24 +238,24 @@ describe('Lorena, program manager at Northbend Athletic', () => {
       'Etyme never shows a firm’s margin to anybody else; your dashboard shows what you pay each supplier.')
   })
 
-  it('the program manager asks “How many open job requests do we have?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('PM', 'How many open job requests do we have?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('the program manager asks “How many open jobs do we have?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('PM', 'How many open jobs do we have?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the program manager asks “Which documents expire this month?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Which documents expire this month?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the program manager asks “What is our average bill rate for data engineers?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'What is our average bill rate for data engineers?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the program manager asks “Who starts next week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Who starts next week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
 })
@@ -263,26 +263,26 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 describe('Renata, AP clerk at Northbend Athletic', () => {
   it('the AP clerk asks “What needs me today?” and the rules answer it', async () => {
     await check('AP', 'What needs me today?', 'ANSWERED',
-      'Approve PR-2026-0441 from Pinnacle Resourcing; it passes the three-way check. Etyme is asking you one thing; approve it below, or reject it with a reason. Checked just now. PR-2026-0442 bills 41.5 hours against 40 accepted; it cannot be paid until Pinnacle Resourcing corrects it.')
+      'Approve PR-2026-0441 from Pinnacle Resourcing; it matches the approved hours and the contract rate. Etyme is asking you one thing; approve it below, or reject it with a reason. Checked just now. PR-2026-0442 bills 41.5 hours against 40 approved; it cannot be paid until Pinnacle Resourcing corrects it.')
   })
 
   it('the AP clerk asks “Approve 1” and the rules answer it', async () => {
     await check('AP', 'Approve 1', 'ANSWERED',
-      'Approve PR-2026-0441 from Pinnacle Resourcing? Your yes goes in the twin’s ledger under your name.')
+      'Approve PR-2026-0441 from Pinnacle Resourcing? Your approval is recorded under your name.')
   })
 
   it('the AP clerk asks “Reject 1” and the rules answer it', async () => {
     await check('AP', 'Reject 1', 'ANSWERED',
-      'Say why, so whoever reads the twin’s ledger knows: “Reject 1 because …”.')
+      'Give a reason, so it is on the record: “Reject 1 because …”.')
   })
 
-  it('the AP clerk asks “Reject 1 because the hours are over what we signed” and the rules answer it', async () => {
-    await check('AP', 'Reject 1 because the hours are over what we signed', 'ANSWERED',
-      'Reject PR-2026-0441 from Pinnacle Resourcing, because “the hours are over what we signed”? Etyme does nothing, and your reason goes in the twin’s ledger.')
+  it('the AP clerk asks “Reject 1 because the hours are over what we approved” and the rules answer it', async () => {
+    await check('AP', 'Reject 1 because the hours are over what we approved', 'ANSWERED',
+      'Reject PR-2026-0441 from Pinnacle Resourcing, because “the hours are over what we approved”? Nothing else happens, and your reason is recorded under your name.')
   })
 
-  it('the AP clerk asks “Why is PR-2026-0442 not clean?” and the rules answer it', async () => {
-    await check('AP', 'Why is PR-2026-0442 not clean?', 'ANSWERED',
+  it('the AP clerk asks “Why doesn\'t PR-2026-0442 match?” and the rules answer it', async () => {
+    await check('AP', 'Why doesn\'t PR-2026-0442 match?', 'ANSWERED',
       'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.')
   })
 
@@ -293,7 +293,7 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
 
   it('the AP clerk asks “Pay PR-2026-0442” and is refused in one sentence that names the door', async () => {
     await check('AP', 'Pay PR-2026-0442', 'REFUSED',
-      'Etyme never pays an invoice receipt; you hold that desk, so do it on PR-2026-0442’s page.')
+      'Etyme never pays an invoice; you can, on PR-2026-0442’s page.')
   })
 
   it('the AP clerk asks “Run payroll” and is refused in one sentence that names the door', async () => {
@@ -306,24 +306,24 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
       'Your Program Manager or Approver reads who is near the time limit; ask them.')
   })
 
-  it('the AP clerk asks “Which weeks are unsigned?” and is refused in one sentence that names the door', async () => {
-    await check('AP', 'Which weeks are unsigned?', 'REFUSED',
-      'Your Hiring Manager reads the weeks waiting for a signature; ask them.')
+  it('the AP clerk asks “Which timesheets still need approval?” and is refused in one sentence that names the door', async () => {
+    await check('AP', 'Which timesheets still need approval?', 'REFUSED',
+      'Your Hiring Manager reads the timesheets waiting for approval; ask them.')
   })
 
-  it('the AP clerk asks “Which invoice receipts are due this week?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('AP', 'Which invoice receipts are due this week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('the AP clerk asks “Which invoices are due this week?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('AP', 'Which invoices are due this week?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the AP clerk asks “How much did we pay Computer Systems last quarter?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('AP', 'How much did we pay Computer Systems last quarter?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the AP clerk asks “What can you do?” and the rules answer it', async () => {
     await check('AP', 'What can you do?', 'ANSWERED',
-      'I answer these from the record: what needs you, the time limit, spend, unsigned weeks and invoice variance. I also answer “Why 1”, “Approve 1” and “Reject 1 because …”.')
+      'I answer from the record: what needs you, the time limit, spend, timesheets to approve and invoice mismatches. I also answer “Why 1”, “Approve 1” and “Reject 1 because …”.')
   })
 
 })
@@ -331,32 +331,32 @@ describe('Renata, AP clerk at Northbend Athletic', () => {
 describe('the hiring manager at Northbend Athletic', () => {
   it('the hiring manager asks “What needs me today?” and the rules answer it', async () => {
     await check('HM', 'What needs me today?', 'ANSWERED',
-      'Nothing needs you today, and nothing Etyme asked waits on anybody. Checked just now.')
+      'Nothing needs you today, and nothing Etyme asked is waiting on anybody. Checked just now.')
   })
 
-  it('the hiring manager asks “Which timesheets are waiting for me to sign?” and the rules answer it', async () => {
-    await check('HM', 'Which timesheets are waiting for me to sign?', 'ANSWERED',
-      'Sign Helena Marsh’s week first; it has waited 2 days. Three weeks wait for a signature at Northbend Athletic. Checked just now.')
+  it('the hiring manager asks “Which timesheets are waiting for me to approve?” and the rules answer it', async () => {
+    await check('HM', 'Which timesheets are waiting for me to approve?', 'ANSWERED',
+      'Approve Helena Marsh’s timesheet first; it has waited 2 days. Three timesheets are waiting for approval at Northbend Athletic. Checked just now.')
   })
 
   it('the hiring manager asks “Any hours waiting for approval?” and the rules answer it', async () => {
     await check('HM', 'Any hours waiting for approval?', 'ANSWERED',
-      'Sign Helena Marsh’s week first; it has waited 2 days. Three weeks wait for a signature at Northbend Athletic. Checked just now.')
+      'Approve Helena Marsh’s timesheet first; it has waited 2 days. Three timesheets are waiting for approval at Northbend Athletic. Checked just now.')
   })
 
-  it('the hiring manager asks “Award the data engineer job to Priya” and is refused in one sentence that names the door', async () => {
-    await check('HM', 'Award the data engineer job to Priya', 'REFUSED',
-      'Etyme never awards a job; you hold that desk, so do it on the submission.')
+  it('the hiring manager asks “Hire Priya for the data engineer job” and is refused in one sentence that names the door', async () => {
+    await check('HM', 'Hire Priya for the data engineer job', 'REFUSED',
+      'Etyme never selects a candidate; you can, on the candidate’s submission.')
   })
 
-  it('the hiring manager asks “Reject the submission from Brightmoor” and is refused in one sentence that names the door', async () => {
-    await check('HM', 'Reject the submission from Brightmoor', 'REFUSED',
-      'Etyme never rejects a submission; you hold that desk, so do it on the submission.')
+  it('the hiring manager asks “Reject Brightmoor\'s candidate” and is refused in one sentence that names the door', async () => {
+    await check('HM', 'Reject Brightmoor\'s candidate', 'REFUSED',
+      'Etyme never rejects a candidate; you can, on the candidate’s submission.')
   })
 
-  it('the hiring manager asks “Sign Helena\'s week” and is refused in one sentence that names the door', async () => {
-    await check('HM', 'Sign Helena\'s week', 'REFUSED',
-      'Etyme never signs a week of hours; you hold that desk, so do it on Timesheets.')
+  it('the hiring manager asks “Approve Helena\'s timesheet” and is refused in one sentence that names the door', async () => {
+    await check('HM', 'Approve Helena\'s timesheet', 'REFUSED',
+      'Etyme never approves a timesheet; you can, on Timesheets.')
   })
 
   it('the hiring manager asks “What did we spend this month?” and is refused in one sentence that names the door', async () => {
@@ -364,19 +364,19 @@ describe('the hiring manager at Northbend Athletic', () => {
       'Your Program Manager or AP Clerk reads what suppliers billed you; ask them.')
   })
 
-  it('the hiring manager asks “How many candidates were submitted for the data engineer job?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('HM', 'How many candidates were submitted for the data engineer job?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('the hiring manager asks “Who applied for the data engineer job?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('HM', 'Who applied for the data engineer job?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('the hiring manager asks “When is Omar Haddad\'s interview?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'When is Omar Haddad\'s interview?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
-  it('the hiring manager asks “Who is ending in the next 30 days?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('HM', 'Who is ending in the next 30 days?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('the hiring manager asks “Who rolls off in the next 30 days?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('HM', 'Who rolls off in the next 30 days?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
 })
@@ -384,17 +384,17 @@ describe('the hiring manager at Northbend Athletic', () => {
 describe('the account manager at Pinnacle Resourcing', () => {
   it('a supplier’s account manager asks “What needs me today?” and the rules answer it', async () => {
     await check('SUPPLIER', 'What needs me today?', 'ANSWERED',
-      'Nothing needs you today, and nothing Etyme asked waits on anybody. Checked just now.')
+      'Nothing needs you today, and nothing Etyme asked is waiting on anybody. Checked just now.')
   })
 
-  it('a supplier’s account manager asks “Which weeks are unsigned?” and is refused in one sentence that names the door', async () => {
-    await check('SUPPLIER', 'Which weeks are unsigned?', 'REFUSED',
-      'Your client signs those weeks; the ones you accept are on Timesheets.')
+  it('a supplier’s account manager asks “Which timesheets are waiting for approval?” and is refused in one sentence that names the door', async () => {
+    await check('SUPPLIER', 'Which timesheets are waiting for approval?', 'REFUSED',
+      'Your client approves those timesheets; the ones you accept are on Timesheets.')
   })
 
   it('a supplier’s account manager asks “Who is near the time limit?” and is refused in one sentence that names the door', async () => {
     await check('SUPPLIER', 'Who is near the time limit?', 'REFUSED',
-      'Your client counts the time limit across every supplier; its program office reads it.')
+      'Your client counts the time limit across every supplier; its program manager reads it.')
   })
 
   it('a supplier’s account manager asks “What did we spend by supplier this month?” and the rules answer it', async () => {
@@ -409,27 +409,27 @@ describe('the account manager at Pinnacle Resourcing', () => {
 
   it('a supplier’s account manager asks “Approve my invoice PR-2026-0442” and the rules answer it', async () => {
     await check('SUPPLIER', 'Approve my invoice PR-2026-0442', 'ANSWERED',
-      'Nothing from Etyme waits on you, so there is nothing to answer.')
+      'Nothing from Etyme is waiting on you, so there is nothing to answer.')
   })
 
   it('a supplier’s account manager asks “Which of my invoices to Northbend are unpaid?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Which of my invoices to Northbend are unpaid?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
-  it('a supplier’s account manager asks “Did Northbend sign Helena\'s week?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('SUPPLIER', 'Did Northbend sign Helena\'s week?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('a supplier’s account manager asks “Did Northbend approve Helena\'s timesheet?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('SUPPLIER', 'Did Northbend approve Helena\'s timesheet?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
-  it('a supplier’s account manager asks “How many of my people are on site at Northbend?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('SUPPLIER', 'How many of my people are on site at Northbend?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+  it('a supplier’s account manager asks “How many of my consultants are on site at Northbend?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await check('SUPPLIER', 'How many of my consultants are on site at Northbend?', 'NOT_YET',
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
   it('a supplier’s account manager asks “Can you send Pinnacle a reminder about PR-2026-0442?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('SUPPLIER', 'Can you send Pinnacle a reminder about PR-2026-0442?', 'NOT_YET',
-      'I cannot answer that yet. Free text needs the model, and your company has not turned it on. Your settings desk can, under Settings.')
+      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
 })

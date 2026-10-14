@@ -355,7 +355,7 @@ describe('the bell and the account\'s own emails', () => {
   })
 
   it('an ordinary system notice still shows in the bell', () => {
-    expect(isAccountMail({ type: 'SYSTEM', title: 'Priya Nair joined Acme as Member', body: 'Give them a desk.' })).toBe(false)
+    expect(isAccountMail({ type: 'SYSTEM', title: 'Priya Nair joined Acme as Member', body: 'Give them a role.' })).toBe(false)
     expect(isAccountMail({ type: 'TIMESHEET', title: 'Set your Etyme password', body: '' })).toBe(false)
   })
 

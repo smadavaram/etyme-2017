@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { joinedSaid, welcomeSaid, joinedNotices, ACCESS_PAGE, JOINED_EVENT } from '@/lib/notify/joined'
 import { pageOf } from '@/lib/notify'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
+import { memberWelcome } from '@/lib/password-words'
 
 /**
  * A colleague who signs in on a claimed domain gets a seat at once, and
@@ -21,7 +22,7 @@ describe('when a colleague joins on the company domain', () => {
     const owners = notices.filter((n) => n.personId !== 'priya')
     expect(owners.map((n) => n.personId)).toEqual(['owner', 'admin'])
     for (const n of owners) {
-      expect(n.body).toBe('Priya Nair (priya@acme.example) joined Acme as Member. Give them a desk.')
+      expect(n.body).toBe('Priya Nair (priya@acme.example) joined Acme as Member. Give them a role.')
       expect(n.title).toBe('Priya Nair joined Acme')
       expect(n.data).toMatchObject({ event: JOINED_EVENT, joinerId: 'priya', href: ACCESS_PAGE })
     }
@@ -33,24 +34,28 @@ describe('when a colleague joins on the company domain', () => {
   })
 
   it('a joiner the record gives no pronoun is spoken of as them, and one it does is spoken of by it', () => {
-    expect(joinedSaid(priya).body.endsWith('Give them a desk.')).toBe(true)
-    expect(joinedSaid({ ...priya, pronoun: 'she' }).body.endsWith('Give her a desk.')).toBe(true)
+    expect(joinedSaid(priya).body.endsWith('Give them a role.')).toBe(true)
+    expect(joinedSaid({ ...priya, pronoun: 'she' }).body.endsWith('Give her a role.')).toBe(true)
   })
 
   it('the joiner is told they are in and what happens next', () => {
     const notices = joinedNotices({ companyId: 'acme', joinerId: 'priya', joiner: priya, ownerIds: ['owner'], teamsLinked: true })
     const own = notices.filter((n) => n.personId === 'priya')
     expect(own).toHaveLength(1)
-    expect(own[0].body).toBe('You are in at Acme as Member. Your owner has been told; you will see more once they give you a desk.')
+    expect(own[0].body).toBe('You are in Acme as Member. Your owner has been told; you will see more once they give you a role.')
     // In the app only: on a company channel "You are in" would be read by everybody.
     expect(own[0].channel ?? 'IN_APP').toBe('IN_APP')
   })
 
-  it('a joiner at a company with nobody on the owner or admin desk is not told the owner heard', () => {
+  it('a joiner at a company where nobody is an owner or admin is not told the owner heard', () => {
     const notices = joinedNotices({ companyId: 'acme', joinerId: 'priya', joiner: priya, ownerIds: [], teamsLinked: false })
     expect(notices).toHaveLength(1)
     expect(notices[0].body).not.toContain('has been told')
     expect(welcomeSaid({ companyName: 'Acme', roleName: 'Member', ownersTold: false }).body).toContain('ask whoever set it up')
+  })
+
+  it('a Member who joins on the company domain reads the same welcome as one who signs up with a password', () => {
+    expect(welcomeSaid({ companyName: 'Acme', roleName: 'Member', ownersTold: true }).body).toBe(memberWelcome('Acme'))
   })
 
   it('a joiner who holds an owner seat is never told about themselves', () => {

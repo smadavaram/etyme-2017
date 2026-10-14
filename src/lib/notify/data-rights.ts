@@ -152,13 +152,13 @@ export const FATES: CategoryFate[] = [
     // The fate itself was never in doubt.
     category: 'A seat at a company, and what was decided from it',
     fate: 'UNDER_A_MARKER',
-    why: 'Your seat is closed and your name comes off it. The approvals you gave, the job requests you raised and the weeks of somebody else\'s hours you signed stay as your company\'s record of its own decisions, under a marker instead of your name — a decision with nobody behind it is worse for everybody than one nobody is named on.',
+    why: 'Your account is closed and your name comes off it. The approvals you gave, the job requests you raised and the timesheets you approved stay as your company\'s record of its own decisions, under a marker instead of your name — a decision with nobody behind it is worse for everybody than one nobody is named on.',
     until: null,
   },
   {
     category: 'Money about a person',
     fate: 'KEPT',
-    why: 'Payroll, tax, the hours signed and the bills between two firms. Whoever paid you is required to keep these, and two firms\' books have to go on adding up.',
+    why: 'Payroll, tax, approved timesheets and the bills between two firms. Whoever paid you is required to keep these, and two firms\' books have to go on adding up.',
     until: 'the period the tax and payroll law sets where you were paid',
   },
   {

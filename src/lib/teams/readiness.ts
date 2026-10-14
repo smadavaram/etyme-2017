@@ -48,8 +48,8 @@ export function teamsBotEdge(f: TeamsBotFacts): { state: TeamsBotEdgeState; says
       state: 'SET',
       says: f.bound === 0
         ? 'The Teams bot has its keys. Nobody has opened it in Teams yet.'
-        : `The Teams bot has its keys and ${f.bound === 1 ? '1 person has' : `${f.bound} people have`} opened it. Nobody has answered the twin from Teams yet.`,
-      fix: 'Open Etyme in Teams as a program owner or an AP desk, and approve one invoice receipt from the card.',
+        : `The Teams bot has its keys and ${f.bound === 1 ? '1 person has' : `${f.bound} people have`} opened it. Nobody has answered Etyme from Teams yet.`,
+      fix: 'Open Etyme in Teams as a program manager or an AP clerk, and approve one invoice receipt from the card.',
     }
   }
   const parts = [

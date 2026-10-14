@@ -96,7 +96,7 @@ describe('the owners hear that a colleague joined', () => {
     const owners = rows.filter((r) => r.personId !== mailJoiner)
     expect(owners.map((r) => r.personId).sort()).toEqual([mailOwner, mailAdmin].sort())
     for (const r of owners) {
-      expect(r.body).toBe('Sam Ito (sam@cavanaugh.test) joined Cavanaugh Glassworks as Member. Give them a desk.')
+      expect(r.body).toBe('Sam Ito (sam@cavanaugh.test) joined Cavanaugh Glassworks as Member. Give them a role.')
       expect((r.data as any).href).toBe('/dashboard/access')
     }
   })
@@ -105,7 +105,7 @@ describe('the owners hear that a colleague joined', () => {
     const own = await prisma.notification.findMany({ where: { companyId: mailCo.id, personId: mailJoiner } })
     expect(own).toHaveLength(1)
     expect(own[0].body).toBe(
-      'You are in at Cavanaugh Glassworks as Member. Your owner has been told; you will see more once they give you a desk.'
+      'You are in Cavanaugh Glassworks as Member. Your owner has been told; you will see more once they give you a role.'
     )
     expect(own[0].channel).toBe('IN_APP')
   })
@@ -136,7 +136,7 @@ describe('the owners hear that a colleague joined', () => {
     expect(cards).toHaveLength(1)
     const card = cards[0].body.attachments[0].content
     expect(card.body.map((b: any) => b.text).join(' ')).toContain(
-      'Priya Nair (priya@northbend.test) joined Northbend Athletic as Member. Give them a desk.'
+      'Priya Nair (priya@northbend.test) joined Northbend Athletic as Member. Give them a role.'
     )
     expect(card.actions[0].url).toBe('https://app.etyme.example/dashboard/access')
   })

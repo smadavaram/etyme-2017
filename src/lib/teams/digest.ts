@@ -5,7 +5,7 @@
  *
  * Called by the twin's nightly run after `runTwin` (the architect's
  * lib/twin/run.ts). One card per person, each item with its own buttons:
- * "3 invoice receipts need approval · 1 time-limit risk".
+ * "3 invoice receipts need approval · 1 contractor near the time limit".
  *
  * ── Who gets what ────────────────────────────────────────────────────
  *

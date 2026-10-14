@@ -326,9 +326,9 @@ export const PAGE_SECTIONS = [
  * forwarding it.
  */
 export const WAYS_FORWARD = [
-  'Etyme as VMS software: your own program office runs the program on Etyme, and your own ' +
+  'Etyme as VMS software: your own program manager runs the program on Etyme, and your own ' +
     'people hold the seats.',
-  "Etyme as MSP provider: Etyme's program office runs it for you on the same record, in seats " +
+  'Etyme as MSP provider: Etyme is your MSP and runs it for you on the same record, in seats ' +
     'your company grants and takes back.',
 ] as const
 
@@ -484,7 +484,7 @@ export interface CensusArrivedStaff {
   censusId: string
   companyName: string
   contact: { name: string; workEmail: string }
-  /** Which desk they said they sit at, as the form recorded it. */
+  /** Which role they said they hold, as the form recorded it. */
   desk: string | null
   option: Option
   /** What they think they buy from, or null where they did not say. */
@@ -513,7 +513,7 @@ export function censusArrivedStaffNotice(input: CensusArrivedStaff): CensusStaff
     { name: 'Sending', value: input.option === 'TEMPLATE' ? 'The template' : 'Their own files' },
     { name: 'Place in the line', value: String(input.queuePosition) },
   ]
-  if (input.desk) facts.push({ name: 'Desk', value: input.desk })
+  if (input.desk) facts.push({ name: 'Role', value: input.desk })
   if (input.supplierCount != null) {
     facts.push({ name: 'Suppliers they think they have', value: String(input.supplierCount) })
   }
@@ -523,7 +523,7 @@ export function censusArrivedStaffNotice(input: CensusArrivedStaff): CensusStaff
       'contractor census.',
     bullets([
       `Sending: ${input.option === 'TEMPLATE' ? 'the template' : 'their own invoice receipts and timesheets'}.`,
-      `Desk: ${input.desk ?? 'not said'}.`,
+      `Role: ${input.desk ?? 'not said'}.`,
       `Suppliers they think they buy from: ${input.supplierCount ?? 'not said'}.`,
       `Place in the line: ${input.queuePosition}.`,
     ]),

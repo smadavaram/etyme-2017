@@ -120,7 +120,7 @@ export default function ClaimPage() {
                   <Link href="/login" className="underline">
                     Sign in
                   </Link>{' '}
-                  and ask them for a seat.
+                  and ask them to invite you.
                 </p>
               </div>
             )}

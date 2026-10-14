@@ -513,7 +513,7 @@ export default function ConversationsPage() {
                       <Chip tone="action">Always here</Chip>
                     </span>
                     <span className="mt-0.5 block truncate text-[11px] text-etyme-muted">
-                      What needs you, the time limit, spend and unsigned weeks, from the record.
+                      What needs you, the time limit, spend and timesheets to approve, from the record.
                     </span>
                   </span>
                 </Link>

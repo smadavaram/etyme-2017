@@ -19,12 +19,12 @@ import { reportError } from '@/lib/alerts'
  * One sentence that names the person, the address they came in on, the
  * company and the role they hold now, then one action:
  *
- *   "Priya Nair (priya@acme.com) joined Acme as Member. Give them a desk."
+ *   "Priya Nair (priya@acme.com) joined Acme as Member. Give them a role."
  *
  * The address is there because a name alone does not tell an owner
  * whether this is the Priya they hired or somebody using a shared inbox.
  * The record holds no pronoun, so the sentence says "them". The link
- * opens Users & permissions, where the desk is given.
+ * opens Users & permissions, where the role is given.
  *
  * The joiner is told, in the app, that they are in and what happens
  * next. Only in the app: they have just signed in and are looking at it,
@@ -76,7 +76,7 @@ export interface Joiner {
 export function joinedSaid(j: Joiner): { title: string; body: string } {
   return {
     title: `${j.name} joined ${j.companyName}`,
-    body: `${j.name} (${j.email}) joined ${j.companyName} as ${j.roleName}. Give ${objectOf(j.pronoun)} a desk.`,
+    body: `${j.name} (${j.email}) joined ${j.companyName} as ${j.roleName}. Give ${objectOf(j.pronoun)} a role.`,
   }
 }
 
@@ -89,12 +89,12 @@ export function welcomeSaid(input: { companyName: string; roleName: string; owne
   title: string
   body: string
 } {
-  const first = `You are in at ${input.companyName} as ${input.roleName}.`
+  const first = `You are in ${input.companyName} as ${input.roleName}.`
   return {
-    title: `You are in at ${input.companyName}`,
+    title: `You are in ${input.companyName}`,
     body: input.ownersTold
-      ? `${first} Your owner has been told; you will see more once they give you a desk.`
-      : `${first} Nobody at ${input.companyName} holds the Owner or Admin desk yet, so ask whoever set it up to give you a desk in Users & permissions.`,
+      ? `${first} Your owner has been told; you will see more once they give you a role.`
+      : `${first} Nobody at ${input.companyName} is an Owner or Admin yet, so ask whoever set it up to give you a role in Users & permissions.`,
   }
 }
 

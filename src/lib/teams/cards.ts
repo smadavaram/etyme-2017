@@ -6,10 +6,10 @@
  *   an invoice receipt to approve   amount, supplier, contractor, period,
  *                                   what does not match, the rule — and
  *                                   Approve · Reject · Why?
- *   a time-limit risk               contractor, days left, supplier —
+ *   a contractor near the time limit contractor, days left, supplier —
  *                                   Acknowledge · Escalate
  *   the nightly digest              "3 invoice receipts need approval ·
- *                                   1 time-limit risk", each with its own
+ *                                   1 contractor near the time limit", each with its own
  *                                   buttons, and never sent empty
  *
  * Every button sends data back to the bot and nothing else. The bot
@@ -138,8 +138,8 @@ export function approvalActions(f: Pick<InvoiceApprovalFacts, 'approvalId' | 'ru
       type: 'Action.ShowCard', title: 'Reject',
       card: adaptive(
         [
-          text('Say why. Your reason is kept in the twin’s ledger beside your name.'),
-          { type: 'Input.Text', id: 'reason', isMultiline: true, isRequired: true, errorMessage: 'Say why before rejecting.', placeholder: 'For example: the hours were not agreed' },
+          text('Give a reason. It is recorded under your name.'),
+          { type: 'Input.Text', id: 'reason', isMultiline: true, isRequired: true, errorMessage: 'Give a reason before rejecting.', placeholder: 'For example: the hours were not agreed' },
         ],
         [{ type: 'Action.Submit', title: 'Reject with this reason', style: 'destructive', data: reject }],
       ),
@@ -162,7 +162,7 @@ function invoiceFacts(f: InvoiceApprovalFacts): Element[] {
     text(f.variances.length ? 'What does not match' : 'Variance', { weight: 'Bolder', spacing: 'Medium' }),
     ...(f.variances.length
       ? f.variances.map((v) => text(`• ${v}`, { color: 'Attention' }))
-      : [text('None. The hours and the rate agree with what was accepted and the contract.')]),
+      : [text('None. The hours match the approved timesheets, and the rate matches the contract.')]),
     text(`Rule: ${f.ruleCited}`, { isSubtle: true, spacing: 'Medium' }),
   ]
 }
@@ -192,7 +192,7 @@ function tenureActions(f: TenureAlertFacts): Element[] {
   const out: Element[] = [{ type: 'Action.Submit', title: 'Acknowledge', data: ack }]
   if (f.escalateApprovalId) {
     const yes: CardAction = { etyme: 'twin.approval', approvalId: f.escalateApprovalId, decision: 'APPROVED' }
-    out.push({ type: 'Action.Submit', title: 'Escalate', data: yes, tooltip: 'Approve the twin writing to the supplier' })
+    out.push({ type: 'Action.Submit', title: 'Escalate', data: yes, tooltip: 'Approve Etyme writing to the supplier' })
   } else if (f.link) {
     out.push({ type: 'Action.OpenUrl', title: 'Escalate', url: f.link, tooltip: 'Open their time on site in Etyme' })
   }
@@ -218,11 +218,11 @@ export function tenureAlertCard(f: TenureAlertFacts): Element {
 
 // ── The digest ────────────────────────────────────────────────────────
 
-/** "3 invoice receipts need approval · 1 time-limit risk", or null when there is nothing. */
+/** "3 invoice receipts need approval · 1 contractor near the time limit", or null when there is nothing. */
 export function digestHeading(invoices: number, risks: number): string | null {
   const parts: string[] = []
   if (invoices > 0) parts.push(`${invoices} invoice receipt${invoices === 1 ? ' needs' : 's need'} approval`)
-  if (risks > 0) parts.push(`${risks} time-limit risk${risks === 1 ? '' : 's'}`)
+  if (risks > 0) parts.push(`${risks} contractor${risks === 1 ? '' : 's'} near the time limit`)
   return parts.length ? parts.join(' · ') : null
 }
 

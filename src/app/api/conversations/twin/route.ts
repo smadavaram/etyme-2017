@@ -75,7 +75,7 @@ function needsFor(request: NextRequest): () => Promise<number | null> {
   }
 }
 
-const NO_COMPANY = 'Ask Etyme answers about a company’s program. Choose your company’s seat first.'
+const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
 const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no answer. Staff have been told; try again in a minute.'
 
 export async function GET(request: NextRequest) {

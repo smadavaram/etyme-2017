@@ -440,7 +440,7 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
         ? `Nobody can start through ${named} until it is renewed and on file. `
         : `Nobody can start through ${named} after that day until it is renewed and on file. `
       : d.lapsed
-        ? `The work on this placement is running under paper that has run out. `
+        ? `This placement is running with a document that has run out. `
         : `This placement runs past that day, so it needs a current one. `
 
   return {
@@ -608,9 +608,9 @@ export interface LapseLetter {
 
 /** The desk a letter arrived at, said as a role rather than as a name. */
 const DESK_WORDS: Record<'OWES' | 'EXPOSED' | 'EMPLOYS', string> = {
-  OWES: 'the desk that owes it',
-  EXPOSED: 'the program and compliance desk',
-  EMPLOYS: 'the desk that employs them',
+  OWES: 'the firm that owes it',
+  EXPOSED: 'the program manager and compliance officer',
+  EMPLOYS: 'the employer',
 }
 
 /**

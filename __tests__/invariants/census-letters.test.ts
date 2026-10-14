@@ -320,7 +320,7 @@ describe('the person running a census hears twice and no more', () => {
     const body = plain(letter.body)
     expect(body).toContain('Dana Whitfield (dana.whitfield@northbend.example) at Northbend Athletic has asked for a contractor census.')
     expect(body).toContain('Sending: the template.')
-    expect(body).toContain('Desk: PROGRAM.')
+    expect(body).toContain('Role: PROGRAM.')
     expect(body).toContain('Suppliers they think they buy from: 9.')
     expect(body).toContain('Place in the line: 3.')
     expect(body).toContain('the upload link does not exist until they do')
@@ -336,7 +336,7 @@ describe('the person running a census hears twice and no more', () => {
       queuePosition: 1, assignedTo: null,
       reviewUrl: 'https://etyme.example/staff/census/cns_01HQZ',
     }).body)
-    expect(body).toContain('Desk: not said.')
+    expect(body).toContain('Role: not said.')
     expect(body).toContain('Suppliers they think they buy from: not said.')
     expect(body).toContain('Nobody is assigned to it, and the client was promised a name.')
   })

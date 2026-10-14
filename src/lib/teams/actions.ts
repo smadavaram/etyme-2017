@@ -54,7 +54,7 @@ export async function answerCardAction(action: CardAction, bound: BoundPerson, d
   if (action.etyme === 'twin.approval') {
     const reason = action.reason?.trim() || null
     if (action.decision === 'REJECTED' && !reason) {
-      return { says: 'Say why before rejecting, so the twin and whoever reads the ledger know. Nothing changed.' }
+      return { says: 'Give a reason before rejecting, so it is on the record. Nothing changed.' }
     }
     const out = await deps.decide({
       approvalId: action.approvalId,
@@ -66,19 +66,19 @@ export async function answerCardAction(action: CardAction, bound: BoundPerson, d
     if (!out.ok) return { says: out.says }
     if (out.outcome === 'PERFORMED') {
       return {
-        says: 'Approved. It is recorded in the twin’s ledger under your name, answered from Teams.',
-        answered: { title: `Approved by ${bound.personName} in Teams`, sentence: 'Recorded in the twin’s ledger under their name.' },
+        says: 'Approved. It is recorded under your name, from Teams.',
+        answered: { title: `Approved by ${bound.personName} in Teams`, sentence: 'Recorded under their name.' },
       }
     }
     return {
-      says: 'Rejected. Your reason is recorded in the twin’s ledger under your name.',
+      says: 'Rejected. Your reason is recorded under your name.',
       answered: { title: `Rejected by ${bound.personName} in Teams`, sentence: `Their reason: ${reason}` },
     }
   }
 
   if (action.etyme === 'twin.why') {
     const w = await deps.why(action.approvalId, bound.companyId)
-    if (!w) return { says: 'There is no such question from the twin at your company.' }
+    if (!w) return { says: 'There is no such question from Etyme at your company.' }
     return { says: `The rule: ${w.ruleCited}\n\nWhy: ${w.rationale}` }
   }
 

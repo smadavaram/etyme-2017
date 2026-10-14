@@ -254,17 +254,17 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
     async unsignedWeeks() {
       const company = caller.company
       if (!ownCompany || !company) {
-        return { ok: false as const, says: 'Unsigned weeks are read at your own company; choose its seat first.' }
+        return { ok: false as const, says: 'Timesheets are read at your own company; switch to it first.' }
       }
       if (company.kind !== 'CLIENT') {
         return {
           ok: false as const,
-          says: 'Your client signs those weeks; the ones you accept are on Timesheets.',
+          says: 'Your client approves those timesheets; the ones you accept are on Timesheets.',
           links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
         }
       }
       if (!hasAnyPermission(caller.permissions, ['timesheets.read', 'timesheets.approve'])) {
-        return { ok: false as const, says: deskRefusal('reads the weeks waiting for a signature', 'timesheets.approve', company.kind) }
+        return { ok: false as const, says: deskRefusal('reads the timesheets waiting for approval', 'timesheets.approve', company.kind) }
       }
       // The same weeks the program dashboard lists to sign: filed, not yet
       // signed by the client, on a line at this client's sites, inside the
@@ -314,7 +314,7 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
     async spendIn(from, to) {
       const company = caller.company
       if (!ownCompany || !company) {
-        return { ok: false as const, says: 'Spend is read at your own company; choose its seat first.' }
+        return { ok: false as const, says: 'Spend is read at your own company; switch to it first.' }
       }
       if (!hasPermission(caller.permissions, 'invoices.read')) {
         return { ok: false as const, says: deskRefusal('reads what suppliers billed you', 'invoices.read', company.kind) }
@@ -362,10 +362,10 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
     async receiptsIn(from, to) {
       const company = caller.company
       if (!ownCompany || !company) {
-        return { ok: false as const, says: 'Invoice variance is read at the paying company; choose its seat first.' }
+        return { ok: false as const, says: 'Invoice mismatches are read at the company that pays; switch to it first.' }
       }
       if (!hasPermission(caller.permissions, 'invoices.read')) {
-        return { ok: false as const, says: deskRefusal('reads invoice variance by supplier', 'invoices.read', company.kind) }
+        return { ok: false as const, says: deskRefusal('reads invoice mismatches by supplier', 'invoices.read', company.kind) }
       }
       // Every invoice receipt billed in the period, read and checked now —
       // not only the ones the nightly run happened to record — counted by
