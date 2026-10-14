@@ -20,6 +20,27 @@ optional.
 
 ---
 
+## Two words nobody uses — decided by the founder, 2026-10-14
+
+*"Never use desk and program office — nobody uses those in the real
+world."* He had said it before and it was not held; this is where it is
+held. On every page, screen, email, card, Ask Etyme reply, document and
+every reply to the founder:
+- **"Program office" is never said.** The firm that runs a client's
+  program is an **MSP**. The client's own person is their job title,
+  the **program manager**. The door for MSPs reads "MSPs".
+- **"Desk" is never said.** Say the person's role: the AP clerk, HR,
+  Procurement, the hiring manager, the account manager. Where no role
+  fits, "team". "Each desk sees its own work" is "Each role sees its own
+  work".
+- Machine names do not move (routes, keys, enum values, file names),
+  by the same rule as `world-nike`. A test fails on either word in text
+  a person reads.
+
+This file uses both words throughout its older sections, written before
+the rule; read them as the replacements above. New text here follows
+the rule.
+
 ## What Etyme is — say this, not something else
 
 **Etyme is the system of record for contingent workers: the layer between
