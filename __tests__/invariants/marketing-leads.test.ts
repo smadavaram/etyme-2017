@@ -346,10 +346,13 @@ const COPY = Object.values(ASK_COPY).join(' ')
 describe('The home page asks a question rather than harvesting an address', () => {
 
   it('asks for an email and for what they need, and nothing else', () => {
-    // The form sits beside the home page's close since 2026-09-27: the
-    // shared close band draws it where the page asks for it.
-    expect(PAGE).toContain('<CloseBand id="close" withForm>')
-    expect(CLOSE).toContain('<Ask source="HOME_PAGE" />')
+    // The form sat behind the home page's close from 2026-09-27 until the
+    // founder's home page of 2026-10-14, which ends in its sign-up band and
+    // a footer with Contact in it. The form is on the contact page, the
+    // footer leads there, and every other page's close has a button to it.
+    expect(PAGE).toContain("{ t: 'Contact', href: '/contact' }")
+    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/company-page.tsx'), 'utf8')).toContain('<Ask source="HOME_PAGE" />')
+    expect(CLOSE).toContain('href={ask.href}')
     expect(COPY.toLowerCase()).toContain('what do you need')
   })
 

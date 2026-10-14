@@ -82,14 +82,17 @@ const boxesSayWho = (boxes: FlowBox[]) => boxes.every((b) => b.who !== undefined
 
 describe('The four steps are the one spine of the site', () => {
 
-  it('the home page summarizes the four steps as three — Connect, Control, Reconcile — and its Platform band still draws the four steps with every part under its step', () => {
-    // The founder's brief, 2026-10-09: the four steps stay the spine of the
-    // product pages and the documentation; the home page says them as three.
+  it('the home page walks the four steps as four chips under the live product, Source first, and the Platform menu draws the four steps with every part under its step', () => {
+    // The founder's home page of 2026-10-14 replaced the three steps of
+    // 2026-10-09 (Connect, Control, Reconcile) and the four step cards with
+    // four chips that move the live product to each step. The four steps
+    // stay the spine of the product pages and the documentation.
     const page = read('src/app/page.tsx')
-    const how = page.slice(page.indexOf('const HOW'), page.indexOf('const SECURITY_DONE'))
-    expect([...how.matchAll(/n: '0\d', t: '([^']+)'/g)].map((m) => m[1])).toEqual(['Connect', 'Control', 'Reconcile'])
-    expect(page).toContain('Read the whole process, step by step')
-    expect(page).toContain('PRODUCT_STAGES.map((stage)')
+    const chips = page.slice(page.indexOf('const CHIPS'), page.indexOf('const FRAME'))
+    const names = [...chips.matchAll(/t: '([^']+)'/g)].map((m) => m[1])
+    expect(names).toEqual(['Source', 'Submit', 'Approve', 'Pay'])
+    expect(names[0]).toBe(STEPS[0].name)
+    expect(page).not.toContain('const HOW')
     expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(STEPS.map((s) => s.route))
   })
 
@@ -100,7 +103,7 @@ describe('The four steps are the one spine of the site', () => {
     for (const s of STEPS) expect(s.name, `step ${s.n}`).not.toMatch(/\bhire\b/i)
   })
 
-  it('the header’s Product menu, the home page’s tiles and the product pages all read the four steps in one order', () => {
+  it('the header’s Platform menu and the product pages all read the four steps in one order', () => {
     expect(PRODUCT_STAGES.map((g) => g.items.map((i) => i.href))).toEqual(STEPS.map((s) => [s.route, ...s.more]))
     expect(MODULES.map((m) => m.route)).toEqual(SPINE_ORDER)
     expect([...MODULE_ROUTES]).toEqual(SPINE_ORDER)

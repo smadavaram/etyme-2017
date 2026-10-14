@@ -165,6 +165,7 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
   { prefix: 'src/app/claim/', why: 'A private claim link.' },
   { prefix: 'src/app/bench-invite/', why: 'A private bench invitation link.' },
   { prefix: 'src/app/map', why: 'The founder’s map of how the system is built, closed to everybody but the Owner or Admin of a real company (lib/map-gate); it describes the code, not the product to a buyer.' },
+  { prefix: 'src/app/embed/', why: 'The sample program’s screens, drawn inside the home page’s frame: product screens over the seeded demo world, read-only, held to the dashboard’s words. The home page labels them as a sample above the frame.' },
   { prefix: 'src/app/legal/', why: 'Regulatory’s agreements, reached from the census; read for price and AI with the other legal pages.' },
 ]
 

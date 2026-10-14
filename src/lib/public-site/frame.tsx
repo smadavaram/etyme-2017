@@ -37,14 +37,13 @@ const PANEL: Record<string, string> = {
 }
 
 /**
- * One menu's panel. A home-page section in a menu is drawn only on the
- * home page (`groupsShown` in `./nav`), so no item lands a reader in the
- * middle of another page.
+ * One menu's panel. Every item is the top of a page (`groupsShown` in
+ * `./nav`), so no item lands a reader in the middle of another page.
  */
-function MenuPanel({ menu, onHome }: { menu: NavMenu; onHome: boolean }) {
+function MenuPanel({ menu }: { menu: NavMenu }) {
   return (
     <div className={`rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-xl ${PANEL[menu.label] ?? 'w-80'}`}>
-      {groupsShown(menu, onHome).map((group) => (
+      {groupsShown(menu).map((group) => (
         <div key={group.heading}>
           <p className="px-3 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-etyme-faint">
             {group.heading}
@@ -76,18 +75,27 @@ function MenuPanel({ menu, onHome }: { menu: NavMenu; onHome: boolean }) {
  * ── Compact, since 2026-10-09 ────────────────────────────────────────
  *
  * The founder's brief: Platform, Solutions, How It Works, Security, and
- * the primary button, which is the spend audit. `onHome` sends each label
- * to its band on the home page; on any other page it opens the top of a
- * page (see `NAV_MENUS` in `./nav`).
+ * the primary button, which is the spend audit. Each label opens the top
+ * of a page (see `NAV_MENUS` in `./nav`).
  *
  * One row at every width, as before: on a phone the row is the logo, Sign
  * in, the audit under its short label, and Menu, which opens a sheet
  * under the header with every link the desktop reader has, large enough
  * to tap. The height is 61 pixels on a phone and 69 from `lg`; a change
  * to the header's padding changes these.
+ *
+ * ── The home page draws it bare, since 2026-10-14 ───────────────────
+ *
+ * The founder approved a home page of three sections ("Build it"): the
+ * Platform and Solutions menus and How It Works left its header,
+ * because six audiences on one page speak to none, and the home bands
+ * they pointed at are gone. So `onHome` draws the logo, Sign in, Free
+ * audit and Menu at every width, which is what the live phone header
+ * already was, and the sheet carries the same links as on any other
+ * page — every one of them the top of a page, none a band of the home
+ * page.
  */
 export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
-  const to = (h: { home: string; away: string }) => (onHome ? h.home : h.away)
   return (
     <header
       className="sticky top-0 z-40 border-b border-etyme-rule bg-etyme-canvas/95 backdrop-blur
@@ -98,10 +106,10 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
           <EtymeLogo size="md" />
         </a>
 
-        <ul className="ml-6 hidden items-center gap-1 text-sm lg:flex">
+        <ul className={`ml-6 hidden items-center gap-1 text-sm ${onHome ? '' : 'lg:flex'}`}>
           {NAV_MENUS.map((menu) => (
             <li key={menu.label} className="group relative">
-              <a href={to(menu.href)} aria-haspopup="true" className={`${TOP_LINK} inline-flex items-center gap-1`}>
+              <a href={menu.href} aria-haspopup="true" className={`${TOP_LINK} inline-flex items-center gap-1`}>
                 {menu.label}
                 <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" className="text-etyme-faint">
                   <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -113,13 +121,13 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
                            group-hover:opacity-100 group-focus-within:visible
                            group-focus-within:translate-y-0 group-focus-within:opacity-100 motion-reduce:transition-none"
               >
-                <MenuPanel menu={menu} onHome={onHome} />
+                <MenuPanel menu={menu} />
               </div>
             </li>
           ))}
           {NAV_LINKS.map((l) => (
             <li key={l.label}>
-              <a href={to(l.href)} className={TOP_LINK}>{l.label}</a>
+              <a href={l.href} className={TOP_LINK}>{l.label}</a>
             </li>
           ))}
         </ul>
@@ -145,7 +153,7 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
 
         {/* The phone sheet. A details element needs no script; SheetCloser adds
             Escape and closes it when a link in it is followed. */}
-        <details id="site-sheet" className="group/menu lg:hidden">
+        <details id="site-sheet" className={`group/menu ${onHome ? '' : 'lg:hidden'}`}>
           <summary
             className={`cursor-pointer list-none whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium
                        text-etyme-muted hover:text-etyme-ink [&::-webkit-details-marker]:hidden ${FOCUS}`}
@@ -160,11 +168,11 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
             <ul className="divide-y divide-etyme-rule">
               {NAV_MENUS.map((menu) => (
                 <li key={menu.label} className="py-3">
-                  <a href={to(menu.href)} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>
+                  <a href={menu.href} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>
                     {menu.label}
                   </a>
                   <ul className="mt-1 grid gap-x-6 sm:grid-cols-2">
-                    {groupsShown(menu, onHome).flatMap((g) => g.items).map((item) => (
+                    {groupsShown(menu).flatMap((g) => g.items).map((item) => (
                       <li key={item.t}>
                         <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
                       </li>
@@ -174,7 +182,7 @@ export function SiteHeader({ onHome = false }: { onHome?: boolean }) {
               ))}
               {NAV_LINKS.map((l) => (
                 <li key={l.label} className="py-3">
-                  <a href={to(l.href)} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>{l.label}</a>
+                  <a href={l.href} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>{l.label}</a>
                 </li>
               ))}
               <li className="py-3">
@@ -297,5 +305,30 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
       <CloseBand />
       <SiteFooter />
     </div>
+  )
+}
+
+/**
+ * The home page's footer, as the founder approved it on 2026-10-14: one
+ * row of links — the documentation, the four doors that are not the
+ * client's, security and the legal pages, and contact — then where Etyme
+ * is. The client's own door is Sign up, in the band above it.
+ */
+export function HomeFooter({ links }: { links: { t: string; href: string }[] }) {
+  return (
+    <footer className="border-t border-etyme-rule">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <nav aria-label="Footer" className="flex flex-wrap items-baseline gap-x-5 gap-y-2 text-[13px]">
+          <span className="font-semibold text-etyme-ink">{'Etyme'}</span>
+          {links.map((l) => (
+            <a key={l.href} href={l.href} className={`${LINK} ${FOCUS} rounded-sm`}>{l.t}</a>
+          ))}
+        </nav>
+        <p className="mt-6 font-mono text-[11px] text-etyme-faint">
+          {`© ${new Date().getFullYear()} ${ADDRESS.company} · ${ADDRESS.street}, ${ADDRESS.city} · `}
+          <a href={`mailto:${ADDRESS.email}`} className="hover:text-etyme-ink">{ADDRESS.email}</a>
+        </p>
+      </div>
+    </footer>
   )
 }

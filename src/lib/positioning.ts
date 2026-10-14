@@ -614,6 +614,9 @@ const VERBS = [
   'move', 'moves', 'name', 'names', 'need', 'needs', 'open', 'opens', 'pay', 'pays',
   'put', 'puts', 'read', 'reads', 'reconcile', 'reconciles', 'record', 'records', 'replace', 'replaces', 'run', 'runs',
   'say', 'says', 'see', 'sees', 'send', 'sends', 'settle', 'settled', 'show', 'shows',
+  // "Seen enough? Set up your company." — the sign-up band the founder
+  // approved on 2026-10-14. An imperative, and the sentence's one verb.
+  'set', 'sets',
   'sign', 'signs', 'sit', 'sits', 'spend', 'spends', 'stay', 'stays', 'stop', 'stops',
   // "Supply people to a program instead?" — the supplier's door on the
   // home page, 2026-09-27. The trade's own verb for what a supplier does.
@@ -1051,9 +1054,12 @@ const ACCOUNT_PROMISES: { pattern: RegExp; says: string }[] = [
 /**
  * Every label that promises the reader an account of their own.
  *
- * Empty is the only acceptable answer while sign-in for a real tenant is
- * not open. Each hit is the label and what it promised, so somebody can
- * find the button rather than read every page.
+ * Empty is the only acceptable answer for every label that does not lead
+ * to the sign-up door. That door opened on 2026-10-08 (the password door,
+ * `/signup`), and the home page's "Sign up" goes to it (2026-10-14); the
+ * caller sets those links aside and reads the rest. Each hit is the label
+ * and what it promised, so somebody can find the button rather than read
+ * every page.
  */
 export function promisesAnAccount(labels: string[]): string[] {
   const out: string[] = []

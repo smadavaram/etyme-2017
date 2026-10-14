@@ -101,7 +101,15 @@ function everything(): Said[] {
     for (const t of texts) for (const s of sentences(t)) out.push({ where, unit: s })
   }
 
-  add('/', copyFrom(read('src/app/page.tsx')))
+  // The home page's frame names the sample program in its chrome strip,
+  // in the drawing's words, and says under the frame that every firm on
+  // it is a demo company and not a customer (2026-10-14). The two are one
+  // caption, drawn together by one component, so they are read as one.
+  const front = read('src/app/page.tsx')
+  const chrome = front.match(/chrome: '([^']+)'/)![1]
+  const onScreen = front.match(/const ON_SCREEN = '([^']+)'/)![1]
+  add('/', copyFrom(front).filter((t) => t !== chrome && t !== onScreen))
+  out.push({ where: '/ (the frame’s caption)', unit: `${chrome} ${onScreen}` })
 
   for (const m of MODULES) {
     const c = copyOfModule(m)
@@ -170,33 +178,35 @@ describe('An invented company never reads as a customer', () => {
     expect(lists, lists.join('\n  ')).toEqual([])
   })
 
-  it('the home page names no example company in its words, and any line that did would have to say it is a demo company and not a customer', () => {
-    // Until 2026-10-12 the sample desk under the hero named Northbend
-    // Athletic in its caption. The founder's edit replaced the sample with
-    // real screens, each labeled under it, so the page's own words name
-    // nobody.
-    const home = SAID.filter((s) => s.where === '/')
+  it('the home page names one example company, the sample program in its frame, and only in a caption that says every firm on it is a demo company and not a customer', () => {
+    // Since 2026-10-14 the product is in the page: the sample program
+    // manager's screens at Northbend Athletic, live and read-only. The
+    // chrome strip names the program, in the drawing's words, and the line
+    // under the frame, always shown, carries the founder's label. The
+    // frame's title, read by a screen reader instead, says both at once.
+    const home = SAID.filter((s) => s.where.startsWith('/') && s.where.split(' ')[0] === '/')
     const named = [...new Set(home.flatMap((s) => firmsIn(s.unit)))]
-    expect(named).toEqual([])
+    expect(named).toEqual(['Northbend Athletic'])
     for (const s of home.filter((x) => firmsIn(x.unit).length > 0)) {
-      expect(s.unit).toContain('a demo company — not a customer')
+      expect(SAYS_IT_IS_A_DEMO(s.unit), s.unit).toBe(true)
     }
+    expect(home.some((s) => s.where === '/ (the frame’s caption)')).toBe(true)
   })
 
-  it('every screen on the home page is captioned as showing demo companies, not customers, because a screenshot lists names the text guard cannot read', () => {
-    // Three real screens since the founder's edit of 2026-10-12, and no
-    // more. A PNG is opaque to a test, so the caption under each carries
-    // the disclaimer for everything on it: one line, drawn under every
-    // screen by the one component that draws a screen.
+  it('the live product on the home page is labeled under it, always visible, because its screens list names the text guard cannot read', () => {
+    // The three screenshots and their captions left on 2026-10-14. The
+    // frame shows the seeded world's real rows, which no test reads, so
+    // the label under it carries the disclaimer for everything on it: one
+    // line, drawn by the one component that draws the frame, never hidden
+    // at any width.
     const page = read('src/app/page.tsx')
-    const showcase = page.slice(page.indexOf('const SHOWCASE'), page.indexOf('const ON_SCREEN'))
-    expect([...showcase.matchAll(/caption: '([^']+)'/g)]).toHaveLength(3)
-    expect(page).toContain("const ON_SCREEN = 'Every firm on this screen is a demo company — not a customer.'")
-    const screen = page.slice(page.indexOf('function Screen('))
-    expect(screen).toContain('<span className="block">{ON_SCREEN}</span>')
-    // One img tag, inside the one component, and every screen goes through it.
-    expect((page.match(/<img/g) ?? []).length).toBe(1)
-    expect(screen).toContain('<img')
+    expect(page).toContain("const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'")
+    expect(page).toContain('label={ON_SCREEN}')
+    const frame = read('src/lib/public-site/home-demo.tsx')
+    const line = frame.match(/<p className="([^"]+)">\{label\}<\/p>/)
+    expect(line, 'the label is drawn as its own line').not.toBeNull()
+    expect(line![1]).not.toMatch(/(?:^|\s)(?:hidden|sr-only|sm:hidden|md:hidden)(?:\s|$)/)
+    expect(page).not.toContain('<img')
     // And the word that did not land is gone from what a reader reads.
     expect(copyFrom(page).join(' ')).not.toMatch(/\binvented\b/)
   })

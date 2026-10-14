@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   check, copyFrom, priceClaims, namedCompanies, readsAsAimedAtSuppliers, offersTheProgramOffice,
@@ -35,13 +35,17 @@ const CENSUS = read('src/app/census/page.tsx')
 
 /**
  * The words on everything a reader presses, read out of the source files
- * that draw the public site: the text inside an anchor, a Link or a
- * button, and the `label` a demo door is given.
+ * that draw the public site: the text inside an anchor, a Link, a
+ * counted link or a button, and the `label` a demo door is given.
  */
 function buttonLabels(src: string): string[] {
   const out: string[] = []
-  for (const m of src.matchAll(/<(?:a|Link|button)\b[^>]*>\s*([^<]+?)\s*</g)) {
-    const t = m[1].replace(/^\{['`]|['`]\}$/g, '').trim()
+  for (const m of src.matchAll(/<(?:a|Link|button|CountedLink)\b([^>]*)>\s*([^<]+?)\s*</g)) {
+    // A link to the sign-up door may say so: the door exists since
+    // 2026-10-08 (the password door), and the home page's "Sign up" is the
+    // founder's own button (2026-10-14). Every other label is read.
+    if (/href="\/signup"/.test(m[1])) continue
+    const t = m[2].replace(/^\{['`]|['`]\}$/g, '').trim()
     if (/[A-Za-z]/.test(t)) out.push(t)
   }
   for (const m of src.matchAll(/\blabel="([^"]+)"/g)) out.push(m[1])
@@ -73,16 +77,20 @@ describe('One ladder, named once', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain("b.id === 'ask'")
   })
 
-  it('the filled button in every header is the spend audit, and the home page’s hero opens on the audit and then the demo', () => {
+  it('the filled button in every header is the spend audit, and on the home page the demo comes first and the audit second, beside sign-up', () => {
     // The founder's brief, 2026-10-09: the primary call to action is the
-    // audit, the secondary the demo. It was the demo first until then.
+    // audit, and the header keeps it. His home page of 2026-10-14 puts the
+    // product in the page, so the one button under it opens the full demo,
+    // and the audit is the second call in the sign-up band, outlined beside
+    // the filled Sign up.
     expect(PRIMARY).toBe(GET_THE_AUDIT)
-    expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeGreaterThan(-1)
-    expect(HOME.indexOf('{GET_THE_AUDIT.t}')).toBeLessThan(HOME.indexOf('{`${SEE_IT.t} →`}'))
-    expect(HOME.indexOf('{`${SEE_IT.t} →`}')).toBeLessThan(HOME.indexOf('<Screen s={SHOWCASE[0]}'))
-    // The audit is the filled one, the demo the outlined one.
-    const audit = HOME.slice(HOME.lastIndexOf('<CountedLink', HOME.indexOf('{GET_THE_AUDIT.t}')), HOME.indexOf('{GET_THE_AUDIT.t}'))
-    expect(audit).toContain('className={PRIMARY_BUTTON}')
+    expect(FRAME).toContain('href={PRIMARY.href}')
+    expect(HOME.indexOf('href={SEE_IT.href}')).toBeGreaterThan(-1)
+    expect(HOME.indexOf('href={SEE_IT.href}')).toBeLessThan(HOME.indexOf('href={GET_THE_AUDIT.href}'))
+    const audit = HOME.slice(HOME.indexOf('href={GET_THE_AUDIT.href}'), HOME.indexOf('</CountedLink>', HOME.indexOf('href={GET_THE_AUDIT.href}')))
+    expect(audit).toContain('className={SECOND_BUTTON}')
+    expect(audit).toContain('Get a free contractor spend audit')
+    expect(HOME).toMatch(/<a href="\/signup" className=\{PRIMARY_BUTTON\}>Sign up<\/a>/)
     expect(HOME).toMatch(/const PRIMARY_BUTTON =\s*`[^`]*bg-etyme-action/)
   })
 
@@ -100,9 +108,14 @@ describe('One ladder, named once', () => {
     }
     const framed = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY'].includes(p.kind))
     expect(framed.length).toBeGreaterThan(20)
-    // The home page ends in the same component, with the ask form beside it.
-    expect(HOME).toContain('<CloseBand id="close" withForm>')
-    expect(HOME.indexOf('<CloseBand')).toBeLessThan(HOME.indexOf('<SiteFooter />'))
+    // The home page is the one exception since 2026-10-14: it ends in its
+    // sign-up band, which already carries the three — the demo under the
+    // product, the audit beside sign-up, and a person through Contact in
+    // its footer.
+    expect(HOME).not.toContain('<CloseBand')
+    expect(HOME).toContain('href={SEE_IT.href}')
+    expect(HOME).toContain('href={GET_THE_AUDIT.href}')
+    expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
     // And the component draws the three rungs, in order, from the funnel.
     const see = CLOSE.indexOf('{`${SEE_IT.t} →`}')
     const audit = CLOSE.indexOf('{GET_THE_AUDIT.t}')
@@ -128,9 +141,11 @@ describe('One ladder, named once', () => {
 describe('No button promises what the site cannot give', () => {
 
   it('no button promises an account the site cannot open', () => {
-    // Sign-in for a real tenant is not configured on production; the
-    // only way in is the demo. So no button anywhere on the public site
-    // may promise a start, a trial, a sign-up or an account.
+    // Until 2026-10-08 the only way in was the demo, so no button anywhere
+    // could promise a start, a trial, a sign-up or an account. The password
+    // door opened that day, so one button may: the home page's "Sign up",
+    // which goes to that door and nowhere else. Every other label is held
+    // to the old rule.
     const labels = [
       ...frameButtons(),
       ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.t)),
@@ -147,9 +162,13 @@ describe('No button promises what the site cannot give', () => {
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('Explore the Live Demo')
     expect(labels).toContain('Get a Free Contractor Spend Audit')
-    expect(labels).toContain('A supplier’s desk →')
+    expect(labels).toContain('Open the demo, no account')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
+    // The one that may, and the door it opens, which is real.
+    expect(HOME).toMatch(/<a href="\/signup" className=\{PRIMARY_BUTTON\}>Sign up<\/a>/)
+    expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
+    expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)
   })
 
   it('catches the button the marketing thread shipped, and the ways it would come back', () => {
@@ -168,30 +187,27 @@ describe('No button promises what the site cannot give', () => {
 
   it('says no card and no sign-up as two short sentences, the same way everywhere it is said', () => {
     // A buyer-side review, 2026-09-27: "No card and no sign-up." became
-    // "No card. No sign-up." everywhere.
+    // "No card. No sign-up." everywhere. Every page's close says it; the
+    // home page says it on its one demo button, "Open the demo, no
+    // account", since 2026-10-14.
     expect(SEE_IT.d).toContain('No card. No sign-up.')
-    // The home page says it in its close, the same card every page ends
-    // in; its hero caption said it too until the founder's edit of
-    // 2026-10-12 put a real screen there.
     expect(CLOSE_BAND.cards.see).toContain('No card. No sign-up.')
-    expect(HOME).toContain('<CloseBand id="close" withForm>')
+    expect(HOME).toContain('Open the demo, no account')
     const said = [...SITE_SOURCES.map(read), read('src/lib/public-site/funnel.ts'), read('src/lib/public-site/leads.ts')]
       .map((src) => copyFrom(src).join(' ')).join(' ')
     expect(said).not.toMatch(/no card and no sign-up/i)
   })
 
-  it('the line about the price says why it is free, and still leads to what is settled', () => {
-    // "What is settled →" read as a riddle beside "free while we prove it
-    // out with the first five firms". The link now says what it answers,
-    // and it still goes to the paragraph on About that answers it. Since
-    // 2026-09-29 it is a row of the close's quick links.
-    expect(HOME).toContain('None set yet. Free for the first five firms →')
+  it('the line about the price says it is free while we are testing, with no number, and the menu leads to what is settled', () => {
+    // "What is settled →" read as a riddle, and "None set yet. Free for
+    // the first five firms →" was a row of the home page's close until
+    // 2026-10-14. The founder's page says it in four words in the sign-up
+    // band; the paragraph on About that says what is settled is in every
+    // menu.
+    expect(HOME).toContain('Free while we are testing.')
     expect(HOME).not.toContain('What is settled →')
-    const link = HOME.slice(HOME.lastIndexOf('<Link', HOME.indexOf('None set yet. Free for the first five firms')))
-    // To the top of About, whose list of sections names the price first
-    // thing: no link lands in the middle of a page (2026-09-30).
-    expect(link).toMatch(/^<Link\s+href=\{'\/about' as Route\}/)
     expect(priceClaims(copyFrom(HOME).join(' '))).toEqual([])
+    expect(FRAME).toContain('SHEET_MORE')
   })
 
   it('the spend audit is promised in the census’s own time everywhere, never a faster one', () => {

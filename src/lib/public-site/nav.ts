@@ -51,13 +51,6 @@ export interface NavItem {
   t: string
   d?: string
   href: string
-  /**
-   * A section of the home page rather than a page: drawn only in the home
-   * page's own header, where `href` is a bare anchor on the same page.
-   * Away from the home page the item is not drawn, because there it would
-   * land a reader in the middle of another page (the rule of 2026-09-30).
-   */
-  homeOnly?: boolean
 }
 
 export interface NavGroup {
@@ -67,8 +60,12 @@ export interface NavGroup {
 
 export interface NavMenu {
   label: string
-  /** Where the label itself goes: a band on the home page, the top of a page elsewhere. */
-  href: { home: string; away: string }
+  /**
+   * Where the label itself goes: the top of a page, on every page. Until
+   * 2026-10-14 the home page sent it to a band of its own; those bands
+   * were cut with the home page the founder approved that day.
+   */
+  href: string
   groups: NavGroup[]
 }
 
@@ -102,34 +99,17 @@ const PART: Record<string, { t: string; d: string }> = {
 }
 
 /**
- * Since 2026-09-30 the groups are the four steps, in the home page's
- * order, and each lists its step's own page first and then the pages
- * that hang under it (`./steps`). The header, the home page's tiles and
- * the step pages' Previous and Next read one spine. The first step is
+ * Since 2026-09-30 the groups are the four steps, in the spine's order,
+ * and each lists its step's own page first and then the pages that hang
+ * under it (`./steps`). The header and the step pages' Previous and Next
+ * read one spine; the home page walks the same four as chips under its
+ * live product (2026-10-14). The first step is
  * Source, never Hire (the founder, the same day).
  */
 export const PRODUCT_STAGES: NavGroup[] = STEPS.map((s) => ({
   heading: `Step ${s.n} · ${s.name}`,
   items: [s.route, ...s.more].map((href) => ({ ...PART[href], href })),
 }))
-
-/**
- * The home page's section on specialist teams around the world, under
- * Platform. Decided by the founder, 2026-10-12, with the prototype he
- * approved: "Add a menu entry … under Platform". It is a band of the home
- * page and has no page of its own, so it is drawn only in the home page's
- * header (see `homeOnly`). Its line claims only what
- * `lib/packet-derivation` does by country.
- */
-export const AROUND_THE_WORLD: NavGroup = {
-  heading: 'Around the world',
-  items: [{
-    t: 'Specialist teams around the world',
-    d: 'People in many countries on one record, with each country’s paperwork asked for by its own rules.',
-    href: '#specialist-teams',
-    homeOnly: true,
-  }],
-}
 
 /** The eight parts in the order of the four steps. */
 export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
@@ -144,18 +124,14 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  * carries the one claim about good standing the header makes, and the
  * positioning test reads it against the two doors that refuse it.
  *
- * ── Six here, four on the home page's Solutions band, on purpose ─────
+ * ── The four client desks first, then two more ──────────────────────
  *
- * The band (2026-10-10) is the four client desks the home page is written
- * to — program office, Procurement, HR, Finance — each with its question
- * and its demo screen. This menu opens on the same four, in the band's
- * order, and then adds two that the band leaves out and the header must
- * not: hiring managers, a client desk that signs the weeks, and suppliers,
- * whose one door from every page is the chain page (where the blind key
- * and the unnamed end client are said). Cutting the menu to four would
- * drop that door; adding two to the band would make the home page speak
- * to suppliers as an equal audience. The test holds the first four to
- * the band's demo desks.
+ * The menu opens on the four client desks — program office, Procurement,
+ * HR, Finance — in the order the home page's desks band drew them until
+ * it was cut on 2026-10-14, and then adds hiring managers, a client desk
+ * that signs the weeks, and suppliers, whose one door from every page is
+ * the chain page (where the blind key and the unnamed end client are
+ * said). Cutting the menu to four would drop that door.
  */
 export const ROLES: NavItem[] = [
   { t: 'The program office', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
@@ -187,29 +163,28 @@ export const SPEND_AUDIT: NavItem = {
  * real on its own, and the menus still open on hover and on keyboard
  * focus with no script:
  *
- *   Platform      the home page's #platform band; elsewhere, the first
- *                 step's page. Its panel is the eight parts by step.
- *   Solutions     the home page's #solutions band, written to the
- *                 client's desks; elsewhere, the program office's page.
- *                 Its panel is the desks.
- *   How It Works  the home page's three steps; elsewhere, the process
- *                 documentation, which starts at its own top.
+ *   Platform      the first step's page. Its panel is the eight parts
+ *                 by step.
+ *   Solutions     the program office's page. Its panel is the desks.
+ *   How It Works  the process documentation, which starts at its own top.
  *   Security      the security position.
  *
- * On the home page a label lands on a band of that same page. On every
- * other page it opens the top of a page, never the middle of the home
- * page — the rule of 2026-09-30, kept. What the Resources and Company
+ * Every label opens the top of a page, never the middle of one — the rule
+ * of 2026-09-30, kept. Until 2026-10-14 a label on the home page landed
+ * on a band of the home page; the page the founder approved that day has
+ * no such bands, and draws these menus only in the sheet behind Menu
+ * (`SiteHeader onHome`). What the Resources and Company
  * menus carried is in the phone sheet and the footer.
  */
 export const NAV_MENUS: NavMenu[] = [
-  { label: 'Platform', href: { home: '#platform', away: '/requisitions' }, groups: [...PRODUCT_STAGES, AROUND_THE_WORLD] },
-  { label: 'Solutions', href: { home: '#solutions', away: '/docs/process' }, groups: [{ heading: 'By desk', items: ROLES }] },
+  { label: 'Platform', href: '/requisitions', groups: PRODUCT_STAGES },
+  { label: 'Solutions', href: '/docs/process', groups: [{ heading: 'By desk', items: ROLES }] },
 ]
 
 /** The two plain links beside the menus. */
-export const NAV_LINKS: { label: string; href: { home: string; away: string } }[] = [
-  { label: 'How It Works', href: { home: '#how-it-works', away: '/docs/process' } },
-  { label: 'Security', href: { home: '/security', away: '/security' } },
+export const NAV_LINKS: { label: string; href: string }[] = [
+  { label: 'How It Works', href: '/docs/process' },
+  { label: 'Security', href: '/security' },
 ]
 
 /** What the phone sheet carries under the menus, from the two menus that left the header. */
@@ -233,13 +208,12 @@ export function itemsOf(menu: NavMenu): NavItem[] {
 }
 
 /**
- * The groups of one menu as a header draws them: on the home page every
- * item; anywhere else, the items that are pages, and no group left empty.
+ * The groups of one menu as a header draws them, with no group left
+ * empty. Every item is a page since 2026-10-14, when the home page's one
+ * home-only item (its specialist-teams band) was cut with the band.
  */
-export function groupsShown(menu: NavMenu, onHome: boolean): NavGroup[] {
-  return menu.groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => onHome || !i.homeOnly) }))
-    .filter((g) => g.items.length > 0)
+export function groupsShown(menu: NavMenu): NavGroup[] {
+  return menu.groups.filter((g) => g.items.length > 0)
 }
 
 export interface FooterGroup {
@@ -300,8 +274,8 @@ export const ADDRESS = {
 /** Every href the header and footer draw, for the test. */
 export function everyFrameLink(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => [m.href.home, m.href.away, ...itemsOf(m).map((i) => i.href)]),
-    ...NAV_LINKS.flatMap((l) => [l.href.home, l.href.away]),
+    ...NAV_MENUS.flatMap((m) => [m.href, ...itemsOf(m).map((i) => i.href)]),
+    ...NAV_LINKS.map((l) => l.href),
     ...SHEET_MORE.map((i) => i.href),
     PRIMARY.href,
     '/login',

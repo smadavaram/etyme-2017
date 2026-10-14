@@ -37,17 +37,15 @@ describe('the candidate demo is a real third door, not just the other two relabe
   })
 
   it('is reachable from the home page, as a quiet link wherever the company doors are', () => {
-    // This used to pin exactly two candidate doors, which described a
-    // hero with two company doors beside each other. The hero now has
-    // one company door, so counting is describing a layout rather than
-    // holding a promise. The promise is that the door exists at all and
-    // that it never competes with the company one: a primary door is
-    // marked `bg-etyme-action` on this page, and a candidate's is a text
-    // link.
-    const doors = PAGE.match(/<TryDemo[\s\S]*?\/>/g) ?? []
-    const candidateDoors = doors.filter((d) => /side="CANDIDATE"/.test(d))
-    expect(candidateDoors.length).toBeGreaterThanOrEqual(1)
-    for (const door of candidateDoors) expect(door).not.toContain('bg-etyme-action')
-    expect(PAGE).toContain('See it as a contractor')
+    // Since 2026-10-14 the home page's doors are one line in its sign-up
+    // band, Clients first, and the worker's is "Workers", to the
+    // contractors' own page, whose demo door seats a candidate. It is a
+    // text link, never a button: a primary door is marked
+    // `bg-etyme-action` on this page, and the doors line draws none.
+    expect(PAGE).toContain("{ t: 'Workers', href: '/for/contractors' }")
+    const line = PAGE.slice(PAGE.indexOf('DOORS.map'), PAGE.indexOf('</p>', PAGE.indexOf('DOORS.map')))
+    expect(line).not.toContain('bg-etyme-action')
+    const doors = readFileSync(join(process.cwd(), 'src/lib/public-site/party-page.tsx'), 'utf8')
+    expect(doors).toContain('<TryDemo side="CANDIDATE"')
   })
 })

@@ -438,11 +438,10 @@ describe('One header and footer on every new page', () => {
     expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
     expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Source', 'Step 2 · Choose and start', 'Step 3 · Approve the weeks', 'Step 4 · Bill and pay'])
-    // Platform is the four steps, and since 2026-10-12 one more entry, the
-    // home page's band on specialist teams around the world, drawn only on
-    // the home page (see positioning.test.ts).
-    expect(NAV_MENUS[0].groups.slice(0, 4)).toEqual(PRODUCT_STAGES)
-    expect(NAV_MENUS[0].groups.slice(4).map((g) => g.heading)).toEqual(['Around the world'])
+    // Platform is the four steps and nothing else since 2026-10-14, when
+    // the home page's band on specialist teams around the world, the one
+    // home-only entry, was cut with the band.
+    expect(NAV_MENUS[0].groups).toEqual(PRODUCT_STAGES)
     expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By desk'])
     expect(itemsOf(NAV_MENUS[1])).toEqual(ROLES)
     // Every item in a menu says what it is in one line under its name.
@@ -454,11 +453,15 @@ describe('One header and footer on every new page', () => {
       expect(SHEET_MORE.map((i) => i.href), h).toContain(h)
       expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
     }
-    // The home page draws the same header, rather than a copy of it, and
-    // tells it it is on the home page so the labels land on its bands.
+    // The home page draws the same header, rather than a copy of it, bare
+    // since 2026-10-14: the logo, Sign in, Free audit and Menu at every
+    // width, the menus and links in the sheet behind Menu.
     const home = read('src/app/page.tsx')
     expect(home).toContain('<SiteHeader onHome />')
     expect(home).not.toContain('const NAV_MENUS')
+    const header = read('src/lib/public-site/frame.tsx')
+    expect(header).toContain("${onHome ? '' : 'lg:flex'}")
+    expect(header).toContain("${onHome ? '' : 'lg:hidden'}")
     for (const f of ['module-page.tsx', 'docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
@@ -469,22 +472,20 @@ describe('One header and footer on every new page', () => {
     expect(frame).toContain('SHEET_MORE.map')
   })
 
-  it('each header label goes somewhere real: a band of the home page on the home page, the top of a page anywhere else', () => {
-    const home = read('src/app/page.tsx')
+  it('each header label goes to the top of a page that exists, on every page, the home page included', () => {
+    // Until 2026-10-14 a label on the home page landed on a band of the
+    // home page. Those bands were cut with the page the founder approved
+    // that day, so a label has one destination everywhere: the top of a
+    // page, never the middle of one.
     const labels = [...NAV_MENUS.map((m) => ({ label: m.label, href: m.href })), ...NAV_LINKS]
-    expect(labels.map((l) => [l.label, l.href.home])).toEqual([
-      ['Platform', '#platform'], ['Solutions', '#solutions'], ['How It Works', '#how-it-works'], ['Security', '/security'],
+    expect(labels.map((l) => [l.label, l.href])).toEqual([
+      ['Platform', '/requisitions'], ['Solutions', '/docs/process'], ['How It Works', '/docs/process'], ['Security', '/security'],
     ])
     for (const l of labels) {
-      if (l.href.home.startsWith('#')) expect(home, `${l.label}: no band ${l.href.home} on the home page`).toContain(`id="${l.href.home.slice(1)}"`)
-      // Away from the home page a label never lands in the middle of another page.
-      expect(l.href.away, l.label).not.toContain('#')
+      expect(l.href, l.label).not.toContain('#')
+      expect(pageAt(l.href) ?? DOCS_SLUGS.includes(l.href.replace('/docs/', '') as never), l.href).toBeTruthy()
     }
-    // Solutions is the band written to four of the client's desks (the
-    // founder's feedback, 2026-10-10), each opening its screen in the demo.
-    const desks = home.slice(home.indexOf('const DESKS'), home.indexOf('const HOW'))
-    expect([...desks.matchAll(/\n    t: '([^']+)'/g)].map((m) => m[1])).toEqual(['Contingent Workforce Director', 'Procurement', 'HR Operations', 'Finance'])
-    expect(home.slice(home.indexOf('id="solutions"'))).toMatch(/^[^]*?DESKS\.map[^]*?<DemoLink target=\{d\.demo\}/)
+    expect(read('src/app/page.tsx')).not.toContain('const DESKS')
   })
 
   it('the Product menu names all eight parts, each under the step it belongs to, the step’s own page first', () => {
@@ -552,15 +553,11 @@ describe('One header and footer on every new page', () => {
     expect(chain).toEqual(['A prime', 'A sub', 'A bench vendor'])
   })
 
-  it('the solutions menu opens on the home page band\'s four desks, in the band\'s order, then adds hiring managers and suppliers', () => {
-    // The band is written to four client desks; the menu on every page
-    // keeps two more, the hiring manager who signs weeks and the
-    // suppliers' one door to the chain page. The first four must be the
-    // band's, so the menu and the band never teach two different maps.
-    const page = read('src/app/page.tsx')
-    const block = page.slice(page.indexOf('const DESKS'), page.indexOf('const HOW'))
-    const bandDesks = [...block.matchAll(/desk: '(\w+)'/g)].map((m) => m[1])
-    expect(bandDesks).toEqual(['programme', 'procurement', 'hr', 'ap'])
+  it('the solutions menu opens on the four client desks, then adds hiring managers and suppliers', () => {
+    // The home page's band of four desk cards left on 2026-10-14; the menu
+    // keeps their order — program office, Procurement, HR, Finance — and
+    // two more: the hiring manager who signs weeks, and the suppliers' one
+    // door to the chain page.
     expect(ROLES.slice(0, 4).map((r) => r.t)).toEqual(['The program office', 'Procurement', 'HR and compliance', 'Finance'])
     expect(ROLES.slice(4).map((r) => r.t)).toEqual(['Hiring managers', 'Suppliers'])
   })
@@ -715,15 +712,26 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
   })
 
-  it('no door is on the home page\'s menu or in the shared header, and each door\'s footer links the other three', () => {
+  it('no door is in the shared header or footer; the home page carries all four in its sign-up band and its own footer; each door\'s footer links the other three', () => {
+    // Decided 2026-10-13: the doors are reached by link, not from the menu.
+    // The founder's home page of 2026-10-14 adds one small line in the
+    // sign-up band, "Your door:", Clients first, and the same links in the
+    // home page's own footer. The shared header and footer still carry none.
     const header = [
-      ...HEADER_MENUS.flatMap((m) => [m.href.home, m.href.away, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
-      ...HEADER_LINKS.flatMap((l) => [l.href.home, l.href.away]),
+      ...HEADER_MENUS.flatMap((m) => [m.href, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
+      ...HEADER_LINKS.map((l) => l.href),
       ...HEADER_MORE.map((i) => i.href),
       ...SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)),
     ]
     for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
-    expect(read('src/app/page.tsx')).not.toMatch(/\/for\//)
+    const home = read('src/app/page.tsx')
+    const doors = home.slice(home.indexOf('const DOORS'), home.indexOf('const FOOTER_LINKS'))
+    const footer = home.slice(home.indexOf('const FOOTER_LINKS'), home.indexOf('const FOCUS'))
+    for (const p of PARTY_PAGES) {
+      expect(doors, p.route).toContain(`href: '${p.route}'`)
+      expect(footer, p.route).toContain(`href: '${p.route}'`)
+    }
+    expect(doors.indexOf("t: 'Clients'")).toBeLessThan(doors.indexOf('/for/'))
     for (const p of PARTY_PAGES) {
       expect(otherDoors(p).map((d) => d.href).sort(), p.route).toEqual(PARTY_PAGES.filter((o) => o !== p).map((o) => o.route).sort())
     }
