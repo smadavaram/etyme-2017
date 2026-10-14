@@ -1685,7 +1685,7 @@ describe('The footer is where a company keeps its papers', () => {
     expect(FOOTER_LINKS).toContain('/terms')
     expect(FOOTER_LINKS).toContain('/privacy')
     expect(HOME_FOOTER_LINKS.map((l) => l.t)).toEqual([
-      'Documentation', 'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
+      'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Documentation', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
     ])
     expect(HOME_FOOTER_LINKS.find((l) => l.t === 'Clients')?.href).toBe('/')
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toEqual(expect.arrayContaining(['/terms', '/privacy', '/dpa', '/contact', '/docs', '/security']))

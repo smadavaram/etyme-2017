@@ -26,18 +26,19 @@ export const DOORS: { t: string; href: string }[] = [
 ]
 
 /**
- * The footer: the documentation, every party's door with Clients first,
- * security, the legal pages, contact. Clients is the home page, because
+ * The footer: every party's door in the order of the chain — Clients,
+ * MSPs, Integrators, Suppliers, Workers (founder, 2026-10-14: "in
+ * sequence") — then the documentation, security, the legal pages, contact. Clients is the home page, because
  * the home page is written to the client (founder, 2026-10-14: "Footer
  * is missing clients which links to home page").
  */
 export const FOOTER_LINKS: { t: string; href: string }[] = [
-  { t: 'Documentation', href: '/docs' },
   { t: 'Clients', href: '/' },
   { t: 'MSPs', href: '/for/program-offices' },
   { t: 'Integrators', href: '/for/integrators' },
   { t: 'Suppliers', href: '/for/suppliers' },
   { t: 'Workers', href: '/for/contractors' },
+  { t: 'Documentation', href: '/docs' },
   { t: 'Security', href: '/security' },
   { t: 'Privacy', href: '/privacy' },
   { t: 'Terms', href: '/terms' },
