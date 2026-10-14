@@ -366,6 +366,48 @@ live page's bones over a page from scratch:
   Menu. Documentation is linked from the menu, the trust card and the
   footer, never a section of its own.
 
+### The home page is the product, and the slop is gone — decided by the founder, 2026-10-14
+
+"Build it", on the drawing he corrected three times
+(https://claude.ai/artifact/6QSTnKXDiQJKqiT1qXLU3G). What the home page
+is now, and the test for every word on it: which buyer asked for it,
+and can the reader check it by clicking something on this page.
+
+- **Three sections, about a hundred words.** The question and the
+  category line, kept word for word. The live product under them. The
+  sign-up band. Then the footer. The header stays as it is live.
+- **The product is in the page, live and read-only.** The seeded
+  Northbend Athletic program manager's screens, served inside the home
+  page in a frame from a shared read-only demo seat: no sandbox is made
+  for a visitor who only looks, every write is refused in a sentence
+  that offers the visitor's own demo, and nothing a stranger does can
+  touch the seeded world. "Open the demo, no account" opens the full
+  demo as before. The three screenshots and "Screen 1 of 3" are gone.
+- **Four chips under the product: Source, Submit, Approve, Pay.** Each
+  moves the frame to that screen. The steps are walked, not read; the
+  Platform section's eight cards of text are gone.
+- **Sign-up sits right under the product**, because a buyer signs up
+  after seeing it, not instead of seeing it: "Seen enough? Set up your
+  company." The audit stays as the second call. One small line inside
+  the same band carries every party's door, Clients first, and the
+  footer carries the same five links. No section of their own, and the
+  page keeps speaking to the client.
+- **Security is one line and the link.** The honest security page stays
+  whole.
+- **Cut, and why:** "The problem" (the demo answers the four questions
+  on its first screen); "The platform" (the chips); the global section
+  and "what you set once" (documentation, under the step they belong
+  to); "Solutions by desk" and the Platform menu (six audiences on one
+  page speak to none); the security band's four cards; every adjective
+  and every promise that cannot be checked by clicking; the trust card.
+- **Teams and Ask Etyme are not sold on the page.** Ask Etyme is the
+  first screen of the demo, so the reader meets it rather than reads
+  about it. Teams goes on the page the day a real card has been tapped
+  in a real tenant, as one line, in a customer's words.
+- **Measured by one number**: demo visitors who reach the matched bill
+  screen, and how many of those sign up or ask for the audit. A page
+  element that does not move it is deleted the next week.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
