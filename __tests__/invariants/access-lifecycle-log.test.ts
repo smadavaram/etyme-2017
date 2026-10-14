@@ -217,6 +217,7 @@ describe('a refused read is in the trail before the refusal is sent', () => {
       ['src/app/api/timesheets/route.ts', 'if (hasOwn === 0)'],
       ['src/app/api/compliance/route.ts', 'const refusedRead'],
       ['src/lib/api-context.ts', 'if (verdict.readsPeople)'],
+      ['src/lib/api-context.ts', 'if (!sampleMay(request?.method))'],
     ]
     for (const [file, from] of sites) {
       const src = readFileSync(join(process.cwd(), file), 'utf8')
@@ -225,6 +226,63 @@ describe('a refused read is in the trail before the refusal is sent', () => {
       const block = src.slice(start, src.indexOf('status: 403', start))
       expect(block, `${file}: the refusal at "${from}" does not wait for its row`).toContain('await recordRefusal(')
     }
+  })
+
+  it('a refused write from the shared sample is in the access log before the refusal is sent', () => {
+    // The row itself, read back from the database after a refused write, is
+    // in __integration__/sample-seat.test.ts. Here: the one door that
+    // refuses the sample's writes waits for the row, filed as the sample,
+    // before it builds the 403.
+    const src = readFileSync(join(process.cwd(), 'src/lib/api-context.ts'), 'utf8')
+    const start = src.indexOf('if (!sampleMay(request?.method))')
+    expect(start, 'cannot find the sample seat\u2019s refusal of a write').toBeGreaterThan(-1)
+    const block = src.slice(start, src.indexOf('status: 403', start))
+    expect(block).toContain('await recordRefusal(')
+    expect(block).toContain("action: 'SAMPLE_WRITE'")
+    expect(block).toContain("actorKind: 'SAMPLE'")
+    // Nothing about the visitor: no address, no browser.
+    expect(block).not.toMatch(/x-forwarded-for|user-agent|\.ip\b|headers\.get/i)
+  })
+
+  it('a read made through the sample is logged as the sample, never as the person whose seat it borrows, whatever the caller passes', async () => {
+    const { recordRefusal, recordAccess } = await import('@/lib/access-log')
+    createMany.mockResolvedValue({ count: 1 })
+    await recordRefusal(['lorena'], {
+      action: 'SAMPLE_WRITE', actorKind: 'SAMPLE', actorSampleSeat: 'ctx-pm', actorPersonId: 'lorena',
+      actorCompanyId: 'northbend', reason: 'Refused POST /api/requisitions',
+    })
+    expect(createMany.mock.calls[0][0].data[0]).toMatchObject({
+      subjectId: 'lorena', actorKind: 'SAMPLE', actorTwinKind: null, actorPersonId: null,
+      actorCompanyId: 'northbend', allowed: false,
+      reason: 'Through the shared sample, seat ctx-pm. Refused POST /api/requisitions',
+    })
+    await recordAccess(['helena'], { action: 'CONTRACT_VIEW', actorKind: 'SAMPLE', actorSampleSeat: 'ctx-pm', actorPersonId: 'lorena' }, { accessLog: { createMany } } as never)
+    expect(createMany.mock.calls[1][0].data[0]).toMatchObject({ actorKind: 'SAMPLE', actorPersonId: null })
+    // A person at a desk is still filed as that person.
+    await recordAccess(['helena'], { action: 'CONTRACT_VIEW', actorPersonId: 'lorena' }, { accessLog: { createMany } } as never)
+    expect(createMany.mock.calls[2][0].data[0]).toMatchObject({ actorKind: 'PERSON', actorPersonId: 'lorena' })
+  })
+
+  it('a route that hands the log its caller files the shared sample as the sample and a person at a desk as that person', async () => {
+    const { accessActor } = await import('@/lib/access-log')
+    const seat = { person: { id: 'lorena' }, company: { id: 'northbend' }, context: { id: 'ctx-pm' } }
+    expect(accessActor({ ...seat, readOnly: true })).toEqual({ actorKind: 'SAMPLE', actorSampleSeat: 'ctx-pm', actorCompanyId: 'northbend' })
+    expect(accessActor(seat)).toEqual({ actorPersonId: 'lorena', actorCompanyId: 'northbend' })
+  })
+
+  it('the log refuses a sample row that names no seat', async () => {
+    const { actorColumns, recordAccess, recordRefusal } = await import('@/lib/access-log')
+    expect(() => actorColumns({ actorKind: 'SAMPLE' })).toThrow(/must name the seat/)
+    expect(() => actorColumns({ actorKind: 'SAMPLE', actorSampleSeat: '  ' })).toThrow(/must name the seat/)
+    await expect(
+      recordAccess(['helena'], { action: 'CONTRACT_VIEW', actorKind: 'SAMPLE', actorSampleSeat: '' }, { accessLog: { createMany } } as never)
+    ).rejects.toThrow(/must name the seat/)
+    expect(createMany).not.toHaveBeenCalled()
+    // A refusal stays a refusal: nothing is written, and staff are told.
+    reportError.mockResolvedValue(undefined)
+    expect(await recordRefusal(['lorena'], { action: 'SAMPLE_WRITE', actorKind: 'SAMPLE', actorSampleSeat: '' })).toBe(0)
+    expect(createMany).not.toHaveBeenCalled()
+    expect(String(reportError.mock.calls[0][1])).toMatch(/must name the seat/)
   })
 
   it('no route logs a refusal without waiting for it, except the ones still named here with the domain that owns them', () => {

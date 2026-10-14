@@ -102,6 +102,17 @@ export type AccessAction =
   | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
   | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
   | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+  // ── The shared sample seat the home page frames ────────────────────
+  //
+  // `lib/sample-seat` (etyme-architect, 2026-10-14): anybody, with no
+  // account, reads the seeded Northbend program manager's screens, and
+  // every write is refused at the caller check. The refusal is a row of
+  // its own so "what did strangers try to change through the sample" is
+  // one query. Its subject is the person whose seat the sample borrows,
+  // because the row needs a person and that is the seat the write was
+  // tried in; its actor is SAMPLE, never her. It holds the method and the
+  // route and nothing about the visitor: no address, no browser.
+  | 'SAMPLE_WRITE'              // the shared sample tried to change something, and was refused
 
 interface LogAccessBase {
   /** The person whose data was accessed */
@@ -125,35 +136,112 @@ interface LogAccessBase {
 /** The twins that may read. One today; the column is a string so the next is a line here. */
 export type TwinKind = 'PROGRAM_MANAGER'
 
+/** Who made a read, as the `actorKind` column holds it. A string column: a new kind is a line here. */
+export type ActorKind = 'PERSON' | 'TWIN' | 'SAMPLE'
+
 /**
  * Who made the read. PERSON, the default, is somebody at a desk. TWIN is
  * the job twin acting on `actorPersonId`'s authority, and then the row
  * must say which twin — so the trail reads "the program manager twin, for
  * Dana Whitfield", never as though Dana had looked herself.
+ *
+ * SAMPLE is the shared sample seat the home page frames (`lib/sample-seat`):
+ * a stranger with no account, reading through the seeded program
+ * manager's seat. The row must name the seat (`actorSampleSeat`, the
+ * Context id), and it never carries the person who holds that seat:
+ * unlike a twin, the sample acts on nobody's authority, and her own
+ * access review must not read strangers as her. The seat is written into
+ * the reason, because the table has no column for it (no schema change).
  */
 type ActorFields =
-  | { actorKind?: 'PERSON'; actorTwinKind?: never }
-  | { actorKind: 'TWIN'; actorTwinKind: TwinKind }
+  | { actorKind?: 'PERSON'; actorTwinKind?: never; actorSampleSeat?: never }
+  | { actorKind: 'TWIN'; actorTwinKind: TwinKind; actorSampleSeat?: never }
+  | { actorKind: 'SAMPLE'; actorSampleSeat: string; actorTwinKind?: never }
 
 type LogAccessParams = LogAccessBase & ActorFields
 
-/** `Omit` that keeps the PERSON/TWIN pairing instead of flattening it. */
+/** `Omit` that keeps the PERSON/TWIN/SAMPLE pairing instead of flattening it. */
 type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
 /**
  * The two actor columns, as written. A TWIN row with no twin named is
- * refused here rather than written as a read nobody can attribute; a
- * PERSON row never carries a twin kind.
+ * refused here rather than written as a read nobody can attribute, and so
+ * is a SAMPLE row that names no seat; a PERSON row never carries either.
  */
-export function actorColumns(p: { actorKind?: 'PERSON' | 'TWIN'; actorTwinKind?: TwinKind }): {
-  actorKind: 'PERSON' | 'TWIN'
+export function actorColumns(p: { actorKind?: ActorKind; actorTwinKind?: TwinKind; actorSampleSeat?: string }): {
+  actorKind: ActorKind
   actorTwinKind: TwinKind | null
 } {
   if (p.actorKind === 'TWIN') {
     if (!p.actorTwinKind) throw new Error('A read made by a twin must name which twin made it.')
     return { actorKind: 'TWIN', actorTwinKind: p.actorTwinKind }
   }
+  if (p.actorKind === 'SAMPLE') {
+    if (!p.actorSampleSeat?.trim()) throw new Error('A read made through the shared sample must name the seat it was made through.')
+    return { actorKind: 'SAMPLE', actorTwinKind: null }
+  }
   return { actorKind: 'PERSON', actorTwinKind: null }
+}
+
+/**
+ * Everything on a row except the subject, the action and `allowed`: the
+ * actor columns, and the person and reason as they may be written for
+ * that actor. A SAMPLE row drops the person whatever the caller passed —
+ * it is the sample, never the person whose seat it borrows — and its
+ * reason begins with the seat, so the row can be read back whole.
+ */
+function actorRow(p: LogAccessBase & { actorKind?: ActorKind; actorTwinKind?: TwinKind; actorSampleSeat?: string }): {
+  actorPersonId: string | null
+  actorCompanyId: string | null
+  actorKind: ActorKind
+  actorTwinKind: TwinKind | null
+  reason: string | null
+} {
+  const actor = actorColumns(p)
+  if (actor.actorKind === 'SAMPLE') {
+    const seat = `Through the shared sample, seat ${p.actorSampleSeat!.trim()}.`
+    return {
+      actorPersonId: null,
+      actorCompanyId: p.actorCompanyId ?? null,
+      ...actor,
+      reason: p.reason ? `${seat} ${p.reason}` : seat,
+    }
+  }
+  return {
+    actorPersonId: p.actorPersonId ?? null,
+    actorCompanyId: p.actorCompanyId ?? null,
+    ...actor,
+    reason: p.reason ?? null,
+  }
+}
+
+/**
+ * The actor fields for a caller, the way every route should fill them.
+ *
+ * A route that writes `actorPersonId: caller.person.id` files a read made
+ * through the shared sample seat as the seeded program manager whose seat
+ * it borrows — measured 2026-10-14: one look at the home page's frame
+ * wrote sixteen CONTRACT_VIEW rows under her name. The caller check knows
+ * the caller is the sample (`readOnly`, set only by the sample door in
+ * `lib/api-context`), and the log cannot learn it any other way: a scope
+ * entered inside the caller check ends when the check returns. So the
+ * route hands the caller over, and this decides.
+ *
+ * Structural rather than `CallerContext`, so the log does not import the
+ * caller check that imports it.
+ */
+export function accessActor(caller: {
+  person: { id: string }
+  company: { id: string } | null
+  context?: { id: string } | null
+  readOnly?: boolean
+}): { actorPersonId?: string; actorCompanyId?: string } & ActorFields {
+  const actorCompanyId = caller.company?.id
+  if (caller.readOnly) {
+    // A read-only caller with no seat to name is refused by the log, as it should be.
+    return { actorKind: 'SAMPLE', actorSampleSeat: caller.context?.id ?? '', actorCompanyId }
+  }
+  return { actorPersonId: caller.person.id, actorCompanyId }
 }
 
 /**
@@ -169,20 +257,17 @@ export function actorColumns(p: { actorKind?: 'PERSON' | 'TWIN'; actorTwinKind?:
  * that the reader waits for it.
  */
 export function logAccess(params: LogAccessParams): void {
-  const { subjectId, actorPersonId, actorCompanyId, action, allowed = true, reason } = params
-  const actor = actorColumns(params)
+  const { subjectId, action, allowed = true } = params
+  const row = actorRow(params)
 
   // Fire-and-forget — don't await, don't block the response
   prisma.accessLog
     .create({
       data: {
         subjectId,
-        actorPersonId: actorPersonId ?? null,
-        actorCompanyId: actorCompanyId ?? null,
-        ...actor,
+        ...row,
         action,
         allowed,
-        reason: reason ?? null,
       },
     })
     .catch((err) => {
@@ -192,7 +277,7 @@ export function logAccess(params: LogAccessParams): void {
           `Could not record a ${action} of ${subjectId}. The read happened and is not in the trail. ` +
             `Cause: ${err instanceof Error ? err.message : String(err)}`
         ),
-        { personId: actorPersonId ?? null, companyId: actorCompanyId ?? null }
+        { personId: row.actorPersonId, companyId: row.actorCompanyId }
       )
     })
 }
@@ -206,16 +291,13 @@ export function logBulkAccess(
   params: Without<LogAccessParams, 'subjectId'>
 ): void {
   if (subjectIds.length === 0) return
-  const actor = actorColumns(params)
+  const row = actorRow({ ...params, subjectId: '' })
 
   const data = subjectIds.map((subjectId) => ({
     subjectId,
-    actorPersonId: params.actorPersonId ?? null,
-    actorCompanyId: params.actorCompanyId ?? null,
-    ...actor,
+    ...row,
     action: params.action,
     allowed: params.allowed ?? true,
-    reason: params.reason ?? null,
   }))
 
   prisma.accessLog
@@ -227,7 +309,7 @@ export function logBulkAccess(
           `Could not record a ${params.action} of ${subjectIds.length} people. The reads happened and are not in the trail. ` +
             `Cause: ${err instanceof Error ? err.message : String(err)}`
         ),
-        { personId: params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
+        { personId: row.actorPersonId, companyId: row.actorCompanyId }
       )
     })
 }
@@ -263,16 +345,13 @@ export async function recordAccess(
   db: AccessLogWriter = prisma
 ): Promise<number> {
   if (subjectIds.length === 0) return 0
-  const actor = actorColumns(params)
+  const row = actorRow({ ...params, subjectId: '' })
   const written = await db.accessLog.createMany({
     data: subjectIds.map((subjectId) => ({
       subjectId,
-      actorPersonId: params.actorPersonId ?? null,
-      actorCompanyId: params.actorCompanyId ?? null,
-      ...actor,
+      ...row,
       action: params.action,
       allowed: params.allowed ?? true,
-      reason: params.reason ?? null,
     })),
   })
   return written.count
@@ -315,16 +394,13 @@ export async function recordRefusal(
   if (subjects.length === 0) return 0
   try {
     // Inside the try: a refusal is a refusal even when its actor is malformed.
-    const actor = actorColumns(params)
+    const row = actorRow({ ...params, subjectId: '' })
     const written = await prisma.accessLog.createMany({
       data: subjects.map((subjectId) => ({
         subjectId,
-        actorPersonId: params.actorPersonId ?? null,
-        actorCompanyId: params.actorCompanyId ?? null,
-        ...actor,
+        ...row,
         action: params.action,
         allowed: false,
-        reason: params.reason ?? null,
       })),
     })
     return written.count
@@ -336,7 +412,7 @@ export async function recordRefusal(
           `The refusal was sent and is not in the trail. ` +
           `Cause: ${err instanceof Error ? err.message : String(err)}`
       ),
-      { personId: params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
+      { personId: params.actorKind === 'SAMPLE' ? null : params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
     ).catch(() => undefined)
     return 0
   }

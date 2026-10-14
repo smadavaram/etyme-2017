@@ -325,12 +325,10 @@ served without its row. The trade-off that remains is explicit: an
 ordinary read or a list can lose its row on a database failure without
 failing the request, and staff are told when it does.
 
-Three files still write their rows by hand, each awaited and each listed
-by name in `__tests__/invariants/access-lifecycle-log.test.ts`, which fails
-on any new one: the week-approval seam in `src/lib/week-approval.ts`,
-which waits for its row and reports a failure to staff without failing
-the request, and two bench routes that write the row on the same
-transaction as the change it records.
+No file writes its rows by hand any more: every row goes through one of
+the doors above, and `__tests__/invariants/access-lifecycle-log.test.ts`
+fails on any new hand-written write. (This paragraph named three until
+2026-10-14, after the list in that test had already gone to none.)
 
 **Reads made by the job twin.** The twin is a program that reads the
 record on a person's authority, so its reads and refusals are on the same
@@ -341,6 +339,21 @@ program owner) and the twin's kind (`actorKind` is `TWIN`,
 had looked, and never shows it as a read by nobody; a twin row with no
 twin named is refused by the log itself. Today the twin reads one thing,
 the tenure ledger, and those rows are written before it acts on them.
+
+**Reads and refused writes made through the shared sample.** The home
+page frames the seeded Northbend Athletic program manager's screens for
+anybody, read-only (`src/lib/sample-seat.ts`). A row made through that
+seat is filed as `SAMPLE`, names the seat in its reason, and carries no
+person as the actor: a stranger is never filed as the program manager
+whose seat the sample borrows, and a sample row that names no seat is
+refused by the log. Every write from the sample is refused at the caller
+check, and the refusal (`SAMPLE_WRITE`) is written before the 403 goes
+out. The row holds the method, the route and the time, and nothing about
+the visitor: no address and no browser. **Not done yet:** the routes'
+own reads still name the program manager. A route files a read as the
+sample only when it hands the log its caller (`accessActor` in
+`src/lib/access-log.ts`), and none does yet; one look at the frame writes
+sixteen `CONTRACT_VIEW` rows under her name from `/api/program`.
 
 ---
 

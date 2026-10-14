@@ -136,6 +136,27 @@ describe('the shared sample seat the home page frames', () => {
     expect(await theWorld()).toEqual(before)
   }, 60_000)
 
+  it('a refused write from the shared sample is in the access log before the refusal is sent, filed as the sample and never as the program manager whose seat it borrows', async () => {
+    as('')
+    const pm = await prisma.context.findFirstOrThrow({
+      where: { company: { slug: 'world-nike' }, role: { name: 'Program Manager' } },
+      select: { id: true, personId: true, companyId: true },
+    })
+    const since = new Date()
+    const res = await setWeek(req('PATCH', '/api/settings/week', { daysOff: [5, 6], reason: 'try' }, SAMPLE))
+    expect(res.status).toBe(403)
+    // No wait between the 403 and the read: the row was written before it went out.
+    const rows = await prisma.accessLog.findMany({ where: { action: 'SAMPLE_WRITE', at: { gte: since } } })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      subjectId: pm.personId, actorPersonId: null, actorCompanyId: pm.companyId,
+      actorKind: 'SAMPLE', actorTwinKind: null, allowed: false,
+    })
+    expect(rows[0].reason).toBe(`Through the shared sample, seat ${pm.id}. Refused PATCH /api/settings/week: the shared sample is read-only.`)
+    // Nothing is filed as her for it.
+    expect(await prisma.accessLog.count({ where: { actorPersonId: pm.personId, at: { gte: since } } })).toBe(0)
+  }, 60_000)
+
   it('reading every screen as the sample seat changes nothing, not even the program manager’s own last use, so the access review does not read strangers as her', async () => {
     as('')
     const before = await theWorld()

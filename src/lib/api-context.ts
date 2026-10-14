@@ -380,6 +380,10 @@ async function sampleCaller(
   }
 
   if (!sampleMay(request?.method)) {
+    await recordRefusal([seat.personId], {
+      action: 'SAMPLE_WRITE', actorKind: 'SAMPLE', actorSampleSeat: seat.id, actorCompanyId: seat.company.id,
+      reason: `Refused ${request?.method ?? 'a call with no method'} ${request?.nextUrl?.pathname ?? '(no route)'}: the shared sample is read-only.`,
+    })
     return { caller: null, error: NextResponse.json(sampleRefusalBody(), { status: 403 }) }
   }
 
