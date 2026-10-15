@@ -1098,7 +1098,7 @@ describe('The page shows the product before it describes it', () => {
     // in one compact panel, from the seeded demo's own names and figures,
     // in place of the live frame he found blank or a wall of tables.
     expect(PAGE).toContain('<LiveDemo>')
-    expect(PAGE).toContain('<StoryPanel start={storyIndex(step)}>')
+    expect(PAGE).toContain('<StoryPanel start={storyIndex(step)} story={story}>')
     expect(PAGE.indexOf('<LiveDemo')).toBeGreaterThan(PAGE.indexOf('<h1'))
     expect(PAGE.indexOf('<LiveDemo')).toBeLessThan(PAGE.indexOf('<SignUpBand'))
     expect(PAGE).not.toContain('<SampleDesk')
@@ -1111,7 +1111,7 @@ describe('The page shows the product before it describes it', () => {
     expect(PAGE).not.toContain('Screen ${n} of')
     expect(PAGE).not.toMatch(/<iframe|HomeDemo/)
     expect(PANEL).not.toContain('<iframe')
-    expect(PANEL).toContain('aria-label={`Etyme shown working on ${STORY_BAR.company}, a sample company`}')
+    expect(PANEL).toContain('aria-label={`Etyme shown working on ${story.bar.company}, a sample company`}')
   })
   it('walks the four steps as four chips — Job, Candidates, Timesheets, Invoices — each playing its own step in the same panel', () => {
     // The founder, 2026-10-14: the four nouns a buyer already has on their

@@ -41,7 +41,13 @@ import { PROGRAMMES } from '@/lib/seed-programmes'
 import { NORTHBEND_TWIN_RECEIPTS } from '@/lib/twin/seed-demo'
 import { TENURE_DEMO } from '@/lib/twin/seed-tenure-demo'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
-import { STORY, STORY_BAR, STEP_NAMES, storyCopy, storyIndex, type Cell } from '@/lib/public-site/story'
+import {
+  STORY, STORY_BAR, STEP_NAMES, STORIES, APTIVA_BAR, APTIVA_BOOK, storyCopy, storyChromeCopy, storyIndex,
+  type Cell, type StoryStep,
+} from '@/lib/public-site/story'
+import { SECTOR_SUPPLIERS } from '@/lib/seed-sector-suppliers'
+import { rolesFor } from '@/lib/company-defaults'
+import { hasPermission } from '@/lib/permissions'
 import { StoryPanel } from '@/lib/public-site/story-panel'
 import { STEPS } from '@/lib/public-site/steps'
 import { STEP_PAGES, stepEyebrow } from '@/lib/public-site/docs/process'
@@ -165,11 +171,216 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(firm('nike')).toBe(STORY_BAR.company)
   })
 
+  it('the bar’s company and the table’s book are Northbend Athletic, the program the story is told from', () => {
+    expect(STORIES.northbend.bar).toBe(STORY_BAR)
+    expect(STORIES.northbend.book).toBe(firm('nike'))
+    expect(STORIES.northbend.steps).toBe(STORY)
+  })
+
   it('no stand-in figure from the drawing reached the panel', () => {
     const all = storyCopy().join(' ')
     for (const gone of ['Java developer', '$21,120', '$42,587', 'BR-2026-0417', 'VT-2026-0108', '86%', 'Ravi Iyer', 'Oct 5', 'Veritan Talent']) {
       expect(all, gone).not.toContain(gone)
     }
+  })
+})
+
+/**
+ * The MSPs' door plays the same four steps from Aptiva Workforce's seat in
+ * Cavanaugh Glassworks' program (founder, 2026-10-15: "use a sample MSP
+ * company"). Read against the same seed, and against the role the seat
+ * holds: a card is drawn only for an act that role may take.
+ *
+ * Where the seed did not hold what a Northbend-shaped step would say, the
+ * step says what it does hold:
+ *
+ *   Northbend shape                      Cavanaugh's seed, and so the panel
+ *   a card to approve a timesheet        none: Cavanaugh's Program Manager role,
+ *                                        the one the seat holds, cannot approve
+ *                                        hours; the hiring manager is named
+ *   a card to pay an invoice receipt     none: the role cannot pay; the AP clerk
+ *                                        is named
+ *   an invoice number and its total      no number: Cavanaugh's are made from a
+ *                                        record id and the world's birthday; the
+ *                                        one bill with a fixed amount is the
+ *                                        direct Wrenfield line's, 40 h × $96
+ *   a week over its hours                none at Cavanaugh; both waiting weeks
+ *                                        are 40 hours
+ */
+describe('The MSP door’s story is Aptiva Workforce’s seat in Cavanaugh Glassworks’ program, read against the seed', () => {
+  const corning = PROGRAMMES.find((p) => p.client === 'corning')!
+  const SEEDS = read('src/lib/seed-programmes.ts')
+  const story = STORIES.aptiva
+  const at = (chip: string) => story.steps.find((s) => s.chip === chip)!
+  const saidAt = (chip: string) => {
+    const s = at(chip)
+    return [...s.chat.flatMap((m) => [m.text, m.card?.t ?? '', m.card?.s ?? '']), ...s.table.rows.flat().map(text), s.sum.rest].join(' ')
+  }
+  const rows = (chip: string) => at(chip).table.rows.map((r) => r.map(text))
+  const live = (person: string) => corning.placements.find((p) => p.person === person && p.state === 'IN_PROGRESS')!
+  /** Cavanaugh's own Program Manager role: the role the seat holds, and so what Aptiva may do there. */
+  const pm = rolesFor('CLIENT').find((r) => r.name === 'Program Manager')!.permissions
+
+  it('Aptiva sits in Cavanaugh’s own Program Manager role, granted by Cavanaugh, and the bar says so', () => {
+    const seat = WORLD.slice(WORLD.indexOf("await step('program-office-seat'"))
+    expect(seat).toMatch(/const cavanaugh = firmBySlug\.get\('corning'\)/)
+    expect(seat).toMatch(/const aptiva = firmBySlug\.get\('aptiva'\)/)
+    expect(seat).toMatch(/where: \{ companyId: cavanaugh\.id, name: 'Program Manager' \}/)
+    expect(seat).toMatch(/clientCompanyId: cavanaugh\.id,\s*officeCompanyId: aptiva\.id,\s*roleId: pmRole\.id/)
+    expect(WORLD).toMatch(/slug: 'aptiva',\s*name: 'Aptiva Workforce',\s*kind: 'MSP'/)
+    expect(APTIVA_BAR.company).toBe(firm('aptiva'))
+    expect(APTIVA_BOOK).toBe(firm('corning'))
+    expect(story.book).toBe(firm('corning'))
+    expect(APTIVA_BAR.rest).toMatch(new RegExp(`^an MSP running ${firm('corning')}’ program · `))
+    // The seed's client desks take their permissions from the default client roles.
+    expect(SEEDS).toMatch(/for \(const r of rolesFor\('CLIENT'\)\)/)
+  })
+
+  it('the bar’s 5 contractors and 5 suppliers are the people and firms the seed puts on site at Cavanaugh today', () => {
+    const onSite: { person: string; firm: string }[] = [
+      ...corning.placements.filter((p) => p.state === 'IN_PROGRESS').map((p) => ({ person: p.person, firm: p.via[1] })),
+      ...(corning.direct && corning.direct.endsInDays > 0 ? [{ person: corning.direct.person, firm: corning.direct.supplier }] : []),
+      ...SECTOR_SUPPLIERS.filter((s) => s.client === 'corning' && s.endsInDays > 0).map((s) => ({ person: s.person.name, firm: s.slug })),
+    ]
+    const people = new Set(onSite.map((o) => o.person))
+    const firms = new Set(onSite.map((o) => o.firm))
+    expect(people.size).toBe(5)
+    expect(firms.size).toBe(5)
+    expect(APTIVA_BAR.rest).toBe(`an MSP running ${firm('corning')}’ program · ${people.size} contractors · ${firms.size} suppliers`)
+  })
+
+  it('the job step sends Cavanaugh’s seeded open job, at its band and months, to the three suppliers the seed releases it to, and the seat may send it', () => {
+    const s = saidAt('Job')
+    expect(s).toContain(`Bill rate ${dollars(corning.open.band[0])} to ${dollars(corning.open.band[1])} an hour`)
+    expect(s).toContain(`12 months · ${corning.loc}`)
+    const title = corning.open.title
+    expect(at('Job').chat[1].card!.t.startsWith(title)).toBe(true)
+    expect(at('Job').chat[0].text).toContain(`Send the ${title.toLowerCase()} job`)
+    const to = corning.open.to.map(firm)
+    expect(at('Job').chat[1].card!.s).toBe(to.join(', '))
+    expect(s).toContain(`Sent to Cavanaugh’s ${to.length} approved suppliers`)
+    // Within the program's band, so it cleared by rule.
+    expect(corning.open.band[1]).toBeLessThanOrEqual(corning.governance.band[1])
+    expect(corning.open.band[0]).toBeGreaterThanOrEqual(corning.governance.band[0])
+    expect(rows('Job')).toEqual([
+      [title, String(to.length), `$${corning.open.band[0] / 100}–${corning.open.band[1] / 100}`, 'Open'],
+      [`Automation engineers (${corning.routed.headcount})`, '—', `up to ${dollars(corning.routed.billMax)}`, 'Waiting for the VP'],
+    ])
+    expect(corning.routed.title).toBe('Fab expansion — six automation engineers')
+    expect(corning.routed.headcount).toBe(6)
+    // Sending a job to suppliers is the role's to do.
+    expect(hasPermission(pm, 'requirements.distribute')).toBe(true)
+  })
+
+  it('the candidates step lists the job’s two seeded candidates, each with the supplier, rate and interview state the seed gives them, and the seat may schedule the interview', () => {
+    const r = rows('Candidates')
+    expect(r.map((x) => x[0])).toEqual(corning.open.candidates.map((c) => c.person))
+    for (const [i, c] of corning.open.candidates.entries()) {
+      expect(r[i][1], c.person).toBe(firm(c.from))
+      expect(r[i][2], c.person).toBe(dollars(c.rate))
+    }
+    const yuki = corning.open.candidates.find((c) => c.person === 'Yuki Tanaka')!
+    const priyanka = corning.open.candidates.find((c) => c.person === 'Priyanka Rao')!
+    // Proposed: waiting on the supplier to confirm.
+    expect(yuki.round?.state).toBe('PROPOSED')
+    expect(r[0][3]).toBe('Interview proposed')
+    expect(saidAt('Candidates')).toContain(`Yuki Tanaka’s interview is proposed and waits for ${firm(yuki.from)} to confirm`)
+    expect(priyanka.status).toBe('SUBMITTED')
+    expect(priyanka.round).toBeUndefined()
+    expect(r[1][3]).toBe('Submitted')
+    expect(at('Candidates').chat[1].card!.s).toBe(`${firm(priyanka.from)} · ${dollars(priyanka.rate)} an hour · submitted`)
+    expect(saidAt('Candidates')).toContain(`${corning.open.candidates.length} candidates from ${new Set(corning.open.candidates.map((c) => c.from)).size} suppliers`)
+    // Setting up a round asks for requirements.write, read under the seat's role.
+    expect(read('src/app/api/submissions/[id]/interviews/route.ts')).toContain("hasPermission(deskPermissions, 'requirements.write')")
+    expect(hasPermission(pm, 'requirements.write')).toBe(true)
+  })
+
+  it('the timesheets step shows the two weeks the seed leaves waiting at Cavanaugh, 40 hours each, and draws no card because the seat cannot approve hours', () => {
+    const tomasz = live('Tomasz Nowak'), felix = live('Felix Brandt'), aisha = live('Aisha Bello')
+    expect(tomasz.weeks).toEqual({ approved: 3, awaiting: 1 })
+    expect(felix.weeks).toEqual({ approved: 1, awaiting: 1 })
+    expect(aisha.weeks).toEqual({ approved: 2, awaiting: 0 })
+    // No long week at Cavanaugh, so every week is the seed's ordinary 40.
+    for (const p of corning.placements) expect(p.exceptionHours, p.person).toBeUndefined()
+    for (const p of corning.placements) expect(p.overtimeWeekHours, p.person).toBeUndefined()
+    expect(SEEDS).toMatch(/export function week\(w: number, hours = 40, from\?: Date\)/)
+    // Every filed week is whole, whatever day the world was born: week w
+    // back opens on a Sunday 7w+1 to 7w+7 days ago (seedWeek counts from
+    // the Sunday of yesterday's week), so its Monday is at most 7w+6 days
+    // back, and a start on or before that day files all five weekdays.
+    expect(read('src/lib/seed-days.ts')).toContain('const sunday = atMidnight(weekStart(isoOf(day(-1))))')
+    expect(SEEDS).toContain('const start = day(-pl.startedDaysAgo)')
+    for (const p of [tomasz, felix, aisha]) expect(p.startedDaysAgo, p.person).toBeGreaterThanOrEqual(7 * (p.weeks!.approved + p.weeks!.awaiting) + 6)
+    // And nothing else waits: the direct line's one week is signed, and the sector supplier's latest is not waiting.
+    expect(SEEDS).toMatch(/totalHours: 40, status: 'APPROVED', submittedAt: dWe/)
+    expect(SECTOR_SUPPLIERS.find((s) => s.client === 'corning')!.lastWeekAwaiting).toBe(false)
+    const waiting = corning.placements.filter((p) => p.state === 'IN_PROGRESS' && (p.weeks?.awaiting ?? 0) > 0)
+    expect(waiting.map((p) => p.person)).toEqual(['Tomasz Nowak', 'Felix Brandt'])
+    expect(rows('Timesheets')).toEqual([
+      ['Tomasz Nowak', firm(tomasz.via[1]), '40', 'Waiting'],
+      ['Felix Brandt', firm(felix.via[1]), '40', 'Waiting'],
+      ['Aisha Bello', firm(aisha.via[1]), '40', 'Approved'],
+    ])
+    expect(saidAt('Timesheets')).toContain(`${waiting.length} timesheets are waiting, 40 hours each`)
+    // The seed signs every week as the hiring manager.
+    expect(SEEDS).toMatch(/approvedById: desk\.hiring\.personId/)
+    expect(saidAt('Timesheets')).toContain(`${corning.people.hiring}, Cavanaugh’s hiring manager, approves them`)
+    // Silence approves on Cavanaugh's orders, and only Cavanaugh's, after five days.
+    const o2c = read('src/lib/seed-order-to-cash.ts')
+    expect(o2c).toContain('const autoApproves = p.buyerSlug === `${ctx.prefix}corning`')
+    expect(o2c).toContain('approvalWindowDays: autoApproves ? 5 : null')
+    expect(saidAt('Timesheets')).toContain('after 5 days with no answer')
+    // The seat holds Cavanaugh's Program Manager role, which cannot approve a week: no card.
+    expect(hasPermission(pm, 'timesheets.approve')).toBe(false)
+    expect(at('Timesheets').chat.some((m) => m.card)).toBe(false)
+  })
+
+  it('the invoices step names the one bill with a fixed amount, Wrenfield’s 40 hours at $96, names no invoice number, and draws no card because the seat cannot pay', () => {
+    const d = corning.direct!
+    expect(d.supplier).toBe('wrenfield')
+    expect(d.person).toBe('Elsa Thornquist')
+    // One week of 40 hours, billed at the line's rate, still submitted.
+    expect(SEEDS).toMatch(/const dCents = 40 \* d\.rates\[0\]/)
+    expect(SEEDS).toMatch(/total: dCents \/ 100, paid: 0,\s*issuedAt: dIssued, submittedAt: dIssued, dueAt: dDue\.dueAt, status: 'SUBMITTED'/)
+    const amount = (40 * d.rates[0]) / 100
+    const said = saidAt('Invoices')
+    expect(said).toContain(`${firm('wrenfield')}’s invoice bills ${d.person}’s 40 approved hours at her contract rate of ${dollars(d.rates[0])}: $${amount.toLocaleString('en-US')}`)
+    expect(at('Invoices').sum.big).toBe(`$${amount.toLocaleString('en-US')}`)
+    expect(said).toContain(`${corning.people.ap}, Cavanaugh’s AP clerk, pays it`)
+    // Cavanaugh's numbers are a record id and a date; none is named.
+    expect(SEEDS).toMatch(/const number = `IN-\$\{topContract\.id/)
+    expect(storyCopy().join(' ')).not.toMatch(/IN-[A-Z0-9]/)
+    // Billed hours: every signed week of a placement with a bill is on one, at 40 hours each.
+    const tomasz = live('Tomasz Nowak'), aisha = live('Aisha Bello'), felix = live('Felix Brandt')
+    expect(tomasz.invoice).toBe('SUBMITTED')
+    expect(aisha.invoice).toBe('PAID')
+    expect(felix.invoice).toBeNull()
+    expect(at('Invoices').table.title).toBe('Invoice receipts by supplier')
+    expect(rows('Invoices')).toEqual([
+      [firm('wrenfield'), d.person, '40 h', 'Waiting for AP'],
+      [firm(tomasz.via[1]), 'Tomasz Nowak', `${tomasz.weeks!.approved * 40} h`, 'Waiting for AP'],
+      [firm(aisha.via[1]), 'Aisha Bello', `${aisha.weeks!.approved * 40} h`, 'Paid'],
+    ])
+    // Paying is the AP clerk's; the seat's role cannot record a payment.
+    expect(hasPermission(pm, 'payments.record')).toBe(false)
+    expect(at('Invoices').chat.some((m) => m.card)).toBe(false)
+  })
+
+  it('never names the sub-vendor below a supplier Cavanaugh pays, because that name is the supplier’s to keep', () => {
+    // Tomasz Nowak is Sahasra Infotech's, through Vertex Global; Cavanaugh sees the rung it pays.
+    expect(live('Tomasz Nowak').via).toEqual(['corning', 'vertex-global', 'sahasra'])
+    const all = storyCopy().join(' ')
+    expect(all).not.toContain(firm('sahasra'))
+  })
+
+  it('tells the same four steps in the same shape as the Northbend story, at most four columns to a table', () => {
+    const shape = (s: StoryStep) => [s.n, s.chip, s.embed]
+    expect(story.steps.map(shape)).toEqual(STORY.map(shape))
+    for (const s of story.steps) {
+      expect(s.table.head.length, s.chip).toBeLessThanOrEqual(4)
+      expect(s.table.flash, s.chip).toBeLessThan(s.table.rows.length)
+    }
+    expect(storyChromeCopy('aptiva')).toEqual([APTIVA_BAR.company, APTIVA_BAR.rest, ...STEP_NAMES])
   })
 })
 
@@ -197,7 +408,24 @@ describe('The panel plays the four steps and is never blank', () => {
     for (const m of MODULES) expect(STORY[storyIndex(m.step)], m.route).toBeDefined()
     for (const p of PARTY_PAGES) expect(STORY[storyIndex(p.step)], p.route).toBeDefined()
     const skeleton = read('src/lib/public-site/skeleton.tsx')
-    expect(skeleton).toContain('<StoryPanel start={storyIndex(step)}>{children}</StoryPanel>')
+    expect(skeleton).toContain('<StoryPanel start={storyIndex(step)} story={story}>{children}</StoryPanel>')
+  })
+
+  it('plays Northbend Athletic’s story unless a page names another, and the MSPs’ door names Aptiva Workforce’s', () => {
+    const northbend = renderToStaticMarkup(createElement(StoryPanel, { start: 0 }))
+    expect(northbend).toContain(STORY_BAR.rest)
+    expect(northbend).not.toContain(APTIVA_BAR.company)
+    const aptiva = renderToStaticMarkup(createElement(StoryPanel, { start: 0, story: 'aptiva' }))
+    expect(aptiva).toContain(`<b class="font-semibold text-etyme-ink">${APTIVA_BAR.company}</b>`)
+    expect(aptiva).toContain(APTIVA_BAR.rest)
+    // Every table names whose book it is: Cavanaugh's, not Aptiva's own.
+    expect(aptiva).toContain(`>${APTIVA_BOOK}</span>`)
+    expect(aptiva).not.toContain(STORY_BAR.company)
+    for (const s of STORIES.aptiva.steps) expect(aptiva, s.chip).toContain(`data-story-step="${s.n}"`)
+    // Only the MSPs' door plays it.
+    const doors = PARTY_PAGES.filter((p) => p.story === 'aptiva').map((p) => p.slug)
+    expect(doors).toEqual(['program-offices'])
+    for (const m of MODULES) expect((m as { story?: string }).story, m.route).toBeUndefined()
   })
 
   it('plays a step about every five seconds, presses the card itself and lights the changed row, and holds for a reader', () => {

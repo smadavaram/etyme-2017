@@ -1,6 +1,6 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import { StoryPanel } from './story-panel'
-import { storyIndex } from './story'
+import { storyIndex, type StoryKey } from './story'
 import { HomeFooter } from './frame'
 import {
   ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
@@ -40,14 +40,16 @@ const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${
  * in its footer is the page's own (it counts its click, or seats the
  * reader at the right job in the full demo). Under it, the page's one
  * line about what its reader is looking at, and the label that says every
- * firm on it is a demo company.
+ * firm on it is a demo company. The panel plays Northbend Athletic's
+ * program manager unless the page names another story: the MSPs' door
+ * plays Aptiva Workforce's seat in Cavanaugh Glassworks' program.
  */
 export function LiveDemo({
-  step, caption, label = ON_SCREEN, children,
-}: { step?: EmbedStep; caption?: string; label?: string; children: React.ReactNode }) {
+  step, caption, label = ON_SCREEN, story, children,
+}: { step?: EmbedStep; caption?: string; label?: string; story?: StoryKey; children: React.ReactNode }) {
   return (
     <section id="demo" aria-label="The product shown working" className="pb-4">
-      <StoryPanel start={storyIndex(step)}>{children}</StoryPanel>
+      <StoryPanel start={storyIndex(step)} story={story}>{children}</StoryPanel>
       {caption && <p className="mt-3 text-[15px] leading-snug text-etyme-ink">{caption}</p>}
       <p className={`${caption ? 'mt-1 text-etyme-muted' : 'mt-3 text-etyme-ink'} text-[15px] leading-snug`}>{label}</p>
     </section>

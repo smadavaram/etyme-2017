@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { EtymeMark } from '@/components/logo'
 import {
-  STORY, STORY_BAR, ASK_ETYME, STORY_DONE, STORY_NOT_NOW, STORY_STEPS_LABEL, STORY_STEP_MS,
-  type Cell, type Pill, type StoryStep,
+  STORIES, DEFAULT_STORY, ASK_ETYME, STORY_DONE, STORY_NOT_NOW, STORY_STEPS_LABEL, STORY_STEP_MS,
+  type Cell, type Pill, type StoryStep, type StoryKey,
 } from './story'
 
 /**
@@ -52,7 +52,7 @@ interface Played { shown: number; pressed: boolean }
 
 const WHOLE: Played = { shown: 99, pressed: false }
 
-function StepBody({ s, played, lit }: { s: StoryStep; played: Played; lit: boolean }) {
+function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played: Played; lit: boolean }) {
   return (
     <div className="grid md:min-h-[300px] md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       {/* The conversation. */}
@@ -98,7 +98,7 @@ function StepBody({ s, played, lit }: { s: StoryStep; played: Played; lit: boole
       <div className="min-w-0 p-3.5">
         <p className="mb-1.5 flex justify-between gap-2 text-[11px] uppercase tracking-[0.06em] text-etyme-faint">
           <span>{s.table.title}</span>
-          <span className="hidden sm:inline">{STORY_BAR.company}</span>
+          <span className="hidden sm:inline">{book}</span>
         </p>
         <table className="w-full border-collapse text-[12.5px] tabular-nums sm:text-[13px]">
           <thead>
@@ -141,7 +141,18 @@ function StepBody({ s, played, lit }: { s: StoryStep; played: Played; lit: boole
   )
 }
 
-export function StoryPanel({ start = 0, children }: { start?: number; children?: React.ReactNode }) {
+/**
+ * Which story plays is the page's to say (`./story`, `STORIES`): every
+ * page plays Northbend Athletic's program manager unless it names another,
+ * and the MSPs' door names Aptiva Workforce's, in Cavanaugh Glassworks'
+ * program. A key rather than the words, so the server hands the browser
+ * one short string.
+ */
+export function StoryPanel({
+  start = 0, story: key = DEFAULT_STORY, children,
+}: { start?: number; story?: StoryKey; children?: React.ReactNode }) {
+  const story = STORIES[key]
+  const steps = story.steps
   const [cur, setCur] = useState(start)
   // Before the page is live every step is whole and nothing is pressed:
   // that is what a reader with no script sees.
@@ -170,7 +181,7 @@ export function StoryPanel({ start = 0, children }: { start?: number; children?:
       return
     }
     setPlayed({ shown: 0, pressed: false })
-    const s = STORY[i]
+    const s = steps[i]
     let t = 150
     s.chat.forEach((m, k) => {
       after(t, () => setPlayed((p) => ({ ...p, shown: k + 1 })))
@@ -186,11 +197,11 @@ export function StoryPanel({ start = 0, children }: { start?: number; children?:
     after(STORY_STEP_MS, () => {
       if (hold.current) {
         // A reader is in the panel: wait, and look again shortly.
-        const wait = () => (hold.current ? after(800, wait) : playStep((i + 1) % STORY.length))
+        const wait = () => (hold.current ? after(800, wait) : playStep((i + 1) % steps.length))
         wait()
         return
       }
-      playStep((i + 1) % STORY.length)
+      playStep((i + 1) % steps.length)
     })
   }
 
@@ -204,7 +215,7 @@ export function StoryPanel({ start = 0, children }: { start?: number; children?:
 
   return (
     <section
-      aria-label={`Etyme shown working on ${STORY_BAR.company}, a sample company`}
+      aria-label={`Etyme shown working on ${story.bar.company}, a sample company`}
       onMouseEnter={() => { hold.current = true }}
       onMouseLeave={() => { hold.current = false }}
       onFocus={() => { hold.current = true }}
@@ -214,10 +225,10 @@ export function StoryPanel({ start = 0, children }: { start?: number; children?:
       {/* The bar: the mark, whose program, and the four chips. */}
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-etyme-rule bg-etyme-surface px-3.5 py-2.5 text-[13px] text-etyme-muted">
         <EtymeMark size={18} />
-        <b className="font-semibold text-etyme-ink">{STORY_BAR.company}</b>
-        <span>{STORY_BAR.rest}</span>
+        <b className="font-semibold text-etyme-ink">{story.bar.company}</b>
+        <span>{story.bar.rest}</span>
         <div role="group" aria-label={STORY_STEPS_LABEL} className="flex w-full flex-wrap gap-1.5 md:ml-auto md:w-auto">
-          {STORY.map((s, i) => (
+          {steps.map((s, i) => (
             <button
               key={s.chip}
               type="button"
@@ -240,9 +251,9 @@ export function StoryPanel({ start = 0, children }: { start?: number; children?:
       </div>
 
       {/* Every step is in the document; one is shown. */}
-      {STORY.map((s, i) => (
+      {steps.map((s, i) => (
         <div key={s.chip} data-story-step={s.n} hidden={i !== cur}>
-          <StepBody s={s} played={i === cur ? played : WHOLE} lit={i === cur && lit} />
+          <StepBody s={s} book={story.book} played={i === cur ? played : WHOLE} lit={i === cur && lit} />
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-etyme-rule bg-etyme-surface px-3.5 py-2.5 text-[13px] text-etyme-muted">
             <p>
               <span className="mr-1 font-serif text-[20px] text-etyme-ink">{s.sum.big}</span>

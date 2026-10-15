@@ -202,18 +202,182 @@ export function storyIndex(step: EmbedStep | undefined): number {
 /** The four step names, in order: the one spine, on every public page. */
 export const STEP_NAMES = STORY.map((s) => s.chip) as ['Job', 'Candidates', 'Timesheets', 'Invoices']
 
-/** Every word the panel draws, for the guards that read public words. */
-export function storyCopy(): string[] {
+/**
+ * ── The MSP's story, told from Aptiva Workforce's seat ───────────────
+ *
+ * The founder, on /for/program-offices, 2026-10-15: "use a sample MSP
+ * company". The Northbend story is a client's own program manager, so an
+ * MSP reading it saw a client. The MSP door plays the same four steps
+ * from the one seat the seed gives an MSP in somebody else's program:
+ * Cavanaugh Glassworks hands its whole program to Aptiva Workforce and
+ * seats Aptiva in Cavanaugh's OWN Program Manager role
+ * (`program-office-seat` in lib/seed-world). Every row is Cavanaugh's
+ * book, as Aptiva reads it from that seat.
+ *
+ * One card per step, and only an act that seat may take. Cavanaugh's
+ * Program Manager role sends a job to suppliers and sets up an interview
+ * (`requirements.distribute`, `requirements.write`); it does not approve a
+ * timesheet — the hiring manager does — and it does not pay — the AP clerk
+ * does. So the Timesheets and Invoices steps answer and say who acts, and
+ * draw no card: a card the seat would be refused on is a card that lies.
+ *
+ * Every name and figure is read against the seed by
+ * `__tests__/invariants/story-panel.test.ts`, the file that reads the
+ * Northbend story. What the seed does not fix is not said: Cavanaugh's
+ * invoice numbers and per-month totals come from the day the world was
+ * born and from a record id, so no number is named; the hours, and the
+ * one bill whose amount is fixed, are.
+ */
+export const APTIVA_BAR = {
+  company: 'Aptiva Workforce',
+  rest: 'an MSP running Cavanaugh Glassworks’ program · 5 contractors · 5 suppliers',
+} as const
+
+/** The client whose program Aptiva runs: whose book every table is. */
+export const APTIVA_BOOK = 'Cavanaugh Glassworks'
+
+export const APTIVA_STORY_STEPS: StoryStep[] = [
+  {
+    n: 1,
+    chip: 'Job',
+    embed: 'source',
+    chat: [
+      { who: 'me', text: 'Send the environmental health and safety lead job to Cavanaugh’s approved suppliers. Bill rate $90 to $110 an hour.' },
+      {
+        who: 'etyme',
+        text: 'Sent to Cavanaugh’s 3 approved suppliers. It is within budget, so it needed no approval.',
+        card: {
+          t: 'Environmental health and safety lead · 12 months · Elmira, NY',
+          s: 'Vertex Global, Halcyon Talent, Arcadia Tech Group',
+          yes: 'Send',
+        },
+      },
+    ],
+    table: {
+      title: 'Jobs',
+      head: [{ t: 'Job' }, { t: 'Suppliers', right: true, wide: true }, { t: 'Bill rate', right: true }, { t: 'Status', right: true }],
+      rows: [
+        ['Environmental health and safety lead', '3', '$90–110', { pill: 'ok', t: 'Open' }],
+        ['Automation engineers (6)', '—', 'up to $115', { pill: 'wait', t: 'Waiting for the VP' }],
+      ],
+      flash: 0,
+    },
+    sum: { big: '1', rest: 'job sent to 3 approved suppliers, no approval needed' },
+  },
+  {
+    n: 2,
+    chip: 'Candidates',
+    embed: 'submit',
+    chat: [
+      { who: 'me', text: 'Who applied for the environmental health and safety lead job?' },
+      {
+        who: 'etyme',
+        text: '2 candidates from 2 suppliers. Yuki Tanaka’s interview is proposed and waits for Arcadia Tech Group to confirm. Priyanka Rao has no interview yet.',
+        card: {
+          t: 'Schedule an interview with Priyanka Rao?',
+          s: 'Vertex Global · $99 an hour · submitted',
+          yes: 'Schedule',
+        },
+      },
+    ],
+    table: {
+      title: 'Candidates · Environmental health and safety lead',
+      head: [{ t: 'Candidate' }, { t: 'Supplier', wide: true }, { t: 'Rate', right: true }, { t: 'Status', right: true }],
+      rows: [
+        ['Yuki Tanaka', 'Arcadia Tech Group', '$106', { pill: 'wait', t: 'Interview proposed' }],
+        ['Priyanka Rao', 'Vertex Global', '$99', { pill: 'mute', t: 'Submitted' }],
+      ],
+      flash: 1,
+    },
+    sum: { big: '2', rest: 'candidates side by side, with their suppliers and rates' },
+  },
+  {
+    n: 3,
+    chip: 'Timesheets',
+    embed: 'approve',
+    chat: [
+      { who: 'me', text: 'Which timesheets are waiting at Cavanaugh?' },
+      {
+        who: 'etyme',
+        text: '2 timesheets are waiting, 40 hours each, within their contracts. Derek Halvorsen, Cavanaugh’s hiring manager, approves them.',
+      },
+      { who: 'etyme', text: 'Cavanaugh’s orders approve a week by themselves after 5 days with no answer.' },
+    ],
+    table: {
+      title: 'Timesheets',
+      head: [{ t: 'Contractor' }, { t: 'Supplier', wide: true }, { t: 'Hours', right: true }, { t: 'Status', right: true }],
+      rows: [
+        ['Tomasz Nowak', 'Vertex Global', '40', { pill: 'wait', t: 'Waiting' }],
+        ['Felix Brandt', 'Arcadia Tech Group', '40', { pill: 'wait', t: 'Waiting' }],
+        ['Aisha Bello', 'Halcyon Talent', '40', { pill: 'ok', t: 'Approved' }],
+      ],
+      flash: 0,
+    },
+    sum: { big: '2', rest: 'timesheets waiting for the hiring manager, who approves them' },
+  },
+  {
+    n: 4,
+    chip: 'Invoices',
+    embed: 'pay',
+    chat: [
+      { who: 'me', text: 'Which invoice receipt is ready to pay?' },
+      {
+        who: 'etyme',
+        text: 'Wrenfield Technical’s invoice bills Elsa Thornquist’s 40 approved hours at her contract rate of $96: $3,840. Patrice Boyd, Cavanaugh’s AP clerk, pays it.',
+      },
+    ],
+    table: {
+      title: 'Invoice receipts by supplier',
+      head: [{ t: 'Supplier' }, { t: 'Contractor', wide: true }, { t: 'Billed', right: true }, { t: 'Status', right: true }],
+      rows: [
+        ['Wrenfield Technical', 'Elsa Thornquist', '40 h', { pill: 'wait', t: 'Waiting for AP' }],
+        ['Vertex Global', 'Tomasz Nowak', '120 h', { pill: 'wait', t: 'Waiting for AP' }],
+        ['Halcyon Talent', 'Aisha Bello', '80 h', { pill: 'ok', t: 'Paid' }],
+      ],
+      flash: 0,
+    },
+    sum: { big: '$3,840', rest: 'ready for Cavanaugh’s AP clerk: 40 approved hours at the contract rate' },
+  },
+]
+
+/** One story the panel can play: whose seat, whose book, and the four steps. */
+export interface Story {
+  bar: { readonly company: string; readonly rest: string }
+  /** Whose program the tables are: the client's, even where the reader sits for an MSP. */
+  book: string
+  steps: StoryStep[]
+}
+
+export type StoryKey = 'northbend' | 'aptiva'
+
+export const STORIES: Record<StoryKey, Story> = {
+  northbend: { bar: STORY_BAR, book: STORY_BAR.company, steps: STORY },
+  aptiva: { bar: APTIVA_BAR, book: APTIVA_BOOK, steps: APTIVA_STORY_STEPS },
+}
+
+/** Every public page plays Northbend's story unless it names another. */
+export const DEFAULT_STORY: StoryKey = 'northbend'
+
+/** Every word one story draws. */
+function copyOfStory(story: Story): string[] {
   const cell = (c: Cell) => (typeof c === 'string' ? c : c.t)
   return [
-    STORY_BAR.company, STORY_BAR.rest, ASK_ETYME, STORY_STEPS_LABEL, STORY_NOT_NOW,
-    // The chips, together, as the bar draws them.
-    ...STORY.map((s) => s.chip),
-    ...STORY.flatMap((s) => [
+    story.bar.company, story.bar.rest, story.book,
+    ...story.steps.flatMap((s) => [
       ...s.chat.flatMap((m) => [m.text, ...(m.card ? [m.card.t, m.card.s, m.card.yes] : [])]),
       s.table.title, ...s.table.head.map((h) => h.t), ...s.table.rows.flatMap((r) => r.map(cell)),
       `${s.sum.big} ${s.sum.rest}`,
     ]),
+  ]
+}
+
+/** Every word the panel draws, in every story it can play, for the guards that read public words. */
+export function storyCopy(): string[] {
+  return [
+    ASK_ETYME, STORY_STEPS_LABEL, STORY_NOT_NOW,
+    // The chips, together, as the bar draws them.
+    ...STORY.map((s) => s.chip),
+    ...Object.values(STORIES).flatMap(copyOfStory),
   ]
 }
 
@@ -225,6 +389,7 @@ export function storyCopy(): string[] {
  * hundred and fifty words. Every one of those words is read by the
  * positioning guards through `storyCopy`.
  */
-export function storyChromeCopy(): string[] {
-  return [STORY_BAR.company, STORY_BAR.rest, ...STORY.map((s) => s.chip)]
+export function storyChromeCopy(key: StoryKey = DEFAULT_STORY): string[] {
+  const story = STORIES[key]
+  return [story.bar.company, story.bar.rest, ...story.steps.map((s) => s.chip)]
 }

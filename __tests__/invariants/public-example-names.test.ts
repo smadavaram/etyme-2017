@@ -30,7 +30,7 @@ import { copyFrom } from '@/lib/positioning'
 import { MODULES, copyOfModule } from '@/lib/public-site/modules'
 import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { ON_SCREEN } from '@/lib/public-site/skeleton-words'
-import { STORY, STORY_BAR, storyChromeCopy } from '@/lib/public-site/story'
+import { STORY, STORY_BAR, STORIES, storyChromeCopy } from '@/lib/public-site/story'
 import { COMPANY_PAGES, copyOfCompanyPage } from '@/lib/public-site/company'
 import { docRoutes, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/index'
 import { frameCopy } from '@/lib/public-site/nav'
@@ -127,10 +127,16 @@ function everything(): Said[] {
     add(m.route, [...c.hero, ...c.body].filter((t) => notPanel(t) && t !== onScreen))
     out.push({ where: `${m.route} (the panel’s caption)`, unit: `${chrome} ${onScreen}` })
   }
+  // A door that plays a story of its own (the MSPs' door plays Aptiva
+  // Workforce's seat, 2026-10-15) has that story's bar, and a line under
+  // the panel of its own that ends on the same label.
   for (const p of PARTY_PAGES) {
     const c = copyOfPartyPage(p)
-    add(p.route, [...c.hero, ...c.body].filter((t) => notPanel(t) && t !== doorScreen))
-    out.push({ where: `${p.route} (the panel’s caption)`, unit: `${chrome} ${doorScreen}` })
+    const story = STORIES[p.story ?? 'northbend']
+    const own = new Set(storyChromeCopy(p.story).concat(story.steps.map((s) => `${s.sum.big} ${s.sum.rest}`)))
+    const label = p.label ?? doorScreen
+    add(p.route, [...c.hero, ...c.body].filter((t) => !own.has(t) && t !== label))
+    out.push({ where: `${p.route} (the panel’s caption)`, unit: `${story.bar.company}, ${story.bar.rest} ${label}` })
   }
 
   for (const p of COMPANY_PAGES) {
@@ -187,8 +193,20 @@ describe('An invented company never reads as a customer', () => {
   })
 
   it('no public page lists two example companies together, because two names side by side is a customer list', () => {
+    // One relation is not a list, and it is the one the MSPs' door exists
+    // to show (founder, 2026-10-15, "use a sample MSP company"): the MSP
+    // and the client whose program it runs, named together only in that
+    // door's caption, which carries the label. Any third firm, or the pair
+    // anywhere else, is still a list.
+    const seated = (s: Said) => {
+      const p = PARTY_PAGES.find((d) => `${d.route} (the panel’s caption)` === s.where && d.story && d.story !== 'northbend')
+      if (!p) return false
+      const story = STORIES[p.story!]
+      return [...firmsIn(s.unit)].sort().join('|') === [story.bar.company, story.book].sort().join('|') && SAYS_IT_IS_A_DEMO(s.unit)
+    }
+    expect(SAID.filter(seated).map((s) => s.where)).toEqual(['/for/program-offices (the panel’s caption)'])
     const lists = SAID
-      .filter((s) => firmsIn(s.unit).length > 1)
+      .filter((s) => firmsIn(s.unit).length > 1 && !seated(s))
       .map((s) => `${s.where}: ${firmsIn(s.unit).join(', ')} — ${s.unit}`)
     expect(lists, lists.join('\n  ')).toEqual([])
   })

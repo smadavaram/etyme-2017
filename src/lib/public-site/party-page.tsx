@@ -26,11 +26,12 @@ export function PartyPageView({ slug }: { slug: PartySlug }) {
       purpose={p.purpose}
       step={p.step}
       caption={p.caption}
-      label={ON_SCREEN_DOOR}
+      label={p.label ?? ON_SCREEN_DOOR}
       lines={p.lines}
       demo={demo}
       signUp={p.signUp}
       band={p.band}
+      story={p.story}
     />
   )
 }

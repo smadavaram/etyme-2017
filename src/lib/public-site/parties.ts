@@ -1,6 +1,7 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget } from './flow'
 import { copyOfSkeleton, ON_SCREEN_DOOR, type BandKind } from './skeleton-words'
+import type { StoryKey } from './story'
 
 /**
  * The four party doors: suppliers and bench firms, program offices,
@@ -62,6 +63,10 @@ export interface PartyPage {
   demo: { target: DemoTarget } | { candidate: true }
   /** The sign-up band: a company's unless said; a contractor's is a person's own. */
   band?: BandKind
+  /** Which story the panel plays: Northbend Athletic's program manager unless said. */
+  story?: StoryKey
+  /** The line under the panel, where the door seats its reader somewhere of its own. Ends on `ON_SCREEN_DOOR`. */
+  label?: string
 }
 
 export const SUPPLIERS: PartyPage = {
@@ -89,15 +94,24 @@ export const PROGRAM_OFFICES: PartyPage = {
   question: 'Can one team run a whole contractor program?',
   purpose: 'For MSPs: every supplier on one record.',
   step: 'source',
-  caption: 'The program manager’s screen for job requests.',
+  caption: 'The job requests screen.',
   lines: [
     'Decide who may supply, and at what band.',
     'You act in a seat the client grants, every read logged.',
     'Etyme as VMS software: you run it. Etyme as MSP provider: Etyme’s own team runs it.',
   ],
   signUp: { t: 'Sign up as an MSP', href: '/signup?type=msp' },
+  // The founder, on this door, 2026-10-15: "use a sample MSP company".
+  // The panel plays Aptiva Workforce in the seat Cavanaugh Glassworks
+  // granted it (its own Program Manager role, lib/seed-world
+  // 'program-office-seat'), and the button opens the same seat: Aptiva's
+  // first seat, which the demo door seats with no desk named and opens on
+  // the client's program because Aptiva holds a live seat there
+  // (`seatedAt` in app/api/demo, `consoleHome` in lib/console-home).
+  story: 'aptiva',
+  label: `You are Aptiva Workforce’s program manager, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
   demoLabel: 'Open as the program manager, no account',
-  demo: { target: { as: 'world-nike', desk: 'programme', screen: '/dashboard/program', seat: 'the program manager' } },
+  demo: { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } },
 }
 
 export const INTEGRATORS: PartyPage = {
@@ -154,6 +168,6 @@ export function partyAt(slug: string): PartyPage | null {
 export function copyOfPartyPage(p: PartyPage): { hero: string[]; body: string[] } {
   return {
     hero: [p.question, p.purpose],
-    body: [...p.lines, ...copyOfSkeleton({ step: p.step, caption: p.caption, label: ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp, band: p.band })],
+    body: [...p.lines, ...copyOfSkeleton({ step: p.step, caption: p.caption, label: p.label ?? ON_SCREEN_DOOR, button: p.demoLabel, primary: p.signUp, band: p.band, story: p.story })],
   }
 }

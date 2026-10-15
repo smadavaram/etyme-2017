@@ -4,6 +4,7 @@ import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
 import type { DemoTarget } from './flow'
 import type { BandKind } from './skeleton-words'
+import type { StoryKey } from './story'
 import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
 
 /**
@@ -41,6 +42,8 @@ export interface SubPageProps {
   signUp?: { t: string; href: string }
   /** The band: a company's, or a person's own (the contractors' door). */
   band?: BandKind
+  /** Which story the panel plays: Northbend Athletic's unless a page names another. */
+  story?: StoryKey
 }
 
 function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
@@ -48,7 +51,7 @@ function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
   return <DemoLink target={demo.target} label={demo.label} className={PRIMARY_BUTTON} />
 }
 
-export function SubPageView({ question, purpose, step, caption, label, lines, link, demo, signUp, band }: SubPageProps) {
+export function SubPageView({ question, purpose, step, caption, label, lines, link, demo, signUp, band, story }: SubPageProps) {
   const shown = lines.slice(0, 3)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
@@ -64,7 +67,7 @@ export function SubPageView({ question, purpose, step, caption, label, lines, li
         </section>
 
         {/* ── The product, live and read-only, at this page's step ── */}
-        <LiveDemo step={step} caption={caption} label={label}>
+        <LiveDemo step={step} caption={caption} label={label} story={story}>
           <DemoButton demo={demo} />
         </LiveDemo>
 

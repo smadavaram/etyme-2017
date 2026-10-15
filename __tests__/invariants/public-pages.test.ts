@@ -763,6 +763,39 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(all(copyOfPartyPage(doorAt('contractors')!))).toContain('Etyme never places anybody.')
   })
 
+  it('the MSPs’ door plays a sample MSP, Aptiva Workforce, in Cavanaugh Glassworks’ program, and says under the panel whose seat it is', () => {
+    // The founder, on this door, 2026-10-15: "use a sample MSP company".
+    const p = doorAt('program-offices')!
+    expect(p.story).toBe('aptiva')
+    expect(p.label).toBe(`You are Aptiva Workforce’s program manager, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`)
+    expect(all(copyOfPartyPage(p))).toContain('an MSP running Cavanaugh Glassworks’ program')
+    // Every other door plays the client's own program manager, as before.
+    for (const d of PARTY_PAGES.filter((x) => x.slug !== 'program-offices')) {
+      expect(d.story, d.route).toBeUndefined()
+      expect(d.label, d.route).toBeUndefined()
+    }
+    const view = read('src/lib/public-site/party-page.tsx')
+    expect(view).toContain('label={p.label ?? ON_SCREEN_DOOR}')
+    expect(view).toContain('story={p.story}')
+    expect(read('src/lib/public-site/sub-page.tsx')).toContain('<LiveDemo step={step} caption={caption} label={label} story={story}>')
+  })
+
+  it('the MSPs’ door’s button opens the demo as Aptiva Workforce, seated in Cavanaugh Glassworks’ program, on that program’s own screen', () => {
+    const p = doorAt('program-offices')!
+    expect('target' in p.demo).toBe(true)
+    const t = (p.demo as { target: { as: string; desk: string; screen: string } }).target
+    // Aptiva's first seat: the demo door seats a firm's first seat when no desk is named.
+    expect(t).toMatchObject({ as: 'world-aptiva', desk: '', screen: '/dashboard/program' })
+    expect(read('src/app/demo/seats.ts')).toMatch(/slug: 'world-aptiva',\s*name: 'Aptiva Workforce'/)
+    const door = read('src/app/api/demo/route.ts')
+    expect(door).toContain("...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {})")
+    // A firm with a live seat in a client's program is told which, and an MSP so seated opens on that program.
+    expect(door).toContain('(await seatsHeldBy(company.id))[0]?.clientCompany.name')
+    expect(read('src/lib/console-home.ts')).toMatch(/kind === 'MSP' && seated\) \{\s*return \{\s*href: '\/dashboard\/program'/)
+    expect(read('src/lib/demo-desks.ts')).toContain("if (asked == null || asked === '') return { desk: null, unknown: null }")
+    expect(existsSync(join(ROOT, 'src/app/dashboard/program/page.tsx'))).toBe(true)
+  })
+
   it('the MSPs\' door offers Etyme\'s own team once, in its two ways to use it, under the founder\'s two labels', () => {
     const p = doorAt('program-offices')!
     expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toHaveLength(1)

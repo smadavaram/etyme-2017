@@ -7,7 +7,7 @@
  */
 
 import type { EmbedStep } from '@/lib/sample-seat'
-import { storyChromeCopy } from './story'
+import { storyChromeCopy, type StoryKey } from './story'
 
 /** The line under the panel where the reader sits as the program manager: the home page and the product pages. */
 export const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'
@@ -84,10 +84,10 @@ export const SECURITY = {
  * the frame's screens were, and is not counted. `step` is kept so a page
  * says which step it opens at, for the reader of this call.
  */
-export function copyOfSkeleton(o: { step?: EmbedStep; caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind }): string[] {
+export function copyOfSkeleton(o: { step?: EmbedStep; caption?: string; label?: string; button: string; primary?: { t: string }; band?: BandKind; story?: StoryKey }): string[] {
   const self = o.band === 'SELF'
   return [
-    ...storyChromeCopy(),
+    ...storyChromeCopy(o.story),
     o.button,
     ...(o.caption ? [o.caption] : []),
     o.label ?? ON_SCREEN,
