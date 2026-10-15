@@ -1,35 +1,33 @@
 /**
- * Terms, privacy and the DPA — as data, so every sentence can be checked.
+ * The data the legal pages stand on, and the census agreement.
  *
- * ── Why this is a module and not three pages of prose ─────────────────
+ * ── What moved on 2026-10-15 ─────────────────────────────────────────
  *
- * A privacy notice that misdescribes what a system holds is worse than no
- * notice at all. It is a written misrepresentation, it is the first thing
- * a client's security review reads, and it is the easiest thing in the
- * product to falsify — a paragraph written in March is wrong in April and
- * nothing fails.
+ * The Privacy Notice, the Terms of Service and the DPA are published
+ * from the text the founder approved, held word for word in
+ * `lib/legal/` beside this file and read by `lib/legal/documents`. Their
+ * old words, written here as objects, are gone, so there is one copy of
+ * each document and it is the one on the page.
  *
- * So the substance lives here, as structures a test can walk, and the
- * pages only render it. `__tests__/invariants/legal-pages.test.ts` reads
- * these values back against the code they describe: the sub-processor
- * list against the modules that actually call out, the bank fields
- * against the apply route, the retention claim against the absence of any
- * deletion path.
+ * What stays here is what other modules read:
  *
- * ── These are drafts for counsel ─────────────────────────────────────
+ *   HELD          the categories of personal data, one line each, which
+ *                 the retention schedule, erasure, the data page and the
+ *                 notice's own tables are keyed by
+ *   POPULATIONS   the two kinds of people, read by the breach screen
+ *   NOT_USED      the services named in configuration that nothing calls
+ *   the census agreement, with its summary, words and counsel questions,
+ *                 drawn by `app/legal/census-document`
  *
- * Nobody who wrote this is a lawyer. Everything here is an honest
- * description of what the code does, in the shape a lawyer expects to
- * find it, so counsel edits rather than starts from nothing. Every place
- * where a legal question is open is in COUNSEL_QUESTIONS and says so on
- * the page rather than being decided quietly in a sentence.
+ * `__tests__/invariants/legal-pages.test.ts` reads all of it back
+ * against the code it describes.
  *
  * Owned by etyme-regulatory (`lib/legal` in `lib/domains.ts`).
  */
 
 import { AGREEMENT_CHANGES, AGREEMENT_VERSION } from '@/lib/census'
 
-// ── The banner every page carries ─────────────────────────────────────
+// ── The banner the census agreement carries ───────────────────────────
 
 export const DRAFT_BANNER = {
   eyebrow: 'Draft for counsel',
@@ -460,79 +458,6 @@ export const HELD: HeldCategory[] = [
   },
 ]
 
-// ── Who else touches it ───────────────────────────────────────────────
-
-export interface SubProcessor {
-  name: string
-  purpose: string
-  /** What personal data actually reaches them. */
-  reaches: string
-  /** The environment variable or dependency that proves it. */
-  provenBy: string
-  /** Whether it is on in every deployment, or only when configured. */
-  always: boolean
-}
-
-export const SUB_PROCESSORS: SubProcessor[] = [
-  {
-    name: 'The managed Postgres host',
-    purpose: 'Every record in the product, including uploaded resume bytes.',
-    reaches:
-      'All of it — every record described in this notice, including the bytes of an ' +
-      'uploaded resume.',
-    provenBy: 'DATABASE_URL',
-    always: true,
-  },
-  {
-    name: 'Vercel',
-    purpose: 'Hosting and the scheduler that runs the daily jobs.',
-    reaches:
-      'Everything in a request and a response passes through it, plus the usual ' +
-      'platform request logs.',
-    provenBy: 'VERCEL_URL, and the deployment target named in docs/deploying.md',
-    always: true,
-  },
-  {
-    name: 'Anthropic',
-    purpose:
-      'Matching a candidate to a job, checking a resume against the skills claimed ' +
-      'for it, reading an imported file into records, and writing a company or ' +
-      'consultant public page.',
-    reaches:
-      'For matching: a candidate’s name, skills, headline, location, work authorization ' +
-      'class, rate floor and availability date, in batches. For the evidence check: the ' +
-      'extracted text of a resume and the skills claimed for it. For an import: up to ' +
-      'sixty thousand characters of whatever file or paste is being loaded. For a ' +
-      'public page: the words that page will carry.',
-    provenBy:
-      'ANTHROPIC_API_KEY, MATCH_MODEL, CHECK_MODEL; src/lib/match-engine.ts, ' +
-      'src/app/api/submissions/[id]/check/route.ts, ' +
-      'src/app/api/requirements/[id]/screen/route.ts, src/lib/extract.ts, ' +
-      'src/lib/consultant-portfolio.ts, src/lib/site-voice.ts',
-    always: false,
-  },
-  {
-    name: 'Resend, or SendGrid',
-    purpose: 'Sending email — sign-in links, notices, invitations and alerts.',
-    reaches: 'A name, an email address and the body of the message.',
-    provenBy: 'RESEND_API_KEY or SENDGRID_API_KEY; src/lib/senders.ts',
-    always: false,
-  },
-  {
-    name: 'Microsoft Entra, and Google',
-    purpose:
-      'Sign-in only, where a company has connected one. They authenticate; they ' +
-      'receive no workforce data back.',
-    reaches:
-      'The sign-in exchange itself — an email address and the identity provider’s own ' +
-      'subject claim.',
-    provenBy:
-      'AZURE_AD_CLIENT_ID, GOOGLE_CLIENT_ID; src/lib/auth.ts, which registers a ' +
-      'provider only when its credentials are present',
-    always: false,
-  },
-]
-
 /**
  * Named because a reader will find them in `.env.example` and reasonably
  * ask. Nothing in `src/` reads either, and no data reaches either.
@@ -550,639 +475,19 @@ export const NOT_USED = [
     'in the application.',
 ] as const
 
-// ── What happens to it over time ──────────────────────────────────────
-
-export const RETENTION = {
-  /** The honest headline, and it is a schedule with blanks in it. */
-  headline:
-    'There is a retention schedule, one line per category above, and where no legal ' +
-    'minimum can be cited the line says so instead of naming a period.',
-  paragraphs: [
-    'The schedule is code rather than a setting, because a client who sets a retention ' +
-      'period wrong deletes something that is gone. A company that needs records kept ' +
-      'longer places a legal hold, which carries a reason and a name and a review date.',
-    'Every period stated is a United States federal minimum with its rule cited. ' +
-      'Employment tax records run four years from the later of the tax being due and ' +
-      'being paid; payroll records three years; an I-9 three years after the date of hire ' +
-      'or one year after the employment ends, whichever is later; personnel records made ' +
-      'in the course of hiring one year, two for a federal contractor. State law is ' +
-      'longer in places and the schedule says so where it is. Which applies to whom is ' +
-      'still counsel.',
-    'Where no federal minimum can be cited, no period is stated and nothing is deleted ' +
-      'on one. A visa petition file is the clearest case: what can be cited covers the ' +
-      'public access file and not the petition, so the line returns nothing and says why. ' +
-      'A retention period invented by an engineer deletes a record that does not come back.',
-    'Ending somebody’s access revokes their seat and deletes no record. That is ' +
-      'deliberate: a person who worked somewhere worked there, and an audit long ' +
-      'afterward has to be able to find them. Suspension is the reversible form, for a ' +
-      'leave of absence or a lapsed visa, and keeps their history attached to them.',
-    'A resume a candidate removes is hidden from their own list. A company it was ' +
-      'already sent to can still open its copy, because it is in that company’s records ' +
-      'and Etyme cannot unsend it.',
-    'Demo workspaces nobody returns to are cleared automatically after a fixed number ' +
-      'of days.',
-    'Erasure is anonymization and never a row delete. A person who asks to be forgotten ' +
-      'keeps every row a counterparty book depends on — the signed hours, the amounts, ' +
-      'the days on a client site — and loses the name on them: the address becomes one ' +
-      'on a reserved domain that cannot be registered or routed to, and the name becomes ' +
-      '"Erased person". Sign-in records, the consultant profile, resumes never sent, and ' +
-      'bars and stars set against the name are deleted outright.',
-    'A statutory minimum beats an erasure request, and the request says which and why ' +
-      'in the person’s own words rather than being refused.',
-  ],
-  provenBy:
-    'src/lib/retention.ts, src/lib/erasure.ts, src/lib/data-request.ts, ' +
-    'src/lib/legal-hold.ts, src/lib/account-lifecycle.ts, ' +
-    'Person.erasedAt and Resume.deletedAt in prisma/schema.prisma, ' +
-    'src/app/api/cron/reap-demos/route.ts, ' +
-    '__tests__/invariants/retention.test.ts, __tests__/invariants/erasure.test.ts',
-} as const
-
-// ── The walls, stated where a data subject cares ──────────────────────
-
-export const WALLS = {
-  paragraphs: [
-    'A company sees its own data. Records are filtered by the company asking for them ' +
-      'in the database query, not hidden on the screen, so a record another company ' +
-      'owns does not arrive and then get styled away.',
-    'Inside a firm there is a second wall. A person attached to an org unit sees that ' +
-      'unit and what sits under it; a person attached to none is firm-wide, and that ' +
-      'absence is a deliberate act by whoever set up their seat. A delivery manager on ' +
-      'one client account has no reason to see who is staffed at another, at what rate.',
-    'A conversation about a deal stays between the two companies on it. A firm not on ' +
-      'the deal is told there is nothing there rather than that it is not allowed.',
-    'Notes a client makes about an interview stay with the client. They are not shown ' +
-      'to the supplier or to the candidate.',
-    'Rate bands live on the invitation sent to one supplier, never on the requirement ' +
-      'where another supplier could read them.',
-  ],
-  provenBy: 'src/lib/walls.ts, src/lib/account-walls.ts, src/lib/seat.ts, src/lib/threads.ts',
-} as const
-
-/**
- * How many route files under src/app/api write an access-log row through
- * src/lib/access-log.ts. The privacy notice reads its count from here, and
- * legal-pages.test.ts compares this number to the tree.
- *
- * Whoever moves a route onto lib/access-log updates this number in the same commit.
- */
-export const ACCESS_LOGGED_ROUTE_FILES = 45
-
-export const ACCESS_LOGGING = {
-  paragraphs: [
-    'Reads of a person’s record are logged. The row names the person read, who read it, ' +
-      'which company they were sitting at, what they were doing, whether they were ' +
-      'allowed and, where they were not, why. A refusal is logged as carefully as a ' +
-      'read, because a refusal is the interesting one.',
-    'This covers the routes that read a named person: a profile, a consultant record, ' +
-      'a resume file, a placement, a submission, a shared document packet, a bench or ' +
-      'alumni list, match results, a compliance record, a classification position, a ' +
-      'program roster and the tenure ledger. It is not every route in the product, and ' +
-      'this document does not claim it is.',
-  ],
-  provenBy:
-    // The count is ACCESS_LOGGED_ROUTE_FILES above, which legal-pages.test.ts
-    // compares to the tree and fails the commit that makes it untrue. It read
-    // "nineteen" for weeks after it was thirty-odd, then 37 after it was 42.
-    `src/lib/access-log.ts and the ${ACCESS_LOGGED_ROUTE_FILES} route files that write an access-log row ` +
-    'through it',
-} as const
-
 // ── The documents themselves ──────────────────────────────────────────
 
 export interface Section {
   heading: string
   paragraphs: string[]
   bullets?: string[]
-  /**
-   * A section whose facts line up in columns renders one of the two
-   * tables below instead of a list of run-on bullets. The data is the
-   * same `HELD` and `SUB_PROCESSORS` either way — a table is a layout,
-   * never a second copy of a fact.
-   */
-  table?: 'held' | 'sub-processors'
   /** Where in the code this section came from. Rendered small, on purpose. */
   provenBy?: string
   /** A counsel question this section is waiting on. */
   open?: string
 }
 
-export const TERMS: { title: string; intro: string; sections: Section[] } = {
-  title: 'Terms of service',
-  intro:
-    'These terms cover the use of Etyme by a company and by the people who sign in on ' +
-    'its behalf. They are a working draft written from the behavior of the software, ' +
-    'for a lawyer to turn into a binding agreement.',
-  sections: [
-    {
-      heading: 'What Etyme is',
-      paragraphs: [
-        'Etyme is the system of record for contingent workers: the layer between a ' +
-          'company and every staffing supplier it uses. It spans the job request, the ' +
-          'suppliers who see it, submissions, screening, interviews, onboarding, ' +
-          'timesheets, bills and compliance.',
-        'Etyme is not a staffing agency. It runs no bench, employs no consultant and ' +
-          'places nobody. Every placement ends with a supplier holding the paper and ' +
-          'carrying the employment relationship. Neutrality is not a policy here, it is ' +
-          'a constraint on the product: the moment Etyme competed with its own ' +
-          'suppliers the network would stop growing.',
-        'Etyme does not decide whether a person may work. It records that a check ' +
-          'happened — who ran it, when, and when it expires — and refuses to convert ' +
-          'those records into a single verdict about a person. The duty to decide stays ' +
-          'with whoever is legally accountable for it.',
-        'The same holds for employment status. Etyme does not decide whether somebody is ' +
-          'an employee or an independent contractor, and it does not decide whether an ' +
-          'employee is exempt from overtime. It records what a company asserted, with the ' +
-          'reason where the assertion departs from what the facts on file indicate. Where ' +
-          'arithmetic alone settles part of the question — a pay rate below the floor every ' +
-          'overtime exemption requires — it says so, and it still never concludes that ' +
-          'anybody is exempt, because that turns on what the person actually does and only ' +
-          'their employer knows it.',
-      ],
-      provenBy:
-        'src/lib/attestation.ts, where the function that would return a single verdict throws ' +
-        'instead; src/lib/worker-classification.ts, where the exemption screen has no verdict ' +
-        'that means exempt',
-    },
-    {
-      heading: 'Accounts and seats',
-      paragraphs: [
-        'A business user signs in through their employer’s identity provider, or by an ' +
-          'emailed link. A seat belongs to the company that granted it: an owner or ' +
-          'administrator there can suspend it or end it at any time.',
-        'A consultant account belongs to the person, not to whichever supplier signed ' +
-          'them up. It travels with them.',
-        'Whoever holds an account is responsible for what is done from it. Sessions ' +
-          'last thirty days unless ended sooner.',
-      ],
-      provenBy: 'src/lib/auth.ts, src/lib/account-lifecycle.ts',
-    },
-    {
-      heading: 'What a customer may and may not do with the platform',
-      paragraphs: [
-        'A customer may use Etyme to run its own contingent workforce and its own ' +
-          'supplier relationships. A customer may not use it to reach data belonging to ' +
-          'another company, to work around the walls described in the privacy notice, ' +
-          'or to load personal data it has no right to load.',
-        'A customer uploading somebody’s personal data warrants that it is entitled to ' +
-          'do so and that the person has been told what they must be told. That ' +
-          'matters most for resumes and onboarding documents, which arrive here from ' +
-          'recruiters far more often than from the person themselves.',
-      ],
-    },
-    {
-      heading: 'What the software does on its own',
-      paragraphs: [
-        'Some things happen without anybody asking: a contract whose last day has ' +
-          'passed is ended, an invitation nobody answered expires, a job request inside ' +
-          'policy clears itself, a timesheet inside tolerance is approved, a visa ' +
-          'nearing its expiry raises a flag. Each of them writes a row saying what was ' +
-          'done, in plain English, with an honest flag for whether it can be undone.',
-        'Every one of those is available for a customer to read. Almost all of them are ' +
-          'a date comparison, a threshold or a count rather than a model, and the ' +
-          'product says which.',
-      ],
-      provenBy: 'src/lib/autonomy.ts, AutomationLog in prisma/schema.prisma',
-    },
-    {
-      heading: 'Where a model is used',
-      paragraphs: [
-        'A model helps with matching a candidate to a job, checking a resume against ' +
-          'the skills claimed for it, reading an imported file into records, and ' +
-          'drafting the words on a public page. A score always carries its factors, its ' +
-          'basis, a confidence and what it could not assess; a bare number is treated as ' +
-          'a defect.',
-        'No award, rejection or bar in this product is made by a model. Where no model ' +
-          'is configured, matching falls back to arithmetic and says so on the row, and ' +
-          'the resume evidence check does not run at all rather than pretending to have ' +
-          'run.',
-      ],
-      provenBy: 'src/lib/match-engine.ts, src/app/api/submissions/[id]/check/route.ts',
-    },
-    {
-      heading: 'Availability, support and change',
-      paragraphs: [
-        'No uptime commitment is made in this draft. What exists today: errors are ' +
-          'recorded and staff are emailed, and a daily heartbeat is sent whether or not ' +
-          'anything broke, so silence is not mistaken for health.',
-        'A service level, a support commitment and a notice period for material changes ' +
-          'are all open for counsel and for whoever signs the first contract.',
-      ],
-      provenBy: 'src/lib/alerts.ts, src/app/api/cron/daily/route.ts',
-      open: 'liability-and-law',
-    },
-    {
-      heading: 'Fees',
-      paragraphs: [
-        'Etyme is free while it is being tested. No price is stated here, in any ' +
-          'material, or in any conversation, because none has been set. Firms using it ' +
-          'now will be given terms in writing before any price exists.',
-      ],
-    },
-    {
-      heading: 'Liability, indemnity, governing law and termination',
-      paragraphs: [
-        'Left open. These are the clauses that are entirely a lawyer work, and a ' +
-          'number written into a liability cap by an engineer would be worse than a ' +
-          'blank.',
-      ],
-      open: 'liability-and-law',
-    },
-  ],
-}
-
-export const PRIVACY: { title: string; intro: string; sections: Section[] } = {
-  title: 'Privacy notice',
-  intro:
-    'What Etyme holds, where it goes, who can see it and what is not true of it yet. ' +
-    'Written from the data model and the code paths rather than from a template, so ' +
-    'that a security reviewer can check any sentence here against the file named ' +
-    'beside it.',
-  sections: [
-    {
-      heading: 'Two populations, two relationships',
-      paragraphs: [
-        'Etyme has two kinds of user and they are not one audience. Treating them as ' +
-          'one is how a notice ends up untrue of both.',
-      ],
-      bullets: POPULATIONS.map(
-        (p) => `${p.name}. ${p.signIn} ${p.channel} ${p.held} ${p.control}`
-      ),
-      provenBy: 'src/lib/auth.ts, ConsultantProfile and Context in prisma/schema.prisma',
-      open: 'controller-or-processor',
-    },
-    {
-      heading: 'What we hold about you',
-      paragraphs: [
-        'By category, with the model or file that proves each one. Not every field of ' +
-          'every record is listed; every category of personal data is.',
-      ],
-      table: 'held',
-    },
-    {
-      heading: 'Bank details',
-      paragraphs: [
-        'Etyme does not ask for or store a full bank account number or routing number.',
-        'The supplier application form asks a firm for its bank name, the name on the ' +
-          'account and the last four digits, and says on the page that only those are ' +
-          'kept here and that full details go on the payment form the client sends once ' +
-          'the firm is approved. The remit-to record carries the same three, marked in ' +
-          'the schema as display only.',
-        'No card data is held anywhere in the product.',
-      ],
-      provenBy:
-        'src/app/api/supplier-apply/[token]/route.ts, src/app/apply/[token]/page.tsx, RemitTo in prisma/schema.prisma',
-    },
-    {
-      heading: 'Where a model sees personal data',
-      paragraphs: [
-        'This is stated first and plainly because it is the disclosure most easily ' +
-          'buried. Personal data does reach a third-party model, and here is exactly ' +
-          'which.',
-        'Matching sends a candidate’s name, skills, headline, location, work ' +
-          'authorization class, rate floor and availability date, together with the ' +
-          'job being matched against. The evidence check — run by a supplier on its ' +
-          'own submission, and again by the client screening it — sends the extracted ' +
-          'text of the resume with the skills claimed for it. An import sends up to ' +
-          'sixty thousand characters of the file being loaded, whatever it contains. A ' +
-          'public page draft sends the words that page will carry.',
-        'None of it is automatic in the sense of being unavoidable. Where no model key ' +
-          'is configured on the deployment, matching scores with rules and records on ' +
-          'the row that it did so, and the resume evidence check returns nothing rather ' +
-          'than a guess. The product refuses to claim a model did work it did not do.',
-        'No model output awards, rejects or bars anybody by itself.',
-      ],
-      provenBy:
-        'src/lib/match-engine.ts, src/app/api/submissions/[id]/check/route.ts, ' +
-        'src/app/api/requirements/[id]/screen/route.ts, src/lib/extract.ts, src/lib/autonomy.ts',
-      open: 'model-disclosure',
-    },
-    {
-      heading: 'Who else touches the data',
-      paragraphs: [
-        'Every service the code actually calls, and what reaches it. A service is on ' +
-          'this list because a file calls it, not because it might one day.',
-      ],
-      table: 'sub-processors',
-      open: 'sub-processor-contracts',
-    },
-    {
-      heading: 'What we do not use, despite appearances',
-      paragraphs: [
-        'A reader checking the configuration will find keys for services nothing calls. ' +
-          'Named here so the list above can be trusted.',
-      ],
-      bullets: [...NOT_USED],
-    },
-    {
-      heading: 'Who can see it',
-      paragraphs: [...WALLS.paragraphs],
-      provenBy: WALLS.provenBy,
-    },
-    {
-      heading: 'Reads are logged, refusals included',
-      paragraphs: [...ACCESS_LOGGING.paragraphs],
-      provenBy: ACCESS_LOGGING.provenBy,
-    },
-    {
-      heading: 'Time on site, added up across suppliers',
-      paragraphs: [
-        'A client can see how many days a person has worked on its sites in total, ' +
-          'across every supplier that has ever supplied them — not only the supplier ' +
-          'that employs them now. Two contracts covering the same week count as one ' +
-          'week; time booked for next spring is not counted until it is served.',
-        'This exists because time on site is a legal exposure for the client under ' +
-          'co-employment and tenure rules, and it is a number no single supplier can ' +
-          'compute. It is said here plainly because it is the thing about Etyme a ' +
-          'worker is least likely to expect.',
-        'Every read of it writes a log row naming the reader, their company and the ' +
-          'reason.',
-      ],
-      provenBy: 'src/lib/tenure-days.ts, src/app/api/tenure/route.ts',
-      open: 'tenure-visibility',
-    },
-    {
-      heading: 'A consultant’s permission is per supplier, and theirs to move',
-      paragraphs: [
-        'No supplier may submit a consultant to a job without a bench listing the ' +
-          'consultant granted. The database requires it, not the screen.',
-        'A listing is granted or declined by the consultant, one per supplier. It can ' +
-          'be revoked. Separately, a consultant can require a supplier to ask before ' +
-          'each new client, and can refuse to be shown before their current contract ' +
-          'ends without withdrawing the listing. A reason for declining is theirs and ' +
-          'is never shown to another supplier.',
-        'A profile is internal by default. A public page exists only from the moment ' +
-          'they turn it on, and an address they used before keeps working rather than ' +
-          'being reissued to somebody else.',
-      ],
-      provenBy: 'BenchListing and ConsultantProfile in prisma/schema.prisma, src/lib/bench-consent.ts',
-      open: 'lawful-basis',
-    },
-    {
-      heading: 'How long we keep it',
-      paragraphs: [RETENTION.headline, ...RETENTION.paragraphs],
-      provenBy: RETENTION.provenBy,
-      open: 'retention',
-    },
-    {
-      heading: 'Your rights, and how they are honored today',
-      paragraphs: [
-        'A consultant can see and change their own profile, resumes, availability and ' +
-          'rate floor, answer or withdraw a bench listing, answer an interview, and read ' +
-          'their own paperwork, from their own pages in the product.',
-        'Anybody signed in can ask for everything held about them, or ask to be ' +
-          'forgotten, from their own page. Neither needs anybody’s permission and neither ' +
-          'goes through a company. The copy is produced on the spot, in the categories ' +
-          'this notice names, and every time it is opened a line is written saying who ' +
-          'opened it — including us.',
-        'A request to be forgotten waits fourteen days, so it can be stopped, and the ' +
-          'letter sent at the time of asking says exactly what goes and what stays. What ' +
-          'stays is said before the day rather than after it: payroll and tax records ' +
-          'with whoever paid you, the I-9 with whoever took it, the days on site with the ' +
-          'client whose site it was. Those are their obligations and are not Etyme to ' +
-          'waive.',
-        'Where a company has placed a legal hold naming somebody, an erasure is held ' +
-          'rather than refused, the person is told that a hold applies and in whose ' +
-          'words, and it runs by itself the day the last hold is lifted. The holder’s own ' +
-          'case reference is never shown to the person.',
-        'A request that arrives by email is logged by the compliance officer at a company ' +
-          'that actually holds the person, and the clock counts from the day it arrived ' +
-          'rather than the day it was typed in. Correction and objection are still ' +
-          'handled by hand.',
-      ],
-      provenBy:
-        'src/app/api/me/data, src/app/dashboard/my-data, src/app/api/data-requests, ' +
-        'src/lib/data-request.ts, src/lib/erasure.ts, src/lib/legal-hold.ts, ' +
-        'src/app/api/me/*, src/app/dashboard/my-page, src/app/dashboard/my-work',
-      open: 'retention',
-    },
-    {
-      heading: 'Cookies and tracking',
-      paragraphs: [
-        'A session cookie, set at sign-in, lasting thirty days. Whether a list is shown ' +
-          'as a table or a feed is remembered in the browser’s own storage, on the device.',
-        'There is no analytics, advertising or session-replay service in the ' +
-          'application, and no third-party cookie is set by it.',
-      ],
-      provenBy: 'src/lib/auth.ts, src/components/list-surface.tsx, package.json',
-    },
-    {
-      heading: 'Where the data sits',
-      paragraphs: [
-        'One deployment and one database. Nothing in the software pins a record to a ' +
-          'region or refuses to move it. Whoever operates a deployment chooses the ' +
-          'region their database and hosting run in, and should name it here.',
-      ],
-      open: 'cross-border',
-    },
-    {
-      heading: 'Security',
-      paragraphs: [
-        'Stated in full, with the gaps, in the security posture document rather than ' +
-          'summarized favorably here.',
-      ],
-    },
-  ],
-}
-
-export const DPA: { title: string; intro: string; sections: Section[] } = {
-  title: 'Data processing addendum',
-  intro:
-    'A working draft of the addendum a client will ask for. It is deliberately ' +
-    'incomplete in one place: whether Etyme is a controller or a processor is not ' +
-    'settled, and this document sets out the facts either way rather than picking one.',
-  sections: [
-    {
-      heading: 'The unsettled question, stated before anything else',
-      paragraphs: [
-        'For a client’s own workforce data — its job requests, its approvals, its ' +
-          'timesheet decisions, the records it keeps about workers it did not employ — ' +
-          'Etyme looks like a processor acting on the client’s instructions.',
-        'For a candidate’s own profile — an account they hold themselves, a profile they ' +
-          'maintain, resumes they upload, a public page they turn on, permissions they ' +
-          'grant and revoke per supplier — Etyme looks like a controller, because no ' +
-          'customer instructed any of it.',
-        'The same record can appear in both: a consultant profile the consultant ' +
-          'maintains, read by a client that is measuring its own tenure exposure.',
-        'Counsel decides. The rest of this addendum is written so that either answer ' +
-          'can be dropped in without the facts underneath changing.',
-      ],
-      open: 'controller-or-processor',
-    },
-    {
-      heading: 'Subject matter, duration, nature and purpose',
-      paragraphs: [
-        'Subject matter: running a contingent workforce across multiple staffing ' +
-          'suppliers — job request, supplier release, submission, screening, interview, ' +
-          'award, onboarding, time, billing and compliance.',
-        'Duration: for as long as the customer has an account, and after it for as long ' +
-          'as the retention schedule says of each category — which for several of them ' +
-          'is a statutory minimum measured in years, and for a few is no stated period ' +
-          'at all. See retention.',
-        'Nature and purpose: storage, structuring, retrieval, disclosure to the ' +
-          'counterparties on a deal, and analysis for matching and compliance.',
-      ],
-      open: 'retention',
-    },
-    {
-      heading: 'Categories of data subject',
-      paragraphs: [
-        'Contingent workers and candidates; employees of a client company; employees ' +
-          'of a supplier company; named references a supplier supplies; and contacts at ' +
-          'counterparty firms.',
-      ],
-    },
-    {
-      heading: 'Categories of personal data',
-      paragraphs: ['As set out in the privacy notice, by category and with the model that holds each.'],
-      table: 'held',
-    },
-    {
-      heading: 'Data that may be special category',
-      paragraphs: [
-        'Work authorization class and visa petition history; I-9 and E-Verify ' +
-          'attestations; background check, education evaluation and drug screening ' +
-          'outcomes; and a bar recorded against a named person with a reason.',
-        'All of these are held as attestations that a check happened — who ran it, ' +
-          'when, its reference, when it expires — rather than as a verdict about the ' +
-          'person. Etyme runs none of them. Which of them count as special category, ' +
-          'and where any of them may not be held at all, is for counsel.',
-      ],
-      provenBy: 'Verification, VisaPetition, Blacklist in prisma/schema.prisma; src/lib/attestation.ts',
-      open: 'sensitive-categories',
-    },
-    {
-      heading: 'Sub-processors',
-      paragraphs: [
-        'The list below is generated from the services the code calls. A new one would ' +
-          'appear in the same list on the commit that added it.',
-        'The notice period for adding one, and the customer’s right to object, are open.',
-      ],
-      table: 'sub-processors',
-      open: 'sub-processor-contracts',
-    },
-    {
-      heading: 'Technical and organizational measures that exist',
-      paragraphs: [
-        'Only measures that can be pointed at in the code are listed. The security ' +
-          'posture document lists what is absent with the same specificity, and a ' +
-          'reviewer should read both.',
-      ],
-      bullets: [
-        'Records are filtered by the asking company in the database query rather than ' +
-          'hidden on the screen (src/lib/walls.ts, src/lib/account-walls.ts, src/lib/seat.ts).',
-        'Reads of a person’s record are logged with the reader, their company, the ' +
-          'reason and whether they were allowed, refusals included (src/lib/access-log.ts).',
-        'Segregation of duties is enforced rather than advised: an approver who is the ' +
-          'beneficiary is blocked, and the refusal names whose rule blocked it ' +
-          '(src/lib/governance.ts, src/lib/governance-authorship.ts).',
-        'Sign-in is delegated to the customer’s own identity provider where one is ' +
-          'connected, and a provider with no credentials is not offered at all ' +
-          '(src/lib/auth.ts).',
-        'API keys are stored as a SHA-256 hash and compared in constant time; a key ' +
-          'cannot be shown again after it is minted (src/lib/service-accounts.ts).',
-        'Outbound webhooks are signed with an HMAC over a timestamp and the payload ' +
-          '(src/lib/service-accounts.ts).',
-        'Public links — a supplier application, a document packet, a reply — carry a ' +
-          'bearer token from a cryptographic random source rather than a sequential ' +
-          'identifier, and expire when the thing they are for is decided.',
-        'Scheduled jobs require a shared secret compared in constant time, and a ' +
-          'deployment with no secret set refuses every scheduled call rather than ' +
-          'accepting a default (src/lib/cron-auth.ts).',
-        'Errors are recorded and staff are alerted, and a daily heartbeat is sent ' +
-          'whether or not anything broke (src/lib/alerts.ts).',
-        'Full bank account and routing numbers are never collected; the last four ' +
-          'digits are, and the form says so.',
-      ],
-    },
-    {
-      heading: 'Assisting the customer with data subject requests',
-      paragraphs: [
-        'A data subject can ask for everything held about them, or ask to be forgotten, ' +
-          'from their own page, without going through a customer at all. A customer ' +
-          'compliance officer can log a request that arrived by email against somebody it ' +
-          'holds, see what is due and when, and answer it from one page.',
-        'The deadline on each request is stored with the reason for it in words, rather ' +
-          'than recomputed from a constant, so a period counsel corrects next year does ' +
-          'not silently rewrite the deadline on a request already answered. Where nobody ' +
-          'has recorded which regime applies, the earliest date any of them would allow ' +
-          'is used and is described as conservative rather than correct.',
-        'What is refused is recorded as carefully as what is granted, in a sentence the ' +
-          'person can act on rather than a code. Correction and objection are still ' +
-          'handled by hand, and the response time to promise is still counsel.',
-      ],
-      provenBy:
-        'src/app/api/me/data, src/app/api/data-requests, src/lib/data-request.ts, ' +
-        'src/lib/retention.ts, src/app/dashboard/privacy',
-      open: 'retention',
-    },
-    {
-      heading: 'Breach notification',
-      paragraphs: [
-        'What exists: a breach is its own record, opened deliberately by somebody who ' +
-          'decided that personal data went where it should not have, separate from the ' +
-          'machine errors a failing route writes. It carries when somebody here became ' +
-          'aware, whether personal data was involved, which populations and which ' +
-          'categories, which customers, and a notification deadline for the supervisory ' +
-          'authority, for the people affected, and for each customer on that customer’s own ' +
-          'agreed period. Every deadline names the person who owns sending it. A nightly ' +
-          'sweep says so a day before each one and goes on saying so once a day after it ' +
-          'has passed, and a breach cannot be closed over a deadline with no notice ' +
-          'recorded against it.',
-        'What is deliberately absent: a severity scale. Inventing a four-point one here ' +
-          'would make this paragraph read better and make nobody safer. What decides the ' +
-          'deadlines is whether personal data was involved, whose, and what counsel says ' +
-          'about it, and those are the facts the record holds. A scale can be added the ' +
-          'day counsel gives one.',
-        'Every deadline is empty until somebody decides one applies, and every screen ' +
-          'says "nobody has decided" rather than counting down to a date the software ' +
-          'invented. The GDPR seventy-two hours is not the United States state patchwork ' +
-          'clock, and not every incident is notifiable at all.',
-        'What still does not exist: a rehearsed runbook, and a named contact at each ' +
-          'customer held in advance rather than looked up on the day.',
-      ],
-      provenBy:
-        'src/lib/breach.ts, src/app/api/breaches, src/lib/notify/breach.ts, ' +
-        'src/lib/alerts.ts, Breach and BreachCompany and Incident in prisma/schema.prisma',
-    },
-    {
-      heading: 'International transfers',
-      paragraphs: [
-        'One deployment, one database, no regional pinning in the software. The ' +
-          'transfer mechanism is for counsel.',
-      ],
-      open: 'cross-border',
-    },
-    {
-      heading: 'Audit',
-      paragraphs: [
-        'There is no SOC 2 report, no ISO 27001 certificate and no penetration test ' +
-          'report to offer in place of an audit. What can be offered is the code, the ' +
-          'access log, the automation log and the test suite.',
-      ],
-    },
-    {
-      heading: 'Return and deletion at the end',
-      paragraphs: [
-        'Half built, and the half that is missing is named rather than papered over. A ' +
-          'request can be raised about a customer’s own records and carries a deadline like ' +
-          'any other, and the customer’s own tombstone column exists so that erasing a firm ' +
-          'is anonymization rather than a row delete.',
-        'What is not built is the export itself. A customer export is refused in words ' +
-          'today, because nobody has decided which of the joint records travel with it — ' +
-          'a contract between two firms, an invoice between them, and the days a person ' +
-          'worked on a site are the other firm’s records as much as this one, and handing ' +
-          'over a copy of them is a decision about somebody else’s data. Answering by hand ' +
-          'is the honest path until that is decided.',
-      ],
-      provenBy:
-        'Company.erasedAt and DataRequest in prisma/schema.prisma, src/lib/data-request.ts',
-      open: 'retention',
-    },
-  ],
-}
-
-// ── The fourth document: the one page a census client's legal reads ───
+// ── The census agreement: the one page a census client's legal reads ──
 
 /**
  * The census agreement.
@@ -1324,27 +629,18 @@ export const CENSUS_AGREEMENT: { title: string; intro: string; sections: Section
   ],
 }
 
-// ── How the three pages are read ──────────────────────────────────────
+// ── How the census agreement page is read ─────────────────────────────
 
 /**
- * The four documents, and the fourth is not like the other three.
- *
- * Terms, privacy and the DPA are public pages a reader arrives at. The
- * census agreement is accepted, by name, by somebody at a client before
- * a file moves — so it carries an edition, it is recorded against the
- * census it was accepted for, and it is rendered through the same
- * component as the other three precisely so a lawyer reading it
- * recognizes it as one of our documents rather than a form.
+ * The census agreement is the one document still drawn from objects
+ * here, by `app/legal/census-document`. The Privacy Notice, the Terms
+ * and the DPA left this file on 2026-10-15 for `lib/legal/`, where they
+ * are held as the text the founder approved.
  */
-export type DocKey = 'terms' | 'privacy' | 'dpa' | 'census'
 
 /**
- * A section's address on its page.
- *
- * Computed from the heading rather than typed beside it, so a heading
- * that changes takes its anchor with it and a table of contents cannot
- * point at a section that has been renamed. Every link in `SUMMARY` and
- * `CROSS_LINKS` is checked against this by the test.
+ * A section's address on its page, computed from the heading so a
+ * heading that changes takes its anchor with it.
  */
 export function sectionId(heading: string): string {
   return heading
@@ -1353,29 +649,9 @@ export function sectionId(heading: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-/** Every section of a document, keyed by its address. */
-export function sectionsOf(key: DocKey): Section[] {
-  if (key === 'terms') return TERMS.sections
-  if (key === 'privacy') return PRIVACY.sections
-  if (key === 'census') return CENSUS_AGREEMENT.sections
-  return DPA.sections
-}
-
 /**
- * The six questions a procurement lead asks before they read anything,
- * answered on every page in that page's own voice.
- *
- * ── Why the same six, on all three ───────────────────────────────────
- *
- * A reader arrives on whichever of the three a link sent them to, and
- * the first thing they do is look for the answer to a question the page
- * they landed on may not be the one that holds it. Six lines, the same
- * six everywhere, each with a link to wherever the answer actually
- * lives — on this page or on one of the other two. A page that answers
- * only what it happens to contain makes the reader hunt.
- *
- * Every `href` resolves to a real section: the test computes the
- * anchors from the headings and fails on one that points nowhere.
+ * The six things asked before a census file moves, answered at the top
+ * of the agreement, each linking to the section that answers it in full.
  */
 export interface SummaryLine {
   /** The question, as a procurement lead would put it. */
@@ -1386,216 +662,57 @@ export interface SummaryLine {
   href: string
 }
 
-/** The asks, in order, identical on all three pages. */
-export const SUMMARY_ASKS = [
-  'What you hold',
-  'About whom',
-  'How long you keep it',
-  'Who can see it',
-  'Your rights',
-  'When something goes wrong',
-] as const
 
-export const SUMMARY: Record<DocKey, SummaryLine[]> = {
-  /**
-   * The census agreement answers six different questions, and they are
-   * the six a procurement lead asks before a file moves rather than the
-   * six a reader of a privacy notice asks. Same box, same shape, and no
-   * pretense that "your rights" is what somebody sending a spreadsheet
-   * of contractor rates is worried about at that moment.
-   */
-  census: [
-    {
-      ask: 'What you receive',
-      answer:
-        'Whatever you send and nothing we go and get: a filled template with one row per ' +
-        'contractor, or your own invoice receipts and timesheets. The template asks for no ' +
-        'names, and a census sent that way holds no personal data at all.',
-      href: '#what-we-receive',
-    },
-    {
-      ask: 'Who can see it',
-      answer:
-        'One named person at Etyme, told to you when you ask. Every open of one of your ' +
-        'files is counted and recorded against them, refusals included, and nobody at any ' +
-        'other company ever sees it.',
-      href: '#who-at-etyme-can-see-it',
-    },
-    {
-      ask: 'Where it sits',
-      answer:
-        'In our own database in the United States, as bytes rather than in a bucket ' +
-        'somewhere else, inside a private company created for your census and used for ' +
-        'nothing else. No number from it goes into a benchmark.',
-      href: '#where-it-sits',
-    },
-    {
-      ask: 'Whether you approach our suppliers',
-      answer:
-        'We do not write to your suppliers or your contractors, do not invite them here on ' +
-        'the strength of your file, and sell nothing to anybody from it. Etyme runs no bench ' +
-        'and places nobody, so there is nothing to be gained by going near them.',
-      href: '#we-never-approach-your-suppliers-or-your-contractors',
-    },
-    {
-      ask: 'The day you delete it',
-      answer:
-        'Forty-five days after your files arrive. You are given the exact date on the ' +
-        'confirmation, it is printed on the page we send you, and the nightly job reads the ' +
-        'same date. It does not move.',
-      href: '#the-day-we-delete-it',
-    },
-    {
-      ask: 'If we start a program',
-      answer:
-        'The deletion is cancelled with a reason recorded and your data becomes the opening ' +
-        'balance of your own program. That is the only thing that changes the date, and if ' +
-        'you do nothing the date stands.',
-      href: '#what-happens-if-you-start-a-program',
-    },
-  ],
-  privacy: [
-    {
-      ask: 'What you hold',
-      answer:
-        'Every category, from a name and a resume to the days somebody stood on a client ' +
-        'site, each named against the model or the file that proves it.',
-      href: '#what-we-hold-about-you',
-    },
-    {
-      ask: 'About whom',
-      answer:
-        'Two populations, and they are not one audience: a business user with a seat ' +
-        'their employer granted, and a candidate with their own account, which travels ' +
-        'with them between suppliers.',
-      href: '#two-populations-two-relationships',
-    },
-    {
-      ask: 'How long you keep it',
-      answer:
-        'A schedule in code, one line per category. Every period stated is a United ' +
-        'States federal minimum with its rule cited, and where none can be cited no ' +
-        'period is stated and nothing is deleted on one.',
-      href: '#how-long-we-keep-it',
-    },
-    {
-      ask: 'Who can see it',
-      answer:
-        'The company whose record it is, filtered in the database query rather than ' +
-        'hidden on the screen, and inside a firm the org unit. Every read of a person’s ' +
-        'record is logged, refusals included.',
-      href: '#who-can-see-it',
-    },
-    {
-      ask: 'Your rights',
-      answer:
-        'Anybody signed in can ask for everything held about them, or ask to be ' +
-        'forgotten, from their own page. Neither needs anybody’s permission and neither ' +
-        'goes through a company.',
-      href: '#your-rights-and-how-they-are-honored-today',
-    },
-    {
-      ask: 'When something goes wrong',
-      answer:
-        'A breach is its own record, with a notification deadline per audience and the ' +
-        'name of whoever owns sending each one. There is no severity scale, on purpose.',
-      href: '/dpa#breach-notification',
-    },
-  ],
-  terms: [
-    {
-      ask: 'What you hold',
-      answer:
-        'Nothing a customer or a candidate did not put here. The privacy notice lists ' +
-        'every category against the model that holds it.',
-      href: '/privacy#what-we-hold-about-you',
-    },
-    {
-      ask: 'About whom',
-      answer:
-        'The company that signs, the people who sign in on its behalf, and the workers ' +
-        'and candidates its suppliers put in front of it.',
-      href: '/privacy#two-populations-two-relationships',
-    },
-    {
-      ask: 'How long you keep it',
-      answer:
-        'On the retention schedule rather than in this agreement: a cited federal ' +
-        'minimum per category, or a stated blank where none can be cited.',
-      href: '/privacy#how-long-we-keep-it',
-    },
-    {
-      ask: 'Who can see it',
-      answer:
-        'A customer sees its own data. Reaching another company’s data, or working around ' +
-        'the walls the privacy notice describes, is what a customer may not do.',
-      href: '#what-a-customer-may-and-may-not-do-with-the-platform',
-    },
-    {
-      ask: 'Your rights',
-      answer:
-        'A seat belongs to the company that granted it and that company can end it. A ' +
-        'consultant account belongs to the person and travels with them.',
-      href: '#accounts-and-seats',
-    },
-    {
-      ask: 'When something goes wrong',
-      answer:
-        'A personal data breach is handled under the data processing addendum: a ' +
-        'deadline per audience, a named owner for each, and no severity scale. This ' +
-        'draft makes no uptime commitment and says so rather than implying one.',
-      href: '/dpa#breach-notification',
-    },
-  ],
-  dpa: [
-    {
-      ask: 'What you hold',
-      answer:
-        'Every category of personal data the privacy notice sets out, listed here again ' +
-        'with the model that holds each.',
-      href: '#categories-of-personal-data',
-    },
-    {
-      ask: 'About whom',
-      answer:
-        'Contingent workers and candidates, employees of a client, employees of a ' +
-        'supplier, named references a supplier supplies, and contacts at counterparty ' +
-        'firms.',
-      href: '#categories-of-data-subject',
-    },
-    {
-      ask: 'How long you keep it',
-      answer:
-        'For as long as the customer has an account, and after it for as long as the ' +
-        'retention schedule says of each category — a statutory minimum measured in ' +
-        'years for several, no stated period at all for a few.',
-      href: '#subject-matter-duration-nature-and-purpose',
-    },
-    {
-      ask: 'Who can see it',
-      answer:
-        'Outside the platform, the sub-processors the code actually calls, each with ' +
-        'what reaches it. Inside it, the walls are set out in the privacy notice.',
-      href: '#sub-processors',
-    },
-    {
-      ask: 'Your rights',
-      answer:
-        'A data subject asks from their own page without going through a customer at ' +
-        'all, and a customer compliance officer can log a request that arrived by email ' +
-        'and answer it from one page.',
-      href: '#assisting-the-customer-with-data-subject-requests',
-    },
-    {
-      ask: 'When something goes wrong',
-      answer:
-        'A breach record carries when somebody here became aware, whose data, which ' +
-        'customers, and a notification deadline each with the person who owns sending ' +
-        'it. There is no severity scale, on purpose.',
-      href: '#breach-notification',
-    },
-  ],
-}
+export const CENSUS_SUMMARY: SummaryLine[] = [
+  {
+    ask: 'What you receive',
+    answer:
+      'Whatever you send and nothing we go and get: a filled template with one row per ' +
+      'contractor, or your own invoice receipts and timesheets. The template asks for no ' +
+      'names, and a census sent that way holds no personal data at all.',
+    href: '#what-we-receive',
+  },
+  {
+    ask: 'Who can see it',
+    answer:
+      'One named person at Etyme, told to you when you ask. Every open of one of your ' +
+      'files is counted and recorded against them, refusals included, and nobody at any ' +
+      'other company ever sees it.',
+    href: '#who-at-etyme-can-see-it',
+  },
+  {
+    ask: 'Where it sits',
+    answer:
+      'In our own database in the United States, as bytes rather than in a bucket ' +
+      'somewhere else, inside a private company created for your census and used for ' +
+      'nothing else. No number from it goes into a benchmark.',
+    href: '#where-it-sits',
+  },
+  {
+    ask: 'Whether you approach our suppliers',
+    answer:
+      'We do not write to your suppliers or your contractors, do not invite them here on ' +
+      'the strength of your file, and sell nothing to anybody from it. Etyme runs no bench ' +
+      'and places nobody, so there is nothing to be gained by going near them.',
+    href: '#we-never-approach-your-suppliers-or-your-contractors',
+  },
+  {
+    ask: 'The day you delete it',
+    answer:
+      'Forty-five days after your files arrive. You are given the exact date on the ' +
+      'confirmation, it is printed on the page we send you, and the nightly job reads the ' +
+      'same date. It does not move.',
+    href: '#the-day-we-delete-it',
+  },
+  {
+    ask: 'If we start a program',
+    answer:
+      'The deletion is cancelled with a reason recorded and your data becomes the opening ' +
+      'balance of your own program. That is the only thing that changes the date, and if ' +
+      'you do nothing the date stands.',
+    href: '#what-happens-if-you-start-a-program',
+  },
+]
 
 /**
  * The words these documents use, defined once and not again.
@@ -1651,125 +768,26 @@ export interface CrossLink {
   note: string
 }
 
-export const CROSS_LINKS: Record<DocKey, CrossLink[]> = {
-  census: [
-    {
-      href: '#the-day-we-delete-it',
-      label: 'The day we delete it',
-      note:
-        'Forty-five days after your files arrive, on one date read by the confirmation, the ' +
-        'page and the nightly job alike. The clause a security review reads first.',
-    },
-    {
-      href: '/privacy',
-      label: 'Privacy notice',
-      note:
-        'Everything else this product holds, about whom, for how long, and what a person ' +
-        'may ask for. A census is one category in it, named there too.',
-    },
-    {
-      href: '/dpa',
-      label: 'Data processing addendum',
-      note:
-        'The sub-processor list and the breach clock, for the part of your review that is ' +
-        'about us rather than about this file. Nothing new is introduced for a census.',
-    },
-  ],
-  privacy: [
-    {
-      href: '/dashboard/my-data',
-      label: 'Your own data',
-      note:
-        'Signed in, this is everything held about you, a copy of it to download, and ' +
-        'the way to ask to be forgotten. It asks for no permission and goes through no ' +
-        'company.',
-    },
-    {
-      href: '/dpa',
-      label: 'Data processing addendum',
-      note:
-        'What a client security review asks for next: sub-processors, breach ' +
-        'notification, and the controller question left open rather than decided.',
-    },
-    {
-      href: '/terms',
-      label: 'Terms of service',
-      note: 'What the software is, what a customer may do with it, and what fees are set.',
-    },
-  ],
-  terms: [
-    {
-      href: '#fees',
-      label: 'Fees',
-      note:
-        'Etyme is free while it is being tested. No price is stated here, in any ' +
-        'material, or in any conversation, because none has been set.',
-    },
-    {
-      href: '/privacy',
-      label: 'Privacy notice',
-      note: 'What is held, who can see it, how long it is kept, and what a person may ask for.',
-    },
-    {
-      href: '/dpa',
-      label: 'Data processing addendum',
-      note: 'The addendum a client will ask for, with the sub-processor list and the breach clock.',
-    },
-  ],
-  dpa: [
-    {
-      href: '#breach-notification',
-      label: 'Breach notification',
-      note: 'The clock, the named owner for each deadline, and why there is no severity scale.',
-    },
-    {
-      href: '#sub-processors',
-      label: 'Sub-processors',
-      note: 'Every service the code calls, what it is for, and exactly what reaches it.',
-    },
-    {
-      href: '/privacy',
-      label: 'Privacy notice',
-      note: 'The same facts written for a person to read rather than for a contract to carry.',
-    },
-  ],
-}
-
-export const DOCUMENTS = { TERMS, PRIVACY, DPA, CENSUS_AGREEMENT } as const
-
-/** Every sentence rendered on the three pages, for a test to read. */
-export function allProse(): string {
-  const doc = (d: { title: string; intro: string; sections: Section[] }) =>
-    [
-      d.title,
-      d.intro,
-      ...d.sections.flatMap((s) => [s.heading, ...s.paragraphs, ...(s.bullets ?? [])]),
-    ].join('\n')
-
-  // The two tables are rendered from `HELD` and `SUB_PROCESSORS` rather
-  // than from bullets, so they are joined in here by hand — otherwise
-  // the test that checks every file named on a page exists would stop
-  // reading the very lines that name the most files.
-  const tables = [
-    ...HELD.map((h) => `${h.category} — ${h.examples} (${h.provenBy})`),
-    ...SUB_PROCESSORS.map(
-      (s) =>
-        `${s.name}${s.always ? '' : ' (only where configured)'} — ${s.purpose} ` +
-        `What reaches it: ${s.reaches} (${s.provenBy})`
-    ),
-  ]
-
-  return [
-    DRAFT_BANNER.headline,
-    DRAFT_BANNER.body,
-    ...tables,
-    ...DEFINITIONS.map((d) => `${d.term}. ${d.meaning}`),
-    ...Object.values(SUMMARY).flatMap((lines) => lines.map((l) => `${l.ask}. ${l.answer}`)),
-    ...Object.values(CROSS_LINKS).flatMap((links) => links.map((l) => `${l.label}. ${l.note}`)),
-    ...COUNSEL_QUESTIONS.flatMap((q) => [q.question, q.whatTheCodeDoes, q.whyItIsOpen]),
-    doc(TERMS),
-    doc(PRIVACY),
-    doc(DPA),
-    doc(CENSUS_AGREEMENT),
-  ].join('\n')
-}
+export const CENSUS_LINKS: CrossLink[] = [
+  {
+    href: '#the-day-we-delete-it',
+    label: 'The day we delete it',
+    note:
+      'Forty-five days after your files arrive, on one date read by the confirmation, the ' +
+      'page and the nightly job alike. The clause a security review reads first.',
+  },
+  {
+    href: '/privacy',
+    label: 'Privacy notice',
+    note:
+      'Everything else this product holds, about whom, for how long, and what a person ' +
+      'may ask for. A census is one category in it, named there too.',
+  },
+  {
+    href: '/dpa',
+    label: 'Data processing addendum',
+    note:
+      'The sub-processor list and the breach clock, for the part of your review that is ' +
+      'about us rather than about this file. Nothing new is introduced for a census.',
+  },
+]

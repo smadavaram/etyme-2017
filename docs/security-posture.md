@@ -14,7 +14,10 @@ security document with no gaps is a document nobody checked.
 Facts verified against the code on **2026-09-15**. Section 3 was
 re-verified on **2026-09-17**, when one of its claims was found to be
 false; what was wrong, what was fixed and what is still open is written
-there rather than quietly corrected. Anything that changes should change
+there rather than quietly corrected. On **2026-10-15** two lines were
+corrected against the code: demo workspaces are not the only scheduled
+deletion (section 14), and password sign-in does limit failed tries
+(sections 2 and 14). Anything that changes should change
 this file in the same commit.
 
 ---
@@ -46,6 +49,7 @@ full dependency list is eleven runtime packages (`package.json`).
 |---|---|---|
 | Federated sign-in for business users | Built | `src/lib/auth.ts` — Microsoft Entra and Google Workspace |
 | Email link sign-in for candidates | Built | `src/lib/auth.ts` |
+| Email and password sign-in | Built — argon2id hash, at least 12 characters, five failed tries in 15 minutes and the door waits a minute, reset and verification links stored only as a hash | `src/lib/password.ts`, `src/lib/password-door.ts` |
 | A provider with no credentials is not offered at all | Built | `configuredProviders()` in `src/lib/auth.ts` |
 | Consumer email domains cannot register a company | Built | `isExcludedDomain()` in `src/lib/auth.ts` |
 | Session | JWT cookie, 30 days | `src/lib/auth.ts` |
@@ -697,8 +701,14 @@ Stated in one place so a reviewer does not have to assemble it.
   request can be raised about a customer's own records and carries a
   deadline; the export itself is refused in words, because nobody has
   decided which of the joint records travel with it.
-- The only scheduled deletion in the product is demo workspaces nobody
-  returned to (`src/app/api/cron/reap-demos/route.ts`).
+- Three things are deleted on a schedule, and nothing else:
+  demo workspaces nobody used for 30 days
+  (`src/app/api/cron/reap-demos/route.ts`); evidence whose statutory
+  period has run, for a person whose erasure has finished, unless a legal
+  hold names it; and census files on the day
+  promised, 45 days after they arrive. The last two run nightly in
+  `src/app/api/cron/retention/route.ts` (`runRetentionSweep` and
+  `runCensusSweep` in `src/lib/data-request.ts`).
 - A resume a candidate removes is soft-deleted: hidden from their list,
   still readable by a company it was already sent to, because Etyme
   cannot unsend it (`Resume.deletedAt`).
@@ -715,7 +725,10 @@ Stated in one place so a reviewer does not have to assemble it.
 - No backup or restore procedure documented, and no restore has been
   tested.
 - No disaster recovery plan, no RPO, no RTO.
-- No rate limiting, no WAF rule and no bot protection in the application.
+- No rate limiting, no WAF rule and no bot protection in the application,
+  except the password sign-in limit: five failed tries for one email or one
+  network address in 15 minutes and the door waits a minute
+  (`src/lib/password.ts`, `src/lib/password-door.ts`).
 - No security headers configured — no CSP, and no HSTS beyond the
   platform default (`next.config.mjs` sets no `headers()`).
 

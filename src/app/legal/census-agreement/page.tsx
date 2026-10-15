@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { LegalDocument } from '../document'
+import { CensusAgreementDocument } from '../census-document'
 import { CENSUS_AGREEMENT } from '@/lib/legal'
 
 export const metadata: Metadata = {
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 }
 
 export default function CensusAgreementPage() {
-  return <LegalDocument doc={CENSUS_AGREEMENT} docKey="census" />
+  return <CensusAgreementDocument doc={CENSUS_AGREEMENT} />
 }

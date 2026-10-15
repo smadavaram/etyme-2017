@@ -1,441 +1,546 @@
 import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { HELD, CENSUS_AGREEMENT, CENSUS_SUMMARY, sectionId } from '@/lib/legal'
 import {
-  DRAFT_BANNER,
-  COUNSEL_QUESTIONS,
-  CROSS_LINKS,
-  DEFINITIONS,
-  POPULATIONS,
-  HELD,
-  SUB_PROCESSORS,
-  NOT_USED,
-  RETENTION,
-  ACCESS_LOGGING,
-  ACCESS_LOGGED_ROUTE_FILES,
-  SUMMARY,
-  SUMMARY_ASKS,
-  TERMS,
-  PRIVACY,
-  DPA,
-  allProse,
-  sectionId,
-  sectionsOf,
-  type DocKey,
-  type Section,
-} from '@/lib/legal'
-import { SCHEDULE, unscheduledCategories } from '@/lib/retention'
-import { keptFor } from '@/app/legal/document'
+  LEGAL_PAGES,
+  PRIVACY_NOTICE,
+  TERMS_OF_SERVICE,
+  DATA_PROCESSING_ADDENDUM,
+  NOTICE_CATEGORY,
+  NOT_ABOUT_A_PERSON,
+  OLD_ANCHORS,
+  anchorsOn,
+  counselPointsIn,
+  sectionOf,
+  tableIn,
+  wordsOf,
+  type LegalKey,
+} from '@/lib/legal/documents'
+import { inline, parseLegal, toMarkdown } from '@/lib/legal/parse'
+import { SCHEDULE, COOLING_DAYS } from '@/lib/retention'
 import { domainOf } from '@/lib/domains'
 import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
+import { MIN_PASSWORD, FAILURES_ALLOWED, FAILURE_WINDOW_MS, WAIT_MS } from '@/lib/password'
+import { SANDBOX_UNUSED_DAYS } from '@/lib/sandbox-expiry'
+import { KEPT_DAYS_AFTER_RECEIPT } from '@/lib/census'
+import { STAY_CHOICES } from '@/lib/bench-stay'
 
 /**
- * The legal pages say only what is true of the code.
+ * The legal pages say only what is true of the code, and say all of what
+ * the founder approved.
+ *
+ * Since 2026-10-15 the Privacy Notice, the Terms of Service and the DPA
+ * are published from the text the founder read and approved ("Publish"),
+ * held word for word in `src/lib/legal/` and read into sections by a
+ * small parser. So these tests hold three things:
+ *
+ *   — the page is the approved text, every word of it, and nothing else;
+ *   — every claim in it that the code can answer, the code answers the
+ *     same way: the services named, the periods kept, what erasure does,
+ *     the numbers on sign-in and clean-up;
+ *   — the reader can see what is not decided, and can find every section.
  *
  * A privacy notice that misdescribes what a system holds is worse than
  * no notice: it is a written misrepresentation, and the first security
- * review finds it. Prose cannot be checked, so the substance lives in
- * `src/lib/legal.ts` as data and this file reads it back against the
- * code it describes.
- *
- * The documents are drafts for counsel. That is itself something these
- * tests hold, because a draft that stops saying it is a draft is the
- * failure mode that matters most.
+ * review finds it.
  */
 
 const ROOT = process.cwd()
-const PROSE = allProse()
-const POSTURE = readFileSync(join(ROOT, 'docs/security-posture.md'), 'utf8')
+const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
+const POSTURE = read('docs/security-posture.md')
+const POLICY = read('SECURITY.md')
+const DOCUMENT = read('src/app/legal/document.tsx')
+const PRIVACY = wordsOf(PRIVACY_NOTICE)
+const TERMS = wordsOf(TERMS_OF_SERVICE)
+const DPA = wordsOf(DATA_PROCESSING_ADDENDUM)
+const ALL_WORDS = [PRIVACY, TERMS, DPA].join('\n')
 
-/**
- * Route files under src/app/api that write an access-log row through
- * lib/access-log — logAccess, logBulkAccess, recordAccess or recordRefusal.
- * Counted from the tree, so a public number about coverage cannot go stale.
- */
+/** The address that does not exist yet, written once so a test can find it. */
+const PLACEHOLDER = 'security@etyme.example'
+
+/** Every `src/...` or `docs/...` path a document points at. */
+function pathsNamedIn(text: string): string[] {
+  const hits = text.match(/(?:src|prisma|docs|__tests__|__integration__)\/[A-Za-z0-9_\-./[\]]+/g) ?? []
+  return [...new Set(hits.map((h) => h.replace(/[.,)]+$/, '')))]
+}
+
+function exists(p: string): boolean {
+  if (existsSync(join(ROOT, p))) return true
+  if (p.endsWith('/*')) return existsSync(join(ROOT, p.slice(0, -2)))
+  return false
+}
+
+function walk(dir: string, keep: (name: string) => boolean): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name)
+    return statSync(full).isDirectory() ? walk(full, keep) : keep(name) ? [full] : []
+  })
+}
+
+/** Route files under src/app/api, and those that write an access-log row through lib/access-log. */
 function apiRouteFiles(): string[] {
-  const walk = (dir: string): string[] =>
-    readdirSync(dir).flatMap((name) => {
-      const full = join(dir, name)
-      return statSync(full).isDirectory() ? walk(full) : name === 'route.ts' ? [full] : []
-    })
-  return walk(join(ROOT, 'src/app/api'))
+  return walk(join(ROOT, 'src/app/api'), (n) => n === 'route.ts')
 }
 function routeFilesLoggingThroughTheLib(): number {
   return apiRouteFiles().filter((f) =>
     /\b(?:logAccess|logBulkAccess|recordAccess|recordRefusal)\(/.test(readFileSync(f, 'utf8'))
   ).length
 }
-const POLICY = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8')
 
-/** The address that does not exist yet, written once so a test can find it. */
-const PLACEHOLDER = 'security@etyme.example'
+/** The first column of a table: the names it lists. */
+const namesIn = (rows: Record<string, string>[], column: string) => rows.map((r) => r[column])
 
-const ALL_SECTIONS: Section[] = [...TERMS.sections, ...PRIVACY.sections, ...DPA.sections]
+describe('The three legal pages are the text the founder approved, published whole', () => {
+  it('each page is the approved text word for word: written back out, it is the text it was read from', () => {
+    for (const page of LEGAL_PAGES) {
+      expect(toMarkdown(page), `${page.href} lost or changed a character`).toBe(page.source)
+      expect(page.sections.length, page.href).toBeGreaterThan(5)
+    }
+    expect(PRIVACY_NOTICE.title).toBe('Privacy Notice')
+    expect(TERMS_OF_SERVICE.title).toBe('Terms of Service')
+    expect(DATA_PROCESSING_ADDENDUM.title).toBe('Data Processing Addendum')
+    expect(PRIVACY_NOTICE.sections).toHaveLength(17)
+    expect(TERMS_OF_SERVICE.sections).toHaveLength(20)
+  })
 
-/** Every `src/...` or `prisma/...` path either document points at. */
-function pathsNamedIn(text: string): string[] {
-  const hits = text.match(/(?:src|prisma|docs|__tests__|__integration__)\/[A-Za-z0-9_\-./[\]]+/g) ?? []
-  return [...new Set(hits.map((h) => h.replace(/[.,)]+$/, '')))]
-}
+  it('a line the reader would see differently from how it was written stops the build instead of dropping a word', () => {
+    expect(() => inline('An open [bracket that never closes')).toThrow(/Unclosed \[/)
+    expect(() => inline('A **strong run that never ends')).toThrow(/Unclosed \*\*/)
+    expect(() => parseLegal('> **Notice:** draft\n\n# T\n\n## 1. A\n\n| a | b |\n|---|---|\n| only one |\n')).toThrow(
+      /1 cells under 2 headings/
+    )
+    expect(() => parseLegal('# No notice\n')).toThrow(/draft notice/)
+  })
 
-/** A path with a `[param]` segment is a route folder; check the folder. */
-function exists(p: string): boolean {
-  if (existsSync(join(ROOT, p))) return true
-  // `src/app/api/me/*` and the like — check the directory above the glob.
-  if (p.endsWith('/*')) return existsSync(join(ROOT, p.slice(0, -2)))
-  return false
-}
+  it('every legal page says on its face, above its title, that it is a draft not yet reviewed by counsel', () => {
+    for (const page of LEGAL_PAGES) {
+      const notice = page.notice.map((r) => r.text).join('')
+      expect(notice, page.href).toMatch(/This document is a draft and has not yet been reviewed by legal counsel/)
+      expect(notice, page.href).toMatch(/Text in square brackets marks a point counsel must decide/)
+    }
+    const notice = DOCUMENT.indexOf('<Runs line={doc.notice} />')
+    expect(notice, 'the notice is not drawn').toBeGreaterThan(-1)
+    expect(notice, 'the notice must come before the title').toBeLessThan(DOCUMENT.indexOf('{doc.title}'))
+  })
 
-describe('The legal pages are drafts for counsel, and say so', () => {
-  it('every legal page says on its face that it is a draft and not legal advice', () => {
-    expect(DRAFT_BANNER.eyebrow).toMatch(/draft/i)
-    expect(DRAFT_BANNER.headline).toMatch(/not legal advice/i)
-    expect(DRAFT_BANNER.body).toMatch(/has not been reviewed by a qualified lawyer/i)
+  it('every point counsel has not decided is drawn as marked text, so a reader sees what is undecided', () => {
+    for (const page of LEGAL_PAGES) {
+      const points = counselPointsIn(page)
+      // Every bracket in the approved text is one marked run, whole.
+      const brackets = (page.source.match(/\[/g) ?? []).length
+      expect(points.length, page.href).toBe(brackets)
+      expect(points.length, `${page.href} has no open point — this check has lost its subject`).toBeGreaterThan(5)
+      for (const p of points) expect(p, page.href).toMatch(/^\[[^\]]+\]$/)
+    }
+    // The notice's own "square brackets" is a word, not a point.
+    expect(PRIVACY_NOTICE.notice.some((r) => r.counsel)).toBe(false)
+    // And the renderer draws a counsel run as a mark on a light wash.
+    expect(DOCUMENT).toMatch(/if \(r\.counsel\)[\s\S]{0,120}<mark[\s\S]{0,80}bg-etyme-attention-wash/)
+  })
 
-    // The banner is rendered by the one component all three pages use, so
-    // it cannot be present on one page and missing from another.
-    const doc = readFileSync(join(ROOT, 'src/app/legal/document.tsx'), 'utf8')
-    expect(doc).toContain('DRAFT_BANNER.headline')
-    for (const page of ['terms', 'privacy', 'dpa']) {
-      const src = readFileSync(join(ROOT, `src/app/${page}/page.tsx`), 'utf8')
-      expect(src, `${page} must render through the shared document`).toContain('LegalDocument')
+  it('every section is open: nothing is folded, summarized or kept behind a click', () => {
+    for (const fold of ['<details', '<summary', 'aria-expanded', 'useState', 'line-clamp', 'SUMMARY']) {
+      expect(DOCUMENT, `the legal page draws ${fold}`).not.toContain(fold)
+    }
+    expect(DOCUMENT).toContain('doc.sections.map((s) => (')
+    expect(DOCUMENT).toContain('s.blocks.map((b, i) => (')
+    for (const page of LEGAL_PAGES) {
+      for (const s of page.sections) expect(s.blocks.length, `${page.href} ${s.heading} is empty`).toBeGreaterThan(0)
     }
   })
 
-  it('every legal page names the questions counsel has to answer before it is published', () => {
-    expect(COUNSEL_QUESTIONS.length).toBeGreaterThanOrEqual(8)
-    for (const q of COUNSEL_QUESTIONS) {
-      expect(q.question.length, q.id).toBeGreaterThan(30)
-      expect(q.whatTheCodeDoes.length, q.id).toBeGreaterThan(60)
-      expect(q.whyItIsOpen.length, q.id).toBeGreaterThan(40)
+  it('each page has a contents list of its sections, and every entry lands on a section that exists', () => {
+    expect(DOCUMENT).toContain('aria-label="Contents"')
+    expect(DOCUMENT).toContain('href={`#${s.id}`}')
+    expect(DOCUMENT).toContain('id={s.id}')
+    for (const page of LEGAL_PAGES) {
+      const ids = page.sections.map((s) => s.id)
+      expect(new Set(ids).size, `${page.href} has two sections at one address`).toBe(ids.length)
+      for (const id of anchorsOn(page.key)) expect(id, page.href).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     }
-    const doc = readFileSync(join(ROOT, 'src/app/legal/document.tsx'), 'utf8')
-    expect(doc).toContain('COUNSEL_QUESTIONS')
+    // Readable, from the heading.
+    expect(anchorsOn('privacy')).toContain('10-how-long-we-keep-information')
+    expect(anchorsOn('dpa')).toContain('4-6-personal-data-breaches')
+    expect(anchorsOn('dpa')).toContain('annex-a-sub-processors')
+    expect(new Set(anchorsOn('dpa')).size).toBe(anchorsOn('dpa').length)
   })
 
-  it('a section marked as open points at a question counsel was actually asked', () => {
-    const ids = new Set(COUNSEL_QUESTIONS.map((q) => q.id))
-    const dangling = ALL_SECTIONS.filter((s) => s.open && !ids.has(s.open)).map((s) => s.heading)
-    expect(dangling, 'sections citing a counsel question that does not exist').toEqual([])
+  it('a link written before the text was published still lands on the section that says the same thing', () => {
+    expect(DOCUMENT).toContain('<Aliases docKey={docKey} id={s.id} />')
+    expect(DOCUMENT).toContain('<Aliases docKey={docKey} id={block.id} />')
+    for (const key of Object.keys(OLD_ANCHORS) as LegalKey[]) {
+      const live = anchorsOn(key)
+      for (const [from, to] of Object.entries(OLD_ANCHORS[key])) {
+        expect(live, `/${key}#${from} points at ${to}, which is not on the page`).toContain(to)
+        expect(live, `/${key}#${from} is also a live address`).not.toContain(from)
+      }
+    }
+    expect(OLD_ANCHORS.dpa['breach-notification']).toBe('4-6-personal-data-breaches')
+    expect(OLD_ANCHORS.privacy['how-long-we-keep-it']).toBe('10-how-long-we-keep-information')
+    expect(OLD_ANCHORS.terms.fees).toBe('9-fees')
+
+    // And every link in the product to a section of these pages lands.
+    const links = walk(join(ROOT, 'src'), (n) => /\.(tsx?|md)$/.test(n)).flatMap((f) =>
+      [...readFileSync(f, 'utf8').matchAll(/\/(privacy|terms|dpa)#([a-z0-9-]+)/g)].map((m) => ({
+        f,
+        key: m[1] as LegalKey,
+        id: m[2],
+      }))
+    )
+    for (const l of links) {
+      const lands = anchorsOn(l.key).includes(l.id) || l.id in OLD_ANCHORS[l.key]
+      expect(lands, `${l.f} links /${l.key}#${l.id}, which is on no page`).toBe(true)
+    }
   })
 
-  it('the hardest question — controller or processor — is left open rather than decided', () => {
-    const q = COUNSEL_QUESTIONS.find((c) => c.id === 'controller-or-processor')
-    expect(q).toBeDefined()
-    const opener = DPA.sections[0]
-    expect(opener.open).toBe('controller-or-processor')
-    expect(opener.paragraphs.join(' ')).toMatch(/looks like a processor/i)
-    expect(opener.paragraphs.join(' ')).toMatch(/looks like a controller/i)
-    expect(opener.paragraphs.join(' ')).toMatch(/Counsel decides/i)
+  it('a table scrolls sideways inside its own box on a phone, never the page, and its figures line up', () => {
+    expect(DOCUMENT).toContain('px-4')
+    expect(DOCUMENT).toMatch(/className="overflow-x-auto[^"]*"[\s\S]{0,40}<table className="[^"]*tabular-nums/)
+    // The text column is about seventy characters.
+    expect(DOCUMENT).toContain("const MEASURE = 'max-w-[70ch]'")
+    // Nothing fixed is wider than the narrowest phone.
+    const fixed = [...DOCUMENT.matchAll(/(?<![\w-])(?:min-)?w-\[(\d+)px\]/g)].map((m) => Number(m[1]))
+    for (const px of fixed) expect(px, `a ${px}px element cannot fit a 390px screen`).toBeLessThan(358)
+  })
+
+  it('the three legal pages share one document component and the shared header and footer, so they cannot drift apart', () => {
+    for (const key of ['privacy', 'terms', 'dpa'] as LegalKey[]) {
+      const src = read(`src/app/${key}/page.tsx`)
+      expect(src).toContain("from '../legal/document'")
+      expect(src).toContain(`<LegalDocument docKey="${key}" />`)
+      for (const markup of ['<div', '<section', '<h1', '<table', '<ul', '<p ']) {
+        expect(src, `${key} draws ${markup} of its own`).not.toContain(markup)
+      }
+    }
+    expect(DOCUMENT).toContain('<SiteHeader />')
+    expect(DOCUMENT).toContain('<SiteFooter />')
+    // The row of links between the three.
+    expect(DOCUMENT).toContain('aria-label="Legal documents"')
+    expect(LEGAL_PAGES.map((p) => p.href)).toEqual(['/privacy', '/terms', '/dpa'])
+  })
+
+  it('the census agreement keeps its own page and every word of it', () => {
+    const page = read('src/app/legal/census-agreement/page.tsx')
+    expect(page).toContain('<CensusAgreementDocument doc={CENSUS_AGREEMENT} />')
+    expect(CENSUS_AGREEMENT.sections.map((s) => s.heading)).toEqual([
+      'What we receive',
+      'Who at Etyme can see it',
+      'Where it sits',
+      'We never approach your suppliers or your contractors',
+      'The day we delete it',
+      'What happens if you start a program',
+    ])
+    const ids = CENSUS_AGREEMENT.sections.map((s) => sectionId(s.heading))
+    for (const line of CENSUS_SUMMARY) expect(ids, line.ask).toContain(line.href.slice(1))
+    const census = read('src/app/legal/census-document.tsx')
+    expect(census).toContain('DRAFT_BANNER.headline')
+    expect(census).toContain('<SiteFooter />')
   })
 })
 
-describe('The privacy notice describes the system that exists', () => {
-  it('it describes a business user and a candidate as two relationships, not one audience', () => {
-    expect(POPULATIONS.map((p) => p.id).sort()).toEqual(['business', 'candidate'])
+describe('What the three documents say is what the code does', () => {
+  it('every service named as receiving personal data is one the code calls, and every outside service the code calls is named', () => {
+    const privacy = namesIn(tableIn(PRIVACY_NOTICE, '6.'), 'Service provider')
+    const annex = namesIn(tableIn(DATA_PROCESSING_ADDENDUM, 'Annex A'), 'Sub-processor')
+    expect(annex, 'the DPA and the notice must list the same services').toEqual(privacy)
 
-    const business = POPULATIONS.find((p) => p.id === 'business')!
-    const candidate = POPULATIONS.find((p) => p.id === 'candidate')!
-
-    // Two auth paths, and the code registers a provider only when its
-    // credentials are present.
-    const auth = readFileSync(join(ROOT, 'src/lib/auth.ts'), 'utf8')
-    expect(auth).toContain('AzureADProvider')
-    expect(auth).toContain('GoogleProvider')
-    expect(auth).toContain('EmailProvider')
-    expect(business.signIn).toMatch(/Microsoft Entra|Google Workspace/)
-    expect(business.signIn).toMatch(/consumer email address cannot register a company/i)
-    expect(candidate.signIn).toMatch(/their own/i)
-
-    // Two channels. Nothing sends a text, and the notice says so.
-    expect(candidate.channel).toMatch(/Email only/i)
-    expect(candidate.channel).toMatch(/Nothing in the product sends a text/i)
-
-    const section = PRIVACY.sections.find((s) => s.heading === 'Two populations, two relationships')
-    expect(section, 'the notice must open on the two populations').toBeDefined()
-  })
-
-  it('every retention period it states is a rule somebody can look up, and where none can be cited it says so instead of naming one', () => {
-    // This test used to hold the opposite sentence — "it states no
-    // retention period, because nothing in the system deletes anything
-    // on a schedule" — and that was the right test for as long as it was
-    // true. The schedule landed on 2026-09-19, so the check is now that
-    // every period on the page is citable and every blank is admitted.
-    expect(RETENTION.headline).toMatch(/retention schedule/i)
-    expect(RETENTION.headline).toMatch(/no legal minimum can be cited/i)
-
-    const retention = PRIVACY.sections.find((s) => s.heading === 'How long we keep it')!
-    const text = [...retention.paragraphs, ...(retention.bullets ?? [])].join(' ')
-
-    // A period on this page is a federal rule with a citation behind it.
-    for (const rule of ['8 CFR 274a.2', '26 CFR 31.6001-1', '29 CFR 516.5', '29 CFR 1602.14']) {
-      expect(SCHEDULE.map((l) => l.basis).join(' '), `${rule} is not cited anywhere in the schedule`).toContain(rule)
+    const evidence: Record<string, () => void> = {
+      'Managed database host [to be named]': () => expect(read('prisma/schema.prisma')).toContain('env("DATABASE_URL")'),
+      Vercel: () => expect(existsSync(join(ROOT, 'vercel.json'))).toBe(true),
+      'Anthropic (where set up)': () => {
+        const pkg = JSON.parse(read('package.json'))
+        expect(pkg.dependencies['@anthropic-ai/sdk']).toBeDefined()
+      },
+      'Resend or SendGrid (where set up)': () => {
+        const senders = read('src/lib/senders.ts')
+        expect(senders).toContain('api.resend.com')
+        expect(senders).toContain('api.sendgrid.com')
+      },
+      'Mail server for sign-in links (where set up) [to be named]': () =>
+        expect(read('src/lib/auth.ts')).toContain('server: process.env.EMAIL_SERVER'),
+      'Microsoft and Google (where set up)': () => {
+        const auth = read('src/lib/auth.ts')
+        expect(auth).toContain('AzureADProvider')
+        expect(auth).toContain('GoogleProvider')
+      },
+      'Microsoft Teams (where set up)': () => {
+        expect(read('prisma/schema.prisma')).toMatch(/teamsWebhookUrl\s+String\?/)
+        expect(read('src/lib/teams/connector.ts')).toContain('botframework')
+      },
     }
-    expect(text, 'the page must say that state law runs longer in places').toMatch(/State law is\s*longer in places/i)
-    expect(text, 'the page must say where no period can be cited at all').toMatch(/no federal minimum can be cited/i)
+    expect(privacy.sort()).toEqual(Object.keys(evidence).sort())
+    for (const name of privacy) evidence[name]()
 
-    // And the blanks are real blanks in the code, not prose.
-    const uncitable = SCHEDULE.filter((l) => l.fate === 'HELD_THEN_DELETED' && l.months === null)
-    expect(uncitable.length, 'at least one category is honestly left without a period').toBeGreaterThan(0)
-
-    // Ending somebody's access still deletes nothing, which is a
-    // different thing from a retention schedule and is still true.
-    const lifecycle = readFileSync(join(ROOT, 'src/lib/account-lifecycle.ts'), 'utf8')
-    expect(lifecycle).toMatch(/Nothing here is ever deleted/i)
+    // The other way round: every outside address the code calls belongs to a named service.
+    const owner: [RegExp, string][] = [
+      [/api\.resend\.com|api\.sendgrid\.com/, 'Resend or SendGrid'],
+      [/botframework\.com/, 'Microsoft Teams'],
+      [/login\.microsoftonline\.com/, 'Microsoft'],
+      [/etyme\.com/, 'Etyme'],
+    ]
+    const hosts = new Set(
+      walk(join(ROOT, 'src'), (n) => /\.tsx?$/.test(n)).flatMap((f) =>
+        readFileSync(f, 'utf8')
+          .split('\n')
+          // A comment that cites an address calls nothing.
+          .filter((line) => !/^\s*(?:\*|\/\/|\/\*)/.test(line))
+          .flatMap((line) => [...line.matchAll(/https:\/\/([a-z0-9.-]+\.(?:com|net|io|ai|co|app|dev))\b/g)].map((m) => m[1]))
+      )
+    )
+    const unnamed = [...hosts].filter(
+      (h) => !h.endsWith('.example') && !owner.some(([re]) => re.test(h)) && !/^(?:www\.)?(?:linkedin|github)\.com$/.test(h)
+    )
+    expect(unnamed, 'an outside address the code calls that no named service covers').toEqual([])
   })
 
-  it('it says erasure is anonymization and never a row delete, because an invoice that has been paid has to go on footing', () => {
-    const text = RETENTION.paragraphs.join(' ')
-    expect(text).toMatch(/anonymization and never a row delete/i)
-    expect(text).toMatch(/reserved domain that cannot be registered or routed to/i)
-    expect(text).toMatch(/statutory minimum beats an erasure request/i)
+  it('Microsoft Teams is disclosed as receiving notices and approval requests, which may name a person', () => {
+    for (const doc of [PRIVACY_NOTICE, DATA_PROCESSING_ADDENDUM]) {
+      const rows = doc === PRIVACY_NOTICE ? tableIn(doc, '6.') : tableIn(doc, 'Annex A')
+      const teams = rows.find((r) => Object.values(r)[0].startsWith('Microsoft Teams'))!
+      expect(teams, doc.title).toBeDefined()
+      expect(Object.values(teams).join(' ')).toMatch(/notices and approval requests/)
+      expect(Object.values(teams).join(' ')).toMatch(/may include a person's name/)
+    }
+    expect(PRIVACY).toMatch(/the emails and Microsoft Teams messages it sends/)
+    expect(TERMS).toMatch(/the emails and Microsoft Teams messages it sends/)
   })
 
-  it('it says a person can ask for their own data and ask to be forgotten, from their own page', () => {
-    const rights = PRIVACY.sections.find((s) => s.heading === 'Your rights, and how they are honored today')!
-    const text = rights.paragraphs.join(' ')
-    expect(text).toMatch(/ask for everything held about them, or ask to be\s*forgotten, from their own page/i)
-    expect(text, 'what stays must be said before the day, not after').toMatch(/said before the day rather than after it/i)
-    expect(text, 'a hold holds rather than refuses').toMatch(/held\s*rather than refused/i)
-    expect(text, 'the holder’s matter reference never reaches the person').toMatch(/case reference is never shown to the person/i)
+  it('the typed-question use of the resume-reading service is disclosed: off until a company turns it on, masked before it leaves, and logged', () => {
+    const anthropic = tableIn(PRIVACY_NOTICE, '6.').find((r) => r['Service provider'].startsWith('Anthropic'))!
+    expect(anthropic.Purpose).toMatch(/check a resume against the skills claimed/)
+    expect(anthropic.Purpose).toMatch(/answer a typed question about a company's own data where that company has turned this on/)
+    expect(anthropic['What it receives']).toMatch(/For a typed question: the question and related entries, with names of people and companies, rates, pay and amounts replaced by placeholders before sending/)
+    expect(PRIVACY).toMatch(/The question feature is off for each company until someone at that company with authority turns it on\. Each question sent and each answer received is logged/)
+    expect(DPA).toMatch(/The typed-question feature is off for each Customer until someone at that Customer with authority turns it on/)
+    expect(TERMS).toMatch(/answer typed questions about a Customer's own data if that Customer has turned this on/)
+
+    // Off unless set, recorded with who, and every text kept masked.
+    expect(read('prisma/schema.prisma')).toMatch(/askEtymeModelOn\s+Boolean\s+@default\(false\)/)
+    const boundary = read('src/lib/model-boundary.ts')
+    expect(boundary).toContain('return row?.askEtymeModelOn === true')
+    expect(boundary).toContain('export async function recordModelPrompt')
+    expect(existsSync(join(ROOT, 'src/app/api/conversations/twin/mask.ts'))).toBe(true)
   })
 
-  it('it says a breach has a clock and a named owner, and says there is still no severity scale', () => {
-    const section = DPA.sections.find((s) => s.heading === 'Breach notification')!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/names the person who owns sending it/i)
-    expect(text).toMatch(/deliberately absent: a severity scale/i)
-    expect(text, 'an undecided deadline must read as undecided').toMatch(/nobody has decided/i)
-    expect(text, 'the runbook is still missing and must still be named').toMatch(/no.{0,40}rehearsed runbook/i)
+  it('matching sends a person’s name to the outside service, and without a key it uses fixed rules and the resume check does not run', () => {
+    expect(PRIVACY).toMatch(/For matching: a Worker's name, skills, headline, location, work authorization type, minimum rate and date available/)
+    expect(PRIVACY).toMatch(/If no Anthropic key is set, matching uses fixed rules and says so, and the resume check does not run/)
+    expect(PRIVACY).toMatch(/For an import: up to 60,000 characters of the file/)
+
+    const engine = read('src/lib/match-engine.ts')
+    expect(engine).toContain('name: c.personName')
+    expect(engine).toContain('workAuth: c.workAuth')
+    expect(engine).toContain('no ANTHROPIC_API_KEY — scored with rules, not the model')
+    expect(read('src/app/api/submissions/[id]/check/route.ts')).toContain('evidencePrompt(p.claimedSkills, cvText)')
+    expect(read('src/lib/extract.ts')).toContain('source.length > 60_000')
   })
 
-  it('it says that ending somebody’s access ends a seat and erases no record', () => {
-    const text = RETENTION.paragraphs.join(' ')
-    expect(text).toMatch(/revokes their seat and deletes no record/i)
-    expect(text).toMatch(/Suspension is the reversible form/i)
+  it('it uses no analytics, advertising or session-recording package, and the visit count is first-party with no name or cookie', () => {
+    const pkg = JSON.parse(read('package.json'))
+    const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })
+    const tracking = deps.filter((d) =>
+      /analytics|segment|mixpanel|posthog|amplitude|hotjar|fullstory|logrocket|heap|gtag|google-tag|clarity|plausible|datadog-rum|smartlook|mouseflow|sentry\/replay/i.test(d)
+    )
+    expect(tracking, 'a tracking package the notice says is not used').toEqual([])
+    expect(PRIVACY).toMatch(/We do not use any advertising, analytics or session-recording service/)
+    expect(PRIVACY).toMatch(/We set no third-party cookies/)
+
+    const count = read('src/lib/public-site/count.ts')
+    expect(count).toContain('sessionStorage')
+    expect(count).not.toMatch(/document\.cookie/)
+    expect(PRIVACY).toMatch(/The public website count records no name, email address, IP address, browser details or cookie/)
   })
 
-  it('it says a resume a candidate removes stays readable by a company it already reached', () => {
-    expect(RETENTION.paragraphs.join(' ')).toMatch(/can still open its copy/i)
-    const schema = readFileSync(join(ROOT, 'prisma/schema.prisma'), 'utf8')
-    expect(schema).toMatch(/Never unsent: a company it was sent to/)
+  it('every category the schedule knows is in the notice’s list of what is collected, and nothing about a person is left off', () => {
+    const collected = namesIn(tableIn(PRIVACY_NOTICE, '3.'), 'Category')
+    const mapped = collected.filter((c) => !(NOT_ABOUT_A_PERSON as readonly string[]).includes(c))
+    expect(mapped.map((c) => NOTICE_CATEGORY[c]).sort(), 'a row with no category behind it').toEqual(
+      HELD.map((h) => h.category).sort()
+    )
+    expect(Object.keys(NOTICE_CATEGORY).sort()).toEqual(mapped.sort())
+  })
+
+  it('every retention period and every fate on erasure the notice states is the one the nightly sweep uses', () => {
+    const rows = tableIn(PRIVACY_NOTICE, '10.')
+    expect(rows.map((r) => NOTICE_CATEGORY[r.Category]).sort()).toEqual(HELD.map((h) => h.category).sort())
+    for (const row of rows) {
+      const line = SCHEDULE.find((l) => l.category === NOTICE_CATEGORY[row.Category])!
+      expect(line, row.Category).toBeDefined()
+      const fate = row['When you ask to be forgotten']
+      const period = row['Period kept']
+      const where = `${row.Category}: "${fate}" / "${period}"`
+
+      switch (line.fate) {
+        case 'DELETED':
+          expect(fate, where).toMatch(/^Deleted/)
+          break
+        case 'KEPT_ANONYMIZED':
+          expect(fate, where).toMatch(/names? removed/)
+          break
+        case 'KEPT_IN_FULL':
+          expect(fate, where).toMatch(/^Kept/)
+          expect(fate, where).not.toMatch(/removed|deleted/i)
+          break
+        case 'HELD_THEN_DELETED':
+          // A period nobody can cite deletes nothing, so it reads "Kept".
+          if (line.months === null && line.anchor !== 'I9') expect(fate, where).toBe('Kept')
+          else expect(fate, where).toBe('Kept until the period ends, then deleted')
+          break
+      }
+
+      if (line.anchor === 'I9') {
+        expect(period, where).toMatch(/^I-9: the later of 3 years after hire or 1 year after employment ends/)
+      } else if (line.months && line.months > 0) {
+        expect(period, where).toContain(`${line.months / 12} year`)
+      } else if (line.category === 'A contractor census') {
+        expect(period, where).toBe(`${KEPT_DAYS_AFTER_RECEIPT} days for files`)
+      } else {
+        expect(period, where).toMatch(/^Not set/)
+      }
+    }
+    expect(PRIVACY).toMatch(/Every period below is a minimum set by US federal law\. Some states require longer/)
+    // Ending access still deletes nothing.
+    expect(read('src/lib/account-lifecycle.ts')).toMatch(/Nothing here is ever deleted/i)
+    expect(PRIVACY).toMatch(/Ending a Business User's access deletes no records/)
+  })
+
+  it('erasure is described as it runs: fourteen days to change your mind, four things deleted, the name replaced, shared records kept', () => {
+    expect(COOLING_DAYS).toBe(14)
+    expect(PRIVACY).toMatch(/We wait 14 days, so you can change your mind/)
+    expect(DPA).toMatch(/An erasure waits 14 days so the person can withdraw it/)
+
+    const deleted = SCHEDULE.filter((l) => l.fate === 'DELETED').map((l) => l.category).sort()
+    expect(deleted).toEqual(['A consultant’s own profile', 'Bars and preferences', 'Identity and sign-in', 'Resumes'])
+    expect(PRIVACY).toMatch(
+      /On day 14, your sign-in methods, Worker profile, unsent resumes, and any bars or favorites set against your name are deleted/
+    )
+
+    const erasure = read('src/lib/erasure.ts')
+    expect(erasure).toContain("name: 'Erased person'")
+    expect(erasure).toContain('@erased.invalid')
+    expect(PRIVACY).toMatch(/Your name is replaced with "Erased person" and your email with an address that cannot receive mail/)
+
+    // A resume already sent keeps its entry and loses its file and its text.
+    expect(erasure).toContain("data: { bytes: null, url: null, textExtract: null, fileName: 'erased', label: 'Erased' }")
+    expect(PRIVACY).toMatch(/If sent to a company, the entry stays but the file and its text are removed/)
+    // Removing a resume is a different thing, and the company keeps its copy.
+    expect(read('prisma/schema.prisma')).toMatch(/Never unsent: a company it was sent to/)
+    expect(PRIVACY).toMatch(/a company it was already sent to can still open its copy/)
+  })
+
+  it('a sign-in session, the password rules and the clean-ups are stated as the code sets them', () => {
+    expect(read('src/lib/auth.ts')).toContain('maxAge: 30 * 24 * 60 * 60')
+    expect(PRIVACY).toMatch(/It lasts up to 30 days unless you sign out/)
+    expect(TERMS).toMatch(/A sign-in session lasts up to 30 days/)
+
+    expect([MIN_PASSWORD, FAILURES_ALLOWED, FAILURE_WINDOW_MS, WAIT_MS]).toEqual([12, 5, 15 * 60 * 1000, 60 * 1000])
+    expect(DPA).toMatch(/Passwords must be at least 12 characters\. After five failed attempts in 15 minutes for one email or one network address, sign-in pauses for one minute/)
+    expect(PRIVACY).toMatch(/After five failed tries in 15 minutes, sign-in pauses for a minute/)
+
+    expect(SANDBOX_UNUSED_DAYS).toBe(30)
+    expect(PRIVACY).toMatch(/Demo accounts that nobody uses for 30 days are deleted automatically/)
+    expect(KEPT_DAYS_AFTER_RECEIPT).toBe(45)
+    expect(PRIVACY).toMatch(/Files deleted 45 days after they arrive/)
   })
 
   it('it says only a bank name, an account name and the last four digits are taken', () => {
-    const section = PRIVACY.sections.find((s) => s.heading === 'Bank details')!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/does not ask for or store a full bank account number/i)
-    expect(text).toMatch(/last four digits/i)
-    expect(text).toMatch(/No card data/i)
-
-    // True of the route: it keeps four digits and nothing wider.
-    const route = readFileSync(
-      join(ROOT, 'src/app/api/supplier-apply/[token]/route.ts'),
-      'utf8'
-    )
+    expect(PRIVACY).toMatch(/We never ask for or store a full bank account number or routing number/)
+    expect(PRIVACY).toMatch(/We hold no payment card data/)
+    const route = read('src/app/api/supplier-apply/[token]/route.ts')
     expect(route).toContain("last4: String(body.bank.last4 ?? '').replace(/\\D/g, '').slice(-4)")
-    expect(route, 'the route must not accept a full account number').not.toMatch(
-      /accountNumber|routingNumber/
-    )
-
-    // And of the schema.
-    const schema = readFileSync(join(ROOT, 'prisma/schema.prisma'), 'utf8')
-    expect(schema).toMatch(/accountLast4\s+String\?\s+\/\/ display only — never the full number/)
+    expect(route, 'the route must not accept a full account number').not.toMatch(/accountNumber|routingNumber/)
+    expect(read('prisma/schema.prisma')).toMatch(/accountLast4\s+String\?\s+\/\/ display only — never the full number/)
   })
 
-  it('it tells a candidate that a client can see their days on site added up across every supplier', () => {
-    const section = PRIVACY.sections.find((s) => s.heading.includes('Time on site'))!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/across every supplier/i)
-    expect(text).toMatch(/Two contracts covering the same week count as one week/i)
-    expect(section.open).toBe('tenure-visibility')
-
-    const tenure = readFileSync(join(ROOT, 'src/lib/tenure-days.ts'), 'utf8')
-    expect(tenure).toMatch(/union of the periods, not their sum/i)
-  })
-
-  it('it tells a data subject that reads of their record are logged, refusals included', () => {
-    const text = ACCESS_LOGGING.paragraphs.join(' ')
-    expect(text).toMatch(/refusal is logged as carefully as a read/i)
-    // And it does not overclaim: the notice says which routes, not "every route".
-    expect(text).toMatch(/It is not every route in the product/i)
-
-    const log = readFileSync(join(ROOT, 'src/lib/access-log.ts'), 'utf8')
-    expect(log).toContain('allowed')
-    expect(log).toContain('reason')
-  })
-
-  it('it says a consultant grants a bench listing per supplier and can take it back', () => {
-    const section = PRIVACY.sections.find((s) => s.heading.includes('consultant’s permission'))!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/granted or declined by the consultant/i)
-    expect(text).toMatch(/The database requires it, not the screen/i)
-
-    const schema = readFileSync(join(ROOT, 'prisma/schema.prisma'), 'utf8')
-    expect(schema).toMatch(/grantedAt\s+DateTime\s+@default\(now\(\)\) \/\/ by the consultant/)
+  it('a worker’s permission is per supplier and theirs to withdraw, and a supplier’s own employee is the one exception, told rather than asked', () => {
+    expect(TERMS).toMatch(/You grant or decline permission to each Supplier separately\. You can withdraw it/)
+    expect(TERMS).toMatch(/A Supplier putting forward its own employee does not need that permission, but the employee is told/)
+    const schema = read('prisma/schema.prisma')
     expect(schema).toContain('askFirst')
     expect(schema).toContain('showBeforeFree')
-  })
-})
-
-describe('The sub-processor list is generated from what the code calls', () => {
-  it('every sub-processor named is one the code actually calls', () => {
-    const names = SUB_PROCESSORS.map((s) => s.name)
-    expect(names.length).toBeGreaterThanOrEqual(5)
-
-    const senders = readFileSync(join(ROOT, 'src/lib/senders.ts'), 'utf8')
-    expect(senders).toContain('api.resend.com')
-    expect(senders).toContain('api.sendgrid.com')
-
-    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
-    expect(pkg.dependencies['@anthropic-ai/sdk']).toBeDefined()
-
-    // Each entry proves itself with an env var or a file that exists.
-    for (const s of SUB_PROCESSORS) {
-      expect(s.provenBy.length, s.name).toBeGreaterThan(5)
-      expect(s.reaches.length, s.name).toBeGreaterThan(10)
-    }
+    expect(read('src/app/api/submissions/kind.ts')).toContain('INTERNAL')
+    expect(Math.min(...STAY_CHOICES)).toBe(5)
+    expect(Math.max(...STAY_CHOICES)).toBe(500)
+    expect(TERMS).toMatch(/You choose how long a permission lasts, from 5 days to 500 days or until you cancel it/)
+    expect(TERMS).toMatch(/Only you may file your hours/)
   })
 
-  it('it names Anthropic, because a candidate name and the text of their CV reach a model', () => {
-    const anthropic = SUB_PROCESSORS.find((s) => s.name === 'Anthropic')
-    expect(anthropic, 'a model sub-processor must be disclosed').toBeDefined()
-    expect(anthropic!.reaches).toMatch(/candidate’s name/i)
-    expect(anthropic!.reaches).toMatch(/extracted text of a resume/i)
-    expect(anthropic!.always).toBe(false)
-
-    // The match engine really does send a name.
-    const engine = readFileSync(join(ROOT, 'src/lib/match-engine.ts'), 'utf8')
-    expect(engine).toContain('name: c.personName')
-    expect(engine).toContain('workAuth: c.workAuth')
-
-    // And the evidence check really does send the CV text.
-    const check = readFileSync(
-      join(ROOT, 'src/app/api/submissions/[id]/check/route.ts'),
-      'utf8'
-    )
-    expect(check).toContain('evidencePrompt(p.claimedSkills, cvText)')
+  it('time on site is added up across every supplier and counts each day once', () => {
+    expect(PRIVACY).toMatch(/The total days a Worker has worked at a Client, added up across every Supplier, counting each day once/)
+    expect(read('src/lib/tenure-days.ts')).toMatch(/union of the periods, not their sum/i)
   })
 
-  it('it says matching falls back to arithmetic when no model key is set', () => {
-    const section = PRIVACY.sections.find((s) => s.heading.includes('model sees personal data'))!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/Where no model key is configured/i)
-    expect(text).toMatch(/refuses to claim a model did work it did not do/i)
-    expect(text).toMatch(/No model output awards, rejects or bars anybody by itself/i)
-
-    const engine = readFileSync(join(ROOT, 'src/lib/match-engine.ts'), 'utf8')
-    expect(engine).toContain('no ANTHROPIC_API_KEY — scored with rules, not the model')
+  it('reads of a named person are logged, refusals included, and the notice does not claim every page', () => {
+    expect(PRIVACY).toMatch(/Refused attempts are logged too/)
+    expect(PRIVACY).toMatch(/It does not cover every page/)
+    expect(DPA).toMatch(/Refused attempts are logged before the refusal is sent/)
+    const log = read('src/lib/access-log.ts')
+    expect(log).toContain('allowed')
+    expect(log).toContain('export async function recordRefusal')
   })
 
-  it('it names the keys that exist in the configuration and reach nobody', () => {
-    const joined = NOT_USED.join(' ')
-    expect(joined).toMatch(/S3/)
-    expect(joined).toMatch(/DocuSign/)
-    expect(joined).toMatch(/SMS/)
-    expect(joined).toMatch(/analytics/)
-
-    // The claim is checkable: nothing under src reads them.
-    const envExample = readFileSync(join(ROOT, '.env.example'), 'utf8')
-    expect(envExample, 'the claim only makes sense while the keys are there').toContain('S3_BUCKET')
-  })
-})
-
-describe('The DPA lists only measures the repository can point at', () => {
-  it('every file the three documents name actually exists', () => {
-    const named = pathsNamedIn(PROSE + '\n' + ALL_SECTIONS.map((s) => s.provenBy ?? '').join('\n'))
-    const missing = named.filter((p) => !exists(p))
-    expect(missing, `paths named in the legal pages that do not exist:\n  ${missing.join('\n  ')}`).toEqual([])
-  })
-
-  it('the measures it lists are the ones the code implements', () => {
-    const measures = DPA.sections.find((s) => s.heading.includes('Technical and organizational'))!
-    const text = (measures.bullets ?? []).join(' ')
-
-    expect(text).toMatch(/filtered by the asking company in the database query/i)
-    expect(text).toMatch(/SHA-256 hash and compared in constant time/i)
-    expect(text).toMatch(/HMAC/i)
-    expect(text).toMatch(/refuses every scheduled call/i)
-
-    const accounts = readFileSync(join(ROOT, 'src/lib/service-accounts.ts'), 'utf8')
+  it('the security measures the DPA lists are the ones the code implements', () => {
+    expect(DPA).toMatch(/Stored only as a hash, compared in constant time, and never shown again after creation/)
+    expect(DPA).toMatch(/Outgoing notifications to other systems\*?\*? are signed/)
+    expect(DPA).toMatch(/If no secret is set, every scheduled call is refused/)
+    const accounts = read('src/lib/service-accounts.ts')
     expect(accounts).toContain("createHash('sha256')")
     expect(accounts).toContain('timingSafeEqual')
     expect(accounts).toContain('createHmac')
-
-    const cron = readFileSync(join(ROOT, 'src/lib/cron-auth.ts'), 'utf8')
-    expect(cron).toContain('if (!secret) return')
+    expect(read('src/lib/cron-auth.ts')).toContain('if (!secret) return')
+    // And it offers no report it does not have.
+    expect(DPA).toMatch(/Etyme does not have a SOC 2 report, an ISO 27001 certificate, or an independent penetration test report/)
+    // The company export is refused in words, as the DPA says.
+    expect(read('src/lib/data-request.ts')).toContain('a company export is not built yet')
+    expect(DPA).toMatch(/Etyme does not yet offer an automatic export of a Customer's data/)
   })
 
-  it('it says plainly which half of return and deletion at the end is not built, and why nobody has decided it', () => {
-    const section = DPA.sections.find((s) => s.heading.includes('Return and deletion'))!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/What is not built is the export itself/i)
-    expect(text, 'the reason has to be the joint records, not a vague gap').toMatch(
-      /the other firm’s records as much as this one/i
+  it('the services named in configuration that nothing calls are said not to be used', () => {
+    expect(PRIVACY).toMatch(/We do not use file storage, e-signature or text-message services, even though some configuration files mention them/)
+    expect(read('.env.example')).toContain('S3_BUCKET')
+    const reads = walk(join(ROOT, 'src'), (n) => /\.tsx?$/.test(n)).filter((f) =>
+      /process\.env\.(S3_|AWS_|DOCUSIGN|TWILIO)/.test(readFileSync(f, 'utf8'))
     )
-    // And the route actually refuses it rather than producing a file.
-    const lib = readFileSync(join(ROOT, 'src/lib/data-request.ts'), 'utf8')
-    expect(lib).toContain('a company export is not built yet')
-  })
-
-  it('it offers no audit report it does not have', () => {
-    const section = DPA.sections.find((s) => s.heading === 'Audit')!
-    const text = section.paragraphs.join(' ')
-    expect(text).toMatch(/no SOC 2 report/i)
-    expect(text).toMatch(/no ISO 27001/i)
-    expect(text).toMatch(/no penetration test/i)
+    expect(reads, 'a file reads a key the notice says nothing uses').toEqual([])
   })
 })
 
 describe('Nothing on a legal page contradicts what Etyme says it is', () => {
   it('no legal page states a price, because the price is not set', () => {
-    expect(PROSE).not.toMatch(/\$\s?\d/)
-    expect(PROSE).not.toMatch(/per (seat|user|month|year)/i)
-    expect(PROSE).not.toMatch(/\bpricing plan\b/i)
-
-    const fees = TERMS.sections.find((s) => s.heading === 'Fees')!
-    expect(fees.paragraphs.join(' ')).toMatch(/free while it is being tested/i)
-    expect(fees.paragraphs.join(' ')).toMatch(/No price is stated/i)
+    expect(ALL_WORDS).not.toMatch(/\$\s?\d/)
+    expect(ALL_WORDS).not.toMatch(/per (seat|user|month|year)/i)
+    expect(TERMS).toMatch(/The Services are free while they are being tested\. No price has been set/)
   })
 
-  it('no legal page claims Etyme runs a bench or places anybody', () => {
-    const what = TERMS.sections[0]
-    expect(what.heading).toBe('What Etyme is')
-    const text = what.paragraphs.join(' ')
-    expect(text).toMatch(/system of record for contingent workers/i)
-    expect(text).toMatch(/runs no bench, employs no consultant and places nobody/i)
-    expect(text).toMatch(/not a staffing agency/i)
-
-    // And the neutrality claim is enforced in code, not only asserted.
-    const attestation = readFileSync(join(ROOT, 'src/lib/attestation.ts'), 'utf8')
-    expect(attestation).toMatch(/export function overallVerdict\(\): never/)
+  it('no legal page claims Etyme places anybody or decides whether a person may work', () => {
+    expect(TERMS).toMatch(/Not a staffing agency\. Etyme does not employ Workers, place them, run a pool of available workers/)
+    expect(TERMS).toMatch(/does not issue a "cleared to work" result/)
+    expect(PRIVACY).toMatch(/Etyme is not a staffing agency/)
+    expect(read('src/lib/attestation.ts')).toMatch(/export function overallVerdict\(\): never/)
   })
 
-  it('no legal page leads with AI', () => {
-    // The model disclosure is honest and complete; it is not the pitch.
-    const firstHeadings = PRIVACY.sections.slice(0, 3).map((s) => s.heading).join(' ')
-    expect(firstHeadings).not.toMatch(/\bAI\b|artificial intelligence/i)
-    expect(PROSE).not.toMatch(/AI-powered|AI-native|powered by AI/i)
+  it('no legal page leads with AI or uses its words', () => {
+    expect(ALL_WORDS).not.toMatch(/\bAI\b|artificial intelligence|machine learning|\bLLMs?\b|\bmodels?\b/i)
+    expect(ALL_WORDS).toMatch(/An outside service that reads text/)
   })
 
-  it('every category of held data names the model or file that proves it', () => {
-    expect(HELD.length).toBeGreaterThanOrEqual(10)
-    for (const h of HELD) {
-      expect(h.provenBy.length, h.category).toBeGreaterThan(5)
-      expect(h.examples.length, h.category).toBeGreaterThan(30)
-    }
-    const categories = HELD.map((h) => h.category).join(' ')
-    expect(categories).toMatch(/Work authorization/i)
-    expect(categories).toMatch(/Resumes/i)
-    expect(categories).toMatch(/Payment details/i)
-    expect(categories).toMatch(/Time on site/i)
-    expect(categories).toMatch(/Logs/i)
+  it('the words are the trade’s and American: never desk or program office, never a British spelling', () => {
+    expect(ALL_WORDS).not.toMatch(/\bdesks?\b/i)
+    expect(ALL_WORDS).not.toMatch(/program(me)? office/i)
+    expect(ALL_WORDS).not.toMatch(/programme|organis|authoris|licence|favour|behaviour|centre|anonymis|honour|colour/i)
   })
 
-  it('the three pages belong to the regulatory domain, because a wrong one is a legal exposure', () => {
+  it('every file the three pages and their renderer belong to is in the regulatory domain, because a wrong one is a legal exposure', () => {
     for (const p of [
       'src/lib/legal.ts',
+      'src/lib/legal/documents.ts',
+      'src/lib/legal/parse.ts',
+      'src/lib/legal/privacy-text.ts',
+      'src/lib/legal/terms-text.ts',
+      'src/lib/legal/dpa-text.ts',
       'src/app/legal/document.tsx',
+      'src/app/legal/census-document.tsx',
       'src/app/terms/page.tsx',
       'src/app/privacy/page.tsx',
       'src/app/dpa/page.tsx',
@@ -458,8 +563,28 @@ describe('The security posture is as plain about what is absent as what is prese
     expect(POSTURE).toMatch(/No state minimum is implemented/i)
     expect(POSTURE).toMatch(/No aging-out of a person who has simply gone quiet/i)
     expect(POSTURE).toMatch(/Return and deletion of customer data on termination is half built/i)
-    expect(POSTURE).toMatch(/No rate limiting/i)
+    // Corrected 2026-10-15: the password door does slow failed tries, so
+    // the absence is of rate limiting everywhere else, and it says which.
+    expect(POSTURE).toMatch(/No rate limiting, no WAF rule and no bot protection in the application,\s+except the password sign-in limit/)
     expect(POSTURE).toMatch(/No disaster recovery plan/i)
+  })
+
+  it('it names every deletion that runs on a schedule, not only the demo clean-up, as the privacy notice does', () => {
+    expect(POSTURE).not.toMatch(/The only scheduled deletion in the product is demo workspaces/)
+    expect(POSTURE).toMatch(/Three things are deleted on a schedule, and nothing else/)
+    expect(POSTURE).toContain('`src/app/api/cron/retention/route.ts`')
+    expect(read('src/app/api/cron/retention/route.ts')).toContain('runRetentionSweep(new Date())')
+    expect(read('src/lib/data-request.ts')).toContain('await runCensusSweep(now)')
+    expect(POSTURE).toContain(`demo workspaces nobody used for ${SANDBOX_UNUSED_DAYS} days`)
+    expect(POSTURE).toContain(`promised, ${KEPT_DAYS_AFTER_RECEIPT} days after they arrive`)
+  })
+
+  it('it says password sign-in slows failed tries, with the numbers the code uses', () => {
+    expect(POSTURE).toContain(
+      `| Email and password sign-in | Built — argon2id hash, at least ${MIN_PASSWORD} characters, five failed tries in 15 minutes and the door waits a minute`
+    )
+    expect(FAILURES_ALLOWED).toBe(5)
+    expect(read('src/lib/password.ts')).toContain('argon2.argon2id')
   })
 
   it('it does not call anything planned that nobody has committed to', () => {
@@ -468,20 +593,6 @@ describe('The security posture is as plain about what is absent as what is prese
     // Two committed items, and no roadmap invented around them.
     expect(planned).not.toMatch(/Q[1-4]\s?20\d\d/)
     expect(planned).not.toMatch(/\broadmap\b(?! here)/i)
-  })
-
-  it('the privacy notice says how many route files log a read, and the number is the one in the tree today', () => {
-    const counted = routeFilesLoggingThroughTheLib()
-    expect(
-      ACCESS_LOGGED_ROUTE_FILES,
-      `src/lib/legal.ts says ${ACCESS_LOGGED_ROUTE_FILES} route files write an access-log row through ` +
-        `lib/access-log; the tree has ${counted}. Change ACCESS_LOGGED_ROUTE_FILES in src/lib/legal.ts ` +
-        `to ${counted}, in the same commit that moved the route.`
-    ).toBe(counted)
-    // And the notice reads that one number rather than carrying its own copy.
-    const said = /the (\d+) route files that write an access-log row/.exec(ACCESS_LOGGING.provenBy)
-    expect(said, 'the notice no longer states a count in the form this test reads').not.toBeNull()
-    expect(Number(said![1])).toBe(ACCESS_LOGGED_ROUTE_FILES)
   })
 
   it('it states the access-log coverage honestly rather than as every route, and both counts are the ones in the tree today', () => {
@@ -598,258 +709,3 @@ describe('The security policy tells a researcher what to do, and promises nothin
   })
 })
 
-/**
- * ── Rebuilt on 2026-09-20, for the three people who actually open these ──
- *
- * "Rebuild Etyme home pages, privacy, terms and conditions." Not one
- * fact changed: what changed is that a procurement lead can answer six
- * questions from the first screen, a numbered contents stays on the
- * screen while the body scrolls, and the facts that line up — what is
- * held, and who else touches it — are drawn as tables with the
- * retention line beside each category instead of as run-on bullets a
- * reviewer has to parse.
- *
- * These checks hold the shape of that, because a layout is the easiest
- * thing to lose: the summary box exists on all three pages and every
- * line of it points somewhere real, the three pages still render
- * through one component, and nothing on the page can push a phone
- * sideways.
- */
-
-const DOC_KEYS: DocKey[] = ['terms', 'privacy', 'dpa']
-const DOCUMENT = readFileSync(join(ROOT, 'src/app/legal/document.tsx'), 'utf8')
-const PAGE_OF: Record<DocKey, string> = {
-  terms: '/terms',
-  privacy: '/privacy',
-  dpa: '/dpa',
-  // The fourth document is not one of the three public pages and is not
-  // in `DOC_KEYS` below, so nothing in this file walks it. It is here
-  // because the map is keyed by every `DocKey`, and the census
-  // agreement's own promises are held by `census-agreement.test.ts`.
-  census: '/legal/census-agreement',
-}
-/** Anchors the shared component draws on every page, section or not. */
-const STANDING_ANCHORS = ['asked-first', 'words-used-here', 'for-counsel', 'where-to-go-next']
-
-/** Does `href` point at something that is actually on one of the three pages? */
-function resolves(href: string, from: DocKey): string | null {
-  const [page, anchor] = href.includes('#') ? href.split('#') : [href, '']
-  const key = page === '' ? from : (DOC_KEYS.find((k) => PAGE_OF[k] === page) ?? null)
-  if (!key) return `${href} — no such page`
-  if (!anchor) return null
-  const ids = sectionsOf(key).map((s) => sectionId(s.heading))
-  if (ids.includes(anchor) || STANDING_ANCHORS.includes(anchor)) return null
-  return `${href} — no section on ${PAGE_OF[key]} has that address`
-}
-
-describe('The three pages answer the reader who arrives with six questions', () => {
-  it('each legal page opens with what a procurement lead asks first, and every line of it links to the section that answers it', () => {
-    for (const key of DOC_KEYS) {
-      const lines = SUMMARY[key]
-      expect(lines.length, `${key} must answer all six`).toBe(SUMMARY_ASKS.length)
-      expect(lines.map((l) => l.ask), `${key} asks the same six, in the same order`).toEqual([
-        ...SUMMARY_ASKS,
-      ])
-      for (const line of lines) {
-        expect(line.answer.length, `${key}: "${line.ask}" is answered, not just named`).toBeGreaterThan(60)
-        expect(resolves(line.href, key), `${key}: "${line.ask}"`).toBeNull()
-      }
-    }
-
-    // Two of the six — what happens in a breach, and what is held —
-    // are answered on a different page from the one a reader may have
-    // landed on, which is the whole reason the box carries links.
-    expect(SUMMARY.terms.find((l) => l.ask === 'What you hold')!.href).toContain('/privacy#')
-    expect(SUMMARY.privacy.find((l) => l.ask === 'When something goes wrong')!.href).toContain('/dpa#')
-
-    // And it is drawn above the body, not under it.
-    expect(DOCUMENT).toContain('SUMMARY[docKey]')
-    expect(DOCUMENT).toContain('href={line.href}')
-    const box = DOCUMENT.indexOf('summary.map((line)')
-    const body = DOCUMENT.indexOf('doc.sections.map((s, i) => (')
-    expect(box, 'the six asks are not rendered at all').toBeGreaterThan(-1)
-    expect(box, 'the six asks must come before the sections').toBeLessThan(body)
-  })
-
-  it('the three legal pages share one document component so they cannot drift apart', () => {
-    for (const key of DOC_KEYS) {
-      const src = readFileSync(join(ROOT, `src/app${PAGE_OF[key]}/page.tsx`), 'utf8')
-      expect(src, `${key} must render through the shared document`).toContain('LegalDocument')
-      expect(src).toContain("from '../legal/document'")
-      expect(src).toContain(`docKey="${key}"`)
-      // No markup of its own: the moment a page draws one panel itself,
-      // the three start looking like three documents.
-      for (const markup of ['<div', '<section', '<h1', '<table', '<ul', '<p ']) {
-        expect(src, `${key} draws ${markup} of its own`).not.toContain(markup)
-      }
-      expect(src.split('\n').length, `${key} has grown a layout of its own`).toBeLessThan(20)
-    }
-  })
-
-  it('what is held is a table with a retention line per category, citing the rule or saying none can be cited', () => {
-    const held = PRIVACY.sections.find((s) => s.heading === 'What we hold about you')!
-    expect(held.table, 'the categories line up in columns, so they are a table').toBe('held')
-    expect(DPA.sections.find((s) => s.heading === 'Categories of personal data')!.table).toBe('held')
-    expect(DOCUMENT).toContain('keptFor(h.category)')
-
-    // Every category the notice names has a line on the schedule, so no
-    // cell is empty and none is filled with a period nobody can defend.
-    expect(unscheduledCategories(), 'categories on the page with no retention line').toEqual([])
-
-    for (const h of HELD) {
-      const cell = keptFor(h.category)
-      expect(cell.period.length, h.category).toBeGreaterThan(8)
-      expect(cell.period, `${h.category} must not read as a gap`).not.toMatch(/Not on the schedule/)
-      // A cell either cites a rule a reader can look up, or says plainly
-      // that none can be cited. There is no third thing it may say.
-      const cited = /\d+ CFR \d/.test(cell.cite)
-      expect(
-        cited || cell.cite === 'No federal minimum can be cited',
-        `${h.category} cites "${cell.cite}", which is neither a rule nor an admission`
-      ).toBe(true)
-    }
-
-    // The four federal floors the schedule stands on reach the page.
-    const cites = HELD.map((h) => keptFor(h.category).cite).join(' ')
-    for (const rule of ['8 CFR 274a.2', '26 CFR 31.6001-1', '29 CFR 516.5', '29 CFR 1602.14']) {
-      expect(cites, `${rule} is on the schedule but reaches no cell on the page`).toContain(rule)
-    }
-    // And at least one category is honestly left without a period.
-    expect(
-      HELD.filter((h) => keptFor(h.category).cite === 'No federal minimum can be cited').length
-    ).toBeGreaterThan(0)
-  })
-
-  it('who else touches the data is a table of who, what it is for and what reaches them', () => {
-    expect(PRIVACY.sections.find((s) => s.heading === 'Who else touches the data')!.table).toBe(
-      'sub-processors'
-    )
-    expect(DPA.sections.find((s) => s.heading === 'Sub-processors')!.table).toBe('sub-processors')
-    for (const column of ['Who', 'What for', 'What reaches it']) {
-      expect(DOCUMENT, `the sub-processor table has no ${column} column`).toContain(
-        `label: '${column}'`
-      )
-    }
-    // A service that is not on in every deployment says so on its row,
-    // because "we use a model" and "we use a model where one is
-    // configured" are different disclosures.
-    expect(DOCUMENT).toContain("s.always ? 'Every deployment' : 'Only where configured'")
-    expect(SUB_PROCESSORS.some((s) => !s.always)).toBe(true)
-  })
-
-  it('the counsel questions are a section a reader can find, not a footnote', () => {
-    expect(DOCUMENT).toContain('id="for-counsel"')
-    // In the contents, and linked from the banner at the top, so a
-    // reader meets the open list before they meet any of the claims.
-    expect(DOCUMENT.match(/href="#for-counsel"/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
-    const banner = DOCUMENT.indexOf('DRAFT_BANNER.body')
-    const link = DOCUMENT.indexOf('href="#for-counsel"')
-    expect(link, 'the count of open questions sits with the draft banner').toBeGreaterThan(banner)
-    expect(DOCUMENT).toContain('{COUNSEL_QUESTIONS.length}, listed in full')
-
-    // Each question carries the status it actually has — open — and the
-    // sections across all three documents that are waiting on it.
-    expect(DOCUMENT).toContain('Open — nobody has answered it')
-    expect(DOCUMENT).toContain('waitingOn(q.id)')
-    const cited = new Set(
-      DOC_KEYS.flatMap((k) => sectionsOf(k).map((s) => s.open).filter(Boolean) as string[])
-    )
-    expect(cited.size, 'most of the open questions are cited by a section somewhere').toBeGreaterThanOrEqual(6)
-  })
-
-  it('the words a reader needs are defined once, at the top, and say nothing the body does not', () => {
-    expect(DEFINITIONS.length).toBeGreaterThanOrEqual(5)
-    const definitions = DOCUMENT.match(/DEFINITIONS\.map/g) ?? []
-    expect(definitions.length, 'a definition list drawn twice is a definition repeated').toBe(1)
-    const where = DOCUMENT.indexOf('DEFINITIONS.map')
-    expect(where, 'the words are defined after the body they are used in').toBeLessThan(
-      DOCUMENT.indexOf('<Block')
-    )
-
-    // Each one restates something the documents say in full further
-    // down. A definition that says something new is a second, looser
-    // document hiding in a glossary.
-    const body = [
-      ...POPULATIONS.map((p) => `${p.signIn} ${p.channel} ${p.held} ${p.control}`),
-      ...[...TERMS.sections, ...PRIVACY.sections, ...DPA.sections].flatMap((s) => [
-        ...s.paragraphs,
-        ...(s.bullets ?? []),
-      ]),
-      ...HELD.map((h) => h.examples),
-    ].join(' ')
-    for (const phrase of [
-      'seat belongs to the company that granted it',
-      'travels with them',
-      'not because it might one day',
-      'when it expires',
-      'counted once per day',
-    ]) {
-      expect(DEFINITIONS.map((d) => d.meaning).join(' '), `no definition says "${phrase}"`).toContain(phrase)
-      expect(body, `"${phrase}" is defined at the top and said nowhere in the body`).toContain(phrase)
-    }
-  })
-
-  it('a person reading the privacy notice is sent to their own data page, which asks for no permission', () => {
-    const own = CROSS_LINKS.privacy.find((l) => l.href === '/dashboard/my-data')
-    expect(own, 'the privacy notice must point at the page where a person acts').toBeDefined()
-    expect(existsSync(join(ROOT, 'src/app/dashboard/my-data/page.tsx'))).toBe(true)
-
-    // And the route behind it really does ask for nothing: a permission
-    // gate on your own file is a gate the person it protects cannot open.
-    const route = readFileSync(join(ROOT, 'src/app/api/me/data/route.ts'), 'utf8')
-    expect(route).toMatch(/No permission, on purpose/i)
-    expect(route, 'the subject’s own door must not be gated').not.toMatch(/requirePermission|can\(/)
-
-    // The other two pages point at each other and at the fee position,
-    // so a reader never has to guess which of the three holds a thing.
-    expect(CROSS_LINKS.dpa.map((l) => l.href)).toContain('#breach-notification')
-    expect(CROSS_LINKS.dpa.map((l) => l.href)).toContain('#sub-processors')
-    expect(CROSS_LINKS.terms.map((l) => l.href)).toContain('#fees')
-    for (const key of DOC_KEYS) {
-      for (const link of CROSS_LINKS[key]) {
-        if (link.href.startsWith('/dashboard')) continue
-        expect(resolves(link.href, key), `${key} points at ${link.href}`).toBeNull()
-      }
-    }
-  })
-
-  it('no legal page scrolls sideways at phone width', () => {
-    // Measured, not only asserted: Chromium at 390 × 844 reported a
-    // scrollWidth of 390 on all three pages on the walk that shipped
-    // this. What a test can hold afterwards is the properties that
-    // would break it again.
-
-    // 16px gutters and one column at phone width.
-    expect(DOCUMENT).toContain('px-4')
-
-    // Every table is drawn only where there is room for columns, and
-    // the same rows are drawn as cards below that width.
-    const tables = DOCUMENT.match(/<table[^>]*className="([^"]*)"/g) ?? []
-    expect(tables.length, 'no table at all — this check has lost its subject').toBeGreaterThan(0)
-    for (const t of tables) {
-      expect(t, 'a table drawn at phone width pushes the page sideways').toContain('hidden')
-      expect(t).toContain('lg:table')
-    }
-    expect(DOCUMENT, 'the table rows must also exist as cards').toContain('lg:hidden')
-
-    // Nothing is wider than the narrowest phone this has to survive.
-    // `max-w-` is a ceiling and cannot force a scrollbar, so it is not
-    // what this is looking for — a fixed or minimum width is.
-    const fixed = [...DOCUMENT.matchAll(/(?<![\w-])(?:min-)?w-\[(\d+)px\]/g)].map((m) => Number(m[1]))
-    for (const px of fixed) expect(px, `a ${px}px element cannot fit a 390px screen`).toBeLessThan(358)
-
-    // A machine path has no space to break at, so it is told to break
-    // anywhere. Every place one is drawn carries the wrapping rule.
-    expect(DOCUMENT).toContain("const WRAP = 'break-words [overflow-wrap:anywhere]'")
-    for (const drawn of ['{h.provenBy}', '{s.provenBy}', '{section.provenBy}']) {
-      const at = DOCUMENT.indexOf(drawn)
-      expect(at, `${drawn} is not drawn anywhere`).toBeGreaterThan(-1)
-      const around = DOCUMENT.slice(Math.max(0, at - 400), at)
-      expect(around, `${drawn} is drawn without the wrapping rule`).toContain('${WRAP}')
-    }
-
-    // And nothing reaches for a horizontal scroller to hide the problem.
-    expect(DOCUMENT).not.toContain('overflow-x-auto')
-    expect(DOCUMENT).not.toContain('overflow-scroll-x')
-  })
-})

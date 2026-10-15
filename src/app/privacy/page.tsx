@@ -1,14 +1,12 @@
 import type { Metadata } from 'next'
 import { LegalDocument } from '../legal/document'
-import { PRIVACY } from '@/lib/legal'
 
 export const metadata: Metadata = {
-  title: 'Privacy notice — Etyme',
+  title: 'Privacy Notice — Etyme',
   description:
-    'What Etyme holds, where it goes, who can see it, and what is not true of it yet — ' +
-    'each claim checked against the file that proves it.',
+    'What personal information Etyme holds, where it comes from, how it is used, who receives it, how long it is kept, and the choices you have.',
 }
 
 export default function PrivacyPage() {
-  return <LegalDocument doc={PRIVACY} docKey="privacy" />
+  return <LegalDocument docKey="privacy" />
 }
