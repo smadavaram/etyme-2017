@@ -58,8 +58,15 @@ export interface Step {
   next: string
   /** The product pages that hang under this step, in order. */
   more: string[]
-  /** The documentation's process pages for this step, in order. */
+  /**
+   * The value streams this step covers, by the slug of their L1 name.
+   * They were the documentation's process pages until 2026-10-15; the
+   * system map still reads them to place each stream under its step
+   * (`lib/system-map`), so they stay.
+   */
   process: string[]
+  /** The documentation's page for this step (one per step since 2026-10-15). */
+  doc: '/docs/job' | '/docs/candidates' | '/docs/timesheets' | '/docs/invoices'
   /** The exact screen in the example program, at the right desk. */
   demo: DemoTarget
 }
@@ -88,6 +95,7 @@ export const STEPS: Step[] = [
     next: 'Suppliers send people for the job. You interview, choose one, and the paperwork is written.',
     more: ['/governance'],
     process: ['source-to-contract'],
+    doc: '/docs/job',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
   },
   {
@@ -113,6 +121,7 @@ export const STEPS: Step[] = [
     next: 'The contractor starts work and files their first week.',
     more: ['/submissions', '/compliance'],
     process: ['source-to-contract', 'contract-to-onboard'],
+    doc: '/docs/candidates',
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/contracts', seat: 'the program manager' },
   },
   {
@@ -136,6 +145,7 @@ export const STEPS: Step[] = [
     next: 'Each supplier bills from the signed week, and you pay what matched.',
     more: [],
     process: ['work-to-approve', 'expenses'],
+    doc: '/docs/timesheets',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
   },
   {
@@ -160,6 +170,7 @@ export const STEPS: Step[] = [
     next: 'The same signed weeks add up time on site, per person, across every supplier.',
     more: ['/chain'],
     process: ['approve-to-bill', 'approve-to-pay'],
+    doc: '/docs/invoices',
     demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
   },
 ]

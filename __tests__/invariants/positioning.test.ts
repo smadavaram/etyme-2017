@@ -64,8 +64,8 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
 import { BAND, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
-import { ABOUT, COMPANY_PAGES, FOUR_ANSWERS, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
-import { copyOfDoc, copyOfDocsHome, docSlugs, docRoutes, TIME_AND_MONEY, PARTIES } from '@/lib/public-site/docs/index'
+import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
+import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
 import { NAV_MENUS as SITE_MENUS, NAV_LINKS as SITE_LINKS, PRODUCT_ITEMS, PRODUCT_STAGES, ROLES as SITE_ROLES, groupsShown, SHEET_MORE } from '@/lib/public-site/nav'
 import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
@@ -74,7 +74,8 @@ import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 import { EMBED_STEPS, embedStep } from '@/lib/sample-seat'
-import { PROCESS } from '@/lib/public-site/docs/process'
+import { STEP_PAGES } from '@/lib/public-site/docs/process'
+import { TOPICS } from '@/lib/public-site/docs/topics'
 
 /**
  * The home page as a reader meets it: the page's own question and
@@ -108,14 +109,12 @@ const onDoc = (path: string): string => {
   const c = copyOfDoc(path)!
   return [...c.hero, ...c.body].join(' ')
 }
-const TIME_ON_SITE_DOC = onDoc('process/govern-and-protect')
+const TIME_ON_SITE_DOC = onDoc('when-work-ends')
 const SUPPLIERS_DOC = onDoc('master-data/suppliers')
 const ABOUT_PAGE = (() => {
   const c = copyOfCompanyPage(ABOUT)
   return [...c.hero, ...c.body].join(' ')
 })()
-/** The anchor of a block on About, or of the section a module page carried over. */
-const aboutBlock = (id: string) => ABOUT.blocks.find((b) => b.id === id)
 
 /**
  * The real page, split at roughly where a first screen ends. The header is
@@ -418,7 +417,6 @@ const all = [...words, ...DRAWN].join(' ')
 /** The shared frame — header and footer — which the home page draws too. */
 const FRAME_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/frame.tsx'), 'utf8')
 const CLOSE_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/close-band.tsx'), 'utf8')
-const aboutAt = (id: string) => ABOUT.blocks.findIndex((b) => b.id === id)
 /** Everything above the fold, as one string, for the guards that read it. */
 const hero = live.hero.join(' ')
 
@@ -426,94 +424,63 @@ const at = (anchor: string) => PAGE.indexOf(`id="${anchor}"`)
 
 describe('Below the hero, the page says what the business is', () => {
 
-  it('names the whole span once, so that no single station reads as the product', () => {
+  it('names the four steps once on About, so that no single station reads as the product', () => {
     // Naming one station makes the whole product read as that station,
-    // which is how a screening headline made this a hiring tool. The span
-    // was a line in the hero until 2026-09-27; the hero is the headline,
-    // the category and the hook now, and the span is said on About. The
-    // header's Product menu teaches it as four stages, on every page.
-    // In plain words since the founder's list of 2026-09-28: a job
-    // request, not a requisition; bills, not invoices.
-    expect(ABOUT_PAGE).toContain(
-      'Job request, suppliers, submissions, screening, interviews, ' +
-      'onboarding, timesheets, bills, compliance'
-    )
-    // Since 2026-09-30 the Product menu's groups are the four steps, in
-    // order; since 2026-10-14 they carry the founder's four nouns.
+    // which is how a screening headline made this a hiring tool. Until
+    // 2026-10-15 About said the whole span in nine stations; the founder's
+    // drawing cut About to five lines, and the first says the four steps
+    // in the trade's words. The header's Platform menu teaches the same
+    // four on every page.
+    expect(ABOUT_PAGE).toContain('manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.')
     expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Job', 'Step 2 · Candidates', 'Step 3 · Timesheets', 'Step 4 · Invoices'])
   })
 
-  it('asks the four questions on About before it argues anything, and leaves the hero to say what the software is', () => {
-    // The hook is the not-knowing. It was one line in the hero until
-    // 2026-09-28, when the founder asked for "less theory there"; the
-    // four questions with their answers were already on About, with why
-    // nobody can answer them first.
+  it('leaves the hero to say what the software is, and argues nothing about other people’s companies anywhere', () => {
+    // The hook is the not-knowing, said as the founder's one question in
+    // the hero. Until 2026-10-15 About carried the four questions, why
+    // nobody can answer them and the four screens that do; the drawing
+    // cut About to five lines, and the panel under the hero answers the
+    // questions by showing them rather than by arguing.
     expect(hero).not.toContain('How many contractors are on your sites')
-    expect(ABOUT_PAGE).toContain('You can name every employee on your payroll')
-    expect(FOUR_ANSWERS.map((a) => a.q)).toEqual([
-      'How many contractors are on our sites right now?',
-      'What are we spending on them this quarter, and with whom?',
-      'Are we paying two suppliers different money for the same work?',
-      'Who has been here longest?',
-    ])
-    // On About, why nobody can answer comes first, then the answers.
-    expect(aboutAt('unanswered')).toBeGreaterThanOrEqual(0)
-    expect(aboutAt('answered')).toBe(aboutAt('unanswered') + 1)
     expect(PAGE).not.toContain('id="gap"')
+    expect(ABOUT_PAGE).not.toContain('Most companies cannot answer')
   })
 
-  it('keeps tenure to one question, not a section', () => {
+  it('keeps tenure to one line, not a section', () => {
     // Corrected 2026-09-17: "Tenure is nobody's problem — only you
-    // expect it to be solved." It is the moat, not the wedge. The ledger
-    // stays one question of four, answered in a line, and has no section
-    // of its own anywhere.
+    // expect it to be solved." It is the moat, not the wedge. No page
+    // gives it a section; the end-of-work page says it in one line.
     expect(PAGE).not.toContain('id="tenure"')
     expect(ABOUT.blocks.map((b) => b.id)).not.toContain('tenure')
-    expect(FOUR_ANSWERS.filter((a) => a.screen === 'Tenure')).toHaveLength(1)
     const mentions = (all.toLowerCase().match(/tenure/g) ?? []).length
     expect(mentions, `the word "tenure" is on the page ${mentions} times`).toBeLessThanOrEqual(5)
-    // The compliance page says in one line that time on site is added up
-    // across every supplier. Its worked arithmetic ("fourteen months
-    // through one supplier, three through a second…") was cut with the
-    // founder's skeleton of 2026-10-14; the frame and the full demo's
-    // time-limit screen show the sum in numbers instead.
     expect(body).not.toContain('One person worked 14 months')
     expect(COMPLIANCE_PAGE).toContain('added up across every supplier')
-    // And the arithmetic is on the documentation's time-limit page.
-    expect(TIME_ON_SITE_DOC).toContain('One person worked fourteen months through one supplier.')
-    expect(TIME_ON_SITE_DOC).toContain('That is nineteen months on site at one client.')
-    expect(TIME_ON_SITE_DOC).toContain('None of the three suppliers can see the other two.')
+    // The documentation's end-of-work page says the rule in one line.
+    expect(TIME_ON_SITE_DOC).toContain('Time on site is the person’s, across every supplier. A day counts once.')
   })
 
-  it('keeps the business case off the front door, and the compliance page to what a reader can check in the frame', () => {
-    // Two sentences doing two jobs: the hook is the not-knowing, the
-    // business case is what it costs when somebody finally asks. The hook
-    // is in the hero. The compliance page's section on what it costs —
+  it('keeps the business case off the front door, and the compliance page to what a reader can check', () => {
+    // The hook is in the hero. What it costs when somebody finally asks —
     // co-employment, lapsed insurance, a bill with no signed week — was
-    // cut with the founder's skeleton of 2026-10-14 (one question, the
-    // frame, three lines); what is left of it is the lines a reader can
-    // check: the time limit and the lapsed certificate that stops work.
+    // argued on the documentation's time-limit page until 2026-10-15; the
+    // founder's drawing kept each as the rule that stops it, on the step
+    // where it happens, rather than as an argument.
     expect(PAGE).not.toContain('id="exposure"')
     expect(body).not.toContain('Nobody is fined on the day')
     expect(PRODUCT_ITEMS.map((i) => i.href)).toContain('/compliance')
     expect(COMPLIANCE_PAGE).toContain('time limit')
     expect(COMPLIANCE_PAGE).toContain('A lapsed insurance certificate stops work.')
-    // The business case lives on the documentation's time-limit page.
-    expect(TIME_ON_SITE_DOC).toContain('Nobody is fined on the day a contractor passes eighteen months.')
-    expect(TIME_ON_SITE_DOC.toLowerCase()).toContain('co-employment')
   })
 
-  it('names the three things the exposure actually is, on the documentation’s time-limit page', () => {
-    for (const line of [
-      'A co-employment claim counts every supplier together.',
-      'A supplier whose insurance lapsed keeps working.',
-      'A bill is paid with no signed week behind it.',
-    ]) expect(TIME_ON_SITE_DOC, line).toContain(line)
+  it('stops each of the three exposures with a rule, on the documentation page of the step where it happens', () => {
+    expect(onDoc('when-work-ends')).toContain('At the limit it is blocked.')
+    expect(onDoc('candidates')).toContain('This supplier has no current insurance verification on file.')
+    expect(onDoc('invoices')).toContain('A line with no approved week behind it is never paid.')
   })
 
-  it('says prime, sub and bench are positions on a deal rather than kinds of company, on the suppliers page of the master data', () => {
+  it('says prime, sub and bench are positions on a deal rather than kinds of company, on the suppliers page of your records', () => {
     expect(SUPPLIERS_DOC).toContain('Prime, sub and bench are positions on a deal, not kinds of company.')
-    expect(SUPPLIERS_DOC).toContain('The same firm is a prime this week and a sub next week.')
   })
 
   it('does not lead with a penalty, because nobody is fined at month nineteen', () => {
@@ -521,51 +488,28 @@ describe('Below the hero, the page says what the business is', () => {
     // saving". A compliance pitch loses to "we have never been caught",
     // which is worse than losing to "we are managing fine" because it
     // is true.
-    for (const text of [body, COMPLIANCE_PAGE]) {
+    for (const text of [body, COMPLIANCE_PAGE, ABOUT_PAGE]) {
       expect(text).not.toContain('exposure rather than a saving')
       expect(text).not.toContain('usually finds out about it from a lawyer')
     }
   })
 
-  it('says what the not-knowing costs today — three weeks and a number nobody trusts — on About', () => {
-    // In full on About. It left the hero on 2026-09-28: "most companies
-    // cannot answer" is a claim about other people's companies that a
-    // reader cannot check, and the hero now says only what the software
-    // is and does.
-    expect(hero).not.toContain('Most companies cannot answer without three weeks of asking.')
-    expect(ABOUT_PAGE).toContain('let me come back to you')
-    expect(ABOUT_PAGE).toContain('three weeks of asking every supplier')
-  })
-
-  it('says why no supplier can answer, one click from the questions, on About', () => {
-    // The long form of the hook, directly above the answers on About.
-    expect(aboutBlock('unanswered')).toBeDefined()
-    expect(ABOUT_PAGE).toContain('No supplier can add that up')
-    expect(ABOUT_PAGE).toContain('A VMS sees inside')
-    expect(ABOUT_PAGE).toContain('nobody you could ask is holding all')
-  })
-
-  it('is written to the client’s people by job title — program manager, CFO, procurement', () => {
+  it('is written to the client’s people by job title — program manager, procurement, hiring manager', () => {
     // The client is the customer, decided 2026-09-10. Writing to "a
     // company" is writing to nobody. The home page seats the reader as the
     // program manager in the line under the live product (2026-10-14); the
-    // menu names each job as a way in; About names the CFO who asks.
+    // menu names each job as a way in.
     expect(PAGE).toContain("const ON_SCREEN = 'You are the program manager.")
     expect(SITE_ROLES.map((r) => r.t)).toEqual(expect.arrayContaining(['The program manager', 'Procurement', 'Finance', 'Hiring managers']))
-    for (const job of ['program manager', 'CFO', 'procurement']) {
-      expect(ABOUT_PAGE, job).toContain(job)
-    }
   })
 
   it('is written to the client, with the supplier reading over its shoulder', () => {
     // Addressing hiring companies, primes, subs and bench operators as
     // four equals is the plan from before the client became the customer
-    // on 2026-09-10. Since 2026-10-14 a supplier's door on the home page is
-    // one word in the sign-up band's small line of doors, after the
-    // client's own; the paragraph written to a supplier is on About, the
-    // sub-vendor on the chain page, and the firm with workers waiting for a
-    // project on the suppliers' own door.
-    expect(ABOUT_PAGE).toContain('you are on it because your client is')
+    // on 2026-09-10. A supplier's door on the home page is one word in the
+    // sign-up band's small line of doors, after the client's own; the
+    // sub-vendor is on the chain page, and the firm with workers waiting
+    // for a project on the suppliers' own door.
     expect(PAGE).toContain("{ t: 'Suppliers', href: '/for/suppliers' }")
     expect(CHAIN_PAGE).toContain('sub-vendor')
     const door = copyOfPartyPage(PARTY_PAGES.find((p) => p.slug === 'suppliers')!)
@@ -575,11 +519,11 @@ describe('Below the hero, the page says what the business is', () => {
   it('writes to the client before it writes to anybody who supplies the client', () => {
     // On the home page the client's sign-up comes first and its door
     // leads the line of doors; the supplier's door comes after. On About,
-    // the client's answers come before the supplier's paragraph.
+    // what the client gets comes before what Etyme never does to a supplier.
     expect(at('sign-up')).toBeGreaterThan(at('demo'))
     expect(PAGE.indexOf("{ t: 'Clients', href: '/signup' }")).toBeGreaterThan(0)
     expect(PAGE.indexOf("{ t: 'Clients', href: '/signup' }")).toBeLessThan(PAGE.indexOf("{ t: 'Suppliers', href: '/for/suppliers' }"))
-    expect(aboutAt('answered')).toBeLessThan(aboutAt('ways'))
+    expect(ABOUT_PAGE.indexOf('What we build.')).toBeLessThan(ABOUT_PAGE.indexOf('What we never do.'))
   })
 
   it('never gives the supply side a column beside the client on the front door', () => {
@@ -591,15 +535,12 @@ describe('Below the hero, the page says what the business is', () => {
     expect(PAGE).not.toContain("who: 'The company hiring'")
   })
 
-  it('tells a supplier it is welcome under a plain sub-heading, never a rhetorical question', () => {
+  it('tells a supplier why it is safe here in a plain line, never a rhetorical question', () => {
     // Subtle is not absent. The network only works because suppliers are
-    // on it. It is said beside the two ways to run the program, because
-    // that is where a supplier would otherwise read a threat.
-    const ways = [...(aboutBlock('ways')?.paragraphs ?? [])].join(' ')
-    expect(ways).toContain('If you are a staffing supplier')
-    expect(ways).toContain('Your rates and your sub-vendors’ names stay private')
-    expect(ways).toContain('your client stays your client')
-    expect(ways).not.toMatch(/supplier\?/)
+    // on it. About says in one line that Etyme has no reason to favor any
+    // supplier, because it supplies nobody.
+    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.')
+    expect(ABOUT_PAGE).not.toMatch(/supplier\?/)
     // The home page asks the client four questions since 2026-10-09; none
     // of them is a question put to a supplier.
     expect(PAGE).not.toMatch(/(?:are you|a) (?:staffing )?supplier\?/i)
@@ -617,32 +558,24 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('says where the guarantee stops, because a company that is not on Etyme is not covered by it', () => {
     // A control that stops working where the chain leaves the product is
-    // a comfort unless the page says where it stops. On About, beside
-    // the promise that suppliers need not sign up first.
-    expect(ABOUT_PAGE).toContain('A hop to a company that is not on Etyme leaves the record')
-    expect(ABOUT_PAGE).toContain('the screen says so')
+    // a comfort unless the page says where it stops. About said it until
+    // 2026-10-15 with "and the screen says so"; no screen says so
+    // (`beyond` in lib/distribution has no caller yet), so the suppliers
+    // page says only what is true.
+    expect(SUPPLIERS_DOC).toContain('A firm that is not on Etyme is outside the record. What it forwards by email, Etyme cannot see.')
+    expect(ABOUT_PAGE).not.toContain('the screen says so')
   })
 
-  it('shows how a placement moves as the handful of milestones a person acts on', () => {
-    // Six milestones, not the internal lifecycle, on About. The menu's
-    // program manager entry leads to the documentation's process overview,
-    // which carries the walk of one hire from the client's side.
-    const hire = aboutBlock('hire')!
-    expect(hire.title).toBe('One hire moves through six milestones, and three of them can stop it')
-    expect((hire.items ?? []).map((i) => i.t)).toEqual(['Raised', 'Released', 'Awarded', 'Cleared', 'Working', 'Ended'])
-    expect(SITE_ROLES.find((r) => r.t === 'The program manager')?.href).toBe('/docs/process')
+  it('walks the hire through every role on the step pages, so no one role reads as the whole product', () => {
+    // About walked one hire in six milestones until 2026-10-15. The
+    // documentation's five step pages walk it now, each box saying who.
+    expect(SITE_ROLES.find((r) => r.t === 'The program manager')?.href).toBe('/docs')
+    const roles = new Set(STEP_PAGES.flatMap((p) => p.flow.map((b) => b.role)))
+    for (const r of ['Hiring manager', 'Supplier', 'Worker', 'AP clerk', 'Compliance officer', 'Program manager']) {
+      expect(roles.has(r), r).toBe(true)
+    }
+    expect(onDoc('job')).toContain('Nobody approves their own job request.')
     expect(PAGE).not.toContain('const LIFECYCLE')
-  })
-
-  it('walks the hire from every desk, so no one desk reads as the whole product', () => {
-    expect(ABOUT_PAGE).toContain('The hiring manager raises it, HR reads the job, procurement audits')
-    expect(ABOUT_PAGE).toContain('Nobody signs their own')
-  })
-
-  it('marks exactly the three gates — a milestone that can stop the deal, not only record it', () => {
-    const stops = (aboutBlock('hire')!.items ?? []).filter((i) => /It can stop here\./.test(i.d)).map((i) => i.t)
-    expect(stops).toEqual(['Raised', 'Awarded', 'Cleared'])
-    expect(ABOUT_PAGE).toContain('Raised, awarded and cleared can stop the deal')
   })
 
   it('says each gate in a line on the page for its station', () => {
@@ -657,29 +590,6 @@ describe('Below the hero, the page says what the business is', () => {
     expect(PAGE).not.toContain('const GATES')
   })
 
-  it('says out loud that there are more states inside and nobody has to learn them', () => {
-    expect(ABOUT_PAGE).toContain('Nobody using it has to learn any of them')
-  })
-
-  it('answers the four questions with four screens a reader can go and open', () => {
-    // A page describing a screen nobody built is the exact failure this
-    // file was written to stop. The route is written beside the label so
-    // this reads the page's own answer rather than guessing it.
-    expect(FOUR_ANSWERS.map((a) => a.screen)).toEqual(['Workforce', 'Program', 'Rates', 'Tenure'])
-    for (const a of FOUR_ANSWERS) {
-      expect(
-        existsSync(join(process.cwd(), 'src/app/dashboard', a.route, 'page.tsx')),
-        `src/app/dashboard/${a.route}/page.tsx`
-      ).toBe(true)
-      expect(ABOUT_PAGE, a.q).toContain(a.etyme)
-    }
-  })
-
-  it('gives keeping your ATS, your VMS and your suppliers a headline on About rather than a footnote', () => {
-    expect(aboutBlock('alongside')?.title).toBe('Keep your ATS, your VMS and every supplier you already use')
-    expect(ABOUT_PAGE).toContain('sits in front of')
-  })
-
   it('says the enforcement blocks where the law is behind it and warns everywhere else', () => {
     // The governance page opens on exactly this, and always did; the
     // home page's paragraph repeating it moved nowhere, because it was
@@ -691,20 +601,19 @@ describe('Below the hero, the page says what the business is', () => {
     // A page with no price makes a reader assume enterprise sales and
     // leave. Silence is worse than "we are still deciding". Since
     // 2026-10-14 the home page says it in four words in the sign-up band,
-    // "Free while we are testing.", with no number; the rest is on About.
+    // "Free while we are testing.", with no number; About says it in one line.
     expect(body).toContain('Free while we are testing.')
     expect(priceClaims(all)).toEqual([])
-    expect(aboutBlock('price')).toBeDefined()
+    expect(ABOUT_PAGE).toContain('Price. Free while we test with our first companies. No number until we have one.')
+    expect(priceClaims(ABOUT_PAGE)).toEqual([])
   })
 
-  it('says the things about the commercials that are settled, on About', () => {
-    expect(aboutBlock('price')).toBeDefined()
-    expect(ABOUT_PAGE).toContain('Governance is never a paid tier')
-    expect(ABOUT_PAGE).toContain('Etyme never runs a bench and never places anybody')
-    expect(ABOUT_PAGE).toContain('Looking around costs nothing and needs no card')
+  it('says what is settled about Etyme on About: it supplies nobody, it is free while testing, and where it is', () => {
+    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench')
+    expect(ABOUT_PAGE).toContain('Free while we test')
+    expect(ABOUT_PAGE).toContain('Durham, NC 27713')
     // The menu every public page draws, the home page's included, links
-    // to the top of About, which lists this section first thing — no link
-    // lands in the middle of a page (2026-09-30).
+    // to the top of About — no link lands in the middle of a page (2026-09-30).
     expect(SHEET_MORE.map((i) => i.href)).toContain('/about')
     expect(PAGE).not.toMatch(/'\/about#/)
   })
@@ -713,17 +622,15 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('Stop reading bad submissions')
   })
 
-  it('promises only the export that exists — every list to CSV, and a person’s own copy', () => {
+  it('promises only the export that exists — every list to CSV', () => {
     // "Your data exports in full, any time" was a promise nothing stood
     // behind. What is built: every list on the shared table exports to
-    // CSV, and `/dashboard/my-data` gives a person a copy of what is
-    // held about them or a way to ask to be forgotten. So the sentence
-    // is what is true rather than nothing at all.
-    // On About since 2026-09-27, with the rest of what it sits beside.
+    // CSV, and `/dashboard/my-data` gives a person a copy of what is held
+    // about them. Integrations says the first; Security the second.
     expect(all).not.toContain('exports in full')
     expect(ABOUT_PAGE).not.toContain('exports in full')
-    expect(ABOUT_PAGE).toContain('exports to CSV from the screen it is on')
-    expect(ABOUT_PAGE).toContain('ask for a copy of it')
+    expect(onDoc('integrations')).toContain('Every list exports to CSV.')
+    expect(copyOfCompanyPage(COMPANY_PAGES.find((c) => c.route === '/security')!).body.join(' ')).toContain('A person can download or erase their own data.')
     expect(existsSync(join(process.cwd(), 'src/app/dashboard/my-data/page.tsx'))).toBe(true)
   })
 
@@ -794,24 +701,10 @@ describe('Every line says an outcome, a benefit or a method', () => {
     const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.question), ...PARTY_PAGES.map((p) => p.question)])
     expect(slogans, `these headlines have no verb in them:\n  ${slogans.join('\n  ')}`).toEqual([])
   })
-  it('answers each of the four questions in one line that names a screen a reader can open', () => {
-    // A question with no answer under it is a complaint. The question,
-    // the screen and one line are one row, on About since 2026-09-27,
-    // directly under what happens today.
-    const answers = FOUR_ANSWERS.map((a) => a.etyme)
-    expect(answers.length).toBe(4)
-    const screens = ['Workforce', 'Program', 'Rates', 'Tenure']
-    for (const line of answers) {
-      expect(screens.some((screen) => line.includes(`${screen} screen`)), `names no screen: ${line}`).toBe(true)
-      // "In a line" is a number: about the length of the question itself.
-      const count = line.split(/\s+/).length
-      expect(count, `${count} words is not one line: ${line}`).toBeLessThanOrEqual(22)
-    }
-    expect((aboutBlock('answered')?.items ?? []).map((i) => i.d)).toEqual(answers)
-    // And what happens today is still said, directly above.
-    const today = (aboutBlock('unanswered')?.items ?? []).map((i) => i.t)
-    expect(today).toEqual(FOUR_ANSWERS.map((a) => a.q))
-  })
+  // "Answers each of the four questions in one line that names a screen"
+  // held About's four answers until 2026-10-15, when the founder's drawing
+  // cut About to five lines. The panel under the home page's question
+  // answers them by showing the screens (story-panel.test.ts).
 
   it('keeps every sentence short enough to read once', () => {
     // Thirty is the refusal line and about twenty is the target. The
@@ -929,33 +822,21 @@ describe('Every claim about a screen is a thing that screen does', () => {
     }
   })
 
-  it('says the program dashboard shows this month from rates, and names the invoice receipts screen for what was billed', () => {
+  it('no public page says the program dashboard’s spend came from matched bills, because it is an estimate from rates', () => {
     // The dashboard's spend is a forward estimate — a bill rate times a
     // flat 160-hour month — and `lib/program-spend` says so out loud
-    // beside the number. A page claiming that figure came off matched
-    // bills is a page a buyer disproves by opening the screen.
+    // beside the number. About named the screen for it until 2026-10-15;
+    // no page names it now, and none may say the figure is matched.
     const spend = readFileSync(join(process.cwd(), 'src/lib/program-spend.ts'), 'utf8')
     expect(spend).toContain('It is an estimate, not signed time.')
-    const spendAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /spend|month|billed/i.test(line))
-    expect(spendAnswer, 'the page answers the spend question').toBeTruthy()
-    expect(spendAnswer).toContain('Program screen')
-    expect(spendAnswer).toContain('Invoice receipts screen')
-    // And it does not put the match behind the dashboard's figure.
-    expect(spendAnswer, 'the dashboard figure is not from matched bills').not.toMatch(/matched/i)
+    for (const text of [all, ABOUT_PAGE, ...docRoutes().slice(1).map((r) => onDoc(r.slice('/docs/'.length)))]) {
+      expect(text).not.toMatch(/(?:dashboard|spend)[^.]*\bmatched\b/i)
+    }
   })
 
-  it('sends the comparison of two suppliers to the screen that draws it', () => {
-    // "Same job, two suppliers" is a panel on the Program screen's
-    // suppliers tab. The Rates screen is the history of what a rate was
-    // and who agreed it, one contract at a time.
-    const dashboard = readFileSync(
-      join(process.cwd(), 'src/app/dashboard/program/page.tsx'), 'utf8'
-    )
-    // The heading as drawn, between tags — not a code comment.
-    expect(dashboard).toMatch(/>\s*Same job, two suppliers\s*</)
-    const rateAnswer = FOUR_ANSWERS.map((a) => a.etyme).find((line) => /side by side/i.test(line))
-    expect(rateAnswer).toContain('Program screen')
-  })
+  // "Sends the comparison of two suppliers to the screen that draws it"
+  // held About's answer naming the Program screen, which left with About's
+  // four answers on 2026-10-15.
 
   it('the page never tells a client it will see a supplier’s subcontractors by name', () => {
     // 2026-09-21. The headline read "Etyme shows every contractor on
@@ -963,13 +844,14 @@ describe('Every claim about a screen is a thing that screen does', () => {
     // placed", and every guard in the file passed it. To a prime that
     // sentence is a promise to show its client the firm it buys from.
     //
-    // What the record does is narrower and is what the site says now,
-    // on About since 2026-09-27: the person, and whether whoever employs
+    // What the record does is narrower and is what the site says now:
+    // the person, and whether whoever employs
     // them is insured and authorized, because that is the client's own
     // exposure. The name below follows the client's own agreement.
-    const answered = aboutBlock('answered')!
-    expect(answered.title).toBe('Etyme shows every contractor on your sites, whoever placed them')
-    expect(answered.paragraphs?.join(' ')).toContain('whether the firm that employs them is insured')
+    // On the customers page of the documentation since 2026-10-15.
+    const customers = onDoc('master-data/customers')
+    expect(customers).toContain('It sees the supplier it pays and the rate it pays, and nothing below.')
+    expect(customers).toContain('It always sees whether the firm employing a person on its site is insured.')
     expect(ABOUT_PAGE).not.toContain('subcontractors placed')
 
     // And the guard refuses the sentence that shipped, so it cannot
@@ -1035,7 +917,7 @@ describe('The record is the product, and Etyme running the program is offered qu
     // door for a firm that runs programs, not an offer.
     expect(offersTheProgramOffice(all)).toEqual([])
     expect(all).not.toContain('Have Etyme run your program office')
-    expect(ABOUT_PAGE).toContain('Most clients run the program with their own people.')
+    expect(offersTheProgramOffice(ABOUT_PAGE)).toHaveLength(1)
     expect(all).not.toContain('You choose how to use it')
   })
 
@@ -1086,93 +968,51 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(said).toContain('across every supplier')
   })
 
-  it('keeps the two labels the founder named, as sub-headings rather than the headline', () => {
+  it('keeps the two labels the founder named, in one line of About, never in a headline', () => {
     // A program manager has already evaluated things called both of
-    // those, and inventing a third word costs the recognition. They are
-    // sub-headings under About's #ways since 2026-09-27, and the section
-    // headline is about the record.
+    // those, and inventing a third word costs the recognition. Since
+    // 2026-10-15 About says them in one of its five lines.
     expect(TWO_WAYS.map((w) => w.label)).toEqual(['VMS software', 'MSP provider'])
-    const ways = aboutBlock('ways')!
-    expect((ways.items ?? []).map((i) => i.t)).toEqual(['VMS software', 'MSP provider'])
-    expect(ways.title).toBe('The record is the product, and your own people run the program on it')
-    for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ...ABOUT.blocks.map((b) => b.title)]) {
+    expect(ABOUT_PAGE).toContain('Two ways to use it. Your team runs it: Etyme as VMS software. Or Etyme runs it for you: Etyme as MSP provider.')
+    for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ABOUT.title, ABOUT.lede]) {
       expect(heading, heading).not.toContain('MSP')
     }
     // Every public menu links to the top of About, never into it.
     expect(SHEET_MORE.map((i) => i.href)).toContain('/about')
   })
 
-  it('says Etyme running the program is the second option and most clients take the first', () => {
-    expect(ABOUT_PAGE).toContain('Most clients run the program with their own people.')
-    expect(ABOUT_PAGE).toContain('The record is the same either way and it stays yours.')
+  it('says your own team running it first, and Etyme running it second', () => {
+    expect(ABOUT_PAGE.indexOf('Your team runs it')).toBeGreaterThan(0)
+    expect(ABOUT_PAGE.indexOf('Your team runs it')).toBeLessThan(ABOUT_PAGE.indexOf('Or Etyme runs it for you'))
   })
 
-  it('says what a client gets from the service in plain sentences, and that the record stays theirs', () => {
-    // Value added, said as outcomes: seats the client grants, its rules,
-    // every read logged — and the record the client's either way. "You
-    // get a program office without hiring one" was the home page's second
-    // offer; About already offers once, under #neutral, so the card says
-    // what the client gets rather than offering again.
-    expect(ABOUT_PAGE).toContain(
-      'Etyme staff sit in seats your company grants them, work to your rules, and every read they make is logged.'
-    )
-    expect(ABOUT_PAGE).toContain('The record is the same either way and it stays yours.')
-  })
-
-  it('says what Etyme never does in either way', () => {
-    // Neutrality is absolute and this is the place a reader is weighing
-    // whether to hand Etyme the program, so it is said there and not
-    // only in the footer.
-    const ways = (aboutBlock('ways')?.paragraphs ?? []).join(' ')
-    expect(ways).toContain(
-      'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier.'
-    )
+  it('says what Etyme never does, whichever way it is used', () => {
+    // Neutrality is absolute, and About says it in its second line, right
+    // before the two ways a reader may weigh handing Etyme the program.
+    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.')
+    expect(ABOUT_PAGE.indexOf('What we never do.')).toBeLessThan(ABOUT_PAGE.indexOf('Two ways to use it.'))
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
     expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('neutrality')
   })
 
-  it('leaves the client the decisions that are the client’s', () => {
-    // A program office that takes the hiring manager's decisions is not
-    // neutral and is not this. The client is sold control, never
-    // outsourcing, so this stays beside the offer.
-    expect(ABOUT_PAGE).toContain(
-      'Your people keep the decisions that are yours: which jobs to open, who to hire, and what to approve.'
-    )
-  })
+  // Four sentences held About's longer case for the service until
+  // 2026-10-15 — what a client gets from it, the decisions the client
+  // keeps, the choice coming after the four answers, and what changes for
+  // a supplier — and they left with it when the founder's drawing cut
+  // About to five lines.
 
-  it('puts the choice after the four answers, on About', () => {
-    // A reader who has just been shown what they cannot answer asks who
-    // is going to do something about it. Since 2026-10-14 the choice is
-    // made on About only, after the answers.
-    expect(aboutAt('ways')).toBeGreaterThan(aboutAt('answered'))
-  })
-
-  it('says how a program Etyme runs is paid for, once and plainly, without a number', () => {
-    // Supplier-funded, a percentage on billings, disclosed when a
-    // supplier joins rather than discovered later. Said once, on About
-    // since 2026-09-27, where the rest of what is settled about the
-    // money went. The home page keeps one line: no price, and free while
-    // we prove it out.
-    const sentence =
-      'Where Etyme runs the program, it is paid the way MSPs are paid: a percentage the suppliers pay on their billings, disclosed to every supplier when they join.'
-    expect(ABOUT_PAGE).toContain(sentence)
-    expect(ABOUT_PAGE.split('a percentage the suppliers pay on their billings')).toHaveLength(2)
+  it('names no price anywhere, and no longer says how a program Etyme runs would be paid for', () => {
+    // Until 2026-10-15 About said once that Etyme, running a program, is
+    // paid a percentage the suppliers pay on their billings. The founder's
+    // drawing cut About to five lines and the sentence left the site; the
+    // price line says only that there is no number yet.
     expect(all).not.toContain('a percentage the suppliers pay on their billings')
+    expect(ABOUT_PAGE).not.toContain('a percentage the suppliers pay on their billings')
     for (const text of [all, ABOUT_PAGE]) {
       const found = priceClaims(text)
       expect(found, found.join('; ')).toEqual([])
     }
     expect(body).toContain('Free while we are testing.')
-  })
-
-  it('tells a supplier what a program Etyme runs changes for them, in outcomes', () => {
-    // Reassurance first — rates, sub-vendors' names, the client stays
-    // theirs — and then what is actually better for them. Never a
-    // sentence about being watched or compared.
-    expect(ABOUT_PAGE).toContain('Your rates and your sub-vendors’ names stay private, and your client stays your client.')
-    expect(ABOUT_PAGE).toContain(
-      'Where Etyme runs a client’s program, approvals come back faster and your bills are matched and paid without chasing.'
-    )
     expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
@@ -1338,18 +1178,17 @@ describe('The page shows the product before it describes it', () => {
     expect(PAGE).toContain("title: { absolute: 'Etyme | Enterprise contingent workforce management' }")
   })
 
-  it('shows the hardest answer to believe as the screen that gives it', () => {
+  it('shows the hardest answer to believe as the screen that gives it, live in the demo rather than as a picture', () => {
     // Every contractor across every supplier, on one list. It is the
-    // claim a reader has least reason to believe from prose, so it is the
-    // screen beside the four answers — on About since 2026-09-27.
-    const shot = aboutBlock('answered')?.screen
-    expect(shot?.img).toBe('/screens/contractors.png')
-    expect(existsSync(join(process.cwd(), 'public/screens/contractors.png'))).toBe(true)
-    expect(Date.parse(shot!.capturedAt)).toBeGreaterThan(Date.parse('2026-09-20T22:00:00Z'))
-    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/company-page.tsx'), 'utf8')).toContain('src={b.screen.img}')
-    // The compliance page shows the same answer live: its button seats the
-    // reader at the time-limit screen in the full demo.
+    // claim a reader has least reason to believe from prose. About showed
+    // it as a screenshot until 2026-10-15; no company or documentation
+    // page draws a picture now, and the demo opens the screen itself.
+    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/company-page.tsx'), 'utf8')).not.toContain('<img')
+    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/docs-page.tsx'), 'utf8')).not.toContain('<img')
+    // The customers page of the documentation opens the program screen, and
+    // the compliance page seats the reader at the time-limit screen.
     expect(MODULES.find((m) => m.slug === 'compliance')!.demo.screen).toBe('/dashboard/tenure')
+    expect(TOPICS.find((t) => t.slug === 'customers')!.demo!.screen).toBe('/dashboard/program')
   })
 
 })
@@ -1480,8 +1319,9 @@ describe('The claim about how much of this is a model is computed, not asserted'
 
   it('says how many are left that are not a rule, and says what each of them does, one click from the governance page', () => {
     // The governance page is three lines since 2026-10-14; the acts that are
-    // not a plain rule are named on the documentation's page on time on site
-    // and the logs, and the governance page's last line links to its top.
+    // not a plain rule are named on the documentation's page on the end of
+    // the work and time on site (since 2026-10-15), and the governance
+    // page's last line links to its top.
     const notARule = ALL_ACTIONS.filter((n) => ACTIONS[n].kind === 'UNPROMPTED' && ACTIONS[n].basis !== 'RULE')
     expect(TIME_ON_SITE_DOC).toContain(`${NUMBERS[notARule.length]} are not a plain rule.`)
     for (const name of notARule) {
@@ -1490,7 +1330,7 @@ describe('The claim about how much of this is a model is computed, not asserted'
     }
     expect(TIME_ON_SITE_DOC).toContain(RULE_COUNT_LINE)
     const governance = MODULES.find((m) => m.slug === 'governance')!
-    expect(governance.link).toEqual({ t: 'What is not a rule', href: '/docs/process/govern-and-protect' })
+    expect(governance.link).toEqual({ t: 'What is not a rule', href: '/docs/when-work-ends' })
   })
 
   it('says matching scores a person against a job and falls back to arithmetic when there is no model', () => {
@@ -1563,12 +1403,13 @@ describe('The header reads as an enterprise product, not a job board', () => {
     }
   })
 
-  it('names industries as one product used across them, never a vertical feature', () => {
+  it('names no industry in a menu or on About, never a vertical feature', () => {
     // "Horizontal, never vertical." The Industries menu went on
-    // 2026-09-27 — four items leading to one place — and the sentence
-    // under it is said on About, where it is a fact about the company.
+    // 2026-09-27 — four items leading to one place. About said "One
+    // product serves every industry" until its five lines of 2026-10-15;
+    // what stays held is that nothing names one.
     expect(SITE_MENUS.map((m) => m.label)).not.toContain('Industries')
-    expect(ABOUT_PAGE).toContain('One product serves every industry. There is no industry-specific version to buy.')
+    expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
   })
 
   it('does not let the header text shift the pinned hero words', () => {
@@ -1917,11 +1758,13 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // exposure section is gone: it moved to the compliance page, whose
     // section on what it costs was cut with the founder's skeleton of
     // 2026-10-14.
+    //
+    // The rows that moved to About — the lifecycle, what it sits beside,
+    // why, the gap and its long form, the two ways, the span line and the
+    // hook line — left the site on 2026-10-15, when the founder's drawing
+    // cut About to five lines ("no one is reading large content"). Cut on
+    // purpose, not lost: the two that keep a line elsewhere are below.
     const MOVED: { was: string; to: string; anchor: string | undefined; text: string; phrase: string }[] = [
-      { was: 'lifecycle', to: '/about', anchor: aboutBlock('hire')?.id, text: ABOUT_PAGE,
-        phrase: 'One hire moves through six milestones, and three of them can stop it' },
-      { was: 'alongside', to: '/about', anchor: aboutBlock('alongside')?.id, text: ABOUT_PAGE,
-        phrase: 'Keep your ATS, your VMS and every supplier you already use' },
       // Cut again on 2026-10-14 to the chain and governance pages' three
       // lines: the blind key and the count of what is a rule each kept a
       // line; the page is the anchor now, because it has no sections.
@@ -1929,21 +1772,10 @@ describe('The home page reads as a product page, and every band leads deeper', (
         phrase: 'A blind key shows two suppliers they sent the same person' },
       { was: 'compliance', to: '/governance', anchor: '/governance', text: GOVERNANCE_PAGE,
         phrase: 'things that run without anybody asking are a date, a threshold or a count' },
-      { was: 'why', to: '/about', anchor: aboutBlock('price')?.id, text: ABOUT_PAGE,
-        phrase: 'Looking around costs nothing and needs no card' },
-      { was: 'gap (the long form)', to: '/about', anchor: aboutBlock('unanswered')?.id, text: ABOUT_PAGE,
-        phrase: 'You can name every employee on your payroll' },
-      // The second move, 2026-09-27 afternoon: five bands.
-      { was: 'gap', to: '/about', anchor: aboutBlock('answered')?.id, text: ABOUT_PAGE,
-        phrase: 'The Workforce screen lists every contractor on site today, across every supplier.' },
-      { was: 'ways', to: '/about', anchor: aboutBlock('ways')?.id, text: ABOUT_PAGE,
-        phrase: 'Most clients run the program with their own people.' },
-      { was: 'the hero’s span line', to: '/about', anchor: aboutBlock('build')?.id, text: ABOUT_PAGE,
-        phrase: 'One record holds all of it, and each person opens the part that is theirs.' },
-      // The third move, 2026-09-28: the hook line left the hero for About,
-      // where the not-knowing was already said in full.
-      { was: 'the hero’s hook line', to: '/about', anchor: aboutBlock('unanswered')?.id, text: ABOUT_PAGE,
-        phrase: 'three weeks of asking every supplier' },
+      { was: 'ways', to: '/about', anchor: '/about', text: ABOUT_PAGE,
+        phrase: 'Etyme as VMS software' },
+      { was: 'the hero’s span line', to: '/about', anchor: '/about', text: ABOUT_PAGE,
+        phrase: 'jobs, candidates, timesheets and invoices' },
     ]
     for (const m of MOVED) {
       expect(m.anchor, `#${m.was} has no section on ${m.to}`).toBeTruthy()
@@ -2167,8 +1999,8 @@ function everyPublicPage(): [string, string][] {
     out.push([route, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['/docs', [...copyOfDocsHome().hero, ...copyOfDocsHome().body].join(' ')])
-  // Every page under /docs: the party and reference pages, and since
-  // 2026-09-30 the process, master data and recruiting pages.
+  // Every page under /docs: since 2026-10-15 the five step pages, who does
+  // what, the two references, and the record and recruiting pages.
   for (const route of docRoutes().filter((r) => r !== '/docs')) {
     const c = copyOfDoc(route.slice('/docs/'.length))
     if (c) out.push([route, [...c.hero, ...c.body].join(' ')])
@@ -2196,7 +2028,7 @@ describe('Two words nobody uses (the founder, 2026-10-14)', () => {
     // job title, or "team". Read on every public page a stranger can open,
     // the header, the sheet and the footer, the doors' lines, the census
     // while it stays, and the words a screen reader hears on the
-    // documentation's drawings. Routes and keys (/for/program-offices,
+    // documentation's flow charts. Routes and keys (/for/program-offices,
     // desk: 'ap') are addresses and are not read.
     const two = /\b(?:program(?:me)?[ -]offices?|desks?)\b/i
     const said = [
@@ -2204,7 +2036,8 @@ describe('Two words nobody uses (the founder, 2026-10-14)', () => {
       ['the census', [...Object.values(CENSUS_COPY.form), ...CENSUS_COPY.desks.map((d) => d.label)].join(' ')],
       ['the doors', JSON.stringify([...HOME_DOORS, ...SKELETON_FOOTER_LINKS].map((d) => d.t))],
       ['the party doors', PARTY_PAGES.flatMap((p) => [p.demoLabel, p.signUp.t, p.caption ?? '']).join(' ')],
-      ['the drawings’ alt text', PARTIES.flatMap((p) => [...p.doc.html.matchAll(/\b(?:alt|title|aria-label)="([^"]*)"/g)].map((m) => m[1])).join(' ')],
+      // The documentation drew pictures until 2026-10-15; its flow charts are words now, each box naming who.
+      ['the documentation’s flow charts', STEP_PAGES.flatMap((p) => p.flow.flatMap((b) => [b.role ?? '', b.t])).join(' ')],
     ] as [string, string][]
     for (const [where, text] of said) {
       const found = text.match(new RegExp(`.{0,40}${two.source}.{0,30}`, 'gi')) ?? []
@@ -2277,11 +2110,12 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     expect(all).toContain('Read the security position')
     expect(PAGE).not.toContain('const SECURITY_DONE')
     const page = COMPANY_PAGES.find((c) => c.route === '/security')!
-    const next = page.blocks.find((b) => b.id === 'not')!
-    expect(next.title).toBe('Next, in order')
-    expect(next.items!.map((i) => i.t)).toEqual(['1. A penetration test', '2. SOC 2 Type I', '3. SOC 2 Type II'])
+    // As drawn on 2026-10-15: a numbered list, the penetration test first.
+    const next = page.blocks.find((b) => b.id === 'next')!
+    expect(next.title).toBe('Next, in this order')
+    expect(next.ordered).toEqual(['Penetration test', 'SOC 2 Type I', 'SOC 2 Type II, then ISO 27001'])
     const words = copyOfCompanyPage(page)
-    expect([...words.hero, ...words.body].join(' ')).toContain('No date is published here, because none is contracted.')
+    expect([...words.hero, ...words.body].join(' ')).toContain('No dates yet, because none is contracted.')
   })
 
   it('no public page says the application has no rate limiting or firewall rules; that stays in the internal posture document', () => {
@@ -2356,8 +2190,8 @@ const over = (fg: number[], alpha: number, ground: number[]) => fg.map((c, i) =>
 function inOurWords(text: string): string {
   let t = text
   // A refusal quoted in the documentation is the product's own sentence,
-  // verbatim from the file that says it (`refuses` in docs/process).
-  for (const p of PROCESS) for (const r of p.refuses ?? []) t = t.split(r.says).join(' ')
+  // verbatim from the file that says it (`stops` in docs/process).
+  for (const p of STEP_PAGES) for (const r of p.stops) t = t.split(r.says).join(' ')
   // A product screen named by its own title is the product's word. The
   // client's own screen for what its suppliers send is titled "Invoice
   // receipts": what a firm receives from below (lib/page-framing).
@@ -2369,8 +2203,10 @@ function inOurWords(text: string): string {
   // "Invoices" is the fourth step's name, the founder's of 2026-10-14
   // (Job, Candidates, Timesheets, Invoices): the step is paying what the
   // suppliers sent, so its noun is theirs. Set aside as the chips and as
-  // "Step 4 · Invoices", nowhere else.
+  // "Step 4 · Invoices", and since 2026-10-15 as the documentation's step
+  // page ("Step 4 of 4 Invoices") and About's list of the four steps.
   t = t.replace(/\bJob Candidates Timesheets Invoices\b/g, ' ').replace(/\bStep 4 · Invoices\b/g, ' ')
+    .replace(/\bStep 4 of 4 Invoices\b/g, ' ').replace(/\bjobs, candidates, timesheets and invoices\b/g, ' ')
   return t
 }
 
@@ -2475,7 +2311,7 @@ describe('Plain words on public pages, defined once', () => {
     for (const [route, text] of everyPublicPage().filter(([r]) => r.startsWith('/docs'))) {
       expect(text, route).not.toMatch(/three-way match/i)
     }
-    expect(JSON.stringify(PARTIES.map((p) => p.doc.html))).toContain('Three-way check')
+    expect(onDoc('invoices')).toContain('The three-way check: the hours, the invoice receipt, and the contract rate must all agree.')
     // The census template's column is job now, and the page says so.
     expect(CENSUS_COPY.send.optionA.says).toContain('supplier, job, site')
   })
@@ -2496,32 +2332,21 @@ describe('Plain words on public pages, defined once', () => {
     }
   })
 
-  it('every party page names the fourth value stream “Approve to bill”, the firm being the one billing', () => {
-    for (const { doc } of PARTIES) {
-      expect(doc.thisParty.map((l) => l.label), doc.slug).toContain('L1.4 · Approve to bill')
-      expect(doc.html, doc.slug).not.toMatch(/Approve to invoice/)
-    }
-  })
+  // "Every party page names the fourth value stream Approve to bill" held
+  // the ten party pages, which became one table on 2026-10-15; the value
+  // streams' names are no longer said on any public page.
 
   it('the time-and-money page says only the person who worked the week files it, and the signed week goes down the chain', () => {
     // Founder, 2026-09-28: the worker files their own week only; no
     // supplier files on their behalf (lib/timesheet-authority, mayEnter).
-    const filed = TIME_AND_MONEY.blocks[0].items![0]
-    expect(filed.t).toBe('1 · The week is filed')
-    expect(filed.d).toContain('By the person who worked it and by nobody else')
-    expect(JSON.stringify(PARTIES.map((p) => p.doc.html))).not.toMatch(/may enter on their behalf/)
-    const words = TIME_AND_MONEY.blocks.find((b) => b.id === 'words')!.items!
-    expect(words.map((w) => w.t)).toEqual(['Bill', 'Invoice receipt', 'Payroll'])
-    expect(words[0].d).toContain('What a firm sends its customer.')
+    expect(TIME_AND_MONEY.lines[0]).toBe('Only the person who worked the week files it. Nobody else may.')
+    expect(TIME_AND_MONEY.lines[1]).toBe('The client approves it first. Then each firm below accepts the same week, in turn.')
+    expect(onDoc('timesheets')).toContain('Only the worker files the week. Nobody else may.')
+    for (const [route, text] of everyPublicPage()) expect(text, route).not.toMatch(/may enter on their behalf/)
   })
 
-  it('the legend under every drawing ends on a whole sentence, never cut mid-word', () => {
-    for (const { doc } of PARTIES) {
-      const legend = doc.html.match(/Labeled arrow[^<]*/)?.[0] ?? ''
-      expect(legend, doc.slug).toContain('job request, submission, order, timesheet receipt, bill, invoice receipt.')
-      expect(legend.trim(), doc.slug).toMatch(/[.]$/)
-    }
-  })
+  // "The legend under every drawing ends on a whole sentence" held the
+  // party pages' drawings, which left the site on 2026-10-15.
 
   it('the census asks for the invoice receipts a client holds, what it received from its suppliers', () => {
     for (const said of [GET_THE_AUDIT.d, JSON.stringify(CENSUS_COPY)]) {
@@ -2573,11 +2398,12 @@ describe('Plain words on public pages, defined once', () => {
     // The compliance page names it in its question and says what it
     // counts in its first line: months on site per person, across every
     // supplier. The governance page's own definition left with its
-    // sections on 2026-10-14; About keeps one.
+    // sections on 2026-10-14, and About's with its five lines on
+    // 2026-10-15; the end-of-work page names the limit beside what it does.
     const compliance = copyOfModule(MODULES.find((m) => m.route === '/compliance')!)
     expect(compliance.hero[0]).toContain('time limit')
     expect(compliance.body[0]).toBe('See each person’s months on site, added up across every supplier.')
-    expect(ABOUT_PAGE).toContain('Time limits on how long one person may stay')
+    expect(TIME_ON_SITE_DOC).toContain('An extension is checked against the time limit first. At the limit it is blocked.')
   })
 
   it('a trade word a buyer may not know is glossed where the public site first uses it', () => {
@@ -2703,7 +2529,8 @@ function everyPublicWord(): [string, string][] {
   }
   out.push(['/demo seats', copyFrom(readFileSync(join(process.cwd(), 'src/app/demo/seats.ts'), 'utf8')).join(' ')])
   out.push(['the layout', copyFrom(readFileSync(join(process.cwd(), 'src/app/layout.tsx'), 'utf8')).join(' ')])
-  for (const p of PARTIES) out.push([`/docs/${p.doc.slug} (html)`, p.doc.html])
+  // The ten party pages' HTML was read here until 2026-10-15, when they
+  // became one table; every documentation page is in everyPublicPage().
   return out
 }
 
@@ -2755,23 +2582,13 @@ describe('Etyme names no enterprise incumbent, and explains its words by their o
     }
   })
 
-  it('every party page keeps its glossary under each drawing, headed in its own words, with two columns and no column for another system', () => {
-    for (const p of PARTIES) {
-      expect(p.doc.html, p.doc.slug).not.toMatch(/What an ERP calls it/i)
-      expect(p.doc.html, p.doc.slug).not.toMatch(/Where they meet, and where they part/)
-      expect(p.doc.html, p.doc.slug).toContain('Etyme says · what it means')
-      expect(p.doc.html, p.doc.slug).toContain('<th>Etyme says</th><th>What it is, and why</th>')
-      // The drawings and their stations table and integration points stay.
-      expect(p.doc.html, p.doc.slug).toContain('Integration points')
-      expect(p.doc.html, p.doc.slug).toMatch(/Stations · L3/)
-    }
-  })
+  // "Every party page keeps its glossary under each drawing" held the
+  // glossaries, stations tables and integration points, which the
+  // founder's drawing of 2026-10-15 took off every documentation page.
 
   it('names the three-way check by what it checks, and the bill by who issues it, never by what another system calls them', () => {
-    const client = PARTIES.find((p) => p.doc.slug === 'client')!.doc.html
-    expect(client).toContain('The hours, the invoice receipt, and the contract rate must all agree: work order ↔ timesheet receipt ↔ invoice receipt.')
-    expect(client).toContain('The party who issues a document names it, so a firm bills its customer.')
-    expect(client).not.toMatch(/goods receipt|service entry sheet/)
+    expect(onDoc('invoices')).toContain('The three-way check: the hours, the invoice receipt, and the contract rate must all agree.')
+    for (const [route, text] of everyPublicPage()) expect(text, route).not.toMatch(/goods receipt|service entry sheet/)
   })
 
 })

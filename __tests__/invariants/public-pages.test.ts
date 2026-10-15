@@ -25,13 +25,13 @@ import { PUBLIC_PAGES, NOT_MARKETING, MODULE_ROUTES, DOCS_SLUGS, SITE_GROUP, pag
 import { MODULES, copyOfModule } from '@/lib/public-site/modules'
 import { COMPANY_PAGES, ABOUT, CONTACT, SECURITY, copyOfCompanyPage } from '@/lib/public-site/company'
 import {
-  PARTIES, REFERENCE, INTEGRATIONS, TIME_AND_MONEY, docSlugs, partyAt, copyOfDoc, copyOfDocsHome, textOfHtml,
+  REFERENCE, TIME_AND_MONEY, WHO_DOES_WHAT, docSlugs, docRoutes, copyOfDoc, copyOfDocsHome,
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt } from '@/lib/public-site/parties'
 import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
-import { PROCESS } from '@/lib/public-site/docs/process'
+import { STEP_PAGES } from '@/lib/public-site/docs/process'
 import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEADER_MORE, FOOTER as SITE_FOOTER } from '@/lib/public-site/nav'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
@@ -161,7 +161,7 @@ describe('No public page says what we agreed never to say', () => {
       expect(priceClaims(all(c)), `${p.route} quotes a price`).toEqual([])
     }
     expect(priceClaims(frameCopy().join(' '))).toEqual([])
-    expect(all(copyOfCompanyPage(ABOUT))).toContain('free while it is tested')
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('Free while we test with our first companies.')
   })
 
   it('no sentence on any new page reads as aimed at a supplier', () => {
@@ -296,22 +296,26 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(VIEW).toContain('<a href={link.href}')
   })
 
-  it('every refusal the product pages quoted is on the documentation page of the step where it happens, in the words of the file that says it', () => {
-    const quoted = PROCESS.flatMap((p) => (p.refuses ?? []).map((r) => ({ at: p.slug, ...r })))
-    expect(quoted.length).toBeGreaterThanOrEqual(15)
+  it('every refusal the documentation quotes is on the page of the step where it happens, in the words of the file that says it', () => {
+    // At most three per step page since 2026-10-15, when the founder's
+    // drawing cut each step to one screen.
+    const quoted = STEP_PAGES.flatMap((p) => p.stops.map((r) => ({ at: p.slug, ...r })))
+    expect(quoted.length).toBeGreaterThanOrEqual(10)
+    for (const p of STEP_PAGES) expect(p.stops.length, p.slug).toBeLessThanOrEqual(3)
     for (const r of quoted) {
       expect(r.says, `${r.at}: the phrase must be part of the sentence`).toContain(r.phrase)
       expect(existsSync(join(ROOT, r.source)), r.source).toBe(true)
       expect(read(r.source), `${r.at}: "${r.phrase}" is not in ${r.source}`).toContain(r.phrase)
     }
     const at = (phrase: string) => quoted.find((r) => r.phrase === phrase)?.at
-    expect(at('cannot start without')).toBe('contract-to-onboard')
-    expect(at('Nobody approves their own hours.')).toBe('work-to-approve')
-    expect(at('No line on this invoice is backed by an approved timesheet or expense')).toBe('approve-to-pay')
-    expect(at('not among the suppliers Procurement cleared for this requirement')).toBe('source-to-contract')
-    // Each stage that stops something also shows one thing it lets through with a reason or sends to a desk.
-    for (const p of PROCESS.filter((x) => x.refuses?.some((r) => r.kind === 'BLOCK') && x.refuses.length > 1)) {
-      expect(p.refuses!.some((r) => r.kind !== 'BLOCK'), p.slug).toBe(true)
+    expect(at('cannot start without')).toBe('candidates')
+    expect(at('Nobody approves their own hours.')).toBe('timesheets')
+    expect(at('No line on this invoice is backed by an approved timesheet or expense')).toBe('invoices')
+    expect(at('not among the suppliers Procurement cleared for this requirement')).toBe('job')
+    expect(at('months tenure (time limit: ')).toBe('when-work-ends')
+    // Each step that stops something also shows one thing it lets through with a reason.
+    for (const p of STEP_PAGES.filter((x) => x.stops.some((r) => r.kind === 'BLOCK') && x.stops.length > 1)) {
+      expect(p.stops.some((r) => r.kind === 'WARN'), p.slug).toBe(true)
     }
   })
 
@@ -329,78 +333,54 @@ describe('The documentation is public', () => {
 
   it('the documentation is readable without signing in: no page in it asks for an account', () => {
     const docs = PUBLIC_PAGES.filter((p) => p.kind === 'DOCS')
+    expect(docs.map((p) => p.route).sort()).toEqual([...docRoutes()].sort())
     for (const p of docs) {
-      const text = all(copyOfDoc(p.route.replace('/docs/', '')) ?? copyOfDocsHome())
+      const text = all(copyOf(p.route)!)
       expect(text, p.route).not.toMatch(/behind sign-in|sign in to read|needs a sign-in|start free/i)
     }
-    for (const p of PARTIES) expect(p.doc.html, p.doc.slug).not.toMatch(/href="\/login"/)
+    expect(all(copyOfDocsHome())).toContain('No account needed.')
     // The thread's line said "behind sign-in". Ours is public, and says so.
     expect(DOCS_LINK.d).toMatch(/public/i)
     expect(DOCS_LINK.d).toMatch(/no sign-in/i)
   })
 
-  it('there is a documentation page for each of the ten parties and for time and money and integrations', () => {
+  it('there is a documentation page for each step and the end of the work, for who does what, and for time and money and integrations', () => {
+    // Since 2026-10-15 the ten party pages are one table, and the nine
+    // process pages are five; the old addresses redirect (public-site-sequence).
     expect(docSlugs()).toEqual([...DOCS_SLUGS])
-    expect(PARTIES).toHaveLength(10)
+    expect(docSlugs()).toEqual(['job', 'candidates', 'timesheets', 'invoices', 'when-work-ends', 'who-does-what', 'time-and-money', 'integrations'])
     expect(REFERENCE.map((r) => r.slug)).toEqual(['time-and-money', 'integrations'])
+    expect(WHO_DOES_WHAT.rows).toHaveLength(7)
   })
 
   it('the page of machine-extracted test sentences is held back rather than published half-cut', () => {
     expect(docSlugs()).not.toContain('held-for-everybody')
-    for (const p of PARTIES) {
-      expect(p.doc.html, p.doc.slug).not.toMatch(/vitest|ETYME_TEST_DB|Proven by \d+ test sentences/)
-    }
-  })
-
-  it('every drawing the documentation shows is a file that exists under public/model', () => {
-    let drawings = 0
-    for (const p of PARTIES) {
-      for (const [, src] of p.doc.html.matchAll(/<img[^>]*src="([^"]+)"/g)) {
-        drawings++
-        expect(src.startsWith('/model/'), src).toBe(true)
-        expect(existsSync(join(ROOT, 'public', src)), `${src} does not exist`).toBe(true)
-      }
-    }
-    expect(drawings).toBeGreaterThan(50)
-  })
-
-  it('every link in the documentation goes to a page on this site that exists, or to a section on the page', () => {
-    const routes = new Set([...PUBLIC_PAGES.map((p) => p.route), '/login'])
-    for (const p of PARTIES) {
-      for (const [, href] of p.doc.html.matchAll(/<a[^>]*href="([^"]+)"/g)) {
-        if (href.startsWith('#')) {
-          expect(p.doc.html, `${p.doc.slug} links to #${href.slice(1)}, which is not on the page`).toContain(`id="${href.slice(1)}"`)
-          continue
-        }
-        const [path, anchor] = href.split('#')
-        if (path.startsWith('/model/')) continue
-        expect(routes.has(path), `${p.doc.slug} links to ${href}`).toBe(true)
-        if (anchor && path.startsWith('/docs/')) {
-          expect(partyAt(path.slice(6))?.html ?? '', `${href} has no section #${anchor}`).toContain(`id="${anchor}"`)
-        }
-      }
+    for (const r of docRoutes()) {
+      const c = r === '/docs' ? copyOfDocsHome() : copyOfDoc(r.slice('/docs/'.length))!
+      expect(all(c), r).not.toMatch(/vitest|ETYME_TEST_DB|Proven by \d+ test sentences/)
     }
   })
 
   it('the documentation explains every term in Etyme’s own words, and says nowhere what an ERP or any other system calls it', () => {
     // The founder, 2026-09-28: naming the incumbents, or explaining the
     // model as a translation of an ERP's, "makes it sound like we copied
-    // them". ERP survives only as a place a document crosses to the books.
-    for (const p of PARTIES) {
-      expect(p.doc.html, p.doc.slug).not.toMatch(/What an ERP calls it/i)
-      expect(p.doc.html, p.doc.slug).toContain('Etyme says · what it means')
-      expect(incumbentComparison(textOfHtml(p.doc.html)), p.doc.slug).toEqual([])
-      expect(namedCompanies(textOfHtml(p.doc.html)), p.doc.slug).toEqual([])
+    // them". The glossaries left with the party pages on 2026-10-15; the
+    // guard stays on every page that is left.
+    for (const r of docRoutes()) {
+      const text = all(r === '/docs' ? copyOfDocsHome() : copyOfDoc(r.slice('/docs/'.length))!)
+      expect(text, r).not.toMatch(/What an ERP calls it/i)
+      expect(incumbentComparison(text), r).toEqual([])
+      expect(namedCompanies(text), r).toEqual([])
     }
   })
 
   it('the documentation claims no connector that is not built', () => {
-    const everywhere = [...PARTIES.map((p) => textOfHtml(p.doc.html)), all(copyOfDoc('integrations')!)].join(' ')
+    const everywhere = docRoutes().map((r) => all(r === '/docs' ? copyOfDocsHome() : copyOfDoc(r.slice('/docs/'.length))!)).join(' ')
     expect(everywhere).not.toMatch(/\bConnected\b/)
     expect(everywhere).not.toMatch(/Settings › Integrations/)
     expect(all(copyOfDoc('integrations')!)).toContain('No named connector')
     // What the page says does exist, does.
-    for (const route of ['export', 'keys', 'webhooks', 'reconcile']) {
+    for (const route of ['export', 'keys', 'webhooks']) {
       expect(existsSync(join(ROOT, `src/app/api/integrations/${route}/route.ts`)), route).toBe(true)
     }
   })
@@ -415,21 +395,51 @@ describe('The documentation is public', () => {
     expect(t).toContain('an order being topped up')
     expect(t).not.toMatch(/both approve|never approves their own expenses/i)
   })
+
+  it(`every documentation and company page fits on one screen: about a hundred and fifty words of its own, a step page about two hundred`, () => {
+    // The founder, 2026-10-15: "no one is reading large content". Counted
+    // from the page's own words — not the header, the footer, Previous and
+    // Next, or the demo line every step shares. "When the work ends"
+    // carries the computed list of what runs on its own, which the
+    // governance page links to, so it is allowed more.
+    const most = (route: string) =>
+      route === '/docs/when-work-ends' ? 230
+        : STEP_PAGES.some((p) => `/docs/${p.slug}` === route) || route === '/security' ? 200
+        : 160
+    const pages = [...docRoutes(), '/about', '/security']
+    for (const route of pages) {
+      const c = copyOf(route)!
+      const n = countWords([...c.hero, ...c.body])
+      expect(n, `${route} carries ${n} words`).toBeLessThanOrEqual(most(route))
+    }
+    expect(countWords([...copyOfCompanyPage(ABOUT).hero, ...copyOfCompanyPage(ABOUT).body])).toBeLessThanOrEqual(110)
+  })
 })
 
 describe('Security, About and Contact say only what can be checked', () => {
 
   it('the security position claims no attestation Etyme does not hold', () => {
     const s = all(copyOfCompanyPage(SECURITY))
-    expect(s).toContain('Etyme has no SOC 2 report, no ISO 27001 certificate and no third-party penetration test.')
+    expect(s).toContain('No SOC 2 report, no ISO 27001 certificate, no penetration test.')
     expect(s).not.toMatch(/\b(SOC 2|ISO 27001)\b[^.]*\b(certified|compliant|attested|audited)\b/i)
   })
 
-  it('the security position says what is done, what is not, and when, with no date nobody has committed to', () => {
-    expect(SECURITY.blocks.map((b) => b.id)).toEqual(expect.arrayContaining(['done', 'not', 'when']))
-    const when = SECURITY.blocks.find((b) => b.id === 'when')!.paragraphs!.join(' ')
+  it('the security position says what is done, what is not done yet, what is next in order with no date nobody has committed to, and where to report a problem', () => {
+    // As drawn, 2026-10-15: Done, Not done yet, Next in this order, Found a problem.
+    expect(SECURITY.blocks.map((b) => b.title)).toEqual(['Done', 'Not done yet', 'Next, in this order', 'Found a problem?'])
+    expect(SECURITY.blocks.find((b) => b.id === 'done')!.lines).toHaveLength(6)
+    expect(SECURITY.blocks.find((b) => b.id === 'not')!.lines).toHaveLength(5)
+    const next = SECURITY.blocks.find((b) => b.id === 'next')!
+    expect(next.ordered).toEqual(['Penetration test', 'SOC 2 Type I', 'SOC 2 Type II, then ISO 27001'])
+    const when = [...next.ordered!, next.note!].join(' ')
     expect(when).not.toMatch(/\b20\d\d\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\b|\bQ[1-4]\b/)
-    expect(when).toContain('No date is published here')
+    expect(next.note).toBe('No dates yet, because none is contracted. A date goes here when one is.')
+    const report = SECURITY.blocks.find((b) => b.id === 'report')!.paragraphs!.join(' ')
+    expect(report).toContain('support@etyme.com')
+    expect(report).toContain('Test only on the demo.')
+    // The long version is an internal document no reader can open, so no
+    // link promises it.
+    expect(all(copyOfCompanyPage(SECURITY))).not.toMatch(/long version/i)
   })
 
   it('contact names Durham, North Carolina and says a person answers, with no promised reply time', () => {
@@ -440,12 +450,17 @@ describe('Security, About and Contact say only what can be checked', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain('<Ask source="HOME_PAGE" />')
   })
 
-  it('about says Etyme never runs a bench and never places anybody, and offers to run the program once, quietly', () => {
-    const neutral = ABOUT.blocks.find((b) => b.id === 'neutral')!
-    expect(neutral.title).toBe('Etyme never runs a bench and never places anybody')
+  it('about is five lines: what we build, what we never do, the two ways, the price, and where we are', () => {
+    const lines = ABOUT.blocks.flatMap((b) => b.lines ?? [])
+    expect(lines.map((l) => l.lead)).toEqual(['What we build.', 'What we never do.', 'Two ways to use it.', 'Price.', 'Where we are.'])
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('Etyme never supplies workers and never runs a bench.')
+  })
+
+  it('about offers to run the program once, quietly, in the founder’s two labels', () => {
     expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toEqual([
-      'If you would rather not run the program yourself, Etyme can run it for you on the same record.',
+      'Or Etyme runs it for you: Etyme as MSP provider.',
     ])
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('Your team runs it: Etyme as VMS software.')
   })
 
   it('the spend-audit landing page with invented numbers is not brought across', () => {
@@ -510,7 +525,7 @@ describe('One header and footer on every new page', () => {
     // page, never the middle of one.
     const labels = [...NAV_MENUS.map((m) => ({ label: m.label, href: m.href })), ...NAV_LINKS]
     expect(labels.map((l) => [l.label, l.href])).toEqual([
-      ['Platform', '/requisitions'], ['Solutions', '/docs/process'], ['How It Works', '/docs/process'], ['Security', '/security'],
+      ['Platform', '/requisitions'], ['Solutions', '/docs'], ['How It Works', '/docs'], ['Security', '/security'],
     ])
     for (const l of labels) {
       expect(l.href, l.label).not.toContain('#')
@@ -557,11 +572,11 @@ describe('One header and footer on every new page', () => {
     // Since 2026-09-30 each lands on the top of a page written for that
     // reader, never on a section in the middle of one.
     const written: Record<string, string> = {
-      'The program manager': '/docs/process',
+      'The program manager': '/docs',
       Procurement: '/docs/master-data/suppliers',
-      'HR and compliance': '/docs/process/contract-to-onboard',
+      'HR and compliance': '/docs/candidates',
       Finance: '/docs/time-and-money',
-      'Hiring managers': '/docs/process/work-to-approve',
+      'Hiring managers': '/docs/timesheets',
       Suppliers: '/chain',
     }
     for (const role of ROLES) {
@@ -570,16 +585,10 @@ describe('One header and footer on every new page', () => {
       expect(pageAt(role.href), `${role.t} leads to ${role.href}, which is not a public page`).toBeTruthy()
       expect(['/', '/about', '/contact'], role.t).not.toContain(role.href)
     }
-    // The jobs named in each client section are the ones the entry is for.
-    const section = (id: string) => {
-      const html = partyAt('client')!.html
-      const at = html.indexOf(`id="${id}"`)
-      const next = html.indexOf('<section', at + 1)
-      return html.slice(at, next > 0 ? next : undefined)
-    }
-    expect(section('l1-1')).toMatch(/Procurement/)
-    expect(section('l1-2')).toMatch(/HR/)
-    expect(section('l1-3')).toMatch(/Hiring Manager/)
+    // The page each entry opens names the job the entry is for.
+    expect(all(copyOfDoc('master-data/suppliers')!)).toMatch(/Procurement/)
+    expect(all(copyOfDoc('candidates')!)).toMatch(/Compliance officer/)
+    expect(all(copyOfDoc('timesheets')!)).toMatch(/Hiring manager/)
   })
 
   it('the solutions menu opens on four client jobs, then adds hiring managers and suppliers', () => {
@@ -620,11 +629,11 @@ describe('One header and footer on every new page', () => {
     for (const p of PUBLIC_PAGES) expect(existsSync(join(ROOT, p.routeFile)), `${p.route} has no route file`).toBe(true)
   })
 
-  it('there is no Industries menu, and About still says it is one product for every industry', () => {
+  it('there is no Industries menu', () => {
     // The menu had four items leading to one place. The sentence under it
-    // is a fact about the company, and it stays, on About.
+    // lived on About until 2026-10-15, when the founder's drawing cut About
+    // to five lines; no page names an industry instead.
     expect(NAV_MENUS.map((m) => m.label)).not.toContain('Industries')
-    expect(all(copyOfCompanyPage(ABOUT))).toContain('There is no industry-specific version to buy.')
   })
 
   it('every link in the header and footer goes to a registered public page, the demo, sign-in or a section of the home page', () => {
@@ -671,79 +680,21 @@ describe('One header and footer on every new page', () => {
 describe('The documentation is written in plain English for a reader anywhere', () => {
   // The founder, 2026-09-29: plain English that people in India, the US,
   // the UK and Australia, and non-native readers, can read. Short blocks,
-  // one idea per line. The chips are labels, not sentences, so they are
-  // left out of the count.
-  const words = (html: string) => textOfHtml(html.replace(/<span class="chip[^"]*"[^>]*>[^<]*<\/span>/g, ' '))
+  // one idea per line. Until 2026-10-15 this block also held the ten party
+  // pages' opening lists and their stations tables against the drawings
+  // in docs/lanes; the pages, the tables and the drawings on the site
+  // went together, so those sentences went with them.
 
-  for (const p of PARTIES) {
-    it(`no sentence on the ${p.doc.title} documentation page runs past twenty-five words`, () => {
-      expect(longSentences(p.doc.lede, 25), p.doc.slug).toEqual([])
-      expect(longSentences(words(p.doc.html), 25), p.doc.slug).toEqual([])
-    })
-  }
+  it('no sentence on any documentation page runs past twenty-five words', () => {
+    for (const r of docRoutes()) {
+      const c = r === '/docs' ? copyOfDocsHome() : copyOfDoc(r.slice('/docs/'.length))!
+      expect([...c.hero, ...c.body].flatMap((l) => longSentences(l, 25)), r).toEqual([])
+    }
+  })
 
   it('no sentence on the documentation home runs past twenty-five words', () => {
     const home = copyOfDocsHome()
     expect([...home.hero, ...home.body].flatMap((l) => longSentences(l, 25))).toEqual([])
-  })
-
-  it('every party page says its position on a deal as short lines, and how to read a drawing as a list', () => {
-    for (const p of PARTIES) {
-      const first = p.doc.html.slice(0, p.doc.html.indexOf('</section>'))
-      expect(first, p.doc.slug).toMatch(/<h2>Position on a deal<\/h2><ul class="lines">/)
-      expect(first, p.doc.slug).toContain('<h3 class="sub">How to read a drawing</h3><ul class="lines legend">')
-      // No paragraph of prose is left in the opening section.
-      expect(first.replace(/<p class="eyebrow"[^>]*>[^<]*<\/p>|<p style="margin-top:10px">[\s\S]*?<\/p>/g, ''), p.doc.slug).not.toMatch(/<p[ >]/)
-    }
-  })
-
-  /**
-   * Words the tables say that the drawings do not say yet. The founder
-   * ruled on 2026-10-14 that no page says "desk" or "program office", and
-   * the tables were reworded that day; the drawings are images drawn from
-   * `docs/lanes/streams.mjs`, which has no owner in `lib/domains.ts`, so
-   * they still carry the old words until somebody owns and redraws them
-   * (KNOWN-LIMITS.md, the market's section). Each entry is the table's
-   * words and the words still drawn. This list may only shrink: the test
-   * below fails on an entry the drawing has caught up with.
-   */
-  const DRAWN_AS: Record<string, string> = {
-    'after both · else program manager': 'after both · else program office',
-    'Exception → a person': 'Exception → desk',
-    'nobody decides two steps': 'nobody decides two desks',
-    'Three people clear it': 'Three desks clear it',
-    'no submission between two managers': 'no submission between two desks',
-    'the payroll team cannot raise a bill': 'the payroll desk cannot raise a bill',
-  }
-
-  it('every station renamed ahead of its drawing is still drawn in the old words, and only until it is redrawn', () => {
-    const streams = read('docs/lanes/streams.mjs')
-    const drawn = (s: string) => streams.includes(`'${s}'`)
-    const tables = PARTIES.map((p) => p.doc.html).join(' ')
-    for (const [now, was] of Object.entries(DRAWN_AS)) {
-      expect(tables, now).toContain(now)
-      expect(drawn(was), `“${was}” is no longer drawn: take “${now}” off DRAWN_AS`).toBe(true)
-      expect(drawn(now), `“${now}” is drawn now: take it off DRAWN_AS`).toBe(false)
-    }
-  })
-
-  it('every station in the documentation’s tables is drawn in the same words, so the table and the drawing cannot drift', () => {
-    const streams = read('docs/lanes/streams.mjs')
-    const drawn = (s: string) => {
-      const t = s.replace(/&amp;/g, '&')
-      return streams.includes(`'${t}'`) || (t in DRAWN_AS && streams.includes(`'${DRAWN_AS[t]}'`))
-    }
-    for (const p of PARTIES) {
-      for (const [, label, what, rule] of p.doc.html.matchAll(
-        /<tr><td><span class="num">[^<]*<\/span><\/td><td><b>((?:(?!<\/b>).)*)<\/b>.*?<\/td><td>.*?<\/td><td>((?:(?!<\/td>).)*)<\/td><td>((?:(?!<\/td>).)*)<\/td><\/tr>/g,
-      )) {
-        expect(drawn(label), `${p.doc.slug}: station “${label}” is not drawn`).toBe(true)
-        expect(drawn(what), `${p.doc.slug}: “${what}” is not drawn`).toBe(true)
-        for (const [, r] of rule.matchAll(/<span class="chip chip--danger">([^<]*)<\/span>/g)) {
-          expect(drawn(r), `${p.doc.slug}: refusal “${r}” is not drawn`).toBe(true)
-        }
-      }
-    }
   })
 })
 

@@ -61,7 +61,7 @@ export function FlowChart({ label, boxes }: { label: string; boxes: FlowBox[] })
           >
             <span className="flex items-center gap-2">
               <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-etyme-faint">{i + 1}</span>
-              {b.who && <span className={`chip ${ACTOR_CHIP[b.who]}`}>{ACTOR_LABEL[b.who]}</span>}
+              {b.who && <span className={`chip ${ACTOR_CHIP[b.who]}`}>{b.role ?? ACTOR_LABEL[b.who]}</span>}
             </span>
             <span className="mt-2 text-[14px] leading-snug text-etyme-ink">{b.t}</span>
             {i < boxes.length - 1 && <Arrow />}

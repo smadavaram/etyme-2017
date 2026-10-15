@@ -1,17 +1,20 @@
 /**
- * Master data and recruiting: the two parts of the documentation beside
- * the process. Decided by the founder, 2026-09-30: "split job
+ * Your records and recruiting: the two parts of the documentation beside
+ * the four steps. Decided by the founder, 2026-09-30: "split job
  * requirement and master data like business partner (customer, vendor)
  * and consultant management, and matching, screening, application
  * tracking."
  *
- * Each page is the same shape as a process page: a flow chart first,
- * then short lines, then the rest of its group with "you are here". Each
- * line says something the product already does, and names the page or
- * the file where a reader can check it on the site.
+ * Cut to one screen on 2026-10-15, with the rest of the public site (the
+ * founder: "make it real and make it simple"): a heading, one line, and
+ * at most six short lines. The flow charts, the "read it as one party"
+ * links and the product-page links went; the facts a buyer can check
+ * stayed. The headings are the drawing's: Customers, Suppliers and
+ * Contractors under "Your records"; Who matches a job, Screening and Who
+ * applied under "Recruiting". The addresses did not move.
  */
 
-import type { DemoTarget, FlowBox } from '../flow'
+import type { DemoTarget } from '../flow'
 
 export type TopicGroup = 'master-data' | 'recruiting'
 
@@ -21,127 +24,59 @@ export interface TopicPage {
   title: string
   /** One line under the title. Names contractors or suppliers. */
   lede: string
-  flow: FlowBox[]
+  /** At most six, one idea each. */
   lines: string[]
-  /** The party pages this reads well beside. */
-  parties: string[]
-  /** The product page that shows it, if one does. */
-  product?: string
   demo?: DemoTarget
-  /** Short sections under the lines (`DocSection` in `./process`). */
-  more?: { id: string; title: string; lines: string[] }[]
 }
 
 export const GROUP_TITLE: Record<TopicGroup, string> = {
-  'master-data': 'Master data',
+  'master-data': 'Your records',
   recruiting: 'Recruiting',
 }
 
-export const GROUP_LEDE: Record<TopicGroup, string> = {
-  'master-data': 'The business partners — customers and suppliers — and the consultants every process runs on.',
-  recruiting: 'How people are matched to a job, screened on arrival, and tracked to an award.',
-}
-
 export const TOPICS: TopicPage[] = [
-  // ── Master data ────────────────────────────────────────────────────
+  // ── Your records ───────────────────────────────────────────────────
   {
     group: 'master-data',
     slug: 'customers',
     title: 'Customers',
     lede: 'The customer is the company that uses contractors from its suppliers. It buys and never sells.',
-    flow: [
-      { who: 'CLIENT', t: 'The company signs in with its own domain' },
-      { who: 'CLIENT', t: 'It sets its policy: time limit, break, rate bands' },
-      { who: 'CLIENT', t: 'It names who does each job' },
-      { who: 'CLIENT', t: 'It signs an agreement with a supplier, if it wants one' },
-      { who: 'CLIENT', t: 'It raises orders: a header, and a line per person' },
-    ],
     lines: [
-      'One company is one domain name. Its staff sign in through their company’s own sign-in.',
-      'The policy is set once: the time limit, the break in service and the rate bands.',
-      'HR and Procurement are named per business unit. The nearest one decides.',
-      'Where no lead is named yet, the program manager stands in.',
-      'The agreement (MSA) is optional. A customer with one order and one contractor never needs one first.',
-      'The agreement can require a supplier to name the firms below it. That is off unless the customer asks at signing.',
-      'An order holds the ceiling. Each line holds one person and one rate.',
-      'Papers the customer requires are set on the order. Every line under it inherits them.',
-      'The customer sees the supplier it pays, and the rate it pays, and nothing below.',
-      'It always sees whether the firm employing a person on its site is insured and authorized.',
+      'One company is one domain name. Its people sign in through their own company.',
+      'It sets its rules once: the time limit, the break in service and the rate ranges.',
+      'An agreement (MSA) with a supplier is optional.',
+      'An order holds the spending limit. Each line on it is one person at one rate.',
+      'It sees the supplier it pays and the rate it pays, and nothing below.',
+      'It always sees whether the firm employing a person on its site is insured.',
     ],
-    parties: ['client', 'msp-program-office'],
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/program', seat: 'the program manager' },
   },
   {
     group: 'master-data',
     slug: 'suppliers',
     title: 'Suppliers',
-    lede: 'A supplier is checked by four people at the client before it may be sent a job.',
-    flow: [
-      { who: 'CLIENT', t: 'Somebody recommends the firm' },
-      { who: 'CLIENT', t: 'Their department lead confirms the need' },
-      { who: 'CLIENT', t: 'Procurement qualifies the firm' },
-      { who: 'CLIENT', t: 'HR clears its compliance' },
-      { who: 'CLIENT', t: 'Finance checks the tax form and bank details' },
-      { who: 'SUPPLIER', t: 'The firm is an approved supplier' },
-    ],
+    lede: 'A supplier is approved by four people at the client before it is sent a job.',
     lines: [
-      'The firm gets a link of its own to send its side. No sign-in is needed.',
-      'What the firm sends is received, never verified, until the person checking it says so.',
-      'Procurement reads its experience, references, revenue, delivery proofs, proposal and a business credit report.',
-      'HR clears the certificate of insurance and a sanctions and litigation screening.',
-      'Finance verifies the tax form and the bank details, and says the last yes.',
-      'Each person verifies their own items. Nobody decides two steps.',
+      'A department lead confirms the need. Procurement, HR and Finance each check their part.',
       'Whoever recommended the firm decides none of it.',
-      'Bank details are kept to the bank, the account name and the last four digits.',
-      'A supplier’s standing is probation, approved or preferred.',
-      'A supplier whose insurance lapsed can submit nobody until it is back in date.',
-      'A supplier brings its own team: account managers, recruiters, HR, contract managers and finance.',
-      'A client can star a firm it would use again, or block one.',
+      'A supplier whose insurance lapsed can put nobody forward until it is renewed.',
+      'Prime, sub and bench are positions on a deal, not kinds of company.',
+      'A firm that is not on Etyme is outside the record. What it forwards by email, Etyme cannot see.',
     ],
-    more: [
-      {
-        id: 'positions',
-        title: 'Prime, sub and bench are positions, not kinds of firm',
-        lines: [
-          'Prime, sub and bench are positions on a deal, not kinds of company.',
-          'The same firm is a prime this week and a sub next week.',
-          'A prime sends a job to its sub without giving up the client’s name.',
-          'A sub prices a job against the real band before it answers.',
-          'A bench vendor’s worker stays unnamed until there is a signed right to represent them.',
-          'The client sees the supplier it pays and whether the employer is insured and authorized.',
-        ],
-      },
-    ],
-    parties: ['prime-vendor', 'sub-vendor', 'bench-vendor', 'systems-integrator', 'self-employed'],
-    product: '/requisitions',
     demo: { as: 'world-nike', desk: 'procurement', screen: '/dashboard/suppliers', seat: 'Procurement' },
   },
   {
     group: 'master-data',
     slug: 'consultants',
-    title: 'Consultants',
+    title: 'Contractors',
     lede: 'A contractor is one person on the record, whichever supplier puts them forward.',
-    flow: [
-      { who: 'SUPPLIER', t: 'A supplier adds the consultant' },
-      { who: 'SUPPLIER', t: 'They are marketed by default, unless the firm keeps them' },
-      { who: 'WORKER', t: 'The consultant agrees to be put forward' },
-      { who: 'SUPPLIER', t: 'The supplier submits them to a job' },
-      { who: 'RULES', t: 'Time on site counts per person at the client' },
-    ],
     lines: [
-      'A firm submits a person only with their consent: a bench listing they granted.',
-      'A firm’s own W2 employee is the exception. The employee is told, not asked.',
-      'Nothing about the consultant reaches past the firm until the consultant grants it.',
-      'Consultants sign in with an email link. No company domain is needed.',
-      'The consultant’s own page names every firm between them and the client.',
-      'Rates at levels the consultant is not part of stay closed.',
-      'Only the worker files their own week.',
-      'At the client, each person has one page: time here, submissions, interviews and paperwork.',
-      'Every read of that page is logged.',
-      'A client can star a person it would take again, or block one.',
+      'A supplier puts a person forward only with their consent.',
+      'A firm’s own employee is the exception. They are told, not asked.',
+      'The contractor’s own page names every firm between them and the client.',
+      'Only the contractor files their own week.',
+      'At the client, each person has one page: time here, interviews and papers. Every look at it is logged.',
     ],
-    parties: ['candidate', 'candidate-independent', 'candidate-employee', 'self-employed'],
-    product: '/compliance',
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/people', seat: 'the program manager' },
   },
 
@@ -149,78 +84,41 @@ export const TOPICS: TopicPage[] = [
   {
     group: 'recruiting',
     slug: 'matching',
-    title: 'Matching',
-    lede: 'Each supplier scores the people on its bench against a job, and every score says why.',
-    flow: [
-      { who: 'CLIENT', t: 'A job is released to the supplier' },
-      { who: 'SUPPLIER', t: 'Its bench is read against the job' },
-      { who: 'RULES', t: 'Each person gets a score with its reasons' },
-      { who: 'SUPPLIER', t: 'The supplier chooses whom to put forward' },
-    ],
+    title: 'Who matches a job',
+    lede: 'Each supplier scores the people who agreed to be put forward against a job, and every score says why.',
     lines: [
-      'Only people with an active bench listing are scored.',
-      'A score always carries its factors, what it is based on, how sure it is, and what it could not check.',
-      'A bare number with no reasons is treated as a fault.',
+      'A score always says what it used, how sure it is, and what it could not check.',
       'Where no model is available, the score falls back to plain arithmetic.',
       'A score never decides whether someone may legally work.',
-      'A client can ask for a person it knows. The ask goes to the supplier holding their consent.',
+      'A client can ask for a person it knows. The ask goes to their supplier, never to the person.',
     ],
-    parties: ['bench-vendor', 'prime-vendor'],
-    product: '/submissions',
   },
   {
     group: 'recruiting',
     slug: 'screening',
     title: 'Screening',
-    lede: 'Every person a supplier submits is read against the same nine checks before a manager sees them.',
-    flow: [
-      { who: 'SUPPLIER', t: 'The supplier submits a person' },
-      { who: 'RULES', t: 'Nine checks run' },
-      { who: 'SUPPLIER', t: 'A failed check goes back to the supplier, with the fix' },
-      { who: 'CLIENT', t: 'A passed person reaches the hiring manager' },
-    ],
+    lede: 'Every person a supplier sends is checked against the same nine checks before a manager sees them.',
     lines: [
-      'Within budget: at or under the rate band the supplier was given.',
-      'Already submitted: the same person from another supplier.',
-      'Work authorization: the permit matches what the job needs.',
-      'Can start: close enough to when the work starts.',
-      'Supplier engaged: this supplier was actually sent the job.',
-      'Governance: the time limit and the break in service.',
-      'Not barred: not on the client’s own do-not-submit list.',
-      'Skills evidenced: the skills claimed are in the résumé.',
-      'Worked here before: never a failure. It tells the client something useful.',
-      'A failed check does not mean the person is unsuitable. The submission waits until the supplier fixes it.',
-      'After two tries, it goes to a person.',
+      'The rate is within the range this supplier was given.',
+      'Nobody else has already put the same person forward.',
+      'The work permit fits the job, and the start date is close enough.',
+      'The time limit and the client’s own do-not-send list are respected.',
+      'A failed check goes back to the supplier with the fix. After two tries, it goes to a person.',
     ],
-    parties: ['client', 'prime-vendor'],
-    product: '/submissions',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
   {
     group: 'recruiting',
     slug: 'application-tracking',
-    title: 'Application tracking',
+    title: 'Who applied',
     lede: 'Every supplier’s candidates for one job sit on one screen, each at its stage.',
-    flow: [
-      { who: 'SUPPLIER', t: 'Submitted' },
-      { who: 'CLIENT', t: 'Shortlisted' },
-      { who: 'CLIENT', t: 'Interviewed, in rounds' },
-      { who: 'CLIENT', t: 'Awarded' },
-      { who: 'RULES', t: 'The other suppliers are stood down' },
-    ],
     lines: [
-      'The same person twice on a job: the first submission wins, and the second firm is told.',
-      'A rate above the ceiling warns. It does not block.',
-      'Interviews run in rounds, in turn. The supplier and the candidate are told on their own channels.',
-      'Only whoever is hiring may set up or decide a round.',
+      'Submitted, shortlisted, interviewed in rounds, chosen.',
+      'The same person from two suppliers: the first one wins, and the second is told.',
+      'A rate above the range warns. It does not block.',
       'The client’s interview notes never leave the client.',
-      'A supplier can decline an invitation, and whoever is hiring is told.',
-      'A client writes to a supplier on the thread for the job, and the supplier answers there.',
-      'Only the client can award. When the last position is filled, the other suppliers are stood down.',
-      'A paused job refuses new submissions, in a sentence.',
+      'When the last position is filled, the other suppliers are told.',
     ],
-    parties: ['client', 'prime-vendor', 'bench-vendor'],
-    product: '/submissions',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
 ]

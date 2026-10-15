@@ -1,7 +1,9 @@
-import { ProcessHomeView, processMetadata } from '@/lib/public-site/docs-page'
+import { permanentRedirect } from 'next/navigation'
+import { OLD_PROCESS_HOME } from '@/lib/public-site/docs/redirects'
 
-export const metadata = processMetadata()
+// The process overview became the documentation home on 2026-10-15.
+export const dynamic = 'force-dynamic'
 
 export default function Page() {
-  return <ProcessHomeView />
+  permanentRedirect(OLD_PROCESS_HOME)
 }

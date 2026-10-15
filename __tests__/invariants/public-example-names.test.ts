@@ -32,7 +32,7 @@ import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
 import { ON_SCREEN } from '@/lib/public-site/skeleton-words'
 import { STORY, STORY_BAR, storyChromeCopy } from '@/lib/public-site/story'
 import { COMPANY_PAGES, copyOfCompanyPage } from '@/lib/public-site/company'
-import { docSlugs, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/index'
+import { docRoutes, copyOfDoc, copyOfDocsHome } from '@/lib/public-site/docs/index'
 import { frameCopy } from '@/lib/public-site/nav'
 import { closeBandCopy, WAYS_FORWARD } from '@/lib/public-site/funnel'
 import { ASK_COPY } from '@/lib/public-site/leads'
@@ -140,9 +140,9 @@ function everything(): Said[] {
 
   const home = copyOfDocsHome()
   add('/docs', [...home.hero, ...home.body])
-  for (const slug of docSlugs()) {
-    const c = copyOfDoc(slug)
-    if (c) add(`/docs/${slug}`, [...c.hero, ...c.body])
+  for (const route of docRoutes().filter((r) => r !== '/docs')) {
+    const c = copyOfDoc(route.slice('/docs/'.length))
+    if (c) add(route, [...c.hero, ...c.body])
   }
 
   add('/census', [

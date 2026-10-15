@@ -135,17 +135,17 @@ export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
  * said). Cutting the menu to four would drop that door.
  */
 export const ROLES: NavItem[] = [
-  { t: 'The program manager', d: 'The whole process, stage by stage, and who acts at each.', href: '/docs/process' },
+  { t: 'The program manager', d: 'The four steps, one page each, and who acts at each.', href: '/docs' },
   { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/master-data/suppliers' },
-  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/process/contract-to-onboard' },
-  { t: 'Finance', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
-  { t: 'Hiring managers', d: 'The worker files the week and you sign it. A week over the hours is flagged first.', href: '/docs/process/work-to-approve' },
+  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/candidates' },
+  { t: 'Finance', d: 'From an approved week to paying what matched, and which checks can be waived.', href: '/docs/time-and-money' },
+  { t: 'Hiring managers', d: 'The worker files the week and you approve it. A week over the hours is flagged first.', href: '/docs/timesheets' },
   { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor, a firm with workers waiting for a project, each see, and what stays theirs.', href: '/chain' },
 ]
 
 export const DOCS_LINK: NavItem = {
   t: 'Documentation',
-  d: 'The process stage by stage, master data and recruiting. Public, with no sign-in.',
+  d: 'How Etyme works, one page a step. Public, with no sign-in.',
   href: '/docs',
 }
 
@@ -173,12 +173,12 @@ export const DOCS_LINK: NavItem = {
  */
 export const NAV_MENUS: NavMenu[] = [
   { label: 'Platform', href: '/requisitions', groups: PRODUCT_STAGES },
-  { label: 'Solutions', href: '/docs/process', groups: [{ heading: 'By team', items: ROLES }] },
+  { label: 'Solutions', href: '/docs', groups: [{ heading: 'By team', items: ROLES }] },
 ]
 
 /** The two plain links beside the menus. */
 export const NAV_LINKS: { label: string; href: string }[] = [
-  { label: 'How It Works', href: '/docs/process' },
+  { label: 'How It Works', href: '/docs' },
   { label: 'Security', href: '/security' },
 ]
 

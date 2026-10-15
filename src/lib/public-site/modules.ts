@@ -90,7 +90,7 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 /**
  * What each unprompted act that is not a plain rule does, in one short
  * sentence, keyed by its name on the ladder. Named in the documentation's
- * page on time on site and the logs (`./docs/process`, govern-and-protect),
+ * page on the end of the work and time on site (`./docs/process`, when-work-ends),
  * one click from the governance page's last line, since 2026-10-14. A new
  * act added to the ladder reaches the page in the ladder's own sentence
  * until somebody writes the short clause here, and a test checks every one
@@ -161,7 +161,7 @@ const AS_WRITTEN: Omit<ModulePage, 'n'>[] = [
       RULE_COUNT_LINE,
       'Each block is logged.',
     ],
-    link: { t: 'What is not a rule', href: '/docs/process/govern-and-protect' },
+    link: { t: 'What is not a rule', href: '/docs/when-work-ends' },
     demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/compliance', seat: 'the program manager' },
   },
   {

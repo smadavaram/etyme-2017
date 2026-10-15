@@ -4,7 +4,8 @@ import { COMPANY_PAGES, type CompanyPage } from './company'
 
 /**
  * About, Contact and the security position share one shape: a title, a
- * lede, and blocks that are either prose or a list of short claims. The
+ * lede, and blocks of short lines, a numbered list, a few sentences or a
+ * list of short claims (one screen each since 2026-10-15). The
  * contact page adds the same "leave a sentence" form the home page uses,
  * so a message from either reaches the same person by the same rules
  * (`lib/public-site/leads`: no consent, no row; nothing bought).
@@ -13,46 +14,48 @@ import { COMPANY_PAGES, type CompanyPage } from './company'
 export function CompanyPageView({ p }: { p: CompanyPage }) {
   return (
     <SiteFrame>
-      <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
         <div className="pt-10 md:pt-14">
-          <p className="eyebrow">{p.eyebrow}</p>
-          <h1 className="mt-3 max-w-[24ch] text-balance font-serif text-[34px] leading-[1.06] tracking-[-0.025em] text-etyme-ink md:text-[46px]">
+          {p.eyebrow !== p.title && <p className="eyebrow">{p.eyebrow}</p>}
+          <h1 className="mt-3 max-w-[24ch] text-balance font-serif text-[34px] leading-[1.06] tracking-[-0.025em] text-etyme-ink md:text-[42px]">
             {p.title}
           </h1>
-          <p className="mt-5 max-w-[64ch] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">{p.lede}</p>
+          <p className="mt-4 max-w-[64ch] text-[17px] leading-relaxed text-etyme-muted">{p.lede}</p>
         </div>
 
-        {/* What is on this page, at its top. Decided 2026-09-30: no link
-            from another page lands in the middle of this one, so a reader
-            sent here for one section finds it listed first. */}
-        {p.blocks.length > 3 && (
-          <nav aria-label="On this page" className="mt-8 rounded-xl border border-etyme-rule bg-etyme-surface p-4 sm:p-5">
-            <p className="eyebrow">{'On this page'}</p>
-            <ol className="mt-2 grid gap-x-8 gap-y-1 sm:grid-cols-2">
-              {p.blocks.map((b, i) => (
-                <li key={b.id}>
-                  <a href={`#${b.id}`} className="flex gap-3 rounded-md px-2 py-1 text-[14px] text-etyme-ink hover:bg-etyme-sunk">
-                    <span className="w-5 shrink-0 font-mono text-[11px] tabular-nums text-etyme-faint">{i + 1}</span>
-                    <span>{b.title}</span>
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
-        )}
-
         {p.blocks.map((b) => (
-          <section key={b.id} id={b.id} className="scroll-mt-6 border-t border-etyme-rule py-10 md:py-12 mt-10 first-of-type:mt-10">
-            <h2 className="font-serif text-[27px] leading-tight tracking-[-0.02em] text-etyme-ink">{b.title}</h2>
+          <section key={b.id} id={b.id} className="mt-10">
+            {b.title && <h2 className="font-serif text-[22px] leading-tight tracking-[-0.02em] text-etyme-ink">{b.title}</h2>}
+            {b.lines && (
+              <ul className="mt-4 max-w-[66ch] space-y-2.5">
+                {b.lines.map((l) => (
+                  <li key={l.t} className="flex items-baseline gap-3 text-[16px] leading-relaxed text-etyme-ink">
+                    <span
+                      aria-hidden="true"
+                      className={'inline-block h-2 w-2 shrink-0 translate-y-[-1px] rounded-full ' + (b.tone === 'no' ? 'bg-etyme-attention' : 'bg-etyme-verified')}
+                    />
+                    <span>
+                      {l.lead && <b className="font-semibold">{`${l.lead} `}</b>}
+                      {l.t}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {b.ordered && (
+              <ol className="mt-4 max-w-[66ch] list-decimal space-y-1.5 pl-6 text-[16px] leading-relaxed text-etyme-ink marker:text-etyme-faint">
+                {b.ordered.map((o) => <li key={o}>{o}</li>)}
+              </ol>
+            )}
             {b.paragraphs && (
-              <div className="mt-5 max-w-[66ch] space-y-3">
+              <div className="mt-4 max-w-[66ch] space-y-3">
                 {b.paragraphs.map((t) => (
                   <p key={t} className="text-[16px] leading-relaxed text-etyme-ink">{t}</p>
                 ))}
               </div>
             )}
             {b.items && (
-              <ul className="mt-6 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+              <ul className="mt-5 grid gap-x-10 gap-y-5 sm:grid-cols-2">
                 {b.items.map((i) => (
                   <li key={i.t}>
                     <p className="text-[15px] font-semibold text-etyme-ink">{i.t}</p>
@@ -61,20 +64,7 @@ export function CompanyPageView({ p }: { p: CompanyPage }) {
                 ))}
               </ul>
             )}
-            {b.screen && (
-              <figure className="mt-8 overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised shadow-sm">
-                <img
-                  src={b.screen.img}
-                  alt={b.screen.alt}
-                  data-captured-at={b.screen.capturedAt}
-                  width={1440}
-                  height={900}
-                  loading="lazy"
-                  className="block h-auto w-full border-b border-etyme-rule"
-                />
-                <figcaption className="px-5 py-3 text-[13px] leading-relaxed text-etyme-muted">{b.screen.caption}</figcaption>
-              </figure>
-            )}
+            {b.note && <p className="mt-3 text-[14px] leading-relaxed text-etyme-muted">{b.note}</p>}
             {p.route === '/contact' && b.id === 'ask' && (
               <div className="mt-6 max-w-xl">
                 <Ask source="HOME_PAGE" />

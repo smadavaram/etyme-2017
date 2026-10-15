@@ -21,7 +21,7 @@ const SIDE = 'group flex min-w-0 flex-col rounded-lg border border-etyme-rule bg
 
 export function PrevNext({
   prev, next, where, position,
-}: { prev: SeqLink | null; next: SeqLink | null; where: string; position: 'top' | 'bottom' }) {
+}: { prev: SeqLink | null; next: SeqLink | null; where?: string; position: 'top' | 'bottom' }) {
   return (
     <nav
       aria-label={position === 'top' ? 'Previous and next' : 'Previous and next, again at the end'}
@@ -31,9 +31,13 @@ export function PrevNext({
         (position === 'top' ? 'pt-6' : 'border-t border-etyme-rule py-8')
       }
     >
-      <p className="col-span-2 text-center text-[12px] font-semibold uppercase tracking-[0.08em] text-etyme-muted sm:order-2 sm:col-span-1">
-        {where}
-      </p>
+      {where ? (
+        <p className="col-span-2 text-center text-[12px] font-semibold uppercase tracking-[0.08em] text-etyme-muted sm:order-2 sm:col-span-1">
+          {where}
+        </p>
+      ) : (
+        <span aria-hidden="true" className="hidden sm:order-2 sm:block" />
+      )}
       <div className="min-w-0 sm:order-1">
         {prev && (
           <a href={prev.href} rel="prev" className={SIDE}>

@@ -1,4 +1,12 @@
 /**
+ * NOT DRAWN ON ANY PAGE since 2026-10-15. The ten party pages were
+ * replaced by one table, "Who does what" (`./index`), and /docs/candidate-employee
+ * now redirects there (`./redirects`). Nine of the ten files were deleted
+ * that day. This one is kept, unread, only because matrix row L3.1.4.1 in
+ * `lib/matrix` names it under implementedBy, and the matrix test fails on
+ * a named file that does not exist. `lib/matrix` is etyme-architect's;
+ * once the line is dropped there, delete this file.
+ *
  * Candidate — a firm’s own employee — the operating model, drawn from this party's desk.
  *
  * Converted on 2026-09-26 from the static site on the old repository's
@@ -27,7 +35,15 @@
  * read again.
  */
 
-import type { PartyDoc } from './index'
+/** The shape the party pages had, kept here so this file stands alone. */
+interface PartyDoc {
+  slug: string
+  eyebrow: string
+  title: string
+  lede: string
+  thisParty: { href: string; label: string }[]
+  html: string
+}
 
 export const DOC: PartyDoc = {
   "slug": "candidate-employee",

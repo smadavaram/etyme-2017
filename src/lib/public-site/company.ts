@@ -1,36 +1,37 @@
 /**
  * About, contact and the security position, as data.
  *
- * ── Where each came from ─────────────────────────────────────────────
+ * ── One screen each. Decided by the founder, 2026-10-15 ──────────────
  *
- * About and Contact are the static site's (`about.html`, `contact.html`
- * on the old repository's `development` branch), kept where they were
- * checkable and cut where they were not:
+ * "AI slop … no one is reading large content. Read all the public pages
+ * like security documentation etc; make it real and make it simple." He
+ * said "Build it" on a drawing of every public page cut to one screen,
+ * and About and Security are written here as drawn:
  *
- *   - "we respond within 24 hours" is a promise nobody has made, and
- *     `SECURITY.md` already refuses to invent a response time for the
- *     same reason. Contact says a person reads every message, which is
- *     true, and says it without a clock.
- *   - "Questions about pricing?" is gone. The price is not set, and a
- *     mailbox labeled for it invites the question the page cannot answer.
- *   - "A manager never approves their own expenses" is gone. Nothing in
- *     `lib/expense-approval` refuses it, and a rule claimed and not
- *     enforced is the worst kind of claim a governance product can make.
+ *   - About was ten sections and 1,600 words: the four questions and why
+ *     nobody can answer them, one hire in six milestones, what it sits
+ *     beside, how we work, the two ways, neutrality and the price, all
+ *     moved there from the home page on 2026-09-27. It is five lines now:
+ *     what we build, what we never do, the two ways, the price, where we
+ *     are. The rest left the site on purpose; the home page's panel
+ *     answers the four questions by showing them.
+ *   - Security was 630 words. It is what is done, what is not done yet,
+ *     what comes next in order with no date, and how to report a problem.
+ *     The drawing had a link to "the long version, for a security
+ *     review". The long version is `docs/security-posture.md`, which is
+ *     not published anywhere a reader can open it, so the link is not
+ *     drawn rather than pointing at nothing.
  *
- * ── The security position was not on the static site ─────────────────
+ * Contact is unchanged.
  *
- * `audit.html` looked like it, and is the spend-audit landing page:
- * "Average cost found $180K", "11 days saved", "Find hidden costs in
- * your supplier network". Three invented numbers and a sentence aimed at
- * suppliers. It is not brought across; the spend audit is `/census`.
+ * ── What each line stands on ─────────────────────────────────────────
  *
- * So the security position is written here from `docs/security-posture.md`,
- * which names the file behind every claim, and from the assurance
- * decision of 2026-09-22 in CLAUDE.md. What is done, what is not, and
- * the order the rest comes in, with no date where none is committed.
- * A figure that changes whenever somebody adds a route — how many route
- * files write an access log — is described rather than counted, so the
- * page cannot go stale on another agent's commit.
+ * Every security line is a claim `docs/security-posture.md` makes with
+ * the file behind it. The drawing named the two sign-in providers; no
+ * public page names a company (`lib/positioning`), so the line says "your
+ * company's work account", which is what `lib/auth` signs in with once a
+ * deployment has the keys (`/ready` says whether it does). Nothing here
+ * has a date, because no date is contracted.
  */
 
 import { ADDRESS } from './nav'
@@ -40,55 +41,22 @@ export interface Block {
   title: string
   paragraphs?: string[]
   items?: { t: string; d: string }[]
-  /** A screen from the seeded demo, drawn under the words. */
-  screen?: { img: string; alt: string; caption: string; from: string; capturedAt: string }
+  /**
+   * Short lines, one fact each, with a dot: done (`ok`) or not done
+   * (`no`). A line may open on a bold lead, as About's do.
+   */
+  lines?: { lead?: string; t: string }[]
+  tone?: 'ok' | 'no'
+  /** A numbered list, in the order the things in it will happen. */
+  ordered?: string[]
+  /** One small line under the block. */
+  note?: string
 }
 
 /**
- * The four questions a client cannot answer about its own workforce, each
- * answered in a line that names the screen answering it.
- *
- * On the home page until 2026-09-27, when it became five bands; here
- * since, word for word, beside the long form of why nobody can answer
- * them today. `route` is the screen it opens, and the test checks the
- * folder is really there. Tenure is the fourth of four and gets one line:
- * it is the moat, not the wedge.
- */
-export const FOUR_ANSWERS: { q: string; screen: string; route: string; etyme: string }[] = [
-  {
-    q: 'How many contractors are on our sites right now?',
-    screen: 'Workforce',
-    route: 'people',
-    etyme: 'The Workforce screen lists every contractor on site today, across every supplier.',
-  },
-  {
-    q: 'What are we spending on them this quarter, and with whom?',
-    screen: 'Program',
-    route: 'program',
-    etyme: 'The Program screen shows this month by supplier, and the Invoice receipts screen what each one billed.',
-  },
-  {
-    q: 'Are we paying two suppliers different money for the same work?',
-    screen: 'Rates',
-    route: 'rate-history',
-    etyme: 'The Program screen puts two suppliers’ rates for one job side by side. The Rates screen keeps who agreed each.',
-  },
-  {
-    q: 'Who has been here longest?',
-    screen: 'Tenure',
-    route: 'tenure',
-    etyme: 'The Tenure screen counts each person’s days on your sites across every supplier, once per day.',
-  },
-]
-
-/**
  * The two ways to run a program on the record, in the founder's two
- * labels (decided 2026-09-20). On the home page until 2026-09-27, which
- * now offers the service in one quiet sentence and links here.
- *
- * The MSP card says what the client gets, not that Etyme would run it:
- * About already makes the offer once, under #neutral, and a page that
- * offers it twice has stopped offering and started pitching.
+ * labels (decided 2026-09-20). About names both in one line; the census
+ * letter reads the labels from here.
  */
 export const TWO_WAYS: { label: string; says: string }[] = [
   {
@@ -112,190 +80,23 @@ export interface CompanyPage {
 export const ABOUT: CompanyPage = {
   route: '/about',
   eyebrow: 'About Etyme',
-  title: 'One record for every contractor. That is the whole company.',
-  lede:
-    'Etyme builds the system a program manager uses to see every contractor on its sites, which supplier sent them, and what they cost. ' +
-    'It also builds the rules that keep that record honest.',
+  title: 'About Etyme',
+  lede: 'One list of every contractor, across every supplier.',
   blocks: [
     {
-      id: 'build',
-      title: 'What we build',
-      paragraphs: [
-        'Companies that use staffing suppliers know their employees by name and their contractors by bill. ' +
-          'Etyme keeps one record across that gap.',
-        'The job that was raised, the supplier that filled it, the contract it wrote, the weeks that were signed, the bills that matched, and the papers checked before day one. ' +
-          'Eight areas, in the order the work happens.',
-        'Nobody sees a rate that is not theirs, and everybody sees what is waiting on them.',
-        // The note under the header's Industries menu, kept when the menu
-        // went on 2026-09-27. Horizontal, never vertical.
-        'One product serves every industry. There is no industry-specific version to buy.',
-        // The hero's span line, 2026-09-27. Naming every station once, in
-        // the trade's order, is what stops any one of them reading as the
-        // product.
-        'Job request, suppliers, submissions, screening, interviews, onboarding, timesheets, bills, compliance. ' +
-          'One record holds all of it, and each person opens the part that is theirs.',
-      ],
-    },
-    // ── Four blocks moved from the home page, 2026-09-27 ──────────────
-    //
-    // The founder asked for the home page to read like a product page
-    // rather than an essay. It was 3,771 words. What was on
-    // it and belonged to no one station came here, word for word where
-    // the words had already been read against the code: why nobody can
-    // answer the four questions (#gap's long form), how one hire moves
-    // (#lifecycle), what it sits beside (#alongside), and what is settled
-    // about the money (#why). `positioning.test.ts` finds each phrase
-    // here, so a section cannot fall off both pages.
-    {
-      id: 'unanswered',
-      title: 'Why nobody can answer the four questions today',
-      paragraphs: [
-        'You can name every employee on your payroll. Nobody can name every contractor on your sites.',
-        'A supplier hired almost all of them. Sometimes a supplier’s subcontractor did. ' +
-          'They badge in on Monday and turn up on a bill at the end of the month. No system you own counts them the same way twice.',
-        'A CFO, an auditor or a board member asks how many contractors you have. The program manager says: let me come back to you. ' +
-          'Then three weeks of asking every supplier for a spreadsheet, and procurement chasing the two that do not reply.',
-        'No supplier can add that up, and no supplier is hiding anything. Each one sees only its own contractors. ' +
-          'A VMS sees inside one program. You cannot get the total by asking, because nobody you could ask is holding all of it.',
-      ],
-      items: [
-        { t: 'How many contractors are on our sites right now?', d: 'Each supplier counts its own contractors. Nobody adds the counts up, and two attempts give two totals.' },
-        { t: 'What are we spending on them this quarter, and with whom?', d: 'Bills arrive on different dates into different inboxes. The quarter ends before the number is assembled.' },
-        { t: 'Are we paying two suppliers different money for the same work?', d: 'Rates sit on invitations and in email. Putting them side by side means asking each supplier what it charges.' },
-        { t: 'Who has been here longest?', d: 'Time through one supplier and time through another read as two contractors, each with less time than the person has.' },
-      ],
-    },
-    // ── Moved from the home page's #gap band, 2026-09-27 ─────────────
-    //
-    // The home page keeps one hook line in its hero. The answers, the
-    // one screen that is hardest to believe from prose, and the sentence
-    // about what the client sees below its supplier are here, one click
-    // from why nobody can answer today.
-    {
-      id: 'answered',
-      title: 'Etyme shows every contractor on your sites, whoever placed them',
-      paragraphs: [
-        'You see the person, and whether the firm that employs them is insured and authorized. ' +
-          'What your supplier arranges below that stays its own, unless your agreement with it says otherwise.',
-      ],
-      items: FOUR_ANSWERS.map((a) => ({ t: a.q, d: a.etyme })),
-      screen: {
-        img: '/screens/contractors.png',
-        alt: 'A contractors table: one row per person, with the supplier that sent them, their status, where they are and their months on site.',
-        caption: 'Every contractor at Northbend Athletic, a demo company — not a customer, whichever supplier sent them.',
-        from: '/dashboard/people, table view, as the program manager',
-        capturedAt: '2026-09-28T19:09:48Z',
-      },
-    },
-    {
-      id: 'hire',
-      title: 'One hire moves through six milestones, and three of them can stop it',
-      paragraphs: [
-        'The hiring manager raises it, HR reads the job, procurement audits the suppliers, and the lead who owns the cost center signs the money.',
-        'The supplier submits, you award, compliance clears the start, the plant signs the week, and accounts payable pays what matched. Nobody signs their own.',
-        'Raised, awarded and cleared can stop the deal. Released, working and ended record what happened. ' +
-          'Each product page quotes the sentence its screen shows when it stops something.',
-        'Inside, a placement moves through more states than six. Nobody using it has to learn any of them. ' +
-          'It is one record, end to end, for one company or for nine of them in a chain.',
-      ],
-      items: [
-        { t: 'Raised', d: 'A manager needs somebody, with a budget and a rate band. It can stop here.' },
-        { t: 'Released', d: 'To the suppliers your Procurement team cleared.' },
-        { t: 'Awarded', d: 'One person, one seat, and the order that pays for it. It can stop here.' },
-        { t: 'Cleared', d: 'Work authorization, checks and insurance, before day one. It can stop here.' },
-        { t: 'Working', d: 'Hours signed, bills matched, everybody paid.' },
-        { t: 'Ended', d: 'Notice, handover, and the days on site keep counting.' },
-      ],
-    },
-    {
-      id: 'alongside',
-      title: 'Keep your ATS, your VMS and every supplier you already use',
-      paragraphs: [
-        'Etyme sits in front of the systems you already use and replaces none of them. ' +
-          'There is nothing to switch off and no supplier to drop. ' +
-          'Your suppliers submit and bill on Etyme, and what Etyme adds is the one record across all of them.',
-      ],
-      items: [
-        {
-          t: 'Work arrives the way it already does',
-          d: 'Paste in a forwarded email, a job description, or five of them at once. They come back as seats, with duplicates already merged. Nobody has to change how they send you work.',
-        },
-        {
-          t: 'Your suppliers do not need to sign up first',
-          d: 'Paste the distribution list you already use. You can send a job today to every firm on it, whether or not it has an Etyme account. A hop to a company that is not on Etyme leaves the record, and the screen says so.',
-        },
-        {
-          t: 'What is yours stays yours',
-          d: 'Your rates, your suppliers and your contractors’ records stay yours. Every list exports to CSV from the screen it is on. Anybody this system holds data about can ask for a copy of it, or ask to be forgotten, from their own page.',
-        },
-      ],
-    },
-    {
-      id: 'work',
-      title: 'How we work',
-      items: [
-        { t: 'Rules before people', d: 'A job request clears by rule first and goes to a person only when a rule fails. Where the law is behind a rule, the product blocks.' },
-        { t: 'Nobody signs their own', d: 'A contractor never approves their own week, and whoever raised a job request cannot approve it. A bill with no signed week behind it is not paid.' },
-        { t: 'Nothing we would take back', d: 'No borrowed customer logos, no analyst quadrant, and no price we have not settled. What is on this site is checkable today.' },
-        { t: 'Free while testing', d: 'Etyme is free while it is tested with its first firms. Governance is part of every program and never a paid tier.' },
-      ],
-    },
-    // ── Moved from the home page's #ways band, 2026-09-27 ────────────
-    {
-      id: 'ways',
-      title: 'The record is the product, and your own people run the program on it',
-      paragraphs: [
-        'Most clients run the program with their own people. The record is the same either way and it stays yours.',
-        'In either way, Etyme never supplies a contractor and never runs a bench, so it has no reason to favor one supplier. ' +
-          'Your people keep the decisions that are yours: which jobs to open, who to hire, and what to approve.',
-        'If you are a staffing supplier, you are on it because your client is. ' +
-          'Your rates and your sub-vendors’ names stay private, and your client stays your client. ' +
-          'Where Etyme runs a client’s program, approvals come back faster and your bills are matched and paid without chasing.',
-      ],
-      items: TWO_WAYS.map((w) => ({ t: w.label, d: w.says })),
-    },
-    {
-      id: 'neutral',
-      title: 'Etyme never runs a bench and never places anybody',
-      paragraphs: [
-        'The record sits between a company and every supplier it uses, so it can only work if no supplier has to compete with it. ' +
-          'It has no contractors of its own to sell. It is built into how this works, not a policy we might change.',
-        'If you would rather not run the program yourself, Etyme can run it for you on the same record. ' +
-          'You keep every decision that is yours: who may supply, at what band, and who is chosen.',
-      ],
-    },
-    // Moved from the home page's #why, 2026-09-27. The home page keeps one
-    // line near its close — no price because none is settled, free while
-    // we prove it out — and links here for the rest. The percentage
-    // sentence is said once on the whole site, here, because it is a fact
-    // a supplier will read and must not discover later.
-    {
-      id: 'price',
-      title: 'There is no price yet, because we have not settled one',
-      paragraphs: [
-        'Etyme is free while we prove it out with the first five firms. ' +
-          'Founding firms keep the terms we agree with them, in writing, before they start. ' +
-          'We will not put a number on this site that we would have to take back later.',
-        'Where Etyme runs the program, it is paid the way MSPs are paid: ' +
-          'a percentage the suppliers pay on their billings, disclosed to every supplier when they join.',
-      ],
-      items: [
-        {
-          t: 'Governance is never a paid tier',
-          d: 'Time limits on how long one person may stay, approval chains and the record of who approved what are included for everybody. Any company with two hiring managers needs them. Charging extra for them loses the deal before the negotiation starts.',
-        },
-        {
-          t: 'Looking around costs nothing and needs no card',
-          d: 'You get a live workspace with a worked example in it, and you can change anything in there. If it is not useful in there, a price was never going to fix that.',
-        },
-      ],
-    },
-    {
-      id: 'where',
-      title: 'Where we are',
-      paragraphs: [
-        `${ADDRESS.company}, ${ADDRESS.street}, ${ADDRESS.city}.`,
-        `${ADDRESS.phone} · ${ADDRESS.email}`,
+      id: 'about',
+      title: '',
+      tone: 'ok',
+      lines: [
+        // The drawing's line began "Software a company uses"; the word reads
+        // as software staffing to the horizontal guard (lib/positioning),
+        // which a buyer of travel nurses must not read. "A system" says the
+        // same thing.
+        { lead: 'What we build.', t: 'A system a company uses to manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.' },
+        { lead: 'What we never do.', t: 'Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.' },
+        { lead: 'Two ways to use it.', t: `Your team runs it: Etyme as ${TWO_WAYS[0].label}. Or Etyme runs it for you: Etyme as ${TWO_WAYS[1].label}.` },
+        { lead: 'Price.', t: 'Free while we test with our first companies. No number until we have one.' },
+        { lead: 'Where we are.', t: `${ADDRESS.company}, ${ADDRESS.street}, ${ADDRESS.city}. ${ADDRESS.phone}.` },
       ],
     },
   ],
@@ -339,75 +140,51 @@ export const CONTACT: CompanyPage = {
 
 export const SECURITY: CompanyPage = {
   route: '/security',
-  eyebrow: 'Security position',
-  title: 'What is done, what is not, and when.',
-  lede:
-    'Etyme holds contractors’ immigration status, onboarding papers and pay, for companies and every supplier they use. ' +
-    'This page is written for the person reviewing that, and it lists the gaps as plainly as the controls.',
+  eyebrow: 'Security',
+  title: 'Security',
+  // The drawing's line was "What is done, and what is not done yet." It
+  // names the records it is about, because every public page says what
+  // kind of thing this is above the fold (lib/positioning, category first).
+  lede: 'What is done to protect your contractor and supplier records, and what is not done yet.',
   blocks: [
     {
-      id: 'today',
-      title: 'Where Etyme stands today',
-      paragraphs: [
-        'Etyme has no SOC 2 report, no ISO 27001 certificate and no third-party penetration test. ' +
-          'A security page with no gaps on it is a page nobody checked.',
-        'A longer version exists for a security review, and it names the file behind every claim below.',
-      ],
-    },
-    {
       id: 'done',
-      title: 'What is done',
-      items: [
-        { t: 'Walls at the query', d: 'A record belonging to another company is excluded by the database query, not hidden on the screen after it arrives.' },
-        { t: 'Sign-in through your own tenant', d: 'Business users sign in through their own company’s sign-in. A personal email address cannot register a company.' },
-        { t: 'A role for every seat, in the trade’s words', d: 'Account manager, contract manager, accounts receivable, AP and payroll, compliance officer. Each sees what its job needs.' },
-        { t: 'Every read of a person, logged', d: 'The routes that read a named person write who read it, why, and whether it was allowed. Refusals are logged as carefully as reads.' },
-        { t: 'Segregation of duties, enforced', d: 'Nobody approves their own hours or their own job request, and whoever recommended a supplier cannot decide it. Each refusal is a sentence.' },
-        { t: 'Attestations, not verdicts', d: 'A check is recorded as who ran it, when, and when it expires. Etyme never declares a person cleared to work.' },
-        { t: 'Automation on a declared ladder', d: 'Everything the system does on its own carries a level from L0 to L5, a plain-English reason, and an honest flag for whether it can be undone.' },
-        { t: 'Erasure that keeps the books', d: 'A person can export and erase their own data. Erasure anonymizes the person and leaves signed hours and amounts as they were.' },
-        { t: 'Retention as code', d: 'Each category is kept for a period with the rule that requires it cited. Where no rule can be cited, the schedule says so rather than inventing one.' },
-        { t: 'Somebody is told when it breaks', d: 'A failure in any API route writes an incident and emails staff, and the daily job reports that it ran even on a day nothing broke.' },
+      title: 'Done',
+      tone: 'ok',
+      lines: [
+        { t: 'A company sees only its own records. The database filters them, not the screen.' },
+        { t: 'Sign in with your company’s work account, or a password.' },
+        { t: 'Every look at a person’s record is logged, and so is every refusal.' },
+        { t: 'Nobody approves their own hours, their own job request or a supplier they recommended.' },
+        { t: 'A person can download or erase their own data. Signed hours and amounts stay.' },
+        { t: 'When something fails, our staff get an email.' },
       ],
     },
-    // Reworded 2026-10-13 (CLAUDE.md, "Nine decisions", item 1): the
-    // attestations are said as the order they will be done in, the other
-    // gaps stay listed as they were, and the rate-limiting and firewall
-    // line left the public site. It stays in docs/security-posture.md.
     {
       id: 'not',
-      title: 'Next, in order',
-      items: [
-        { t: '1. A penetration test', d: 'None has been run. It comes first, because an attestation written over controls nobody has attacked is the wrong way round.' },
-        { t: '2. SOC 2 Type I', d: 'An assessment of how the controls are designed. Not started.' },
-        { t: '3. SOC 2 Type II', d: 'The observation window, which commonly runs six months and cannot be shortened later. ISO 27001 follows the same evidence.' },
+      title: 'Not done yet',
+      tone: 'no',
+      lines: [
+        { t: 'No SOC 2 report, no ISO 27001 certificate, no penetration test.' },
+        { t: 'Two-step sign-in comes from your company’s account. Etyme does not enforce it.' },
+        { t: 'Restoring from backup has not been tested. No disaster recovery plan.' },
+        { t: 'Encryption is the hosting provider’s. Etyme has not checked it.' },
+        { t: 'No named security officer.' },
       ],
     },
     {
-      id: 'when',
-      title: 'When',
-      paragraphs: [
-        'No date is published here, because none is contracted. When one is, it goes on this page.',
-      ],
-    },
-    {
-      id: 'gaps',
-      title: 'Also not done yet',
-      items: [
-        { t: 'Sign-in', d: 'Multi-factor sign-in is inherited from your corporate tenant, not enforced by Etyme. SSO enforcement and automated provisioning are not built.' },
-        { t: 'Recovery', d: 'No documented backup and restore procedure, no restore tested, and no disaster recovery plan.' },
-        { t: 'Encryption', d: 'Encryption at rest and in transit is what the hosting providers supply. It is not configured or verified by Etyme.' },
-        { t: 'People', d: 'No named security officer, and no formal access review of Etyme’s own staff.' },
-        { t: 'Disclosure', d: 'The vulnerability disclosure policy is written. Its mailbox is not live yet.' },
-      ],
+      // The order of the attestations, decided 2026-10-13 (CLAUDE.md,
+      // "Nine decisions", item 1): the test first, because a report
+      // written over controls nobody has attacked is the wrong way round.
+      id: 'next',
+      title: 'Next, in this order',
+      ordered: ['Penetration test', 'SOC 2 Type I', 'SOC 2 Type II, then ISO 27001'],
+      note: 'No dates yet, because none is contracted. A date goes here when one is.',
     },
     {
       id: 'report',
-      title: 'Reporting a vulnerability',
-      paragraphs: [
-        'Please report privately, and stop as soon as you have proved a flaw is possible. Test on the example program, which holds no real people and no real money.',
-        'Until the security mailbox is live, send a report to the person at Etyme who gave you access, or to the address on the contact page.',
-      ],
+      title: 'Found a problem?',
+      paragraphs: [`Write to ${ADDRESS.email}. Test only on the demo. It holds no real people and no real money.`],
     },
   ],
 }
@@ -419,10 +196,12 @@ export function copyOfCompanyPage(p: CompanyPage): { hero: string[]; body: strin
   return {
     hero: [p.title, p.lede],
     body: p.blocks.flatMap((b) => [
-      b.title,
+      ...(b.title ? [b.title] : []),
       ...(b.paragraphs ?? []),
       ...(b.items ?? []).flatMap((i) => [i.t, i.d]),
-      ...(b.screen ? [b.screen.caption] : []),
+      ...(b.lines ?? []).map((l) => (l.lead ? `${l.lead} ${l.t}` : l.t)),
+      ...(b.ordered ?? []).map((o) => `${o}.`),
+      ...(b.note ? [b.note] : []),
     ]),
   }
 }

@@ -1,18 +1,12 @@
-import { notFound } from 'next/navigation'
-import { ProcessPageView, processMetadata } from '@/lib/public-site/docs-page'
-import { PROCESS, processAt } from '@/lib/public-site/docs/process'
+import { notFound, permanentRedirect } from 'next/navigation'
+import { replacementFor } from '@/lib/public-site/docs/redirects'
 
-export function generateStaticParams() {
-  return PROCESS.map((p) => ({ stage: p.slug }))
-}
-
-export const dynamicParams = false
-
-export function generateMetadata({ params }: { params: { stage: string } }) {
-  return processMetadata(params.stage)
-}
+// Nine process pages became five step pages on 2026-10-15. Each old
+// address answers with a permanent redirect to the page that took it.
+export const dynamic = 'force-dynamic'
 
 export default function Page({ params }: { params: { stage: string } }) {
-  if (!processAt(params.stage)) notFound()
-  return <ProcessPageView slug={params.stage} />
+  const to = replacementFor(`/docs/process/${params.stage}`)
+  if (to) permanentRedirect(to)
+  notFound()
 }

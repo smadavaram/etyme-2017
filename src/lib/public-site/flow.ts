@@ -32,6 +32,14 @@ export interface FlowBox {
    * a product page's short strip of milestones may leave it out.
    */
   who?: Actor
+  /**
+   * The person who does it, named by their job ("Hiring manager", "AP
+   * clerk"), where the box says more than the party. Drawn in place of
+   * the party's label; the party still decides the color. Added
+   * 2026-10-15 for the documentation's step pages, whose boxes say who
+   * and what (the founder's drawing of the pages cut to one screen).
+   */
+  role?: string
   /** What happens in this box, in a few words. */
   t: string
 }
@@ -52,5 +60,8 @@ export interface DemoTarget {
 
 /** The words of a chart, for the guard. */
 export function flowWords(boxes: FlowBox[]): string[] {
-  return boxes.map((b) => (b.who ? `${ACTOR_LABEL[b.who]}: ${b.t}.` : `${b.t}.`))
+  return boxes.map((b) => {
+    const who = b.role ?? (b.who ? ACTOR_LABEL[b.who] : null)
+    return who ? `${who}: ${b.t}.` : `${b.t}.`
+  })
 }

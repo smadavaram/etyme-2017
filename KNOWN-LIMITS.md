@@ -419,14 +419,17 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
    and the words in `src/app/demo/seats.ts`) is the platform's and was
    not touched. `public-funnel.test.ts` names it as the one place left,
    and fails when it is gone so the line can be deleted.
-3. **The documentation's drawings still say "desk" and "program
-   office".** The text of every public page says neither word since
-   2026-10-14. The lane drawings (`public/model/*.png`, drawn from
-   `docs/lanes/streams.mjs`) are images with those words inside them, and
-   `docs/lanes/` has no owner in `lib/domains.ts`, so nobody may redraw
-   them yet. Five station labels in the documentation's tables were
-   renamed ahead of the drawing; `public-pages.test.ts` maps each to the
-   words still drawn (`DRAWN_AS`), and that map may only shrink.
+3. **The lane drawings are no longer shown, and are not deleted.** Since
+   2026-10-15 no page draws `public/model/*.png`: the ten party pages
+   that showed them became one table ("Who does what"), and the nine
+   process pages became five step pages whose flow charts are words. The
+   images (drawn from `docs/lanes/streams.mjs`, which has no owner in
+   `lib/domains.ts`) still say "desk" and "program office" inside them,
+   and `public/model` is still named under matrix row L3.1.4.1. Nobody
+   reads them; delete them once the matrix line is dropped. One party
+   page file, `lib/public-site/docs/candidate-employee.ts`, is kept
+   unread for the same reason (the matrix names it); delete it with the
+   line.
 4. **The page-view counts still name the audit.** `audit_cta_clicked`
    and the two `audit_form_*` events stay in `lib/public-site/market-events`
    because rows already written carry them; nothing on the site sends

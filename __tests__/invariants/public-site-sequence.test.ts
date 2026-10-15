@@ -9,6 +9,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: () => {}, refresh: () => {} }),
   notFound: () => { throw new Error('not found') },
+  permanentRedirect: (to: string) => { throw new Error(`permanent redirect to ${to}`) },
 }))
 
 import { STORY, storyIndex } from '@/lib/public-site/story'
@@ -18,11 +19,16 @@ import { ModulePageView } from '@/lib/public-site/module-page'
 import { PartyPageView } from '@/lib/public-site/party-page'
 import { PARTY_PAGES } from '@/lib/public-site/parties'
 import {
-  ProcessPageView, ProcessHomeView, TopicPageView, DocsHomeView, PartyDocView,
+  StepPageView, TopicPageView, DocsHomeView, DocsSlugView, docsSequence,
 } from '@/lib/public-site/docs-page'
-import { PROCESS, partiesFor, sectionsOf, processRoute } from '@/lib/public-site/docs/process'
+import { STEP_PAGES, stepRoute, STEP_HEADINGS } from '@/lib/public-site/docs/process'
 import { TOPICS, topicRoute } from '@/lib/public-site/docs/topics'
-import { PARTIES, DOCS_HOME, docRoutes } from '@/lib/public-site/docs/index'
+import { DOCS_HOME, WHO_DOES_WHAT, REFERENCE, docRoutes, docSlugs } from '@/lib/public-site/docs/index'
+import { oldAddresses, replacementFor } from '@/lib/public-site/docs/redirects'
+import DocsSlugPage from '@/app/(site)/docs/[slug]/page'
+import ProcessHomePage from '@/app/(site)/docs/process/page'
+import ProcessStagePage from '@/app/(site)/docs/process/[stage]/page'
+import ProcessPartyPage from '@/app/(site)/docs/process/[stage]/[party]/page'
 import { NAV_MENUS, FOOTER, ROLES, PRODUCT_STAGES, itemsOf } from '@/lib/public-site/nav'
 import { PUBLIC_PAGES, MODULE_ROUTES, pageAt } from '@/lib/public-site/pages'
 import { demoRequest } from '@/lib/public-site/demo-link'
@@ -103,7 +109,7 @@ describe('The four steps are the one spine of the site', () => {
     // four nouns (2026-10-14); a contingent worker is still never hired.
     expect(STEPS[0].name).toBe('Job')
     expect(PRODUCT_STAGES[0].heading).toBe('Step 1 · Job')
-    expect(PROCESS[0].title.startsWith('Job')).toBe(true)
+    expect(STEP_PAGES[0].title).toBe('Job')
     for (const s of STEPS) expect(s.name, `step ${s.n}`).not.toMatch(/\bhire\b/i)
   })
 
@@ -146,7 +152,7 @@ describe('“See this step in the demo” opens the exact screen as the right de
   const targets: [string, DemoTarget][] = [
     ...STEPS.map((s) => [s.route, s.demo] as [string, DemoTarget]),
     ...MODULES.map((m) => [m.route, m.demo] as [string, DemoTarget]),
-    ...PROCESS.filter((p) => p.demo).map((p) => [processRoute(p.slug), p.demo!] as [string, DemoTarget]),
+    ...STEP_PAGES.map((p) => [stepRoute(p), p.demo] as [string, DemoTarget]),
     ...TOPICS.filter((t) => t.demo).map((t) => [topicRoute(t), t.demo!] as [string, DemoTarget]),
   ]
 
@@ -185,6 +191,23 @@ describe('“See this step in the demo” opens the exact screen as the right de
   })
 })
 
+/** Every documentation page, drawn. */
+const DOC_PAGES: [string, string][] = [
+  ['/docs', html(createElement(DocsHomeView))],
+  ...docSlugs().map((slug) => [`/docs/${slug}`, html(createElement(DocsSlugView, { slug }))] as [string, string]),
+  ...TOPICS.map((t) => [topicRoute(t), html(createElement(TopicPageView, { group: t.group, slug: t.slug }))] as [string, string]),
+]
+
+/** What an old address answers with: the place it redirects to, or the error it throws. */
+function answer(render: () => unknown): string {
+  try {
+    render()
+    return 'drew a page'
+  } catch (e: any) {
+    return String(e.message)
+  }
+}
+
 describe('No link lands in the middle of another page', () => {
 
   it('no link on the public site, the header or the footer goes to a section in the middle of another page', () => {
@@ -192,10 +215,8 @@ describe('No link lands in the middle of another page', () => {
       ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.href)),
       ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
       ...ROLES.map((r) => r.href),
-      ...DOCS_HOME.parts.map((p) => p.href),
-      ...DOCS_HOME.reference.map((p) => p.href),
-      ...PARTIES.flatMap((p) => p.doc.thisParty.map((l) => l.href)),
-      ...PARTIES.flatMap((p) => [...p.doc.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])),
+      ...DOCS_HOME.groups.flatMap((g) => g.links.map((l) => l.href)),
+      ...docsSequence().map((l) => l.href),
     ]
     const sources = [
       join(ROOT, 'src/app/page.tsx'),
@@ -206,13 +227,9 @@ describe('No link lands in the middle of another page', () => {
     expect(found).toEqual([])
   })
 
-  it('no drawn page under the documentation or the product links into the middle of another page', () => {
+  it('no drawn page under the documentation or the product links into the middle of another page, or to a page that is gone', () => {
     const pages: [string, string][] = [
-      ['/docs', html(createElement(DocsHomeView))],
-      ['/docs/process', html(createElement(ProcessHomeView))],
-      ...PROCESS.map((p) => [processRoute(p.slug), html(createElement(ProcessPageView, { slug: p.slug }))] as [string, string]),
-      ...TOPICS.map((t) => [topicRoute(t), html(createElement(TopicPageView, { group: t.group, slug: t.slug }))] as [string, string]),
-      ...PARTIES.map((p) => [`/docs/${p.doc.slug}`, html(createElement(PartyDocView, { doc: p.doc }))] as [string, string]),
+      ...DOC_PAGES,
       ...MODULES.map((m) => [m.route, html(createElement(ModulePageView, { m }))] as [string, string]),
       ...PARTY_PAGES.map((p) => [p.route, html(createElement(PartyPageView, { slug: p.slug }))] as [string, string]),
     ]
@@ -223,96 +240,203 @@ describe('No link lands in the middle of another page', () => {
       // click seats the reader and never follows it. Reported to its owner.
       const bad = hrefs(page).filter(intoAnotherPage).filter((h) => !(route === '/for/contractors' && h === '/demo#candidate'))
       expect(bad, route).toEqual([])
-      // And every link inside the site goes to a page that exists.
-      for (const h of hrefs(page).filter((x) => x.startsWith('/') && !x.startsWith('/model/') && !x.startsWith('/screens/'))) {
+      // And every link inside the site goes to a page that exists, never
+      // to an old address that only redirects.
+      for (const h of hrefs(page).filter((x) => x.startsWith('/') && !x.startsWith('/screens/'))) {
         // The frame's own screens and the sign-up form, with the party it
         // opens on, are pages too, outside the marketing list.
         const own = h.startsWith('/embed/demo') || h.split('?')[0] === '/signup'
         const path = h.split('#')[0]
         // Never /census: it is linked from nowhere since 2026-10-14.
         expect(path, `${route} links to the census`).not.toBe('/census')
+        expect(replacementFor(path), `${route} links to ${path}, an old address`).toBeNull()
         expect(pageAt(path) !== null || own || ['/login', '/demo'].includes(path), `${route} links to ${h}`).toBe(true)
       }
     }
   })
 })
 
-describe('The documentation is split in three: the process, master data and recruiting', () => {
+describe('The documentation is the four steps and the end of the work, then your records, recruiting and more', () => {
 
-  it('the process runs from a job request to pay and the end of the work, in the order of the four steps', () => {
-    expect(PROCESS.map((p) => p.slug)).toEqual([
-      'source-to-contract', 'contract-to-onboard', 'work-to-approve', 'expenses',
-      'approve-to-bill', 'approve-to-pay', 'record-to-report', 'govern-and-protect', 'when-work-ends',
-    ])
-    // The stages tied to a step come in the steps' order.
-    const tied = PROCESS.filter((p) => p.step !== null).map((p) => p.step!)
-    expect([...tied].sort()).toEqual(tied)
-    // Every step's process pages are real stages.
-    for (const s of STEPS) for (const slug of s.process) expect(PROCESS.map((p) => p.slug), s.route).toContain(slug)
+  it('the documentation home says how Etyme works in four steps, one page each, with no account needed, and lists each page once', () => {
+    expect(DOCS_HOME.title).toBe('How Etyme works')
+    expect(DOCS_HOME.lede).toBe('Four steps from a job to paying your suppliers, one page each. No account needed.')
+    expect(DOCS_HOME.groups.map((g) => g.heading)).toEqual(['The steps', 'Your records', 'Recruiting', 'More'])
+    const links = (i: number) => DOCS_HOME.groups[i].links.map((l) => l.t)
+    expect(links(0)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices', 'When the work ends'])
+    expect(DOCS_HOME.groups[0].links.map((l) => l.k)).toEqual(['Step 1', 'Step 2', 'Step 3', 'Step 4', 'After'])
+    expect(links(1)).toEqual(['Customers', 'Suppliers', 'Contractors'])
+    expect(links(2)).toEqual(['Who matches a job', 'Screening', 'Who applied'])
+    expect(links(3)).toEqual(['Who does what', 'Time and money', 'Integrations', 'Security'])
+    for (const g of DOCS_HOME.groups) for (const l of g.links) expect(pageAt(l.href), l.href).toBeTruthy()
   })
 
-  it('master data is customers, suppliers and consultants; recruiting is matching, screening and application tracking', () => {
+  it('nine process pages are five: one page for each of the four steps, and one for when the work ends', () => {
+    expect(STEP_PAGES.map((p) => p.slug)).toEqual(['job', 'candidates', 'timesheets', 'invoices', 'when-work-ends'])
+    expect(STEP_PAGES.map((p) => p.n)).toEqual([1, 2, 3, 4, null])
+    expect(STEP_PAGES.slice(0, 4).map((p) => p.title)).toEqual(STEPS.map((s) => s.name))
+    // Each product step knows the one documentation page that explains it.
+    expect(STEPS.map((s) => s.doc)).toEqual(STEP_PAGES.slice(0, 4).map(stepRoute))
+  })
+
+  it('your records are customers, suppliers and contractors; recruiting is who matches a job, screening and who applied', () => {
     expect(TOPICS.filter((t) => t.group === 'master-data').map((t) => t.slug)).toEqual(['customers', 'suppliers', 'consultants'])
     expect(TOPICS.filter((t) => t.group === 'recruiting').map((t) => t.slug)).toEqual(['matching', 'screening', 'application-tracking'])
-    expect(DOCS_HOME.parts.map((p) => p.t)).toEqual(['The process', 'Master data', 'Recruiting'])
   })
 
-  it('every section of every party page is shown on a page of its own, so no fact was lost in the split', () => {
-    const shown = new Set(PROCESS.map((p) => p.section).filter(Boolean))
-    for (const { doc } of PARTIES) {
-      for (const s of sectionsOf(doc)) {
-        // The opening section stays on the party page; the client's one hire, on the process overview.
-        if (s.id === null) continue
-        if (doc.slug === 'client' && s.id === 'one-hire') continue
-        expect(shown.has(s.id), `${doc.slug}#${s.id} is on no page`).toBe(true)
-      }
-      // And the pieces add back up to the page as written.
-      expect(sectionsOf(doc).map((s) => s.html).join('').replace(/\s+/g, '')).toBe(doc.html.replace(/\s+/g, ''))
-    }
-    const overview = html(createElement(ProcessHomeView))
-    expect(overview).toContain('/model/client-p2.png')
+  it('who does what is one table of the seven companies in a deal, what each buys, sells and sees, which replaced the ten party pages', () => {
+    expect(WHO_DOES_WHAT.columns).toEqual(['Who', 'Buys from', 'Sells to', 'Sees'])
+    expect(WHO_DOES_WHAT.rows.map((r) => r.who)).toEqual(['Client', 'MSP', 'Integrator', 'Prime supplier', 'Sub-vendor', 'Bench supplier', 'Worker'])
+    expect(WHO_DOES_WHAT.rows.find((r) => r.who === 'MSP')!.sees).toContain('Never supplies a worker.')
+    expect(WHO_DOES_WHAT.closing).toContain('Rates stay closed at every level.')
+    const page = html(createElement(DocsSlugView, { slug: 'who-does-what' }))
+    expect(page.match(/<table/g)).toHaveLength(1)
+    expect(page.match(/<tbody>[\s\S]*<\/tbody>/)![0].match(/<tr/g)).toHaveLength(7)
   })
 
-  it('every party is a way to read the same process pages, and each of its stages is a page of its own', () => {
-    for (const { doc } of PARTIES) {
-      for (const l of doc.thisParty) expect(pageAt(l.href), `${doc.slug}: ${l.href}`).toBeTruthy()
-    }
-    for (const p of PROCESS) {
-      for (const d of partiesFor(p)) expect(pageAt(processRoute(p.slug, d.slug)), `${p.slug} as ${d.slug}`).toBeTruthy()
-    }
+  it('every page of the documentation is registered, and every one is drawn', () => {
     for (const r of docRoutes()) expect(pageAt(r), r).toBeTruthy()
-    expect(PUBLIC_PAGES.filter((p) => p.route.startsWith('/docs/process/')).length).toBeGreaterThan(PROCESS.length)
+    for (const [route, page] of DOC_PAGES) expect(page, route).toContain('<h1')
+    expect(docRoutes()).toHaveLength(1 + STEP_PAGES.length + 1 + REFERENCE.length + TOPICS.length)
   })
 })
 
-describe('Every process page is a flow chart first, then short lines', () => {
-  const pages = [
-    ...PROCESS.map((p) => ({ route: processRoute(p.slug), flow: p.flow, lines: p.lines, lede: p.lede, el: createElement(ProcessPageView, { slug: p.slug }) })),
-    ...PROCESS.flatMap((p) => partiesFor(p).map((d) => ({ route: processRoute(p.slug, d.slug), flow: p.flow, lines: p.lines, lede: p.lede, el: createElement(ProcessPageView, { slug: p.slug, party: d.slug }) }))),
-    ...TOPICS.map((t) => ({ route: topicRoute(t), flow: t.flow, lines: t.lines, lede: t.lede, el: createElement(TopicPageView, { group: t.group, slug: t.slug }) })),
-  ]
+describe('Every old documentation address still works', () => {
 
-  it('every process, master data and recruiting page opens with a flow chart, before any line of its own', () => {
-    for (const p of pages) {
-      const page = html(p.el)
-      const main = page.slice(page.indexOf('<h1'))
-      const chart = main.indexOf('data-flow-chart')
-      expect(chart, `${p.route} has no flow chart`).toBeGreaterThan(0)
-      // Nothing but the lede and the side menu between the heading and the chart.
-      const firstLine = main.indexOf(p.lines[0].replace(/’/g, '&#x27;').slice(0, 20))
-      expect(chart, p.route).toBeLessThan(firstLine > 0 ? firstLine : main.indexOf(p.lines[0].slice(0, 12)))
-      expect(p.flow.length, p.route).toBeGreaterThanOrEqual(3)
-      expect(p.flow.length, p.route).toBeLessThanOrEqual(7)
-      expect(boxesSayWho(p.flow), `${p.route}: a box that does not say who does it`).toBe(true)
+  it('every old address leads, permanently, to the page that replaced it', () => {
+    const expected: Record<string, string> = {
+      '/docs/process': '/docs',
+      '/docs/process/source-to-contract': '/docs/job',
+      '/docs/process/contract-to-onboard': '/docs/candidates',
+      '/docs/process/work-to-approve': '/docs/timesheets',
+      '/docs/process/expenses': '/docs/timesheets',
+      '/docs/process/approve-to-bill': '/docs/invoices',
+      '/docs/process/approve-to-pay': '/docs/invoices',
+      '/docs/process/record-to-report': '/docs/invoices',
+      '/docs/process/govern-and-protect': '/docs/when-work-ends',
+      '/docs/process/when-work-ends': '/docs/when-work-ends',
+      ...Object.fromEntries(['client', 'systems-integrator', 'msp-program-office', 'prime-vendor', 'sub-vendor', 'bench-vendor',
+        'self-employed', 'candidate', 'candidate-independent', 'candidate-employee'].map((s) => [`/docs/${s}`, '/docs/who-does-what'])),
+    }
+    expect(oldAddresses().sort()).toEqual(Object.keys(expected).sort())
+    for (const [from, to] of Object.entries(expected)) {
+      expect(replacementFor(from), from).toBe(to)
+      expect(pageAt(to), `${from} goes to ${to}, which is not a page`).toBeTruthy()
+    }
+    // And the route files answer with that redirect, permanently.
+    expect(answer(() => ProcessHomePage())).toBe('permanent redirect to /docs')
+    expect(answer(() => ProcessStagePage({ params: { stage: 'approve-to-pay' } }))).toBe('permanent redirect to /docs/invoices')
+    expect(answer(() => ProcessPartyPage({ params: { stage: 'work-to-approve', party: 'sub-vendor' } }))).toBe('permanent redirect to /docs/timesheets')
+    expect(answer(() => DocsSlugPage({ params: { slug: 'bench-vendor' } }))).toBe('permanent redirect to /docs/who-does-what')
+  })
+
+  it('an address that was never a page is not found, rather than sent somewhere', () => {
+    expect(answer(() => ProcessStagePage({ params: { stage: 'nothing-here' } }))).toBe('not found')
+    expect(answer(() => ProcessPartyPage({ params: { stage: 'expenses', party: 'nobody' } }))).toBe('not found')
+    expect(answer(() => DocsSlugPage({ params: { slug: 'nothing-here' } }))).toBe('not found')
+    expect(answer(() => DocsSlugPage({ params: { slug: 'job' } }))).toBe('drew a page')
+  })
+
+  it('no menu, footer or page of the site links to an old address', () => {
+    const links = [
+      ...NAV_MENUS.flatMap((m) => [m.href, ...itemsOf(m).map((i) => i.href)]),
+      ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
+      ...ROLES.map((r) => r.href),
+      ...MODULES.flatMap((m) => (m.link ? [m.link.href] : [])),
+    ]
+    for (const h of links) expect(replacementFor(h), h).toBeNull()
+  })
+})
+
+describe('Every step page is the same one screen', () => {
+
+  it('every step page says Step n of 4, or After step 4, above its title, with Previous and Next at its top and bottom', () => {
+    for (const p of STEP_PAGES) {
+      const page = html(createElement(StepPageView, { slug: p.slug }))
+      const eyebrow = p.n ? `Step ${p.n} of 4` : 'After step 4'
+      expect(page.indexOf(`>${eyebrow}</p>`), p.slug).toBeGreaterThan(0)
+      expect(page.indexOf(`>${eyebrow}</p>`), p.slug).toBeLessThan(page.indexOf('<h1'))
+      expect(page.match(/data-prev-next="(top|bottom)"/g), p.slug).toEqual(['data-prev-next="top"', 'data-prev-next="bottom"'])
+    }
+    // The first step's Previous is the documentation home, and its Next the second step, as drawn.
+    const job = html(createElement(StepPageView, { slug: 'job' }))
+    expect(job).toContain('href="/docs" rel="prev"')
+    expect(job).toContain('href="/docs/candidates" rel="next"')
+    expect(job).toContain('Step 2 · Candidates')
+  })
+
+  it('every step page reads who does what as a flow of four to six boxes, then the rules, then what it stops, in that order', () => {
+    for (const p of STEP_PAGES) {
+      const page = html(createElement(StepPageView, { slug: p.slug }))
+      const at = [STEP_HEADINGS.flow, 'data-flow-chart', STEP_HEADINGS.rules, STEP_HEADINGS.stops, 'See this step in the demo'].map((t) => page.indexOf(t))
+      expect(at.every((i) => i > 0), `${p.slug} ${JSON.stringify(at)}`).toBe(true)
+      expect([...at].sort((a, b) => a - b), p.slug).toEqual(at)
+      expect(p.flow.length, p.slug).toBeGreaterThanOrEqual(4)
+      expect(p.flow.length, p.slug).toBeLessThanOrEqual(6)
+      // Each box says who, by their job, and what they do.
+      for (const b of p.flow) {
+        expect(b.who, `${p.slug}: a box with no party`).toBeTruthy()
+        expect(b.role, `${p.slug}: “${b.t}” says no one`).toBeTruthy()
+        expect(page, p.slug).toContain(b.role!.replace(/’/g, '&#x27;'))
+      }
+      expect(p.rules.length, p.slug).toBeGreaterThanOrEqual(3)
+      expect(p.rules.length, p.slug).toBeLessThanOrEqual(5)
+      expect(p.stops.length, p.slug).toBeGreaterThanOrEqual(1)
+      expect(p.stops.length, p.slug).toBeLessThanOrEqual(3)
     }
   })
 
-  it('no line written for these pages runs past twenty-five words, and none is a paragraph', () => {
-    for (const p of pages) {
-      for (const l of [p.lede, ...p.lines, ...p.flow.map((b) => b.t)]) {
-        expect(longSentences(l, 25), p.route).toEqual([])
-        expect(l.split(/(?<=[.!?])\s+/).length, `${p.route}: “${l}” is a paragraph`).toBeLessThanOrEqual(2)
-      }
+  it('every step ends with “See this step in the demo” and one line saying whom the reader sits as', () => {
+    for (const p of STEP_PAGES) {
+      const page = html(createElement(StepPageView, { slug: p.slug }))
+      expect(page, p.slug).toContain('>See this step in the demo</a>')
+      expect(page, p.slug).toContain(`You sit as ${p.demo.seat} at Northbend Athletic`)
+    }
+  })
+
+  it('no step page carries the old furniture: stations tables, glossaries, codes, value streams, lanes or a party switcher', () => {
+    for (const [route, page] of DOC_PAGES) {
+      expect(page, route).not.toMatch(/Etyme says|value stream|\bL[1-4](\.\d+)+\b|Stations|How to read a drawing|Read it as|integration point|lane/i)
+      expect(page, route).not.toContain('<img')
+    }
+  })
+})
+
+describe('Every documentation page says its contents once, and in short lines', () => {
+
+  it('the contents are said once on a page: no side menu and no second list, and each page marks where the reader is in its part', () => {
+    for (const [route, page] of DOC_PAGES) {
+      expect(page, route).not.toContain('Pages in the documentation')
+      expect((page.match(/data-contents=""/g) ?? []).length, route).toBeLessThanOrEqual(1)
+    }
+    for (const p of STEP_PAGES) {
+      const page = html(createElement(StepPageView, { slug: p.slug }))
+      const strip = page.slice(page.indexOf('data-contents=""'))
+      expect(strip, p.slug).toContain(`href="${stepRoute(p)}" aria-current="page"`)
+      for (const q of STEP_PAGES) expect(strip, `${p.slug} lists ${q.slug}`).toContain(`href="${stepRoute(q)}"`)
+    }
+  })
+
+  it('every record and recruiting page is a heading, one line and at most six short lines, with Previous and Next', () => {
+    for (const t of TOPICS) {
+      expect(t.lines.length, t.slug).toBeLessThanOrEqual(6)
+      const page = html(createElement(TopicPageView, { group: t.group, slug: t.slug }))
+      expect(page, t.slug).not.toContain('data-flow-chart')
+      expect(page.match(/data-prev-next="(top|bottom)"/g), t.slug).toHaveLength(2)
+    }
+  })
+
+  it('no line written for the documentation runs past twenty-five words, and none is a paragraph', () => {
+    const written = [
+      DOCS_HOME.lede, ...DOCS_HOME.groups.flatMap((g) => g.links.map((l) => l.d ?? l.t)),
+      ...STEP_PAGES.flatMap((p) => [p.lede, ...p.rules, ...p.flow.map((b) => b.t), ...p.stops.map((r) => r.then ?? ''), ...(p.more?.lines ?? [])]),
+      ...TOPICS.flatMap((t) => [t.lede, ...t.lines]),
+      ...REFERENCE.flatMap((r) => [r.lede, ...r.lines]),
+      WHO_DOES_WHAT.lede, WHO_DOES_WHAT.closing, ...WHO_DOES_WHAT.rows.map((r) => r.sees),
+    ].filter(Boolean)
+    for (const l of written) {
+      expect(longSentences(l, 25), l).toEqual([])
+      expect(l.split(/(?<=[.!?])\s+/).length, `“${l}” is a paragraph`).toBeLessThanOrEqual(2)
     }
     for (const s of STEPS) {
       for (const l of [s.next, ...s.involved.map((i) => i.does), ...s.flow.map((b) => b.t)]) {
@@ -321,33 +445,10 @@ describe('Every process page is a flow chart first, then short lines', () => {
     }
   })
 
-  it('no drawn process page carries a paragraph of its own words over twenty-five words', () => {
-    for (const p of pages) {
-      const page = html(p.el)
-      // The drawings’ own captions and tables are the party pages’, held by their own test.
-      const own = page.slice(0, page.indexOf('class="etyme-docs') > 0 ? page.indexOf('class="etyme-docs') : undefined)
-      const long = linesOf(own).flatMap((l) => longSentences(l, 25))
-      expect(long, p.route).toEqual([])
+  it('no drawn documentation page carries a paragraph of its own words over twenty-five words', () => {
+    for (const [route, page] of DOC_PAGES) {
+      const long = linesOf(page).flatMap((l) => longSentences(l, 25))
+      expect(long, route).toEqual([])
     }
-  })
-
-  it('every process page shows the whole process, with “you are here” on the reader’s place', () => {
-    for (const p of PROCESS) {
-      const page = html(createElement(ProcessPageView, { slug: p.slug }))
-      expect(page, p.slug).toContain('The whole process')
-      expect(page, p.slug).toMatch(new RegExp(`href="${processRoute(p.slug)}" aria-current="page"`))
-      expect(page, p.slug).toContain('You are here')
-      for (const q of PROCESS) expect(page, `${p.slug} lists ${q.slug}`).toContain(`href="${processRoute(q.slug)}"`)
-      expect(page.match(/data-prev-next="(top|bottom)"/g), p.slug).toHaveLength(2)
-    }
-  })
-
-  it('a process page read as one party switches between the parties, and Previous and Next stay with that party', () => {
-    const p = PROCESS.find((x) => x.slug === 'work-to-approve')!
-    const page = html(createElement(ProcessPageView, { slug: p.slug, party: 'sub-vendor' }))
-    expect(page).toContain('Read it as')
-    for (const d of partiesFor(p)) expect(page).toContain(`href="${processRoute(p.slug, d.slug)}"`)
-    expect(page).toContain(`href="${processRoute('contract-to-onboard', 'sub-vendor')}" rel="prev"`)
-    expect(page).toContain(`href="${processRoute('expenses', 'sub-vendor')}" rel="next"`)
   })
 })

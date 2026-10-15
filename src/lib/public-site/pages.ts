@@ -24,7 +24,7 @@
  * unreachable.
  */
 
-import { PROCESS, partiesFor, processRoute } from './docs/process'
+import { STEP_PAGES } from './docs/process'
 import { TOPICS, topicRoute } from './docs/topics'
 import { PARTY_PAGES } from './parties'
 
@@ -35,7 +35,7 @@ export type PageKind =
   | 'DOOR'
   /** One of the eight stations of the product. */
   | 'MODULE'
-  /** The operating model, party by party. */
+  /** The documentation: how Etyme works, one page a step. */
   | 'DOCS'
   /** About, contact, the security position. */
   | 'COMPANY'
@@ -67,43 +67,28 @@ export const MODULE_ROUTES = [
   '/invoices', '/chain',
 ] as const
 
+/**
+ * The pages mounted at /docs/[slug] since 2026-10-15: the five step
+ * pages, the one table of who does what, and the two references. The ten
+ * party pages that were here redirect to the table
+ * (`./docs/redirects`), and the nine process pages under /docs/process
+ * to the step that took each.
+ */
 export const DOCS_SLUGS = [
-  'client', 'systems-integrator', 'msp-program-office', 'prime-vendor',
-  'sub-vendor', 'bench-vendor', 'self-employed', 'candidate',
-  'candidate-independent', 'candidate-employee',
-  'time-and-money', 'integrations',
+  ...STEP_PAGES.map((p) => p.slug),
+  'who-does-what', 'time-and-money', 'integrations',
 ] as const
 
-/**
- * The documentation beside the party and reference pages, since
- * 2026-09-30: the process, one page per stage and one per party's view of
- * it, and the master data and recruiting pages. Each is mounted by one of
- * four route files.
- */
+/** Your records and recruiting, each mounted by one of two route files. */
 export function nestedDocPages(): PublicPage[] {
-  const out: PublicPage[] = [
-    { route: '/docs/process', title: 'The process', kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/process/page.tsx` },
-  ]
-  for (const p of PROCESS) {
-    out.push({ route: processRoute(p.slug), title: p.title, kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/process/[stage]/page.tsx` })
-    for (const d of partiesFor(p)) {
-      out.push({
-        route: processRoute(p.slug, d.slug), title: `${p.title}, read as ${d.title}`, kind: 'DOCS',
-        routeFile: `${SITE_GROUP}/docs/process/[stage]/[party]/page.tsx`,
-      })
-    }
-  }
-  for (const t of TOPICS) {
-    out.push({ route: topicRoute(t), title: t.title, kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/${t.group}/[slug]/page.tsx` })
-  }
-  return out
+  return TOPICS.map((t) => ({ route: topicRoute(t), title: t.title, kind: 'DOCS' as const, routeFile: `${SITE_GROUP}/docs/${t.group}/[slug]/page.tsx` }))
 }
 
 export type DocsSlug = (typeof DOCS_SLUGS)[number]
 
 /**
  * Where the new pages are mounted. A route group, so the URLs read
- * `/requisitions` and `/docs/client` and the whole marketing site sits
+ * `/requisitions` and `/docs/job` and the whole marketing site sits
  * under one folder a single ownership line can give to the market.
  */
 export const SITE_GROUP = 'src/app/(site)'
@@ -168,6 +153,7 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
   { prefix: 'src/app/bench-invite/', why: 'A private bench invitation link.' },
   { prefix: 'src/app/map', why: 'The founder’s map of how the system is built, closed to everybody but the Owner or Admin of a real company (lib/map-gate); it describes the code, not the product to a buyer.' },
   { prefix: 'src/app/embed/', why: 'The sample program’s screens, drawn inside the home page’s frame: product screens over the seeded demo world, read-only, held to the dashboard’s words. The home page labels them as a sample above the frame.' },
+  { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
   { prefix: 'src/app/legal/', why: 'Regulatory’s agreements, reached from the census; read for price and AI with the other legal pages.' },
 ]
 

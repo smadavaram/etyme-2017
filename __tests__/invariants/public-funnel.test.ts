@@ -36,8 +36,8 @@ import { PARTY_PAGES } from '@/lib/public-site/parties'
 import { MODULES } from '@/lib/public-site/modules'
 import { STEPS } from '@/lib/public-site/steps'
 import { TOPICS } from '@/lib/public-site/docs/topics'
-import { PROCESS } from '@/lib/public-site/docs/process'
-import { PARTIES, DOCS_HOME } from '@/lib/public-site/docs/index'
+import { STEP_PAGES } from '@/lib/public-site/docs/process'
+import { WHO_DOES_WHAT, REFERENCE, DOCS_HOME } from '@/lib/public-site/docs/index'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -129,7 +129,7 @@ describe('One ladder, named once', () => {
     // Code only: a comment that records why the audit left is history, not a link.
     const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
     for (const f of drawers) expect(code(read(f)), f).not.toMatch(audit)
-    const data = JSON.stringify([MODULES, PARTY_PAGES, STEPS, TOPICS, PROCESS, PARTIES, DOCS_HOME, COMPANY_PAGES, DOORS, FOOTER_LINKS])
+    const data = JSON.stringify([MODULES, PARTY_PAGES, STEPS, TOPICS, STEP_PAGES, WHO_DOES_WHAT, REFERENCE, DOCS_HOME, COMPANY_PAGES, DOORS, FOOTER_LINKS])
     expect(data).not.toMatch(audit)
 
     // The sign-up band has one button, Sign up — a door's own sign-up on a
@@ -157,7 +157,10 @@ describe('One ladder, named once', () => {
       expect(src, f).toContain('<SiteFrame>')
     }
     const framed = PUBLIC_PAGES.filter((p) => ['DOCS', 'COMPANY'].includes(p.kind))
-    expect(framed.length).toBeGreaterThan(20)
+    // Since 2026-10-15: the documentation home, five step pages, who does
+    // what, two references and six record and recruiting pages, and the
+    // three company pages.
+    expect(framed.length).toBeGreaterThanOrEqual(18)
     // The home page, the eight product pages and the four party doors end
     // in the sign-up band instead (2026-10-14): the demo under the product,
     // Sign up, and a person through Contact in the footer.

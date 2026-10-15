@@ -3,277 +3,220 @@
  *
  * ── Why it is public ─────────────────────────────────────────────────
  *
- * The static site put the documentation "behind sign-in". The founder
- * decided otherwise on 2026-09-26: documentation a buyer can read before
- * buying is half of what makes the large enterprise suites read as
- * products, and a docs link that demands an account reads as a product
- * with something to hide. Nothing here asks for an account, and the test
- * holds that.
+ * The founder decided on 2026-09-26 that documentation a buyer can read
+ * before buying is half of what makes a product read as one, and a docs
+ * link that demands an account reads as a product with something to
+ * hide. Nothing here asks for an account, and a test holds that.
  *
- * ── What is here ─────────────────────────────────────────────────────
+ * ── One screen a page. Decided by the founder, 2026-10-15 ────────────
  *
- * Ten party pages — the operating model drawn from each desk — converted
- * from the static site (see the header of each file for what the
- * conversion took out and why), and three pages written here:
+ * "AI slop … no one is reading large content … make it real and make it
+ * simple." He said "Build it" on a drawing that cut every public page to
+ * one screen. So the documentation is:
  *
- *   - the documentation home, which lists them
- *   - time and money, rewritten because the static page claimed three
- *     rules the code does not enforce: that a contractor and a manager
- *     must both approve a week, that a manager cannot approve their own
- *     expenses, and that nobody can override an invoice past the order's
- *     ceiling. The last one is overridable with a name and a reason
- *     (`OVERRIDABLE.PO_BALANCE` in `lib/three-way-match`); the missing
- *     signed week is the one nobody can waive.
- *   - integrations, rewritten because the static page listed named ERP,
- *     HCM and expense products as "Connected". None of those connectors
- *     exists. What exists is a journal export that sends each entry once,
- *     API keys that cannot outrank the person who issued them, webhooks,
- *     statement reconciliation, and CSV from every list.
+ *   - the home, "How Etyme works": the steps, your records, recruiting
+ *     and more, each listed once
+ *   - five step pages (`./process`): Job, Candidates, Timesheets,
+ *     Invoices, and When the work ends
+ *   - your records and recruiting (`./topics`), six short pages
+ *   - "Who does what": one table that replaced the ten party pages, each
+ *     of which had drawn the whole operating model from one party
+ *   - time and money, and integrations, each cut to a heading, a line and
+ *     a few short lines
  *
- * ── Plain English, 2026-09-29 ────────────────────────────────────────
+ * The drawings, the 13-row stations tables, the "Etyme says" glossaries
+ * and the L1 to L4 codes went with the ten party pages. Every old address
+ * goes, permanently, to the page that replaced it (`./redirects`).
  *
- * The founder asked for words a reader in India, the US, the UK or
- * Australia reads without effort, native or not. Each party page opens
- * on short lines, not paragraphs: its position on a deal, what the
- * drawings show from that desk, and how to read a drawing. No sentence
- * runs past twenty-five words, and a test counts them.
+ * ── Two pages that were rewritten before, for being untrue ───────────
  *
- * The party pages' HTML is hand-edited here; it is not generated. The
- * drawings are: `docs/lanes/streams.mjs` draws them and
- * `docs/lanes/render-model.mjs` writes `public/model/*.png`. So a
- * station's words live in two places, and a test fails when the stations
- * table here says something the drawing's source does not. Change both,
- * then run `node docs/lanes/build-all.mjs && node docs/lanes/render-model.mjs`.
- *
- * ── What was held back ───────────────────────────────────────────────
- *
- * "Held for everybody" (`docs-held-for-everybody.html`) is not brought
- * across. It is a list of test sentences extracted by machine and cut off
- * mid-phrase — "the seat you pick is the seat you get › a buyer" — naming
- * demo firms, and it is not documentation a buyer can read. Nothing
- * links to it.
+ * Time and money never claims that a contractor and a manager must both
+ * approve a week, that a manager cannot approve their own expenses, or
+ * that nobody can go past an order's limit: the limit can be passed with
+ * a name and a reason (`OVERRIDABLE.PO_BALANCE` in `lib/three-way-match`);
+ * a line with no approved week behind it cannot. Integrations claims no
+ * named connector, because none is built.
  */
 
-import { PROCESS, processAt, partiesFor, processRoutes, REFUSES_TITLE } from './process'
-import { TOPICS, topicAt, topicRoute, GROUP_TITLE } from './topics'
+import { STEP_PAGES, stepPageAt, stepRoute, stepEyebrow, STEP_HEADINGS, REFUSAL_KIND } from './process'
+import { TOPICS, topicAt, topicRoute, topicsIn, GROUP_TITLE } from './topics'
 import { flowWords } from '../flow'
-import { DOC as client } from './client'
-import { DOC as systemsIntegrator } from './systems-integrator'
-import { DOC as mspProgramOffice } from './msp-program-office'
-import { DOC as primeVendor } from './prime-vendor'
-import { DOC as subVendor } from './sub-vendor'
-import { DOC as benchVendor } from './bench-vendor'
-import { DOC as selfEmployed } from './self-employed'
-import { DOC as candidate } from './candidate'
-import { DOC as candidateIndependent } from './candidate-independent'
-import { DOC as candidateEmployee } from './candidate-employee'
 
-export interface PartyDoc {
-  slug: string
-  eyebrow: string
-  title: string
-  lede: string
-  /**
-   * The stages drawn from this desk, each a page of its own under
-   * /docs/process since 2026-09-30. Until then these were anchors into the
-   * middle of this page.
-   */
-  thisParty: { href: string; label: string }[]
-  /**
-   * The body, as HTML written in this repository. Trusted: nothing a user
-   * typed reaches it, and the test reads every word of it.
-   */
-  html: string
+// ── The documentation home ────────────────────────────────────────────
+
+export interface DocLink {
+  t: string
+  href: string
+  /** A few words beside it. */
+  d?: string
+  /** "Step 1", "After": the small label in front of a step. */
+  k?: string
 }
 
-/** The ten parties, in the order the operating model numbers them. */
-export const PARTIES: { n: string; doc: PartyDoc }[] = [
-  { n: '1', doc: client },
-  { n: '2', doc: systemsIntegrator },
-  { n: '3', doc: mspProgramOffice },
-  { n: '4', doc: primeVendor },
-  { n: '5', doc: subVendor },
-  { n: '6', doc: benchVendor },
-  { n: '7', doc: selfEmployed },
-  { n: '8A', doc: candidate },
-  { n: '8B', doc: candidateIndependent },
-  { n: '8C', doc: candidateEmployee },
-]
-
-/** A page written here rather than converted: prose blocks and an optional screen. */
-export interface ReferenceDoc {
-  slug: string
-  eyebrow: string
-  title: string
-  lede: string
-  screen?: { img: string; alt: string; caption: string }
-  blocks: { id: string; title: string; paragraphs?: string[]; items?: { t: string; d: string }[] }[]
-}
-
-export const TIME_AND_MONEY: ReferenceDoc = {
-  slug: 'time-and-money',
-  eyebrow: 'Documentation · Reference',
-  title: 'Time and money',
-  lede:
-    'From an hour a contractor worked to the bill a client pays and the invoice a supplier is paid on. ' +
-    'One signed week is the receipt, and every firm in the chain bills from it.',
-  screen: {
-    img: '/screens/timesheets.png',
-    alt: 'A timesheets screen at a client: weeks waiting for a signature and weeks approved, one of them a 44-hour week over the hours.',
-    caption:
-      'The hiring manager at Northbend Athletic, a demo company — not a customer. Weeks waiting for a signature sit beside weeks already signed, at their bill rates.',
-  },
-  blocks: [
+/**
+ * The documentation home, as the founder's drawing has it, with one
+ * change: the line under the title names suppliers, because every public
+ * page says what kind of thing this is above the fold (`lib/positioning`,
+ * category first) and the drawing's line did not.
+ */
+export const DOCS_HOME = {
+  title: 'How Etyme works',
+  lede: 'Four steps from a job to paying your suppliers, one page each. No account needed.',
+  groups: [
     {
-      id: 'steps',
-      title: 'Seven steps',
-      items: [
-        { t: '1 · The week is filed', d: 'By the person who worked it and by nobody else, the supplier that employs them included, against the contract. Never twice for one period, and submitting locks it.' },
-        { t: '2 · It is read before anyone signs', d: 'Over twelve hours a day, over sixty a week, over the job’s hours, or past the contract’s end is flagged and shown first. Flags warn; they never block.' },
-        { t: '3 · The client signs', d: 'The manager who owns the work approves it. The person who filed it cannot, and a rejection needs a reason.' },
-        { t: '4 · The employer accepts', d: 'The firm that pays the person says what it will pay for. That is a second signature, because it is a different statement. In a chain the signed week goes down it, and each firm accepts it in turn, never before the firm above it has.' },
-        { t: '5 · The supplier sends its invoice', d: 'Only from weeks the client already signed. The same week travels up the chain, and each firm bills it at its own rate.' },
-        { t: '6 · The supplier’s invoice is matched', d: 'A signed week behind every line, the hours billed against the hours approved, the rate against the contract, and room left on the order.' },
-        { t: '7 · Money moves two ways', d: 'A supplier is paid against its matched invoice. An employee is paid by payroll, and sees what they are paid, never a rate above it.' },
-      ],
+      heading: 'The steps',
+      links: STEP_PAGES.map((p): DocLink => ({ k: p.n ? `Step ${p.n}` : 'After', t: p.title, d: p.home, href: stepRoute(p) })),
     },
+    { heading: GROUP_TITLE['master-data'], links: topicsIn('master-data').map((t): DocLink => ({ t: t.title, href: topicRoute(t) })) },
+    { heading: GROUP_TITLE.recruiting, links: topicsIn('recruiting').map((t): DocLink => ({ t: t.title, href: topicRoute(t) })) },
     {
-      id: 'waivable',
-      title: 'What can be waived, and what cannot',
-      paragraphs: [
-        'A check that fails on a supplier’s invoice is either waivable with a name and a reason, or not waivable at all. The screen says which.',
-      ],
-      items: [
-        { t: 'Never waived', d: 'A line with no signed week or approved expense behind it. A week billed twice. Arithmetic that does not add up. A rate that differs from the contract.' },
-        { t: 'Waived with a name and a reason', d: 'Hours under query, a week approved after the cut-off, a part period, an order being raised after the fact, and an order being topped up.' },
-        { t: 'A different rate is a contract change', d: 'It is amended on the contract, from the day it changed, by somebody with the authority. It is never a note on one bill.' },
-      ],
-    },
-    {
-      id: 'words',
-      title: 'Three words, named by who issues each',
-      items: [
-        { t: 'Bill', d: 'What a firm sends its customer. The party who issues a document names it, and the firm is the one billing.' },
-        { t: 'Invoice receipt', d: 'A supplier’s invoice, received and matched. The supplier issues it; the buyer receives it.' },
-        { t: 'Payroll', d: 'How an employee is paid. Never billed and never invoiced.' },
-      ],
+      heading: 'More',
+      links: [
+        { t: 'Who does what', href: '/docs/who-does-what' },
+        { t: 'Time and money', href: '/docs/time-and-money' },
+        { t: 'Integrations', href: '/docs/integrations' },
+        { t: 'Security', href: '/security' },
+      ] as DocLink[],
     },
   ],
 }
 
+// ── Who does what ─────────────────────────────────────────────────────
+
+/** One company in a deal, on the one table. */
+export interface PartyRow {
+  who: string
+  buysFrom: string
+  sellsTo: string
+  sees: string
+}
+
+/**
+ * Every company in a deal, on one table. Replaced the ten party pages on
+ * 2026-10-15. The line under the title names the client and its
+ * suppliers, because a page names what kind of thing this is before
+ * anything else (`lib/positioning`, category first); the drawing's line
+ * did not. Two cells differ from the drawing, because the drawing said
+ * more than the code does: the job goes out from the program manager or
+ * Procurement (not the hiring manager), and a sub-vendor learns the
+ * client's name where the prime may share it, rather than never
+ * (`lib/distribution`: the end client is described, not named, where the
+ * agreement above forbids it).
+ */
+export const WHO_DOES_WHAT = {
+  slug: 'who-does-what',
+  title: 'Who does what',
+  lede: 'Every company in a deal, from the client to its suppliers, on one table.',
+  columns: ['Who', 'Buys from', 'Sells to', 'Sees'] as const,
+  rows: [
+    { who: 'Client', buysFrom: 'Every supplier', sellsTo: 'Nobody', sees: 'Every contractor on its sites, and the supplier it pays' },
+    { who: 'MSP', buysFrom: '—', sellsTo: '—', sees: 'Runs the client’s program from a seat the client gives it. Never supplies a worker.' },
+    { who: 'Integrator', buysFrom: 'Sub-vendors, or its own employees', sellsTo: 'The client', sees: 'Its own people and its own rates' },
+    { who: 'Prime supplier', buysFrom: 'Sub-vendors, or its own employees', sellsTo: 'The client', sees: 'Its own people and its own rates' },
+    { who: 'Sub-vendor', buysFrom: 'Its own employees', sellsTo: 'The prime', sees: 'The work site. The client’s name only where the prime may share it.' },
+    { who: 'Bench supplier', buysFrom: 'Workers waiting for a project', sellsTo: 'The firm above', sees: 'Who agreed to be put forward' },
+    { who: 'Worker', buysFrom: '—', sellsTo: 'Their time', sees: 'Every firm between them and the client, by name. Their own pay.' },
+  ] as PartyRow[],
+  closing: 'Rates stay closed at every level. A worker who owns their own company reads both the supplier and the worker row.',
+}
+
+// ── Time and money, and integrations ──────────────────────────────────
+
+/** A short reference page: a heading, one line, a few short lines, and a small table where one helps. */
+export interface ReferenceDoc {
+  slug: string
+  title: string
+  lede: string
+  lines: string[]
+  table?: { columns: [string, string]; rows: [string, string][] }
+}
+
+export const TIME_AND_MONEY: ReferenceDoc = {
+  slug: 'time-and-money',
+  title: 'Time and money',
+  lede: 'One approved week is the receipt. The client pays from it, and every supplier bills from it.',
+  lines: [
+    'Only the person who worked the week files it. Nobody else may.',
+    'The client approves it first. Then each firm below accepts the same week, in turn.',
+    'A supplier sends its invoice only for weeks the client approved, and only for the hours accepted.',
+    'A supplier is paid on its matched invoice. An employee is paid by payroll.',
+  ],
+  table: {
+    columns: ['A failed check on an invoice receipt', 'Can a person waive it?'],
+    rows: [
+      ['No approved week or expense behind a line', 'Never waived'],
+      ['A week billed twice, or totals that do not add up', 'Never waived'],
+      ['A rate that differs from the contract', 'Never waived. Change the contract instead.'],
+      ['Hours under query, or an order being topped up', 'Yes, with a name and a reason'],
+    ],
+  },
+}
+
 export const INTEGRATIONS: ReferenceDoc = {
   slug: 'integrations',
-  eyebrow: 'Documentation · Reference',
   title: 'Integrations',
-  lede:
-    'Etyme keeps the record for contractors and suppliers, and your ERP, HCM and expense systems keep theirs. ' +
-    'This page says what crosses between them today, and what does not yet.',
-  blocks: [
-    {
-      id: 'today',
-      title: 'What crosses today',
-      items: [
-        { t: 'Journal export, once', d: 'The journal entries waiting to go to your books are exported and stamped as sent in one step. An entry already sent never goes again, so nothing posts twice.' },
-        { t: 'Refused on an unmapped account', d: 'An entry whose account is not mapped is refused, rather than posted to a suspense line somebody chases next month.' },
-        { t: 'Webhooks', d: 'Subscribe to the events you want. A delivery that fails is shown as failed, never dropped quietly.' },
-        { t: 'API keys', d: 'Issued by somebody who may manage the team, and never holding more than the person who issued them.' },
-        { t: 'Statement reconciliation', d: 'Paste a counterparty’s statement and it is matched against what was billed in the period. Every break is named and kept.' },
-        { t: 'CSV from every list', d: 'Every list in the product exports what it shows.' },
-      ],
-    },
-    {
-      id: 'not-yet',
-      title: 'What is not built',
-      paragraphs: [
-        'No named connector to a particular ERP, HCM, payroll, expense, signature or background-check product is built.',
-        'In the drawings, a station marked ERP, HCM or Expenses is where a document would cross to that system. Today it crosses as an export, a webhook or a call to the API.',
-      ],
-    },
-    {
-      id: 'signin',
-      title: 'Sign-in',
-      paragraphs: [
-        'Business users sign in through their own company’s sign-in, and the verified corporate domain is the company. ' +
-          'Candidates sign in with an email link.',
-      ],
-    },
+  lede: 'What crosses between Etyme and the systems you keep for contractors and suppliers, today.',
+  lines: [
+    'Journal entries go to your books once. An entry already sent never goes again.',
+    'An entry whose account is not mapped is refused, not posted to a holding line.',
+    'Webhooks for the events you choose. A failed delivery is shown as failed.',
+    'API keys never hold more than the person who issued them.',
+    'Every list exports to CSV.',
+    'No named connector to any particular accounting, HR, payroll or expense product is built.',
   ],
 }
 
 export const REFERENCE: ReferenceDoc[] = [TIME_AND_MONEY, INTEGRATIONS]
 
-/**
- * The documentation home. Since 2026-09-30 it is cut in three — the
- * process, master data and recruiting — with the party pages as a way
- * to read the same process from one desk, and the reference pages last.
- * Nothing on it links into the middle of another page.
- */
-export const DOCS_HOME = {
-  eyebrow: 'Documentation',
-  title: 'How contractors and suppliers move through Etyme',
-  lede:
-    'The whole process, from a job request to pay and the end of the work, one page per stage. ' +
-    'It is public, and none of it needs an account.',
-  parts: [
-    { t: 'The process', d: 'A job request through to pay and the end of the work, in order, with a flow chart on every page.', href: '/docs/process' },
-    { t: 'Master data', d: 'The business partners — customers and suppliers — and the consultants.', href: '/docs/master-data/customers' },
-    { t: 'Recruiting', d: 'Matching, screening and tracking every submission to an award.', href: '/docs/recruiting/matching' },
-  ],
-  readAs:
-    'The same process, read from one party. Each party page says where that party stands on a deal, then lists its stages.',
-  reference: [
-    { t: 'Time and money', d: 'Seven steps from a filed week to a paid bill, and which checks can be waived.', href: '/docs/time-and-money' },
-    { t: 'Integrations', d: 'What crosses to your books and systems today, and what does not yet.', href: '/docs/integrations' },
-    { t: 'Security position', d: 'What is done, what is not, and when. It includes the autonomy ladder, L0 to L5.', href: '/security' },
-  ],
-  example:
-    'The example program is the same flows with a month of data in them. Open it as anyone on the team, with no account.',
-}
-
-export type AnyDocSlug = string
-
-/** Every page under /docs, with its slug, in the order the side menu lists them. */
-export function docSlugs(): string[] {
-  return [...PARTIES.map((p) => p.doc.slug), ...REFERENCE.map((r) => r.slug)]
-}
-
-export function partyAt(slug: string): PartyDoc | null {
-  return PARTIES.find((p) => p.doc.slug === slug)?.doc ?? null
-}
-
 export function referenceAt(slug: string): ReferenceDoc | null {
   return REFERENCE.find((r) => r.slug === slug) ?? null
 }
 
-/** The words of an HTML body, for the guard. Tags out, entities as the reader sees them. */
-export function textOfHtml(html: string): string {
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ')
-    .replace(/<\/(p|li|td|th|h2|h3|figcaption|b)>/g, '. ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&rarr;/g, '→')
-    .replace(/\s+/g, ' ')
-    .trim()
+/** Every page mounted at /docs/[slug], in reading order: the five step pages, who does what, then the two references. */
+export function docSlugs(): string[] {
+  return [...STEP_PAGES.map((p) => p.slug), WHO_DOES_WHAT.slug, ...REFERENCE.map((r) => r.slug)]
 }
 
+// ── The words, for the guards ─────────────────────────────────────────
+
 /** Every word a reader sees on a docs page, split at the fold. */
-export function copyOfDoc(slug: string): { hero: string[]; body: string[] } | null {
-  // The process, master data and recruiting pages, since 2026-09-30.
-  const nested = copyOfNestedDoc(slug)
-  if (nested) return nested
-  const p = partyAt(slug)
-  if (p) return { hero: [p.eyebrow, p.title, p.lede], body: [textOfHtml(p.html)] }
-  const r = referenceAt(slug)
+export function copyOfDoc(path: string): { hero: string[]; body: string[] } | null {
+  const step = stepPageAt(path)
+  if (step) {
+    return {
+      hero: [stepEyebrow(step), step.title, step.lede],
+      body: [
+        STEP_HEADINGS.flow, ...flowWords(step.flow),
+        STEP_HEADINGS.rules, ...step.rules,
+        ...(step.more ? [step.more.title, ...step.more.lines] : []),
+        STEP_HEADINGS.stops, ...step.stops.flatMap((r) => [REFUSAL_KIND[r.kind], `“${r.says}”`, ...(r.then ? [r.then] : [])]),
+      ],
+    }
+  }
+  if (path === WHO_DOES_WHAT.slug) {
+    return {
+      hero: [WHO_DOES_WHAT.title, WHO_DOES_WHAT.lede],
+      body: [
+        WHO_DOES_WHAT.columns.join('. ') + '.',
+        ...WHO_DOES_WHAT.rows.map((r) => `${r.who}. ${r.buysFrom}. ${r.sellsTo}. ${r.sees}`),
+        WHO_DOES_WHAT.closing,
+      ],
+    }
+  }
+  const r = referenceAt(path)
   if (r) {
     return {
       hero: [r.title, r.lede],
       body: [
-        ...(r.screen ? [r.screen.caption] : []),
-        ...r.blocks.flatMap((b) => [b.title, ...(b.paragraphs ?? []), ...(b.items ?? []).flatMap((i) => [i.t, i.d])]),
+        ...r.lines,
+        ...(r.table ? [r.table.columns.join('. ') + '.', ...r.table.rows.map(([a, b]) => `${a}. ${b}`)] : []),
       ],
     }
+  }
+  const [group, slug, extra] = path.split('/')
+  if (slug && !extra) {
+    const t = topicAt(group, slug)
+    if (t) return { hero: [t.title, t.lede], body: [GROUP_TITLE[t.group], ...t.lines] }
   }
   return null
 }
@@ -281,71 +224,11 @@ export function copyOfDoc(slug: string): { hero: string[]; body: string[] } | nu
 export function copyOfDocsHome(): { hero: string[]; body: string[] } {
   return {
     hero: [DOCS_HOME.title, DOCS_HOME.lede],
-    body: [
-      ...DOCS_HOME.parts.flatMap((i) => [i.t, i.d]),
-      DOCS_HOME.readAs,
-      ...DOCS_HOME.reference.flatMap((i) => [i.t, i.d]),
-      DOCS_HOME.example,
-    ],
+    body: DOCS_HOME.groups.flatMap((g) => [g.heading, ...g.links.map((l) => [l.k, l.t, l.d].filter(Boolean).join(' · '))]),
   }
 }
 
-/** The process overview's own words. */
-export const PROCESS_HOME = {
-  eyebrow: 'Documentation · The process',
-  title: 'The process, from a job request to the end of the work',
-  lede:
-    'Every stage a contractor and their supplier pass through, in order, on a page of its own. ' +
-    'Each page opens with a flow chart and says who does each step.',
-  onePicture: 'One hire, in three drawings, from the client’s side.',
-}
-
-/**
- * The words of a page under /docs/process, /docs/master-data or
- * /docs/recruiting, for the guard. The drawings and tables a process page
- * shows are the party pages' own HTML, which the guard already reads in
- * full on each party page, so only the words written for these pages are
- * returned here.
- */
-function copyOfNestedDoc(path: string): { hero: string[]; body: string[] } | null {
-  const parts = path.split('/')
-  if (parts[0] === 'process') {
-    if (parts.length === 1) {
-      return {
-        hero: [PROCESS_HOME.title, PROCESS_HOME.lede],
-        body: [PROCESS_HOME.onePicture, ...PROCESS.flatMap((p) => [p.title, p.when, p.lede])],
-      }
-    }
-    const p = processAt(parts[1])
-    if (!p || parts.length > 3) return null
-    if (parts[2] && !partiesFor(p).some((d) => d.slug === parts[2])) return null
-    return {
-      hero: [p.title, p.lede],
-      body: [
-        ...flowWords(p.flow), ...p.lines,
-        ...(p.more ?? []).flatMap((s) => [s.title, ...s.lines]),
-        ...(p.refuses?.length ? [REFUSES_TITLE, ...p.refuses.flatMap((r) => [r.says, r.then])] : []),
-        ...PROCESS.map((x) => x.title),
-      ],
-    }
-  }
-  if ((parts[0] === 'master-data' || parts[0] === 'recruiting') && parts.length === 2) {
-    const t = topicAt(parts[0], parts[1])
-    if (!t) return null
-    return {
-      hero: [t.title, t.lede],
-      body: [GROUP_TITLE[t.group], ...flowWords(t.flow), ...t.lines, ...(t.more ?? []).flatMap((s) => [s.title, ...s.lines])],
-    }
-  }
-  return null
-}
-
-/** Every page under /docs, the party and reference pages included, as routes. */
+/** Every page under /docs, as routes, in reading order. */
 export function docRoutes(): string[] {
-  return [
-    '/docs',
-    ...docSlugs().map((s) => `/docs/${s}`),
-    ...processRoutes(),
-    ...TOPICS.map(topicRoute),
-  ]
+  return ['/docs', ...docSlugs().map((s) => `/docs/${s}`), ...TOPICS.map(topicRoute)]
 }
