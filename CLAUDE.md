@@ -1172,6 +1172,12 @@ them, and the published Terms say Etyme places nobody. It gets no
 access any other supplier lacks, and where Etyme runs a client's
 program it competes like any other supplier, with no first look at a
 job. Nothing is built that favors it.
+**Its name is Tapin, at `tapin.etyme.com`** (founder, the same day,
+after rejecting names that did not "rhyme well" or look modern: "Tap
+In" is a player tapped in off the bench). The five seats of "Etyme runs
+on Etyme" sit at Tapin. Until Tapin has its own email domain its seats
+may use @etyme.com addresses, but etyme.com is never verified as
+Tapin's domain: the platform's own domain is never a supplier's.
 
 ## One tenant is one domain name — decided 2026-09-21
 
