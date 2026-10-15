@@ -1,6 +1,6 @@
 import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { DemoChip } from '@/components/shell/demo-chip'
-import { ProgramDoors, FirmDoors, PersonDoors } from './desk-picker'
+import { ProgramDoors, DoorRows, OpenOnArrival } from './desk-picker'
 import {
   CLIENT_PROGRAMS,
   SUPPLIER_SEATS,
@@ -8,6 +8,7 @@ import {
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
   NEXT_STEP_LEAD,
+  FIRST_SUPPLIERS,
   fillDoors,
 } from './seats'
 import { doorFacts } from './door-facts'
@@ -17,39 +18,36 @@ import { CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
 /**
  * The second page a client sees, one click after the home page.
  *
+ * ── One screen, since 2026-10-15 ─────────────────────────────────────
+ *
+ * The founder said "Build it" on a drawing that cut every public page to
+ * one screen: "no one is reading large content … make it real and make
+ * it simple". This page was 1,874 words before anybody could click. It
+ * is now a heading, one line, three client cards and one short list:
+ * pick a company and a role.
+ *
+ * Nothing was taken away but words. Every seat the page offered is still
+ * here: a client's other roles behind "More roles", a firm's roles
+ * behind "Roles" on its row, and every other firm and person under the
+ * fold at the foot of the list.
+ *
  * ── Why it opens on the client ───────────────────────────────────────
  *
- * The client is the customer (CLAUDE.md, decided 2026-09-10) and this
- * page did not read that way. It opened on three programs and then gave
- * four more sections of equal weight to integrators, program offices
- * and primes — so a hiring manager who arrived from a page written for
- * them met a wall of staffing-firm vocabulary and concluded this was
- * software for staffing firms. Suppliers come anyway, because their
- * client is here; they read it over the client's shoulder, and the page
- * is now laid out that way: the programs first and large, every
- * supplying firm together and quieter under one sub-heading, the people
- * last.
+ * The client is the customer (CLAUDE.md, decided 2026-09-10). The
+ * clients come first and large; the suppliers read it over their
+ * shoulder, quieter, below; the people last, under the fold.
  *
  * ── What is on the page is true of the world behind it ───────────────
  *
- * Every sentence describes a row the seed actually writes, and the ones
- * that name a number — a 44-hour week, twelve days of cover,
- * twenty-three months across two suppliers — are checked against the
- * seeded world in `__integration__/demo-seats.test.ts`. A door that
- * promises something the world does not hold is worse than a door that
- * promises nothing, because the visitor presses it.
+ * Every line describes a row the seed actually writes, and the ones that
+ * name a number are checked against the seeded world in
+ * `__integration__/demo-seats.test.ts`. The seats are in ./seats, where a
+ * test can read them.
  *
- * The seats themselves are in ./seats, where a test can read them.
+ * ── The way on ───────────────────────────────────────────────────────
  *
- * ── The way back to the funnel ───────────────────────────────────────
- *
- * A visitor arrives here from "See it with a month of data", the first
- * rung of the ladder in `lib/public-site/funnel`, and until 2026-09-27
- * the page had no second rung: nothing said what to do after looking.
- * One quiet line at the foot now offers the next two, in the funnel's
- * own words and to its own addresses — the audit and a person — and
- * never an account, because sign-in for a real tenant is not open.
- * `site-description.test.ts` reads the line against `promisesAnAccount`.
+ * One quiet line at the foot: sign up, or ask a person, in the shared
+ * words. `site-description.test.ts` reads it.
  */
 
 /** Read on every visit: a door's numbers come from the world as it is today. */
@@ -57,139 +55,59 @@ export const dynamic = 'force-dynamic'
 
 export default async function DemoPage() {
   const facts = await doorFacts()
+  const others = [
+    ...SUPPLIER_SEATS.filter((s) => !FIRST_SUPPLIERS.includes(s.slug)),
+    ...PROGRAM_OFFICE_SEATS,
+    ...fillDoors(INTEGRATOR_SEATS, facts, new Date()),
+  ]
+  const first = FIRST_SUPPLIERS.map((slug) => SUPPLIER_SEATS.find((s) => s.slug === slug)!)
   return (
     <div className="min-h-screen bg-etyme-canvas text-etyme-ink">
-      {/* The public site's header and footer, like every public page
-          (founder, 2026-10-15: one footer everywhere). */}
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 sm:px-6">
-        {/* Said first and plainly, before anybody reads a name or a number:
-            the founder, 2026-09-29 — people must know they are looking at
-            simulated data. The same chip the product draws in front of a
-            made-up company's name. */}
-        <div
-          role="note"
-          className="mb-8 flex items-start gap-3 rounded-panel border border-etyme-action-line bg-etyme-action-wash px-4 py-3"
-        >
-          <DemoChip className="mt-0.5" />
-          <p className="text-[13.5px] leading-relaxed text-etyme-ink">
-            <strong className="font-semibold">Simulated data.</strong> Every company, person and
-            number on this page is made up for the demo. These are demo companies, not
-            customers. Nothing you change here touches anything real.
-          </p>
-        </div>
-
-        {/* ── The client's own desk ─────────────────────────────── */}
-        <p className="eyebrow">A running program, from your seat</p>
+      <main className="mx-auto max-w-5xl px-4 pb-24 pt-8 sm:px-6">
         <h1
-          className="mt-2 max-w-3xl font-serif text-[34px] leading-[1.1] tracking-[-0.02em] sm:text-[42px]"
+          className="font-serif text-[32px] leading-[1.1] tracking-[-0.02em] sm:text-[40px]"
           style={{ textWrap: 'balance' }}
         >
-          Every contractor on every site, across every supplier.
+          Pick a company and a role
         </h1>
-        <div className="mt-4 max-w-2xl text-[15px] leading-relaxed text-etyme-muted">
-          <p>
-            Three companies buy contract work from several suppliers. Each has a year of history.
-            Something is waiting for every role today:
-          </p>
-          <ul className="mt-2 list-disc space-y-0.5 pl-5">
-            <li>a week of hours to sign</li>
-            <li>a job request to clear</li>
-            <li>a bill that matched</li>
-            <li>a person past the time limit on how long one person may stay</li>
-          </ul>
-          <p className="mt-3">
-            Pick your role. There is nothing to set up and nothing to sign. The data is shared:
-            everybody else at that company sees what you change.
-          </p>
-        </div>
-        <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-etyme-faint">
-          Northbend Athletic, Cavanaugh Glassworks, Talvern Medical and every firm that supplies
-          them are demo companies — not customers. Nothing here is real data, and nobody named is
-          a real person. Their web and email addresses use reserved names nobody can register,
-          and re-seeding puts it all back as it was.
+        {/* Said before any company is named: the founder, 2026-09-29 —
+            people must know they are looking at made-up data. The same
+            chip the product draws in front of a made-up company. */}
+        <p role="note" className="mt-3 flex items-center gap-2 text-[15px] text-etyme-muted">
+          <DemoChip />
+          <span>Demo companies, not customers. Nothing you change touches anything real.</span>
         </p>
 
-        {/* Which desk to sit at, not which kind of firm the visitor is:
-            every door under it is a desk at a client program, so the
-            question picks a seat and never asks anybody to classify their
-            company as buyer or seller (the "one door" rule). Added
-            2026-09-28 on the founder's go-to-market list. */}
-        <p className="mt-10 font-serif text-[20px] tracking-[-0.02em] text-etyme-ink">Which one are you?</p>
+        <h2 className="mt-10 font-serif text-[22px] tracking-[-0.02em]">Clients</h2>
         <div className="mt-4">
           <ProgramDoors programs={CLIENT_PROGRAMS} />
         </div>
 
-        <div className="mt-6 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
-          <p>Each role opens on its own work:</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            <li>The hiring manager needs somebody.</li>
-            <li>The approver signs for the money.</li>
-            <li>The AP clerk pays what matched, and cannot raise a job request.</li>
-            <li>The compliance officer tracks how long each person has been on site.</li>
-          </ul>
-        </div>
-
-        {/* ── The suppliers, over the client's shoulder ─────────── */}
-        {/* The id is the no-script landing of the home page's supplier door
-            (components/try-demo): a reader without a script follows the
-            link here instead of being seated. */}
-        <section id="supplier" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
-          <p className="eyebrow">The same placements, from the supplier’s side</p>
-          <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
-            The firms that supply them
-          </h2>
-          <div className="mt-3 max-w-2xl space-y-2 text-[14px] leading-relaxed text-etyme-muted">
-            <p>
-              Every contractor above came through a firm listed here. Each firm sells to the firm
-              above it and buys from the firm below.
-            </p>
-            <ul className="list-disc space-y-0.5 pl-5">
-              <li>Primes: the suppliers the client pays.</li>
-              <li>Not only IT: a nurse staffing firm and a plant maintenance staffing firm.</li>
-              <li>A bench vendor below a prime: it keeps workers waiting for a project, and trains them. The client never learns its name.</li>
-              <li>Two MSPs, which work inside a client&rsquo;s program without being the client.</li>
-              <li>Two integrators, which staff a job with their own employees.</li>
-            </ul>
-            <p>
-              Sit at one to see what it shows the client, what it pays the firm below, and what
-              neither of them can see.
-            </p>
+        {/* The id is the no-script landing of the home page's supplier
+            door (components/try-demo). */}
+        <section id="supplier" className="mt-12 scroll-mt-6">
+          <h2 className="font-serif text-[22px] tracking-[-0.02em]">Suppliers</h2>
+          <div className="mt-4">
+            <DoorRows firms={first} />
           </div>
-          <div className="mt-6">
-            <FirmDoors firms={[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...fillDoors(INTEGRATOR_SEATS, facts, new Date())]} />
-          </div>
+          <details id="everyone" className="mt-3">
+            <summary className="cursor-pointer py-2 text-[14px] font-medium text-etyme-action">
+              All suppliers, MSPs, integrators and workers →
+            </summary>
+            <div className="mt-3">
+              <DoorRows firms={others} />
+            </div>
+            {/* The home page's worker door lands here: /demo#candidate. */}
+            <h3 id="candidate" className="mt-8 scroll-mt-6 text-[14px] font-semibold">Workers</h3>
+            <div className="mt-2">
+              <DoorRows people={CANDIDATE_SEATS} />
+            </div>
+          </details>
+          <OpenOnArrival fold="everyone" />
         </section>
 
-        {/* ── And the person the work is about ──────────────────── */}
-        <section id="candidate" className="mt-16 scroll-mt-6 border-t border-etyme-rule pt-10">
-          <p className="eyebrow">The people doing the work</p>
-          <h2 className="mt-2 font-serif text-[24px] tracking-[-0.02em]">
-            See it as the person, not the firm
-          </h2>
-          <div className="mt-3 max-w-2xl space-y-2 text-[14px] leading-relaxed text-etyme-muted">
-            <p>Six consultants in six industries, each on a different kind of contract:</p>
-            <ul className="list-disc space-y-0.5 pl-5">
-              <li>an integrator&rsquo;s own employee</li>
-              <li>a consultant on a bench, sold through a prime</li>
-              <li>a consultant on a US work visa (H-1B), two firms below the client</li>
-              <li>a travel nurse paid through her own company</li>
-              <li>somebody with no bench and no employer yet, which is where every consultant starts</li>
-              <li>a staffing firm&rsquo;s hourly employee, whose pay rose from $66 to $70 in month six</li>
-            </ul>
-            <p>
-              Each door opens on that person&rsquo;s own work. That is their hours, their
-              placement, what they were asked for, or a line saying there is nothing yet. It never
-              opens on a company&rsquo;s records.
-            </p>
-          </div>
-          <div className="mt-6">
-            <PersonDoors people={CANDIDATE_SEATS} />
-          </div>
-        </section>
-
-        {/* ── The next step, quietly ───────────────────────────── */}
         <p className="mt-16 border-t border-etyme-rule pt-6 text-[14px] leading-relaxed text-etyme-muted">
           {NEXT_STEP_LEAD}{' '}
           <a href={CLIENT_SIGN_UP.href} className="text-etyme-action hover:underline">

@@ -96,12 +96,10 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     name: 'Northbend Athletic',
     where: 'Tualatin, OR',
     industry: 'Retail · apparel',
-    waiting:
-      'A 44-hour week is waiting for a signature. That is four hours over what the job allows.',
+    waiting: 'A 44-hour week is waiting for approval.',
     about:
-      'Three suppliers. One buys from a bench vendor, a firm with workers waiting for a project, ' +
-      'and never names it. A planning analyst on her second supplier here is fourteen months ' +
-      'into an eighteen-month time limit.',
+      'The week is four hours over what the job allows. One supplier buys from a bench vendor ' +
+      'and never names it. A planning analyst is fourteen months into an eighteen-month time limit.',
   },
   {
     slug: 'world-corning',
@@ -117,11 +115,9 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     // cover running out anywhere is Brightmoor's, twenty days off, at
     // the program above. Said here rather than quietly dropped: the
     // seed is the fix, and it is not this change's.
-    waiting:
-      'One contractor works on a purchase order with no agreement behind it. Another starts ' +
-      'in ten days with no US work form (I-9) on file.',
+    waiting: 'Someone starts in ten days with no US work form (I-9) on file.',
     about:
-      'A glass plant hiring validation, manufacturing systems and quality people. A validation ' +
+      'Another contractor works on a purchase order with no agreement behind it. A validation ' +
       'engineer’s week is waiting for the plant to sign it. A past contractor has been gone ' +
       'long enough to be asked back.',
   },
@@ -130,15 +126,10 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
     name: 'Talvern Medical',
     where: 'Westminster, CO',
     industry: 'Healthcare · medical devices',
-    waiting:
-      'One consultant is twenty-three months on site across two suppliers. The time limit is ' +
-      'eighteen. Neither supplier can produce that number.',
-    // The tenure number is the line above; repeating it here put the same
-    // sentence twice on one card, which a reader notices before anything
-    // else on it. This says what else is on the desks.
+    waiting: 'One consultant is 23 months on site. The limit is 18.',
     about:
-      'A medical device maker hiring finance, validation and regulatory people through three ' +
-      'suppliers. A week of hours is filed and waiting. A supplier has sent its bill. ' +
+      'Those 23 months are across two suppliers, and neither supplier can produce the number. ' +
+      'A week of hours is filed and waiting. A supplier has sent its bill. ' +
       'Somebody starts in five days with no I-9 on file.',
   },
 ]
@@ -265,10 +256,9 @@ export const SUPPLIER_SEATS: Program[] = [
   {
     slug: 'world-brightmoor',
     name: 'Brightmoor Staffing',
-    where: 'Prime supplier, every role seated',
+    where: 'Prime supplier',
     industry: 'Staffing · retail systems and supply planning',
-    waiting:
-      'Its liability insurance runs out in twenty days. That is the compliance officer’s work today.',
+    waiting: 'Its liability insurance runs out in 20 days.',
     about:
       'Sells three contractors to Northbend Athletic from its own payroll. Buys an engineer from ' +
       'a bench vendor and sells them to a retailer. A person holds each of its nine roles.',
@@ -279,12 +269,11 @@ export const SUPPLIER_SEATS: Program[] = [
     name: 'Computer Systems Inc',
     where: 'Prime supplier',
     industry: 'IT staffing · finance and hospital systems',
-    waiting:
-      'A bench vendor’s invoice for four weeks is unpaid. A lab analyst has a screening call ' +
-      'at a hospital this week.',
+    waiting: 'A bench vendor’s invoice for four weeks is unpaid.',
     about:
-      'Sells Helena Marsh to Northbend Athletic, and a lab analyst to a hospital. Buys Helena ' +
-      'from a bench vendor the client never learns about.',
+      'A lab analyst has a screening call at a hospital this week. Sells Helena Marsh to ' +
+      'Northbend Athletic, and the analyst to the hospital. Buys Helena from a bench vendor ' +
+      'the client never learns about.',
   },
   {
     slug: 'world-vertex-global',
@@ -300,15 +289,13 @@ export const SUPPLIER_SEATS: Program[] = [
   {
     slug: 'world-techpeple',
     name: 'Techpeple',
-    where: 'Sub-vendor, below a prime',
+    where: 'Sub-vendor',
     industry: 'IT consulting · finance and lab systems',
-    waiting:
-      'Its own consultant is shortlisted at the prime, with a screening call booked. The I-9 ' +
-      'it asked its own consultant for six days ago is still not back.',
+    waiting: 'Its consultant is shortlisted, with a screening call booked.',
     about:
-      'Sells only to the prime above it. It knows the hospital where its consultant works. ' +
-      'The hospital does not see its name unless its agreement with the prime asks for it. ' +
-      'Buys from nobody: it employs its own people.',
+      'Sells only to the prime above it, and employs its own people. It knows the hospital where ' +
+      'its consultant works. The hospital does not see its name unless its agreement with the ' +
+      'prime asks for it.',
   },
   // Two suppliers outside IT, 2026-09-29 (lib/seed-sector-suppliers).
   // CLAUDE.md: horizontal, never vertical. Until these, every supplier
@@ -316,10 +303,9 @@ export const SUPPLIER_SEATS: Program[] = [
   {
     slug: 'world-sorrelwood',
     name: 'Sorrelwood Clinical Staffing',
-    where: 'Healthcare supplier, direct to the client',
+    where: 'Nurse staffing',
     industry: 'Healthcare staffing · occupational health nursing',
-    waiting:
-      'Its nurse’s latest week at Talvern Medical is filed. It waits for Talvern’s hiring manager to sign it.',
+    waiting: 'Its nurse’s week waits for Talvern Medical to approve it.',
     about:
       'Supplies nurses and allied health staff. Sells an occupational health nurse to Talvern ' +
       'Medical. It employs her, so it buys from nobody. Her state nursing license is on file.',
@@ -327,7 +313,7 @@ export const SUPPLIER_SEATS: Program[] = [
   {
     slug: 'world-quarrystone',
     name: 'Quarrystone Industrial Staffing',
-    where: 'Industrial supplier, direct to the client',
+    where: 'Plant maintenance staffing',
     industry: 'Engineering and industrial staffing · plant maintenance',
     waiting:
       'Its technician’s weeks at the glass plant are signed by both sides. None of them is billed yet.',
@@ -378,7 +364,7 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
   {
     slug: 'world-kestrel',
     name: 'Kestrel MSP',
-    where: 'MSP, in the client’s compliance officer seat',
+    where: 'MSP, in a client’s compliance seat',
     industry: 'MSP · compliance',
     waiting:
       'Talvern Medical’s time-on-site record across every supplier, whose insurance is current, ' +
@@ -396,7 +382,7 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
   {
     slug: 'world-aptiva',
     name: 'Aptiva Workforce',
-    where: 'Managed program (MSP)',
+    where: 'MSP',
     industry: 'MSP · healthcare',
     waiting:
       'Both sides signed two weeks of its analyst’s hours, and nobody has billed them. The ' +
@@ -632,3 +618,16 @@ export function fillDoors<T extends Program>(seats: T[], facts: DoorFacts, today
   const fill = (x: string) => x.replace('{karthikLeft}', left)
   return seats.map((s) => ({ ...s, waiting: fill(s.waiting), about: fill(s.about) }))
 }
+
+/**
+ * The four suppliers shown on /demo before the fold, in the drawing's
+ * order (founder, "Build it", 2026-10-15): two primes, the sub-vendor
+ * below one, and a nurse staffing firm so the list is not all IT. Every
+ * other firm is one click behind them, never removed.
+ */
+export const FIRST_SUPPLIERS: string[] = [
+  'world-brightmoor',
+  'world-computer-systems',
+  'world-techpeple',
+  'world-sorrelwood',
+]

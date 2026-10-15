@@ -13,19 +13,22 @@ describe('the demo page says it is simulated data', () => {
   const page = read('src/app/demo/page.tsx')
   const doors = read('src/app/demo/desk-picker.tsx')
 
-  it('says at the top, before any company is named, that everything on it is made up', () => {
-    const note = page.indexOf('Simulated data.')
+  it('says under the heading, before any company is named, that these are demo companies and not customers', () => {
+    // Since the one-screen drawing (2026-10-15) the note is the one line
+    // under "Pick a company and a role".
+    const note = page.indexOf('Demo companies, not customers.')
     expect(note, 'the note is on the page').toBeGreaterThan(-1)
-    expect(page).toContain('Every company, person and')
-    expect(page).toContain('demo companies, not')
-    // Before the first door and before the first company name.
+    expect(page).toContain('Nothing you change touches anything real.')
+    // Before the first door; no company is named in the page itself.
     expect(note).toBeLessThan(page.indexOf('<ProgramDoors'))
-    expect(note).toBeLessThan(page.indexOf('Northbend Athletic'))
+    expect(page).not.toContain('Northbend Athletic')
   })
 
-  it('marks every company and every person it offers as a demo, with the chip the product uses', () => {
-    expect(doors).toContain("import { DemoChip } from '@/components/shell/demo-chip'")
-    // One chip on each kind of door: client programs, supplying firms, people.
-    expect(doors.match(/<DemoChip \/>/g)?.length).toBe(3)
+  it('marks the page as a demo once, with the chip the product uses, beside that line', () => {
+    expect(page).toContain("import { DemoChip } from '@/components/shell/demo-chip'")
+    expect(page.match(/<DemoChip \/>/g)?.length).toBe(1)
+    expect(page.indexOf('<DemoChip />')).toBeLessThan(page.indexOf('Demo companies, not customers.'))
+    // The doors carry no chip of their own: one line says it for the page.
+    expect(doors).not.toContain('<DemoChip')
   })
 })

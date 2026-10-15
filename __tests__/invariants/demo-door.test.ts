@@ -10,6 +10,7 @@ import {
   PROGRAM_OFFICE_SEATS,
   INTEGRATOR_SEATS,
   CANDIDATE_SEATS,
+  FIRST_SUPPLIERS,
 } from '@/app/demo/seats'
 
 /**
@@ -32,14 +33,15 @@ const route = read('src/app/api/demo/route.ts')
 
 describe('the demo door opens on the client', () => {
   it('opens on the three client programs before any supplier and before any person', () => {
-    const at = (needle: string) => page.indexOf(needle)
-    expect(at('CLIENT_PROGRAMS'), 'the page does not draw the client programs at all').toBeGreaterThan(-1)
-    for (const later of ['SUPPLIER_SEATS', 'PROGRAM_OFFICE_SEATS', 'INTEGRATOR_SEATS', 'CANDIDATE_SEATS']) {
-      // The import block names them all; the comparison is where each is drawn.
-      const drawn = page.lastIndexOf(later)
+    // Read where each is drawn, in the markup, not where it is imported.
+    const jsx = page.slice(page.indexOf('return ('))
+    const clients = jsx.indexOf('<ProgramDoors programs={CLIENT_PROGRAMS}')
+    expect(clients, 'the page does not draw the client programs at all').toBeGreaterThan(-1)
+    for (const later of ['<DoorRows firms={first}', '<DoorRows firms={others}', '<DoorRows people={CANDIDATE_SEATS}']) {
+      const drawn = jsx.indexOf(later)
       expect(drawn, `${later} is never drawn`).toBeGreaterThan(-1)
       expect(
-        page.lastIndexOf('CLIENT_PROGRAMS'),
+        clients,
         `${later} is drawn above the client programs — the client is the customer, and a ` +
           'supplier reads this page over their shoulder.'
       ).toBeLessThan(drawn)
@@ -58,12 +60,42 @@ describe('the demo door opens on the client', () => {
     expect(CANDIDATE_SEATS).toHaveLength(6)
   })
 
-  it('says what is waiting at each client program today, as a finished sentence rather than a label', () => {
+  it('says what is waiting at each client program today in one short line, a finished sentence rather than a label', () => {
+    // The founder's one-screen drawing, 2026-10-15: one line per client.
     for (const p of CLIENT_PROGRAMS) {
       expect(p.waiting.trim().endsWith('.'), `${p.name}: “${p.waiting}”`).toBe(true)
-      expect(p.waiting.split(/\s+/).length, `${p.name} says too little`).toBeGreaterThan(8)
+      expect(p.waiting.split(/\s+/).length, `${p.name} says too little`).toBeGreaterThan(5)
+      expect(p.waiting.split(/\s+/).length, `${p.name} says more than one line`).toBeLessThanOrEqual(14)
       expect(p.where.trim().length, `${p.name} says nowhere`).toBeGreaterThan(2)
     }
+  })
+
+  it('a client card shows the program manager, the hiring manager and the AP clerk, and folds every other role under More roles without removing one', () => {
+    const picker = read('src/app/demo/desk-picker.tsx')
+    expect(picker).toContain("const FIRST_ROLES = ['programme', 'hiring', 'ap'] as const")
+    expect(picker).toContain('More roles')
+    // Both halves of CLIENT_DESKS are drawn: the first three, and the rest once opened.
+    expect(picker).toContain('{first.map(chip)}')
+    expect(picker).toContain('rest.map(chip)')
+    const first = CLIENT_DESKS.filter((d) => ['programme', 'hiring', 'ap'].includes(d.desk)).map((d) => d.label)
+    expect(first).toEqual(['Program manager', 'Hiring manager', 'AP clerk'])
+  })
+
+  it('shows four suppliers before the fold and keeps every other firm and every person one click away under it', () => {
+    expect(FIRST_SUPPLIERS).toEqual(['world-brightmoor', 'world-computer-systems', 'world-techpeple', 'world-sorrelwood'])
+    for (const slug of FIRST_SUPPLIERS) expect(SUPPLIER_SEATS.map((s) => s.slug)).toContain(slug)
+    // The fold draws every supplier not shown above it, both MSPs, both
+    // integrators and all six people: a cut of words, never of doors.
+    expect(page).toContain('SUPPLIER_SEATS.filter((s) => !FIRST_SUPPLIERS.includes(s.slug))')
+    expect(page).toContain('...PROGRAM_OFFICE_SEATS,')
+    expect(page).toContain('...fillDoors(INTEGRATOR_SEATS, facts, new Date()),')
+    const fold = page.slice(page.indexOf('<details id="everyone"'), page.indexOf('</details>'))
+    expect(fold).toContain('All suppliers, MSPs, integrators and workers')
+    expect(fold).toContain('<DoorRows firms={others} />')
+    expect(fold).toContain('<DoorRows people={CANDIDATE_SEATS} />')
+    // A firm with roles of its own keeps them all on its row, behind Roles.
+    const picker = read('src/app/demo/desk-picker.tsx')
+    expect(picker).toContain('d.desks.map((r)')
   })
 
   it('draws that sentence on the page rather than keeping it in a file nobody reads', () => {
@@ -208,16 +240,12 @@ describe('the demo tells a reader what its companies are', () => {
   // The founder's label, decided 2026-09-27. A CRO who read the site asked
   // whether the companies listed were real, and "invented" did not land
   // either — the founder himself asked what it meant.
-  it('the demo says its companies are demo companies and not customers', () => {
+  it('the demo says its companies are demo companies and not customers, in one line under the heading', () => {
+    // Since the one-screen drawing (2026-10-15) the long paragraph is the
+    // one line under the heading.
     const text = page.replace(/\s+/g, ' ')
-    expect(text).toContain(
-      'Northbend Athletic, Cavanaugh Glassworks, Talvern Medical and every firm that supplies them are demo companies — not customers.'
-    )
-    expect(text).toContain('Nothing here is real data, and nobody named is a real person.')
-    // The rest of the honest paragraph stays: the addresses cannot be
-    // registered, and a re-seed resets the lot.
-    expect(text).toContain('reserved names nobody can register')
-    expect(text).toMatch(/re-seeding puts it all back/)
+    expect(text).toContain('Demo companies, not customers. Nothing you change touches anything real.')
+    expect(text.indexOf('Demo companies, not customers.')).toBeGreaterThan(text.indexOf('Pick a company and a role'))
     expect(text, 'the word the founder struck is back on the page').not.toMatch(/\binvented\b/i)
   })
 })
@@ -299,8 +327,25 @@ describe('the demo page is plain English', () => {
   })
 
   it('draws what is waiting on every kind of door, not only on the client programs', () => {
+    // A client card draws its line; every firm and person row draws its own.
     const picker = read('src/app/demo/desk-picker.tsx')
-    for (const v of ['p', 'f', 'c']) expect(picker).toContain(`{${v}.waiting}`)
+    for (const v of ['p', 'd']) expect(picker).toContain(`{${v}.waiting}`)
+  })
+
+  it('the demo page shows about two hundred and sixty words before anybody clicks, where it showed 1,874', () => {
+    // What a visitor reads with nothing opened: the heading and its line,
+    // each client's name, line and four role buttons, the four suppliers'
+    // rows, the fold's one line and the closing line. Hover text and the
+    // fold are not on screen.
+    const count = (x: string) => x.split(/\s+/).filter((w) => /[a-z0-9]/i.test(w)).length
+    const first = CLIENT_DESKS.filter((d) => ['programme', 'hiring', 'ap'].includes(d.desk))
+    const firms = FIRST_SUPPLIERS.map((slug) => SUPPLIER_SEATS.find((s) => s.slug === slug)!)
+    const words =
+      count('Pick a company and a role Demo companies, not customers. Nothing you change touches anything real.') +
+      count('Clients Suppliers All suppliers, MSPs, integrators and workers Want this with your own suppliers? Sign up, or ask a person.') +
+      CLIENT_PROGRAMS.reduce((n, p) => n + count(p.name) + count(p.waiting) + first.reduce((m, d) => m + count(d.label), 0) + count('More roles'), 0) +
+      firms.reduce((n, f) => n + count(f.name) + count(f.where) + count(f.waiting) + count('Open') + (f.desks ? count('Roles') : 0), 0)
+    expect(words).toBeLessThanOrEqual(260)
   })
 })
 
@@ -308,14 +353,15 @@ describe('the demo shows the spread of industries', () => {
   // The founder, 2026-09-29: "Put the industry under each demo company, so
   // people know which industries can use it." CLAUDE.md: horizontal, never
   // vertical — the same product has to work for a travel nurse.
-  it('every demo company and person names its industry under its name', () => {
+  it('every demo company and person names its industry, read on its name rather than printed under it since the one-screen cut', () => {
     for (const d of EVERY_DOOR) {
       expect(d.industry?.trim().length ?? 0, `${d.name} names no industry`).toBeGreaterThan(3)
     }
     const picker = read('src/app/demo/desk-picker.tsx')
-    // On its own line, straight under the name, on all three kinds of door.
-    expect(picker.match(/\{(?:p|f|c)\.name\}\s*<\/h3>\s*<Industry of=\{(?:p|f|c)\} \/>/g)?.length).toBe(3)
-    expect(picker).toContain('{of.industry}')
+    // The industry and the longer words are the hover text on every name,
+    // on a client card and on every row.
+    expect(picker).toContain('const more = (d: Program) => `${d.industry}. ${d.about}`')
+    expect(picker.match(/title=\{more\((?:p|d)\)\}/g)?.length).toBe(2)
   })
 
   it('the client programs and the people are not all one industry', () => {

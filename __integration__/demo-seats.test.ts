@@ -862,7 +862,7 @@ describe('every client door says something true of the seeded world', () => {
     })
     expect(line, 'every line at this client is papered under an agreement').toBeTruthy()
     expect(line!.workOrder!.msaId, 'the order itself hangs off an agreement').toBeNull()
-    expect(CLIENT_PROGRAMS[1].waiting).toContain('no agreement')
+    expect(CLIENT_PROGRAMS[1].about).toContain('no agreement')
   }, 60_000)
 
   it('has the consultant twenty-three months on site across two suppliers, against a cap of eighteen', async () => {
@@ -899,7 +899,7 @@ describe('every client door says something true of the seeded world', () => {
       where: { ruleType: 'TENURE_CAP', policy: { companyId: client.id } },
     })
     expect((cap.parameters as any).maxMonths).toBe(18)
-    expect(CLIENT_PROGRAMS[2].waiting).toContain('twenty-three months')
+    expect(CLIENT_PROGRAMS[2].waiting).toContain('23 months on site. The limit is 18.')
   }, 60_000)
 })
 
