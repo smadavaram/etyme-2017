@@ -23,6 +23,7 @@ let buyId = ''
 let personId = ''
 let earned: ReturnType<typeof placementEarned>
 let longWeekMonth = ''
+let longWeekId = ''
 let sheetCount = 0
 
 beforeAll(async () => {
@@ -50,7 +51,13 @@ beforeAll(async () => {
     },
   })
   const long = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: sellId, totalHours: { gt: 40 } } })
-  longWeekMonth = long.periodStart.toISOString().slice(0, 7)
+  longWeekId = long.id
+  // The month that pays the week is the month of its last worked day: a
+  // Sunday-to-Saturday week that starts in one month and is worked in the
+  // next is paid in the next (found 2026-10-15, when the seed's dates
+  // moved her long week onto Aug 30 – Sep 5).
+  const worked = Object.entries((long.days ?? {}) as Record<string, number>).filter(([, h]) => Number(h) > 0).map(([d]) => d).sort()
+  longWeekMonth = (worked.at(-1) ?? long.periodStart.toISOString()).slice(0, 7)
 }, 900_000)
 
 describe("Rosa Delgado's placement, costed the way payroll pays her", () => {
@@ -71,8 +78,9 @@ describe("Rosa Delgado's placement, costed the way payroll pays her", () => {
     // it, and a calculate run says what it would pay.
     const seeded = (await prisma.automationLog.findMany({ where: { action: 'PAYROLL_RUN' }, select: { payload: true } }))
       .flatMap((l) => ((l.payload as any)?.action === 'process' ? (l.payload as any).contracts ?? [] : []))
-      .filter((c: any) => c.buyContractId === buyId && c.payPeriod?.start?.slice(0, 7) === longWeekMonth)
+      .filter((c: any) => c.buyContractId === buyId)
       .flatMap((c: any) => c.paid ?? [])
+      .filter((l: any) => l.timesheetId === longWeekId)
       .reduce((n: number, l: any) => n + (l.premiumCents ?? 0), 0)
     let premiumCents = Math.round(seeded)
     if (premiumCents === 0) {
