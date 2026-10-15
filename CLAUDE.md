@@ -490,10 +490,16 @@ flow of who does what, a few rules and at most three refusals; the
 nine process pages folded into them and the ten party pages into one
 "Who does what" table, every old address redirecting. No station
 tables, glossaries or L-codes on a public page. The demo is "Pick a
-company and a role", every seat kept behind a fold. The legal pages
-open on five plain lines, each true of the full text, with every legal
-word kept and folded under its own heading; only a lawyer cuts them.
-A test caps each page's words.
+company and a role", every seat kept behind a fold. A test caps each page's words.
+**The legal pages are not part of the cut** (founder, the same day: *"I
+thought you were not changing privacy/terms"*): Privacy, Terms and the
+DPA show their whole text, open, the way a legal page is read, with the
+shared header and footer and nothing summarized or folded. Three things
+the cut removed came back on his word: the industry under every demo
+company, visible on a phone; how Etyme is paid when it runs a program
+(suppliers pay a share of what they bill), on About's price line; and
+"What a miss costs" on every step page, one or two plain lines with no
+figure, beside what Etyme stops.
 
 ### The audit form is deleted and the menu is an icon — decided by the founder, 2026-10-14
 

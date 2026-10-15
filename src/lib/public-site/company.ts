@@ -95,7 +95,12 @@ export const ABOUT: CompanyPage = {
         { lead: 'What we build.', t: 'A system a company uses to manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.' },
         { lead: 'What we never do.', t: 'Etyme never supplies workers and never runs a bench. So it has no reason to favor any supplier.' },
         { lead: 'Two ways to use it.', t: `Your team runs it: Etyme as ${TWO_WAYS[0].label}. Or Etyme runs it for you: Etyme as ${TWO_WAYS[1].label}.` },
-        { lead: 'Price.', t: 'Free while we test with our first companies. No number until we have one.' },
+        // The second half brought back by the founder, 2026-10-15: how Etyme
+        // is paid when it runs the program, said once on the site (CLAUDE.md,
+        // "Etyme runs the program": supplier-funded, a percentage on
+        // billings, no number yet). Kept on the price line, so the offer to
+        // run the program is still made once.
+        { lead: 'Price.', t: 'Free while we test with our first companies. No number until we have one. As your MSP, Etyme would be paid by suppliers, as a share of what they bill.' },
         { lead: 'Where we are.', t: `${ADDRESS.company}, ${ADDRESS.street}, ${ADDRESS.city}. ${ADDRESS.phone}.` },
       ],
     },

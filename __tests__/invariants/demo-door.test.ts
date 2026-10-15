@@ -353,15 +353,16 @@ describe('the demo shows the spread of industries', () => {
   // The founder, 2026-09-29: "Put the industry under each demo company, so
   // people know which industries can use it." CLAUDE.md: horizontal, never
   // vertical — the same product has to work for a travel nurse.
-  it('every demo company and person names its industry, read on its name rather than printed under it since the one-screen cut', () => {
+  it('every demo company and person names its industry, printed under its name where a phone reader sees it', () => {
     for (const d of EVERY_DOOR) {
       expect(d.industry?.trim().length ?? 0, `${d.name} names no industry`).toBeGreaterThan(3)
     }
     const picker = read('src/app/demo/desk-picker.tsx')
-    // The industry and the longer words are the hover text on every name,
-    // on a client card and on every row.
-    expect(picker).toContain('const more = (d: Program) => `${d.industry}. ${d.about}`')
-    expect(picker.match(/title=\{more\((?:p|d)\)\}/g)?.length).toBe(2)
+    // Brought back by the founder on 2026-10-15, after the one-screen cut
+    // had moved it into hover text, which a phone never shows: on a client
+    // card under the name, and on every row beside its kind.
+    expect(picker).toContain('<p className="mt-1 text-[12.5px] text-etyme-muted">{p.industry}</p>')
+    expect(picker).toContain('{d.where} · {d.industry}')
   })
 
   it('the client programs and the people are not all one industry', () => {

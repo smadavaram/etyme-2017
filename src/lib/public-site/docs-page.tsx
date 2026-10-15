@@ -189,6 +189,8 @@ export function StepPageView({ slug }: { slug: string }) {
           <div className="mt-3"><Lines lines={p.more.lines} /></div>
         </>
       )}
+      <H2>{STEP_HEADINGS.cost}</H2>
+      <div className="mt-3"><Lines lines={p.cost} /></div>
       <H2>{STEP_HEADINGS.stops}</H2>
       <ul className="mt-3 space-y-3">
         {p.stops.map((r) => (

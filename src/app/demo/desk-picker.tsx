@@ -69,7 +69,7 @@ function Refusal({ error }: { error: string | null }) {
 }
 
 /** The longer words a door used to draw, kept as the hover text on its name. */
-const more = (d: Program) => `${d.industry}. ${d.about}`
+const more = (d: Program) => d.about
 
 /** One role, as a chip. */
 function RoleChip({ label, busy, locked, onClick, title }: { label: string; busy: boolean; locked: boolean; onClick: () => void; title?: string }) {
@@ -127,6 +127,7 @@ export function ProgramDoors({ programs }: { programs: ClientProgram[] }) {
               <h3 title={more(p)} className="font-serif text-[22px] leading-tight tracking-[-0.02em]">
                 {p.name}
               </h3>
+              <p className="mt-1 text-[12.5px] text-etyme-muted">{p.industry}</p>
               <p className="mt-2 flex-1 text-[14px] leading-relaxed">{p.waiting}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {first.map(chip)}
@@ -180,7 +181,7 @@ export function DoorRows({ firms = [], people = [] }: { firms?: Program[]; peopl
           <li key={d.slug} className="py-3 sm:grid sm:grid-cols-[minmax(0,15rem)_1fr_auto] sm:items-baseline sm:gap-4">
             <div>
               <p title={more(d)} className="text-[14px] font-semibold">{d.name}</p>
-              <p className="text-[12.5px] text-etyme-muted">{d.where}</p>
+              <p className="text-[12.5px] text-etyme-muted">{d.where} · {d.industry}</p>
             </div>
             <p className="mt-1 text-[13.5px] leading-relaxed sm:mt-0">{d.waiting}</p>
             <div className="mt-2 flex flex-wrap items-baseline gap-3 sm:mt-0 sm:justify-end">

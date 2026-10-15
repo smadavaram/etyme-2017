@@ -50,7 +50,7 @@ export interface DocRefusal {
 export const REFUSAL_KIND: Record<DocRefusal['kind'], string> = { BLOCK: 'Stops', WARN: 'Warns' }
 
 /** The headings every step page carries, in order. */
-export const STEP_HEADINGS = { flow: 'Who does what', rules: 'The rules', stops: 'What it stops' } as const
+export const STEP_HEADINGS = { flow: 'Who does what', rules: 'The rules', cost: 'What a miss costs', stops: 'What it stops' } as const
 
 export interface StepPage {
   slug: 'job' | 'candidates' | 'timesheets' | 'invoices' | 'when-work-ends'
@@ -65,6 +65,14 @@ export interface StepPage {
   rules: string[]
   /** A short list under the rules, where a page has one more thing to say. */
   more?: { title: string; lines: string[] }
+  /**
+   * What it costs the client when this step goes wrong without a rule
+   * (founder, 2026-10-15, bringing back "the money side of each risk").
+   * CLAUDE.md: the hook is the not-knowing; the business case is what it
+   * costs when somebody finally asks. Plain facts, no figure Etyme cannot
+   * show, and "can" where the cost depends on the case.
+   */
+  cost: string[]
   stops: DocRefusal[]
   demo: DemoTarget
 }
@@ -87,6 +95,10 @@ export const STEP_PAGES: StepPage[] = [
       'Nobody approves their own job request.',
       'Only the program manager or Procurement sends the job. The hiring manager cannot.',
       'Each supplier sees its own rate range, never another’s.',
+    ],
+    cost: [
+      'A rate nobody checked is paid on every hour of the contract.',
+      'Two suppliers sending the same person can each claim the fee.',
     ],
     stops: [
       {
@@ -126,6 +138,10 @@ export const STEP_PAGES: StepPage[] = [
       'Nobody starts without a US work form (I-9) on file.',
       'A missing background check warns, and the reason is kept.',
     ],
+    cost: [
+      'A missing I-9 can mean a federal fine for the employer, per form.',
+      'If a supplier’s insurance has lapsed, a claim from its worker can land on you.',
+    ],
     stops: [
       {
         says: 'Priya Raghunathan cannot start without I-9 and E-Verify.',
@@ -160,6 +176,10 @@ export const STEP_PAGES: StepPage[] = [
       'Hours over the contract, or past its last day, are flagged before anyone approves.',
       'An approved expense goes on the next bill as a line of its own.',
     ],
+    cost: [
+      'Hours nobody checked are billed to you, and are hard to get back once paid.',
+      'A week approved by the person who worked it is a week nobody approved.',
+    ],
     stops: [
       {
         says: 'Nobody approves their own hours.',
@@ -191,6 +211,10 @@ export const STEP_PAGES: StepPage[] = [
       'A line with no approved week behind it is never paid. Nobody can waive that.',
       'Going over the order’s limit needs a named person and a reason.',
       'An employee is paid by payroll, and never sees the bill rate.',
+    ],
+    cost: [
+      'An invoice paid with no approved week behind it is money you have to ask for back.',
+      'Paying past the order’s limit spends budget nobody approved.',
     ],
     stops: [
       {
@@ -224,6 +248,10 @@ export const STEP_PAGES: StepPage[] = [
       'Inside a break in service, the screen shows the date a person may return.',
     ],
     more: { title: 'What runs on its own', lines: notARuleLines() },
+    cost: [
+      'A contractor kept past your time limit can be claimed as your employee, with the benefits that follow.',
+      'When an auditor asks who has been here longest, a missing date is an answer you cannot give.',
+    ],
     stops: [
       {
         says: 'Kwame Mensah has 24 months tenure (time limit: 18).',

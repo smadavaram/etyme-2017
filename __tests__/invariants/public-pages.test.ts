@@ -296,6 +296,21 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(VIEW).toContain('<a href={link.href}')
   })
 
+  it('every step page says what a miss costs the client, in one or two short lines with no figure', () => {
+    // The founder, 2026-10-15, bringing back the money side of each risk
+    // after the one-screen cut had left only what Etyme stops.
+    const view = read('src/lib/public-site/docs-page.tsx')
+    expect(view).toContain('<H2>{STEP_HEADINGS.cost}</H2>')
+    for (const p of STEP_PAGES) {
+      expect(p.cost.length, p.slug).toBeGreaterThanOrEqual(1)
+      expect(p.cost.length, p.slug).toBeLessThanOrEqual(2)
+      for (const line of p.cost) {
+        expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(25)
+        expect(line, line).not.toMatch(/\$\s?\d|\d+%/)
+      }
+    }
+  })
+
   it('every refusal the documentation quotes is on the page of the step where it happens, in the words of the file that says it', () => {
     // At most three per step page since 2026-10-15, when the founder's
     // drawing cut each step to one screen.
@@ -412,7 +427,8 @@ describe('The documentation is public', () => {
       const n = countWords([...c.hero, ...c.body])
       expect(n, `${route} carries ${n} words`).toBeLessThanOrEqual(most(route))
     }
-    expect(countWords([...copyOfCompanyPage(ABOUT).hero, ...copyOfCompanyPage(ABOUT).body])).toBeLessThanOrEqual(110)
+    // 135 since 2026-10-15, when the line on how Etyme is paid as an MSP came back.
+    expect(countWords([...copyOfCompanyPage(ABOUT).hero, ...copyOfCompanyPage(ABOUT).body])).toBeLessThanOrEqual(135)
   })
 })
 
