@@ -29,16 +29,13 @@ import {
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt } from '@/lib/public-site/parties'
-import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, countWords } from '@/lib/public-site/skeleton-words'
+import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
-import { NAV_MENUS as HEADER_MENUS, NAV_LINKS as HEADER_LINKS, SHEET_MORE as HEADER_MORE, FOOTER as SITE_FOOTER } from '@/lib/public-site/nav'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
-import {
-  NAV_MENUS, NAV_LINKS, SHEET_MORE, FOOTER, DOCS_LINK, PRODUCT_STAGES, PRODUCT_ITEMS, ROLES,
-  everyFrameLink, frameCopy, itemsOf,
-} from '@/lib/public-site/nav'
+import { MENU, FOOTER, FOOTER as SITE_FOOTER, everyFrameLink, frameCopy, menuLinks } from '@/lib/public-site/nav'
+import { TOPICS } from '@/lib/public-site/docs/topics'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -206,20 +203,18 @@ describe('Every product page and party door is the home page’s shape, opened a
   const SKELETON = read('src/lib/public-site/skeleton.tsx')
   const SKELETON_PAGES = PUBLIC_PAGES.filter((p) => p.kind === 'MODULE' || p.kind === 'PARTY')
 
-  it('there are eight module pages, in the order a hire moves, one for each entry under Products', () => {
+  it('there are four product pages, one for each step, in the order a hire moves, one for each card on the menu sheet', () => {
     expect(MODULES.map((m) => m.route)).toEqual([...MODULE_ROUTES])
-    expect(MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
-    expect(PRODUCT_ITEMS.map((i) => i.href)).toEqual([...MODULE_ROUTES])
+    expect(MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4])
+    expect(MENU.steps.map((s) => s.href)).toEqual([...MODULE_ROUTES])
   })
 
-  it('every product page and party door reads the question, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
+  it('every party door reads the question, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
     const body = VIEW.slice(VIEW.indexOf('export function SubPageView'))
     const order = ['<SiteHeader />', 'id="top"', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
       .map((t) => body.indexOf(t))
     expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
-    // Both kinds draw the one view, and neither draws anything beside it.
-    expect(read('src/lib/public-site/module-page.tsx')).toContain('<SubPageView')
     expect(read('src/lib/public-site/party-page.tsx')).toContain('<SubPageView')
     // Every word the view draws comes from the page's data or the shared
     // skeleton, so the count below counts what a reader reads.
@@ -227,8 +222,24 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(copyFrom(SKELETON.slice(SKELETON.indexOf('export function LiveDemo')))).toEqual([])
   })
 
+  it('every step page reads the step, the promise, Today and With Etyme, the live panel, three lines, Previous and Next, the sign-up band and the security line, in that order, and nothing else', () => {
+    // The founder's drawing of 2026-10-15: the four pages tell one story
+    // the same way. The panel and the band are the home page's own.
+    const STEP_VIEW = read('src/lib/public-site/module-page.tsx')
+    const body = STEP_VIEW.slice(STEP_VIEW.indexOf('export function ModulePageView'), STEP_VIEW.indexOf('export function modulePage'))
+    const order = ['<SiteHeader />', 'id="top"', '{m.eyebrow}', '<h1', 'id="pair"', '<LiveDemo', 'id="lines"', 'data-prev-next', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
+      .map((t) => body.indexOf(t))
+    expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect(copyFrom(body)).toEqual([])
+  })
+
   it('no product page or party door draws a screenshot, a card grid, day-one panels, a growth story or a band of its own', () => {
-    for (const src of [VIEW, read('src/lib/public-site/module-page.tsx'), read('src/lib/public-site/party-page.tsx')]) {
+    // A step page's one two-column row is Today beside With Etyme, as drawn.
+    const stepView = read('src/lib/public-site/module-page.tsx')
+    expect(stepView.match(/grid-cols-[2-9]/g)).toEqual(['grid-cols-2'])
+    expect(stepView).toMatch(/id="pair"[^>]*md:grid-cols-2/)
+    for (const src of [VIEW, stepView.replace('md:grid-cols-2', ''), read('src/lib/public-site/party-page.tsx')]) {
       expect(src).not.toContain('<img')
       expect(src).not.toMatch(/grid-cols-[2-9]/)
       expect(src).not.toMatch(/dayOne|grow\.|<Capabilities|<Refuses|<Complaint|<FlowChart|<CloseBand/)
@@ -237,12 +248,15 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(existsSync(join(ROOT, 'src/lib/public-site/rhythm.ts')), 'the one-screen bands left with the party pages').toBe(false)
   })
 
-  it(`no product page or party door carries more than ${MOST_WORDS} words between its header and its footer`, () => {
-    expect(SKELETON_PAGES).toHaveLength(12)
+  it(`no party door carries more than ${MOST_WORDS} words between its header and its footer, and no step page more than ${MOST_STEP_WORDS}`, () => {
+    // A step page carries Today beside With Etyme and Previous and Next,
+    // as the founder drew it on 2026-10-15, so its ceiling is its own.
+    expect(SKELETON_PAGES).toHaveLength(8)
     for (const p of SKELETON_PAGES) {
       const c = copyOf(p.route)!
       const n = countWords([...c.hero, ...c.body])
-      expect(n, `${p.route} carries ${n} words`).toBeLessThanOrEqual(MOST_WORDS)
+      const most = p.kind === 'MODULE' ? MOST_STEP_WORDS : MOST_WORDS
+      expect(n, `${p.route} carries ${n} words`).toBeLessThanOrEqual(most)
       // And it is the same shape as the home page, not a stub of it.
       expect(n, `${p.route} carries ${n} words`).toBeGreaterThan(100)
     }
@@ -255,16 +269,14 @@ describe('Every product page and party door is the home page’s shape, opened a
     }
   })
 
-  it('each product page opens the frame at its step: job requests and governance at Source, submissions, contracts and compliance at Submit, timesheets at Approve, bills and the chain at Pay', () => {
+  it('each step page opens the panel at its own step: Job, Candidates, Timesheets, Invoices', () => {
     const at = Object.fromEntries(MODULES.map((m) => [m.route, m.step]))
     expect(at).toEqual({
-      '/requisitions': 'source', '/governance': 'source',
-      '/contracts': 'submit', '/submissions': 'submit', '/compliance': 'submit',
-      '/timesheets': 'approve',
-      '/invoices': 'pay', '/chain': 'pay',
+      '/requisitions': 'source', '/submissions': 'submit', '/timesheets': 'approve', '/invoices': 'pay',
     })
     for (const m of MODULES) expect(EMBED_STEPS, m.route).toContain(m.step)
     expect(VIEW).toContain('<LiveDemo step={step}')
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<LiveDemo step={m.step}>')
   })
 
   it('each party door opens the frame at the screen its party acts on: suppliers and integrators at Submit, program offices at Source, contractors at Approve', () => {
@@ -281,19 +293,16 @@ describe('Every product page and party door is the home page’s shape, opened a
       expect(m.demo.as, m.route).toBe('world-nike')
     }
     expect(VIEW).toContain('<DemoLink target={demo.target}')
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<DemoLink target={m.demo}')
   })
 
-  it('the chain page says a sub-vendor’s name and rates stay private, and that the client always sees whether the employer on its site is insured and authorized', () => {
-    const chain = all(copyOfModule(MODULES.find((m) => m.slug === 'chain')!))
-    expect(chain).toContain('A sub-vendor’s name and rates stay private.')
-    expect(chain).toContain('You see who employs the person, and whether they are insured and authorized.')
-  })
-
-  it('the governance page’s last line links to the top of the documentation page that names what is not a rule', () => {
-    const g = MODULES.find((m) => m.slug === 'governance')!
-    expect(g.link!.href).not.toContain('#')
-    expect(pageAt(g.link!.href), g.link!.href).toBeTruthy()
-    expect(VIEW).toContain('<a href={link.href}')
+  it('the documentation says a sub-vendor’s name and rates stay closed, and that the client always sees whether the employer on its site is insured', () => {
+    // Said on the chain page until it folded into Invoices on 2026-10-15;
+    // the documentation is where a reader who asks finds it.
+    const customers = TOPICS.find((t) => t.slug === 'customers')!
+    expect(customers.lines).toContain('It sees the supplier it pays and the rate it pays, and nothing below.')
+    expect(customers.lines).toContain('It always sees whether the firm employing a person on its site is insured.')
+    expect(WHO_DOES_WHAT.closing).toContain('Rates stay closed at every level.')
   })
 
   it('every step page says what a miss costs the client, in one or two short lines with no figure', () => {
@@ -334,13 +343,13 @@ describe('Every product page and party door is the home page’s shape, opened a
     }
   })
 
-  it('the invoices page never claims an order’s ceiling cannot be overridden, and says a receipt with no signed week behind it is not paid', () => {
+  it('the invoices page never claims an order’s ceiling cannot be overridden, and says the hours, the invoice and the contract rate must agree', () => {
     const invoices = all(copyOfModule(MODULES.find((m) => m.slug === 'invoices')!))
-    expect(invoices).not.toMatch(/nobody (may )?overrides? the (line|cap|order)/i)
+    expect(invoices).not.toMatch(/nobody (may )?overrides? the (line|cap|order)|ceiling/i)
     const match = read('src/lib/three-way-match.ts')
     expect(match).toMatch(/PO_BALANCE: true/)
     expect(match).toMatch(/RECEIPT: false/)
-    expect(invoices).toContain('A receipt with no signed week behind it is not paid.')
+    expect(invoices).toContain('The hours, the invoice and the contract rate must agree.')
   })
 })
 
@@ -354,9 +363,9 @@ describe('The documentation is public', () => {
       expect(text, p.route).not.toMatch(/behind sign-in|sign in to read|needs a sign-in|start free/i)
     }
     expect(all(copyOfDocsHome())).toContain('No account needed.')
-    // The thread's line said "behind sign-in". Ours is public, and says so.
-    expect(DOCS_LINK.d).toMatch(/public/i)
-    expect(DOCS_LINK.d).toMatch(/no sign-in/i)
+    // The thread's line said "behind sign-in". Ours is public: the menu
+    // sheet links it with no line that says otherwise (2026-10-15).
+    expect(frameCopy().join(' ')).not.toMatch(/behind sign-in|sign in to read/i)
   })
 
   it('there is a documentation page for each step and the end of the work, for who does what, and for time and money and integrations', () => {
@@ -487,28 +496,28 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('every page carries the same header, and its sheet holds Platform, Solutions, How It Works and Security', () => {
-    // The founder's brief, 2026-10-09, replacing Product, Solutions,
-    // Resources and Company (the marketing thread's structure, 2026-09-27).
-    // One header, drawn by one component, on every page. Since 2026-10-14
-    // the four live in the sheet behind the menu icon at every width.
-    expect(NAV_MENUS.map((m) => m.label)).toEqual(['Platform', 'Solutions'])
-    expect(NAV_LINKS.map((l) => l.label)).toEqual(['How It Works', 'Security'])
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(['Step 1 · Job', 'Step 2 · Candidates', 'Step 3 · Timesheets', 'Step 4 · Invoices'])
-    // Platform is the four steps and nothing else since 2026-10-14, when
-    // the home page's band on specialist teams around the world, the one
-    // home-only entry, was cut with the band.
-    expect(NAV_MENUS[0].groups).toEqual(PRODUCT_STAGES)
-    expect(NAV_MENUS[1].groups.map((g) => g.heading)).toEqual(['By team'])
-    expect(itemsOf(NAV_MENUS[1])).toEqual(ROLES)
-    // Every item in a menu says what it is in one line under its name.
-    for (const m of NAV_MENUS) for (const i of itemsOf(m)) expect(i.d, i.t).toBeTruthy()
-    // What the two menus that left carried is still one tap away: the
-    // phone sheet and the footer reach the documentation, About, Contact
-    // and the demo.
-    for (const h of ['/docs', '/about', '/contact', '/demo']) {
-      expect(SHEET_MORE.map((i) => i.href), h).toContain(h)
-    }
+  it('every page carries the same header, and its sheet tells the four steps, then Security, Documentation, About and Contact, the demo and Sign up', () => {
+    // The founder's drawing of 2026-10-15, replacing Platform (eight
+    // feature names), Solutions (six roles), How It Works and "Explore the
+    // Live Demo". One header, drawn by one component, on every page; the
+    // sheet sits behind the menu icon at every width.
+    expect(MENU.kicker).toBe('How Etyme works')
+    expect(MENU.heading).toBe('Four steps. Every contractor, every supplier, one place.')
+    expect(MENU.headingPhone).toBe('Four steps. Every contractor, one place.')
+    expect(MENU.steps.map((s) => [s.n, s.t, s.l, s.href])).toEqual([
+      [1, 'Job', 'Send it once. Every approved supplier gets it.', '/requisitions'],
+      [2, 'Candidates', 'Everyone who applied, on one screen.', '/submissions'],
+      [3, 'Timesheets', 'Approve the week in one tap.', '/timesheets'],
+      [4, 'Invoices', 'Pay only what you approved.', '/invoices'],
+    ])
+    expect(MENU.small.map((l) => [l.t, l.href])).toEqual([
+      ['Security', '/security'], ['Documentation', '/docs'], ['About', '/about'], ['Contact', '/contact'],
+    ])
+    expect(MENU.small.find((l) => l.href === '/docs')!.short).toBe('Docs')
+    expect(MENU.see).toEqual({ t: 'See it working, no account', href: '/demo' })
+    expect(MENU.signUp).toEqual({ t: 'Sign up', href: '/signup' })
+    // No feature names, no roles, no second way in.
+    expect(frameCopy().join(' ')).not.toMatch(/Platform|Solutions|How It Works|By team|Explore the Live Demo|Governance|The chain/)
     // And the footer, one row on every page since 2026-10-15, reaches the
     // documentation and contact.
     for (const h of ['/docs', '/contact']) expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
@@ -523,97 +532,33 @@ describe('One header and footer on every new page', () => {
     for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
-    // The product pages and the party doors draw the same header in the
-    // home page's shape (2026-10-14).
+    // The step pages and the party doors draw the same header.
     expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SiteHeader />')
-    // And every reader, at every width, reads the menus and links in the
-    // one sheet; nothing is drawn a second time in the bar.
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<SiteHeader />')
+    // The sheet draws the four cards, the small row and the two buttons once each.
     const frame = read('src/lib/public-site/frame.tsx')
-    expect(frame.match(/NAV_MENUS\.map/g)?.length, 'the sheet draws every menu, once').toBe(1)
-    expect(frame.match(/NAV_LINKS\.map/g)?.length, 'the sheet draws every link, once').toBe(1)
-    expect(frame).toContain('SHEET_MORE.map')
+    expect(frame.match(/MENU\.steps\.map/g)?.length, 'the sheet draws the four steps, once').toBe(1)
+    expect(frame.match(/MENU\.small\.map/g)?.length, 'the sheet draws the small row, once').toBe(1)
+    expect(frame).toContain('{MENU.see.t}')
+    expect(frame).toContain('{MENU.signUp.t}')
+    // On a phone the cards stack, Sign up comes before the demo, and the
+    // short heading and "Docs" are drawn, as the drawing shows.
+    expect(frame).toMatch(/<ol className="grid gap-2\.5 sm:grid-cols-2/)
+    expect(frame).toMatch(/flex-col-reverse[^"]*sm:flex-row/)
+    expect(frame.indexOf('{MENU.see.t}')).toBeLessThan(frame.indexOf('{MENU.signUp.t}'))
+    expect(frame).toMatch(/<span className="sm:hidden">\{MENU\.headingPhone\}<\/span>/)
+    expect(frame).toMatch(/<span className="sm:hidden">\{l\.short\}<\/span>/)
   })
 
-  it('each header label goes to the top of a page that exists, on every page, the home page included', () => {
-    // Until 2026-10-14 a label on the home page landed on a band of the
-    // home page. Those bands were cut with the page the founder approved
-    // that day, so a label has one destination everywhere: the top of a
-    // page, never the middle of one.
-    const labels = [...NAV_MENUS.map((m) => ({ label: m.label, href: m.href })), ...NAV_LINKS]
-    expect(labels.map((l) => [l.label, l.href])).toEqual([
-      ['Platform', '/requisitions'], ['Solutions', '/docs'], ['How It Works', '/docs'], ['Security', '/security'],
-    ])
-    for (const l of labels) {
-      expect(l.href, l.label).not.toContain('#')
-      expect(pageAt(l.href) ?? DOCS_SLUGS.includes(l.href.replace('/docs/', '') as never), l.href).toBeTruthy()
+  it('each step card on the menu goes to the top of its step page, and every link on the sheet goes to a page that exists', () => {
+    // A card has one destination everywhere: the top of a page, never the
+    // middle of one (2026-09-30).
+    for (const h of menuLinks()) {
+      expect(h, h).not.toContain('#')
+      expect(pageAt(h) !== null || ['/signup', '/demo'].includes(h), h).toBe(true)
     }
+    for (const c of MENU.steps) expect(pageAt(c.href)?.kind, c.href).toBe('MODULE')
     expect(read('src/app/page.tsx')).not.toContain('const DESKS')
-  })
-
-  it('the Product menu names all eight parts, each under the step it belongs to, the step’s own page first', () => {
-    // The four steps are the one spine, decided 2026-09-30, named Job,
-    // Candidates, Timesheets and Invoices since 2026-10-14.
-    const stageOf = (route: string) => PRODUCT_STAGES.find((g) => g.items.some((i) => i.href === route))?.heading
-    expect(stageOf('/requisitions')).toBe('Step 1 · Job')
-    expect(stageOf('/governance')).toBe('Step 1 · Job')
-    expect(stageOf('/contracts')).toBe('Step 2 · Candidates')
-    expect(stageOf('/submissions')).toBe('Step 2 · Candidates')
-    expect(stageOf('/compliance')).toBe('Step 2 · Candidates')
-    expect(stageOf('/timesheets')).toBe('Step 3 · Timesheets')
-    expect(stageOf('/invoices')).toBe('Step 4 · Invoices')
-    expect(stageOf('/chain')).toBe('Step 4 · Invoices')
-    expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(['/requisitions', '/contracts', '/timesheets', '/invoices'])
-    // Each item carries the module page's own name and leads to it.
-    for (const m of MODULES) {
-      expect(PRODUCT_ITEMS.find((i) => i.href === m.route), m.route).toBeTruthy()
-    }
-    // The bills line is the three-way check's definition, in the founder's
-    // words (2026-09-28), because the header is where most readers first
-    // meet the term. It still says nothing about room on the order, which
-    // a named person can override with a reason.
-    const bills = PRODUCT_ITEMS.find((i) => i.href === '/invoices')!
-    expect(bills.t).toBe('Bills & the three-way check')
-    expect(bills.d).toBe('The three-way check: the hours, the invoice receipt, and the contract rate must all agree.')
-    expect(frameCopy().join(' ')).not.toMatch(/room on the order/i)
-  })
-
-  it('every role in the solutions menu leads to a page written for that reader', () => {
-    // Six entries, and each one lands on a page somebody wrote for that
-    // reader: a stage of the client documentation, the finance reference, or
-    // the chain page's section a line per supplier position. Never the home
-    // page, never About, never a section that is not there.
-    expect(ROLES.map((r) => r.t)).toEqual([
-      'The program manager', 'Procurement', 'HR and compliance', 'Finance', 'Hiring managers', 'Suppliers',
-    ])
-    // Since 2026-09-30 each lands on the top of a page written for that
-    // reader, never on a section in the middle of one.
-    const written: Record<string, string> = {
-      'The program manager': '/docs',
-      Procurement: '/docs/master-data/suppliers',
-      'HR and compliance': '/docs/candidates',
-      Finance: '/docs/time-and-money',
-      'Hiring managers': '/docs/timesheets',
-      Suppliers: '/chain',
-    }
-    for (const role of ROLES) {
-      expect(role.href, role.t).toBe(written[role.t])
-      expect(role.href, role.t).not.toContain('#')
-      expect(pageAt(role.href), `${role.t} leads to ${role.href}, which is not a public page`).toBeTruthy()
-      expect(['/', '/about', '/contact'], role.t).not.toContain(role.href)
-    }
-    // The page each entry opens names the job the entry is for.
-    expect(all(copyOfDoc('master-data/suppliers')!)).toMatch(/Procurement/)
-    expect(all(copyOfDoc('candidates')!)).toMatch(/Compliance officer/)
-    expect(all(copyOfDoc('timesheets')!)).toMatch(/Hiring manager/)
-  })
-
-  it('the solutions menu opens on four client jobs, then adds hiring managers and suppliers', () => {
-    // The home page's band of four cards left on 2026-10-14; the menu
-    // keeps their order — program manager, Procurement, HR, Finance — and
-    // two more: the hiring manager who signs weeks, and the suppliers' one
-    // door to the chain page.
-    expect(ROLES.slice(0, 4).map((r) => r.t)).toEqual(['The program manager', 'Procurement', 'HR and compliance', 'Finance'])
-    expect(ROLES.slice(4).map((r) => r.t)).toEqual(['Hiring managers', 'Suppliers'])
   })
 
   it('the right of every header is Sign in and the menu icon, and no filled button', () => {
@@ -621,7 +566,9 @@ describe('One header and footer on every new page', () => {
     // program before it. Since 2026-10-14 the header carries no button to
     // press but Sign in and the icon (the founder: "Menu into icon").
     const frame = read('src/lib/public-site/frame.tsx')
-    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</header>'))
+    // The bar, up to the sheet the icon opens; the sheet's own Sign up
+    // (2026-10-15) is behind the icon, not in the bar.
+    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</summary>'))
     expect(right).toContain('href={HEADER.signIn.href}')
     expect(right).toContain('aria-label={HEADER.menu}')
     expect(right).not.toContain('bg-etyme-action')
@@ -649,11 +596,11 @@ describe('One header and footer on every new page', () => {
     // The menu had four items leading to one place. The sentence under it
     // lived on About until 2026-10-15, when the founder's drawing cut About
     // to five lines; no page names an industry instead.
-    expect(NAV_MENUS.map((m) => m.label)).not.toContain('Industries')
+    expect(frameCopy()).not.toContain('Industries')
   })
 
   it('every link in the header and footer goes to a registered public page, the demo, sign-in or a section of the home page', () => {
-    const routes = new Set([...PUBLIC_PAGES.map((p) => p.route), '/login'])
+    const routes = new Set([...PUBLIC_PAGES.map((p) => p.route), '/login', '/signup'])
     const home = read('src/app/page.tsx')
     for (const href of everyFrameLink()) {
       const path = href.split('#')[0]
@@ -752,11 +699,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     // sign-up band, "Your door:", Clients first, and the same links in its
     // one-row footer; since the same day every product page and door draws
     // that band and that footer. The shared header and footer carry none.
-    const header = [
-      ...HEADER_MENUS.flatMap((m) => [m.href, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
-      ...HEADER_LINKS.map((l) => l.href),
-      ...HEADER_MORE.map((i) => i.href),
-    ]
+    const header = menuLinks()
     for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
     for (const p of PARTY_PAGES) {
       expect(DOORS.map((d) => d.href), p.route).toContain(p.route)

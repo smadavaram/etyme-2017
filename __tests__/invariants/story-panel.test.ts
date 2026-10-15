@@ -45,7 +45,7 @@ import { STORY, STORY_BAR, STEP_NAMES, storyCopy, storyIndex, type Cell } from '
 import { StoryPanel } from '@/lib/public-site/story-panel'
 import { STEPS } from '@/lib/public-site/steps'
 import { STEP_PAGES, stepEyebrow } from '@/lib/public-site/docs/process'
-import { PRODUCT_STAGES } from '@/lib/public-site/nav'
+import { MENU } from '@/lib/public-site/nav'
 import { MODULES } from '@/lib/public-site/modules'
 import { PARTY_PAGES } from '@/lib/public-site/parties'
 
@@ -248,13 +248,16 @@ describe('The four steps are Job, Candidates, Timesheets and Invoices everywhere
   it('the chips, the spine, the menu and the documentation say the same four names in the same order', () => {
     expect(STEP_NAMES).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
     expect(STEPS.map((s) => s.name)).toEqual(STEP_NAMES)
-    expect(PRODUCT_STAGES.map((g) => g.heading)).toEqual(STEP_NAMES.map((n, i) => `Step ${i + 1} · ${n}`))
+    // The menu sheet's four cards (2026-10-15) and the step pages' eyebrows.
+    expect(MENU.steps.map((s) => s.t)).toEqual(STEP_NAMES)
+    expect(MODULES.map((m) => m.eyebrow)).toEqual(STEP_NAMES.map((n, i) => `Step ${i + 1} of 4 · ${n}`))
     // The documentation's step pages, one per step since 2026-10-15, each "Step n of 4".
     const docSteps = STEP_PAGES.filter((p) => p.n !== null)
     expect(docSteps.map((p) => p.title)).toEqual(STEP_NAMES)
     expect(docSteps.map(stepEyebrow)).toEqual(STEP_NAMES.map((_, i) => `Step ${i + 1} of 4`))
-    // The routes do not move.
-    expect(STEPS.map((s) => s.route)).toEqual(['/requisitions', '/contracts', '/timesheets', '/invoices'])
+    // One page per step since 2026-10-15: Candidates is /submissions, where
+    // who applied is read; /contracts folded into it and redirects there.
+    expect(STEPS.map((s) => s.route)).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
   })
 
   it('no public page draws the live frame any more; the sample screens it loaded are left in place, unlinked', () => {

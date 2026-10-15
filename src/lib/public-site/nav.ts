@@ -1,41 +1,31 @@
 /**
- * The public site's header and footer, as data. Every public page draws
- * this header, the home page included.
+ * The public site's header, its menu sheet and its footer, as data.
+ * Every public page draws this header, the home page included.
  *
- * ── Product, Solutions, Resources, Company. Decided 2026-09-27 ────────
+ * ── The menu tells one story in four steps. Decided 2026-10-15 ───────
  *
- * The founder, after reviewing the marketing thread one last time: "The
- * header section seemed better organized in that thread." It was. The
- * live header was Products · Industries · Compliance · Why Etyme, which
- * listed the eight parts flat, grew an Industries menu whose four items
- * all led to the same place, and split compliance across a menu and a
- * module. The thread's static site (`index.html` on the old repository's
- * `development` branch) grouped the same eight parts by the stage a hire
- * reaches them in, gave each reader a way in by their role, and put what
- * a buyer reads and what a buyer tries under one Resources menu.
+ * The founder, on the open menu sheet: "Menu pages almost seem useless
+ * and out of context and do not tell their story cleanly — be an
+ * American sales guy like Steve Jobs to attract people." The sheet held
+ * a Platform group of eight feature names, a Solutions group of six
+ * roles, "How It Works" as a second way in, and "Explore the Live Demo".
+ * He said "build it" on the drawing that replaced them
+ * (https://claude.ai/artifact/Vxb9LoJoEKhramwsnfq9Dc), and its words are
+ * used here exactly:
  *
- * So the structure is the thread's, and the words are ours wherever ours
- * are more accurate:
+ *   How Etyme works
+ *   Four steps. Every contractor, every supplier, one place.
+ *   1 Job · 2 Candidates · 3 Timesheets · 4 Invoices, one line each,
+ *     each the top of its step page
+ *   Security · Documentation · About · Contact, small
+ *   "See it working, no account" and "Sign up"
  *
- *   - its Documentation line said "behind sign-in". The documentation is
- *     public, decided 2026-09-26, and the line says so.
- *   - its invoices line said a bill with "no room on the order" is not
- *     paid. A named person can override the order's balance with a
- *     reason (`OVERRIDABLE.PO_BALANCE` in `lib/three-way-match`); the
- *     missing signed week is the one nobody can waive. The live line says
- *     only that.
- *   - its Industries menu is gone. It had four items leading to one
- *     place. The sentence under it — one product, no industry-specific
- *     version — is kept on About, where it is a fact about the company.
- *   - its "Start free" button is not brought across. See `./funnel`.
- *
- * ── Every role leads to something written for that reader ────────────
- *
- * The thread linked each role to an anchor on its home page that did
- * not exist. Here each leads to the page of the documentation written
- * for that desk, or to the product page that speaks to it — the top of
- * a page, never a section in its middle (decided 2026-09-30). Six roles,
- * six real destinations; none was dropped.
+ * On a phone the heading is shorter ("Four steps. Every contractor, one
+ * place."), the cards stack, Sign up comes before the demo, and the
+ * small row says "Docs". The menu itself is how it works, so there is no
+ * "How It Works" link; each role is shown working inside its step, so
+ * there is no Solutions group. The four pages that folded into the steps
+ * redirect (`./folded`).
  *
  * ── No audit, since 2026-10-14 ───────────────────────────────────────
  *
@@ -46,162 +36,43 @@
 
 import { SEE_IT } from './funnel'
 import { STEPS } from './steps'
-import { FOOTER_LINKS } from './skeleton-words'
+import { FOOTER_LINKS, CLIENT_SIGN_UP } from './skeleton-words'
 
-export interface NavItem {
+/** One of the four step cards on the menu sheet. */
+export interface StepCard {
+  n: number
+  /** The step's name. */
   t: string
-  d?: string
+  /** Its one line, as drawn. */
+  l: string
+  /** The top of its step page. */
   href: string
 }
 
-export interface NavGroup {
-  heading: string
-  items: NavItem[]
-}
-
-export interface NavMenu {
-  label: string
-  /**
-   * Where the label itself goes: the top of a page, on every page. Until
-   * 2026-10-14 the home page sent it to a band of its own; those bands
-   * were cut with the home page the founder approved that day.
-   */
+/** A small link on the sheet's bottom row; `short` is what a phone shows, where it differs. */
+export interface SmallLink {
+  t: string
+  short?: string
   href: string
-  groups: NavGroup[]
 }
 
-/**
- * The eight parts of the product, grouped by the stage a hire reaches
- * them in. The home page's module band draws these same four groups, so
- * the menu and the page teach one map.
- *
- * One sentence per line, since 2026-09-28. Each line describes what the
- * part does, in words a reader can check on its page; none promises a
- * result. The home page drew these as a band of tiles for one day and
- * dropped them again the same evening, on the founder's go-to-market
- * list: they repeated the four steps and this menu.
- *
- * Plain words, defined once (CLAUDE.md, the same list): a job request,
- * not a requisition; a bill, never an invoice. "Bills & the three-way
- * check" carries the check's definition as its line, because the header
- * is where most readers meet the term first. The routes keep their
- * addresses — `/requisitions`, `/invoices` — because an address is not a
- * word anybody reads.
- */
-const PART: Record<string, { t: string; d: string }> = {
-  '/requisitions': { t: 'Job requests & suppliers', d: 'Sent only to the suppliers Procurement cleared.' },
-  '/submissions': { t: 'Submissions & screening', d: 'Every supplier’s people for one job, side by side.' },
-  '/contracts': { t: 'Contracts & onboarding', d: 'Written by the award, papers checked before day one.' },
-  '/timesheets': { t: 'Timesheets & expenses', d: 'The worker files the week; nobody approves their own.' },
-  '/invoices': { t: 'Bills & the three-way check', d: 'The three-way check: the hours, the invoice receipt, and the contract rate must all agree.' },
-  '/compliance': { t: 'Compliance & tenure', d: 'Time on site per person, across every supplier.' },
-  '/chain': { t: 'The chain', d: 'Each firm sees its own level; insurance shows at every depth.' },
-  '/governance': { t: 'Governance', d: 'Blocks where the law is behind it; warns elsewhere.' },
-}
-
-/**
- * Since 2026-09-30 the groups are the four steps, in the spine's order,
- * and each lists its step's own page first and then the pages that hang
- * under it (`./steps`). The header and the step pages' Previous and Next
- * read one spine; the home page walks the same four as chips under its
- * live product (2026-10-14). The first step is
- * Source, never Hire (the founder, the same day).
- */
-export const PRODUCT_STAGES: NavGroup[] = STEPS.map((s) => ({
-  heading: `Step ${s.n} · ${s.name}`,
-  items: [s.route, ...s.more].map((href) => ({ ...PART[href], href })),
-}))
-
-/** The eight parts in the order of the four steps. */
-export const PRODUCT_ITEMS: NavItem[] = PRODUCT_STAGES.flatMap((g) => g.items)
-
-/**
- * A way in for each reader, and where it leads.
- *
- * Each destination is the part of the site written from that desk: the
- * client documentation is drawn lane by lane, one lane per desk, and its
- * sections are the stages each desk works in. The line under a role says
- * what that reader will find, in the product's own terms. The HR line
- * carries the one claim about good standing the header makes, and the
- * positioning test reads it against the two doors that refuse it.
- *
- * ── The four client desks first, then two more ──────────────────────
- *
- * The menu opens on the four client desks — program office, Procurement,
- * HR, Finance — in the order the home page's desks band drew them until
- * it was cut on 2026-10-14, and then adds hiring managers, a client desk
- * that signs the weeks, and suppliers, whose one door from every page is
- * the chain page (where the blind key and the unnamed end client are
- * said). Cutting the menu to four would drop that door.
- */
-export const ROLES: NavItem[] = [
-  { t: 'The program manager', d: 'The four steps, one page each, and who acts at each.', href: '/docs' },
-  { t: 'Procurement', d: 'Procurement audits the suppliers, and a job goes only to the ones it cleared.', href: '/docs/master-data/suppliers' },
-  { t: 'HR and compliance', d: 'Two gates before day one. A lapsed certificate of insurance or good standing stops a submission and a start.', href: '/docs/candidates' },
-  { t: 'Finance', d: 'From an approved week to paying what matched, and which checks can be waived.', href: '/docs/time-and-money' },
-  { t: 'Hiring managers', d: 'The worker files the week and you approve it. A week over the hours is flagged first.', href: '/docs/timesheets' },
-  { t: 'Suppliers', d: 'What a prime, a sub and a bench vendor, a firm with workers waiting for a project, each see, and what stays theirs.', href: '/chain' },
-]
-
-export const DOCS_LINK: NavItem = {
-  t: 'Documentation',
-  d: 'How Etyme works, one page a step. Public, with no sign-in.',
-  href: '/docs',
-}
-
-/**
- * ── Platform, Solutions, How It Works, Security. Decided 2026-10-09 ───
- *
- * The founder's brief for the public site replaced the four menus —
- * Product, Solutions, Resources, Company — with a compact header: two
- * menus, two links, and the primary button. Each label goes somewhere
- * real on its own, and the menus still open on hover and on keyboard
- * focus with no script:
- *
- *   Platform      the first step's page. Its panel is the eight parts
- *                 by step.
- *   Solutions     the program office's page. Its panel is the desks.
- *   How It Works  the process documentation, which starts at its own top.
- *   Security      the security position.
- *
- * Every label opens the top of a page, never the middle of one — the rule
- * of 2026-09-30, kept. Until 2026-10-14 a label on the home page landed
- * on a band of the home page; the page the founder approved that day has
- * no such bands, and draws these menus only in the sheet behind Menu
- * (`SiteHeader onHome`). What the Resources and Company
- * menus carried is in the phone sheet and the footer.
- */
-export const NAV_MENUS: NavMenu[] = [
-  { label: 'Platform', href: '/requisitions', groups: PRODUCT_STAGES },
-  { label: 'Solutions', href: '/docs', groups: [{ heading: 'By team', items: ROLES }] },
-]
-
-/** The two plain links beside the menus. */
-export const NAV_LINKS: { label: string; href: string }[] = [
-  { label: 'How It Works', href: '/docs' },
-  { label: 'Security', href: '/security' },
-]
-
-/** What the phone sheet carries under the menus, from the two menus that left the header. */
-export const SHEET_MORE: NavItem[] = [
-  DOCS_LINK,
-  { t: 'About Etyme', href: '/about' },
-  { t: 'Contact', href: '/contact' },
-  { t: SEE_IT.t, href: SEE_IT.href },
-]
-
-/** Every item in one menu, across its groups. */
-export function itemsOf(menu: NavMenu): NavItem[] {
-  return menu.groups.flatMap((g) => g.items)
-}
-
-/**
- * The groups of one menu as a header draws them, with no group left
- * empty. Every item is a page since 2026-10-14, when the home page's one
- * home-only item (its specialist-teams band) was cut with the band.
- */
-export function groupsShown(menu: NavMenu): NavGroup[] {
-  return menu.groups.filter((g) => g.items.length > 0)
+/** The menu sheet behind the header's menu icon, word for word as drawn. */
+export const MENU = {
+  kicker: 'How Etyme works',
+  heading: 'Four steps. Every contractor, every supplier, one place.',
+  /** The heading on a phone, where the longer one wraps to four lines. */
+  headingPhone: 'Four steps. Every contractor, one place.',
+  steps: STEPS.map((s): StepCard => ({ n: s.n, t: s.name, l: s.menu, href: s.route })),
+  small: [
+    { t: 'Security', href: '/security' },
+    { t: 'Documentation', short: 'Docs', href: '/docs' },
+    { t: 'About', href: '/about' },
+    { t: 'Contact', href: '/contact' },
+  ] as SmallLink[],
+  /** The outlined button: the demo, no account. */
+  see: { t: SEE_IT.t, href: SEE_IT.href },
+  /** The filled button: the client's sign-up. */
+  signUp: { t: CLIENT_SIGN_UP.t, href: CLIENT_SIGN_UP.href },
 }
 
 export interface FooterGroup {
@@ -233,39 +104,54 @@ export const ADDRESS = {
   email: 'support@etyme.com',
 }
 
-/** Every href the header and footer draw, for the test. */
+/** Every href the menu sheet draws: the four steps, the small row and the two buttons. */
+export function menuLinks(): string[] {
+  return [
+    ...MENU.steps.map((s) => s.href),
+    ...MENU.small.map((l) => l.href),
+    MENU.see.href,
+    MENU.signUp.href,
+  ]
+}
+
+/** Every href the header, the sheet and the footer draw, for the test. */
 export function everyFrameLink(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => [m.href, ...itemsOf(m).map((i) => i.href)]),
-    ...NAV_LINKS.map((l) => l.href),
-    ...SHEET_MORE.map((i) => i.href),
+    ...menuLinks(),
     '/login',
     ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
   ]
 }
 
-/** Every word the header and footer show. */
+/** Every word the menu sheet shows, at either width. */
+export function menuCopy(): string[] {
+  return [
+    MENU.kicker, MENU.heading, MENU.headingPhone,
+    ...MENU.steps.flatMap((s) => [s.t, s.l]),
+    ...MENU.small.flatMap((l) => [l.t, l.short ?? '']),
+    MENU.see.t, MENU.signUp.t,
+  ].filter(Boolean)
+}
+
+/** Every word the header, the sheet and the footer show. */
 export function frameCopy(): string[] {
   return [
-    ...NAV_MENUS.flatMap((m) => [
-      m.label,
-      ...m.groups.flatMap((g) => [g.heading, ...g.items.flatMap((i) => [i.t, i.d ?? ''])]),
-    ]),
-    ...NAV_LINKS.map((l) => l.label),
-    ...SHEET_MORE.flatMap((i) => [i.t, i.d ?? '']),
     'Sign in',
+    ...menuCopy(),
     ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
 }
 
 /**
- * Every label on something a reader presses in the header, for the
- * guard that refuses a button promising an account. Since 2026-10-14 the
- * header is the logo, Sign in and the menu icon, whose accessible name is
- * "Menu"; the menus and links are inside the sheet behind it.
+ * Every label on something a reader presses in the header and its sheet,
+ * for the guard that refuses a button promising an account. The header
+ * is the logo, Sign in and the menu icon, whose accessible name is
+ * "Menu" (2026-10-14); the sheet adds the demo button. Its "Sign up" is
+ * the client's sign-up (`CLIENT_SIGN_UP`), the one label the guard lets
+ * promise an account, and is read there.
  */
 export function frameButtons(): string[] {
-  return ['Sign in', 'Menu', ...NAV_MENUS.map((m) => m.label), ...NAV_LINKS.map((l) => l.label)]
+  return ['Sign in', 'Menu', MENU.see.t]
 }
 
 /**

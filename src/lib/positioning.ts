@@ -597,7 +597,12 @@ export function headlinesFrom(source: string): string[] {
  */
 const VERBS = [
   'is', 'are', 'was', 'were', 'be', 'can', 'cannot', 'may', 'will', 'do', 'does', 'have', 'has',
-  'add', 'adds', 'answer', 'answers', 'arrive', 'arrives', 'ask', 'asks', 'block', 'blocks',
+  'add', 'adds', 'answer', 'answers',
+  // "Everyone who applied. One screen." and "Approve the week in one
+  // tap." — two of the four step pages the founder approved on
+  // 2026-10-15. The trade's own verbs: who applied, approve a timesheet.
+  'applied', 'apply', 'applies', 'approve', 'approves', 'approved',
+  'arrive', 'arrives', 'ask', 'asks', 'block', 'blocks',
   'buy', 'buys', 'call', 'calls', 'change', 'changes', 'charge', 'charges', 'check', 'checks',
   'come', 'comes',
   // "Connect. Control. Reconcile." — the three steps of the founder's

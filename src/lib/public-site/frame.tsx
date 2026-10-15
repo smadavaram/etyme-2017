@@ -1,5 +1,5 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, NAV_LINKS, SHEET_MORE, HEADER, ADDRESS, groupsShown } from './nav'
+import { MENU, HEADER, ADDRESS } from './nav'
 import { FOOTER_LINKS } from './skeleton-words'
 import { SheetCloser } from './sheet-closer'
 import { CloseBand } from './close-band'
@@ -14,9 +14,10 @@ import { CloseBand } from './close-band'
  * it's useless." So the header is three things at every width: the logo,
  * Sign in, and a menu icon — three lines, a button whose accessible name
  * is "Menu", the same 44-pixel tap target as Sign in. The word "Menu" and
- * the audit button are gone, and so are the desktop menus: the sheet
- * behind the icon carries every link they carried (`./nav`), the same at
- * 1280 as at 390.
+ * the audit button are gone, and so are the desktop menus. Since
+ * 2026-10-15 the sheet behind the icon tells the product as four steps,
+ * one line and one page each, then Security, Documentation, About and
+ * Contact, the demo and Sign up (`./nav`, `MENU`), at 1280 as at 390.
  *
  * Links are plain anchors on purpose: every page here is a
  * server-rendered document that works with JavaScript off. The sheet is
@@ -78,38 +79,61 @@ export function SiteHeader() {
             </summary>
             <div
               className="absolute inset-x-0 top-full max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain
-                         border-b border-etyme-rule bg-etyme-canvas px-4 pb-6 pt-2 shadow-lg sm:px-6"
+                         rounded-b-2xl border-b border-etyme-rule bg-etyme-surface shadow-lg"
             >
-              <ul className="divide-y divide-etyme-rule">
-                {NAV_MENUS.map((menu) => (
-                  <li key={menu.label} className="py-3">
-                    <a href={menu.href} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>
-                      {menu.label}
-                    </a>
-                    <ul className="mt-1 grid gap-x-6 sm:grid-cols-2 lg:grid-cols-4">
-                      {groupsShown(menu).flatMap((g) => g.items).map((item) => (
-                        <li key={item.t}>
-                          <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-                {NAV_LINKS.map((l) => (
-                  <li key={l.label} className="py-3">
-                    <a href={l.href} className={`block py-1.5 text-[17px] font-medium text-etyme-ink ${FOCUS}`}>{l.label}</a>
-                  </li>
-                ))}
-                <li className="py-3">
-                  <ul className="grid gap-x-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {SHEET_MORE.map((item) => (
-                      <li key={item.t}>
-                        <a href={item.href} className={`block py-1.5 text-[15px] ${LINK} ${FOCUS}`}>{item.t}</a>
-                      </li>
+              {/* The menu told as a story (2026-10-15): the four steps, one
+                  line each, then the small row and the two buttons. */}
+              <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 sm:px-7 sm:pt-6">
+                <p className="mb-1 hidden text-[12px] uppercase tracking-[0.08em] text-etyme-faint sm:block">{MENU.kicker}</p>
+                <h2 className="mb-3.5 text-balance font-serif text-[24px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink sm:mb-[18px] sm:text-[28px]">
+                  <span className="sm:hidden">{MENU.headingPhone}</span>
+                  <span className="hidden sm:inline">{MENU.heading}</span>
+                </h2>
+                <ol className="grid gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
+                  {MENU.steps.map((s) => (
+                    <li key={s.href}>
+                      <a
+                        href={s.href}
+                        className={`block h-full rounded-xl border border-etyme-rule bg-etyme-raised px-3.5 pb-4 pt-3.5 text-etyme-ink
+                                   transition hover:-translate-y-px hover:border-etyme-action-press motion-reduce:transition-none ${FOCUS}`}
+                      >
+                        <span className="block text-[12px] tabular-nums text-etyme-faint">{s.n}</span>
+                        <span className="mt-0.5 block text-[17px] font-semibold">{s.t}</span>
+                        <span className="mt-1 block text-[14px] leading-snug text-etyme-muted">{s.l}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-3.5 flex flex-col gap-4 sm:mt-[18px] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:border-t sm:border-etyme-rule sm:pt-4">
+                  <nav aria-label="More" className="order-2 flex flex-wrap justify-center gap-x-[18px] gap-y-1 text-[14px] sm:order-1 sm:justify-start">
+                    {MENU.small.map((l) => (
+                      <a key={l.href} href={l.href} className={`py-1 ${LINK} ${FOCUS}`}>
+                        {l.short ? (
+                          <>
+                            <span className="sm:hidden">{l.short}</span>
+                            <span className="hidden sm:inline">{l.t}</span>
+                          </>
+                        ) : l.t}
+                      </a>
                     ))}
-                  </ul>
-                </li>
-              </ul>
+                  </nav>
+                  <div className="order-1 flex flex-col-reverse gap-2 sm:order-2 sm:flex-row sm:flex-wrap">
+                    <a
+                      href={MENU.see.href}
+                      className={`rounded-[9px] border border-etyme-rule bg-etyme-raised px-4 py-2.5 text-center text-[15px] font-semibold text-etyme-ink
+                                 hover:bg-etyme-sunk ${FOCUS}`}
+                    >
+                      {MENU.see.t}
+                    </a>
+                    <a
+                      href={MENU.signUp.href}
+                      className={`rounded-[9px] bg-etyme-action px-4 py-2.5 text-center text-[15px] font-semibold text-white hover:opacity-90 ${FOCUS}`}
+                    >
+                      {MENU.signUp.t}
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
           </details>
         </div>

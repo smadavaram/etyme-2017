@@ -50,8 +50,9 @@ export interface Way {
  * call to action and this the secondary; the ladder's order is unchanged.
  */
 export const SEE_IT: Way = {
-  // The founder's words for the secondary button, 2026-10-09.
-  t: 'Explore the Live Demo',
+  // The founder's words, from the menu he approved on 2026-10-15. They
+  // replace "Explore the Live Demo" (2026-10-09) everywhere the site says it.
+  t: 'See it working, no account',
   short: 'See the demo',
   d: 'A demo company — not a customer — with a month of contractors, suppliers, timesheets and bills. No card. No sign-up.',
   href: '/demo',

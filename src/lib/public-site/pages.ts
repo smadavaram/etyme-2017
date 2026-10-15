@@ -27,13 +27,14 @@
 import { STEP_PAGES } from './docs/process'
 import { TOPICS, topicRoute } from './docs/topics'
 import { PARTY_PAGES } from './parties'
+import { FOLDED } from './folded'
 
 export type PageKind =
   /** The front door. */
   | 'HOME'
   /** A door that asks for something: the census, the demo. */
   | 'DOOR'
-  /** One of the eight stations of the product. */
+  /** One of the four steps of the product, a page each. */
   | 'MODULE'
   /** The documentation: how Etyme works, one page a step. */
   | 'DOCS'
@@ -57,15 +58,12 @@ export interface PublicPage {
 }
 
 /**
- * The eight product pages, in the order of the four steps (`./steps`):
- * each step's own page, then what hangs under it.
+ * The four product pages, one per step, in the order of the four steps
+ * (`./steps`). Since 2026-10-15 there are four, not eight: governance,
+ * contracts, compliance and the chain folded into the step each belonged
+ * to, and their addresses redirect there (`./folded`).
  */
-export const MODULE_ROUTES = [
-  '/requisitions', '/governance',
-  '/contracts', '/submissions', '/compliance',
-  '/timesheets',
-  '/invoices', '/chain',
-] as const
+export const MODULE_ROUTES = ['/requisitions', '/submissions', '/timesheets', '/invoices'] as const
 
 /**
  * The pages mounted at /docs/[slug] since 2026-10-15: the five step
@@ -153,6 +151,10 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
   { prefix: 'src/app/bench-invite/', why: 'A private bench invitation link.' },
   { prefix: 'src/app/map', why: 'The founder’s map of how the system is built, closed to everybody but the Owner or Admin of a real company (lib/map-gate); it describes the code, not the product to a buyer.' },
   { prefix: 'src/app/embed/', why: 'The sample program’s screens, drawn inside the home page’s frame: product screens over the seeded demo world, read-only, held to the dashboard’s words. The home page labels them as a sample above the frame.' },
+  ...Object.keys(FOLDED).map((route) => ({
+    prefix: `src/app/(site)${route}/`,
+    why: 'An old product page, folded into its step on 2026-10-15: it answers with a permanent redirect to that step (lib/public-site/folded), and draws nothing.',
+  })),
   { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
   { prefix: 'src/app/legal/', why: 'Regulatory’s agreements, reached from the census; read for price and AI with the other legal pages.' },
 ]

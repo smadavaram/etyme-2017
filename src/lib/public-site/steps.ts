@@ -10,10 +10,10 @@
  * the home page are the one spine for the home page, the product pages
  * and the documentation, in the same order:
  *
- *   1. Job          /requisitions   more: /governance
- *   2. Candidates   /contracts      more: /submissions, /compliance
+ *   1. Job          /requisitions
+ *   2. Candidates   /submissions
  *   3. Timesheets   /timesheets
- *   4. Invoices     /invoices       more: /chain
+ *   4. Invoices     /invoices
  *
  * The names are the founder's of 2026-10-14 ("Build it", on the drawing
  * of the panel that shows the product working): the four nouns a buyer
@@ -22,11 +22,17 @@
  * the "Source, never Hire" line of 2026-09-30 is superseded. The routes
  * do not move.
  *
- * A step page says "Step n of 4", has Previous and Next at its top and
- * its bottom, and shows what you do, the real screen, who is involved and
- * what happens next. It ends with "See this step in the demo". The other
- * four product pages hang under the step they belong to, as "More in this
- * step", each with a way back to its step.
+ * ── Four pages, one story. Decided by the founder, 2026-10-15 ─────────
+ *
+ * "Menu pages almost seem useless and out of context and do not tell
+ * their story cleanly." So the menu is the four steps, each with one
+ * line (`menu` below), and each step's product page tells the story the
+ * same way (`./modules`): Step n of 4, one promise, Today beside With
+ * Etyme, the panel at that step, three lines, Previous and Next. The
+ * other four product pages folded into the step they belonged to and
+ * redirect there (`./folded`): governance into Job; contracts and
+ * compliance into Candidates; the chain into Invoices. Candidates' page
+ * is /submissions, where who applied is read, rather than /contracts.
  *
  * The home page's own list of steps stays in `app/page.tsx`, word for
  * word; a test holds that it leads to these four pages, in this order.
@@ -44,10 +50,12 @@ export interface Involved {
 
 export interface Step {
   n: 1 | 2 | 3 | 4
-  /** The step page's address: one of the product pages. */
-  route: '/requisitions' | '/contracts' | '/timesheets' | '/invoices'
+  /** The step page's address: one of the four product pages. */
+  route: '/requisitions' | '/submissions' | '/timesheets' | '/invoices'
   /** The step's short name, used on every menu and every "Step n of 4". */
   name: string
+  /** The menu's one line for this step, word for word as drawn (2026-10-15). */
+  menu: string
   /** The home page's line for this step, word for word. */
   home: string
   /** What you do, as a chart. */
@@ -56,8 +64,6 @@ export interface Step {
   involved: Involved[]
   /** What happens next, in a line. */
   next: string
-  /** The product pages that hang under this step, in order. */
-  more: string[]
   /**
    * The value streams this step covers, by the slug of their L1 name.
    * They were the documentation's process pages until 2026-10-15; the
@@ -76,6 +82,7 @@ export const STEPS: Step[] = [
     n: 1,
     route: '/requisitions',
     name: 'Job',
+    menu: 'Send it once. Every approved supplier gets it.',
     home: 'Post a job to the suppliers you cleared',
     flow: [
       { who: 'CLIENT', t: 'The hiring manager raises a job request' },
@@ -93,15 +100,15 @@ export const STEPS: Step[] = [
       { who: 'Supplier', actor: 'SUPPLIER', does: 'Receives the job, and sees only its own rate band.' },
     ],
     next: 'Suppliers send people for the job. You interview, choose one, and the paperwork is written.',
-    more: ['/governance'],
     process: ['source-to-contract'],
     doc: '/docs/job',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
   },
   {
     n: 2,
-    route: '/contracts',
+    route: '/submissions',
     name: 'Candidates',
+    menu: 'Everyone who applied, on one screen.',
     home: 'Interview, choose, and the paperwork is written',
     flow: [
       { who: 'SUPPLIER', t: 'A supplier submits a person who agreed' },
@@ -119,15 +126,15 @@ export const STEPS: Step[] = [
       { who: 'Compliance officer', actor: 'CLIENT', does: 'Checks time on site before an offer, and the papers before a start.' },
     ],
     next: 'The contractor starts work and files their first week.',
-    more: ['/submissions', '/compliance'],
     process: ['source-to-contract', 'contract-to-onboard'],
     doc: '/docs/candidates',
-    demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/contracts', seat: 'the program manager' },
+    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
   {
     n: 3,
     route: '/timesheets',
     name: 'Timesheets',
+    menu: 'Approve the week in one tap.',
     home: 'Contractors file their weeks and your manager approves them',
     flow: [
       { who: 'WORKER', t: 'The worker files their own week' },
@@ -143,7 +150,6 @@ export const STEPS: Step[] = [
       { who: 'Program manager', actor: 'PROGRAM_OFFICE', does: 'Sees flagged weeks first. A week is approved by silence only if the order says so.' },
     ],
     next: 'Each supplier bills from the signed week, and you pay what matched.',
-    more: [],
     process: ['work-to-approve', 'expenses'],
     doc: '/docs/timesheets',
     demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
@@ -152,6 +158,7 @@ export const STEPS: Step[] = [
     n: 4,
     route: '/invoices',
     name: 'Invoices',
+    menu: 'Pay only what you approved.',
     home: 'Each supplier bills, and you pay what matched',
     flow: [
       { who: 'SUPPLIER', t: 'The supplier sends its invoice' },
@@ -168,23 +175,19 @@ export const STEPS: Step[] = [
       { who: 'Worker', actor: 'WORKER', does: 'Is paid by the employer, and sees their own pay, never the bill rate.' },
     ],
     next: 'The same signed weeks add up time on site, per person, across every supplier.',
-    more: ['/chain'],
     process: ['approve-to-bill', 'approve-to-pay'],
     doc: '/docs/invoices',
     demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
   },
 ]
 
-/** The step a product page is, or the step it hangs under. */
-export function stepOf(route: string): { step: Step; isStep: boolean } | null {
-  const own = STEPS.find((s) => s.route === route)
-  if (own) return { step: own, isStep: true }
-  const under = STEPS.find((s) => s.more.includes(route))
-  return under ? { step: under, isStep: false } : null
+/** The step a product page is, or null. Since 2026-10-15 every product page is a step. */
+export function stepOf(route: string): Step | null {
+  return STEPS.find((s) => s.route === route) ?? null
 }
 
-/** Every product page in spine order: each step, then what hangs under it. */
-export const SPINE_ORDER: string[] = STEPS.flatMap((s) => [s.route, ...s.more])
+/** Every product page in spine order: the four steps. */
+export const SPINE_ORDER: string[] = STEPS.map((s) => s.route)
 
 /** The one sentence under every demo button, naming the example with what it is. */
 export function demoNote(seat: string): string {

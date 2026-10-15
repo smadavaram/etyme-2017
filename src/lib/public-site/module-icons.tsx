@@ -31,16 +31,12 @@ const KIT: Record<string, string[]> = {
   'i-shield': ['M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z'],
 }
 
-/** Which kit icon stands for which part, by the part's route. */
+/** Which kit icon stands for which step, by the step's route. The four folded pages (./folded) have none since 2026-10-15. */
 export const MODULE_ICON: Record<string, keyof typeof KIT> = {
   '/requisitions': 'i-requisition',
   '/submissions': 'i-list',
-  '/contracts': 'i-contract',
   '/timesheets': 'i-timesheet',
   '/invoices': 'i-invoice',
-  '/compliance': 'i-compliance',
-  '/chain': 'i-network',
-  '/governance': 'i-shield',
 }
 
 /** The kit's icon for one part of the product, or nothing if it has none. */

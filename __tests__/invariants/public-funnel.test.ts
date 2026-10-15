@@ -26,7 +26,7 @@ import {
 import {
   SEE_IT, GET_THE_AUDIT, ASK_A_PERSON, WAYS_FORWARD, CLOSE_BAND, closeBandCopy,
 } from '@/lib/public-site/funnel'
-import { NAV_MENUS, HEADER, frameCopy, frameButtons, itemsOf, everyFrameLink } from '@/lib/public-site/nav'
+import { MENU, HEADER, frameCopy, frameButtons, everyFrameLink } from '@/lib/public-site/nav'
 import { CENSUS_COPY, NOTHING_YET, offered, acceptedKinds } from '@/lib/census-copy'
 import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
@@ -63,7 +63,9 @@ function buttonLabels(src: string): string[] {
     // A link to the sign-up door may say so: the door exists since
     // 2026-10-08 (the password door), and the home page's "Sign up" is the
     // founder's own button (2026-10-14). Every other label is read.
-    if (/href="\/signup"/.test(m[1])) continue
+    // The menu sheet's Sign up is the same door (`MENU.signUp`, held to
+    // /signup below).
+    if (/href="\/signup"|href=\{MENU\.signUp\.href\}/.test(m[1])) continue
     const t = m[2].replace(/^\{['`]|['`]\}$/g, '').trim()
     if (/[A-Za-z]/.test(t)) out.push(t)
   }
@@ -89,8 +91,9 @@ describe('One ladder, named once', () => {
 
   it('the ways forward are see it, then ask a person, in that order', () => {
     expect(WAYS_FORWARD).toEqual([SEE_IT, ASK_A_PERSON])
-    // The founder's words for the demo button, 2026-10-09.
-    expect(SEE_IT).toMatchObject({ t: 'Explore the Live Demo', href: '/demo' })
+    // The founder's words for the demo button, from the menu he approved
+    // on 2026-10-15; they replaced "Explore the Live Demo".
+    expect(SEE_IT).toMatchObject({ t: 'See it working, no account', href: '/demo' })
     // The top of the contact page, never a section in its middle (2026-09-30).
     expect(ASK_A_PERSON).toMatchObject({ t: 'Ask a person', href: '/contact' })
     // The form the second rung leads to is really on the contact page.
@@ -109,15 +112,22 @@ describe('One ladder, named once', () => {
     expect(HEADER.menu).toBe('Menu')
     expect(header).toMatch(/<summary[\s\S]*?<svg aria-hidden="true"[\s\S]*?M3\.5 6h15M3\.5 11h15M3\.5 16h15/)
     expect(header).not.toMatch(/\{'Menu'\}|>Menu</)
+    // The bar itself, before the sheet the icon opens: no filled button.
+    // The sheet's Sign up is the founder's (2026-10-15), behind the icon.
+    const bar = header.slice(0, header.indexOf('</summary>'))
     expect(header).not.toContain('CountedLink')
-    expect(header).not.toContain('bg-etyme-action')
+    expect(bar).not.toContain('bg-etyme-action')
     // One tap target for Sign in and the icon, at every width: no
     // breakpoint hides either or swaps the header for another.
     expect(FRAME).toMatch(/const TAP = '[^']*\bh-11\b/)
-    expect(header.match(/\$\{TAP\}/g)).toHaveLength(2)
-    expect(header).not.toMatch(/\b(?:sm|md|lg|xl):(?:hidden|flex|inline)\b/)
+    expect(bar.match(/\$\{TAP\}/g)).toHaveLength(2)
+    expect(bar).not.toMatch(/\b(?:sm|md|lg|xl):(?:hidden|flex|inline)\b/)
     expect(header).not.toContain('onHome')
     expect(frameButtons().slice(0, 2)).toEqual(['Sign in', 'Menu'])
+    // The sheet behind the icon ends in two buttons: the demo, and Sign up
+    // to the one sign-up door.
+    expect(MENU.see).toEqual({ t: SEE_IT.t, href: '/demo' })
+    expect(MENU.signUp).toEqual(CLIENT_SIGN_UP)
 
     // No link to the audit anywhere a public page draws: the header, the
     // sheet, the footer, the bands, and the data every page is built from.
@@ -161,12 +171,14 @@ describe('One ladder, named once', () => {
     // what, two references and six record and recruiting pages, and the
     // three company pages.
     expect(framed.length).toBeGreaterThanOrEqual(18)
-    // The home page, the eight product pages and the four party doors end
-    // in the sign-up band instead (2026-10-14): the demo under the product,
+    // The home page, the four step pages and the four party doors end in
+    // the sign-up band instead (2026-10-14): the demo under the product,
     // Sign up, and a person through Contact in the footer.
     expect(HOME).not.toContain('<CloseBand')
-    expect(read('src/lib/public-site/sub-page.tsx')).not.toContain('<CloseBand')
-    expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SignUpBand')
+    for (const f of ['src/lib/public-site/sub-page.tsx', 'src/lib/public-site/module-page.tsx']) {
+      expect(read(f), f).not.toContain('<CloseBand')
+      expect(read(f), f).toContain('<SignUpBand')
+    }
     expect(HOME).toContain('href={SEE_IT.href}')
     expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
     // And the component draws the two rungs, in order, from the funnel.
@@ -205,7 +217,7 @@ describe('No button promises what the site cannot give', () => {
     // to the old rule.
     const labels = [
       ...frameButtons(),
-      ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.t)),
+      ...MENU.steps.map((s) => s.t), ...MENU.small.map((l) => l.t),
       ...WAYS_FORWARD.map((w) => w.t),
       CENSUS_COPY.start.button, CENSUS_COPY.start.secondary, CENSUS_COPY.form.button,
       // Every button the census flow offers, at each step it can be on.
@@ -220,13 +232,13 @@ describe('No button promises what the site cannot give', () => {
       OPEN_DEMO, ...PARTY_PAGES.map((p) => p.demoLabel),
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
-    expect(labels).toContain('Explore the Live Demo')
+    expect(labels).toContain('See it working, no account')
     expect(labels).toContain('Open the demo, no account')
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
     // The ones that may, and the door they open, which is real: the
     // client's "Sign up" and each door's own sign-up, every one to /signup.
-    for (const s of [CLIENT_SIGN_UP, ...PARTY_PAGES.map((p) => p.signUp)]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
+    for (const s of [CLIENT_SIGN_UP, MENU.signUp, ...PARTY_PAGES.map((p) => p.signUp)]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)
   })
@@ -240,7 +252,7 @@ describe('No button promises what the site cannot give', () => {
 
   it('lets a door say what it leads to, and lets a page say nobody needs an account', () => {
     expect(promisesAnAccount([
-      'Explore the Live Demo', 'Get a Free Contractor Spend Audit', 'Free audit', 'Ask a person', 'Sign in',
+      'See it working, no account', 'Explore the Live Demo', 'Get a Free Contractor Spend Audit', 'Free audit', 'Ask a person', 'Sign in',
       'Open the example program', 'No card. No sign-up.', 'No card and no sign-up.', 'Ask for your census',
     ])).toEqual([])
   })
@@ -262,12 +274,13 @@ describe('No button promises what the site cannot give', () => {
     // "What is settled →" read as a riddle, and "None set yet. Free for
     // the first five firms →" was a row of the home page's close until
     // 2026-10-14. The founder's page says it in four words in the sign-up
-    // band; the paragraph on About that says what is settled is in every
-    // menu.
+    // band; the paragraph on About that says what is settled is on every
+    // menu sheet's small row (2026-10-15).
     expect(HOME).toContain('Free while we are testing.')
     expect(HOME).not.toContain('What is settled →')
     expect(priceClaims(copyFrom(HOME).join(' '))).toEqual([])
-    expect(FRAME).toContain('SHEET_MORE')
+    expect(MENU.small).toContainEqual({ t: 'About', href: '/about' })
+    expect(FRAME).toContain('MENU.small.map')
   })
 
   it('the census promises its own time, and nothing on the site promises a faster one', () => {

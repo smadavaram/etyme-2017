@@ -29,7 +29,12 @@ import DocsSlugPage from '@/app/(site)/docs/[slug]/page'
 import ProcessHomePage from '@/app/(site)/docs/process/page'
 import ProcessStagePage from '@/app/(site)/docs/process/[stage]/page'
 import ProcessPartyPage from '@/app/(site)/docs/process/[stage]/[party]/page'
-import { NAV_MENUS, FOOTER, ROLES, PRODUCT_STAGES, itemsOf } from '@/lib/public-site/nav'
+import { MENU, FOOTER, menuLinks } from '@/lib/public-site/nav'
+import { FOLDED, foldedInto } from '@/lib/public-site/folded'
+import GovernancePage from '@/app/(site)/governance/page'
+import ContractsPage from '@/app/(site)/contracts/page'
+import CompliancePage from '@/app/(site)/compliance/page'
+import ChainPage from '@/app/(site)/chain/page'
 import { PUBLIC_PAGES, MODULE_ROUTES, pageAt } from '@/lib/public-site/pages'
 import { demoRequest } from '@/lib/public-site/demo-link'
 import { DESKS } from '@/lib/demo-desks'
@@ -90,7 +95,7 @@ const boxesSayWho = (boxes: FlowBox[]) => boxes.every((b) => b.who !== undefined
 
 describe('The four steps are the one spine of the site', () => {
 
-  it('the home page walks the four steps as four chips on the panel, Job first, and the Platform menu draws the four steps with every part under its step', () => {
+  it('the home page walks the four steps as four chips on the panel, Job first, and the menu sheet draws the same four steps, each to its own page', () => {
     // The founder's home page of 2026-10-14 replaced the three steps of
     // 2026-10-09 (Connect, Control, Reconcile) and the four step cards with
     // four chips; his "Build it" the same evening put them on the panel
@@ -101,27 +106,47 @@ describe('The four steps are the one spine of the site', () => {
     expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
     expect(STORY.map((s) => s.chip)).toEqual(STEPS.map((s) => s.name))
     expect(page).not.toContain('const HOW')
-    expect(PRODUCT_STAGES.map((g) => g.items[0].href)).toEqual(STEPS.map((s) => s.route))
+    expect(MENU.steps.map((s) => s.href)).toEqual(STEPS.map((s) => s.route))
+    expect(MENU.steps.map((s) => s.t)).toEqual(STEPS.map((s) => s.name))
   })
 
   it('the first step is Job, never Hire, on every menu, page and chart', () => {
     // "Source, never Hire" (2026-09-30) is superseded by the founder's
     // four nouns (2026-10-14); a contingent worker is still never hired.
     expect(STEPS[0].name).toBe('Job')
-    expect(PRODUCT_STAGES[0].heading).toBe('Step 1 · Job')
+    expect(MENU.steps[0]).toMatchObject({ n: 1, t: 'Job', href: '/requisitions' })
     expect(STEP_PAGES[0].title).toBe('Job')
     for (const s of STEPS) expect(s.name, `step ${s.n}`).not.toMatch(/\bhire\b/i)
   })
 
-  it('the header’s Platform menu and the product pages all read the four steps in one order', () => {
-    expect(PRODUCT_STAGES.map((g) => g.items.map((i) => i.href))).toEqual(STEPS.map((s) => [s.route, ...s.more]))
+  it('the menu sheet and the product pages read the four steps in one order, and every product page is one step', () => {
+    // Since 2026-10-15 there are four product pages, not eight: Job at
+    // /requisitions, Candidates at /submissions, Timesheets, Invoices.
+    expect(SPINE_ORDER).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
+    expect(MENU.steps.map((s) => s.href)).toEqual(SPINE_ORDER)
     expect(MODULES.map((m) => m.route)).toEqual(SPINE_ORDER)
     expect([...MODULE_ROUTES]).toEqual(SPINE_ORDER)
-    // Every product page is a step, or hangs under exactly one.
+    for (const m of MODULES) expect(STEPS.filter((s) => s.route === m.route), m.route).toHaveLength(1)
+  })
+
+  it('every step page says Step n of 4 and its name, then its promise, Today beside With Etyme, the panel, three lines, and Previous and Next, in that order', () => {
     for (const m of MODULES) {
-      const homes = STEPS.filter((s) => s.route === m.route || s.more.includes(m.route))
-      expect(homes, m.route).toHaveLength(1)
+      const page = html(createElement(ModulePageView, { m }))
+      const at = [`>${m.eyebrow}</p>`, '<h1', '>Today</p>', '>With Etyme</p>', 'id="demo"', '>What you do</dt>', '>Who is involved</dt>',
+        '>What happens next</dt>', 'rel="prev"', 'rel="next"', 'id="sign-up"'].map((t) => page.indexOf(t))
+      expect(at.every((i) => i > 0), `${m.route} ${JSON.stringify(at)}`).toBe(true)
+      expect([...at].sort((a, b) => a - b), m.route).toEqual(at)
+      expect(m.eyebrow).toBe(`Step ${m.n} of 4 · ${m.title}`)
     }
+    // Previous and Next walk the four as one story: Job's Previous is the
+    // documentation's "How Etyme works", Invoices' Next is Sign up.
+    expect(MODULES.map((m) => [m.prev.t, m.prev.href])).toEqual([
+      ['How Etyme works', '/docs'], ['Job', '/requisitions'], ['Candidates', '/submissions'], ['Timesheets', '/timesheets'],
+    ])
+    expect(MODULES.map((m) => [m.next.t, m.next.href])).toEqual([
+      ['Candidates', '/submissions'], ['Timesheets', '/timesheets'], ['Invoices', '/invoices'], ['Sign up', '/signup'],
+    ])
+    expect(DOCS_HOME.title).toBe(MODULES[0].prev.t)
   })
 
   // Until 2026-10-14 a step page said "Step n of 4" with Previous and
@@ -140,8 +165,8 @@ describe('The four steps are the one spine of the site', () => {
       expect(page, m.route).toMatch(new RegExp(`data-story-step="${own.n}"(?! hidden)`))
       for (const s of STORY) expect(page, `${m.route} has the ${s.chip} chip`).toContain(`${s.chip}</button>`)
       expect(page, m.route).toMatch(new RegExp(`aria-pressed="true"[^>]*>(?:<span[^>]*>${own.n}</span>)${own.chip}</button>`))
-      // And it is the step the Platform menu files the page under.
-      const under = STEPS.find((s) => s.route === m.route || s.more.includes(m.route))!
+      // And it is the step the menu sheet sends the reader to it for.
+      const under = STEPS.find((s) => s.route === m.route)!
       expect(own.n, m.route).toBe(under.n)
       expect(page, m.route).not.toContain('<iframe')
     }
@@ -212,9 +237,9 @@ describe('No link lands in the middle of another page', () => {
 
   it('no link on the public site, the header or the footer goes to a section in the middle of another page', () => {
     const data = [
-      ...NAV_MENUS.flatMap((m) => itemsOf(m).map((i) => i.href)),
+      ...menuLinks(),
       ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
-      ...ROLES.map((r) => r.href),
+      ...MODULES.flatMap((m) => [m.prev.href, m.next.href]),
       ...DOCS_HOME.groups.flatMap((g) => g.links.map((l) => l.href)),
       ...docsSequence().map((l) => l.href),
     ]
@@ -250,6 +275,7 @@ describe('No link lands in the middle of another page', () => {
         // Never /census: it is linked from nowhere since 2026-10-14.
         expect(path, `${route} links to the census`).not.toBe('/census')
         expect(replacementFor(path), `${route} links to ${path}, an old address`).toBeNull()
+        expect(foldedInto(path), `${route} links to ${path}, a folded product page`).toBeNull()
         expect(pageAt(path) !== null || own || ['/login', '/demo'].includes(path), `${route} links to ${h}`).toBe(true)
       }
     }
@@ -339,12 +365,45 @@ describe('Every old documentation address still works', () => {
 
   it('no menu, footer or page of the site links to an old address', () => {
     const links = [
-      ...NAV_MENUS.flatMap((m) => [m.href, ...itemsOf(m).map((i) => i.href)]),
+      ...menuLinks(),
       ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
-      ...ROLES.map((r) => r.href),
-      ...MODULES.flatMap((m) => (m.link ? [m.link.href] : [])),
+      ...MODULES.flatMap((m) => [m.prev.href, m.next.href]),
     ]
-    for (const h of links) expect(replacementFor(h), h).toBeNull()
+    for (const h of links) {
+      expect(replacementFor(h), h).toBeNull()
+      expect(foldedInto(h), h).toBeNull()
+    }
+  })
+})
+
+describe('The four product pages that folded into the steps still answer', () => {
+
+  it('governance leads to Job, contracts and compliance to Candidates, and the chain to Invoices, each permanently', () => {
+    expect(FOLDED).toEqual({
+      '/governance': '/requisitions',
+      '/contracts': '/submissions',
+      '/compliance': '/submissions',
+      '/chain': '/invoices',
+    })
+    expect(answer(() => GovernancePage())).toBe('permanent redirect to /requisitions')
+    expect(answer(() => ContractsPage())).toBe('permanent redirect to /submissions')
+    expect(answer(() => CompliancePage())).toBe('permanent redirect to /submissions')
+    expect(answer(() => ChainPage())).toBe('permanent redirect to /invoices')
+    // Each goes to a step page that is drawn, and none is a page of its own any more.
+    for (const [from, to] of Object.entries(FOLDED)) {
+      expect(pageAt(to), `${from} goes to ${to}`).toBeTruthy()
+      expect(pageAt(from), from).toBeNull()
+    }
+  })
+
+  it('the redirects live beside the pages, never in next.config, and no source file of the public site links to a folded page', () => {
+    expect(read('next.config.mjs')).not.toMatch(/\/governance|\/chain'|\/compliance'|\/contracts'/)
+    for (const route of Object.keys(FOLDED)) {
+      expect(read(`src/app/(site)${route}/page.tsx`), route).toContain('permanentRedirect(FOLDED[')
+    }
+    const sources = [join(ROOT, 'src/app/page.tsx'), ...walk(join(ROOT, 'src/lib/public-site')), ...walk(join(ROOT, 'src/app/(site)'))]
+    const found = sources.flatMap((f) => hrefLiterals(readFileSync(f, 'utf8')).filter((h) => foldedInto(h.split(/[?#]/)[0])).map((h) => `${h} (${f.slice(ROOT.length + 1)})`))
+    expect(found).toEqual([])
   })
 })
 
