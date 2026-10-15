@@ -480,6 +480,21 @@ Security · Privacy · Terms · DPA · Contact. The legal pages say they
 are drafts in their own headline; the neutrality line is said on the
 supplier's and the worker's doors.
 
+**Every public page fits on one screen. Decided by the founder,
+2026-10-15** (*"AI slop … no one is reading large content … make it
+real and make it simple"*; "Build it" on
+https://claude.ai/artifact/Kj6C1QnoSgd8G7X2KQNg3Z). Security is what is
+done, what is not, and what comes next, in order. About is five lines.
+The documentation is four step pages and "When the work ends", each a
+flow of who does what, a few rules and at most three refusals; the
+nine process pages folded into them and the ten party pages into one
+"Who does what" table, every old address redirecting. No station
+tables, glossaries or L-codes on a public page. The demo is "Pick a
+company and a role", every seat kept behind a fold. The legal pages
+open on five plain lines, each true of the full text, with every legal
+word kept and folded under its own heading; only a lawyer cuts them.
+A test caps each page's words.
+
 ### The audit form is deleted and the menu is an icon — decided by the founder, 2026-10-14
 
 *"Menu into icon. Does anyone need the audit form? I think it's
