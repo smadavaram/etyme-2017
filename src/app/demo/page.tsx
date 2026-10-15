@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import { EtymeLogo } from '@/components/logo'
+import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import { DemoChip } from '@/components/shell/demo-chip'
 import { ProgramDoors, FirmDoors, PersonDoors } from './desk-picker'
 import {
@@ -60,12 +59,11 @@ export default async function DemoPage() {
   const facts = await doorFacts()
   return (
     <div className="min-h-screen bg-etyme-canvas text-etyme-ink">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-6 sm:px-6">
-        <Link href="/"><EtymeLogo size="md" /></Link>
-        <Link href="/" className="text-sm text-etyme-muted hover:text-etyme-ink">← Back</Link>
-      </header>
+      {/* The public site's header and footer, like every public page
+          (founder, 2026-10-15: one footer everywhere). */}
+      <SiteHeader />
 
-      <main className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 sm:px-6">
         {/* Said first and plainly, before anybody reads a name or a number:
             the founder, 2026-09-29 — people must know they are looking at
             simulated data. The same chip the product draws in front of a
@@ -204,6 +202,7 @@ export default async function DemoPage() {
           .
         </p>
       </main>
+      <SiteFooter />
     </div>
   )
 }
