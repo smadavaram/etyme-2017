@@ -32,7 +32,7 @@ import { AGREEMENT_CHANGES, AGREEMENT_VERSION } from '@/lib/census'
 // ── The banner every page carries ─────────────────────────────────────
 
 export const DRAFT_BANNER = {
-  eyebrow: 'Draft, not yet reviewed by a lawyer',
+  eyebrow: 'Draft for counsel',
   headline: 'Not legal advice, and not yet reviewed by a lawyer.',
   body:
     'Etyme wrote this by reading its own code, so that every sentence describes ' +
@@ -1598,46 +1598,6 @@ export const SUMMARY: Record<DocKey, SummaryLine[]> = {
 }
 
 /**
- * Five plain lines at the top of each of the three public pages.
- *
- * Decided by the founder, 2026-10-15 ("make it real and make it
- * simple"): the full text stays word for word, folded under these, and
- * these are what a reader sees on arrival. So each line is a promise of
- * its own, and it has to be true twice — of the full text below it, and
- * of the code the full text names. A line may say less than the text;
- * it may never say more. Where the text carries a limit (a log on the
- * routes that read a person, a deadline only once somebody decides one
- * applies), the line carries the limit too, rather than rounding it off.
- *
- * `legal-pages.test.ts` holds each line against the sentence it
- * shortens. The census agreement has no lines here: its six answers are
- * its summary and stay open.
- */
-export const IN_SHORT: Record<'terms' | 'privacy' | 'dpa', readonly string[]> = {
-  privacy: [
-    'We hold the records of your work: names, resumes, papers, hours, rates and pay.',
-    'A company sees its own records. Reads of a person’s record are logged, refusals included.',
-    'The app uses no advertising, analytics or session-replay service, and sets no third-party cookie.',
-    'Signed in, you can download a copy of your data or ask to be forgotten, from your own page.',
-    'If data leaks, a breach record holds each notice that is due, its deadline and who sends it.',
-  ],
-  terms: [
-    'Etyme is not a staffing agency. It employs no consultant and places nobody.',
-    'Etyme records that a check happened. It never decides whether a person may work.',
-    'A seat belongs to the company that granted it. A consultant’s account belongs to them.',
-    'No award, rejection or bar is made by a model. Automatic acts are logged in plain English.',
-    'Etyme is free while it is being tested. No uptime is promised, and liability is left open.',
-  ],
-  dpa: [
-    'Whether Etyme is a controller or a processor is not settled. Counsel decides.',
-    'Every outside service the code calls is listed, with what data reaches it.',
-    'A person can ask for their data, or to be forgotten, from their own page.',
-    'If data leaks, a breach record holds each notice that is due, its deadline and who sends it.',
-    'There is no SOC 2 report or ISO 27001 certificate to offer in place of an audit.',
-  ],
-}
-
-/**
  * The words these documents use, defined once and not again.
  *
  * Every one of them is a restatement of something stated in full
@@ -1803,7 +1763,6 @@ export function allProse(): string {
     DRAFT_BANNER.headline,
     DRAFT_BANNER.body,
     ...tables,
-    ...Object.values(IN_SHORT).flat(),
     ...DEFINITIONS.map((d) => `${d.term}. ${d.meaning}`),
     ...Object.values(SUMMARY).flatMap((lines) => lines.map((l) => `${l.ask}. ${l.answer}`)),
     ...Object.values(CROSS_LINKS).flatMap((links) => links.map((l) => `${l.label}. ${l.note}`)),
