@@ -2,6 +2,7 @@ import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import {
   DRAFT_BANNER,
   COUNSEL_QUESTIONS,
+  IN_SHORT,
   CROSS_LINKS,
   DEFINITIONS,
   HELD,
@@ -12,6 +13,7 @@ import {
   sectionsOf,
   type DocKey,
   type Section,
+  type SummaryLine,
 } from '@/lib/legal'
 import { scheduleFor, type Anchor, type ScheduleLine } from '@/lib/retention'
 
@@ -25,21 +27,29 @@ import { scheduleFor, type Anchor, type ScheduleLine } from '@/lib/retention'
  * else. They cannot drift apart because there is nothing in them to
  * drift.
  *
- * ── Built for three readers, in this order ───────────────────────────
+ * ── Five lines open, the full text one tap away ─────────────────────
  *
- * A procurement lead scans for six answers and leaves. Counsel reads the
- * open questions and the section that names the file behind each claim.
- * A CFO wants the fee position and nothing else. So: the six asks in a
- * box at the top, each linking to the section that answers it in full; a
- * numbered contents that stays on the screen while the body scrolls; and
- * facts that line up rendered as a table rather than as run-on bullets.
+ * Decided by the founder, 2026-10-15: "no one is reading large content
+ * … make it real and make it simple". Nobody read eight thousand words
+ * open at once. So a page opens on its title, "Draft, not yet reviewed
+ * by a lawyer", and five plain lines (`IN_SHORT`), each true of the text
+ * under it. Under them, "The full text": every section word for word,
+ * each folded in a native `<details>` with its own heading as the line
+ * a reader taps, closed on arrival. The draft notice, the six asks a
+ * procurement lead brings, the definitions, the open questions for
+ * counsel and the next links fold the same way.
  *
- * The draft banner is above all of it and cannot be scrolled past. That
- * is deliberate: these were written by reading code, not by a lawyer, and
- * a reader who mistakes them for reviewed legal text has been misled by
- * the layout. It is also the strongest thing on the page — a document
- * that says what it does not yet know is one a reviewer can trust about
- * what it does.
+ * No legal word is cut or changed by the layout. Cutting a privacy
+ * notice changes what Etyme promises, and that is a lawyer's job; what
+ * changed is only how it is shown. Every anchor other pages link to
+ * still exists, and a tiny script opens the fold a link lands on.
+ *
+ * The draft notice's headline is the first fold's title, so it is read
+ * on arrival without opening anything: a reader who mistakes a draft
+ * for reviewed text has been misled by the layout.
+ *
+ * The census agreement has no five lines; its six answers are its
+ * summary and stay open, and its sections fold like the rest.
  *
  * ── Phone first ──────────────────────────────────────────────────────
  *
@@ -342,16 +352,43 @@ function OpenQuestion({ id }: { id: string }) {
   )
 }
 
+/**
+ * One fold of the full text: a native `<details>`, closed on arrival,
+ * with the part's own heading as the line a reader taps.
+ *
+ * Native rather than a component with state, so the text is in the HTML
+ * whether or not a script runs, a browser's find-in-page reaches it, and
+ * a reader with scripts off can still open every fold.
+ */
+function Fold({
+  id,
+  title,
+  number,
+  children,
+}: {
+  id: string
+  title: React.ReactNode
+  number?: number
+  children: React.ReactNode
+}) {
+  return (
+    <details id={id} className="scroll-mt-6 border-b border-etyme-rule">
+      <summary className="cursor-pointer py-3 font-serif text-[17px] leading-snug tracking-[-0.01em] hover:text-etyme-action">
+        {number !== undefined && (
+          <span className="mr-2 font-sans text-[12px] font-semibold tracking-normal text-etyme-faint tabular-nums">
+            {number}
+          </span>
+        )}
+        {title}
+      </summary>
+      <div className="space-y-3 pb-5 pt-1">{children}</div>
+    </details>
+  )
+}
+
 function Block({ section, number, docKey }: { section: Section; number: number; docKey: DocKey }) {
   return (
-    <section id={sectionId(section.heading)} className="panel scroll-mt-6 space-y-3">
-      <h2 className="font-serif text-[20px] leading-tight tracking-[-0.02em] [text-wrap:balance]">
-        <span className="mr-2 font-sans text-[12px] font-semibold tracking-normal text-etyme-faint tabular-nums">
-          {number}
-        </span>
-        {section.heading}
-      </h2>
-
+    <Fold id={sectionId(section.heading)} number={number} title={section.heading}>
       {section.paragraphs.map((p, i) => (
         <p key={i} className={`max-w-[68ch] text-[14px] leading-relaxed text-etyme-muted ${WRAP}`}>
           {p}
@@ -391,7 +428,7 @@ function Block({ section, number, docKey }: { section: Section; number: number; 
           Checked against {section.provenBy}
         </p>
       )}
-    </section>
+    </Fold>
   )
 }
 
@@ -408,6 +445,39 @@ function waitingOn(id: string): { doc: string; heading: string; href: string }[]
   )
 }
 
+/** The six asks, each linking to the section that answers it in full. */
+function SixAsks({ summary }: { summary: SummaryLine[] }) {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2">
+      {summary.map((line) => (
+        <li key={line.ask}>
+          <a
+            href={line.href}
+            className="text-[13px] font-semibold leading-snug text-etyme-action underline underline-offset-2"
+          >
+            {line.ask}
+          </a>
+          <p className={`mt-1 text-[13px] leading-relaxed text-etyme-muted ${WRAP}`}>
+            {line.answer}
+          </p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * A link to a section lands on it open.
+ *
+ * Every part of the full text is folded, so `/dpa#breach-notification`
+ * — linked from the privacy notice, the terms and the six asks — would
+ * otherwise scroll to a closed line. On arrival, on a change of hash and
+ * on a click of an in-page link, this opens the fold holding the target
+ * (and any fold around it) and scrolls to it. Nothing else: no state, no
+ * framework, and without it every fold still opens by hand.
+ */
+const OPEN_ON_HASH = `(function(){function o(){var h=location.hash.slice(1);if(!h)return;var e=document.getElementById(decodeURIComponent(h));if(!e)return;var d=e.closest('details');while(d){d.open=true;d=d.parentElement&&d.parentElement.closest('details')}e.scrollIntoView()}o();addEventListener('hashchange',o);document.addEventListener('click',function(ev){var a=ev.target&&ev.target.closest&&ev.target.closest('a[href*="#"]');if(a&&a.pathname===location.pathname)setTimeout(o,0)})})()`
+
 export function LegalDocument({
   doc,
   docKey,
@@ -415,9 +485,9 @@ export function LegalDocument({
   doc: { title: string; intro: string; sections: Section[] }
   docKey: DocKey
 }) {
-  const current = [...PAGES, CENSUS_PAGE].find((p) => p.key === docKey)!
   const nav = docKey === 'census' ? [CENSUS_PAGE, ...PAGES] : PAGES
   const summary = SUMMARY[docKey]
+  const inShort = docKey === 'census' ? null : IN_SHORT[docKey]
 
   return (
     // The legal pages share the public site's header and footer, like
@@ -425,7 +495,7 @@ export function LegalDocument({
     <div className="min-h-screen bg-etyme-canvas text-etyme-ink">
     <SiteHeader />
     <main className="px-4 py-8">
-      <div className="mx-auto max-w-[1060px]">
+      <div className="mx-auto max-w-[760px]">
         <nav className="flex flex-wrap gap-4" aria-label="Legal documents">
           {nav.map((p) => (
             <a
@@ -447,97 +517,65 @@ export function LegalDocument({
           <h1 className="headline-serif mt-2 text-[32px] leading-[1.05] [text-wrap:balance] sm:text-[38px]">
             {doc.title}
           </h1>
-          <p className={`mt-3 max-w-[64ch] text-[15px] leading-relaxed text-etyme-muted ${WRAP}`}>
-            {doc.intro}
-          </p>
         </header>
 
-        {/* The banner, first, because a reader who mistakes a draft for
-            reviewed text has been misled by the layout. */}
-        <div className="mt-5 rounded-panel border border-etyme-attention bg-etyme-surface p-4">
-          <p className="text-[14px] font-semibold leading-snug text-etyme-attention">
-            {DRAFT_BANNER.headline}
-          </p>
-          <p className="mt-2 max-w-[64ch] text-[13px] leading-relaxed text-etyme-muted">
-            {DRAFT_BANNER.body}
-          </p>
-          <p className="mt-2 font-mono text-[11px] text-etyme-faint tabular-nums">
-            Code last read end to end on {LAST_VERIFIED}. Open questions:{' '}
-            <a href="#for-counsel" className="text-etyme-action underline underline-offset-2">
-              {COUNSEL_QUESTIONS.length}, listed in full
-            </a>
-            .
-          </p>
-        </div>
-
-        {/* ── The six asks ──────────────────────────────────────────── */}
-        <section id="asked-first" className="panel mt-5 scroll-mt-6">
-          <p className="eyebrow">Before you read the rest</p>
-          <h2 className="mt-1 font-serif text-[20px] leading-tight tracking-[-0.02em]">
-            The six things asked first, answered here
-          </h2>
-          <ul className="mt-4 grid gap-4 border-t border-etyme-rule pt-4 sm:grid-cols-2">
-            {summary.map((line) => (
-              <li key={line.ask}>
-                <a
-                  href={line.href}
-                  className="text-[13px] font-semibold leading-snug text-etyme-action underline underline-offset-2"
+        {/* ── In short: the only part open on arrival ─────────────── */}
+        <section id="in-short" className="mt-6">
+          <h2 className="font-serif text-[20px] leading-tight tracking-[-0.02em]">In short</h2>
+          {inShort ? (
+            <ul className="mt-3 border-t border-etyme-rule">
+              {inShort.map((line) => (
+                <li
+                  key={line}
+                  className="flex gap-3 border-b border-etyme-rule py-2.5 text-[15px] leading-snug"
                 >
-                  {line.ask}
-                </a>
-                <p className={`mt-1 text-[13px] leading-relaxed text-etyme-muted ${WRAP}`}>
-                  {line.answer}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <div className="mt-6 lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-8">
-          {/* ── Contents: a rail on a desktop, a list on a phone ───── */}
-          <nav
-            aria-label="Contents"
-            className="panel mb-5 self-start lg:sticky lg:top-6 lg:mb-0 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-          >
-            <p className="eyebrow">Contents</p>
-            <ol className="mt-3 space-y-2">
-              {doc.sections.map((s, i) => (
-                <li key={s.heading} className="text-[12.5px] leading-snug">
-                  <a
-                    href={`#${sectionId(s.heading)}`}
-                    className="text-etyme-muted hover:text-etyme-action"
-                  >
-                    <span className="mr-1 text-etyme-faint tabular-nums">{i + 1}</span>
-                    {s.heading}
-                  </a>
+                  <span
+                    aria-hidden
+                    className="mt-[7px] h-2 w-2 flex-none rounded-full bg-etyme-verified"
+                  />
+                  {line}
                 </li>
               ))}
-              <li className="border-t border-etyme-rule pt-2 text-[12.5px] leading-snug">
-                <a href="#words-used-here" className="text-etyme-muted hover:text-etyme-action">
-                  Words used here
-                </a>
-              </li>
-              <li className="text-[12.5px] leading-snug">
-                <a href="#for-counsel" className="text-etyme-muted hover:text-etyme-action">
-                  Open for counsel
-                </a>
-              </li>
-              <li className="text-[12.5px] leading-snug">
-                <a href="#where-to-go-next" className="text-etyme-muted hover:text-etyme-action">
-                  Where to go next
-                </a>
-              </li>
-            </ol>
-          </nav>
+            </ul>
+          ) : (
+            // The census agreement's six answers are its summary.
+            <div className="mt-3 border-t border-etyme-rule pt-4">
+              <SixAsks summary={summary} />
+            </div>
+          )}
+        </section>
 
-          <div className="min-w-0">
-            {/* ── Definitions, once ─────────────────────────────────── */}
-            <section id="words-used-here" className="panel scroll-mt-6">
-              <p className="eyebrow">Words used here</p>
-              <h2 className="mt-1 font-serif text-[20px] leading-tight tracking-[-0.02em]">
-                Five words, defined once and not again
-              </h2>
-              <dl className="mt-3 space-y-2 border-t border-etyme-rule pt-3">
+        {/* ── The full text: every part, word for word, folded ─────── */}
+        <section id="full-text" className="mt-8">
+          <h2 className="font-serif text-[20px] leading-tight tracking-[-0.02em]">The full text</h2>
+          <div className="mt-2 border-t border-etyme-rule">
+            {/* The banner's headline is the first fold's title, so it is
+                read on arrival; a reader who mistakes a draft for
+                reviewed text has been misled by the layout. */}
+            <Fold id="about-this-draft" title={DRAFT_BANNER.headline}>
+              <p className={`max-w-[68ch] text-[14px] leading-relaxed text-etyme-muted ${WRAP}`}>
+                {doc.intro}
+              </p>
+              <p className="max-w-[68ch] text-[13px] leading-relaxed text-etyme-muted">
+                {DRAFT_BANNER.body}
+              </p>
+              <p className="font-mono text-[11px] text-etyme-faint tabular-nums">
+                Code last read end to end on {LAST_VERIFIED}. Open questions:{' '}
+                <a href="#for-counsel" className="text-etyme-action underline underline-offset-2">
+                  {COUNSEL_QUESTIONS.length}, listed in full
+                </a>
+                .
+              </p>
+            </Fold>
+
+            {inShort && (
+              <Fold id="asked-first" title="The six things asked first, answered here">
+                <SixAsks summary={summary} />
+              </Fold>
+            )}
+
+            <Fold id="words-used-here" title="Words used here">
+              <dl className="space-y-2">
                 {DEFINITIONS.map((d) => (
                   <div key={d.term} className="max-w-[68ch] text-[13px] leading-relaxed">
                     <dt className="inline font-semibold text-etyme-ink">{d.term}. </dt>
@@ -545,28 +583,23 @@ export function LegalDocument({
                   </div>
                 ))}
               </dl>
-            </section>
+            </Fold>
 
-            <div className="mt-5 space-y-5">
-              {doc.sections.map((s, i) => (
-                <Block key={s.heading} section={s} number={i + 1} docKey={docKey} />
-              ))}
-            </div>
+            {doc.sections.map((s, i) => (
+              <Block key={s.heading} section={s} number={i + 1} docKey={docKey} />
+            ))}
 
-            {/* ── The open questions, as a section a reader can find ─ */}
-            <section id="for-counsel" className="panel mt-5 scroll-mt-6 space-y-4">
-              <div>
-                <p className="eyebrow">Open for counsel</p>
-                <h2 className="mt-1 font-serif text-[20px] leading-tight tracking-[-0.02em] [text-wrap:balance]">
-                  What a lawyer has to decide before any of this binds anybody
-                </h2>
-                <p className="mt-2 max-w-[68ch] text-[14px] leading-relaxed text-etyme-muted">
-                  Each of these is a question Etyme deliberately did not answer. Under each
-                  one: what the software does today, stated without a legal conclusion, why
-                  an engineer cannot settle it, and which sections of these three documents
-                  are waiting on the answer.
-                </p>
-              </div>
+            {/* ── The open questions, as a part a reader can find ──── */}
+            <Fold
+              id="for-counsel"
+              title="Open for counsel: what a lawyer has to decide before any of this binds anybody"
+            >
+              <p className="max-w-[68ch] text-[14px] leading-relaxed text-etyme-muted">
+                Each of these is a question Etyme deliberately did not answer. Under each
+                one: what the software does today, stated without a legal conclusion, why
+                an engineer cannot settle it, and which sections of these three documents
+                are waiting on the answer.
+              </p>
 
               <ol className="space-y-5 border-t border-etyme-rule pt-4">
                 {COUNSEL_QUESTIONS.map((q, i) => {
@@ -609,12 +642,11 @@ export function LegalDocument({
                   )
                 })}
               </ol>
-            </section>
+            </Fold>
 
             {/* ── Where a reader goes next ──────────────────────────── */}
-            <section id="where-to-go-next" className="panel mt-5 scroll-mt-6">
-              <p className="eyebrow">Where to go next</p>
-              <ul className="mt-3 space-y-3 border-t border-etyme-rule pt-3">
+            <Fold id="where-to-go-next" title="Where to go next">
+              <ul className="space-y-3">
                 {CROSS_LINKS[docKey].map((l) => (
                   <li key={l.href} className="max-w-[68ch]">
                     <a
@@ -627,20 +659,13 @@ export function LegalDocument({
                   </li>
                 ))}
               </ul>
-            </section>
+            </Fold>
           </div>
-        </div>
-
-        <footer className="mt-8 border-t border-etyme-rule pt-6">
-          <p className={`max-w-[68ch] font-mono text-[11px] leading-relaxed text-etyme-faint ${WRAP}`}>
-            {current.label} — a draft, last read against the code on {LAST_VERIFIED}. Etyme is
-            the system of record for contingent workers: the layer between a company and
-            every staffing supplier it uses. It runs no bench and places nobody.
-          </p>
-        </footer>
+        </section>
       </div>
     </main>
     <SiteFooter />
+    <script dangerouslySetInnerHTML={{ __html: OPEN_ON_HASH }} />
     </div>
   )
 }

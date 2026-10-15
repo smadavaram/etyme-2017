@@ -15,6 +15,7 @@ import {
   ACCESS_LOGGED_ROUTE_FILES,
   SUMMARY,
   SUMMARY_ASKS,
+  IN_SHORT,
   TERMS,
   PRIVACY,
   DPA,
@@ -89,6 +90,7 @@ function exists(p: string): boolean {
 describe('The legal pages are drafts for counsel, and say so', () => {
   it('every legal page says on its face that it is a draft and not legal advice', () => {
     expect(DRAFT_BANNER.eyebrow).toMatch(/draft/i)
+    expect(DRAFT_BANNER.eyebrow).toMatch(/not yet reviewed by a lawyer/i)
     expect(DRAFT_BANNER.headline).toMatch(/not legal advice/i)
     expect(DRAFT_BANNER.body).toMatch(/has not been reviewed by a qualified lawyer/i)
 
@@ -643,7 +645,7 @@ function resolves(href: string, from: DocKey): string | null {
 }
 
 describe('The three pages answer the reader who arrives with six questions', () => {
-  it('each legal page opens with what a procurement lead asks first, and every line of it links to the section that answers it', () => {
+  it('each legal page still answers what a procurement lead asks first, one tap under the five lines, and every line of it links to the section that answers it', () => {
     for (const key of DOC_KEYS) {
       const lines = SUMMARY[key]
       expect(lines.length, `${key} must answer all six`).toBe(SUMMARY_ASKS.length)
@@ -662,12 +664,16 @@ describe('The three pages answer the reader who arrives with six questions', () 
     expect(SUMMARY.terms.find((l) => l.ask === 'What you hold')!.href).toContain('/privacy#')
     expect(SUMMARY.privacy.find((l) => l.ask === 'When something goes wrong')!.href).toContain('/dpa#')
 
-    // And it is drawn above the body, not under it.
+    // And it is drawn, folded, at the top of the full text: before the
+    // sections, after the five lines it would otherwise repeat.
     expect(DOCUMENT).toContain('SUMMARY[docKey]')
     expect(DOCUMENT).toContain('href={line.href}')
-    const box = DOCUMENT.indexOf('summary.map((line)')
+    expect(DOCUMENT, 'the six asks are not rendered at all').toContain('summary.map((line)')
+    const box = DOCUMENT.indexOf('<Fold id="asked-first"')
+    const lines = DOCUMENT.indexOf('inShort.map((line)')
     const body = DOCUMENT.indexOf('doc.sections.map((s, i) => (')
-    expect(box, 'the six asks are not rendered at all').toBeGreaterThan(-1)
+    expect(box, 'the six asks are not in a fold of their own').toBeGreaterThan(-1)
+    expect(box, 'the six asks must come after the five lines').toBeGreaterThan(lines)
     expect(box, 'the six asks must come before the sections').toBeLessThan(body)
   })
 
@@ -739,12 +745,15 @@ describe('The three pages answer the reader who arrives with six questions', () 
 
   it('the counsel questions are a section a reader can find, not a footnote', () => {
     expect(DOCUMENT).toContain('id="for-counsel"')
-    // In the contents, and linked from the banner at the top, so a
-    // reader meets the open list before they meet any of the claims.
-    expect(DOCUMENT.match(/href="#for-counsel"/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
+    // Linked from the draft notice, the first fold of the full text, so
+    // a reader meets the open list before they meet any of the claims.
+    expect(DOCUMENT.match(/href="#for-counsel"/g)?.length ?? 0).toBeGreaterThanOrEqual(1)
     const banner = DOCUMENT.indexOf('DRAFT_BANNER.body')
     const link = DOCUMENT.indexOf('href="#for-counsel"')
     expect(link, 'the count of open questions sits with the draft banner').toBeGreaterThan(banner)
+    expect(banner, 'the draft notice must come before the sections').toBeLessThan(
+      DOCUMENT.indexOf('doc.sections.map((s, i) => (')
+    )
     expect(DOCUMENT).toContain('{COUNSEL_QUESTIONS.length}, listed in full')
 
     // Each question carries the status it actually has — open — and the
@@ -757,7 +766,7 @@ describe('The three pages answer the reader who arrives with six questions', () 
     expect(cited.size, 'most of the open questions are cited by a section somewhere').toBeGreaterThanOrEqual(6)
   })
 
-  it('the words a reader needs are defined once, at the top, and say nothing the body does not', () => {
+  it('the words a reader needs are defined once, at the top of the full text, and say nothing the body does not', () => {
     expect(DEFINITIONS.length).toBeGreaterThanOrEqual(5)
     const definitions = DOCUMENT.match(/DEFINITIONS\.map/g) ?? []
     expect(definitions.length, 'a definition list drawn twice is a definition repeated').toBe(1)
@@ -851,5 +860,160 @@ describe('The three pages answer the reader who arrives with six questions', () 
     // And nothing reaches for a horizontal scroller to hide the problem.
     expect(DOCUMENT).not.toContain('overflow-x-auto')
     expect(DOCUMENT).not.toContain('overflow-scroll-x')
+  })
+})
+
+/**
+ * ── Five lines open, the full text one tap away (2026-10-15) ──────────
+ *
+ * "No one is reading large content … make it real and make it simple."
+ * The legal words were not cut — cutting a privacy notice changes what
+ * Etyme promises, and that is a lawyer's job — they were folded under
+ * five plain lines. So these checks hold two things: that the five lines
+ * are each backed by a sentence in the full text (a summary that says
+ * more than the text is a second, looser promise), and that the full
+ * text is all still there, folded, with every anchor still landing.
+ */
+const LINE_WORDS = 25
+
+function sectionText(key: 'terms' | 'privacy' | 'dpa', heading: string): string {
+  const s = sectionsOf(key).find((x) => x.heading === heading)
+  expect(s, `${key} has no section "${heading}"`).toBeDefined()
+  return [s!.heading, ...s!.paragraphs, ...(s!.bullets ?? [])].join(' ')
+}
+
+describe('Each legal page opens on five plain lines, and the full text is folded under them', () => {
+  it('each of the three pages has exactly five lines, short, in plain words', () => {
+    for (const key of DOC_KEYS) {
+      const lines = IN_SHORT[key as 'terms' | 'privacy' | 'dpa']
+      expect(lines.length, `${key} must have five lines`).toBe(5)
+      for (const line of lines) {
+        expect(line.split(/\s+/).length, `"${line}" is too long to read at a glance`).toBeLessThanOrEqual(LINE_WORDS)
+        expect(line, 'the two words nobody uses').not.toMatch(/\bdesk\b|program office/i)
+        expect(line, 'no superlatives on a legal page').not.toMatch(/\b(best|leading|world-class|fully|completely|guarantee)/i)
+      }
+    }
+  })
+
+  it('every one of the privacy notice’s five lines is said in the full text below it', () => {
+    const [held, walls, tracking, rights, breach] = IN_SHORT.privacy
+    const heldText = HELD.map((h) => `${h.category} ${h.examples}`).join(' ')
+    expect(held).toMatch(/names, resumes, papers, hours, rates and pay/)
+    for (const backed of [/Name/, /Resumes/, /Onboarding paperwork/, /timesheets and the hours accepted/, /Pay rates and bill rates/]) {
+      expect(heldText).toMatch(backed)
+    }
+
+    expect(walls).toMatch(/A company sees its own records/)
+    expect(sectionText('privacy', 'Who can see it')).toMatch(/A company sees its own data/)
+    expect(walls).toMatch(/Reads of a person’s record are logged, refusals included/)
+    expect(sectionText('privacy', 'Reads are logged, refusals included')).toMatch(/Reads of a person’s record are logged/)
+
+    expect(tracking).toMatch(/no advertising, analytics or session-replay service, and sets no third-party cookie/)
+    expect(sectionText('privacy', 'Cookies and tracking')).toMatch(
+      /no analytics, advertising or session-replay service in the\s+application, and no third-party cookie is set by it/
+    )
+    // And the code agrees: no such dependency is installed.
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
+    const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies }).join(' ')
+    expect(deps).not.toMatch(/analytics|segment|posthog|mixpanel|amplitude|hotjar|fullstory|logrocket|gtag/i)
+
+    expect(rights).toMatch(/download a copy of your data or ask to be forgotten, from your own page/)
+    expect(sectionText('privacy', 'Your rights, and how they are honored today')).toMatch(
+      /ask for everything held about them, or ask to be\s+forgotten, from their own page/
+    )
+    expect(readFileSync(join(ROOT, 'src/app/dashboard/my-data/page.tsx'), 'utf8')).toMatch(/Download the file/)
+
+    // A deadline is empty until somebody decides one applies, so the line
+    // says "each notice that is due", never that everybody is told by a date.
+    expect(breach).toMatch(/each notice that is due, its deadline and who sends it/)
+    const clock = sectionText('dpa', 'Breach notification')
+    expect(clock).toMatch(/Every deadline names the person who owns sending it/)
+    expect(clock).toMatch(/empty until somebody decides one applies/)
+  })
+
+  it('every one of the terms’ five lines is said in the full text below it', () => {
+    const [neutral, verdict, seats, model, fees] = IN_SHORT.terms
+    const what = sectionText('terms', 'What Etyme is')
+    expect(neutral).toMatch(/not a staffing agency\. It employs no consultant and places nobody/)
+    expect(what).toMatch(/not a staffing agency\. It runs no bench, employs no consultant and\s+places nobody/)
+    expect(verdict).toMatch(/never decides whether a person may work/)
+    expect(what).toMatch(/does not decide whether a person may work\. It records that a check\s+happened/)
+
+    expect(seats).toMatch(/A seat belongs to the company that granted it/)
+    const accounts = sectionText('terms', 'Accounts and seats')
+    expect(accounts).toMatch(/A seat belongs to the company that granted it/)
+    expect(accounts).toMatch(/A consultant account belongs to the person/)
+
+    expect(model).toMatch(/No award, rejection or bar is made by a model/)
+    expect(sectionText('terms', 'Where a model is used')).toMatch(/No award, rejection or bar in this product is made by a model/)
+    expect(sectionText('terms', 'What the software does on its own')).toMatch(/in plain English/)
+
+    expect(fees).toMatch(/free while it is being tested/)
+    expect(sectionText('terms', 'Fees')).toMatch(/free while it is being tested/)
+    expect(fees).toMatch(/No uptime is promised, and liability is left open/)
+    expect(sectionText('terms', 'Availability, support and change')).toMatch(/No uptime commitment is made/)
+    expect(sectionText('terms', 'Liability, indemnity, governing law and termination')).toMatch(/Left open/)
+  })
+
+  it('every one of the DPA’s five lines is said in the full text below it', () => {
+    const [unsettled, subs, rights, breach, audit] = IN_SHORT.dpa
+    expect(unsettled).toMatch(/controller or a processor is not settled\. Counsel decides/)
+    expect(DPA.sections[0].paragraphs.join(' ')).toMatch(/Counsel decides/)
+
+    expect(subs).toMatch(/Every outside service the code calls is listed, with what data reaches it/)
+    expect(sectionText('dpa', 'Sub-processors')).toMatch(/generated from the services the code calls/)
+    expect(SUB_PROCESSORS.every((s) => s.reaches.length > 10)).toBe(true)
+
+    expect(rights).toMatch(/ask for their data, or to be forgotten, from their own page/)
+    expect(sectionText('dpa', 'Assisting the customer with data subject requests')).toMatch(
+      /ask for everything held about them, or ask to be forgotten,\s+from their own page/
+    )
+
+    expect(breach).toBe(IN_SHORT.privacy[4])
+
+    expect(audit).toMatch(/no SOC 2 report or ISO 27001 certificate to offer in place of an audit/)
+    expect(sectionText('dpa', 'Audit')).toMatch(/no SOC 2 report, no ISO 27001 certificate/)
+  })
+
+  it('every section is folded closed, word for word, under its own heading', () => {
+    // One fold, a native details element, never drawn open.
+    expect(DOCUMENT.match(/<details id=/g)?.length, 'one fold component, used everywhere').toBe(1)
+    expect(DOCUMENT).not.toMatch(/<details[^>]*\bopen\b/)
+    expect(DOCUMENT).toContain('<summary')
+
+    // Each section is a fold whose address is its heading's and whose
+    // title is the heading itself.
+    expect(DOCUMENT).toContain('<Fold id={sectionId(section.heading)} number={number} title={section.heading}>')
+    // Its words are drawn as they are, with nothing cut or shortened.
+    for (const drawn of ['{p}', '{b}', '{section.provenBy}']) {
+      expect(DOCUMENT, `${drawn} is not drawn in the fold`).toContain(drawn)
+    }
+    expect(DOCUMENT).not.toMatch(/\.slice\(0,\s*\d+\)/)
+
+    // The parts that are not sections fold the same way, under the same
+    // addresses as before, so a link written last month still lands.
+    for (const anchor of STANDING_ANCHORS) {
+      expect(DOCUMENT, `#${anchor} is not a fold`).toMatch(new RegExp(`<Fold\\s+id="${anchor}"`))
+    }
+
+    // The draft notice's headline is read on arrival: it titles the
+    // first fold, before any section.
+    expect(DOCUMENT).toContain('<Fold id="about-this-draft" title={DRAFT_BANNER.headline}>')
+    expect(DOCUMENT.indexOf('about-this-draft')).toBeLessThan(DOCUMENT.indexOf('<Block'))
+  })
+
+  it('a link to a section lands on it open', () => {
+    // A tiny script, no framework: on arrival, on a change of hash and
+    // on a click of an in-page link, the fold holding the target opens.
+    expect(DOCUMENT).toContain('location.hash')
+    expect(DOCUMENT).toContain("closest('details')")
+    expect(DOCUMENT).toContain('d.open=true')
+    expect(DOCUMENT).toContain("addEventListener('hashchange',o)")
+    expect(DOCUMENT).toContain('dangerouslySetInnerHTML={{ __html: OPEN_ON_HASH }}')
+
+    // Every anchor the six asks and the next links point at still exists.
+    for (const key of DOC_KEYS) {
+      for (const line of SUMMARY[key]) expect(resolves(line.href, key), line.href).toBeNull()
+    }
   })
 })
