@@ -1,4 +1,4 @@
-import { EtymeLogo } from '@/components/logo'
+import { SiteHeader, SiteFooter } from '@/lib/public-site/frame'
 import {
   DRAFT_BANNER,
   COUNSEL_QUESTIONS,
@@ -420,13 +420,13 @@ export function LegalDocument({
   const summary = SUMMARY[docKey]
 
   return (
-    <main className="min-h-screen bg-etyme-canvas px-4 py-8 text-etyme-ink">
+    // The legal pages share the public site's header and footer, like
+    // every public page (founder, 2026-10-15: one footer everywhere).
+    <div className="min-h-screen bg-etyme-canvas text-etyme-ink">
+    <SiteHeader />
+    <main className="px-4 py-8">
       <div className="mx-auto max-w-[1060px]">
-        <a href="/" aria-label="Etyme home">
-          <EtymeLogo />
-        </a>
-
-        <nav className="mt-6 flex flex-wrap gap-4" aria-label="Legal documents">
+        <nav className="flex flex-wrap gap-4" aria-label="Legal documents">
           {nav.map((p) => (
             <a
               key={p.href}
@@ -640,5 +640,7 @@ export function LegalDocument({
         </footer>
       </div>
     </main>
+    <SiteFooter />
+    </div>
   )
 }
