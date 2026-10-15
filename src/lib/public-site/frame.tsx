@@ -1,5 +1,6 @@
 import { EtymeLogo } from '@/components/logo'
-import { NAV_MENUS, NAV_LINKS, SHEET_MORE, HEADER, FOOTER, ADDRESS, groupsShown } from './nav'
+import { NAV_MENUS, NAV_LINKS, SHEET_MORE, HEADER, ADDRESS, groupsShown } from './nav'
+import { FOOTER_LINKS } from './skeleton-words'
 import { SheetCloser } from './sheet-closer'
 import { CloseBand } from './close-band'
 
@@ -119,73 +120,12 @@ export function SiteHeader() {
 }
 
 /**
- * `doors` is the party pages' own row (2026-10-13): each of the four doors
- * (`./parties`) links the other three from its footer, because they are
- * reached by link and not from the home page's menu. Every other page
- * draws the footer without it.
+ * The footer of every page in the frame: the documentation, the security
+ * position, the legal pages, contact. The same one row the home page,
+ * the product pages and the doors draw (`./skeleton`), since 2026-10-15.
  */
-export function SiteFooter({ doors }: { doors?: { label: string; href: string }[] } = {}) {
-  return (
-    <footer className="border-t border-etyme-rule bg-etyme-surface">
-      {/* The same gutter as the bands above it, so the logo sits on their
-          left edge; the link groups run two to a row on a phone, so the
-          footer is no taller than a screen and a half at 390 (it was
-          1,423 pixels, the tallest block on the home page). */}
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 md:py-14">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-10">
-          <div className="col-span-2 lg:col-span-1">
-            <EtymeLogo size="md" />
-            <p className="mt-4 max-w-[32ch] text-[14px] leading-relaxed text-etyme-muted">
-              {'The system of record for contingent workers: the layer between a company and every staffing supplier it uses.'}
-            </p>
-            <p className="mt-3 max-w-[32ch] text-[13px] leading-relaxed text-etyme-faint">
-              {'Etyme never runs a bench and never places anybody.'}
-            </p>
-          </div>
-
-          {FOOTER.map((group) => (
-            <div key={group.heading}>
-              <p className="stat-label">{group.heading}</p>
-              <ul className="mt-3 space-y-2">
-                {group.links.map((l) => (
-                  <li key={`${group.heading}-${l.href}-${l.label}`}>
-                    <a href={l.href} className={`text-[14px] leading-snug ${LINK}`}>{l.label}</a>
-                  </li>
-                ))}
-              </ul>
-              {group.note && (
-                <p className="mt-3 max-w-[30ch] text-[12px] leading-snug text-etyme-faint">{group.note}</p>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {doors && doors.length > 0 && (
-          <nav aria-label="Other doors" className="mt-10 border-t border-etyme-rule pt-6">
-            <p className="stat-label">{'Also on Etyme'}</p>
-            <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
-              {doors.map((d) => (
-                <li key={d.href}>
-                  <a href={d.href} className={`text-[14px] leading-snug ${LINK}`}>{d.label}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-
-        <div className="mt-12 flex flex-wrap items-center justify-between gap-3 border-t border-etyme-rule pt-6">
-          <p className="font-mono text-[11px] text-etyme-faint">
-            {`© ${new Date().getFullYear()} ${ADDRESS.company} · ${ADDRESS.street}, ${ADDRESS.city}`}
-          </p>
-          <p className="font-mono text-[11px] text-etyme-faint">
-            <a href={`mailto:${ADDRESS.email}`} className="hover:text-etyme-ink">{ADDRESS.email}</a>
-            {' · '}
-            {ADDRESS.phone}
-          </p>
-        </div>
-      </div>
-    </footer>
-  )
+export function SiteFooter() {
+  return <HomeFooter links={FOOTER_LINKS} />
 }
 
 /**

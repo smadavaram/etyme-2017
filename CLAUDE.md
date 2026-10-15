@@ -468,6 +468,18 @@ the security position (whole, honest); the legal pages; the census and
 demo doors (their forms). They share the header and the footer, and
 nothing else is forced on them.
 
+**One footer on every public page, the five doors first in sequence.
+Decided by the founder, 2026-10-15** (*"Footer is missing clients
+which links to home page"*; *"Clients, MSPs, Integrators, Suppliers,
+Workers in sequence"*; *"security and documentation pages have footer
+different from home page site? Is that right"*). It was not: the
+documentation, security and legal pages still drew the older
+four-column footer. Now every page draws the one row: Clients (the
+home page) · MSPs · Integrators · Suppliers · Workers · Documentation ·
+Security · Privacy · Terms · DPA · Contact. The legal pages say they
+are drafts in their own headline; the neutrality line is said on the
+supplier's and the worker's doors.
+
 ### The audit form is deleted and the menu is an icon — decided by the founder, 2026-10-14
 
 *"Menu into icon. Does anyone need the audit form? I think it's

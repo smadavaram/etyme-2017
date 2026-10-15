@@ -477,8 +477,10 @@ describe('One header and footer on every new page', () => {
     // and the demo.
     for (const h of ['/docs', '/about', '/contact', '/demo']) {
       expect(SHEET_MORE.map((i) => i.href), h).toContain(h)
-      expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
     }
+    // And the footer, one row on every page since 2026-10-15, reaches the
+    // documentation and contact.
+    for (const h of ['/docs', '/contact']) expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
     // The home page draws the same header, rather than a copy of it: the
     // logo, Sign in and the menu icon at every width, with no variant for
     // the home page (2026-10-14).
@@ -777,7 +779,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     }
   })
 
-  it('no door is in the shared header or footer; the home page and every product page and door carry all four in the sign-up band and the one-row footer', () => {
+  it('no door is in the shared header; every public page carries all four in the one-row footer, and the home page and every product page and door in the sign-up band too', () => {
     // Decided 2026-10-13: the doors are reached by link, not from the menu.
     // The founder's home page of 2026-10-14 adds one small line in the
     // sign-up band, "Your door:", Clients first, and the same links in its
@@ -787,12 +789,12 @@ describe('Four doors for the parties who are not the client, reached by link and
       ...HEADER_MENUS.flatMap((m) => [m.href, ...m.groups.flatMap((g) => g.items.map((i) => i.href))]),
       ...HEADER_LINKS.map((l) => l.href),
       ...HEADER_MORE.map((i) => i.href),
-      ...SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)),
     ]
     for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
     for (const p of PARTY_PAGES) {
       expect(DOORS.map((d) => d.href), p.route).toContain(p.route)
       expect(SKELETON_FOOTER.map((d) => d.href), p.route).toContain(p.route)
+      expect(SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href)), p.route).toContain(p.route)
     }
     expect(DOORS[0]).toEqual({ t: 'Clients', href: '/signup' })
     const view = read('src/lib/public-site/sub-page.tsx')

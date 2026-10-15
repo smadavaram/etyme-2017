@@ -1671,6 +1671,8 @@ describe('The home page is drawn in the brand’s own colors', () => {
 const FOOTER_LINKS = SITE_FOOTER.flatMap((g) => g.links.map((l) => l.href))
 const FOOTER_WORDS = SITE_FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']).join(' ')
 const FOOTER_JSX = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteFooter'), FRAME_SRC.indexOf('export function SiteFrame'))
+const SUPPLIER_DOOR_SRC = readFileSync(join(process.cwd(), 'src/lib/public-site/parties.ts'), 'utf8')
+const LEGAL_SRC = readFileSync(join(process.cwd(), 'src/lib/legal.ts'), 'utf8')
 // The home page's own footer since 2026-10-14: one row of links, as the
 // founder approved it, drawn by `HomeFooter` from the skeleton every
 // product page and party door shares.
@@ -1694,7 +1696,10 @@ describe('The footer is where a company keeps its papers', () => {
     expect(PAGE).toContain('<SkeletonFooter />')
     expect(PAGE).toContain('<HomeFooter links={FOOTER_LINKS} />')
     expect(HOME_FOOTER_JSX).toContain('links.map')
-    expect(FOOTER_JSX).toContain('FOOTER.map')
+    // One footer on every public page since 2026-10-15: the frame's
+    // pages — documentation, security, the legal pages — draw the home
+    // page's row, never a footer of their own.
+    expect(FOOTER_JSX).toContain('<HomeFooter links={FOOTER_LINKS} />')
     for (const { href } of HOME_FOOTER_LINKS) {
       const candidates = ['', '(auth)', '(site)'].map((group) => join(process.cwd(), 'src/app', group, href.slice(1), 'page.tsx'))
       expect(candidates.some(existsSync), `no page for ${href}`).toBe(true)
@@ -1705,9 +1710,10 @@ describe('The footer is where a company keeps its papers', () => {
     expect(FOOTER_LINKS).toContain('/dpa')
   })
 
-  it('says the legal documents are drafts before somebody clicks one, not after', () => {
-    expect(FOOTER_WORDS).toContain('not yet reviewed by a lawyer')
-    expect(FOOTER_JSX).toContain('group.note')
+  it('says the legal documents are drafts at the top of each one', () => {
+    // The footer note left with the four-column footer on 2026-10-15; each
+    // legal page says it in its own headline, before a word of the terms.
+    expect(LEGAL_SRC).toContain('not yet reviewed by a lawyer')
   })
 
   it('every page the footer points at exists, so none of it is a dead link', () => {
@@ -1751,25 +1757,21 @@ describe('The footer is where a company keeps its papers', () => {
     // The one mailbox each footer shows is the one Contact already names.
     expect(FOOTER_WORDS.toLowerCase()).not.toMatch(/linkedin|twitter|x\.com|facebook|status\.|careers|\babout us\b/)
     expect(HOME_FOOTER_LINKS.map((l) => l.t).join(' ').toLowerCase()).not.toMatch(/linkedin|twitter|facebook|status|careers/)
-    for (const jsx of [FOOTER_JSX, HOME_FOOTER_JSX]) {
+    for (const jsx of [HOME_FOOTER_JSX]) {
       expect([...jsx.matchAll(/mailto:/g)].length).toBeLessThanOrEqual(1)
       expect(jsx).toContain('mailto:${ADDRESS.email}')
     }
   })
 
   it('names the company and the year rather than a hardcoded copyright that goes stale', () => {
-    expect(FOOTER_JSX).toContain('ADDRESS.company')
-    expect(FOOTER_JSX).toContain('new Date().getFullYear()')
-  })
-
-  it('says what Etyme is in the footer, in the words from CLAUDE.md', () => {
-    // Somebody who scrolled past the hero and read nothing else still
-    // leaves knowing the category.
-    expect(FOOTER_JSX).toContain('The system of record for contingent workers')
+    expect(HOME_FOOTER_JSX).toContain('ADDRESS.company')
+    expect(HOME_FOOTER_JSX).toContain('new Date().getFullYear()')
   })
 
   it('repeats the neutrality commitment where a supplier reading the page will see it', () => {
-    expect(FOOTER_JSX).toContain('never runs a bench and never places anybody')
+    // On the supplier's and the worker's own doors since the footer
+    // became one row on every page (2026-10-15).
+    expect(SUPPLIER_DOOR_SRC).toContain('Etyme never places anybody.')
   })
 
 })
@@ -1798,7 +1800,7 @@ describe('The public page still says the four things it may not stop saying', ()
 
   it('nothing on the public page claims Etyme places anybody', () => {
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
-    expect(FOOTER_JSX).toContain('never runs a bench and never places anybody')
+    expect(SUPPLIER_DOOR_SRC).toContain('Etyme never places anybody.')
   })
 
   it('claims no paying customers, because there are none yet', () => {

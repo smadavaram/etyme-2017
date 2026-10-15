@@ -46,6 +46,7 @@
 
 import { SEE_IT } from './funnel'
 import { STEPS } from './steps'
+import { FOOTER_LINKS } from './skeleton-words'
 
 export interface NavItem {
   t: string
@@ -210,42 +211,17 @@ export interface FooterGroup {
 }
 
 /**
- * The footer: Platform, Solutions, Company and Legal, every link a real
- * route. Reworked 2026-10-09 with the compact header, so the pages the
- * header no longer lists — documentation, about, contact, the DPA — are
- * one tap from the bottom of every page.
+ * The footer, one for every public page: the home page, the product
+ * pages and doors, the documentation, the security position, the legal
+ * pages. The one row the founder approved for the home page on
+ * 2026-10-14 (`FOOTER_LINKS`), drawn everywhere since 2026-10-15, when
+ * he found the security and documentation pages still drawing the older
+ * four-column footer: "have footer different from home page site? Is
+ * that right". It was not; every public page shares the header and the
+ * footer.
  */
 export const FOOTER: FooterGroup[] = [
-  {
-    heading: 'Platform',
-    links: PRODUCT_ITEMS.map((i) => ({ label: i.t, href: i.href })),
-  },
-  {
-    heading: 'Solutions',
-    links: ROLES.map((r) => ({ label: r.t, href: r.href })),
-  },
-  {
-    heading: 'Company',
-    links: [
-      { label: 'Security position', href: '/security' },
-      { label: 'Documentation', href: '/docs' },
-      { label: 'About Etyme', href: '/about' },
-      { label: 'Contact', href: '/contact' },
-      { label: SEE_IT.t, href: SEE_IT.href },
-      { label: 'Sign in', href: '/login' },
-    ],
-  },
-  {
-    heading: 'Legal',
-    links: [
-      { label: 'Privacy policy', href: '/privacy' },
-      { label: 'Terms of service', href: '/terms' },
-      { label: 'Data processing addendum', href: '/dpa' },
-    ],
-    // Moved from the home page's own footer with the home page onto this
-    // one, 2026-09-27. Said before somebody clicks, not after.
-    note: 'Drafts, written from the code itself and not yet reviewed by a lawyer. Each one says so on its face.',
-  },
+  { heading: 'Etyme', links: FOOTER_LINKS.map((l) => ({ label: l.t, href: l.href })) },
 ]
 
 /** Where Etyme is, said once, on every page. */
