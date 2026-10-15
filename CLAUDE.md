@@ -1161,6 +1161,18 @@ hours"); whether the program manager's desk may edit the role contract
 the demo); and the Teams keys and app sideload, after which `/ready`'s
 "Teams bot" row moves from MISSING.
 
+**Bench first, the MSP grows with time, and the two are kept apart.
+Decided by the founder, 2026-10-15** (*"My strength is building
+bench"*; on the advice to shelve the MSP business: *"We just need to
+put time and it will happen"*). The MSP offer stays on the site as it
+is. The founder's bench business runs on Etyme as a supplier like any
+other, under **its own name and its own address, never `etyme`** — a
+tenant called Etyme placing people reads as the platform supplying
+them, and the published Terms say Etyme places nobody. It gets no
+access any other supplier lacks, and where Etyme runs a client's
+program it competes like any other supplier, with no first look at a
+job. Nothing is built that favors it.
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in
