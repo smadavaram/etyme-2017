@@ -662,7 +662,7 @@ function NothingYet({ says, listedBy = null, ownFirm = null }: {
         <p className="text-[13px] text-etyme-muted mt-1">
           If you work through your own company,{' '}
           <a href="/signup?type=solo" className="text-etyme-action hover:underline">
-            sign up as &ldquo;I work through my own company&rdquo;
+            sign up as a solopreneur
           </a>.
         </p>
       )}

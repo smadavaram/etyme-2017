@@ -158,9 +158,9 @@ describe('the empty state on their own work is what to do, not four zeros', () =
     expect(EMPTY_STATE).toContain('Etyme places nobody.')
   })
 
-  it('somebody paid through their own company is given a link to sign up as "I work through my own company", the one door that exists', () => {
+  it('somebody paid through their own company is given a link to sign up as a solopreneur, the one door that exists', () => {
     expect(EMPTY_STATE).toContain('<a href="/signup?type=solo"')
-    expect(EMPTY_STATE).toContain('sign up as &ldquo;I work through my own company&rdquo;')
+    expect(EMPTY_STATE).toContain('sign up as a solopreneur')
     expect(EMPTY_STATE).not.toMatch(/set up a company of your own/i)
   })
 

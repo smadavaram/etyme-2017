@@ -330,7 +330,7 @@ export default function StartPage() {
             </label>
 
             <div className="mt-6">
-              <Lbl>What does your company do here?</Lbl>
+              <Lbl>Which one are you?</Lbl>
               <div className="mt-2 space-y-2">
                 {(state.companyTypes as TypeOption[]).map((t) => (
                   <button key={t.key} onClick={() => setType(t.key)}

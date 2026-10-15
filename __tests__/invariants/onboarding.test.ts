@@ -224,10 +224,10 @@ describe('What this company does here', () => {
     }
   })
 
-  it('somebody paid through their own company signs up as "I work through my own company (one person)"', () => {
+  it('somebody paid through their own company signs up as a solopreneur', () => {
     const t = typeByKey('solo')!
     expect(t.kind).toBe('CONSULTANT_CORP')
-    expect(t.label).toBe('I work through my own company (one person)')
+    expect(t.label).toBe('Solopreneur')
     expect(t.posture).toBeNull()
   })
 

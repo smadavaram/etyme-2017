@@ -93,52 +93,56 @@ export interface CompanyTypeOption {
 // this file was touched — the keys, kinds, postures, labels and blurbs
 // are etyme-supply's and are exactly as they were.
 const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
+  // The trade's own names, in the founder's order (2026-10-15: "In real
+  // world they are called Hiring Managers/Client, MSPs, Integrators/Project
+  // Delivery, Vendors and Bench Suppliers" — and "instead of workers it
+  // should be solopreneurs"). A name, not a sentence about the reader.
   {
     key: 'client',
     kind: 'CLIENT',
     posture: null,
-    label: 'We hire contractors',
-    blurb: 'You bring in contract staff through suppliers, and you want to see what you are spending and who is on site.',
+    label: 'Client (hiring managers)',
+    blurb: 'You hire contractors through suppliers.',
     example: 'Talvern Medical, Northbend Athletic',
-  },
-  {
-    key: 'gsi',
-    kind: 'GSI',
-    posture: 'PRIME',
-    label: 'We deliver projects and supply people',
-    blurb: 'You run delivery for your clients and also buy people in to staff it.',
-    example: 'Teleworld Solutions, Sundara Systems',
   },
   {
     key: 'msp',
     kind: 'MSP',
     posture: null,
-    label: 'We run the program for a client',
-    blurb: 'You manage a client’s contingent workforce on their behalf, including their suppliers.',
+    label: 'MSP',
+    blurb: 'You run a client’s contractor program and its suppliers.',
     example: 'An MSP running a Fortune 500 program',
+  },
+  {
+    key: 'gsi',
+    kind: 'GSI',
+    posture: 'PRIME',
+    label: 'Integrator (project delivery)',
+    blurb: 'You deliver projects with your own people and with suppliers.',
+    example: 'Teleworld Solutions, Sundara Systems',
   },
   {
     key: 'prime',
     kind: 'VENDOR',
     posture: 'PRIME',
-    label: 'We supply people to clients directly',
-    blurb: 'You hold the agreement with the client and place your own consultants against their jobs.',
+    label: 'Vendor',
+    blurb: 'You supply consultants to clients directly.',
     example: 'A staffing firm with its own MSAs',
   },
   {
     key: 'bench',
     kind: 'VENDOR',
     posture: 'BENCH',
-    label: 'We supply people to other suppliers',
-    blurb: 'You have consultants on the bench and place them through other staffing firms rather than direct.',
+    label: 'Bench supplier',
+    blurb: 'You keep a bench and place people through other firms.',
     example: 'A bench sales firm',
   },
   {
     key: 'solo',
     kind: 'CONSULTANT_CORP',
     posture: null,
-    label: 'I work through my own company (one person)',
-    blurb: 'You are the worker and the firm: you are paid through your own company, not as an employee. A personal email is fine.',
+    label: 'Solopreneur',
+    blurb: 'You work through your own company. A personal email is fine.',
     example: 'A travel nurse or an engineer paid through her own company',
   },
 ]
