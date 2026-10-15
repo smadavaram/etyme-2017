@@ -202,23 +202,12 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
             </div>
 
             <div>
-              <fieldset>
-                <legend className="text-sm text-etyme-muted mb-2">Which one are you?</legend>
-                <div className="grid gap-2">
-                  {COMPANY_TYPES.map((t) => (
-                    <label key={t.key}
-                      className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
-                        type === t.key ? 'border-etyme-action bg-etyme-action/5' : 'border-etyme-rule bg-etyme-raised hover:border-etyme-muted'}`}>
-                      <input type="radio" name="type" required value={t.key} checked={type === t.key}
-                        onChange={() => setType(t.key)} className="mt-1 accent-etyme-action" />
-                      <span>
-                        <span className="block text-[15px] font-medium text-etyme-ink">{t.label}</span>
-                        <span className="block text-xs text-etyme-muted">{t.blurb}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <DoorLabel htmlFor="type">Which one are you?</DoorLabel>
+              <select id="type" required value={type} onChange={(e) => setType(e.target.value)} className={doorField}>
+                <option value="" disabled>Client, MSP, integrator, vendor…</option>
+                {COMPANY_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </select>
+              {chosen && <p className="text-xs text-etyme-muted mt-1">{chosen.blurb}</p>}
               {personal && <p className="text-xs text-etyme-muted mt-1">A personal email is fine for this one.</p>}
             </div>
 

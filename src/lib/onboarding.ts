@@ -142,7 +142,7 @@ const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
     kind: 'CONSULTANT_CORP',
     posture: null,
     label: 'Solopreneur',
-    blurb: 'You work through your own company. A personal email is fine.',
+    blurb: 'You work through your own company.',
     example: 'A travel nurse or an engineer paid through her own company',
   },
 ]
