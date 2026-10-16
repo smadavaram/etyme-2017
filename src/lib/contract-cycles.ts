@@ -141,100 +141,127 @@ export interface Written {
   refused: string[]
 }
 
-export async function writeCyclesFor(
-  db: CycleWriter,
-  input: {
-    /**
-     * The sell line, and the document it is on where the caller has it.
-     *
-     * The dates generated over are the **line's**, and the header is
-     * read only so that decision goes through one door
-     * (`lib/money/order-terms`). An order is not a person: one header
-     * for a five-person project runs the length of the project, and the
-     * third person on it starts in March. Generating from the header's
-     * start would write months of due dates before anybody worked.
-     *
-     * The rhythm does not come from either — every cycle's frequency is
-     * the template pack's, which is why a header that says WEEKLY does
-     * not move an hours-due date. `billFrequency` decides what an
-     * invoice period is, not when a cycle falls.
-     */
-    sell: { id: string; startDate: Date | null; endDate: Date | null; workOrder?: OrderHeader | null }
-    buy: { id: string; contractType: string; vendorCompanyId: string | null } | null
-    /** Which pack's definitions. Seeds have no company pack and say US_IT. */
-    packId: string
-    /** YYYY-MM-DD, both companies' calendars unioned. Seeds pass none. */
-    holidays?: Iterable<string>
-    /**
-     * kind → the days already written, so an extension adds the new months
-     * and rewrites none of the old ones.
-     *
-     * Generation still runs over the whole contract, not over the added
-     * months alone. A fortnightly cycle anchored on the original start
-     * falls on alternate weeks, and restarting the count at the old end
-     * date lands on the wrong ones half the time. Running the whole series
-     * and dropping what is already there keeps every date where the first
-     * generation put it, and makes calling this twice harmless.
-     */
-    existing?: Map<string, Set<string>>
-    /**
-     * Which way this company's dates move off a weekend or a holiday.
-     *
-     * Omitted, it is read from the company that holds the sell contract —
-     * the firm that sells to the client and buys from the consultant or
-     * the sub-vendor. All six money kinds are that firm's own operating
-     * dates, so it is one firm's answer and not a negotiation between
-     * two. A caller that has the company loaded already may pass it and
-     * save the read.
-     */
-    policy?: CycleShiftPolicy
-    /**
-     * The last day already covered, on an extension.
-     *
-     * Generation runs over the whole contract — a fortnightly cycle
-     * anchored on the original start falls on alternate weeks — and
-     * emits only periods ending after this day. Without it, a company
-     * that changed its weekend rule between the two runs has every date
-     * of the original contract written a second time, because the dates
-     * already on the books are matched by the day they landed on.
-     */
-    onlyPeriodsAfter?: Date | null
-    /**
-     * No date written before this day — the award's floor, by due date.
-     *
-     * Where the work was already under way at the award, a period that
-     * ended yesterday is still due tomorrow, and that reminder is owed.
-     * `onlyPeriodsAfter` would drop it, because it bounds by the period;
-     * this bounds by the day the reminder lands. Pass the award's own day
-     * (`calendarDay` of now, at midnight UTC), not the day before it.
-     */
-    noneDueBefore?: Date | null
-    /**
-     * Pay dates on a rhythm other than the pack's: both pay kinds, and
-     * nothing else. Only the seed passes this, with `DEMO_MONTHLY_PAY`.
-     * Replaces the pack's pay calculation and pay day; on a line bought
-     * from a supplier there is no payroll, so it writes nothing there.
-     *
-     * A company's own payroll choice wins over it (`chosenPayroll`): the
-     * override is the demo's stand-in for an answer nobody gave, and once
-     * somebody gives one it is theirs.
-     */
-    pay?: readonly CycleDefinition[]
-    /**
-     * The paying company's payroll, where the caller has it: a rhythm it
-     * chose, or null for "nobody chose, use the pack". Omitted, it is read
-     * off the company that holds the pair, with the shift policy.
-     */
-    payroll?: PayRhythm | null
-  }
-): Promise<Written> {
+/** One due date, on the line it belongs to. */
+export type PlannedCycle =
+  | { sellContractId: string; kind: string; dueOn: Date }
+  | { buyContractId: string; kind: string; dueOn: Date }
+
+export interface Planned extends Written {
+  rows: PlannedCycle[]
+}
+
+export interface PlanInput {
+  /**
+   * The sell line, and the document it is on where the caller has it.
+   *
+   * The dates generated over are the **line's**, and the header is
+   * read only so that decision goes through one door
+   * (`lib/money/order-terms`). An order is not a person: one header
+   * for a five-person project runs the length of the project, and the
+   * third person on it starts in March. Generating from the header's
+   * start would write months of due dates before anybody worked.
+   *
+   * The rhythm does not come from either — every cycle's frequency is
+   * the template pack's, which is why a header that says WEEKLY does
+   * not move an hours-due date. `billFrequency` decides what an
+   * invoice period is, not when a cycle falls.
+   */
+  sell: { id: string; startDate: Date | null; endDate: Date | null; workOrder?: OrderHeader | null }
+  buy: { id: string; contractType: string; vendorCompanyId: string | null } | null
+  /** Which pack's definitions. Seeds have no company pack and say US_IT. */
+  packId: string
+  /** YYYY-MM-DD, both companies' calendars unioned. Seeds pass none. */
+  holidays?: Iterable<string>
+  /**
+   * kind → the days already written, so an extension adds the new months
+   * and rewrites none of the old ones.
+   *
+   * Generation still runs over the whole contract, not over the added
+   * months alone. A fortnightly cycle anchored on the original start
+   * falls on alternate weeks, and restarting the count at the old end
+   * date lands on the wrong ones half the time. Running the whole series
+   * and dropping what is already there keeps every date where the first
+   * generation put it, and makes calling this twice harmless.
+   */
+  existing?: Map<string, Set<string>>
+  /**
+   * Which way this company's dates move off a weekend or a holiday.
+   *
+   * Omitted, it is read from the company that holds the sell contract —
+   * the firm that sells to the client and buys from the consultant or
+   * the sub-vendor. All six money kinds are that firm's own operating
+   * dates, so it is one firm's answer and not a negotiation between
+   * two. A caller that has the company loaded already may pass it and
+   * save the read.
+   */
+  policy?: CycleShiftPolicy
+  /**
+   * The last day already covered, on an extension.
+   *
+   * Generation runs over the whole contract — a fortnightly cycle
+   * anchored on the original start falls on alternate weeks — and
+   * emits only periods ending after this day. Without it, a company
+   * that changed its weekend rule between the two runs has every date
+   * of the original contract written a second time, because the dates
+   * already on the books are matched by the day they landed on.
+   */
+  onlyPeriodsAfter?: Date | null
+  /**
+   * No date written before this day — the award's floor, by due date.
+   *
+   * Where the work was already under way at the award, a period that
+   * ended yesterday is still due tomorrow, and that reminder is owed.
+   * `onlyPeriodsAfter` would drop it, because it bounds by the period;
+   * this bounds by the day the reminder lands. Pass the award's own day
+   * (`calendarDay` of now, at midnight UTC), not the day before it.
+   */
+  noneDueBefore?: Date | null
+  /**
+   * Pay dates on a rhythm other than the pack's: both pay kinds, and
+   * nothing else. Only the seed passes this, with `DEMO_MONTHLY_PAY`.
+   * Replaces the pack's pay calculation and pay day; on a line bought
+   * from a supplier there is no payroll, so it writes nothing there.
+   *
+   * A company's own payroll choice wins over it (`chosenPayroll`): the
+   * override is the demo's stand-in for an answer nobody gave, and once
+   * somebody gives one it is theirs.
+   */
+  pay?: readonly CycleDefinition[]
+  /**
+   * The paying company's payroll, where the caller has it: a rhythm it
+   * chose, or null for "nobody chose, use the pack". Omitted, it is read
+   * off the company that holds the pair, with the shift policy.
+   */
+  payroll?: PayRhythm | null
+}
+
+export async function writeCyclesFor(db: CycleWriter, input: PlanInput): Promise<Written> {
+  const planned = await planCyclesFor(db, input)
+  if (planned.rows.length > 0) await db.cycle.createMany({ data: planned.rows })
+  return { sell: planned.sell, buy: planned.buy, refused: planned.refused }
+}
+
+/**
+ * The due dates `writeCyclesFor` writes, decided and written nowhere.
+ *
+ * The one rule for which dates a line has. A reader that needs a line's
+ * whole series — the dates an award's floor did not write included, as
+ * `lib/cycle-complete` does to tell which date a week's event closes —
+ * asks the question the award asked rather than carrying a second copy
+ * of the answer. It only reads: the company that holds the pair, for its
+ * weekend rule and its payroll.
+ */
+export async function planCyclesFor(
+  db: Pick<Prisma.TransactionClient, 'sellContract'>,
+  input: PlanInput
+): Promise<Planned> {
   const { sell, buy } = input
   const pack = getTemplatePack(input.packId)
   // Checked before anything can return early, so a malformed override is
   // refused on an open-ended line too rather than ignored there.
   const definitions = withPay(pack?.cycleDefinitions ?? [], input.pay)
   const dates = termsFor('SELL', sell)
-  if (!pack || !dates.startDate || !dates.endDate) return { sell: 0, buy: 0, refused: [] }
+  if (!pack || !dates.startDate || !dates.endDate) return { rows: [], sell: 0, buy: 0, refused: [] }
 
   const split = cyclesFor(
     buy ? { contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId } : null,
@@ -295,11 +322,9 @@ export async function writeCyclesFor(
         ].sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
       : generateCycles(dates.startDate, dates.endDate, split.buy, holidays, existing, options)
 
-  const rows = [
+  const rows: PlannedCycle[] = [
     ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),
     ...buyCycles.map((c) => ({ buyContractId: buy!.id, kind: c.kind, dueOn: c.dueOn })),
   ]
-  if (rows.length > 0) await db.cycle.createMany({ data: rows })
-
-  return { sell: sellCycles.length, buy: buyCycles.length, refused: split.refused }
+  return { rows, sell: sellCycles.length, buy: buyCycles.length, refused: split.refused }
 }

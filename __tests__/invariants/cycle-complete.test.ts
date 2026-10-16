@@ -126,6 +126,57 @@ describe('a week from before the first reminder', () => {
   })
 })
 
+describe('where the line\'s whole series is known, the week\'s own date is read, not estimated', () => {
+  // A semimonthly invoice line under way since early October 2026, awarded
+  // on 22 October: the 15th was never written, and the 31st, a Saturday,
+  // moved to Monday 2 November. The series is every date the line has.
+  const series = ['2026-10-15', '2026-11-02', '2026-11-16', '2026-11-30', '2026-12-15', '2026-12-31', '2027-01-15'].map(d)
+  const written = ['2026-11-02', '2026-11-16', '2026-11-30', '2026-12-15', '2026-12-31', '2027-01-15']
+    .map((due) => c(due, 'INVOICE_GENERATE', due))
+
+  it('a placement awarded after its first invoice date was moved off a weekend closes that date when its first week is billed', () => {
+    // The week ending Saturday 17 October: its own date is the first on or
+    // after Friday the 16th, which is 2 November, and the award wrote it.
+    expect(pickCycle(written, 'INVOICE_GENERATE', d('2026-10-17'), series)?.id).toBe('2026-11-02')
+    expect(pickCycle(written, 'INVOICE_GENERATE', d('2026-10-24'), series)?.id).toBe('2026-11-02')
+  })
+
+  it('without the series the estimate would have refused it, which is why the series is read where it is known', () => {
+    // 2 November less the usual fifteen days is the 18th, which the week
+    // ending the 17th would have claimed — so it claimed nothing.
+    expect(pickCycle(written, 'INVOICE_GENERATE', d('2026-10-17'))).toBeNull()
+  })
+
+  it('a week whose own invoice date fell before the award, and so was never written, still closes nothing', () => {
+    // The week ending 10 October bills on the 15th, a week before the award.
+    expect(pickCycle(written, 'INVOICE_GENERATE', d('2026-10-10'), series)).toBeNull()
+    expect(pickCycle(written, 'INVOICE_GENERATE', d('2026-10-03'), series)).toBeNull()
+  })
+
+  it('a single written date is refused to a week whose own date the award never wrote, once the series says so', () => {
+    expect(pickCycle([written[0]], 'INVOICE_GENERATE', d('2026-10-10'), series)).toBeNull()
+    expect(pickCycle([written[0]], 'INVOICE_GENERATE', d('2026-10-17'), series)?.id).toBe('2026-11-02')
+  })
+
+  it('where the earliest written date is not in the series — the weekend rule changed since the award — the estimate decides as before', () => {
+    // Regenerated today the 31st moves back to Friday 30 October, so the
+    // written 2 November is not in it: the series is not the one written.
+    const moved = ['2026-10-15', '2026-10-30', '2026-11-16', '2026-11-30', '2026-12-15', '2026-12-31', '2027-01-15'].map(d)
+    for (const pe of ['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24', '2026-10-31']) {
+      expect(pickCycle(written, 'INVOICE_GENERATE', d(pe), moved)?.id ?? null, pe)
+        .toBe(pickCycle(written, 'INVOICE_GENERATE', d(pe))?.id ?? null)
+    }
+  })
+
+  it('a date that is not the earliest written is chosen exactly as before, series or none', () => {
+    const fromAward = [c('w3', 'TIMESHEET_SUBMIT', '2026-09-21'), c('w4', 'TIMESHEET_SUBMIT', '2026-09-28', false)]
+    const weeks = ['2026-09-08', '2026-09-14', '2026-09-21', '2026-09-28'].map(d)
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-26'), weeks)?.id).toBe('w4')
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-19'), weeks)?.id).toBe('w3')
+    expect(pickCycle(fromAward, 'TIMESHEET_SUBMIT', d('2026-09-12'), weeks)).toBeNull()
+  })
+})
+
 describe('every event that ends a wait marks its cycle', () => {
   const cases: [string, string, string][] = [
     ['src/app/api/timesheets/[id]/submit/route.ts', 'TIMESHEET_SUBMIT', 'hours are sent'],

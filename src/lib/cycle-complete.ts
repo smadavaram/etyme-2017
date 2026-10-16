@@ -31,6 +31,9 @@
 
 import type { Prisma, PrismaClient } from '@prisma/client'
 import type { MoneyKind } from '@/lib/cycle-kinds'
+import { planCyclesFor } from '@/lib/contract-cycles'
+import { loadContractHolidays } from '@/lib/holidays'
+import { termsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 
 export interface CycleRow {
   id: string
@@ -73,12 +76,47 @@ const DAY = 24 * 60 * 60 * 1000
  * there is no rhythm to read and the rule above stands. Pass
  * every row of the kind, done or not: "earliest" means earliest written,
  * not earliest still open.
+ *
+ * ── Where the line's whole series is known, it is read, not estimated ──
+ *
+ * The rhythm is an estimate of the date the floor dropped, and a date
+ * moved off a weekend breaks it. Awarded on 22 October 2026 for work
+ * under way, a semimonthly line's first written invoice date is Monday
+ * 2 November — the 31st is a Saturday — and the one before it, the 15th,
+ * was never written. The estimate put that unwritten date at 2 November
+ * less the usual fifteen days, the 18th; the week ending Saturday 17
+ * October would have claimed the 18th, so it claimed nothing, and its
+ * own date, 2 November, read overdue after the bill was raised. Its own
+ * date was the 2nd all along: the 15th is before the day before its
+ * Saturday.
+ *
+ * So `series` — every date of the kind the line has, generated again
+ * with no floor (`ownSeries`) — is the answer where a caller has it. The
+ * period's own date is the first in it on or after the day before the
+ * period ended, the rule above. The earliest written date is refused
+ * only when that own date comes before it in the series: a date the
+ * award never wrote. Where the earliest written date is not in the
+ * series at all — the company changed its weekend rule since, or the
+ * line its dates — the series is not the one that was written and the
+ * estimate decides, as before.
  */
-export function pickCycle(cycles: CycleRow[], kind: string, periodEnd: Date): CycleRow | null {
+export function pickCycle(
+  cycles: CycleRow[],
+  kind: string,
+  periodEnd: Date,
+  series?: readonly Date[] | null
+): CycleRow | null {
   const floor = periodEnd.getTime() - DAY
   const ofKind = cycles.filter((c) => c.kind === kind).sort((a, b) => a.dueOn.getTime() - b.dueOn.getTime())
   const hit = ofKind.find((c) => c.completedAt === null && c.dueOn.getTime() >= floor) ?? null
   if (!hit) return null
+  if (hit === ofKind[0] && series && series.length > 0) {
+    const whole = [...series].map((x) => x.getTime()).sort((a, b) => a - b)
+    const first = whole.indexOf(hit.dueOn.getTime())
+    const own = whole.findIndex((t) => t >= floor)
+    // Read only where the series is the one the rows came from.
+    if (first >= 0 && own >= 0) return own < first ? null : hit
+  }
   if (hit === ofKind[0] && ofKind.length > 1) {
     const gaps: number[] = []
     for (let i = 1; i < ofKind.length; i++) {
@@ -127,10 +165,98 @@ export async function completeCycle(
       where: { ...where, kind: args.kind },
       select: { id: true, kind: true, dueOn: true, completedAt: true },
     })
-    const hit = pickCycle(rows, args.kind, args.periodEnd)
+    // The line's whole series is read only where it can change the answer:
+    // the period would claim the earliest date ever written, which is the
+    // one an award's floor may have stood in front of.
+    const floor = args.periodEnd.getTime() - DAY
+    const first = rows.reduce<CycleRow | null>((a, c) => (!a || c.dueOn < a.dueOn ? c : a), null)
+    const series =
+      first && first.completedAt === null && first.dueOn.getTime() >= floor
+        ? await ownSeries(db, { sellContractId: args.sellContractId, buyContractId: args.buyContractId, kind: args.kind })
+        : null
+    const hit = pickCycle(rows, args.kind, args.periodEnd, series)
     if (!hit) return null
     await db.cycle.update({ where: { id: hit.id }, data: { completedAt: args.at ?? new Date() } })
     return hit.id
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Every date of `kind` the line has, the ones an award's floor did not
+ * write included, or null where it cannot be said.
+ *
+ * Asked of the same door, with the same answers, the award asked: the
+ * sell line's own dates through `lib/money/order-terms`, the pack of the
+ * firm that holds it, both companies' calendars at the client's primary
+ * site, and the weekend rule and payroll of the firm that holds the pair
+ * (`planCyclesFor` reads those itself). Nothing is written. A buy line's
+ * dates are generated over the sell line it funds, as they were written.
+ *
+ * Two things it cannot know, and neither moves a kind this file closes:
+ * the demo's monthly pay override, which replaces only the two salary
+ * kinds that the pay run marks itself; and a calendar or weekend rule
+ * changed since the award, which is why `pickCycle` reads the series
+ * only where the earliest written date is found in it.
+ */
+export async function ownSeries(
+  db: Db,
+  args: { sellContractId?: string | null; buyContractId?: string | null; kind: string }
+): Promise<Date[] | null> {
+  try {
+    const sellId =
+      args.sellContractId ??
+      (args.buyContractId
+        ? (await db.contractLink.findFirst({
+            where: { buyContractId: args.buyContractId },
+            orderBy: { effectiveFrom: 'asc' },
+            select: { sellContractId: true },
+          }))?.sellContractId ?? null
+        : null)
+    if (!sellId) return null
+    const sell = await db.sellContract.findUnique({
+      where: { id: sellId },
+      select: {
+        id: true, startDate: true, endDate: true, companyId: true, clientCompanyId: true,
+        company: { select: { templatePack: true } },
+        workOrder: { select: ORDER_HEADER_SELECT },
+      },
+    })
+    if (!sell) return null
+    // The line's dates, through the one door: a line is a person, and its
+    // own start and end are what the award generated over.
+    const dates = termsFor('SELL', sell)
+    if (!dates.startDate || !dates.endDate) return null
+    const buy = args.buyContractId
+      ? await db.buyContract.findUnique({
+          where: { id: args.buyContractId },
+          select: { id: true, contractType: true, vendorCompanyId: true },
+        })
+      : null
+    if (args.buyContractId && !buy) return null
+    const site = await db.companyLocation.findFirst({
+      where: { companyId: sell.clientCompanyId },
+      orderBy: [{ isPrimary: 'desc' }],
+      select: { country: true },
+    })
+    const holidays = await loadContractHolidays(
+      sell.companyId,
+      sell.clientCompanyId,
+      dates.startDate.getFullYear(),
+      dates.endDate.getFullYear(),
+      site?.country ?? null
+    )
+    const planned = await planCyclesFor(db, {
+      sell: { id: sell.id, startDate: sell.startDate, endDate: sell.endDate, workOrder: sell.workOrder },
+      buy: buy ? { id: buy.id, contractType: String(buy.contractType), vendorCompanyId: buy.vendorCompanyId } : null,
+      packId: sell.company.templatePack ?? 'US_IT',
+      holidays,
+    })
+    const onLine = (r: (typeof planned.rows)[number]) =>
+      args.buyContractId ? 'buyContractId' in r && r.buyContractId === args.buyContractId : 'sellContractId' in r
+    const due = planned.rows.filter((r) => r.kind === args.kind && onLine(r)).map((r) => r.dueOn)
+    return due.length > 0 ? due : null
   } catch {
     return null
   }
