@@ -598,6 +598,12 @@ export function headlinesFrom(source: string): string[] {
 const VERBS = [
   'is', 'are', 'was', 'were', 'be', 'can', 'cannot', 'may', 'will', 'do', 'does', 'have', 'has',
   'add', 'adds', 'answer', 'answers',
+  // The four doors' headlines the founder approved on 2026-10-16, each a
+  // statement in the trade's own verb: "Bill from the same approved week
+  // as your prime.", "Fill your client’s jobs through every sub-vendor",
+  // "every firm you sell to", "Staff your next project with your own
+  // people first."
+  'bill', 'bills', 'fill', 'fills', 'sell', 'sells', 'staff',
   // "Everyone who applied. One screen." and "Approve the week in one
   // tap." — two of the four step pages the founder approved on
   // 2026-10-15. The trade's own verbs: who applied, approve a timesheet.

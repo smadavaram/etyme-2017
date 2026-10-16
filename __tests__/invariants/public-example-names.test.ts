@@ -28,7 +28,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { copyFrom } from '@/lib/positioning'
 import { MODULES, copyOfModule } from '@/lib/public-site/modules'
-import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
+import { PARTY_PAGES, copyOfPartyPage, everyDoorView } from '@/lib/public-site/parties'
 import { ON_SCREEN } from '@/lib/public-site/skeleton-words'
 import { STORY, STORY_BAR, STORIES, storyChromeCopy } from '@/lib/public-site/story'
 import { COMPANY_PAGES, copyOfCompanyPage } from '@/lib/public-site/company'
@@ -130,13 +130,15 @@ function everything(): Said[] {
   // A door that plays a story of its own (the MSPs' door plays Aptiva
   // Workforce's seat, 2026-10-15) has that story's bar, and a line under
   // the panel of its own that ends on the same label.
-  for (const p of PARTY_PAGES) {
-    const c = copyOfPartyPage(p)
+  // Each tab of a door is read at its own address (2026-10-16); a tab
+  // never changes the panel, so its caption is the door's.
+  for (const p of everyDoorView()) {
+    const c = copyOfPartyPage(p, p.tab?.key)
     const story = STORIES[p.story ?? 'northbend']
     const own = new Set(storyChromeCopy(p.story).concat(story.steps.map((s) => `${s.sum.big} ${s.sum.rest}`)))
     const label = p.label ?? doorScreen
-    add(p.route, [...c.hero, ...c.body].filter((t) => !own.has(t) && t !== label))
-    out.push({ where: `${p.route} (the panel’s caption)`, unit: `${story.bar.company}, ${story.bar.rest} ${label}` })
+    add(p.href, [...c.hero, ...c.body].filter((t) => !own.has(t) && t !== label))
+    out.push({ where: `${p.href} (the panel’s caption)`, unit: `${story.bar.company}, ${story.bar.rest} ${label}` })
   }
 
   for (const p of COMPANY_PAGES) {

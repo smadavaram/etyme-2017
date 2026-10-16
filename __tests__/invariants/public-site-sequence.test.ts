@@ -17,7 +17,7 @@ import { STEPS, SPINE_ORDER } from '@/lib/public-site/steps'
 import { MODULES } from '@/lib/public-site/modules'
 import { ModulePageView } from '@/lib/public-site/module-page'
 import { PartyPageView } from '@/lib/public-site/party-page'
-import { PARTY_PAGES } from '@/lib/public-site/parties'
+import { PARTY_PAGES, everyDoorView } from '@/lib/public-site/parties'
 import {
   StepPageView, TopicPageView, DocsHomeView, DocsSlugView, docsSequence,
 } from '@/lib/public-site/docs-page'
@@ -256,14 +256,15 @@ describe('No link lands in the middle of another page', () => {
     const pages: [string, string][] = [
       ...DOC_PAGES,
       ...MODULES.map((m) => [m.route, html(createElement(ModulePageView, { m }))] as [string, string]),
-      ...PARTY_PAGES.map((p) => [p.route, html(createElement(PartyPageView, { slug: p.slug }))] as [string, string]),
+      // Every tab of a door, drawn from its own address (2026-10-16).
+      ...everyDoorView().map((v) => [v.href, html(createElement(PartyPageView, { slug: v.slug, params: { searchParams: v.tab ? { tab: v.tab.key } : {} } }))] as [string, string]),
     ]
     for (const [route, page] of pages) {
       // One known exception, not ours to fix: the contractors' door seats a
       // candidate through the shared demo button (components/try-demo),
       // whose no-script fallback is /demo#candidate. With a script the
       // click seats the reader and never follows it. Reported to its owner.
-      const bad = hrefs(page).filter(intoAnotherPage).filter((h) => !(route === '/for/contractors' && h === '/demo#candidate'))
+      const bad = hrefs(page).filter(intoAnotherPage).filter((h) => !(route.startsWith('/for/contractors') && h === '/demo#candidate'))
       expect(bad, route).toEqual([])
       // And every link inside the site goes to a page that exists, never
       // to an old address that only redirects.
@@ -271,13 +272,63 @@ describe('No link lands in the middle of another page', () => {
         // The frame's own screens and the sign-up form, with the party it
         // opens on, are pages too, outside the marketing list.
         const own = h.startsWith('/embed/demo') || h.split('?')[0] === '/signup'
-        const path = h.split('#')[0]
+        // A door's tab is the door's own page at its own address (`?tab=sub`).
+        const path = h.split('#')[0].split('?tab=')[0]
         // Never /census: it is linked from nowhere since 2026-10-14.
         expect(path, `${route} links to the census`).not.toBe('/census')
         expect(replacementFor(path), `${route} links to ${path}, an old address`).toBeNull()
         expect(foldedInto(path), `${route} links to ${path}, a folded product page`).toBeNull()
         expect(pageAt(path) !== null || own || ['/login', '/demo'].includes(path), `${route} links to ${h}`).toBe(true)
       }
+    }
+  })
+})
+
+describe('A door’s tabs are links, drawn on the server, so the chosen tab works with no script and from an advertisement', () => {
+  // The founder's four doors of 2026-10-16: Suppliers carry Prime vendor,
+  // Sub-vendor and Bench vendor; Workers carry Worker and Solopreneur.
+  const draw = (slug: 'suppliers' | 'contractors', tab?: string) =>
+    html(createElement(PartyPageView, { slug, params: { searchParams: tab ? { tab } : {} } }))
+  const current = (page: string) => [...page.matchAll(/<a[^>]*aria-current="page"[^>]*>([^<]+)<\/a>/g)].map((m) => m[1])
+
+  it('the suppliers’ door shows Prime vendor by default and each tab by its own address, the open tab marked as current', () => {
+    const prime = draw('suppliers')
+    expect(current(prime)).toEqual(['Prime vendor'])
+    expect(prime).toContain('Fill your client’s jobs through every sub-vendor at once, and keep your client yours.')
+    expect(prime).toContain('href="/for/suppliers?tab=sub"')
+    expect(prime).toContain('href="/for/suppliers?tab=bench"')
+    const sub = draw('suppliers', 'sub')
+    expect(current(sub)).toEqual(['Sub-vendor'])
+    expect(sub).toContain('Bill from the same approved week as your prime.')
+    expect(sub).not.toContain('Fill your client’s jobs')
+    const bench = draw('suppliers', 'bench')
+    expect(current(bench)).toEqual(['Bench vendor'])
+    expect(bench).toContain('Your whole bench in front of every firm you sell to, at once.')
+    // An unknown tab opens the door's first tab, never a missing page.
+    expect(draw('suppliers', 'nonsense')).toBe(prime)
+  })
+
+  it('the workers’ door shows Worker by default, and its Solopreneur tab signs up a one-person company', () => {
+    const worker = draw('contractors')
+    expect(current(worker)).toEqual(['Worker'])
+    expect(worker).toContain('Your hours, pay, papers and history, in one place that moves with you.')
+    expect(worker).toContain('href="/signup?as=candidate"')
+    expect(worker).toContain('href="/for/contractors?tab=solo"')
+    const solo = draw('contractors', 'solo')
+    expect(current(solo)).toEqual(['Solopreneur'])
+    expect(solo).toContain('Everything a 50-person firm runs on, for a firm of one.')
+    expect(solo).toContain('href="/signup?type=solo"')
+    expect(solo).not.toContain('href="/signup?as=candidate"')
+  })
+
+  it('the tabs need no script: each is a plain link, and the doors with no tabs draw none', () => {
+    const view = readFileSync(join(ROOT, 'src/lib/public-site/sub-page.tsx'), 'utf8')
+    const nav = view.slice(view.indexOf('{tabs && ('), view.indexOf('<h1'))
+    expect(nav).toContain('<a')
+    expect(nav).not.toMatch(/onClick|useState|<button/)
+    expect(readFileSync(join(ROOT, 'src/lib/public-site/party-page.tsx'), 'utf8')).not.toContain("'use client'")
+    for (const slug of ['program-offices', 'integrators'] as const) {
+      expect(html(createElement(PartyPageView, { slug })), slug).not.toContain('aria-current="page"')
     }
   })
 })

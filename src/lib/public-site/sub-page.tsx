@@ -12,7 +12,8 @@ import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } fr
  * (founder, 2026-10-14: "make sure even the sub pages and doors follow
  * the same structure"):
  *
- *   #top       one question, and one line under it saying what the page is for
+ *   #top       a door's tabs where it has them (links, one address each),
+ *              then the headline, and one line under it saying what the page is for
  *   #demo      the same live frame, opened at this page's step, the four
  *              chips under it, and one button that seats the reader at
  *              this page's own screen in the full demo
@@ -28,6 +29,9 @@ import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } fr
  */
 
 export interface SubPageProps {
+  /** A door's tabs, each a link to its own address, the open one marked. Drawn on the server; no script. */
+  tabs?: { label: string; list: { t: string; href: string; current: boolean }[] }
+  /** The headline: a product page's question, or a door's statement. */
   question: string
   purpose: string
   step: EmbedStep
@@ -51,7 +55,9 @@ function DemoButton({ demo }: { demo: SubPageProps['demo'] }) {
   return <DemoLink target={demo.target} label={demo.label} className={PRIMARY_BUTTON} />
 }
 
-export function SubPageView({ question, purpose, step, caption, label, lines, link, demo, signUp, band, story }: SubPageProps) {
+const TAB = 'rounded-full border px-3 py-1.5 text-[14px] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40 focus-visible:ring-offset-2'
+
+export function SubPageView({ tabs, question, purpose, step, caption, label, lines, link, demo, signUp, band, story }: SubPageProps) {
   const shown = lines.slice(0, 3)
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
@@ -60,6 +66,20 @@ export function SubPageView({ question, purpose, step, caption, label, lines, li
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── The question, and what this page is for ── */}
         <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
+          {tabs && (
+            <nav aria-label={tabs.label} className="mb-6 flex flex-wrap gap-2">
+              {tabs.list.map((t) => (
+                <a
+                  key={t.href}
+                  href={t.href}
+                  aria-current={t.current ? 'page' : undefined}
+                  className={`${TAB} ${t.current ? 'border-etyme-ink bg-etyme-ink text-etyme-canvas' : 'border-etyme-rule bg-etyme-raised text-etyme-ink hover:bg-etyme-sunk'}`}
+                >
+                  {t.t}
+                </a>
+              ))}
+            </nav>
+          )}
           <h1 className="text-balance font-serif text-[32px] font-normal leading-[1.08] tracking-[-0.02em] text-etyme-ink md:text-[46px]">
             {question}
           </h1>

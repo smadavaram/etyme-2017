@@ -71,7 +71,7 @@ import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
 import { DOCS_SLUGS, PUBLIC_PAGES } from '@/lib/public-site/pages'
-import { PARTY_PAGES, copyOfPartyPage } from '@/lib/public-site/parties'
+import { copyOfPartyPage, everyDoorView, partyAt } from '@/lib/public-site/parties'
 import { settleTarget, AHEAD, BEHIND } from '@/lib/public-site/settle'
 import { EMBED_STEPS, embedStep } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
@@ -516,9 +516,15 @@ describe('Below the hero, the page says what the business is', () => {
     // sub-vendor and the firm with workers waiting for a project are on
     // the suppliers' own door.
     expect(PAGE).toContain("{ t: 'Suppliers', href: '/for/suppliers' }")
-    const door = copyOfPartyPage(PARTY_PAGES.find((p) => p.slug === 'suppliers')!)
-    expect([...door.hero, ...door.body].join(' ')).toContain('sub-vendors’ names stay yours')
-    expect([...door.hero, ...door.body].join(' ')).toContain('firms with workers waiting for a project')
+    // Since 2026-10-16 the suppliers' door has a tab for each: the prime
+    // vendor first, then the sub-vendor and the bench vendor, each at its
+    // own address.
+    const door = partyAt('suppliers')!
+    const says = (tab: string) => { const c = copyOfPartyPage(door, tab); return [...c.hero, ...c.body].join(' ') }
+    expect(door.tabs!.map((t) => t.label)).toEqual(['Prime vendor', 'Sub-vendor', 'Bench vendor'])
+    expect(says('prime')).toContain('Each sub-vendor sees its own rate, never your client’s name.')
+    expect(says('sub')).toContain('Your rates and your people stay yours.')
+    expect(says('bench')).toContain('Each person by their own consent.')
   })
 
   it('writes to the client before it writes to anybody who supplies the client', () => {
@@ -706,14 +712,14 @@ describe('Below the hero, the page says what the business is', () => {
 
 describe('Every line says an outcome, a benefit or a method', () => {
 
-  it('writes every headline as a sentence with a verb, not a slogan', () => {
+  it('writes every headline as a sentence with a verb, not a slogan, and takes a door’s headline as the statement the founder chose for it on 2026-10-16', () => {
     // Two headlines since 2026-10-14: the question, and the sign-up band's
     // "Seen enough? Set up your company.", drawn from the skeleton every
     // product page and party door shares. Each of those pages' questions
     // carries a verb too, and so does the close the other pages end in.
     const heads = [...headlinesFrom(PAGE), BAND.heading]
     expect(heads).toEqual(['Know what every contractor costs, across every supplier.', 'Seen enough? Set up your company.'])
-    const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.headline), ...PARTY_PAGES.map((p) => p.question)])
+    const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.headline), ...everyDoorView().map((p) => p.headline)])
     expect(slogans, `these headlines have no verb in them:\n  ${slogans.join('\n  ')}`).toEqual([])
   })
   // "Answers each of the four questions in one line that names a screen"
@@ -1623,10 +1629,13 @@ describe('The footer is where a company keeps its papers', () => {
     expect(HOME_FOOTER_JSX).toContain('new Date().getFullYear()')
   })
 
-  it('repeats the neutrality commitment where a supplier reading the page will see it', () => {
-    // On the supplier's and the worker's own doors since the footer
-    // became one row on every page (2026-10-15).
-    expect(SUPPLIER_DOOR_SRC).toContain('Etyme never places anybody.')
+  it('keeps the neutrality commitment on About, now that the founder’s doors of 2026-10-16 carry no line for it', () => {
+    // On the supplier's and the worker's own doors from 2026-10-15 until
+    // the founder's drawing of 2026-10-16, which has no line for it; his
+    // words are used as drawn and the gap is reported to him. No door
+    // claims the opposite (public-pages.test.ts reads every tab).
+    expect(SUPPLIER_DOOR_SRC).not.toMatch(/Etyme (?:places|supplies) (?:people|workers|anybody)/)
+    expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench.')
   })
 
 })
@@ -1655,7 +1664,10 @@ describe('The public page still says the four things it may not stop saying', ()
 
   it('nothing on the public page claims Etyme places anybody', () => {
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
-    expect(SUPPLIER_DOOR_SRC).toContain('Etyme never places anybody.')
+    for (const v of everyDoorView()) {
+      const c = copyOfPartyPage(v, v.tab?.key)
+      expect(check(c).map((f) => f.rule), v.href).not.toContain('neutrality')
+    }
   })
 
   it('claims no paying customers, because there are none yet', () => {
@@ -2019,9 +2031,10 @@ function everyPublicPage(): [string, string][] {
   }
   // The four party doors, since 2026-10-13: every guard on this list
   // reads them as it reads every other public page.
-  for (const p of PARTY_PAGES) {
-    const c = copyOfPartyPage(p)
-    out.push([p.route, [...c.hero, ...c.body].join(' ')])
+  // Each tab of a door at its own address, since 2026-10-16.
+  for (const v of everyDoorView()) {
+    const c = copyOfPartyPage(v, v.tab?.key)
+    out.push([v.href, [...c.hero, ...c.body].join(' ')])
   }
   out.push(['the header and footer', frameCopy().join(' ')])
   out.push(['the close band', [...closeBandCopy(), SEE_IT.d].join(' ')])
@@ -2047,7 +2060,7 @@ describe('Two words nobody uses (the founder, 2026-10-14)', () => {
       ...everyPublicPage().filter(([route]) => route !== '/census'),
       ['the census', [...Object.values(CENSUS_COPY.form), ...CENSUS_COPY.desks.map((d) => d.label)].join(' ')],
       ['the doors', JSON.stringify([...HOME_DOORS, ...SKELETON_FOOTER_LINKS].map((d) => d.t))],
-      ['the party doors', PARTY_PAGES.flatMap((p) => [p.demoLabel, p.signUp.t, p.caption ?? '']).join(' ')],
+      ['the party doors and their tabs', everyDoorView().flatMap((p) => [p.demoLabel, p.signUp.t, p.caption ?? '', p.tab?.label ?? '']).join(' ')],
       // The documentation drew pictures until 2026-10-15; its flow charts are words now, each box naming who.
       ['the documentation’s flow charts', STEP_PAGES.flatMap((p) => p.flow.flatMap((b) => [b.role ?? '', b.t])).join(' ')],
     ] as [string, string][]
@@ -2267,6 +2280,12 @@ function supplierSide(text: string): string {
     // PR-2026-0441" — the number is the supplier's, so the invoice is.
     /\b(?:[A-Z][\w]+ )*[A-Z][\w]+(?:’s|'s) invoices?\b/g,
     /\binvoice [A-Z]{2}-\d{4}-\d{4}\b/g,
+    // The founder's doors of 2026-10-16. Each is what a supplier sends:
+    // the MSP reads the invoices the client's suppliers send it, and the
+    // sub-vendor's own invoice to its prime is the supplier's document.
+    /\bevery supplier, every worker, every invoice\b/gi,
+    /\bevery week and invoice across the client’s suppliers\b/gi,
+    /\bYour invoice is checked against the same approved hours\b/g,
   ]) t = t.replace(kept, ' ')
   return t
 }
@@ -2432,8 +2451,14 @@ describe('Plain words on public pages, defined once', () => {
     expect(frameCopy().join(' ')).not.toMatch(/\bbench\b/i)
     // The suppliers' own door says the bench in the same plain words, and
     // never says "bench" before it has.
-    const door = copyOfPartyPage(PARTY_PAGES.find((p) => p.slug === 'suppliers')!)
-    expect(door.hero[1]).toContain('firms with workers waiting for a project')
+    // The suppliers' door's Bench vendor tab says "bench" in its label and
+    // headline as the founder drew it on 2026-10-16, with no gloss; the
+    // gloss "workers waiting for a project" left with the old line under
+    // the headline. Reported to him rather than reworded. The word is
+    // held to that one tab: no other door or tab says it.
+    for (const v of everyDoorView().filter((x) => x.tab?.key !== 'bench')) {
+      expect(`${v.headline} ${v.purpose} ${v.lines.join(' ')}`, v.href).not.toMatch(/\bbench\b/i)
+    }
   })
 })
 

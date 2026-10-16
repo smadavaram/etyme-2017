@@ -28,7 +28,8 @@ import {
   REFERENCE, TIME_AND_MONEY, WHO_DOES_WHAT, docSlugs, docRoutes, copyOfDoc, copyOfDocsHome,
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
-import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt } from '@/lib/public-site/parties'
+import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, tabHref } from '@/lib/public-site/parties'
+import { storyChromeCopy } from '@/lib/public-site/story'
 import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
@@ -55,8 +56,11 @@ function copyOf(route: string): Copy | null {
   if (route === '/docs') return copyOfDocsHome()
   if (route.startsWith('/docs/')) return copyOfDoc(route.slice('/docs/'.length))
   if (route.startsWith('/for/')) {
-    const door = doorAt(route.slice('/for/'.length))
-    return door ? copyOfPartyPage(door) : null
+    // A door's tab is its own address, `/for/suppliers?tab=sub`, and is
+    // read as a page of its own (founder, 2026-10-16).
+    const [slug, query] = route.slice('/for/'.length).split('?tab=')
+    const door = doorAt(slug)
+    return door ? copyOfPartyPage(door, query ?? null) : null
   }
   const page = pageAt(route)
   if (!page || !existsSync(join(ROOT, page.routeFile))) return null
@@ -68,6 +72,13 @@ function copyOf(route: string): Copy | null {
 const MARKETING = PUBLIC_PAGES.filter((p) => p.kind !== 'LEGAL')
 /** The pages whose words were written in this change, and are held to every rule. */
 const NEW_PAGES = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY', 'PARTY'].includes(p.kind))
+/**
+ * A page, or each tab of a door as a page of its own. The suppliers' and
+ * workers' doors carry tabs since 2026-10-16, each at its own address and
+ * each read by every guard below, not only the tab a reader meets first.
+ */
+const withTabs = <P extends { route: string; kind: string }>(p: P): P[] =>
+  p.kind === 'PARTY' ? everyDoorView().filter((v) => v.route === p.route).map((v) => ({ ...p, route: v.href })) : [p]
 
 const all = (c: Copy) => [...c.hero, ...c.body].join(' ')
 
@@ -97,8 +108,8 @@ describe('The guard reads every public page, so a new one cannot be added outsid
   })
 
   it('every page on the public list is read by the guard and yields real words', () => {
-    for (const p of MARKETING) {
-      if (!existsSync(join(ROOT, p.routeFile)) && !NEW_PAGES.includes(p)) continue
+    for (const p of MARKETING.flatMap(withTabs)) {
+      if (!existsSync(join(ROOT, p.routeFile)) && !NEW_PAGES.some((n) => n.routeFile === p.routeFile)) continue
       const c = copyOf(p.route)
       expect(c, `${p.route} has no words the guard can read`).not.toBeNull()
       expect(all(c!).split(' ').length, `${p.route} reads as nearly empty`).toBeGreaterThan(20)
@@ -118,7 +129,7 @@ describe('The guard reads every public page, so a new one cannot be added outsid
 describe('No public page says what we agreed never to say', () => {
 
   it('no public page names a company, a competitor or a peer system, including by comparison', () => {
-    for (const p of MARKETING) {
+    for (const p of MARKETING.flatMap(withTabs)) {
       const c = copyOf(p.route)
       if (!c) continue
       expect(namedCompanies(all(c)), `${p.route} names a company`).toEqual([])
@@ -127,7 +138,7 @@ describe('No public page says what we agreed never to say', () => {
   })
 
   it('no public page leads with AI', () => {
-    for (const p of MARKETING) {
+    for (const p of MARKETING.flatMap(withTabs)) {
       const c = copyOf(p.route)
       if (!c) continue
       const lead = check(c).filter((f) => f.rule === 'never-lead-with-ai')
@@ -135,16 +146,23 @@ describe('No public page says what we agreed never to say', () => {
     }
   })
 
-  it('every new page names contractors or suppliers above the fold, before it says anything clever', () => {
-    for (const p of NEW_PAGES) {
-      const c = copyOf(p.route)!
+  it('every new page names contractors or suppliers above the fold, before it says anything clever; a door, whose headline is a statement to its own party, names them in the panel straight under it', () => {
+    // The founder's doors of 2026-10-16 speak to a prime, an integrator or
+    // a worker in that reader's own words, and most of those headlines do
+    // not name the category. The panel straight under the line does, in
+    // its bar ("7 contractors · 4 suppliers"), before anything else is
+    // read, so on a door the fold is read through the panel's bar.
+    for (const p of NEW_PAGES.flatMap(withTabs)) {
+      const page = copyOf(p.route)!
+      const door = p.kind === 'PARTY' ? doorAt(p.route.slice('/for/'.length).split('?')[0])! : null
+      const c = door ? { hero: [...page.hero, ...storyChromeCopy(door.story)], body: page.body } : page
       const miss = check(c).filter((f) => f.rule === 'category-first' || f.rule === 'module-not-category')
       expect(miss, `${p.route} never says what category it is in its first lines`).toEqual([])
     }
   })
 
   it('no public page claims Etyme places anybody or runs a bench', () => {
-    for (const p of MARKETING) {
+    for (const p of MARKETING.flatMap(withTabs)) {
       const c = copyOf(p.route)
       if (!c) continue
       expect(check(c).filter((f) => f.rule === 'neutrality'), `${p.route} claims to supply people`).toEqual([])
@@ -162,18 +180,18 @@ describe('No public page says what we agreed never to say', () => {
   })
 
   it('no sentence on any new page reads as aimed at a supplier', () => {
-    for (const p of NEW_PAGES) {
+    for (const p of NEW_PAGES.flatMap(withTabs)) {
       expect(readsAsAimedAtSuppliers(all(copyOf(p.route)!)), p.route).toEqual([])
     }
     expect(readsAsAimedAtSuppliers(frameCopy().join('. '))).toEqual([])
   })
 
   it('no new page sizes Etyme against the incumbents', () => {
-    for (const p of NEW_PAGES) expect(sizesAgainstIncumbents(all(copyOf(p.route)!)), p.route).toEqual([])
+    for (const p of NEW_PAGES.flatMap(withTabs)) expect(sizesAgainstIncumbents(all(copyOf(p.route)!)), p.route).toEqual([])
   })
 
   it('the program office is offered at most once on a page, and never in a headline', () => {
-    for (const p of NEW_PAGES) {
+    for (const p of NEW_PAGES.flatMap(withTabs)) {
       const c = copyOf(p.route)!
       expect(offersTheProgramOffice(all(c)).length, `${p.route} offers to run the program more than once`).toBeLessThanOrEqual(1)
       expect(offersTheProgramOffice(c.hero.join(' ')), `${p.route} offers to run the program in its headline`).toEqual([])
@@ -209,9 +227,9 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(MENU.steps.map((s) => s.href)).toEqual([...MODULE_ROUTES])
   })
 
-  it('every party door reads the question, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
+  it('every party door reads its tabs where it has them, the headline, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
     const body = VIEW.slice(VIEW.indexOf('export function SubPageView'))
-    const order = ['<SiteHeader />', 'id="top"', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
+    const order = ['<SiteHeader />', 'id="top"', '{tabs && (', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
       .map((t) => body.indexOf(t))
     expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
@@ -248,14 +266,20 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(existsSync(join(ROOT, 'src/lib/public-site/rhythm.ts')), 'the one-screen bands left with the party pages').toBe(false)
   })
 
-  it(`no party door carries more than ${MOST_WORDS} words between its header and its footer, and no step page more than ${MOST_STEP_WORDS}`, () => {
+  it(`no party door or tab carries more than ${MOST_WORDS} words between its header and its footer, and no step page more than ${MOST_STEP_WORDS}; the two the founder drew over it are named with their count, reported rather than trimmed`, () => {
     // A step page carries Today beside With Etyme and Previous and Next,
     // as the founder drew it on 2026-10-15, so its ceiling is its own.
+    // Each tab of a door is counted as its own page, its tab labels
+    // included (2026-10-16). Two views carry the founder's approved words
+    // past the cap, the prime vendor's tab and the MSPs' door; his lines
+    // are not trimmed to fit, and the count is pinned here so neither
+    // grows by a word without this test saying so.
+    const OVER_AS_DRAWN: Record<string, number> = { '/for/suppliers': 162, '/for/program-offices': 157 }
     expect(SKELETON_PAGES).toHaveLength(8)
-    for (const p of SKELETON_PAGES) {
+    for (const p of SKELETON_PAGES.flatMap(withTabs)) {
       const c = copyOf(p.route)!
       const n = countWords([...c.hero, ...c.body])
-      const most = p.kind === 'MODULE' ? MOST_STEP_WORDS : MOST_WORDS
+      const most = p.kind === 'MODULE' ? MOST_STEP_WORDS : OVER_AS_DRAWN[p.route] ?? MOST_WORDS
       expect(n, `${p.route} carries ${n} words`).toBeLessThanOrEqual(most)
       // And it is the same shape as the home page, not a stub of it.
       expect(n, `${p.route} carries ${n} words`).toBeGreaterThan(100)
@@ -263,7 +287,7 @@ describe('Every product page and party door is the home page’s shape, opened a
   })
 
   it('every product page and party door has at most three lines under the frame, each one short', () => {
-    for (const x of [...MODULES, ...PARTY_PAGES]) {
+    for (const x of [...MODULES, ...everyDoorView().map((v) => ({ ...v, route: v.href }))]) {
       expect(x.lines.length, x.route).toBeLessThanOrEqual(3)
       for (const l of x.lines) expect(l.split(/\s+/).length, `${x.route}: ${l}`).toBeLessThanOrEqual(22)
     }
@@ -489,7 +513,7 @@ describe('Security, About and Contact say only what can be checked', () => {
   })
 
   it('the spend-audit landing page with invented numbers is not brought across', () => {
-    const everything = [...NEW_PAGES.map((p) => all(copyOf(p.route)!)), frameCopy().join(' ')].join(' ')
+    const everything = [...NEW_PAGES.flatMap(withTabs).map((p) => all(copyOf(p.route)!)), frameCopy().join(' ')].join(' ')
     expect(everything).not.toMatch(/\$180K|Average cost found|11 days|hidden costs/i)
   })
 })
@@ -689,7 +713,8 @@ describe('Four doors for the parties who are not the client, reached by link and
       expect(page?.kind, p.route).toBe('PARTY')
       const route = read(page!.routeFile)
       expect(route.trim().split('\n').length, p.route).toBeLessThanOrEqual(4)
-      expect(route).toContain(`<PartyPageView slug="${p.slug}" />`)
+      // A door with tabs hands the address's query to the view, which reads the tab from it.
+      expect(route).toContain(p.tabs ? `<PartyPageView slug="${p.slug}" params={params} />` : `<PartyPageView slug="${p.slug}" />`)
     }
   })
 
@@ -748,19 +773,23 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(read('src/lib/public-site/skeleton.tsx')).toContain("const words = band === 'SELF' ? BAND_FOR_SELF : BAND")
   })
 
-  it('no sentence on a door is longer than twenty-five words, and the word ecosystem is on none of them', () => {
-    for (const p of PARTY_PAGES) {
-      const c = copyOfPartyPage(p)
+  it('no sentence on a door or any of its tabs is longer than twenty-five words, and the word ecosystem is on none of them', () => {
+    for (const p of everyDoorView()) {
+      const c = copyOfPartyPage(p, p.tab?.key)
       const long = [...c.hero, ...c.body].flatMap((line) => longSentences(line, 25))
       expect(long, p.route).toEqual([])
       expect(all(c), p.route).not.toMatch(/ecosystem/i)
     }
   })
 
-  it('no door claims Etyme places anybody, and the supplier and contractor doors say it never does', () => {
-    for (const p of PARTY_PAGES) expect(check(copyOfPartyPage(p)).filter((f) => f.rule === 'neutrality'), p.route).toEqual([])
-    expect(all(copyOfPartyPage(doorAt('suppliers')!))).toContain('Etyme never places anybody')
-    expect(all(copyOfPartyPage(doorAt('contractors')!))).toContain('Etyme never places anybody.')
+  it('no door or tab claims Etyme places anybody; the founder’s doors of 2026-10-16 no longer say it never does, and About still says it', () => {
+    for (const p of everyDoorView()) expect(check(copyOfPartyPage(p, p.tab?.key)).filter((f) => f.rule === 'neutrality'), p.href).toEqual([])
+    // The sentence "Etyme never places anybody." was a line on the
+    // suppliers' and the workers' doors from 2026-10-15. The founder's
+    // drawing of 2026-10-16 has no line for it and his words are used as
+    // drawn, so it left both; reported to him. About keeps the commitment.
+    for (const p of everyDoorView()) expect(all(copyOfPartyPage(p, p.tab?.key)), p.href).not.toContain('Etyme never places anybody')
+    expect(all(copyOfCompanyPage(ABOUT))).toContain('Etyme never supplies workers and never runs a bench.')
   })
 
   it('the MSPs’ door plays a sample MSP, Aptiva Workforce, in Cavanaugh Glassworks’ program, and says under the panel whose seat it is', () => {
@@ -796,10 +825,72 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(existsSync(join(ROOT, 'src/app/dashboard/program/page.tsx'))).toBe(true)
   })
 
-  it('the MSPs\' door offers Etyme\'s own team once, in its two ways to use it, under the founder\'s two labels', () => {
+  it('the MSPs’ door no longer offers Etyme’s own team, as the founder drew it on 2026-10-16, and About still names the two ways to run a program', () => {
+    // Until 2026-10-16 the door's third line was "Etyme as VMS software:
+    // you run it. Etyme as MSP provider: Etyme’s own team runs it." The
+    // founder's drawing replaced the three lines; the offer stays once,
+    // quietly, on About, under his two labels.
     const p = doorAt('program-offices')!
-    expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toHaveLength(1)
-    expect(p.lines.join(' ')).toContain('Etyme as VMS software')
-    expect(p.lines.join(' ')).toContain('Etyme as MSP provider')
+    expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toEqual([])
+    expect(p.lines.join(' ')).not.toContain('MSP provider')
+    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toHaveLength(1)
+  })
+
+  it('a door’s headline is a statement in its party’s own words, not a question, as the founder chose on 2026-10-16', () => {
+    const heads = Object.fromEntries(everyDoorView().map((v) => [v.href, [v.headline, v.purpose]]))
+    expect(heads).toEqual({
+      '/for/suppliers': ['Fill your client’s jobs through every sub-vendor at once, and keep your client yours.', 'Each sub-vendor sees its own rate, never your client’s name.'],
+      '/for/suppliers?tab=sub': ['Bill from the same approved week as your prime.', 'Your rates and your people stay yours.'],
+      '/for/suppliers?tab=bench': ['Your whole bench in front of every firm you sell to, at once.', 'Each person by their own consent.'],
+      '/for/program-offices': ['Every supplier, every worker, every invoice, across every program you run.', 'Your clients stay yours.'],
+      '/for/integrators': ['Staff your next project with your own people first.', 'Buy outside only for the gap.'],
+      '/for/contractors': ['Your hours, pay, papers and history, in one place that moves with you.', 'Yours, not the agency’s.'],
+      '/for/contractors?tab=solo': ['Everything a 50-person firm runs on, for a firm of one.', 'Timesheets, bills and papers.'],
+    })
+    for (const v of everyDoorView()) expect(v.headline, v.href).not.toContain('?')
+  })
+
+  it('the suppliers’ door shows Prime vendor by default and each tab by its own address', () => {
+    const d = doorAt('suppliers')!
+    expect(d.tabs!.map((t) => [t.label, tabHref(d, t.key)])).toEqual([
+      ['Prime vendor', '/for/suppliers'], ['Sub-vendor', '/for/suppliers?tab=sub'], ['Bench vendor', '/for/suppliers?tab=bench'],
+    ])
+    // The door's own address is the prime vendor's words; an unknown tab is the door, never a missing page.
+    expect(copyOf('/for/suppliers')).toEqual(copyOf('/for/suppliers?tab=prime'))
+    expect(copyOf('/for/suppliers?tab=nonsense')).toEqual(copyOf('/for/suppliers'))
+    expect(copyOf('/for/suppliers?tab=sub')!.hero).toContain('Bill from the same approved week as your prime.')
+    expect(copyOf('/for/suppliers?tab=bench')!.hero).toContain('Your whole bench in front of every firm you sell to, at once.')
+  })
+
+  it('the workers’ door shows Worker by default and Solopreneur at its own address', () => {
+    const d = doorAt('contractors')!
+    expect(d.tabs!.map((t) => [t.label, tabHref(d, t.key)])).toEqual([
+      ['Worker', '/for/contractors'], ['Solopreneur', '/for/contractors?tab=solo'],
+    ])
+  })
+
+  it('the workers’ door’s Solopreneur tab signs up a one-person company, and the Worker tab keeps the person’s own sign-up', () => {
+    const views = Object.fromEntries(everyDoorView().filter((v) => v.slug === 'contractors').map((v) => [v.href, v]))
+    expect(views['/for/contractors?tab=solo'].signUp.href).toBe('/signup?type=solo')
+    expect(views['/for/contractors?tab=solo'].band).toBe('COMPANY')
+    expect(all(copyOf('/for/contractors?tab=solo')!)).toContain('Seen enough? Set up your company.')
+    expect(views['/for/contractors'].signUp.href).toBe('/signup?as=candidate')
+    expect(views['/for/contractors'].band).toBe('SELF')
+    // The sign-up page opens the company form on the one-person kind from that address.
+    expect(read('src/app/(auth)/signup/page.tsx')).toContain('?type=solo')
+  })
+
+  it('a tab changes the words and never the panel: every tab of a door plays the door’s story, at the door’s step, with the door’s line under it and its button', () => {
+    for (const p of PARTY_PAGES) {
+      for (const v of everyDoorView().filter((x) => x.slug === p.slug)) {
+        expect([v.story, v.step, v.caption, v.label, v.demoLabel, JSON.stringify(v.demo)], v.href)
+          .toEqual([p.story, p.step, p.caption, p.label, p.demoLabel, JSON.stringify(p.demo)])
+      }
+    }
+  })
+
+  it('no door promises “free forever”; the band keeps “Free while we are testing”', () => {
+    for (const v of everyDoorView()) expect(all(copyOf(v.href)!), v.href).not.toMatch(/free forever/i)
+    expect(all(copyOf('/for/suppliers?tab=bench')!)).toContain('Free while we are testing.')
   })
 })

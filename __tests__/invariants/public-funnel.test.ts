@@ -237,8 +237,9 @@ describe('No button promises what the site cannot give', () => {
     const promised = promisesAnAccount(labels)
     expect(promised, promised.join('\n')).toEqual([])
     // The ones that may, and the door they open, which is real: the
-    // client's "Sign up" and each door's own sign-up, every one to /signup.
-    for (const s of [CLIENT_SIGN_UP, MENU.signUp, ...PARTY_PAGES.map((p) => p.signUp)]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
+    // client's "Sign up" and each door's own sign-up, a tab's own included
+    // (the Solopreneur tab's, 2026-10-16), every one to /signup.
+    for (const s of [CLIENT_SIGN_UP, MENU.signUp, ...PARTY_PAGES.flatMap((p) => [p.signUp, ...(p.tabs ?? []).flatMap((t) => (t.signUp ? [t.signUp] : []))])]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)
   })

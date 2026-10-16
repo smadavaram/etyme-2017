@@ -1,4 +1,4 @@
-import { PartyPageView, partyMetadata } from '@/lib/public-site/party-page'
+import { PartyPageView, partyMetadata, type DoorParams } from '@/lib/public-site/party-page'
 
-export const metadata = partyMetadata('suppliers')
-export default function Page() { return <PartyPageView slug="suppliers" /> }
+export function generateMetadata(params: DoorParams) { return partyMetadata('suppliers', params) }
+export default function Page(params: DoorParams) { return <PartyPageView slug="suppliers" params={params} /> }
