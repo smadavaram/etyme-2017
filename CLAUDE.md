@@ -501,6 +501,17 @@ company, visible on a phone; how Etyme is paid when it runs a program
 "What a miss costs" on every step page, one or two plain lines with no
 figure, beside what Etyme stops.
 
+**Four doors, two with tabs, each headline a statement. Decided by the
+founder, 2026-10-16** ("build it" on
+https://claude.ai/artifact/NMSKv7vLFfZaxQRcKjbAWU). MSPs, Integrators,
+Suppliers (Prime vendor, Sub-vendor, Bench vendor) and Workers (Worker,
+Solopreneur); a tab is a link at its own address, so an advertisement can
+open it, and it changes the words and never the panel. Each headline is
+the party's single biggest win, said as a statement, replacing the
+question of 2026-10-14. No price on any door: the founder's direction,
+for when prices are set, is that only solopreneurs are ever free forever.
+A door, or one of its tabs, may carry up to 165 words.
+
 ### The audit form is deleted and the menu is an icon — decided by the founder, 2026-10-14
 
 *"Menu into icon. Does anyone need the audit form? I think it's
@@ -1178,6 +1189,11 @@ In" is a player tapped in off the bench). The five seats of "Etyme runs
 on Etyme" sit at Tapin. Until Tapin has its own email domain its seats
 may use @etyme.com addresses, but etyme.com is never verified as
 Tapin's domain: the platform's own domain is never a supplier's.
+**Etyme runs on Etyme from the weekend of 2026-10-17** (founder,
+2026-10-16: "Etyme for Etyme is a reality from this weekend"), as Tapin.
+The 2026-10-14 start above slipped while the sign-up email was refused:
+etyme.com had no Resend records, so the confirmation is sent from
+`notify.etyme.com` once that domain is verified in Resend.
 
 ## One tenant is one domain name — decided 2026-09-21
 

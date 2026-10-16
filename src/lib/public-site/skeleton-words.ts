@@ -106,8 +106,12 @@ export function countWords(strings: string[]): number {
   return strings.join(' ').split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w)).length
 }
 
-/** The most words a party door may carry between its header and its footer (founder, 2026-10-14). */
-export const MOST_WORDS = 150
+/**
+ * The most words a party door, or one of its tabs, may carry between its
+ * header and its footer: 150 on 2026-10-14, raised to 165 by the founder
+ * on 2026-10-16 ("up to 165 words is fine") so his door lines stand whole.
+ */
+export const MOST_WORDS = 165
 
 /**
  * The most a step page may carry. The founder's drawing of 2026-10-15

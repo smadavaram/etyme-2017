@@ -316,7 +316,7 @@ describe('A door’s tabs are links, drawn on the server, so the chosen tab work
     expect(worker).toContain('href="/for/contractors?tab=solo"')
     const solo = draw('contractors', 'solo')
     expect(current(solo)).toEqual(['Solopreneur'])
-    expect(solo).toContain('Everything a 50-person firm runs on, for a firm of one.')
+    expect(solo).toContain('What a 50-person firm runs on: timesheets, bills, papers. For a firm of one.')
     expect(solo).toContain('href="/signup?type=solo"')
     expect(solo).not.toContain('href="/signup?as=candidate"')
   })

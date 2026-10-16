@@ -134,7 +134,7 @@ export const SUPPLIERS: PartyPage = withTabs({
     key: 'prime',
     label: 'Prime vendor',
     headline: 'Fill your client’s jobs through every sub-vendor at once, and keep your client yours.',
-    purpose: 'Each sub-vendor sees its own rate, never your client’s name.',
+    purpose: 'Each sub-vendor sees its own rate. Your client’s name is yours to share.',
     lines: [
       'Send a client’s job to all your sub-vendors in one go, each with its own rate range.',
       'Your account manager, and your sub-vendors with their insurance and papers checked.',
@@ -236,8 +236,8 @@ export const CONTRACTORS: PartyPage = withTabs({
   {
     key: 'solo',
     label: 'Solopreneur',
-    headline: 'Everything a 50-person firm runs on, for a firm of one.',
-    purpose: 'Timesheets, bills and papers.',
+    headline: 'What a 50-person firm runs on: timesheets, bills, papers. For a firm of one.',
+    purpose: 'File your week, bill your client, get paid.',
     lines: [
       'File your week, bill your client, and keep your company papers current.',
       'Just you, and your client.',

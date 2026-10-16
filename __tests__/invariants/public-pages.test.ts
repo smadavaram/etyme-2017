@@ -266,7 +266,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(existsSync(join(ROOT, 'src/lib/public-site/rhythm.ts')), 'the one-screen bands left with the party pages').toBe(false)
   })
 
-  it(`no party door or tab carries more than ${MOST_WORDS} words between its header and its footer, and no step page more than ${MOST_STEP_WORDS}; the two the founder drew over it are named with their count, reported rather than trimmed`, () => {
+  it(`no party door or tab carries more than ${MOST_WORDS} words between its header and its footer, and no step page more than ${MOST_STEP_WORDS}; the founder's 165, raised from 150 so his door lines stand whole`, () => {
     // A step page carries Today beside With Etyme and Previous and Next,
     // as the founder drew it on 2026-10-15, so its ceiling is its own.
     // Each tab of a door is counted as its own page, its tab labels
@@ -274,12 +274,11 @@ describe('Every product page and party door is the home page’s shape, opened a
     // past the cap, the prime vendor's tab and the MSPs' door; his lines
     // are not trimmed to fit, and the count is pinned here so neither
     // grows by a word without this test saying so.
-    const OVER_AS_DRAWN: Record<string, number> = { '/for/suppliers': 162, '/for/program-offices': 157 }
     expect(SKELETON_PAGES).toHaveLength(8)
     for (const p of SKELETON_PAGES.flatMap(withTabs)) {
       const c = copyOf(p.route)!
       const n = countWords([...c.hero, ...c.body])
-      const most = p.kind === 'MODULE' ? MOST_STEP_WORDS : OVER_AS_DRAWN[p.route] ?? MOST_WORDS
+      const most = p.kind === 'MODULE' ? MOST_STEP_WORDS : MOST_WORDS
       expect(n, `${p.route} carries ${n} words`).toBeLessThanOrEqual(most)
       // And it is the same shape as the home page, not a stub of it.
       expect(n, `${p.route} carries ${n} words`).toBeGreaterThan(100)
@@ -839,13 +838,13 @@ describe('Four doors for the parties who are not the client, reached by link and
   it('a door’s headline is a statement in its party’s own words, not a question, as the founder chose on 2026-10-16', () => {
     const heads = Object.fromEntries(everyDoorView().map((v) => [v.href, [v.headline, v.purpose]]))
     expect(heads).toEqual({
-      '/for/suppliers': ['Fill your client’s jobs through every sub-vendor at once, and keep your client yours.', 'Each sub-vendor sees its own rate, never your client’s name.'],
+      '/for/suppliers': ['Fill your client’s jobs through every sub-vendor at once, and keep your client yours.', 'Each sub-vendor sees its own rate. Your client’s name is yours to share.'],
       '/for/suppliers?tab=sub': ['Bill from the same approved week as your prime.', 'Your rates and your people stay yours.'],
       '/for/suppliers?tab=bench': ['Your whole bench in front of every firm you sell to, at once.', 'Each person by their own consent.'],
       '/for/program-offices': ['Every supplier, every worker, every invoice, across every program you run.', 'Your clients stay yours.'],
       '/for/integrators': ['Staff your next project with your own people first.', 'Buy outside only for the gap.'],
       '/for/contractors': ['Your hours, pay, papers and history, in one place that moves with you.', 'Yours, not the agency’s.'],
-      '/for/contractors?tab=solo': ['Everything a 50-person firm runs on, for a firm of one.', 'Timesheets, bills and papers.'],
+      '/for/contractors?tab=solo': ['What a 50-person firm runs on: timesheets, bills, papers. For a firm of one.', 'File your week, bill your client, get paid.'],
     })
     for (const v of everyDoorView()) expect(v.headline, v.href).not.toContain('?')
   })

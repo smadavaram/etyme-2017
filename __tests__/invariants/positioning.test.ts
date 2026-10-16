@@ -522,7 +522,7 @@ describe('Below the hero, the page says what the business is', () => {
     const door = partyAt('suppliers')!
     const says = (tab: string) => { const c = copyOfPartyPage(door, tab); return [...c.hero, ...c.body].join(' ') }
     expect(door.tabs!.map((t) => t.label)).toEqual(['Prime vendor', 'Sub-vendor', 'Bench vendor'])
-    expect(says('prime')).toContain('Each sub-vendor sees its own rate, never your client’s name.')
+    expect(says('prime')).toContain('Each sub-vendor sees its own rate. Your client’s name is yours to share.')
     expect(says('sub')).toContain('Your rates and your people stay yours.')
     expect(says('bench')).toContain('Each person by their own consent.')
   })
