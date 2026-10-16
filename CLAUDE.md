@@ -1430,6 +1430,14 @@ because two of them are money.
    period a cycle covers heuristically. It holds for the packs shipped and is
    guesswork the legacy row did not need. `periodStart`/`periodEnd` is a schema
    request for the architect.
+   Until they exist, `cycle-complete` reads which date a week's event closes
+   from the line's whole series, generated again with no floor through
+   `planCyclesFor`, and falls back to the old estimate from the usual gap only
+   where that series no longer contains the written date (a weekend rule or
+   calendar changed since the award). It still cannot say which of several
+   weeks sharing one invoice date is the last, so the first week billed closes
+   it, and each later week then closes the next open date; that is for the
+   founder to decide.
 8. **Holiday shifting is timezone-fragile.** `shiftToBusinessDay` builds dates in
    local time and looks holidays up by UTC key. Under `TZ=Asia/Kolkata` a holiday
    does not shift at all. Correct under UTC and US zones, so Vercel is fine
