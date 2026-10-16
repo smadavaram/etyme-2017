@@ -19,6 +19,8 @@ import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
 import { GET as endContracts } from '@/app/api/cron/end-contracts/route'
 import { GET as placement } from '@/app/api/placements/[id]/route'
 import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
+import { writeCyclesFor } from '@/lib/contract-cycles'
+import { loadContractHolidays } from '@/lib/holidays'
 
 /**
  * Every table moves.
@@ -61,6 +63,40 @@ async function cycles(where: { sellContractId?: string; buyContractId?: string }
     if (r.completedAt) byKind[r.kind].done++
   }
   return byKind
+}
+
+/**
+ * Every invoice date the pack gives this line, the ones the award's floor
+ * did not write included — the same line, pack, calendar and weekend rule
+ * the award used, written nowhere. A week's own invoice date is the first
+ * of these on or after the day before its Saturday, and that date may lie
+ * before the award: a week that ended on the 10th bills on the 15th, and
+ * an award made on the 16th never wrote the 15th.
+ */
+async function invoiceDates(): Promise<string[]> {
+  const sell = await prisma.sellContract.findUniqueOrThrow({
+    where: { id: it_.contract },
+    select: { id: true, startDate: true, endDate: true, companyId: true, company: { select: { templatePack: true } } },
+  })
+  const site = await prisma.companyLocation.findFirst({ where: { companyId: co['world-nike'] }, orderBy: [{ isPrimary: 'desc' }], select: { country: true } })
+  const holidays = await loadContractHolidays(sell.companyId, co['world-nike'], sell.startDate.getFullYear(), sell.endDate!.getFullYear(), site?.country ?? null)
+  const dates: string[] = []
+  const nowhere = {
+    sellContract: prisma.sellContract,
+    cycle: {
+      createMany: async ({ data }: { data: { kind: string; dueOn: Date }[] }) => {
+        for (const c of data) if (c.kind === 'INVOICE_GENERATE') dates.push(isoOf(c.dueOn))
+        return { count: data.length }
+      },
+    },
+  }
+  await writeCyclesFor(nowhere as any, {
+    sell: { id: sell.id, startDate: sell.startDate, endDate: sell.endDate },
+    buy: null,
+    packId: sell.company.templatePack ?? 'US_IT',
+    holidays,
+  })
+  return dates.sort()
 }
 
 describe('the ledger: one placement, every table, every station', () => {
@@ -159,6 +195,13 @@ describe('the ledger: one placement, every table, every station', () => {
     // guessed on the 28th months ahead could only disagree with it.
     expect(Object.keys(sellCycles).sort()).toEqual(['INVOICE_GENERATE', 'TIMESHEET_APPROVE', 'TIMESHEET_SUBMIT'])
     expect(Object.values(sellCycles).every((c) => c.done === 0)).toBe(true)
+
+    // The invoice dates written are exactly the pack's own from the award
+    // day on, so the series below is the one the award wrote from.
+    it_.awardDay = isoOf(new Date())
+    it_.invoiceDates = await invoiceDates()
+    const written = await prisma.cycle.findMany({ where: { sellContractId: it_.contract, kind: 'INVOICE_GENERATE' }, select: { dueOn: true } })
+    expect(written.map((c) => isoOf(c.dueOn)).sort()).toEqual(it_.invoiceDates.filter((d: string) => d >= it_.awardDay))
   })
 
   it('work marked under way two weeks before the award keeps its start, and writes no reminder for a day already gone', async () => {
@@ -271,7 +314,10 @@ describe('the ledger: one placement, every table, every station', () => {
     const r = await json(await fileExpense(req('POST', '/api/expenses', {
       sellContractId: it_.contract, personId: it_.worker, category: 'TRAVEL', billable: true,
       description: 'Flight PDX–DEN for the kickoff',
-      periodStart: day(-7).toISOString().slice(0, 10), periodEnd: day(-3).toISOString().slice(0, 10),
+      // Inside the week it rides with, so the two land on one bill: a flight
+      // dated a few days ago can fall past a billing edge the week did not
+      // cross (raised on 4 November, the 1st is in the next half-month).
+      periodStart: isoOf(new Date(+it_.weekEnd - 5 * DAY)), periodEnd: isoOf(new Date(+it_.weekEnd - DAY)),
       items: [{ description: 'Return flight', quantity: 1, unitPrice: 412.5, expenseType: 'AIRFARE' }],
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -285,7 +331,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('APPROVED')
   })
 
-  it('the invoice: ISSUED on raising with the expense on it as INVOICED, SUBMITTED on sending, and the invoice-to-raise cycle is done', async () => {
+  it('the invoice: ISSUED on raising with the expense on it as INVOICED, SUBMITTED on sending, and the week’s own invoice date is done where it was written, and no later one ever', async () => {
     as(PINNACLE)
     const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', { engagementId: it_.engagement })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -296,7 +342,21 @@ describe('the ledger: one placement, every table, every station', () => {
     expect([exp.status, exp.invoiceId]).toEqual(['INVOICED', it_.invoice])
     expect(await prisma.invoiceLine.count({ where: { invoiceId: it_.invoice, expenseId: it_.expense } })).toBe(1)
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('ISSUED')
-    expect((await cycles({ sellContractId: it_.contract })).INVOICE_GENERATE.done).toBe(1)
+    // The week's own invoice date is the first on or after the day before
+    // its Saturday. Where it fell on or after the award day it was written,
+    // and raising the bill closes it. Where it fell before — a week ending
+    // the 10th bills on the 15th, and the award was the 16th — it was never
+    // written, and the bill closes nothing: the next date belongs to the
+    // weeks after this one, and they have not been billed.
+    it_.ownInvoice = it_.invoiceDates.find((d: string) => d >= isoOf(new Date(+it_.weekEnd - DAY)))
+    it_.ownInvoiceWritten = it_.ownInvoice >= it_.awardDay
+    const invoiceRows = await prisma.cycle.findMany({
+      where: { sellContractId: it_.contract, kind: 'INVOICE_GENERATE' },
+      select: { dueOn: true, completedAt: true },
+    })
+    const done = invoiceRows.filter((c) => c.completedAt).map((c) => isoOf(c.dueOn))
+    expect(done, `week ending ${isoOf(it_.weekEnd)}, own invoice date ${it_.ownInvoice}, awarded ${it_.awardDay}`)
+      .toEqual(it_.ownInvoiceWritten ? [it_.ownInvoice] : [])
 
     const s = await call(submitInvoice, 'POST', `/api/invoices/${it_.invoice}/submit`, it_.invoice, {})
     expect(s.body?.error, JSON.stringify(s.body)).toBeUndefined()
@@ -317,17 +377,20 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE).toBeUndefined()
   })
 
-  it('the placement timeline reads the bill done for that week, the later weeks’ hours still open, and nothing overdue', async () => {
+  it('the placement timeline reads the bill done for that week where its date was written, the later weeks’ hours and bills still open, and nothing overdue', async () => {
     as(NIKE.hiring)
     const r = await call(placement, 'GET', `/api/placements/${it_.contract}`, it_.contract)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const t = r.body.data.timeline
     const doneKinds = [...t.hours, ...t.bill].filter((d: any) => d.done).map((d: any) => d.kind)
-    // The bill for that week closes its invoice date; the hours reminders
-    // that belong to later weeks stay open, not overdue. The week's own
+    // The bill for that week closes its own invoice date where the award
+    // wrote it, and never a later week's; the hours reminders that belong
+    // to later weeks stay open, not overdue. The week's own
     // hours were due before the award and never written; its approval date
     // is done where it was written.
-    expect(doneKinds).toEqual(expect.arrayContaining(['INVOICE_GENERATE']))
+    const doneBills = t.bill.filter((d: any) => d.done && d.kind === 'INVOICE_GENERATE').map((d: any) => String(d.dueOn).slice(0, 10))
+    expect(doneBills).toEqual(it_.ownInvoiceWritten ? [it_.ownInvoice] : [])
+    if (it_.ownInvoiceWritten) expect(doneKinds).toEqual(expect.arrayContaining(['INVOICE_GENERATE']))
     // An hours-due date reads done only where it is that week's own — the
     // Tuesday a Monday holiday moved it to, on the day of the award.
     const lastOfWeek = isoOf(new Date(+it_.weekEnd + 6 * DAY))
