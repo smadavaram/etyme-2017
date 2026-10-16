@@ -252,7 +252,7 @@ describe('the login page offers email and password even when no provider key is 
   it('draws the email and password form before any provider button, and never behind a provider check', () => {
     const page = read('src/app/(auth)/login/page.tsx')
     const form = page.indexOf("signIn('credentials'")
-    const microsoft = page.indexOf("signIn('azure-ad'")
+    const microsoft = page.indexOf('<AccountDoors')
     expect(form).toBeGreaterThan(0)
     expect(page.indexOf('id="pw"')).toBeLessThan(microsoft)
     expect(page).not.toContain("has('credentials')")

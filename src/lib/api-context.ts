@@ -263,7 +263,9 @@ export async function getSessionEmail(): Promise<string | null> {
   }
 
   const session = await getServerSession(authOptions)
-  if (session?.user?.email) return session.user.email
+  // Lowercased, because the person is found by the email they signed up
+  // with, and a Microsoft account may spell it Sharath@Etyme.com.
+  if (session?.user?.email) return session.user.email.trim().toLowerCase()
 
   // A demo visitor, who has not signed up and should not have to.
   //

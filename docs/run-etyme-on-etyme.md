@@ -1,7 +1,12 @@
 # Run Etyme on Etyme
 
-The one page to follow on the first day. Etyme becomes a real company on
-the record: a vendor on etyme.com, with five seats.
+The one page to follow on the first day. The founder's bench business
+becomes a real company on the record: **Tapin**, a vendor at
+`tapin.etyme.com`, with five seats on etyme.com email addresses.
+
+etyme.com is Etyme's own domain, so it is never Tapin's. The command
+below makes no domain claim for it, and a Microsoft or Google sign-in
+from an etyme.com address never makes or joins a company by its domain.
 
 Production cannot send email yet. So staff make the first seats with one
 command, and hand each person their own sign-in link.
@@ -27,10 +32,10 @@ curl -sS -X POST "$ETYME_URL/api/staff/bootstrap-company" \
   -H "Authorization: Bearer $CRON_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Etyme",
+    "name": "Tapin",
     "domain": "etyme.com",
     "kind": "VENDOR",
-    "address": "etyme",
+    "address": "tapin",
     "seats": [
       { "email": "sharath@etyme.com",    "role": "Owner" },
       { "email": "support@etyme.com",    "role": "Admin" },
@@ -45,7 +50,7 @@ curl -sS -X POST "$ETYME_URL/api/staff/bootstrap-company" \
 
 A short answer in JSON:
 
-- `company`: Etyme's id, its address `etyme`, and `created: true`.
+- `company`: Tapin's id, its address `tapin`, and `created: true`.
 - `seats`: one entry for each person, with:
   - `email` and `role`;
   - `outcome`: `CREATED` the first time;
@@ -94,5 +99,6 @@ Until the email key is set, new seats come from Step 1. Add the person to
 - It does not send email. That needs the email key in Vercel.
 - It does not change anything for a person who has already signed in.
 - It refuses a personal domain such as gmail.com, and the demo world's domains.
+- On etyme.com it claims no domain, and it refuses the address `etyme`.
 
 Every row it makes is written to the automation log as `STAFF_BOOTSTRAP`.

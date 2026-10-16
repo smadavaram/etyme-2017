@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+const read = (p: string) => readFileSync(join(__dirname, '../..', p), 'utf8')
 
 /**
  * A sign-in button that cannot work is worse than a missing one.
@@ -137,5 +141,76 @@ describe('which senders can actually deliver', () => {
 
   it('always has a Teams sender, because the webhook belongs to the company and not the deployment', async () => {
     expect(await channels()).toContain('TEAMS')
+  })
+})
+
+describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-16)', () => {
+  it('the sign-up page offers Microsoft and Google only when their keys are set', async () => {
+    const { companyAccounts } = await import('@/lib/login-doors')
+    // The list comes from NextAuth, which lists a provider only when its keys are set.
+    expect(companyAccounts(new Set(['credentials']))).toEqual([])
+    expect(companyAccounts(null)).toEqual([])
+    expect(companyAccounts(new Set(['credentials', 'azure-ad', 'google']))).toEqual(['Microsoft', 'Google'])
+    const doors = read('src/app/(auth)/account-doors.tsx')
+    expect(doors).toContain('if (companyAccounts(available).length === 0) return null')
+    expect(doors).toContain("offers(available, 'azure-ad') &&")
+    expect(doors).toContain("offers(available, 'google') &&")
+    const form = read('src/app/(auth)/signup/form.tsx')
+    expect(form).toContain('const available = useKnownDoors()')
+    expect(form).toContain('{!claimToken && <AccountDoors available={available} callbackUrl="/start" />}')
+    // No sentence about missing keys on sign-up.
+    expect(form).not.toContain('not set up on this deployment')
+  })
+
+  it('the sign-in page and the sign-up page draw the same Microsoft and Google buttons, under the password form', () => {
+    const login = read('src/app/(auth)/login/page.tsx')
+    const form = read('src/app/(auth)/signup/form.tsx')
+    for (const page of [login, form]) {
+      expect(page).toContain("from '../account-doors'")
+      expect(page).not.toContain("signIn('azure-ad'")
+      expect(page).not.toContain("signIn('google'")
+    }
+    expect(login.indexOf('onSubmit={signInWithPassword}')).toBeLessThan(login.indexOf('<AccountDoors'))
+    expect(form.indexOf('</form>')).toBeLessThan(form.indexOf('<AccountDoors'))
+    const doors = read('src/app/(auth)/account-doors.tsx')
+    expect(doors).toContain("signIn('azure-ad', { callbackUrl })")
+    expect(doors).toContain("signIn('google', { callbackUrl })")
+    expect(doors).toContain('Continue with Microsoft')
+    expect(doors).toContain('Continue with Google')
+  })
+
+  it('a Google sign-in is refused where Google has not confirmed the email, because the email is who the session is', async () => {
+    const { oauthRefusal } = await import('@/lib/auth')
+    expect(oauthRefusal('google', { email_verified: true }, 'sharath@etyme.com')).toBeNull()
+    expect(oauthRefusal('google', { email_verified: false }, 'sharath@etyme.com')).toBe('EmailNotVerified')
+    expect(oauthRefusal('google', {}, 'sharath@etyme.com')).toBe('EmailNotVerified')
+    expect(oauthRefusal('google', { email_verified: true }, null)).toBe('NoEmail')
+  })
+
+  it('a Microsoft sign-in is refused where the email is missing or its domain owner is unverified', async () => {
+    const { oauthRefusal } = await import('@/lib/auth')
+    expect(oauthRefusal('azure-ad', { xms_edov: true }, 'dana@kestrelworks.test')).toBeNull()
+    expect(oauthRefusal('azure-ad', {}, 'dana@kestrelworks.test')).toBeNull()
+    expect(oauthRefusal('azure-ad', { xms_edov: false }, 'dana@kestrelworks.test')).toBe('EmailNotVerified')
+    expect(oauthRefusal('azure-ad', {}, undefined)).toBe('NoEmail')
+    // The password door is judged by its own lock, not this one.
+    expect(oauthRefusal('credentials', {}, null)).toBeNull()
+  })
+
+  it('a refused Microsoft or Google sign-in comes back to the sign-in page with a sentence, never a code', async () => {
+    const { signInRefusal } = await import('@/lib/login-doors')
+    expect(signInRefusal('EmailNotVerified')).toContain('has not confirmed that email address')
+    expect(signInRefusal('NoEmail')).toContain('did not share an email address')
+    expect(signInRefusal('OAuthCallback')).toBe('That sign-in did not go through. Try again, or sign in with your email and password.')
+    expect(signInRefusal(null)).toBeNull()
+    expect(read('src/lib/auth.ts')).toContain('if (refused) return `/login?error=${refused}`')
+  })
+
+  it('a session carries one spelling of the email, so Sharath@Etyme.com and sharath@etyme.com are one person', async () => {
+    const { sessionEmail, authOptions } = await import('@/lib/auth')
+    expect(sessionEmail(' Sharath@Etyme.com ')).toBe('sharath@etyme.com')
+    const token = await authOptions.callbacks!.jwt!({ token: {}, user: { id: 'g-1', email: 'Sharath@Etyme.com' } } as any)
+    expect(token.email).toBe('sharath@etyme.com')
+    expect(read('src/lib/api-context.ts')).toContain('return session.user.email.trim().toLowerCase()')
   })
 })

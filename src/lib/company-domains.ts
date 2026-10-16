@@ -55,7 +55,7 @@ export type Entry =
   | { action: 'SUGGEST'; companyId: string; companyName: string; domain: string; message: string }
   | { action: 'CREATE'; domain: string; message: string }
   | { action: 'CONSULTANT'; message: string }
-  | { action: 'REFUSE'; message: string }
+  | { action: 'REFUSE'; message: string; door?: '/signup' }
 
 /**
  * Consumer providers. Somebody here is a person, not a company.
@@ -80,6 +80,29 @@ export function domainOfEmail(email: string): string | null {
   if (at < 1 || at === email.length - 1) return null
   const d = email.slice(at + 1).trim().toLowerCase().replace(/\.$/, '')
   return d.includes('.') ? d : null
+}
+
+/**
+ * Etyme's own domain, and every name under it.
+ *
+ * The founder's rule (CLAUDE.md, the Tapin section, 2026-10-15): the
+ * platform's own domain is never a supplier's or a client's. Google
+ * Workspace runs etyme.com's mail, so a Microsoft or Google sign-in from
+ * an etyme.com address proves a real mailbox, and it must still never
+ * found a company called etyme.com or claim the domain for one. Tapin's
+ * seats use etyme.com addresses until Tapin has a domain of its own; the
+ * address `tapin` is the tenant, never the email domain.
+ */
+export const PLATFORM_DOMAINS: readonly string[] = ['etyme.com']
+
+export function isPlatformDomain(domain: string | null | undefined): boolean {
+  const d = String(domain ?? '').trim().toLowerCase().replace(/\.$/, '')
+  return PLATFORM_DOMAINS.some((p) => d === p || d.endsWith(`.${p}`))
+}
+
+/** What somebody on the platform's own domain is told when no account has their email. */
+export function platformDomainSentence(domain: string): string {
+  return `${domain} is Etyme's own address, so it cannot stand for a company. Sign up with your email and a password and choose your company's Etyme address, or ask your company to invite you.`
 }
 
 /**
@@ -109,6 +132,14 @@ export function decideEntry(email: string, claims: ClaimedDomain[]): Entry {
       // market and sign in the same way.
       message: 'Setting you up as a consultant. You keep your own profile and take it between agencies.',
     }
+  }
+
+  // Etyme's own domain founds nothing, joins nothing and is claimed by
+  // nobody. A person who already has an account on this email is in it
+  // before this is asked (/api/onboarding reads the person first); anybody
+  // else signs up with an Etyme address, like a company with no domain.
+  if (isPlatformDomain(domain)) {
+    return { action: 'REFUSE', message: platformDomainSentence(domain), door: '/signup' }
   }
 
   // ── An exact claim ──────────────────────────────────────────────────
@@ -201,6 +232,13 @@ export function canClaim(
       ok: false,
       // Claiming gmail.com would admit the entire internet to a tenant.
       reason: `${d} belongs to everybody. A company cannot claim a consumer provider — invite those people individually instead.`,
+      needsProof: false,
+    }
+  }
+  if (isPlatformDomain(d)) {
+    return {
+      ok: false,
+      reason: `${d} is Etyme's own address, so no company can claim it. Your Etyme address stands for your company instead.`,
       needsProof: false,
     }
   }

@@ -85,7 +85,7 @@ describe('The registration route actually opens these doors', () => {
     // creation function marks a domain verified only where there is one.
     const CREATE = readFileSync(join(process.cwd(), 'src/lib/company-create.ts'), 'utf8')
     expect(ROUTE).toContain('personalEmail || !adding.ownsIt ? null :')
-    expect(CREATE).toContain('domainVerified: input.domain !== null')
+    expect(CREATE).toContain('domainVerified: domain !== null')
   })
 
   it('the owner of a consultant corp is created as its consultant, listed on their own bench', () => {

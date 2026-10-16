@@ -32,3 +32,24 @@ export function loginSubtitle(available: KnownDoors): string {
     ? `Sign in with your email and password, or your company’s ${names.join(' or ')} account.`
     : 'Sign in with your email and password.'
 }
+
+/**
+ * What the sign-in page says when NextAuth sends somebody back with a
+ * code (`/login?error=…`). A Microsoft or Google sign-in is refused where
+ * the provider does not vouch for the email (oauthRefusal in lib/auth),
+ * because the email is who the session is. Null for no code; any code we
+ * did not write gets one plain sentence rather than the code itself.
+ */
+export function signInRefusal(code: string | null | undefined): string | null {
+  if (!code) return null
+  switch (code) {
+    case 'EmailNotVerified':
+      return 'Your Microsoft or Google account has not confirmed that email address, so it cannot sign you in here. Sign in with your email and password instead.'
+    case 'NoEmail':
+      return 'Your Microsoft or Google account did not share an email address, so it cannot sign you in here. Sign in with your email and password instead.'
+    case 'CredentialsSignin':
+      return null
+    default:
+      return 'That sign-in did not go through. Try again, or sign in with your email and password.'
+  }
+}

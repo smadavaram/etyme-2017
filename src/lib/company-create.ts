@@ -21,6 +21,7 @@ import {
   rolesFor, packFor, countryFromDomain, primaryLocationName, payRhythmForPack, type CompanyKind,
 } from '@/lib/company-defaults'
 import { holidaysFor } from '@/lib/holidays'
+import { isPlatformDomain } from '@/lib/company-domains'
 import { defaultPostureFor } from '@/lib/walls'
 import { writeFromRules } from '@/lib/site-voice'
 import { currencyFor, knownCountry, knownCurrency, type SetupRecord } from '@/lib/setup-steps'
@@ -85,7 +86,11 @@ export interface CreatedCompany {
  */
 export async function createCompany(input: CreateCompanyInput, db: Db = prisma): Promise<CreatedCompany> {
   const name = input.name.trim()
-  const country = knownCountry(input.country) ?? countryFromDomain(input.domain)
+  // The last lock on Etyme's own domain: whatever a caller passes, no
+  // company is made holding etyme.com or a name under it, and none claims
+  // it (lib/company-domains, isPlatformDomain).
+  const domain = isPlatformDomain(input.domain) ? null : input.domain
+  const country = knownCountry(input.country) ?? countryFromDomain(domain)
   const currency = knownCurrency(input.currency) ?? currencyFor(country)
   const templatePack = packFor(input.kind, country)
   const payRhythm = payRhythmForPack(templatePack)
@@ -113,9 +118,9 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     data: {
       name,
       slug: input.slug,
-      domain: input.domain,
+      domain,
       // The identity provider proved the work domain. No domain, nothing proved.
-      domainVerified: input.domain !== null,
+      domainVerified: domain !== null,
       kind: input.kind,
       supplierPosture: input.posture ?? null,
       // Who here may look at the market outside. Open for a staffing firm,
@@ -139,13 +144,13 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     select: { id: true, name: true, slug: true, kind: true, domain: true, siteLiveAt: true, supplierPosture: true },
   })
 
-  if (input.claimDomain && input.domain) {
-    const held = await db.companyDomain.findUnique({ where: { domain: input.domain }, select: { id: true } })
+  if (input.claimDomain && domain) {
+    const held = await db.companyDomain.findUnique({ where: { domain }, select: { id: true } })
     if (!held) {
       await db.companyDomain.create({
         data: {
           companyId: company.id,
-          domain: input.domain,
+          domain,
           verifiedAt: now,
           verifiedVia: 'OAUTH_TENANT',
           // The founder signing in from their work address is saying

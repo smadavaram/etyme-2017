@@ -284,6 +284,10 @@ export default function StartPage() {
         {state?.action === 'REFUSE' && (
           <h1 className="font-serif text-2xl text-etyme-ink mt-2 tracking-[-0.02em] text-balance">{state.message}</h1>
         )}
+        {/* Etyme's own domain founds nothing: the way on is the sign-up form (lib/company-domains). */}
+        {state?.action === 'REFUSE' && state.door === '/signup' && (
+          <a href="/signup" className={`inline-block mt-6 ${primary}`}>Sign up with email and password</a>
+        )}
 
         {/* ── Step 2, answered on the sign-up form: what they told us ── */}
         {step === 'COMPANY' && state?.action === 'ALREADY_IN' && (

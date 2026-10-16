@@ -195,3 +195,47 @@ describe('reading the domain off an address', () => {
     expect(isConsumerDomain('techpeple.example')).toBe(false)
   })
 })
+
+describe("Etyme's own domain is nobody's (founder, 2026-10-15 and 2026-10-16)", () => {
+  // Google Workspace runs etyme.com's mail, so a Google sign-in there
+  // proves a real mailbox. It still never founds or joins a company by
+  // the domain: Tapin's seats use etyme.com until Tapin has a domain.
+  it("a sign-in on the platform's own domain never claims it as a company's domain", async () => {
+    const { isPlatformDomain } = await import('@/lib/company-domains')
+    const e = decideEntry('newcomer@etyme.com', [])
+    expect(e.action).toBe('REFUSE')
+    expect(e).toMatchObject({ door: '/signup' })
+    if (e.action === 'REFUSE') {
+      expect(e.message).toBe("etyme.com is Etyme's own address, so it cannot stand for a company. Sign up with your email and a password and choose your company's Etyme address, or ask your company to invite you.")
+    }
+    expect(decideEntry('ops@notify.etyme.com', []).action).toBe('REFUSE')
+    expect(isPlatformDomain('etyme.com')).toBe(true)
+    expect(isPlatformDomain('Notify.Etyme.com.')).toBe(true)
+    expect(isPlatformDomain('notetyme.com')).toBe(false)
+    expect(isPlatformDomain(null)).toBe(false)
+  })
+
+  it('a claim somebody once made on etyme.com joins nobody to it', () => {
+    // A bootstrap run before this rule may have left one behind.
+    const stale = claim({ domain: 'etyme.com', companyName: 'Etyme', joinPolicy: 'AUTO' })
+    expect(decideEntry('newcomer@etyme.com', [stale]).action).toBe('REFUSE')
+    expect(decideEntry('newcomer@us.etyme.com', [stale]).action).toBe('REFUSE')
+  })
+
+  it('no company may claim etyme.com or a name under it, even with an identity provider behind it', () => {
+    expect(canClaim('etyme.com', undefined, true)).toMatchObject({ ok: false })
+    expect(canClaim('tapin.etyme.com', undefined, true).reason).toContain("Etyme's own address")
+  })
+
+  it('the one way to make a company drops etyme.com before it is stored or claimed', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/lib/company-create.ts'), 'utf8')
+    expect(src).toContain('const domain = isPlatformDomain(input.domain) ? null : input.domain')
+    expect(src).toContain('if (input.claimDomain && domain) {')
+    expect(src).not.toContain('domain: input.domain,')
+  })
+
+  it('a password sign-up on etyme.com makes its company by its Etyme address and never asks whose domain it is', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/lib/password-door.ts'), 'utf8')
+    expect(src).toContain('if (isPlatformDomain(domainOfEmail(person.primaryEmail))) return makeCompany(named, pending)')
+  })
+})

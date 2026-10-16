@@ -44,7 +44,7 @@ import { emailSender } from '@/lib/senders'
 import { appUrl } from '@/lib/supplier-link'
 import { createCompany } from '@/lib/company-create'
 import { typeByKey } from '@/lib/onboarding'
-import { decideEntry, domainOfEmail, isConsumerDomain, type ClaimedDomain } from '@/lib/company-domains'
+import { decideEntry, domainOfEmail, isConsumerDomain, isPlatformDomain, type ClaimedDomain } from '@/lib/company-domains'
 import { knownCountry, knownCurrency, joinedSentence } from '@/lib/setup-steps'
 import { seatAsMember } from '@/lib/seat-member'
 import { MEMBER_ROLE } from '@/lib/company-defaults'
@@ -661,6 +661,9 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
   }
 
   // The email domain is already a verified tenant: one tenant is one domain.
+  // Etyme's own domain is nobody's tenant, so a sign-up on it is made by
+  // its Etyme address alone and never asks whose domain it is (Tapin).
+  if (isPlatformDomain(domainOfEmail(person.primaryEmail))) return makeCompany(named, pending)
   const entry = decideEntry(person.primaryEmail, await claims())
   if (entry.action === 'JOIN' || entry.action === 'REQUEST') {
     return joinAsMember(named, { id: entry.companyId, name: entry.companyName }, `Verified email on ${entry.domain}, which this company owns`)

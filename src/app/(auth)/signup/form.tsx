@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { COMPANY_TYPES } from '@/lib/onboarding'
 import { COUNTRIES, CURRENCIES, currencyFor } from '@/lib/setup-steps'
 import { DoorFrame, DoorLabel, DoorError, doorField, doorButton } from '../door-frame'
+import { AccountDoors, useKnownDoors } from '../account-doors'
 import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading } from '@/lib/password-words'
 
 /**
@@ -24,6 +25,11 @@ import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading } from '@/lib
  *   - Arriving from a supplier invitation (`?claim=` or `?next=/claim/…`)
  *     asks only for a name, an email and a password, and confirming takes
  *     the invited company's record rather than founding a second one.
+ *
+ * Under the form, after an "or", Microsoft and Google as the alternative
+ * (founder, 2026-10-16), drawn from the same list and the same component
+ * as the sign-in page, and only where this deployment holds their keys.
+ * Not on an invitation: taking a company's record goes through the form.
  */
 
 type Tab = 'company' | 'candidate'
@@ -49,6 +55,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   const [sent, setSent] = useState<string | null>(null)
   const [joins, setJoins] = useState<Joins>(null)
   const [claim, setClaim] = useState<{ company: string; invitedBy: string } | null>(null)
+  const available = useKnownDoors()
 
   const chosen = COMPANY_TYPES.find((t) => t.key === type)
   const personal = Boolean((chosen as { personalEmail?: boolean } | undefined)?.personalEmail)
@@ -238,6 +245,8 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
           We send a link to your email. Nothing is set up until you click it.
         </p>
       </form>
+
+      {!claimToken && <AccountDoors available={available} callbackUrl="/start" />}
     </DoorFrame>
   )
 }

@@ -508,6 +508,53 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(await prisma.context.count({ where: { person: { primaryEmail: 'kofi.mensah@gmail.com' }, type: 'CONSULTANT' } })).toBe(0)
   })
 
+  it("a sign-in on the platform's own domain never claims it as a company's domain", async () => {
+    // Tapin signs up on an etyme.com address with its own Etyme address.
+    const owner = 'sharath@etyme.com'
+    const r = await json(await signUp(req('POST', '/api/auth/password/signup', company({
+      email: owner, personName: 'Sharath', name: 'Tapin', type: 'bench', address: 'tapin',
+    }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const v = await verifyEmail(lastLink(owner, 'verify'))
+    expect(v.ok, JSON.stringify(v)).toBe(true)
+    const tapin = await prisma.company.findUniqueOrThrow({ where: { slug: 'tapin' } })
+    expect(tapin.domain).toBeNull()
+    expect(await prisma.companyDomain.count({ where: { domain: { endsWith: 'etyme.com' } } })).toBe(0)
+
+    // Somebody else on etyme.com signs in with Google for the first time.
+    as('newcomer@etyme.com')
+    const seen = await json(await entry(req('GET', '/api/onboarding')))
+    expect(seen.body.data).toMatchObject({ action: 'REFUSE', door: '/signup' })
+    const tried = await json(await enter(req('POST', '/api/onboarding', { type: 'bench', name: 'Etyme' })))
+    expect(tried.status).toBe(422)
+    expect(await prisma.company.count({ where: { OR: [{ domain: 'etyme.com' }, { name: 'Etyme' }] } })).toBe(0)
+    expect(await prisma.person.count({ where: { primaryEmail: 'newcomer@etyme.com' } })).toBe(0)
+    expect(await prisma.companyDomain.count({ where: { domain: { endsWith: 'etyme.com' } } })).toBe(0)
+  })
+
+  it('a person who signed up with a password and later signs in with Google on the same email lands in the same account', async () => {
+    const owner = 'sharath@etyme.com'
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: owner } })
+    const tapin = await prisma.company.findUniqueOrThrow({ where: { slug: 'tapin' } })
+
+    // Google says the address in whatever case the account was made with.
+    const { authOptions } = await import('@/lib/auth')
+    const user = { id: 'google-sub-1', email: 'Sharath@Etyme.com' }
+    const account = { provider: 'google', providerAccountId: 'google-sub-1', type: 'oauth' }
+    expect(await authOptions.callbacks!.signIn!({ user, account, profile: { email_verified: true } } as any)).toBe(true)
+    const token = await authOptions.callbacks!.jwt!({ token: {}, user } as any)
+    expect(token.email).toBe(owner)
+    await authOptions.events!.signIn!({ user, account, isNewUser: false } as any)
+
+    as(token.email as string)
+    const seen = await json(await entry(req('GET', '/api/onboarding')))
+    expect(seen.body.data).toMatchObject({ action: 'ALREADY_IN', company: { id: tapin.id } })
+    expect(await prisma.person.count({ where: { primaryEmail: { equals: owner, mode: 'insensitive' } } })).toBe(1)
+    const cred = await prisma.credential.findFirstOrThrow({ where: { provider: 'GOOGLE', providerId: 'google-sub-1' } })
+    expect(cred.personId).toBe(person.id)
+    expect(await prisma.company.count({ where: { domain: 'etyme.com' } })).toBe(0)
+  })
+
   it('with no email sender, sign-up, reset and asking for the link again say so', async () => {
     const key = process.env.RESEND_API_KEY
     delete process.env.RESEND_API_KEY

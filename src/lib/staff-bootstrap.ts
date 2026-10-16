@@ -27,6 +27,7 @@ import { reservedDomain } from '@/lib/demo-company'
 import { checkSubdomain, RESERVED_SUBDOMAINS } from '@/lib/domains-owned'
 import { rolesFor, type CompanyKind } from '@/lib/company-defaults'
 import { createCompany } from '@/lib/company-create'
+import { isPlatformDomain } from '@/lib/company-domains'
 import { issueSetPassword } from '@/lib/password-door'
 
 /** How long a seat's one-time link works: seven days. */
@@ -124,7 +125,8 @@ export function planBootstrap(input: BootstrapInput, existing: Existing): Plan {
     }
     // A staff-made company may take the address that is its own domain's
     // name, even where that word is kept back for everybody else.
-    const own = address === domain.split('.')[0] && RESERVED_SUBDOMAINS.has(address)
+    // Never on Etyme's own domain: no company is called etyme (Tapin, 2026-10-15).
+    const own = !isPlatformDomain(domain) && address === domain.split('.')[0] && RESERVED_SUBDOMAINS.has(address)
     if (!own) {
       const v = checkSubdomain(address, existing.takenAddresses)
       if (!v.ok) return { ok: false, says: v.reason }
@@ -170,10 +172,14 @@ export type BootstrapResult =
 /** What the record holds for this input, read once. */
 async function readExisting(input: BootstrapInput): Promise<Existing> {
   const domain = clean(input.domain).toLowerCase()
-  const byDomain = await prisma.company.findFirst({
-    where: { OR: [{ domain }, { claimedDomains: { some: { domain } } }] },
-    select: { id: true, slug: true, name: true },
-  })
+  // Etyme's own domain is nobody's, so a company whose seats use it (Tapin)
+  // is found by its Etyme address, never by the domain.
+  const byDomain = isPlatformDomain(domain)
+    ? await prisma.company.findFirst({ where: { slug: clean(input.address).toLowerCase() }, select: { id: true, slug: true, name: true } })
+    : await prisma.company.findFirst({
+      where: { OR: [{ domain }, { claimedDomains: { some: { domain } } }] },
+      select: { id: true, slug: true, name: true },
+    })
   const taken = new Set((await prisma.company.findMany({ select: { slug: true } })).map((c) => c.slug))
   if (byDomain) taken.delete(byDomain.slug)
   const emails = (input.seats ?? []).map((s) => clean(s.email).toLowerCase())
@@ -223,18 +229,21 @@ export async function bootstrapCompany(input: BootstrapInput): Promise<Bootstrap
   if (plan.createCompany) {
     const owner = plan.seats.find((s) => s.role === 'Owner')!
     const ownerId = owner.does === 'CREATE_PERSON_AND_SEAT' ? created.get(owner.email)! : (owner as { personId: string }).personId
+    const platform = isPlatformDomain(plan.domain)
     const made = await createCompany({
-      name: clean(input.name), kind: input.kind, slug: plan.address, domain: plan.domain,
-      byPersonId: ownerId, seatAsOwner: true, claimDomain: true, startsSetup: true,
+      name: clean(input.name), kind: input.kind, slug: plan.address, domain: platform ? null : plan.domain,
+      byPersonId: ownerId, seatAsOwner: true, claimDomain: !platform, startsSetup: true,
     })
     company = { id: made.company.id, slug: made.company.slug, name: made.company.name }
     companyCreated = true
     // Staff vouched for the domain, not an identity provider: said so on the claim.
-    await prisma.companyDomain.updateMany({ where: { companyId: company.id, domain: plan.domain }, data: { verifiedVia: 'STAFF' } })
+    if (!platform) await prisma.companyDomain.updateMany({ where: { companyId: company.id, domain: plan.domain }, data: { verifiedVia: 'STAFF' } })
     await prisma.automationLog.create({
       data: {
         companyId: company.id, action: 'STAFF_BOOTSTRAP',
-        summary: `Staff made ${company.name} (${plan.address}.etyme.com) on ${plan.domain}, the domain verified on staff's word.`,
+        summary: platform
+          ? `Staff made ${company.name} (${plan.address}.etyme.com) with seats on ${plan.domain}. ${plan.domain} is Etyme's own domain, so no company claims it.`
+          : `Staff made ${company.name} (${plan.address}.etyme.com) on ${plan.domain}, the domain verified on staff's word.`,
         reason: REASON,
         payload: { made: 'COMPANY', slug: plan.address, domain: plan.domain, kind: input.kind, ownerPersonId: ownerId },
         reversible: false,

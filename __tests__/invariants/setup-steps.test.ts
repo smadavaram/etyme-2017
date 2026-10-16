@@ -249,7 +249,8 @@ describe('setup after round two of the sign-up walk', () => {
 
 describe('staff bootstrap, on a deployment with no email', () => {
   const ETYME = {
-    name: 'Etyme', domain: 'etyme.com', kind: 'VENDOR' as const, address: 'etyme',
+    // Tapin, the founder's bench business, on etyme.com addresses (CLAUDE.md, 2026-10-15).
+    name: 'Tapin', domain: 'etyme.com', kind: 'VENDOR' as const, address: 'tapin',
     seats: [
       { email: 'sharath@etyme.com', role: 'Owner' },
       { email: 'support@etyme.com', role: 'Admin' },
@@ -264,14 +265,13 @@ describe('staff bootstrap, on a deployment with no email', () => {
     const first = planBootstrap(ETYME, empty)
     if (!first.ok) throw new Error(first.says)
     expect(first.createCompany).toBe(true)
-    // Its own name, even though "etyme" is kept back from everybody else.
-    expect(first.address).toBe('etyme')
+    expect(first.address).toBe('tapin')
     expect(first.seats.map((s) => s.does)).toEqual(Array(5).fill('CREATE_PERSON_AND_SEAT'))
     expect(LINK_HOURS).toBe(7 * 24)
 
     // The second run finds the company and the five seats, nobody having signed in yet.
     const after: Existing = {
-      company: { id: 'c1', slug: 'etyme', name: 'Etyme' },
+      company: { id: 'c1', slug: 'tapin', name: 'Tapin' },
       takenAddresses: new Set(['northbend']),
       people: Object.fromEntries(ETYME.seats.map((s, i) => [s.email, { personId: `p${i}`, signedIn: false, seatRole: s.role }])),
     }
@@ -292,10 +292,23 @@ describe('staff bootstrap, on a deployment with no email', () => {
     expect(planBootstrap({ ...ETYME, domain: 'demo.etyme.local', seats: [{ email: 'a@demo.etyme.local', role: 'Owner' }] }, empty))
       .toMatchObject({ ok: false, says: expect.stringContaining('demo world') })
 
+    // A company may take its own domain's name as its address, except on Etyme's own domain.
+    expect(planBootstrap({ ...ETYME, address: 'etyme' }, empty)).toMatchObject({ ok: false })
+
     // The route is behind the staff secret, says why it exists, and never answers with a password.
     const route = src('src/app/api/staff/bootstrap-company/route.ts')
     expect(route).toContain('cronAuthorized(request)')
     expect(route).toContain('no email key')
     expect(src('src/lib/staff-bootstrap.ts')).not.toMatch(/password:\s/)
+  })
+
+  it("staff bootstrap on Etyme's own domain finds the company by its address and claims no domain", () => {
+    const boot = src('src/lib/staff-bootstrap.ts')
+    expect(boot).toContain('domain: platform ? null : plan.domain')
+    expect(boot).toContain('claimDomain: !platform')
+    expect(boot).toContain("where: { slug: clean(input.address).toLowerCase() }")
+    const doc = src('docs/run-etyme-on-etyme.md')
+    expect(doc).toContain('"address": "tapin"')
+    expect(doc).not.toContain('"address": "etyme"')
   })
 })

@@ -126,6 +126,42 @@ export function passwordDoor(): Provider {
   })
 }
 
+/**
+ * Why a Microsoft or Google sign-in is refused before it becomes a session,
+ * or null when it may go on. Returned as the code the sign-in page reads
+ * (`/login?error=…`, lib/login-doors says the sentence).
+ *
+ * Identity in Etyme is the email: a session is read as the person whose
+ * primary email it carries (lib/api-context), so a password account and a
+ * later Google sign-in on the same address are one person. That is only
+ * safe where the identity provider vouches for the address:
+ *   - Google says so in `email_verified`. A Google account on an address
+ *     Google never confirmed is refused.
+ *   - Microsoft does not by default. Any organization's administrator can
+ *     put any address on a user in their own tenant, and the sign-in is
+ *     open to every tenant, so an unproven address could sign in as
+ *     somebody else here. Microsoft sends `xms_edov` (the email domain's
+ *     owner is verified) when the app asks for it, and leaves the email out
+ *     where the owner is unverified for apps registered since 2023. Both
+ *     are honored: no email, or `xms_edov` false, is refused.
+ */
+export function oauthRefusal(provider: string | undefined, profile: Record<string, unknown> | undefined, email: string | null | undefined): 'NoEmail' | 'EmailNotVerified' | null {
+  if (provider !== 'google' && provider !== 'azure-ad') return null
+  if (!email || !String(email).includes('@')) return 'NoEmail'
+  if (provider === 'google') {
+    const v = profile?.email_verified
+    return v === true || v === 'true' ? null : 'EmailNotVerified'
+  }
+  const edov = profile?.xms_edov
+  return edov === false || edov === 'false' || edov === 0 ? 'EmailNotVerified' : null
+}
+
+/** One spelling of an address, so a mixed-case Microsoft email is the same person. */
+export function sessionEmail(email: string | null | undefined): string | null {
+  const e = String(email ?? '').trim().toLowerCase()
+  return e || null
+}
+
 /** NextAuth's provider id, as the Credential row names it. */
 const PROVIDER_ROW: Record<string, 'MICROSOFT' | 'GOOGLE' | 'EMAIL'> = {
   'azure-ad': 'MICROSOFT',
@@ -147,7 +183,11 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
+      // Microsoft and Google only where the provider vouches for the email,
+      // because the email is who the session is (oauthRefusal above).
+      const refused = oauthRefusal(account?.provider, profile as Record<string, unknown> | undefined, user.email)
+      if (refused) return `/login?error=${refused}`
       // The password door refuses an unconfirmed address inside authorize,
       // with the sentence and the code the page reads to offer the link
       // again. This is the second lock on the same door: nothing reaches a
@@ -165,7 +205,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.email = user.email
+        token.email = sessionEmail(user.email)
       }
       return token
     },
