@@ -5,6 +5,7 @@ import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type
 import { lineFor, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, type OrderHeader, type AgreementTerms } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
+import { drawnOnOrder } from '@/lib/money/order-drawn'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -288,6 +289,13 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
       select: { total: true },
     })
     consumedCents = others.reduce((s, i) => s + decimalToCents(i.total), 0)
+    // And the invoice receipts the payer typed in against the same order
+    // (lib/money/order-drawn): one order filled once by each path was
+    // paid twice past its ceiling, because each check counted only its
+    // own kind. Only those in the order's currency are added.
+    if (invoice.workOrder) {
+      consumedCents += (await drawnOnOrder(invoice.workOrder, { only: 'RECEIPTS' })).cents
+    }
   }
 
   // The rate the contract carried on the day the work was done. Amendments

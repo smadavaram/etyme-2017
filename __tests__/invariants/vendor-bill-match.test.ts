@@ -294,3 +294,53 @@ describe('The two engines agree about what a ceiling is', () => {
     expect(matched.poAfter!.remainingCents).toBe(intake.poRemainingAfterCents)
   })
 })
+
+describe('A typed-in invoice receipt is paid on the same check as a platform invoice (release walk, 2026-10-18)', () => {
+  const totalOnly = (totalCents: number, expectedCents: number | null) =>
+    matchVendorBill(input({ bill: { ...input().bill, hours: null, rateCents: null, totalCents }, expectedCents }))
+
+  it('a receipt that states neither hours nor rate is checked on its total against the accepted hours at the agreed rate', () => {
+    const r = totalOnly(1_600_000, 1_600_000)
+    expect(r.matched).toBe(true)
+    expect(r.checks.find((c) => c.code === 'AMOUNT')!.outcome).toBe('PASS')
+  })
+
+  it('a total that is not the accepted hours at the agreed rate fails, and nobody may waive it because a total cannot say whether the hours or the rate differ', () => {
+    const r = totalOnly(1_640_000, 1_600_000)
+    const amount = r.checks.find((c) => c.code === 'AMOUNT')!
+    expect(amount.outcome).toBe('FAIL')
+    expect(amount.overridable).toBe(false)
+    expect(amount.reason).toMatch(/Enter the hours and the rate from the invoice/)
+    // A recorded waiver is ignored, exactly as a waiver on a duplicate is.
+    const waived = matchVendorBill(input({
+      bill: { ...input().bill, hours: null, rateCents: null, totalCents: 1_640_000 },
+      expectedCents: 1_600_000,
+      overrides: [{ code: 'AMOUNT', reason: 'close enough', byName: 'A clerk', at: NOW }],
+    }))
+    expect(waived.matched).toBe(false)
+  })
+
+  it('a total is never paid within a tolerance: one dollar over is a failure', () => {
+    expect(totalOnly(1_600_100, 1_600_000).matched).toBe(false)
+  })
+
+  it('where the agreed rate cannot be read in the receipt’s currency, the amount check refuses rather than passes', () => {
+    const r = totalOnly(1_600_000, null)
+    expect(r.checks.find((c) => c.code === 'AMOUNT')!.outcome).toBe('FAIL')
+  })
+
+  it('a receipt that states its hours and its rate is judged on those, and its total is not checked a second time', () => {
+    const r = matchVendorBill(input({ expectedCents: 1_500_000 }))
+    expect(r.checks.find((c) => c.code === 'AMOUNT')).toBeUndefined()
+    expect(r.matched).toBe(true)
+  })
+
+  it('the same work on an earlier receipt fails the duplicate check in a sentence naming that receipt, and nobody may waive it', () => {
+    const says = 'Helena Marsh’s week of Oct 4 is already on Techpeple’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice.'
+    const r = matchVendorBill(input({ bill: { ...input().bill, duplicateOfBillId: 'TP-A', duplicateSays: says } }))
+    const dup = r.checks.find((c) => c.code === 'DUPLICATE')!
+    expect(dup.outcome).toBe('FAIL')
+    expect(dup.overridable).toBe(false)
+    expect(dup.reason).toBe(says)
+  })
+})

@@ -3,7 +3,6 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { withdrawDraft } from '@/lib/money/bill-withdraw'
-import { decideApproval } from '@/lib/twin/ledger'
 
 /**
  * POST /api/invoices/:id/withdraw   { reason }
@@ -42,22 +41,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const out = await withdrawDraft({ invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name }, reason: reason ?? '' })
     if (!out.ok) {
       return NextResponse.json({ error: { code: out.code, message: out.says } }, { status: out.status })
-    }
-    // Ask Etyme's open question about sending it is answered: there is
-    // nothing left to send. Only by somebody other than the person the
-    // twin acts for — nobody answers their own — and otherwise the
-    // question refuses itself on a yes, because the record has no draft.
-    if (out.billSendQuestion && out.billSendQuestion.authorityPersonId !== caller.person.id) {
-      await decideApproval({
-        approvalId: out.billSendQuestion.id,
-        decider: {
-          personId: caller.person.id, personName: caller.person.name, companyId,
-          companyKind: caller.company?.kind, companyName: caller.company?.name, permissions: caller.permissions,
-        },
-        decision: 'REJECTED',
-        reason: `Draft bill ${out.number} was withdrawn: ${reason!.trim()}`,
-        surface: 'WEB',
-      })
     }
     return NextResponse.json({ data: { number: out.number, withdrawn: true, message: out.says } })
   } catch (err) {

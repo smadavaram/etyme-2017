@@ -39,7 +39,7 @@ import { closeOvertaken, ledger } from '@/lib/twin/ledger'
 type Tx = Prisma.TransactionClient
 
 export type WithdrawResult =
-  | { ok: true; number: string; says: string; draftKey: string | null; billSendQuestion: { id: string; authorityPersonId: string | null } | null }
+  | { ok: true; number: string; says: string; draftKey: string | null }
   | { ok: false; status: 404 | 409 | 422; code: string; says: string }
 
 /** Whether this firm may withdraw this bill now, and the sentence where not. Reads only. */
@@ -117,7 +117,9 @@ export async function withdrawDraft(a: {
   // A person's no to the twin's draft, on the twin's own ledger: the
   // answer an auditor reads beside the draft, with the key that lets the
   // next run draft the period again (`billsDueAt`).
-  let billSendQuestion: { id: string; authorityPersonId: string | null } | null = null
+  // Ask Etyme's open question about sending it was closed as overtaken
+  // inside the withdrawal's own transaction (`closeOvertaken` in the
+  // ledger), so nothing is left to answer here.
   if (drafted) {
     // Through the ledger's own door, which never throws and reports to
     // staff where it cannot write: the draft is already gone either way.
@@ -145,18 +147,12 @@ export async function withdrawDraft(a: {
       },
       dedupKey: null,
     })
-    const open = await prisma.twinAction.findFirst({
-      where: { companyId: a.companyId, action: 'bill.send', entityType: 'Invoice', entityId: a.invoiceId, approvalRequested: { decision: 'PENDING' } },
-      select: { authorityPersonId: true, approvalRequested: { select: { id: true } } },
-    })
-    billSendQuestion = open?.approvalRequested ? { id: open.approvalRequested.id, authorityPersonId: open.authorityPersonId } : null
   }
 
   return {
     ok: true,
     number: out.number,
     draftKey: drafted?.dedupKey ?? null,
-    billSendQuestion,
     says: `Draft bill ${out.number} (${fromUnits(out.total, out.currency)}) is withdrawn. Its weeks can be billed again from the Bills page or by Ask Etyme’s next run.`,
   }
 }

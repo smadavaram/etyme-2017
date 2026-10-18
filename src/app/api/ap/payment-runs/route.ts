@@ -3,6 +3,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
@@ -333,6 +334,32 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
+  // ── Checked again at the moment money leaves ────────────────────────
+  //
+  // A run approved on Monday and released on Friday pays Friday's facts.
+  // One receipt that no longer passes stops the release, named, rather
+  // than leaving the run to pay part of a file somebody approved whole:
+  // cancel the run, and the next one leaves that receipt out with why.
+  const stopped: string[] = []
+  for (const i of run.items) {
+    const gate = await mayPayKeyedReceipt(i.vendorBillId)
+    if (gate && !gate.ok) stopped.push(gate.says)
+  }
+  if (stopped.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'MATCH_FAILED',
+          message:
+            `This run is not released: ${stopped.length === 1 ? 'one invoice receipt in it' : `${stopped.length} invoice receipts in it`} ` +
+            `no longer ${stopped.length === 1 ? 'passes' : 'pass'} the three-way check. ${stopped.join(' ')} ` +
+            `Cancel the run and assemble it again.`,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   const outcomes = applyRunPayment(
     run.items.map((i) => ({ billId: i.vendorBillId, amountCents: i.amountCents })),
     run.items.map((i) => i.vendorBill),
@@ -417,8 +444,19 @@ async function loadPayable(companyId: string) {
     if (book && book.waiting.length > 0) notAccepted.set(b.id, book.notAccepted)
   }
 
+  // And the one gate a payment asks (lib/money/keyed-receipt): approved
+  // once is not payable for ever. A receipt whose order has since filled,
+  // or whose week another receipt was paid for, is left out with why.
+  const refused = new Map<string, string>()
+  for (const b of bills) {
+    if (b.status !== 'APPROVED' || b.totalCents - b.paidCents <= 0 || notAccepted.has(b.id)) continue
+    const gate = await mayPayKeyedReceipt(b.id)
+    if (gate && !gate.ok) refused.set(b.id, gate.says)
+  }
+
   const payable: PayableBill[] = bills.map((b) => ({
     notAccepted: notAccepted.get(b.id) ?? null,
+    refused: refused.get(b.id) ?? null,
     id: b.id,
     number: b.number,
     vendorCompanyId: b.vendorCompany.id,

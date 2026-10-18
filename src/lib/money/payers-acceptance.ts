@@ -111,7 +111,7 @@ export interface PayersAcceptance {
    * accepted on them, so a reader can price each day at the rate in force
    * that day rather than the whole period at one rate.
    */
-  weeks: Array<{ periodStart: Date; periodEnd: Date; days: Days | null; hours: number }>
+  weeks: Array<{ id: string; periodStart: Date; periodEnd: Date; days: Days | null; hours: number; personName?: string | null }>
 }
 
 /**
@@ -153,6 +153,8 @@ export function payersAcceptance(i: {
     const share = shareOf(i, w)
     hours += Number(mine.hours) * share
     accepted.push({
+      id: w.id,
+      personName: w.personName ?? null,
       periodStart: w.periodStart,
       periodEnd: w.periodEnd,
       days: w.days ? daysOf(i, w) : null,

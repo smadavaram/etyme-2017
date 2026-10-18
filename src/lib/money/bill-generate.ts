@@ -40,7 +40,8 @@ import {
   type Place, type Party, type BillingTerms, type DueVerdict,
 } from '@/lib/billing-cascade'
 import { minorPerUnit } from '@/lib/money'
-import { fromUnits } from '@/lib/money-display'
+import { drawnOnOrder } from '@/lib/money/order-drawn'
+import { fromUnits, amount } from '@/lib/money-display'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { lineFor, type Decision } from '@/lib/overtime'
@@ -958,6 +959,43 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   const currency = lines[0]?.currency ?? expLines[0]?.currency ?? anchorContract.billCurrency // one currency per invoice, now checked
   const milestoneCents = milestones.reduce((sum, m) => sum + m.amountCents, 0)
   const total = lines.reduce((sum, line) => sum + line.amountCents, 0) / minorPerUnit(currency) + expenseTotal(expLines, minorPerUnit(currency)) + milestoneCents / minorPerUnit(currency)
+
+  // ── The order's ceiling, before anything is drafted ─────────────────
+  //
+  // Release walk, 2026-10-18: a bill was drafted for $4,720 against an
+  // order with $1,000 left and was refused only when somebody pressed
+  // Send — the three-way check refuses it there, and only the payer may
+  // waive a ceiling, never the firm billing. A draft that can never be
+  // sent is refused here instead, in the same terms. It is not cut down
+  // to fit: which hours a ceiling leaves off is a choice for the two
+  // firms (a change order, or a bill for fewer weeks), not one to make
+  // by trimming a line. Counted the way the check counts it — every bill
+  // sent and every invoice receipt typed in against the order
+  // (lib/money/order-drawn), and only in the order's currency.
+  {
+    const orderId = billing.find((t) => t.sellContract.workOrderId)?.sellContract.workOrderId ?? null
+    const order = orderId
+      ? await prisma.workOrder.findUnique({ where: { id: orderId }, select: { id: true, number: true, amount: true, currency: true } })
+      : null
+    if (order && order.currency.toUpperCase() === String(currency).toUpperCase()) {
+      const per = minorPerUnit(currency)
+      const ceilingMinor = Math.round(parseFloat(order.amount.toString()) * per)
+      const drawn = await drawnOnOrder(order)
+      const thisMinor = Math.round(total * per)
+      if (drawn.foreign.length === 0 && drawn.cents + thisMinor > ceilingMinor) {
+        const left = Math.max(0, ceilingMinor - drawn.cents)
+        return reply(422, {
+          error: {
+            code: 'PO_CEILING',
+            message:
+              `Order ${order.number} has ${amount(left, currency)} left and this bill would be ` +
+              `${amount(thisMinor, currency)}, over by ${amount(thisMinor - left, currency)}. It could not be sent, ` +
+              `so it is not drafted. Ask your customer to raise the order, or bill fewer weeks.`,
+          },
+        })
+      }
+    }
+  }
 
   // ── The four parties ────────────────────────────────────────────────
   const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0]?.sellContractId ?? anchorContract.id)

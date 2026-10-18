@@ -243,6 +243,38 @@ read is on the access log under the program owner and the twin's kind
   request (an optional `invoiceId` on `PaymentRunItem`), not made until a
   client asks.
 
+### A typed-in invoice receipt (`VendorBill`) — etyme-money, 2026-10-18
+
+The intake, the exception queue, the payment and the payment run now ask
+one check (`checkKeyedReceipt`, gate `keyedPayGate` / `mayPayKeyedReceipt`
+in `lib/money/keyed-receipt`). What a typed-in receipt still cannot do,
+each refused rather than guessed:
+
+- **No waiver.** There is no row to keep a reason on, so a difference a
+  clerk could waive on a platform invoice (hours, period, the order's
+  ceiling or window) is refused at payment on a typed-in one, in a
+  sentence asking for the supplier's corrected invoice. Schema request:
+  a `VendorBillMatchOverride` like `InvoiceMatchOverride`.
+- **No payment row.** `Payment` points only at an `Invoice`; a row
+  pointing at nothing is unapplied cash on the supplier's own books. The
+  payment is written as a `PAYMENT_RECORDED` automation-log row with who
+  paid whom, the amount, method, reference and who pressed it. Schema
+  request: an optional `Payment.vendorBillId` (and AR's unapplied-cash
+  reads then exclude it).
+- **No lines, no stored hours or rate.** At payment only the total can be
+  held to the accepted hours at the agreed rate (the AMOUNT check, never
+  waivable, because a total cannot say whether hours or rate differ). An
+  expense or a milestone on a supplier's typed-in invoice cannot be
+  represented at all. A week on a buy line with a decided overtime
+  premium is refused at payment, because the straight-time sum is all a
+  total can be checked against. Schema request: `VendorBillLine`.
+- **No cancel door.** A mis-keyed receipt is corrected only by the
+  database; the tests write the cancel. Owed: a cancel action on
+  `PATCH /api/ap/bills`, which needs an autonomy rung for its log row.
+- **Two receipts for one week let in before 2026-10-18** are paid once:
+  the one recorded first, or the one already part paid; the other is
+  refused at payment and left out of a run.
+
 ## Teams door — etyme-conversation
 
 What is built: `POST /api/teams/messages` (the bot), the identity

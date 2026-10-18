@@ -272,6 +272,7 @@ function label(code: MatchCode): string {
     PO_REQUIRED: 'the purchase order requirement',
     PO_STATUS: 'the purchase order status',
     PO_BALANCE: 'the purchase order balance',
+    AMOUNT: 'the amount',
   }
   return map[code] ?? code
 }

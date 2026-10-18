@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alreadyOnABill } from '@/lib/money/billed-elsewhere'
-import { priceByDay, ratePeriods } from '@/lib/contract-rate'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
-import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { staffOnly } from '@/lib/seat'
 import {
   mayOpen, refusal, mayRecordSupplierInvoice, PAYABLE, NOT_THE_PAYING_DESK,
 } from '@/lib/money/desks'
 import { decimalsFor } from '@/lib/money'
-import { canAttachPoToBuyContract, overBillCheck } from '@/lib/purchase-order'
+import { canAttachPoToBuyContract } from '@/lib/purchase-order'
+import { exceptionQueue, CHECK_PHRASE } from '@/lib/three-way-match'
 import {
-  matchVendorBill, exceptionQueue, CHECK_PHRASE,
-  type AcceptedWork, type PurchaseOrderFacts,
-} from '@/lib/three-way-match'
+  checkKeyedReceipt, keyedPayGate, asKeyed, KEYED_SELECT,
+} from '@/lib/money/keyed-receipt'
+import { amount } from '@/lib/money-display'
 import {
   booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
 } from '@/lib/money/seated-books'
@@ -264,30 +263,19 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // ── The ceiling, and the hours behind the bill ──────────────────────
+  // ── The ceiling, the hours behind the bill, and the same work twice ──
   //
-  // The duplicate check above catches the commonest AP error and nothing
-  // else. A supplier could bill $40,000 against a $25,000 purchase order,
-  // or twice what the buy contract can produce in a month, and it went
-  // straight in — because the ceiling lived in one table and the bill in
-  // another and nothing compared them. A ceiling nobody checks is not a
-  // control, it is a number in a database.
-  //
-  // And `three-way-match.ts` had forty-two tests and was never called
-  // from here, so a bill for hours nobody accepted matched nothing at
-  // all. Both are wired now, and both REPORT rather than refuse where a
-  // person may legitimately proceed: an unwaivable failure is a 422, a
-  // waivable one is recorded on the bill as DISPUTED with the reason.
-
-  let poFacts: PurchaseOrderFacts | null = null
+  // One check for a typed-in receipt, the one the payment and the payment
+  // run ask again (lib/money/keyed-receipt): the order — the one named,
+  // else the buy line's own, because the walk's $4,720 receipt went
+  // through a $1,000 order the clerk had not typed in — what everything
+  // already drawn on it leaves; the weeks we accepted and what they come
+  // to at the agreed rate; and every other live receipt from this
+  // supplier on this line, because a week received under TP-A was
+  // received again under TP-A2 and both were paid. An unwaivable failure
+  // is a refusal; a waivable one is recorded as DISPUTED with the reason.
   if (workOrderId) {
-    const po = await prisma.workOrder.findUnique({
-      where: { id: workOrderId },
-      select: {
-        id: true, number: true, status: true, amount: true, currency: true,
-        startDate: true, endDate: true, issuedById: true,
-      },
-    })
+    const po = await prisma.workOrder.findUnique({ where: { id: workOrderId }, select: { issuedById: true } })
     if (!po || po.issuedById !== companyId) {
       return NextResponse.json(
         {
@@ -300,176 +288,66 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-
-    // What other live bills have already drawn down. Cancelled ones have
-    // not consumed anything, and counting them would refuse a bill the
-    // order has room for.
-    const drawn = await prisma.vendorBill.aggregate({
-      where: { workOrderId, status: { notIn: ['CANCELLED'] } },
-      _sum: { totalCents: true },
-    })
-
-    poFacts = {
-      id: po.id,
-      number: po.number,
-      status: po.status,
-      amountCents: Math.round(parseFloat(po.amount.toString()) * 10 ** decimalsFor(po.currency)),
-      consumedCents: drawn._sum.totalCents ?? 0,
-      startDate: po.startDate,
-      endDate: po.endDate,
-    }
-
-    const ceiling = overBillCheck(
-      {
-        billCents: totalCents,
-        billCurrency: currency,
-        periodStart,
-        periodEnd,
-        po: { ...poFacts, currency: po.currency },
-      },
-      new Date()
-    )
-
-    const hard = ceiling.problems.filter((p) => !p.overridable)
-    if (hard.length > 0) {
-      return NextResponse.json(
-        { error: { code: hard[0].code, message: hard[0].says, field: 'workOrderId' } },
-        { status: 422 }
-      )
-    }
   }
 
-  // What WE accepted for pay over the billed period — the paying firm's
-  // own signature on each week, and nobody else's. Not the client's
-  // approval: the client approves forty, we accept thirty-eight, and the
-  // margin sits between them. And not the supplier's acceptance either:
-  // in a chain the week is filed on the supplier's contract below us,
-  // and what the supplier accepted to pay its own person is not what we
-  // accepted to pay the supplier (CLAUDE.md, "The signed week travels
-  // down the chain": no rung pays on a week it has not accepted).
-  // `lib/money/payers-acceptance` decides which signature is ours; the
-  // week spanning two buy contracts is divided, never counted twice.
-  let accepted: AcceptedWork | null = null
-  let expectedCents: number | null = null
-
-  if (buyContractId && periodStart && periodEnd) {
-    const book = await payersBook({ buyContractId, periodStart, periodEnd, then: 'record' })
-
-    // ── A week we have not accepted blocks the invoice ─────────────────
-    //
-    // The founder, 2026-09-28 (CLAUDE.md, "What each rung may bill, and
-    // when", rule 3). Refused here, before anything is written, and not
-    // recorded as disputed: a disputed invoice is one somebody may still
-    // wave through with a reason, and this one nobody may. Accept the
-    // week, then record the invoice. The sentence names the week and the
-    // firm that must accept it.
-    if (book && book.waiting.length > 0) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'WEEK_NOT_ACCEPTED',
-            message: book.notAccepted,
-            weeks: book.waiting.map((w) => ({
-              timesheetId: w.id,
-              weekOf: w.periodStart.toISOString().slice(0, 10),
-              personName: w.personName,
-            })),
-          },
-        },
-        { status: 422 }
-      )
-    }
-    const ours = book?.accepted ?? null
-
-    const candidate = await prisma.buyContractCandidate.findFirst({
-      where: { buyContractId },
-      select: { payRate: true, payCurrency: true },
-    })
-
-    if (ours) {
-      // Each accepted day at the rate in force that day. The line's own
-      // rate is its opening rate and is never overwritten by a change, so
-      // reading it alone priced every hour after a rise at the old rate —
-      // and an invoice billed correctly at the new one failed the check.
-      const periods = ratePeriods(
-        await prisma.rateHistory.findMany({
-          where: { contractType: 'BUY', contractId: buyContractId },
-          select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-        })
-      )
-      const priced = candidate
-        ? ours.weeks.map((w) =>
-            priceByDay({
-              contractRateCents: candidate.payRate,
-              periods,
-              days: w.days,
-              hours: w.hours,
-              periodStart: w.periodStart,
-              periodEnd: w.periodEnd,
-            })
-          )
-        : []
-      const rates = new Set(priced.flatMap((p) => p.days.map((d) => d.rateCents)))
-      const firstRate = priced.find((p) => p.days.length > 0)?.firstRateCents ?? null
-      accepted = {
-        hours: ours.hours,
-        // One rate where the period had one. Where a change fell inside
-        // it, no single rate is the contract's, and an invoice at one
-        // rate across it is wrong: the rate on the first day stands here
-        // and the check says so; the total below is priced by day.
-        contractRateCents: (rates.size === 1 ? [...rates][0] : firstRate) ?? candidate?.payRate ?? ours.firstRateCents,
-        firstDay: ours.firstDay,
-        lastDay: ours.lastDay,
-        count: ours.count,
-      }
-      if (candidate && candidate.payCurrency.toUpperCase() === currency) {
-        // Rounded once per rate across the whole period, as it always
-        // was once across the whole period.
-        const byRate = new Map<number, number>()
-        for (const p of priced) for (const d of p.days) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
-        expectedCents = [...byRate.entries()].reduce((n, [r, h]) => n + Math.round(h * r), 0)
-      }
-    }
-  }
-
-  if (expectedCents != null) {
-    const shape = overBillCheck(
-      {
-        billCents: totalCents,
-        billCurrency: currency,
-        po: null,
-        contractExpectedCents: expectedCents,
-        contractCurrency: currency,
-      },
-      new Date()
-    )
-    const hard = shape.problems.filter((p) => !p.overridable)
-    if (hard.length > 0) {
-      return NextResponse.json(
-        { error: { code: hard[0].code, message: hard[0].says, field: 'total' } },
-        { status: 422 }
-      )
-    }
-  }
-
-  const match = matchVendorBill({
-    bill: {
-      id: 'pending',
+  const check = await checkKeyedReceipt(
+    {
+      id: null,
+      companyId,
+      vendorCompanyId,
+      vendorName: vendor.name,
       number,
-      totalCents,
-      currency,
+      buyContractId,
+      workOrderId,
       periodStart,
       periodEnd,
+      currency,
+      totalCents,
       hours: body.hours != null ? Number(body.hours) : null,
       rateCents: body.rateCents != null ? Math.round(Number(body.rateCents)) : null,
-      duplicateOfBillId: null,
     },
-    accepted,
-    po: poFacts,
-    // The payer's own policy, from the company that raises the PO.
-    poRequired: false,
-  })
+    'record'
+  )
 
+  // ── A week we have not accepted blocks the invoice ─────────────────
+  //
+  // The founder, 2026-09-28 (CLAUDE.md, "What each rung may bill, and
+  // when", rule 3). Refused here, before anything is written, and not
+  // recorded as disputed: a disputed invoice is one somebody may still
+  // wave through with a reason, and this one nobody may. Accept the
+  // week, then record the invoice. The sentence names the week and the
+  // firm that must accept it.
+  if (check.notAccepted) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'WEEK_NOT_ACCEPTED',
+          message: check.notAccepted.says,
+          weeks: check.notAccepted.waiting.map((w) => ({
+            timesheetId: w.id,
+            weekOf: w.periodStart.toISOString().slice(0, 10),
+            personName: w.personName,
+          })),
+        },
+      },
+      { status: 422 }
+    )
+  }
+  if (check.hard) {
+    return NextResponse.json(
+      { error: { code: check.hard.code, message: check.hard.says, field: 'workOrderId' } },
+      { status: 422 }
+    )
+  }
+  // The same work under another number. Named, and never waved through.
+  if (check.duplicate) {
+    return NextResponse.json(
+      { error: { code: 'ALREADY_RECEIVED', message: check.duplicate.says, receipts: [check.duplicate.number] } },
+      { status: 409 }
+    )
+  }
+
+  const match = check.match
   const unwaivable = match.checks.filter((c) => c.outcome === 'FAIL' && c.overridable === false)
   if (unwaivable.length > 0) {
     return NextResponse.json(
@@ -546,13 +424,33 @@ export async function POST(request: NextRequest) {
   const failedSoft = match.checks.filter((c) => c.outcome === 'FAIL')
   const statusAfterMatch = failedSoft.length > 0 ? 'DISPUTED' : status
 
+  // Recorded as already paid, it is paid on the same check as any other
+  // payment: a receipt that does not pass is not written down as settled.
+  const paidOnIntake = paidAt != null || Number(body.paid ?? 0) > 0 || status === 'PAID'
+  if (failedSoft.length > 0 && paidOnIntake) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'MATCH_FAILED',
+          message:
+            `${match.summary.replace(/[.\s]+$/, '')}. A receipt that does not pass the check is not recorded as paid. ` +
+            `Record it without a paid date and it is held as disputed.`,
+          checks: match.checks,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   const bill = await prisma.vendorBill.create({
     data: {
       companyId,
       vendorCompanyId,
       number,
       buyContractId,
-      workOrderId,
+      // The order it draws on, named or the line's own, so the next
+      // receipt's ceiling counts this one.
+      workOrderId: check.workOrderId,
       projectOrderId,
       periodStart,
       periodEnd,
@@ -677,31 +575,37 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
-  const bill = await prisma.vendorBill.findUnique({
-    where: { id },
-    select: {
-      id: true, companyId: true, currency: true, totalCents: true, paidCents: true, receivedAt: true,
-      buyContractId: true, periodStart: true, periodEnd: true,
-    },
-  })
+  const bill = await prisma.vendorBill.findUnique({ where: { id }, select: KEYED_SELECT })
   if (!bill || bill.companyId !== reading.companyId) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such invoice receipt here' } }, { status: 404 })
   }
+  const vendorName = bill.vendorCompany.name
 
-  // Paying is the last way round the rule, and the one that cannot be
-  // undone. An invoice recorded before 2026-09-28, or one whose week was
-  // withdrawn after it was recorded, covers hours nobody here accepted;
-  // it is not paid until they are.
-  if (bill.buyContractId && bill.periodStart && bill.periodEnd) {
-    const book = await payersBook({
-      buyContractId: bill.buyContractId, periodStart: bill.periodStart, periodEnd: bill.periodEnd, then: 'pay',
-    })
-    if (book && book.waiting.length > 0) {
-      return NextResponse.json(
-        { error: { code: 'WEEK_NOT_ACCEPTED', message: book.notAccepted } },
-        { status: 422 }
-      )
-    }
+  // ── The one gate, run at the moment money leaves ────────────────────
+  //
+  // Release walk, 2026-10-18: a receipt recorded as disputed was paid by
+  // this request, a week received twice under two numbers was paid three
+  // times, and a receipt past its order's ceiling was paid — because this
+  // door asked only whether the weeks were accepted. Now it asks what the
+  // intake, the queue and the payment run ask (lib/money/keyed-receipt):
+  // the accepted hours at the agreed rate, inside the order, received
+  // once. A week nobody here accepted keeps its own refusal first, in the
+  // sentence that names the week.
+  const check = bill.status === 'CANCELLED' || bill.status === 'PAID'
+    ? null
+    : await checkKeyedReceipt(asKeyed(bill), 'pay')
+  if (check?.notAccepted) {
+    return NextResponse.json(
+      { error: { code: 'WEEK_NOT_ACCEPTED', message: check.notAccepted.says } },
+      { status: 422 }
+    )
+  }
+  const gate = keyedPayGate(bill, vendorName, check)
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: { code: gate.code, message: gate.says, checks: check?.match.checks ?? [] } },
+      { status: 409 }
+    )
   }
 
   const paidAt = body.paidAt ? new Date(String(body.paidAt)) : new Date()
@@ -737,6 +641,23 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
+  // No overpayment, the same rule as a payment on a platform invoice.
+  const owing = bill.totalCents - bill.paidCents
+  if (addCents > owing) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'OVERPAYMENT',
+          message:
+            `${amount(addCents, bill.currency)} is more than the ${amount(owing, bill.currency)} still owed on ` +
+            `${vendorName}’s invoice ${bill.number}. Record what was actually paid.`,
+          field: 'amount',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   const newPaid = bill.paidCents + addCents
   const settled = newPaid >= bill.totalCents
 
@@ -753,44 +674,64 @@ export async function PATCH(request: NextRequest) {
     select: { id: true, paidCents: true, totalCents: true, paidAt: true, status: true },
   })
 
-  // A payment made in a seat is on the record under the seat.
+  // ── Who paid whom ──────────────────────────────────────────────────
   //
-  // Only in a seat: a firm paying its own bill from its own desk writes
-  // what it always wrote, because a log line that appeared on every
-  // payment the day this shipped would be a change to everybody's books
-  // to fix one party's gap. What a client needs afterwards is the
-  // answer to "who moved our money, and on whose authority", and that
-  // is exactly the case this branch covers.
-  if (reading.seat) {
-    await prisma.automationLog.create({
-      data: {
-        companyId: reading.companyId,
-        // `PAYMENT_RECORDED` rather than a name of its own: the act is
-        // exactly what the invoice route logs under it — a person
-        // recorded that money moved — and a new action name needs a rung
-        // in `src/lib/autonomy.ts`, which is the architect's file and
-        // cannot land in this commit.
-        action: 'PAYMENT_RECORDED',
-        summary:
-          `${settled ? 'Paid in full' : 'Part paid'}: invoice receipt ${bill.id} on ` +
-          `${reading.companyName}'s books.`,
-        reason: moneyTrailFor(reading.seat, 'Invoice receipt paid') ?? '',
-        payload: {
-          vendorBillId: bill.id,
-          paidCents: addCents,
-          settled,
-          seatId: reading.seat.id,
-          officeCompanyId: reading.seat.officeCompany.id,
-          byPersonId: caller.person.id,
-        },
-        reversible: false,
+  // Written on every payment, as a payment on a platform invoice is: who
+  // paid, who was paid, how much, how, the reference, and who pressed it —
+  // under the seat where it was made in one. A platform invoice's payment
+  // is also a `Payment` row; a typed-in receipt's cannot be yet, because a
+  // `Payment` row can point only at an `Invoice`, and one pointing at
+  // nothing is unapplied cash on the supplier's own books. That column is
+  // asked of the architect (KNOWN-LIMITS.md).
+  //
+  // No cycle is closed here, on purpose: the date this receipt was expected
+  // closed when it was recorded, and when it falls due is the receipt's own
+  // `dueAt`, never a cycle (lib/cycle-kinds). Closing again would close the
+  // next period's date.
+  const method = body.method ? String(body.method) : null
+  const reference = body.reference ? String(body.reference) : null
+  await prisma.automationLog.create({
+    data: {
+      companyId: reading.companyId,
+      action: 'PAYMENT_RECORDED',
+      summary:
+        `Payment of ${amount(addCents, bill.currency)} recorded on ${vendorName}’s invoice ${bill.number}. ` +
+        (settled ? 'Now paid in full.' : `${amount(bill.totalCents - newPaid, bill.currency)} outstanding.`),
+      reason:
+        moneyTrailFor(reading.seat ?? null, `Payment of ${amount(addCents, bill.currency)} recorded`) ??
+        `Recorded by ${caller.person.name} at ${caller.company.name}, paying`,
+      payload: {
+        vendorBillId: bill.id,
+        number: bill.number,
+        paidBy: { companyId: reading.companyId, name: reading.companyName },
+        paidTo: { companyId: bill.vendorCompanyId, name: vendorName },
+        paidCents: addCents,
+        currency: bill.currency,
+        method,
+        reference,
+        paidAt: paidAt.toISOString(),
+        settled,
+        byPersonId: caller.person.id,
+        seatId: reading.seat?.id ?? null,
+        officeCompanyId: reading.seat?.officeCompany.id ?? null,
       },
-    })
-  }
+      reversible: false,
+    },
+  })
 
   return NextResponse.json({
     data: {
       bill: updated,
+      payment: {
+        amountMinor: addCents,
+        currency: bill.currency,
+        method,
+        reference,
+        paidAt: paidAt.toISOString(),
+        paidBy: reading.companyName,
+        paidTo: vendorName,
+        recordedBy: caller.person.name,
+      },
       readInASeat: reading.seated,
       note: settled
         ? 'Paid in full. This is the date every float figure on this supplier counts to.'
@@ -853,98 +794,18 @@ export async function GET(request: NextRequest) {
 
   const bills = await prisma.vendorBill.findMany({
     where: { companyId, status: { notIn: ['CANCELLED', 'PAID'] } },
-    select: {
-      id: true, number: true, currency: true, totalCents: true, paidCents: true,
-      receivedAt: true, dueAt: true, status: true, periodStart: true, periodEnd: true,
-      buyContractId: true,
-      vendorCompany: { select: { id: true, name: true } },
-      workOrder: {
-        select: {
-          id: true, number: true, status: true, amount: true, currency: true,
-          startDate: true, endDate: true,
-        },
-      },
-    },
+    select: KEYED_SELECT,
     orderBy: { receivedAt: 'desc' },
     take: 1_000,
   })
 
-  // What each purchase order has already had drawn against it, counted
-  // once rather than per bill.
-  const poIds = [...new Set(bills.map((b) => b.workOrder?.id).filter(Boolean))] as string[]
-  const drawn = poIds.length
-    ? await prisma.vendorBill.groupBy({
-        by: ['workOrderId'],
-        where: { workOrderId: { in: poIds }, status: { notIn: ['CANCELLED'] } },
-        _sum: { totalCents: true },
-      })
-    : []
-  const drawnBy = new Map(drawn.map((d) => [d.workOrderId, d._sum.totalCents ?? 0]))
-
+  // The same check a payment runs (lib/money/keyed-receipt), so the queue
+  // and the pay button cannot disagree about one receipt: the order, the
+  // line's own where none was named; the weeks this firm accepted and what
+  // they come to; and the same work on an earlier receipt.
   const items = []
   for (const b of bills) {
-    let accepted: AcceptedWork | null = null
-    let notAccepted: string | null = null
-    if (b.buyContractId && b.periodStart && b.periodEnd) {
-      // The same question intake asked: what this firm itself accepted,
-      // and which weeks it has not. An invoice recorded before the rule,
-      // or before a week was withdrawn, is refused here in the same
-      // sentence intake would give — as a failure nobody can waive.
-      const book = await payersBook({
-        buyContractId: b.buyContractId, periodStart: b.periodStart, periodEnd: b.periodEnd, then: 'pay',
-      })
-      notAccepted = book?.notAccepted || null
-      const ours = book?.accepted ?? null
-      if (ours) {
-        const candidate = await prisma.buyContractCandidate.findFirst({
-          where: { buyContractId: b.buyContractId },
-          select: { payRate: true },
-        })
-        accepted = {
-          hours: ours.hours,
-          contractRateCents: candidate?.payRate ?? ours.firstRateCents,
-          firstDay: ours.firstDay,
-          lastDay: ours.lastDay,
-          count: ours.count,
-        }
-      }
-    }
-
-    const po: PurchaseOrderFacts | null = b.workOrder
-      ? {
-          id: b.workOrder.id,
-          number: b.workOrder.number,
-          status: b.workOrder.status,
-          amountCents: Math.round(
-            parseFloat(b.workOrder.amount.toString()) *
-              10 ** decimalsFor(b.workOrder.currency)
-          ),
-          // Everything drawn INCLUDING this bill, less this bill — so the
-          // match asks the same question it asked at intake.
-          consumedCents: (drawnBy.get(b.workOrder.id) ?? 0) - b.totalCents,
-          startDate: b.workOrder.startDate,
-          endDate: b.workOrder.endDate,
-        }
-      : null
-
-    const result = matchVendorBill({
-      bill: {
-        id: b.id,
-        number: b.number,
-        totalCents: b.totalCents,
-        currency: b.currency,
-        periodStart: b.periodStart,
-        periodEnd: b.periodEnd,
-        hours: null,
-        rateCents: null,
-        duplicateOfBillId: null,
-      },
-      accepted,
-      po,
-      poRequired: false,
-      notAccepted,
-    })
-
+    const check = await checkKeyedReceipt(asKeyed(b), 'pay')
     items.push({
       id: b.id,
       reference: b.number,
@@ -952,7 +813,7 @@ export async function GET(request: NextRequest) {
       currency: b.currency,
       amountCents: b.totalCents,
       receivedAt: b.receivedAt,
-      result,
+      result: check.match,
     })
   }
 

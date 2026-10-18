@@ -445,6 +445,8 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
   it('the invoice-receipt route refuses the week at intake and at payment, rather than recording it as disputed', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/ap/bills/route.ts'), 'utf8')
     expect(route.match(/code: 'WEEK_NOT_ACCEPTED'/g)?.length).toBe(2)
-    expect(route).toContain('notAccepted,')
+    // The weeks are read once, by the one check every typed-in door asks.
+    const check = readFileSync(join(process.cwd(), 'src/lib/money/keyed-receipt.ts'), 'utf8')
+    expect(check).toContain('notAccepted: notAccepted?.says ?? null,')
   })
 })

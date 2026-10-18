@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { billedElsewhere, alreadyOnABill } from '@/lib/money/billed-elsewhere'
+import { billedElsewhere, alreadyOnABill, alreadyReceived } from '@/lib/money/billed-elsewhere'
 
 /**
  * A bill never covers hours already on a bill to the same firm, however
@@ -91,6 +91,27 @@ describe('an invoice receipt is refused where a bill the supplier generated here
 
   it('an invoice receipt for another person on another line is recorded as usual', () => {
     expect(alreadyOnABill({ periodStart: '2026-08-29', periodEnd: '2026-09-26', personIds: ['priya'] }, [generated])).toBeNull()
+  })
+})
+
+describe('the same week cannot be received twice under two invoice numbers', () => {
+  const week = { personName: 'Helena Marsh', days: { '2026-10-05': 8, '2026-10-06': 8, '2026-10-07': 8, '2026-10-08': 8, '2026-10-09': 8 }, periodStart: '2026-10-04', periodEnd: '2026-10-10' }
+  const tpA = { number: 'TP-A', vendorName: 'Techpeple', periodStart: '2026-10-04', periodEnd: '2026-10-10', receivedAt: '2026-10-12T00:00:00.000Z' }
+
+  it('a receipt for a week another receipt from the same supplier already holds is refused, naming the earlier receipt and the week', () => {
+    const r = alreadyReceived({ periodStart: '2026-10-04', periodEnd: '2026-10-10' }, [week], [tpA])
+    expect(r?.number).toBe('TP-A')
+    expect(r?.says).toBe('Helena Marsh’s week of Oct 4 is already on Techpeple’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice. Paying the same work twice is not a judgment call, so nobody can wave it through.')
+  })
+
+  it('two receipts whose periods meet only on a day nobody worked hold different work', () => {
+    const earlier = { ...tpA, periodStart: '2026-09-27', periodEnd: '2026-10-04' }
+    expect(alreadyReceived({ periodStart: '2026-10-04', periodEnd: '2026-10-10' }, [week], [earlier])).toBeNull()
+  })
+
+  it('a week with no daily breakdown is read by its own dates, so it counts as held wherever they meet the other receipt', () => {
+    const earlier = { ...tpA, periodStart: '2026-10-01', periodEnd: '2026-10-04' }
+    expect(alreadyReceived({ periodStart: '2026-10-04', periodEnd: '2026-10-10' }, [{ ...week, days: null }], [earlier])?.number).toBe('TP-A')
   })
 })
 

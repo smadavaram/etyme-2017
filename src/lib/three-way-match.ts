@@ -35,6 +35,7 @@ export type MatchCode =
   | 'PO_REQUIRED'   // an invoice against a PO-mandated contract has one
   | 'PO_STATUS'     // the PO is open and covers the period
   | 'PO_BALANCE'    // the PO has room for this invoice
+  | 'AMOUNT'        // a typed-in receipt's total is the accepted hours at the contract rate
 
 /**
  * Which failures a human may wave through.
@@ -74,6 +75,13 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   PO_REQUIRED: true,   // PO being raised retrospectively
   PO_STATUS: true,     // PO being reopened or extended
   PO_BALANCE: true,    // PO being topped up
+  // Not waivable. Only a typed-in invoice receipt that does not state its
+  // hours and its rate is checked on its total alone, and a total that
+  // differs could be hours (a judgment call) or the rate (never one).
+  // Nobody can tell which from a total, so nobody waives it: enter the
+  // hours and the rate from the supplier's invoice and the check says
+  // which it is.
+  AMOUNT: false,
 }
 
 /**
@@ -102,6 +110,7 @@ export const CHECK_NAME: Record<MatchCode, string> = {
   PO_REQUIRED: 'There is a purchase order to bill against',
   PO_STATUS: 'The purchase order is open and covers the work',
   PO_BALANCE: 'The order has money left',
+  AMOUNT: 'The amount is the accepted hours at the agreed rate',
 }
 
 /**
@@ -122,6 +131,7 @@ export const CHECK_PHRASE: Record<MatchCode, string> = {
   PO_REQUIRED: 'no purchase order',
   PO_STATUS: 'a purchase order closed or out of date',
   PO_BALANCE: 'a purchase order with no room left',
+  AMOUNT: 'an amount that is not the hours accepted at the agreed rate',
 }
 
 export interface MatchOverride {
@@ -724,8 +734,13 @@ export interface VendorBillFacts {
   hours?: number | null
   /** The rate the supplier billed at, where the bill says. */
   rateCents?: number | null
-  /** Set where another bill from this supplier already carries this number. */
+  /** Set where another bill from this supplier already carries this number, or this work. */
   duplicateOfBillId?: string | null
+  /**
+   * The sentence naming the earlier receipt and the week it already holds,
+   * where the duplicate is the work rather than the number.
+   */
+  duplicateSays?: string | null
 }
 
 export interface AcceptedWork {
@@ -755,6 +770,19 @@ export interface VendorBillMatchInput {
    * week first. Empty or absent where every week is accepted.
    */
   notAccepted?: string | null
+  /**
+   * What the accepted hours come to at the contract rate on each day they
+   * were worked, in the receipt's currency — or null where that cannot be
+   * said (no rate on the line, a different currency). Absent where the
+   * caller does not ask for the amount check at all.
+   *
+   * Read only where the receipt does not state both its hours and its
+   * rate: where it does, the hours, the rate and the arithmetic are each
+   * checked on their own and the total follows from them. A typed-in
+   * receipt is stored as a total, so at the moment it is paid this is
+   * the only check that can hold it to the accepted hours.
+   */
+  expectedCents?: number | null
 }
 
 /**
@@ -773,7 +801,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
       ? {
           code: 'DUPLICATE',
           outcome: 'FAIL',
-          reason: `${bill.number} is already recorded from this supplier`,
+          reason: bill.duplicateSays ?? `${bill.number} is already recorded from this supplier`,
         }
       : { code: 'DUPLICATE', outcome: 'PASS', reason: 'No other invoice carries this number' }
   )
@@ -846,6 +874,42 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
                 `${bill.hours}h × ${money(bill.rateCents)} is ${money(expected)}, invoiced ` +
                 `${money(bill.totalCents)}`,
             }
+      )
+    }
+
+    // ── AMOUNT — a total with nothing stated under it ──
+    //
+    // Payment is strict (CLAUDE.md, "Nine decisions", item 3): what is
+    // paid is the accepted hours at the contract rate. A receipt that says
+    // what hours and rate it bills is held to them above; one that says
+    // only a total is held to what those come to. Exact to the cent the
+    // arithmetic allows, never within a tolerance: the twin's half a per
+    // cent decides what it raises, not what is paid.
+    if (input.expectedCents !== undefined && !(bill.hours != null && bill.rateCents != null)) {
+      const expected = input.expectedCents
+      checks.push(
+        expected == null
+          ? {
+              code: 'AMOUNT',
+              outcome: 'FAIL',
+              reason:
+                'The agreed rate for these days could not be read in this currency, so what the ' +
+                'accepted hours come to cannot be said',
+            }
+          : Math.abs(expected - bill.totalCents) <= EXTENSION_TOLERANCE_CENTS
+            ? {
+                code: 'AMOUNT',
+                outcome: 'PASS',
+                reason: `${money(bill.totalCents)} is the ${accepted.hours}h accepted at the agreed rate`,
+              }
+            : {
+                code: 'AMOUNT',
+                outcome: 'FAIL',
+                reason:
+                  `Invoiced ${money(bill.totalCents)}; the ${accepted.hours}h accepted at the agreed ` +
+                  `rate come to ${money(expected)}. Enter the hours and the rate from the invoice ` +
+                  `to see which of the two differs`,
+              }
       )
     }
 

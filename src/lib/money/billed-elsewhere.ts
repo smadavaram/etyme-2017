@@ -144,3 +144,67 @@ export function alreadyOnABill(
       `so recording this invoice would owe them twice. Pay that bill, or ask ${first.vendorName} to cancel it first.`,
   }
 }
+
+/** Another invoice receipt the payer holds from the same supplier, on the same buy line. */
+export interface ReceiptAlready {
+  number: string
+  vendorName: string
+  /** YYYY-MM-DD, both ends inclusive. */
+  periodStart: string
+  periodEnd: string
+  receivedAt: string
+}
+
+/** One week the payer accepted inside the receipt being recorded or paid. */
+export interface AcceptedWeekRead {
+  personName: string | null
+  /** { "2026-10-05": 8, … }, the days the buy line pays for. Null where the week has no daily breakdown. */
+  days: Record<string, number> | null
+  periodStart: string
+  periodEnd: string
+}
+
+/**
+ * The same supplier's work, received twice: a week this receipt bills
+ * that another live receipt on the same buy line already holds.
+ *
+ * Release walk, 2026-10-18: Techpeple's $4,720 week for Helena Marsh was
+ * received under TP-A, then again under TP-A2, and both were paid — the
+ * number was the only thing the intake compared. A typed-in receipt
+ * carries a period and a total and no lines, so the week is found from
+ * the days: a worked day inside this receipt's period and inside the
+ * other's is the same work on two receipts. A week with no daily
+ * breakdown is read by its own dates, so it counts as held wherever its
+ * dates meet the other receipt — refusing a receipt a person can clear is
+ * cheaper than paying twice, the same rule as `billedElsewhere`.
+ *
+ * Pure: no database. Null where nothing is held twice.
+ */
+export function alreadyReceived(
+  receipt: { periodStart: string; periodEnd: string },
+  weeks: readonly AcceptedWeekRead[],
+  others: readonly ReceiptAlready[]
+): { number: string; says: string } | null {
+  for (const w of weeks) {
+    const worked = w.days
+      ? Object.entries(w.days).filter(([, h]) => Number(h) > 0).map(([d]) => d.slice(0, 10))
+      : [w.periodStart.slice(0, 10), w.periodEnd.slice(0, 10)]
+    const mine = worked.filter((d) => d >= receipt.periodStart && d <= receipt.periodEnd)
+    if (mine.length === 0) continue
+    for (const o of others) {
+      if (!mine.some((d) => d >= o.periodStart && d <= o.periodEnd)) continue
+      const whose = w.personName ? `${w.personName}’s week of ${plain(w.periodStart.slice(0, 10))}` : `The week of ${plain(w.periodStart.slice(0, 10))}`
+      return {
+        number: o.number,
+        says:
+          `${whose} is already on ${o.vendorName}’s invoice ${o.number}, received ` +
+          `${plainYear(o.receivedAt)}, so this invoice would owe it twice. Paying the same work twice is not ` +
+          `a judgment call, so nobody can wave it through.`,
+      }
+    }
+  }
+  return null
+}
+
+const plainYear = (iso: string) =>
+  new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })

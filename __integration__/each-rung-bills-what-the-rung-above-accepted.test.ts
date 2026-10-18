@@ -252,6 +252,11 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
   })
 
   it('Computer Systems records Techpepleâ€™s invoice for the thirty-eight hours it accepted, and it matches', async () => {
+    // The receipt keyed before the rule holds the same week; a second
+    // receipt for it is refused (release walk, 2026-10-18), so the clerk's
+    // correction comes first. There is no cancel door yet, so the test
+    // writes it.
+    await prisma.vendorBill.updateMany({ where: { companyId: s.cs, number: 'CE-BEFORE-RULE' }, data: { status: 'CANCELLED' } })
     as(CS)
     const r = await receipt('CE-HM-38', 38)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -261,6 +266,11 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
 
   it('an invoice receipt for forty against the thirty-eight accepted is still held as disputed with a reason, because the other waivable mismatches stay as they were', async () => {
     as(CS)
+    // Keyed while CE-HM-38 holds the week, it is refused and names it.
+    const twice = await receipt('CE-HM-40', 40)
+    expect(twice.status).toBe(409)
+    expect(twice.body.error.message).toMatch(/already on Techpepleâ€™s invoice CE-HM-38/)
+    await prisma.vendorBill.updateMany({ where: { companyId: s.cs, number: 'CE-HM-38' }, data: { status: 'CANCELLED' } })
     const r = await receipt('CE-HM-40', 40)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.bill.status).toBe('DISPUTED')
@@ -271,7 +281,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
     as(TECHPEPLE)
     const r = await bill(s.rung.engagementId, s.rungWindow)
     expect(r.status, JSON.stringify(r.body)).toBe(422)
-    expect(r.body.error.message).toMatch(new RegExp(`^Helena Marshâ€™s week of .+ is already on invoices .*CE-HM-38.*, which ${s.csName} recorded from you, so it is not billed again\\.$`))
+    expect(r.body.error.message).toMatch(new RegExp(`^Helena Marshâ€™s week of .+ is already on invoices? .*CE-HM-40.*, which ${s.csName} recorded from you, so it is not billed again\\.$`))
     expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
 
     // Computer Systems withdraws the three it keyed in, so Techpeple's own bill can be the one.
@@ -279,6 +289,23 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
       where: { companyId: s.cs, number: { in: ['CE-BEFORE-RULE', 'CE-HM-38', 'CE-HM-40'] } },
       data: { status: 'CANCELLED' },
     })
+  })
+
+  it('a bill that would take the order past its ceiling is not drafted, because it could never be sent', async () => {
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: s.rung.id }, select: { workOrderId: true } })
+    expect(line.workOrderId, 'Techpepleâ€™s line to Computer Systems is on an order').toBeTruthy()
+    const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: line.workOrderId! } })
+    await prisma.workOrder.update({ where: { id: order.id }, data: { amount: 1000 } })
+    try {
+      as(TECHPEPLE)
+      const r = await bill(s.rung.engagementId, s.rungWindow)
+      expect(r.status, JSON.stringify(r.body)).toBe(422)
+      expect(r.body.error.code).toBe('PO_CEILING')
+      expect(r.body.error.message).toMatch(/^Order .+ has \$[\d,.]+ left and this bill would be \$[\d,.]+, over by \$[\d,.]+\. It could not be sent, so it is not drafted\./)
+      expect(await prisma.invoiceLine.count({ where: { timesheetId: s.week, sellContractId: s.rung.id } })).toBe(0)
+    } finally {
+      await prisma.workOrder.update({ where: { id: order.id }, data: { amount: order.amount } })
+    }
   })
 
   it('Techpepleâ€™s bill to Computer Systems is for the thirty-eight hours Computer Systems accepted, not the forty Helena worked, before Techpeple has accepted anything itself', async () => {

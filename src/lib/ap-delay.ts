@@ -1016,6 +1016,12 @@ export interface PayableBill {
    * paid, in a run or otherwise (the founder, 2026-09-28).
    */
   notAccepted?: string | null
+  /**
+   * Where the three-way check refuses it now — a difference, the order's
+   * ceiling, the same work on an earlier receipt — the sentence
+   * (`keyedPayGate` in lib/money/keyed-receipt). Never paid in a run.
+   */
+  refused?: string | null
 }
 
 export type ExclusionReason =
@@ -1027,6 +1033,7 @@ export type ExclusionReason =
   | 'NOT_DUE_YET'
   | 'NOTHING_LEFT'
   | 'WEEK_NOT_ACCEPTED'
+  | 'MATCH_FAILED'
 
 export interface Excluded {
   bill: PayableBill
@@ -1103,6 +1110,10 @@ export function proposeRun(
     }
     if (b.notAccepted) {
       refuse('WEEK_NOT_ACCEPTED', b.notAccepted)
+      continue
+    }
+    if (b.refused) {
+      refuse('MATCH_FAILED', b.refused)
       continue
     }
     if (b.status !== 'APPROVED') {
