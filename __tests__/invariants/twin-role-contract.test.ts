@@ -105,7 +105,8 @@ function fresh() {
 import { act, decideApproval, ledgerFeed } from '../../src/lib/twin/ledger'
 import { mayEditTwin } from '../../src/lib/twin/readers'
 import { rolesFor } from '../../src/lib/company-defaults'
-import { checkContract, tierIn, DEFAULT_CONTRACT, defaultContractFor, twinKindFor } from '../../src/lib/twin/role-contract'
+import { checkContract, tierIn, DEFAULT_CONTRACT, defaultContractFor, twinKindFor, twinName } from '../../src/lib/twin/role-contract'
+import { twinRefusal } from '../../src/lib/refusal-words'
 import { TWIN_ACTS, ALL_TWIN_ACTS } from '../../src/lib/autonomy'
 import { suppliersToRun } from '../../src/lib/twin/run'
 
@@ -294,6 +295,15 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
     expect(twinKindFor('MSP')).toBe('PROGRAM_MANAGER')
   })
 
+  it('a supplier’s people read their twin as Ask Etyme, and a client’s still read the program manager’s twin', () => {
+    expect(twinName('SUPPLIER')).toBe('Ask Etyme')
+    expect(twinName('PROGRAM_MANAGER')).toBe('the program manager\u2019s twin')
+    expect(twinRefusal({ why: 'NEVER', doing: 'Release a payroll run.', twin: 'SUPPLIER' }))
+      .toBe('Ask Etyme may not release a payroll run. Its role contract keeps that with a person, so it is on their list instead.')
+    expect(twinRefusal({ why: 'NO_OTHER_APPROVER', doing: 'Send a bill.', twin: 'SUPPLIER', byHand: 'Send it from the Bills page.' }))
+      .toBe('Ask Etyme did not ask anybody to send a bill: only the person Ask Etyme acts for may say yes here, and Ask Etyme acts on their authority. Send it from the Bills page.')
+  })
+
   it('a supplier’s twin may draft a bill alone and may never send one without a yes', () => {
     expect(tierIn(SUPPLIER, 'bill.draft')).toBe('ACTS_ALONE')
     expect(tierIn(SUPPLIER, 'bill.send')).toBe('NEEDS_APPROVAL')
@@ -356,12 +366,12 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
     expect(T().invoice).toEqual([])
   })
 
-  it('a supplier’s twin refusing work on another company’s record names itself, not the program manager', async () => {
+  it('a supplier’s twin refusing work on another company’s record calls itself Ask Etyme, not the program manager’s twin', async () => {
     const r = await act({
       companyId: PINNACLE, twin: 'SUPPLIER', action: 'bill.draft', entity: { type: 'SellContract', id: 'line-1', partyCompanyIds: ['someone-else'] },
       rule: 'r', rationale: 'r', surface: 'CRON', authority: AR,
     })
-    expect(r).toMatchObject({ outcome: 'REFUSED', says: 'The supplier\u2019s twin works only on records its own company is a party to. This one belongs to another company, so it was not touched.' })
+    expect(r).toMatchObject({ outcome: 'REFUSED', says: 'Ask Etyme works only on records its own company is a party to. This one belongs to another company, so it was not touched.' })
   })
 
   it('the supplier’s twin reads staffing firms, integrators and one-person corporations, and never a census or a visitor’s own demo', async () => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { reportError } from '@/lib/alerts'
-import { programsToRun, runTwin, suppliersToRun, type RunSummary } from '@/lib/twin/run'
+import { programsToRun, runTwin, suppliersToRun, tellOnTeams, type RunSummary } from '@/lib/twin/run'
 import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bills-run'
 
 /**
@@ -13,6 +13,12 @@ import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bil
  * Every finding goes through the twin's one door (`act` in
  * lib/twin/ledger), so this route writes nothing itself: the ledger and
  * the automation log are written there, under the role contract.
+ *
+ * Each supplier firm is then given the same Teams digest a client
+ * program is (`tellOnTeams`, conversation's digest). The digest does not
+ * yet carry the bill.send questions, so today it tells a supplier's
+ * people nothing about bills; those are in Ask Etyme only, and the change
+ * the digest needs is written in KNOWN-LIMITS.md under Platform.
  */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
@@ -28,10 +34,11 @@ export async function GET(request: NextRequest) {
       await reportError('cron/twin', err, { companyId }).catch(() => undefined)
     }
   }
-  const suppliers: SupplierBillRun[] = []
+  const suppliers: (SupplierBillRun & { teamsDigest: RunSummary['teamsDigest'] })[] = []
   for (const companyId of await suppliersToRun()) {
     try {
-      suppliers.push(await runSupplierBills(companyId, { surface: 'CRON' }))
+      const run = await runSupplierBills(companyId, { surface: 'CRON' })
+      suppliers.push({ ...run, teamsDigest: await tellOnTeams(companyId) })
     } catch (err) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin/supplier', err, { companyId }).catch(() => undefined)
@@ -43,7 +50,7 @@ export async function GET(request: NextRequest) {
   const sendAsked = suppliers.reduce((n, r) => n + r.asked, 0)
   const says =
     `The twin read ${ran.length} program${ran.length === 1 ? '' : 's'}: ${done} done on its own, ${asked} put to a person.` +
-    ` The supplier\u2019s twin read ${suppliers.length} firm${suppliers.length === 1 ? '' : 's'}: ${drafted} bill${drafted === 1 ? '' : 's'} drafted, ${sendAsked} put to a person to send.` +
+    ` Ask Etyme, for suppliers, read ${suppliers.length} firm${suppliers.length === 1 ? '' : 's'}: ${drafted} bill${drafted === 1 ? '' : 's'} drafted, ${sendAsked} put to a person to send.` +
     (broke.length ? ` ${broke.length} could not be read.` : '')
   return NextResponse.json({ data: { ran, suppliers, broke, says } })
 }

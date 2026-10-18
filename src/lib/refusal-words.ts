@@ -123,7 +123,12 @@ export function twinRefusal(args: {
 }): string {
   const doing = args.doing.trim().replace(/\.$/, '')
   const lower = doing.charAt(0).toLowerCase() + doing.slice(1)
-  const twin = args.twin === 'SUPPLIER' ? 'The supplier\u2019s twin' : 'The program manager\u2019s twin'
+  // A supplier's twin is the firm's own assistant, and its people know it
+  // as Ask Etyme (2026-10-18); a client's keeps the program manager's
+  // twin, the name its Program twin page carries.
+  const supplier = args.twin === 'SUPPLIER'
+  const twin = supplier ? 'Ask Etyme' : 'The program manager\u2019s twin'
+  const it = supplier ? 'Ask Etyme' : 'the twin'
   switch (args.why) {
     case 'NEVER':
       return `${twin} may not ${lower}. Its role contract keeps that with a person, so it is on their list instead.`
@@ -134,10 +139,10 @@ export function twinRefusal(args: {
     case 'OWN_DRAFT':
       return `${twin} asked for this itself, so it cannot be the one to approve it. The person who decides it does.`
     case 'OWN_AUTHORITY':
-      return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else who may decide it does.`
+      return `${args.authorityName?.trim() || `The person ${it} acts for`} asked for this, and ${it} acts on their authority, so neither may approve it. Somebody else who may decide it does.`
     case 'NO_OTHER_APPROVER': {
-      const who = args.authorityName?.trim() || 'the person the twin acts for'
-      return `${twin} did not ask anybody to ${lower}: only ${who} may say yes here, and the twin acts on their authority. ${args.byHand?.trim() || 'Do it by hand instead.'}`
+      const who = args.authorityName?.trim() || `the person ${it} acts for`
+      return `${twin} did not ask anybody to ${lower}: only ${who} may say yes here, and ${it} acts on their authority. ${args.byHand?.trim() || 'Do it by hand instead.'}`
     }
   }
 }

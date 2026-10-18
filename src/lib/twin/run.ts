@@ -109,7 +109,7 @@ export interface RunSummary {
  * either way. The count says how each person was actually reached, so a
  * fallback to email is never reported as a Teams message.
  */
-async function tellOnTeams(companyId: string): Promise<RunSummary['teamsDigest']> {
+export async function tellOnTeams(companyId: string): Promise<RunSummary['teamsDigest']> {
   let tell: ((companyId: string) => Promise<{ via: 'BOT' | 'FALLBACK' | 'NOTHING' }[]>) | null = null
   try {
     tell = (await import('@/lib/teams/digest')).tellProgramOwnerOnTeams

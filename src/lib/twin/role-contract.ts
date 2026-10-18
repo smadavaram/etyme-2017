@@ -45,9 +45,13 @@ export function twinKindFor(companyKind: string | null | undefined): TwinKindNam
     : 'PROGRAM_MANAGER'
 }
 
-/** The twin's name in a sentence, lower case: "the program manager’s twin". */
+/**
+ * The twin's name in a sentence: "the program manager’s twin" for a
+ * client's, and "Ask Etyme" for a supplier's, because that is the firm's
+ * own assistant and the name its people read on every screen (2026-10-18).
+ */
 export function twinName(kind: TwinKindName = 'PROGRAM_MANAGER'): string {
-  return kind === 'SUPPLIER' ? 'the supplier\u2019s twin' : 'the program manager\u2019s twin'
+  return kind === 'SUPPLIER' ? 'Ask Etyme' : 'the program manager\u2019s twin'
 }
 
 export interface Contract {

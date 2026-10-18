@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       outcome: out.outcome,
       ledgerEntryId: out.entryId,
       result: out.result ?? null,
-      note: out.outcome === 'PERFORMED' ? 'Done, and recorded in the twin’s ledger under your name.' : 'Recorded as no, with your reason.',
+      note: out.outcome === 'PERFORMED' ? 'Done, and recorded in Etyme’s ledger under your name.' : 'Recorded as no, with your reason.',
     },
   })
 }
