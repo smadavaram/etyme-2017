@@ -1096,6 +1096,29 @@ record, the approval route, the decision card and the ledger are never
 forked per party; the menu table, the eyebrows and the party page are
 the body. A feature that only works for one model is a body panel.
 
+**One Ask Etyme conversation per person, saved, and it never leaves the
+tenant or the transaction. Decided by the founder, 2026-10-18** (*"go
+with your recommendation … ensure no conversation goes beyond
+environment and transaction"*). Until this day the conversation lived
+only on the screen and was gone on a reload.
+- **One conversation, kept.** Each seat has one Ask Etyme thread, saved
+  on the record, so it survives a reload, a phone switch and a sign-out.
+  A **Clear** button starts over; there is no list of old chats, because
+  the greeting is "what needs you" and several threads would split one
+  queue. A card already answered stays answered in the history.
+- **It never goes beyond the environment.** The saved thread belongs to
+  the seat and its company: nobody at another company reads it, and
+  nobody at the same company reads another person's thread. It is kept
+  where the record is kept and leaves only through the model boundary
+  already decided (off by default, masked, nothing retained, logged).
+- **It never goes beyond the transaction.** Ask Etyme answers about this
+  company's own work on the record — its jobs, candidates, timesheets,
+  bills, invoice receipts, payroll, papers and people — and refuses
+  anything else in one sentence that says what it can help with. A
+  question about another company's book, or a general question with no
+  record behind it, is refused, never answered from the model's own
+  knowledge.
+
 **Notifications are deleted; Ask Etyme carries the number. Decided by
 the founder, 2026-10-13** (*"kill notification and place Ask Etyme icon
 instead of it, and show a number (like 5) which symbolizes 5 decisions
