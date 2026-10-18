@@ -95,7 +95,10 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
 
     const filing = before.filing[0]
     expect(filing.payer).toBe('Brightmoor Staffing')
-    const week = filing.weeks[0]
+    // The newest open week with a weekday in it: on a Sunday the current
+    // week holds only that Sunday, so it would have nothing to file.
+    const isWeekday = (d: string) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay())
+    const week = filing.weeks.find((w: any) => w.days.some(isWeekday))
     expect(week, JSON.stringify(filing.weeks)).toBeTruthy()
     // Eight hours on each weekday of this week that has happened, and
     // nothing on a Saturday or Sunday: at most forty, so no day of the
