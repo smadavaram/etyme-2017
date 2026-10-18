@@ -179,6 +179,14 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
         companyId, action: 'invoice_receipt.approve', entity, rule: v.ruleCited, rationale: v.rationale,
         surface, authority, payload, dedupKey: v.invoiceId,
       }))
+    } else {
+      // Inside the hours tolerance but not payable — a week not accepted,
+      // a draft, past its ceiling. Never silently permitted: the paying
+      // team is told why, the same way a mismatch is.
+      tally(await act({
+        companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
+        surface, authority, payload, dedupKey: key,
+      }))
     }
   }
 

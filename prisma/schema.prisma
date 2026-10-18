@@ -26,74 +26,76 @@ model Person {
   primaryEmail String   @unique
   createdAt    DateTime @default(now())
 
-  credentials             Credential[]
-  contexts                Context[]
-  consultant              ConsultantProfile?
-  accessedBy              AccessLog[]              @relation("subject")
-  programSeatsGranted     ProgramSeat[]            @relation("seatGrantedBy")
-  programSeatsRevoked     ProgramSeat[]            @relation("seatRevokedBy")
+  credentials              Credential[]
+  contexts                 Context[]
+  consultant               ConsultantProfile?
+  accessedBy               AccessLog[]               @relation("subject")
+  programSeatsGranted      ProgramSeat[]             @relation("seatGrantedBy")
+  programSeatsRevoked      ProgramSeat[]             @relation("seatRevokedBy")
   /// The twin's role contracts this person set, one row per version.
-  roleContractsSet        RoleContract[]           @relation("roleContractSetBy")
+  roleContractsSet         RoleContract[]            @relation("roleContractSetBy")
   /// The twin's rule sets this person set, one row per version.
-  ruleSetsSet             RuleSet[]                @relation("ruleSetSetBy")
+  ruleSetsSet              RuleSet[]                 @relation("ruleSetSetBy")
   /// Twin acts done on the authority of this person's seat.
-  twinActsOnAuthority     TwinAction[]             @relation("twinAuthority")
+  twinActsOnAuthority      TwinAction[]              @relation("twinAuthority")
   /// Twin approvals this person decided.
-  twinApprovalsDecided    TwinApproval[]           @relation("twinApprover")
+  twinApprovalsDecided     TwinApproval[]            @relation("twinApprover")
   /// Where Teams may write to this person unprompted, one per company seat.
-  teamsConversations      TeamsConversation[]
+  teamsConversations       TeamsConversation[]
   /// Prompts this person's free-text questions sent to a model, masked.
-  modelPrompts            ModelPrompt[]
-  benchWantsWritten       BenchWant[]              @relation("benchWantAuthor")
-  benchWantsReceived      BenchWant[]              @relation("benchWantReceiver")
-  benchHolidaySwitches    BenchHolidaySwitch[]     @relation("benchHolidaySubject")
-  benchHolidaySwitchesSet BenchHolidaySwitch[]     @relation("benchHolidaySetter")
-  censusReads             CensusRead[]             @relation("censusReader")
-  actions                 AccessLog[]              @relation("actor")
-  visas                   VisaPetition[]
-  submissions             Submission[]
-  texts                   TextMessage[]
-  sellContracts           SellContract[]
+  modelPrompts             ModelPrompt[]
+  benchWantsWritten        BenchWant[]               @relation("benchWantAuthor")
+  benchWantsReceived       BenchWant[]               @relation("benchWantReceiver")
+  benchHolidaySwitches     BenchHolidaySwitch[]      @relation("benchHolidaySubject")
+  benchHolidaySwitchesSet  BenchHolidaySwitch[]      @relation("benchHolidaySetter")
+  censusReads              CensusRead[]              @relation("censusReader")
+  actions                  AccessLog[]               @relation("actor")
+  visas                    VisaPetition[]
+  submissions              Submission[]
+  texts                    TextMessage[]
+  sellContracts            SellContract[]
   // A person sits on a buy contract through a candidate line, because one
   // agreement can cover several people at their own rates.
-  buyCandidacies          BuyContractCandidate[]
-  timesheets              Timesheet[]
-  overtimeDecisions       OvertimeDecision[]       @relation("overtimeDecider")
-  timeOff                 TimeOffEntry[]           @relation("timeOffPerson")
-  timeOffRecorded         TimeOffEntry[]           @relation("timeOffBy")
-  invoiceLines            InvoiceLine[]
-  matchOverrides          InvoiceMatchOverride[]
-  verifications           Verification[]
-  enrollments             Enrollment[]
-  expenses                Expense[]
-  requisitionsRaised      Requirement[]            @relation("requisitionRaiser")
-  requisitionsOwned       Requirement[]            @relation("requisitionOwner")
-  requisitionsReporting   Requirement[]            @relation("requisitionReportsTo")
-  approvalRules           ApprovalRule[]           @relation("approvalRuleApprover")
-  requirementApprovals    RequirementApproval[]    @relation("requirementApprover")
-  documentSharesCreated   DocumentShare[]          @relation("shareCreator")
-  documentSharesAbout     DocumentShare[]          @relation("shareSubject")
-  managedContracts        SellContract[]           @relation("hiringManager") // Addendum E: contracts this person owns at the client
-  eventsCaused            Event[]                  @relation("eventActor")
-  rulesAuthored           ApprovalRule[]           @relation("ruleAuthor")
-  ruleVersions            ApprovalRuleVersion[]    @relation("ruleVersionAuthor")
-  agreementVersions       MasterAgreementVersion[] @relation("agreementVersionAuthor")
-  agreementSignatures     AgreementSignature[]     @relation("agreementAttestor")
-  agreementsEnded         MasterAgreement[]        @relation("agreementEndedBy")
+  buyCandidacies           BuyContractCandidate[]
+  timesheets               Timesheet[]
+  overtimeDecisions        OvertimeDecision[]        @relation("overtimeDecider")
+  timeOff                  TimeOffEntry[]            @relation("timeOffPerson")
+  timeOffRecorded          TimeOffEntry[]            @relation("timeOffBy")
+  invoiceLines             InvoiceLine[]
+  vendorBillLines          VendorBillLine[]
+  vendorBillMatchOverrides VendorBillMatchOverride[]
+  matchOverrides           InvoiceMatchOverride[]
+  verifications            Verification[]
+  enrollments              Enrollment[]
+  expenses                 Expense[]
+  requisitionsRaised       Requirement[]             @relation("requisitionRaiser")
+  requisitionsOwned        Requirement[]             @relation("requisitionOwner")
+  requisitionsReporting    Requirement[]             @relation("requisitionReportsTo")
+  approvalRules            ApprovalRule[]            @relation("approvalRuleApprover")
+  requirementApprovals     RequirementApproval[]     @relation("requirementApprover")
+  documentSharesCreated    DocumentShare[]           @relation("shareCreator")
+  documentSharesAbout      DocumentShare[]           @relation("shareSubject")
+  managedContracts         SellContract[]            @relation("hiringManager") // Addendum E: contracts this person owns at the client
+  eventsCaused             Event[]                   @relation("eventActor")
+  rulesAuthored            ApprovalRule[]            @relation("ruleAuthor")
+  ruleVersions             ApprovalRuleVersion[]     @relation("ruleVersionAuthor")
+  agreementVersions        MasterAgreementVersion[]  @relation("agreementVersionAuthor")
+  agreementSignatures      AgreementSignature[]      @relation("agreementAttestor")
+  agreementsEnded          MasterAgreement[]         @relation("agreementEndedBy")
   /// Reasons this person gave for an order or a line differing from its agreement.
-  orderTermsDiffered      WorkOrder[]              @relation("orderTermsDifferBy")
-  sellTermsDiffered       SellContract[]           @relation("sellTermsDifferBy")
-  buyTermsDiffered        BuyContract[]            @relation("buyTermsDifferBy")
-  packetsCreated          DocumentPacket[]         @relation("packetCreator")
-  packetsAbout            DocumentPacket[]         @relation("packetSubjectPerson")
-  packetItemsReviewed     PacketItem[]             @relation("packetItemReviewer")
+  orderTermsDiffered       WorkOrder[]               @relation("orderTermsDifferBy")
+  sellTermsDiffered        SellContract[]            @relation("sellTermsDifferBy")
+  buyTermsDiffered         BuyContract[]             @relation("buyTermsDifferBy")
+  packetsCreated           DocumentPacket[]          @relation("packetCreator")
+  packetsAbout             DocumentPacket[]          @relation("packetSubjectPerson")
+  packetItemsReviewed      PacketItem[]              @relation("packetItemReviewer")
   /// Required documents this person waived on a line, each with a reason.
-  documentWaivers         DocumentRequirement[]    @relation("documentWaiver")
-  serviceAccountsCreated  ServiceAccount[]         @relation("serviceAccountCreator")
-  customDomainsAdded      CustomDomain[]           @relation("customDomainAdder")
-  representations         Representation[]
-  doNotSubmit             DoNotSubmit[]
-  resumes                 Resume[]
+  documentWaivers          DocumentRequirement[]     @relation("documentWaiver")
+  serviceAccountsCreated   ServiceAccount[]          @relation("serviceAccountCreator")
+  customDomainsAdded       CustomDomain[]            @relation("customDomainAdder")
+  representations          Representation[]
+  doNotSubmit              DoNotSubmit[]
+  resumes                  Resume[]
 
   identityA            IdentityMatch[]       @relation("identityA")
   identityB            IdentityMatch[]       @relation("identityB")
@@ -1238,7 +1240,8 @@ model OrderMilestone {
 
   createdAt DateTime @default(now())
 
-  invoiceLines InvoiceLine[]
+  invoiceLines    InvoiceLine[]
+  vendorBillLines VendorBillLine[]
 
   @@index([orderId, status])
 }
@@ -4060,12 +4063,13 @@ model Timesheet {
 
   /// The single approval that predates the split. Kept so history reads,
   /// but new code should use the two above.
-  approvedById String?
-  approvedAt   DateTime?
+  approvedById    String?
+  approvedAt      DateTime?
   // Billing is expressed by InvoiceLine, one per contract that bills these
   // hours. The old loose invoiceId string enforced nothing, and the
   // one-line-ever constraint that replaced it could not describe a chain.
-  invoiceLines InvoiceLine[]
+  invoiceLines    InvoiceLine[]
+  vendorBillLines VendorBillLine[]
 
   /// Every company's position on these hours. Billing and pay both
   /// derive from here rather than from the columns above, which remain
@@ -4353,30 +4357,31 @@ model Invoice {
 // Lifecycle: DRAFT → SUBMITTED → APPROVED → INVOICED → PAID  or  → REJECTED at any point.
 // BUILD.md §6.3: "Client-billable expenses appear on invoices."
 model Expense {
-  id             String        @id @default(cuid())
-  companyId      String
-  company        Company       @relation(fields: [companyId], references: [id])
-  sellContractId String
-  sellContract   SellContract  @relation(fields: [sellContractId], references: [id])
-  personId       String // consultant who incurred the expense
-  person         Person        @relation(fields: [personId], references: [id])
-  category       String // TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
-  billable       Boolean       @default(true) // client-billable vs internal company expense
-  description    String
-  periodStart    DateTime
-  periodEnd      DateTime
-  items          Json // [{ description, quantity, unitPrice, expenseType }]
-  total          Decimal       @db.Decimal(12, 2)
-  receiptUrl     String?
-  status         String        @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
-  submittedAt    DateTime?
-  approvedById   String?
-  approvedAt     DateTime?
-  rejectedReason String?
-  invoiceId      String? // linked when invoiced (client-billable only)
-  invoiceLines   InvoiceLine[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id              String           @id @default(cuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  sellContractId  String
+  sellContract    SellContract     @relation(fields: [sellContractId], references: [id])
+  personId        String // consultant who incurred the expense
+  person          Person           @relation(fields: [personId], references: [id])
+  category        String // TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
+  billable        Boolean          @default(true) // client-billable vs internal company expense
+  description     String
+  periodStart     DateTime
+  periodEnd       DateTime
+  items           Json // [{ description, quantity, unitPrice, expenseType }]
+  total           Decimal          @db.Decimal(12, 2)
+  receiptUrl      String?
+  status          String           @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
+  submittedAt     DateTime?
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedReason  String?
+  invoiceId       String? // linked when invoiced (client-billable only)
+  invoiceLines    InvoiceLine[]
+  vendorBillLines VendorBillLine[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([companyId, status])
   @@index([sellContractId])
@@ -4395,6 +4400,15 @@ model Payment {
   /// count is worse than money you are owed.
   invoiceId String?
   invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  /// The invoice receipt this pays, where a firm pays a supplier's invoice
+  /// it typed in rather than one issued on the platform. Without it a paid
+  /// receipt moved `paidCents` and left no row saying who paid whom, when,
+  /// or by what reference — the payment the three-way check exists to
+  /// govern would be the one payment with no record. Null on every
+  /// customer payment; never set beside `invoiceId`.
+  vendorBillId String?
+  vendorBill   VendorBill? @relation(fields: [vendorBillId], references: [id])
 
   /// Who sent it, where that is known but the invoice is not. The pair
   /// (payer, amount, date) is usually enough for somebody to match it by
@@ -4420,6 +4434,7 @@ model Payment {
   /// every invoice screen sums its payments
   @@index([invoiceId])
   @@index([payerCompanyId])
+  @@index([vendorBillId])
   @@index([receivedByCompanyId])
   @@index([appliedById])
   @@index([appliedAt])
@@ -4566,6 +4581,9 @@ model VendorBill {
   updatedAt DateTime @updatedAt
 
   paymentRunItems PaymentRunItem[]
+  lines           VendorBillLine[]
+  matchOverrides  VendorBillMatchOverride[]
+  payments        Payment[]
 
   @@unique([companyId, vendorCompanyId, number])
   @@index([companyId, status])
@@ -4575,6 +4593,74 @@ model VendorBill {
   @@index([projectOrderId])
   @@index([dueAt])
   @@index([paidAt])
+}
+
+// One line of an invoice receipt a firm typed in from a supplier's invoice.
+//
+// The receipt is the timesheet (CLAUDE.md, "The receipt is the timesheet"):
+// a supplier's invoice is matched against the order and against what was
+// received — a signed week, an approved expense, an accepted milestone.
+// A typed-in receipt carried only a header total, so it could be matched
+// on its amount and never on which week, expense or milestone it billed.
+// These lines mirror InvoiceLine, field for field, so both paths are
+// matched line by line by the same arithmetic.
+//
+// No unique on timesheetId or expenseId, deliberately, unlike InvoiceLine:
+// a cancelled receipt keeps its lines on the record and the corrected one
+// is typed in again against the same week. "A week received once" is the
+// duplicate check in lib/money/keyed-receipt, which ignores CANCELLED.
+model VendorBillLine {
+  id           String     @id @default(cuid())
+  vendorBillId String
+  vendorBill   VendorBill @relation(fields: [vendorBillId], references: [id], onDelete: Cascade)
+
+  /// An hours line: the signed week this line bills.
+  timesheetId String?
+  timesheet   Timesheet?      @relation(fields: [timesheetId], references: [id])
+  /// An expense line: the approved expense, the receipt behind it.
+  expenseId   String?
+  expense     Expense?        @relation(fields: [expenseId], references: [id])
+  /// A milestone line: the accepted milestone.
+  milestoneId String?
+  milestone   OrderMilestone? @relation(fields: [milestoneId], references: [id])
+  personId    String?
+  person      Person?         @relation(fields: [personId], references: [id])
+
+  /// Null on an expense or milestone line, which bills a sum, not hours.
+  hours       Decimal? @db.Decimal(7, 2)
+  rateCents   Int?
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  @@index([vendorBillId])
+  @@index([timesheetId])
+  @@index([expenseId])
+  @@index([milestoneId])
+  @@index([personId])
+}
+
+// An exception an AP clerk recorded against a failed check on a typed-in
+// invoice receipt. The mirror of InvoiceMatchOverride: until it existed a
+// typed-in receipt that failed a waivable check could only sit DISPUTED,
+// or be paid outside the system where the ledger cannot see it. Which
+// codes may be waived is decided in code, never by a row.
+model VendorBillMatchOverride {
+  id           String     @id @default(cuid())
+  vendorBillId String
+  vendorBill   VendorBill @relation(fields: [vendorBillId], references: [id], onDelete: Cascade)
+
+  code   String // the MatchCode being waived
+  reason String // required, and shown wherever the receipt is
+  byId   String
+  by     Person @relation(fields: [byId], references: [id])
+
+  /// What the receipt was worth when the exception was granted, so a later
+  /// reader can tell whether the waiver still describes the same receipt.
+  totalCentsAtOverride Int
+  createdAt            DateTime @default(now())
+
+  @@unique([vendorBillId, code]) // one live exception per check
+  @@index([byId])
 }
 
 // Owed between legal entities of the same company. Derived, never hand maintained.

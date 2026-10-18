@@ -20,6 +20,10 @@ const h = vi.hoisted(() => ({
   reportError: vi.fn(async () => undefined),
   notifyBulk: vi.fn(async () => ({ count: 0 })),
   logBulkAccess: vi.fn(),
+  // The AP desk's own check for a typed-in invoice receipt (money,
+  // lib/money/keyed-receipt). Its arithmetic is money's and tested there;
+  // here only that the twin asks it and says what it says.
+  keyedGate: { ok: true } as { ok: true } | { ok: false; code: string; says: string } | null,
 }))
 function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([k, v]) => {
@@ -88,6 +92,7 @@ vi.mock('@/lib/db', () => ({ prisma: client(() => h.db.tables) }))
 vi.mock('@/lib/alerts', () => ({ reportError: h.reportError }))
 vi.mock('@/lib/notify', () => ({ notifyBulk: h.notifyBulk }))
 vi.mock('@/lib/access-log', () => ({ logBulkAccess: h.logBulkAccess }))
+vi.mock('@/lib/money/keyed-receipt', () => ({ mayPayKeyedReceipt: async () => h.keyedGate }))
 
 const T = () => h.db.tables
 const CLIENT = 'northbend'
@@ -103,6 +108,7 @@ const SOMEBODY_ELSE_DECIDES = () => ['northbend', 'pinnacle'].map((companyId) =>
 function fresh() {
   h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: SOMEBODY_ELSE_DECIDES(), vendorBill: [], invoice: [], company: [], modelPrompt: [], person: [] }
   h.db.failOn = null
+  h.keyedGate = { ok: true }
   h.reportError.mockClear()
   h.notifyBulk.mockClear()
 }
@@ -209,6 +215,21 @@ describe('the twin’s ledger', () => {
     expect(refusal.rationale).toBe(said)
     expect(refusal.rationale).not.toBe(base.rationale)
   })
+  it('the twin never asks for a yes on a typed-in invoice receipt the paying team’s own check refuses, and says the check’s sentence', async () => {
+    T().vendorBill.push({ id: 'bill-dup', companyId: CLIENT, status: 'RECEIVED', buyContractId: null })
+    const says = 'Pinnacle Resourcing’s invoice PR-2026-0442 bills the week of Oct 4, 2026, which invoice receipt PR-2026-0431 already bills.'
+    h.keyedGate = { ok: false, code: 'DUPLICATE', says }
+    const r = await act({ ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-dup' } })
+    expect(r).toMatchObject({ outcome: 'REFUSED', says })
+    expect(T().twinApproval).toEqual([])
+    expect(T().vendorBill[0].status).toBe('RECEIVED')
+    expect(T().twinAction.pop()!.payload.said).toBe(says)
+
+    h.keyedGate = null
+    const gone = await act({ ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-dup' } })
+    expect(gone).toMatchObject({ outcome: 'REFUSED', says: 'That invoice receipt is not on the record.' })
+  })
+
   it('acts per day counts a person\u2019s yes or no in the chat or on Teams, and nothing the twin did on its own', async () => {
     const now = new Date('2026-10-12T15:00:00Z')
     const at = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86_400_000)

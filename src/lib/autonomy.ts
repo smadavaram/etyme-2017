@@ -690,6 +690,23 @@ export const PLANNED: Record<string, PlannedAct> = {
     willBeWrittenBy: 'etyme-demand',
   },
 
+  // ── Typed-in invoice receipts, 2026-10-18 ──────────────────────────
+  //
+  // The tables a typed-in receipt's lines, waivers and payments live on
+  // landed today; the cancel door is etyme-money's, over the one check in
+  // lib/money/keyed-receipt. Named here so its level is decided with the
+  // record. The row it writes is `reversible: false`, honestly: the
+  // receipt stays on the record as CANCELLED and is never revived; a
+  // corrected one is typed in again.
+
+  INVOICE_RECEIPT_CANCELLED: {
+    kind: 'ATTRIBUTED',
+    basis: 'RULE',
+    says:
+      'Somebody cancelled an invoice receipt their firm had typed in from a supplier\u2019s invoice \u2014 keyed twice, keyed against the wrong order, or withdrawn by the supplier \u2014 with a reason. Only a receipt with nothing paid on it and in no released payment run may be cancelled; it stays on the record as cancelled.',
+    willBeWrittenBy: 'etyme-money',
+  },
+
 }
 
 export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()

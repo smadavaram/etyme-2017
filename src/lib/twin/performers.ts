@@ -27,7 +27,7 @@ import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
-import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
 
 export interface PerformContext {
@@ -129,19 +129,21 @@ const approveInvoiceReceipt: Performer = {
     if (c.entity.type === 'VendorBill') {
       const bill = await prisma.vendorBill.findUnique({
         where: { id: c.entity.id },
-        select: { companyId: true, status: true, buyContractId: true, periodStart: true, periodEnd: true },
+        select: { companyId: true, status: true },
       })
       if (!bill || bill.companyId !== c.companyId) return 'That invoice receipt is not on this company’s books.'
       if (bill.status === 'DISPUTED') {
         return 'A check failed on this invoice receipt. The AP clerk records an exception with a reason before it can be approved.'
       }
       if (bill.status !== 'RECEIVED') return 'This invoice receipt has already been approved, paid or cancelled.'
-      if (bill.buyContractId && bill.periodStart && bill.periodEnd) {
-        const book = await payersBook({
-          buyContractId: bill.buyContractId, periodStart: bill.periodStart, periodEnd: bill.periodEnd, then: 'pay',
-        })
-        if (book && book.waiting.length > 0) return book.notAccepted
-      }
+      // The one check a typed-in receipt is paid on (money,
+      // lib/money/keyed-receipt): the weeks accepted, received once, inside
+      // the order's ceiling, at the agreed rate. The twin asks the AP
+      // desk's own question and adds nothing to it, so it never approves a
+      // duplicate or a receipt past its ceiling.
+      const g = await mayPayKeyedReceipt(c.entity.id)
+      if (!g) return 'That invoice receipt is not on the record.'
+      if (!g.ok) return g.says
       return null
     }
     return 'Only an invoice receipt can be approved this way.'

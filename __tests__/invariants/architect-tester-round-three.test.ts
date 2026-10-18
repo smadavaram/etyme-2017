@@ -156,3 +156,45 @@ describe('setting up a company from a template pack is refused in a sentence', (
     expect(route).not.toContain('You need settings.manage permission')
   })
 })
+
+describe('a typed-in invoice receipt is matched line by line, waived with a reason and paid on the record', () => {
+  // Accounts payable wave, 2026-10-18. The tables money's one check for a
+  // typed-in receipt (lib/money/keyed-receipt) needs, beside the ones a
+  // platform invoice already has. The receipt is the timesheet: a line
+  // names the signed week, the approved expense or the accepted milestone.
+  const lines = model('VendorBillLine')
+  const waiver = model('VendorBillMatchOverride')
+  const payment = model('Payment')
+
+  it('a typed-in receipt carries hours, expense and milestone lines, with the same field names a platform invoice’s lines use', () => {
+    for (const f of ['timesheetId', 'expenseId', 'milestoneId', 'personId']) expect(lines).toMatch(new RegExp(`\\b${f}\\s+String\\?`))
+    expect(lines).toMatch(/vendorBillId\s+String\n/)
+    expect(lines).toMatch(/hours\s+Decimal\?\s+@db\.Decimal\(7, 2\)/)
+    expect(lines).toMatch(/rateCents\s+Int\?/)
+    expect(lines).toMatch(/amountCents\s+Int\n/)
+    expect(lines).toMatch(/@relation\(fields: \[vendorBillId\], references: \[id\], onDelete: Cascade\)/)
+  })
+
+  it('a week on a cancelled receipt can be typed in again, so “a week received once” is the check’s to say and not a unique key’s', () => {
+    expect(lines).not.toMatch(/@@unique/)
+    expect(lines).not.toMatch(/@unique/)
+  })
+
+  it('a waiver on a typed-in receipt is one per check, and says who granted it, why, and what the receipt was worth then', () => {
+    expect(waiver).toContain('@@unique([vendorBillId, code])')
+    expect(waiver).toMatch(/reason\s+String/)
+    expect(waiver).toMatch(/byId\s+String\n/)
+    expect(waiver).toMatch(/totalCentsAtOverride\s+Int\n/)
+  })
+
+  it('paying a typed-in receipt can be recorded as a payment saying who paid whom, and the column is optional so production applies it on build', () => {
+    expect(payment).toMatch(/vendorBillId\s+String\?/)
+    expect(payment).toMatch(/vendorBill\s+VendorBill\?\s+@relation\(fields: \[vendorBillId\], references: \[id\]\)/)
+  })
+
+  it('every key the three point at is indexed', () => {
+    for (const k of ['vendorBillId', 'timesheetId', 'expenseId', 'milestoneId', 'personId']) expect(lines).toContain(`@@index([${k}])`)
+    expect(waiver).toContain('@@index([byId])')
+    expect(payment).toContain('@@index([vendorBillId])')
+  })
+})

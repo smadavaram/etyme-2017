@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   reportError: vi.fn(async () => undefined),
   notifyBulk: vi.fn(async () => ({ count: 0 })),
   logBulkAccess: vi.fn(),
+  receipts: [] as Record<string, unknown>[],
 }))
 function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([k, v]) => {
@@ -84,6 +85,16 @@ vi.mock('@/lib/db', () => ({ prisma: client(() => h.db.tables) }))
 vi.mock('@/lib/alerts', () => ({ reportError: h.reportError }))
 vi.mock('@/lib/notify', () => ({ notifyBulk: h.notifyBulk }))
 vi.mock('@/lib/access-log', () => ({ logBulkAccess: h.logBulkAccess }))
+// The paying team's own check for a typed-in receipt is money's and tested
+// there (lib/money/keyed-receipt); here every receipt passes it, so what is
+// tested is the role contract.
+// The nightly run's inputs, so what it does with a verdict is what is
+// tested: the rules themselves are tested in twin-invoice-rule.
+vi.mock('@/lib/twin/rules/tenure', () => ({ tenureWarnings: async () => [] }))
+vi.mock('@/lib/twin/rules/invoice', () => ({ pendingReceiptsFor: async () => h.receipts }))
+vi.mock('@/lib/twin/rule-set', () => ({ ruleSetFor: async () => ({ version: 1, tenureWarnAtDays: [90, 60, 30], hoursTolerancePct: 0.5, source: 'DEFAULT' }) }))
+vi.mock('@/lib/teams/digest', () => ({ tellProgramOwnerOnTeams: async () => [] }))
+vi.mock('@/lib/money/keyed-receipt', () => ({ mayPayKeyedReceipt: async () => ({ ok: true }) }))
 
 const T = () => h.db.tables
 const CLIENT = 'northbend'
@@ -99,6 +110,7 @@ const SOMEBODY_ELSE_DECIDES = () => ['northbend', 'pinnacle'].map((companyId) =>
 function fresh() {
   h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: SOMEBODY_ELSE_DECIDES(), vendorBill: [], invoice: [] }
   h.db.failOn = null
+  h.receipts = []
   h.reportError.mockClear()
 }
 
@@ -108,7 +120,7 @@ import { rolesFor } from '../../src/lib/company-defaults'
 import { checkContract, tierIn, DEFAULT_CONTRACT, defaultContractFor, twinKindFor, twinName } from '../../src/lib/twin/role-contract'
 import { twinRefusal } from '../../src/lib/refusal-words'
 import { TWIN_ACTS, ALL_TWIN_ACTS } from '../../src/lib/autonomy'
-import { suppliersToRun } from '../../src/lib/twin/run'
+import { suppliersToRun, runTwin } from '../../src/lib/twin/run'
 
 const AP_CLERK = {
   personId: 'pat', personName: 'Pat Okafor', companyId: CLIENT, companyKind: 'CLIENT',
@@ -385,5 +397,29 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
       { id: 'visitor-box', kind: 'VENDOR', isCensusSandbox: false, isDemo: true },
     ]
     expect((await suppliersToRun()).sort()).toEqual(['brightmoor', 'nurse-llc', 'teleworld'])
+  })
+})
+
+describe('the nightly run never lets a receipt it cannot pay pass in silence', () => {
+  it('a receipt inside the hours tolerance that the check will not let be paid is told to the paying team, not approved and not left unsaid', async () => {
+    h.db.tables.context.unshift({
+      id: 'ctx-northbend-pm', companyId: 'northbend', personId: 'dana', type: 'EMPLOYEE', revokedAt: null,
+      role: { name: 'Program Manager' }, person: { name: 'Dana Whitfield', primaryEmail: 'dana@northbend.example' },
+    })
+    const verdict = (invoiceId: string, payable: boolean) => ({
+      invoiceId, number: invoiceId.toUpperCase(), supplierName: 'Pinnacle Resourcing', dueAt: null, verdict: 'CLEAN', payable, failing: [], lines: [],
+      ruleCited: `${invoiceId.toUpperCase()} bills 40.1 hours against 40 accepted, inside the 0.5% the twin allows.`,
+      rationale: 'The hours and the rate are inside the rule; this is for the AP clerk to resolve or waive with a reason.',
+      rules: { hoursTolerancePct: 0.5, source: 'DEFAULT' },
+    })
+    h.receipts = [verdict('pr-0451', false)]
+    const run = await runTwin('northbend')
+    const acts = h.db.tables.twinAction.filter((e) => e.entityId === 'pr-0451').map((e) => [e.action, e.outcome])
+    expect(acts).toEqual([
+      ['invoice_receipt.record', 'PERFORMED'],
+      ['invoice_receipt.flag_mismatch', 'PERFORMED'],
+    ])
+    expect(h.db.tables.twinApproval).toEqual([])
+    expect(run.receipts).toBe(1)
   })
 })
