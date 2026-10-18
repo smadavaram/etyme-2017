@@ -87,6 +87,13 @@ const RUNTIME: Record<string, string> = {
   // named desk turning it, so a seeded one would put a real-looking name
   // on a pay decision nobody made.
   benchHolidaySwitch: 'written when the owner, admin or finance desk turns holiday pay on the bench, for the firm or for one person',
+  // A typed-in invoice receipt (2026-10-18, lib/money/keyed-lines). The
+  // seeded receipts are matched on their totals; a line is what an AP desk
+  // types off a supplier's paper, and a waiver is a named person passing a
+  // difference with a reason, so a seeded one would put a name on a
+  // payment decision nobody made.
+  vendorBillLine: 'written when the AP desk types the lines of a supplier’s invoice into an invoice receipt',
+  vendorBillMatchOverride: 'written when the AP desk waives a difference on an invoice receipt, with the reason and its name',
   // ── Four that must never be seeded, added 2026-09-19 ───────────────
   //
   // These are the strongest case this list has. A seeded DataRequest

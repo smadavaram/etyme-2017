@@ -92,7 +92,7 @@ export const DELETE_ORDER = [
   'RequirementInvitation', 'Match', 'Lead', 'Representation', 'DoNotSubmit', 'BuyContractCandidate',
   'ContractLink', 'Cycle', 'TimeOffEntry', 'Payment', 'CustomerCreditLimit', 'DunningSend', 'FxRate',
   'JournalLine', 'ErpAccountMap', 'OrderPosting', 'ContractCostAllocation', 'InvoiceLine',
-  'InvoiceMatchOverride', 'IntercompanyPosition', 'RateHistory', 'Blacklist', 'SupplierRequest',
+  'InvoiceMatchOverride', 'VendorBillLine', 'VendorBillMatchOverride', 'IntercompanyPosition', 'RateHistory', 'Blacklist', 'SupplierRequest',
   'ContractorInvitation', 'Favorite', 'Message', 'Notification', 'RolloffEvent', 'JobRun', 'AutomationLog',
   // The twin (2026-10-12). The two point at each other: a question names
   // the entry that asked it, and a person's answer names the question. The
