@@ -188,9 +188,12 @@ describe('wages count in the year they were paid', () => {
     as(RATE_CHANGE_PERSON.email)
     const mine = await json(await myWork(req('GET', '/api/me/work')))
     const filing = mine.body.data.filing.find((f: any) => f.payer === 'Brightmoor Staffing')
-    const week = filing.weeks[0]
-    const weekday = week.days.find((d: string) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()))
-    expect(weekday, JSON.stringify(week.days)).toBeTruthy()
+    // The newest open week with a weekday in it. On a Sunday the current
+    // week holds only that Sunday so far, so the week before is the one.
+    const isWeekday = (d: string) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay())
+    const week = filing.weeks.find((w: any) => w.days.some(isWeekday))
+    expect(week, JSON.stringify(filing.weeks)).toBeTruthy()
+    const weekday = week.days.find(isWeekday)
     const filed = await json(await fileWeek(req('POST', '/api/me/work', {
       contractId: filing.contractId, periodStart: week.periodStart, hours: { [weekday]: 8 },
     })))
