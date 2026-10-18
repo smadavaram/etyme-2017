@@ -18,28 +18,46 @@
  * ask this one question now, and the gate at the bottom is the payment's
  * answer, the same shape as `payGate` on the platform side.
  *
- * ── What a typed-in receipt cannot yet carry ─────────────────────────
+ * ── Two shapes, one check ────────────────────────────────────────────
  *
- * It is a total and a period. It has no lines, so it cannot name an
- * expense or a milestone; it stores no hours and no rate, so at the
- * moment it is paid only its total can be held to the accepted hours;
- * and there is no row to keep a waiver's reason on, so a difference on
- * one cannot be waived — it is refused until the supplier's corrected
- * invoice is recorded instead. Each is a schema request for the architect,
- * named in KNOWN-LIMITS.md, and each refuses rather than guesses.
+ * A receipt typed in as a total and a period is held to its amount: the
+ * hours the payer accepted over the period at the agreed rate on each
+ * day, exact (`AMOUNT`). Nobody may waive that, because a total cannot say
+ * whether the hours or the rate differ.
+ *
+ * A receipt typed in with lines (`VendorBillLine`, 2026-10-18) is matched
+ * line by line by the engine a platform invoice is matched by
+ * (`threeWayMatch`): an hours line against the payer's own acceptance of
+ * that week at the agreed rate, an expense line against the expense
+ * approved on this buy line, a milestone line against the milestone
+ * accepted on the order this receipt draws on. The lines must add up to
+ * the total.
+ *
+ * Either shape may carry exceptions (`VendorBillMatchOverride`): a
+ * difference the paying team waived with a reason, on exactly the checks
+ * a platform invoice's may be waived on. A waiver describes one total; if
+ * the total changes it is void.
  */
 
 import { prisma } from '@/lib/db'
 import { decimalsFor } from '@/lib/money'
-import { priceByDay, ratePeriods } from '@/lib/contract-rate'
+import { priceByDay, ratePeriods, type RatePeriod } from '@/lib/contract-rate'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { notAcceptedSays, weekWord } from '@/lib/money/payers-acceptance'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
-import { alreadyReceived } from '@/lib/money/billed-elsewhere'
+import { alreadyReceived, heldSays, type ReceiptAlready, type AcceptedWeekRead } from '@/lib/money/billed-elsewhere'
+import { liveWaivers, type KeyedLine, type StoredWaiver } from '@/lib/money/keyed-lines'
+import { recompute, type PricedLine } from '@/lib/invoice-match'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
+import { ladderFor } from '@/lib/work-chain-read'
+import { descend } from '@/lib/work-chain'
 import { overBillCheck } from '@/lib/purchase-order'
 import { amount } from '@/lib/money-display'
+import { formatDay } from '@/lib/format-date'
 import {
-  matchVendorBill, OVERRIDABLE,
+  matchVendorBill, threeWayMatch, OVERRIDABLE,
   type AcceptedWork, type MatchResult, type PurchaseOrderFacts,
+  type InvoiceLineFacts, type TimesheetFacts, type ExpenseFacts, type MilestoneFacts,
 } from '@/lib/three-way-match'
 import type { WaitingWeek } from '@/lib/money/payers-acceptance'
 
@@ -57,11 +75,15 @@ export interface KeyedReceipt {
   periodEnd: Date | null
   currency: string
   totalCents: number
-  /** What the supplier's invoice states, where the clerk typed it. Never stored. */
+  /** What the supplier's invoice states, where the clerk typed it on a total-only receipt. Never stored. */
   hours?: number | null
   rateCents?: number | null
   /** When it was recorded; an earlier receipt keeps a week over a later one. */
   createdAt?: Date | null
+  /** Its lines, where it was typed in with lines. Empty or absent: a total. */
+  lines?: KeyedLine[] | null
+  /** Exceptions recorded on it, live or not; which still stand is decided here. */
+  waivers?: StoredWaiver[] | null
 }
 
 export interface KeyedCheck {
@@ -72,8 +94,17 @@ export interface KeyedCheck {
   hard: { code: string; says: string } | null
   /** The order the receipt draws on — the clerk's, else the buy line's. */
   workOrderId: string | null
-  /** The earlier receipt that already holds this work, where one does. */
+  /** The earlier document that already holds this work, where one does. */
   duplicate: { number: string; says: string } | null
+  /** An exception recorded for a different total, and so no longer standing — the sentence. */
+  voidedWaiver: string | null
+  /**
+   * The period the receipt covers: the one typed in, else the span of
+   * what its lines bill. Null on a total with no period.
+   */
+  period: { start: Date; end: Date } | null
+  /** Whose week or expense each line bills, by line id, read off the record — what a stored line names. */
+  linePeople?: Record<string, string>
 }
 
 /**
@@ -88,15 +119,30 @@ export interface KeyedCheck {
  */
 export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay'): Promise<KeyedCheck> {
   const currency = r.currency.toUpperCase()
+  const buy = r.buyContractId
+    ? await prisma.buyContract.findUnique({
+        where: { id: r.buyContractId },
+        select: { workOrderId: true, supplierSellContractId: true },
+      })
+    : null
+
+  // The order: the clerk's, else the line's own. The walk's $4,720
+  // receipt against a $1,000 order went through because the order was
+  // only checked where somebody typed it in. A buy line on an order draws
+  // on that order whether or not anybody says so.
+  const workOrderId = r.workOrderId ?? buy?.workOrderId ?? null
+  const order = await orderFacts(r, workOrderId)
+  const waivers = liveWaivers(r.waivers ?? [], r.totalCents, currency)
+  const others = await otherReceipts(r, then)
+
+  if (r.lines && r.lines.length > 0) {
+    return checkLines(r, then, { buy, workOrderId, order, waivers, others })
+  }
+
   let accepted: AcceptedWork | null = null
   let expectedCents: number | null = null
   let notAccepted: KeyedCheck['notAccepted'] = null
-  let weeks: { personName: string | null; days: Record<string, number> | null; periodStart: string; periodEnd: string }[] = []
-  let hard: KeyedCheck['hard'] = null
-
-  const buy = r.buyContractId
-    ? await prisma.buyContract.findUnique({ where: { id: r.buyContractId }, select: { workOrderId: true } })
-    : null
+  let weeks: AcceptedWeekRead[] = []
 
   // ── What we accepted, and what it comes to ─────────────────────────
   //
@@ -111,12 +157,7 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
         where: { buyContractId: r.buyContractId },
         select: { payRate: true, payCurrency: true },
       })
-      const periods = ratePeriods(
-        await prisma.rateHistory.findMany({
-          where: { contractType: 'BUY', contractId: r.buyContractId },
-          select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-        })
-      )
+      const periods = await buyRatePeriods(r.buyContractId)
       const priced = candidate
         ? ours.weeks.map((w) =>
             priceByDay({
@@ -148,6 +189,7 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
         expectedCents = [...byRate.entries()].reduce((n, [rate, h]) => n + Math.round(h * rate), 0)
       }
       weeks = ours.weeks.map((w) => ({
+        id: w.id,
         personName: w.personName ?? null,
         days: w.days,
         periodStart: w.periodStart.toISOString().slice(0, 10),
@@ -156,88 +198,14 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
     }
   }
 
-  // ── The order: the clerk's, else the line's own ───────────────────
-  //
-  // The walk's $4,720 receipt against a $1,000 order went through because
-  // the order was only checked where somebody typed it in. A buy line on
-  // an order draws on that order whether or not anybody says so.
-  const workOrderId = r.workOrderId ?? buy?.workOrderId ?? null
-  let po: PurchaseOrderFacts | null = null
-  if (workOrderId) {
-    const order = await prisma.workOrder.findUnique({
-      where: { id: workOrderId },
-      select: {
-        id: true, number: true, status: true, amount: true, currency: true,
-        startDate: true, endDate: true, issuedById: true,
-      },
-    })
-    if (order && order.issuedById === r.companyId) {
-      const drawn = await drawnOnOrder(order, { vendorBillId: r.id })
-      const facts = {
-        id: order.id,
-        number: order.number,
-        status: order.status,
-        amountCents: Math.round(parseFloat(order.amount.toString()) * 10 ** decimalsFor(order.currency)),
-        consumedCents: drawn.cents,
-        startDate: order.startDate,
-        endDate: order.endDate,
-      }
-      const ceiling = overBillCheck(
-        { billCents: r.totalCents, billCurrency: currency, periodStart: r.periodStart, periodEnd: r.periodEnd, po: { ...facts, currency: order.currency } },
-        new Date()
-      )
-      const currencyRefusal = ceiling.problems.find((p) => !p.overridable)
-      if (currencyRefusal) {
-        hard = { code: currencyRefusal.code, says: currencyRefusal.says }
-      } else if (drawn.foreign.length > 0) {
-        // Never added across currencies, and never guessed past.
-        hard = {
-          code: 'PO_CURRENCY',
-          says:
-            `Order ${order.number} already has ${drawn.foreign.join(', ')} drawn on it in another currency, so what ` +
-            `is left on it cannot be said and this invoice is not checked against it on a guess.`,
-        }
-      } else {
-        po = facts
-      }
-    }
-  }
-
   // ── The same work, already received ────────────────────────────────
-  let duplicate: KeyedCheck['duplicate'] = null
-  if (r.buyContractId && r.periodStart && r.periodEnd && weeks.length > 0) {
-    const others = await prisma.vendorBill.findMany({
-      where: {
-        companyId: r.companyId,
-        vendorCompanyId: r.vendorCompanyId,
-        buyContractId: r.buyContractId,
-        status: { not: 'CANCELLED' },
-        periodStart: { lte: r.periodEnd },
-        periodEnd: { gte: r.periodStart },
-        ...(r.id ? { id: { not: r.id } } : {}),
-      },
-      select: { number: true, periodStart: true, periodEnd: true, receivedAt: true, createdAt: true, paidCents: true },
-      orderBy: { createdAt: 'asc' },
-    })
-    const keeping = then === 'record'
-      ? others
-      : others.filter((o) => o.paidCents > 0 || (r.createdAt != null && o.createdAt < r.createdAt))
-    duplicate = alreadyReceived(
-      { periodStart: r.periodStart.toISOString().slice(0, 10), periodEnd: r.periodEnd.toISOString().slice(0, 10) },
-      weeks,
-      keeping.flatMap((o) =>
-        o.periodStart && o.periodEnd
-          ? [{
-              number: o.number,
-              vendorName: r.vendorName,
-              periodStart: o.periodStart.toISOString().slice(0, 10),
-              periodEnd: o.periodEnd.toISOString().slice(0, 10),
-              receivedAt: o.receivedAt.toISOString(),
-            }]
-          : []
+  const duplicate = r.periodStart && r.periodEnd && weeks.length > 0
+    ? alreadyReceived(
+        { periodStart: r.periodStart.toISOString().slice(0, 10), periodEnd: r.periodEnd.toISOString().slice(0, 10) },
+        weeks,
+        others.receipts
       )
-    )
-  }
+    : null
 
   const match = matchVendorBill({
     bill: {
@@ -253,13 +221,506 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
       duplicateSays: duplicate?.says ?? null,
     },
     accepted,
-    po,
+    po: order.po,
     poRequired: false,
     notAccepted: notAccepted?.says ?? null,
     expectedCents,
+    overrides: waivers.live,
   })
 
-  return { match, notAccepted, hard, workOrderId, duplicate }
+  return {
+    match, notAccepted, hard: order.hard, workOrderId, duplicate,
+    voidedWaiver: waivers.voided,
+    period: r.periodStart && r.periodEnd ? { start: r.periodStart, end: r.periodEnd } : null,
+  }
+}
+
+// ── The order a receipt draws on ─────────────────────────────────────
+
+async function orderFacts(
+  r: KeyedReceipt,
+  workOrderId: string | null,
+): Promise<{ po: PurchaseOrderFacts | null; hard: KeyedCheck['hard'] }> {
+  if (!workOrderId) return { po: null, hard: null }
+  const currency = r.currency.toUpperCase()
+  const order = await prisma.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: {
+      id: true, number: true, status: true, amount: true, currency: true,
+      startDate: true, endDate: true, issuedById: true,
+    },
+  })
+  if (!order || order.issuedById !== r.companyId) return { po: null, hard: null }
+  const drawn = await drawnOnOrder(order, { vendorBillId: r.id })
+  const facts = {
+    id: order.id,
+    number: order.number,
+    status: order.status,
+    amountCents: Math.round(parseFloat(order.amount.toString()) * 10 ** decimalsFor(order.currency)),
+    consumedCents: drawn.cents,
+    startDate: order.startDate,
+    endDate: order.endDate,
+  }
+  const ceiling = overBillCheck(
+    { billCents: r.totalCents, billCurrency: currency, periodStart: r.periodStart, periodEnd: r.periodEnd, po: { ...facts, currency: order.currency } },
+    new Date()
+  )
+  const currencyRefusal = ceiling.problems.find((p) => !p.overridable)
+  if (currencyRefusal) return { po: null, hard: { code: currencyRefusal.code, says: currencyRefusal.says } }
+  if (drawn.foreign.length > 0) {
+    // Never added across currencies, and never guessed past.
+    return {
+      po: null,
+      hard: {
+        code: 'PO_CURRENCY',
+        says:
+          `Order ${order.number} already has ${drawn.foreign.join(', ')} drawn on it in another currency, so what ` +
+          `is left on it cannot be said and this invoice is not checked against it on a guess.`,
+      },
+    }
+  }
+  return { po: facts, hard: null }
+}
+
+// ── Every other live receipt from this supplier on this line ─────────
+
+interface Others {
+  /** As the week check reads them. */
+  receipts: ReceiptAlready[]
+  /** Every expense and milestone their lines bill, with the receipt holding it. */
+  sums: { expenseId: string | null; milestoneId: string | null; receipt: ReceiptAlready }[]
+}
+
+async function otherReceipts(r: KeyedReceipt, then: 'record' | 'pay'): Promise<Others> {
+  if (!r.buyContractId) return { receipts: [], sums: [] }
+  const rows = await prisma.vendorBill.findMany({
+    where: {
+      companyId: r.companyId,
+      vendorCompanyId: r.vendorCompanyId,
+      buyContractId: r.buyContractId,
+      // A cancelled receipt holds nothing: its week may be received again.
+      status: { not: 'CANCELLED' },
+      ...(r.id ? { id: { not: r.id } } : {}),
+    },
+    select: {
+      number: true, periodStart: true, periodEnd: true, receivedAt: true, createdAt: true, paidCents: true,
+      lines: { select: { timesheetId: true, expenseId: true, milestoneId: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+  const keeping = then === 'record'
+    ? rows
+    : rows.filter((o) => o.paidCents > 0 || (r.createdAt != null && o.createdAt < r.createdAt))
+  const receipts: ReceiptAlready[] = []
+  const sums: Others['sums'] = []
+  for (const o of keeping) {
+    const read: ReceiptAlready = {
+      number: o.number,
+      vendorName: r.vendorName,
+      periodStart: (o.periodStart ?? o.receivedAt).toISOString().slice(0, 10),
+      periodEnd: (o.periodEnd ?? o.receivedAt).toISOString().slice(0, 10),
+      receivedAt: o.receivedAt.toISOString(),
+      heldTimesheetIds: o.lines.length > 0 ? o.lines.flatMap((l) => (l.timesheetId ? [l.timesheetId] : [])) : null,
+    }
+    // A total with no period holds no week: nothing says which.
+    if (o.lines.length > 0 || (o.periodStart && o.periodEnd)) receipts.push(read)
+    for (const l of o.lines) if (l.expenseId || l.milestoneId) sums.push({ expenseId: l.expenseId, milestoneId: l.milestoneId, receipt: read })
+  }
+  return { receipts, sums }
+}
+
+async function buyRatePeriods(buyContractId: string): Promise<RatePeriod[]> {
+  return ratePeriods(
+    await prisma.rateHistory.findMany({
+      where: { contractType: 'BUY', contractId: buyContractId },
+      select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+    })
+  )
+}
+
+// ── A receipt typed in with lines ────────────────────────────────────
+
+const TERMS_SELECT = {
+  overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+  workOrder: { select: ORDER_HEADER_SELECT },
+  requirement: { select: { hoursPerWeek: true } },
+  ...SELL_LINE_TERMS_SELECT,
+} as const
+
+const EXPENSE_OK = ['APPROVED', 'INVOICED', 'PAID']
+const MILESTONE_OK = ['ACCEPTED', 'INVOICED']
+
+const plain = (d: Date) => formatDay(d)
+
+/**
+ * Match a receipt's lines, the way a platform invoice's lines are
+ * matched (`threeWayMatch`), against what this payer holds:
+ *
+ *   an hours line   the week the payer itself accepted (lib/money/payers-
+ *                   acceptance), the hours accepted, at the buy line's
+ *                   rate in force on those days — a week whose days fall
+ *                   under two rates cannot be stated as one line at one
+ *                   rate, and is refused rather than priced on a guess;
+ *   an expense line an expense approved on this buy line — incurred on a
+ *                   contract this line pays for, by a person on it, for
+ *                   the client's account — for exactly its amount;
+ *   a milestone     a milestone accepted on the order this receipt draws
+ *                   on, for exactly its amount.
+ *
+ * A premium on an hours line is added only where it can be read without
+ * a guess: the supplier bills us on the platform (its contract to us is
+ * the buy line's `supplierSellContractId`), the week has an overtime
+ * decision, and we accepted the whole week. Then it is priced exactly as
+ * that supplier's platform invoice for the week would be
+ * (`recompute` in lib/invoice-match). Anywhere else a line for more than
+ * its hours at its rate fails the arithmetic, which nobody may waive.
+ */
+async function checkLines(
+  r: KeyedReceipt,
+  then: 'record' | 'pay',
+  ctx: {
+    buy: { workOrderId: string | null; supplierSellContractId: string | null } | null
+    workOrderId: string | null
+    order: { po: PurchaseOrderFacts | null; hard: KeyedCheck['hard'] }
+    waivers: ReturnType<typeof liveWaivers>
+    others: Others
+  },
+): Promise<KeyedCheck> {
+  const lines = r.lines!
+  const currency = r.currency.toUpperCase()
+  let hard = ctx.order.hard
+  let notAccepted: KeyedCheck['notAccepted'] = null
+  const says: Record<string, string> = {}
+  /** Lines whose receipt is refused before the engine sees them: passed with no id, so RECEIPT fails with the sentence. */
+  const unwitnessed = new Set<string>()
+  const refuse = (l: KeyedLine, sentence: string) => { says[l.id] = sentence; unwitnessed.add(l.id) }
+  const n = (l: KeyedLine) => `Line ${lines.indexOf(l) + 1}`
+
+  const timesheets: Record<string, TimesheetFacts> = {}
+  const expenses: Record<string, ExpenseFacts> = {}
+  const milestones: Record<string, MilestoneFacts> = {}
+  const premium = new Map<string, number | null>()
+  const personOf = new Map<string, string>()
+  const linePeople: Record<string, string> = {}
+  const spans: { start: Date; end: Date }[] = []
+
+  const hoursLines = lines.filter((l) => l.timesheetId)
+  const expenseLines = lines.filter((l) => l.expenseId)
+  const milestoneLines = lines.filter((l) => l.milestoneId)
+
+  const candidates = r.buyContractId
+    ? await prisma.buyContractCandidate.findMany({
+        where: { buyContractId: r.buyContractId },
+        select: { personId: true, payRate: true, payCurrency: true },
+      })
+    : []
+
+  if ((hoursLines.length > 0 || expenseLines.length > 0) && !r.buyContractId) {
+    hard ??= {
+      code: 'NO_BUY_LINE',
+      says: 'A week or an expense on an invoice receipt is checked against what was accepted on one buy line. Name the buy line this invoice is for.',
+    }
+  }
+
+  // ── Hours lines ─────────────────────────────────────────────────────
+  const weeksRead: AcceptedWeekRead[] = []
+  if (hoursLines.length > 0 && r.buyContractId) {
+    const ids = [...new Set(hoursLines.map((l) => l.timesheetId!))]
+    const sheets = await prisma.timesheet.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true, personId: true, periodStart: true, periodEnd: true, totalHours: true, days: true, leaveDays: true,
+        sellContractId: true,
+        person: { select: { name: true } },
+        overtimeDecisions: {
+          select: {
+            sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true, accrualBps: true,
+          },
+        },
+        sellContract: { select: TERMS_SELECT },
+      },
+    })
+    const byId = new Map(sheets.map((t) => [t.id, t]))
+    const from = sheets.reduce<Date | null>((a, t) => (!a || t.periodStart < a ? t.periodStart : a), null)
+    const to = sheets.reduce<Date | null>((a, t) => (!a || t.periodEnd > a ? t.periodEnd : a), null)
+    const book = from && to
+      ? await payersBook({ buyContractId: r.buyContractId, periodStart: from, periodEnd: to, then })
+      : null
+    const accepted = new Map((book?.accepted?.weeks ?? []).map((w) => [w.id, w]))
+    const waiting = (book?.waiting ?? []).filter((w) => ids.includes(w.id))
+    if (waiting.length > 0) {
+      const payer = await prisma.company.findUnique({ where: { id: r.companyId }, select: { name: true } })
+      notAccepted = { says: notAcceptedSays(payer?.name ?? 'This company', waiting, then), waiting }
+    }
+    const periods = await buyRatePeriods(r.buyContractId)
+    const supplierLeg = ctx.buy?.supplierSellContractId
+      ? await prisma.sellContract.findUnique({ where: { id: ctx.buy.supplierSellContractId }, select: TERMS_SELECT })
+      : null
+
+    for (const l of hoursLines) {
+      const t = byId.get(l.timesheetId!)
+      if (!t) { refuse(l, `${n(l)} names a week that is not on the record.`); continue }
+      const whose = `${t.person?.name ?? 'Somebody'}’s week of ${weekWord(t.periodStart)}`
+      personOf.set(l.id, t.person?.name ?? 'Somebody')
+      linePeople[l.id] = t.personId
+      spans.push({ start: t.periodStart, end: t.periodEnd })
+      if (l.personId && l.personId !== t.personId) {
+        refuse(l, `${n(l)} names one person and bills ${whose}. A line is for the person whose week it is.`)
+        continue
+      }
+      const candidate = candidates.find((c) => c.personId === t.personId) ?? null
+      const w = accepted.get(t.id)
+      const isWaiting = waiting.some((x) => x.id === t.id)
+      if (!candidate || (!w && !isWaiting)) {
+        refuse(l, `${n(l)} bills ${whose}, which this buy line does not pay for.`)
+        continue
+      }
+      if (!w) {
+        // Not accepted by us: RECEIPT fails, and the route refuses first
+        // in the sentence that names the week and who must accept it.
+        timesheets[t.id] = {
+          id: t.id, status: 'SUBMITTED', approvedHours: 0, contractRateCents: candidate.payRate,
+          periodStart: t.periodStart, periodEnd: t.periodEnd, alreadyBilledOnInvoiceId: null,
+        }
+        continue
+      }
+      if (candidate.payCurrency.toUpperCase() !== currency) {
+        hard ??= {
+          code: 'CURRENCY',
+          says:
+            `This invoice is in ${currency}, and ${t.person?.name ?? 'this person'} is paid in ${candidate.payCurrency.toUpperCase()} ` +
+            `on this buy line. The two are never compared or added, so it is not checked on a guess.`,
+        }
+        continue
+      }
+      const priced = priceByDay({
+        contractRateCents: candidate.payRate, periods, days: w.days, hours: w.hours,
+        periodStart: w.periodStart, periodEnd: w.periodEnd,
+      })
+      const rates = [...new Set(priced.days.map((d) => d.rateCents))]
+      if (rates.length > 1 || priced.note) {
+        hard ??= {
+          code: 'RATE_CHANGED_IN_WEEK',
+          says:
+            `The agreed rate changed inside ${whose}` +
+            (rates.length > 1 ? ` (${rates.map((x) => amount(x, currency)).join(' to ')} an hour)` : '') +
+            `, so one line at one rate cannot state it. Record this invoice as a total, which is priced day by day.`,
+        }
+        continue
+      }
+      timesheets[t.id] = {
+        id: t.id,
+        status: 'APPROVED',
+        approvedHours: w.hours,
+        contractRateCents: rates[0] ?? priced.firstRateCents ?? candidate.payRate,
+        periodStart: t.periodStart,
+        periodEnd: t.periodEnd,
+        alreadyBilledOnInvoiceId: null,
+      }
+      weeksRead.push({
+        id: t.id,
+        personName: t.person?.name ?? null,
+        days: w.days,
+        periodStart: w.periodStart.toISOString().slice(0, 10),
+        periodEnd: w.periodEnd.toISOString().slice(0, 10),
+      })
+
+      // The premium, only where it can be read without a guess.
+      const wholeWeek = Math.abs(w.hours - Number(t.totalHours)) < 0.005
+      if (supplierLeg && t.overtimeDecisions.length > 0 && wholeWeek) {
+        const priced: PricedLine = {
+          hours: l.hours, rateCents: l.rateCents!, amountCents: l.amountCents,
+          sellContractId: ctx.buy!.supplierSellContractId,
+          sellContract: supplierLeg,
+          timesheet: t,
+        }
+        const period = r.periodStart && r.periodEnd
+          ? { start: r.periodStart, end: r.periodEnd, label: '' }
+          : { start: t.periodStart, end: t.periodEnd, label: '' }
+        premium.set(l.id, recompute(priced, period)?.premiumCents ?? null)
+      }
+    }
+  }
+
+  // ── Expense lines ───────────────────────────────────────────────────
+  if (expenseLines.length > 0 && r.buyContractId) {
+    const ids = [...new Set(expenseLines.map((l) => l.expenseId!))]
+    const rows = await prisma.expense.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true, status: true, billable: true, total: true, personId: true, sellContractId: true,
+        periodStart: true, periodEnd: true, category: true,
+        person: { select: { name: true } },
+      },
+    })
+    const byId = new Map(rows.map((e) => [e.id, e]))
+    // The contracts this buy line pays for: the payer's own sell lines it
+    // funds, and the supplier's contract below it down to the bottom of
+    // the chain — the same two places its weeks are found.
+    const linked = await prisma.contractLink.findMany({ where: { buyContractId: r.buyContractId }, select: { sellContractId: true } })
+    const below = ctx.buy?.supplierSellContractId
+      ? descend(ctx.buy.supplierSellContractId, await ladderFor([ctx.buy.supplierSellContractId]))
+      : []
+    const onThisLine = new Set([...linked.map((x) => x.sellContractId), ...below])
+    const people = new Set(candidates.map((c) => c.personId))
+
+    for (const l of expenseLines) {
+      const e = byId.get(l.expenseId!)
+      if (!e) { refuse(l, `${n(l)} names an expense that is not on the record.`); continue }
+      const cents = Math.round(parseFloat(e.total.toString()) * 10 ** decimalsFor(currency))
+      const what = `${e.person?.name ?? 'Somebody'}’s ${e.category.toLowerCase()} expense of ${plain(e.periodStart)}`
+      personOf.set(l.id, e.person?.name ?? 'Expense')
+      linePeople[l.id] = e.personId
+      spans.push({ start: e.periodStart, end: e.periodEnd })
+      if (!onThisLine.has(e.sellContractId) || !people.has(e.personId)) {
+        refuse(l, `${n(l)} bills ${what}, which is not on this buy line.`)
+        continue
+      }
+      if (l.personId && l.personId !== e.personId) {
+        refuse(l, `${n(l)} names one person and bills ${what}. A line is for the person whose expense it is.`)
+        continue
+      }
+      if (!e.billable) {
+        refuse(l, `${n(l)} bills ${what}, which was recorded as the firm’s own cost and not billable, so no invoice is paid for it.`)
+        continue
+      }
+      expenses[e.id] = { id: e.id, status: e.status, totalCents: cents, periodStart: e.periodStart, periodEnd: e.periodEnd, personName: e.person?.name }
+      if (!EXPENSE_OK.includes(e.status)) {
+        says[l.id] = `${n(l)} bills ${what}, which is ${e.status.toLowerCase()}, not approved, so it is not paid.`
+      } else if (cents !== l.amountCents) {
+        says[l.id] = `${n(l)} bills ${amount(l.amountCents, currency)} for ${what}; ${amount(cents, currency)} was approved.`
+      }
+    }
+  }
+
+  // ── Milestone lines ─────────────────────────────────────────────────
+  if (milestoneLines.length > 0) {
+    const ids = [...new Set(milestoneLines.map((l) => l.milestoneId!))]
+    const rows = await prisma.orderMilestone.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, orderId: true, status: true, amountCents: true, name: true, acceptedAt: true, order: { select: { number: true } } },
+    })
+    const byId = new Map(rows.map((m) => [m.id, m]))
+    for (const l of milestoneLines) {
+      const m = byId.get(l.milestoneId!)
+      if (!m) { refuse(l, `${n(l)} names a milestone that is not on the record.`); continue }
+      personOf.set(l.id, 'Milestone')
+      if (m.acceptedAt) spans.push({ start: m.acceptedAt, end: m.acceptedAt })
+      if (!ctx.workOrderId || m.orderId !== ctx.workOrderId) {
+        refuse(l, `${n(l)} bills the milestone “${m.name}” on order ${m.order.number}, which is not the order this invoice draws on.`)
+        continue
+      }
+      milestones[m.id] = { id: m.id, status: m.status, amountCents: m.amountCents }
+      if (!MILESTONE_OK.includes(m.status)) {
+        says[l.id] = `${n(l)} bills the milestone “${m.name}”, which has not been accepted, so it is not paid.`
+      } else if (m.amountCents !== l.amountCents) {
+        says[l.id] = `${n(l)} bills ${amount(l.amountCents, currency)} for the milestone “${m.name}”; it was agreed at ${amount(m.amountCents, currency)}.`
+      }
+    }
+  }
+
+  // ── The period the receipt covers ───────────────────────────────────
+  const period = r.periodStart && r.periodEnd
+    ? { start: r.periodStart, end: r.periodEnd }
+    : spans.length > 0
+      ? {
+          start: new Date(Math.min(...spans.map((x) => x.start.getTime()))),
+          end: new Date(Math.max(...spans.map((x) => x.end.getTime()))),
+        }
+      : null
+
+  // ── The same work, already held ─────────────────────────────────────
+  let duplicate: KeyedCheck['duplicate'] = null
+  if (weeksRead.length > 0) {
+    const span = {
+      periodStart: weeksRead.reduce((a, w) => (w.periodStart < a ? w.periodStart : a), weeksRead[0].periodStart),
+      periodEnd: weeksRead.reduce((a, w) => (w.periodEnd > a ? w.periodEnd : a), weeksRead[0].periodEnd),
+    }
+    duplicate = alreadyReceived(span, weeksRead, ctx.others.receipts)
+  }
+  if (!duplicate) {
+    for (const l of [...expenseLines, ...milestoneLines]) {
+      if (unwitnessed.has(l.id)) continue
+      const held = ctx.others.sums.find((s) =>
+        (l.expenseId && s.expenseId === l.expenseId) || (l.milestoneId && s.milestoneId === l.milestoneId))
+      if (held) {
+        const e = l.expenseId ? expenses[l.expenseId] : null
+        const what = e
+          ? `${e.personName ?? 'This'}’s expense of ${amount(e.totalCents, currency)}`
+          : 'This milestone'
+        duplicate = { number: held.receipt.number, says: heldSays(what, held.receipt) }
+        break
+      }
+    }
+  }
+  if (!duplicate) {
+    // The supplier's own bill, sent here on the platform, for the same
+    // expense or milestone: whichever came first, the second owes it again.
+    const sumIds = {
+      expense: expenseLines.filter((l) => !unwitnessed.has(l.id)).map((l) => l.expenseId!),
+      milestone: milestoneLines.filter((l) => !unwitnessed.has(l.id)).map((l) => l.milestoneId!),
+    }
+    if (sumIds.expense.length + sumIds.milestone.length > 0) {
+      const sent = await prisma.invoiceLine.findFirst({
+        where: {
+          invoice: { status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } },
+          OR: [
+            ...(sumIds.expense.length
+              ? [{ expenseId: { in: sumIds.expense }, sellContract: { companyId: r.vendorCompanyId, clientCompanyId: r.companyId } }]
+              : []),
+            ...(sumIds.milestone.length ? [{ milestoneId: { in: sumIds.milestone } }] : []),
+          ],
+        },
+        select: { expenseId: true, invoice: { select: { number: true } } },
+      })
+      if (sent) {
+        duplicate = {
+          number: sent.invoice.number,
+          says:
+            `${sent.expenseId ? 'This expense' : 'This milestone'} is already on ${r.vendorName}’s bill ${sent.invoice.number}, ` +
+            `sent here on Etyme, so this invoice would owe it twice. Paying the same work twice is not a judgment call, ` +
+            `so nobody can wave it through.`,
+        }
+      }
+    }
+  }
+
+  const facts: InvoiceLineFacts[] = lines.map((l) => {
+    const refused = unwitnessed.has(l.id)
+    return {
+      id: l.id,
+      timesheetId: refused ? null : l.timesheetId,
+      expenseId: refused ? null : l.expenseId,
+      milestoneId: refused ? null : l.milestoneId,
+      personName: personOf.get(l.id) ?? (l.milestoneId ? 'Milestone' : l.expenseId ? 'Expense' : 'Somebody'),
+      hours: l.hours ?? 0,
+      rateCents: l.rateCents ?? 0,
+      amountCents: l.amountCents,
+      premiumCents: premium.get(l.id) ?? null,
+    }
+  })
+
+  const now = new Date()
+  const match = threeWayMatch({
+    invoice: {
+      id: r.id ?? 'pending',
+      totalCents: r.totalCents,
+      periodStart: period?.start ?? now,
+      periodEnd: period?.end ?? now,
+      contractPeriod: null,
+    },
+    lines: facts,
+    timesheets,
+    expenses,
+    milestones,
+    po: ctx.order.po,
+    poRequired: false,
+    overrides: ctx.waivers.live,
+    heldElsewhere: duplicate?.says ?? null,
+    receiptSays: says,
+  })
+
+  return { match, notAccepted, hard, workOrderId: ctx.workOrderId, duplicate, voidedWaiver: ctx.waivers.voided, period, linePeople }
 }
 
 // ── The payer's gate on a typed-in receipt ────────────────────────────
@@ -281,9 +742,8 @@ export type KeyedGate =
  * A receipt recorded as disputed is judged on the check run now, not on
  * the word it was stored with: a week accepted since, or an order topped
  * up, is a difference that has gone, and one still there is refused. A
- * difference somebody could waive on a platform invoice is refused here
- * too, in a sentence that says so, because a typed-in receipt has nowhere
- * yet to keep the reason.
+ * difference the paying team waived with a reason passes, as it does on a
+ * platform invoice — while the receipt is for the total it was waived at.
  */
 /** The refusal the receipt's own state decides, or null. No database. */
 export function keyedStateRefusal(
@@ -302,7 +762,7 @@ export function keyedStateRefusal(
 export function keyedPayGate(
   bill: { number: string; status: string; totalCents: number; paidCents: number; currency: string },
   vendorName: string,
-  check: Pick<KeyedCheck, 'match' | 'hard'> | null,
+  check: Pick<KeyedCheck, 'match' | 'hard'> & { voidedWaiver?: string | null } | null,
 ): KeyedGate {
   const byState = keyedStateRefusal(bill, vendorName)
   if (byState) return byState
@@ -326,7 +786,7 @@ export function keyedPayGate(
       `${vendorName}’s invoice ${bill.number} for ${amount(bill.totalCents, bill.currency)} does not pass the check now: ` +
       `${first.reason.replace(/[.\s]+$/, '')}. ` +
       (waivable
-        ? `An invoice receipt typed in here has nowhere yet to keep a reason for paying a difference, so it is not paid. Ask ${vendorName} for a corrected invoice.`
+        ? `${check.voidedWaiver ? `${check.voidedWaiver} ` : ''}Record an exception with a reason on it if the difference should be paid, or ask ${vendorName} for a corrected invoice.`
         : `Nobody can wave this through.`),
   }
 }
@@ -337,6 +797,16 @@ export const KEYED_SELECT = {
   periodStart: true, periodEnd: true, currency: true, totalCents: true, paidCents: true, status: true,
   receivedAt: true, createdAt: true,
   vendorCompany: { select: { name: true } },
+  lines: {
+    select: {
+      id: true, timesheetId: true, expenseId: true, milestoneId: true, personId: true,
+      hours: true, rateCents: true, amountCents: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  },
+  matchOverrides: {
+    select: { code: true, reason: true, createdAt: true, totalCentsAtOverride: true, by: { select: { name: true } } },
+  },
 } as const
 
 /**
@@ -359,6 +829,11 @@ export function asKeyed(b: {
   id: string; companyId: string; vendorCompanyId: string; number: string; buyContractId: string | null
   workOrderId: string | null; periodStart: Date | null; periodEnd: Date | null; currency: string
   totalCents: number; createdAt: Date; vendorCompany: { name: string }
+  lines?: {
+    id: string; timesheetId: string | null; expenseId: string | null; milestoneId: string | null; personId: string | null
+    hours: { toString(): string } | null; rateCents: number | null; amountCents: number
+  }[]
+  matchOverrides?: { code: string; reason: string; createdAt: Date; totalCentsAtOverride: number; by: { name: string } }[]
 }): KeyedReceipt {
   return {
     id: b.id,
@@ -373,5 +848,19 @@ export function asKeyed(b: {
     currency: b.currency,
     totalCents: b.totalCents,
     createdAt: b.createdAt,
+    // Stored hours are a Decimal to two places; read as a number once, here.
+    lines: (b.lines ?? []).map((l) => ({
+      id: l.id,
+      timesheetId: l.timesheetId,
+      expenseId: l.expenseId,
+      milestoneId: l.milestoneId,
+      personId: l.personId,
+      hours: l.hours == null ? null : Number(l.hours.toString()),
+      rateCents: l.rateCents,
+      amountCents: l.amountCents,
+    })),
+    waivers: (b.matchOverrides ?? []).map((o) => ({
+      code: o.code, reason: o.reason, byName: o.by.name, at: o.createdAt, totalCentsAtOverride: o.totalCentsAtOverride,
+    })),
   }
 }

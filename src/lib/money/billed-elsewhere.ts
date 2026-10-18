@@ -153,10 +153,20 @@ export interface ReceiptAlready {
   periodStart: string
   periodEnd: string
   receivedAt: string
+  /**
+   * Where the other receipt was typed in with lines, the weeks its hours
+   * lines name — and those are the only weeks it holds, whatever its
+   * period says: a receipt with one expense line over October holds no
+   * week of October. Absent on a receipt typed in as a total, which holds
+   * every worked day inside its period.
+   */
+  heldTimesheetIds?: readonly string[] | null
 }
 
 /** One week the payer accepted inside the receipt being recorded or paid. */
 export interface AcceptedWeekRead {
+  /** The timesheet, where the reader has it — what a receipt's hours line names. */
+  id?: string
   personName: string | null
   /** { "2026-10-05": 8, … }, the days the buy line pays for. Null where the week has no daily breakdown. */
   days: Record<string, number> | null
@@ -192,18 +202,29 @@ export function alreadyReceived(
     const mine = worked.filter((d) => d >= receipt.periodStart && d <= receipt.periodEnd)
     if (mine.length === 0) continue
     for (const o of others) {
-      if (!mine.some((d) => d >= o.periodStart && d <= o.periodEnd)) continue
+      const holds = o.heldTimesheetIds != null
+        ? w.id != null && o.heldTimesheetIds.includes(w.id)
+        : mine.some((d) => d >= o.periodStart && d <= o.periodEnd)
+      if (!holds) continue
       const whose = w.personName ? `${w.personName}’s week of ${plain(w.periodStart.slice(0, 10))}` : `The week of ${plain(w.periodStart.slice(0, 10))}`
-      return {
-        number: o.number,
-        says:
-          `${whose} is already on ${o.vendorName}’s invoice ${o.number}, received ` +
-          `${plainYear(o.receivedAt)}, so this invoice would owe it twice. Paying the same work twice is not ` +
-          `a judgment call, so nobody can wave it through.`,
-      }
+      return { number: o.number, says: heldSays(whose, o) }
     }
   }
   return null
+}
+
+/**
+ * The sentence refusing work another receipt already holds — a week, an
+ * expense or a milestone — naming that receipt and when it came in.
+ * `what` is the thing held, said as its subject: "Helena Marsh’s week of
+ * Oct 11", "Helena Marsh’s travel expense of $250.00".
+ */
+export function heldSays(what: string, o: Pick<ReceiptAlready, 'number' | 'vendorName' | 'receivedAt'>): string {
+  return (
+    `${what} is already on ${o.vendorName}’s invoice ${o.number}, received ` +
+    `${plainYear(o.receivedAt)}, so this invoice would owe it twice. Paying the same work twice is not ` +
+    `a judgment call, so nobody can wave it through.`
+  )
 }
 
 const plainYear = (iso: string) =>

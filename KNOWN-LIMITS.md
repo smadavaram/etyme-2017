@@ -245,32 +245,49 @@ read is on the access log under the program owner and the twin's kind
 
 ### A typed-in invoice receipt (`VendorBill`) — etyme-money, 2026-10-18
 
-The intake, the exception queue, the payment and the payment run now ask
-one check (`checkKeyedReceipt`, gate `keyedPayGate` / `mayPayKeyedReceipt`
-in `lib/money/keyed-receipt`). What a typed-in receipt still cannot do,
-each refused rather than guessed:
+The intake, the exception queue, the payment and the payment run ask one
+check (`checkKeyedReceipt`, gate `keyedPayGate` / `mayPayKeyedReceipt` in
+`lib/money/keyed-receipt`). Since the second piece the same day a receipt
+may be typed in with lines (a week, an approved expense, an accepted
+milestone, matched by `threeWayMatch` like a platform invoice), a
+difference may be waived with a reason on the platform's rules
+(`/api/ap/bills/[id]/match/override`, void once the total changes), a
+payment writes a `Payment` row naming the receipt (left out of every
+receivables view), a released payment run writes one per receipt, and a
+mis-keyed receipt is cancelled through `/api/ap/bills/[id]/cancel`. What
+is still short, each refused rather than guessed:
 
-- **No waiver.** There is no row to keep a reason on, so a difference a
-  clerk could waive on a platform invoice (hours, period, the order's
-  ceiling or window) is refused at payment on a typed-in one, in a
-  sentence asking for the supplier's corrected invoice. Schema request:
-  a `VendorBillMatchOverride` like `InvoiceMatchOverride`.
-- **No payment row.** `Payment` points only at an `Invoice`; a row
-  pointing at nothing is unapplied cash on the supplier's own books. The
-  payment is written as a `PAYMENT_RECORDED` automation-log row with who
-  paid whom, the amount, method, reference and who pressed it. Schema
-  request: an optional `Payment.vendorBillId` (and AR's unapplied-cash
-  reads then exclude it).
-- **No lines, no stored hours or rate.** At payment only the total can be
-  held to the accepted hours at the agreed rate (the AMOUNT check, never
-  waivable, because a total cannot say whether hours or rate differ). An
-  expense or a milestone on a supplier's typed-in invoice cannot be
-  represented at all. A week on a buy line with a decided overtime
-  premium is refused at payment, because the straight-time sum is all a
-  total can be checked against. Schema request: `VendorBillLine`.
-- **No cancel door.** A mis-keyed receipt is corrected only by the
-  database; the tests write the cancel. Owed: a cancel action on
-  `PATCH /api/ap/bills`, which needs an autonomy rung for its log row.
+- **A receipt typed in as a total is checked on its total.** Hours and a
+  rate typed on the receipt as a whole are not stored, so at payment it is
+  held to the accepted hours at the agreed rate, to the cent, and nobody
+  may waive that. To waive an hours difference, record it with lines.
+- **An overtime premium on a typed-in line** is priced only where it can
+  be read without a guess: the supplier bills the payer on the platform
+  (`BuyContract.supplierSellContractId`), the week has an overtime decision,
+  and the payer accepted the whole week — then exactly as that supplier's
+  platform invoice would be priced (`recompute`). Where the supplier is
+  not on the platform, or the payer accepted fewer hours than an overtime
+  week's, a line asking for a premium fails the arithmetic, which nobody
+  may waive. **For the founder:** on the pay side, is a supplier's
+  overtime premium the supplier's own contract terms (as on the
+  platform), the payer's `BuyContract.overtimeMultiplierBps`, or the
+  decision the client's signer made at the top? And on a cut week, does
+  the payer's cut come off overtime first (the billing rule) or ordinary
+  hours first (the worker's pay rule) when the payer is paying a
+  sub-vendor rather than a worker?
+- **A rate change inside one week** cannot be stated as one line at one
+  rate; such a receipt is refused with a sentence asking for it to be
+  recorded as a total, which is priced day by day.
+- **No edit door.** A receipt's total or lines change only by cancelling
+  it and typing the corrected one in again. The waiver's "void if the
+  total changes" holds for any writer, so it is ready for one.
+- **Cancelling does not reopen the "invoice receipt to record" date** the
+  receipt closed. A receipt typed in again for the same period closes no
+  second date (it would have closed the next period's), so the date stays
+  closed through the correction, which is the right end state.
+- **Expense approval is one status across the chain** — an expense line
+  is paid against `Expense.status` APPROVED, not against the paying firm's
+  own acceptance of it. Waiting on the founder; not built.
 - **Two receipts for one week let in before 2026-10-18** are paid once:
   the one recorded first, or the one already part paid; the other is
   refused at payment and left out of a run.

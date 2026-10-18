@@ -16,6 +16,7 @@ import {
   checkKeyedReceipt, keyedPayGate, asKeyed, KEYED_SELECT,
 } from '@/lib/money/keyed-receipt'
 import { amount } from '@/lib/money-display'
+import { readLines } from '@/lib/money/keyed-lines'
 import {
   booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
 } from '@/lib/money/seated-books'
@@ -151,6 +152,34 @@ export async function POST(request: NextRequest) {
     )
   }
   const totalCents = Math.round(totalValue * 10 ** decimalsFor(currency))
+
+  // ── Its lines, where the clerk typed them ──────────────────────────
+  //
+  // One line per week, approved expense or accepted milestone the
+  // supplier's invoice bills (lib/money/keyed-lines). Without lines the
+  // receipt is a total, checked on its amount as before. Hours and a rate
+  // on the receipt itself and on its lines would be two answers to one
+  // question, so only one is taken.
+  const linesRead = readLines(body.lines, currency)
+  if (linesRead && !linesRead.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: linesRead.says, field: linesRead.field } },
+      { status: 422 }
+    )
+  }
+  const lines = linesRead?.ok ? linesRead.lines : null
+  if (lines && (body.hours != null || body.rateCents != null)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Give the hours and the rate on the lines, or on the invoice receipt as a whole, not both.',
+          field: 'lines',
+        },
+      },
+      { status: 422 }
+    )
+  }
 
   const receivedAt = body.receivedAt ? new Date(String(body.receivedAt)) : new Date()
   const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
@@ -305,9 +334,13 @@ export async function POST(request: NextRequest) {
       totalCents,
       hours: body.hours != null ? Number(body.hours) : null,
       rateCents: body.rateCents != null ? Math.round(Number(body.rateCents)) : null,
+      lines,
     },
     'record'
   )
+  // The period the receipt covers: as typed, else the span its lines bill.
+  const coversFrom = periodStart ?? check.period?.start ?? null
+  const coversTo = periodEnd ?? check.period?.end ?? null
 
   // ── A week we have not accepted blocks the invoice ─────────────────
   //
@@ -372,7 +405,7 @@ export async function POST(request: NextRequest) {
   // Whichever came first, the second never owes the same hours again
   // (lib/money/billed-elsewhere). Nobody can wave it through: paying
   // twice is not a judgment call.
-  if (periodStart && periodEnd) {
+  if (coversFrom && coversTo) {
     const people = buyContractId
       ? (await prisma.buyContractCandidate.findMany({ where: { buyContractId }, select: { personId: true } })).map((c) => c.personId)
       : null
@@ -382,7 +415,7 @@ export async function POST(request: NextRequest) {
         invoiceLines: {
           some: {
             sellContract: { companyId: vendorCompanyId, clientCompanyId: companyId },
-            timesheet: { periodStart: { lte: periodEnd }, periodEnd: { gte: periodStart } },
+            timesheet: { periodStart: { lte: coversTo }, periodEnd: { gte: coversFrom } },
           },
         },
       },
@@ -396,8 +429,8 @@ export async function POST(request: NextRequest) {
     })
     const twice = alreadyOnABill(
       {
-        periodStart: periodStart.toISOString().slice(0, 10),
-        periodEnd: periodEnd.toISOString().slice(0, 10),
+        periodStart: coversFrom.toISOString().slice(0, 10),
+        periodEnd: coversTo.toISOString().slice(0, 10),
         personIds: people,
       },
       generated.map((g) => ({
@@ -452,8 +485,8 @@ export async function POST(request: NextRequest) {
       // receipt's ceiling counts this one.
       workOrderId: check.workOrderId,
       projectOrderId,
-      periodStart,
-      periodEnd,
+      periodStart: coversFrom,
+      periodEnd: coversTo,
       currency,
       totalCents,
       paidCents: paidAt ? totalCents : Math.round(Number(body.paid ?? 0) * 10 ** decimalsFor(currency)),
@@ -462,6 +495,23 @@ export async function POST(request: NextRequest) {
       paidAt,
       status: statusAfterMatch,
       payWhenPaid,
+      // Written with the receipt, in one statement, so a receipt is never
+      // on the record without the lines it was checked on.
+      ...(lines
+        ? {
+            lines: {
+              create: lines.map((l) => ({
+                timesheetId: l.timesheetId,
+                expenseId: l.expenseId,
+                milestoneId: l.milestoneId,
+                personId: l.personId ?? check.linePeople?.[l.id] ?? null,
+                hours: l.hours,
+                rateCents: l.rateCents,
+                amountCents: l.amountCents,
+              })),
+            },
+          }
+        : {}),
     },
     select: { id: true, number: true, totalCents: true, currency: true, dueAt: true, status: true },
   })
@@ -495,8 +545,17 @@ export async function POST(request: NextRequest) {
   // When the bill falls due is not scheduled here and never was ours to
   // schedule: it is `VendorBill.dueAt`, beside `receivedAt` and
   // `paidAt`, and the AP desk reads it off the bill. See lib/cycle-kinds.
-  if (buyContractId && periodEnd) {
-    await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_GENERATE', periodEnd })
+  //
+  // Once per period: a receipt typed in again after a mis-keyed one was
+  // cancelled finds that date already closed by the first, and closing
+  // again would close the next period's date instead.
+  if (buyContractId && coversTo) {
+    const closedBefore = await prisma.vendorBill.count({
+      where: { buyContractId, companyId, status: 'CANCELLED', periodEnd: coversTo, id: { not: bill.id } },
+    })
+    if (closedBefore === 0) {
+      await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_GENERATE', periodEnd: coversTo })
+    }
   }
 
   return NextResponse.json({
@@ -661,28 +720,15 @@ export async function PATCH(request: NextRequest) {
   const newPaid = bill.paidCents + addCents
   const settled = newPaid >= bill.totalCents
 
-  const updated = await prisma.vendorBill.update({
-    where: { id },
-    data: {
-      paidCents: newPaid,
-      // Only a bill paid in full carries a paid date. A part payment has
-      // not closed the obligation, and dating it as if it had would
-      // report the first installment as the day the supplier was paid.
-      paidAt: settled ? paidAt : null,
-      status: settled ? 'PAID' : 'APPROVED',
-    },
-    select: { id: true, paidCents: true, totalCents: true, paidAt: true, status: true },
-  })
-
   // ── Who paid whom ──────────────────────────────────────────────────
   //
-  // Written on every payment, as a payment on a platform invoice is: who
-  // paid, who was paid, how much, how, the reference, and who pressed it —
-  // under the seat where it was made in one. A platform invoice's payment
-  // is also a `Payment` row; a typed-in receipt's cannot be yet, because a
-  // `Payment` row can point only at an `Invoice`, and one pointing at
-  // nothing is unapplied cash on the supplier's own books. That column is
-  // asked of the architect (KNOWN-LIMITS.md).
+  // Written on every payment, as a payment on a platform invoice is: a
+  // `Payment` row naming the receipt it pays, who paid, who was paid, how
+  // much, when, how and the reference, and who pressed it — beside the
+  // receipt's own paid figure, in one transaction, so the two can never
+  // disagree. Never unapplied cash on the supplier's books: it names the
+  // receipt it settles, and every receivables view leaves such a row out.
+  // Under the seat where it was made in one.
   //
   // No cycle is closed here, on purpose: the date this receipt was expected
   // closed when it was recorded, and when it falls due is the receipt's own
@@ -690,39 +736,72 @@ export async function PATCH(request: NextRequest) {
   // next period's date.
   const method = body.method ? String(body.method) : null
   const reference = body.reference ? String(body.reference) : null
-  await prisma.automationLog.create({
-    data: {
-      companyId: reading.companyId,
-      action: 'PAYMENT_RECORDED',
-      summary:
-        `Payment of ${amount(addCents, bill.currency)} recorded on ${vendorName}’s invoice ${bill.number}. ` +
-        (settled ? 'Now paid in full.' : `${amount(bill.totalCents - newPaid, bill.currency)} outstanding.`),
-      reason:
-        moneyTrailFor(reading.seat ?? null, `Payment of ${amount(addCents, bill.currency)} recorded`) ??
-        `Recorded by ${caller.person.name} at ${caller.company.name}, paying`,
-      payload: {
+  const d = decimalsFor(bill.currency)
+  const { updated, payment } = await prisma.$transaction(async (tx) => {
+    const updated = await tx.vendorBill.update({
+      where: { id },
+      data: {
+        paidCents: newPaid,
+        // Only a bill paid in full carries a paid date. A part payment has
+        // not closed the obligation, and dating it as if it had would
+        // report the first installment as the day the supplier was paid.
+        paidAt: settled ? paidAt : null,
+        status: settled ? 'PAID' : 'APPROVED',
+      },
+      select: { id: true, paidCents: true, totalCents: true, paidAt: true, status: true },
+    })
+    const payment = await tx.payment.create({
+      data: {
         vendorBillId: bill.id,
-        number: bill.number,
-        paidBy: { companyId: reading.companyId, name: reading.companyName },
-        paidTo: { companyId: bill.vendorCompanyId, name: vendorName },
-        paidCents: addCents,
+        payerCompanyId: reading.companyId,
+        receivedByCompanyId: bill.vendorCompanyId,
+        amount: (addCents / 10 ** d).toFixed(d),
         currency: bill.currency,
         method,
         reference,
-        paidAt: paidAt.toISOString(),
-        settled,
-        byPersonId: caller.person.id,
-        seatId: reading.seat?.id ?? null,
-        officeCompanyId: reading.seat?.officeCompany.id ?? null,
+        receivedAt: paidAt,
+        appliedAt: new Date(),
+        appliedById: caller.person.id,
       },
-      reversible: false,
-    },
+      select: { id: true },
+    })
+    await tx.automationLog.create({
+      data: {
+        companyId: reading.companyId,
+        action: 'PAYMENT_RECORDED',
+        summary:
+          `Payment of ${amount(addCents, bill.currency)} recorded on ${vendorName}’s invoice ${bill.number}. ` +
+          (settled ? 'Now paid in full.' : `${amount(bill.totalCents - newPaid, bill.currency)} outstanding.`),
+        reason:
+          moneyTrailFor(reading.seat ?? null, `Payment of ${amount(addCents, bill.currency)} recorded`) ??
+          `Recorded by ${caller.person.name} at ${caller.company!.name}, paying`,
+        payload: {
+          vendorBillId: bill.id,
+          paymentId: payment.id,
+          number: bill.number,
+          paidBy: { companyId: reading.companyId, name: reading.companyName },
+          paidTo: { companyId: bill.vendorCompanyId, name: vendorName },
+          paidCents: addCents,
+          currency: bill.currency,
+          method,
+          reference,
+          paidAt: paidAt.toISOString(),
+          settled,
+          byPersonId: caller.person.id,
+          seatId: reading.seat?.id ?? null,
+          officeCompanyId: reading.seat?.officeCompany.id ?? null,
+        },
+        reversible: false,
+      },
+    })
+    return { updated, payment }
   })
 
   return NextResponse.json({
     data: {
       bill: updated,
       payment: {
+        id: payment.id,
         amountMinor: addCents,
         currency: bill.currency,
         method,

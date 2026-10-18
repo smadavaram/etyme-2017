@@ -4,6 +4,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
+import { decimalsFor } from '@/lib/money'
 import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import {
@@ -254,7 +255,7 @@ export async function PATCH(request: NextRequest) {
       items: {
         select: {
           vendorBillId: true, amountCents: true,
-          vendorBill: { select: { id: true, totalCents: true, paidCents: true, receivedAt: true } },
+          vendorBill: { select: { id: true, totalCents: true, paidCents: true, receivedAt: true, vendorCompanyId: true, currency: true } },
         },
       },
     },
@@ -366,12 +367,34 @@ export async function PATCH(request: NextRequest) {
     paidAt
   )
 
+  const releasedBy = personId
   await prisma.$transaction(async (tx) => {
     for (const o of outcomes) {
       await tx.vendorBill.update({
         where: { id: o.billId },
         data: { paidCents: o.paidCentsAfter, paidAt: o.paidAt, status: o.status },
       })
+      // Who paid whom, the same row a payment recorded on the receipt
+      // itself writes: the receipt it settles, the payer, the supplier,
+      // the amount, the day and the run it went in.
+      const item = run.items.find((i) => i.vendorBillId === o.billId)
+      if (item && item.amountCents > 0) {
+        const d = decimalsFor(item.vendorBill.currency)
+        await tx.payment.create({
+          data: {
+            vendorBillId: o.billId,
+            payerCompanyId: companyId,
+            receivedByCompanyId: item.vendorBill.vendorCompanyId,
+            amount: (item.amountCents / 10 ** d).toFixed(d),
+            currency: item.vendorBill.currency,
+            method: 'PAYMENT_RUN',
+            reference: run.id,
+            receivedAt: paidAt,
+            appliedAt: new Date(),
+            appliedById: releasedBy,
+          },
+        })
+      }
       // Settling a bill closes no cycle. The bill's own three dates say
       // everything a run needs — when it was received, when it falls
       // due, and now when it was paid — and a "vendor bill due" cycle

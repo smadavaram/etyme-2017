@@ -354,7 +354,10 @@ export async function GET(request: NextRequest) {
   // carrying — without ever netting them into the receivable, which
   // would hide a debt and a stray receipt in one movement.
   const orphanRows = await prisma.payment.findMany({
-    where: { invoiceId: null, receivedByCompanyId: companyId },
+    // A payment that settles an invoice receipt somebody typed in names
+    // that receipt (`vendorBillId`); it is placed already, never cash
+    // waiting to be placed.
+    where: { invoiceId: null, vendorBillId: null, receivedByCompanyId: companyId },
     select: {
       id: true, amount: true, currency: true, receivedAt: true, reference: true,
       payerCompany: { select: { id: true, name: true } },

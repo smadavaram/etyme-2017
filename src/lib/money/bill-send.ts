@@ -219,6 +219,32 @@ export async function markSent(
     })
   }
 
+  // ── The payer's date, on its own buy line ─────────────────────────
+  //
+  // The firm this bill goes to was expecting an invoice from us: its "invoice
+  // receipt to record" date on the buy line that pays us. When that invoice is
+  // typed in, the intake closes the date (api/ap/bills); sent here, nothing
+  // did, so the payer's timeline read the week as overdue though the bill was
+  // sitting on its desk. Closed now, the moment it is sent, for each line it
+  // bills — the buy line whose supplier contract is the one this line bills on.
+  const sentLatest = new Map<string, { periodEnd: Date; payer: string }>()
+  for (const l of inv.invoiceLines) {
+    if (!l.sellContractId || !l.timesheet || !l.sellContract) continue
+    const was = sentLatest.get(l.sellContractId)
+    if (!was || l.timesheet.periodEnd > was.periodEnd) {
+      sentLatest.set(l.sellContractId, { periodEnd: l.timesheet.periodEnd, payer: l.sellContract.clientCompanyId })
+    }
+  }
+  for (const [sellContractId, { periodEnd, payer }] of sentLatest) {
+    const payersLines = await tx.buyContract.findMany({
+      where: { supplierSellContractId: sellContractId, companyId: payer },
+      select: { id: true },
+    })
+    for (const b of payersLines) {
+      await completeCycle(tx, { buyContractId: b.id, kind: 'VENDOR_BILL_GENERATE', periodEnd })
+    }
+  }
+
   await tx.automationLog.create({
     data: {
       companyId: a.companyId,

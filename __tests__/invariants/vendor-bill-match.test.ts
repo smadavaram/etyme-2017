@@ -9,9 +9,10 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  matchVendorBill, exceptionQueue,
+  matchVendorBill, exceptionQueue, threeWayMatch,
   type VendorBillMatchInput,
 } from '@/lib/three-way-match'
+import { liveWaivers, readLines } from '@/lib/money/keyed-lines'
 import { overBillCheck as poOverBillCheck } from '@/lib/purchase-order'
 
 const NOW = new Date('2026-08-29T00:00:00Z')
@@ -342,5 +343,157 @@ describe('A typed-in invoice receipt is paid on the same check as a platform inv
     expect(dup.outcome).toBe('FAIL')
     expect(dup.overridable).toBe(false)
     expect(dup.reason).toBe(says)
+  })
+})
+
+describe('A typed-in invoice receipt is matched line by line, like a platform invoice (2026-10-18)', () => {
+  const AUG = { start: new Date('2026-08-02T00:00:00Z'), end: new Date('2026-08-08T00:00:00Z') }
+  const week = {
+    id: 'ts-1', status: 'APPROVED', approvedHours: 40, contractRateCents: 11_800,
+    periodStart: AUG.start, periodEnd: AUG.end, alreadyBilledOnInvoiceId: null,
+  }
+  const hoursLine = (hours: number, amountCents = Math.round(hours * 11_800)) => ({
+    id: 'line-1', timesheetId: 'ts-1', personName: 'Helena Marsh', hours, rateCents: 11_800, amountCents,
+  })
+  const receipt = (lines: Parameters<typeof threeWayMatch>[0]['lines'], extra: Partial<Parameters<typeof threeWayMatch>[0]> = {}) =>
+    threeWayMatch({
+      invoice: { id: 'vb-1', totalCents: lines.reduce((n, l) => n + l.amountCents, 0), periodStart: AUG.start, periodEnd: AUG.end, contractPeriod: null },
+      lines,
+      timesheets: { 'ts-1': week },
+      po: null,
+      poRequired: false,
+      ...extra,
+    })
+
+  it('a typed-in receipt’s hours line is matched against the hours the paying firm accepted, at the agreed rate', () => {
+    const r = receipt([hoursLine(40)])
+    expect(r.matched).toBe(true)
+    expect(r.cleanMatch).toBe(true)
+  })
+
+  it('an hours line for more hours than were accepted fails the hours check, which the paying team may waive with a reason', () => {
+    const r = receipt([hoursLine(42)])
+    const q = r.checks.find((c) => c.code === 'QUANTITY')!
+    expect(q).toMatchObject({ outcome: 'FAIL', overridable: true, reason: 'Helena Marsh: billed 42h, approved 40h' })
+    const waived = receipt([hoursLine(42)], { overrides: [{ code: 'QUANTITY', reason: 'Handover hours agreed in writing', byName: 'An AP clerk', at: NOW }] })
+    expect(waived.matched).toBe(true)
+    expect(waived.cleanMatch).toBe(false)
+  })
+
+  it('an hours line for more than its hours at its rate fails the arithmetic, and nobody may waive it', () => {
+    const r = receipt([hoursLine(40, 40 * 11_800 + 5_000)])
+    const ext = r.checks.find((c) => c.code === 'EXTENSION')!
+    expect(ext).toMatchObject({ outcome: 'FAIL', overridable: false })
+    expect(receipt([hoursLine(40, 40 * 11_800 + 5_000)], {
+      overrides: [{ code: 'EXTENSION', reason: 'overtime, surely', byName: 'An AP clerk', at: NOW }],
+    }).matched).toBe(false)
+  })
+
+  it('a receipt whose lines do not add up to its total fails, and nobody may waive it', () => {
+    const r = threeWayMatch({
+      invoice: { id: 'vb-1', totalCents: 40 * 11_800 + 100, periodStart: AUG.start, periodEnd: AUG.end, contractPeriod: null },
+      lines: [hoursLine(40)], timesheets: { 'ts-1': week }, po: null, poRequired: false,
+    })
+    expect(r.checks.find((c) => c.code === 'HEADER_TOTAL')).toMatchObject({ outcome: 'FAIL', overridable: false })
+  })
+
+  it('a typed-in receipt’s expense line is paid only against an expense approved on that line, for the amount approved', () => {
+    const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
+    const approved = { id: 'ex-1', status: 'APPROVED', totalCents: 25_000, periodStart: AUG.start, periodEnd: AUG.start }
+    expect(receipt([expenseLine], { expenses: { 'ex-1': approved } }).matched).toBe(true)
+
+    const said = 'Line 1 bills Helena Marsh’s travel expense of Aug 2, 2026, which is submitted, not approved, so it is not paid.'
+    const submitted = receipt([expenseLine], { expenses: { 'ex-1': { ...approved, status: 'SUBMITTED' } }, receiptSays: { 'line-2': said } })
+    expect(submitted.checks.find((c) => c.code === 'RECEIPT')).toMatchObject({ outcome: 'FAIL', overridable: false, reason: said })
+
+    const more = receipt([{ ...expenseLine, amountCents: 27_500 }], { expenses: { 'ex-1': approved } })
+    expect(more.checks.find((c) => c.code === 'RECEIPT')!.outcome).toBe('FAIL')
+  })
+
+  it('an expense incurred outside the receipt’s period fails the period check, as a week would', () => {
+    const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
+    const july = new Date('2026-07-20T00:00:00Z')
+    const r = receipt([expenseLine], { expenses: { 'ex-1': { id: 'ex-1', status: 'APPROVED', totalCents: 25_000, periodStart: july, periodEnd: july } } })
+    const period = r.checks.find((c) => c.code === 'PERIOD')!
+    expect(period).toMatchObject({ outcome: 'FAIL', overridable: true })
+    expect(period.reason).toMatch(/^Helena Marsh: expense incurred Jul 20, 2026 to Jul 20, 2026, billed on a Aug 2, 2026–Aug 8, 2026 invoice$/)
+  })
+
+  it('a milestone line passes only against a milestone accepted, for the amount agreed', () => {
+    const line = { id: 'line-3', timesheetId: null, milestoneId: 'ms-1', personName: 'Milestone', hours: 0, rateCents: 0, amountCents: 150_000 }
+    expect(receipt([line], { milestones: { 'ms-1': { id: 'ms-1', status: 'ACCEPTED', amountCents: 150_000 } } }).matched).toBe(true)
+    expect(receipt([line], { milestones: { 'ms-1': { id: 'ms-1', status: 'DELIVERED', amountCents: 150_000 } } }).matched).toBe(false)
+  })
+
+  it('work an earlier receipt already holds, or one expense named twice, fails the duplicate check, and nobody may waive it', () => {
+    const says = 'Helena Marsh’s expense of $250.00 is already on Techpeple’s invoice TP-9, received Aug 10, 2026, so this invoice would owe it twice.'
+    const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
+    const approved = { 'ex-1': { id: 'ex-1', status: 'APPROVED', totalCents: 25_000 } }
+    const held = receipt([expenseLine], { expenses: approved, heldElsewhere: says })
+    expect(held.checks.find((c) => c.code === 'DUPLICATE')).toMatchObject({ outcome: 'FAIL', overridable: false, reason: says })
+    const twice = receipt([expenseLine, { ...expenseLine, id: 'line-3' }], { expenses: approved })
+    expect(twice.checks.find((c) => c.code === 'DUPLICATE')!.outcome).toBe('FAIL')
+  })
+
+  it('a platform invoice with no caller sentences is matched exactly as before', () => {
+    const r = receipt([hoursLine(40)])
+    expect(r.checks.find((c) => c.code === 'DUPLICATE')!.reason).toBe('No timesheet is billed more than once')
+    expect(r.checks.find((c) => c.code === 'PERIOD')!.reason).toBe('All work was done in the period being billed')
+  })
+})
+
+describe('Exceptions on a typed-in receipt describe one total', () => {
+  const waiver = (code: string, totalCentsAtOverride: number) => ({
+    code, reason: 'Order being topped up this week', byName: 'Dana Whitfield', at: NOW, totalCentsAtOverride,
+  })
+
+  it('a difference the paying team waives with a reason stands while the receipt is for the total it was waived at', () => {
+    const w = liveWaivers([waiver('PO_BALANCE', 448_400)], 448_400, 'USD')
+    expect(w.live.map((x) => x.code)).toEqual(['PO_BALANCE'])
+    expect(w.voided).toBeNull()
+  })
+
+  it('the waiver dies if the total changes, and the sentence says what it was for and what the receipt is now', () => {
+    const w = liveWaivers([waiver('PO_BALANCE', 448_400)], 472_000, 'USD')
+    expect(w.live).toEqual([])
+    expect(w.voided).toBe(
+      'The exception Dana Whitfield recorded was for $4,484.00; the receipt is now $4,720.00, so it no longer covers it. Record the exception again if it still stands.'
+    )
+  })
+
+  it('a waiver on the rate, a week nobody accepted, the same work twice or a bare total is never honored, whatever a row says', () => {
+    const w = liveWaivers(['PRICE', 'RECEIPT', 'DUPLICATE', 'AMOUNT', 'NO_SUCH_CHECK'].map((c) => waiver(c, 100)), 100, 'USD')
+    expect(w.live).toEqual([])
+  })
+})
+
+describe('The lines a clerk types in', () => {
+  it('each line bills exactly one week, expense or milestone, and says so when it does not', () => {
+    const none = readLines([{ amount: 100 }], 'USD')
+    expect(none).toMatchObject({ ok: false, field: 'lines.0' })
+    expect((none as any).says).toMatch(/^Line 1 must bill one thing: .* it names none\.$/)
+    const two = readLines([{ timesheetId: 'a', expenseId: 'b', amount: 100, hours: 1, rateCents: 100 }], 'USD')
+    expect((two as any).says).toMatch(/it names more than one\.$/)
+  })
+
+  it('a week’s line states the hours and the rate the supplier’s invoice states, and an expense or milestone line states only its amount', () => {
+    expect(readLines([{ timesheetId: 'a', amount: 100 }], 'USD')).toMatchObject({ ok: false, field: 'lines.0.hours' })
+    expect(readLines([{ timesheetId: 'a', hours: 40, amount: 4720 }], 'USD')).toMatchObject({ ok: false, field: 'lines.0.rateCents' })
+    expect(readLines([{ timesheetId: 'a', hours: 40.123, rateCents: 11800, amount: 4720 }], 'USD')).toMatchObject({ ok: false, field: 'lines.0.hours' })
+    expect(readLines([{ expenseId: 'e', hours: 2, amount: 250 }], 'USD')).toMatchObject({ ok: false, field: 'lines.0' })
+  })
+
+  it('an amount typed in whole currency is kept in minor units, and one typed in cents must be whole cents', () => {
+    const r = readLines([{ expenseId: 'e', amount: 250.5 }, { timesheetId: 't', hours: 40, rateCents: 11_800, amountCents: 472_000 }], 'USD')
+    expect(r).toMatchObject({ ok: true })
+    expect((r as any).lines.map((l: any) => l.amountCents)).toEqual([25_050, 472_000])
+    expect(readLines([{ expenseId: 'e', amountCents: 250.5 }], 'USD')).toMatchObject({ ok: false, field: 'lines.0.amountCents' })
+    // Yen have no minor unit: 2,500 yen is 2,500.
+    expect((readLines([{ expenseId: 'e', amount: 2500 }], 'JPY') as any).lines[0].amountCents).toBe(2500)
+  })
+
+  it('a receipt with no lines is a total, checked on its amount as before', () => {
+    expect(readLines(undefined, 'USD')).toBeNull()
+    expect(readLines([], 'USD')).toBeNull()
   })
 })

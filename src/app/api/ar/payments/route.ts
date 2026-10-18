@@ -64,7 +64,10 @@ export async function GET(request: NextRequest) {
   const now = new Date()
 
   const rows = await prisma.payment.findMany({
-    where: { invoiceId: null, receivedByCompanyId: companyId },
+    // A payment that settles an invoice receipt somebody typed in names
+    // that receipt (`vendorBillId`); it is placed already, never cash
+    // waiting to be placed.
+    where: { invoiceId: null, vendorBillId: null, receivedByCompanyId: companyId },
     select: {
       id: true, amount: true, currency: true, method: true, reference: true,
       receivedAt: true, appliedAt: true, invoiceId: true,
@@ -266,10 +269,12 @@ export async function PATCH(request: NextRequest) {
     where: { id: paymentId },
     select: {
       id: true, amount: true, currency: true, invoiceId: true,
-      receivedByCompanyId: true,
+      receivedByCompanyId: true, vendorBillId: true,
     },
   })
-  if (!payment || payment.receivedByCompanyId !== companyId) {
+  // A payment that settles an invoice receipt is placed already: it is
+  // not cash this firm may put against one of its own bills.
+  if (!payment || payment.receivedByCompanyId !== companyId || payment.vendorBillId) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No such receipt of ours' } },
       { status: 404 }

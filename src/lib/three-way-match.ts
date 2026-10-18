@@ -191,6 +191,16 @@ export interface ExpenseFacts {
   /** APPROVED before it was billed; INVOICED or PAID once it has been. */
   status: string
   totalCents: number
+  /**
+   * When it was incurred, where the caller holds the receipt against a
+   * period of its own — a typed-in invoice receipt. Absent on the
+   * platform's own bills, where the expense rides on the bill it was
+   * approved for and the period check never asked about it.
+   */
+  periodStart?: Date
+  periodEnd?: Date
+  /** Whose expense, for the sentence. */
+  personName?: string
 }
 
 /** The receipt behind a milestone line. */
@@ -261,6 +271,21 @@ export interface MatchInput {
   poRequired: boolean
   /** Exceptions already recorded against this invoice. */
   overrides?: MatchOverride[]
+  /**
+   * Where the caller found the same work already on another document the
+   * engine cannot see — an earlier invoice receipt holding the week, the
+   * expense or the milestone — the sentence naming it. It fails the
+   * duplicate check, which nobody may waive. Absent on the platform's own
+   * bills, where the unique key on a line's timesheet does this job.
+   */
+  heldElsewhere?: string | null
+  /**
+   * The sentence for a line with no receipt behind it, by line id, where
+   * the caller knows why better than "no approved timesheet": an expense
+   * that was never approved, a week that is not on this buy line, a
+   * milestone on another order.
+   */
+  receiptSays?: Record<string, string>
 }
 
 export interface MatchResult {
@@ -363,6 +388,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     return !ts || ts.status !== 'APPROVED'
   })
   const expenseLines = lines.filter(l => l.expenseId || l.milestoneId).length
+  const said = unreceipted.flatMap(l => (input.receiptSays?.[l.id] ? [input.receiptSays[l.id]] : []))
   checks.push(unreceipted.length === 0
     ? {
         code: 'RECEIPT', outcome: 'PASS',
@@ -373,9 +399,11 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     : {
         code: 'RECEIPT',
         outcome: 'FAIL',
-        reason: unreceipted.length === lines.length
-          ? 'No line on this invoice is backed by an approved timesheet or expense'
-          : `${unreceipted.length} of ${lines.length} lines ${unreceipted.length === 1 ? 'has' : 'have'} no approved timesheet or expense behind them`,
+        reason: said.length === unreceipted.length
+          ? said.join(' ')
+          : unreceipted.length === lines.length
+            ? 'No line on this invoice is backed by an approved timesheet or expense'
+            : `${unreceipted.length} of ${lines.length} lines ${unreceipted.length === 1 ? 'has' : 'have'} no approved timesheet or expense behind them`,
         lines: unreceipted.map(l => l.id),
       })
 
@@ -392,12 +420,24 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     const ts = l.timesheetId ? timesheets[l.timesheetId] : null
     return ts?.alreadyBilledOnInvoiceId && ts.alreadyBilledOnInvoiceId !== invoice.id
   })
-  checks.push(repeatedHere.length === 0 && billedElsewhere.length === 0
+  // An expense or a milestone named twice on one invoice is the same
+  // mistake as a week named twice.
+  const repeatedSums = (key: 'expenseId' | 'milestoneId') => {
+    const n = new Map<string, number>()
+    for (const l of lines) if (l[key]) n.set(l[key]!, (n.get(l[key]!) ?? 0) + 1)
+    return [...n.values()].filter(c => c > 1).length
+  }
+  const sumsTwice = repeatedSums('expenseId') + repeatedSums('milestoneId')
+  checks.push(repeatedHere.length === 0 && billedElsewhere.length === 0 && sumsTwice === 0 && !input.heldElsewhere
     ? { code: 'DUPLICATE', outcome: 'PASS', reason: 'No timesheet is billed more than once' }
     : {
         code: 'DUPLICATE',
         outcome: 'FAIL',
-        reason: repeatedHere.length > 0
+        reason: input.heldElsewhere
+          ? input.heldElsewhere
+          : sumsTwice > 0 && repeatedHere.length === 0 && billedElsewhere.length === 0
+          ? `${sumsTwice} expense${sumsTwice === 1 ? ' or milestone appears' : 's or milestones appear'} on more than one line of this invoice`
+          : repeatedHere.length > 0
           ? `${repeatedHere.length} timesheet${repeatedHere.length === 1 ? ' appears' : 's appear'} on more than one line of this invoice`
           : `${billedElsewhere.length} timesheet${billedElsewhere.length === 1 ? ' was' : 's were'} already billed on another invoice`,
         lines: billedElsewhere.map(l => l.id),
@@ -411,8 +451,15 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   // is wrong is work that falls entirely outside the period — that is
   // revenue in the wrong month, and a purchase order paying for work it
   // never covered.
+  // An expense held against a period of its own is asked the same
+  // question: an expense incurred in July on an August receipt.
+  const workedWhen = (l: InvoiceLineFacts): { periodStart: Date; periodEnd: Date } | null => {
+    if (l.timesheetId) return timesheets[l.timesheetId] ?? null
+    const e = l.expenseId ? expenses[l.expenseId] : null
+    return e?.periodStart && e?.periodEnd ? { periodStart: e.periodStart, periodEnd: e.periodEnd } : null
+  }
   const outsidePeriod = lines.filter(l => {
-    const ts = l.timesheetId ? timesheets[l.timesheetId] : null
+    const ts = workedWhen(l)
     if (!ts) return false // RECEIPT already said this line has no witness
     return ts.periodEnd < invoice.periodStart || ts.periodStart > invoice.periodEnd
   })
@@ -426,7 +473,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 
   // Nothing to say where no line has a timesheet behind it. RECEIPT has
   // already failed and a second failure about the same absence is noise.
-  if (lines.some(l => l.timesheetId && timesheets[l.timesheetId])) {
+  if (lines.some(l => workedWhen(l) != null)) {
     checks.push(outsidePeriod.length === 0
       ? {
           code: 'PERIOD',
@@ -439,8 +486,10 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           code: 'PERIOD',
           outcome: 'FAIL',
           reason: outsidePeriod.map(l => {
-            const ts = timesheets[l.timesheetId!]
-            return `${l.personName}: worked ${plain(ts.periodStart)} to ${plain(ts.periodEnd)}, billed on a ${plain(invoice.periodStart)}–${plain(invoice.periodEnd)} invoice`
+            const ts = workedWhen(l)!
+            return l.expenseId
+              ? `${l.personName}: expense incurred ${plain(ts.periodStart)} to ${plain(ts.periodEnd)}, billed on a ${plain(invoice.periodStart)}–${plain(invoice.periodEnd)} invoice`
+              : `${l.personName}: worked ${plain(ts.periodStart)} to ${plain(ts.periodEnd)}, billed on a ${plain(invoice.periodStart)}–${plain(invoice.periodEnd)} invoice`
           }).join('; '),
           lines: outsidePeriod.map(l => l.id),
         })

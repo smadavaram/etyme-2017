@@ -566,6 +566,15 @@ ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
 // withdrawn draft does not come back; a new draft, with a new number, is
 // written by the Bills page or the twin's next run.
 ATTRIBUTED.INVOICE_DRAFT_WITHDRAWN = { basis: 'RULE' }
+// Somebody cancelled an invoice receipt their firm had typed in from a
+// supplier's invoice — keyed twice, keyed against the wrong order, or
+// withdrawn by the supplier — with a reason (api/ap/bills/[id]/cancel,
+// 2026-10-18). Only a receipt with nothing paid on it and in no payment run
+// waiting to be released may be cancelled; it stays on the record as
+// cancelled, holding no week and drawing nothing on its order. A person's
+// own act. Not reversible: the receipt is never revived; a corrected one is
+// typed in again.
+ATTRIBUTED.INVOICE_RECEIPT_CANCELLED = { basis: 'RULE' }
 
 // Somebody holding the deployment secret asked for the demo world to be
 // deleted and seeded again, and typed the phrase. A person's act, not
@@ -688,23 +697,6 @@ export const PLANNED: Record<string, PlannedAct> = {
     says:
       'Somebody put a person forward through a firm whose client requires a certificate it has never filed. The submission went through, the reason was captured and whoever is hiring was told — a document nobody ever filed is a chase, not a fact, and refusing every placement recorded before a client wrote its rules down is the workaround this warns instead of causing.',
     willBeWrittenBy: 'etyme-demand',
-  },
-
-  // ── Typed-in invoice receipts, 2026-10-18 ──────────────────────────
-  //
-  // The tables a typed-in receipt's lines, waivers and payments live on
-  // landed today; the cancel door is etyme-money's, over the one check in
-  // lib/money/keyed-receipt. Named here so its level is decided with the
-  // record. The row it writes is `reversible: false`, honestly: the
-  // receipt stays on the record as CANCELLED and is never revived; a
-  // corrected one is typed in again.
-
-  INVOICE_RECEIPT_CANCELLED: {
-    kind: 'ATTRIBUTED',
-    basis: 'RULE',
-    says:
-      'Somebody cancelled an invoice receipt their firm had typed in from a supplier\u2019s invoice \u2014 keyed twice, keyed against the wrong order, or withdrawn by the supplier \u2014 with a reason. Only a receipt with nothing paid on it and in no released payment run may be cancelled; it stays on the record as cancelled.',
-    willBeWrittenBy: 'etyme-money',
   },
 
 }

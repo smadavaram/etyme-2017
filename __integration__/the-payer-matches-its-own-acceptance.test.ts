@@ -4,6 +4,11 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { POST as recordBill, GET as exceptions, PATCH as payBill } from '@/app/api/ap/bills/route'
 import { GET as runPreview, PATCH as runAct } from '@/app/api/ap/payment-runs/route'
+import { POST as cancelReceipt } from '@/app/api/ap/bills/[id]/cancel/route'
+import { POST as waive, DELETE as unwaive } from '@/app/api/ap/bills/[id]/match/override/route'
+import { GET as unappliedCash } from '@/app/api/ar/payments/route'
+import { POST as generate } from '@/app/api/invoices/generate/route'
+import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 
 /**
  * A supplier's invoice is matched against what the firm paying it
@@ -55,10 +60,15 @@ const pay = async (id: string, extra: Record<string, unknown> = {}) =>
 const idOf = async (number: string) =>
   (await prisma.vendorBill.findFirstOrThrow({ where: { companyId: s.cs, vendorCompanyId: s.techpeple, number } })).id
 
-// Stands in for a cancel door the invoice receipt does not have yet
-// (KNOWN-LIMITS.md, money): the clerk's correction of a mis-keyed receipt.
-const cancel = (number: string) =>
-  prisma.vendorBill.updateMany({ where: { companyId: s.cs, vendorCompanyId: s.techpeple, number }, data: { status: 'CANCELLED' } })
+const params = (id: string) => ({ params: Promise.resolve({ id }) })
+
+// The clerk's correction of a mis-keyed receipt, through the paying
+// team's own door.
+const cancel = async (number: string, reason = 'Keyed in again with the supplier’s corrected figures.') => {
+  as(CS)
+  const id = await idOf(number)
+  return json(await cancelReceipt(req('POST', `/api/ap/bills/${id}/cancel`, { reason }), params(id)))
+}
 
 describe('a supplier’s invoice is matched against the paying firm’s own acceptance, down the seeded chain', () => {
   beforeAll(async () => {
@@ -146,13 +156,19 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(await prisma.vendorBill.count({ where: { companyId: s.cs, number: 'CE-HM-3' } })).toBe(0)
   })
 
-  it('once that receipt is cancelled, an invoice for all forty hours is held as disputed, because Computer Systems accepted thirty-eight', async () => {
-    await cancel('CE-HM-2')
+  it('once that receipt is cancelled with a reason, an invoice for all forty hours is held as disputed, because Computer Systems accepted thirty-eight', async () => {
+    const c = await cancel('CE-HM-2')
+    expect(c.status, JSON.stringify(c.body)).toBe(200)
+    const closed = () => prisma.cycle.count({ where: { buyContractId: s.buy, kind: 'VENDOR_BILL_GENERATE', completedAt: { not: null } } })
+    const before = await closed()
     as(CS)
     const r = await invoice('CE-HM-3', 40)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.bill.status).toBe('DISPUTED')
     expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY').reason).toMatch(/^Invoiced 40h, we accepted 38h\./)
+    // The week's date closed when CE-HM-2 was recorded; the receipt keyed
+    // again in its place closes no second date — the next period's.
+    expect(await closed()).toBe(before)
   })
 
   it('once Techpeple has accepted too, the exception queue re-matches Techpeple’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
@@ -186,7 +202,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
   })
 
   it('a typed-in receipt giving only a total that is not the accepted hours at the agreed rate is refused, and asks for the hours and the rate', async () => {
-    await cancel('CE-HM-3')
+    expect((await cancel('CE-HM-3')).status).toBe(200)
     as(CS)
     const r = await invoice('CE-HM-4', 40, { hours: undefined, rateCents: undefined })
     expect(r.status, JSON.stringify(r.body)).toBe(422)
@@ -211,7 +227,8 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
 
     const paid = await pay(await idOf('CE-HM-4'))
     expect(paid.status).toBe(409)
-    expect(paid.body.error.message).toMatch(/has nowhere yet to keep a reason for paying a difference/)
+    // Waivable, and so said: an exception with a reason, or a corrected invoice.
+    expect(paid.body.error.message).toMatch(/Record an exception with a reason on it if the difference should be paid, or ask Techpeple for a corrected invoice\.$/)
   })
 
   it('a payment larger than what is still owed on a typed-in receipt is refused', async () => {
@@ -222,7 +239,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     expect(r.body.error.code).toBe('OVERPAYMENT')
   })
 
-  it('paying a typed-in receipt records who paid whom, how much and who pressed it, once the order has room again, and closes no date a second time', async () => {
+  it('paying a typed-in receipt writes a payment saying who paid whom, how much and who pressed it, once the order has room again, and closes no date a second time', async () => {
     const id = await idOf('CE-HM-4')
     const closedBefore = await prisma.cycle.count({ where: { buyContractId: s.buy, completedAt: { not: null } } })
     as(CS)
@@ -241,6 +258,15 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     expect((log.payload as any).paidTo.companyId).toBe(s.techpeple)
     expect((log.payload as any).paidCents).toBe(38 * s.rate)
     expect(await prisma.cycle.count({ where: { buyContractId: s.buy, completedAt: { not: null } } })).toBe(closedBefore)
+    // And a payment row on the record, naming the receipt it settles.
+    const payment = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
+    expect(payment).toMatchObject({
+      invoiceId: null, payerCompanyId: s.cs, receivedByCompanyId: s.techpeple,
+      currency: 'USD', method: 'ACH', reference: 'CS-7781',
+    })
+    expect(Math.round(Number(payment.amount) * 100)).toBe(38 * s.rate)
+    expect(payment.appliedById).toBeTruthy()
+    expect((log.payload as any).paymentId).toBe(payment.id)
   })
 
   it('a paid week cannot be received again under another invoice number', async () => {
@@ -289,5 +315,406 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     expect(r.body.error.code).toBe('MATCH_FAILED')
     expect(r.body.error.message).toMatch(/^This run is not released: one invoice receipt in it no longer passes the three-way check\./)
     expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id: s.twin } })).paidCents).toBe(0)
+  })
+})
+
+/**
+ * A typed-in receipt has lines, exceptions and a cancel door (2026-10-18).
+ *
+ * Helena's next week, October 11, is signed by all three firms, Computer
+ * Systems accepting the whole forty. Techpeple's invoices for it are typed
+ * in line by line: the week, an expense Helena incurred on the job, and a
+ * milestone on Computer Systems' order to Techpeple.
+ */
+describe('a typed-in receipt is matched line by line, its differences waived with a reason, and a mis-keyed one cancelled', () => {
+  const t: Record<string, any> = {}
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+
+  const receive = async (number: string, lines: unknown[], totalCents: number, extra: Record<string, unknown> = {}) => {
+    as(CS)
+    return json(
+      await recordBill(
+        req('POST', '/api/ap/bills', {
+          vendorCompanyId: s.techpeple,
+          number,
+          buyContractId: s.buy,
+          periodStart: t.from,
+          periodEnd: t.to,
+          total: totalCents / 100,
+          currency: 'USD',
+          dueAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+          lines,
+          ...extra,
+        })
+      )
+    )
+  }
+  const week = (hours: number, rateCents = s.rate) => ({ timesheetId: t.week, hours, rateCents, amountCents: Math.round(hours * rateCents) })
+  const waiveAs = async (who: string, number: string, code: string, reason = 'Two hours of handover the client asked for in writing.') => {
+    as(who)
+    const id = await idOf(number)
+    return json(await waive(req('POST', `/api/ap/bills/${id}/match/override`, { code, reason }), params(id)))
+  }
+
+  beforeAll(async () => {
+    const last = await prisma.timesheet.findUniqueOrThrow({ where: { id: s.week } })
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
+    const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
+    const days: Record<string, number> = {}
+    for (let i = 1; i <= 5; i++) days[day(plus(last.periodStart, 7 + i))] = 8
+    const sheet = await prisma.timesheet.create({
+      data: {
+        sellContractId: last.sellContractId, personId: helena.id,
+        periodStart: plus(last.periodStart, 7), periodEnd: plus(last.periodEnd, 7),
+        days, totalHours: 40, status: 'SUBMITTED', submittedAt: new Date(),
+      },
+    })
+    Object.assign(t, { week: sheet.id, from: sheet.periodStart.toISOString(), to: sheet.periodEnd.toISOString(), helena: helena.id })
+    for (const who of [NIKE, CS, TECHPEPLE]) {
+      as(who)
+      const r = await sign(sheet.id)
+      expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()
+    }
+    expect(Number((await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: sheet.id, companyId: s.cs, state: 'LIVE' } })).hours)).toBe(40)
+
+    // An expense Helena incurred that week, on the contract her hours are
+    // filed on, and one the firm carried as its own cost.
+    const expense = (billable: boolean, status: string) =>
+      prisma.expense.create({
+        data: {
+          companyId: s.techpeple, sellContractId: last.sellContractId, personId: helena.id, category: 'TRAVEL',
+          billable, description: 'Train to the Tualatin site for the cut-over', periodStart: plus(last.periodStart, 9),
+          periodEnd: plus(last.periodStart, 9), items: [], total: 250, status,
+        },
+      })
+    t.expense = (await expense(true, 'SUBMITTED')).id
+    t.ownCost = (await expense(false, 'APPROVED')).id
+    // A milestone on Computer Systems' own order to Techpeple, delivered and not yet accepted.
+    t.milestone = (await prisma.orderMilestone.create({
+      data: { orderId: s.order, name: 'Data migration sign-off', amountCents: 150_000, status: 'DELIVERED', deliveredAt: new Date() },
+    })).id
+  }, 240_000)
+
+  it('a typed-in receipt with a line for the week Computer Systems accepted is matched against that acceptance, and its line is kept with the person it is for', async () => {
+    const r = await receive('CE-HM-K1', [week(40)], 40 * s.rate)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.bill.status).toBe('RECEIVED')
+    expect(r.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+    const lines = await prisma.vendorBillLine.findMany({ where: { vendorBillId: await idOf('CE-HM-K1') } })
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({ timesheetId: t.week, personId: t.helena, rateCents: s.rate, amountCents: 40 * s.rate })
+    expect(Number(lines[0].hours)).toBe(40)
+  })
+
+  it('the same week typed in again under another number is refused, naming the receipt that holds it', async () => {
+    const r = await receive('CE-HM-K2', [week(40)], 40 * s.rate)
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('ALREADY_RECEIVED')
+    expect(r.body.error.message).toMatch(/^Helena Marsh’s week of [A-Z][a-z]+ \d+ is already on Techpeple’s invoice CE-HM-K1,/)
+  })
+
+  it('a mis-keyed receipt is cancelled with a reason and its week can be received again', async () => {
+    expect((await cancel('CE-HM-K1', '')).status, 'a reason is required').toBe(422)
+    const c = await cancel('CE-HM-K1', 'Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1.')
+    expect(c.status, JSON.stringify(c.body)).toBe(200)
+    const k1 = await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-K1') }, include: { lines: true } })
+    // Kept on the record, with its line, and never revived.
+    expect(k1.status).toBe('CANCELLED')
+    expect(k1.lines).toHaveLength(1)
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { action: 'INVOICE_RECEIPT_CANCELLED', payload: { path: ['vendorBillId'], equals: k1.id } },
+    })
+    expect(log.reason).toBe('Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1.')
+    expect(log.reversible).toBe(false)
+    expect((await cancel('CE-HM-K1')).status, 'a cancelled receipt is not cancelled twice').toBe(409)
+
+    // The week again, for forty-two hours where Computer Systems accepted forty.
+    const r = await receive('CE-HM-L1', [week(42)], 42 * s.rate)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.bill.status).toBe('DISPUTED')
+    expect(r.body.data.match.checks.find((c: any) => c.code === 'QUANTITY')).toMatchObject({ outcome: 'FAIL', overridable: true })
+  })
+
+  it('a receipt whose lines do not add up to its total is refused', async () => {
+    const r = await receive('CE-HM-X2', [{ expenseId: t.ownCost, amountCents: 25_000 }], 30_000, { periodStart: undefined, periodEnd: undefined })
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.checks.find((c: any) => c.code === 'HEADER_TOTAL').outcome).toBe('FAIL')
+  })
+
+  it('a difference the paying team waives with a reason is paid, and the waiver dies if the total changes', async () => {
+    const id = await idOf('CE-HM-L1')
+    as(CS)
+    const refused = await pay(id)
+    expect(refused.status).toBe(409)
+    expect(refused.body.error.message).toMatch(/^Techpeple’s invoice CE-HM-L1 for \$[\d,.]+ does not pass the check now: Helena Marsh: billed 42h, approved 40h\. Record an exception with a reason on it/)
+
+    // The rate, the same work twice, a week nobody accepted and a bare
+    // total are nobody's to wave through, whatever the reason.
+    const price = await waiveAs(CS, 'CE-HM-L1', 'PRICE')
+    expect(price.status).toBe(403)
+    expect(price.body.error.code).toBe('NOT_OVERRIDABLE')
+    expect((await waiveAs(CS, 'CE-HM-L1', 'QUANTITY', 'ok')).status, 'a reason is a sentence').toBe(422)
+    // The supplier is never the one to waive a check on what it billed.
+    expect((await waiveAs(TECHPEPLE, 'CE-HM-L1', 'QUANTITY')).status).toBe(404)
+
+    const w = await waiveAs(CS, 'CE-HM-L1', 'QUANTITY')
+    expect(w.status, JSON.stringify(w.body)).toBe(200)
+    expect(w.body.data.matched).toBe(true)
+    const row = await prisma.vendorBillMatchOverride.findUniqueOrThrow({ where: { vendorBillId_code: { vendorBillId: id, code: 'QUANTITY' } } })
+    expect(row).toMatchObject({ reason: 'Two hours of handover the client asked for in writing.', totalCentsAtOverride: 42 * s.rate })
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id } })).status).toBe('RECEIVED')
+    expect((await waiveAs(CS, 'CE-HM-L1', 'PERIOD')).status, 'only a check failing now is waived').toBe(409)
+
+    // Withdrawn, the difference is back and the receipt reads as disputed;
+    // recorded again, it passes.
+    as(CS)
+    const back = await json(await unwaive(req('DELETE', `/api/ap/bills/${id}/match/override?code=QUANTITY`), params(id)))
+    expect(back.status, JSON.stringify(back.body)).toBe(200)
+    expect(back.body.data.matched).toBe(false)
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id } })).status).toBe('DISPUTED')
+    expect((await pay(id)).status).toBe(409)
+    expect((await waiveAs(CS, 'CE-HM-L1', 'QUANTITY')).status).toBe(200)
+
+    // The receipt corrected to forty-one hours is a different claim: the
+    // exception was for forty-two, so it no longer covers it.
+    const line = await prisma.vendorBillLine.findFirstOrThrow({ where: { vendorBillId: id } })
+    await prisma.vendorBillLine.update({ where: { id: line.id }, data: { hours: 41, amountCents: 41 * s.rate } })
+    await prisma.vendorBill.update({ where: { id }, data: { totalCents: 41 * s.rate } })
+    as(CS)
+    const stale = await pay(id)
+    expect(stale.status, JSON.stringify(stale.body)).toBe(409)
+    expect(stale.body.error.message).toMatch(/so it no longer covers it\. Record the exception again if it still stands\./)
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id } })).paidCents).toBe(0)
+
+    // Back to the forty-two it was waived at, it passes and is paid.
+    await prisma.vendorBillLine.update({ where: { id: line.id }, data: { hours: 42, amountCents: 42 * s.rate } })
+    await prisma.vendorBill.update({ where: { id }, data: { totalCents: 42 * s.rate } })
+    as(CS)
+    const paid = await pay(id, { method: 'WIRE', reference: 'CS-8102' })
+    expect(paid.status, JSON.stringify(paid.body)).toBe(200)
+    expect(paid.body.data.bill.status).toBe('PAID')
+  })
+
+  it('a payment on a typed-in receipt is not cash Techpeple has to place on its receivables', async () => {
+    const id = await idOf('CE-HM-L1')
+    const p = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
+    expect(p.receivedByCompanyId).toBe(s.techpeple)
+    as(TECHPEPLE)
+    const r = await json(await unappliedCash(req('GET', '/api/ar/payments')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(JSON.stringify(r.body)).not.toContain(p.id)
+  })
+
+  it('a receipt with money paid on it cannot be cancelled', async () => {
+    const c = await cancel('CE-HM-L1', 'Tried to take it back after paying it.')
+    expect(c.status).toBe(409)
+    expect(c.body.error.code).toBe('PAID')
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-L1') } })).status).toBe('PAID')
+  })
+
+  it('a receipt in a payment run waiting to be released is not cancelled until the run is', async () => {
+    const c = await cancel('CE-HM-6', 'Keyed twice before the duplicate rule existed.')
+    expect(c.status, JSON.stringify(c.body)).toBe(409)
+    expect(c.body.error.code).toBe('IN_A_RUN')
+    as(CS)
+    const run = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: c.body.error.runId, action: 'cancel' })))
+    expect(run.status, JSON.stringify(run.body)).toBe(200)
+    expect((await cancel('CE-HM-6', 'Keyed twice before the duplicate rule existed.')).status).toBe(200)
+  })
+
+  it('a typed-in receipt’s expense line is paid only against an expense approved on that line', async () => {
+    const expenseLine = (expenseId: string) => [{ expenseId, amountCents: 25_000 }]
+    const noPeriod = { periodStart: undefined, periodEnd: undefined }
+
+    const submitted = await receive('CE-HM-E1', expenseLine(t.expense), 25_000, noPeriod)
+    expect(submitted.status, JSON.stringify(submitted.body)).toBe(422)
+    expect(submitted.body.error.message).toMatch(/^Line 1 bills Helena Marsh’s travel expense of [A-Z][a-z]+ \d+, \d{4}, which is submitted, not approved, so it is not paid\./)
+
+    const ownCost = await receive('CE-HM-E1', expenseLine(t.ownCost), 25_000, noPeriod)
+    expect(ownCost.status).toBe(422)
+    expect(ownCost.body.error.message).toMatch(/recorded as the firm’s own cost and not billable/)
+
+    await prisma.expense.update({ where: { id: t.expense }, data: { status: 'APPROVED', approvedAt: new Date() } })
+    const wrongSum = await receive('CE-HM-E1', [{ expenseId: t.expense, amountCents: 27_500 }], 27_500, noPeriod)
+    expect(wrongSum.status).toBe(422)
+    expect(wrongSum.body.error.message).toMatch(/Line 1 bills \$275\.00 for Helena Marsh’s travel expense of .*; \$250\.00 was approved\./)
+
+    const ok = await receive('CE-HM-E1', expenseLine(t.expense), 25_000, noPeriod)
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    expect(ok.body.data.bill.status).toBe('RECEIVED')
+    const bill = await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-E1') }, include: { lines: true } })
+    // Its period is the expense's own day, read off the line.
+    expect(day(bill.periodStart!)).toBe(day(bill.periodEnd!))
+    expect(bill.lines[0]).toMatchObject({ expenseId: t.expense, personId: t.helena, hours: null, rateCents: null })
+
+    const twice = await receive('CE-HM-E2', expenseLine(t.expense), 25_000, noPeriod)
+    expect(twice.status).toBe(409)
+    expect(twice.body.error.message).toMatch(/^Helena Marsh’s expense of \$250\.00 is already on Techpeple’s invoice CE-HM-E1,/)
+
+    // And at the moment money leaves: an expense rejected since is not paid.
+    await prisma.expense.update({ where: { id: t.expense }, data: { status: 'REJECTED' } })
+    as(CS)
+    const late = await pay(bill.id)
+    expect(late.status).toBe(409)
+    expect(late.body.error.message).toMatch(/which is rejected, not approved, so it is not paid/)
+    await prisma.expense.update({ where: { id: t.expense }, data: { status: 'APPROVED' } })
+    expect((await pay(bill.id)).status).toBe(200)
+  })
+
+  it('a typed-in receipt’s milestone line is paid only against a milestone accepted on the order it draws on', async () => {
+    const line = [{ milestoneId: t.milestone, amountCents: 150_000 }]
+    const early = await receive('CE-HM-M1', line, 150_000)
+    expect(early.status).toBe(422)
+    expect(early.body.error.message).toMatch(/^Line 1 bills the milestone “Data migration sign-off”, which has not been accepted, so it is not paid\./)
+
+    await prisma.orderMilestone.update({ where: { id: t.milestone }, data: { status: 'ACCEPTED', acceptedAt: new Date() } })
+    const ok = await receive('CE-HM-M1', line, 150_000)
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    expect(ok.body.data.bill.status).toBe('RECEIVED')
+    // It draws on the order like any other receipt.
+    expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-M1') } })).workOrderId).toBe(s.order)
+  })
+
+  it('where the agreed rate changed inside a week, a line at one rate is refused rather than priced on a guess', async () => {
+    const sheet = await prisma.timesheet.findUniqueOrThrow({ where: { id: t.week } })
+    const someone = await prisma.person.findFirstOrThrow({ select: { id: true } })
+    const raise = await prisma.rateHistory.create({
+      data: {
+        contractType: 'BUY', contractId: s.buy, rate: s.rate + 500, previousRate: s.rate,
+        fromDate: new Date(sheet.periodStart.getTime() + 3 * 86_400_000), changedById: someone.id,
+        approvalState: 'APPROVED', approvedAt: new Date(), reason: 'Midweek raise',
+      },
+    })
+    try {
+      const r = await receive('CE-HM-R1', [week(40)], 40 * s.rate)
+      expect(r.status, JSON.stringify(r.body)).toBe(422)
+      expect(r.body.error.code).toBe('RATE_CHANGED_IN_WEEK')
+      expect(r.body.error.message).toMatch(/^The agreed rate changed inside Helena Marsh’s week of [A-Z][a-z]+ \d+ \(\$[\d,.]+ to \$[\d,.]+ an hour\), so one line at one rate cannot state it\. Record this invoice as a total, which is priced day by day\.$/)
+    } finally {
+      await prisma.rateHistory.delete({ where: { id: raise.id } })
+    }
+  })
+
+  it('a week with an overtime premium decided on Techpeple’s own contract is priced per line at that premium, and a line for more is refused', async () => {
+    const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: t.helena }, orderBy: { periodStart: 'asc' } })
+    const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
+    const days: Record<string, number> = {}
+    for (let i = 1; i <= 5; i++) days[day(plus(first.periodStart, -7 + i))] = 9
+    const sheet = await prisma.timesheet.create({
+      data: {
+        sellContractId: first.sellContractId, personId: t.helena,
+        periodStart: plus(first.periodStart, -7), periodEnd: plus(first.periodEnd, -7),
+        days, totalHours: 45, status: 'APPROVED', submittedAt: new Date(), approvedAt: new Date(),
+      },
+    })
+    const hoursLeg = await prisma.sellContract.findUniqueOrThrow({ where: { id: first.sellContractId } })
+    const top = await prisma.sellContract.findFirstOrThrow({ where: { personId: t.helena, companyId: s.cs } })
+    const someone = await prisma.person.findFirstOrThrow({ select: { id: true } })
+    // Every firm signs all forty-five; Computer Systems agrees time and a
+    // half on the five over the line on Techpeple's contract to it.
+    for (const [companyId, role, rateCents] of [
+      [top.clientCompanyId, 'CLIENT_APPROVAL', top.billRate],
+      [s.cs, 'PASS_THROUGH', hoursLeg.billRate],
+      [s.techpeple, 'EMPLOYER_ACCEPTANCE', s.rate],
+    ] as const) {
+      await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours: 45, rateCents, state: 'LIVE', byId: someone.id } })
+    }
+    await prisma.overtimeDecision.create({
+      data: {
+        timesheetId: sheet.id, sellContractId: hoursLeg.id, weekOf: sheet.periodStart,
+        treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 15_000,
+        decidedById: someone.id, decidedByCompanyId: s.cs, reason: 'Cut-over weekend.',
+      },
+    })
+    const straight = 45 * s.rate
+    const premium = Math.round(5 * s.rate * 0.5)
+    const line = (amountCents: number) => [{ timesheetId: sheet.id, hours: 45, rateCents: s.rate, amountCents }]
+    const period = { periodStart: sheet.periodStart.toISOString(), periodEnd: sheet.periodEnd.toISOString() }
+
+    const tooMuch = await receive('CE-HM-OT1', line(straight + 2 * premium), straight + 2 * premium, period)
+    expect(tooMuch.status, JSON.stringify(tooMuch.body)).toBe(422)
+    expect(tooMuch.body.error.checks.find((c: any) => c.code === 'EXTENSION').outcome).toBe('FAIL')
+
+    const ok = await receive('CE-HM-OT1', line(straight + premium), straight + premium, period)
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    expect(ok.body.data.bill.status).toBe('RECEIVED')
+    expect(ok.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+  })
+
+  it('releasing a payment run writes a payment for each invoice receipt it pays', async () => {
+    const id = await idOf('CE-HM-M1')
+    await prisma.vendorBill.update({ where: { id }, data: { status: 'APPROVED' } })
+    const people = await prisma.context.findMany({ where: { companyId: s.cs, revokedAt: null }, select: { personId: true }, take: 1 })
+    const other = await prisma.person.findFirstOrThrow({ where: { id: { not: people[0].personId } }, select: { id: true } })
+    const run = await prisma.paymentRun.create({
+      data: {
+        companyId: s.cs, currency: 'USD', status: 'APPROVED', scheduledFor: new Date(), totalCents: 150_000,
+        createdById: other.id, approvedById: other.id,
+        items: { create: [{ vendorBillId: id, amountCents: 150_000 }] },
+      },
+    })
+    as(CS)
+    const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const p = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
+    expect(p).toMatchObject({ payerCompanyId: s.cs, receivedByCompanyId: s.techpeple, method: 'PAYMENT_RUN', reference: run.id })
+    expect(Math.round(Number(p.amount) * 100)).toBe(150_000)
+  })
+})
+
+/**
+ * When the supplier sends its bill here rather than the payer typing it
+ * in, the payer's own "invoice receipt to record" date on its buy line is
+ * just as done — and nothing closed it.
+ */
+describe('a supplier’s bill sent on the platform closes the payer’s receipt date on its buy line', () => {
+  it('when Techpeple sends its bill for Helena’s week on Etyme, Computer Systems’ date for that invoice receipt closes', async () => {
+    const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: (await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })).id }, orderBy: { periodStart: 'asc' } })
+    const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
+    const days: Record<string, number> = {}
+    // A week before the earliest on the record that lies wholly inside one
+    // month, so the bill is for that week alone.
+    let back = -14
+    while (plus(first.periodStart, back).getUTCMonth() !== plus(first.periodEnd, back).getUTCMonth()) back -= 7
+    for (let i = 1; i <= 5; i++) days[plus(first.periodStart, back + i).toISOString().slice(0, 10)] = 8
+    const sheet = await prisma.timesheet.create({
+      data: {
+        sellContractId: first.sellContractId, personId: first.personId,
+        periodStart: plus(first.periodStart, back), periodEnd: plus(first.periodEnd, back),
+        days, totalHours: 40, status: 'SUBMITTED', submittedAt: new Date(),
+      },
+    })
+    for (const who of [NIKE, CS, TECHPEPLE]) {
+      as(who)
+      const r = await sign(sheet.id)
+      expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()
+    }
+    const open = () => prisma.cycle.findMany({
+      where: { buyContractId: s.buy, kind: 'VENDOR_BILL_GENERATE', completedAt: null },
+      orderBy: { dueOn: 'asc' }, select: { id: true, dueOn: true },
+    })
+    const before = await open()
+
+    const contract = await prisma.sellContract.findUniqueOrThrow({ where: { id: sheet.sellContractId } })
+    as(TECHPEPLE)
+    const made = await json(await generate(req('POST', '/api/invoices/generate', {
+      engagementId: contract.engagementId,
+      periodStart: sheet.periodStart.toISOString().slice(0, 10),
+      periodEnd: sheet.periodEnd.toISOString().slice(0, 10),
+    })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const bill = await prisma.invoice.findFirstOrThrow({
+      where: { invoiceLines: { some: { timesheetId: sheet.id } } }, select: { id: true, status: true },
+    })
+    if (bill.status !== 'SUBMITTED') {
+      const sent = await json(await sendBill(req('POST', `/api/invoices/${bill.id}/submit`, {}), params(bill.id)))
+      expect(sent.status, JSON.stringify(sent.body)).toBe(200)
+    }
+    const after = await open()
+    expect(after.length).toBe(before.length - 1)
+    // The date closed is one on or after the week it bills, never earlier.
+    const closed = before.filter((c) => !after.some((a) => a.id === c.id))
+    expect(closed).toHaveLength(1)
+    expect(closed[0].dueOn.getTime()).toBeGreaterThanOrEqual(sheet.periodEnd.getTime())
   })
 })
