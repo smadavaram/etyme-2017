@@ -2710,11 +2710,15 @@ pays on its own agreement, never on a rule the platform sets:
   covers, the net days and what they run from, the currency. A twin that
   drafts a bill drafts it on that agreement's date for that agreement's
   period, and never earlier than the week was signed above.
-- **Today** the net days, their anchor and the currency already cascade
-  from the agreement (`lib/billing-cascade`); the billing rhythm
-  (frequency, anchor, straddle) is read from the order and the line
-  (`lib/money/order-terms`), and the agreement carries none of it. Moving
-  the rhythm onto the agreement is a schema request for the architect.
+- **Built the same day:** every term — rhythm, net days, what they run
+  from, currency — is read agreement first (`agreementFirst` in
+  `lib/billing-cascade`, `termsFor` in `lib/money/order-terms`); the order
+  and the line differ only with a recorded reason. The supplier's twin
+  drafts a bill the day after the agreement's billing period ends, from
+  weeks signed above, through the Bills page's own generator, and asks
+  for a yes to send it (`lib/money/supplier-bills`). It acts on the
+  Owner's authority, so Accounts Receivable, Finance or Admin say the yes
+  (coordinator's call, reversible).
 - This qualifies "the MSA is optional" above: where two parties signed
   no separate MSA, the order or the contract between them is their
   agreement, and its terms govern the same way.
