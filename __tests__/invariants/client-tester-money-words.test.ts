@@ -153,6 +153,18 @@ describe('A refused bill names the week, the person and who must sign first', ()
     expect(says).toBe('Nothing is left to bill. Omar Haddad’s week of Sep 21 is already on bill IN-N1YFQK-20260901.')
   })
 
+  it('a signed week held by a draft nobody has sent names the draft and says to send it or withdraw it', () => {
+    const says = nothingToBillSays([
+      { ...omar, status: 'APPROVED', clientSigned: true, onOurBill: 'IN_A1B2C3_004', onOurDraft: true },
+      { ...omar, personName: 'Rosa Delgado', status: 'APPROVED', clientSigned: true, onOurBill: 'IN_A1B2C3_004', onOurDraft: true },
+    ])
+    expect(says).toBe(
+      'Nothing is left to bill. Omar Haddad’s week of Sep 21 and Rosa Delgado’s week of Sep 21 are on draft bill IN_A1B2C3_004, ' +
+        'which has not been sent. Send it or withdraw it.'
+    )
+    expect(says).not.toContain('already on')
+  })
+
   it('dates with no hours in them say so, with the dates', () => {
     expect(nothingToBillSays([], { start: D('2026-09-20'), end: D('2026-09-26') }))
       .toBe('No hours are on record for this engagement between Sep 20, 2026 and Sep 26, 2026, so there is nothing to bill.')

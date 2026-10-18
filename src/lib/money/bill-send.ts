@@ -2,8 +2,13 @@
  * Sending a bill: through the three-way check, then to the customer.
  *
  * One door for the Submit button on a bill's page (`POST
- * /api/invoices/:id/submit`) and for the supplier's twin's `bill.send`
- * (2026-10-18). The twin acts on the Owner's authority, else the Admin's;
+ * /api/invoices/:id/submit`), for the Bills page's bulk Submit (`POST
+ * /api/invoices/submit`) and for the supplier's twin's `bill.send`
+ * (2026-10-18). A person holding `invoices.issue` at the firm that raised
+ * a draft may send it from the Bills page themselves — the Owner the twin
+ * acts for included, because a person sending is not the twin approving
+ * its own work (release walk, 2026-10-18: at a firm where only the Owner
+ * sends bills, nobody could otherwise ever send the twin's draft). The twin acts on the Owner's authority, else the Admin's;
  * whoever else issues bills — Accounts Receivable, Finance, Admin — says
  * the yes, and the person it acts for never does. The twin drafts; a
  * person's yes sends; and what "send" does is this file, so a bill the
@@ -29,6 +34,7 @@ import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
 import { billDue } from '@/lib/money/bill-generate'
 import { fromUnits } from '@/lib/money-display'
+import { emit } from '@/lib/events'
 
 type Tx = Prisma.TransactionClient
 
@@ -187,6 +193,12 @@ export async function markSent(
     for (const [sellContractId, periodEnd] of latest) {
       await completeCycle(tx, { sellContractId, kind: 'INVOICE_GENERATE', periodEnd })
     }
+    // The overtime answers this bill was priced on become history now,
+    // when it is sent — not when it was drafted. A draft is the firm's
+    // working paper: until it goes, a week's answer may still change, and
+    // a draft priced on the old answer then fails its own check here and
+    // is withdrawn and drafted again (lib/money/bill-withdraw).
+    await stampDecisionsBilled(tx, inv.id)
     await tx.automationLog.create({
       data: {
         companyId: a.companyId,
@@ -222,4 +234,56 @@ export async function markSent(
     invoiceId: inv.id, number: inv.number, total: Number(inv.total), currency: inv.currency,
     dueAt, submittedAt: now, raised,
   }
+}
+
+/**
+ * The overtime decisions a draft was priced on, as the generator wrote
+ * them down on the draft's own "drafted" log row, stamped billed. A draft
+ * written before 2026-10-18 has no list there: its decisions were stamped
+ * when it was drafted, so there is nothing left to stamp.
+ */
+export async function draftDecisionIds(db: Pick<Tx, 'automationLog'>, invoiceId: string): Promise<string[]> {
+  const row = await db.automationLog.findFirst({
+    where: { action: 'INVOICE_GENERATED', payload: { path: ['invoiceId'], equals: invoiceId } },
+    select: { payload: true },
+    orderBy: { at: 'asc' },
+  })
+  const ids = ((row?.payload ?? {}) as Record<string, unknown>).overtimeDecisionIds
+  return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
+}
+
+async function stampDecisionsBilled(tx: Tx, invoiceId: string): Promise<void> {
+  const ids = await draftDecisionIds(tx, invoiceId)
+  if (ids.length === 0) return
+  await tx.overtimeDecision.updateMany({ where: { id: { in: ids }, billedAt: null }, data: { billedAt: new Date() } })
+}
+
+/**
+ * After a draft is raised and sent, the event a bill raised on the Bills
+ * page sends — whoever sent it. Never inside the transaction: an event
+ * for a bill that rolled back would have somebody chasing a number that
+ * does not exist.
+ */
+export async function announceRaised(
+  invoiceId: string,
+  companyId: string,
+  actor: { personId: string | null; twin?: boolean }
+): Promise<void> {
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { id: true, number: true, total: true, currency: true, dueAt: true, engagementId: true, _count: { select: { invoiceLines: true } } },
+  })
+  if (!inv) return
+  await emit({
+    type: 'invoice.generated',
+    companyId,
+    subjectType: 'Invoice',
+    subjectId: inv.id,
+    actorPersonId: actor.personId,
+    ...(actor.twin ? { actorKind: 'TWIN' as const, actorTwinKind: 'SUPPLIER' as const } : {}),
+    payload: {
+      number: inv.number, engagementId: inv.engagementId, lineCount: inv._count.invoiceLines,
+      total: Number(inv.total), currency: inv.currency, dueAt: inv.dueAt.toISOString(), fromDraft: true,
+    },
+  })
 }

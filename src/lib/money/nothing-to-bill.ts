@@ -26,6 +26,8 @@ export interface WeekNotBillable {
   clientName: string | null
   /** The number of our own bill that already carries the week, where one does. */
   onOurBill: string | null
+  /** That bill is a draft nobody has sent yet. */
+  onOurDraft?: boolean
 }
 
 /** "Sep 21" — read in UTC, because a week's first day is a date and not a moment. */
@@ -109,8 +111,21 @@ export function nothingToBillSays(
     parts.push(`${w.clientName ?? 'The client'} sent ${whose(w)} back, so the worker has to send it again.`)
   }
 
+  // On a draft of ours nobody has sent: the draft is named, and what to do
+  // with it, because the generic "already on a bill" left the person with
+  // no way forward (release walk, 2026-10-18).
+  const onDraft = sorted.filter((w) => w.onOurBill && w.onOurDraft)
+  const drafts = new Map<string, WeekNotBillable[]>()
+  for (const w of onDraft) drafts.set(w.onOurBill!, [...(drafts.get(w.onOurBill!) ?? []), w])
+  for (const [number, ws] of drafts) {
+    parts.push(
+      `${list(ws.map(whose))} ${ws.length === 1 ? 'is' : 'are'} on draft bill ${number}, which has not been sent. ` +
+        `Send it or withdraw it.`
+    )
+  }
+
   // Signed and already on one of our bills.
-  const billed = sorted.filter((w) => w.clientSigned && w.onOurBill)
+  const billed = sorted.filter((w) => w.clientSigned && w.onOurBill && !w.onOurDraft)
   if (billed.length > 0) {
     const numbers = [...new Set(billed.map((w) => w.onOurBill!))]
     parts.push(
@@ -120,7 +135,7 @@ export function nothingToBillSays(
   }
 
   // Anything this does not have words for is counted, never dropped.
-  const said = new Set([...unsigned, ...notSent, ...sentBack, ...billed])
+  const said = new Set([...unsigned, ...notSent, ...sentBack, ...onDraft, ...billed])
   const other = sorted.filter((w) => !said.has(w))
   if (other.length > 0) {
     parts.push(`${list(other.map(whose))} cannot be billed yet.`)

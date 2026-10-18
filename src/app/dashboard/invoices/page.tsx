@@ -206,6 +206,8 @@ function GenerateInvoiceModal({
   const [periodEnd, setPeriodEnd] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** The unsent draft holding the weeks asked for, where one does. */
+  const [heldByDraft, setHeldByDraft] = useState<{ number: string; href: string } | null>(null)
 
   // What this firm may bill — asked of the route that will refuse it.
   //
@@ -244,6 +246,7 @@ function GenerateInvoiceModal({
 
     setSubmitting(true)
     setError(null)
+    setHeldByDraft(null)
 
     try {
       const payload: Record<string, string> = { engagementId }
@@ -259,6 +262,7 @@ function GenerateInvoiceModal({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         setError(body.error?.message ?? 'Failed to generate the bill')
+        if (body.error?.draft?.href) setHeldByDraft({ number: body.error.draft.number, href: body.error.draft.href })
         return
       }
 
@@ -293,6 +297,12 @@ function GenerateInvoiceModal({
         </div>
 
         {error && <div className="mb-4"><ErrorState says={error} /></div>}
+        {heldByDraft && (
+          <p className="mb-4 text-sm">
+            <a href={heldByDraft.href} className="text-etyme-action hover:underline">Open draft bill {heldByDraft.number}</a>
+            <span className="text-etyme-muted"> to send it or withdraw it.</span>
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -644,12 +654,19 @@ export default function InvoicesPage() {
       const body = await res.json()
       const { submitted, skipped } = body.data ?? {}
 
+      // Each bill not sent says why in its own sentence: not ours, already
+      // sent, or failing the three-way check.
+      const why = ((body.data?.results ?? []) as { status: string; reason?: string }[])
+        .filter((r) => r.status !== 'submitted' && r.reason)
+        .map((r) => r.reason)
+        .slice(0, 3)
+        .join(' ')
       if (submitted > 0) {
-        const parts = [`${submitted} bill${submitted !== 1 ? 's' : ''} submitted`]
-        if (skipped > 0) parts.push(`${skipped} skipped (not in ISSUED status)`)
-        showToast(parts.join('. '))
+        const parts = [`${submitted} bill${submitted !== 1 ? 's' : ''} sent`]
+        if (skipped > 0) parts.push(`${skipped} not sent. ${why}`)
+        showToast(parts.join('. '), skipped > 0 ? 'error' : 'success')
       } else {
-        showToast(`No bills were submitted — ${skipped ?? 0} skipped (not in ISSUED status)`, 'error')
+        showToast(`No bills were sent. ${why}`, 'error')
       }
 
       clearSelection()

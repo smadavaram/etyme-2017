@@ -53,13 +53,12 @@
 
 import { prisma } from '@/lib/db'
 import { formatDay } from '@/lib/format-date'
-import { emit } from '@/lib/events'
 import { billingStraddle, periodFor, workedSpan, iso, type Period } from '@/lib/periods'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { generateBill, type BillCaller, type PlannedBill } from '@/lib/money/bill-generate'
-import { mayBeSent, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
 import { fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 import type { Performer, PerformContext } from '@/lib/twin/performers'
@@ -88,7 +87,7 @@ export interface BillDue {
   rhythmSays: string
   /** What the bill would be, priced by the generator itself. */
   planned: PlannedBill
-  /** The ledger's key: one draft per placement per period, ever. */
+  /** The ledger's key: one draft per placement per period, until a person withdraws it. */
   dedupKey: string
 }
 
@@ -192,6 +191,16 @@ export async function billsDueAt(companyId: string, now: Date = new Date()): Pro
       // generator would put on a bill: no draft, and nothing said.
       if (!dry.ok || dry.planned.timesheetIds.length === 0) continue
       engagementsDone.add(key)
+      // A draft a person withdrew frees its period: the ledger keeps the
+      // first draft's key for good, so each later draft for the same
+      // placement and period carries the count of withdrawals behind it.
+      const base = `${line.id}:${iso(period.start)}:${iso(period.end)}`
+      const withdrawn = await prisma.twinAction.count({
+        where: {
+          companyId, action: 'bill.draft', actorType: 'PERSON', outcome: 'REJECTED',
+          payload: { path: ['draftKey'], string_starts_with: base },
+        },
+      })
       out.push({
         sellContractId: line.id,
         engagementId: line.engagementId!,
@@ -201,7 +210,7 @@ export async function billsDueAt(companyId: string, now: Date = new Date()): Pro
         billingDate: billingDateOf(period),
         rhythmSays: `${terms.frequency.toLowerCase()}, ${said.label.frequency}`,
         planned: dry.planned,
-        dedupKey: `${line.id}:${iso(period.start)}:${iso(period.end)}`,
+        dedupKey: withdrawn === 0 ? base : `${base}:again-${withdrawn}`,
       })
       break
     }
@@ -337,25 +346,8 @@ export const billSend: Performer = {
     }
   },
   async after(c) {
-    const inv = await prisma.invoice.findUnique({
-      where: { id: c.entity.id },
-      select: { id: true, number: true, total: true, currency: true, dueAt: true, engagementId: true, _count: { select: { invoiceLines: true } } },
-    })
-    if (!inv) return
     // The event a bill raised on the Bills page sends, now that this one is raised.
-    await emit({
-      type: 'invoice.generated',
-      companyId: c.companyId,
-      subjectType: 'Invoice',
-      subjectId: inv.id,
-      actorPersonId: null,
-      actorKind: 'TWIN',
-      actorTwinKind: 'SUPPLIER',
-      payload: {
-        number: inv.number, engagementId: inv.engagementId, lineCount: inv._count.invoiceLines,
-        total: Number(inv.total), currency: inv.currency, dueAt: inv.dueAt.toISOString(), fromDraft: true,
-      },
-    })
+    await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true })
   },
 }
 

@@ -3,16 +3,20 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
 
 /**
  * POST /api/invoices/submit
  *
- * Bulk submit: transitions multiple invoices from ISSUED → SUBMITTED.
+ * Bulk send: each bill, raised or drafted, sent exactly as the single
+ * Submit button sends it — the firm's own bills only, through the
+ * three-way check, a draft raised as it goes.
  *
  * Body: { invoiceIds: string[] }
  *
- * For each invoice, applies the same rules as the single submit endpoint:
- * only ISSUED invoices are transitioned. Non-ISSUED ones are skipped.
+ * A bill that is not ours, already sent, or failing the check is skipped
+ * with its own sentence and never sent (release walk, 2026-10-18: this
+ * route used to move any ISSUED bill by id, with no check at all).
  *
  * Returns a summary with submitted/skipped/error counts and per-invoice results.
  */
@@ -45,21 +49,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Fetch all requested invoices in one query
-  const invoices = await prisma.invoice.findMany({
-    where: { id: { in: invoiceIds } },
-    select: {
-      id: true,
-      number: true,
-      status: true,
-      total: true,
-      currency: true,
-      engagementId: true,
-    },
-  })
-
-  const invoiceMap = new Map(invoices.map((inv) => [inv.id, inv]))
-  const now = new Date()
+  const companyId = caller.company?.id ?? null
+  if (!companyId) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'A bill is between two companies, and your seat is not at one.' } },
+      { status: 404 }
+    )
+  }
 
   let submitted = 0
   let skipped = 0
@@ -69,77 +65,47 @@ export async function POST(request: NextRequest) {
     number: string | null
     status: 'submitted' | 'skipped' | 'not_found'
     reason?: string
+    checks?: { reason: string }[]
   }> = []
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      for (const invoiceId of invoiceIds) {
-        const invoice = invoiceMap.get(invoiceId)
-
-        if (!invoice) {
-          errors++
-          results.push({
-            invoiceId,
-            number: null,
-            status: 'not_found',
-            reason: 'Bill not found',
-          })
-          continue
-        }
-
-        if (invoice.status !== 'ISSUED') {
-          skipped++
-          results.push({
-            invoiceId,
-            number: invoice.number,
-            status: 'skipped',
-            reason: `Current status is "${invoice.status}" — only ISSUED bills can be submitted`,
-          })
-          continue
-        }
-
-        await tx.invoice.update({
-          where: { id: invoiceId },
-          data: {
-            status: 'SUBMITTED',
-            submittedAt: now,
-          },
-        })
-
-        await tx.automationLog.create({
-          data: {
-            companyId: caller.company!.id,
-            action: 'INVOICE_SUBMITTED',
-            summary: `Bill ${invoice.number} submitted for client review`,
-            reason: `Bill ${invoice.number} submitted for client review`,
-            payload: {
-              invoiceId: invoice.id,
-              invoiceNumber: invoice.number,
-              engagementId: invoice.engagementId,
-              total: Number(invoice.total),
-              currency: invoice.currency,
-              submittedBy: caller.person.id,
-              submittedAt: now.toISOString(),
-              bulk: true,
-            },
-            reversible: true,
-          },
-        })
-
-        submitted++
+  // One bill at a time, each through the same door as the Submit button
+  // and a yes in Ask Etyme (`lib/money/bill-send`): ours, sendable, and
+  // through the three-way check. A bill that fails is skipped with its own
+  // sentence and never sent; the others go. Each in its own transaction,
+  // so one bill's failure does not hold the rest back.
+  for (const invoiceId of [...new Set(invoiceIds.filter((x: unknown): x is string => typeof x === 'string'))]) {
+    try {
+      const check = await mayBeSent(invoiceId, companyId, ['ISSUED', 'DRAFT'])
+      if (!check.ok) {
+        if (check.status === 404) errors++
+        else skipped++
         results.push({
           invoiceId,
-          number: invoice.number,
-          status: 'submitted',
+          number: null,
+          status: check.status === 404 ? 'not_found' : 'skipped',
+          reason: check.says,
+          ...(check.checks ? { checks: check.checks } : {}),
         })
+        continue
       }
-    })
-  } catch (err: any) {
-    reportError('Bulk invoice submission failed:', err)
-    return NextResponse.json(
-      { error: { code: 'INTERNAL', message: 'The bills could not be submitted' } },
-      { status: 500 }
-    )
+      const sent = await prisma.$transaction((tx) =>
+        markSent(tx, { invoiceId, companyId, by: { personId: caller.person.id, name: caller.person.name } })
+      )
+      if (sent.raised) await announceRaised(invoiceId, companyId, { personId: caller.person.id })
+      submitted++
+      results.push({ invoiceId, number: sent.number, status: 'submitted' })
+    } catch (err: any) {
+      if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) {
+        skipped++
+        results.push({ invoiceId, number: null, status: 'skipped', reason: 'This bill was sent a moment ago by somebody else.' })
+        continue
+      }
+      reportError('Bulk invoice submission failed:', err)
+      return NextResponse.json(
+        { error: { code: 'INTERNAL', message: `The bills could not all be sent: ${submitted} went before the failure.` } },
+        { status: 500 }
+      )
+    }
   }
 
   return NextResponse.json({

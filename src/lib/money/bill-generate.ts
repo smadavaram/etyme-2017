@@ -503,7 +503,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { id: true }, take: 1 },
         invoiceLines: {
           where: { sellContractId: { in: ownIds } },
-          select: { invoice: { select: { number: true } } },
+          select: { invoice: { select: { id: true, number: true, status: true } } },
           take: 1,
         },
         sellContract: {
@@ -516,9 +516,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       orderBy: { periodStart: 'asc' },
       take: 50,
     })
+    // A week held by a draft nobody has sent: name the draft and where it is.
+    const draftHolding = waiting.map((w) => w.invoiceLines[0]?.invoice).find((i) => i?.status === 'DRAFT') ?? null
     return reply(422, {
         error: {
           code: 'NO_TIMESHEETS',
+          ...(draftHolding ? { draft: { id: draftHolding.id, number: draftHolding.number, href: `/dashboard/invoices/${draftHolding.id}` } } : {}),
           message: nothingToBillSays(
             waiting.map((w) => ({
               personName: w.person?.name ?? 'Somebody',
@@ -529,6 +532,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
               // top of the chain, which is the end client where there is one.
               clientName: w.sellContract?.endClientCompany?.name ?? w.sellContract?.clientCompany?.name ?? null,
               onOurBill: w.invoiceLines[0]?.invoice.number ?? null,
+              onOurDraft: w.invoiceLines[0]?.invoice.status === 'DRAFT',
             })),
             { start: asked.start ?? null, end: asked.end ?? null }
           ),
@@ -862,6 +866,27 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   }
 
   if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0) {
+    // The period's weeks may be on a draft of ours nobody has sent — the
+    // supplier's twin's, typically. Name it and the way out, never the
+    // generic reply (release walk, 2026-10-18).
+    const heldByDraft = await prisma.invoice.findFirst({
+      where: {
+        engagementId, status: 'DRAFT',
+        invoiceLines: { some: { sellContractId: { in: ownIds } } },
+        periodStart: { lte: period.end }, periodEnd: { gte: period.start },
+      },
+      select: { id: true, number: true },
+      orderBy: { periodStart: 'asc' },
+    })
+    if (heldByDraft) {
+      return reply(422, {
+        error: {
+          code: 'ON_A_DRAFT',
+          message: `Those weeks are on draft bill ${heldByDraft.number}, which has not been sent. Send it or withdraw it.`,
+          draft: { id: heldByDraft.id, number: heldByDraft.number, href: `/dashboard/invoices/${heldByDraft.id}` },
+        },
+      })
+    }
     return reply(422, {
         error: {
           code: 'ZERO_VALUE',
@@ -1079,11 +1104,15 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       const existingCount = await tx.invoice.count({
         where: { engagementId },
       })
-      const seq = String(existingCount + 1).padStart(3, '0')
       // Use engagement ID fragment for the contract portion
       const engFragment = engagementId.slice(-6).toUpperCase()
+      // Counted, then moved past any number still standing: a withdrawn
+      // draft leaves a gap, and the count alone would then land on a bill
+      // raised after it.
+      let n = existingCount + 1
+      while (await tx.invoice.findUnique({ where: { number: `IN_${engFragment}_${String(n).padStart(3, '0')}` }, select: { id: true } })) n++
       // Their number where they self-bill. Never both.
-      const number = self.number ?? `IN_${engFragment}_${seq}`
+      const number = self.number ?? `IN_${engFragment}_${String(n).padStart(3, '0')}`
 
       // Create the invoice
       const invoice = await tx.invoice.create({
@@ -1217,7 +1246,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       // A banked week is stamped too: its ordinary hours are on this
       // invoice, so changing the answer to a premium afterwards would
       // restate a document already sent.
-      if (decisionsBilled.size > 0) {
+      //
+      // A draft stamps nothing (release walk, 2026-10-18): it has been sent
+      // to nobody, and a person may still withdraw it. Its decisions are
+      // written on its "drafted" log row below and stamped when it is sent
+      // (`markSent` in lib/money/bill-send).
+      if (!draft && decisionsBilled.size > 0) {
         await tx.overtimeDecision.updateMany({
           where: { id: { in: [...decisionsBilled] }, billedAt: null },
           data: { billedAt: new Date() },
@@ -1293,6 +1327,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
             total,
             currency,
             dueAt: dueAt.toISOString(),
+            ...(draft ? { overtimeDecisionIds: [...decisionsBilled] } : {}),
           },
           reversible: true,
         },

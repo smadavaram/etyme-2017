@@ -3,17 +3,23 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { mayBeSent, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
 
 /**
  * POST /api/invoices/:id/submit
  *
- * Transitions an invoice from ISSUED → SUBMITTED.
+ * Sends a bill: ISSUED → SUBMITTED, or a DRAFT raised and submitted in
+ * one step.
  *
  * LEGACY_RULES.md §4: Invoice states: DRAFT → ISSUED → SUBMITTED → PAID / PARTIALLY_PAID / CANCELLED
  *
- * Only ISSUED invoices can be submitted. Sets submittedAt to now and writes
- * an AutomationLog entry for the transition.
+ * A draft is the supplier's twin's (lib/money/supplier-bills). Whoever
+ * sends bills at the firm that raised it may send it here, the Owner the
+ * twin acts for included: a person pressing Send is not the twin
+ * approving its own work, and at a firm where only the Owner sends bills
+ * this button is the only way the draft ever goes (release walk,
+ * 2026-10-18). The same check and the same writes as a yes in Ask Etyme
+ * (`lib/money/bill-send`), with the sender recorded.
  */
 export async function POST(
   request: NextRequest,
@@ -47,7 +53,7 @@ export async function POST(
       { status: 404 }
     )
   }
-  const check = await mayBeSent(id, companyId, ['ISSUED'])
+  const check = await mayBeSent(id, companyId, ['ISSUED', 'DRAFT'])
   if (!check.ok) {
     return NextResponse.json(
       { error: { code: check.code, message: check.says, ...(check.checks ? { checks: check.checks } : {}) } },
@@ -59,6 +65,7 @@ export async function POST(
     const sent = await prisma.$transaction((tx) =>
       markSent(tx, { invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name } })
     )
+    if (sent.raised) await announceRaised(id, companyId, { personId: caller.person.id })
     const result = await prisma.invoice.findUniqueOrThrow({ where: { id }, select: { id: true, number: true, status: true, total: true, currency: true, submittedAt: true, dueAt: true } })
     return NextResponse.json({
       data: {
@@ -71,7 +78,7 @@ export async function POST(
           submittedAt: result.submittedAt?.toISOString() ?? sent.submittedAt.toISOString(),
           dueAt: result.dueAt.toISOString(),
         },
-        message: `Bill ${result.number} submitted for client review`,
+        message: sent.raised ? `Bill ${result.number} raised and sent for client review` : `Bill ${result.number} submitted for client review`,
       },
     })
   } catch (err: any) {

@@ -274,7 +274,22 @@ export default function InvoiceDetail() {
       alert(`${j.error?.message ?? 'Could not submit'}${cs ? '\n\n' + cs : ''}`)
       return
     }
+    if (j.data?.message) showToast(j.data.message)
     await load()
+  }
+
+  /** Withdraw a draft nobody has sent, with a reason; its weeks can be billed again. */
+  async function withdrawDraft() {
+    const reason = window.prompt(
+      `Why is draft bill ${data?.invoice?.number ?? ''} being withdrawn? This goes on the trail with your name.`
+    )
+    if (!reason?.trim()) return
+    const res = await fetch(`/api/invoices/${id}/withdraw`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+    })
+    const j = await res.json().catch(() => ({}) as any)
+    if (!res.ok) { showToast(j.error?.message ?? 'The draft could not be withdrawn.', 'error'); return }
+    window.location.href = booksHref('/dashboard/invoices', books)
   }
 
   // Money pages wait (sign-up walk, round three, #17): until the session
@@ -363,6 +378,37 @@ export default function InvoiceDetail() {
           toast.type === 'error' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-verified/10 text-etyme-verified'
         }`}>
           {toast.message}
+        </div>
+      )}
+
+      {/* A draft is the firm's working paper: nothing has gone to the
+          customer. Whoever sends bills may send it or withdraw it here —
+          the Owner Ask Etyme acts for included (release walk,
+          2026-10-18). Send is offered unless the check already says no;
+          the route runs the check again either way. */}
+      {inv.status === 'DRAFT' && inv.direction === 'RECEIVABLE' && (
+        <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-surface p-4 flex items-start justify-between gap-4">
+          <div>
+            <Lbl>Draft</Lbl>
+            <p className="text-sm text-etyme-ink mt-1">
+              Nothing has been sent to {inv.client?.name ?? 'the customer'}. Send it, or withdraw it so its weeks can be billed again.
+            </p>
+            {m && !m.matched && (
+              <p className="text-xs text-etyme-attention mt-1">It does not match yet, so it cannot be sent. See the checks below.</p>
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={withdrawDraft}
+              className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk">
+              Withdraw
+            </button>
+            {(!m || m.matched) && (
+              <button onClick={submit}
+                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                Send
+              </button>
+            )}
+          </div>
         </div>
       )}
 
