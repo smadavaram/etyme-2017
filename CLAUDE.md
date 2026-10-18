@@ -2695,9 +2695,17 @@ pays on its own agreement, never on a rule the platform sets:
 - This qualifies "the MSA is optional" above: where two parties signed
   no separate MSA, the order or the contract between them is their
   agreement, and its terms govern the same way.
-- **Open for the founder:** whether an order or a placement may set
-  terms different from the agreement it sits under (today a line beats
-  the agreement on net days), or whether the agreement is final.
+- **The agreement sets the terms; an order or a placement may differ
+  only with a reason recorded** (founder, the same day: "go with your
+  recommendation, build it"). A one-off deal still works, the reason and
+  who gave it sit beside the term, and the screen says which document set
+  each term. A difference with no reason is refused in a sentence.
+- **Built in this order:** the rhythm onto the agreement and the reason
+  on a difference (architect); one cascade, agreement first, read by
+  billing, paying and the twin (money); the supplier's twin drafting the
+  bill on the agreement's date for Accounts Receivable to send, and a
+  sent-back bill landing as a card (money, conversation); then Ask Etyme
+  for workers.
 
 ### Why collapsing the layers still breaks real cases — read now as header and lines
 
