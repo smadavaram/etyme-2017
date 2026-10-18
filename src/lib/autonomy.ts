@@ -517,6 +517,12 @@ ATTRIBUTED.DOCUMENT_REQUIREMENT_WAIVED = { basis: 'RECORDED' }
 ATTRIBUTED.TWIN_ACT_APPROVED = { basis: 'RULE' }
 ATTRIBUTED.TWIN_ACT_REJECTED = { basis: 'RULE' }
 ATTRIBUTED.TWIN_ROLE_CONTRACT_SET = { basis: 'RULE' }
+// A question from the twin closed unanswered because a person dealt with
+// the record another way first — sent the draft bill from the Bills page,
+// or withdrew it (lib/twin/ledger `closeOvertaken`, 2026-10-18). Written
+// in the same transaction as that person's act and attributed to them;
+// the twin decided nothing. Not reversible: what it asked about is done.
+ATTRIBUTED.TWIN_QUESTION_OVERTAKEN = { basis: 'RULE' }
 ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 // A settings desk turned Ask Etyme's model on or off for its company
 // (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
@@ -552,6 +558,14 @@ ATTRIBUTED.PROJECT_MOVE_SUBMITTED = { basis: 'RECORDED' }
 // A person pressed each button; the person asked still decides.
 ATTRIBUTED.BENCH_INVITATION_RESENT = { basis: 'RECORDED' }
 ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
+
+// A person withdrew a draft bill nobody had sent — usually the supplier's
+// twin's draft — with a reason (lib/money/bill-withdraw, 2026-10-18). A
+// person's own act, not an undo of somebody else's: the draft and its
+// lines are deleted and its weeks billable again. Not reversible: the
+// withdrawn draft does not come back; a new draft, with a new number, is
+// written by the Bills page or the twin's next run.
+ATTRIBUTED.INVOICE_DRAFT_WITHDRAWN = { basis: 'RULE' }
 
 // Somebody holding the deployment secret asked for the demo world to be
 // deleted and seeded again, and typed the phrase. A person's act, not

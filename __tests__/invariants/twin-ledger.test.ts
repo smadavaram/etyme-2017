@@ -107,7 +107,8 @@ function fresh() {
   h.notifyBulk.mockClear()
 }
 
-import { act, ledger, decideApproval } from '../../src/lib/twin/ledger'
+import { act, ledger, decideApproval, overtakenSays } from '../../src/lib/twin/ledger'
+import { feedLine, outcomeWord } from '../../src/lib/twin/feed-words'
 import { actsPerDay } from '../../src/lib/twin/acts'
 import { modelOnFor, setModelOn, recordModelPrompt, WITHHELD } from '../../src/lib/model-boundary'
 
@@ -274,5 +275,21 @@ describe('the twin’s ledger', () => {
       expect(JSON.stringify(T().modelPrompt)).not.toContain(real)
     }
     expect(h.reportError).toHaveBeenCalled()
+  })
+})
+
+describe('a question from the twin overtaken by events', () => {
+  it('a late answer to a question overtaken by events is told what overtook it and that nothing was done', () => {
+    expect(overtakenSays('Withdrawn by Ines Halloran: the client wants one bill.')).toBe(
+      'This question is closed, because it was overtaken: Withdrawn by Ines Halloran: the client wants one bill. Nothing was done on your answer.'
+    )
+    expect(overtakenSays(null)).toContain('Nothing was done on your answer.')
+  })
+
+  it('the ledger reads an overtaken question as closed unanswered, never as somebody’s yes or no', () => {
+    const line = feedLine({ actorType: 'SYSTEM', actorName: null, action: 'bill.send', outcome: 'OVERTAKEN', entityType: 'Invoice', label: 'INV-1042', onAuthorityOfRole: 'Owner', surface: 'WEB' })
+    expect(line).toContain('was closed unanswered')
+    expect(line).not.toMatch(/said (yes|no)/)
+    expect(outcomeWord('OVERTAKEN')).toBe('Overtaken')
   })
 })

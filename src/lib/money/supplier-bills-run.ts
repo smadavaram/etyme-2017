@@ -151,6 +151,7 @@ export async function runSupplierBills(
       surface, authority,
       payload: { ...cardPayload(d, { id: invoiceId, number: invoiceNumber }), engagementId: d.engagementId, sellContractId: d.sellContractId, askedOn },
       dedupKey: invoiceId,
+      byHand: `Send it from the Bills page: open ${invoiceNumber} and press Send.`,
     }))
     if (send.outcome === 'AWAITING_APPROVAL') asked++
   }
@@ -183,6 +184,7 @@ export async function runSupplierBills(
       surface, authority,
       payload: { ...p, invoiceId, invoiceNumber: inv.number, askedOn },
       dedupKey: invoiceId,
+      byHand: `Send it from the Bills page: open ${inv.number} and press Send.`,
     }))
     if (send.outcome === 'AWAITING_APPROVAL') asked++
   }

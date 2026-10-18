@@ -138,6 +138,9 @@ export function feedLine(r: LineInput): string {
   if (r.actorType === 'CHANGE') {
     return `${who} changed ${e}${tail}`
   }
+  if (r.outcome === 'OVERTAKEN') {
+    return `The twin’s question to ${infinitiveOf(r.action, e)} was closed unanswered: a person dealt with it another way${tail}`
+  }
   if (r.actorType === 'TWIN') {
     switch (r.outcome) {
       case 'PERFORMED': return `Twin ${pastOf(r.action, e)}${authority}${tail}`
@@ -164,6 +167,7 @@ export function outcomeWord(outcome: string): string {
     case 'AWAITING_APPROVAL': return 'Asked a person'
     case 'REFUSED': return 'Refused'
     case 'REJECTED': return 'Said no'
+    case 'OVERTAKEN': return 'Overtaken'
     default: return outcome
   }
 }

@@ -116,7 +116,7 @@ describe('a week signed at a premium, as far as the invoice', () => {
     expect(await decisionBilledAt()).toBeNull()
     // Who withdrew it and why, on the trail.
     const trail = await prisma.automationLog.findFirstOrThrow({
-      where: { action: 'REVERSAL', payload: { path: ['invoiceId'], equals: draftId } },
+      where: { action: 'INVOICE_DRAFT_WITHDRAWN', payload: { path: ['invoiceId'], equals: draftId } },
     })
     expect(trail.reason).toContain('Priced before the client asked a question about the weekend.')
   })

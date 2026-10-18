@@ -8403,19 +8403,26 @@ enum TwinTier {
   NEVER
 }
 
-/// What happened to one act: done, waiting on a person, refused, or
-/// turned down by the person asked.
+/// What happened to one act: done, waiting on a person, refused, turned
+/// down by the person asked, or overtaken — the question closed because
+/// the thing it asked about was done or undone another way (a person
+/// sent or withdrew the draft from the Bills page), so nobody answered it.
 enum TwinOutcome {
   PERFORMED
   AWAITING_APPROVAL
   REFUSED
   REJECTED
+  OVERTAKEN
 }
 
+/// OVERTAKEN: closed by events, never by an answer — `approverPersonId`
+/// stays empty, and the ledger entry carrying the same approval says what
+/// overtook it and who did that.
 enum TwinApprovalDecision {
   PENDING
   APPROVED
   REJECTED
+  OVERTAKEN
 }
 
 /// What a company's twin may do alone, what it must ask for, and what it

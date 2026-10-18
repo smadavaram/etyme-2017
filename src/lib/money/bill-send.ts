@@ -35,6 +35,7 @@ import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-t
 import { billDue } from '@/lib/money/bill-generate'
 import { fromUnits } from '@/lib/money-display'
 import { emit } from '@/lib/events'
+import { closeOvertaken } from '@/lib/twin/ledger'
 
 type Tx = Prisma.TransactionClient
 
@@ -180,6 +181,13 @@ export async function markSent(
     },
   })
   if (moved.count !== 1) throw new Error('ALREADY_MOVED')
+  // Ask Etyme's open question about sending this bill is overtaken: it is
+  // sent. Closed unanswered, so the card goes and a late yes is told why.
+  // A yes sending it now already moved its own question, so finds none.
+  await closeOvertaken(tx, {
+    companyId: a.companyId, entity: { type: 'Invoice', id: inv.id }, action: 'bill.send',
+    what: `Bill ${inv.number} was sent by ${a.by.name}.`, by: a.by, now,
+  })
 
   if (raised) {
     // The "bill to raise" date each line was heading for is done now that

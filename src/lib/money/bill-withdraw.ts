@@ -21,7 +21,7 @@
  *   - an overtime decision stamped billed by a draft written before the
  *     stamp moved to sending is un-stamped, unless another bill still
  *     carries that week;
- *   - the draft's "drafted" log row is marked reversed and a REVERSAL row
+ *   - the draft's "drafted" log row is marked reversed and an INVOICE_DRAFT_WITHDRAWN row
  *     says who withdrew it and why;
  *   - the twin's ledger records a person's no to its draft, with the
  *     draft's key, so the twin's next run may draft the period again.
@@ -34,7 +34,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
-import { ledger } from '@/lib/twin/ledger'
+import { closeOvertaken, ledger } from '@/lib/twin/ledger'
 
 type Tx = Prisma.TransactionClient
 
@@ -220,7 +220,7 @@ async function withdrawInTx(
   await tx.automationLog.create({
     data: {
       companyId: a.companyId,
-      action: 'REVERSAL',
+      action: 'INVOICE_DRAFT_WITHDRAWN',
       summary: `Draft bill ${inv.number} withdrawn: ${fromUnits(Number(inv.total), inv.currency)}, ${timesheetIds.length} week(s) billable again`,
       reason: `${a.by.name} withdrew draft bill ${inv.number}: ${a.reason}`.slice(0, 1000),
       payload: {
@@ -230,6 +230,13 @@ async function withdrawInTx(
       },
       reversible: false,
     },
+  })
+
+  // Ask Etyme's open question about sending it is overtaken: there is
+  // nothing left to send. Closed unanswered, never as the person's no.
+  await closeOvertaken(tx, {
+    companyId: a.companyId, entity: { type: 'Invoice', id: inv.id }, action: 'bill.send',
+    what: `Withdrawn by ${a.by.name}: ${a.reason}`, by: a.by, now: a.now,
   })
 
   return { number: inv.number, total: Number(inv.total), currency: inv.currency }

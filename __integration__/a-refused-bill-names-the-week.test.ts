@@ -293,7 +293,7 @@ describe('a draft nobody else may send is said once, not every night', () => {
 
   const refusals = () => prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'REFUSED' } })
 
-  it('a one-person firm’s drafted bill is checked against its weeks and passes, and the twin asks nobody because only the owner it acts for may send it', async () => {
+  it('a one-person firm’s drafted bill is checked against its weeks and passes, and the twin asks nobody because only the owner it acts for may send it, naming the bill to open and send', async () => {
     const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
     expect(run.drafted).toBe(1)
     expect(run.asked).toBe(0)
@@ -302,8 +302,9 @@ describe('a draft nobody else may send is said once, not every night', () => {
     // Refused for want of another person to say yes, not because the
     // draft failed the three-way check: the record was asked first and said yes.
     expect(refused.ruleCited).toBe('Segregation of duties: nobody signs their own, and nobody else may')
-    expect(String((refused.payload as Record<string, unknown>).said)).toContain('Send it from the Bills page.')
     h.draftId = refused.entityId
+    const number = (await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).number
+    expect(String((refused.payload as Record<string, unknown>).said)).toContain(`Send it from the Bills page: open ${number} and press Send.`)
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).status).toBe('DRAFT')
   })
 
@@ -392,7 +393,7 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.draft.id } })).status).toBe('DRAFT')
   })
 
-  it('whoever sends bills withdraws a draft with a reason, the open question about sending it is answered, and the next run drafts those weeks again', async () => {
+  it('whoever sends bills withdraws a draft with a reason, the open question about sending it closes as overtaken rather than as their no, and the next run drafts those weeks again', async () => {
     as('ines.halloran@halcyon.example')
     const out = await json(await withdrawBill(
       req('POST', `/api/invoices/${h.draft.id}/withdraw`, { reason: 'The client asked for the month on one bill with the expenses.' }),
@@ -413,7 +414,14 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
       where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL', entityId: h.draft.id },
       include: { approvalRequested: true },
     })
-    expect(question.approvalRequested?.decision).toBe('REJECTED')
+    expect(question.approvalRequested?.decision).toBe('OVERTAKEN')
+    expect(question.approvalRequested?.approverPersonId).toBeNull()
+    const closed = await prisma.twinAction.findFirstOrThrow({ where: { approvalId: question.approvalRequested!.id, outcome: 'OVERTAKEN' } })
+    expect(closed.actorType).toBe('SYSTEM')
+    expect(closed.rationale).toBe('Withdrawn by Ines Halloran: The client asked for the month on one bill with the expenses.')
+    expect(await prisma.automationLog.count({
+      where: { companyId: h.halcyon, action: 'INVOICE_DRAFT_WITHDRAWN', payload: { path: ['invoiceId'], equals: h.draft.id } },
+    })).toBe(1)
 
     // The next run drafts the same weeks again, as a new draft.
     const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
@@ -445,6 +453,11 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
   })
 
   it('the owner Ask Etyme acts for sends its draft from the Bills page through the same check, and the sender is recorded', async () => {
+    h.redraftQuestion = await prisma.twinAction.findFirstOrThrow({
+      where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL', entityId: h.redraft.id },
+      include: { approvalRequested: true },
+    })
+    expect(h.redraftQuestion.approvalRequested?.decision).toBe('PENDING')
     as(h.ownerEmail)
     const out = await json(await sendBill(req('POST', `/api/invoices/${h.redraft.id}/submit`, {}), params(h.redraft.id)))
     expect(out.status, JSON.stringify(out.body)).toBe(200)
@@ -460,5 +473,33 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     const late = await json(await withdrawBill(req('POST', `/api/invoices/${sent.id}/withdraw`, { reason: 'Too late.' }), params(sent.id)))
     expect(late.status).toBe(409)
     expect(late.body.error.message).toContain('has been sent, so it cannot be withdrawn')
+  })
+  it('a bill sent from the Bills page by the owner closes Ask Etyme’s question about sending it as overtaken, not as the owner’s own yes', async () => {
+    const approval = await prisma.twinApproval.findUniqueOrThrow({ where: { id: h.redraftQuestion.approvalRequested.id } })
+    expect(approval.decision).toBe('OVERTAKEN')
+    expect(approval.approverPersonId).toBeNull()
+    const closed = await prisma.twinAction.findFirstOrThrow({ where: { approvalId: approval.id, outcome: 'OVERTAKEN' } })
+    expect(closed.rationale).toMatch(/^Bill .+ was sent by .+\.$/)
+    // The owner never answered their own question: no yes under their name.
+    expect(await prisma.twinAction.count({ where: { approvalId: approval.id, actorType: 'PERSON' } })).toBe(0)
+    expect(await prisma.automationLog.count({
+      where: { companyId: h.halcyon, action: 'TWIN_QUESTION_OVERTAKEN', payload: { path: ['approvalId'], equals: approval.id } },
+    })).toBe(1)
+  })
+
+  it('a yes pressed later on the overtaken card is told what overtook it, and nothing is done', async () => {
+    const ines = await prisma.person.findFirstOrThrow({ where: { primaryEmail: 'ines.halloran@halcyon.example' } })
+    const out = await decideApproval({
+      approvalId: h.redraftQuestion.approvalRequested.id,
+      decider: { personId: ines.id, personName: ines.name, companyId: h.halcyon, permissions: ['invoices.issue', 'invoices.read'] },
+      decision: 'APPROVED',
+      surface: 'WEB',
+    })
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.status).toBe(409)
+    expect(out.says).toContain('This question is closed, because it was overtaken: Bill ')
+    expect(out.says).toContain('Nothing was done on your answer.')
+    expect(out.says).not.toContain('already answered')
   })
 })

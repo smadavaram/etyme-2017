@@ -54,7 +54,7 @@ import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 export type Surface = 'TEAMS' | 'WEB' | 'CRON'
 export type ActorType = 'TWIN' | 'PERSON' | 'SYSTEM'
-export type Outcome = 'PERFORMED' | 'AWAITING_APPROVAL' | 'REFUSED' | 'REJECTED'
+export type Outcome = 'PERFORMED' | 'AWAITING_APPROVAL' | 'REFUSED' | 'REJECTED' | 'OVERTAKEN'
 
 /** The human role the twin acts under, and the person whose seat it is. */
 export interface Authority {
@@ -212,6 +212,13 @@ export interface ActInput {
   dedupKey?: string | null
   /** Whether a model wrote the rationale. The gate is never a model. */
   writtenBy?: 'RULE' | 'MODEL'
+  /**
+   * How a person does this one by hand, where the twin may not ask:
+   * "Send it from the Bills page: open INV-1042 and press Send." Beats
+   * the act's own general line in lib/autonomy, which cannot name the
+   * record.
+   */
+  byHand?: string
 }
 
 export type ActResult =
@@ -378,7 +385,7 @@ export async function act(input: ActInput): Promise<ActResult> {
     if (!(await someoneElseMayDecide(input, needs))) {
       return refuse(
         base,
-        twinRefusal({ why: 'NO_OTHER_APPROVER', doing, authorityName: input.authority.personName, twin: input.twin, byHand: what.byHand }),
+        twinRefusal({ why: 'NO_OTHER_APPROVER', doing, authorityName: input.authority.personName, twin: input.twin, byHand: input.byHand ?? what.byHand }),
         'Segregation of duties: nobody signs their own, and nobody else may'
       )
     }
@@ -524,6 +531,15 @@ export async function decideApproval(args: {
   if (!approval || approval.companyId !== args.decider.companyId) {
     return { ok: false, status: 404, says: 'There is no such question from the twin at your company.' }
   }
+  if (approval.decision === 'OVERTAKEN') {
+    // Nobody answered it: the thing it asked about was done or undone
+    // another way. Say what, so a yes on a stale card is not a riddle.
+    const closed = await prisma.twinAction.findFirst({
+      where: { approvalId: approval.id, outcome: 'OVERTAKEN' },
+      select: { rationale: true },
+    })
+    return { ok: false, status: 409, says: overtakenSays(closed?.rationale ?? null) }
+  }
   if (approval.decision !== 'PENDING') {
     return { ok: false, status: 409, says: 'Somebody has already answered this.' }
   }
@@ -662,6 +678,109 @@ export async function decideApproval(args: {
     await report(`Approval ${approval.id} was not done; nothing was written.`, err, approval.companyId, args.decider.personId)
     return { ok: false, status: 500, says: 'Nothing was done, because it could not be recorded. Staff have been told.' }
   }
+}
+
+// ── A question overtaken by events ────────────────────────────────────
+
+/** What a late answer to an overtaken question is told. */
+export function overtakenSays(what: string | null): string {
+  return what
+    ? `This question is closed, because it was overtaken: ${what.replace(/\.$/, '')}. Nothing was done on your answer.`
+    : 'This question is closed, because what it asked about was done another way. Nothing was done on your answer.'
+}
+
+/**
+ * Close the twin's open questions about one record as overtaken: the
+ * thing they asked about was done or undone another way — a person sent
+ * the draft from the Bills page, or withdrew it — so nobody's yes or no
+ * is wanted any more, and the Owner the twin acts for may be the person
+ * who did it without that reading as them answering their own question.
+ *
+ * Inside the caller's transaction, so the question closes with the act
+ * that overtook it or not at all. Writes, per question: the approval as
+ * OVERTAKEN with no approver; one ledger entry, a SYSTEM line carrying
+ * the approval, saying what overtook it and who did that; and one
+ * automation-log row. A question already answered is left alone — a yes
+ * that is sending the bill this moment finds nothing pending here. The
+ * card disappears from Ask Etyme and Teams because both read PENDING
+ * only, and a late yes is told why (`decideApproval`).
+ *
+ * Returns how many questions were closed.
+ */
+export async function closeOvertaken(
+  tx: Prisma.TransactionClient,
+  a: {
+    companyId: string
+    entity: { type: string; id: string }
+    /** Only questions about this act; every open question on the record where omitted. */
+    action?: string
+    /** What overtook it, as a sentence: "Sent from the Bills page by Dana Whitfield." */
+    what: string
+    by: { personId: string | null; name: string }
+    surface?: Surface
+    now?: Date
+  }
+): Promise<number> {
+  const now = a.now ?? new Date()
+  const open = await tx.twinApproval.findMany({
+    where: {
+      companyId: a.companyId, decision: 'PENDING',
+      twinAction: { companyId: a.companyId, entityType: a.entity.type, entityId: a.entity.id, ...(a.action ? { action: a.action } : {}) },
+    },
+    select: {
+      id: true,
+      twinAction: {
+        select: {
+          id: true, twinKind: true, action: true, entityType: true, entityId: true, partyCompanyIds: true,
+          onAuthorityOfRole: true, authorityPersonId: true, roleContractId: true, roleContractVersion: true,
+          tier: true, ruleCited: true, rationale: true,
+        },
+      },
+    },
+  })
+  let closed = 0
+  for (const q of open) {
+    const moved = await tx.twinApproval.updateMany({
+      where: { id: q.id, decision: 'PENDING' },
+      data: { decision: 'OVERTAKEN', decidedAt: now, surface: a.surface ?? 'WEB' },
+    })
+    if (moved.count !== 1) continue
+    const asked = q.twinAction
+    const row = await writeEntry(tx, {
+      companyId: a.companyId,
+      twinKind: asked.twinKind,
+      actorType: 'SYSTEM',
+      actorId: 'overtaken',
+      onAuthorityOfRole: asked.onAuthorityOfRole,
+      authorityPersonId: asked.authorityPersonId,
+      roleContractId: asked.roleContractId,
+      roleContractVersion: asked.roleContractVersion,
+      tier: asked.tier,
+      outcome: 'OVERTAKEN',
+      action: asked.action,
+      entityType: asked.entityType,
+      entityId: asked.entityId,
+      partyCompanyIds: asked.partyCompanyIds,
+      ruleCited: asked.ruleCited,
+      rationale: a.what.slice(0, 1000),
+      surface: a.surface ?? 'WEB',
+      approvalId: q.id,
+      payload: { askedIn: asked.id, overtakenByPersonId: a.by.personId, overtakenByName: a.by.name, twinRationale: asked.rationale },
+    })
+    await tx.automationLog.create({
+      data: {
+        companyId: a.companyId,
+        action: 'TWIN_QUESTION_OVERTAKEN',
+        summary: `Closed a question from ${twinName(asked.twinKind)}, unanswered: ${TWIN_ACTS[asked.action]?.says ?? asked.action}`.slice(0, 500),
+        reason: a.what.slice(0, 1000),
+        payload: { twinActionId: row.id, askedIn: asked.id, approvalId: q.id, byPersonId: a.by.personId, entityType: asked.entityType, entityId: asked.entityId },
+        // The question cannot be reopened: what it asked about is gone or done.
+        reversible: false,
+      },
+    })
+    closed++
+  }
+  return closed
 }
 
 // ── Reading the ledger ────────────────────────────────────────────────
