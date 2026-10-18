@@ -45,6 +45,11 @@ const DELIBERATE: Record<string, string> = {
     'across on a phone, as the program page does, and each card on a phone ' +
     'reads label beside value (Supplier / Brightmoor), which is one short ' +
     'line, not two columns of text. Measured at 375: no sideways scroll.',
+  'src/app/dashboard/conversations/ask-etyme.tsx':
+    'The bill card in Ask Etyme reads label beside value (Hours / 80, ' +
+    'Amount / $8,960.00): a short label column sized to its words and the ' +
+    'value beside it, one line per fact, the same reading as the demo ' +
+    'frame above. Stacking them would double the card on a phone.',
   'src/app/dashboard/program/page.tsx':
     'Six numbers with one figure each. Two across at 390 is still ' +
     'readable; one across is a page of scrolling before the first list.',
