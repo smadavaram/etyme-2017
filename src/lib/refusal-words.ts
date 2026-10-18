@@ -107,6 +107,8 @@ export type TwinRefusalWhy =
   | 'OWN_DRAFT'
   /** The person whose authority the twin acts on asked for it. */
   | 'OWN_AUTHORITY'
+  /** Nobody but the twin's own authority may say yes, so there is nobody to ask. */
+  | 'NO_OTHER_APPROVER'
 
 export function twinRefusal(args: {
   why: TwinRefusalWhy
@@ -116,6 +118,8 @@ export function twinRefusal(args: {
   authorityName?: string | null
   /** Which twin. The program manager's unless said. */
   twin?: 'PROGRAM_MANAGER' | 'SUPPLIER'
+  /** Where a person does it by hand, for NO_OTHER_APPROVER. */
+  byHand?: string
 }): string {
   const doing = args.doing.trim().replace(/\.$/, '')
   const lower = doing.charAt(0).toLowerCase() + doing.slice(1)
@@ -131,5 +135,9 @@ export function twinRefusal(args: {
       return `${twin} asked for this itself, so it cannot be the one to approve it. The person who decides it does.`
     case 'OWN_AUTHORITY':
       return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else who may decide it does.`
+    case 'NO_OTHER_APPROVER': {
+      const who = args.authorityName?.trim() || 'the person the twin acts for'
+      return `${twin} did not ask anybody to ${lower}: only ${who} may say yes here, and the twin acts on their authority. ${args.byHand?.trim() || 'Do it by hand instead.'}`
+    }
   }
 }

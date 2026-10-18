@@ -27,6 +27,7 @@ function matches(row: Row, where: Row = {}): boolean {
     if (k === 'OR') return (v as Row[]).some((w) => matches(row, w))
     if (v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date)) {
       if ('in' in v) return (v.in as unknown[]).includes(row[k])
+      if ('notIn' in v) return !(v.notIn as unknown[]).includes(row[k])
       if ('has' in v) return Array.isArray(row[k]) && row[k].includes(v.has)
       if ('not' in v) return row[k] !== v.not
       return true
@@ -87,8 +88,16 @@ vi.mock('@/lib/access-log', () => ({ logBulkAccess: h.logBulkAccess }))
 const T = () => h.db.tables
 const CLIENT = 'northbend'
 const AUTHORITY = { personId: 'dana', role: 'Program Manager', personName: 'Dana Whitfield' }
+/**
+ * A seat besides the twin's authority at each company, so a question the
+ * twin asks has somebody who may answer it (a question nobody may answer
+ * is refused in a sentence instead, NO_OTHER_APPROVER).
+ */
+const SOMEBODY_ELSE_DECIDES = () => ['northbend', 'pinnacle'].map((companyId) => ({
+  id: `ctx-${companyId}-desk`, companyId, personId: `${companyId}-desk`, type: 'EMPLOYEE', revokedAt: null,
+}))
 function fresh() {
-  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: [], vendorBill: [], invoice: [] }
+  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: SOMEBODY_ELSE_DECIDES(), vendorBill: [], invoice: [] }
   h.db.failOn = null
   h.reportError.mockClear()
 }
@@ -157,6 +166,24 @@ describe('the program manager’s twin is held to its role contract', () => {
     })
     expect(again.outcome).toBe('ALREADY')
     expect(T().twinAction).toHaveLength(1)
+  })
+
+  it('a question only the person the twin acts for could answer is never asked: the twin says so in a sentence, and the refusal is ledgered', async () => {
+    receivedBill()
+    // Nobody at the client but Dana holds a seat, and the twin acts on her authority.
+    T().context = [{ id: 'ctx-dana', companyId: CLIENT, personId: 'dana', type: 'EMPLOYEE', revokedAt: null }]
+    const r = await act({
+      companyId: CLIENT, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-1', partyCompanyIds: [CLIENT, 'pinnacle'] },
+      rule: 'All 1 lines bill the hours accepted at the contract’s rate.', rationale: 'Nothing to decide: it matches.',
+      surface: 'CRON', authority: AUTHORITY,
+    })
+    expect(r.outcome).toBe('REFUSED')
+    if (r.outcome !== 'REFUSED') return
+    expect(r.says).toContain('did not ask anybody')
+    expect(r.says).toContain('only Dana Whitfield may say yes here')
+    expect(T().twinApproval).toEqual([])
+    expect(T().twinAction).toEqual([expect.objectContaining({ outcome: 'REFUSED' })])
+    expect(T().vendorBill[0].status).toBe('RECEIVED')
   })
 
   it('a NEEDS_APPROVAL act waits and ledgers', async () => {
@@ -316,7 +343,7 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
     }
   })
 
-  it('until drafting is built, a supplier’s twin asked to draft a bill says so in a sentence and writes the refusal down', async () => {
+  it('a supplier’s twin asked to draft a bill with no period drafts nothing, says so in a sentence and writes the refusal down', async () => {
     const r = await act({
       companyId: PINNACLE, twin: 'SUPPLIER', action: 'bill.draft', entity: { type: 'SellContract', id: 'line-1' },
       rule: 'The agreement bills monthly on the 1st.', rationale: 'Four weeks were signed by the customer.',
@@ -324,7 +351,7 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
     })
     expect(r.outcome).toBe('REFUSED')
     if (r.outcome !== 'REFUSED') return
-    expect(r.says).toBe('The supplier\u2019s twin cannot draft a bill yet. Accounts Receivable raises and sends bills from the Bills page until it can.')
+    expect(r.says).toBe('The supplier\u2019s twin was not told which period to bill, so it drafted nothing.')
     expect(T().twinAction).toEqual([expect.objectContaining({ twinKind: 'SUPPLIER', action: 'bill.draft', outcome: 'REFUSED', onAuthorityOfRole: 'Accounts Receivable' })])
     expect(T().invoice).toEqual([])
   })

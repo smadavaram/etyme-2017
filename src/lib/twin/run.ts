@@ -59,12 +59,20 @@ export async function programManagerAt(companyId: string): Promise<Authority> {
 }
 
 /**
- * The roles the supplier's twin acts in (2026-10-18), first seated wins:
- * Accounts Receivable bills the customer, and at a small firm Finance is
- * that whole team. Falls back to the role and no person, the same way the
- * program manager's does, never to a refusal.
+ * The roles the supplier's twin acts in, first seated wins: the firm's
+ * Owner, else its Admin. Decided by the coordinator on 2026-10-18,
+ * reversible by the founder in one line. Not Accounts Receivable's:
+ * nobody signs their own, so the person the twin acts for may never say
+ * yes to its questions, and the people who send bills — Accounts
+ * Receivable, Finance, Admin — are exactly the ones who must be able to
+ * say yes to `bill.send`. Acting on the owner's authority keeps every one
+ * of them free to answer. A firm where only that person may send bills
+ * (a one-person firm) is not asked at all: the ledger refuses the
+ * question in a sentence that names the Bills page (NO_OTHER_APPROVER).
+ * Falls back to the role and no person, the same way the program
+ * manager's does, never to a refusal.
  */
-export const SUPPLIER_TWIN_ROLES = ['Accounts Receivable', 'Finance'] as const
+export const SUPPLIER_TWIN_ROLES = ['Owner', 'Admin'] as const
 
 /** The person whose seat the supplier's twin acts under. */
 export async function supplierAuthorityAt(companyId: string): Promise<Authority> {

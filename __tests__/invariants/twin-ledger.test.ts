@@ -92,8 +92,16 @@ vi.mock('@/lib/access-log', () => ({ logBulkAccess: h.logBulkAccess }))
 const T = () => h.db.tables
 const CLIENT = 'northbend'
 const AUTHORITY = { personId: 'dana', role: 'Program Manager', personName: 'Dana Whitfield' }
+/**
+ * A seat besides the twin's authority at each company, so a question the
+ * twin asks has somebody who may answer it (a question nobody may answer
+ * is refused in a sentence instead, NO_OTHER_APPROVER).
+ */
+const SOMEBODY_ELSE_DECIDES = () => ['northbend', 'pinnacle'].map((companyId) => ({
+  id: `ctx-${companyId}-desk`, companyId, personId: `${companyId}-desk`, type: 'EMPLOYEE', revokedAt: null,
+}))
 function fresh() {
-  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: [], vendorBill: [], invoice: [], company: [], modelPrompt: [], person: [] }
+  h.db.tables = { roleContract: [], twinAction: [], twinApproval: [], automationLog: [], context: SOMEBODY_ELSE_DECIDES(), vendorBill: [], invoice: [], company: [], modelPrompt: [], person: [] }
   h.db.failOn = null
   h.reportError.mockClear()
   h.notifyBulk.mockClear()

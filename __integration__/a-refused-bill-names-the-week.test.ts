@@ -4,9 +4,9 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as generate } from '@/app/api/invoices/generate/route'
 import { GET as invoiceList } from '@/app/api/invoices/route'
 import { GET as invoiceRead } from '@/app/api/invoices/[id]/route'
-import { PERFORMERS, type Performer } from '@/lib/twin/performers'
-import { decideApproval } from '@/lib/twin/ledger'
-import { billsDueAt, SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
+import { act, decideApproval } from '@/lib/twin/ledger'
+import { supplierAuthorityAt } from '@/lib/twin/run'
+import { billsDueAt } from '@/lib/money/supplier-bills'
 import { runSupplierBills } from '@/lib/money/supplier-bills-run'
 import { iso } from '@/lib/periods'
 
@@ -66,12 +66,13 @@ describe('a refused bill names the week, the person and who must sign first', ()
  * (founder, 2026-10-18): Brightmoor Staffing bills Northbend Athletic for
  * Rosa Delgado, whose signed weeks the seeded world never billed. The
  * twin drafts the oldest period whose billing date has passed, from
- * signed weeks only, through the Bills page's own generator; Accounts
- * Receivable's side of the firm says yes before anything is sent.
+ * signed weeks only, through the Bills page's own generator; somebody who
+ * sends bills says yes before anything is sent. The twin acts on the
+ * owner's authority (coordinator, 2026-10-18), so the owner never answers
+ * its question and Accounts Receivable, Finance and Admin may.
  *
- * Until the architect wires the two performers into `PERFORMERS`
- * (lib/twin/performers), this file puts them there itself, exactly as
- * the wiring will; the line is a no-op once it lands.
+ * The two performers are money's, wired into `PERFORMERS`
+ * (lib/twin/performers) by the architect on 2026-10-18.
  */
 describe('the supplier’s twin drafts the bill and a person sends it', () => {
   const t: Record<string, any> = {}
@@ -89,7 +90,6 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
   }
 
   beforeAll(async () => {
-    Object.assign(PERFORMERS as Record<string, Performer>, SUPPLIER_BILL_PERFORMERS)
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })
     const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
     t.brightmoor = brightmoor.id
@@ -214,7 +214,40 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     expect(again.asked).toBe(0)
   })
 
-  it('the twin never sends a bill without a yes from Accounts Receivable', async () => {
+  it('where only the owner the twin acts for may send bills, the twin asks nobody and says to send it from the Bills page', async () => {
+    // A one-person firm, drawn on Brightmoor for one moment: every other
+    // seat that may send a bill steps away, and nothing is put in a queue
+    // nobody may answer.
+    const authority = await supplierAuthorityAt(t.brightmoor)
+    expect(authority.role).toBe('Owner')
+    const others = await prisma.context.findMany({
+      where: {
+        companyId: t.brightmoor, revokedAt: null, personId: { not: authority.personId! },
+        role: { permissions: { hasSome: ['invoices.issue', '*'] } },
+      },
+      select: { id: true },
+    })
+    expect(others.length).toBeGreaterThan(0)
+    const ids = others.map((o) => o.id)
+    await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: new Date() } })
+    try {
+      const questionsBefore = await prisma.twinApproval.count({ where: { companyId: t.brightmoor } })
+      const r = await act({
+        companyId: t.brightmoor, twin: 'SUPPLIER', action: 'bill.send',
+        entity: { type: 'Invoice', id: t.draft.id, partyCompanyIds: [t.brightmoor, t.northbend] },
+        rule: 'The agreement’s billing date has come.', rationale: 'A one-person firm, for the test.',
+        surface: 'WEB', authority, payload: {},
+      })
+      expect(r.outcome).toBe('REFUSED')
+      expect((r as { says: string }).says).toContain('Send it from the Bills page.')
+      expect(await prisma.twinApproval.count({ where: { companyId: t.brightmoor } })).toBe(questionsBefore)
+      expect((await prisma.invoice.findUniqueOrThrow({ where: { id: t.draft.id } })).status).toBe('DRAFT')
+    } finally {
+      await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: null } })
+    }
+  })
+
+  it('the twin never sends a bill without a yes from somebody who sends bills, and the owner it acts for is never that somebody', async () => {
     // Drafted is not sent: the customer does not see a draft at all.
     as(NORTHBEND_AP)
     const seen = await json(await invoiceList(req('GET', `/api/invoices?limit=50&engagementId=${t.rosa.engagementId}`)))
@@ -231,13 +264,13 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     // AP & Payroll does not issue bills, so its yes is refused.
     const payroll = await decideApproval({ approvalId: t.approvalId, decider: await decider('world-brightmoor-payroll@demo.etyme.local'), decision: 'APPROVED', surface: 'WEB' })
     expect(payroll.ok).toBe(false)
-    // Nor does the person whose seat the twin acts on answer its question.
-    const own = await decideApproval({ approvalId: t.approvalId, decider: await decider('world-brightmoor-ar@demo.etyme.local'), decision: 'APPROVED', surface: 'WEB' })
+    // Nor does the owner, whose seat the twin acts on, answer its question.
+    const own = await decideApproval({ approvalId: t.approvalId, decider: await decider('world-brightmoor@demo.etyme.local'), decision: 'APPROVED', surface: 'WEB' })
     expect(own.ok).toBe(false)
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: t.draft.id } })).status).toBe('DRAFT')
 
-    // Finance — the receivable side's other seat that issues bills — says yes, and it goes.
-    const yes = await decideApproval({ approvalId: t.approvalId, decider: await decider('world-brightmoor-finance@demo.etyme.local'), decision: 'APPROVED', surface: 'WEB' })
+    // Accounts Receivable, who sends bills, says yes, and it goes.
+    const yes = await decideApproval({ approvalId: t.approvalId, decider: await decider('world-brightmoor-ar@demo.etyme.local'), decision: 'APPROVED', surface: 'WEB' })
     expect(yes.ok, JSON.stringify(yes)).toBe(true)
     const sent = await prisma.invoice.findUniqueOrThrow({ where: { id: t.draft.id } })
     expect(sent.status).toBe('SUBMITTED')

@@ -736,6 +736,12 @@ export interface TwinAct {
   approverNeeds?: string
   /** Where it acts alone: which automation-log rung it is recorded at. */
   alone?: 'NOTED' | 'TOLD' | 'DREW_UP'
+  /**
+   * Where a person does it by hand, as one sentence. Said when the act
+   * needs a yes and nobody but the twin's own authority may give one, so
+   * the twin refuses in a sentence rather than asking a dead question.
+   */
+  byHand?: string
 }
 
 export const TWIN_ACTS: Record<string, TwinAct> = {
@@ -792,8 +798,9 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
   // the draft. Sending is asked: it leaves the firm and asks to be paid.
   // The twin never approves its own draft — `approval.decide` is on the
   // floor, and the ledger refuses OWN_DRAFT. Performers are money's
-  // (step 2 of the 2026-10-18 plan); until then each refuses in a
-  // sentence (src/lib/twin/performers.ts).
+  // (lib/money/supplier-bills), wired into PERFORMERS. The twin acts on
+  // the owner's authority (lib/twin/run), so the people who send bills
+  // may say yes to `bill.send`.
   'bill.draft': {
     kinds: ['SUPPLIER'],
     says: 'Draft a bill to the customer from weeks the customer signed, on the agreement\u2019s billing date. It stays a draft inside the firm until Accounts Receivable sends it.',
@@ -809,6 +816,7 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     // never give that yes (`approval.decide` is on the floor).
     money: true, external: true, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'invoices.issue',
+    byHand: 'Send it from the Bills page.',
   },
   // ── Never ──
   'payroll.release': {

@@ -50,6 +50,7 @@ import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindN
 import { PERFORMERS, type PerformContext } from '@/lib/twin/performers'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { feedLine } from '@/lib/twin/feed-words'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 export type Surface = 'TEAMS' | 'WEB' | 'CRON'
 export type ActorType = 'TWIN' | 'PERSON' | 'SYSTEM'
@@ -371,6 +372,16 @@ export async function act(input: ActInput): Promise<ActResult> {
 
   if (tier === 'NEEDS_APPROVAL') {
     const needs = what.approverNeeds ?? 'settings.manage'
+    // A question nobody may answer is a dead question. Where the only
+    // holder of the permission is the person the twin acts for (or who
+    // asked), the twin says so in a sentence instead of asking.
+    if (!(await someoneElseMayDecide(input, needs))) {
+      return refuse(
+        base,
+        twinRefusal({ why: 'NO_OTHER_APPROVER', doing, authorityName: input.authority.personName, twin: input.twin, byHand: what.byHand }),
+        'Segregation of duties: nobody signs their own, and nobody else may'
+      )
+    }
     const asked = await requestApproval(base, needs)
     if (!asked.ok) return { outcome: 'FAILED', says: NOT_RECORDED }
     void tellTheDesk(input, needs, asked.approvalId).catch((err) =>
@@ -423,6 +434,21 @@ export async function act(input: ActInput): Promise<ActResult> {
     await report(`The twin could not do ${input.action} on ${input.entity.type} ${input.entity.id}; nothing was written.`, err, input.companyId, input.authority.personId)
     return { outcome: 'FAILED', says: NOT_RECORDED }
   }
+}
+
+/** Whether anybody other than the twin's authority, or who asked, holds the permission that decides. */
+async function someoneElseMayDecide(input: ActInput, needs: string): Promise<boolean> {
+  const notThem = [input.authority.personId, input.requestedByPersonId].filter((p): p is string => !!p)
+  const other = await prisma.context.findFirst({
+    where: {
+      companyId: input.companyId, revokedAt: null, type: { not: 'CONSULTANT' },
+      role: { permissions: { hasSome: [needs, '*'] } },
+      ...(notThem.length ? { personId: { notIn: notThem } } : {}),
+      ...NOT_THE_SAMPLE_SEAT,
+    },
+    select: { id: true },
+  })
+  return !!other
 }
 
 /** Tell the people at the desk that decides, never the twin's own authority. */

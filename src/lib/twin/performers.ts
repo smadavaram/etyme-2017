@@ -28,6 +28,7 @@ import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
 
 export interface PerformContext {
   companyId: string
@@ -216,24 +217,16 @@ const tellSupplier: Performer = {
 /** Recorded in the ledger and nowhere else: the entry is the act. */
 const ledgerOnly: Performer = {}
 
-// ── The supplier's bill, not built yet ────────────────────────────────
+// ── The supplier's bill ───────────────────────────────────────────────
 //
-// `bill.draft` and `bill.send` are in the vocabulary and on the supplier's
-// twin's contract (2026-10-18), and their performers are money's: drafting
-// reads the agreement's billing date and the weeks signed above through
-// money's one cascade, and none of that arithmetic belongs here. Until
-// money lands them, each refuses in a sentence and the refusal is
-// ledgered, so a run that reaches one says plainly that nothing was done
-// rather than drafting a bill on a guessed date.
-const notYet = (doing: string): Performer => ({
-  async check() {
-    return `The supplier\u2019s twin cannot ${doing} yet. Accounts Receivable raises and sends bills from the Bills page until it can.`
-  },
-})
+// `bill.draft` and `bill.send` are money's performers (lib/money/supplier-bills):
+// drafting reads the agreement's billing date and the weeks signed above
+// through money's one cascade, and none of that arithmetic belongs here.
+// supplier-bills imports only the Performer type from this file, so there
+// is no runtime loop.
 
 export const PERFORMERS: Readonly<Record<string, Performer>> = {
-  'bill.draft': notYet('draft a bill'),
-  'bill.send': notYet('send a bill'),
+  ...SUPPLIER_BILL_PERFORMERS,
   'tenure.warning.record': ledgerOnly,
   'invoice_receipt.record': ledgerOnly,
   'summary.draft': ledgerOnly,
