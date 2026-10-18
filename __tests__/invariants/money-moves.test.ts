@@ -43,13 +43,13 @@ describe('an invoice receipt that did not match is a decision for the desk that 
 
 describe('a milestone bills on acceptance', () => {
   it('generation picks up accepted milestones on the engagement’s orders, bills them as lines with the milestone behind, and marks them INVOICED', () => {
-    const g = read('src/app/api/invoices/generate/route.ts')
+    const g = read('src/lib/money/bill-generate.ts')
     expect(g).toContain("where: { status: 'ACCEPTED', order: { engagementId, issuedToId: caller.company!.id } }")
     expect(g).toMatch(/milestoneId: m\.id,\s*timesheetId: null,\s*sellContractId: null,\s*personId: null/)
     expect(g).toContain("await tx.orderMilestone.update({ where: { id: m.id }, data: { status: 'INVOICED' } })")
   })
   it('an invoice may carry only milestones', () => {
-    expect(read('src/app/api/invoices/generate/route.ts')).toContain('if (timesheets.length === 0 && expenseRows.length === 0 && milestones.length === 0)')
+    expect(read('src/lib/money/bill-generate.ts')).toContain('if (timesheets.length === 0 && expenseRows.length === 0 && milestones.length === 0)')
   })
 })
 

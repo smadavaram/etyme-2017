@@ -22,14 +22,43 @@ const COMPANY = { name: 'Techpeple Inc.', paymentTermsDays: 45, currency: 'USD' 
 const AGREEMENT = { counterpartyName: 'Talvern Medical', paymentTermsDays: 60, currency: 'USD' }
 
 describe('which level decides', () => {
-  it('uses the contract when the contract says something', () => {
+  it('uses the contract when the two parties have no agreement and the contract says something', () => {
+    // With no agreement, the contract is the parties' agreement.
+    const t = resolveBillingTerms({
+      company: COMPANY,
+      agreement: null,
+      contract: { paymentTermsDays: 15 },
+    })
+    expect(t.paymentTermsDays.value).toBe(15)
+    expect(t.paymentTermsDays.source).toBe('CONTRACT')
+  })
+
+  it('a contract’s net 15 with no reason does not beat the agreement’s net 60, and says so', () => {
+    // The founder, 2026-10-18: AR and AP follow the agreement between each
+    // pair. A different number with no reason is set aside, never applied.
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
       contract: { paymentTermsDays: 15 },
     })
+    expect(t.paymentTermsDays.value).toBe(60)
+    expect(t.paymentTermsDays.source).toBe('AGREEMENT')
+    expect(t.setAside).toEqual([
+      'Your placement says net 15 but gives no reason, so your agreement with Talvern Medical\u2019s net 60 applies.',
+    ])
+  })
+
+  it('a contract that differs from the agreement with its reason recorded is applied, and the reason travels with it', () => {
+    const t = resolveBillingTerms({
+      company: COMPANY,
+      agreement: AGREEMENT,
+      contract: { paymentTermsDays: 15, differReason: 'Rush project, paid faster by the client' },
+    })
     expect(t.paymentTermsDays.value).toBe(15)
     expect(t.paymentTermsDays.source).toBe('CONTRACT')
+    expect(t.paymentTermsDays.because).toContain('Rush project')
+    expect(t.paymentTermsDays.overrode).toEqual({ value: 60, source: 'AGREEMENT' })
+    expect(t.setAside).toEqual([])
   })
 
   it('falls back to the signed agreement when the contract is silent', () => {
@@ -62,7 +91,7 @@ describe('which level decides', () => {
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
-      contract: { paymentTermsDays: 0 },
+      contract: { paymentTermsDays: 0, differReason: 'Paid on receipt for this placement' },
     })
     expect(t.paymentTermsDays.value).toBe(0)
     expect(t.paymentTermsDays.source).toBe('CONTRACT')
@@ -80,20 +109,22 @@ describe('saying where a value came from', () => {
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
-      contract: { paymentTermsDays: 90 },
+      contract: { paymentTermsDays: 90, differReason: 'Client pays this program at ninety days' },
     })
     expect(t.paymentTermsDays.overrode).toEqual({ value: 60, source: 'AGREEMENT' })
   })
 
-  it('does not claim an override when the levels agree', () => {
+  it('does not claim the contract overrode the agreement when the two agree', () => {
     // "Overrode net 30 with net 30" is noise that trains people to ignore
-    // the field.
+    // the field. The agreement answers, and nothing is set aside.
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
       contract: { paymentTermsDays: 60 },
     })
-    expect(t.paymentTermsDays.overrode).toBeNull()
+    expect(t.paymentTermsDays.source).toBe('AGREEMENT')
+    expect(t.paymentTermsDays.overrode?.source).not.toBe('AGREEMENT')
+    expect(t.setAside).toEqual([])
   })
 })
 
@@ -103,7 +134,7 @@ describe('when an override is worth worrying about', () => {
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
-      contract: { paymentTermsDays: 90 },
+      contract: { paymentTermsDays: 90, differReason: 'Client pays this program at ninety days' },
     })
     const c = overrideConcern(t.paymentTermsDays)!
     expect(c.concern).toBe(true)
@@ -114,7 +145,7 @@ describe('when an override is worth worrying about', () => {
     const t = resolveBillingTerms({
       company: COMPANY,
       agreement: AGREEMENT,
-      contract: { paymentTermsDays: 20 },
+      contract: { paymentTermsDays: 20, differReason: 'Early-pay arrangement on this project' },
     })
     const c = overrideConcern(t.paymentTermsDays)!
     expect(c.concern).toBe(false)

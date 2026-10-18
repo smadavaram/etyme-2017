@@ -177,7 +177,10 @@ describe('an invoice with no agreement is still found by the scope that lists it
       'src/app/api/invoices/[id]/submit/route.ts',
     ]
     for (const file of asks) {
-      const src = readFileSync(join(process.cwd(), file), 'utf8')
+      // The submit route asks through the one door it shares with the
+      // supplier's twin (lib/money/bill-send, 2026-10-18).
+      const src = readFileSync(join(process.cwd(), file), 'utf8') +
+        (file.includes('invoices/[id]/submit') ? readFileSync(join(process.cwd(), 'src/lib/money/bill-send.ts'), 'utf8') : '')
       expect(src, `${file} should scope through invoicesRaisedBy`).toContain('invoicesRaisedBy')
     }
   })
@@ -225,7 +228,8 @@ describe('an invoice with no agreement is still found by the scope that lists it
     const src = readFileSync(
       join(process.cwd(), 'src/app/api/invoices/[id]/submit/route.ts'),
       'utf8'
-    )
+    ) + readFileSync(join(process.cwd(), 'src/lib/money/bill-send.ts'), 'utf8')
+    expect(src).toContain('mayBeSent(id, companyId')
     expect(src).toContain('...invoicesRaisedBy(companyId)')
     expect(src).toContain('No such bill of yours')
   })

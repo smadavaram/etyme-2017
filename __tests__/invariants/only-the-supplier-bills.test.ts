@@ -95,6 +95,9 @@ describe('only the firm that supplied the people may bill for them', () => {
 
 describe('the picker asks the same question the button will be refused on', () => {
   const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/invoices/generate/route.ts'), 'utf8')
+  // The button's refusal lives where the bill is made, for the route and
+  // the supplier's twin alike (2026-10-18).
+  const MAKER = readFileSync(join(process.cwd(), 'src/lib/money/bill-generate.ts'), 'utf8')
   const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/invoices/page.tsx'), 'utf8')
 
   it('lists the engagements from the route that raises the bill, not from the contracts a seat may read', () => {
@@ -105,7 +108,9 @@ describe('the picker asks the same question the button will be refused on', () =
 
   it('has a route behind that list, and it filters on the same rule the refusal uses', () => {
     expect(ROUTE).toContain('export async function GET')
-    expect((ROUTE.match(/mayBillUnder\(/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    expect((ROUTE.match(/mayBillUnder\(/g) ?? []).length).toBeGreaterThanOrEqual(1)
+    expect(MAKER).toContain('mayBillUnder(')
+    expect(ROUTE).toContain('generateBill(')
   })
 
   it('never asks a person to type a database identifier instead', () => {

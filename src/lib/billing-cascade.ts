@@ -14,13 +14,28 @@
  *   CONTRACT   what was agreed for this one placement
  *   ORDER      what the purchase order says — the header this line is on
  *
- * ORDER sits above CONTRACT because a purchase order is a header and its
- * lines (CLAUDE.md, 2026-09-18), and the net days are the header's. The
- * line's copy of the same number is not nullable and carries a schema
- * default, so it cannot say "nobody told me" — and a value that cannot
- * say it did not say must not beat one somebody typed. Every reader in
- * the money domain asks `lib/money/order-terms` for the header rather
- * than reading a line's copy.
+ * ── The agreement first. Decided by the founder, 2026-10-18 ──────────
+ *
+ * "AR and AP is always based on the agreed MSA between client and
+ * supplier and supplier and subvendor/candidate." So where the two
+ * parties signed an agreement and it says a term, that term stands. An
+ * order, then a line, may differ from it only where that document
+ * carries a recorded reason (`termsDifferReason`); a different value
+ * with no reason is not applied, and the answer says so in a sentence
+ * ("Your order says net 15 but gives no reason, so your agreement with
+ * Northbend Athletic's net 30 applies"). Where the agreement says
+ * nothing about a term, or there is no agreement, the order and then
+ * the line answer as before — the order is then the parties' agreement.
+ * `agreementFirst` below is that one rule, and `lib/money/order-terms`
+ * reads the rhythm through it too, so a period and a due date cannot
+ * follow two different rules.
+ *
+ * Without an agreement the ORDER still sits above CONTRACT, because a
+ * purchase order is a header and its lines (CLAUDE.md, 2026-09-18), and
+ * the line's copy of the same number is not nullable and carries a
+ * schema default, so it cannot say "nobody told me" — and a value that
+ * cannot say it did not say must not beat one somebody typed. A line
+ * with a recorded reason did say, and then it answers.
  *
  * The important part is not the precedence — that is obvious. It is that
  * every resolved value carries where it came from. When an invoice is
@@ -42,6 +57,100 @@ export interface Resolved<T> {
   because: string
   /** What the level below would have given, when something overrode it. */
   overrode: { value: T; source: Source } | null
+  /**
+   * A document that said something different from the agreement and gave
+   * no reason, so it was not applied — each with the sentence the screen
+   * prints. Empty where nothing was set aside.
+   */
+  setAside?: { source: Source; value: T; says: string }[]
+}
+
+// ── The agreement first ───────────────────────────────────────────────
+
+/** Where a term came from, in the order-and-line words. */
+export type TermLevel = 'AGREEMENT' | 'ORDER' | 'LINE'
+
+/** One document's word on one term, and whether it said why it differs. */
+export interface DocWord<T> {
+  value: T | null | undefined
+  /** The document's recorded reason for differing from the agreement. */
+  reason?: string | null
+}
+
+export interface Picked<T> {
+  /** Null where nobody said anything; the caller's own fallback answers. */
+  value: T | null
+  from: TermLevel | null
+  /** Documents that said something else with no reason. Not applied. */
+  setAside: { from: 'ORDER' | 'LINE'; value: T }[]
+}
+
+const isSaid = <T>(v: T | null | undefined): v is T => v !== null && v !== undefined
+const hasReason = (r: string | null | undefined): boolean => typeof r === 'string' && r.trim().length > 0
+
+/**
+ * The one rule: the agreement, then a document that differs with a reason.
+ *
+ *   The agreement says a term → it stands, unless the line or else the
+ *   order says something different AND carries a recorded reason; the
+ *   most specific such document wins. A document that differs with no
+ *   reason is set aside, never applied, and reported.
+ *
+ *   The agreement says nothing (or there is none) → the order's word,
+ *   else the line's — the order is the parties' agreement then. A line
+ *   with a recorded reason beats the order, because it said why.
+ *
+ * Pure. Zero is a term, not a silence.
+ */
+export function agreementFirst<T>(
+  input: { agreement: T | null | undefined; order?: DocWord<T> | null; line?: DocWord<T> | null },
+  same: (a: T, b: T) => boolean = (a, b) => a === b
+): Picked<T> {
+  const a = input.agreement
+  const order = input.order ?? null
+  const line = input.line ?? null
+
+  if (isSaid(a)) {
+    const setAside: Picked<T>['setAside'] = []
+    let winner: { value: T; from: TermLevel } | null = null
+    for (const [from, doc] of [['LINE', line], ['ORDER', order]] as const) {
+      if (!doc || !isSaid(doc.value) || same(doc.value, a)) continue
+      if (hasReason(doc.reason)) {
+        if (!winner) winner = { value: doc.value, from }
+      } else {
+        setAside.push({ from, value: doc.value })
+      }
+    }
+    // Where a document differs with its reason, it answers, and a copy
+    // beside it with no reason is not worth a sentence: the term in force
+    // already differs from the agreement, and says why.
+    if (winner) return { value: winner.value, from: winner.from, setAside: [] }
+    return { value: a, from: 'AGREEMENT', setAside: setAside.reverse() }
+  }
+
+  if (line && isSaid(line.value) && hasReason(line.reason)) return { value: line.value, from: 'LINE', setAside: [] }
+  if (order && isSaid(order.value)) return { value: order.value, from: 'ORDER', setAside: [] }
+  if (line && isSaid(line.value)) return { value: line.value, from: 'LINE', setAside: [] }
+  return { value: null, from: null, setAside: [] }
+}
+
+/** "order" or "placement" — the document a reader set something on. */
+export function documentWord(from: 'ORDER' | 'LINE'): string {
+  return from === 'ORDER' ? 'order' : 'placement'
+}
+
+/**
+ * "Your order says net 15 but gives no reason, so your agreement with
+ * Northbend Athletic's net 30 applies." One sentence per term set aside.
+ */
+export function setAsideSays(a: {
+  from: 'ORDER' | 'LINE'
+  said: string
+  agreed: string
+  counterpartyName: string | null
+}): string {
+  const whose = a.counterpartyName ? `your agreement with ${a.counterpartyName}\u2019s` : 'your agreement\u2019s'
+  return `Your ${documentWord(a.from)} says ${a.said} but gives no reason, so ${whose} ${a.agreed} applies.`
 }
 
 /**
@@ -133,12 +242,10 @@ export interface CascadeInputs {
     paymentTermsDays?: number | null
     currency?: string | null
     /**
-     * Where the days are counted from. Two levels rather than three:
-     * `Company` carries no anchor and is not going to. Payment terms are
-     * negotiated in an agreement and varied on a placement, and a
-     * company-wide "we always count from receipt" is a knob nobody has
-     * asked for — the kind that took the 2017 cycle engine to four
-     * thousand commits.
+     * Where the days are counted from. `Company` carries no anchor and is
+     * not going to: payment terms are negotiated in an agreement and
+     * varied on a placement, and a company-wide "we always count from
+     * receipt" is a knob nobody has asked for.
      */
     paymentTermsFrom?: string | null
     counterpartyName: string
@@ -147,20 +254,23 @@ export interface CascadeInputs {
     paymentTermsDays?: number | null
     currency?: string | null
     paymentTermsFrom?: string | null
+    /**
+     * Why this line differs from the agreement, where somebody said.
+     * Without one, a line's term different from the agreement's is set
+     * aside (founder, 2026-10-18).
+     */
+    differReason?: string | null
   } | null
-  /**
-   * The purchase order this line sits on, where there is one.
-   *
-   * No `paymentTermsFrom`: `WorkOrder` has no column for what the days
-   * are counted from, so that half of the term still comes from the
-   * line. Said out loud in `lib/money/order-terms` rather than left for
-   * somebody to discover from a due date that is six days out.
-   */
+  /** The purchase order this line sits on, where there is one. */
   order?: {
     paymentTermsDays?: number | null
     currency?: string | null
+    /** What the order's net days run from; null where it did not say. */
+    paymentTermsFrom?: string | null
     /** The buyer's number, for the sentence on the screen. */
     number?: string | null
+    /** Why this order differs from the agreement, where somebody said. */
+    differReason?: string | null
   } | null
 }
 
@@ -168,53 +278,119 @@ export interface BillingTerms {
   paymentTermsDays: Resolved<number>
   currency: Resolved<string>
   paymentTermsFrom: Resolved<TermsAnchor>
+  /** Every term a document said differently with no reason, in sentences. */
+  setAside: string[]
 }
 
+/** How a term reads inside a sentence. */
+const daysWords = (n: number): string => (n === 0 ? 'due on receipt' : `net ${n}`)
+const anchorTermWords = (a: TermsAnchor): string => `the days counted from ${anchorWords(a)}`
+
 export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
-  const agreementLabel = input.agreement
-    ? `from your agreement with ${input.agreement.counterpartyName}`
-    : ''
+  const counterparty = input.agreement?.counterpartyName ?? null
+  const agreementLabel = input.agreement ? `from your agreement with ${input.agreement.counterpartyName}` : ''
   // Never "work order" to somebody who is a party to it — `lib/order-naming`
   // owns that word. "On order PO-2026-4417" reads right from either end.
   const orderLabel = input.order?.number ? `on order ${input.order.number}` : 'set on the order'
+  const companyLabel = `${input.company.name}'s default`
+  const contractLabel = 'set on this contract'
+
+  /**
+   * One term through the one rule, then the company and the platform
+   * where no document said anything.
+   */
+  function term<T>(
+    words: { agreement: T | null | undefined; order: T | null | undefined; contract: T | null | undefined; company?: T | null | undefined },
+    platform: T,
+    platformLabel: string,
+    describe: (v: T) => string
+  ): Resolved<T> {
+    const agreed = input.agreement ? words.agreement : null
+    const picked = agreementFirst<T>({
+      agreement: agreed,
+      order: input.order ? { value: words.order, reason: input.order.differReason } : null,
+      line: input.contract ? { value: words.contract, reason: input.contract.differReason } : null,
+    })
+    const setAside = picked.setAside.map((x) => ({
+      source: (x.from === 'ORDER' ? 'ORDER' : 'CONTRACT') as Source,
+      value: x.value,
+      says: setAsideSays({ from: x.from, said: describe(x.value), agreed: describe(agreed as T), counterpartyName: counterparty }),
+    }))
+
+    if (picked.from === null) {
+      const company = words.company
+      if (company !== null && company !== undefined) {
+        return {
+          value: company, source: 'COMPANY', because: companyLabel,
+          overrode: company !== platform ? { value: platform, source: 'PLATFORM' } : null,
+          setAside,
+        }
+      }
+      return { value: platform, source: 'PLATFORM', because: platformLabel, overrode: null, setAside }
+    }
+
+    const value = picked.value as T
+    const source: Source = picked.from === 'AGREEMENT' ? 'AGREEMENT' : picked.from === 'ORDER' ? 'ORDER' : 'CONTRACT'
+    const because =
+      source === 'AGREEMENT' ? agreementLabel
+      : source === 'ORDER' ? orderLabel + (hasReason(input.order?.differReason) && isSaid(agreed) ? ` (${input.order!.differReason!.trim()})` : '')
+      : contractLabel + (hasReason(input.contract?.differReason) && isSaid(agreed) ? ` (${input.contract!.differReason!.trim()})` : '')
+
+    // What it overrode: the agreement where a document beat it with a
+    // reason; the document below where the order beat the line; the
+    // company, else the platform, where the agreement answered.
+    let overrode: Resolved<T>['overrode'] = null
+    if (source !== 'AGREEMENT' && isSaid(agreed)) {
+      overrode = (agreed as T) !== value ? { value: agreed as T, source: 'AGREEMENT' } : null
+    } else if (source === 'ORDER' && isSaid(words.contract) && words.contract !== value) {
+      overrode = { value: words.contract as T, source: 'CONTRACT' }
+    } else {
+      const below = isSaid(words.company) ? { value: words.company as T, source: 'COMPANY' as Source } : { value: platform, source: 'PLATFORM' as Source }
+      overrode = below.value !== value ? below : null
+    }
+    return { value, source, because, overrode, setAside }
+  }
+
+  const anchorOf = (x: unknown): TermsAnchor | null => (isAnchor(x) ? x : null)
+
+  const paymentTermsDays = term<number>(
+    {
+      agreement: input.agreement?.paymentTermsDays,
+      order: input.order?.paymentTermsDays,
+      contract: input.contract?.paymentTermsDays,
+      company: input.company.paymentTermsDays,
+    },
+    PLATFORM_DEFAULTS.paymentTermsDays,
+    'nobody has set payment terms, so net 30 is assumed',
+    daysWords
+  )
+  const currency = term<string>(
+    {
+      agreement: input.agreement?.currency,
+      order: input.order?.currency,
+      contract: input.contract?.currency,
+      company: input.company.currency,
+    },
+    PLATFORM_DEFAULTS.currency,
+    'nobody has set a currency, so US dollars is assumed',
+    (c) => c
+  )
+  const paymentTermsFrom = term<TermsAnchor>(
+    {
+      agreement: anchorOf(input.agreement?.paymentTermsFrom),
+      order: anchorOf(input.order?.paymentTermsFrom),
+      contract: anchorOf(input.contract?.paymentTermsFrom),
+    },
+    PLATFORM_DEFAULTS.paymentTermsFrom,
+    'nobody has said what the days run from, so the end of the work period is assumed',
+    anchorTermWords
+  )
 
   return {
-    paymentTermsDays: resolve<number>(
-      [
-        { source: 'ORDER', value: input.order?.paymentTermsDays, label: orderLabel },
-        { source: 'CONTRACT', value: input.contract?.paymentTermsDays, label: 'set on this contract' },
-        { source: 'AGREEMENT', value: input.agreement?.paymentTermsDays, label: agreementLabel },
-        { source: 'COMPANY', value: input.company.paymentTermsDays, label: `${input.company.name}'s default` },
-      ],
-      PLATFORM_DEFAULTS.paymentTermsDays,
-      'nobody has set payment terms, so net 30 is assumed'
-    ),
-    currency: resolve<string>(
-      [
-        { source: 'ORDER', value: input.order?.currency, label: orderLabel },
-        { source: 'CONTRACT', value: input.contract?.currency, label: 'set on this contract' },
-        { source: 'AGREEMENT', value: input.agreement?.currency, label: agreementLabel },
-        { source: 'COMPANY', value: input.company.currency, label: `${input.company.name}'s default` },
-      ],
-      PLATFORM_DEFAULTS.currency,
-      'nobody has set a currency, so US dollars is assumed'
-    ),
-    paymentTermsFrom: resolve<TermsAnchor>(
-      [
-        {
-          source: 'CONTRACT',
-          value: isAnchor(input.contract?.paymentTermsFrom) ? input.contract!.paymentTermsFrom as TermsAnchor : null,
-          label: 'set on this contract',
-        },
-        {
-          source: 'AGREEMENT',
-          value: isAnchor(input.agreement?.paymentTermsFrom) ? input.agreement!.paymentTermsFrom as TermsAnchor : null,
-          label: agreementLabel,
-        },
-      ],
-      PLATFORM_DEFAULTS.paymentTermsFrom,
-      'nobody has said what the days run from, so the end of the work period is assumed'
-    ),
+    paymentTermsDays,
+    currency,
+    paymentTermsFrom,
+    setAside: [paymentTermsDays, currency, paymentTermsFrom].flatMap((r) => (r.setAside ?? []).map((x) => x.says)),
   }
 }
 

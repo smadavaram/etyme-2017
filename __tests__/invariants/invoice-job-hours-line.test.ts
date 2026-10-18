@@ -37,7 +37,7 @@ describe('an invoice prices a week decided against the job’s hours where the c
 
   it('bill generation and the check both read the line through lineFor with the job’s hours', () => {
     const src = (p: string) => readFileSync(join(__dirname, '..', '..', 'src', p), 'utf8')
-    expect(src('app/api/invoices/generate/route.ts')).toContain('lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })')
+    expect(src('lib/money/bill-generate.ts')).toContain('lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })')
     expect(src('lib/invoice-match.ts')).toContain('lineFor(billed, billed.requirement ?? ts.sellContract.requirement')
   })
 })

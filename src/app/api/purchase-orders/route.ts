@@ -13,7 +13,8 @@ import { mayWriteOrder, shellNotice } from '@/lib/off-system'
 import { suppliersOf } from '@/lib/suppliers-of'
 import { supplierStanding } from '@/lib/counterparty'
 import { nounFor, referenceFor, sideOf } from '@/lib/order-naming'
-import { termsFor } from '@/lib/money/order-terms'
+import { termsFor, AGREEMENT_TERMS_SELECT, differencesFrom, differenceRefusal, reasonFrom, headerRhythmFrom } from '@/lib/money/order-terms'
+import { isAnchor, ANCHORS } from '@/lib/billing-cascade'
 
 /**
  * GET  /api/purchase-orders — what is authorized, and how much is left
@@ -520,6 +521,51 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── The agreement sets the terms. Founder, 2026-10-18 ──────────────
+  //
+  // "AR and AP is always based on the agreed MSA." Where the two firms
+  // signed one, a term this order does not state is the agreement's, and
+  // a term it states differently needs the reason recorded with it — who
+  // gave it and when — or it is refused here in a sentence. Where they
+  // signed none, this order is their agreement and nothing is compared.
+  const agreement = await prisma.masterAgreement.findFirst({
+    where: body.msaId
+      ? { id: String(body.msaId), vendorId: seller.id, clientId: buyer.id }
+      : { vendorId: seller.id, clientId: buyer.id, endedAt: null },
+    select: AGREEMENT_TERMS_SELECT,
+    orderBy: { createdAt: 'desc' },
+  })
+  const saidFrom = body.paymentTermsFrom == null || body.paymentTermsFrom === '' ? null : String(body.paymentTermsFrom).toUpperCase()
+  if (saidFrom !== null && !isAnchor(saidFrom)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: `${body.paymentTermsFrom} is not something payment days can be counted from. Use one of ${ANCHORS.join(', ')}.`, field: 'paymentTermsFrom' } },
+      { status: 422 }
+    )
+  }
+  const saidDays = body.paymentTerms != null && Number.isInteger(Number(body.paymentTerms)) ? Number(body.paymentTerms) : null
+  const differs = differencesFrom(agreement, {
+    ...rhythm,
+    paymentTerms: saidDays,
+    paymentTermsFrom: saidFrom,
+    currency: body.currency ? currency : null,
+  })
+  const differReason = reasonFrom(body.termsDifferReason)
+  if (differs.length > 0 && !differReason) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TERMS_DIFFER',
+          // Named from the reader's end: a supplier reads its agreement
+          // with the client, a client its agreement with the supplier.
+          message: differenceRefusal('order', differs, companyId === seller.id ? (agreement?.client?.name ?? null) : (agreement?.vendor?.name ?? null)),
+          field: 'termsDifferReason',
+          differs,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   const po = await prisma.workOrder.create({
     data: {
       number,
@@ -529,22 +575,31 @@ export async function POST(request: NextRequest) {
       issuedToId: seller.id,
       recordedById: allowed.recordedById,
       amount,
-      currency,
+      // The agreement's currency where this order did not say one.
+      currency: body.currency ? currency : (agreement?.currency ?? currency),
       startDate,
       endDate,
       status: 'OPEN',
       billingBasis,
+      // What the order did not state is the agreement's, so the paper and
+      // the answer read the same.
+      ...headerRhythmFrom(agreement),
       ...rhythm,
       billToId: body.billToId ? String(body.billToId) : null,
       shipToId: body.shipToId ? String(body.shipToId) : null,
       payerId: body.payerId ? String(body.payerId) : null,
-      ...(body.paymentTerms != null && Number.isInteger(Number(body.paymentTerms))
-        ? { paymentTerms: Number(body.paymentTerms) }
+      ...(saidDays !== null
+        ? { paymentTerms: saidDays }
+        : typeof agreement?.paymentTerms === 'number' ? { paymentTerms: agreement.paymentTerms } : {}),
+      paymentTermsFrom: saidFrom,
+      // Why it differs, who said and when — all three or none.
+      ...(differs.length > 0 && differReason
+        ? { termsDifferReason: differReason, termsDifferById: caller.person.id, termsDifferAt: new Date() }
         : {}),
       autoApproveTimesheets: body.autoApproveTimesheets === true,
       approvalWindowDays,
       engagementId: body.engagementId ? String(body.engagementId) : null,
-      msaId: body.msaId ? String(body.msaId) : null,
+      msaId: body.msaId ? String(body.msaId) : (agreement?.id ?? null),
     },
     select: {
       id: true, number: true, sellerNumber: true, amount: true, currency: true,

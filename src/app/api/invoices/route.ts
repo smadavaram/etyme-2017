@@ -294,6 +294,10 @@ export async function GET(request: NextRequest) {
     .filter((row) => (directionParam === 'RECEIVABLE' || directionParam === 'PAYABLE'
       ? row.direction === directionParam
       : true))
+    // A draft is the issuing firm's working paper (the supplier's twin
+    // writes them, 2026-10-18). The firm it would be sent to does not see
+    // it until it is sent.
+    .filter((row) => !(row.status === 'DRAFT' && row.direction !== 'RECEIVABLE'))
 
   // ── What the payer needs to decide, on the row ──────────────────────
   //

@@ -51,7 +51,7 @@ describe('what the line says', () => {
 })
 
 describe('the routes carry it through', () => {
-  const GENERATE = read('src/app/api/invoices/generate/route.ts')
+  const GENERATE = read('src/lib/money/bill-generate.ts')
   const PAY = read('src/app/api/invoices/[id]/payments/route.ts')
   const ACTIONS = read('src/app/api/expenses/actions/route.ts')
 

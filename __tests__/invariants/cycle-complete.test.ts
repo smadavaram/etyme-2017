@@ -181,7 +181,7 @@ describe('every event that ends a wait marks its cycle', () => {
   const cases: [string, string, string][] = [
     ['src/app/api/timesheets/[id]/submit/route.ts', 'TIMESHEET_SUBMIT', 'hours are sent'],
     ['src/app/api/timesheets/[id]/approve/route.ts', 'TIMESHEET_APPROVE', 'both parties have signed the hours'],
-    ['src/app/api/invoices/generate/route.ts', 'INVOICE_GENERATE', 'the invoice is raised'],
+    ['src/lib/money/bill-generate.ts', 'INVOICE_GENERATE', 'the invoice is raised'],
     ['src/app/api/ap/bills/route.ts', 'VENDOR_BILL_GENERATE', 'a vendor bill is recorded'],
   ]
   for (const [file, kind, when] of cases) {
@@ -223,7 +223,7 @@ describe('nothing completes a cycle that is no longer generated', () => {
   })
 
   it('raising the invoice and raising the vendor bill still close theirs', () => {
-    expect(read('src/app/api/invoices/generate/route.ts')).toContain("kind: 'INVOICE_GENERATE'")
+    expect(read('src/lib/money/bill-generate.ts')).toContain("kind: 'INVOICE_GENERATE'")
     expect(read('src/app/api/ap/bills/route.ts')).toContain("kind: 'VENDOR_BILL_GENERATE'")
   })
 })

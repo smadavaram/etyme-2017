@@ -269,6 +269,48 @@ describe('the purchase order the client handed them', () => {
     expect(r.body.data.message).toContain('recording the purchase order they handed you')
   })
 
+  it('an order that differs from the agreement without a reason is refused in a sentence, and stands once the reason is recorded', async () => {
+    // The founder, 2026-10-18: the agreement between the two firms sets
+    // the terms; an order may differ only with a reason, and who gave it
+    // and when are kept beside it.
+    const msa = await prisma.masterAgreement.create({
+      data: {
+        vendorId: co.veritan, clientId: co.halvard, paymentTerms: 30, paymentTermsFrom: 'PERIOD_END',
+        billFrequency: 'MONTHLY', billAnchor: 'CALENDAR', billStraddle: 'SPLIT', currency: 'USD',
+      },
+    })
+    try {
+      as(VERITAN)
+      const order = (extra: Record<string, unknown>) =>
+        raiseOrder(req('POST', '/api/purchase-orders', {
+          number: `HAL-PO-78${Object.keys(extra).length}`, issuedById: co.halvard, issuedToId: co.veritan,
+          amount: 50_000, startDate: day(-5).toISOString(), paymentTerms: 15, attachExistingContracts: false, ...extra,
+        }))
+      const refused = await json(await order({}))
+      expect(refused.status).toBe(422)
+      expect(refused.body.error.code).toBe('TERMS_DIFFER')
+      expect(refused.body.error.field).toBe('termsDifferReason')
+      expect(refused.body.error.message).toBe(
+        'This order says net 15 where your agreement with Halvard Industries says net 30. ' +
+        'Give the reason it differs, or leave those terms to the agreement.'
+      )
+
+      const stands = await json(await order({ termsDifferReason: 'Halvard pays this rush job at fifteen days' }))
+      expect(stands.status, JSON.stringify(stands.body)).toBe(201)
+      const row = await prisma.workOrder.findUniqueOrThrow({ where: { id: stands.body.data.order.id } })
+      expect(row.paymentTerms).toBe(15)
+      expect(row.msaId).toBe(msa.id)
+      expect(row.termsDifferReason).toBe('Halvard pays this rush job at fifteen days')
+      expect(row.termsDifferById).toBe(who.veritanOwner)
+      expect(row.termsDifferAt).not.toBeNull()
+      // What the order did not state is the agreement's, written onto it.
+      expect(row.billFrequency).toBe('MONTHLY')
+      await prisma.workOrder.delete({ where: { id: row.id } })
+    } finally {
+      await prisma.masterAgreement.delete({ where: { id: msa.id } })
+    }
+  })
+
   it('one order still produces a contract for each person on it', async () => {
     // Two people, two contracts, one order — which is why a contract is
     // per person and an order is not.

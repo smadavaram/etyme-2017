@@ -74,19 +74,36 @@
  * and the value is named in `unreadable` so the gap is visible instead
  * of being a wrong Tuesday.
  *
- * ── What is not here, and is a schema request ────────────────────────
+ * ── The agreement first. Decided by the founder, 2026-10-18 ──────────
  *
- * `paymentTermsFrom` — what the net days are counted from — is on
- * `SellContract`, on `BuyContract` and on `MasterAgreement`, and not on
- * `WorkOrder`. So half of one term comes from the document and half from
- * the line. That is the same split this file exists to end, and closing
- * it needs a column the architect adds. Until then the anchor falls back
- * to the line and says `LINE` in `from`, so nobody reads it as settled.
+ * "AR and AP is always based on the agreed MSA between client and
+ * supplier and supplier and subvendor/candidate." Every term here — the
+ * rhythm, the net days, what they run from and the currency — is the
+ * agreement's where the two parties signed one and it says. The order,
+ * then the line, may differ only where that document carries a recorded
+ * reason (`termsDifferReason`); a different value with no reason is set
+ * aside and the answer says so in a sentence. Where the agreement says
+ * nothing about a term, or the two parties have no agreement, the order
+ * and then the line answer exactly as they did before this — the order
+ * is then their agreement. The rule is `agreementFirst` in
+ * `lib/billing-cascade`; this file and that one cannot disagree.
+ *
+ * Which agreement: the sell side reads the agreement with the customer
+ * (the line's own `msa`, else its order's); the buy side reads the
+ * agreement with the sub-vendor, through the order raised to it. A W2 or
+ * a 1099 line has no agreement above it: the worker's own contract is
+ * the line, and it answers. A caller with the agreement loaded some
+ * other way passes it as the third argument.
+ *
+ * `paymentTermsFrom` is now on the order (2026-10-18), so the whole of
+ * the net-days term comes from one document. The agreement's billing
+ * rhythm (`billFrequency`, `billAnchor`, `billStraddle`) is in the
+ * lines' words already and is null where the agreement did not say.
  */
 
 import type { Anchor, Frequency, Straddle } from '@/lib/periods'
-import type { TermsAnchor } from '@/lib/billing-cascade'
-import { isAnchor } from '@/lib/billing-cascade'
+import type { TermsAnchor, BillingTerms, CascadeInputs } from '@/lib/billing-cascade'
+import { isAnchor, agreementFirst, setAsideSays, anchorWords, resolveBillingTerms } from '@/lib/billing-cascade'
 
 /** Sell line or buy line. Named, never inferred — the two read different columns. */
 export type OrderSide = 'SELL' | 'BUY'
@@ -101,6 +118,13 @@ export type TermSource =
   | 'DEFAULT'
 
 /**
+ * Which level decided a term: the agreement between the two parties,
+ * then the order, then the line, then the shipped default. What a screen
+ * prints beside a term ("from your agreement with Northbend Athletic").
+ */
+export type TermLevelSource = 'AGREEMENT' | TermSource
+
+/**
  * The header, as much of it as these six need.
  *
  * `ORDER_HEADER_SELECT` below selects exactly this, so a caller cannot
@@ -113,8 +137,31 @@ export interface OrderHeader {
   billAnchor?: string | null
   billStraddle?: string | null
   paymentTerms?: number | null
+  /** What the net days run from. Null where the order did not say. */
+  paymentTermsFrom?: string | null
+  currency?: string | null
   startDate?: Date | null
   endDate?: Date | null
+  /** Why this order differs from its agreement, where somebody said. */
+  termsDifferReason?: string | null
+  /** The agreement this order was raised under, where it names one. */
+  msa?: AgreementTerms | null
+}
+
+/**
+ * The agreement between the two parties on one side, as much of it as
+ * the terms need. `AGREEMENT_TERMS_SELECT` selects exactly this.
+ */
+export interface AgreementTerms {
+  id?: string | null
+  billFrequency?: string | null
+  billAnchor?: string | null
+  billStraddle?: string | null
+  paymentTerms?: number | null
+  paymentTermsFrom?: string | null
+  currency?: string | null
+  vendor?: { name: string } | null
+  client?: { name: string } | null
 }
 
 /** A line, either side, with its header where it has one. */
@@ -130,8 +177,16 @@ export interface OrderLine {
   payFrequency?: string | null
   payAnchor?: string | null
   payStraddle?: string | null
-  /** Both sides. No header column for it; see the note above. */
+  /** Both sides. */
   paymentTermsFrom?: string | null
+  /** Sell side. */
+  billCurrency?: string | null
+  /** Buy side. */
+  payCurrency?: string | null
+  /** Why this line differs from its agreement, where somebody said. */
+  termsDifferReason?: string | null
+  /** Sell side: the agreement with the customer the line names. */
+  msa?: AgreementTerms | null
   workOrder?: OrderHeader | null
 }
 
@@ -146,18 +201,48 @@ export interface OrderTerms {
    * from the agreement, the company and then the platform.
    */
   paymentTermsDays: number | null
-  /** What those days are counted from. Null where the line has not said. */
+  /** What those days are counted from. Null where nobody has said. */
   paymentTermsFrom: TermsAnchor | null
+  /** The currency, or null where no document says. */
+  currency: string | null
   /** The line's own dates. Never the header's — see the note above. */
   startDate: Date | null
   endDate: Date | null
-  /** Which copy answered, per field. */
+  /**
+   * Which level decided each term — the agreement, the order, the line,
+   * or the shipped default — and the words for the screen.
+   */
+  source: {
+    frequency: TermLevelSource
+    anchor: TermLevelSource
+    straddle: TermLevelSource
+    paymentTermsDays: TermLevelSource
+    paymentTermsFrom: TermLevelSource
+    currency: TermLevelSource
+  }
+  /** Per term, in words: "from your agreement with Northbend Athletic". */
+  label: {
+    frequency: string
+    anchor: string
+    straddle: string
+    paymentTermsDays: string
+    paymentTermsFrom: string
+    currency: string
+  }
+  /**
+   * Which copy on the documents carries each value: the order's, the
+   * line's, or neither (DEFAULT). Where the agreement decided a term
+   * (`source` says AGREEMENT), this names the document copy that says
+   * the same thing, or DEFAULT where neither does. Read `source` for the
+   * level that decided; this is for a writer copying a value onto a line.
+   */
   from: {
     frequency: TermSource
     anchor: TermSource
     straddle: TermSource
     paymentTermsDays: TermSource
     paymentTermsFrom: TermSource
+    currency: TermSource
     startDate: TermSource
     endDate: TermSource
   }
@@ -174,11 +259,37 @@ export interface OrderTerms {
   outsideOrderWindow: boolean
   /** Header values the money engine cannot read, named rather than guessed at. */
   unreadable: string[]
+  /** The agreement read, where there is one. */
+  agreementId: string | null
+  /** Who the agreement is with, for the sentence; null where there is none. */
+  counterpartyName: string | null
+  /**
+   * Terms an order or a line said differently from the agreement with no
+   * reason, so not applied — one sentence each, for the screen.
+   */
+  setAside: string[]
   /** The whole thing as somebody would say it. */
   says: string
 }
 
-/** What every caller must select off `workOrder` to ask this file anything. */
+/** What the terms read off an agreement. */
+export const AGREEMENT_TERMS_SELECT = {
+  id: true,
+  billFrequency: true,
+  billAnchor: true,
+  billStraddle: true,
+  paymentTerms: true,
+  paymentTermsFrom: true,
+  currency: true,
+  vendor: { select: { name: true } },
+  client: { select: { name: true } },
+} as const
+
+/**
+ * What every caller must select off `workOrder` to ask this file anything.
+ * It carries the order's own agreement, so a line on an order reads the
+ * agreement first without its caller having to know to ask.
+ */
 export const ORDER_HEADER_SELECT = {
   id: true,
   number: true,
@@ -186,8 +297,21 @@ export const ORDER_HEADER_SELECT = {
   billAnchor: true,
   billStraddle: true,
   paymentTerms: true,
+  paymentTermsFrom: true,
+  currency: true,
   startDate: true,
   endDate: true,
+  termsDifferReason: true,
+  msa: { select: AGREEMENT_TERMS_SELECT },
+} as const
+
+/**
+ * What a sell line selects beside its order to be read agreement first:
+ * its own agreement with the customer, and its reason for differing.
+ */
+export const SELL_LINE_TERMS_SELECT = {
+  termsDifferReason: true,
+  msa: { select: AGREEMENT_TERMS_SELECT },
 } as const
 
 /** The shipped answers, which are the schema defaults, so nothing moves. */
@@ -241,12 +365,20 @@ function unreadableValue<T>(table: Record<string, T>, raw: unknown): boolean {
  * does not gets the line's own answer, which is what every row written
  * before today has and is the behavior that was already shipping.
  */
-export function termsFor(side: OrderSide, line: OrderLine): OrderTerms {
+export function termsFor(side: OrderSide, line: OrderLine, agreementGiven?: AgreementTerms | null): OrderTerms {
   const header = line.workOrder ?? null
+  // Which agreement: the one handed in; else the line's own (a sell line
+  // names its customer's); else the one its order was raised under. A W2
+  // line has neither, and its own contract is the agreement.
+  const agreement: AgreementTerms | null =
+    agreementGiven !== undefined ? agreementGiven : (line.msa ?? header?.msa ?? null)
+  const counterpartyName =
+    (side === 'SELL' ? agreement?.client?.name : agreement?.vendor?.name) ?? null
 
   const lineFrequency = side === 'SELL' ? line.billFrequency : line.payFrequency
   const lineAnchor = side === 'SELL' ? line.billAnchor : line.payAnchor
   const lineStraddle = side === 'SELL' ? line.billStraddle : line.payStraddle
+  const lineCurrency = side === 'SELL' ? line.billCurrency : line.payCurrency
 
   const unreadable: string[] = []
   if (header) {
@@ -263,29 +395,70 @@ export function termsFor(side: OrderSide, line: OrderLine): OrderTerms {
     }
   }
 
-  const pick = <T>(table: Record<string, T>, headerRaw: unknown, lineRaw: unknown, shipped: T):
-    { value: T; from: TermSource } => {
-    const fromHeader = header ? read(table, headerRaw) : null
-    if (fromHeader !== null) return { value: fromHeader, from: 'ORDER' }
-    const fromLine = read(table, lineRaw)
-    if (fromLine !== null) return { value: fromLine, from: 'LINE' }
-    return { value: shipped, from: 'DEFAULT' }
+  const setAside: string[] = []
+  const orderReason = header?.termsDifferReason ?? null
+  const lineReason = line.termsDifferReason ?? null
+
+  /** One term, agreement first, then the shipped default. */
+  const pick = <T>(
+    words: { agreement: T | null; order: T | null; line: T | null },
+    shipped: T | null,
+    describe: (v: T) => string
+  ): { value: T | null; from: TermLevelSource; copy: TermSource } => {
+    const p = agreementFirst<T>({
+      agreement: agreement ? words.agreement : null,
+      order: header ? { value: words.order, reason: orderReason } : null,
+      line: { value: words.line, reason: lineReason },
+    })
+    for (const x of p.setAside) {
+      setAside.push(setAsideSays({ from: x.from, said: describe(x.value), agreed: describe(words.agreement as T), counterpartyName }))
+    }
+    if (p.from === null) return { value: shipped, from: 'DEFAULT', copy: 'DEFAULT' }
+    if (p.from !== 'AGREEMENT') return { value: p.value, from: p.from, copy: p.from }
+    // The agreement decided; name the document copy that agrees, if any.
+    const copy: TermSource =
+      header && words.order !== null && words.order === p.value ? 'ORDER'
+      : words.line !== null && words.line === p.value ? 'LINE'
+      : 'DEFAULT'
+    return { value: p.value, from: 'AGREEMENT', copy }
   }
 
-  const frequency = pick(FREQUENCIES, header?.billFrequency, lineFrequency, SHIPPED.frequency)
-  const anchor = pick(ANCHORS, header?.billAnchor, lineAnchor, SHIPPED.anchor)
-  const straddle = pick(STRADDLES, header?.billStraddle, lineStraddle, SHIPPED.straddle)
+  const frequency = pick<Frequency>(
+    { agreement: read(FREQUENCIES, agreement?.billFrequency), order: read(FREQUENCIES, header?.billFrequency), line: read(FREQUENCIES, lineFrequency) },
+    SHIPPED.frequency,
+    (f) => `${f.toLowerCase()} ${side === 'SELL' ? 'billing' : 'pay'}`
+  ) as { value: Frequency; from: TermLevelSource; copy: TermSource }
+  const anchor = pick<Anchor>(
+    { agreement: read(ANCHORS, agreement?.billAnchor), order: read(ANCHORS, header?.billAnchor), line: read(ANCHORS, lineAnchor) },
+    SHIPPED.anchor,
+    (a) => (a === 'CALENDAR' ? 'periods starting on the calendar' : 'periods starting on the contract\u2019s own start day')
+  ) as { value: Anchor; from: TermLevelSource; copy: TermSource }
+  const straddle = pick<Straddle>(
+    { agreement: read(STRADDLES, agreement?.billStraddle), order: read(STRADDLES, header?.billStraddle), line: read(STRADDLES, lineStraddle) },
+    SHIPPED.straddle,
+    (x) => (x === 'SPLIT' ? 'a week crossing a period split by day' : x === 'START' ? 'a week crossing a period billed where it starts' : 'a week crossing a period billed where it ends')
+  ) as { value: Straddle; from: TermLevelSource; copy: TermSource }
 
   // Net days. Zero is a real term — due on the anchor itself — so the
   // test is "did it say", never "is it truthy".
-  const headerDays = header && typeof header.paymentTerms === 'number' ? header.paymentTerms : null
-  const lineDays = typeof line.paymentTerms === 'number' ? line.paymentTerms : null
-  const paymentTermsDays = headerDays ?? lineDays
-  const daysFrom: TermSource = headerDays !== null ? 'ORDER' : lineDays !== null ? 'LINE' : 'DEFAULT'
-
-  // The anchor for those days has no column on the header. Always the
-  // line's, and it says so rather than implying the document settled it.
-  const termsFrom = isAnchor(line.paymentTermsFrom) ? line.paymentTermsFrom : null
+  const num = (v: unknown): number | null => (typeof v === 'number' ? v : null)
+  const days = pick<number>(
+    { agreement: num(agreement?.paymentTerms), order: num(header?.paymentTerms), line: num(line.paymentTerms) },
+    null,
+    (n) => (n === 0 ? 'due on receipt' : `net ${n}`)
+  )
+  const anchorOf = (v: unknown): TermsAnchor | null => (isAnchor(v) ? v : null)
+  const termsFrom = pick<TermsAnchor>(
+    { agreement: anchorOf(agreement?.paymentTermsFrom), order: anchorOf(header?.paymentTermsFrom), line: anchorOf(line.paymentTermsFrom) },
+    null,
+    (a) => `the days counted from ${anchorWords(a)}`
+  )
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null)
+  const currency = pick<string>(
+    { agreement: str(agreement?.currency), order: str(header?.currency), line: str(lineCurrency) },
+    null,
+    (c) => c
+  )
 
   const startDate = line.startDate ?? null
   const endDate = line.endDate ?? null
@@ -301,17 +474,35 @@ export function termsFor(side: OrderSide, line: OrderLine): OrderTerms {
     frequency: frequency.value,
     anchor: anchor.value,
     straddle: straddle.value,
-    paymentTermsDays,
-    paymentTermsFrom: termsFrom,
+    paymentTermsDays: days.value,
+    paymentTermsFrom: termsFrom.value,
+    currency: currency.value,
     startDate,
     endDate,
-    from: {
+    source: {
       frequency: frequency.from,
       anchor: anchor.from,
       straddle: straddle.from,
-      paymentTermsDays: daysFrom,
-      paymentTermsFrom: termsFrom === null ? 'DEFAULT' : 'LINE',
-      // Always the line's, and the sentence above says why.
+      paymentTermsDays: days.from,
+      paymentTermsFrom: termsFrom.from,
+      currency: currency.from,
+    },
+    label: {
+      frequency: levelWords(frequency.from, counterpartyName, header?.number ?? null),
+      anchor: levelWords(anchor.from, counterpartyName, header?.number ?? null),
+      straddle: levelWords(straddle.from, counterpartyName, header?.number ?? null),
+      paymentTermsDays: levelWords(days.from, counterpartyName, header?.number ?? null),
+      paymentTermsFrom: levelWords(termsFrom.from, counterpartyName, header?.number ?? null),
+      currency: levelWords(currency.from, counterpartyName, header?.number ?? null),
+    },
+    from: {
+      frequency: frequency.copy,
+      anchor: anchor.copy,
+      straddle: straddle.copy,
+      paymentTermsDays: days.copy,
+      paymentTermsFrom: termsFrom.copy,
+      currency: currency.copy,
+      // Always the line's: a line is a person and an order is not.
       startDate: startDate ? 'LINE' : 'DEFAULT',
       endDate: endDate ? 'LINE' : 'DEFAULT',
     },
@@ -320,8 +511,55 @@ export function termsFor(side: OrderSide, line: OrderLine): OrderTerms {
     orderWindow,
     outsideOrderWindow,
     unreadable,
-    says: sentence(side, frequency.value, paymentTermsDays, header?.number ?? null, unreadable),
+    agreementId: agreement?.id ?? null,
+    counterpartyName,
+    setAside,
+    says: sentence(side, frequency.value, days.value, header?.number ?? null, unreadable, frequency.from === 'AGREEMENT' || days.from === 'AGREEMENT' ? (counterpartyName ?? 'the other party') : null, setAside),
   }
+}
+
+/**
+ * The money terms of one line, agreement first, with the company and the
+ * platform behind them: what an invoice, a due date, the three-way check
+ * and the twin all ask. One answer, from `termsFor` and the cascade
+ * together, so the rhythm and the net days cannot come from two rules.
+ */
+export function moneyTermsFor(
+  side: OrderSide,
+  line: OrderLine,
+  company: CascadeInputs['company'],
+  agreementGiven?: AgreementTerms | null
+): { terms: OrderTerms; billing: BillingTerms } {
+  const terms = termsFor(side, line, agreementGiven)
+  const agreement = agreementGiven !== undefined ? agreementGiven : (line.msa ?? line.workOrder?.msa ?? null)
+  const header = line.workOrder ?? null
+  const billing = resolveBillingTerms({
+    company,
+    agreement: agreement
+      ? {
+          paymentTermsDays: agreement.paymentTerms ?? null,
+          paymentTermsFrom: agreement.paymentTermsFrom ?? null,
+          currency: agreement.currency ?? null,
+          counterpartyName: terms.counterpartyName ?? 'the other party',
+        }
+      : null,
+    contract: {
+      paymentTermsDays: typeof line.paymentTerms === 'number' ? line.paymentTerms : null,
+      paymentTermsFrom: line.paymentTermsFrom ?? null,
+      currency: (side === 'SELL' ? line.billCurrency : line.payCurrency) ?? null,
+      differReason: line.termsDifferReason ?? null,
+    },
+    order: header
+      ? {
+          paymentTermsDays: typeof header.paymentTerms === 'number' ? header.paymentTerms : null,
+          paymentTermsFrom: header.paymentTermsFrom ?? null,
+          currency: header.currency ?? null,
+          number: header.number ?? null,
+          differReason: header.termsDifferReason ?? null,
+        }
+      : null,
+  })
+  return { terms, billing }
 }
 
 /**
@@ -345,19 +583,128 @@ export function periodTermsFor(
   }
 }
 
+/** Where a term came from, as the screen says it. */
+function levelWords(level: TermLevelSource, counterpartyName: string | null, number: string | null): string {
+  switch (level) {
+    case 'AGREEMENT': return counterpartyName ? `from your agreement with ${counterpartyName}` : 'from your agreement'
+    case 'ORDER': return number ? `on order ${number}` : 'set on the order'
+    case 'LINE': return 'set on this placement'
+    case 'DEFAULT': return 'nobody has said, so the usual answer is assumed'
+  }
+}
+
 function sentence(
   side: OrderSide,
   frequency: Frequency,
   days: number | null,
   number: string | null,
-  unreadable: string[]
+  unreadable: string[],
+  agreementWith: string | null,
+  setAside: string[]
 ): string {
   const how = frequency.toLowerCase()
   const verb = side === 'SELL' ? 'Billed' : 'Paid'
   const net = days === null ? '' : `, net ${days}`
-  const paper = number ? ` on order ${number}` : ''
+  const paper = agreementWith ? ` under your agreement with ${agreementWith}` : number ? ` on order ${number}` : ''
   const caveat = unreadable.length
     ? ` The order says ${unreadable.join(' and ')}, which nothing here can read, so the placement's own answer stands.`
     : ''
-  return `${verb} ${how}${net}${paper}.${caveat}`
+  const aside = setAside.length ? ` ${setAside.join(' ')}` : ''
+  return `${verb} ${how}${net}${paper}.${caveat}${aside}`
+}
+
+// ── Writing an order or a line: a difference needs its reason ─────────
+//
+// The founder, 2026-10-18: "The agreement sets the terms; an order or a
+// placement may differ only with a reason recorded." So wherever an order
+// or a line's terms are written, what it says is compared with the
+// agreement between the two parties, and a difference with no reason is
+// refused in a sentence. The readers above set an unreasoned difference
+// aside anyway; refusing it at the door is what keeps the paper and the
+// answer from disagreeing in the first place.
+
+/** What a writer is about to put on an order or a line, in either vocabulary. */
+export interface TermsSaid {
+  billFrequency?: string | null
+  billAnchor?: string | null
+  billStraddle?: string | null
+  paymentTerms?: number | null
+  paymentTermsFrom?: string | null
+  currency?: string | null
+}
+
+export interface TermDifference {
+  term: 'frequency' | 'anchor' | 'straddle' | 'paymentTerms' | 'paymentTermsFrom' | 'currency'
+  /** In words: "net 15". */
+  said: string
+  agreed: string
+}
+
+const DAYS = (n: number) => (n === 0 ? 'due on receipt' : `net ${n}`)
+
+/**
+ * Where what a document says differs from the agreement, term by term.
+ * A term the agreement does not say, or the document does not say, is
+ * not a difference. Pure.
+ */
+export function differencesFrom(agreement: AgreementTerms | null | undefined, said: TermsSaid): TermDifference[] {
+  if (!agreement) return []
+  const out: TermDifference[] = []
+  const rhythm = <T>(term: TermDifference['term'], table: Record<string, T>, a: unknown, d: unknown, words: (v: T) => string) => {
+    const av = read(table, a)
+    const dv = read(table, d)
+    if (av !== null && dv !== null && av !== dv) out.push({ term, said: words(dv), agreed: words(av) })
+  }
+  rhythm('frequency', FREQUENCIES, agreement.billFrequency, said.billFrequency, (f) => `${String(f).toLowerCase()} billing`)
+  rhythm('anchor', ANCHORS, agreement.billAnchor, said.billAnchor, (a) => (a === 'CALENDAR' ? 'periods on the calendar' : 'periods from the start day'))
+  rhythm('straddle', STRADDLES, agreement.billStraddle, said.billStraddle, (s) => `a crossing week billed ${s === 'SPLIT' ? 'by day' : s === 'START' ? 'where it starts' : 'where it ends'}`)
+  if (typeof agreement.paymentTerms === 'number' && typeof said.paymentTerms === 'number' && agreement.paymentTerms !== said.paymentTerms) {
+    out.push({ term: 'paymentTerms', said: DAYS(said.paymentTerms), agreed: DAYS(agreement.paymentTerms) })
+  }
+  if (isAnchor(agreement.paymentTermsFrom) && isAnchor(said.paymentTermsFrom) && agreement.paymentTermsFrom !== said.paymentTermsFrom) {
+    out.push({
+      term: 'paymentTermsFrom',
+      said: `the days counted from ${anchorWords(said.paymentTermsFrom)}`,
+      agreed: `the days counted from ${anchorWords(agreement.paymentTermsFrom)}`,
+    })
+  }
+  const ac = typeof agreement.currency === 'string' && agreement.currency.trim() ? agreement.currency.toUpperCase() : null
+  const dc = typeof said.currency === 'string' && said.currency.trim() ? said.currency.toUpperCase() : null
+  if (ac && dc && ac !== dc) out.push({ term: 'currency', said: dc, agreed: ac })
+  return out
+}
+
+/**
+ * The refusal for a difference with no reason, in one sentence, naming
+ * every term that differs and the agreement it differs from.
+ */
+export function differenceRefusal(doc: 'order' | 'placement', diffs: TermDifference[], counterpartyName: string | null): string {
+  const join = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+  const whose = counterpartyName ? `your agreement with ${counterpartyName}` : 'your agreement'
+  return (
+    `This ${doc} says ${join(diffs.map((d) => d.said))} where ${whose} says ${join(diffs.map((d) => d.agreed))}. ` +
+    `Give the reason it differs, or leave those terms to the agreement.`
+  )
+}
+
+/** A recorded reason, or null where none was given. */
+export function reasonFrom(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim().slice(0, 1000) : null
+}
+
+/**
+ * The agreement's rhythm in the order header's own vocabulary, for a
+ * writer filling the terms an order did not state. Null where the
+ * agreement did not say.
+ */
+export function headerRhythmFrom(agreement: AgreementTerms | null | undefined): { billFrequency?: string; billAnchor?: string; billStraddle?: string } {
+  if (!agreement) return {}
+  const f = read(FREQUENCIES, agreement.billFrequency)
+  const a = read(ANCHORS, agreement.billAnchor)
+  const s = read(STRADDLES, agreement.billStraddle)
+  return {
+    ...(f ? { billFrequency: f } : {}),
+    ...(a ? { billAnchor: a === 'CONTRACT' ? 'CONTRACT_START' : 'CALENDAR' } : {}),
+    ...(s ? { billStraddle: s === 'START' ? 'TO_EARLIER' : s === 'END' ? 'TO_LATER' : 'SPLIT' } : {}),
+  }
 }

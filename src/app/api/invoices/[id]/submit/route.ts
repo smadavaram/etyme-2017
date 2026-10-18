@@ -3,8 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { matchAndRecord } from '@/lib/invoice-loop'
-import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
+import { mayBeSent, markSent } from '@/lib/money/bill-send'
 
 /**
  * POST /api/invoices/:id/submit
@@ -32,124 +31,35 @@ export async function POST(
 
   const { id } = await params
 
-  // ── Ours to submit ─────────────────────────────────────────────────
-  //
-  // The permission above says this caller may issue invoices at their
-  // own company. It says nothing about whose invoice this is, and an
-  // invoice id is not a secret — so this route loaded any row by id and
-  // pushed it into the three-way match on somebody else's behalf. It
-  // even selected the two parties off the agreement and then compared
-  // them to nothing.
+  // ── Ours to submit, and through the check ──────────────────────────
   //
   // A bill is submitted by the firm that raised it, which the agreement,
   // the order, or a line on the invoice can each say
-  // (`lib/money/invoice-parties`).
+  // (`lib/money/invoice-parties`), and an invoice that does not match its
+  // order and its signed weeks is not sent — not flagged, not warned
+  // about. Both are asked in `lib/money/bill-send`, the one door the
+  // supplier's twin's `bill.send` goes through too (2026-10-18), with the
+  // firm's own `...invoicesRaisedBy(companyId)` scope.
   const companyId = caller.company?.id ?? null
-  const invoice = companyId
-    ? await prisma.invoice.findFirst({
-        where: { id, ...invoicesRaisedBy(companyId) },
-        select: {
-          id: true,
-          number: true,
-          status: true,
-          total: true,
-          currency: true,
-          engagementId: true,
-          matchAttempt: true,
-        },
-      })
-    : null
-
-  if (!invoice) {
+  if (!companyId) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_FOUND',
-          message: companyId
-            ? 'No such bill of yours. A bill is submitted by the firm that raised it.'
-            : 'A bill is between two companies, and your seat is not at one.',
-        },
-      },
+      { error: { code: 'NOT_FOUND', message: 'A bill is between two companies, and your seat is not at one.' } },
       { status: 404 }
     )
   }
-
-  if (invoice.status !== 'ISSUED') {
+  const check = await mayBeSent(id, companyId, ['ISSUED'])
+  if (!check.ok) {
     return NextResponse.json(
-      { error: {
-        code: 'INVALID_STATE',
-        message: `Cannot submit a bill in "${invoice.status}" status — only ISSUED bills can be submitted`,
-      }},
-      { status: 409 }
+      { error: { code: check.code, message: check.says, ...(check.checks ? { checks: check.checks } : {}) } },
+      { status: check.status }
     )
   }
 
-  // ── The control ──
-  // Purchase order, approved timesheet, invoice. An invoice that does not
-  // match cannot be sent to a client for payment — not flagged, not warned
-  // about. This is the difference between a workflow tool and a system of
-  // record, and it is the only thing here a finance team actually buys.
-  //
-  // Invoices raised before line-level receipting have no InvoiceLine rows;
-  // those are let through with the gap recorded, because retro-blocking
-  // historic invoices helps nobody.
-  const lineCount = await prisma.invoiceLine.count({ where: { invoiceId: id } })
-  if (lineCount > 0) {
-    // Through the harness, so the run is counted and its verdicts kept.
-    // The match itself is unchanged — it was correct, it just answered to
-    // nobody.
-    const attempt = invoice.matchAttempt + 1
-    const { result: match } = await matchAndRecord(id, caller.company!.id, attempt)
-    await prisma.invoice.update({ where: { id }, data: { matchAttempt: attempt } })
-
-    if (match && !match.matched) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'MATCH_FAILED',
-            message: `This bill does not match its timesheets or purchase order: ${match.summary}`,
-            checks: match.checks.filter(c => c.outcome === 'FAIL'),
-          },
-        },
-        { status: 409 }
-      )
-    }
-  }
-
-  const now = new Date()
-
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.invoice.update({
-        where: { id },
-        data: {
-          status: 'SUBMITTED',
-          submittedAt: now,
-        },
-      })
-
-      await tx.automationLog.create({
-        data: {
-          companyId: caller.company!.id,
-          action: 'INVOICE_SUBMITTED',
-          summary: `Bill ${invoice.number} submitted for client review`,
-          reason: `Bill ${invoice.number} submitted for client review`,
-          payload: {
-            invoiceId: invoice.id,
-            invoiceNumber: invoice.number,
-            engagementId: invoice.engagementId,
-            total: Number(invoice.total),
-            currency: invoice.currency,
-            submittedBy: caller.person.id,
-            submittedAt: now.toISOString(),
-          },
-          reversible: true,
-        },
-      })
-
-      return updated
-    })
-
+    const sent = await prisma.$transaction((tx) =>
+      markSent(tx, { invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name } })
+    )
+    const result = await prisma.invoice.findUniqueOrThrow({ where: { id }, select: { id: true, number: true, status: true, total: true, currency: true, submittedAt: true, dueAt: true } })
     return NextResponse.json({
       data: {
         invoice: {
@@ -158,13 +68,19 @@ export async function POST(
           status: result.status,
           total: Number(result.total),
           currency: result.currency,
-          submittedAt: result.submittedAt?.toISOString() ?? null,
+          submittedAt: result.submittedAt?.toISOString() ?? sent.submittedAt.toISOString(),
           dueAt: result.dueAt.toISOString(),
         },
         message: `Bill ${result.number} submitted for client review`,
       },
     })
   } catch (err: any) {
+    if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_STATE', message: 'This bill was sent a moment ago by somebody else.' } },
+        { status: 409 }
+      )
+    }
     reportError('Invoice submission failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'The bill could not be submitted' } },

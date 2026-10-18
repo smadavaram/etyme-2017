@@ -425,7 +425,7 @@ describe('a placement is billed on the rhythm of the document it is on', () => {
     const seen = filesTouchingTheColumns()
     expect(seen.length).toBeGreaterThan(10)
     expect(seen).toContain(THE_DOOR)
-    expect(seen).toContain('src/app/api/invoices/generate/route.ts')
+    expect(seen).toContain('src/lib/money/bill-generate.ts')
   })
 
   it('only files that merely talk about a column fall out of the sweep, and they are few', () => {

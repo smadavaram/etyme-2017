@@ -355,7 +355,7 @@ describe('a firm bills upward on the client’s signature', () => {
   })
 
   it('bill generation reads the payer’s signature, and the three-way check reads it too, never the timesheet’s status', () => {
-    const generate = readFileSync(join(process.cwd(), 'src/app/api/invoices/generate/route.ts'), 'utf8')
+    const generate = readFileSync(join(process.cwd(), 'src/lib/money/bill-generate.ts'), 'utf8')
     const match = readFileSync(join(process.cwd(), 'src/lib/invoice-match.ts'), 'utf8')
     expect(generate).toContain('whatTheRungBills(')
     expect(match).toContain('receiptFor(')

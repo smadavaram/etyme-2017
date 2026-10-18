@@ -5,7 +5,7 @@ import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { dueOn, resolveBillingTerms } from '@/lib/billing-cascade'
-import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, moneyTermsFor } from '@/lib/money/order-terms'
 import { partiesOf } from '@/lib/money/invoice-parties'
 
 /**
@@ -92,7 +92,8 @@ export async function POST(
               },
               sellContracts: {
                 select: {
-                  paymentTerms: true, paymentTermsFrom: true,
+                  paymentTerms: true, paymentTermsFrom: true, billCurrency: true,
+                  ...SELL_LINE_TERMS_SELECT,
                   // The net days are the purchase order's where this
                   // placement is on one, so recording receipt moves the
                   // date the document promised and not a stale copy.
@@ -161,33 +162,20 @@ export async function POST(
   // The same cascade the invoice was raised under: this contract, then
   // the agreement, then the end of the work period.
   const contract = invoice.engagement.sellContracts[0] ?? null
-  const onOrder = contract ? termsFor('SELL', contract) : null
   const msa = invoice.engagement.msa
   const customer =
     partiesOf({ agreement: msa, order: invoice.workOrder }).client?.name ?? 'the client'
-  const terms = resolveBillingTerms({
+  // The agreement first, then the order and the line where each gives a
+  // reason (lib/money/order-terms) — the rule the bill was raised under.
+  const { billing: terms } = moneyTermsFor(
+    'SELL',
+    contract ?? {},
     // The firm whose book this is. In a seat that is the client, and
     // printing the office's name in the client's own terms sentence
     // would read as the office having agreed them.
-    company: { name: reading?.companyName ?? caller.company?.name ?? 'this company' },
-    // Null where the engagement has no agreement behind it. The cascade
-    // then runs order → contract → default and says which answered.
-    agreement: msa
-      ? {
-          paymentTermsDays: msa.paymentTerms,
-          paymentTermsFrom: msa.paymentTermsFrom,
-          counterpartyName: customer,
-        }
-      : null,
-    contract: {
-      paymentTermsDays: contract?.paymentTerms,
-      paymentTermsFrom: contract?.paymentTermsFrom,
-    },
-    order:
-      onOrder?.from.paymentTermsDays === 'ORDER'
-        ? { paymentTermsDays: onOrder.paymentTermsDays, number: onOrder.orderNumber }
-        : null,
-  })
+    { name: reading?.companyName ?? caller.company?.name ?? 'this company' },
+    contract?.msa ?? contract?.workOrder?.msa ?? (msa ? { ...msa, client: { name: customer } } : null)
+  )
 
   const due = dueOn({
     anchor: terms.paymentTermsFrom.value,

@@ -5,8 +5,8 @@ import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
-import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
-import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { discountDeadline, discountOn, dueOn, ladderFor } from '@/lib/billing-cascade'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, moneyTermsFor } from '@/lib/money/order-terms'
 import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
@@ -83,9 +83,10 @@ export async function GET(
           id: true, title: true,
           sellContracts: {
             select: {
-              paymentTerms: true, paymentTermsFrom: true,
-              // A purchase order is a header and its lines, and the net
-              // days are the header's where there is one.
+              paymentTerms: true, paymentTermsFrom: true, billCurrency: true,
+              // The agreement first, then the order, then the line, each
+              // differing only with its reason (lib/money/order-terms).
+              ...SELL_LINE_TERMS_SELECT,
               workOrder: { select: ORDER_HEADER_SELECT },
             },
             orderBy: { createdAt: 'asc' },
@@ -155,6 +156,19 @@ export async function GET(
     )
   }
 
+  // A draft is the issuing firm's working paper — the supplier's twin
+  // writes them (2026-10-18) and nobody has been asked for the money. The
+  // firm it would be sent to does not read it until it is sent.
+  if (
+    invoice.status === 'DRAFT' &&
+    directionFrom(partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder }), reading?.companyId ?? caller.company?.id ?? null) !== 'RECEIVABLE'
+  ) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { status: 404 }
+    )
+  }
+
   if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} read`)
 
   const match = await matchInvoice(id)
@@ -182,30 +196,19 @@ export async function GET(
   // because the discount window counts from the same day, and whether
   // that day has happened at all.
   const contractTerms = invoice.engagement.sellContracts[0] ?? null
-  const onOrder = contractTerms ? termsFor('SELL', contractTerms) : null
   // Who this invoice is between: the agreement, then the order. Both
   // names below come from one answer, so the header and the terms
   // sentence cannot name two different firms.
   const msa = invoice.engagement.msa
   const parties = partiesOf({ agreement: msa, order: invoice.workOrder })
-  const terms = resolveBillingTerms({
-    company: { name: parties.vendor?.name ?? 'this company' },
-    agreement: msa
-      ? {
-          paymentTermsDays: msa.paymentTerms,
-          paymentTermsFrom: msa.paymentTermsFrom,
-          counterpartyName: parties.client?.name ?? 'the client',
-        }
-      : null,
-    contract: {
-      paymentTermsDays: contractTerms?.paymentTerms,
-      paymentTermsFrom: contractTerms?.paymentTermsFrom,
-    },
-    order:
-      onOrder?.from.paymentTermsDays === 'ORDER'
-        ? { paymentTermsDays: onOrder.paymentTermsDays, number: onOrder.orderNumber }
-        : null,
-  })
+  // The agreement first (founder, 2026-10-18): the line's own, else its
+  // order's, else the engagement's.
+  const { billing: terms } = moneyTermsFor(
+    'SELL',
+    contractTerms ?? {},
+    { name: parties.vendor?.name ?? 'this company' },
+    contractTerms?.msa ?? contractTerms?.workOrder?.msa ?? msa ?? null
+  )
 
   const clock = dueOn({
     anchor: terms.paymentTermsFrom.value,

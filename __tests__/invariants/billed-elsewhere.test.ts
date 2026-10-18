@@ -98,7 +98,7 @@ describe('both doors ask', () => {
   const src = (p: string) => readFileSync(join(__dirname, '..', '..', 'src', p), 'utf8')
 
   it('bill generation reads the invoice receipts the payer recorded from us before it bills a week', () => {
-    const gen = src('app/api/invoices/generate/route.ts')
+    const gen = src('lib/money/bill-generate.ts')
     expect(gen).toContain('billedElsewhere(')
     expect(gen).toContain('vendorCompanyId: caller.company!.id')
   })

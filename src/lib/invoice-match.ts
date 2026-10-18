@@ -3,7 +3,7 @@ import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from
 import { rateInForce } from '@/lib/contract-rate'
 import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type Period } from '@/lib/periods'
 import { lineFor, type Decision } from '@/lib/overtime'
-import { ORDER_HEADER_SELECT, periodTermsFor, type OrderHeader } from '@/lib/money/order-terms'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, type OrderHeader, type AgreementTerms } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
 
 /**
@@ -132,6 +132,8 @@ export function recompute(line: PricedLine, period: Period, accepted: AcceptedCu
       startDate: ts.periodStart,
       billStraddle: billed.billStraddle,
       workOrder: billed.workOrder ?? null,
+      msa: (billed as { msa?: AgreementTerms | null }).msa ?? null,
+      termsDifferReason: (billed as { termsDifferReason?: string | null }).termsDifferReason ?? null,
     }).straddle,
     line.rateCents,
     // The line the week was decided against: the contract's own, else
@@ -220,6 +222,8 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
               overtimeAfterHours: true, overtimeMultiplierBps: true,
               billFrequency: true, billAnchor: true, billStraddle: true,
               workOrder: { select: ORDER_HEADER_SELECT },
+              // The agreement first, as the bill was priced (2026-10-18).
+              ...SELL_LINE_TERMS_SELECT,
             },
           },
           expense: { select: { id: true, status: true, total: true } },
@@ -251,6 +255,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
                   workOrder: { select: ORDER_HEADER_SELECT },
+                  ...SELL_LINE_TERMS_SELECT,
                 },
               },
             },

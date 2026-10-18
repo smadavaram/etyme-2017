@@ -74,7 +74,7 @@ describe('what the payment days are counted from', () => {
     }).dueAt)).toBe(day(new Date(PERIOD_END.getTime() + 30 * 86_400_000)))
   })
 
-  it("an agreement's anchor reaches a contract that never named one, and a contract that did wins", () => {
+  it("an agreement's anchor reaches a contract that never named one, and a contract that did wins only with its reason", () => {
     const fromAgreement = resolveBillingTerms({
       company: { name: 'Brightmoor' },
       agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Northbend Athletic' },
@@ -87,10 +87,19 @@ describe('what the payment days are counted from', () => {
     const onThisPlacement = resolveBillingTerms({
       company: { name: 'Brightmoor' },
       agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Northbend Athletic' },
-      contract: { paymentTermsFrom: 'INVOICE_DATE' },
+      contract: { paymentTermsFrom: 'INVOICE_DATE', differReason: 'This client counts from the day it is issued' },
     })
     expect(onThisPlacement.paymentTermsFrom.value).toBe('INVOICE_DATE')
     expect(onThisPlacement.paymentTermsFrom.source).toBe('CONTRACT')
+
+    // Without the reason, the agreement's anchor stands, and says so.
+    const noReason = resolveBillingTerms({
+      company: { name: 'Brightmoor' },
+      agreement: { paymentTermsFrom: 'RECEIPT_DATE', counterpartyName: 'Northbend Athletic' },
+      contract: { paymentTermsFrom: 'INVOICE_DATE' },
+    })
+    expect(noReason.paymentTermsFrom.value).toBe('RECEIPT_DATE')
+    expect(noReason.setAside[0]).toContain('gives no reason')
   })
 
   it('a due date anchored on receipt says it is waiting on the client rather than guessing a date', () => {
@@ -189,7 +198,7 @@ describe('what the payment days are counted from', () => {
   })
 
   it('the invoice route counts from the contract and no longer adds thirty days to the period end', () => {
-    const route = read('src/app/api/invoices/generate/route.ts')
+    const route = read('src/lib/money/bill-generate.ts')
     expect(route).toContain('dueOn({')
     expect(route).toContain('anchor: terms_.paymentTermsFrom.value')
     expect(route).not.toContain('new Date(period.end.getTime() + paymentTerms * 86400000)')

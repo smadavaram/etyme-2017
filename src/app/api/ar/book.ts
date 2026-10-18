@@ -63,6 +63,8 @@ export async function loadReceivables(companyId: string) {
           issuedBy: { select: { id: true, name: true } },
           issuedTo: { select: { id: true, name: true } },
           paymentTerms: true,
+          paymentTermsFrom: true,
+          termsDifferReason: true,
         },
       },
       // And where neither says, the lines billed on it do. Two of them,
@@ -101,7 +103,7 @@ export async function loadReceivables(companyId: string) {
           // here, because a contract amended in March must not restate a
           // February promise.
           sellContracts: {
-            select: { paymentTerms: true, paymentTermsFrom: true },
+            select: { paymentTerms: true, paymentTermsFrom: true, termsDifferReason: true },
             orderBy: { createdAt: 'asc' },
             take: 1,
           },
@@ -221,12 +223,20 @@ function clockOf(i: RawReceivable): { clockStarted: boolean; waitingFor: string 
           counterpartyName: customer,
         }
       : null,
+    // The agreement first; the order and the line only with a reason
+    // recorded (founder, 2026-10-18).
     contract: {
       paymentTermsDays: contract?.paymentTerms,
       paymentTermsFrom: contract?.paymentTermsFrom,
+      differReason: contract?.termsDifferReason ?? null,
     },
     order: i.workOrder
-      ? { paymentTermsDays: i.workOrder.paymentTerms, number: i.workOrder.number }
+      ? {
+          paymentTermsDays: i.workOrder.paymentTerms,
+          paymentTermsFrom: i.workOrder.paymentTermsFrom,
+          number: i.workOrder.number,
+          differReason: i.workOrder.termsDifferReason,
+        }
       : null,
   }).paymentTermsFrom.value
 

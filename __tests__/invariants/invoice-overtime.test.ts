@@ -67,7 +67,7 @@ const SEPTEMBER: Period = periodFor(new Date('2026-09-15T00:00:00.000Z'), {
 } as Terms)
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8')
-const ROUTE = 'src/app/api/invoices/generate/route.ts'
+const ROUTE = 'src/lib/money/bill-generate.ts'
 
 describe('what an invoice may bill for a week that went over the line', () => {
 

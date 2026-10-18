@@ -19,7 +19,7 @@ import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
-import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
 import { mayNameCounterparty } from '@/lib/off-system'
 import { chooseHeader } from '@/lib/award'
 import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
@@ -359,6 +359,51 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // ── The agreements set the terms. Founder, 2026-10-18 ─────────────
+  //
+  // The sell line bills on the agreement with the client; the buy line
+  // pays on the agreement with the sub-vendor, or — for the firm's own
+  // W2 or 1099 worker — on the worker's own contract, which is this line.
+  // A currency stated here that differs from the agreement needs its
+  // reason, recorded on the line with who gave it and when; without one
+  // it is refused in a sentence. One the caller did not state is the
+  // agreement's.
+  const sellAgreement = await prisma.masterAgreement.findFirst({
+    where: msaId ? { id: String(msaId) } : { vendorId: companyId, clientId: clientCompanyId, endedAt: null },
+    select: AGREEMENT_TERMS_SELECT,
+    orderBy: { createdAt: 'desc' },
+  })
+  const buyAgreement = pay?.vendorCompanyId
+    ? await prisma.masterAgreement.findFirst({
+        where: { vendorId: pay.vendorCompanyId, clientId: companyId, endedAt: null },
+        select: AGREEMENT_TERMS_SELECT,
+        orderBy: { createdAt: 'desc' },
+      })
+    : null
+  const termsReason = reasonFrom(body.termsDifferReason)
+  const sellDiffers = differencesFrom(sellAgreement, { currency: billCurrency ?? null })
+  const buyDiffers = differencesFrom(buyAgreement, { currency: payCurrency ?? null })
+  if ((sellDiffers.length > 0 || buyDiffers.length > 0) && !termsReason) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TERMS_DIFFER',
+          message: sellDiffers.length > 0
+            ? differenceRefusal('placement', sellDiffers, sellAgreement?.client?.name ?? null)
+            : differenceRefusal('placement', buyDiffers, buyAgreement?.vendor?.name ?? null),
+          field: 'termsDifferReason',
+        },
+      },
+      { status: 422 }
+    )
+  }
+  const sellCurrency = billCurrency ?? sellAgreement?.currency ?? 'USD'
+  const buyCurrency = payCurrency ?? buyAgreement?.currency ?? 'USD'
+  const reasonOn = (differs: unknown[]) =>
+    differs.length > 0 && termsReason
+      ? { termsDifferReason: termsReason, termsDifferById: caller.person.id, termsDifferAt: new Date() }
+      : {}
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       // ── The paper behind the contract ─────────────────────────────
@@ -465,7 +510,15 @@ export async function POST(request: NextRequest) {
       // rewrite its terms onto the line: the line keeps what the
       // cascade gave it, and every money reader prefers the header
       // anyway (`lib/money/order-terms`).
-      const sellRhythm = lineTermsFrom(header, msa?.paymentTerms ?? 30)
+      const fromHeader = lineTermsFrom(header, msa?.paymentTerms ?? 30)
+      // The agreement first: where it says a term, the line's copy is the
+      // agreement's, so the line and the answer every reader gets agree.
+      const agreed = termsFor('SELL', { workOrder: header ?? null }, sellAgreement)
+      const sellRhythm = { ...fromHeader }
+      if (agreed.source.frequency === 'AGREEMENT') sellRhythm.billFrequency = agreed.frequency
+      if (agreed.source.anchor === 'AGREEMENT') sellRhythm.billAnchor = agreed.anchor
+      if (agreed.source.straddle === 'AGREEMENT') sellRhythm.billStraddle = agreed.straddle
+      if (agreed.source.paymentTermsDays === 'AGREEMENT' && agreed.paymentTermsDays !== null) sellRhythm.paymentTerms = agreed.paymentTermsDays
 
       // Create the sell contract — the first line on that document.
       const sellContract = await tx.sellContract.create({
@@ -479,7 +532,8 @@ export async function POST(request: NextRequest) {
           msaId: msa?.id ?? null,
           workOrderId: header?.id ?? null,
           billRate,
-          billCurrency: billCurrency ?? 'USD',
+          billCurrency: sellCurrency,
+          ...reasonOn(sellDiffers),
           // Written from the document where this call raised it, so the
           // row and the paper cannot disagree on the day they are made.
           billFrequency: sellRhythm.billFrequency,
@@ -504,7 +558,8 @@ export async function POST(request: NextRequest) {
             companyId,
             vendorCompanyId: pay.vendorCompanyId,
             entityId: entityId ?? null,
-            payCurrency: payCurrency ?? 'USD',
+            payCurrency: buyCurrency,
+            ...reasonOn(buyDiffers),
             contractType: pay.contractType,
             workOrderId: buyPurchaseOrderId ?? null,
             // Written from the document where there is one, so the copy
@@ -519,7 +574,7 @@ export async function POST(request: NextRequest) {
               create: {
                 personId,
                 payRate: pay.payRateCents,
-                payCurrency: payCurrency ?? 'USD',
+                payCurrency: buyCurrency,
                 startDate: start,
                 endDate: end,
               },
