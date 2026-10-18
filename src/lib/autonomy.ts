@@ -701,7 +701,23 @@ export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
 // name — dotted and lower case, so the two are never confused — is in
 // the twin's ledger.
 
+/**
+ * Which twin. The program manager's twin works a client's program; the
+ * supplier's twin (2026-10-18) works a supplier firm's own money — a
+ * staffing vendor, an integrator or a one-person corporation — acting
+ * for Accounts Receivable and AP & Payroll. The schema's `TwinKind`.
+ */
+export type TwinKindName = 'PROGRAM_MANAGER' | 'SUPPLIER'
+export const TWIN_KINDS: readonly TwinKindName[] = ['PROGRAM_MANAGER', 'SUPPLIER']
+
 export interface TwinAct {
+  /**
+   * The twins this act belongs to. Absent means every twin. An act that
+   * is not a twin's own is never-tier on that twin's contract, whatever
+   * the contract says: a client's twin has no bill to draft, and a
+   * supplier's twin watches no client's time limit.
+   */
+  kinds?: readonly TwinKindName[]
   /** What it is, for the person reading a role contract. */
   says: string
   /** Moves money, or decides whether money moves. Never acts alone. */
@@ -725,11 +741,13 @@ export interface TwinAct {
 export const TWIN_ACTS: Record<string, TwinAct> = {
   // ── Alone, by default ──
   'tenure.warning.record': {
+    kinds: ['PROGRAM_MANAGER'],
     says: 'Write a time-limit warning into the twin\u2019s ledger. It tells nobody and changes nothing about the person.',
     money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'governance.read', alone: 'NOTED',
   },
   'tenure.warning.notify_program_owner': {
+    kinds: ['PROGRAM_MANAGER'],
     says: 'Tell the program owner, inside the client, that somebody is nearing or past the time limit. It does not clear or silence the warning.',
     money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'governance.read', alone: 'TOLD',
@@ -761,9 +779,36 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     approverNeeds: 'payments.record',
   },
   'tenure.warning.notify_supplier': {
+    kinds: ['PROGRAM_MANAGER'],
     says: 'Write to the supplier whose person is nearing or past the client\u2019s time limit.',
     money: false, external: true, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'vendors.manage',
+  },
+  // ── The supplier's bill (2026-10-18) ──
+  //
+  // The supplier's twin drafts the bill on the agreement's billing date
+  // for Accounts Receivable to send. Drafting is alone: a DRAFT bill
+  // stays inside the firm, moves no money and is put back by deleting
+  // the draft. Sending is asked: it leaves the firm and asks to be paid.
+  // The twin never approves its own draft — `approval.decide` is on the
+  // floor, and the ledger refuses OWN_DRAFT. Performers are money's
+  // (step 2 of the 2026-10-18 plan); until then each refuses in a
+  // sentence (src/lib/twin/performers.ts).
+  'bill.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft a bill to the customer from weeks the customer signed, on the agreement\u2019s billing date. It stays a draft inside the firm until Accounts Receivable sends it.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'invoices.issue', alone: 'DREW_UP',
+  },
+  'bill.send': {
+    kinds: ['SUPPLIER'],
+    says: 'Send a drafted bill to the customer.',
+    // Not `decides`: sending answers nobody's request, so the
+    // segregation check that refuses a decision on the twin's own draft
+    // does not apply — a person's yes is what sends it, and the twin can
+    // never give that yes (`approval.decide` is on the floor).
+    money: true, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'invoices.issue',
   },
   // ── Never ──
   'payroll.release': {
@@ -808,6 +853,18 @@ export const ALL_TWIN_ACTS: string[] = Object.keys(TWIN_ACTS).sort()
 
 export function isTwinAct(name: string): boolean {
   return Object.prototype.hasOwnProperty.call(TWIN_ACTS, name)
+}
+
+/** Whether an act belongs to a twin. Acts naming no kinds belong to every twin. */
+export function isActOf(kind: TwinKindName, name: string): boolean {
+  if (!isTwinAct(name)) return false
+  const k = TWIN_ACTS[name].kinds
+  return !k || k.includes(kind)
+}
+
+/** The acts one twin's contract has to place, sorted. */
+export function twinActsFor(kind: TwinKindName): string[] {
+  return ALL_TWIN_ACTS.filter((a) => isActOf(kind, a))
 }
 
 // ── The whole inventory ──────────────────────────────

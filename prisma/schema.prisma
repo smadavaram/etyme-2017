@@ -80,6 +80,10 @@ model Person {
   agreementVersions       MasterAgreementVersion[] @relation("agreementVersionAuthor")
   agreementSignatures     AgreementSignature[]     @relation("agreementAttestor")
   agreementsEnded         MasterAgreement[]        @relation("agreementEndedBy")
+  /// Reasons this person gave for an order or a line differing from its agreement.
+  orderTermsDiffered      WorkOrder[]              @relation("orderTermsDifferBy")
+  sellTermsDiffered       SellContract[]           @relation("sellTermsDifferBy")
+  buyTermsDiffered        BuyContract[]            @relation("buyTermsDifferBy")
   packetsCreated          DocumentPacket[]         @relation("packetCreator")
   packetsAbout            DocumentPacket[]         @relation("packetSubjectPerson")
   packetItemsReviewed     PacketItem[]             @relation("packetItemReviewer")
@@ -1112,17 +1116,27 @@ model WorkOrder {
 
   /// TIME · MILESTONE · BOTH — a project with a monthly retainer and
   /// three delivery payments is ordinary, so both is a real answer.
-  billingBasis  String @default("TIME")
+  billingBasis     String  @default("TIME")
   /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY · CUSTOM
-  billFrequency String @default("MONTHLY")
+  billFrequency    String  @default("MONTHLY")
   /// CALENDAR · CONTRACT_START · CUSTOM — where the period begins.
-  billAnchor    String @default("CALENDAR")
+  billAnchor       String  @default("CALENDAR")
   /// SPLIT · TO_EARLIER · TO_LATER — a week crossing a month end.
-  billStraddle  String @default("SPLIT")
+  billStraddle     String  @default("SPLIT")
   /// Explicit dates, where the frequency is CUSTOM.
-  customDates   Json?
+  customDates      Json?
   /// NET days. Cascades from the MSA, overridable here.
-  paymentTerms  Int    @default(30)
+  paymentTerms     Int     @default(30)
+  /// What those net days are counted from: RECEIPT_DATE · INVOICE_DATE ·
+  /// PERIOD_END · APPROVAL_DATE, the vocabulary of
+  /// `MasterAgreement.paymentTermsFrom`. Null = the order did not say,
+  /// and the agreement answers. Nullable and with no default on purpose:
+  /// a default here could not be told apart from a term somebody agreed,
+  /// which is the fault `lib/money/order-terms` documents on the line's
+  /// copies. Until this column the header carried the days and not what
+  /// they run from, so half of one term came from the order and half
+  /// from the line.
+  paymentTermsFrom String?
 
   // ── Approving the hours ────────────────────────────────────────────
 
@@ -1150,6 +1164,34 @@ model WorkOrder {
   /// rules, inherited by each line and overridable on one.
   documentRequirements  DocumentRequirement[]
 
+  // ── Where this order differs from the agreement ────────────────
+  //
+  // The agreement between the two parties sets the terms (founder,
+  // 2026-10-18, "Billing and paying follow the agreement between each
+  // pair"). A one-off deal may differ — another net, another rhythm —
+  // but only with the reason recorded, and who gave it and when, so the
+  // screen can say which document set each term and an audit two years
+  // later reads why. A difference with no reason is refused in a
+  // sentence by the route that writes it (money's cascade decides what
+  // "differs" means; this is only where the answer is kept).
+  //
+  // One reason for the order as a whole, not one per term: the terms
+  // that differ are read by comparing with the agreement, which is
+  // always exact, and the reason says why. Overwritten when the terms
+  // move again; what the order said before is not kept here.
+  //
+  // All three null = nothing differs, or nobody was asked yet. A reason
+  // without a person is not a recorded reason; the writer sets all three
+  // together.
+
+  /// Why this order's terms differ from the agreement, in words.
+  termsDifferReason String?
+  /// Who gave the reason.
+  termsDifferById   String?
+  termsDifferBy     Person?   @relation("orderTermsDifferBy", fields: [termsDifferById], references: [id])
+  /// When the reason was given.
+  termsDifferAt     DateTime?
+
   @@unique([issuedById, number])
   @@index([issuedToId, status])
   @@index([recordedById])
@@ -1158,6 +1200,7 @@ model WorkOrder {
   @@index([payerId])
   @@index([engagementId])
   @@index([msaId])
+  @@index([termsDifferById])
 }
 
 /// A payment that falls due on delivery rather than on a date.
@@ -2094,6 +2137,36 @@ model MasterAgreement {
   /// RECEIPT_DATE · INVOICE_DATE · PERIOD_END · APPROVAL_DATE
   paymentTermsFrom String @default("PERIOD_END")
 
+  // ── How often it is billed ─────────────────────────────────────────
+  //
+  // The billing rhythm the two firms agreed: how often a bill is raised,
+  // where its period starts, and what happens to a week that crosses a
+  // period's edge. Every bill and every payment between this pair
+  // follows it unless an order or a line differs with a reason recorded
+  // (founder, 2026-10-18). Before these columns the rhythm lived only on
+  // the order and the line, and the agreement carried none of it.
+  //
+  // The line's vocabulary, from `lib/periods`, so the header and line
+  // split `lib/money/order-terms` translates is not repeated here:
+  //
+  //   billFrequency  WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY
+  //   billAnchor     CALENDAR · CONTRACT
+  //   billStraddle   SPLIT · START · END
+  //
+  // Null = the agreement did not say. Never a schema default: a column
+  // that defaults to MONTHLY cannot tell "monthly was agreed" from
+  // "nobody asked", and a value that cannot say it did not say must not
+  // beat one somebody typed (CLAUDE.md, "Four of the six fields are the
+  // header's"). Money's cascade reads null as silence and asks the next
+  // document down.
+
+  /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY. Null = not said.
+  billFrequency String?
+  /// CALENDAR · CONTRACT. Null = not said.
+  billAnchor    String?
+  /// SPLIT · START · END. Null = not said.
+  billStraddle  String?
+
   currency     String    @default("USD")
   /// When it was fully executed — both sides signed. Null means work is
   /// running on a handshake, which is the ordinary state of this industry
@@ -2238,6 +2311,10 @@ model MasterAgreementVersion {
   // ── The terms, as they stood after this change ──
   paymentTerms        Int
   paymentTermsFrom    String
+  /// The billing rhythm as it stood, null where the agreement did not say.
+  billFrequency       String?
+  billAnchor          String?
+  billStraddle        String?
   currency            String
   minMarginPct        Int?
   capacity            Int?
@@ -3399,6 +3476,34 @@ model SellContract {
   startConfirmedAt   DateTime?
   startConfirmedById String?
 
+  // ── Where this line differs from the agreement ────────────────
+  //
+  // The agreement between the two parties sets the terms (founder,
+  // 2026-10-18, "Billing and paying follow the agreement between each
+  // pair"). A one-off deal may differ — another net, another rhythm —
+  // but only with the reason recorded, and who gave it and when, so the
+  // screen can say which document set each term and an audit two years
+  // later reads why. A difference with no reason is refused in a
+  // sentence by the route that writes it (money's cascade decides what
+  // "differs" means; this is only where the answer is kept).
+  //
+  // One reason for the line as a whole, not one per term: the terms
+  // that differ are read by comparing with the agreement, which is
+  // always exact, and the reason says why. Overwritten when the terms
+  // move again; what the line said before is not kept here.
+  //
+  // All three null = nothing differs, or nobody was asked yet. A reason
+  // without a person is not a recorded reason; the writer sets all three
+  // together.
+
+  /// Why this line's terms differ from the agreement, in words.
+  termsDifferReason String?
+  /// Who gave the reason.
+  termsDifferById   String?
+  termsDifferBy     Person?   @relation("sellTermsDifferBy", fields: [termsDifferById], references: [id])
+  /// When the reason was given.
+  termsDifferAt     DateTime?
+
   @@index([companyId, state])
   @@index([clientCompanyId])
   @@index([endClientCompanyId])
@@ -3417,6 +3522,7 @@ model SellContract {
   @@index([costCenterId])
   @@index([internalOrderId])
   @@index([projectOrderId])
+  @@index([termsDifferById])
 }
 
 enum SellContractState {
@@ -3670,6 +3776,34 @@ model BuyContract {
   projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
   vendorBills    VendorBill[]
 
+  // ── Where this line differs from the agreement ────────────────
+  //
+  // The agreement between the two parties sets the terms (founder,
+  // 2026-10-18, "Billing and paying follow the agreement between each
+  // pair"). A one-off deal may differ — another net, another rhythm —
+  // but only with the reason recorded, and who gave it and when, so the
+  // screen can say which document set each term and an audit two years
+  // later reads why. A difference with no reason is refused in a
+  // sentence by the route that writes it (money's cascade decides what
+  // "differs" means; this is only where the answer is kept).
+  //
+  // One reason for the line as a whole, not one per term: the terms
+  // that differ are read by comparing with the agreement, which is
+  // always exact, and the reason says why. Overwritten when the terms
+  // move again; what the line said before is not kept here.
+  //
+  // All three null = nothing differs, or nobody was asked yet. A reason
+  // without a person is not a recorded reason; the writer sets all three
+  // together.
+
+  /// Why this line's terms differ from the agreement, in words.
+  termsDifferReason String?
+  /// Who gave the reason.
+  termsDifferById   String?
+  termsDifferBy     Person?   @relation("buyTermsDifferBy", fields: [termsDifferById], references: [id])
+  /// When the reason was given.
+  termsDifferAt     DateTime?
+
   @@index([companyId, state])
   @@index([vendorCompanyId])
   @@index([endDate])
@@ -3680,6 +3814,7 @@ model BuyContract {
   @@index([projectOrderId])
   @@index([overtimeMethodById])
   @@index([cutOvertimeById])
+  @@index([termsDifferById])
 }
 
 // One person on a buy contract, at their own rate and dates.
@@ -8239,6 +8374,11 @@ model CensusRead {
 /// Which human role a twin acts in. One kind today, on purpose.
 enum TwinKind {
   PROGRAM_MANAGER
+  /// A supplier firm's twin — a staffing vendor, an integrator or a
+  /// one-person corporation. Acts for Accounts Receivable and AP &
+  /// Payroll: drafts the bill on the agreement's billing date, and asks a
+  /// person before anything leaves the firm. Added 2026-10-18.
+  SUPPLIER
 }
 
 /// Who wrote a ledger entry: the twin, a person deciding what it asked,

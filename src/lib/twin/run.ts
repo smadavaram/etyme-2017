@@ -58,6 +58,27 @@ export async function programManagerAt(companyId: string): Promise<Authority> {
     : { personId: null, role: `${PROGRAM_MANAGER_ROLE} (nobody seated)`, personName: null }
 }
 
+/**
+ * The roles the supplier's twin acts in (2026-10-18), first seated wins:
+ * Accounts Receivable bills the customer, and at a small firm Finance is
+ * that whole team. Falls back to the role and no person, the same way the
+ * program manager's does, never to a refusal.
+ */
+export const SUPPLIER_TWIN_ROLES = ['Accounts Receivable', 'Finance'] as const
+
+/** The person whose seat the supplier's twin acts under. */
+export async function supplierAuthorityAt(companyId: string): Promise<Authority> {
+  for (const role of SUPPLIER_TWIN_ROLES) {
+    const seat = await prisma.context.findFirst({
+      where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { name: role }, ...NOT_THE_SAMPLE_SEAT },
+      orderBy: { id: 'asc' },
+      select: { personId: true, person: { select: { name: true } } },
+    })
+    if (seat) return { personId: seat.personId, role, personName: seat.person.name }
+  }
+  return { personId: null, role: `${SUPPLIER_TWIN_ROLES[0]} (nobody seated)`, personName: null }
+}
+
 export interface RunSummary {
   companyId: string
   warnings: number
@@ -161,6 +182,27 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
 export async function programsToRun(take = 200): Promise<string[]> {
   const rows = await prisma.company.findMany({
     where: { kind: 'CLIENT', isCensusSandbox: false },
+    select: { id: true },
+    orderBy: { id: 'asc' },
+    take,
+  })
+  return rows.map((r) => r.id)
+}
+
+/**
+ * The supplier firms the supplier's twin reads (2026-10-18): staffing
+ * vendors, integrators and one-person corporations, real or the seeded
+ * world, never a census sandbox (a client's real rows held for a census)
+ * and never a visitor's own demo sandbox (`isDemo`), which nobody watches
+ * and which is removed after thirty days unused.
+ *
+ * Nothing calls this yet: the supplier's twin has no performer that does
+ * anything until money lands drafting the bill, and a nightly pass that
+ * only records refusals is noise in the ledger.
+ */
+export async function suppliersToRun(take = 500): Promise<string[]> {
+  const rows = await prisma.company.findMany({
+    where: { kind: { in: ['VENDOR', 'GSI', 'CONSULTANT_CORP'] }, isCensusSandbox: false, isDemo: false },
     select: { id: true },
     orderBy: { id: 'asc' },
     take,

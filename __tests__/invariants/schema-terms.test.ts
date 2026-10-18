@@ -305,3 +305,63 @@ describe('The contractor census — somewhere honest to put a client’s own row
     expect(schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]).toMatch(/sandboxCompanyId\s+String\?\s+@unique/)
   })
 })
+
+describe('Billing and paying follow the agreement between each pair (founder, 2026-10-18)', () => {
+  const RHYTHM = ['billFrequency', 'billAnchor', 'billStraddle'] as const
+
+  it('an agreement that said nothing about how often to bill reads as silent, not as monthly', () => {
+    // A default of MONTHLY could not tell "monthly was agreed" from
+    // "nobody asked", and a value that cannot say it did not say must not
+    // beat one somebody typed. So each is optional and has no default.
+    for (const name of RHYTHM) {
+      const f = field('MasterAgreement', name)
+      expect(f.type).toBe('String')
+      expect(f.isRequired, `MasterAgreement.${name} must be able to be silent`).toBe(false)
+      expect(f.default, `MasterAgreement.${name} must not default`).toBeUndefined()
+    }
+  })
+
+  it('what an agreement said about billing is kept with every amendment, so the rhythm on a past day can be read back', () => {
+    for (const name of RHYTHM) {
+      expect(field('MasterAgreementVersion', name).isRequired).toBe(false)
+    }
+  })
+
+  it('the agreement speaks the same words for its rhythm as the lines do, so nothing translates between them', () => {
+    // The order header speaks CONTRACT_START and TO_LATER where the lines
+    // speak CONTRACT and END, and lib/money/order-terms has to translate.
+    // The agreement is written in the lines' words from the start.
+    const body = schema.match(/model MasterAgreement \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY/)
+    expect(body).toMatch(/CALENDAR · CONTRACT\b/)
+    expect(body).toMatch(/SPLIT · START · END/)
+    expect(body).not.toMatch(/CONTRACT_START|TO_LATER|TO_EARLIER/)
+  })
+
+  it('an order can say what its net days run from, and an order that said nothing leaves it to the agreement', () => {
+    const f = field('WorkOrder', 'paymentTermsFrom')
+    expect(f.type).toBe('String')
+    expect(f.isRequired).toBe(false)
+    expect(f.default).toBeUndefined()
+  })
+
+  it('an order or a line that differs from its agreement keeps the reason, who gave it and when', () => {
+    for (const m of ['WorkOrder', 'SellContract', 'BuyContract']) {
+      expect(field(m, 'termsDifferReason').type).toBe('String')
+      expect(field(m, 'termsDifferById').type).toBe('String')
+      expect(field(m, 'termsDifferBy').type).toBe('Person')
+      expect(field(m, 'termsDifferAt').type).toBe('DateTime')
+      // Optional: a line that matches its agreement has nothing to explain.
+      for (const n of ['termsDifferReason', 'termsDifferById', 'termsDifferAt']) {
+        expect(field(m, n).isRequired, `${m}.${n}`).toBe(false)
+      }
+      const body = schema.match(new RegExp(`model ${m} \\{([\\s\\S]*?)^\\}`, 'm'))![1]
+      expect(body, `${m} indexes who gave the reason`).toMatch(/@@index\(\[termsDifferById\]\)/)
+    }
+  })
+
+  it('a supplier firm has a twin of its own beside the program manager’s', () => {
+    const kinds = Prisma.dmmf.datamodel.enums.find((e) => e.name === 'TwinKind')!.values.map((v) => v.name)
+    expect(kinds).toEqual(['PROGRAM_MANAGER', 'SUPPLIER'])
+  })
+})

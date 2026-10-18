@@ -1,6 +1,8 @@
 /**
- * What the program manager's twin may do: three tiers, as data, read by
- * rules and never by a model.
+ * What a twin may do: three tiers, as data, read by rules and never by a
+ * model. One contract per company per twin — the program manager's twin
+ * at a client, the supplier's twin at a firm that sells people
+ * (2026-10-18); an act that is not a twin's own is never on its contract.
  *
  * Decided by the founder, 2026-10-12 (CLAUDE.md, "The job twin"). A
  * company's role contract is the latest `RoleContract` row for it; with
@@ -26,12 +28,31 @@
  */
 
 import { prisma } from '@/lib/db'
-import { TWIN_ACTS, ALL_TWIN_ACTS, isTwinAct } from '@/lib/autonomy'
+import { TWIN_ACTS, isTwinAct, isActOf, twinActsFor, type TwinKindName } from '@/lib/autonomy'
 
 export type Tier = 'ACTS_ALONE' | 'NEEDS_APPROVAL' | 'NEVER'
-export type TwinKindName = 'PROGRAM_MANAGER'
+export type { TwinKindName }
+
+/**
+ * Which twin a company has, from what kind of company it is. A client
+ * (and an MSP running a client's program) has the program manager's
+ * twin; a firm that sells people — a staffing vendor, an integrator, a
+ * one-person corporation — has the supplier's twin (2026-10-18).
+ */
+export function twinKindFor(companyKind: string | null | undefined): TwinKindName {
+  return companyKind === 'VENDOR' || companyKind === 'GSI' || companyKind === 'CONSULTANT_CORP'
+    ? 'SUPPLIER'
+    : 'PROGRAM_MANAGER'
+}
+
+/** The twin's name in a sentence, lower case: "the program manager’s twin". */
+export function twinName(kind: TwinKindName = 'PROGRAM_MANAGER'): string {
+  return kind === 'SUPPLIER' ? 'the supplier\u2019s twin' : 'the program manager\u2019s twin'
+}
 
 export interface Contract {
+  /** Whose contract: an act that is not this twin's own is always NEVER. */
+  kind: TwinKindName
   /** 0 is the shipped default, which is not a row. */
   version: number
   /** The row, where there is one. */
@@ -41,25 +62,34 @@ export interface Contract {
   neverTouches: readonly string[]
 }
 
-/** The shipped default, from each act's own properties in lib/autonomy. */
-export const DEFAULT_CONTRACT: Contract = (() => {
+/**
+ * The shipped default for one twin, from each act's own properties in
+ * lib/autonomy. An act that is not this twin's own is listed under never,
+ * so the default says everything it means.
+ */
+export function defaultContractFor(kind: TwinKindName): Contract {
   const actsAlone: string[] = []
   const needsApproval: string[] = []
   const neverTouches: string[] = []
-  for (const name of ALL_TWIN_ACTS) {
+  for (const name of Object.keys(TWIN_ACTS).sort()) {
     const a = TWIN_ACTS[name]
-    if (a.floor) neverTouches.push(name)
+    if (a.floor || !isActOf(kind, name)) neverTouches.push(name)
     else if (a.money || a.external || !a.alone) needsApproval.push(name)
     else actsAlone.push(name)
   }
-  return { version: 0, id: null, actsAlone, needsApproval, neverTouches }
-})()
+  return { kind, version: 0, id: null, actsAlone, needsApproval, neverTouches }
+}
+
+/** The program manager's shipped default. */
+export const DEFAULT_CONTRACT: Contract = defaultContractFor('PROGRAM_MANAGER')
 
 /** The tier an act sits in on one contract. Unknown names are NEVER. */
 export function tierIn(contract: Contract, action: string): Tier {
   if (!isTwinAct(action)) return 'NEVER'
   // Floor first: no stored row, however written, moves one of these.
   if (TWIN_ACTS[action].floor) return 'NEVER'
+  // Another twin's act: a client's twin drafts no bill, whatever a row says.
+  if (!isActOf(contract.kind ?? 'PROGRAM_MANAGER', action)) return 'NEVER'
   if (contract.neverTouches.includes(action)) return 'NEVER'
   if (contract.needsApproval.includes(action)) return 'NEEDS_APPROVAL'
   if (contract.actsAlone.includes(action)) {
@@ -77,22 +107,30 @@ export function checkContract(c: {
   actsAlone: readonly string[]
   needsApproval: readonly string[]
   neverTouches: readonly string[]
-}): string[] {
+}, kind: TwinKindName = 'PROGRAM_MANAGER'): string[] {
   const out: string[] = []
   const all = [...c.actsAlone, ...c.needsApproval, ...c.neverTouches]
   const unknown = [...new Set(all.filter((a) => !isTwinAct(a)))]
   if (unknown.length) out.push(`The twin has no act called ${unknown.join(', ')}. Use the names the contract lists.`)
   const twice = [...new Set(all.filter((a, i) => all.indexOf(a) !== i))]
   if (twice.length) out.push(`${twice.join(', ')} ${twice.length === 1 ? 'is' : 'are'} in more than one tier. Put each act in one.`)
-  const missing = ALL_TWIN_ACTS.filter((a) => !all.includes(a))
+  // Every act of this twin's own needs a tier. Another twin's acts may
+  // be left out — they are never-tier here whatever is written — and may
+  // not be put anywhere else.
+  const missing = twinActsFor(kind).filter((a) => !all.includes(a))
   if (missing.length) out.push(`Every act needs a tier, and ${missing.join(', ')} ${missing.length === 1 ? 'has' : 'have'} none.`)
   for (const a of [...c.actsAlone, ...c.needsApproval]) {
+    if (isTwinAct(a) && !TWIN_ACTS[a].floor && !isActOf(kind, a)) {
+      const name = twinName(kind)
+      out.push(`${TWIN_ACTS[a].says.replace(/\.$/, '')} is not something ${name} does, so it stays under never.`)
+      continue
+    }
     if (isTwinAct(a) && TWIN_ACTS[a].floor) {
       out.push(`${TWIN_ACTS[a].says.replace(/\.$/, '')} stays with a person, whatever the contract says.`)
     }
   }
   for (const a of c.actsAlone) {
-    if (!isTwinAct(a) || TWIN_ACTS[a].floor) continue
+    if (!isTwinAct(a) || TWIN_ACTS[a].floor || !isActOf(kind, a)) continue
     const t = TWIN_ACTS[a]
     if (t.money) out.push(`${t.says.replace(/\.$/, '')} moves money, so a person approves it.`)
     else if (t.external) out.push(`${t.says.replace(/\.$/, '')} leaves the company, so a person approves it.`)
@@ -108,7 +146,7 @@ export async function contractFor(companyId: string, kind: TwinKindName = 'PROGR
     orderBy: { version: 'desc' },
     select: { id: true, version: true, actsAlone: true, needsApproval: true, neverTouches: true },
   })
-  return row ?? DEFAULT_CONTRACT
+  return row ? { kind, ...row } : defaultContractFor(kind)
 }
 
 /** The one door: which tier an act is in, for this company, today. */
@@ -130,10 +168,10 @@ export async function setContract(args: {
   neverTouches: string[]
 }): Promise<{ ok: true; version: number; id: string } | { ok: false; says: string[] }> {
   const reason = args.reason.trim()
-  const says = checkContract(args)
+  const kind = args.kind ?? 'PROGRAM_MANAGER'
+  const says = checkContract(args, kind)
   if (!reason) says.push('Say why the contract is changing. A change with no reason is the first thing an audit asks about.')
   if (says.length) return { ok: false, says }
-  const kind = args.kind ?? 'PROGRAM_MANAGER'
 
   const row = await prisma.$transaction(async (tx) => {
     const last = await tx.roleContract.findFirst({
@@ -154,7 +192,7 @@ export async function setContract(args: {
       data: {
         companyId: args.companyId,
         action: 'TWIN_ROLE_CONTRACT_SET',
-        summary: `The program manager’s twin is now on version ${version} of its role contract.`,
+        summary: `${cap(twinName(kind))} is now on version ${version} of its role contract.`,
         reason,
         payload: {
           roleContractId: created.id, version, byPersonId: args.personId,
@@ -168,4 +206,8 @@ export async function setContract(args: {
     return created
   })
   return { ok: true, version: row.version, id: row.id }
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

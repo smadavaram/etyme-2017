@@ -46,7 +46,7 @@ import { askTheDesk, hasAnyPermission, hasPermission, type Permission } from '@/
 import { twinRefusal, type TwinRefusalWhy } from '@/lib/refusal-words'
 import { logBulkAccess } from '@/lib/access-log'
 import type { CallerContext } from '@/lib/api-context'
-import { contractFor, tierIn, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
+import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
 import { PERFORMERS, type PerformContext } from '@/lib/twin/performers'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { feedLine } from '@/lib/twin/feed-words'
@@ -164,7 +164,7 @@ export async function requestApproval(
         data: {
           companyId: entry.companyId,
           action: 'TWIN_APPROVAL_REQUESTED',
-          summary: `The program manager’s twin asked a person: ${TWIN_ACTS[entry.action]?.says ?? entry.action}`,
+          summary: `${cap(twinName(entry.twinKind))} asked a person: ${TWIN_ACTS[entry.action]?.says ?? entry.action}`,
           reason: entry.ruleCited,
           payload: { twinActionId: row.id, approvalId: approval.id, twinAct: entry.action, entityType: entry.entityType, entityId: entry.entityId },
           // Nothing withdraws a question once asked; a person answers it.
@@ -324,7 +324,7 @@ export async function act(input: ActInput): Promise<ActResult> {
   const known = isTwinAct(input.action)
   const doing = known ? TWIN_ACTS[input.action].says : input.action
   const no = (why: TwinRefusalWhy, rule: string) =>
-    refuse(base, twinRefusal({ why, doing, authorityName: input.authority.personName }), rule)
+    refuse(base, twinRefusal({ why, doing, authorityName: input.authority.personName, twin: input.twin }), rule)
 
   if (input.dedupKey) {
     const seen = await prisma.twinAction.findFirst({
@@ -441,7 +441,7 @@ async function tellTheDesk(input: ActInput, needs: string, approvalId: string): 
     personId,
     companyId: input.companyId,
     type: 'SYSTEM' as const,
-    title: 'The program manager’s twin is asking you to decide',
+    title: `${cap(twinName(input.twin))} is asking you to decide`,
     body: `${TWIN_ACTS[input.action]?.says ?? input.action} ${input.rule} ${input.rationale}`.trim(),
     entityId: approvalId,
     data: { twinApprovalId: approvalId, href: '/dashboard' },
@@ -543,6 +543,7 @@ export async function decideApproval(args: {
     return refused(403, twinRefusal({
       why: 'OWN_AUTHORITY', doing: TWIN_ACTS[asked.action]?.says ?? asked.action,
       authorityName: args.decider.personId === asked.authorityPersonId ? asked.authorityPerson?.name : args.decider.personName,
+      twin: asked.twinKind,
     }), 'Segregation of duties: nobody signs their own')
   }
   if (!hasPermission(args.decider.permissions, approval.needsPermission as Permission)) {
@@ -587,7 +588,7 @@ export async function decideApproval(args: {
 
   // A yes. The contract may have tightened since the twin asked.
   if (tier === 'NEVER') {
-    return refused(422, twinRefusal({ why: 'NEVER', doing: TWIN_ACTS[asked.action]?.says ?? asked.action }), `Role contract v${contract.version}: never`)
+    return refused(422, twinRefusal({ why: 'NEVER', doing: TWIN_ACTS[asked.action]?.says ?? asked.action, twin: asked.twinKind }), `Role contract v${contract.version}: never`)
   }
   const performer = PERFORMERS[asked.action]
   if (!performer) return refused(422, 'This act cannot be done by the twin at all.', 'An act with no performer cannot be done')
@@ -875,7 +876,7 @@ export async function waitingQuestions(
         select: {
           action: true, entityType: true, entityId: true, ruleCited: true, rationale: true,
           onAuthorityOfRole: true, authorityPersonId: true, payload: true, companyId: true,
-          actorType: true, actorId: true,
+          actorType: true, actorId: true, twinKind: true,
           authorityPerson: { select: { name: true } },
         },
       },
@@ -885,12 +886,18 @@ export async function waitingQuestions(
   const names = await namesFor(visible.map((r) => r.twinAction))
   // The contract as it stands now: an act moved to Never since the twin
   // asked is refused on a yes, so no button is offered for it.
-  const contract = visible.length ? await contractFor(reader.company.id) : null
+  // One contract per twin the questions came from: a supplier's question
+  // read against the program manager's contract would read as never.
+  const contracts = new Map<TwinKindName, Contract>()
+  for (const kind of new Set(visible.map((r) => r.twinAction.twinKind))) {
+    contracts.set(kind, await contractFor(reader.company.id, kind))
+  }
   return visible.map((r) => {
     const a = r.twinAction
     const payload = (a.payload ?? {}) as Record<string, unknown>
     const holds = hasPermission(reader.permissions, r.needsPermission as Permission)
     const own = reader.person.id === a.authorityPersonId || reader.person.id === payload.requestedByPersonId
+    const contract = contracts.get(a.twinKind)
     const never = contract ? tierIn(contract, a.action) === 'NEVER' : false
     // The same order the answer is checked in (decideApproval): your own
     // first, then the desk; and a yes the contract now forbids, last.
@@ -899,7 +906,7 @@ export async function waitingQuestions(
       : !holds
         ? askTheDesk({ doing: 'Answering this question from the twin', needs: r.needsPermission as Permission, kind: reader.company!.kind, companyName: reader.company!.name })
         : never
-          ? `${twinRefusal({ why: 'NEVER', doing: TWIN_ACTS[a.action]?.says ?? a.action })} Change the role contract first if it should be asked again.`
+          ? `${twinRefusal({ why: 'NEVER', doing: TWIN_ACTS[a.action]?.says ?? a.action, twin: a.twinKind })} Change the role contract first if it should be asked again.`
           : null
     return {
       id: r.id, requestedAt: r.requestedAt, action: a.action,
@@ -913,4 +920,8 @@ export async function waitingQuestions(
       whyNot,
     }
   })
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

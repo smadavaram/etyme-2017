@@ -764,6 +764,7 @@ export const MATRIX: L1[] = [
             'Only the desk that owns prices may change payment days, the margin floor or the term, and the refusal says who to ask',
             'The nightly job marks an agreement running out or run out, rolls the ones whose own paper says they renew, and tells the contracting desk at ninety, sixty and thirty days and once when it has lapsed',
             'An agreement is the umbrella and nothing more — a client that sends one order and one contractor is never made to paper one first: `Engagement.msaId` is optional, no route invents an agreement, and an invoice says who it is between through the order and the lines billed on it',
+            'OWED 2026-10-18, founder (\u201cBilling and paying follow the agreement between each pair\u201d): the agreement now has columns for its billing rhythm \u2014 billFrequency, billAnchor, billStraddle, null where it did not say \u2014 and its amendment rows keep them; nothing here writes or reads them yet (L3.7.6.2)',
             'NOT YET: nothing records an agreement two firms actually negotiated. `api/clients`, `api/suppliers` and `api/supplier-requests/[id]` write an unsigned stub with thirty-day terms so a counterparty has a row, and `api/program/agreements` only reads, signs, amends and ends what is already there — so a term, payment days, a margin floor and the sub-vendor disclosure clause can be agreed at signing and typed in nowhere',
             'A screen says “agreement” or “MSA” and never prefixes it with “master” — that word belongs to the profitability roll-up, and two things that sound like one are two things nobody can tell apart'],
           implementedBy: [
@@ -2586,6 +2587,30 @@ export const MATRIX: L1[] = [
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/lib/agent-run.ts',
           ],
           testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts'] },
+        // Added 2026-10-18 by etyme-architect, on the founder's "Billing
+        // and paying follow the agreement between each pair". Step 1 of
+        // four: the frame and the schema. PARTIAL because the twin has
+        // no performer that does anything yet, and a row that said BUILT
+        // because the contract lists the acts would be the gap this
+        // matrix exists to catch.
+        { code: 'L3.7.6.2', name: 'The supplier\u2019s twin \u2014 the bill drafted on the agreement\u2019s date', owner: 'Accounts receivable', status: P,
+          tasks: [
+            'DONE 2026-10-18: A firm that sells people \u2014 a staffing vendor, an integrator, a one-person corporation \u2014 has a twin of its own, the supplier\u2019s, beside the client\u2019s program manager\u2019s; each company\u2019s role contract is its own twin\u2019s, and the contract editor reads the one the company has \u2014 TwinKind SUPPLIER in prisma/schema.prisma, twinKindFor in src/lib/twin/role-contract.ts, src/app/api/twin/role-contract/route.ts',
+            'DONE 2026-10-18: Drafting a bill from weeks the customer signed acts alone (it stays inside the firm and is put back by deleting the draft); sending it to the customer always waits for a yes from whoever issues bills (invoices.issue: Accounts Receivable, Finance, the owner), never from AP & Payroll, and never from the twin \u2014 bill.draft and bill.send in TWIN_ACTS, src/lib/autonomy.ts',
+            'DONE 2026-10-18: An act is a twin\u2019s own or never on its contract: a client\u2019s twin drafts no bill and a supplier\u2019s twin watches no client\u2019s time limit, whatever a stored contract says; the floor is the same on every twin; a program manager\u2019s contract saved before bills existed is still whole \u2014 src/lib/twin/role-contract.ts',
+            'DONE 2026-10-18: Refusals, questions and the automation log name the twin that acted \u2014 \u201cthe supplier\u2019s twin\u201d or \u201cthe program manager\u2019s twin\u201d \u2014 and a question waiting is read against its own twin\u2019s contract \u2014 src/lib/refusal-words.ts, src/lib/twin/ledger.ts',
+            'DONE 2026-10-18: Whose authority it acts on: the first Accounts Receivable seat, else Finance, else the role with nobody seated, never a refusal; which firms it reads: staffing vendors, integrators and one-person corporations, never a census sandbox or a visitor\u2019s own demo \u2014 supplierAuthorityAt and suppliersToRun in src/lib/twin/run.ts',
+            'DONE 2026-10-18: The agreement carries its own billing rhythm \u2014 how often, where the period starts, what a week crossing the edge does \u2014 in the lines\u2019 words, null where it did not say; the order says what its net days run from; an order or a line that differs from its agreement keeps the reason, who gave it and when \u2014 MasterAgreement.billFrequency/billAnchor/billStraddle, WorkOrder.paymentTermsFrom, termsDifferReason/termsDifferById/termsDifferAt on WorkOrder, SellContract and BuyContract, in prisma/schema.prisma',
+            'OWED BY etyme-money (step 2): one cascade, agreement first, read by billing, paying and the twin, refusing a difference with no reason in a sentence; the performers for bill.draft and bill.send, which until then refuse in a sentence and are ledgered (src/lib/twin/performers.ts); the nightly pass calling suppliersToRun',
+            'OWED BY etyme-conversation (step 3): a sent-back bill landing as a card on Accounts Receivable\u2019s Ask Etyme, and the words the twin is called by on the supplier\u2019s screens',
+            'OWED BY etyme-demand: the agreement routes write the three rhythm terms and the amendment trail records them (MasterAgreementVersion has the columns) \u2014 src/app/api/program/agreements/trail.ts, src/app/api/cron/agreement-terms/route.ts',
+          ],
+          implementedBy: [
+            'prisma/schema.prisma', 'src/lib/autonomy.ts', 'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts',
+            'src/lib/twin/performers.ts', 'src/lib/twin/run.ts', 'src/lib/refusal-words.ts',
+            'src/app/api/twin/role-contract/route.ts',
+          ],
+          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/schema-terms.test.ts'] },
       ]},
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
         // It had no implementedBy while it was NONE, on purpose, and the

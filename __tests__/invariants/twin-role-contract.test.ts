@@ -69,7 +69,7 @@ function table(name: string, t: () => Tables) {
 }
 function client(t: () => Tables): any {
   const c: any = {}
-  for (const n of ['roleContract', 'twinAction', 'twinApproval', 'automationLog', 'context', 'vendorBill', 'invoice']) c[n] = table(n, t)
+  for (const n of ['roleContract', 'twinAction', 'twinApproval', 'automationLog', 'context', 'vendorBill', 'invoice', 'company']) c[n] = table(n, t)
   c.$transaction = async (fn: (tx: any) => Promise<unknown>) => {
     const copy: Tables = JSON.parse(JSON.stringify(h.db.tables), (_k, v) =>
       typeof v === 'string' && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v) : v)
@@ -96,7 +96,9 @@ function fresh() {
 import { act, decideApproval, ledgerFeed } from '../../src/lib/twin/ledger'
 import { mayEditTwin } from '../../src/lib/twin/readers'
 import { rolesFor } from '../../src/lib/company-defaults'
-import { checkContract, tierIn, DEFAULT_CONTRACT } from '../../src/lib/twin/role-contract'
+import { checkContract, tierIn, DEFAULT_CONTRACT, defaultContractFor, twinKindFor } from '../../src/lib/twin/role-contract'
+import { TWIN_ACTS, ALL_TWIN_ACTS } from '../../src/lib/autonomy'
+import { suppliersToRun } from '../../src/lib/twin/run'
 
 const AP_CLERK = {
   personId: 'pat', personName: 'Pat Okafor', companyId: CLIENT, companyKind: 'CLIENT',
@@ -249,5 +251,102 @@ describe('the program manager’s twin is held to its role contract', () => {
     expect(mayEditTwin(role('Hiring Manager'))).toBe(false)
     expect(mayEditTwin(role('AP Clerk'))).toBe(false)
     expect(mayEditTwin([])).toBe(false)
+  })
+})
+
+describe('the supplier’s twin drafts the bill and asks before it goes out (founder, 2026-10-18)', () => {
+  const SUPPLIER = defaultContractFor('SUPPLIER')
+  const PINNACLE = 'pinnacle'
+  const AR = { personId: 'riya', role: 'Accounts Receivable', personName: 'Riya Shah' }
+
+  it('a firm that sells people has the supplier’s twin, and a client has the program manager’s', () => {
+    expect(twinKindFor('VENDOR')).toBe('SUPPLIER')
+    expect(twinKindFor('GSI')).toBe('SUPPLIER')
+    expect(twinKindFor('CONSULTANT_CORP')).toBe('SUPPLIER')
+    expect(twinKindFor('CLIENT')).toBe('PROGRAM_MANAGER')
+    expect(twinKindFor('MSP')).toBe('PROGRAM_MANAGER')
+  })
+
+  it('a supplier’s twin may draft a bill alone and may never send one without a yes', () => {
+    expect(tierIn(SUPPLIER, 'bill.draft')).toBe('ACTS_ALONE')
+    expect(tierIn(SUPPLIER, 'bill.send')).toBe('NEEDS_APPROVAL')
+    // Sending leaves the firm and asks to be paid, so no contract lets it go alone.
+    expect(TWIN_ACTS['bill.send']).toMatchObject({ money: true, external: true })
+    expect(checkContract({
+      actsAlone: [...SUPPLIER.actsAlone, 'bill.send'],
+      needsApproval: SUPPLIER.needsApproval.filter((a) => a !== 'bill.send'),
+      neverTouches: SUPPLIER.neverTouches,
+    }, 'SUPPLIER')).toContain('Send a drafted bill to the customer moves money, so a person approves it.')
+    expect(tierIn({ ...SUPPLIER, actsAlone: [...SUPPLIER.actsAlone, 'bill.send'], needsApproval: [] }, 'bill.send')).toBe('NEEDS_APPROVAL')
+    // A draft stays inside the firm and is put back by deleting it.
+    expect(TWIN_ACTS['bill.draft']).toMatchObject({ money: false, external: false, reversible: true, drafts: true })
+  })
+
+  it('the yes to send a bill comes from whoever issues bills, which is Accounts Receivable and not the team that pays', () => {
+    expect(TWIN_ACTS['bill.send'].approverNeeds).toBe('invoices.issue')
+    const role = (name: string) => rolesFor('VENDOR').find((r) => r.name === name)!.permissions as readonly string[]
+    expect(role('Accounts Receivable')).toContain('invoices.issue')
+    expect(role('AP & Payroll')).not.toContain('invoices.issue')
+  })
+
+  it('a client’s twin never drafts or sends a bill, whatever its contract says', () => {
+    expect(DEFAULT_CONTRACT.neverTouches).toEqual(expect.arrayContaining(['bill.draft', 'bill.send']))
+    expect(tierIn({ ...DEFAULT_CONTRACT, actsAlone: [...DEFAULT_CONTRACT.actsAlone, 'bill.draft'] }, 'bill.draft')).toBe('NEVER')
+    expect(checkContract({
+      actsAlone: [...DEFAULT_CONTRACT.actsAlone, 'bill.draft'],
+      needsApproval: DEFAULT_CONTRACT.needsApproval,
+      neverTouches: DEFAULT_CONTRACT.neverTouches.filter((a) => a !== 'bill.draft'),
+    })).toContain('Draft a bill to the customer from weeks the customer signed, on the agreement\u2019s billing date. It stays a draft inside the firm until Accounts Receivable sends it is not something the program manager\u2019s twin does, so it stays under never.')
+    // A program manager’s contract saved before bills existed is still a whole contract.
+    const before = (xs: readonly string[]) => xs.filter((a) => !a.startsWith('bill.'))
+    expect(checkContract({
+      actsAlone: before(DEFAULT_CONTRACT.actsAlone),
+      needsApproval: before(DEFAULT_CONTRACT.needsApproval),
+      neverTouches: before(DEFAULT_CONTRACT.neverTouches),
+    })).toEqual([])
+    // And the other way round: a supplier’s twin watches no client’s time limit.
+    expect(tierIn(SUPPLIER, 'tenure.warning.notify_program_owner')).toBe('NEVER')
+  })
+
+  it('what stays with a person stays with a person on every twin', () => {
+    const floor = ALL_TWIN_ACTS.filter((a) => TWIN_ACTS[a].floor)
+    expect(floor).toEqual(expect.arrayContaining(['payroll.release', 'agreement.sign', 'approval.decide', 'other_company.read']))
+    for (const contract of [DEFAULT_CONTRACT, SUPPLIER]) {
+      for (const a of floor) expect(tierIn(contract, a), `${contract.kind}: ${a}`).toBe('NEVER')
+    }
+  })
+
+  it('until drafting is built, a supplier’s twin asked to draft a bill says so in a sentence and writes the refusal down', async () => {
+    const r = await act({
+      companyId: PINNACLE, twin: 'SUPPLIER', action: 'bill.draft', entity: { type: 'SellContract', id: 'line-1' },
+      rule: 'The agreement bills monthly on the 1st.', rationale: 'Four weeks were signed by the customer.',
+      surface: 'CRON', authority: AR,
+    })
+    expect(r.outcome).toBe('REFUSED')
+    if (r.outcome !== 'REFUSED') return
+    expect(r.says).toBe('The supplier\u2019s twin cannot draft a bill yet. Accounts Receivable raises and sends bills from the Bills page until it can.')
+    expect(T().twinAction).toEqual([expect.objectContaining({ twinKind: 'SUPPLIER', action: 'bill.draft', outcome: 'REFUSED', onAuthorityOfRole: 'Accounts Receivable' })])
+    expect(T().invoice).toEqual([])
+  })
+
+  it('a supplier’s twin refusing work on another company’s record names itself, not the program manager', async () => {
+    const r = await act({
+      companyId: PINNACLE, twin: 'SUPPLIER', action: 'bill.draft', entity: { type: 'SellContract', id: 'line-1', partyCompanyIds: ['someone-else'] },
+      rule: 'r', rationale: 'r', surface: 'CRON', authority: AR,
+    })
+    expect(r).toMatchObject({ outcome: 'REFUSED', says: 'The supplier\u2019s twin works only on records its own company is a party to. This one belongs to another company, so it was not touched.' })
+  })
+
+  it('the supplier’s twin reads staffing firms, integrators and one-person corporations, and never a census or a visitor’s own demo', async () => {
+    T().company = [
+      { id: 'brightmoor', kind: 'VENDOR', isCensusSandbox: false, isDemo: false },
+      { id: 'teleworld', kind: 'GSI', isCensusSandbox: false, isDemo: false },
+      { id: 'nurse-llc', kind: 'CONSULTANT_CORP', isCensusSandbox: false, isDemo: false },
+      { id: 'northbend', kind: 'CLIENT', isCensusSandbox: false, isDemo: false },
+      { id: 'maren', kind: 'MSP', isCensusSandbox: false, isDemo: false },
+      { id: 'census-box', kind: 'VENDOR', isCensusSandbox: true, isDemo: false },
+      { id: 'visitor-box', kind: 'VENDOR', isCensusSandbox: false, isDemo: true },
+    ]
+    expect((await suppliersToRun()).sort()).toEqual(['brightmoor', 'nurse-llc', 'teleworld'])
   })
 })

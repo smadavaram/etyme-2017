@@ -216,7 +216,24 @@ const tellSupplier: Performer = {
 /** Recorded in the ledger and nowhere else: the entry is the act. */
 const ledgerOnly: Performer = {}
 
+// ── The supplier's bill, not built yet ────────────────────────────────
+//
+// `bill.draft` and `bill.send` are in the vocabulary and on the supplier's
+// twin's contract (2026-10-18), and their performers are money's: drafting
+// reads the agreement's billing date and the weeks signed above through
+// money's one cascade, and none of that arithmetic belongs here. Until
+// money lands them, each refuses in a sentence and the refusal is
+// ledgered, so a run that reaches one says plainly that nothing was done
+// rather than drafting a bill on a guessed date.
+const notYet = (doing: string): Performer => ({
+  async check() {
+    return `The supplier\u2019s twin cannot ${doing} yet. Accounts Receivable raises and sends bills from the Bills page until it can.`
+  },
+})
+
 export const PERFORMERS: Readonly<Record<string, Performer>> = {
+  'bill.draft': notYet('draft a bill'),
+  'bill.send': notYet('send a bill'),
   'tenure.warning.record': ledgerOnly,
   'invoice_receipt.record': ledgerOnly,
   'summary.draft': ledgerOnly,

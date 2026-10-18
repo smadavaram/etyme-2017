@@ -114,18 +114,21 @@ export function twinRefusal(args: {
   doing: string
   /** The person whose authority it acts on, where there is one. */
   authorityName?: string | null
+  /** Which twin. The program manager's unless said. */
+  twin?: 'PROGRAM_MANAGER' | 'SUPPLIER'
 }): string {
   const doing = args.doing.trim().replace(/\.$/, '')
   const lower = doing.charAt(0).toLowerCase() + doing.slice(1)
+  const twin = args.twin === 'SUPPLIER' ? 'The supplier\u2019s twin' : 'The program manager\u2019s twin'
   switch (args.why) {
     case 'NEVER':
-      return `The program manager’s twin may not ${lower}. Its role contract keeps that with a person, so it is on their list instead.`
+      return `${twin} may not ${lower}. Its role contract keeps that with a person, so it is on their list instead.`
     case 'UNKNOWN':
-      return `The program manager’s twin was asked to do something its role contract does not name (${doing}). Anything not named is refused.`
+      return `${twin} was asked to do something its role contract does not name (${doing}). Anything not named is refused.`
     case 'OTHER_COMPANY':
-      return 'The program manager’s twin works only on records its own company is a party to. This one belongs to another company, so it was not touched.'
+      return `${twin} works only on records its own company is a party to. This one belongs to another company, so it was not touched.`
     case 'OWN_DRAFT':
-      return 'The program manager’s twin asked for this itself, so it cannot be the one to approve it. The person who decides it does.'
+      return `${twin} asked for this itself, so it cannot be the one to approve it. The person who decides it does.`
     case 'OWN_AUTHORITY':
       return `${args.authorityName?.trim() || 'The person the twin acts for'} asked for this, and the twin acts on their authority, so neither may approve it. Somebody else who may decide it does.`
   }
