@@ -55,19 +55,21 @@ export function holdInvoice(a: {
 }
 
 /**
- * What the supplier reads when its invoice is held or let go: who, which
- * invoice, and why — never a silent stop, because a payment held for no
+ * What the supplier reads when its bill is held or let go: who, which
+ * bill, and why. The supplier issued the document, so to the supplier it
+ * is its bill (the party who issues a document names it); the payer's
+ * own sentence above calls the same document an invoice — never a silent stop, because a payment held for no
  * stated reason is the one a supplier chases by phone.
  */
 export function supplierToldSays(a: { payerName: string; number: string; to: 'HELD' | 'SUBMITTED'; reason: string | null }): { title: string; body: string } {
   if (a.to === 'HELD') {
     return {
-      title: `${a.payerName} put invoice ${a.number} on hold`,
-      body: `${a.payerName} put invoice ${a.number} on hold: ${a.reason}. Nothing is paid on it until they lift the hold.`,
+      title: `${a.payerName} put bill ${a.number} on hold`,
+      body: `${a.payerName} put bill ${a.number} on hold: ${a.reason}. Nothing is paid on it until they lift the hold.`,
     }
   }
   return {
-    title: `${a.payerName} lifted the hold on invoice ${a.number}`,
-    body: `${a.payerName} lifted the hold on invoice ${a.number}${a.reason ? `: ${a.reason}` : ''}. It can be paid once it clears the check.`,
+    title: `${a.payerName} lifted the hold on bill ${a.number}`,
+    body: `${a.payerName} lifted the hold on bill ${a.number}${a.reason ? `: ${a.reason}` : ''}. It can be paid once it clears the check.`,
   }
 }

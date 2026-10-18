@@ -361,7 +361,7 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
     })
     expect(r.outcome).toBe('REFUSED')
     if (r.outcome !== 'REFUSED') return
-    expect(r.says).toBe('The supplier\u2019s twin was not told which period to bill, so it drafted nothing.')
+    expect(r.says).toBe('Ask Etyme was not told which period to bill, so it drafted nothing.')
     expect(T().twinAction).toEqual([expect.objectContaining({ twinKind: 'SUPPLIER', action: 'bill.draft', outcome: 'REFUSED', onAuthorityOfRole: 'Accounts Receivable' })])
     expect(T().invoice).toEqual([])
   })

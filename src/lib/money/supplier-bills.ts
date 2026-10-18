@@ -38,9 +38,13 @@
  * unbilled weeks is asked about one bill per placement rather than seven.
  *
  * Sending is `bill.send`, which needs a yes from whoever issues bills
- * (`invoices.issue`: Accounts Receivable, Finance, the owner). The yes
- * runs the three-way check and sends exactly as the Submit button does
- * (`lib/money/bill-send`). The twin never gives that yes.
+ * (`invoices.issue`: Accounts Receivable, Finance, Admin). The twin acts
+ * on the Owner's authority, else the Admin's (`supplierAuthorityAt` in
+ * lib/twin/run), and that person never says yes to its question, because
+ * nobody signs their own. The yes runs the three-way check and sends
+ * exactly as the Submit button does (`lib/money/bill-send`). The twin
+ * never gives that yes. Where nobody but its authority may send bills,
+ * nobody is asked and the ledger says to send it from the Bills page.
  *
  * The performers here are wired into `PERFORMERS` in
  * `lib/twin/performers` by the architect; the nightly pass is
@@ -65,8 +69,11 @@ const A_DAY = 86_400_000
 /** "Sep 30, 2026", read in UTC, through the one formatter. */
 const plain = (d: Date): string => formatDay(d)
 
-/** The twin, as a bill's maker. */
-export const SUPPLIER_TWIN_NAME = 'the supplier’s twin'
+/**
+ * The twin, as a bill's maker, in the words the firm reads: Ask Etyme is
+ * the supplier's own assistant, so its drafts say so.
+ */
+export const SUPPLIER_TWIN_NAME = 'Ask Etyme'
 
 /** One bill the agreement says is due to be drafted. */
 export interface BillDue {
@@ -142,7 +149,7 @@ export async function billsDueAt(companyId: string, now: Date = new Date()): Pro
   const engagementsDone = new Set<string>()
 
   for (const line of lines) {
-    // One draft waiting per placement: AR answers it before the next.
+    // One draft waiting per placement: it is answered before the next.
     const waiting = await prisma.invoice.findFirst({
       where: { status: 'DRAFT', invoiceLines: { some: { sellContractId: line.id } } },
       select: { id: true },
@@ -282,7 +289,7 @@ async function companyOf(id: string) {
 export const billDraft: Performer = {
   async check(c) {
     const w = windowOf(c)
-    if (!w) return 'The supplier’s twin was not told which period to bill, so it drafted nothing.'
+    if (!w) return 'Ask Etyme was not told which period to bill, so it drafted nothing.'
     const company = await companyOf(c.companyId)
     if (!company) return 'That company is not on the record.'
     const dry = await generateBill(twinCaller(company, c.authorityPersonId), w, { dryRun: true })
@@ -306,7 +313,8 @@ export const billDraft: Performer = {
 }
 
 /**
- * `bill.send` — needs a yes from `invoices.issue`. The record is asked
+ * `bill.send` — needs a yes from `invoices.issue` (Accounts Receivable,
+ * Finance, Admin), never from the Owner or Admin the twin acts for. The record is asked
  * before a person is (a draft that fails the three-way check is not put
  * up for a yes), and again on the yes, and then the draft is raised and
  * submitted exactly as the Submit button does.
@@ -321,7 +329,7 @@ export const billSend: Performer = {
     const sent = await markSent(tx, {
       invoiceId: c.entity.id,
       companyId: c.companyId,
-      by: { personId: null, name: 'a yes to the supplier’s twin' },
+      by: { personId: null, name: 'a yes in Ask Etyme' },
     })
     return {
       invoiceId: sent.invoiceId, number: sent.number, total: sent.total, currency: sent.currency,

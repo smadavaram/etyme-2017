@@ -57,7 +57,7 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
     // Fire-and-forget, so give it a moment.
     const rows = told.length > 0 ? told : (await new Promise((r) => setTimeout(r, 300)), await prisma.notification.findMany({ where: { entityId: s.id, type: 'INVOICE' } }))
     expect(rows.length).toBeGreaterThan(0)
-    expect(rows[0].body).toBe(`Northbend Athletic put invoice ${s.number} on hold: Two days look like a training session. Nothing is paid on it until they lift the hold.`)
+    expect(rows[0].body).toBe(`Northbend Athletic put bill ${s.number} on hold: Two days look like a training session. Nothing is paid on it until they lift the hold.`)
   })
 
   it('a bill the client put on hold reaches the supplier’s Accounts Receivable in Ask Etyme as a card with the client’s reason and Open bill', async () => {
@@ -84,7 +84,7 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
     })
     // Said as the card, not again under "Since you last looked".
     const lines = (r.body.data.answer.more as Array<{ says: string }>).map((l) => l.says)
-    expect(lines).not.toContain(`Northbend Athletic put invoice ${s.number} on hold.`)
+    expect(lines).not.toContain(`Northbend Athletic put bill ${s.number} on hold.`)
   })
 
   it('once the hold is lifted it is submitted again and can be paid', async () => {

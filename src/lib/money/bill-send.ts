@@ -2,8 +2,10 @@
  * Sending a bill: through the three-way check, then to the customer.
  *
  * One door for the Submit button on a bill's page (`POST
- * /api/invoices/:id/submit`) and for the supplier's twin's `bill.send`,
- * which Accounts Receivable says yes to (2026-10-18). The twin drafts; a
+ * /api/invoices/:id/submit`) and for the supplier's twin's `bill.send`
+ * (2026-10-18). The twin acts on the Owner's authority, else the Admin's;
+ * whoever else issues bills — Accounts Receivable, Finance, Admin — says
+ * the yes, and the person it acts for never does. The twin drafts; a
  * person's yes sends; and what "send" does is this file, so a bill the
  * twin drafted and a bill raised on the Bills page reach the customer by
  * the same check and the same writes.

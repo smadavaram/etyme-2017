@@ -835,7 +835,7 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
 
     const hello = await today(
       readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }), heldBills: async () => held }),
-      { now: NOW, greeting: true, needs: async () => 0, notices: { shown: [{ id: 'n-hold', title: 'Northbend Athletic put invoice INV-0042 on hold', href: '/dashboard/invoices/inv-rosa' }], older: 0 } },
+      { now: NOW, greeting: true, needs: async () => 0, notices: { shown: [{ id: 'n-hold', title: 'Northbend Athletic put bill INV-0042 on hold', href: '/dashboard/invoices/inv-rosa' }], older: 0 } },
     )
     if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
     expect(hello.held).toEqual(held)

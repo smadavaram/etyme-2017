@@ -278,3 +278,67 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     expect(sent.submittedAt).not.toBeNull()
   })
 })
+
+describe('a draft nobody else may send is said once, not every night', () => {
+  // Halcyon Talent, as seeded: one seat, the Owner, who is also the
+  // person the supplier's twin acts for. Nobody else may send its bills.
+  const h: Record<string, any> = {}
+
+  beforeAll(async () => {
+    h.halcyon = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-halcyon' } })).id
+  })
+
+  const refusals = () => prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'REFUSED' } })
+
+  it('a one-person firm’s drafted bill is checked against its weeks and passes, and the twin asks nobody because only the owner it acts for may send it', async () => {
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    expect(run.drafted).toBe(1)
+    expect(run.asked).toBe(0)
+    expect(run.outcomes.REFUSED).toBe(1)
+    const refused = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'REFUSED' } })
+    // Refused for want of another person to say yes, not because the
+    // draft failed the three-way check: the record was asked first and said yes.
+    expect(refused.ruleCited).toBe('Segregation of duties: nobody signs their own, and nobody else may')
+    expect(String((refused.payload as Record<string, unknown>).said)).toContain('Send it from the Bills page.')
+    h.draftId = refused.entityId
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).status).toBe('DRAFT')
+  })
+
+  it('the next night, with nothing changed, the twin neither drafts again nor writes the same refusal again', async () => {
+    const drafts = await prisma.invoice.count({ where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } } })
+    const before = await refusals()
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    expect(run.drafted).toBe(0)
+    expect(run.outcomes.REFUSED).toBe(0)
+    expect(run.unchanged).toBe(1)
+    expect(await refusals()).toBe(before)
+    expect(await prisma.invoice.count({ where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } } })).toBe(drafts)
+  })
+
+  it('once somebody who sends bills is seated at the firm, the next night asks them about the same draft', async () => {
+    const role = await prisma.role.create({ data: { companyId: h.halcyon, name: 'Accounts Receivable', permissions: ['invoices.issue', 'invoices.read'] } })
+    const person = await prisma.person.create({ data: { name: 'Ines Halloran', primaryEmail: 'ines.halloran@halcyon.example' } })
+    await prisma.context.create({ data: { personId: person.id, companyId: h.halcyon, type: 'EMPLOYEE', roleId: role.id } })
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    expect(run.asked).toBe(1)
+    expect(run.unchanged).toBe(0)
+    const asked = await prisma.twinAction.findFirstOrThrow({
+      where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL', entityId: h.draftId },
+      include: { approvalRequested: true },
+    })
+    expect(asked.approvalRequested?.needsPermission).toBe('invoices.issue')
+    // And a night after that, the question waits: nothing new is written.
+    const rows = await prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })
+    const again = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    expect(again.asked).toBe(0)
+    expect(await prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })).toBe(rows)
+  })
+
+  it('a bill the twin drafted says Ask Etyme drafted it, in the words the firm reads', async () => {
+    const drafted = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.draft', outcome: 'PERFORMED' } })
+    expect(drafted.twinKind).toBe('SUPPLIER')
+    const asked = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL' } })
+    expect(asked.rationale).toContain('Drafted by Ask Etyme')
+    expect(asked.rationale).not.toContain('twin')
+  })
+})

@@ -38,9 +38,17 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
     expect(holdInvoice({ ...base, status: 'SUBMITTED', release: true })).toMatchObject({ ok: false, code: 'NOT_HELD' })
   })
 
-  it('the supplier is told who held it and why, and that nothing is paid until the hold is lifted', () => {
+  it('the supplier is told who held its bill and why, and that nothing is paid until the hold is lifted', () => {
     const t = supplierToldSays({ payerName: 'Northbend Athletic', number: 'IN-1', to: 'HELD', reason: 'Two days look like training' })
-    expect(t.title).toBe('Northbend Athletic put invoice IN-1 on hold')
-    expect(t.body).toBe('Northbend Athletic put invoice IN-1 on hold: Two days look like training. Nothing is paid on it until they lift the hold.')
+    expect(t.title).toBe('Northbend Athletic put bill IN-1 on hold')
+    expect(t.body).toBe('Northbend Athletic put bill IN-1 on hold: Two days look like training. Nothing is paid on it until they lift the hold.')
+  })
+
+  it('the supplier reads the held document as its own bill, because the supplier issued it, and the lifted hold the same way', () => {
+    const lifted = supplierToldSays({ payerName: 'Northbend Athletic', number: 'IN-1', to: 'SUBMITTED', reason: 'Supplier confirmed the days' })
+    expect(lifted.title).toBe('Northbend Athletic lifted the hold on bill IN-1')
+    expect(lifted.body).toBe('Northbend Athletic lifted the hold on bill IN-1: Supplier confirmed the days. It can be paid once it clears the check.')
+    const held = supplierToldSays({ payerName: 'Northbend Athletic', number: 'IN-1', to: 'HELD', reason: 'x' })
+    expect(`${held.title} ${held.body} ${lifted.title} ${lifted.body}`).not.toMatch(/invoice/i)
   })
 })
