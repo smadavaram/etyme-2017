@@ -11,7 +11,8 @@ import { formatDay, formatRange } from '@/lib/format-date'
 import { deskOf } from '@/components/shell/sidebar-props'
 import {
   SUGGESTED_QUESTIONS, FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays,
-  type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
+  billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
+  type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
 } from '@/app/api/conversations/twin/ask'
 
 /**
@@ -43,7 +44,7 @@ type Turn =
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
 /** What happened to a card: answered (with the words), kept waiting, or refused by the route. */
-type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER' } | { state: 'ERROR'; text: string }
+type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER'; number?: string } | { state: 'ERROR'; text: string }
 type Cards = Record<string, CardState>
 
 type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null) => void
@@ -127,13 +128,17 @@ export function AskEtyme() {
         setCards((c) => ({ ...c, [item.approvalId]: { state: 'ERROR', text: body?.error?.message ?? statusMeans(res.status) } }))
         return
       }
-      setCards((c) => ({ ...c, [item.approvalId]: { state: decision } }))
+      // A sent bill's number is the one markSent gave it, read back from the route.
+      const number: string | undefined = typeof body?.data?.result?.number === 'string' ? body.data.result.number : undefined
+      setCards((c) => ({ ...c, [item.approvalId]: { state: decision, ...(number ? { number } : {}) } }))
       const entry: string | null = typeof body?.data?.ledgerEntryId === 'string' ? body.data.ledgerEntryId : null
       add({
         from: 'etyme',
         answer: {
           kind: 'TEXT',
-          says: `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
+          says: item.bill
+            ? `${decision === 'APPROVED' ? billSentSays(item.bill, number) : billKeptSays(item.bill)} Recorded under your name.`
+            : `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
           links: [
             { label: `Open ${item.title}`, href: item.href },
             ...(entry ? [{ label: 'See it in the ledger', href: entryHref(entry) }] : []),
@@ -359,6 +364,11 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater }: 
               ))}
             </ol>
           )}
+          {(answer.held ?? []).length > 0 && (
+            <ol className="mt-2 flex flex-col gap-2">
+              {answer.held!.map((h) => <HeldCard key={h.invoiceId} held={h} />)}
+            </ol>
+          )}
           {(answer.more ?? []).map((line, i) => <p key={`${i}:${line.says}`} className="mt-2.5"><Rich line={line} /></p>)}
           <Links links={answer.links} />
         </>
@@ -442,6 +452,8 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
 
+  if (item.bill) return <BillCard item={item} card={card} busy={busy} onDecide={onDecide} />
+
   const done = card && card.state !== 'ERROR'
   return (
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
@@ -487,6 +499,80 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
         </div>
       )}
       {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
+    </li>
+  )
+}
+
+/**
+ * A bill Ask Etyme drafted, waiting for whoever sends bills. Send bill is
+ * the yes, through the one approval route, and sends it exactly as the
+ * Bills page's Submit does; Edit opens the draft on its own page; Not now
+ * is a no, with a reason if the person gives one. A yes the three-way
+ * check refuses shows the check's sentence and the card stays.
+ */
+function BillCard({ item, card, busy, onDecide }: { item: WaitingItem; card?: CardState; busy: boolean; onDecide: Decide }) {
+  const [notNow, setNotNow] = useState(false)
+  const [reason, setReason] = useState('')
+  const b = item.bill!
+  const rows = billRows(b)
+  const done = card && card.state !== 'ERROR'
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{billCardTitle(b)}</p>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px] tabular-nums">
+        {rows.map((r, i) => (
+          <div key={`${i}:${r.label}`} className="contents">
+            <dt className="text-etyme-muted">{r.label}</dt>
+            <dd className={r.label === 'Left off' ? 'text-etyme-attention' : ''}>{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {done ? (
+        <p className="mt-2.5">
+          <span className={`chip ${card.state === 'APPROVED' ? 'chip--verified' : 'chip--passive'}`}>
+            {card.state === 'APPROVED' ? 'Sent' : 'Not sent'}
+          </span>
+          <span className="ml-2 text-[12.5px] text-etyme-muted">
+            {card.state === 'APPROVED' ? billSentSays(b, card.number) : billKeptSays(b)}
+          </span>
+          <span className="ml-2 text-[12.5px]"><Link href={item.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">Open bill</Link></span>
+        </p>
+      ) : notNow ? (
+        <form
+          className="mt-3 flex flex-col gap-2"
+          onSubmit={(e) => { e.preventDefault(); onDecide(item, 'REJECTED', reason.trim() || NOT_NOW_REASON) }}
+        >
+          <label htmlFor={`not-now-${item.approvalId}`} className="text-[12.5px] text-etyme-muted">Why not now? Optional. The bill stays a draft, and your answer is recorded under your name.</label>
+          <Textarea id={`not-now-${item.approvalId}`} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="btn-secondary text-[13px]" disabled={busy}>{busy ? 'Recording…' : 'Keep it as a draft'}</button>
+            <button type="button" className="btn-secondary text-[13px]" onClick={() => setNotNow(false)}>Back</button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => onDecide(item, 'APPROVED', null)}>
+            {busy ? 'Sending…' : 'Send bill'}
+          </button>
+          <Link href={item.href as Route} className="btn-secondary text-[13px]">Edit</Link>
+          <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => setNotNow(true)}>Not now</button>
+        </div>
+      )}
+      {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
+    </li>
+  )
+}
+
+/** A bill the firm paying it put on hold: who, which bill, their reason, and the bill itself one tap away. */
+function HeldCard({ held }: { held: HeldBill }) {
+  return (
+    <li className="rounded-[12px] border border-etyme-attention-line bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{heldBillTitle(held)}</p>
+      <p className="mt-0.5 text-[13px]">{heldBillSays(held)}</p>
+      {held.heldOn && <p className="mt-0.5 text-[12.5px] text-etyme-muted">On hold since {formatDay(held.heldOn)}.</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link href={held.href as Route} className="btn-primary text-[13px]">Open bill</Link>
+      </div>
     </li>
   )
 }

@@ -354,7 +354,20 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 - **The model is `claude-haiku-4-5`**, one constant (`SMALL_MODEL`),
   the smallest model this deployment prices in `lib/agent-run`.
 - **"Not now" changes nothing and is not recorded.** The question stays
-  waiting and comes back with "What needs me today?".
+  waiting and comes back with "What needs me today?". **Except on a
+  drafted bill (2026-10-18):** there "Not now" is a recorded no, with
+  the person's reason or, where they give none, a sentence saying so,
+  because the nightly run asks about a draft once and a no that is not
+  recorded would ask again every night. The draft stays on the Bills page.
+- **The bill card and the hold card are web only.** The Teams door
+  carries invoice receipts and the time limit and nothing else; it does
+  not render the twin's questions generically, so a `bill.send` question
+  never reaches Teams, and the supplier's twin's nightly pass sends no
+  Teams digest at all. Carrying it is a third list in `lib/teams/digest`
+  and a call from the supplier half of `cron/twin` (architect's).
+- **A hold on a bill is a card for whoever sends bills
+  (`invoices.issue`), not a number on the badge.** The badge is the
+  decisions queue's count (etyme-demand); a held bill is not in it.
 - **"Ask Pinnacle for a corrected invoice" from the prototype is not
   built.** The twin has no act that sends a supplier a message about a
   receipt, and the approval route accepts none, so no card for it is

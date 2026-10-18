@@ -31,7 +31,8 @@ import { fromPrismaDecimal } from '@/lib/money'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
-  matchPerson,
+  matchPerson, billFromPayload, billItemTitle, BILL_SEND,
+  type HeldBill,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
 
@@ -176,7 +177,11 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       return mine.map((r, i) => {
         const a = r.twinAction
         const p = asRecord(a.payload)
-        const title = a.entityType === 'Invoice'
+        // A drafted bill to send is this firm's own bill, never an invoice
+        // receipt: the card reads it from the question's own payload.
+        const bill = a.action === BILL_SEND ? billFromPayload(p) : null
+        const title = bill ? billItemTitle(bill)
+          : a.entityType === 'Invoice'
           ? `${typeof p.number === 'string' ? p.number : 'Invoice receipt'}${typeof p.supplierName === 'string' ? ` from ${p.supplierName}` : ''}`
           : typeof p.title === 'string' ? p.title : names.get(a.entityId) ?? a.entityType
         return {
@@ -189,6 +194,66 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           rationale: a.rationale,
           href: hrefFor(a.entityType, a.entityId, a.id),
           action: a.action,
+          ...(bill ? { bill } : {}),
+        }
+      })
+    },
+
+    async heldBills(): Promise<HeldBill[]> {
+      // The people who send bills answer a hold on one; nobody else at the
+      // firm is handed a card for it.
+      const company = caller.company
+      if (!ownCompany || !company || !hasPermission(caller.permissions, 'invoices.issue')) return []
+      const rows = await prisma.invoice.findMany({
+        where: { AND: [invoiceBetween(company.id), { status: 'HELD' }] },
+        orderBy: { dueAt: 'asc' },
+        take: 20,
+        select: {
+          id: true, number: true,
+          engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
+          workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+          invoiceLines: {
+            take: 5,
+            select: { sellContract: { select: { companyId: true, clientCompanyId: true, company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } } } } },
+          },
+        },
+      })
+      const ours = rows
+        .map((r) => ({
+          r,
+          parties: partiesOf({
+            agreement: r.engagement?.msa ?? null,
+            order: r.workOrder ?? null,
+            lines: r.invoiceLines.map((l) => l.sellContract).filter((x): x is NonNullable<typeof x> => !!x),
+          }),
+        }))
+        // Only what this firm billed: a receipt it holds itself is its own decision, not a card.
+        .filter((x) => directionFrom(x.parties, company.id) === 'RECEIVABLE' && !!x.parties.client)
+      if (ours.length === 0) return []
+      // The hold itself: the payer's own trail row, written by the hold
+      // route with the reason the supplier was told. Read, never written.
+      const holds = await prisma.automationLog.findMany({
+        where: { action: 'INVOICE_HELD', OR: ours.map((x) => ({ payload: { path: ['invoiceId'], equals: x.r.id } })) },
+        orderBy: { at: 'desc' },
+        take: 100,
+        select: { at: true, payload: true },
+      })
+      const latest = new Map<string, { at: Date; reason: string | null }>()
+      for (const h of holds) {
+        const p = asRecord(h.payload)
+        const id = typeof p.invoiceId === 'string' ? p.invoiceId : null
+        if (!id || latest.has(id)) continue
+        latest.set(id, { at: h.at, reason: typeof p.reason === 'string' && p.reason.trim() ? p.reason.trim() : null })
+      }
+      return ours.map(({ r, parties }) => {
+        const hold = latest.get(r.id)
+        return {
+          invoiceId: r.id,
+          number: r.number,
+          payerName: parties.client?.name ?? 'The customer',
+          reason: hold?.reason ?? null,
+          heldOn: hold ? hold.at.toISOString().slice(0, 10) : null,
+          href: hrefFor('Invoice', r.id),
         }
       })
     },
@@ -202,8 +267,10 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         .map((q) => {
           const own = q.whyNot?.startsWith('The twin asked this on your authority') ?? false
           return {
-            title: q.label ?? (q.entityType === 'Invoice' ? 'An invoice receipt' : TWIN_ACTS[q.action]?.says ?? 'A question'),
-            noun: q.entityType === 'Invoice' ? 'invoice receipt' : 'question',
+            // A bill this firm drafted to send upward is a bill; only what a
+            // supplier sent in is an invoice receipt.
+            title: q.label ?? (q.action === BILL_SEND ? 'A drafted bill' : q.entityType === 'Invoice' ? 'An invoice receipt' : TWIN_ACTS[q.action]?.says ?? 'A question'),
+            noun: q.action === BILL_SEND ? 'bill' : q.entityType === 'Invoice' ? 'invoice receipt' : 'question',
             desks: desksHolding(q.needsPermission as Permission, caller.company!.kind),
             own,
             href: hrefFor(q.entityType, q.entityId),

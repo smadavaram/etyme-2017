@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as hold } from '@/app/api/invoices/[id]/hold/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
+import { GET as greet } from '@/app/api/conversations/twin/route'
 
 /**
  * Northbend Athletic's AP clerk holds a supplier's invoice with a reason,
@@ -57,6 +58,33 @@ describe('an invoice receipt held with a reason cannot be paid until the hold is
     const rows = told.length > 0 ? told : (await new Promise((r) => setTimeout(r, 300)), await prisma.notification.findMany({ where: { entityId: s.id, type: 'INVOICE' } }))
     expect(rows.length).toBeGreaterThan(0)
     expect(rows[0].body).toBe(`Northbend Athletic put invoice ${s.number} on hold: Two days look like a training session. Nothing is paid on it until they lift the hold.`)
+  })
+
+  it('a bill the client put on hold reaches the supplier’s Accounts Receivable in Ask Etyme as a card with the client’s reason and Open bill', async () => {
+    // The firm that sent it, and a seat there that sends bills and is not the owner.
+    const inv = await prisma.invoice.findUniqueOrThrow({
+      where: { id: s.id },
+      select: { engagement: { select: { msa: { select: { vendorId: true } } } }, workOrder: { select: { issuedToId: true } } },
+    })
+    const vendorId = inv.engagement?.msa?.vendorId ?? inv.workOrder?.issuedToId
+    expect(vendorId).toBeTruthy()
+    const seats = await prisma.context.findMany({
+      where: { companyId: vendorId!, type: 'EMPLOYEE', revokedAt: null, role: { permissions: { hasSome: ['invoices.issue', '*'] } } },
+      select: { person: { select: { primaryEmail: true } }, role: { select: { permissions: true } } },
+    })
+    // Accounts Receivable or Finance where the firm seats one; the owner of a one-seat firm otherwise.
+    seats.sort((a, b) => Number(a.role!.permissions.includes('*')) - Number(b.role!.permissions.includes('*')))
+    expect(seats.length, 'a seat at the supplier that sends bills').toBeGreaterThan(0)
+    as(seats[0].person.primaryEmail)
+    const r = await json(await greet(req('GET', '/api/conversations/twin')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const held = r.body.data.answer.held as Array<Record<string, unknown>>
+    expect(held.find((h) => h.invoiceId === s.id)).toMatchObject({
+      number: s.number, payerName: 'Northbend Athletic', reason: 'Two days look like a training session', href: `/dashboard/invoices/${s.id}`,
+    })
+    // Said as the card, not again under "Since you last looked".
+    const lines = (r.body.data.answer.more as Array<{ says: string }>).map((l) => l.says)
+    expect(lines).not.toContain(`Northbend Athletic put invoice ${s.number} on hold.`)
   })
 
   it('once the hold is lifted it is submitted again and can be paid', async () => {

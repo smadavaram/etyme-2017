@@ -19,6 +19,7 @@ import { join } from 'node:path'
 // database. Nothing in Ask Etyme's own answering touches either.
 const stored: Array<{ maskedPrompt: string; maskedAnswer: string; model: string; purpose: string }> = []
 const noticeCalls: Array<{ op: string; args: any }> = []
+const BILL_DB: { approvals: any[]; invoices: any[]; holds: any[] } = { approvals: [], invoices: [], holds: [] }
 const UNREAD = [
   { id: 'n-1', type: 'TIMESHEET', title: 'Helena Marsh filed her week', entityId: null, data: null },
   { id: 'n-2', type: 'SYSTEM', title: 'Priya joined Northbend Athletic', entityId: null, data: { href: '/dashboard/settings/users' } },
@@ -30,6 +31,11 @@ vi.mock('@/lib/db', () => ({
       count: vi.fn(async (args: any) => { noticeCalls.push({ op: 'count', args }); return 7 }),
       updateMany: vi.fn(async (args: any) => { noticeCalls.push({ op: 'updateMany', args }); return { count: args.where.id.in.length } }),
     },
+    // The supplier's bill (2026-10-18): the questions waiting, the bills
+    // the firm sent, and the hold rows, each set by the test that reads it.
+    twinApproval: { findMany: vi.fn(async () => BILL_DB.approvals) },
+    invoice: { findMany: vi.fn(async () => BILL_DB.invoices) },
+    automationLog: { findMany: vi.fn(async () => BILL_DB.holds) },
     modelPrompt: { create: vi.fn(async ({ data }: { data: { maskedPrompt: string; maskedAnswer: string; model: string; purpose: string } }) => { stored.push(data); return { id: `mp-${stored.length}` } }) },
   },
 }))
@@ -41,6 +47,7 @@ import { newMasker } from '@/app/api/conversations/twin/mask'
 import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
+  billCardTitle, billRows, billFromPayload, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
@@ -606,7 +613,12 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     const hello = await today(readers(), { now: NOW, greeting: true, needs: async () => 5 })
     expect(hello.kind === 'NEEDS' && hello.says).toBe(
       'Five things need you; the most urgent is first under Needs attention. ' +
-      'Etyme is also asking you one thing; approve it below, or reject it with a reason. Checked just now.')
+      'One of them is a question from Etyme; approve it below, or reject it with a reason. Checked just now.')
+    // A queue that could not have counted them (fewer than Etyme asks) says them as also.
+    const short = await today(readers({ waiting: async () => [WAITING[0], { ...WAITING[0], n: 2, approvalId: 'appr-2' }] }), { now: NOW, greeting: true, needs: async () => 1 })
+    expect(short.kind === 'NEEDS' && short.says).toMatch(/Etyme is also asking you two things;/)
+    const two = await today(readers({ waiting: async () => [WAITING[0], { ...WAITING[0], n: 2, approvalId: 'appr-2' }] }), { now: NOW, greeting: true, needs: async () => 4 })
+    expect(two.kind === 'NEEDS' && two.says).toMatch(/Four things need you; .* Two of them are questions from Etyme; approve each below/)
     expect(hello.kind === 'NEEDS' && hello.saysLinks).toEqual([{ text: 'Needs attention', href: DECISIONS_HREF }])
     const one = await today(readers({ waiting: async () => [] }), { now: NOW, greeting: true, needs: async () => 1 })
     expect(one.kind === 'NEEDS' && one.says).toBe('One thing needs you; the most urgent is first under Needs attention. Checked just now.')
@@ -685,5 +697,150 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     // And the one write is the notice's own read mark, nothing else.
     const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/notices.ts'), 'utf8')
     expect([...src.matchAll(/prisma\.(\w+)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/g)].map((m) => `${m[1]}.${m[2]}`)).toEqual(['notification.updateMany'])
+  })
+})
+
+describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer put on hold', () => {
+  // Brightmoor Staffing's March bill to Northbend Athletic for Rosa
+  // Delgado, as the nightly run puts the question (`cardPayload` in
+  // lib/money/supplier-bills): 80 hours at $112.00, two signed weeks.
+  const ROSA_BILL = {
+    customerName: 'Northbend Athletic',
+    period: { start: '2026-03-01', end: '2026-03-31', label: 'March 2026' },
+    hours: 80,
+    totalMinor: 896000,
+    currency: 'USD',
+    people: [{ personName: 'Rosa Delgado', hours: 80, amountMinor: 896000 }],
+    builtFrom: { timesheetIds: ['ts-a', 'ts-b'], weeks: 2, expenses: 0, milestones: 0 },
+    dueSays: 'Due May 1, 2026: net 30 from the bill date, as your agreement with Northbend Athletic says.',
+    heldBack: null,
+    setAside: [],
+    invoiceId: 'inv-rosa',
+    invoiceNumber: 'INV-0042',
+  }
+  const askedRow = (over: Record<string, unknown> = {}) => ({
+    id: 'appr-bill', needsPermission: 'invoices.issue',
+    twinAction: {
+      id: 'entry-bill', action: 'bill.send', entityType: 'Invoice', entityId: 'inv-rosa',
+      ruleCited: 'Billed monthly, from your agreement with Northbend Athletic. March 2026 ended on Mar 31, 2026, so its bill is due from Apr 1, 2026.',
+      rationale: 'Bill INV-0042 to Northbend Athletic for March 2026 is drafted: $8,960.00, 80 hours. Send it?',
+      authorityPersonId: 'p-owner',
+      payload: { ...ROSA_BILL, engagementId: 'eng-1', sellContractId: 'sc-rosa' },
+      ...over,
+    },
+  })
+  const seat = (id: string, permissions: string[]) => ({
+    person: { id, name: id }, company: { id: 'c-brightmoor', name: 'Brightmoor Staffing', kind: 'VENDOR' }, permissions,
+  }) as any
+  const AR = ['invoices.read', 'invoices.issue', 'payments.record']
+  const OWNER = ['*']
+  const AP_PAYROLL = ['invoices.read', 'payments.record', 'timesheets.approve']
+
+  it('Accounts Receivable sees the bill Ask Etyme drafted as a card with the customer, period, hours, amount, each person, the signed weeks and the due line', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    BILL_DB.approvals = [askedRow()]
+    const items = await readersFor(seat('p-ar', AR), 'c-brightmoor').waiting()
+    expect(items).toHaveLength(1)
+    const [item] = items
+    expect(item.action).toBe('bill.send')
+    expect(item.title).toBe('INV-0042 to Northbend Athletic')
+    expect(item.href).toBe('/dashboard/invoices/inv-rosa')
+    expect(item.bill).toEqual(ROSA_BILL)
+
+    expect(billCardTitle(item.bill!)).toBe('Bill ready to send — Northbend Athletic, March 2026')
+    expect(billRows(item.bill!)).toEqual([
+      { label: 'Hours', value: '80' },
+      { label: 'Amount', value: '$8,960.00' },
+      { label: 'Person', value: 'Rosa Delgado · 80 hours · $8,960.00' },
+      { label: 'Built from', value: '2 signed weeks' },
+      { label: 'Due', value: 'May 1, 2026: net 30 from the bill date, as your agreement with Northbend Athletic says.' },
+    ])
+
+    // The greeting leads with it, in the words of sending, not approving.
+    const hello = await today(readers({ waiting: async () => items, othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }) }), { now: NOW, greeting: true, needs: async () => 1 })
+    if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect(hello.recommend?.says).toBe('Send bill INV-0042 to Northbend Athletic; it is built from weeks Northbend Athletic signed.')
+    expect(hello.says).toBe('One thing needs you; the most urgent is first under Needs attention. It is the bill Etyme drafted; send it below, or say not now. Checked just now.')
+    expect(hello.items[0].bill?.invoiceNumber).toBe('INV-0042')
+    for (const line of [hello.recommend!.says, hello.says]) {
+      expect(voiceBreaks(line)).toEqual([])
+      expect(line).not.toMatch(/invoice receipt|desk|program office|twin/i)
+    }
+  })
+
+  it('what was left off a bill and terms set aside are said on the card in plain sentences, and expenses and milestones are counted beside the weeks', () => {
+    const rows = billRows({
+      ...ROSA_BILL,
+      builtFrom: { ...ROSA_BILL.builtFrom, weeks: 1, expenses: 1, milestones: 2 },
+      heldBack: 'The week of Mar 22 is left off: Northbend Athletic has not signed it.',
+      setAside: ['The order’s net 45 was set aside: it gave no reason, so your agreement’s net 30 stands.'],
+    })
+    expect(rows.find((r) => r.label === 'Built from')?.value).toBe('1 signed week, 1 approved expense and 2 accepted milestones')
+    expect(rows.find((r) => r.label === 'Left off')?.value).toMatch(/has not signed it/)
+    expect(rows.find((r) => r.label === 'Terms')?.value).toMatch(/set aside/)
+  })
+
+  it('a bill question whose figures are not whole is shown as a plain question, never as a card with a blank amount', () => {
+    expect(billFromPayload({ ...ROSA_BILL, totalMinor: 8960.5 })).toBeNull()
+    expect(billFromPayload({ ...ROSA_BILL, people: [{ personName: 'Rosa Delgado', hours: 80 }] })).toBeNull()
+    expect(billFromPayload({ ...ROSA_BILL, period: { label: 'March 2026' } })).toBeNull()
+    expect(billFromPayload(ROSA_BILL)).toEqual(ROSA_BILL)
+  })
+
+  it('the owner Ask Etyme acts for is not asked to send the bill, and neither is AP & Payroll, who does not send bills', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    BILL_DB.approvals = [askedRow()]
+    expect(await readersFor(seat('p-owner', OWNER), 'c-brightmoor').waiting()).toEqual([])
+    expect(await readersFor(seat('p-ap', AP_PAYROLL), 'c-brightmoor').waiting()).toEqual([])
+    // Finance, who also sends bills, is asked; once, as one card.
+    expect((await readersFor(seat('p-finance', AR), 'c-brightmoor').waiting()).map((i) => i.approvalId)).toEqual(['appr-bill'])
+    // The owner reads that it waits on whoever sends bills, as a bill, and that it is not theirs to send.
+    const line = othersSay([{ title: 'INV-0042', noun: 'bill', desks: ['Accounts Receivable', 'Finance'], own: true, href: '/dashboard/invoices/inv-rosa' }])
+    expect(line[0].says).toBe('One bill is waiting for the Accounts Receivable or Finance: INV-0042. It is not yours to send: Etyme asked on your authority.')
+    // The badge counts what the decisions queue counts: a twin question only where the seat may decide it.
+    const queue = readFileSync(join(process.cwd(), 'src/app/api/decisions/route.ts'), 'utf8')
+    expect(queue).toMatch(/waitingQuestions\(caller\)\)\.filter\(\(q\) => q\.mayDecide\)/)
+  })
+
+  it('a yes on the bill card goes through the one approval route, and "Not now" with no reason still records a reason that says so', () => {
+    const yes = decisionRequest('appr-bill', 'APPROVED', null)
+    expect(yes.url).toBe('/api/twin/approvals/appr-bill')
+    expect(JSON.parse(yes.init.body)).toEqual({ decision: 'APPROVED', surface: 'WEB' })
+    const no = decisionRequest('appr-bill', 'REJECTED', NOT_NOW_REASON)
+    expect(JSON.parse(no.init.body).reason).toBe(NOT_NOW_REASON)
+    expect(billSentSays(ROSA_BILL, 'INV-0042')).toBe('Sent to Northbend Athletic: bill INV-0042.')
+    expect(billKeptSays(ROSA_BILL)).toBe('Not sent. Bill INV-0042 stays a draft on the Bills page; send it from there when it is ready.')
+    // The card's buttons say exactly what they do.
+    const ui = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    for (const b of ['Send bill', 'Edit', 'Not now', 'Open bill']) expect(ui.includes(`>${b}<`) || ui.includes(`'${b}'`), b).toBe(true)
+  })
+
+  it('a bill the client put on hold reaches the supplier’s Accounts Receivable as a card with the client’s reason, and the notice is not said twice', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    BILL_DB.invoices = [{
+      id: 'inv-rosa', number: 'INV-0042',
+      engagement: { msa: { vendorId: 'c-brightmoor', clientId: 'c-northbend', vendor: { id: 'c-brightmoor', name: 'Brightmoor Staffing' }, client: { id: 'c-northbend', name: 'Northbend Athletic' } } },
+      workOrder: null, invoiceLines: [],
+    }]
+    BILL_DB.holds = [{ at: new Date('2026-04-03T15:00:00Z'), payload: { invoiceId: 'inv-rosa', number: 'INV-0042', reason: 'The week of Mar 15 shows 44 hours; we approved 40' } }]
+    const held = await readersFor(seat('p-ar', AR), 'c-brightmoor').heldBills!()
+    expect(held).toEqual([{
+      invoiceId: 'inv-rosa', number: 'INV-0042', payerName: 'Northbend Athletic',
+      reason: 'The week of Mar 15 shows 44 hours; we approved 40', heldOn: '2026-04-03', href: '/dashboard/invoices/inv-rosa',
+    }])
+    expect(heldBillTitle(held[0])).toBe('Northbend Athletic put bill INV-0042 on hold')
+    expect(heldBillSays(held[0])).toBe('Their reason: The week of Mar 15 shows 44 hours; we approved 40. Nothing is paid on it until Northbend Athletic lifts the hold.')
+    // Only the people who send bills are handed the card.
+    expect(await readersFor(seat('p-ap', AP_PAYROLL), 'c-brightmoor').heldBills!()).toEqual([])
+
+    const hello = await today(
+      readers({ waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }), heldBills: async () => held }),
+      { now: NOW, greeting: true, needs: async () => 0, notices: { shown: [{ id: 'n-hold', title: 'Northbend Athletic put invoice INV-0042 on hold', href: '/dashboard/invoices/inv-rosa' }], older: 0 } },
+    )
+    if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect(hello.held).toEqual(held)
+    expect(hello.recommend?.says).toBe('Open bill INV-0042 and answer Northbend Athletic; they put it on hold.')
+    expect(hello.says).toBe('Northbend Athletic put one of your bills on hold. Checked just now.')
+    expect((hello.more ?? []).map((l) => l.says)).not.toContain(SINCE_HEADING)
   })
 })

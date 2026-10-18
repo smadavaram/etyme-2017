@@ -29,6 +29,8 @@ import { formatDay, formatMonth } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
+import type { BillCardPayload } from '@/lib/money/supplier-bills'
+import { supplierToldSays } from '@/lib/money/invoice-hold'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -512,6 +514,8 @@ export interface WaitingItem {
   href: string
   /** The twin's act asked about, by its key: "invoice_receipt.approve". */
   action?: string
+  /** For `bill.send`: the drafted bill, as the card shows it. */
+  bill?: BillCardPayload
 }
 
 export type Verdict = 'CLEAN' | 'MISMATCH' | 'BLOCKED'
@@ -555,7 +559,7 @@ export type Answer =
    * limit; `greeting` marks the first message of the chat, which the
    * screen opens with the reader's name.
    */
-  | { kind: 'NEEDS'; recommend?: RichLine; says: string; saysLinks?: { text: string; href: string }[]; items: WaitingItem[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
+  | { kind: 'NEEDS'; recommend?: RichLine; says: string; saysLinks?: { text: string; href: string }[]; items: WaitingItem[]; held?: HeldBill[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
   | { kind: 'TIME_LIMIT'; says: string; rows: LimitRow[] }
   | { kind: 'SPEND'; says: string; period: { from: string; to: string; label: string }; rows: SpendRow[] }
   | { kind: 'WEEKS'; says: string; rows: WeekRow[]; more: number; links: Link[] }
@@ -665,10 +669,21 @@ export const DECISIONS_HREF = '/dashboard/decisions'
 export function needsCountSays(needs: number, items: readonly WaitingItem[]): { says: string; links: { text: string; href: string }[] } | null {
   if (needs <= 0) return null
   const head = `${counted(needs, 'thing')} ${needs === 1 ? 'needs' : 'need'} you; the most urgent is first under Needs attention.`
+  // The queue counts the twin's questions this seat may answer (section 6
+  // of GET /api/decisions), so where the count holds them they are said as
+  // part of it, never as something on top of it.
+  const within = items.length <= needs
+  const one = items.length === 1
   const also = items.length === 0 ? ''
-    : items.length === 1
-      ? ' Etyme is also asking you one thing; approve it below, or reject it with a reason.'
-      : ` Etyme is also asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
+    : allBills(items)
+      ? within
+        ? ` ${one ? (needs === 1 ? 'It is the bill' : 'One of them is the bill') : `${numberWord(items.length)} of them are bills`} Etyme drafted; ${one ? 'send it' : 'send each'} below, or say not now.`
+        : ` Etyme also drafted ${one ? 'one bill' : counted(items.length, 'bill').toLowerCase()} for you to send; ${one ? 'send it' : 'send each'} below, or say not now.`
+      : within
+        ? ` ${one ? (needs === 1 ? 'It is a question' : 'One of them is a question') : `${numberWord(items.length)} of them are questions`} from Etyme; ${one ? 'approve it' : 'approve each'} below, or reject it with a reason.`
+        : one
+          ? ' Etyme is also asking you one thing; approve it below, or reject it with a reason.'
+          : ` Etyme is also asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
   return { says: head + also, links: [{ text: 'Needs attention', href: DECISIONS_HREF }] }
 }
 
@@ -715,6 +730,11 @@ export function sinceSays(notices: readonly NoticeLine[], older = 0): RichLine[]
 /** The twin's questions, as the fact line of a reply. */
 export function needsSays(items: readonly WaitingItem[]): string {
   if (items.length === 0) return 'Nothing from Etyme is waiting on you.'
+  if (allBills(items)) {
+    return items.length === 1
+      ? 'Etyme drafted one bill for you to send; send it below, or say not now.'
+      : `Etyme drafted ${counted(items.length, 'bill').toLowerCase()} for you to send; send each below, or say not now.`
+  }
   return items.length === 1
     ? 'Etyme is asking you one thing; approve it below, or reject it with a reason.'
     : `Etyme is asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
@@ -723,9 +743,18 @@ export function needsSays(items: readonly WaitingItem[]): string {
 // ── Today: who else is asked, and the time limit ─────────────────────
 
 const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+/** "Two", "12". Sentence case, for the start of a line. */
+function numberWord(n: number): string {
+  return String(n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n)
+}
 /** "Two invoice receipts", "12 questions". Sentence case, for the start of a line. */
 function counted(n: number, noun: string): string {
   return `${n < NUMBER_WORDS.length ? NUMBER_WORDS[n] : n} ${noun}${n === 1 ? '' : 's'}`
+}
+
+/** Every question waiting is a drafted bill to send, so the line says send rather than approve. */
+function allBills(items: readonly WaitingItem[]): boolean {
+  return items.length > 0 && items.every((i) => i.action === 'bill.send' && !!i.bill)
 }
 
 /** "a", "a and b", "a, b and c". */
@@ -738,7 +767,7 @@ function listed(xs: readonly string[]): string {
 export interface OtherWaiting {
   /** "PR-2026-0441" · a person's name. */
   title: string
-  /** "invoice receipt" or "question". */
+  /** "invoice receipt", "bill" or "question". */
   noun: string
   /** The desks that hold the permission it needs, in the trade's words. */
   desks: string[]
@@ -767,7 +796,8 @@ export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
   for (const [key, xs] of byDesk) {
     const [desk, own] = key.split('\u0000')
     const noun = xs.every((x) => x.noun === xs[0].noun) ? xs[0].noun : 'question'
-    const not = xs.length === 1 ? 'It is not yours to approve' : xs.length === 2 ? 'Neither is yours to approve' : 'None is yours to approve'
+    const verb = noun === 'bill' ? 'send' : 'approve'
+    const not = xs.length === 1 ? `It is not yours to ${verb}` : xs.length === 2 ? `Neither is yours to ${verb}` : `None is yours to ${verb}`
     out.push({
       says: `${counted(xs.length, noun)} ${xs.length === 1 ? 'is' : 'are'} waiting for ${desk}: ${listed(xs.map((x) => x.title))}. ` +
         `${not}${own ? ': Etyme asked on your authority.' : '.'}`,
@@ -787,7 +817,7 @@ export function askOthersSays(others: readonly OtherWaiting[]): RichLine | null 
   if (others.length === 0) return null
   const first = others[0]
   const same = others.filter((o) => o.desks.join() === first.desks.join())
-  const verb = same.every((o) => o.noun === 'invoice receipt') ? 'approve' : 'answer'
+  const verb = same.every((o) => o.noun === 'invoice receipt') ? 'approve' : same.every((o) => o.noun === 'bill') ? 'send' : 'answer'
   const desk = first.desks.length ? twoDesks(first.desks) : null
   const people = (first.people ?? []).slice(0, 2)
   const who = people.length ? (desk ? `${orNames(people)}, ${desk},` : orNames(people)) : desk ? `your ${desk}` : 'whoever answers it'
@@ -1088,6 +1118,12 @@ export interface Readers {
   othersWaiting(): Promise<OtherWaiting[]>
   /** The twin's time-limit warnings, or the sentence for a seat that does not read what the rules found. */
   limits(): Promise<Refusable<{ entries: LimitEntry[]; stale?: string[] }>>
+  /**
+   * Bills this firm sent that the firm paying them put on hold, with the
+   * payer's reason; empty for a seat that does not send bills. Optional
+   * so a reader that never sends bills need not say so.
+   */
+  heldBills?(): Promise<HeldBill[]>
   /** Receipts the twin told this seat's paying desk about that still fail the check; empty for any other desk. */
   told(): Promise<{ told: ToldReceipt[]; stale: string[] }>
   /** A placement or a receipt the message names, at this company, where it names one. */
@@ -1199,6 +1235,12 @@ export function toldAskSays(t: ToldReceipt): RichLine {
 /** The recommendation for the twin's own questions to this seat. */
 export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
   if (items.length === 0) return null
+  if (items.every((i) => i.action === BILL_SEND && i.bill)) {
+    const b = items[0].bill!
+    return items.length === 1
+      ? { says: `Send ${b.invoiceNumber ? 'bill ' : ''}${items[0].title}; it is built from weeks ${b.customerName} signed.`, links: [{ text: items[0].title, href: items[0].href }] }
+      : { says: `Send the ${counted(items.length, 'bill').toLowerCase()} below; each is built from weeks the customer signed.` }
+  }
   const receipts = items.every((i) => i.action === 'invoice_receipt.approve')
   if (items.length === 1) {
     return receipts
@@ -1208,6 +1250,159 @@ export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
   return receipts
     ? { says: `Approve the ${counted(items.length, 'invoice').toLowerCase()} below; each matches the approved hours and the contract rate.` }
     : { says: `Answer Etyme’s ${counted(items.length, 'question').toLowerCase()} below.` }
+}
+
+// ── The supplier's bill (2026-10-18) ─────────────────────────────────
+//
+// Ask Etyme at a supplier drafts the bill on the agreement's billing date
+// and asks whoever issues bills to send it (`bill.send`, lib/money/
+// supplier-bills). The card shows the bill the way the Bills page would:
+// who it is to, the period, the hours, the amount, each person, what it is
+// built from and when it falls due. A yes goes through the one approval
+// route and sends it exactly as the Submit button does.
+
+export const BILL_SEND = 'bill.send'
+
+/** What "Not now" records when the person gives no reason: true, and plain. */
+export const NOT_NOW_REASON = 'Not now, said in Ask Etyme with no reason given. The draft stays on the Bills page.'
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+const isMinor = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v)
+const isHours = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+
+/**
+ * A `bill.send` question's payload, read back. Null where any figure the
+ * card shows is missing or not a number: a card with a blank where the
+ * amount should be is worse than the plain question, which still shows.
+ */
+export function billFromPayload(p: unknown): BillCardPayload | null {
+  if (!isRecord(p) || !isRecord(p.period) || !isRecord(p.builtFrom)) return null
+  const { period, builtFrom } = p
+  if (typeof p.customerName !== 'string' || !p.customerName) return null
+  if (typeof period.label !== 'string' || typeof period.start !== 'string' || typeof period.end !== 'string') return null
+  if (!isHours(p.hours) || !isMinor(p.totalMinor) || typeof p.currency !== 'string' || !p.currency) return null
+  if (!Array.isArray(p.people) || !Array.isArray(builtFrom.timesheetIds)) return null
+  const people = p.people.filter((x): x is { personName: string; hours: number; amountMinor: number } =>
+    isRecord(x) && typeof x.personName === 'string' && isHours(x.hours) && isMinor(x.amountMinor))
+  if (people.length !== p.people.length) return null
+  const ids = builtFrom.timesheetIds.filter((x): x is string => typeof x === 'string')
+  return {
+    customerName: p.customerName,
+    period: { start: period.start, end: period.end, label: period.label },
+    hours: p.hours,
+    totalMinor: p.totalMinor,
+    currency: p.currency,
+    people: people.map((x) => ({ personName: x.personName, hours: x.hours, amountMinor: x.amountMinor })),
+    builtFrom: {
+      timesheetIds: ids,
+      weeks: isMinor(builtFrom.weeks) ? builtFrom.weeks : ids.length,
+      expenses: isMinor(builtFrom.expenses) ? builtFrom.expenses : 0,
+      milestones: isMinor(builtFrom.milestones) ? builtFrom.milestones : 0,
+    },
+    dueSays: typeof p.dueSays === 'string' ? p.dueSays : '',
+    heldBack: typeof p.heldBack === 'string' && p.heldBack ? p.heldBack : null,
+    setAside: Array.isArray(p.setAside) ? p.setAside.filter((x): x is string => typeof x === 'string' && !!x) : [],
+    ...(typeof p.invoiceId === 'string' ? { invoiceId: p.invoiceId } : {}),
+    ...(typeof p.invoiceNumber === 'string' ? { invoiceNumber: p.invoiceNumber } : {}),
+  }
+}
+
+/** "INV-0042 to Northbend Athletic": the bill as a waiting item names it, number first so "approve INV-0042" finds it. */
+export function billItemTitle(b: Pick<BillCardPayload, 'customerName' | 'invoiceNumber' | 'period'>): string {
+  return b.invoiceNumber ? `${b.invoiceNumber} to ${b.customerName}` : `the bill to ${b.customerName} for ${b.period.label}`
+}
+
+/** The card's heading. */
+export function billCardTitle(b: Pick<BillCardPayload, 'customerName' | 'period'>): string {
+  return `Bill ready to send — ${b.customerName}, ${b.period.label}`
+}
+
+/** "2 signed weeks", with expenses and milestones where there are any: the card's "Built from" row. */
+export function billBuiltFrom(b: Pick<BillCardPayload, 'builtFrom'>): string {
+  const { weeks, expenses, milestones } = b.builtFrom
+  return listed([
+    `${weeks} signed week${weeks === 1 ? '' : 's'}`,
+    ...(expenses ? [`${expenses} approved expense${expenses === 1 ? '' : 's'}`] : []),
+    ...(milestones ? [`${milestones} accepted milestone${milestones === 1 ? '' : 's'}`] : []),
+  ])
+}
+
+/** The rows the card shows, in order. The same rows on the web and in a test. */
+export function billRows(b: BillCardPayload): { label: string; value: string }[] {
+  const rows = [
+    { label: 'Hours', value: hrs(b.hours) },
+    { label: 'Amount', value: money(b.totalMinor, b.currency) },
+  ]
+  for (const x of b.people) rows.push({ label: 'Person', value: `${x.personName} · ${hrs(x.hours)} hours · ${money(x.amountMinor, b.currency)}` })
+  rows.push({ label: 'Built from', value: billBuiltFrom(b) })
+  // The label already says "Due"; the sentence is not made to say it twice.
+  if (b.dueSays) rows.push({ label: 'Due', value: b.dueSays.replace(/^Due\s+/u, '') })
+  if (b.heldBack) rows.push({ label: 'Left off', value: b.heldBack })
+  for (const x of b.setAside) rows.push({ label: 'Terms', value: x })
+  return rows
+}
+
+/** What a sent bill's card reads, in the words the Send button promised. */
+export function billSentSays(b: Pick<BillCardPayload, 'customerName' | 'invoiceNumber'>, number?: string | null): string {
+  const n = number ?? b.invoiceNumber
+  return `Sent to ${b.customerName}${n ? `: bill ${n}` : ''}.`
+}
+
+/** What a bill's card reads after "Not now". */
+export function billKeptSays(b: Pick<BillCardPayload, 'invoiceNumber'>): string {
+  return `Not sent. ${b.invoiceNumber ? `Bill ${b.invoiceNumber}` : 'The bill'} stays a draft on the Bills page; send it from there when it is ready.`
+}
+
+/** A bill this firm sent that the firm paying it put on hold, read from the hold itself. */
+export interface HeldBill {
+  invoiceId: string
+  number: string
+  /** The firm that holds it: the customer, or the prime above a sub-vendor. */
+  payerName: string
+  /** The reason the payer gave when it held the bill; null where the hold carries none. */
+  reason: string | null
+  /** YYYY-MM-DD, the day the hold was put on. */
+  heldOn: string | null
+  href: string
+}
+
+/** The held card's heading. */
+export function heldBillTitle(h: Pick<HeldBill, 'payerName' | 'number'>): string {
+  return `${h.payerName} put bill ${h.number} on hold`
+}
+
+/** The held card's sentence: their reason, and what it means for the money. */
+export function heldBillSays(h: Pick<HeldBill, 'payerName' | 'reason'>): string {
+  return (h.reason ? `Their reason: ${h.reason.replace(/[\s.]+$/u, '')}. ` : `${h.payerName} gave no reason on the record. `) +
+    `Nothing is paid on it until ${h.payerName} lifts the hold.`
+}
+
+/**
+ * The notice the hold route sent this firm, by its title, so the greeting
+ * does not say the same hold twice: once as the card and again under
+ * "Since you last looked". The title is the hold route's own sentence.
+ */
+export function heldNoticeTitles(held: readonly HeldBill[]): Set<string> {
+  return new Set(held.map((h) => supplierToldSays({ payerName: h.payerName, number: h.number, to: 'HELD', reason: h.reason }).title))
+}
+
+/** The fact line where the only thing to look at is a bill on hold. */
+export function heldHeadline(held: readonly HeldBill[]): string {
+  return held.length === 1
+    ? `${held[0].payerName} put one of your bills on hold.`
+    : `${numberWord(held.length)} of your bills are on hold.`
+}
+
+/** The recommendation where a customer put one of this firm's bills on hold. */
+export function heldAskSays(held: readonly HeldBill[]): RichLine | null {
+  if (held.length === 0) return null
+  const h = held[0]
+  const n = `bill ${h.number}`
+  return held.length === 1
+    ? { says: `Open ${n} and answer ${h.payerName}; they put it on hold.`, links: [{ text: n, href: h.href }] }
+    : { says: `Open the ${counted(held.length, 'bill').toLowerCase()} on hold below; each says who held it and why.` }
 }
 
 /** Lines in the greeting before its closing sentence, at most: the first line and five under it. */
@@ -1224,10 +1419,11 @@ export const GREETING_LINES = 6
 export async function today(read: Readers, opts: TodayOptions = {}): Promise<Answer> {
   const now = opts.now ?? new Date()
   const month = monthOf(now)
-  const [items, others, limits, told, spend, needs] = await Promise.all([
+  const [items, others, limits, told, spend, needs, held] = await Promise.all([
     read.waiting(), read.othersWaiting(), read.limits(), read.told(),
     opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
     opts.needs ? opts.needs().catch(() => null) : Promise.resolve(null),
+    read.heldBills ? read.heldBills() : Promise.resolve([] as HeldBill[]),
   ])
   const near = limits.ok ? nearLimit(limits.entries, now) : []
 
@@ -1235,6 +1431,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   const recommend =
     itemsAskSays(items) ??
     (told.told.length ? toldAskSays(told.told[0]) : null) ??
+    (held.length ? heldAskSays(held) : null) ??
     askOthersSays(others) ??
     (near.length ? { says: planSays(near[0]), links: [{ text: near[0].name, href: near[0].href }] } : null) ??
     undefined
@@ -1266,20 +1463,26 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // The headline. Where the decisions queue was read, its count leads, so
   // the number on the Ask Etyme mark and this line are one figure.
   const headline = needs != null ? needsCountSays(needs, items) : null
-  const nothing = (needs ?? 0) === 0 && items.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
+  const nothing = (needs ?? 0) === 0 && items.length === 0 && held.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
   const says = (headline ? headline.says
-    : nothing ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.' : needsSays(items)) + ' Checked just now.'
+    : nothing ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
+      : items.length === 0 && held.length > 0 ? heldHeadline(held) : needsSays(items)) + ' Checked just now.'
   // What the notices said, after the recommendation, the decisions and the
   // facts, and never counted in the six lines: a notice is not lost to the
   // cap, because the route marks read only the ones it passed in here.
-  if (opts.greeting && opts.notices) more.push(...sinceSays(opts.notices.shown, opts.notices.older))
+  // A hold already drawn as a card is not said again as a notice; the
+  // route still marks that notice read, because the card said it.
+  if (opts.greeting && opts.notices) {
+    const said = heldNoticeTitles(held)
+    more.push(...sinceSays(opts.notices.shown.filter((n) => !said.has(n.title)), opts.notices.older))
+  }
   if (opts.greeting) more.push({ says: GREETING_CLOSE })
   // The boundary, the greeting's last line: said on the first screen, once,
   // now that the phone draws no heading over the thread.
   if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model) })
   return {
     kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
-    items, more, ...(opts.greeting ? { greeting: true } : {}),
+    items, ...(held.length ? { held } : {}), more, ...(opts.greeting ? { greeting: true } : {}),
   }
 }
 
