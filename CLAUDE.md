@@ -1253,10 +1253,15 @@ home page's own: Jobs, Candidates, Timesheets and the money document.
 
 | Party | The nine | Folded inside them, as tabs |
 |---|---|---|
-| Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Submissions, Interviews → Candidates. Expenses → Timesheets. AP, Budget → Invoice receipts. Ending soon, Past contractors, Tenure → Contractors. Contacts, Agreements → Suppliers. Program team, Org view, Document requests, Governance → Settings. |
-| Supplier, integrator, MSP | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. Invoice receipts, AR, AP, Payroll → Bills. Bench, Bench pay, Check-ins, Training, Consultants → People. Clients, Suppliers, Contacts, Contracts, POs → Companies. Paperwork, Governance, Team → Settings; Reports → Today. |
-| One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Seven: she has no jobs or candidates. |
-| Worker | Ask Etyme · Your work · Your page · Your paperwork · Your data | Already five. Unchanged. |
+| Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Conversations → Ask Etyme. Submissions, Interviews → Candidates. Expenses → Timesheets. AP, Budget → Invoice receipts. Ending soon, Past contractors, Tenure → Contractors. Contacts, Agreements → Suppliers. Program team, Org view, Document requests, Governance → Settings. |
+| Supplier, integrator, MSP | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Conversations → Ask Etyme. Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. Invoice receipts, AR, AP, Payroll → Bills. Bench, Bench pay, Check-ins, Training, Consultants → People. Clients, Suppliers, Contacts, Contracts, POs → Companies. Paperwork, Governance, Team → Settings; Reports → Today. |
+| One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Seven: she has no jobs or candidates. |
+| Worker | Ask Etyme · Your work · Your page · Your paperwork · Your data | Already five. Unchanged; a worker who also holds a seat at a firm finds its Conversations inside Ask Etyme. |
+
+**Ask Etyme and Conversations are one entry** (founder, the same day):
+the "Conversations" link leaves every menu, and Ask Etyme opens the same
+conversations page with Ask Etyme as its first row and the other threads
+in the column beside it. Routes do not move.
 
 Nothing behind the menu is deleted: every page keeps its address,
 search still finds it, and every link in a card or a table still lands
@@ -1279,6 +1284,15 @@ company writes to this seat, the greeting says so in a sentence with a
 link ("Brightmoor Staffing wrote to you about the HCM integration lead
 job."), so a person who never opens the list misses nothing. The count
 on the mark already covers both.
+
+**1c. The public header is the logo and Sign in; the menu is the
+footer.** Decided by the founder the same day (*"even the menu has very
+[little] value, it can be on the footer"*). The menu icon of 2026-10-14
+and the sheet behind it leave every public page. The one-row footer
+carries what the sheet carried: Clients · MSPs · Integrators · Suppliers
+· Workers · Demo · Documentation · About · Security · Privacy · Terms ·
+DPA · Contact. The four steps are reached through Documentation; Sign up
+stays in the band.
 
 **2. The flip is gone.** On a desktop the sidebar is always open and
 Today is its second entry, so the flip was a second door to a page an
@@ -1893,23 +1907,33 @@ attention. What changes is density and voice.
 
 ### Navigation per company type
 
-| Company type | Sections |
-|---|---|
-| Vendor | Today → Sell → Procure → Operate → Grow → Governance |
-| GSI (integrator) | Today → Deliver → Supply → Operate → Grow → Governance |
-| MSP (program office) | Today → Demand → Supply → Operate → Grow → Governance |
-| Client (enterprise) | Workforce → Governance |
-| Solo corporation (one person) | Today → Operate → Governance |
-| Consultant | You |
+Nine links, and a process step is a tab (founder, 2026-10-19; see "Nine
+links, no flip, and every first screen names a person"). A menu entry is
+a noun on the person's own work; every other page is a tab inside one of
+them.
 
-Every section is either short enough to read as a list — seven links at the
-outside — or every link in it sits under a named sub-heading. **Both sides of
-a contract and the hours under them are Operate's, for every party**, because
-administering a placement is one job whoever does it; and every firm with
-counterparties has a **Network** group naming the firms it trades with and the
-people at them. `__tests__/invariants/sidebar-nav.test.ts` reads this table
-and fails when the code and it disagree, so a section renamed in one and not
-the other breaks the build rather than the founder's walk.
+| Party | The links | Folded inside them, as tabs |
+|---|---|---|
+| Client | Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings | Conversations → Ask Etyme. Interviews → Candidates. Expenses → Timesheets. AP, Budget, POs → Invoice receipts. Contracts, Ending soon, Past contractors, Tenure, Duplicate check → Contractors. Contacts, Agreements, Supplier scorecards → Suppliers. Users & permissions, Program team, MSPs, Org view, Compliance, Document requests, Program twin, Data requests, Your data, Import → Settings. |
+| Supplier | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | Conversations → Ask Etyme. Reports, Profitability, Rate history, Our scorecard → Today. Leads, Shared with you → Jobs. Interviews → Candidates. Expenses, Rolloff → Timesheets. AR, AP, Payroll, Commissions → Bills. Bench, Bench pay, Bench check-ins, Training → People. Suppliers, Contacts, Sell contracts, Buy contracts, POs → Companies. Users & permissions, Setup, Import, Integrations, Automation, Paperwork, Missing paperwork, Document requests, Screening packs, Compliance, Check queue, DNR list, Data requests, Your data → Settings. |
+| Integrator | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings | The supplier's, with no Leads: its jobs arrive from the client it already has. |
+| MSP | Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · Companies · Settings | The supplier's, with no People, no Payroll, no Commissions and no Our scorecard: an MSP places nobody and pays nobody. Supplier scorecards → Companies. |
+| One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Your page, Who has you → Your work. Expenses → Timesheets. AR → Bills. POs → Contracts. Your paperwork, Compliance → Paperwork. Your data → Settings. |
+| Worker | Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork | Unchanged: a list under "You", not nouns with tabs. |
+
+Each link opens the first of its pages the reader may open, and on any
+of them the shell draws the tab row under the page header, the noun's
+own page first (`components/shell/section-pills`). Nothing behind the
+menu is deleted: every page keeps its address, and search and the +
+button still find it. There are no sub-headings and no Network group
+any more: the firms a party trades with are one noun (Companies, or a
+client's Suppliers), and both lines of a contract sit side by side
+under it, or under Contractors at a client. A link is one of the nine
+on every menu; the worker's "You" is the one list.
+`__tests__/invariants/sidebar-nav.test.ts` reads this table — the links
+and every page named in the third column — and fails when the code and
+it disagree, so a link renamed in one and not the other breaks the
+build rather than the founder's walk.
 
 **A one-person corporation reads its own short menu. Decided
 2026-09-21.** A `CONSULTANT_CORP` had no row here and fell through to
@@ -1918,24 +1942,26 @@ handed a staffing agency's forty-nine links — Leads, Bench, Consultants,
 Bench check-ins, Training, Rolloff, Payroll commissions, Profitability —
 for a firm whose only consultant is herself. She is the person **and**
 the firm, so she gets the firm's week (her contracts, the order behind
-one, her hours, what she billed and what came back) and her own record
-under "You", which the worker rule above appends because a solo
-corporation's owner is always somebody the work is about. Nothing about
+one, her hours, what she billed and what came back) and her own record,
+because a solo corporation's owner is always somebody the work is about.
+Since 2026-10-19 her own pages sit inside her seven links (Your work,
+Paperwork, Settings) rather than in a "You" list appended after them.
+Nothing about
 a bench, a pipeline or a recruiter's commission: a screen offering to
 add another consultant is a screen asking her about herself in the third
 person.
 
 **And her two hats are named apart on her one menu.** Every other party
-reads "Paperwork" under a heading that already says whose it is — a
-firm's own documents, under Compliance or Governance. She is the firm
-*and* the worker, so that menu says **"Company paperwork"** for the
-firm's and **"Your paperwork"** for her own, which is the rule the rest
-of the "You" section already follows: your work, your page, your data.
+reads "Paperwork" as a tab of its Settings, where it is plainly the
+firm's own documents. She is the firm *and* the worker, so her Paperwork
+link opens two tabs side by side, **"Company paperwork"** for the firm's
+and **"Your paperwork"** for her own, which is the rule her other pages
+already follow: your work, your page, your data.
 Two entries reading the same word on one menu is the duplicate class the
 founder has reported three times, and a heading cannot disambiguate it
 for somebody who is both things at once.
 
-**A person who is also a worker keeps their firm's sections and gains "You"
+**A person who is also a worker keeps their firm's links and gains "You"
 at the end.** Decided 2026-09-17, on the founder opening Karthik Menon's
 demo door and saying "Candidate Karthik is all buggy". He is a systems
 integrator's own W2 — the case "Who sells and who buys" added the same day
@@ -1976,12 +2002,12 @@ Two things followed, both in `lib/nav-table` and one door in
   `__tests__/invariants/every-route-has-a-door.test.ts` fails on any API
   route that goes through none of the shared door, the cron check or the
   staff check and is not on the named list of public token routes.
-So Karthik's menu is now Ask Etyme, then Today — Conversations,
-Notifications — and You, and since 2026-10-13 he lands in Ask Etyme
-like every seat whose menu has Conversations ("Ask Etyme is the app");
-his own work is one click behind it. The paragraph above
-still holds for a worker who holds a desk: a delivery manager who is
-also on a placement keeps the firm's sections and gains You. **For the
+So Karthik's menu is now Ask Etyme, with his conversations inside it,
+and You (Notifications went on 2026-10-13, and Conversations folded into
+Ask Etyme on 2026-10-19). He lands in Ask Etyme like every seat ("Ask
+Etyme is the app"); his own work is one click behind it. The paragraph
+above still holds for a worker who holds a role at the firm: a delivery
+manager who is also on a placement keeps the firm's links and gains You. **For the
 founder to confirm:** this narrows what a firm's own W2 sees by default;
 if an integrator wants its engineers to read the firm's lists, that is a
 desk the firm gives them, not the default.
@@ -1998,16 +2024,19 @@ disagree. Where a route's gate refuses the very desk the page is named for
 desk does not hold it — the link stays unfiltered and the gate is the bug,
 because hiding a desk from itself is worse than a refusal.
 
-**Eyebrow labels are company-type-specific.** Pages show eyebrows like "Sell"
-and "Operate" that make sense for a staffing vendor. A client company
-(Northbend Athletic, Talvern Medical) sees the same data under different
-section labels — "Workforce" instead of "Sell". The eyebrow, nav section and
-page subtitle adapt to the viewer's company type; the underlying data and
-pages are shared, the framing is not. `lib/page-framing` derives every
-eyebrow from the same nav table the sidebar draws, so a supplier's contracts
-and hours read "Operate" and a client's read "Workforce", and
+**Eyebrow labels are company-type-specific.** A page's eyebrow names the
+link it sits under on the reader's own menu, and since 2026-10-19 that is
+one of the nine: a tab is headed by its noun, so Interviews reads
+"Candidates" and Payroll reads "Bills". A client company (Northbend
+Athletic, Talvern Medical) sees the same data under its own links — its
+suppliers' invoices read "Invoice receipts" where a supplier's own bills
+read "Bills". The eyebrow, nav link and page subtitle adapt to the
+viewer's company type; the underlying data and pages are shared, the
+framing is not. `lib/page-framing` derives every eyebrow from the same
+nav table the sidebar draws, so a supplier's contracts read "Companies"
+and a client's read "Contractors", and
 `__tests__/invariants/page-framing.test.ts` fails on an eyebrow that names a
-section the reader's menu does not have. Since 2026-09-21 the framing also
+link the reader's menu does not have. Since 2026-09-21 the framing also
 takes the seat: a program office at a client's desk reads the client's words
 over the client's book, with one clause saying whose book it is.
 
