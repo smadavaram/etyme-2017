@@ -98,8 +98,9 @@ describe('asking for a person', () => {
     expect(page).toContain('asked {a.supplier} for {person.name.split(\' \')[0]} on {a.role}.')
     expect(read('src/app/api/program/route.ts')).toContain("what: 'Asked for'")
   })
-  it('a client seat reaches Conversations from the menu, under Source', () => {
-    expect(read('src/lib/nav-table.ts')).toContain("{ label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Source' }")
+  it('a client seat reaches its conversations from the menu, inside Ask Etyme', () => {
+    expect(read('src/lib/nav-table.ts')).toContain("const CONVERSATIONS: NavItem = { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' }")
+    expect(read('src/lib/nav-table.ts')).toContain("const ASK_ETYME_SECTION: NavSection = { label: 'Ask Etyme', tabbed: true, items: [ASK_ETYME, CONVERSATIONS] }")
   })
   it('the page says where the ask goes before the button is pressed', () => {
     expect(page).toContain('<p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>')

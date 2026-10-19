@@ -41,9 +41,9 @@ import { mayOpen } from '@/lib/nav-table'
  * Athletic is a sample company" — the chip that used to sit in the
  * header, said once, where the company is named.
  *
- * The ☰ sits on the right of the header, after the flip, in the same box
- * size as the logo and the flip. The header does not draw it on Ask
- * Etyme.
+ * The ☰ sits on the right of the header, after Ask Etyme, in the same box
+ * size as the logo and Ask Etyme, on every page (founder, 2026-10-19: the
+ * menu icon opens the nine).
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false)

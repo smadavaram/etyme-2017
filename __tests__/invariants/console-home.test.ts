@@ -53,16 +53,16 @@ describe('a seat opens on its own book and nobody else’s', () => {
     expect(consoleHome({ kind: null }).href).toBe('/dashboard/my-work')
   })
 
-  it('a one-person corporation opens in Ask Etyme, which her menu draws first, above her own Today, from day one', () => {
+  it('a one-person corporation opens in Ask Etyme, which her menu draws first, above her own work, from day one', () => {
     expect(consoleHome({ kind: 'CONSULTANT_CORP' }).href).toBe('/dashboard/conversations/etyme')
     // A new firm of one has no placement yet, so nothing makes her a worker,
     // and she still lands on a page her own menu names (round two, item 38).
     // What needs her is Ask Etyme's greeting since 2026-10-12.
     const fresh = getNavForKind('CONSULTANT_CORP', false)
-    expect(fresh[0].label).toBe('Today')
+    expect(fresh[0].label).toBe('Ask Etyme')
     expect(pinnedOn(fresh)[0].href).toBe(consoleHome({ kind: 'CONSULTANT_CORP' }).href)
-    // Her own section is there before any placement says she is a worker.
-    expect(fresh.map((s) => s.label)).toContain('You')
+    // Her own pages are there before any placement says she is a worker.
+    expect(fresh.map((s) => s.label)).toContain('Your work')
   })
 
   it('says why in a sentence, for every reader', () => {
@@ -99,8 +99,8 @@ describe('a one-person corporation reads a menu of what one person’s firm has'
   const solo = getNavForKind('CONSULTANT_CORP', false, { worker: true })
   const hrefs = solo.flatMap((s) => s.items.map((i) => i.href))
 
-  it('reads Today, Operate, Governance and her own section, and nothing else', () => {
-    expect(solo.map((s) => s.label)).toEqual(['Today', 'Operate', 'Governance', 'You'])
+  it('reads her seven links — Ask Etyme, her work, her hours, her bills, her contracts, her paperwork and Settings — and nothing else', () => {
+    expect(solo.map((s) => s.label)).toEqual(['Ask Etyme', 'Your work', 'Timesheets', 'Bills', 'Contracts', 'Paperwork', 'Settings'])
   })
 
   it('is offered no bench, no pipeline and no recruiter’s commission', () => {
@@ -141,9 +141,9 @@ describe('a program office at a client’s desk reads the client’s menu', () =
     )
   })
 
-  it('gives the office its own menu back the moment it holds no desk', () => {
+  it('gives the MSP its own menu back the moment it holds no seat at the client', () => {
     expect(getNavForKind('MSP', false).map((s) => s.label)).toEqual(
-      ['Today', 'Demand', 'Supply', 'Operate', 'Grow', 'Governance']
+      ['Ask Etyme', 'Today', 'Jobs', 'Candidates', 'Timesheets', 'Bills', 'Companies', 'Settings']
     )
   })
 })

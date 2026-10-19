@@ -1,11 +1,11 @@
 /**
  * Where a seat opens after signing in.
  *
- * Ask Etyme, wherever the seat's own menu has Conversations (founder,
- * 2026-10-12, "Ask Etyme is the app"): the greeting there is the desk —
+ * Ask Etyme, wherever the seat's own menu has it (founder, 2026-10-12,
+ * "Ask Etyme is the app"): the greeting there is the seat's work —
  * what needs it, what waits on another desk, who is near the time limit.
  * The decision is `landingFor` in lib/nav-table, shared with the demo
- * door. What follows is the answer for a seat with no Conversations.
+ * door. What follows is the answer for a seat whose menu has no Ask Etyme.
  *
  * Before that decision:
  * A colleague with a role lands on the page that role exists for — the

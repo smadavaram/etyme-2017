@@ -123,15 +123,15 @@ describe('16 · Training says job requests, and three eyebrows follow the menu',
     }
   })
 
-  it('the menu puts Past contractors under Workforce for a client and for a program office seated at one', () => {
-    expect(sectionOfHref('CLIENT', '/dashboard/alumni')).toBe('Workforce')
-    expect(sectionOfHref('MSP', '/dashboard/alumni', { seated: true, clientName: 'Cavanaugh Glassworks' } as any)).toBe('Workforce')
+  it('the menu puts Past contractors under Contractors for a client and for an MSP seated at one', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/alumni')).toBe('Contractors')
+    expect(sectionOfHref('MSP', '/dashboard/alumni', { seated: true, clientName: 'Cavanaugh Glassworks' } as any)).toBe('Contractors')
   })
 
-  it('the menu puts Supplier scorecards under Supply for a program office, and Training under the supply section of a supplier and an integrator', () => {
-    expect(sectionOfHref('MSP', '/dashboard/scorecards')).toBe('Supply')
-    expect(sectionOfHref('VENDOR', '/dashboard/training')).toBe('Procure')
-    expect(sectionOfHref('GSI', '/dashboard/training')).toBe('Supply')
+  it('the menu puts Supplier scorecards under Companies for an MSP, and Training under People for a supplier and an integrator', () => {
+    expect(sectionOfHref('MSP', '/dashboard/scorecards')).toBe('Companies')
+    expect(sectionOfHref('VENDOR', '/dashboard/training')).toBe('People')
+    expect(sectionOfHref('GSI', '/dashboard/training')).toBe('People')
   })
 })
 

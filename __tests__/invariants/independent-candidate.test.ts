@@ -210,7 +210,7 @@ describe('somebody with nothing but a page still reads their own menu', () => {
     expect(props.companyLabel).toBe('Consultant')
 
     const sections = getNavForKind(props.companyKind, props.isConsultant, { worker: props.worker })
-    expect(sections.map((s) => s.label)).toEqual(['You'])
+    expect(sections.map((s) => s.label)).toEqual(['Ask Etyme', 'You'])
   })
 
   it('their own work, their page and what is held about them are all on that menu', () => {

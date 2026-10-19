@@ -240,10 +240,10 @@ describe('18: the pile heads with the reader’s own menu section', () => {
   })
 
   it('a client’s job requests sit under a section on the client’s own menu', () => {
-    expect(sectionOfHref('CLIENT', '/dashboard/requisitions')).toBe('Workforce')
+    expect(sectionOfHref('CLIENT', '/dashboard/requisitions')).toBe('Jobs')
   })
 
-  it('a supplier’s job requests sit under its own selling section', () => {
-    expect(sectionOfHref('VENDOR', '/dashboard/requirements')).toBe('Sell')
+  it('a supplier’s job requests sit under its own Jobs link', () => {
+    expect(sectionOfHref('VENDOR', '/dashboard/requirements')).toBe('Jobs')
   })
 })

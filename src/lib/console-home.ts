@@ -42,7 +42,7 @@ export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work'
  * a placement makes its owner a worker, so a new firm of one landed on a
  * page her menu did not name (sign-up walk, round two, item 38). Then on
  * Needs attention, the first page of her Today; since 2026-10-12 what
- * needs her is Ask Etyme's greeting, drawn above Today, and Needs
+ * needs her is Ask Etyme's greeting, the first of her seven, and Needs
  * attention left the menu. `__tests__/invariants/console-home.test.ts`
  * holds it to the entry the solo menu draws first, so the two cannot
  * drift apart.

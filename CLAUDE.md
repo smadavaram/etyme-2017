@@ -1258,11 +1258,6 @@ home page's own: Jobs, Candidates, Timesheets and the money document.
 | One-person firm | Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings | Conversations → Ask Etyme. Seven: she has no jobs or candidates. |
 | Worker | Ask Etyme · Your work · Your page · Your paperwork · Your data | Already five. Unchanged; a worker who also holds a seat at a firm finds its Conversations inside Ask Etyme. |
 
-**Ask Etyme and Conversations are one entry** (founder, the same day):
-the "Conversations" link leaves every menu, and Ask Etyme opens the same
-conversations page with Ask Etyme as its first row and the other threads
-in the column beside it. Routes do not move.
-
 Nothing behind the menu is deleted: every page keeps its address,
 search still finds it, and every link in a card or a table still lands
 on it. The menu stops listing them, and each page gains the tabs that

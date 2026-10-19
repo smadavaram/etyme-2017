@@ -31,11 +31,11 @@ function routes(dir = API, out: string[] = []): string[] {
 }
 
 describe('a seat with no desk opens only what its menu shows it', () => {
-  it('the firm’s dashboard, submissions, job requests, contractors and past contractors are refused by URL (round four, problems 1 and 2)', () => {
+  it('the firm’s Today, candidates, jobs, contractors and past contractors are refused by URL, each named as the menu names it (round four, problems 1 and 2)', () => {
     const says: Record<string, string> = {
-      '/api/program': 'Dashboard',
-      '/api/submissions': 'Submissions',
-      '/api/requisitions': 'Job requests',
+      '/api/program': 'Today',
+      '/api/submissions': 'Candidates',
+      '/api/requisitions': 'Jobs',
       '/api/people': 'Contractors',
       '/api/alumni': 'Past contractors',
     }
@@ -127,7 +127,7 @@ describe('the door stops nobody else', () => {
     for (const method of ['POST', 'PATCH', 'DELETE', undefined]) {
       const v = desklessDoor({ ...MEMBER, path: '/api/submissions', method })
       expect(v.open, String(method)).toBe(false)
-      if (!v.open) expect(v.says).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
+      if (!v.open) expect(v.says).toBe('Candidates is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
     }
   })
 

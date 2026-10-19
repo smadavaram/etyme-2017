@@ -284,15 +284,15 @@ describe('sign-up walk, round seven: the heading over Your data and Users & perm
     })
   const owner = (kind: string) => rolesFor(kind as never).find((r) => r.name === 'Owner')?.permissions ?? []
 
-  it('Users & permissions is headed Governance on every firm’s menu, never Settings', () => {
+  it('Users & permissions is headed Settings on every firm’s menu, the link it is a tab of since the nine links', () => {
     for (const kind of FIRMS) {
-      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/access'), kind).toBe('Governance')
+      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/access'), kind).toBe('Settings')
     }
   })
 
-  it('Your data is headed Governance on every firm’s menu, never You', () => {
+  it('Your data is headed Settings on every firm’s menu, never You, for a reader who is not a worker', () => {
     for (const kind of FIRMS) {
-      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/my-data'), kind).toBe('Governance')
+      expect(sectionForReader(reader(kind, owner(kind)), '/dashboard/my-data'), kind).toBe('Settings')
     }
   })
 

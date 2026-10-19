@@ -147,9 +147,9 @@ describe("an integrator's own engineer reads his firm's menu, then his own", () 
     expect(nav[nav.length - 1].label).toBe('You')
     expect(nav.filter((s) => s.label === 'You')).toHaveLength(1)
     // Sign-up walk, round five: his two reads are of his own work, not a
-    // desk, so the firm's Deliver, Operate, Grow and Governance are not
-    // his reading. What the firm addresses to him stays under its Today.
-    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Today'])
+    // role at the firm, so the firm's Jobs, Bills, People and Settings are
+    // not his reading. What the firm addresses to him is inside Ask Etyme.
+    expect(nav.slice(0, -1).map((s) => s.label)).toEqual(['Ask Etyme'])
   })
 
   it('a menu heading with no links in it is not drawn', () => {

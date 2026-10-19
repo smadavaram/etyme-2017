@@ -21,24 +21,34 @@ import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
 import { TWIN_FEED_READERS } from '@/lib/twin/readers'
 
 /**
- * Sidebar navigation — from CLAUDE.md design system.
+ * Sidebar navigation — from CLAUDE.md, "Navigation per company type".
  *
- * Navigation per company type, and this file and CLAUDE.md's table are
- * held together by a test rather than by anybody remembering:
+ * Nine links per party (founder, 2026-10-19), and this file and
+ * CLAUDE.md's table are held together by a test rather than by anybody
+ * remembering:
  *
- *   Vendor     → Today → Sell → Procure → Operate → Grow → Governance
- *   GSI        → Today → Deliver → Supply → Operate → Grow → Governance
- *   MSP        → Today → Demand → Supply → Operate → Grow → Governance
- *   Client     → Workforce → Governance
- *   Consultant → You
+ *   Client      Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice receipts · Contractors · Suppliers · Settings
+ *   Supplier,   Ask Etyme · Today · Jobs · Candidates · Timesheets · Bills · People · Companies · Settings
+ *   integrator,
+ *   MSP
+ *   Solo        Ask Etyme · Your work · Timesheets · Bills · Contracts · Paperwork · Settings
+ *   Consultant  Ask Etyme · Your work · Your page · Who has you · Your data · Your paperwork
  *
- * Phase 1 ships Vendor and Client. GSI and MSP are Phase 3/4 by that same
- * rule — built ahead of it on explicit instruction, not by drift.
+ * Every other page is a tab of one of the nine.
  */
 
 export type NavSection = {
+  /** The noun the menu prints, for a tabbed section; the heading over a list, for "You". */
   label: string
+  /** Its pages. For a tabbed section, its tabs in order, the noun's own page first. */
   items: NavItem[]
+  /**
+   * One of the nine (founder, 2026-10-19): the menu prints one link, the
+   * label, opening the first of its pages this seat may open, and every
+   * page in it carries the tab row. Absent on "You", which is drawn as
+   * a list of its own pages under its heading.
+   */
+  tabbed?: boolean
 }
 
 export type NavItem = {
@@ -47,13 +57,9 @@ export type NavItem = {
   icon: string  // emoji for now; SVG icons later
   badge?: number
   /**
-   * Optional sub-heading inside a section. Operate had grown to 22 flat
-   * links with nothing between them — a founder note ("too many
-   * organized links") traced to exactly this section, and a second one
-   * ("all over the place") to the same shape on the integrator's.
-   *
-   * A section is either short enough to read as a list — seven links at
-   * the outside — or every link in it carries one of these.
+   * A sub-heading inside a section. No menu sets one since the nine
+   * links (2026-10-19): a page that was a neighbor is a tab now. Kept on
+   * the type because lib/page-framing reads it structurally.
    */
   group?: string
   /**
@@ -250,6 +256,8 @@ export const OPEN_TO_EVERY_SEAT: Readonly<Record<string, string>> = {
   '/dashboard/requisitions': SCOPED,
   '/dashboard/people': SCOPED,
   '/dashboard/program/budget': SCOPED_TO_A_DESK,
+  // The client's agreements with its suppliers, a tab of Suppliers since 2026-10-19.
+  '/dashboard/program/agreements': SCOPED,
   '/dashboard/alumni': SCOPED,
   '/dashboard/program/org': SCOPED_TO_A_DESK,
   '/dashboard/tenure': SCOPED_TO_A_DESK,
@@ -273,91 +281,78 @@ export function openBecause(href: string): string | null {
 }
 
 /**
- * ── One scheme, five parties ─────────────────────────────────────────
+ * ── Nine links, and a process step is a tab ──────────────────────────
  *
- * The founder walked the app and said it: "System integrator is all over
- * the place. Network on left navigation is missing, contracts are all
- * over the place... contracts buy sell timesheets should be under
- * operate — overall make all level 1 navigation as organized as client
- * party is."
+ * The founder, 2026-10-19 ("Nine links, no flip, and every first screen
+ * names a person"): "left navigation is also exhaustive … [it] will
+ * scare anyone from our app." The table carried 133 labels and a
+ * supplier's owner read about forty. So a menu entry is now a noun on the
+ * person's desk — Jobs, Candidates, Timesheets, the money document, the
+ * people, the firms, Settings — and every page that was a neighbor is a
+ * tab inside that noun's page.
  *
- * Three things were true. Contracts were split by which side of the
- * trade they sat on — "Sell contracts" under Sell, "Buy contracts" under
- * Talent — so the same table was reached from two unrelated places and
- * neither was where somebody administering a placement would look. The
- * Network group the client got on 2026-09-13 never reached anybody else,
- * and a supplier has counterparties too. And the integrator's Operate
- * was a seventeen-item run with two sub-headings in it.
+ * In this table each of the nine is a section with `tabbed` set: its
+ * `label` is the one link the menu prints, and its `items` are the tabs
+ * on its pages, in order, the noun's own page first. The link opens the
+ * first tab this seat may open. Tabs are items rather than a list beside
+ * them on purpose: every reader of this table — the eyebrow over a page
+ * (lib/page-framing), the door for a seat with no desk, `mayOpen`, the +
+ * button, ⌘K and a refusal's page name — already reads `items`, so a
+ * page folded into a tab keeps its permission, its door and its name,
+ * and folding a link opens nothing and closes nothing.
  *
- * So there is one scheme now, and every party is cut to it:
+ * Nothing behind the menu is deleted. Every page keeps its address.
  *
- *   Today       the queue — what needs somebody this morning
- *   <trade>     what this firm does with the outside world, named in its
- *               own words: Sell, Deliver, Demand, Workforce
- *   <supply>    where its people come from: Procure, Supply
- *   Operate     the week: the network it trades with, the contracts and
- *               the hours under them, and the money either way
- *   Grow        what it earned and how it looks to a buyer
- *   Governance  compliance, and the things set up once
- *
- * Two rules hold it together, and `__tests__/invariants/sidebar-nav.test.ts`
- * fails when either is broken:
- *
- *   · **Seven.** No run of links is longer than seven without a named
- *     sub-heading, and no sub-heading holds more than seven. Seven is
- *     where a person stops scanning and starts searching, and it is the
- *     length of the client's own longest group — the nav the founder
- *     called organized.
- *   · **Contracts and timesheets are Operate's, for everybody.** Both
- *     sides of a contract and the hours under them are one job — the
- *     administration of a placement — whoever is doing it.
+ * The worker's "You" is the one section that is not tabbed: it was
+ * already five links (founder: "Unchanged") and is drawn as a list under
+ * its heading, wherever it is appended.
  *
  * `href` is typed as `string` because a few destinations carry a query
  * (`?side=sell`) and Next.js typedRoutes would reject them.
  */
 
 /**
- * Ask Etyme — the one entry above every section (founder, 2026-10-12, on
- * the "Ask Etyme" prototype). A chat with the record, pinned inside
- * Conversations at /dashboard/conversations/etyme; the chat is
- * conversation's.
+ * Ask Etyme — the first of the nine on every menu (founder, 2026-10-12,
+ * "Ask Etyme is the app"). A chat with the record at
+ * /dashboard/conversations/etyme; the chat is conversation's.
  *
- * It is not a section. Today is still the first named section on every
- * menu, and CLAUDE.md's navigation table is unchanged: this entry is drawn
- * above the sections, on its own, wherever the reader's menu has
- * Conversations, and nowhere else. It asks for exactly what Conversations
- * asks for — nothing; everybody reads what is addressed to them — so a
- * seat that is shown Conversations is shown this, and a seat that is not
- * is not. Read with `pinnedOn` below, never typed into a section.
+ * Ask Etyme and Conversations are one entry (founder, 2026-10-19): the
+ * link opens the conversations page with Ask Etyme as its first row and
+ * the other threads in the column beside it, so Conversations is Ask
+ * Etyme's second page and no longer a link of its own. Neither asks for
+ * a permission; everybody reads what is addressed to them.
  */
 export const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
 /** The icon value the sidebar draws as the Etyme mark (components/logo), not an emoji. */
 export const ETYME_MARK_ICON = 'etyme-mark'
-export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON }
+// Its page reads the seat's saved thread and its greeting from one route.
+export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON, api: ['conversations/twin'] }
+const CONVERSATIONS: NavItem = { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' }
+const ASK_ETYME_SECTION: NavSection = { label: 'Ask Etyme', tabbed: true, items: [ASK_ETYME, CONVERSATIONS] }
 
 /**
- * The entries drawn above this menu's sections: Ask Etyme where the menu
- * has Conversations, or a worker's own work (since 2026-10-19 Ask Etyme
- * answers a worker about her own weeks, papers and chain, from her own
- * pages — conversation's `twin/worker`).
+ * The Ask Etyme entry on this menu, or nothing: one entry wherever the
+ * menu has Ask Etyme, its conversations, or a worker's own work (since
+ * 2026-10-19 Ask Etyme answers a worker about her own weeks, papers and
+ * chain — conversation's `twin/worker`). Read by the header, the landing
+ * and the tests; the sidebar draws it as the first of the nine.
  */
 export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
   const has = (href: string) => sections.some((s) => s.items.some((i) => i.href === href))
-  return has('/dashboard/conversations') || has('/dashboard/my-work') ? [ASK_ETYME] : []
+  return has(ASK_ETYME_HREF) || has('/dashboard/conversations') || has('/dashboard/my-work') ? [ASK_ETYME] : []
 }
 
 /**
  * Where a seat lands after signing in and through the demo door (founder,
  * 2026-10-12, "Ask Etyme is the app"): in Ask Etyme, wherever the seat's
- * own menu pins it — a menu with Conversations, because the greeting
- * there is its desk, or a worker's menu with her own work, because since
- * 2026-10-19 the greeting there is her week. Anybody else lands where
- * lib/console-home says. One answer, read by the sign-in landing
- * (components/desk-home) and the demo door (app/api/demo).
+ * own menu has it, which since 2026-10-19 is every menu — a firm's,
+ * because the greeting there is its work, and a worker's, because the
+ * greeting there is her week. Anybody else lands where lib/console-home
+ * says. One answer, read by the sign-in landing (components/desk-home)
+ * and the demo door (app/api/demo).
  *
- * The console is unchanged: `/dashboard` and the sidebar's Dashboard link
- * still open the firm's console, so a person who wants the tables is one
- * click from them.
+ * Today, the second of the nine, still opens the firm's own tables, one
+ * click from the chat.
  */
 export function landingFor(reader: Reader & { seatedAtClient?: string | null }): string {
   const menu = getNavForKind(reader.kind ?? null, Boolean(reader.isConsultant), {
@@ -368,465 +363,184 @@ export function landingFor(reader: Reader & { seatedAtClient?: string | null }):
   return pinnedOn(menu).length > 0 ? ASK_ETYME_HREF : consoleHome(reader).href
 }
 
+// ── Every page a menu names, once ───────────────────────────────────
+//
+// Each page is written once and placed under the noun it belongs to on
+// each party's menu, so a page's permission is one fact wherever it is
+// reached from. The permission beside each is read off the GET handler
+// of the route behind it; `__tests__/invariants/sidebar-nav.test.ts`
+// reads every one back out of that route.
+
+/** The firm's own tables. "Needs attention" and "Notifications" left the menu on 2026-10-12 and 10-13: Ask Etyme's greeting is that list, and its mark carries the number. */
+const TODAY_PAGE: NavItem = { label: 'Today', href: '/dashboard', icon: '◉' }
+const REPORTS: NavItem = { label: 'Reports', href: '/dashboard/reports', icon: '▨' }
+// Gated on margin.read — a Recruiter role deliberately cannot see what a placement earns.
+const PROFITABILITY: NavItem = { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] }
+// Rate progression is how trust is carried where markup is not disclosed (Addendum D).
+const RATE_HISTORY: NavItem = { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] }
+// A scorecard the supplier cannot see is a blacklist with better manners.
+const OUR_SCORECARD: NavItem = { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈', pageCalls: ['me/scorecard'] }
+
+/** The job requests a supplier is working. "Jobs" on the menu, the founder's word of 2026-10-19; the machine name stays requirements. */
+const JOBS: NavItem = { label: 'Jobs', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] }
+const LEADS: NavItem = { label: 'Leads', href: '/dashboard/leads', icon: '⌁', pageCalls: ['openings', 'openings/**'] }
+const SHARED_WITH_YOU: NavItem = { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' }
+
+/** Who was put forward, and the rounds they sit. */
+const CANDIDATES: NavItem = { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' }
+const INTERVIEWS: NavItem = { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' }
+
+const TIMESHEETS: NavItem = { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' }
+const EXPENSES: NavItem = { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', needs: ['invoices.read'] }
+const ROLLOFF: NavItem = { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS }
+
+// "Bills", not "Invoices": the firm is the one billing here, and the
+// party who issues a document names it (CLAUDE.md, "Bill, invoice
+// receipt, payroll"). A client's own menu reads "Invoice receipts".
+const BILLS: NavItem = { label: 'Bills', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] }
+// /api/ar and /api/ap open for invoices.read (RECEIVABLE and PAYABLE in
+// lib/money/desks), which the Accounts Receivable, AP & Payroll and
+// Finance desks all hold.
+const AR: NavItem = { label: 'AR', href: '/dashboard/ar', icon: '◧', needs: ['invoices.read'] }
+// What a supplier's own sub-vendors sent it: its invoice receipts, and what is owed on them.
+const AP: NavItem = { label: 'AP', href: '/dashboard/ap', icon: '◨', needs: ['invoices.read'] }
+const PAYROLL: NavItem = { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', needs: ['payroll.read'] }
+// What a recruiter earned on a placement.
+const COMMISSIONS: NavItem = { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', needs: ['payroll.read'] }
+
+/** The firm's own people. The register first; the bench beside it. */
+const PEOPLE: NavItem = { label: 'People', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] }
+const BENCH: NavItem = { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS }
+const CHECK_INS: NavItem = { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS }
+
 /**
- * The queue every firm opens on. Three items, so it needs no headings.
- *
- * "Needs attention" went on 2026-10-12: the greeting in Ask Etyme is that
- * list now, drawn above this section on every menu that has Conversations
- * (founder: "Needs attention and the greeting are one list; one of them
- * goes"). Its page, /dashboard/decisions, still answers the + button's
- * "Review approvals" and anybody who has it bookmarked.
- *
- * "Notifications" went on 2026-10-13 (founder: "kill notification and
- * place Ask Etyme icon instead of it"). The Ask Etyme mark carries the
- * number of what this seat owes, in the header and on the pinned entry,
- * and what a notice used to say is a line in the greeting.
+ * The firms it trades with, and what it agreed with them: the register,
+ * the firms it buys from, the people at them, both lines of a contract
+ * and the order they draw down. `/api/suppliers` is scoped to the caller
+ * as the buyer, which is what a prime with sub-vendors under it reads.
  */
-const TODAY: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: '◉' },
-  { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
-]
+const COMPANIES: NavItem = { label: 'Companies', href: '/dashboard/companies', icon: '▣' }
+const SUPPLIERS: NavItem = { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] }
+const CONTACTS: NavItem = { label: 'Contacts', href: '/dashboard/contacts', icon: '☎' }
+const SELL_CONTRACTS: NavItem = { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' }
+const BUY_CONTRACTS: NavItem = { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' }
+const POS: NavItem = { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] }
+// Only computable where somebody buys from several firms for one program.
+const SUPPLIER_SCORECARDS: NavItem = { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', pageCalls: SCORECARD_CALLS }
 
 /**
- * Network — the registers of who this firm deals with.
- *
- * The client's version is Contractors · Suppliers · Contacts: the people
- * it uses, the firms it buys from, the humans to call. A supplier's is
- * the same question asked from the other chair — the firms it buys from,
- * the register of every counterparty, and the rolodex. Its own people
- * are not counterparties, so they stay under Procure or Supply where the
- * bench screens are.
- *
- * Suppliers is new on this side and it is not a stub: `/api/suppliers`
- * is scoped to the caller as the buyer, which is exactly what a prime
- * with sub-vendors under it has been unable to reach from the menu.
+ * Settings: the things set up once, the paperwork and the governance
+ * (founder: "Paperwork, Governance, Team → Settings"). The page itself
+ * asks settings.manage for the read since 2026-09-21; a seat without it
+ * opens the first of these tabs it may.
  */
-const NETWORK: NavItem[] = [
-  { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
-  { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Network' },
-  { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Network' },
-]
-
+const SETTINGS: NavItem = { label: 'Settings', href: '/dashboard/settings', icon: '⚙', needs: ['settings.manage'] }
+// Who is seated here and what each may do; `/api/access` gates its read on governance.read.
+const USERS: NavItem = { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', needs: ['governance.read'] }
+// Five onboardings, derived live from what exists, read by the seats that bring each party on.
+const SETUP: NavItem = { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', needs: SETS_UP_A_PARTY, api: 'onboarding/readiness' }
+// Any one kind of sheet this seat may load opens it.
+const IMPORT: NavItem = { label: 'Import', href: '/dashboard/data', icon: '⤓', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS }
+// The journal out to their books, and the statement back against ours. Money, so read by the seats that read money.
+const INTEGRATIONS: NavItem = { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', needs: ['invoices.read'], api: 'integrations/export' }
+// What the system did on the company's behalf.
+const AUTOMATION: NavItem = { label: 'Automation', href: '/dashboard/automation', icon: '⚙', needs: ['governance.read'] }
+const PAPERWORK: NavItem = { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', ...PAPERWORK_READS }
+/** A queue, not a report: the loose ends of the firm's placements. */
+const MISSING_PAPERWORK: NavItem = { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' }
+const DOCUMENT_REQUESTS: NavItem = { label: 'Document requests', href: '/dashboard/packets', icon: '◱' }
+// The other direction: a supplier spends as much time being screened as screening.
+const SCREENING_PACKS: NavItem = { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲' }
+const COMPLIANCE: NavItem = { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', needs: ['governance.read'] }
+const CHECK_QUEUE: NavItem = { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', needs: ['submissions.read'], api: 'checks/queue' }
+// /api/blacklist opens for anybody who deals with people or suppliers (MAY_READ), the compliance officer included.
+const DNR_LIST: NavItem = { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', needs: ['consultants.read', 'vendors.read', 'governance.read'] }
 /**
- * The administration of a placement, in the order it happens: the paper
- * that agreed it, the ceiling it draws down, the week worked, what it
- * cost on the road. Both sides of the contract are here and adjacent —
- * the founder's own instruction — because "sell" and "buy" are two tabs
- * of one table and a person filing a week does not think in sides.
- */
-const CONTRACTS_AND_TIME: NavItem[] = [
-  { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤', group: 'Contracts & time' },
-  { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥', group: 'Contracts & time' },
-  { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Contracts & time', needs: ['invoices.read'] },
-  { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Contracts & time' },
-  { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Contracts & time', needs: ['invoices.read'] },
-]
-
-/** What was billed, what came back, what went out. */
-const MONEY: NavItem[] = [
-  { label: 'Bills', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
-  // "Bills", not "Invoices": the firm is the one billing here, and the
-  // party who issues a document names it (CLAUDE.md, "Bill, invoice
-  // receipt, payroll"). A client's own menu reads "Invoice receipts",
-  // because what reaches a client is its suppliers' invoices, received.
-  //
-  // Next to Bills deliberately: same money, different question. One
-  // is what we sent, the other is what came back.
-  // /api/ar and /api/ap open for invoices.read (RECEIVABLE and PAYABLE
-  // in lib/money/desks), which the Accounts Receivable, AP & Payroll and
-  // Finance desks all hold. Annotated since 2026-09-30, once money
-  // corrected the gate that used to refuse the desks named after them.
-  { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money', needs: ['invoices.read'] },
-  // The other half of the same question — who is funding whom while
-  // everybody waits.
-  { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money', needs: ['invoices.read'] },
-  { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money', needs: ['payroll.read'] },
-  // What a recruiter earned on a placement. The run has been there since
-  // commissions were built; nothing in the nav reached it.
-  { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money', needs: ['payroll.read'] },
-]
-
-/**
- * A queue, not a report, and a report is something somebody has to think
- * to ask for. It sits above the headings rather than inside one.
- */
-const MISSING_PAPERWORK: NavItem = {
-  label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓',
-}
-
-/**
- * Compliance is business continuity, not filing — a lapsed certificate
- * stops a supplier working and neither fails loudly on its own. It is
- * its own heading, never mixed into the week's work, and never mixed
- * into the things set up once.
- */
-const COMPLIANCE: NavItem[] = [
-  { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Compliance', needs: ['governance.read'] },
-  { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Compliance', ...PAPERWORK_READS },
-  { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Compliance' },
-  // The two directions belong adjacent. A supplier spends as much time
-  // being screened as screening.
-  { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Compliance' },
-  { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Compliance', needs: ['submissions.read'], api: 'checks/queue' },
-  // /api/blacklist opens for any desk that deals with people or suppliers
-  // (MAY_READ in its own desks file), the compliance officer included.
-  { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Compliance', needs: ['consultants.read', 'vendors.read', 'governance.read'] },
-]
-
-/**
- * What is held about a person, and what they may ask for.
- *
- * Its own heading rather than a line in Compliance, for two reasons.
- * A compliance officer chasing a lapsed certificate and a compliance
- * officer answering "send me everything you hold about me" are the same
- * desk on two different mornings, and "Data requests" sitting next to
- * "Document requests" with nothing between them is exactly the pair of
- * near-identical labels this menu has been corrected for three times.
- *
- * The desk's queue and the reader's own record sit together on purpose:
- * everybody signed in has data held about them — a client's AP clerk as
- * much as a consultant — and "Your data" was reachable only from the
- * consultant's own menu, which is a right nobody else could find.
- * Somebody who already reads it under "You" is not shown it twice; see
+ * What is held about a person, and what they may ask for. The compliance
+ * officer's queue of requests, holds and incidents (all three reads are
+ * governance.read), and the reader's own record, which every signed-in
+ * person has: a client's AP clerk as much as a consultant. Somebody who
+ * already reads "Your data" under "You" is not shown it twice; see
  * getNavForKind.
  */
-const PRIVACY: NavItem[] = [
-  // Requests soonest-due first, the holds this company placed, and any
-  // incident its records were in. Both reads are governance.read, read
-  // off the three GET handlers behind the page rather than guessed.
-  {
-    label: 'Data requests', href: '/dashboard/privacy', icon: '⚖', group: 'Privacy',
-    needs: ['governance.read'], api: 'data-requests',
-  },
-  // No permission beside it on purpose: the route behind it asks for
-  // none, because it answers this person about this person.
-  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁', group: 'Privacy' },
+const DATA_REQUESTS: NavItem = { label: 'Data requests', href: '/dashboard/privacy', icon: '⚖', needs: ['governance.read'], api: 'data-requests' }
+const YOUR_DATA_HERE: NavItem = { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' }
+
+/** A supplier's Settings, every tab in the order a firm reaches for it. */
+const FIRM_SETTINGS: NavItem[] = [
+  SETTINGS, USERS, SETUP, IMPORT, INTEGRATIONS, AUTOMATION,
+  PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECK_QUEUE, DNR_LIST,
+  DATA_REQUESTS, YOUR_DATA_HERE,
 ]
 
-/** Done once, by one person, and never on a Friday afternoon. */
-const ADMIN: NavItem[] = [
-  // Who is seated here and what each desk may do. `/api/access` gates
-  // its read on governance.read since 2026-09-21, so an AP clerk is no
-  // longer shown a link that answers them with a refusal.
-  { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin', needs: ['governance.read'] },
-  // The page is the company's own setup — its roles and what each may
-  // do, its wall, its calendar, its cost centers — and the route asks
-  // settings.manage for the read as well as the write since 2026-09-21.
-  { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin', needs: ['settings.manage'] },
-  // What the system did on the company's behalf, read by the desks that
-  // read the rules it ran under.
-  { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Admin', needs: ['governance.read'] },
-  // The journal out to their books, and the statement back against ours.
-  // Money, so read by the desks that read money.
-  { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin', needs: ['invoices.read'], api: 'integrations/export' },
-  // Any one kind of sheet this seat may load opens it.
-  { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS },
-  // Five onboardings, derived live from what exists, read by the desks
-  // that bring each party on.
-  { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin', needs: SETS_UP_A_PARTY, api: 'onboarding/readiness' },
-]
+const tabbed = (label: string, items: NavItem[]): NavSection => ({ label, tabbed: true, items })
 
 /**
- * Operate, for any firm that both sells and buys. The queue first, then
- * who we trade with, then what we agreed with them, then the money.
- *
- * `network` and `money` are arguments rather than constants because an
- * MSP's supplier base is its product and lives under Supply, and because
- * a program office pays no recruiter commission. Everything else is
- * identical across the three by construction, which is what stops one
- * of them drifting the next time somebody adds a link.
- */
-function operateSection(network: NavItem[], money: NavItem[]): NavSection {
-  return {
-    label: 'Operate',
-    items: [MISSING_PAPERWORK, ...network, ...CONTRACTS_AND_TIME, ...money],
-  }
-}
-
-/** Compliance and the things set up once — never the week's work. */
-function governanceSection(): NavSection {
-  return { label: 'Governance', items: [...COMPLIANCE, ...PRIVACY, ...ADMIN] }
-}
-
-/**
- * A staffing vendor: Today → Sell → Procure → Operate → Grow →
- * Governance.
- *
- * The first four are CLAUDE.md's own table, which the code had drifted
- * from — what shipped was "Talent" where the table says Procure, and
- * there was no Procure and no Grow at the time the table was written
- * down. Governance is the sixth, added rather than stuffed into Operate:
- * Operate held twenty-five links, of which thirteen were compliance and
- * administration nobody opens on a Friday.
+ * A staffing vendor: Ask Etyme · Today · Jobs · Candidates · Timesheets ·
+ * Bills · People · Companies · Settings.
  */
 const VENDOR_NAV: NavSection[] = [
-  { label: 'Today', items: TODAY },
-  {
-    // The sequence of a deal, left to right: a lead, a role somebody
-    // sent you, the roles you are working, who you put up, the rounds
-    // they sit, and the end of a placement — which for a bench firm is
-    // the start of the next one.
-    label: 'Sell',
-    items: [
-      { label: 'Leads', href: '/dashboard/leads', icon: '⌁', pageCalls: ['openings', 'openings/**'] },
-      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
-      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
-      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
-    ],
-  },
-  {
-    // Where the people come from. "Talent" was the label and it named a
-    // department, not a job; CLAUDE.md's table says Procure, which is
-    // what a firm is doing when it signs somebody to a bench.
-    label: 'Procure',
-    items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
-      BENCH_PAY,
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
-      TRAINING,
-    ],
-  },
-  operateSection(NETWORK, MONEY),
-  {
-    label: 'Grow',
-    items: [
-      // Gated on margin.read — a Recruiter role deliberately cannot see
-      // what a placement earns.
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
-      { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-      // Rate progression is how trust is carried where markup is not
-      // disclosed (Addendum D), so it reads as analysis rather than as
-      // an audit trail, and sits with the rest of the analysis.
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
-      // A scorecard the supplier cannot see is a blacklist with better
-      // manners. It decides who gets the next role, so it is not a
-      // secret from the firm it is about.
-      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈', pageCalls: ['me/scorecard'] },
-    ],
-  },
-  governanceSection(),
+  ASK_ETYME_SECTION,
+  tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
+  tabbed('Jobs', [JOBS, LEADS, SHARED_WITH_YOU]),
+  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
+  tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
+  tabbed('People', [PEOPLE, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * A GSI: Today → Deliver → Supply → Operate → Grow → Governance.
- *
- * Deliver and Supply are CLAUDE.md's words and they stay, because a GSI
- * holds both hats on one deal — prime to the client, buyer from its own
- * bench and its sub-vendors. What changes is that Operate is no longer
- * seventeen links in a row, and that the network it buys from is finally
- * reachable from the menu.
- *
- * No Leads: a GSI's demand arrives through the client relationship it
- * already has, not through a capture form, and a menu entry with nothing
- * behind it is worse than none.
+ * An integrator: the supplier's nine. No Leads: a GSI's demand arrives
+ * through the client relationship it already has, not through a capture
+ * form. Its People are its own employees, rolling off one project and
+ * onto the next — checked first on a job request before a role reaches a
+ * sub-vendor (match-engine.ts: this company's own bench and nobody
+ * else's).
  */
 const GSI_NAV: NavSection[] = [
-  { label: 'Today', items: TODAY },
-  {
-    label: 'Deliver',
-    items: [
-      // What the end client sent — a GSI is prime here, the same seat a
-      // vendor sits in when it receives a role.
-      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
-      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
-      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
-    ],
-  },
-  {
-    // The GSI's own roster — checked first, on the requirement detail
-    // page, before a role ever reaches a sub-vendor. See match-engine.ts:
-    // that check is scoped to this company's own bench and nobody else's.
-    label: 'Supply',
-    items: [
-      { label: 'Bench', href: '/dashboard/bench', icon: '◎', ...BENCH_READS },
-      BENCH_PAY,
-      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌', needs: ['consultants.read'] },
-      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆', needs: CHECK_IN_READERS },
-      TRAINING,
-    ],
-  },
-  operateSection(NETWORK, MONEY),
-  {
-    label: 'Grow',
-    items: [
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
-      { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
-      { label: 'Our scorecard', href: '/dashboard/my-standing', icon: '◈', pageCalls: ['me/scorecard'] },
-    ],
-  },
-  governanceSection(),
+  ASK_ETYME_SECTION,
+  tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
+  tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
+  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
+  tabbed('Bills', [BILLS, AR, AP, PAYROLL, COMMISSIONS]),
+  tabbed('People', [PEOPLE, BENCH, BENCH_PAY, CHECK_INS, TRAINING]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * An MSP: Today → Demand → Supply → Operate → Grow → Governance.
+ * An MSP: the supplier's nine, less People. An MSP runs the program and
+ * places nobody (CLAUDE.md, "Etyme runs the program"): it holds no bench
+ * and no consultants of its own, and its own setup tells it so (sign-up
+ * walk, round five, problem 21), so the menu offers no People with
+ * nothing behind it. No payroll and no commission run either: it pays
+ * nobody and is paid a fee on the program. The supplier base it manages
+ * and how each firm scores are under Companies.
  *
- * It had no navigation at all. `getNavForKind` fell an MSP through to
- * the vendor's, under a comment saying CLAUDE.md specified none — and
- * then a seat appeared on `/demo` (Aptiva Workforce) that sells to its
- * client and buys below it, including its own W2 with no purchase order.
- * A firm that runs somebody else's program was reading a bench firm's
- * menu.
- *
- * Demand and Supply are the words the trade uses for the two halves of
- * an MSP's job — demand intake from the client, and the supply base it
- * manages on the client's behalf. Which is why Suppliers and the
- * scorecards sit under Supply here and under Network everywhere else:
- * for a vendor the list of firms it buys from is a register, and for an
- * MSP it is the product.
- *
- * What is deliberately not here, because nothing behind it is the MSP's
- * yet: the client's own program screens. An MSP acts inside a client's
- * program office through a seat the client grants it, and that seat is
- * Phase 2 (`lib/resolve-client-company` refuses in words until it
- * exists). This nav is what an MSP can do today, and no more.
+ * What is deliberately not here: the client's own program screens. An
+ * MSP acts inside a client's program through a seat the client grants
+ * it, and then reads the client's menu (`seatedAtClient`).
  */
 const MSP_NAV: NavSection[] = [
-  { label: 'Today', items: TODAY },
-  {
-    label: 'Demand',
-    items: [
-      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
-      { label: 'Job requests', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] },
-      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
-      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
-    ],
-  },
-  {
-    label: 'Supply',
-    items: [
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
-      // Only computable where somebody buys from several firms for one
-      // program, which is the whole of what an MSP is for.
-      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', pageCalls: SCORECARD_CALLS },
-      // No Bench, Consultants or Bench check-ins. A program office runs
-      // the program and places nobody (CLAUDE.md, "Etyme runs the
-      // program"): it holds no bench and no consultants of its own, and
-      // its own setup tells it so. The menu offered all three anyway
-      // (sign-up walk, round five, problem 21).
-    ],
-  },
-  operateSection(
-    // Suppliers is already above, under Supply. A firm appears in one
-    // place in one menu or the reader has to work out which one is real.
-    NETWORK.filter((i) => i.href !== '/dashboard/suppliers'),
-    // No commissions: a program office is paid a fee on the program, not
-    // a recruiter's split on a placement, and there is no run behind it.
-    // No payroll either: it pays nobody — the suppliers pay their own
-    // people — which is what its setup says (round five, problem 21).
-    MONEY.filter((i) => i.href !== '/dashboard/payroll/commissions' && i.href !== '/dashboard/payroll'),
-  ),
-  {
-    label: 'Grow',
-    items: [
-      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑', needs: ['margin.read', 'pnl.read'] },
-      { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', needs: ['rates.read'] },
-    ],
-  },
-  governanceSection(),
+  ASK_ETYME_SECTION,
+  tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY]),
+  tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
+  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
+  tabbed('Bills', [BILLS, AR, AP]),
+  tabbed('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS, SELL_CONTRACTS, BUY_CONTRACTS, POS]),
+  tabbed('Settings', FIRM_SETTINGS),
 ]
 
 /**
- * A company of one: Today → Operate → Governance (→ You).
+ * A consultant is a person, not a company: Ask Etyme, and the pages that
+ * belong to a person rather than to a firm.
  *
- * Colleen Byrne is an ICU travel nurse paid corp-to-corp through Byrne
- * Critical Care LLC, and she was handed a staffing agency's
- * forty-nine-link menu — Leads, Bench, Consultants, Bench check-ins,
- * Training, Rolloff, Payroll commissions, Profitability — because
- * CONSULTANT_CORP fell through to VENDOR. Seen on the browser walk of
- * 2026-09-21; it is the "Candidate Karthik is all buggy" bug wearing a
- * different hat, and the fix is the same one: read the menu off what
- * the person actually does.
- *
- * She is the person **and** the firm, so she gets both halves and
- * neither is padded out:
- *
- *   · the firm's week — the contracts she is on, the order behind one,
- *     the hours, what she billed and what came back. Every one of those
- *     is a real row in her book.
- *   · her own record under "You", appended by `getNavForKind` the way
- *     it is for any other worker, because a solo corporation's owner is
- *     always somebody the work is about.
- *
- * Nothing about a bench, a pipeline or a recruiter's commission. She
- * has one consultant, herself, and a screen offering to add another is
- * a screen asking her about herself in the third person.
- */
-const SOLO_NAV: NavSection[] = [
-  {
-    label: 'Today',
-    // No Dashboard link: `/dashboard` sends a company of one to the
-    // first page here (`SOLO_TODAY` in lib/console-home), so a Dashboard
-    // link would be a second door onto the same page. Two doors onto one
-    // page is a question the reader has to answer before they can click.
-    items: TODAY.filter((i) => i.href !== '/dashboard'),
-  },
-  {
-    label: 'Operate',
-    items: [
-      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
-      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] },
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
-      { label: 'Bills', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] },
-      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', needs: ['invoices.read'] },
-      // What came back and what is late. For somebody invoicing one or
-      // two firms this is the whole of finance, and chasing it is the
-      // thing an independent actually spends their Friday on.
-      { label: 'AR', href: '/dashboard/ar', icon: '◧', needs: ['invoices.read'] },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      // Her own standing as a supplier: insurance, license, the
-      // certificate somebody will ask for before she starts.
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', needs: ['governance.read'] },
-      // "Company paperwork" on this menu alone, because on this menu
-      // alone the firm and the person are the same human. Every other
-      // party reads "Paperwork" under a heading that already says whose
-      // it is; a one-person corporation reading "Paperwork" beside
-      // "Your paperwork" is being asked to guess which of her two hats
-      // a link belongs to.
-      { label: 'Company paperwork', href: '/dashboard/documents', icon: '▪', ...PAPERWORK_READS },
-      // Filtered out of here and shown under "You" for a reader who is
-      // also a worker, which she always is. See getNavForKind.
-      { label: 'Your data', href: '/dashboard/my-data', icon: '⛁' },
-      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', needs: ['settings.manage'] },
-    ],
-  },
-]
-
-// A consultant is a person, not a company. CLAUDE.md gives them
-// "You → Grow" — their own work first, then what they could become.
-//
-// Grow is empty for now, on purpose. It used to point at "Training" —
-// /dashboard/training — which is the vendor's own skill-gap analysis
-// across a whole bench ("demand from open requirements vs supply from
-// bench listings"), not a candidate's page. A consultant landing there
-// saw every number at zero, because none of it was about them. A wrong
-// link is worse than a missing section; this comes back once there is
-// a real, candidate-scoped training screen to put here.
-/**
- * The pages that belong to a person rather than to a firm.
- *
- * Kept apart from CONSULTANT_NAV because they are read by two different
- * people. Somebody on a bench has nothing else and reads only these. A
- * GSI's own billable engineer reads them **and** his employer's menu,
- * because he is both — Teleworld's payroll and the person the work is
- * about. Nothing here asks a permission: they are his own record, and
- * the routes behind them answer him because he is him.
- */
-/**
- * The routes a worker's own pages call, named on each link with `api`.
- *
- * Here because a seat with no desk is let through to nothing else
+ * The routes a worker's own pages call are named on each link with
+ * `api`, because a seat with no desk is let through to nothing else
  * (`lib/deskless-door`, sign-up walk round four): the door reads the
  * routes a desk-less seat may open off the links its menu shows it, and
  * these pages are named after no route of their own. Each entry is a
@@ -846,219 +560,142 @@ export const YOUR_TERMS_READS = ['submissions/*/terms'] as const
 
 const MY_PAPERWORK_READS = ['me', 'me/papers', 'documents/*/sign', 'documents/*/upload'] as const
 
-const YOURS: NavItem[] = [
-  { label: 'Your work', href: '/dashboard/my-work', icon: '◉', api: MY_WORK_READS },
-  // Not a separate "Your profile" link to /dashboard/consultants —
-  // that is the vendor staff's bench-management screen, gated on
-  // consultants.read, and a consultant hitting it saw a red
-  // "You need consultants.read permission" where their own profile
-  // should have been. /dashboard/my-page already IS the self-service
-  // editor (headline, intro, skills) plus the public-page toggle;
-  // having a second, broken link to a different page was the bug,
-  // not a missing feature.
-  { label: 'Your page', href: '/dashboard/my-page', icon: '◐', api: ['me', 'me/portfolio', 'me/portfolio/write'] },
-  { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈', api: ['me', 'me/benches', 'me/benches/*/respond'] },
-  // What is held about them, and the two things they can ask for: a
-  // copy of it, or to be forgotten. The page was built with no door on
-  // to it, which is the same bug as a column nothing writes to — a
-  // right nobody can find is a right nobody has. No permission beside
-  // it on purpose: the route behind it asks for none, because it
-  // answers this person about this person.
-  { label: 'Your data', href: '/dashboard/my-data', icon: '⛁', api: ['me', 'me/data', 'me/papers', 'data-requests/*/withdraw'] },
-  // What is still being asked of her, with the day each runs out. Every
-  // chase letter names this page and until now the only way to it was
-  // the letter itself, which makes a reminder a dead end for anybody
-  // who read it on Tuesday and came looking on Thursday. No permission
-  // beside it, for the same reason as "Your data": /api/me/papers asks
-  // for nothing except being the person it is about.
-  //
-  // "Your paperwork", never "Paperwork" — a firm's own documents live
-  // under Compliance or Governance and a reader who is both a worker
-  // and staff at a firm sees both menus at once. Two entries reading
-  // the same word is the bug the nav table exists to catch.
-  { label: 'Your paperwork', href: '/dashboard/my-work/paperwork', icon: '▫', api: MY_PAPERWORK_READS },
-]
+const YOUR_WORK: NavItem = { label: 'Your work', href: '/dashboard/my-work', icon: '◉', api: MY_WORK_READS }
+// /dashboard/my-page IS the self-service editor (headline, intro,
+// skills) plus the public-page toggle. Never /dashboard/consultants,
+// which is a firm's register gated on consultants.read.
+const YOUR_PAGE: NavItem = { label: 'Your page', href: '/dashboard/my-page', icon: '◐', api: ['me', 'me/portfolio', 'me/portfolio/write'] }
+const WHO_HAS_YOU: NavItem = { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈', api: ['me', 'me/benches', 'me/benches/*/respond'] }
+// What is held about them, and the two things they can ask for: a copy, or to be forgotten.
+const YOUR_DATA: NavItem = { label: 'Your data', href: '/dashboard/my-data', icon: '⛁', api: ['me', 'me/data', 'me/papers', 'data-requests/*/withdraw'] }
+// What is still being asked of her, with the day each runs out. Every
+// chase letter names this page. "Your paperwork", never "Paperwork" — a
+// firm's own documents are "Paperwork" and a reader who is both a worker
+// and staff at a firm reads both menus at once.
+const YOUR_PAPERWORK: NavItem = { label: 'Your paperwork', href: '/dashboard/my-work/paperwork', icon: '▫', api: MY_PAPERWORK_READS }
+
+const YOURS: NavItem[] = [YOUR_WORK, YOUR_PAGE, WHO_HAS_YOU, YOUR_DATA, YOUR_PAPERWORK]
 
 const CONSULTANT_NAV: NavSection[] = [
-  {
-    label: 'You',
-    // No Notifications here either (founder, 2026-10-13: the page is
-    // deleted). A consultant's notices reach them by email.
-    items: [...YOURS],
-  },
+  // Ask Etyme answers her about her own work (2026-10-19). No
+  // Conversations page of her own: a consultant's notices reach her by
+  // email, and Ask Etyme is her one thread.
+  { label: 'Ask Etyme', tabbed: true, items: [ASK_ETYME] },
+  { label: 'You', items: [...YOURS] },
 ]
 
-// Streamlined on a founder note: "so many duplicates... Contacts almost
-// missing... mixed admin setup to daily operational activity... should
-// reflect sequence of steps." Four real, separate problems, all fixed
-// the same way this session fixed vendor's Operate section — group,
-// don't rename or delete.
-//
-// Requisitions and Open roles read as duplicates because they sat flat
-// and adjacent with no signal they were two STEPS, not two competing
-// entry points: a requisition is the need before it's approved, an open
-// role is the same need after it's released to suppliers. Neither page
-// changed — the "Source" group below says what they actually are, in
-// order. Same for the rest: every group is a real phase of the
-// lifecycle this product tracks (raise → source → evaluate → engage →
-// operate week to week → offboard), and the one thing done rarely
-// — Settings, access, a spreadsheet import — is its own group at the
-// bottom, not mixed into the middle of a page a client opens every
-// Friday to approve timesheets.
-const CLIENT_NAV: NavSection[] = [
-  {
-    // "Program" was the label and it names nothing.
-    //
-    // There is no Program model — /api/program is an aggregate view of
-    // this client's contractors, suppliers and spend. So a client read a
-    // section header that looked like a countable noun and reasonably
-    // asked which one, and how many they could have. None: it is not a
-    // thing you can have.
-    //
-    // Their workforce is. The countable things under it — agreements,
-    // engagements, milestones, org units — are all real models, and this
-    // is the word that covers them without inventing an entity.
-    label: 'Workforce',
-    items: [
-      { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
-      // One entry, not two.
-      //
-      // "Requisitions" and "Open roles" were the same Requirement row at
-      // two stages — before approval and after release — and no amount of
-      // grouping stopped them reading as competing entry points. A client
-      // thinks in one list of roles it is hiring for, with a status on
-      // each, so that is what it gets: the stage is a filter on the
-      // screen rather than a fork in the menu.
-      //
-      // "Job requests", the founder's word on 2026-09-28: a buyer asks
-      // for a job to be filled; "requirement" and "requisition" are the
-      // trade's words for the same row and not the reader's.
-      { label: 'Job requests', href: '/dashboard/requisitions', icon: '⊞', group: 'Source' },
-      // The step where people actually arrive.
-      //
-      // Source (it was "Hire" until the founder's 2026-09-30 word: a
-      // contingent worker is sourced from a supplier, not hired) read
-      // Requirements → Interviews → Placements, which skips
-      // the highest-volume screen a program office has: the
-      // candidates suppliers put forward, waiting to be looked at. Not
-      // "applications" — nobody applies to you here, your suppliers
-      // submit — and the list already defaults to what was sent TO the
-      // caller, so a client sees its inbox rather than a vendor's
-      // outbox.
-      // Interviews are reached from the candidate they are about, not
-      // from a menu of everybody's rounds. A program office does not
-      // think "show me all interviews"; it opens a submission and asks
-      // what happened to that person. The page still exists and the
-      // submissions list links into it — removing the entry without that
-      // link would have orphaned it, since nothing else pointed there.
-      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Source' },
-      // What this desk said to a supplier and what came back — the ask
-      // for a starred person, a question on a candidate — in one list,
-      // newest first. A client could reach it from the search box and
-      // nowhere else, so the founder asked whether it existed.
-      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Source' },
-      // The one entry point for people, deliberately. This used to sit
-      // next to a "Candidates" link to /dashboard/submissions — the raw,
-      // one-row-per-submission feed — which is exactly what made the
-      // same person look duplicated: four vendors submitting one human
-      // rendered as four separate rows with four separate names. That
-      // link is gone; every submission is still here, merged onto the
-      // one person it belongs to and expandable per row.
-      { label: 'Contractors', href: '/dashboard/people', icon: '◍', group: 'Network' },
-      // The growth loop. A client arrives with twelve suppliers already
-      // and an MSA with each; until those are reachable in here, none of
-      // the rest of this nav has anything to work on.
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network', needs: ['vendors.read', 'requirements.read', 'payments.record'] },
-      // The rolodex — the one thing this whole nav was missing. Vendor
-      // has had it for a while as "Who we work with"; a client asks the
-      // same question about the people at their own suppliers just as
-      // often, and had no way in.
-      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Network' },
-      // The contracts list, under the name a client uses for it. It sat
-      // under Source, which is where the trail that produces a placement
-      // ends — but the record itself is the parent of everything below
-      // it here: a timesheet, an invoice, a PO and an expense each draw
-      // on one contract. First in Operate, because the rest of the
-      // section is what happens to it.
-      // ── Two desks, two groups ──────────────────────────────────
-      //
-      // Operate and Money were one section, and they are not one job.
-      // HR and indirect procurement administer the workforce — the
-      // contract, the purchase order behind it, the weeks worked and
-      // what was spent on the road. Finance pays for it. The same
-      // person does both only at a small client; at a real one they sit
-      // in different buildings and neither wants the other's screens in
-      // the way.
-      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
-      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate', needs: ['invoices.read'] },
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
-      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate', needs: ['invoices.read'] },
-      // Money is finance's. A client buys, so its whole money side is
-      // payable: the bills its suppliers send, what is owed and aging,
-      // and the budget all of it draws down.
-      //
-      // No AR and no payroll here, deliberately. Nobody owes a client
-      // money for contract labor, and the supplier employs the
-      // contractor — so both would be a menu entry with nothing behind
-      // it, which this nav already has a rule against.
-      // What a firm receives from below is an invoice receipt; what it
-      // issues upward is a bill (founder, 2026-09-28). A client only
-      // receives, so it reads Invoice receipts; a firm that bills reads Bills.
-      { label: 'Invoice receipts', href: '/dashboard/invoices', icon: '▧', group: 'Money', needs: ['invoices.read'] },
-      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money', needs: ['invoices.read'] },
-      { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
-      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard', needs: ENDING_SOON_READERS },
-      { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      // Who runs the program: approvers, the lead, and who is
-      // answerable for each budget. Three facts that were in three
-      // places, none of which showed the result as one picture.
-      // Read by whoever raises a job request, sets the program up, or
-      // seats people — the three its own GET handler asks for. It was
-      // listed as asking nothing, and the HR partner opened it to a
-      // refusal (chain audit, 2026-10-05): the test that reads gates
-      // missed one written across two lines.
-      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Who runs it', needs: ['requirements.write', 'settings.manage', 'team.manage'] },
-      // Who runs the program when it is not this client's own people. A
-      // firm that runs somebody's program places nobody, so nothing ties
-      // it to the client the way a placement ties a supplier — the
-      // client grants it a desk here, at one of its own roles, and takes
-      // it back here too. Gated on the governance read its own route
-      // asks for, which every oversight desk already holds: a standing
-      // grant that only the person who made it can see is not a control.
-      { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', group: 'Who runs it', needs: ['governance.read'] },
-      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Who runs it' },
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight', needs: ['governance.read'] },
-      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
-      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
-      // Only computable here. No supplier can work these out about
-      // themselves — they cannot see what the other eleven did with the
-      // same role — and no supplier's own numbers are ever bad.
-      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight', pageCalls: SCORECARD_CALLS },
-      // Where a chain we can only see part of makes one person look like
-      // two, and the tenure number quietly goes wrong.
-      { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
-      // The program manager's twin (2026-10-12): what it did, what it is
-      // waiting on a person for, and what it may do. Read by the three
-      // desks its ledger route asks for (lib/twin/readers); the page also
-      // calls the questions waiting, the role contract and the rule set.
-      { label: 'Program twin', href: '/dashboard/twin', icon: '◎', group: 'Oversight', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },
-      // The same two links every other party gets, from the same
-      // description of them. A client has a compliance officer holding
-      // the same governance read, and an AP clerk with data held about
-      // them, and neither had a door: the desk's queue was in nobody's
-      // menu at all, and "Your data" was the consultant's alone.
-      ...PRIVACY,
-      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup', needs: ['governance.read'] },
-      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup', needs: ['settings.manage'] },
-      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup', needs: IMPORT_PERMISSIONS, api: 'imports/sheets', pageCalls: IMPORT_CALLS },
-    ],
-  },
+/**
+ * A company of one: Ask Etyme · Your work · Timesheets · Bills ·
+ * Contracts · Paperwork · Settings. Seven: she has no jobs and no
+ * candidates.
+ *
+ * Colleen Byrne is an ICU travel nurse paid corp-to-corp through Byrne
+ * Critical Care LLC. She is the person **and** the firm, so her own pages
+ * are inside her seven rather than in a "You" appended after them: Your
+ * work opens on her week, her page and who has her beside it; her
+ * firm's paperwork and her own sit side by side under Paperwork, named
+ * apart ("Company paperwork", "Your paperwork") because on this menu
+ * alone the firm and the person are the same human. Nothing about a
+ * bench, a pipeline or a recruiter's commission.
+ */
+const SOLO_NAV: NavSection[] = [
+  ASK_ETYME_SECTION,
+  tabbed('Your work', [YOUR_WORK, YOUR_PAGE, WHO_HAS_YOU]),
+  tabbed('Timesheets', [TIMESHEETS, EXPENSES]),
+  // What came back and what is late. For somebody invoicing one or two
+  // firms this is the whole of finance.
+  tabbed('Bills', [BILLS, AR]),
+  tabbed('Contracts', [{ label: 'Contracts', href: '/dashboard/contracts', icon: '▤' }, POS]),
+  tabbed('Paperwork', [
+    { label: 'Company paperwork', href: '/dashboard/documents', icon: '▪', ...PAPERWORK_READS },
+    YOUR_PAPERWORK,
+    // Her own standing as a supplier: insurance, license, the certificate somebody will ask for before she starts.
+    COMPLIANCE,
+  ]),
+  tabbed('Settings', [SETTINGS, YOUR_DATA]),
 ]
+
+/**
+ * A client: Ask Etyme · Today · Jobs · Candidates · Timesheets · Invoice
+ * receipts · Contractors · Suppliers · Settings.
+ *
+ * A client only buys, so its money noun is what it receives: invoice
+ * receipts, what is owed on them, the budget they draw down and the
+ * orders that carry the ceiling. No AR and no payroll: nobody owes a
+ * client money for contract labor, and the supplier employs the
+ * contractor. Its people are Contractors — one row per human across
+ * every supplier, never one per submission — with the contracts that
+ * place them, who is ending soon, who has gone and the time limit.
+ */
+const CLIENT_NAV: NavSection[] = [
+  ASK_ETYME_SECTION,
+  tabbed('Today', [{ label: 'Today', href: '/dashboard/program', icon: '◉' }]),
+  // One entry for a job, at every stage: the stage is a filter on the
+  // screen, never a fork in the menu (raised twice by the founder).
+  tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞' }]),
+  // What suppliers put forward, waiting to be looked at; the list
+  // defaults to what was sent TO the caller.
+  tabbed('Candidates', [CANDIDATES, INTERVIEWS]),
+  tabbed('Timesheets', [TIMESHEETS, EXPENSES]),
+  // What a firm receives from below is an invoice receipt (founder, 2026-09-28).
+  tabbed('Invoice receipts', [
+    { label: 'Invoice receipts', href: '/dashboard/invoices', icon: '▧', needs: ['invoices.read'] },
+    AP,
+    { label: 'Budget', href: '/dashboard/program/budget', icon: '◱' },
+    POS,
+  ]),
+  tabbed('Contractors', [
+    { label: 'Contractors', href: '/dashboard/people', icon: '◍' },
+    { label: 'Contracts', href: '/dashboard/contracts', icon: '▤' },
+    { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', needs: ENDING_SOON_READERS },
+    { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎' },
+    { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+    // Where a chain we can only see part of makes one person look like two.
+    { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉' },
+  ]),
+  tabbed('Suppliers', [
+    SUPPLIERS,
+    CONTACTS,
+    { label: 'Agreements', href: '/dashboard/program/agreements', icon: '▤' },
+    // Only computable here: no supplier can work these out about itself.
+    SUPPLIER_SCORECARDS,
+  ]),
+  tabbed('Settings', [
+    SETTINGS,
+    USERS,
+    // Who runs the program: approvers, the lead, and who is answerable
+    // for each budget. Read by whoever raises a job request, sets the
+    // program up, or seats people — the three its GET handler asks for.
+    { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', needs: ['requirements.write', 'settings.manage', 'team.manage'] },
+    // The MSP the client seats in its program, granted and taken back here.
+    { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', needs: ['governance.read'] },
+    { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
+    COMPLIANCE,
+    DOCUMENT_REQUESTS,
+    // The program manager's twin (2026-10-12): what it did, what it is
+    // waiting on a person for, and what it may do.
+    { label: 'Program twin', href: '/dashboard/twin', icon: '◎', needs: TWIN_FEED_READERS, api: 'twin/ledger', pageCalls: ['twin/**'] },
+    DATA_REQUESTS,
+    YOUR_DATA_HERE,
+    IMPORT,
+  ]),
+]
+
+/** The tab row for the page being read: the noun's pages, when it has more than one. */
+export function tabsFor(sections: readonly NavSection[], current: string | null): { label: string; tabs: NavItem[] } | null {
+  if (!current) return null
+  const section = sections.find((s) => s.tabbed && s.items.some((i) => i.href === current))
+  // Ask Etyme draws its own column of threads, so it never carries a tab row.
+  if (!section || section.items.length < 2 || section.items.some((i) => i.href === ASK_ETYME_HREF)) return null
+  return { label: section.label, tabs: section.items }
+}
+
+/** The one link a menu prints for a section: the noun, opening its first page; or, for "You", each page. */
+export function linksOf(section: NavSection): NavItem[] {
+  if (!section.tabbed) return section.items
+  const first = section.items[0]
+  return first ? [{ ...first, label: section.label }] : []
+}
 
 /**
  * Which navigation a seat reads.
@@ -1199,8 +836,8 @@ export function getNavForKind(
   // somebody who has a "You" section reads it there.
   const ownHrefs = new Set(YOURS.map((i) => i.href))
   // A worker whose seat reads only their own work opens on "Your work"
-  // (lib/console-home), so the firm's Dashboard link would be a second
-  // door onto the same page. It gives way, the way "Your data" does.
+  // (lib/console-home), so the firm's Today would be a second door onto
+  // the same page. It gives way, the way "Your data" does.
   //
   // A seat that holds no permission at all — a colleague seated as Member
   // and not yet given a desk — reads its own work and what is addressed
@@ -1211,31 +848,35 @@ export function getNavForKind(
   const deskless = isDeskless(seat.permissions)
   const ownFrontDoor = (Boolean(seat.worker) || deskless) && readsOnlyOwnWork(seat.permissions)
   // A one-person firm's owner is always somebody the work is about
-  // (CLAUDE.md, "A one-person corporation reads its own short menu"), so
-  // she reads "You" from her first day, before any placement says so.
-  const worker = Boolean(seat.worker) || kind === 'CONSULTANT_CORP' || deskless
-  const sections = (!isConsultant && kind && worker)
-    ? [
-        ...base
-          .map((s) => ({
-            ...s,
-            items: s.items.filter((i) =>
-              !ownHrefs.has(i.href)
-              && !(ownFrontDoor && i.href === '/dashboard')
-              && !(deskless && openBecause(i.href) !== ADDRESSED)),
-          }))
-          .filter((s) => s.items.length > 0),
-        { label: 'You', items: YOURS },
-      ]
+  // (CLAUDE.md, "A one-person corporation reads its own short menu"), and
+  // her own pages are already inside her seven, so nothing is appended.
+  const solo = !isConsultant && kind === 'CONSULTANT_CORP' && !seat.seatedAtClient
+  const worker = Boolean(seat.worker) || deskless
+  const trimmed = (!isConsultant && kind && (worker || solo))
+    ? base
+        .map((s) => ({
+          ...s,
+          items: s.items.filter((i) =>
+            (solo || !ownHrefs.has(i.href))
+            && !(ownFrontDoor && i.href === '/dashboard')
+            && !(deskless && openBecause(i.href) !== ADDRESSED && !(solo && ownHrefs.has(i.href)))),
+        }))
+        .filter((s) => s.items.length > 0)
     : base
+  const sections = (!isConsultant && kind && worker && !solo)
+    ? [...trimmed, { label: 'You', items: YOURS }]
+    : trimmed
 
   // "Your terms", right after "Your work", for as long as a placement of
-  // theirs waits on terms. Only where a "You" section is drawn: a seat
+  // theirs waits on terms. Only where a reader has a "Your work": a seat
   // that is neither a consultant nor a worker has no terms of its own.
-  const withTerms = seat.termsHref
-    ? sections.map((s) => s.label !== 'You' ? s : {
-        ...s,
-        items: [s.items[0], { label: 'Your terms', href: seat.termsHref!, icon: '◇', api: YOUR_TERMS_READS }, ...s.items.slice(1)],
+  const terms: NavItem | null = seat.termsHref
+    ? { label: 'Your terms', href: seat.termsHref, icon: '◇', api: YOUR_TERMS_READS }
+    : null
+  const withTerms = terms
+    ? sections.map((s) => {
+        const at = s.items.findIndex((i) => i.href === YOUR_WORK.href)
+        return at < 0 ? s : { ...s, items: [...s.items.slice(0, at + 1), terms, ...s.items.slice(at + 1)] }
       })
     : sections
 

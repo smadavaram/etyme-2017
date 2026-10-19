@@ -129,7 +129,7 @@ describe('Karthik Menon at Teleworld cannot read a colleague’s pay', () => {
 
   it('Karthik is refused the agreements screen at the door in a sentence, before it reads anybody’s pay, and the refusal is on the trail', async () => {
     as(KARTHIK)
-    await refusedAtTheDoor(await agreements(req('GET', '/api/program/agreements')), 'Dashboard')
+    await refusedAtTheDoor(await agreements(req('GET', '/api/program/agreements')), 'Agreements')
     expect(await doorTrail(it_.karthik, it_.colleague)).toBeGreaterThan(0)
   })
 

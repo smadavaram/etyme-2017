@@ -255,7 +255,7 @@ describe('What this company does here', () => {
 
   it('the one-person firm reads the short solo menu, with no bench and no recruiting', () => {
     const solo = getNavForKind(typeByKey('solo')!.kind as any, false, { worker: true })
-    expect(solo.map((s) => s.label)).toEqual(['Today', 'Operate', 'Governance', 'You'])
+    expect(solo.map((s) => s.label)).toEqual(['Ask Etyme', 'Your work', 'Timesheets', 'Bills', 'Contracts', 'Paperwork', 'Settings'])
     const hrefs = solo.flatMap((s) => s.items.map((i) => i.href))
     expect(hrefs).not.toContain('/dashboard/bench')
   })

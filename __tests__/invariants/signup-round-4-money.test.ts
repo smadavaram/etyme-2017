@@ -243,9 +243,9 @@ describe('the orders page speaks from the end of the order the reader stands at'
 // ── 14. Rate history sits under Grow ───────────────────────────────────
 
 describe('rate history’s eyebrow is the section it sits under on the reader’s own menu', () => {
-  it('the menu files rate history under Grow for every firm that has it', () => {
+  it('the menu files rate history as a tab of Today for every firm that has it', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP']) {
-      expect(sectionOfHref(kind as any, '/dashboard/rate-history', null), kind).toBe('Grow')
+      expect(sectionOfHref(kind as any, '/dashboard/rate-history', null), kind).toBe('Today')
     }
   })
 

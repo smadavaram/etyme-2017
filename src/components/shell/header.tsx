@@ -10,15 +10,16 @@
  *
  * ── On a phone ────────────────────────────────────────────────────────
  *
- * No words in the header (founder, 2026-10-13, the phone header cut,
- * version 4). Below md the bar is icons only, each in the same 36px box:
+ * No words in the header (founder, 2026-10-13, the phone header cut), and
+ * no flip (founder, 2026-10-19, "Nine links, no flip"). Below md the bar
+ * is three icons, each in the same 36px box, on every page:
  *
- *   on Ask Etyme       the logo · the flip (four squares, "Dashboard")
- *   on every other     the logo · the flip (chat bubble, the number) · ☰
+ *   the logo · Ask Etyme with its number · ☰
  *
- * The logo is the logo and goes home. The flip (founder, 2026-10-13, "One
- * icon flips between the two screens") carries the number off its corner,
- * so it adds no width. What used to crowd the bar went where it is used:
+ * The logo is the logo and goes home. Ask Etyme opens the chat and
+ * carries the number of what this seat owes off its corner, so it adds
+ * no width. The ☰ opens the nine. What used to crowd the bar went where
+ * it is used:
  *
  * - Company and role, and the demo chip: the menu drawer says who you are
  *   (the company at its foot, the person and their role in the account
@@ -29,21 +30,20 @@
  *   cards. Both stay in the bar from md up.
  * - The initials: account, settings and sign out are at the bottom of the
  *   menu drawer (components/shell/mobile-nav).
- * - The ☰ on Ask Etyme: the chat is the first screen, and the menu is one
- *   tap behind Dashboard.
  *
  * This bar was once wider than the screen it sat on, which made every
  * phone page scroll sideways. Three icons cannot be.
  *
- * From md up nothing here changed: the rail, the search box, the flip,
- * + New and the account menu.
+ * From md up the logo is the rail's and the bar is search, + New and the
+ * account menu. Ask Etyme and its number are the sidebar's first entry,
+ * so the bar draws no second door to it.
  */
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
-import { AskEtymeFlip, useOwedCount } from '@/components/shell/ask-etyme-mark'
+import { AskEtymeLink, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { MobileNav } from '@/components/shell/mobile-nav'
 import { signOutEverywhere } from '@/components/shell/sign-out'
 import { useSession } from '@/components/session-provider'
@@ -96,9 +96,13 @@ type PlusMenuSection = {
   items: PlusMenuItem[]
 }
 
+// The labels on these sections only order the items: every heading the +
+// menu prints is the noun the reader's own menu files the page under
+// (see plusMenuFor), so a supplier reads "Jobs › New job request" and
+// "Bills › Generate bill".
 const PLUS_MENU: PlusMenuSection[] = [
   {
-    label: 'Sell',
+    label: 'Jobs',
     items: [
       {
         // One screen word for the one object on every party's menu
@@ -123,10 +127,7 @@ const PLUS_MENU: PlusMenuSection[] = [
     ],
   },
   {
-    // "Talent" named a department, not a job. The nav section where a
-    // firm signs somebody to its bench is Procure, and this menu says
-    // the same word the menu beside it says.
-    label: 'Procure',
+    label: 'People',
     items: [
       {
         label: 'Add consultant',
@@ -145,10 +146,8 @@ const PLUS_MENU: PlusMenuSection[] = [
     ],
   },
   {
-    label: 'Operate',
+    label: 'Work',
     items: [
-      // With the nav: both sides of a contract, and the hours under
-      // them, are the administration of a placement.
       {
         label: 'New contract',
         // Not "a sell or buy contract" — those are two lines on one
@@ -202,15 +201,13 @@ const PLUS_MENU: PlusMenuSection[] = [
  */
 const CLIENT_PLUS_MENU: PlusMenuSection[] = [
   {
-    // "Program" was this section's name after the nav had stopped using
-    // it — the same orphan the eyebrow on the requisitions page was.
-    label: 'Workforce',
+    label: 'Jobs',
     items: [
       {
         label: 'New job request',
         description: 'Post a job to your suppliers',
         href: '/dashboard/requirements?new=1',
-        // The client's menu reaches its job requests through Requisitions.
+        // The client's menu reaches its job requests through Jobs, at /dashboard/requisitions.
         onMenuAs: '/dashboard/requisitions',
         icon: '◈',
         writes: ['requirements.write'],
@@ -226,7 +223,7 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
     ],
   },
   {
-    label: 'Governance',
+    label: 'Today',
     items: [
       {
         label: 'Review approvals',
@@ -359,9 +356,9 @@ export function reachablePagesFor(
   isConsultant: boolean,
   seat: Parameters<typeof getNavForKind>[2]
 ): SearchResult[] {
-  // Ask Etyme first, where the menu draws it above the sections.
-  const sections = getNavForKind(kind, isConsultant, seat)
-  return [{ label: '', items: pinnedOn(sections) }, ...sections].flatMap((section) =>
+  // Every page on the menu, tabs included, Ask Etyme first: the folded
+  // pages are still found by name.
+  return getNavForKind(kind, isConsultant, seat).flatMap((section) =>
     section.items.map((item) => ({
       label: item.label,
       type: 'page',
@@ -390,8 +387,8 @@ const ICON_BUTTON =
   'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center ' +
   'transition-colors hover:bg-etyme-sunk hover:text-etyme-ink'
 
-/** The phone bar's one icon size: the logo, the flip and the ☰ all sit in
- *  this box, the flip's own (components/shell/ask-etyme-mark). */
+/** The phone bar's one icon size: the logo, Ask Etyme and the ☰ all sit in
+ *  this box (components/shell/ask-etyme-mark, mobile-nav). */
 const PHONE_ICON =
   'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center'
 
@@ -425,7 +422,7 @@ export function Header({ title }: HeaderProps) {
   const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // Same home the sidebar's Dashboard entry points at, from the same answer.
+  // Same home the sidebar's Today and the logo point at, from the same answer.
   const home = consoleHome({
     kind: desk.companyKind,
     isConsultant: desk.isConsultant,
@@ -435,17 +432,16 @@ export function Header({ title }: HeaderProps) {
   }).href
 
   // Ask Etyme stands where the bell was (CLAUDE.md, "Notifications are
-  // deleted; Ask Etyme carries the number"), for the seats whose menu pins
-  // it — the sidebar's own rule, so the header never offers a door the
-  // menu does not. Its number is the one decisions queue, read once a
-  // minute for the whole shell. On Ask Etyme itself the flip shows four
-  // squares instead: the desk's own Today tables, one click away.
+  // deleted; Ask Etyme carries the number"), on a phone, for the seats
+  // whose menu has it — the sidebar's own rule, so the header never
+  // offers a door the menu does not. Its number is the one owed count,
+  // read once a minute for the whole shell.
   const pathname = usePathname()
   const asks = pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, {
     worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient,
   })).length > 0
   const owed = useOwedCount(asks)
-  const onAskEtyme = pathname === ASK_ETYME_HREF || pathname?.startsWith(ASK_ETYME_HREF + '/')
+  const onAskEtyme = pathname === ASK_ETYME_HREF || Boolean(pathname?.startsWith(ASK_ETYME_HREF + '/'))
 
   // Close the account menu on an outside click, the same way the plus menu
   // does. A menu that stays open while you click elsewhere feels stuck.
@@ -577,8 +573,8 @@ export function Header({ title }: HeaderProps) {
     <header className="sticky top-0 z-30 bg-etyme-canvas/90 backdrop-blur-md border-b border-etyme-rule">
       {/* relative: the phone dropdowns hang from this row. */}
       <div className="relative h-14 px-4 md:px-6 flex items-center gap-2 md:gap-4">
-        {/* The logo, below md: the mark alone, in the same box as the
-            flip and the ☰, going home. No company, no role, no chip
+        {/* The logo, below md: the mark alone, in the same box as Ask
+            Etyme and the ☰, going home. No company, no role, no chip
             beside it — the menu drawer says who you are. The wordmark on
             a phone is at the top of the drawer, which is the rail itself
             (sidebar.tsx). */}
@@ -653,12 +649,6 @@ export function Header({ title }: HeaderProps) {
             </div>
           )}
         </div>
-
-        {/* The flip (founder, 2026-10-13): one icon, this slot, every page
-            and every width. A chat bubble with the number on a dashboard
-            page, opening Ask Etyme; four squares on Ask Etyme, opening the
-            desk's own tables. A seat with no Ask Etyme has no flip. */}
-        {asks && <AskEtymeFlip n={owed} onAskEtyme={Boolean(onAskEtyme)} dashboardHref={home} />}
 
         {/* Plus button — the add menu (UX Stress Test #2), from md up.
             On a phone each list has its own add. Absent for a seat with
@@ -789,10 +779,11 @@ export function Header({ title }: HeaderProps) {
           )}
         </div>
 
-        {/* ☰ — the navigation, below md, on the right after the flip.
-            Not on Ask Etyme: the chat is the first screen, and the menu
-            is one tap behind the flip. Renders nothing from md up. */}
-        {!onAskEtyme && <MobileNav />}
+        {/* Ask Etyme with its number, then ☰ — the nine — below md, on
+            every page, Ask Etyme included. Both render nothing from md
+            up, where the rail carries them. */}
+        {asks && <AskEtymeLink n={owed} here={onAskEtyme} />}
+        <MobileNav />
       </div>
     </header>
   )

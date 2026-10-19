@@ -54,14 +54,14 @@ describe('the Document requests page', () => {
     expect(page).toContain("usePageSection('/dashboard/packets')")
     expect(page).not.toMatch(/className="eyebrow">\s*(Governance|Operate|Compliance)\s*</)
     // A client's compliance officer — the desk the tester walked as —
-    // reads Governance, the section its menu files the page under.
+    // reads Settings, the link its menu files the page under as a tab.
     const officer = rolesFor('CLIENT').find((r) => r.name === 'Compliance Officer')!
     const asClient = sectionForReader(
       { companyKind: 'CLIENT', permissions: officer.permissions as readonly string[] }, '/dashboard/packets')
-    expect(asClient).toBe('Governance')
-    // A supplier's menu puts it under its Compliance heading, and the page
-    // says so rather than a section that menu does not print over it.
-    expect(sectionForReader({ companyKind: 'VENDOR' }, '/dashboard/packets')).toBe('Compliance')
+    expect(asClient).toBe('Settings')
+    // A supplier's menu puts it under Settings too, and the page says so
+    // rather than a word that menu does not print.
+    expect(sectionForReader({ companyKind: 'VENDOR' }, '/dashboard/packets')).toBe('Settings')
   })
 
   it('offers a Request documents button when nothing has been asked yet, rather than an explanation', () => {

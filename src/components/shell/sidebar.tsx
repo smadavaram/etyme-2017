@@ -8,7 +8,7 @@ import { DemoChip } from '@/components/shell/demo-chip'
 import { OwedBadge, useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { owedBadge, owedLabel } from '@/lib/owed-count'
 import { consoleHome } from '@/lib/console-home'
-import { getNavForKind, activeHref, pinnedOn, ETYME_MARK_ICON, type CompanyKind, type NavItem } from '@/lib/nav-table'
+import { getNavForKind, activeHref, linksOf, ASK_ETYME_HREF, ETYME_MARK_ICON, type CompanyKind, type NavItem, type NavSection } from '@/lib/nav-table'
 
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -91,13 +91,13 @@ export function Sidebar({
     permissions,
   }).href
 
-  // Ask Etyme, above every section, where this menu has Conversations
-  // (lib/nav-table). Read with the sections, so on its own page it is the
-  // one link lit, and Conversations is not.
-  const pinned = pinnedOn(sections)
-  const current = activeHref([{ label: '', items: pinned }, ...sections], pathname, searchParams, dashboardHref)
-  // The same number the header's mark carries, from the same one read.
-  const owed = useOwedCount(pinned.length > 0)
+  // The page being read, by the longest match across every page on the
+  // menu, tabs included: a noun's link is lit on any of its tabs.
+  const current = activeHref(sections, pathname, searchParams, dashboardHref)
+  // The number on Ask Etyme, the same the phone header's mark carries,
+  // from the same one read.
+  const asks = sections.some((s) => s.items.some((i) => i.href === ASK_ETYME_HREF))
+  const owed = useOwedCount(asks)
 
   // The link for the page being read is brought into view when the menu
   // opens. A worker who is also staff reads their firm's sections first
@@ -166,69 +166,15 @@ export function Sidebar({
             Your own pages ↓
           </button>
         )}
-        {pinned.length > 0 && (
-          <div className="mt-3" data-section="pinned">
-            {pinned.map((item) => (
-              <NavLink key={item.label} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} owed={owed} />
-            ))}
-          </div>
-        )}
         {sections.map((section) => (
-          <div key={section.label} className="mb-1" data-section={section.label}>
-            <div className="eyebrow px-2.5 pt-4 pb-1">
-              {section.label}
-            </div>
-            {section.items.map((item, i) => {
-              // A sub-group header prints once, the moment its name first
-              // differs from the item before it — not for every item that
-              // carries it. This is what turns 22 flat links into three
-              // named clusters without inventing a new top-level section.
-              const priorGroup = i > 0 ? section.items[i - 1].group : undefined
-              const showGroup = item.group !== undefined && item.group !== priorGroup
-
-              const active = item.href === current
-              return (
-                <div key={item.label}>
-                  {showGroup && (
-                    <div className="px-2.5 pt-2.5 pb-0.5 text-[10.5px] font-medium
-                                    text-etyme-faint">
-                      {item.group}
-                    </div>
-                  )}
-                  <Link
-                    href={item.href as any}
-                    onClick={onDismiss}
-                    data-current={active ? 'true' : undefined}
-                    aria-current={active ? 'page' : undefined}
-                    className={`
-                      relative flex items-center gap-2.5 px-2.5 rounded-nav
-                      ${sheet ? 'py-2.5 text-[14px]' : 'py-1.5 text-[13px]'}
-                      transition-colors duration-fast
-                      ${active
-                        ? 'bg-etyme-action-wash text-etyme-action-press font-medium'
-                        : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-sunk/70'
-                      }
-                    `}
-                  >
-                    {/* The active page is marked three ways — the fill, a bar
-                        at the left edge and aria-current — so it never rests
-                        on color alone. */}
-                    {active && (
-                      <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-pill bg-etyme-action" />
-                    )}
-                    <NavIcon icon={item.icon} active={active} />
-                    <span className="truncate">{item.label}</span>
-                    {item.badge !== undefined && (
-                      <span className="ml-auto text-[10px] font-semibold text-etyme-attention
-                                       bg-etyme-attention-wash px-1.5 py-0.5 rounded-pill tabular-nums">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              )
-            })}
-          </div>
+          <MenuSection
+            key={section.label}
+            section={section}
+            current={current}
+            sheet={sheet}
+            onDismiss={onDismiss}
+            owed={owed}
+          />
         ))}
       </nav>
 
@@ -282,7 +228,39 @@ function NavIcon({ icon, active }: { icon: string; active: boolean }) {
   )
 }
 
-/** One entry above the sections: the same row the sections draw, with no heading over it. */
+/**
+ * One section of the menu. One of the nine is one link — the noun,
+ * opening the first of its pages this seat may open, lit on any of them
+ * (its other pages are the tab row under the page header). "You" is a
+ * heading and its own pages under it.
+ */
+function MenuSection({ section, current, sheet, onDismiss, owed }: {
+  section: NavSection; current: string | null; sheet?: boolean; onDismiss?: () => void; owed: number | null
+}) {
+  if (section.tabbed) {
+    const [link] = linksOf(section)
+    if (!link) return null
+    const active = section.items.some((i) => i.href === current)
+    const isAsk = section.items.some((i) => i.href === ASK_ETYME_HREF)
+    return (
+      <div className={isAsk ? 'mt-3 mb-1' : ''} data-section={section.label}>
+        <NavLink item={link} active={active} sheet={sheet} onDismiss={onDismiss} owed={isAsk ? owed : null} />
+      </div>
+    )
+  }
+  return (
+    <div className="mb-1" data-section={section.label}>
+      <div className="eyebrow px-2.5 pt-4 pb-1">
+        {section.label}
+      </div>
+      {section.items.map((item) => (
+        <NavLink key={item.href} item={item} active={item.href === current} sheet={sheet} onDismiss={onDismiss} />
+      ))}
+    </div>
+  )
+}
+
+/** One row on the menu. The active page is marked three ways — the fill, a bar at the left edge and aria-current — so it never rests on color alone. */
 function NavLink({ item, active, sheet, onDismiss, owed = null }: { item: NavItem; active: boolean; sheet?: boolean; onDismiss?: () => void; owed?: number | null }) {
   return (
     <Link
@@ -306,6 +284,12 @@ function NavLink({ item, active, sheet, onDismiss, owed = null }: { item: NavIte
       )}
       <NavIcon icon={item.icon} active={active} />
       <span className="truncate">{item.label}</span>
+      {item.badge !== undefined && (
+        <span className="ml-auto text-[10px] font-semibold text-etyme-attention
+                         bg-etyme-attention-wash px-1.5 py-0.5 rounded-pill tabular-nums">
+          {item.badge}
+        </span>
+      )}
       <OwedBadge n={owed} className="ml-auto" />
     </Link>
   )

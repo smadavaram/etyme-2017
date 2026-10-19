@@ -24,6 +24,7 @@ import { DetailHead } from '@/components/ui/detail-head'
 import { FilterChips } from '@/components/ui/filter-chips'
 import { DataTable, defaultSearch, rangeWords } from '@/components/data-table'
 import { pillsFor } from '@/components/shell/section-pills'
+import { getNavForKind, tabsFor } from '@/lib/nav-table'
 import { Sidebar } from '@/components/shell/sidebar'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 
@@ -286,16 +287,20 @@ describe('the shell', () => {
     expect(link![0]).toMatch(/absolute left-0[^"]*w-\[2px\]/)
   })
 
-  it('on a phone the current section’s pages sit in a row of pills, in the page, never over it', () => {
+  it('the pages of the noun being read sit in a row of tabs at every width, in the page, never over it', () => {
+    const menu = getNavForKind('CLIENT', false)
+    expect(tabsFor(menu, '/dashboard/alumni')!.tabs.map((i) => i.label))
+      .toEqual(['Contractors', 'Contracts', 'Ending soon', 'Past contractors', 'Tenure', 'Duplicate check'])
+    expect(tabsFor(menu, '/dashboard/requisitions')).toBeNull()
+    // The worker's "You" is a list, so on a phone her other pages are pills, and from md up the menu lists them.
     const items = [
-      { label: 'Contractors', href: '/dashboard/people', icon: '', group: 'Network' },
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '', group: 'Network' },
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '', group: 'Work' },
+      { label: 'Your work', href: '/dashboard/my-work', icon: '' },
+      { label: 'Your page', href: '/dashboard/my-page', icon: '' },
     ] as any
-    expect(pillsFor(items, '/dashboard/people').map((i) => i.label)).toEqual(['Contractors', 'Suppliers'])
+    expect(pillsFor(items, '/dashboard/my-page').map((i) => i.label)).toEqual(['Your work', 'Your page'])
     expect(pillsFor(items, '/dashboard/timesheets')).toEqual([])
     const src = read('src/components/shell/section-pills.tsx')
-    expect(src).toContain('md:hidden')
+    expect(src).toContain("everyWidth ? '' : 'md:hidden '")
     expect(src).not.toMatch(/className="[^"]*\b(fixed|sticky)\b/)
     expect(read('src/app/dashboard/layout.tsx')).toContain('<SectionPills />')
   })

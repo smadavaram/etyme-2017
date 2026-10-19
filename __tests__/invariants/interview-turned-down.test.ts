@@ -45,21 +45,23 @@ const ctx: NoticeContext = {
   state: 'CANCELLED',
 }
 
-describe('a client’s Interviews and AP pages read Workforce, never Operate', () => {
-  it('a client’s Interviews page is headed Workforce', () => {
-    expect(pageFraming('CLIENT', 'interviews', null, OWNER).eyebrow).toBe('Workforce')
+describe('a client’s Interviews and AP pages read the client’s own links, never a supplier’s', () => {
+  it('a client’s Interviews page is headed Candidates, the link it is a tab of', () => {
+    expect(pageFraming('CLIENT', 'interviews', null, OWNER).eyebrow).toBe('Candidates')
   })
 
-  it('a client’s accounts payable page is headed Workforce, the section its own menu lists it under', () => {
-    expect(sectionOfHref('CLIENT', '/dashboard/ap')).toBe('Workforce')
+  it('a client’s accounts payable page is headed Invoice receipts, the link its own menu files it under', () => {
+    expect(sectionOfHref('CLIENT', '/dashboard/ap')).toBe('Invoice receipts')
   })
 
-  it('no shared page reads Operate, Sell or Procure to a client', () => {
+  it('every shared page a client reads is headed by one of the client’s own nine, never Bills, People or Companies', () => {
     const keys = ['contracts.sell', 'contracts.buy', 'requirements', 'submissions', 'interviews', 'rolloff', 'timesheets', 'invoices', 'expenses', 'consultants'] as const
-    // Contractors sit under the client's "Network" sub-heading, which heads
-    // the page since sign-up walk round three, item 11; every other shared
-    // page is Workforce. None of them is Operate, Sell or Procure.
-    for (const k of keys) expect([k, pageFraming('CLIENT', k, null, OWNER).eyebrow]).toEqual([k, k === 'consultants' ? 'Network' : 'Workforce'])
+    const heads: Record<string, string> = {
+      'contracts.sell': 'Contractors', 'contracts.buy': 'Contractors', requirements: 'Jobs', submissions: 'Candidates',
+      interviews: 'Candidates', rolloff: 'Contractors', timesheets: 'Timesheets', invoices: 'Invoice receipts',
+      expenses: 'Timesheets', consultants: 'Contractors',
+    }
+    for (const k of keys) expect([k, pageFraming('CLIENT', k, null, OWNER).eyebrow]).toEqual([k, heads[k]])
   })
 
   it('the Interviews page shows no section until it knows whose menu the reader has', () => {

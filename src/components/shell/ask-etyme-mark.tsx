@@ -84,30 +84,33 @@ export function OwedBadge({ n, className = '' }: { n: number | null; className?:
 }
 
 /**
- * The flip (founder, 2026-10-13, "One icon flips between the two
- * screens"). One icon-sized control on the right of the header, in the
- * same slot on every page, for a seat whose menu pins Ask Etyme. On a
- * dashboard page it is a chat bubble wearing the number and opens Ask
- * Etyme; on Ask Etyme it is four squares and opens the desk's own Today
- * tables. The number hangs off the icon's corner, so it adds no width at
- * 375, and the label says Ask Etyme and the number, so a screen reader
- * hears both. The logo carries nothing: it is the logo.
+ * Ask Etyme in the phone header, with its number (founder, 2026-10-19,
+ * "Nine links, no flip"). Below md the header is the logo, this and the
+ * menu icon; it opens the chat, on every page, Ask Etyme included, where
+ * it is marked as the page being read. From md up it is not drawn: the
+ * sidebar's own Ask Etyme entry carries the same number from the same
+ * read, an inch away.
+ *
+ * It replaces the flip of 2026-10-13, whose second face — four squares
+ * opening the desk's tables — was a second door to Today, which the menu
+ * already has. The number hangs off the icon's corner, so it adds no
+ * width at 375, and the label says Ask Etyme and the number, so a screen
+ * reader hears both.
  */
-export function AskEtymeFlip({
-  n, onAskEtyme, dashboardHref,
-}: { n: number | null; onAskEtyme: boolean; dashboardHref: string }) {
-  const label = onAskEtyme ? 'Dashboard' : owedLabel(n)
+export function AskEtymeLink({ n, here }: { n: number | null; here: boolean }) {
+  const label = owedLabel(n)
   return (
     <Link
-      href={(onAskEtyme ? dashboardHref : ASK_ETYME_HREF) as any}
+      href={ASK_ETYME_HREF as any}
       aria-label={label}
+      aria-current={here ? 'page' : undefined}
       title={label}
-      data-flip={onAskEtyme ? 'dashboard' : 'ask-etyme'}
-      className="relative w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
-                 text-etyme-ink transition-colors hover:bg-etyme-sunk"
+      data-ask-etyme="header"
+      className={`md:hidden relative w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-nav flex items-center justify-center
+                 text-etyme-ink transition-colors hover:bg-etyme-sunk ${here ? 'bg-etyme-action-wash' : ''}`}
     >
-      {onAskEtyme ? <DashboardIcon /> : <ChatIcon />}
-      {!onAskEtyme && <OwedBadge n={n} className="absolute -top-1 -right-1.5" />}
+      <ChatIcon />
+      <OwedBadge n={n} className="absolute -top-1 -right-1.5" />
     </Link>
   )
 }
@@ -118,19 +121,6 @@ function ChatIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M8 4h8a5 5 0 0 1 5 5v3a5 5 0 0 1-5 5h-6l-5 4v-4.5A5 5 0 0 1 3 12V9a5 5 0 0 1 5-5z" />
-    </svg>
-  )
-}
-
-/** The desk's tables: four rounded squares. */
-function DashboardIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
     </svg>
   )
 }

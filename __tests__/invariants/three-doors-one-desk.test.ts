@@ -4,7 +4,6 @@ import { join } from 'node:path'
 import { plusMenuFor, reachablePagesFor } from '@/components/shell/header'
 import { deskOf, sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { getNavForKind } from '@/components/shell/sidebar'
-import { pinnedOn } from '@/lib/nav-table'
 import { rolesFor } from '@/lib/company-defaults'
 import { hasAnyPermission } from '@/lib/permissions'
 import { SUPPLIER_SEATS, ALL_SEATS } from '@/app/demo/seats'
@@ -96,9 +95,12 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
     const desk = deskOf(own)
     expect(desk.menuKind).toBe('MSP')
     expect(desk.permissions).toEqual(own.permissions)
-    // Headed by the office's own menu: Today, Demand, Operate — and no
-    // Supply, because what Supply holds for an office is its suppliers.
-    expect(plusMenuFor(desk.menuKind, false, desk.permissions, false).map((s) => s.label)).toEqual(['Today', 'Demand', 'Operate'])
+    // Headed by the MSP's own links, never the client's.
+    const headings = plusMenuFor(desk.menuKind, false, desk.permissions, false).map((s) => s.label)
+    const mspLinks = getNavForKind('MSP', false).map((s) => s.label)
+    expect(headings.length).toBeGreaterThan(0)
+    for (const heading of headings) expect(mspLinks, heading).toContain(heading)
+    expect(headings).not.toContain('Contractors')
   })
 
   it('⌘K at a client’s desk finds the client’s pages and none that only the office’s own menu offers', () => {
@@ -109,11 +111,11 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
     const menu = getNavForKind(desk.companyKind, false, {
       permissions: desk.permissions, seatedAtClient: desk.seatedAtClient,
     })
-    // Ask Etyme first: the sidebar draws it above the sections (lib/nav-table, pinnedOn).
-    const sidebar = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
+    // Every page on the menu, tabs included, Ask Etyme first.
+    const sidebar = menu.flatMap((s) => s.items).map((i) => i.href)
     expect(found).toEqual(sidebar)
     const client = getNavForKind('CLIENT', false)
-    const clientHrefs = new Set([...pinnedOn(client), ...client.flatMap((s) => s.items)].map((i) => i.href))
+    const clientHrefs = new Set(client.flatMap((s) => s.items).map((i) => i.href))
     for (const href of found) expect(clientHrefs, href).toContain(href)
   })
 
@@ -228,15 +230,15 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
     }
   })
 
-  it('a client’s hiring manager is still offered a new job request, under Workforce, where her menu lists job requests', () => {
+  it('a client’s hiring manager is still offered a new job request, under Jobs, where her menu lists job requests', () => {
     const menu = plusMenuFor('CLIENT', false, role('CLIENT', 'Hiring Manager'), false)
-    expect(menu.find((s) => s.items.some((i) => i.label === 'New job request'))?.label).toBe('Workforce')
+    expect(menu.find((s) => s.items.some((i) => i.label === 'New job request'))?.label).toBe('Jobs')
   })
 
   it('Karthik Menon, a desk-less worker whose line has ended, is offered a note to his own people and no new week', () => {
     const offered = plusMenuFor('GSI', false, ['assignments.read', 'timesheets.read'], true, { filesAWeek: false })
     expect(labels(offered)).not.toContain('New timesheet')
-    for (const s of offered) expect(['Today', 'You']).toContain(s.label)
+    for (const s of offered) expect(['Ask Etyme', 'You']).toContain(s.label)
   })
 
   it('the header reads the desk through the same helper the sidebar reads', () => {

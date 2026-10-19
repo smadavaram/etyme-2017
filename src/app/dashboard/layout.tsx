@@ -267,8 +267,9 @@ export default async function DashboardLayout({
             <div className="max-w-[1200px] mx-auto">
               {/* One line while setup has steps owed; silent otherwise. */}
               <SetupReminder />
-              {/* On a phone, the pages beside this one, in the page's own
-                  flow so they never cover it. Nothing from md up. */}
+              {/* The tab row: the other pages of the noun being read, at
+                  every width, in the page's own flow so it never covers
+                  it (founder, 2026-10-19, "Nine links"). */}
               <Suspense>
                 <SectionPills />
               </Suspense>

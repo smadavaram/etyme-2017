@@ -66,15 +66,13 @@ describe('the two Network pages', () => {
   const suppliersApi = read('src/app/api/suppliers/route.ts')
   const favorites = read('src/app/api/favorites/route.ts')
 
-  it('the nav group is Network, holding Contractors, Suppliers and Contacts', () => {
-    // Counted in the source until the same group reached the supplier
-    // side too and three became six. The claim was always about what a
-    // client's Network group holds, so it asks the menu itself now.
+  it('a client reaches its contractors as one link, and its suppliers and their contacts as another', () => {
+    // The Network group became two of the nine links (founder,
+    // 2026-10-19): Contractors, and Suppliers with Contacts as a tab.
     expect(sidebar).not.toContain("group: 'People & suppliers'")
-    const network = getNavForKind('CLIENT', false)
-      .flatMap((s) => s.items)
-      .filter((i) => i.group === 'Network')
-    expect(network.map((i) => i.label)).toEqual(['Contractors', 'Suppliers', 'Contacts'])
+    const client = getNavForKind('CLIENT', false)
+    expect(client.find((s) => s.label === 'Contractors')!.items[0].label).toBe('Contractors')
+    expect(client.find((s) => s.label === 'Suppliers')!.items.map((i) => i.label).slice(0, 2)).toEqual(['Suppliers', 'Contacts'])
   })
   it('both pages have a feed and a table of the same rows, and the same filter bar', () => {
     for (const src of [people, suppliers]) {

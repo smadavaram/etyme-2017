@@ -75,27 +75,27 @@ describe('15: an eyebrow names the section the page sits under on the reader’s
     expect(src).not.toMatch(/<p className="eyebrow">Network<\/p>/)
   })
 
-  it('a program office reads Suppliers under Supply, and a client under Network', () => {
-    expect(sectionOfHref('MSP', '/dashboard/suppliers')).toBe('Supply')
-    expect(sectionOfHref('CLIENT', '/dashboard/suppliers')).toBe('Network')
+  it('an MSP reads Suppliers under Companies, and a client reads it as its own link, Suppliers', () => {
+    expect(sectionOfHref('MSP', '/dashboard/suppliers')).toBe('Companies')
+    expect(sectionOfHref('CLIENT', '/dashboard/suppliers')).toBe('Suppliers')
   })
 
   it('Budget reads its section from the menu and no longer types "Governance"', () => {
     const src = read('program/budget')
     expect(src).toMatch(/usePageSection\('\/dashboard\/program\/budget'\)/)
     expect(src).not.toMatch(/<p className="eyebrow">Governance<\/p>/)
-    expect(sectionOfHref('CLIENT', '/dashboard/program/budget')).toBe('Workforce')
+    expect(sectionOfHref('CLIENT', '/dashboard/program/budget')).toBe('Invoice receipts')
   })
 
   it('Program team heads with a section from the menu, never the company’s name', () => {
     const src = read('program/team')
     expect(src).toMatch(/usePageSection\('\/dashboard\/program\/team'\)/)
     expect(src).not.toMatch(/eyebrow">\{team\.company\.name\}/)
-    expect(sectionOfHref('CLIENT', '/dashboard/program/team')).toBe('Governance')
+    expect(sectionOfHref('CLIENT', '/dashboard/program/team')).toBe('Settings')
   })
 
-  it('a program office in a client’s seat reads Program team under the client’s Governance, not its own firm’s name', () => {
-    expect(sectionOfHref('MSP', '/dashboard/program/team', { seated: true, clientName: 'Cavanaugh Glassworks' } as any)).toBe('Governance')
+  it('an MSP in a client’s seat reads Program team under the client’s Settings, not its own firm’s name', () => {
+    expect(sectionOfHref('MSP', '/dashboard/program/team', { seated: true, clientName: 'Cavanaugh Glassworks' } as any)).toBe('Settings')
   })
 
   it('all three draw no eyebrow at all while the reader’s menu is not known', () => {
