@@ -38,7 +38,7 @@ describe('The headline and the box under it read one list', () => {
     const queue = items.map((i) => ({ type: i.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT', title: i.who, named: i.named }))
     expect(deskHeadline(queue).total).toBe(items.length)
     expect(deskCounts({ decisions: queue }).queue).toBe(items.length)
-    expect(deskHeadline(queue).says).toBe("Two things need you: Samuel Adeyinka's start, and Wrenfield Technical's missing agreement.")
+    expect(deskHeadline(queue).says).toBe("Two things need you: Samuel Adeyinka’s start, and Wrenfield Technical’s missing agreement.")
   })
 
   it('with one decision beside the two rows the headline says three, the length of the queue', () => {

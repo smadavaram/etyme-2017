@@ -162,13 +162,15 @@ export function countWord(n: number): string {
 }
 
 /**
- * "Cavanaugh Glassworks'" and "Aptiva Workforce's".
+ * "Cavanaugh Glassworks’" and "Aptiva Workforce’s", with the curly apostrophe
+ * the chat and the page print, so the greeting, the mark and the page say
+ * one identical sentence.
  *
  * The same rule `lib/page-framing` uses, so a page carrying both
  * sentences does not spell one firm two ways.
  */
 export function possessive(name: string): string {
-  return name.endsWith('s') ? `${name}'` : `${name}'s`
+  return name.endsWith('s') ? `${name}’` : `${name}’s`
 }
 
 function phrase(n: Named, count: number): string {

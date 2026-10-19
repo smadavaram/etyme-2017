@@ -930,12 +930,11 @@ export async function GET(request: NextRequest) {
   //
   // Every query above is scoped to `companyId` — the caller's own firm —
   // and that is the only book this route can prove the caller is
-  // entitled to. A program office in a seat reads the client's program
-  // on the same page, so the page needs to be able to say which of the
-  // two it is showing rather than leaving an MSP to read its own supplier
-  // work as the client's. The sentence itself is the page's
-  // (`whoseQueue` in dashboard/program/needs-you); this says the facts it
-  // needs, in the shape `lib/page-framing` already accepts.
+  // entitled to. Since 2026-10-19 the program page does not read this
+  // route under a seat at all — it reads that program's own rows from
+  // GET /api/program — so an MSP's own book never reaches the client's
+  // page. The facts stay here, in the shape `lib/page-framing` accepts,
+  // for any other reader that needs to say whose queue this is.
   const desk = await seatedDesk(caller)
 
   // ── A supplier with a client and nothing else yet ─────────────────

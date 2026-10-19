@@ -24,16 +24,16 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
   it('names both things: "Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement."', () => {
     const said = deskHeadline([start('Ingrid Sørensen'), agreement('Teleworld')])
     expect(said.total).toBe(2)
-    expect(said.says).toBe("Two things need you: Ingrid Sørensen's start, and Teleworld's missing agreement.")
+    expect(said.says).toBe("Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement.")
   })
 
   it('one thing is named on its own: "One thing needs you: Ingrid Sørensen’s start."', () => {
-    expect(deskHeadline([start('Ingrid Sørensen')]).says).toBe("One thing needs you: Ingrid Sørensen's start.")
+    expect(deskHeadline([start('Ingrid Sørensen')]).says).toBe("One thing needs you: Ingrid Sørensen’s start.")
   })
 
   it('three things are each named, with a comma before the last "and"', () => {
     expect(deskHeadline([week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Teleworld')]).says).toBe(
-      "Three things need you: Lucía Fernández's week, Ingrid Sørensen's start, and Teleworld's missing agreement."
+      "Three things need you: Lucía Fernández’s week, Ingrid Sørensen’s start, and Teleworld’s missing agreement."
     )
   })
 
@@ -42,17 +42,17 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
       week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Teleworld'), week('Helena Marsh'),
     ])
     expect(said.total).toBe(4)
-    expect(said.says).toBe("Four things need you: Lucía Fernández's week, Ingrid Sørensen's start, and 2 more.")
+    expect(said.says).toBe("Four things need you: Lucía Fernández’s week, Ingrid Sørensen’s start, and 2 more.")
   })
 
   it('five weeks of one person’s are said once, as "Marcus Oyelaran’s five weeks", and count as five', () => {
     const said = deskHeadline([1, 2, 3, 4, 5].map(() => week('Marcus Oyelaran')).concat([start('Ingrid Sørensen')]))
     expect(said.total).toBe(6)
-    expect(said.says).toBe("Six things need you: Marcus Oyelaran's five weeks, and Ingrid Sørensen's start.")
+    expect(said.says).toBe("Six things need you: Marcus Oyelaran’s five weeks, and Ingrid Sørensen’s start.")
   })
 
   it('a firm whose name ends in s takes the apostrophe alone, as the rest of the page spells it', () => {
-    expect(deskHeadline([agreement('Cavanaugh Glassworks')]).says).toBe("One thing needs you: Cavanaugh Glassworks' missing agreement.")
+    expect(deskHeadline([agreement('Cavanaugh Glassworks')]).says).toBe("One thing needs you: Cavanaugh Glassworks’ missing agreement.")
   })
 
   it('a row the route named is said in the route’s words, and a question from Ask Etyme belongs to nobody', () => {
@@ -94,7 +94,7 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
       new Date('2026-10-19T12:00:00Z')
     )
     expect(rows.map((r) => r.type)).toEqual(['START_HELD', 'NO_AGREEMENT'])
-    expect(deskHeadline(rows).says).toBe("Two things need you: Ingrid Sørensen's start, and Teleworld's missing agreement.")
+    expect(deskHeadline(rows).says).toBe("Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement.")
   })
 })
 
