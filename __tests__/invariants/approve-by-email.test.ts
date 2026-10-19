@@ -5,6 +5,12 @@ import {
   mayActForTheClient, scopeFor, mayReadEvidence, evidenceReadLog, approvedByWords,
   letterToApprover, signaturesWritten, type LinkRow, type WeekNow,
 } from '@/app/api/timesheets/approval-by-email'
+import {
+  billLetter, billNotice, billLine, builtFrom, billLinkToken, readBillLinkToken, billLinkExpiresAt,
+  billLinkOpen, billPageView, billSentSays, lastFour, BILL_LINK_DAYS_AFTER_DUE,
+  type BillFacts, type BillDelivery, type BillPageInput,
+} from '@/lib/notify/bill-letter'
+import { sign } from '@/lib/signed-link'
 
 /**
  * A client may approve by email, and the proof travels down the chain.
@@ -283,5 +289,131 @@ describe('the chain below the approval', () => {
     expect(cs.ok && cs.signer.role).toBe('PASS_THROUGH')
     const techpeple = turnOf(signers, 'techpeple', signed, (id) => id)
     expect(techpeple).toEqual({ ok: false, code: 'NOT_YOUR_TURN', says: 'cs has not accepted this week yet. It comes to you once they have.' })
+  })
+})
+
+// ── The bill, reaching the firm that pays it (etyme-conversation, 2026-10-19) ──
+//
+// Tapin's first day: a supplier whose client is not on Etyme sent a bill,
+// and nothing reached the client. The same link pattern as the week:
+// one signed link, no account, every open logged.
+
+const BILL: BillFacts = {
+  supplierName: 'Tapin', clientName: 'Northbend Athletic', number: 'IN-1042',
+  people: ['Helena Marsh', 'Helena Marsh'],
+  periodStart: new Date('2026-10-01T00:00:00Z'), periodEnd: new Date('2026-10-31T00:00:00Z'),
+  hours: 80, total: 11600, currency: 'USD', dueAt: new Date('2026-12-15T00:00:00Z'),
+  weeks: 2, signedBy: 'Northbend Athletic', allSigned: true, expenses: 0, milestones: 0,
+}
+const BILL_URL = 'https://etyme.example/answer/bill/abc.def'
+
+function delivery(over: Partial<BillDelivery> = {}): BillDelivery {
+  return {
+    invoiceId: 'inv', number: 'IN-1042', clientName: 'Larkspur Freight', onEtyme: false, resend: false,
+    at: '2026-10-19T15:00:00.000Z', byPersonId: 'ana', why: null,
+    to: [{ address: 'dana@acme.test', via: 'EMAIL', state: 'SENT', note: 'No Teams channel set up, so email instead' }],
+    ...over,
+  }
+}
+
+describe('a bill, sent to the firm that pays it', () => {
+  const words = (t: string) => t.split(/\s+/).filter(Boolean).length
+
+  it('the bill letter opens on the bill itself: whose, which, for whom, which month, how many hours, how much and when it is due', () => {
+    expect(billLine(BILL)).toBe('Tapin’s bill IN-1042 for Helena Marsh, October 2026: 80 hours, $11,600.00, due Dec 15, 2026')
+    const l = billLetter({ facts: BILL, contactName: 'Dana Whitfield', url: BILL_URL, expiresAt: billLinkExpiresAt(BILL.dueAt), sender: { name: 'Ana Ruiz', email: 'ana@tapin.test' } })
+    expect(l.subject).toBe(billLine(BILL))
+    expect(l.body.split('\n\n')[0]).toBe('Dana,')
+    expect(l.body.split('\n\n')[1]).toBe(`${billLine(BILL)}.`)
+  })
+
+  it('the bill letter says the weeks it is built from and who signed them, gives one link, says why it arrived, and stays between 60 and 120 words with no pitch', () => {
+    const l = billLetter({ facts: BILL, contactName: 'Dana Whitfield', url: BILL_URL, expiresAt: billLinkExpiresAt(BILL.dueAt), sender: { name: 'Ana Ruiz', email: 'ana@tapin.test' } })
+    expect(l.body).toContain('It is built from 2 weeks Northbend Athletic signed.')
+    expect(l.body.match(/https?:\/\//g)).toHaveLength(1)
+    expect(l.body).toContain('You do not need an account. The link works until Mar 15, 2027.')
+    expect(l.body).toContain('Tapin recorded you as the person at Northbend Athletic who receives its bills. If that is wrong, tell Ana Ruiz at Tapin (ana@tapin.test).')
+    expect(words(l.body)).toBeGreaterThanOrEqual(60)
+    expect(words(l.body)).toBeLessThanOrEqual(120)
+    expect(l.body).not.toMatch(/\bAI\b|platform|powerful|seamless|sorry|apolog/i)
+  })
+
+  it('a week nobody signed is never called signed, and expenses and milestones are counted as what they are', () => {
+    expect(builtFrom({ weeks: 2, signedBy: 'Northbend Athletic', allSigned: false, expenses: 0, milestones: 0 })).toBe('It is built from 2 weeks of hours.')
+    expect(builtFrom({ weeks: 1, signedBy: null, allSigned: true, expenses: 1, milestones: 0 })).toBe('It is built from 1 signed week and 1 approved expense.')
+    expect(builtFrom({ weeks: 0, signedBy: null, expenses: 0, milestones: 2 })).toBe('It is built from 2 accepted milestones.')
+  })
+
+  it('the notice to a client on Etyme opens the bill inside Etyme and carries no link a stranger could open', () => {
+    const n = billNotice(BILL)
+    expect(n.title).toBe('Tapin’s bill IN-1042: $11,600.00, due Dec 15, 2026')
+    expect(n.body).toContain('It is built from 2 weeks Northbend Athletic signed.')
+    expect(n.body).not.toMatch(/https?:\/\//)
+  })
+
+  it('the bill link names one bill and one address, and cannot be replayed as any other link', () => {
+    process.env.NEXTAUTH_SECRET = 'test-secret-for-bill-links'
+    const t = billLinkToken('inv_1', 'Dana@Acme.test')
+    expect(readBillLinkToken(t)).toEqual({ invoiceId: 'inv_1', to: 'dana@acme.test' })
+    expect(readBillLinkToken(sign('bench-invite', ['inv_1', 'dana@acme.test']))).toBeNull()
+    expect(readBillLinkToken(t.slice(0, -2) + 'xx')).toBeNull()
+    expect(() => billLinkToken('inv_1', 'odd:address@acme.test')).toThrow()
+  })
+
+  it('the bill link dies 90 days after the due date', () => {
+    expect(BILL_LINK_DAYS_AFTER_DUE).toBe(90)
+    const due = new Date('2026-12-15T00:00:00Z')
+    expect(billLinkExpiresAt(due).toISOString()).toBe('2027-03-15T00:00:00.000Z')
+    expect(billLinkOpen(due, new Date('2027-03-14T23:59:00Z'))).toBe(true)
+    expect(billLinkOpen(due, new Date('2027-03-15T00:00:00Z'))).toBe(false)
+  })
+
+  it('the bill page shows the rate on this bill on each line and nothing of any rung below, and where to pay with the last four digits only', () => {
+    const input: BillPageInput & Record<string, unknown> = {
+      supplierName: 'Tapin', clientName: 'Larkspur Freight', clientOnEtyme: false, invoiceId: 'inv', number: 'IN-1042',
+      status: 'SUBMITTED', total: 5800, paid: 0, currency: 'USD',
+      periodStart: new Date('2026-10-01T00:00:00Z'), periodEnd: new Date('2026-10-31T00:00:00Z'), dueAt: new Date('2026-12-15T00:00:00Z'),
+      lines: [{ hours: 40, rateCents: 14500, amountCents: 580000, description: null, personName: 'Helena Marsh', week: { start: new Date('2026-10-04T00:00:00Z'), end: new Date('2026-10-10T00:00:00Z') }, expense: false, milestone: false, payRateCents: 9100, subVendor: 'Hidden Sub LLC' } as any],
+      weeks: [{ person: 'Helena Marsh', start: new Date('2026-10-04T00:00:00Z'), end: new Date('2026-10-10T00:00:00Z'), hours: 40, signedAt: new Date('2026-10-12T00:00:00Z'), signer: 'Dana Whitfield', byEmail: true }],
+      signedBy: 'Larkspur Freight',
+      remit: { legalName: 'Tapin LLC', paymentMethod: 'ACH', bankName: 'First Harbor Bank', accountLast4: '000123454421' },
+      buyRateCents: 9100,
+    }
+    const v = billPageView(input, NOW)
+    expect(v.lines).toEqual([{ kind: 'HOURS', person: 'Helena Marsh', what: 'Oct 4 – Oct 10, 2026', hours: 40, rate: '$145/hr', amount: '$5,800.00' }])
+    expect(v.weeks[0].signed).toBe('Approved by email: Dana Whitfield, Oct 12, 2026')
+    expect(v.remit).toEqual({ payTo: 'Tapin LLC', method: 'ACH bank transfer', bank: 'First Harbor Bank', account: 'ending 4421' })
+    const shown = JSON.stringify(v)
+    expect(shown).not.toContain('91')
+    expect(shown).not.toContain('Hidden Sub')
+    expect(shown).not.toContain('000123')
+    expect(v.recordOnEtyme).toBeNull()
+    expect(lastFour('12-34-5678')).toBe('5678')
+  })
+
+  it('a payer on Etyme is offered "Record on Etyme" on the bill page, opening the bill inside Etyme', () => {
+    const v = billPageView({
+      supplierName: 'Brightmoor', clientName: 'Northbend Athletic', clientOnEtyme: true, invoiceId: 'inv_9', number: 'IN-9',
+      status: 'PARTIALLY_PAID', total: 1000, paid: 400, currency: 'USD',
+      periodStart: new Date('2026-10-04T00:00:00Z'), periodEnd: new Date('2026-10-17T00:00:00Z'), dueAt: new Date('2026-11-15T00:00:00Z'),
+      lines: [], weeks: [], signedBy: null, remit: null,
+    }, NOW)
+    expect(v.recordOnEtyme).toBe('/dashboard/invoices/inv_9')
+    expect(v.status).toBe('Part paid: $400.00 of $1,000.00')
+    expect(v.period).toBe('Oct 4 – Oct 17, 2026')
+  })
+
+  it('the Bills page reads who a bill was sent to and when, and never says sent where the email did not leave', () => {
+    const now = new Date('2026-10-20T12:00:00Z')
+    expect(billSentSays([delivery()], now)).toBe('Sent to dana@acme.test on Oct 19')
+    expect(billSentSays([delivery({ onEtyme: true, clientName: 'Northbend Athletic', to: [{ address: 'ap@nb.test', via: 'ETYME', state: 'SENT', note: 'Shown in the app', role: 'AP Clerk' }] })], now))
+      .toBe('Sent on Etyme to Northbend Athletic’s AP Clerk on Oct 19')
+    expect(billSentSays([delivery({ to: [{ address: 'dana@acme.example', via: 'EMAIL', state: 'DEMO_SKIPPED', note: 'demo address, nothing sent' }] })], now))
+      .toBe('Not emailed to dana@acme.example: it is a demo address, so nothing left')
+    expect(billSentSays([delivery({ to: [], why: 'Larkspur Freight is not on Etyme and no address is recorded for it. Record the person there who receives bills, then send it again.' })], now))
+      .toBe('Not sent: Larkspur Freight is not on Etyme and no address is recorded for it. Record the person there who receives bills, then send it again.')
+    expect(billSentSays([delivery(), delivery({ resend: true, at: '2026-10-21T09:00:00.000Z' })], new Date('2026-10-22T00:00:00Z')))
+      .toBe('Sent again to dana@acme.test on Oct 21; first sent Oct 19')
+    expect(billSentSays([], now)).toBeNull()
   })
 })

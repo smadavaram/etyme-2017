@@ -34,6 +34,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'auth/**': 'Signing in, signing up, confirming an email and resetting a password happen before there is a seat.',
   'answer/[token]': 'A one-time link mailed to the person asked; the token is the credential and names the one question.',
   'approve-week/[token]': 'A client approver signing one week by email without an account; the token names the week.',
+  'answer/bill/[token]': 'The person a supplier emailed a bill to, reading that one bill without an account; the signed token names the bill and the address, dies 90 days after the due date, and every open is logged.',
   'packet/[token]': 'A document request link mailed to the person who owes the papers.',
   'claim/[token]': 'A firm claiming the company a client put on Etyme for it, from the link mailed to it.',
   'reply/[token]': 'A reply link mailed to a person; the token names the thread and the person.',

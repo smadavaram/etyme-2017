@@ -79,7 +79,11 @@ export const EVENT_TYPES = [
   'timesheet.approved',
   'timesheet.rejected',
   'invoice.generated',
+  // Sent to the firm that pays it: who it went to, on which channel, and
+  // whether each delivery left (lib/notify/bill-delivery). A second
+  // sending is its own act, by a person, under its own name.
   'invoice.submitted',
+  'invoice.resent',
   'invoice.matched',
   'invoice.match_failed',
   'invoice.paid',

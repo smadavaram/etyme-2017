@@ -532,6 +532,37 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 - **The variance table is a plain table, not `ListSurface`.** It sits in
   a chat bubble with a handful of rows; the invariant reads pages only.
 
+## A bill reaching the firm that pays it — etyme-conversation (2026-10-19)
+
+`lib/notify/bill-letter` (the words, the link, the sentence) and
+`lib/notify/bill-delivery` (the reads and the trail); the page is
+`/answer/bill/[token]`.
+
+- **Nothing sends it yet from the Send button.** `sendBillToCustomer` is
+  built and tested; the call from the three doors that send a bill (the
+  bill's Submit, the bulk Submit, the twin's `bill.send`) is money's, after
+  `markSent`'s transaction commits. Until it lands, a sent bill still
+  reaches nobody.
+- **No resend route yet.** `resendBillToCustomer` is built and tested;
+  `POST /api/invoices/[id]/resend` is under money's path.
+- **Plain text only, no PDF.** The letter carries one link; the page is the
+  bill. A client whose AP system wants a PDF attachment cannot have one.
+- **The link is not withdrawn when the contact is.** A supplier taking a
+  person off its record at a client does not close a link already sent to
+  them; it dies 90 days after the due date like every other.
+- **The open is logged as `TIMESHEET_VIEW`.** The access log has no action
+  of its own for a bill opened by its link (regulatory's union); the reason
+  names the bill and the address.
+- **Who signed reads the top of the chain.** "Built from 2 weeks Northbend
+  Athletic signed" names the client at the top of each week's chain, read
+  through `readWeekChain`; where weeks were signed by two firms the name is
+  left out.
+- **The record of a sending is an event, not an automation-log row.**
+  `invoice.submitted` and `invoice.resent` on the bill, carrying who it
+  went to and what each delivery did. It is a person's act, so it has no
+  rung; if the ladder should carry it, it is an ATTRIBUTED line in
+  `lib/autonomy` (architect).
+
 ## The public site — etyme-market (2026-10-14)
 
 1. **`/census` is to be deleted on November 13, 2026, with its form and
