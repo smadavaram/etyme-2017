@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, cardIdsOf, type Picture, type Answer } from './ask'
+import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, type Picture, type Answer, type Party, type QueueRead } from './ask'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor } from '@/lib/model-boundary'
 import { GET as programPicture } from '@/app/api/program/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
-import { unreadNotices, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker } from './worker'
+import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
+import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk } from './worker'
+import { seatFor } from '@/lib/program-seat'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
 
@@ -78,9 +79,20 @@ async function pictureFor(request: NextRequest): Promise<Picture | null> {
     const body = await res.json()
     const summary = body?.data?.summary
     if (typeof summary?.activeContractors !== 'number') return null
-    const contractors: Array<{ state?: string; vendor?: { id?: string } | null }> = Array.isArray(body.data.contractors) ? body.data.contractors : []
+    const contractors: Array<{ state?: string; vendor?: { id?: string } | null; currency?: string | null }> = Array.isArray(body.data.contractors) ? body.data.contractors : []
     const suppliers = new Set(contractors.filter((c) => c.state === 'IN_PROGRESS' && c.vendor?.id).map((c) => c.vendor!.id))
-    return { onSite: summary.activeContractors, suppliers: suppliers.size }
+    // What current rates come to a month, the dashboard's own figure, said
+    // only where it priced every seat on site and in one currency: a total
+    // of some seats read as the total of all is the plausible wrong number.
+    const currencies = [...new Set(contractors.filter((c) => c.state === 'IN_PROGRESS').map((c) => (c.currency ?? 'USD').toUpperCase()))]
+    // The dashboard says in its own line where some seat has no rate ("…
+    // people have no rate and are not in it"); then the figure is partial.
+    const unpriced = [summary.monthlySpendSays, summary.monthlySpendBasis].some((x) => typeof x === 'string' && /\bno rate\b/.test(x))
+    const priced = typeof summary.monthlySpend === 'number' && Number.isInteger(summary.monthlySpend) && !unpriced && currencies.length <= 1
+    return {
+      onSite: summary.activeContractors, suppliers: suppliers.size,
+      monthlyMinor: priced ? summary.monthlySpend : null, currency: priced ? currencies[0] ?? 'USD' : null,
+    }
   } catch {
     return null
   }
@@ -93,19 +105,38 @@ async function pictureFor(request: NextRequest): Promise<Picture | null> {
  * refuses the seat or cannot be read; the headline then says what the
  * twin's own questions say.
  */
-function needsFor(request: NextRequest): () => Promise<number | null> {
-  return async () => {
+function queueFor(request: NextRequest): () => Promise<QueueRead | null> {
+  let read: Promise<QueueRead | null> | null = null
+  // Read once per request however often it is asked: the headline, the
+  // names in it and the cards are one read of one queue.
+  return () => (read ??= (async () => {
     try {
       const res = await decisionQueue(request)
       if (!res.ok) return null
       // The same field the mark reads (`owedFrom` in lib/owed-count): one
-      // answer, one figure.
-      const total = (await res.json())?.data?.total
-      return typeof total === 'number' && Number.isInteger(total) && total >= 0 ? total : null
+      // answer, one figure — and the rows behind it, which the headline names.
+      return queueFrom(await res.json())
     } catch {
       return null
     }
-  }
+  })())
+}
+
+function needsFor(request: NextRequest): () => Promise<number | null> {
+  const queue = queueFor(request)
+  return async () => (await queue())?.total ?? null
+}
+
+/**
+ * Whose Ask Etyme this is, and for a seat in a client's program, whose
+ * program: the closing line, the chips and the box are the party's own.
+ */
+async function partyFor(caller: Caller): Promise<{ party: Party; client: string | null }> {
+  if (asWorker(caller)) return { party: 'WORKER', client: null }
+  const kind = caller.company?.kind ?? null
+  const seat = kind && kind !== 'CLIENT' && kind !== 'CONSULTANT_CORP' ? await seatFor(caller, null).catch(() => null) : null
+  const client = seat?.clientCompany?.name ?? null
+  return { party: partyOf({ companyKind: kind, seatedAt: client }), client }
 }
 
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
@@ -175,16 +206,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: { thread: await threadFor(caller, take) } })
   }
   try {
-    const notices = await unreadNotices(caller)
+    // Every read starts at once (founder's walk, 2026-10-19: the AP clerk's
+    // first screen sat on "Reading the record…"). The program's picture and
+    // the decisions queue were read one after the other, and the saved
+    // thread after both; each is its own read and none waits on another.
+    const company = caller.company
+    const thread = threadFor(caller, take)
+    const picture = pictureFor(request)
+    const queue = queueFor(request)
+    void queue()
+    const [notices, threads, modelSwitch, who] = await Promise.all([
+      unreadNotices(caller), unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller),
+    ])
     // The boundary line reads the company's own switch, so it says what is
     // true for this company; it is the greeting's last line.
-    const model = modelState((await modelSwitchFor(caller.company.id)).on, process.env)
-    const answer = await today(readersFor(caller, caller.company.id), {
-      greeting: true, picture: await pictureFor(request), needs: needsFor(request), notices, model,
+    const model = modelState(modelSwitch.on, process.env)
+    const answer = await today(readersFor(caller, company.id, request), {
+      greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client,
     })
     // Said, so read: the section empties itself on the next greeting.
-    await markNoticesSeen(caller, notices.shown.map((n) => n.id))
-    return NextResponse.json({ data: { answer, model, thread: await threadFor(caller, take) } })
+    await Promise.all([
+      markNoticesSeen(caller, notices.shown.map((n) => n.id)),
+      markNoticesSeen(caller, threads.noticeIds),
+    ])
+    return NextResponse.json({ data: { answer, model, party: who.party, client: who.client, thread: await thread } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -217,10 +262,14 @@ async function workerGreeting(caller: Caller, request: NextRequest) {
     return NextResponse.json({ data: { thread: await thread() } })
   }
   try {
-    const notices = await unreadNotices(caller)
-    const answer = workerToday(await workerFacts(caller, request), { greeting: true, notices })
-    await markNoticesSeen(caller, notices.shown.map((n) => n.id))
-    return NextResponse.json({ data: { answer, model: 'OFF', worker: true, thread: await thread() } })
+    const saved = thread()
+    const [notices, threads, facts] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request)])
+    const answer = workerToday(facts, { greeting: true, notices, threads })
+    await Promise.all([
+      markNoticesSeen(caller, notices.shown.map((n) => n.id)),
+      markNoticesSeen(caller, threads.noticeIds),
+    ])
+    return NextResponse.json({ data: { answer, model: 'OFF', worker: true, party: 'WORKER', client: null, thread: await saved } })
   } catch (err) {
     await reportError('Ask Etyme could not greet a worker', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -275,9 +324,17 @@ export async function POST(request: NextRequest) {
 
   let answer: Answer
   try {
-    answer = await respond(text, readersFor(caller, companyId), {
-      env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: needsFor(request),
-    })
+    const who = await partyFor(caller)
+    // A one-person firm is the firm and the worker at once: her week, her
+    // papers and her contract are answered from her own pages, as a
+    // worker's are; what she billed and the rest, from the firm's book.
+    const solo = who.party === 'SOLO' && readAsk(text).kind !== 'UNPAID' &&
+      ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK'].includes(readWorkerAsk(text))
+    answer = solo
+      ? await respondWorker(text, { facts: () => workerFacts(caller, request) })
+      : await respond(text, readersFor(caller, companyId, request), {
+        env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: queueFor(request), party: who.party,
+      })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })

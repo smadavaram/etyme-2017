@@ -10,9 +10,10 @@ import { statusMeans } from '@/lib/read-response'
 import { formatDay, formatRange } from '@/lib/format-date'
 import { deskOf } from '@/components/shell/sidebar-props'
 import {
-  SUGGESTED_QUESTIONS, FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays,
+  FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays, partyOf, questionsFor, placeholderFor,
   billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
+  type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
 import { WORKER_QUESTIONS, WORKER_FOOTER, type WorkerAnswer, type WorkerCard as WorkerCardFact } from '@/app/api/conversations/twin/worker'
 
@@ -80,7 +81,7 @@ const RENEW = '/api/me/benches'
 /** Whether a saved answer is one this screen draws; an older shape reads as its words. */
 function asAnswer(line: SavedLine): Answer {
   const a = line.answer as { kind?: unknown; says?: unknown } | null
-  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL', 'WORKER']
+  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL', 'WORKER', 'LIST']
   if (a && typeof a === 'object' && typeof a.kind === 'string' && kinds.includes(a.kind) && typeof a.says === 'string') return a as Answer
   return { kind: 'TEXT', says: line.text }
 }
@@ -114,6 +115,8 @@ export function AskEtyme() {
   // A worker's own Ask Etyme: her five questions, her cards (the route says which seat this is).
   const [worker, setWorker] = useState(false)
   const [renewed, setRenewed] = useState<Record<string, { ok: boolean; says: string }>>({})
+  // A decision card's own act, through the one route that already does it; what the route said.
+  const [acted, setActed] = useState<Record<string, { state: 'DONE' | 'LATER' | 'ERROR'; says: string }>>({})
   const next = useRef(1)
   const end = useRef<HTMLDivElement>(null)
   const firstName = session.person?.name?.trim().split(/\s+/)[0] ?? null
@@ -121,7 +124,12 @@ export function AskEtyme() {
   // words, so the desk, the company and, in the demo, that it is a sample
   // are the greeting's first line (founder, 2026-10-13).
   const desk = deskOf(session)
-  const seat = seatSays({ role: desk.isConsultant ? 'Consultant' : desk.roleName, company: desk.seatedAtClient ?? session.company?.name ?? null, sample: session.isDemo })
+  // Whose Ask Etyme this is: the route says, and until it has, the session.
+  const [party, setParty] = useState<Party>(() => partyOf({ companyKind: desk.companyKind, worker: desk.isConsultant || desk.worker, seatedAt: desk.seatedAtClient }))
+  const seat = seatSays({
+    role: desk.isConsultant ? 'Consultant' : desk.roleName, company: session.company?.name ?? null, sample: session.isDemo,
+    party, seatedAt: desk.seatedAtClient,
+  })
 
   const add = (t: DistributiveOmit<Turn, 'id'>) => setTurns((all) => [...all, { ...t, id: next.current++ } as Turn])
   const fromSaved = (lines: SavedLine[]): Turn[] =>
@@ -146,6 +154,8 @@ export function AskEtyme() {
         setOldestAt(thread.turns[0]?.at ?? null)
       }
       if (body?.data?.worker === true) setWorker(true)
+      const said = body?.data?.party
+      if (said === 'CLIENT' || said === 'MSP' || said === 'FIRM' || said === 'SOLO' || said === 'WORKER') setParty(said)
       const first: Turn[] = aside ? [{ id: next.current++, from: 'aside', text: aside }] : []
       if (!res.ok || !body?.data?.answer) { setTurns([...first, { id: next.current++, from: 'note', text: body?.error?.message ?? statusMeans(res.status) }]); return }
       setTurns([...first, { id: next.current++, from: 'etyme', answer: body.data.answer as Answer }])
@@ -283,6 +293,32 @@ export function AskEtyme() {
     }
   }
 
+  /**
+   * A decision card's act: the person's own press on the one route that
+   * already performs it — the timesheet's approve, the expense's approve or
+   * accept — exactly as the decisions page and Timesheets press it. A
+   * refusal shows the route's own sentence and the card stays, with Open.
+   */
+  const act = async (card: QueueCard) => {
+    if (!card.act) return
+    setDeciding(card.key)
+    try {
+      const res = await fetch(card.act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(card.act.body) })
+      const body = await res.json().catch(() => null)
+      setActed((a) => ({
+        ...a,
+        [card.key]: res.ok
+          ? { state: 'DONE', says: typeof body?.data?.message === 'string' ? body.data.message : card.act!.done }
+          : { state: 'ERROR', says: body?.error?.message ?? statusMeans(res.status) },
+      }))
+    } catch {
+      setActed((a) => ({ ...a, [card.key]: { state: 'ERROR', says: 'Your answer did not reach Etyme, so nothing changed. Try again.' } }))
+    } finally {
+      setDeciding(null)
+    }
+  }
+  const actLater = (card: QueueCard) => setActed((a) => ({ ...a, [card.key]: { state: 'LATER', says: 'Kept waiting. Nothing changed.' } }))
+
   /** Renew a bench stay: her own press, on the route her Who has you page uses. Nothing else here writes. */
   const renew = async (card: WorkerCardFact) => {
     if (!card.listingId) return
@@ -382,6 +418,9 @@ export function AskEtyme() {
                         onLater={(item) => later(item, t.savedId)}
                         renewed={renewed}
                         onRenew={(card) => void renew(card)}
+                        acted={acted}
+                        onAct={(card) => void act(card)}
+                        onActLater={actLater}
                       />
                     </FromEtyme>
                   )}
@@ -399,7 +438,7 @@ export function AskEtyme() {
           <div className="border-t border-etyme-rule/60 bg-etyme-canvas px-3 pb-3 pt-2.5 sm:px-6 sm:pb-4">
             <div className="mx-auto max-w-[760px]">
               <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
-                {(worker ? WORKER_QUESTIONS : SUGGESTED_QUESTIONS).map((q) => (
+                {(worker || party === 'WORKER' ? WORKER_QUESTIONS : questionsFor(party)).map((q) => (
                   <button
                     key={q}
                     type="button"
@@ -412,7 +451,7 @@ export function AskEtyme() {
                 ))}
               </div>
               <form onSubmit={onSubmit} className="flex items-end gap-2.5 rounded-[16px] border border-etyme-rule bg-etyme-raised py-2 pl-4 pr-2 focus-within:border-etyme-action focus-within:ring-2 focus-within:ring-etyme-action-wash shadow-[0_8px_30px_-22px_rgba(0,0,0,0.35)]">
-                <label htmlFor="ask-etyme-box" className="sr-only">{worker ? 'Ask Etyme about your work' : 'Ask Etyme about your program'}</label>
+                <label htmlFor="ask-etyme-box" className="sr-only">{(worker ? placeholderFor('WORKER') : placeholderFor(party)).replace(/…$/, '')}</label>
                 <textarea
                   id="ask-etyme-box"
                   rows={1}
@@ -420,7 +459,7 @@ export function AskEtyme() {
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={onKey}
                   maxLength={2000}
-                  placeholder={worker ? 'Ask Etyme about your work…' : 'Ask Etyme about your program…'}
+                  placeholder={worker ? placeholderFor('WORKER') : placeholderFor(party)}
                   className="max-h-40 min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] text-etyme-ink placeholder:text-etyme-faint focus-visible:outline-none"
                 />
                 <button
@@ -501,7 +540,9 @@ function Links({ links }: { links?: AnswerLink[] }) {
   )
 }
 
-function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, renewed, onRenew }: {
+type Acted = Record<string, { state: 'DONE' | 'LATER' | 'ERROR'; says: string }>
+
+function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, renewed, onRenew, acted, onAct, onActLater }: {
   answer: Answer
   firstName: string | null
   seat: string | null
@@ -511,10 +552,22 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, re
   onLater: (item: WaitingItem) => void
   renewed: Record<string, { ok: boolean; says: string }>
   onRenew: (card: WorkerCardFact) => void
+  acted: Acted
+  onAct: (card: QueueCard) => void
+  onActLater: (card: QueueCard) => void
 }) {
   switch (answer.kind) {
     case 'WORKER':
-      return <WorkerReply answer={answer} firstName={firstName} deciding={deciding} renewed={renewed} onRenew={onRenew} />
+      return <WorkerReply answer={answer} firstName={firstName} deciding={deciding} renewed={renewed} onRenew={onRenew} acted={acted} onLater={(key) => onActLater({ key } as QueueCard)} />
+
+    case 'LIST':
+      return (
+        <>
+          <p>{answer.says}</p>
+          {answer.table && <TableOf table={answer.table} />}
+          <Links links={answer.links} />
+        </>
+      )
 
     case 'TEXT':
       return <><p>{answer.says}</p><Links links={answer.links} /></>
@@ -553,6 +606,13 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, re
             </div>
           )}
           <p className={hello && !answer.recommend ? 'mt-2' : ''}><Rich line={{ says: answer.says, links: answer.saysLinks }} /></p>
+          {(answer.queue ?? []).length > 0 && (
+            <ol className="mt-2 flex flex-col gap-2">
+              {answer.queue!.map((c) => (
+                <QueueCardView key={c.key} card={c} done={acted[c.key]} busy={deciding === c.key} onAct={onAct} onLater={onActLater} />
+              ))}
+            </ol>
+          )}
           {answer.items.length > 0 && (
             <ol className="mt-2 flex flex-col gap-2">
               {answer.items.map((item) => (
@@ -698,6 +758,72 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
       )}
       {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
     </li>
+  )
+}
+
+/**
+ * A decision from the count, as a card (founder, 2026-10-19: every
+ * decision in the count is a card). Its title names the person and the
+ * step, one line of fact under it, then the act where one existing route
+ * performs it and Not now — or Open, to the decision's own page, where no
+ * single route does. Not now changes nothing on the record.
+ */
+function QueueCardView({ card, done, busy, onAct, onLater }: {
+  card: QueueCard
+  done?: { state: 'DONE' | 'LATER' | 'ERROR'; says: string }
+  busy: boolean
+  onAct: (card: QueueCard) => void
+  onLater: (card: QueueCard) => void
+}) {
+  const settled = done && done.state !== 'ERROR'
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{card.title}</p>
+      {card.fact && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{card.fact}</p>}
+      {settled ? (
+        <p className="mt-2">
+          <span className={`chip ${done.state === 'DONE' ? 'chip--verified' : 'chip--passive'}`}>{done.state === 'DONE' ? 'Done' : 'Kept waiting'}</span>
+          <span className="ml-2 text-[12.5px] text-etyme-muted">{done.says}</span>
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {card.act ? (
+            <>
+              <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => onAct(card)}>
+                {busy ? 'Recording…' : card.act.label}
+              </button>
+              <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(card)}>Not now</button>
+            </>
+          ) : (
+            <Link href={card.href as Route} className="btn-primary text-[13px]">Open</Link>
+          )}
+        </div>
+      )}
+      {done?.state === 'ERROR' && (
+        <div className="mt-2">
+          <FormMessage tone="error">{done.says}</FormMessage>
+          <p className="mt-1 text-[12.5px]"><Link href={card.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">Open</Link></p>
+        </div>
+      )}
+    </li>
+  )
+}
+
+/** A firm's own book as a table: the first cell names the row and opens it. */
+function TableOf({ table }: { table: ListTable }) {
+  return (
+    <ReplyTable caption={table.caption} head={table.head.map((label, i) => ({ label, n: i > 0 && /^(Days left|Hours|Still due)$/.test(label) }))}>
+      {table.rows.map((r, i) => (
+        <tr key={`${i}:${r.cells[0]}`}>
+          <th scope="row" className={`${td} font-medium`}>
+            {r.href ? <Link href={r.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">{r.cells[0]}</Link> : r.cells[0]}
+          </th>
+          {r.cells.slice(1).map((cell, j) => (
+            <td key={j} className={/^(Days left|Hours|Still due)$/.test(table.head[j + 1] ?? '') ? tdN : td}>{cell}</td>
+          ))}
+        </tr>
+      ))}
+    </ReplyTable>
   )
 }
 
@@ -892,12 +1018,14 @@ function WeekTable({ rows }: { rows: WeekRow[] }) {
  * Renew is her own press on her bench route. Nothing here asks the
  * approval route, because nothing here is the twin's to do.
  */
-function WorkerReply({ answer, firstName, deciding, renewed, onRenew }: {
+function WorkerReply({ answer, firstName, deciding, renewed, onRenew, acted, onLater }: {
   answer: WorkerAnswer
   firstName: string | null
   deciding: string | null
   renewed: Record<string, { ok: boolean; says: string }>
   onRenew: (card: WorkerCardFact) => void
+  acted: Acted
+  onLater: (key: string) => void
 }) {
   const hello = answer.greeting ? `${partOfDay(new Date().getHours())}${firstName ? `, ${firstName}` : ''}.` : null
   return (
@@ -936,18 +1064,42 @@ function WorkerReply({ answer, firstName, deciding, renewed, onRenew }: {
         </ReplyTable>
       )}
       {answer.more.map((line, i) => <p key={`${i}:${line.says}`} className="mt-2.5"><Rich line={line} /></p>)}
+      {/* Papers that do not stop her work, after her week and her pay: one line, a card each with Upload and Later. */}
+      {answer.papers && (
+        <>
+          <p className="mt-2.5">{answer.papers.says}</p>
+          <ol className="mt-2 flex flex-col gap-2">
+            {answer.papers.cards.map((c) => (
+              <WorkerCardView key={c.key} card={c} busy={deciding === c.key} done={renewed[c.key]} onRenew={onRenew}
+                later={acted[c.key]?.state === 'LATER'} onLater={() => onLater(c.key)} />
+            ))}
+          </ol>
+        </>
+      )}
+      {(answer.tail ?? []).map((line, i) => <p key={`t${i}:${line.says}`} className="mt-2.5"><Rich line={line} /></p>)}
       <Links links={answer.links} />
     </>
   )
 }
 
 /** One thing that is hers to do: what, why, and the button that opens it. */
-function WorkerCardView({ card, busy, done, onRenew }: {
+function WorkerCardView({ card, busy, done, onRenew, later, onLater }: {
   card: WorkerCardFact
   busy: boolean
   done?: { ok: boolean; says: string }
   onRenew: (card: WorkerCardFact) => void
+  /** A paper put off with Later: nothing changes on the record; it stays on Your paperwork. */
+  later?: boolean
+  onLater?: () => void
 }) {
+  if (later) {
+    return (
+      <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+        <p className="font-medium">{card.title}</p>
+        <p className="mt-2"><span className="chip chip--passive">Later</span><span className="ml-2 text-[12.5px] text-etyme-muted">It stays on Your paperwork.</span></p>
+      </li>
+    )
+  }
   return (
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
       <p className="font-medium">{card.title}</p>
@@ -967,7 +1119,10 @@ function WorkerCardView({ card, busy, done, onRenew }: {
               <Link href={card.href as Route} className="btn-secondary text-[13px]">Open Who has you</Link>
             </>
           ) : (
-            <Link href={card.href as Route} className="btn-primary text-[13px]">{card.button}</Link>
+            <>
+              <Link href={card.href as Route} className="btn-primary text-[13px]">{card.button}</Link>
+              {onLater && <button type="button" className="btn-secondary text-[13px]" onClick={onLater}>Later</button>}
+            </>
           )}
         </div>
       )}

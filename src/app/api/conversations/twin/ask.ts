@@ -30,7 +30,7 @@
  * through lib/ask-etyme-thread and nothing else.
  */
 
-import { formatDay, formatMonth } from '@/lib/format-date'
+import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
@@ -52,6 +52,11 @@ export type Intent =
   | { kind: 'WEEKS' }
   | { kind: 'NEVER'; act: NeverAct }
   | { kind: 'MARGIN' }
+  /** A firm's own book (2026-10-19): who rolls off, who is on the bench, signed weeks not billed, bills unpaid. */
+  | { kind: 'ROLLOFF' }
+  | { kind: 'BENCH' }
+  | { kind: 'UNBILLED' }
+  | { kind: 'UNPAID' }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -116,6 +121,17 @@ export function readAsk(raw: string): Intent {
     const reason = reject[3]?.trim().replace(/\s+/g, ' ') || null
     if (ref) return { kind: 'DECIDE', decision: 'REJECTED', ref, reason }
   }
+
+  // A firm's own book, each answered from the record (founder, 2026-10-19:
+  // a supplier asks which weeks are signed and not billed, which bills are
+  // unpaid, who is on the bench, who rolls off).
+  if (/\broll(s|ing|ed)?[- ]?off\b|\bending soon\b/.test(lower)) return { kind: 'ROLLOFF' }
+  if (/\bbench\b/.test(lower) && !/\bbench (pay|burn|profit|cost)/.test(lower)) return { kind: 'BENCH' }
+  if (/\bunbilled\b|\bnot (yet )?(been )?billed\b|\bnot on a bill\b/.test(lower)) return { kind: 'UNBILLED' }
+  if (
+    /\bunpaid\b|\boutstanding (bills?|invoices?)\b|\bwho owes (us|me)\b/.test(lower) ||
+    (/\b(billed|bills?|invoices?|invoiced)\b/.test(lower) && /\bnot (yet )?(been )?paid\b/.test(lower))
+  ) return { kind: 'UNPAID' }
 
   if (/\btime[- ]limits?\b|\btenure\b|\b18[- ]months?\b/.test(lower)) return { kind: 'TIME_LIMIT' }
   if (/\b(spend|spent|spending)\b|\bbilled (us|you)\b|\bhow much have suppliers billed\b/.test(lower)) return { kind: 'SPEND' }
@@ -323,16 +339,77 @@ export function marginRefusal(companyKind: string | null | undefined): { says: s
     : { says: 'Etyme never shows a firm’s margin to anybody else; your own rates are on your contracts.', links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] }
 }
 
+// ── Whose Ask Etyme this is ──────────────────────────────────────────
+
 /**
- * The four questions drawn as chips above the box, in the founder's
- * prototype order. Each is answered by rules; none goes to the model.
+ * The party a seat reads Ask Etyme as (founder, 2026-10-19, "the closing
+ * line and the four chips are the party's own"): a client; an MSP, or any
+ * firm seated in a client's program, reading that program; a supplier,
+ * integrator or sub-vendor reading its own book; a one-person firm; a
+ * worker. One platform, one chat; the words are the party's.
+ */
+export type Party = 'CLIENT' | 'MSP' | 'FIRM' | 'SOLO' | 'WORKER'
+
+export function partyOf(seat: { companyKind: string | null | undefined; worker?: boolean; seatedAt?: string | null }): Party {
+  if (seat.worker) return 'WORKER'
+  if (seat.companyKind === 'CONSULTANT_CORP') return 'SOLO'
+  if (seat.companyKind === 'CLIENT') return 'CLIENT'
+  if (seat.companyKind === 'MSP' || seat.seatedAt) return 'MSP'
+  return 'FIRM'
+}
+
+/**
+ * The four questions drawn as chips above the box for a client or an MSP,
+ * in the founder's prototype order. Each is answered by rules; none goes
+ * to the model.
  */
 export const SUGGESTED_QUESTIONS: readonly string[] = [
   'What needs me today?',
   'Who is near the time limit?',
   'What did we spend by supplier this month?',
-  'Which timesheets are waiting for approval?',
+  'Which timesheets are waiting?',
 ]
+
+/** A supplier's, an integrator's or a sub-vendor's four: its own people and money, each answered from the record. */
+export const FIRM_QUESTIONS: readonly string[] = [
+  'Who rolls off in the next 30 days?',
+  'Who is on the bench?',
+  'Which weeks are signed and not billed?',
+  'Which bills are unpaid?',
+]
+
+/** A one-person firm's four: she is the firm and the worker at once. */
+export const SOLO_QUESTIONS: readonly string[] = [
+  'Is my week signed?',
+  'What have I billed and not been paid?',
+  'What papers are due?',
+  'When does my contract end?',
+]
+
+/** The chips for a party; a worker's are her own five (./worker), drawn by the screen. */
+export function questionsFor(party: Party): readonly string[] {
+  return party === 'FIRM' ? FIRM_QUESTIONS : party === 'SOLO' ? SOLO_QUESTIONS : SUGGESTED_QUESTIONS
+}
+
+/** "Northbend Athletic’s", "Cavanaugh Glassworks’". */
+export function possessive(name: string): string {
+  return /s$/i.test(name.trim()) ? `${name.trim()}’` : `${name.trim()}’s`
+}
+
+/** The greeting's closing line, the party's own. */
+export function closeFor(party: Party, client?: string | null): string {
+  if (party === 'FIRM') return 'Ask me about our people, our bench, our weeks and our bills. I answer from the record, and I never move money without a person.'
+  if (party === 'SOLO') return 'Ask me about your weeks, your bills, your papers and your contract. I never file or sign anything for you.'
+  const whose = party === 'MSP' && client?.trim() ? possessive(client) : 'your'
+  return `Ask me about ${whose} jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.`
+}
+
+/** What the box says before anybody types. */
+export function placeholderFor(party: Party): string {
+  if (party === 'FIRM') return 'Ask Etyme about our people…'
+  if (party === 'SOLO' || party === 'WORKER') return 'Ask Etyme about your work…'
+  return 'Ask Etyme about your contractors…'
+}
 
 /** The line under the box, word for word from the approved prototype. */
 export const FOOTER_LINE =
@@ -340,6 +417,11 @@ export const FOOTER_LINE =
 
 export const WHAT_I_ANSWER =
   'I answer from the record: what needs you, the time limit, spend, timesheets to approve and invoice mismatches. ' +
+  'I also answer “Why 1”, “Approve 1” and “Reject 1 because …”.'
+
+/** The same, for a firm's own book. */
+export const WHAT_I_ANSWER_FIRM =
+  'I answer from the record: what needs you, roll-offs, the bench, signed weeks not billed and unpaid bills. ' +
   'I also answer “Why 1”, “Approve 1” and “Reject 1 because …”.'
 
 /** The honest reply where the rules have no answer: the voice's last rule, word for word at the start. */
@@ -599,7 +681,11 @@ export type Answer =
    * limit; `greeting` marks the first message of the chat, which the
    * screen opens with the reader's name.
    */
-  | { kind: 'NEEDS'; recommend?: RichLine; says: string; saysLinks?: { text: string; href: string }[]; items: WaitingItem[]; held?: HeldBill[]; more?: RichLine[]; links?: Link[]; greeting?: boolean }
+  | { kind: 'NEEDS'; recommend?: RichLine; says: string; saysLinks?: { text: string; href: string }[]; items: WaitingItem[]; held?: HeldBill[]; more?: RichLine[]; links?: Link[]; greeting?: boolean
+      /** Every other decision in the count, as a card (founder, 2026-10-19); the twin's own questions are `items`. */
+      queue?: QueueCard[] }
+  /** A firm's own book as a sentence and a table: who rolls off, the bench, signed weeks not billed, unpaid bills. */
+  | { kind: 'LIST'; says: string; table?: ListTable; links?: Link[] }
   | { kind: 'TIME_LIMIT'; says: string; rows: LimitRow[] }
   | { kind: 'SPEND'; says: string; period: { from: string; to: string; label: string }; rows: SpendRow[] }
   | { kind: 'WEEKS'; says: string; rows: WeekRow[]; more: number; links: Link[] }
@@ -747,6 +833,11 @@ export interface NoticeLine {
   title: string
   /** The page the notice opened, the same one the notifications page and the email link to. */
   href: string
+  /** The notice's kind ("CYCLE_DUE"), its body and, for a date that is due, the cycle and the day. */
+  type?: string | null
+  body?: string | null
+  cycleKind?: string | null
+  dueOn?: string | null
 }
 
 /** Notices said in one greeting, at most; the rest wait for the next one. */
@@ -754,25 +845,76 @@ export const NOTICES_SHOWN = 5
 
 export const SINCE_HEADING = 'Since you last looked:'
 
+export const YOUR_WORK_HREF = '/dashboard/my-work'
+
 /**
- * "Since you last looked", one line per notice, each linking to the page
- * it is about. Two notices with the same title and page are one line
- * with a count. `older` is how many unread notices were not shown; they
- * are said in one line and shown the next time. Empty when there is
+ * One group of cycle notices as a sentence that says who and what:
+ * "You have five weeks to approve by Wednesday: Helena Marsh, Omar Haddad
+ * and three more." / "Your week of Oct 18–24 is due on Monday." Null
+ * where the notice is not a dated cycle.
+ */
+function cycleSays(kind: string, dueOn: string, people: readonly string[], title: string, now: Date, worker: boolean): string | null {
+  const when = whenSays(dueOn, now)
+  const by = when === 'today' || when === 'tomorrow' ? when : `by ${when}`
+  const on = when === 'today' || when === 'tomorrow' ? when : `on ${when}`
+  const week = weekDueOn(dueOn)
+  const n = Math.max(1, people.length)
+  if (kind === 'TIMESHEET_SUBMIT') {
+    if (worker) return week ? `Your week of ${week} is due ${on}. You file it on Your work.` : `Your hours are due ${on}. You file them on Your work.`
+    if (people.length === 1) return week ? `${possessive(people[0])} week of ${week} is due ${on}.` : `${possessive(people[0])} hours are due ${on}.`
+    return people.length ? `${counted(n, 'week')} ${n === 1 ? 'is' : 'are'} due ${on}: ${namesUpTo3(people)}.` : `Hours are due ${on}.`
+  }
+  if (kind === 'TIMESHEET_APPROVE') {
+    if (people.length === 1) return `You have ${possessive(people[0])} week to approve ${by}.`
+    return people.length ? `You have ${lowerNumber(n)} weeks to approve ${by}: ${namesUpTo3(people)}.` : `You have weeks to approve ${by}.`
+  }
+  const label = title.split(' — ')[0].trim()
+  if (!label) return null
+  return people.length ? `${label} ${on}: ${namesUpTo3(people)}.` : `${label} ${on}.`
+}
+
+/**
+ * "Since you last looked", one sentence per notice, each saying who and
+ * what and linking to the page it is about (founder, 2026-10-19: "Marcus
+ * Oyelaran has five weeks to approve by Wednesday", never "Hours to
+ * approve — in 3 days (5 times)"). Dated cycle notices for the same act
+ * on the same day are one sentence naming everybody in them; any other
+ * notice says its own title once, however often it was sent. Never a count
+ * in parentheses. `older` is how many unread notices were not shown; they
+ * are said in one line and shown the next time. `threads` are the
+ * conversations somebody wrote on, said first. Empty when there is
  * nothing, so the greeting draws no heading at all.
  */
-export function sinceSays(notices: readonly NoticeLine[], older = 0): RichLine[] {
-  if (notices.length === 0) return []
-  const groups: { title: string; href: string; n: number }[] = []
+export function sinceSays(
+  notices: readonly NoticeLine[],
+  older = 0,
+  opts: { now?: Date; worker?: boolean; threads?: readonly ThreadNote[]; moreThreads?: number } = {},
+): RichLine[] {
+  const now = opts.now ?? new Date()
+  const threadLines = threadsSay(opts.threads ?? [], opts.moreThreads ?? 0)
+  if (notices.length === 0 && threadLines.length === 0) return []
+  const groups: { key: string; kind: string | null; dueOn: string | null; title: string; href: string; people: string[] }[] = []
   for (const n of notices) {
     const title = n.title.replace(/[\s.!:;,]+$/u, '').replace(/!/g, '').trim() || 'A notice'
-    const same = groups.find((g) => g.title === title && g.href === n.href)
-    if (same) same.n++
-    else groups.push({ title, href: n.href, n: 1 })
+    const dated = n.cycleKind && n.dueOn ? `${n.cycleKind}:${n.dueOn.slice(0, 10)}` : null
+    const key = dated ?? `${title}\u0000${n.href}`
+    const same = groups.find((g) => g.key === key)
+    const people = dated ? noticePeople(n.body) : []
+    if (same) {
+      for (const p of people) if (!same.people.includes(p)) same.people.push(p)
+    } else {
+      groups.push({ key, kind: dated ? n.cycleKind! : null, dueOn: dated ? n.dueOn! : null, title, href: n.href, people })
+    }
   }
-  const out: RichLine[] = [{ says: SINCE_HEADING }]
+  const out: RichLine[] = [{ says: SINCE_HEADING }, ...threadLines]
   for (const g of groups) {
-    out.push({ says: g.n > 1 ? `${g.title} (${g.n} times).` : `${g.title}.`, links: [{ text: g.title, href: g.href }] })
+    const said = g.kind && g.dueOn ? cycleSays(g.kind, g.dueOn, g.people, g.title, now, !!opts.worker) : null
+    if (said) {
+      const text = opts.worker && g.kind === 'TIMESHEET_SUBMIT' ? 'Your work' : g.people.find((p) => said.includes(p))
+      out.push({ says: said, links: text ? [{ text, href: opts.worker && g.kind === 'TIMESHEET_SUBMIT' ? YOUR_WORK_HREF : g.href }] : [] })
+    } else {
+      out.push({ says: `${g.title}.`, links: [{ text: g.title, href: g.href }] })
+    }
   }
   if (older > 0) {
     out.push({ says: `${counted(older, 'older update')} ${older === 1 ? 'is' : 'are'} waiting; ${older === 1 ? 'it shows' : 'they show'} the next time you open Ask Etyme.` })
@@ -832,28 +974,49 @@ export interface OtherWaiting {
 }
 
 /**
- * Who else is being asked, grouped by the desk that answers, in one line
- * per desk: "Two invoice receipts are waiting for the AP Clerk:
- * PR-2026-0441 and PR-2026-0443. Neither is yours to sign." Where Etyme
- * asked on this reader's own authority — the program manager, whose
- * authority the twin acts under — the line says why it is not theirs.
+ * Who else is being asked, one line per desk, the person first: "Renata
+ * Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and
+ * IN-XSWQQZ-20260901. Etyme asked Renata; it is not yours to approve."
+ * Where Etyme asked on this reader's own authority — the program manager,
+ * whose authority the twin acts under — the line says whom it asked
+ * instead, so the reader never reads an authority they hold as a reason.
  */
+/**
+ * A desk as a sentence names it: a role that names a person is lower case
+ * after "your" ("your AP clerk"); a team keeps its name ("Accounts
+ * Receivable or Finance"). `beside` is the role written after a person's
+ * name ("Renata Kowal, AP clerk,").
+ */
+function deskWords(desks: readonly string[]): { subject: string; object: string; beside: string } | null {
+  if (desks.length === 0) return null
+  const raw = twoDesks(desks)
+  const words = roleWords(raw)
+  const person = PERSON_ROLES.has(words.split(' ').pop()!.toLowerCase())
+  return person
+    ? { subject: `Your ${words}`, object: `your ${words}`, beside: words }
+    : { subject: raw, object: raw, beside: raw }
+}
+
 export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
   const out: RichLine[] = []
   const byDesk = new Map<string, OtherWaiting[]>()
   for (const o of others) {
-    const desk = o.desks.length ? `the ${twoDesks(o.desks)}` : 'somebody else'
-    const key = `${desk}\u0000${o.own ? 'own' : ''}`
+    const key = `${o.desks.join('|')}\u0000${o.own ? 'own' : ''}`
     byDesk.set(key, [...(byDesk.get(key) ?? []), o])
   }
   for (const [key, xs] of byDesk) {
-    const [desk, own] = key.split('\u0000')
+    const own = key.endsWith('\u0000own')
+    const desk = deskWords(xs[0].desks)
+    const people = (xs[0].people ?? []).slice(0, 2)
     const noun = xs.every((x) => x.noun === xs[0].noun) ? xs[0].noun : 'question'
-    const verb = noun === 'bill' ? 'send' : 'approve'
-    const not = xs.length === 1 ? `It is not yours to ${verb}` : xs.length === 2 ? `Neither is yours to ${verb}` : `None is yours to ${verb}`
+    const verb = noun === 'bill' ? 'send' : noun === 'question' ? 'answer' : 'approve'
+    const who = people.length ? (desk ? `${orNames(people)}, ${desk.beside},` : orNames(people)) : desk ? desk.subject : 'Somebody else'
+    const has = people.length > 1 ? 'have' : 'has'
+    const whom = people.length ? people[0].split(/\s+/)[0] : desk ? desk.object : 'somebody else'
+    const notYours = xs.length === 1 ? `it is not yours to ${verb}` : `they are not yours to ${verb}`
     out.push({
-      says: `${counted(xs.length, noun)} ${xs.length === 1 ? 'is' : 'are'} waiting for ${desk}: ${listed(xs.map((x) => x.title))}. ` +
-        `${not}${own ? ': Etyme asked on your authority.' : '.'}`,
+      says: `${who} ${has} ${lowerNumber(xs.length)} ${noun}${xs.length === 1 ? '' : 's'} to ${verb}: ${listed(xs.map((x) => x.title))}. ` +
+        (own ? `Etyme asked ${whom}; ${notYours}.` : `${cap(notYours)}.`),
       links: xs.map((x) => ({ text: x.title, href: x.href })),
     })
   }
@@ -862,7 +1025,7 @@ export function othersSay(others: readonly OtherWaiting[]): RichLine[] {
 
 /**
  * Who to ask, for the receipts and questions waiting on another desk:
- * "Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and
+ * "Ask Renata Kowal, AP clerk, to approve PR-2026-0441 and
  * IN-XSWQQZ-20260901." Names come from the seats that hold the desk;
  * where nobody holds it, the desk alone.
  */
@@ -871,9 +1034,9 @@ export function askOthersSays(others: readonly OtherWaiting[]): RichLine | null 
   const first = others[0]
   const same = others.filter((o) => o.desks.join() === first.desks.join())
   const verb = same.every((o) => o.noun === 'invoice receipt') ? 'approve' : same.every((o) => o.noun === 'bill') ? 'send' : 'answer'
-  const desk = first.desks.length ? twoDesks(first.desks) : null
+  const desk = deskWords(first.desks)
   const people = (first.people ?? []).slice(0, 2)
-  const who = people.length ? (desk ? `${orNames(people)}, ${desk},` : orNames(people)) : desk ? `your ${desk}` : 'whoever answers it'
+  const who = people.length ? (desk ? `${orNames(people)}, ${desk.beside},` : orNames(people)) : desk ? desk.object : 'whoever answers it'
   const titles = same.slice(0, 3).map((o) => o.title)
   return {
     says: `Ask ${who} to ${verb} ${listed(titles)}${same.length > 3 ? ` and ${same.length - 3} more` : ''}.`,
@@ -1082,7 +1245,7 @@ export function weeksSay(total: number, oldest: WeekRow | null, company: string,
 }
 
 /** The closing line of the greeting, word for word from the approved prototype. */
-export const GREETING_CLOSE = 'Ask me anything about the program. I answer from the record, and I never move money without a person.'
+export const GREETING_CLOSE = 'Ask me about your jobs, candidates, timesheets and invoice receipts. I answer from the record, and I never move money without a person.'
 
 /** "Good morning", by the reader's own clock. */
 export function partOfDay(hour: number): string {
@@ -1105,9 +1268,16 @@ function roleWords(role: string): string {
  * sample. The phone header carries no words (founder, 2026-10-13), so this
  * is the one place in the chat that says where you are.
  */
-export function seatSays(seat: { role: string | null; company: string | null; sample: boolean }): string | null {
+export function seatSays(seat: { role: string | null; company: string | null; sample: boolean; party?: Party; seatedAt?: string | null }): string | null {
   const company = seat.company?.trim()
   if (!company) return null
+  // A one-person firm is her own company (founder, 2026-10-19).
+  if (seat.party === 'SOLO') return `This is ${company}, your own company${seat.sample ? ', a sample' : ''}.`
+  // A seat in a client's program says where it sits: whose program, for whom.
+  const client = seat.seatedAt?.trim()
+  if (client && client !== company) {
+    return `You run ${possessive(client)} program for ${company}${seat.sample ? `, a sample ${seat.party === 'MSP' ? 'MSP' : 'company'}` : ''}.`
+  }
   const at = `${company}${seat.sample ? ', a sample company' : ''}.`
   const role = seat.role?.trim()
   if (!role) return `You are signed in at ${at}`
@@ -1198,6 +1368,16 @@ export interface Readers {
   model(system: string, question: string, context: string): Promise<ModelReply | null>
   /** Logs one prompt that left and its answer, masked. Never throws. */
   logPrompt(entry: PromptLog): Promise<void>
+  /** A firm's own people billing today and what their rates come to a month; null for a seat that does not read money. */
+  billing?(): Promise<Billing | null>
+  /** This firm's people whose last day falls in the next `days` days, soonest first. */
+  rollingOff?(days: number): Promise<Refusable<{ rows: RollRow[] }>>
+  /** Who is on this firm's bench: the people who agreed to be, or an integrator's own people between projects. */
+  bench?(): Promise<Refusable<{ rows: BenchRow[] }>>
+  /** Weeks signed at the top that are on none of this firm's bills, oldest first. */
+  unbilledWeeks?(): Promise<Refusable<{ rows: UnbilledRow[] }>>
+  /** Bills this firm sent that are not paid in full, the latest first. */
+  unpaidBills?(): Promise<Refusable<{ rows: UnpaidRow[] }>>
 }
 
 /**
@@ -1219,6 +1399,21 @@ export const money = (minor: number, currency: string): string => format(fromMin
 export interface Picture {
   onSite: number
   suppliers: number
+  /**
+   * What current rates come to a month, in minor units, as the program
+   * dashboard counts it; null where any seat on site has no rate on the
+   * rung the client pays, or the rates are in more than one currency.
+   */
+  monthlyMinor?: number | null
+  currency?: string | null
+}
+
+/** What a firm bills today: the people on its live lines, and what their current rates come to a month. */
+export interface Billing {
+  people: number
+  /** Minor units; null where a live line has no rate or the lines bill in more than one currency. */
+  monthlyMinor: number | null
+  currency: string | null
 }
 
 export const CONTRACTORS_HREF = '/dashboard/people'
@@ -1235,15 +1430,43 @@ export function pictureSays(p: Picture | null | undefined): RichLine | null {
   }
 }
 
-/** "Suppliers billed you $42,587.00 so far in Oct 2026." Per currency, never added across. Null when nothing was billed. */
-export function billedSays(rows: readonly SpendRow[], label: string): RichLine | null {
+/** Money in a greeting: whole amounts without the cents, the cents where there are any. */
+const greetMoney = (minor: number, currency: string): string => format(fromMinor(minor, currency), { compact: true })
+
+/** "October", from a month's first day. */
+function monthName(label: string, from?: Date): string {
+  return from ? formatMonthLong(from).split(' ')[0] : label
+}
+
+/**
+ * The money line (founder, 2026-10-19, "names both figures"): "Suppliers
+ * billed $42,587 so far in October; current rates come to $135,200 a
+ * month." Per currency, never added across; the rates clause is left out
+ * where the dashboard could not price every seat. For a firm the payers
+ * below it are sub-vendors. Null when nothing was billed and no rate is
+ * known.
+ */
+export function billedSays(rows: readonly SpendRow[], label: string, opts: { from?: Date; monthly?: { minor: number; currency: string } | null; party?: Party } = {}): RichLine | null {
   const currencies = [...new Set(rows.filter((r) => r.billedMinor !== 0).map((r) => r.currency))]
-  if (currencies.length === 0) return null
-  const amounts = currencies.map((c) => money(rows.filter((r) => r.currency === c).reduce((s, r) => s + r.billedMinor, 0), c))
-  return {
-    says: `Suppliers billed you ${listed(amounts)} so far in ${label}.`,
-    links: amounts.map((text) => ({ text, href: RECEIPTS_HREF })),
-  }
+  const amounts = currencies.map((c) => greetMoney(rows.filter((r) => r.currency === c).reduce((s, r) => s + r.billedMinor, 0), c))
+  const month = monthName(label, opts.from)
+  const who = opts.party === 'FIRM' || opts.party === 'SOLO' ? 'Sub-vendors billed you' : 'Suppliers billed'
+  const rates = opts.monthly && opts.monthly.minor > 0 ? greetMoney(opts.monthly.minor, opts.monthly.currency) : null
+  if (amounts.length === 0 && !rates) return null
+  const billed = amounts.length ? `${who} ${listed(amounts)} so far in ${month}` : null
+  const says = billed && rates ? `${billed}; current rates come to ${rates} a month.`
+    : billed ? `${billed}.`
+      : `Current rates come to ${rates} a month.`
+  return { says, links: [...amounts, ...(rates ? [rates] : [])].map((text) => ({ text, href: RECEIPTS_HREF })) }
+}
+
+/** A firm's own money: "Three people are billing: $59,680 a month at current rates." Null where nobody is. */
+export function billingSays(b: Billing | null | undefined): string | null {
+  if (!b || b.people <= 0) return null
+  const who = `${numberWord(b.people)} ${b.people === 1 ? 'person is' : 'people are'} billing`
+  return b.monthlyMinor != null && b.monthlyMinor > 0 && b.currency
+    ? `${who}: ${greetMoney(b.monthlyMinor, b.currency)} a month at current rates.`
+    : `${who} today.`
 }
 
 /** A receipt the twin told this paying desk about, as it reads today. */
@@ -1476,13 +1699,19 @@ export const GREETING_LINES = 6
 export async function today(read: Readers, opts: TodayOptions = {}): Promise<Answer> {
   const now = opts.now ?? new Date()
   const month = monthOf(now)
-  const [items, others, limits, told, spend, needs, held] = await Promise.all([
+  const party = opts.party ?? 'CLIENT'
+  const [items, others, limits, told, spend, needsRaw, held, picture, billing] = await Promise.all([
     read.waiting(), read.othersWaiting(), read.limits(), read.told(),
     opts.greeting ? read.spendIn(month.from, month.to) : Promise.resolve(null),
     opts.needs ? opts.needs().catch(() => null) : Promise.resolve(null),
     read.heldBills ? read.heldBills() : Promise.resolve([] as HeldBill[]),
+    opts.greeting ? Promise.resolve(opts.picture ?? null).catch(() => null) : Promise.resolve(null),
+    opts.greeting && party === 'FIRM' && read.billing ? read.billing().catch(() => null) : Promise.resolve(null),
   ])
   const near = limits.ok ? nearLimit(limits.entries, now) : []
+  // The queue's count, and where the route read them, its rows.
+  const queue: QueueRead | null = needsRaw == null ? null : typeof needsRaw === 'number' ? { total: needsRaw, items: [] } : needsRaw
+  const needs = queue?.total ?? null
 
   // Recommendation first: what this desk should do, in that order.
   const recommend =
@@ -1508,38 +1737,49 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   if (limits.ok && limits.stale?.length) {
     lines.push({ says: `Last night’s reading also listed ${listed(limits.stale)}; the live check does not.` })
   }
-  const onSite = opts.greeting ? pictureSays(opts.picture) : null
+  const onSite = opts.greeting ? pictureSays(picture) : null
   if (onSite) lines.push(onSite)
-  const billed = spend?.ok ? billedSays(spendBySupplier(spend.receipts), month.label) : null
-  if (billed) lines.push(billed)
+  const monthly = picture?.monthlyMinor != null && picture.monthlyMinor > 0 && picture.currency ? { minor: picture.monthlyMinor, currency: picture.currency } : null
+  const billed = spend?.ok ? billedSays(spendBySupplier(spend.receipts), month.label, { from: month.from, monthly: party === 'FIRM' || party === 'SOLO' ? null : monthly, party })
+    : opts.greeting && monthly && party !== 'FIRM' ? billedSays([], month.label, { from: month.from, monthly, party }) : null
+  // A firm's own money first, then what its sub-vendors billed it: one line.
+  const ours = billingSays(billing)
+  if (ours || billed) {
+    lines.push(ours && billed ? { says: `${ours} ${billed.says}`, links: billed.links } : ours ? { says: ours } : billed!)
+  }
 
   // Six lines at most before the closing sentence: the recommendation, the
   // headline, and what fits of the facts.
   const room = GREETING_LINES - 1 - (recommend ? 1 : 0)
   const more = lines.slice(0, room)
-  // The headline. Where the decisions queue was read, its count leads, so
-  // the number on the Ask Etyme mark and this line are one figure.
-  const headline = needs != null ? needsCountSays(needs, items) : null
+  // The headline. Where the decisions queue was read, its count leads and
+  // names the first three, so the number on the Ask Etyme mark and this
+  // line are one read.
+  const headline = queue && (queue.items.length > 0 || queue.says) ? namedNeedsSays(queue, items) : needs != null ? needsCountSays(needs, items) : null
   const nothing = (needs ?? 0) === 0 && items.length === 0 && held.length === 0 && others.length === 0 && near.length === 0 && told.told.length === 0
   const says = (headline ? headline.says
     : nothing ? 'Nothing needs you today, and nothing Etyme asked is waiting on anybody.'
       : items.length === 0 && held.length > 0 ? heldHeadline(held) : needsSays(items)) + ' Checked just now.'
-  // What the notices said, after the recommendation, the decisions and the
-  // facts, and never counted in the six lines: a notice is not lost to the
-  // cap, because the route marks read only the ones it passed in here.
-  // A hold already drawn as a card is not said again as a notice; the
-  // route still marks that notice read, because the card said it.
-  if (opts.greeting && opts.notices) {
+  // What the notices and the conversations said, after the recommendation,
+  // the decisions and the facts, and never counted in the six lines: a
+  // notice is not lost to the cap, because the route marks read only the
+  // ones it passed in here. A hold already drawn as a card is not said
+  // again as a notice; the route still marks that notice read, because the
+  // card said it.
+  if (opts.greeting && (opts.notices || opts.threads)) {
     const said = heldNoticeTitles(held)
-    more.push(...sinceSays(opts.notices.shown.filter((n) => !said.has(n.title)), opts.notices.older))
+    more.push(...sinceSays((opts.notices?.shown ?? []).filter((n) => !said.has(n.title)), opts.notices?.older ?? 0, {
+      now, threads: opts.threads?.shown, moreThreads: opts.threads?.more,
+    }))
   }
-  if (opts.greeting) more.push({ says: GREETING_CLOSE })
+  if (opts.greeting) more.push({ says: closeFor(party, opts.client) })
   // The boundary, the greeting's last line: said on the first screen, once,
   // now that the phone draws no heading over the thread.
   if (opts.greeting && opts.model) more.push({ says: boundarySays(opts.model) })
+  const cards = queueCards(queue)
   return {
     kind: 'NEEDS', ...(recommend ? { recommend } : {}), says, ...(headline ? { saysLinks: headline.links } : {}),
-    items, ...(held.length ? { held } : {}), more, ...(opts.greeting ? { greeting: true } : {}),
+    items, ...(held.length ? { held } : {}), ...(cards.length ? { queue: cards } : {}), more, ...(opts.greeting ? { greeting: true } : {}),
   }
 }
 
@@ -1547,17 +1787,25 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
 export interface TodayOptions {
   now?: Date
   greeting?: boolean
-  picture?: Picture | null
+  /** The program's picture, or the read of it already under way, so it runs beside the rest. */
+  picture?: Picture | null | Promise<Picture | null>
   /**
-   * GET /api/decisions' `total` for this seat, read by the route. Null or
-   * absent where it could not be read, and the headline says what the
-   * twin's own questions say, as before.
+   * GET /api/decisions for this seat, read by the route: its `total`, and
+   * where the route kept them, its rows, which the headline names and the
+   * chat draws as cards. Null or absent where it could not be read, and
+   * the headline says what the twin's own questions say, as before.
    */
-  needs?: () => Promise<number | null>
+  needs?: () => Promise<number | QueueRead | null>
   /** Unread notices for the greeting's "Since you last looked", and how many older ones wait. */
   notices?: { shown: readonly NoticeLine[]; older: number }
+  /** Conversations another company or a candidate wrote on since the reader last looked. */
+  threads?: { shown: readonly ThreadNote[]; more: number }
   /** Whether a model can be asked here; the greeting closes on what that means for this company's data. */
   model?: ModelState
+  /** Whose Ask Etyme this is; the closing line is the party's own. A client's by default. */
+  party?: Party
+  /** For a seat in a client's program, the client whose book it is. */
+  client?: string | null
 }
 
 /**
@@ -1581,16 +1829,45 @@ export function boundarySays(state: ModelState): string {
 export async function respond(
   text: string,
   read: Readers,
-  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[]; needs?: () => Promise<number | null> }
+  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[]; needs?: () => Promise<number | QueueRead | null>; party?: Party }
 ): Promise<Answer> {
-  const intent = readAsk(text)
+  let intent = readAsk(text)
+  // A firm's own book is answered only where this seat has the read; a
+  // reader that is not there leaves the question to the rest of the rules.
+  const book = { ROLLOFF: read.rollingOff, BENCH: read.bench, UNBILLED: read.unbilledWeeks, UNPAID: read.unpaidBills } as const
+  if (intent.kind in book && !book[intent.kind as keyof typeof book]) intent = { kind: 'ASK', text: text.trim().replace(/\s+/g, ' ') }
+  const now = opts.now ?? new Date()
 
   switch (intent.kind) {
     case 'HELP':
-      return { kind: 'TEXT', says: WHAT_I_ANSWER + (modelConfigured(opts.env) ? ' Anything else, I read from the ledger and say only what is on it.' : '') }
+      return { kind: 'TEXT', says: (opts.party === 'FIRM' ? WHAT_I_ANSWER_FIRM : WHAT_I_ANSWER) + (modelConfigured(opts.env) ? ' Anything else, I read from the ledger and say only what is on it.' : '') }
 
     case 'NEEDS':
-      return today(read, { now: opts.now, needs: opts.needs })
+      return today(read, { now: opts.now, needs: opts.needs, party: opts.party })
+
+    case 'ROLLOFF': {
+      const got = await read.rollingOff!(ROLLOFF_DAYS)
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      return { kind: 'LIST', says: rolloffSays(got.rows), ...(got.rows.length ? { table: rolloffTable(got.rows) } : {}), links: [{ label: 'Open Contracts', href: '/dashboard/contracts' }] }
+    }
+
+    case 'BENCH': {
+      const got = await read.bench!()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      return { kind: 'LIST', says: benchSays(got.rows), ...(got.rows.length ? { table: benchTable(got.rows) } : {}), links: [{ label: 'Open the bench', href: '/dashboard/bench' }] }
+    }
+
+    case 'UNBILLED': {
+      const got = await read.unbilledWeeks!()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      return { kind: 'LIST', says: unbilledSays(got.rows, now), ...(got.rows.length ? { table: unbilledTable(got.rows) } : {}), links: [{ label: 'Open Bills', href: '/dashboard/invoices' }] }
+    }
+
+    case 'UNPAID': {
+      const got = await read.unpaidBills!()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      return { kind: 'LIST', says: unpaidSays(got.rows, now), ...(got.rows.length ? { table: unpaidTable(got.rows) } : {}), links: [{ label: 'Open Bills', href: '/dashboard/invoices' }] }
+    }
 
     case 'NEVER':
       return { kind: 'TEXT', ...neverSays(intent.act, opts.companyKind, opts.permissions, await read.named(text)) }
@@ -1742,4 +2019,424 @@ export function cardIdsOf(answer: Answer): string[] {
   if (answer.kind === 'NEEDS') return answer.items.map((i) => i.approvalId)
   if (answer.kind === 'CONFIRM') return [answer.item.approvalId]
   return []
+}
+
+// ── Every first screen names a person (founder, 2026-10-19) ──────────
+//
+// "Two things need you: Ingrid Sørensen cannot start on Oct 26 without an
+// I-9; Teleworld Solutions has two people on site with no agreement on
+// file." The names come from the same GET /api/decisions rows the count
+// comes from, so the number on the mark and the sentence are one read.
+// Every row is a card; where one existing route performs the act, the
+// card carries it, and everywhere else the card opens the row's page.
+
+/** One row of GET /api/decisions, as much of it as the chat reads. */
+export interface QueueItem {
+  type: string
+  title: string
+  subtitle?: string | null
+  /** Whom the row is about, where the route that wrote it said (`named` on the queue's rows). */
+  whose?: string | null
+  entityType?: string | null
+  entityId: string
+  dueDate?: string | null
+  actionUrl?: string | null
+  /** The approval route's own flag on a week: signed only with a reason, so its card opens the week. */
+  flag?: string | null
+}
+
+/**
+ * The decisions queue as the route read it for this seat: its total, its
+ * rows, and its own one-sentence headline with the names in it (`says`,
+ * built by GET /api/decisions from the same rows), so the mark, the
+ * greeting and the program page say one number and one sentence.
+ */
+export interface QueueRead { total: number; items: QueueItem[]; says?: string | null }
+
+/** The decisions queue's answer, read; null where it is not one. */
+export function queueFrom(body: unknown): QueueRead | null {
+  const data = (body as { data?: { total?: unknown; decisions?: unknown } } | null)?.data
+  const total = data?.total
+  if (typeof total !== 'number' || !Number.isInteger(total) || total < 0) return null
+  const rows = Array.isArray(data?.decisions) ? data!.decisions as unknown[] : []
+  const items: QueueItem[] = []
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue
+    const x = r as Record<string, unknown>
+    if (typeof x.type !== 'string' || typeof x.title !== 'string' || typeof x.entityId !== 'string') continue
+    items.push({
+      type: x.type, title: x.title, entityId: x.entityId,
+      subtitle: typeof x.subtitle === 'string' ? x.subtitle : null,
+      whose: x.named && typeof x.named === 'object' && typeof (x.named as { whose?: unknown }).whose === 'string' ? (x.named as { whose: string }).whose : null,
+      entityType: typeof x.entityType === 'string' ? x.entityType : null,
+      dueDate: typeof x.dueDate === 'string' ? x.dueDate : null,
+      actionUrl: typeof x.actionUrl === 'string' && /^\/(?!\/)/.test(x.actionUrl) ? x.actionUrl : null,
+      flag: typeof x.flag === 'string' && x.flag.trim() ? x.flag : null,
+    })
+  }
+  const says = typeof (data as { says?: unknown }).says === 'string' && (data as { says: string }).says.trim() ? (data as { says: string }).says.trim() : null
+  return { total, items, ...(says ? { says } : {}) }
+}
+
+/** The act a card performs through one existing route, in the words its button and its result say. */
+export interface QueueAct {
+  /** The button: "Approve timesheet". */
+  label: string
+  /** The one route that already performs it; the chat adds no door. */
+  url: string
+  body: Record<string, unknown>
+  /** What the card reads after the route said yes, where the route says nothing of its own. */
+  done: string
+}
+
+/** A decision as a card in the chat: what it is, one line of fact, and its button. */
+export interface QueueCard {
+  key: string
+  type: string
+  title: string
+  fact: string
+  href: string
+  /** Null where no single route performs the act: the card's button is "Open". */
+  act: QueueAct | null
+}
+
+/** The name after the dash: "Approve timesheet — Helena Marsh" reads "Helena Marsh". */
+function afterDash(title: string): string {
+  const at = title.lastIndexOf(' — ')
+  return (at >= 0 ? title.slice(at + 3) : title).trim()
+}
+
+const cap = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x)
+const DAY_UTC = (iso: string) => formatDay(iso.slice(0, 10), { year: false })
+
+/** "an I-9", "a W-9": an acronym takes "an" where its first letter is said with a vowel sound. */
+function article(word: string): string {
+  return /^[AEFHILMNORSX](?:[A-Z0-9-]|$)/.test(word) || /^[aeiou]/i.test(word) ? `an ${word}` : `a ${word}`
+}
+
+/**
+ * "Ingrid Sørensen cannot start on Oct 26 without an I-9", from the
+ * paperwork's own refusal: the person, the day and the document. A
+ * document named with its form in brackets is said by the form.
+ */
+function heldStartSays(d: QueueItem): string {
+  const first = (d.subtitle ?? '').split(/(?<=\.)\s+/)[0] ?? ''
+  const m = first.match(/cannot start without (.+?)\.?$/i)
+  const form = m?.[1].match(/\(([A-Z][A-Z0-9]*-[A-Z0-9]+|[A-Z]{2,6})\b/)
+  const doc = form ? article(form[1]) : m ? m[1].replace(/\s*\([^)]*\)/g, '').trim() : null
+  const on = d.dueDate ? ` on ${DAY_UTC(d.dueDate)}` : ''
+  const name = d.whose?.trim() || d.title.split(' — ')[0]
+  return doc ? `${name} cannot start${on} without ${doc}` : `${possessive(name)} start${on} is held by paperwork`
+}
+
+const NUM_LOWER = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+const lowerNumber = (n: number) => (n < NUM_LOWER.length ? NUM_LOWER[n] : String(n))
+
+/**
+ * One decision as the headline names it: the person or the thing, and
+ * the step in front of the reader. Begins with a capital, so each named
+ * thing reads as its own clause.
+ */
+export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): string {
+  // The person the row is about: the route's own word where it gave one,
+  // else the name after the dash in its title.
+  const PERSON_ROWS = ['TIMESHEET_APPROVAL', 'EXPENSE_APPROVAL', 'EXPENSE_ACCEPTANCE', 'ROLLOFF_ACTION', 'SUBMISSION_REVIEW', 'START_HELD']
+  const who = PERSON_ROWS.includes(d.type) && d.whose?.trim() ? d.whose.trim() : afterDash(d.title)
+  switch (d.type) {
+    case 'START_HELD':
+      return heldStartSays(d)
+    case 'NO_AGREEMENT': {
+      const n = Number((d.subtitle ?? '').match(/^(\d+)\s/)?.[1] ?? NaN)
+      return Number.isInteger(n) && n > 0
+        ? `${d.title} has ${lowerNumber(n)} ${n === 1 ? 'person' : 'people'} on site with no agreement on file`
+        : `${d.title} has no agreement on file`
+    }
+    case 'TIMESHEET_APPROVAL':
+      return /^Accept\b/.test(d.title) ? `${possessive(who)} timesheet waits for you to accept it` : `${possessive(who)} timesheet waits for your approval`
+    case 'EXPENSE_APPROVAL':
+      return `${possessive(who)} expense waits for your approval`
+    case 'EXPENSE_ACCEPTANCE':
+      return `${possessive(who)} expense waits for you to accept it`
+    case 'ROLLOFF_ACTION': {
+      const days = d.title.match(/in (\d+)d\b/)?.[1]
+      return days ? `${who} rolls off in ${days} days` : `${who} rolls off soon`
+    }
+    case 'SUBMISSION_REVIEW':
+      return `${possessive(who)} submission waits for your review`
+    case 'INVOICE_OVERDUE':
+      return `Bill ${who} is overdue`
+    case 'SUPPLIER_REVIEW':
+      return `${who} waits for your review as a supplier`
+    case 'REQUISITION_APPROVAL':
+      return `The ${who} job request waits for your approval`
+    case 'CONTRACT_PAPERING':
+      return `${possessive(who.replace(/ at .*$/, ''))} contract waits to be papered`
+    case 'CONTRACT_START':
+      return `${d.title.replace(/^Start /, '').replace(/ at .*$/, '')} waits to be started`
+    case 'TWIN_QUESTION': {
+      const q = twin.find((i) => i.approvalId === d.entityId)
+      if (!q) return 'Etyme has a question for you'
+      if (q.action === BILL_SEND && q.bill) return `${cap(billItemTitle(q.bill))} waits for you to send it`
+      return `${cap(q.title)} waits for your answer`
+    }
+    default:
+      return cap(d.title)
+  }
+}
+
+/** The last sentence of a row's own words: "Put one on file." */
+function lastSentence(x: string | null | undefined): string {
+  const parts = (x ?? '').split(/(?<=\.)\s+/).filter(Boolean)
+  return parts[parts.length - 1] ?? ''
+}
+
+/** A subtitle's parts as one sentence: "40 hours, through Computer Systems Inc, Oct 11 – Oct 17." */
+function factOf(subtitle: string | null | undefined): string {
+  const parts = (subtitle ?? '').split(' · ').map((p) => p.trim()).filter(Boolean).map((p) => {
+    if (/^\d+(\.\d+)?h$/.test(p)) return `${p.slice(0, -1)} hours`
+    if (p === 'Event created' || p === 'Roll-off started') return 'roll-off started'
+    if (p === 'No action yet' || p === 'Nobody has acted yet') return 'nobody has acted yet'
+    if (/^[A-Z_]{3,}$/.test(p)) return cap(p.toLowerCase().replace(/_/g, ' '))
+    return p
+  })
+  const said = parts.join(', ').replace(/[.\s]+$/, '')
+  return said ? `${cap(said)}.` : ''
+}
+
+/**
+ * The act a decision's card performs, where one existing route performs
+ * it — the same route the decisions page and the Timesheets page call —
+ * and null everywhere else. A flagged week is never a one-tap card: the
+ * route asks a reason for it, so the card opens the week.
+ */
+export function queueAct(d: QueueItem): QueueAct | null {
+  const id = encodeURIComponent(d.entityId)
+  if (d.type === 'TIMESHEET_APPROVAL' && !d.flag) {
+    const accept = /^Accept\b/.test(d.title)
+    return {
+      label: accept ? 'Accept timesheet' : 'Approve timesheet',
+      url: `/api/timesheets/${id}/approve`, body: {},
+      done: accept ? 'Accepted, and recorded under your name.' : 'Approved, and recorded under your name.',
+    }
+  }
+  if (d.type === 'EXPENSE_APPROVAL') {
+    return { label: 'Approve expense', url: '/api/expenses/actions', body: { action: 'approve', expenseIds: [d.entityId] }, done: 'Approved, and recorded under your name.' }
+  }
+  if (d.type === 'EXPENSE_ACCEPTANCE') {
+    return { label: 'Accept expense', url: `/api/expenses/${id}/accept`, body: { decision: 'accept' }, done: 'Accepted, and recorded under your name.' }
+  }
+  return null
+}
+
+/** Every decision in the count that is not one of the twin's own questions, as a card. */
+export function queueCards(q: QueueRead | null | undefined): QueueCard[] {
+  if (!q) return []
+  return q.items
+    .filter((d) => d.type !== 'TWIN_QUESTION')
+    .map((d) => ({
+      key: `${d.type}:${d.entityId}`,
+      type: d.type,
+      title: `${queueName(d)}.`,
+      fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle) : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim() : factOf(d.subtitle),
+      href: d.actionUrl ?? DECISIONS_HREF,
+      act: queueAct(d),
+    }))
+}
+
+/** The words at the end of the headline that open the decisions list. */
+export const OPEN_THE_LIST = 'Open the list'
+
+/**
+ * The headline with the names in it: "Two things need you: A; B. Open the
+ * list." The first three are named, the rest are "and n more". Null where
+ * the queue owes nothing.
+ */
+export function namedNeedsSays(q: QueueRead, twin: readonly WaitingItem[]): { says: string; links: { text: string; href: string }[] } | null {
+  if (q.total <= 0) return null
+  // The queue's own sentence, where it gave one: one number, one sentence, everywhere.
+  if (q.says) return { says: `${q.says.replace(/[.\s]*$/, '.')} ${OPEN_THE_LIST}.`, links: [{ text: OPEN_THE_LIST, href: DECISIONS_HREF }] }
+  const named = q.items.slice(0, 3).map((d) => queueName(d, twin))
+  const rest = q.total - named.length
+  const head = `${counted(q.total, 'thing')} ${q.total === 1 ? 'needs' : 'need'} you`
+  const list = named.length === 0 ? '' : `: ${named.join('; ')}${rest > 0 ? `; and ${lowerNumber(rest)} more` : ''}`
+  return { says: `${head}${list}. ${OPEN_THE_LIST}.`, links: [{ text: OPEN_THE_LIST, href: DECISIONS_HREF }] }
+}
+
+// ── "Since you last looked" says who and what ────────────────────────
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAY_MS_2 = 86_400_000
+
+/** "today", "tomorrow", "Wednesday" inside the week ahead, else "Oct 28". */
+export function whenSays(iso: string, now: Date): string {
+  const on = Date.parse(`${iso.slice(0, 10)}T00:00:00Z`)
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const days = Math.round((on - today) / DAY_MS_2)
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  if (days > 1 && days < 7) return WEEKDAYS[new Date(on).getUTCDay()]
+  return DAY_UTC(iso)
+}
+
+/** "Oct 18–24": the Sunday-to-Saturday week a Monday's hours-due date closes. Null where the date is not a Monday. */
+export function weekDueOn(iso: string): string | null {
+  const due = new Date(`${iso.slice(0, 10)}T00:00:00Z`)
+  if (Number.isNaN(due.getTime()) || due.getUTCDay() !== 1) return null
+  const sat = new Date(due.getTime() - 2 * DAY_MS_2)
+  const sun = new Date(sat.getTime() - 6 * DAY_MS_2)
+  const a = DAY_UTC(sun.toISOString())
+  const b = DAY_UTC(sat.toISOString())
+  return a.split(' ')[0] === b.split(' ')[0] ? `${a}–${b.split(' ')[1]}` : `${a}–${b}`
+}
+
+/** Who a cycle notice is about, from its own body: "Helena Marsh at Northbend Athletic — Oct 22". */
+function noticePeople(body: string | null | undefined): string[] {
+  const who = (body ?? '').split(' — ')[0].replace(/ (at|through) .*$/, '').replace(/ on .*own payroll.*$/, '').trim()
+  if (!who || /^(This engagement|Due)\b/.test(who)) return []
+  return who.split(/,\s*/).map((x) => x.trim()).filter(Boolean)
+}
+
+/** "Helena Marsh, Omar Haddad and three more". */
+function namesUpTo3(xs: readonly string[]): string {
+  if (xs.length <= 3) return listed([...xs])
+  return `${xs.slice(0, 3).join(', ')} and ${lowerNumber(xs.length - 3)} more`
+}
+
+/** A thread somebody wrote on since the reader last looked, as the greeting says it. */
+export interface ThreadNote {
+  conversationId: string
+  /** "Brightmoor Staffing", or the person's name where a candidate or a colleague wrote. */
+  who: string
+  whoKind: 'FIRM' | 'CANDIDATE' | 'COLLEAGUE'
+  /** "the HCM integration lead job"; null where the thread names nothing. */
+  about: string | null
+  href: string
+}
+
+/** Threads named in one greeting, at most; the rest are "n more". */
+export const THREADS_SHOWN = 3
+export const CONVERSATIONS_HREF = '/dashboard/conversations'
+
+/**
+ * One line per thread with an unread message: "Brightmoor Staffing wrote
+ * to you about the HCM integration lead job." At most three, then the
+ * rest in one line that opens the list.
+ */
+export function threadsSay(threads: readonly ThreadNote[], more = 0): RichLine[] {
+  const out: RichLine[] = threads.slice(0, THREADS_SHOWN).map((t) => {
+    const who = t.whoKind === 'CANDIDATE' ? `${t.who}, a candidate,` : t.who
+    return { says: `${who} wrote to you${t.about ? ` about ${t.about}` : ''}.`, links: [{ text: t.who, href: t.href }] }
+  })
+  const rest = more + Math.max(0, threads.length - THREADS_SHOWN)
+  if (rest > 0) {
+    const text = `${lowerNumber(rest)} more ${rest === 1 ? 'conversation' : 'conversations'}`
+    out.push({ says: `And ${text} ${rest === 1 ? 'has a new message' : 'have new messages'}.`, links: [{ text, href: CONVERSATIONS_HREF }] })
+  }
+  return out
+}
+
+// ── A firm's own book: roll-offs, the bench, signed weeks, unpaid bills ──
+//
+// The four chips a supplier, an integrator or a sub-vendor reads (founder,
+// 2026-10-19). Each answer is a sentence — the recommendation where there
+// is one, then the count, then when it looked — over a table of the rows.
+
+/** A table inside a reply: the first cell names the row and opens it. */
+export interface ListTable { caption: string; head: string[]; rows: Array<{ cells: string[]; href?: string }> }
+
+/** How far ahead "who rolls off" looks. */
+export const ROLLOFF_DAYS = 30
+
+export interface RollRow { personId: string; person: string; site: string | null; endsOn: string; daysLeft: number; href: string }
+export interface BenchRow { personId: string; person: string; free: string; skills: string[]; href?: string }
+export interface UnbilledRow { timesheetId: string; person: string; customer: string | null; periodStart: string; periodEnd: string; hours: number; signedOn: string | null; href: string }
+export interface UnpaidRow { invoiceId: string; number: string; customer: string | null; dueMinor: number; currency: string; dueOn: string | null; held: boolean; href: string }
+
+/** "One person rolls", "Three people roll". */
+function peopleDo(n: number, verb: string): string {
+  return n === 1 ? `One person ${verb}s` : `${numberWord(n)} people ${verb}`
+}
+
+export function rolloffSays(rows: readonly RollRow[]): string {
+  if (rows.length === 0) return `Nobody on your contracts rolls off in the next ${ROLLOFF_DAYS} days. Checked just now.`
+  const r = rows[0]
+  return `Plan ${possessive(r.person)} next job now; ${r.person} rolls off${r.site ? ` at ${r.site}` : ''} on ${day(r.endsOn)}. ` +
+    `${peopleDo(rows.length, 'roll')} off in the next ${ROLLOFF_DAYS} days. Checked just now.`
+}
+
+export function rolloffTable(rows: readonly RollRow[]): ListTable {
+  return {
+    caption: `Rolling off in the next ${ROLLOFF_DAYS} days`,
+    head: ['Person', 'Days left', 'Last day', 'Where'],
+    rows: rows.map((r) => ({ cells: [r.person, String(r.daysLeft), day(r.endsOn), r.site ?? '—'], href: r.href })),
+  }
+}
+
+export function benchSays(rows: readonly BenchRow[]): string {
+  if (rows.length === 0) return 'Nobody is on your bench today. Checked just now.'
+  const names = rows.map((r) => r.person)
+  const shown = names.length <= 3 ? listed(names) : `${names.slice(0, 3).join(', ')} and ${lowerNumber(names.length - 3)} more`
+  return `${numberWord(rows.length)} ${rows.length === 1 ? 'person is' : 'people are'} on your bench: ${shown}. Checked just now.`
+}
+
+export function benchTable(rows: readonly BenchRow[]): ListTable {
+  return {
+    caption: 'On your bench',
+    head: ['Person', 'Free', 'Skills'],
+    rows: rows.map((r) => ({ cells: [r.person, r.free, r.skills.slice(0, 4).join(', ') || '—'], ...(r.href ? { href: r.href } : {}) })),
+  }
+}
+
+/** "Oct 11–17", "Sep 27–Oct 3". */
+function weekSpan(start: string, end: string): string {
+  const a = DAY_UTC(start)
+  const b = DAY_UTC(end)
+  if (a === b) return a
+  return a.split(' ')[0] === b.split(' ')[0] ? `${a}–${b.split(' ')[1]}` : `${a}–${b}`
+}
+
+export function unbilledSays(rows: readonly UnbilledRow[], now: Date): string {
+  if (rows.length === 0) return 'Every signed week is on a bill. Checked just now.'
+  const r = rows[0]
+  const waited = r.signedOn ? Math.max(0, Math.round((utcMidnight(now) - Date.parse(`${r.signedOn}T00:00:00Z`)) / DAY_MS)) : null
+  return `Bill ${r.customer ?? 'the customer'} for ${possessive(r.person)} week of ${weekSpan(r.periodStart, r.periodEnd)} first` +
+    `${waited != null && waited > 0 ? `; it was signed ${waited} day${waited === 1 ? '' : 's'} ago` : ''}. ` +
+    `${counted(rows.length, 'signed week')} ${rows.length === 1 ? 'is' : 'are'} on no bill yet. Checked just now.`
+}
+
+export function unbilledTable(rows: readonly UnbilledRow[]): ListTable {
+  return {
+    caption: 'Signed weeks on no bill yet',
+    head: ['Person', 'Week', 'Hours', 'Customer'],
+    rows: rows.map((r) => ({ cells: [r.person, weekSpan(r.periodStart, r.periodEnd), hrs(r.hours), r.customer ?? '—'], href: r.href })),
+  }
+}
+
+export function unpaidSays(rows: readonly UnpaidRow[], now: Date = new Date()): string {
+  if (rows.length === 0) return 'Every bill you sent is paid. Checked just now.'
+  const today = utcMidnight(now)
+  const late = rows
+    .filter((r) => r.dueOn && Date.parse(`${r.dueOn}T00:00:00Z`) < today)
+    .sort((a, b) => (a.dueOn ?? '').localeCompare(b.dueOn ?? ''))
+  const parts: string[] = []
+  if (late.length) {
+    const r = late[0]
+    const days = Math.round((today - Date.parse(`${r.dueOn}T00:00:00Z`)) / DAY_MS)
+    parts.push(`Chase bill ${r.number} first; ${r.customer ?? 'the customer'} is ${days} day${days === 1 ? '' : 's'} past the due date.`)
+  }
+  const currencies = [...new Set(rows.map((r) => r.currency))]
+  const sums = currencies.map((c) => money(rows.filter((r) => r.currency === c).reduce((s, r) => s + r.dueMinor, 0), c))
+  parts.push(`${counted(rows.length, 'bill')} ${rows.length === 1 ? 'is' : 'are'} unpaid: ${listed(sums)} in all.`)
+  const held = rows.filter((r) => r.held).length
+  if (held) parts.push(`${numberWord(held)} ${held === 1 ? 'is' : 'are'} on hold with the customer.`)
+  parts.push('Checked just now.')
+  return parts.join(' ')
+}
+
+export function unpaidTable(rows: readonly UnpaidRow[]): ListTable {
+  return {
+    caption: 'Bills not paid in full',
+    head: ['Bill', 'Customer', 'Still due', 'Due'],
+    rows: rows.map((r) => ({ cells: [r.number, r.customer ?? '—', money(r.dueMinor, r.currency), r.held ? 'On hold' : r.dueOn ? day(r.dueOn) : '—'], href: r.href })),
+  }
 }

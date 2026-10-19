@@ -142,13 +142,20 @@ function seat(desk: Desk): Seat {
     vocabulary: async () => { throw new Error('The model is off: nothing is masked because nothing leaves.') },
     model: async () => { throw new Error('The model is off: no question may reach it.') },
     logPrompt: async () => { throw new Error('The model is off: nothing is logged because nothing left.') },
+    // A firm's own book (2026-10-19): the supplier's own bills; a client is sent to its dashboard for who leaves its sites.
+    rollingOff: async () => (kind === 'CLIENT'
+      ? { ok: false as const, says: 'Your dashboard lists who leaves your sites, under Ending soon.', links: [{ label: 'Open the dashboard', href: '/dashboard/program' }] }
+      : { ok: true as const, rows: [] }),
+    unpaidBills: async () => (kind === 'CLIENT'
+      ? { ok: false as const, says: 'Your suppliers bill you; what you owe them is under Invoice receipts.' }
+      : { ok: true as const, rows: [{ invoiceId: 'inv-442', number: 'PR-2026-0442', customer: 'Northbend Athletic', dueMinor: 406700, currency: 'USD', dueOn: '2026-11-11', held: false, href: '/dashboard/invoices/inv-442' }] }),
   }
   return { kind, permissions, read }
 }
 
 /** Everything a reply says, in reading order: the recommendation, the headline, the lines under it. */
 function spoken(a: Answer): string {
-  if (a.kind === 'WORKER') return [a.recommend?.says, a.says, ...a.more.map((l) => l.says)].filter(Boolean).join(' ')
+  if (a.kind === 'WORKER') return [a.recommend?.says, a.says, ...a.more.map((l) => l.says), a.papers?.says, ...(a.tail ?? []).map((l) => l.says)].filter(Boolean).join(' ')
   if (a.kind === 'NEEDS') return [a.recommend?.says, a.says, ...(a.more ?? []).map((l) => l.says)].filter(Boolean).join(' ')
   return a.says
 }
@@ -182,14 +189,14 @@ afterAll(() => {
 
 
 describe('Lorena, program manager at Northbend Athletic', () => {
-  it('the program manager asks “What needs me today?” and the rules answer it', async () => {
+  it('the program manager asks “What needs me today?” and reads who Etyme asked, by name and role, never “on your authority”', async () => {
     await check('PM', 'What needs me today?', 'ANSWERED',
-      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to approve: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Ask Renata Kowal, AP clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Anything waiting on me?” and the rules answer it', async () => {
     await check('PM', 'Anything waiting on me?', 'ANSWERED',
-      'Ask Renata Kowal, AP Clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Two invoice receipts are waiting for the AP Clerk: PR-2026-0441 and IN-XSWQQZ-20260901. Neither is yours to approve: Etyme asked on your authority. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Ask Renata Kowal, AP clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Who is near the time limit?” and the rules answer it', async () => {
@@ -395,9 +402,9 @@ describe('the hiring manager at Northbend Athletic', () => {
     await check('HM', 'Write a poem about our timesheets', 'REFUSED', ONLY_THE_RECORD)
   })
 
-  it('the hiring manager asks “Who rolls off in the next 30 days?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('HM', 'Who rolls off in the next 30 days?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+  it('the hiring manager asks “Who rolls off in the next 30 days?” and is sent to Ending soon on the dashboard in one sentence', async () => {
+    await check('HM', 'Who rolls off in the next 30 days?', 'REFUSED',
+      'Your dashboard lists who leaves your sites, under Ending soon.')
   })
 
 })
@@ -437,9 +444,9 @@ describe('the account manager at Pinnacle Resourcing', () => {
     await check('SUPPLIER', 'What is the market rate for a Java developer?', 'REFUSED', NOT_ANOTHER_BOOK)
   })
 
-  it('a supplier’s account manager asks “Which of my invoices to Northbend are unpaid?” and is told honestly that Etyme cannot answer it yet', async () => {
-    await check('SUPPLIER', 'Which of my invoices to Northbend are unpaid?', 'NOT_YET',
-      'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
+  it('a supplier’s account manager asks “Which of my invoices to Northbend are unpaid?” and the rules answer it from the bills it sent', async () => {
+    await check('SUPPLIER', 'Which of my invoices to Northbend are unpaid?', 'ANSWERED',
+      'One bill is unpaid: $4,067.00 in all. Checked just now.')
   })
 
   it('a supplier’s account manager asks “Did Northbend approve Helena\'s timesheet?” and is told honestly that Etyme cannot answer it yet', async () => {
@@ -534,9 +541,9 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
     score[outcome]++
   }
 
-  it('a worker asks “What needs me today?” and reads the week to file first, then where her weeks stand and when one is owed', async () => {
+  it('a worker asks “What needs me today?” and reads the week to file first, then where her weeks stand and when one is owed, and the paper that does not stop her work last', async () => {
     await worker('What needs me today?', 'ANSWERED',
-      'File your week of Oct 11–17 for Northbend Athletic. Two things need you. Checked just now. Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. $3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. A week is owed to you once Techpeple accepts it, not when the client signs it.')
+      'File your week of Oct 11–17 for Northbend Athletic. Two things need you. Checked just now. Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. $3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. A week is owed to you once Techpeple accepts it, not when the client signs it. One paper is asked of you: your non-disclosure agreement.')
   })
 
   it('a worker asks “Is my week signed?” and reads who signed it and who has still to accept it', async () => {
@@ -571,7 +578,7 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
 
   it('a worker asks “Who employs me?” and reads every firm in her chain by name', async () => {
     await worker('Who employs me?', 'ANSWERED',
-      'Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc. You see every firm in your chain. What one firm charges another stays between them.')
+      'You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple. You see every firm in your chain. What one firm charges another stays between them.')
   })
 
   it('a worker asks “What is my rate?” and reads her own pay and nobody else’s', async () => {

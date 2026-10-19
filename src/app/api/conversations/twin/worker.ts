@@ -38,7 +38,7 @@ import { formatDay } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
 import { isDeskless } from '@/lib/nav-table'
 import { generalAsk, anotherBook } from './transaction'
-import { sinceSays, type Link, type RichLine, type NoticeLine } from './ask'
+import { sinceSays, type Link, type RichLine, type NoticeLine, type ThreadNote } from './ask'
 
 // ── Whose Ask Etyme this is ──────────────────────────────────────────
 
@@ -234,6 +234,12 @@ export interface WorkerFacts {
   interviews: InterviewFact[]
   stays: StayFact[]
   consent: ConsentFacts
+  /**
+   * Where she stands against each client's time limit, for a site she is
+   * on today and whose client set one: whole months counted, never rounded
+   * up, across every supplier. Absent where none was read.
+   */
+  limits?: Array<{ site: string; months: number; capMonths: number; past: boolean }>
   /** Parts of her record that could not be read just now; never said as "nothing". */
   unread: Array<'weeks' | 'papers' | 'interviews' | 'consent'>
 }
@@ -255,6 +261,8 @@ export interface WorkerCard {
   first: string
   /** RENEW only: the listing her own route renews. */
   listingId?: string
+  /** PAPER only: the paper stops her work until it is on file, so it goes with the week, not after the money. */
+  stopsWork?: boolean
 }
 
 export interface WorkerTable {
@@ -275,6 +283,14 @@ export interface WorkerAnswer {
   /** Said once under the cards where one files a week. */
   note?: string
   more: RichLine[]
+  /**
+   * In the greeting, the papers asked of her that do not stop her work:
+   * one line, then a card each with Upload and Later. Said after her week
+   * and her pay (founder, 2026-10-19: money and the week before paperwork).
+   */
+  papers?: { says: string; cards: WorkerCard[] }
+  /** In the greeting, after the papers: the time limit, what is new since she last looked, and the close. */
+  tail?: RichLine[]
   table?: WorkerTable
   links?: Link[]
 }
@@ -308,14 +324,14 @@ function listed(xs: readonly string[]): string {
 
 /**
  * Her chain in one line, every firm by name and no rate:
- * "Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc."
+ * "You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple."
  */
 export function chainSays(p: Pick<WorkerPlacement, 'site' | 'through' | 'employer' | 'tie'> & Partial<Pick<WorkerPlacement, 'live' | 'endDate'>>): string {
-  const how = p.tie === 'EMPLOYED' ? 'Employed by' : p.tie === 'PAID' ? 'Paid by' : 'Placed through'
+  const how = p.tie === 'EMPLOYED' ? 'employed by' : p.tie === 'PAID' ? 'paid by' : 'placed through'
   const via = p.through.length ? ` through ${p.through.join(', then ')}` : ''
   // A placement that ended is still her chain, said in the past.
-  if (p.live === false) return `${how} ${p.employer} · worked at ${p.site}${via}${p.endDate ? ` until ${day(p.endDate)}` : ''}.`
-  return `${how} ${p.employer} · working at ${p.site}${via}.`
+  if (p.live === false) return `You worked at ${p.site}${via}${p.endDate ? ` until ${day(p.endDate)}` : ''}, ${how} ${p.employer}.`
+  return `You work at ${p.site}${via}, ${how} ${p.employer}.`
 }
 
 /** The chains the greeting names: every live one, else the last one she had. */
@@ -390,6 +406,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       says: `${verb} it from your paperwork.${due}${p.stopsWork ? ' Your work stops until it is on file.' : ''}`,
       href: p.href,
       button: verb,
+      stopsWork: p.stopsWork,
     })
   }
 
@@ -570,20 +587,53 @@ function noWork(f: WorkerFacts): boolean {
     f.stays.length === 0 && f.unread.length === 0
 }
 
-/** Lines in the greeting under the headline, before the close: what fits. */
+/** Lines in the greeting under the headline, before the papers: what fits. */
 export const WORKER_LINES = 4
+
+const NUMBER_WORDS_LOWER = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+  'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
+const lowerWord = (n: number) => (n >= 0 && n < NUMBER_WORDS_LOWER.length ? NUMBER_WORDS_LOWER[n] : String(n))
+
+/**
+ * Where she stands against a client's time limit, in whole months:
+ * "You are six months into Northbend Athletic’s eighteen-month time limit."
+ */
+export function limitLine(l: { site: string; months: number; capMonths: number; past: boolean }): string {
+  const cap = `${possessive(l.site)} ${lowerWord(l.capMonths)}-month time limit`
+  if (l.past || l.months >= l.capMonths) return `You have reached ${cap}.`
+  if (l.months < 1) return `You are under a month into ${cap}.`
+  return `You are ${lowerWord(l.months)} month${l.months === 1 ? '' : 's'} into ${cap}.`
+}
+
+/** The papers asked of her that do not stop her work, as one line: "Two papers are asked of you: the X and the Y." */
+export function papersLine(cards: readonly WorkerCard[]): string {
+  // "Non-disclosure agreement" reads "your non-disclosure agreement"; an acronym keeps its capitals.
+  const names = cards.map((c) => {
+    const name = c.title.replace(/ for .*$/, '')
+    return `your ${/^[A-Z][a-z]/.test(name) ? name[0].toLowerCase() + name.slice(1) : name}`
+  })
+  return `${cap1(numberWord(cards.length))} paper${cards.length === 1 ? ' is' : 's are'} asked of you: ${listed(names)}.`
+}
+
+const cap1 = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x)
 
 /**
  * What needs her today, then where her weeks stand, the chain she works
  * through, and what Etyme does not do. With `greeting`, the first message
- * of the chat.
+ * of the chat, in the founder's order (2026-10-19): her chain in one line;
+ * her week, who holds it and when it is due; what she is owed; then the
+ * papers that do not stop her work as one line with a card each; then the
+ * time limit.
  */
 export function workerToday(
   f: WorkerFacts,
-  opts: { greeting?: boolean; notices?: { shown: readonly NoticeLine[]; older: number } } = {},
+  opts: { greeting?: boolean; notices?: { shown: readonly NoticeLine[]; older: number }; threads?: { shown: readonly ThreadNote[]; more: number }; now?: Date } = {},
 ): WorkerAnswer {
   const cards = cardsFor(f)
-  const shown = cards.slice(0, 5)
+  // A paper that does not stop the work waits until after the money.
+  const later = cards.filter((c) => c.act === 'PAPER' && !c.stopsWork)
+  const first = cards.filter((c) => !later.includes(c))
+  const shown = first.slice(0, 5)
   const lines: RichLine[] = []
 
   const unread = unreadSays(f.unread)
@@ -601,23 +651,28 @@ export function workerToday(
   }
   const booked = f.interviews.find((i) => i.booked)
   if (booked) lines.push({ says: `Your interview with ${booked.with} for ${booked.role} is booked. The time is on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
-  if (cards.length > shown.length) lines.push({ says: `${numberWord(cards.length - shown.length)} more ${cards.length - shown.length === 1 ? 'is' : 'are'} on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
+  if (first.length > shown.length) lines.push({ says: `${numberWord(first.length - shown.length)} more ${first.length - shown.length === 1 ? 'is' : 'are'} on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
   if (noWork(f)) lines.push({ says: nothingYet(f) })
 
   const more = lines.slice(0, WORKER_LINES)
-  // What the notices said, never counted in the lines above, as on a firm's greeting.
-  if (opts.greeting && opts.notices) more.push(...sinceSays(opts.notices.shown, opts.notices.older))
-  if (opts.greeting) more.push({ says: WORKER_CLOSE }, { says: WORKER_BOUNDARY })
+  const tail: RichLine[] = []
+  for (const l of f.limits ?? []) tail.push({ says: limitLine(l) })
+  // What the notices and conversations said, never counted in the lines above, as on a firm's greeting.
+  if (opts.greeting && (opts.notices || opts.threads)) {
+    tail.push(...sinceSays(opts.notices?.shown ?? [], opts.notices?.older ?? 0, { now: opts.now, worker: true, threads: opts.threads?.shown, moreThreads: opts.threads?.more }))
+  }
+  if (opts.greeting) tail.push({ says: WORKER_CLOSE }, { says: WORKER_BOUNDARY })
 
-  const files = shown.some((c) => c.act === 'FILE_WEEK' || c.act === 'SEND_WEEK' || c.act === 'FIX_WEEK')
+  const lead = shown[0] ?? later[0]
   return {
     kind: 'WORKER',
     ...(opts.greeting ? { greeting: true, where: chainsToSay(f.placements) } : {}),
-    ...(shown.length ? { recommend: recommendFor(shown[0]) } : {}),
+    ...(lead ? { recommend: recommendFor(lead) } : {}),
     says: `${needSays(cards.length)} Checked just now.`,
     cards: shown,
-    ...(files ? { note: NEVER_FILES } : {}),
     more,
+    ...(later.length ? { papers: { says: papersLine(later), cards: later } } : {}),
+    ...(tail.length ? { tail } : {}),
   }
 }
 
@@ -625,7 +680,7 @@ export function workerToday(
 
 export type WorkerIntent =
   | 'HELP' | 'NEEDS' | 'SIGNED' | 'OWED' | 'PAPERS' | 'CONSENT' | 'CHAIN' | 'MY_RATE' | 'THEIR_RATE'
-  | 'FILE' | 'SIGN_WEEK' | 'INTERVIEWS' | 'GENERAL' | 'ANOTHER' | 'NOT_YET'
+  | 'FILE' | 'SIGN_WEEK' | 'INTERVIEWS' | 'CONTRACT_END' | 'GENERAL' | 'ANOTHER' | 'NOT_YET'
 
 const lowerOf = (t: string) => t.toLowerCase().normalize('NFC').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim()
 
@@ -639,6 +694,7 @@ export function readWorkerAsk(raw: string): WorkerIntent {
   if (/^(file|submit|enter|log|send|fill in|fill out|put in)\b.*\b(week|hours|timesheet|time)\b|\b(file|submit|log|enter) (it|them) for me\b/.test(t)) return 'FILE'
   if (/^(approve|sign|accept)\b.*\b(week|hours|timesheet)\b/.test(t)) return 'SIGN_WEEK'
   if (/^(what|who|anything)\b.*\b(needs?|waiting on|waits? (for|on))\s+me\b|^what do i (need|have) to do\b|^(needs me|my queue|what is waiting( on me)?)\??$/.test(t)) return 'NEEDS'
+  if (/\b(contract|placement|assignment|project)s?\b.*\b(end|ends|ending|finish|finishes|over|last day)\b|\bmy last day\b|\bwhen do i (finish|roll ?off)\b/.test(t)) return 'CONTRACT_END'
   if (/\b(my (pay )?rate|my hourly|hourly rate|what am i paid (an|per) hour|my pay rate)\b/.test(t)) return 'MY_RATE'
   if (/\b(owed|owe me|get paid|pay ?day|paycheck|pay check|when (do|will) i (be )?paid|how much (do|will|have) i|been paid|my pay\b)/.test(t)) return 'OWED'
   if (/\b(sign(ed)?|approved?|accept(ed)?|sign(ed)? off)\b/.test(t) && /\b(week|weeks|hours|timesheets?)\b/.test(t)) return 'SIGNED'
@@ -805,6 +861,15 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
         more: [{ says: 'You see every firm in your chain. What one firm charges another stays between them.' }],
         links: [{ label: 'Open Your work', href: YOUR_WORK }],
       }, 'weeks')
+    }
+
+    case 'CONTRACT_END': {
+      const ps = f.placements.filter((p) => p.live)
+      if (ps.length === 0) return withUnread(text('You have no live contract on the record.'), 'weeks')
+      const lines = ps.map((p) => p.endDate
+        ? `Your contract at ${p.site} ends on ${formatDay(p.endDate)}.`
+        : `Your contract at ${p.site} has no end date on the record.`)
+      return withUnread({ kind: 'WORKER', says: `${lines.join(' ')} Checked just now.`, cards: [], more: [], links: [{ label: 'Open Your work', href: YOUR_WORK }] }, 'weeks')
     }
 
     case 'MY_RATE': {

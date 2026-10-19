@@ -547,25 +547,33 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     await prisma.context.create({ data: { personId: rui.id, type: 'CONSULTANT', grantReason: 'Signed up as a candidate' } })
   }, 600_000)
 
-  it('a worker’s greeting says the week to file, what is signed, what is owed and when, and names every firm in the chain and no rate but her own', async () => {
+  it('a worker’s greeting opens on her chain in one line, then the week to file, what is signed and what is owed, the papers after the money, and ends on her months against the time limit, with no rate but her own', async () => {
     as(HELENA)
     const r = await json(await askGet(req('GET', '/api/conversations/twin')))
     expect(r.status).toBe(200)
     expect(r.body.data.worker).toBe(true)
     const a = r.body.data.answer
     expect(a.kind).toBe('WORKER')
-    expect(a.where).toEqual(['Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc.'])
+    expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple.'])
     // A week that ended and is not filed, with the hours her job runs.
     const file = a.cards.find((c: any) => c.act === 'FILE_WEEK')
     expect(file).toMatchObject({ button: 'File my week', href: '/dashboard/my-work' })
     expect(file.title).toMatch(/^Your week of [A-Z][a-z]{2} \d+–(?:[A-Z][a-z]{2} )?\d+ isn’t filed yet\.$/)
     expect(file.says).toMatch(/^40 hours are expected; file it when you are ready\./)
-    expect(a.note).toBe(NEVER_FILES)
+    // "Etyme never files a week for you" left the greeting.
+    expect(a.note).toBeUndefined()
+    expect(JSON.stringify(a)).not.toContain(NEVER_FILES)
     const lines = a.more.map((l: any) => l.says)
+    const tail = (a.tail ?? []).map((l: any) => l.says)
     // Where the newest week stands, what is owed and for how many unpaid hours, and the rule.
     expect(lines).toContain('A week is owed to you once Techpeple accepts it, not when the client signs it.')
     expect(lines.some((l: string) => /^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Techpeple accepted and has not paid yet\.$/.test(l))).toBe(true)
-    expect(lines).toContain(WORKER_CLOSE)
+    // Papers that do not stop her work come after the money, as one line with an Upload card each.
+    expect(a.papers.says).toMatch(/^Two papers are asked of you: your .+ and your .+\.$/)
+    expect(a.papers.cards.map((c: any) => c.button)).toEqual(['Upload', 'Upload'])
+    // Her own months at Northbend against its limit, whole months, never rounded up.
+    expect(tail[0]).toMatch(/^You are (one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen) months? into Northbend Athletic’s eighteen-month time limit\.$/)
+    expect(tail).toContain(WORKER_CLOSE)
     // Every firm by name; no rate of any rung, hers included, in the greeting.
     const said = JSON.stringify(a)
     expect(said).not.toMatch(/\$145\.00|\$118\.00|\$90\.00 an hour/)
@@ -609,8 +617,10 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(r.status).toBe(200)
     const a = r.body.data.answer
     expect(a.kind).toBe('WORKER')
-    expect(a.where[0]).toMatch(/^Employed by Teleworld Solutions · (working|worked) at Corveldt Aerospace/)
-    expect(JSON.stringify(a)).not.toMatch(/Meera|invoice receipt|time limit/i)
+    expect(a.where[0]).toMatch(/^You (work|worked) at Corveldt Aerospace.*, employed by Teleworld Solutions\.$/)
+    // His firm's book never: no colleague, no invoice receipt; a time limit only as his own months at his own site.
+    expect(JSON.stringify(a)).not.toMatch(/Meera|invoice receipt/i)
+    for (const l of (a.tail ?? []).map((x: any) => x.says).filter((x: string) => /time limit/.test(x))) expect(l).toMatch(/^You (are|have reached) .*Corveldt Aerospace’s/)
     const consent = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'Who has my consent?' })))
     expect(consent.body.data.answer.more.map((l: any) => l.says)).toContain(
       'Teleworld Solutions employs you, so it puts you forward without asking. You are told each time.'

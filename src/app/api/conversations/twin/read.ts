@@ -28,11 +28,18 @@ import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysWaiting } from '@/lib/auto-approval'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
+import { NextRequest } from 'next/server'
+import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
+import { ladderFor } from '@/lib/work-chain-read'
+import { whereHoursLive } from '@/lib/work-chain'
+import { programMonthlySpend } from '@/lib/program-spend'
+import { GET as benchRoute } from '@/app/api/bench/route'
+import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND,
-  type HeldBill,
+  type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
 
@@ -130,7 +137,24 @@ async function peopleAtDesk(companyId: string, permission: string, take = 3): Pr
   return [...new Set(rows.map((r) => r.person.name))]
 }
 
-export function readersFor(caller: CallerContext, companyId: string): Readers {
+/** Invoices a firm sent that are not paid in full: sent, part paid, or held by the firm paying them. */
+const OWED_TO_US = ['SUBMITTED', 'ISSUED', 'PARTIALLY_PAID', 'HELD']
+
+/** At most this many checks at once, so one question never takes the whole connection pool. */
+async function inBatches<T, R>(xs: readonly T[], size: number, f: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = []
+  for (let i = 0; i < xs.length; i += size) out.push(...await Promise.all(xs.slice(i, i + size).map(f)))
+  return out
+}
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10)
+
+/**
+ * The readers for one seat. `request` is the seat's own request, for the
+ * two answers read through another route in-process (the bench), so the
+ * chat and the page cannot disagree about who is on it.
+ */
+export function readersFor(caller: CallerContext, companyId: string, request?: NextRequest): Readers {
   const ownCompany = caller.company?.id === companyId
   const logPeople = (ids: string[], reason: string) =>
     logBulkAccess([...new Set(ids)], {
@@ -473,8 +497,9 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       }))
       const rules = await invoiceRulesFor(companyId)
       const out: VarianceReceipt[] = []
-      for (const r of billed) {
-        const v = await invoiceVerdict(r.id, rules)
+      const verdicts = await inBatches(billed, 10, (r) => invoiceVerdict(r.id, rules))
+      for (const [i, r] of billed.entries()) {
+        const v = verdicts[i]
         if (!v) continue
         out.push({
           invoiceId: v.invoiceId,
@@ -506,9 +531,13 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       // A flag from last night that the live check no longer agrees with is
       // said once, the morning after; an older one is not repeated.
       const lastNight = Date.now() - 36 * 3600_000
-      for (const f of flagged) {
-        // Read again now: a receipt corrected, waived or paid since is not told twice.
-        const v = await invoiceVerdict(f.entityId, rules)
+      // Read again now, all at once: each verdict is its own three-way
+      // check, and checked one after another they were the AP clerk's first
+      // screen sitting on "Reading the record…" (founder's walk, 2026-10-19).
+      const verdicts = await Promise.all(flagged.map((f) => invoiceVerdict(f.entityId, rules)))
+      for (const [i, f] of flagged.entries()) {
+        // A receipt corrected, waived or paid since is not told twice.
+        const v = verdicts[i]
         if (!v) continue
         if (v.verdict === 'CLEAN' || v.payable) {
           if (new Date(f.ts).getTime() >= lastNight && v.number) stale.push(v.number)
@@ -681,6 +710,212 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         // Falls back to the rule questions; a slow third party is not a broken panel.
         return null
       }
+    },
+
+    async billing(): Promise<Billing | null> {
+      // A firm's own money: what its live lines bill, read by a seat that
+      // reads money. A client's is the program dashboard's, read there.
+      const company = caller.company
+      if (!ownCompany || !company || company.kind === 'CLIENT' || !hasPermission(caller.permissions, 'invoices.read')) return null
+      const wall = await accountFilterFor(caller)
+      const lines = await prisma.sellContract.findMany({
+        where: andAll({ companyId: company.id, state: 'IN_PROGRESS' }, wall.where),
+        take: 2000,
+        select: { personId: true, billRate: true, billCurrency: true, requirement: { select: { hoursPerWeek: true } } },
+      })
+      if (lines.length === 0) return null
+      const people = new Set(lines.map((l) => l.personId)).size
+      const currencies = [...new Set(lines.map((l) => (l.billCurrency ?? 'USD').toUpperCase()))]
+      const spend = programMonthlySpend(lines.map((l) => ({ rateMinorPerHour: l.billRate ?? null, hoursPerWeek: l.requirement?.hoursPerWeek ?? null })))
+      // A total of some lines presented as the total of all of them is the
+      // plausible wrong number; where any line has no rate, or two
+      // currencies would be added, the figure is left out.
+      const priced = spend.unpriced === 0 && currencies.length === 1
+      return { people, monthlyMinor: priced ? spend.totalMinor : null, currency: priced ? currencies[0] : null }
+    },
+
+    async rollingOff(days: number) {
+      const company = caller.company
+      if (!ownCompany || !company) return { ok: false as const, says: 'Roll-offs are read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') {
+        return {
+          ok: false as const,
+          says: 'Your dashboard lists who leaves your sites, under Ending soon.',
+          links: [{ label: 'Open the dashboard', href: '/dashboard/program' }],
+        }
+      }
+      if (!hasAnyPermission(caller.permissions, [...ENDING_SOON_READERS])) {
+        return { ok: false as const, says: deskRefusal('reads who rolls off', [...ENDING_SOON_READERS], company.kind) }
+      }
+      const now = new Date()
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      const until = new Date(today.getTime() + days * 86_400_000)
+      const wall = await accountFilterFor(caller)
+      const lines = await prisma.sellContract.findMany({
+        where: andAll({ companyId: company.id, state: 'IN_PROGRESS', endDate: { gte: today, lte: until } }, wall.where),
+        orderBy: { endDate: 'asc' },
+        take: 50,
+        select: {
+          id: true, endDate: true,
+          person: { select: { id: true, name: true } },
+          clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
+        },
+      })
+      // One row per person: the line that ends last is the day they come off.
+      const byPerson = new Map<string, RollRow>()
+      for (const l of lines) {
+        const endsOn = isoDay(l.endDate!)
+        const row: RollRow = {
+          personId: l.person.id, person: l.person.name,
+          site: l.endClientCompany?.name ?? l.clientCompany?.name ?? null,
+          endsOn, daysLeft: Math.round((l.endDate!.getTime() - today.getTime()) / 86_400_000),
+          href: `/dashboard/contracts/${l.id}`,
+        }
+        const had = byPerson.get(l.person.id)
+        if (!had || had.endsOn < endsOn) byPerson.set(l.person.id, row)
+      }
+      const rows = [...byPerson.values()].sort((a, b) => a.endsOn.localeCompare(b.endsOn) || a.person.localeCompare(b.person))
+      if (rows.length) logPeople(rows.map((r) => r.personId), 'Read in Ask Etyme: who rolls off in the next 30 days')
+      return { ok: true as const, rows }
+    },
+
+    async bench() {
+      const company = caller.company
+      if (!ownCompany || !company || !request) return { ok: false as const, says: 'The bench is read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') {
+        return { ok: false as const, says: 'A supplier’s bench reaches you through matching on a job request, never as a list.' }
+      }
+      // The page's own reads, in-process, under this seat: an integrator's
+      // bench is its own people between projects (Our bench); any other
+      // firm's is the people who agreed to be on it.
+      if (company.kind === 'GSI') {
+        const res = await ourBenchRoute(request)
+        const body = await res.json().catch(() => null)
+        if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'Our bench could not be read just now.' }
+        const rows: BenchRow[] = (body?.data?.rows ?? []).map((r: any) => ({
+          personId: r.personId, person: r.name, free: r.freeOnSays ?? '—', skills: Array.isArray(r.skills) ? r.skills : [],
+        }))
+        return { ok: true as const, rows }
+      }
+      const url = new URL(request.url)
+      url.search = '?scope=company'
+      const res = await benchRoute(new NextRequest(url, { headers: request.headers }))
+      const body = await res.json().catch(() => null)
+      if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'The bench could not be read just now.' }
+      const tiers = body?.data?.tiers ?? {}
+      const listed: any[] = [...(tiers.MARKETING ?? []), ...(tiers.RETAINED ?? [])]
+      const rows: BenchRow[] = listed
+        .filter((l) => l.consent === 'GRANTED')
+        .map((l) => ({
+          personId: l.consultant?.personId, person: l.consultant?.person?.name ?? 'A person on your bench',
+          free: l.free?.says ?? '—', skills: Array.isArray(l.consultant?.skills) ? l.consultant.skills : [],
+        }))
+        .sort((a, b) => a.person.localeCompare(b.person))
+      return { ok: true as const, rows }
+    },
+
+    async unbilledWeeks() {
+      const company = caller.company
+      if (!ownCompany || !company) return { ok: false as const, says: 'Bills are read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') {
+        return { ok: false as const, says: 'Your suppliers bill you; what they sent is under Invoice receipts.', links: [{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }] }
+      }
+      if (!hasAnyPermission(caller.permissions, ['invoices.issue', 'invoices.read'])) {
+        return { ok: false as const, says: deskRefusal('reads which signed weeks are not billed', 'invoices.issue', company.kind) }
+      }
+      const wall = await accountFilterFor(caller)
+      const lines = await prisma.sellContract.findMany({
+        where: andAll({ companyId: company.id, state: { in: ['IN_PROGRESS', 'ENDED'] } }, wall.where),
+        take: 500,
+        select: { id: true, clientCompany: { select: { name: true } }, person: { select: { id: true, name: true } } },
+      })
+      if (lines.length === 0) return { ok: true as const, rows: [] }
+      // Where each line's hours are filed: its own contract on a direct
+      // placement, the bottom rung's where the firm sells somebody it buys
+      // (the generator's own reading, lib/work-chain).
+      const rungs = await ladderFor(lines.map((l) => l.id))
+      const hoursOn = new Map(lines.map((l) => [l.id, whereHoursLive(l.id, rungs)]))
+      const weeks = await prisma.timesheet.findMany({
+        where: {
+          sellContractId: { in: [...new Set(hoursOn.values())] },
+          // Signed at the top: a firm bills upward on the client's signature.
+          assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
+        },
+        orderBy: { periodStart: 'asc' },
+        take: 2000,
+        select: {
+          id: true, sellContractId: true, periodStart: true, periodEnd: true, totalHours: true, clientApprovedAt: true,
+          invoiceLines: { select: { sellContractId: true, invoice: { select: { status: true } } } },
+        },
+      })
+      const rows: UnbilledRow[] = []
+      for (const l of lines) {
+        const on = hoursOn.get(l.id)
+        for (const w of weeks) {
+          if (w.sellContractId !== on) continue
+          // On a bill of this line that was sent, or is being drafted, is billed.
+          const billed = w.invoiceLines.some((x) => x.sellContractId === l.id && !['CANCELLED', 'VOID'].includes(x.invoice?.status ?? ''))
+          if (billed) continue
+          rows.push({
+            timesheetId: w.id, person: l.person.name, customer: l.clientCompany?.name ?? null,
+            periodStart: isoDay(w.periodStart), periodEnd: isoDay(w.periodEnd), hours: Number(w.totalHours),
+            signedOn: w.clientApprovedAt ? isoDay(w.clientApprovedAt) : null,
+            href: `/dashboard/weeks/${w.id}`,
+          })
+        }
+      }
+      rows.sort((a, b) => a.periodStart.localeCompare(b.periodStart) || a.person.localeCompare(b.person))
+      const people = [...new Set(lines.filter((l) => rows.some((r) => r.person === l.person.name)).map((l) => l.person.id))]
+      if (people.length) {
+        logBulkAccess(people, {
+          actorPersonId: caller.person.id, actorCompanyId: company.id, action: 'TIMESHEET_VIEW',
+          reason: 'Read in Ask Etyme: which signed weeks are not billed',
+        })
+      }
+      return { ok: true as const, rows }
+    },
+
+    async unpaidBills() {
+      const company = caller.company
+      if (!ownCompany || !company) return { ok: false as const, says: 'Bills are read at your own company; switch to it first.' }
+      if (company.kind === 'CLIENT') {
+        return { ok: false as const, says: 'Your suppliers bill you; what you owe them is under Invoice receipts.', links: [{ label: 'Open Invoice receipts', href: '/dashboard/invoices' }] }
+      }
+      if (!hasPermission(caller.permissions, 'invoices.read')) {
+        return { ok: false as const, says: deskRefusal('reads which bills are unpaid', 'invoices.read', company.kind) }
+      }
+      const found = await prisma.invoice.findMany({
+        where: { AND: [invoiceBetween(company.id), { status: { in: OWED_TO_US } }] },
+        orderBy: { dueAt: 'asc' },
+        take: 200,
+        select: {
+          id: true, number: true, currency: true, total: true, paid: true, dueAt: true, status: true,
+          engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
+          workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+          invoiceLines: {
+            take: 5,
+            select: { sellContract: { select: { companyId: true, clientCompanyId: true, company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } } } } },
+          },
+        },
+      })
+      const rows: UnpaidRow[] = []
+      for (const r of found) {
+        const parties = partiesOf({
+          agreement: r.engagement?.msa ?? null,
+          order: r.workOrder ?? null,
+          lines: r.invoiceLines.map((l) => l.sellContract).filter((x): x is NonNullable<typeof x> => !!x),
+        })
+        // Only what this firm billed; what it was billed is an invoice receipt.
+        if (directionFrom(parties, company.id) !== 'RECEIVABLE') continue
+        const due = fromPrismaDecimal(r.total, r.currency).minor - fromPrismaDecimal(r.paid, r.currency).minor
+        if (due <= 0) continue
+        rows.push({
+          invoiceId: r.id, number: r.number, customer: parties.client?.name ?? null,
+          dueMinor: due, currency: r.currency.toUpperCase(), dueOn: r.dueAt ? isoDay(r.dueAt) : null,
+          held: r.status === 'HELD', href: hrefFor('Invoice', r.id),
+        })
+      }
+      return { ok: true as const, rows }
     },
 
     async logPrompt(entry) {

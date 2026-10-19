@@ -27,6 +27,7 @@ import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { weekStart, weekEnd } from '@/lib/overtime'
 import { stayOver, reminderLeadDays, renewFields } from '@/lib/bench-stay'
+import { standingAgainstLimit, monthsOf } from '@/lib/tenure-days'
 import { GET as myWork } from '@/app/api/me/work/route'
 import { GET as myPapers } from '@/app/api/me/papers/route'
 import { GET as myPipeline } from '@/app/api/me/pipeline/route'
@@ -101,13 +102,76 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
   }))
   const placementOf = new Map(placements.map((p) => [p.id, p]))
 
+  // Her own rows, read beside each other: none waits on another.
+  const sheetsSent: any[] = work?.timesheets ?? []
+  const endsRead = sheetsSent.length
+    ? prisma.timesheet.findMany({
+        where: { personId: me, id: { in: sheetsSent.map((t) => t.id) } },
+        select: { id: true, periodEnd: true, sellContractId: true },
+      })
+    : Promise.resolve([] as Array<{ id: string; periodEnd: Date; sellContractId: string }>)
+  const listingsRead = benches
+    ? prisma.benchListing.findMany({
+        where: { consultant: { personId: me }, state: 'GRANTED', stayDays: { not: null }, staysUntil: { not: null } },
+        select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true } } },
+      })
+    : Promise.resolve([])
+  const employersRead = benches
+    ? prisma.context.findMany({
+        where: { personId: me, type: 'EMPLOYEE', revokedAt: null, company: { kind: { not: 'CONSULTANT_CORP' } } },
+        select: { company: { select: { name: true } } },
+      })
+    : Promise.resolve([] as Array<{ company: { name: string } | null }>)
+
   // ── The hours her job runs, for a whole week ─────────────────────────
   const lines = work
     ? await prisma.sellContract.findMany({
         where: { personId: me },
-        select: { id: true, startDate: true, endDate: true, requirement: { select: { hoursPerWeek: true } } },
+        select: {
+          id: true, startDate: true, endDate: true, state: true, requirement: { select: { hoursPerWeek: true } },
+          clientCompanyId: true, endClientCompanyId: true,
+          clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
+        },
       })
     : []
+
+  // ── Where she stands against each client's time limit ────────────────
+  // Her own days at a site she is on today, across every supplier and
+  // rung, read the way the ledger reads them (`standingAgainstLimit`),
+  // against the limit the client set. Her own rows only, so nothing here
+  // is a read of somebody else.
+  const SERVED = ['IN_PROGRESS', 'ENDED', 'PAUSED']
+  const sites = new Map<string, { name: string; lines: typeof lines }>()
+  for (const l of lines) {
+    const id = l.endClientCompanyId ?? l.clientCompanyId
+    const name = l.endClientCompany?.name ?? l.clientCompany?.name
+    if (!id || !name) continue
+    const at = sites.get(id) ?? { name, lines: [] }
+    at.lines.push(l)
+    sites.set(id, at)
+  }
+  const onSiteAt = [...sites.entries()].filter(([, v]) => v.lines.some((l) => l.state === 'IN_PROGRESS'))
+  const limits: NonNullable<WorkerFacts['limits']> = []
+  if (onSiteAt.length) {
+    const rules = await prisma.governanceRule.findMany({
+      where: { policy: { companyId: { in: onSiteAt.map(([id]) => id) }, isActive: true }, ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] }, isActive: true },
+      select: { ruleType: true, parameters: true, policy: { select: { companyId: true } } },
+    })
+    for (const [id, v] of onSiteAt.slice(0, 2)) {
+      const cap = rules.find((r) => r.policy.companyId === id && r.ruleType === 'TENURE_CAP')
+      const capMonths = Number((cap?.parameters as Record<string, unknown> | null)?.maxMonths ?? NaN)
+      if (!cap || !Number.isFinite(capMonths) || capMonths <= 0) continue
+      const brk = rules.find((r) => r.policy.companyId === id && r.ruleType === 'BREAK_IN_SERVICE')
+      const breakDays = Number((brk?.parameters as Record<string, unknown> | null)?.breakDays ?? NaN)
+      const served = v.lines.filter((l) => SERVED.includes(l.state))
+      const standing = standingAgainstLimit(
+        served.map((l) => ({ startDate: l.startDate, endDate: l.endDate, live: l.state !== 'ENDED' })),
+        { capMonths, breakDays: Number.isFinite(breakDays) ? breakDays : null },
+        now,
+      )
+      limits.push({ site: v.name, months: monthsOf(standing.countedDays), capMonths, past: standing.pastLimit })
+    }
+  }
   const expectedFor = (from: string, to: string): number | null => {
     const over = lines.filter((l) => iso(l.startDate) <= to && (!l.endDate || iso(l.endDate) >= from))
     const named = over.find((l) => l.requirement?.hoursPerWeek != null)
@@ -141,13 +205,8 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
   const returnedIds = new Set<string>((work?.filing ?? []).flatMap((f: any) => (f.returned ?? []).map((r: any) => r.timesheetId)))
 
   // ── Every week she sent, where it stands ─────────────────────────────
-  const sheets: any[] = work?.timesheets ?? []
-  const ends = sheets.length
-    ? new Map((await prisma.timesheet.findMany({
-        where: { personId: me, id: { in: sheets.map((t) => t.id) } },
-        select: { id: true, periodEnd: true, sellContractId: true },
-      })).map((t) => [t.id, t]))
-    : new Map<string, { id: string; periodEnd: Date; sellContractId: string }>()
+  const sheets: any[] = sheetsSent
+  const ends = new Map((await endsRead).map((t) => [t.id, t]))
   const owedWeeks: any[] = work?.owed?.weeks ?? []
   const waitingBySheet = new Map(owedWeeks.filter((w) => typeof w.sheetId === 'string').map((w) => [w.sheetId, w]))
   const pricedByWeek = new Map(owedWeeks.filter((w) => typeof w.sheetId !== 'string' && w.weekOf).map((w) => [w.weekOf, w]))
@@ -217,12 +276,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
   }))
 
   // ── Bench stays she may renew, and who has her consent ───────────────
-  const listings = benches
-    ? await prisma.benchListing.findMany({
-        where: { consultant: { personId: me }, state: 'GRANTED', stayDays: { not: null }, staysUntil: { not: null } },
-        select: { id: true, stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, company: { select: { name: true } } },
-      })
-    : []
+  const listings = await listingsRead
   const stays: StayFact[] = []
   for (const l of listings) {
     if (!l.staysUntil || l.stayDays == null || !renewFields(l, now).ok) continue
@@ -234,12 +288,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
     if (due) stays.push({ listingId: l.id, firm: l.company.name, endsOn: iso(l.staysUntil), ended, days: l.stayDays })
   }
   // The firms that employ her, never her own one-person company: she owns that one.
-  const employers = benches
-    ? (await prisma.context.findMany({
-        where: { personId: me, type: 'EMPLOYEE', revokedAt: null, company: { kind: { not: 'CONSULTANT_CORP' } } },
-        select: { company: { select: { name: true } } },
-      })).flatMap((c) => (c.company ? [c.company.name] : []))
-    : []
+  const employers = (await employersRead).flatMap((c) => (c.company ? [c.company.name] : []))
 
   return {
     seat: caller.context.type === 'CONSULTANT' ? 'CONSULTANT' : 'EMPLOYEE',
@@ -254,6 +303,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
     runningOut,
     interviews,
     stays,
+    limits,
     consent: {
       benches: (benches?.benches ?? []).map((b: any) => ({ firm: b.company, since: b.since ?? null, stay: b.stay ?? null })),
       asking: (benches?.invited ?? []).map((b: any) => b.company),

@@ -492,6 +492,76 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   receipt, and the approval route accepts none, so no card for it is
   drawn. It needs an act kind in the role contract first (architect).
 
+### Every first screen names a person — etyme-conversation, 2026-10-19
+
+- **Cards that only "Open".** Every row of the decisions queue is a card
+  in the chat. Four kinds act from the card, each on the one route that
+  already performs it, the same route the decisions page and Timesheets
+  press: approve a week and accept a week (`POST /api/timesheets/:id/approve`),
+  approve an expense (`POST /api/expenses/actions`, `approve`), accept an
+  expense (`POST /api/expenses/:id/accept`, `accept`). The twin's own
+  questions (an invoice receipt, a drafted bill) keep their cards on the
+  one approval route. Every other row opens its own page, because no
+  single route performs it in one press or the act needs words a card
+  does not ask for:
+  - a **flagged week** (over the job's hours, past the last day): the
+    route asks a reason, and a week over the overtime line asks which
+    hours are overtime; the card opens the week;
+  - a **held start** (`START_HELD`) and a **supplier with no agreement**
+    (`NO_AGREEMENT`): the fix is a paper put on file, not a yes;
+  - a **job request to approve** (`REQUISITION_APPROVAL`): the approve
+    route takes a rank and a hand-back with words;
+  - a **supplier to review** (`SUPPLIER_REVIEW`): each desk verifies its
+    own checklist items first;
+  - a **submission to review**, a **roll-off**, a **contract to paper or
+    start**, an **overdue bill**, an **invoice receipt that did not match**
+    (`BILL_DISPUTED`): each is a page of its own decisions.
+  - **"Answer a bench ask"** has no row in the decisions queue at all
+    today, so nothing is drawn for it; it needs a queue row (etyme-demand)
+    before it can be a card.
+  No act kind was added to the role contract for any of these: a card's
+  act is the person's own press, never the twin's.
+- **"Not now" on a decision card is not recorded**, and a card the person
+  acted on is not kept on the saved thread (PATCH records only the twin's
+  approvals). The next greeting rebuilds from the queue, so an acted row
+  is simply gone; a saved "What needs me today?" answer from earlier may
+  still draw a card the route now refuses, in the route's own sentence.
+- **The first line is the queue's own sentence** (`data.says`, etyme-demand)
+  where the queue gives one, so the mark, the greeting and the program page
+  say one number and one sentence. Its words are demand's ("Ingrid
+  Sørensen's start"); the cards under it carry the drawing's longer words
+  ("Ingrid Sørensen cannot start on Oct 22 without an I-9"). Where the
+  queue gives no sentence, the greeting names the first three itself.
+- **An MSP seated in a client's program reads its own book in the chat.**
+  The first line says whose program it runs, the closing line and the
+  picture are the client's, but the readers behind the questions (spend,
+  weeks, the queue) are the MSP's own company's, as before. Reading the
+  seated client's book in the chat is a change to `readersFor`'s scope
+  under the seat's permissions, not done here.
+- **"Since you last looked" for a dated cycle notice names the people in
+  its own body**, never the approver, because the notice does not carry
+  one: the reader is the approver, so it reads "You have five weeks to
+  approve by Wednesday: Helena Marsh, Omar Haddad and three more." A
+  weekday is said only inside the six days ahead; further out, the date.
+- **A conversation's "since you last looked" is its unread notes.** There
+  is no per-person read mark on a thread, so a thread counts as new where
+  this person holds an unread note on it; a note is marked read once the
+  greeting names its thread, and up to three threads are named.
+- **A firm's four answers read what the record holds, and say it.**
+  Signed weeks on no bill counts any week signed at the top with no line
+  on a sent or drafted bill of that sell line, however old (Brightmoor's
+  seeded world holds 31 from March). Unpaid bills count a bill the firm
+  issued, sent, part paid or held, by its total less what was paid.
+- **Why the AP clerk's first screen waited.** The greeting read the
+  notices, the model switch, then the program dashboard, then the
+  decisions queue and the twin's readers, then the saved thread, one after
+  another. They now start together, and the paying clerk's receipts are
+  each checked at once rather than in turn. Measured against the seeded
+  world with 20 ms added to every query: 1,022 ms before, about 570 ms
+  after. What is left is the decisions queue itself (about 26 queries in
+  a row, some once per row; etyme-demand), and the mark asks the same
+  queue again on every page load and once a minute (shell).
+
 ### Before 2026-10-12, as the panel on the twin's page
 
 - **The route is `POST /api/conversations/twin`, not `/api/twin-chat`.**
