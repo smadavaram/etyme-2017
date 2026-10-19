@@ -120,7 +120,7 @@ export interface NewTurn {
 }
 
 export type ThreadRefusalCode =
-  | 'NO_COMPANY' | 'NO_PERSON' | 'NOT_YOUR_THREAD' | 'NOT_IN_YOUR_THREAD' | 'NOT_A_CARD'
+  | 'NO_PERSON' | 'NOT_YOUR_THREAD' | 'NOT_IN_YOUR_THREAD' | 'NOT_A_CARD'
   | 'NO_SUCH_QUESTION' | 'EMPTY' | 'TOO_LONG' | 'BAD_STATE'
 
 export interface ThreadRefusal {
@@ -135,7 +135,6 @@ export interface NotKept { ok: true; saved: false; says: string }
 
 // ── Words ─────────────────────────────────────────────────────────────
 
-export const NO_COMPANY_SAYS = 'Ask Etyme keeps one conversation for each company you work at. Switch to your company first.'
 export const NO_PERSON_SAYS = 'An API key has no Ask Etyme conversation. Only a person signed in at a company has one.'
 export const NOT_KEPT_IN_DEMO =
   'This conversation is not kept after you leave the page, because other visitors use this demo seat too. Open your own demo to keep one.'

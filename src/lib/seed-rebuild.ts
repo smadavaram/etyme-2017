@@ -181,6 +181,10 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'AskEtymeTurn.cardApprovalIds': { as: 'RECORD' },
   // ── Owned: goes with what it names ──
   'Notification.personId': { as: 'OWNED', to: ['Person'] },
+  // The person's own id, set only where the thread has no company, so the
+  // unique makes one such thread per person; it goes with the person (and
+  // already does, through personId's cascade).
+  'AskEtymeThread.personOnlyId': { as: 'OWNED', to: ['Person'] },
   'Import.companyId': { as: 'OWNED', to: ['Company'] },
   'SourcedContact.heldByCompanyId': { as: 'OWNED', to: ['Company'] },
   'RateHistory.contractId': { as: 'OWNED', to: ['SellContract', 'BuyContract'] },
