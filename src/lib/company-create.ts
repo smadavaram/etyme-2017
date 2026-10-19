@@ -52,6 +52,14 @@ export interface CreateCompanyInput {
   /** Seat that person as Owner. False when recording a counterparty. */
   seatAsOwner: boolean
   /**
+   * The firm writing a counterparty down, where that is how it began
+   * (`Company.listedById`): the register it is on until somebody there
+   * claims it. Null for a firm founded by its own people.
+   */
+  listedById?: string | null
+  /** A demo firm's counterparty is a demo firm, kept to its own world. */
+  isDemo?: boolean
+  /**
    * Claim the domain so colleagues who sign in on it join this company.
    * Only where the domain is the creator's own verified work domain and
    * nobody holds it yet.
@@ -132,7 +140,19 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
       currency,
       homeCurrency: currency,
       ...(payRhythm ?? {}),
-      siteLiveAt: now,
+      // A public page only for a firm somebody there runs. A counterparty
+      // another firm wrote down has none until somebody at it joins.
+      siteLiveAt: input.seatAsOwner ? now : null,
+      // On Etyme from the moment somebody there signs up: a seat is
+      // possession (the rule seed-world states for the seeded firms). A
+      // counterparty somebody else writes down stays a shell — not on
+      // Etyme — until somebody at it claims it. Until 2026-10-19 this was
+      // never set, so every signed-up firm read as a shell: "not on Etyme"
+      // on its suppliers' screens, nameable as anybody's client, and its
+      // week approvals checked against a supplier's address book.
+      claimedAt: input.seatAsOwner ? now : null,
+      listedById: input.seatAsOwner ? null : input.listedById ?? null,
+      isDemo: input.isDemo === true,
       networkVerifiedAt: null,
       siteTagline: voice.tagline,
       siteIntro: voice.intro,
@@ -227,4 +247,33 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
     holidaysSeeded,
     siteTagline: voice.tagline,
   }
+}
+
+/**
+ * The firms that signed up before `claimedAt` was written, put right.
+ *
+ * Until 2026-10-19 `createCompany` never set `claimedAt`, so every firm
+ * that signed up read as a shell — "not on Etyme" — however many people
+ * worked in it. A seat is possession (seed-world's rule, and now
+ * `createCompany`'s): a company where anybody holds a seat with a role
+ * took possession of itself, on the day it was made. A shell nobody has
+ * joined has no seat and is left alone, which is what the column is for.
+ *
+ * Idempotent: only rows still null are touched, so a second run finds
+ * nothing. `write: false` counts without changing anything.
+ * Run once per database: `npx tsx scripts/backfill-claimed-at.ts`
+ * (what it would do), then with `--write`.
+ */
+export async function claimSignedUpFirms(db: Db = prisma, opts: { write: boolean } = { write: true }): Promise<{ found: number; claimed: number }> {
+  const found = await db.$queryRaw<{ n: bigint }[]>`
+    SELECT count(*)::bigint AS n FROM "Company" c
+    WHERE c."claimedAt" IS NULL
+      AND EXISTS (SELECT 1 FROM "Context" x WHERE x."companyId" = c.id AND x."roleId" IS NOT NULL)`
+  const n = Number(found[0]?.n ?? 0)
+  if (!opts.write || n === 0) return { found: n, claimed: 0 }
+  const claimed = await db.$executeRaw`
+    UPDATE "Company" c SET "claimedAt" = c."createdAt"
+    WHERE c."claimedAt" IS NULL
+      AND EXISTS (SELECT 1 FROM "Context" x WHERE x."companyId" = c.id AND x."roleId" IS NOT NULL)`
+  return { found: n, claimed }
 }

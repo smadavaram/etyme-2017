@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { senderAsTheClientSees, checkApprover, needsSigningInEtyme, hashLinkToken, type WeekChain } from '@/lib/week-approval'
+import { senderAsTheClientSees, checkApprover, needsSigningInEtyme, hashLinkToken, offPlatformRecord, approvalWords, type WeekChain } from '@/lib/week-approval'
+import { recordClientContact } from '@/lib/off-system'
 import { topDown, signersOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
 import { whoAskedSentence } from '@/app/api/timesheets/approval-by-email'
 
@@ -110,5 +111,100 @@ describe('the link’s token', () => {
     const model = schema.match(/^model WeekApproval \{([\s\S]*?)^\}/m)![1]
     expect(model).toMatch(/tokenHash\s+String\?\s+@unique/)
     expect(model).not.toMatch(/^\s+token\s/m)
+  })
+})
+
+describe('a client that is not on Etyme', () => {
+  const NOW = new Date('2026-10-19T15:00:00Z')
+  const listed = {
+    claimedAt: null, listedById: 'tapin',
+    invites: [
+      { byId: 'tapin', email: 'Dana.Whitfield@Larkspur-Freight.example', state: 'PENDING' },
+      { byId: 'tapin', email: 'old.contact@larkspur-freight.example', state: 'REVOKED' },
+      { byId: 'another-supplier', email: 'someone@larkspur-freight.example', state: 'PENDING' },
+    ],
+    contacts: [{ companyId: 'tapin', email: 'ap@larkspur-freight.example' }, { companyId: 'tapin', email: null }],
+    listerSeatedEmails: ['oliver@etyme.com'],
+    listerDomains: ['tapin.example'],
+    workerEmail: 'helena.marsh@seed.etyme.invalid',
+  }
+
+  it('a supplier whose client is not on Etyme sends the approval link to the person it recorded for that client, and the signature says the client was not on Etyme', () => {
+    expect(offPlatformRecord(listed)).toEqual({
+      offPlatform: true,
+      recordedContacts: ['dana.whitfield@larkspur-freight.example', 'ap@larkspur-freight.example'],
+    })
+    expect(approvalWords({
+      approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@larkspur-freight.example', clientName: 'Larkspur Freight',
+      clientOffPlatform: true, on: NOW, how: 'LINK', now: NOW,
+    })).toBe('Approved by email: Dana Whitfield, dana.whitfield@larkspur-freight.example — Larkspur Freight was not on Etyme')
+  })
+
+  it('an address the supplier never recorded for an off-platform client is still refused: another firm’s record, a revoked one, the supplier’s own people and the worker do not count', () => {
+    const rec = offPlatformRecord({
+      ...listed,
+      invites: [...listed.invites, { byId: 'tapin', email: 'oliver@etyme.com', state: 'PENDING' }, { byId: 'tapin', email: 'sam@ops.tapin.example', state: 'PENDING' }],
+      contacts: [...listed.contacts, { companyId: 'tapin', email: 'Helena.Marsh@seed.etyme.invalid' }],
+    })
+    expect(rec.recordedContacts).not.toContain('someone@larkspur-freight.example')
+    expect(rec.recordedContacts).not.toContain('old.contact@larkspur-freight.example')
+    expect(rec.recordedContacts).not.toContain('oliver@etyme.com')
+    expect(rec.recordedContacts).not.toContain('sam@ops.tapin.example')
+    expect(rec.recordedContacts).not.toContain('helena.marsh@seed.etyme.invalid')
+    expect(offPlatformRecord({ ...listed, listedById: null }).recordedContacts).toEqual([])
+  })
+
+  it('once the client claims its record, its own domain and seats decide, as before, and nothing the supplier recorded counts', () => {
+    expect(offPlatformRecord({ ...listed, claimedAt: new Date('2026-10-20T00:00:00Z') })).toEqual({ offPlatform: false, recordedContacts: [] })
+  })
+
+  it('an approval given while the client was off the platform still says so after it claims its record, and one given on the platform reads as before', () => {
+    const words = (clientOffPlatform: boolean | null) => approvalWords({
+      approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@larkspur-freight.example', clientName: 'Larkspur Freight',
+      clientOffPlatform, on: new Date('2026-10-02T12:00:00Z'), how: 'EVIDENCE', now: NOW,
+    })
+    expect(words(true)).toMatch(/Larkspur Freight was not on Etyme$/)
+    expect(words(false)).toBe('Approved by email: Dana Whitfield, Oct 2 — evidence attached')
+    expect(words(null)).toBe('Approved by email: Dana Whitfield, Oct 2 — evidence attached')
+  })
+})
+
+describe('the person a supplier records at a client that is not on Etyme', () => {
+  const shell = { id: 'larkspur', name: 'Larkspur Freight', claimedAt: null, listedById: 'tapin' }
+  const record = (over: Partial<Parameters<typeof recordClientContact>[0]> = {}) =>
+    recordClientContact({ callerCompanyId: 'tapin', client: shell, email: 'Dana.Whitfield@larkspur-freight.example', contactName: 'Dana Whitfield', ownSeatEmails: ['oliver@etyme.com'], ...over })
+
+  it('a supplier that listed a client with no address can record the person there later, and is told a colleague at the same company address may approve too', () => {
+    expect(record()).toEqual({
+      ok: true, email: 'dana.whitfield@larkspur-freight.example', contactName: 'Dana Whitfield', remove: false,
+      says:
+        'Dana Whitfield (dana.whitfield@larkspur-freight.example) is recorded at Larkspur Freight. While Larkspur Freight is not on Etyme, ' +
+        'Dana Whitfield, or a colleague at @larkspur-freight.example, can approve a week by email, and the approval says Larkspur Freight was not on Etyme.',
+    })
+  })
+
+  it('a personal address lets that one person approve and is not offered as a company address', () => {
+    const v = record({ email: 'dana.w@gmail.com' })
+    expect(v.ok && v.says).not.toMatch(/colleague/)
+  })
+
+  it('a supplier cannot record its own staffer as the client’s person', () => {
+    expect(record({ email: 'oliver@etyme.com' })).toMatchObject({ ok: false, field: 'email', says: 'oliver@etyme.com is somebody at your own firm. Record the person at Larkspur Freight who approves the hours.' })
+  })
+
+  it('an address is recorded only with the person’s name, and only by the firm that listed the client', () => {
+    expect(record({ contactName: '' })).toMatchObject({ ok: false, field: 'contactName', says: 'Name the person at Larkspur Freight whose address this is.' })
+    expect(record({ callerCompanyId: 'someone-else' })).toMatchObject({ ok: false, status: 404 })
+  })
+
+  it('once the client claims its record, the supplier no longer edits who approves for it', () => {
+    expect(record({ client: { ...shell, claimedAt: new Date() } })).toMatchObject({
+      ok: false, status: 409,
+      says: 'Larkspur Freight is on Etyme now, so its own people decide who approves for it. Ask them to seat the person you mean.',
+    })
+  })
+
+  it('a recorded address can be taken off, and approvals already given stand', () => {
+    expect(record({ remove: true, contactName: undefined })).toMatchObject({ ok: true, remove: true, says: 'dana.whitfield@larkspur-freight.example is no longer recorded for Larkspur Freight, so it cannot be named as its approver. Approvals already given stand.' })
   })
 })

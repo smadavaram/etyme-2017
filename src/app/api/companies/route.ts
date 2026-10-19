@@ -20,7 +20,7 @@ import { mayAddCompany } from '@/lib/counterparty'
  *   2. Creates the company through lib/company-create — the pack, roles
  *      for its kind, head office and holidays first sign-in gives — and
  *      the owner's seat where the caller is founding their own firm
- *   3. Sets siteLiveAt = now
+ *   3. Sets siteLiveAt = now, for a firm of its own (a counterparty has no page until somebody there joins)
  *   4. Fires AI site generation (background job)
  *   5. networkVerifiedAt stays null until manual verification
  *
@@ -193,6 +193,11 @@ export async function POST(request: NextRequest) {
           seatAsOwner: adding.ownsIt,
           claimDomain: adding.ownsIt,
           startsSetup: adding.ownsIt,
+          // A counterparty is on the caller's register, a shell nobody has
+          // claimed: listed by the caller's firm, no public page, and in
+          // the caller's own world if the caller is a demo firm.
+          listedById: adding.ownsIt ? null : seatedCaller?.company?.id ?? null,
+          isDemo: !adding.ownsIt && seatedCaller?.company?.isDemo === true,
         },
         tx
       )

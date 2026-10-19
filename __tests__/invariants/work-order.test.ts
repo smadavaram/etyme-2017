@@ -175,6 +175,18 @@ describe('a firm that is on the register without being on the system', () => {
     expect(verdict.ok).toBe(true)
     expect(verdict.says).toContain('is not on Etyme')
   })
+
+  it('a firm cannot name, as its own client, a company another firm put on its register, unless the two already work together', () => {
+    const theirs = shell('co-shell', 'Halvard Industries', 'co-tapin')
+    const refused = mayNameCounterparty({ callerCompanyId: SUPPLIER, other: theirs, relationshipExists: false, as: 'client' })
+    expect(refused.ok).toBe(false)
+    expect(refused.says).toBe(
+      "Halvard Industries is on another firm's register, not yours, and has nothing on file with you. " +
+        'Put them on your own register as your client — that makes your own record of them.'
+    )
+    expect(mayNameCounterparty({ callerCompanyId: SUPPLIER, other: theirs, relationshipExists: true, as: 'client' }).ok).toBe(true)
+    expect(mayNameCounterparty({ callerCompanyId: 'co-tapin', other: theirs, relationshipExists: false, as: 'client' }).ok).toBe(true)
+  })
 })
 
 describe('who may write the order', () => {

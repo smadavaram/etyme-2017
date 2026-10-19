@@ -717,6 +717,7 @@ export const MATRIX: L1[] = [
             'BUILT 2026-10-06 by etyme-architect: a person with a placement waiting on their own terms reads \u201cYour terms\u201d under You, right after Your work, opening the terms page for the first such placement; it is gone once the terms are on record or the line has started (`lib/your-terms`, the shell). The notification is no longer the only door',
             'BUILT 2026-10-06, writer by etyme-supply: BenchListing carries the terms a firm stated at listing \u2014 engagement type, pay rate, who stated them and when \u2014 and the person\u2019s own yes to them (termsAgreedAt). The listing doors write them through listingTermsFrom \u2192 checkStatedTerms; termsAgreedAt is set only by the person\u2019s grant, from their page or the emailed link; a re-asked listing carries none. Reader by etyme-demand: termsOnRecordFor reads a listing\u2019s terms as on record only where termsAgreedAt is set and not before termsStatedAt. The deploy that carries the columns needs DB_PUSH_ON_BUILD set once',
             'BUILT 2026-10-06 by etyme-money: a placement is recorded only for a person the firm has a record of (a seat, a listing, a line, a submission, or its own owner), refused in a sentence otherwise; and it writes no reminder due before the day it was recorded (noneDueBefore)',
+            'FIXED 2026-10-19 by etyme-money (f89bd6e84): Record a placement offers the firm\u2019s register before its contracts, a client not on Etyme marked so; with none, it says to add one from Companies',
             'OPEN for the founder: \u2018split\u2019 as a term type (the person\u2019s share of what the firm bills, as a percentage) is not added until he defines it; W2/1099 engagement types are US-only and need country packs (Phase 3)'],
           implementedBy: ['src/app/api/submissions/[id]/terms/standing.ts', 'src/app/api/contracts/[id]/activate/route.ts', 'src/app/api/contracts/route.ts',
             'src/app/dashboard/contracts/page.tsx', 'src/lib/money/recorded-line.ts',
@@ -732,7 +733,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/submissions/words.ts', 'src/app/dashboard/requisitions/facts.ts',
             'src/app/api/cron/due-cycles/route.ts', 'src/lib/due-cycle-desks.ts',
             'src/lib/your-terms.ts', 'src/components/shell/sidebar.tsx', 'src/app/dashboard/layout.tsx',
-            'src/app/api/timesheets/signature-rate.ts', 'src/lib/money/recorded-person.ts'],
+            'src/app/api/timesheets/signature-rate.ts', 'src/lib/money/recorded-person.ts', 'src/lib/money/client-options.ts'],
           testedBy: ['__tests__/invariants/signup-round-6-demand.test.ts', '__tests__/invariants/terms-before-the-start.test.ts', '__integration__/start-waits-on-terms.test.ts',
             '__tests__/invariants/award.test.ts', '__tests__/invariants/award-order.test.ts',
             '__integration__/award-order.test.ts', '__tests__/invariants/one-road-to-placed.test.ts',
@@ -743,7 +744,8 @@ export const MATRIX: L1[] = [
             '__integration__/turned-down-calls-off-rounds.test.ts', '__integration__/award-time-limit.test.ts', '__integration__/person-page-runs-past.test.ts',
             '__tests__/invariants/hire-terms.test.ts', '__integration__/hire-terms.test.ts',
             '__tests__/invariants/due-cycles-desks.test.ts', '__tests__/invariants/your-terms.test.ts',
-            '__integration__/listing-terms.test.ts', '__tests__/invariants/signature-rate.test.ts', '__tests__/invariants/recorded-person.test.ts'] },
+            '__integration__/listing-terms.test.ts', '__tests__/invariants/signature-rate.test.ts', '__tests__/invariants/recorded-person.test.ts',
+            '__tests__/invariants/record-placement-offer.test.ts', '__integration__/first-real-transaction.test.ts'] },
       ]},
     ],
   },
@@ -1042,15 +1044,25 @@ export const MATRIX: L1[] = [
             'A firm cannot name a company that is already here as its counterparty without them',
             'The row says which of the two parties typed it in',
             'Every row already points at the company id, so it is the claimant’s the instant they take possession',
+            'A firm somebody else put on its register has no public page until somebody there joins',
+            'BUILT 2026-10-19 by etyme-architect: a firm that signed up is on Etyme from the moment it is made (`createCompany` sets `claimedAt` where its founder is seated) and only a firm somebody else wrote down is not; until then every signed-up firm read as a shell. A counterparty from Add company is on the caller’s register (`listedById`), with no public page, in the caller’s own world. `npx tsx scripts/backfill-claimed-at.ts --write` marks, once, every firm somebody holds a seat at, from the day it was made (`claimSignedUpFirms`)',
+            'BUILT 2026-10-19 by etyme-architect: a supplier writes down its client with the person there (“Add company → Client” posts to the clients door with their contact and email), kept in its own address book, and can record or take off that person later (PATCH /api/clients); never one of its own people. No invitation is made or sent: the letter to a client is conversation’s, and the screen does not offer it until it leaves',
+            'BUILT 2026-10-19 by etyme-architect: a firm cannot name as its own client a shell another firm listed unless the two already work together (`mayNameCounterparty`). OPEN for money: POST /api/contracts passes `relationshipExists: true` for every shell, so the rule does not yet bite there',
           ],
           implementedBy: [
             'src/lib/off-system.ts', 'src/app/api/clients/route.ts', 'src/app/api/suppliers/route.ts',
             'src/app/api/contracts/route.ts', 'src/app/api/purchase-orders/route.ts',
             'src/app/api/claim/[token]/route.ts', 'src/app/claim/[token]/page.tsx', 'src/app/claim/[token]/words.ts',
+            'src/lib/public-site.ts', 'src/lib/public-site/speaks.ts',
+            'src/lib/company-create.ts', 'src/app/api/companies/route.ts', 'src/app/dashboard/companies/page.tsx',
+            'scripts/backfill-claimed-at.ts', 'src/lib/week-approval.ts',
           ],
           testedBy: [
             '__tests__/invariants/work-order.test.ts', '__integration__/work-order.test.ts',
             '__integration__/supplier-onboarding.test.ts', '__tests__/invariants/claim-page.test.ts',
+            '__tests__/invariants/public-example-names.test.ts',
+            '__integration__/signed-up-firm-is-on-etyme.test.ts', '__tests__/invariants/week-approval.test.ts',
+            '__integration__/off-platform-client-approves-by-email.test.ts',
           ] },
         { code: 'L3.2.2.10', name: 'The company\u2019s own calendar', owner: 'Program office', status: B,
           tasks: [
@@ -1573,15 +1585,16 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/one-week-filed-by-the-worker.test.ts', '__integration__/one-week-filed-by-the-worker.test.ts',
             '__integration__/party-uniform.test.ts',
             '__tests__/invariants/flagged-weeks-first.test.ts', '__integration__/flagged-weeks-first.test.ts'] },
-        { code: 'L3.3.1.2', name: 'Expense capture', owner: 'Consultant', status: P,
+        { code: 'L3.3.1.2', name: 'Expense capture', owner: 'Consultant', status: B,
           // PARTIAL since 2026-10-19: the founder's decision 1 that day (an
           // expense is accepted like a week). Money landed the acceptance
           // and the bill the same day (d29b780e6), demand the queue card
-          // (9676bb001); it stays PARTIAL while a middle firm cannot bill an
-          // expense upward and the expenses page has no Accept button.
+          // (9676bb001). BUILT the same day, once a middle firm billed an
+          // expense upward (5e21a097c) and the page took Accept (2c41babb0).
           tasks: ['Receipt, policy check, staleness', 'Billable versus absorbed', 'Rides on the next invoice', 'Paid when the invoice is paid',
             'BUILT 2026-10-19 by etyme-money (d29b780e6): an expense is accepted like a week \u2014 each firm that pays it accepts it before it pays it, the client first, nobody their own, up to what the firm above accepted, with a reason on a cut or a send-back; a bill carries what the payer accepted and leaves off, in a sentence, what it has not accepted or what the pair\u2019s agreement does not make billable; the payer\u2019s acceptance is the receipt in every match',
-            'OWED BY etyme-money: a firm in the middle of a chain bills its client for an expense, once InvoiceLine\u2019s unique is (expenseId, sellContractId)',
+            'BUILT 2026-10-19 by etyme-money (5e21a097c): a firm in the middle of a chain bills its client for an expense on its own sell line, at what its customer accepted, once per line; Expense.invoiceId and INVOICED/PAID stay the employer\u2019s rung, and every rung above reads billed and paid from its own lines; the expenses page says \u201cbilled to <firm> on IN_\u2026\u201d only on the reader\u2019s own rung',
+            'FIXED 2026-10-19 by etyme-money (f89bd6e84): the invoice receipt form and the typed-in check read billability on the whole chain as the bill does (billsToPayer), naming nobody below the supplier',
             'BUILT 2026-10-19 by etyme-demand (9676bb001): the decisions queue carries \u201cAccept expense \u2014 <person>\u201d with the amount, the kind and the firm directly below, for whoever signs the work or pays for it; Accept and Send back on the card go through the one accept route',
             'BUILT 2026-10-19 by etyme-money (2c41babb0): the expenses page says where each expense stands in the chain (\u201cApproved by Techpeple \u00b7 accepted by Northbend Athletic $412.50 \u00b7 waiting on you\u201d), naming nobody below the reader\u2019s own supplier, with Accept and Send back on the row whose turn it is; a middle firm sees its supplier\u2019s expenses on lines it pays; the client\u2019s list reads the agreement, not the supplier\u2019s flag, and says which agreement leaves a kind out; the employer cannot reject an expense a firm above accepted'],
           implementedBy: ['src/app/dashboard/expenses/where-it-stands.tsx', 'src/app/dashboard/expenses/page.tsx', 'src/app/api/expenses/route.ts', 'src/lib/expense-approval.ts', 'src/lib/expense-billing.ts',
@@ -1606,7 +1619,7 @@ export const MATRIX: L1[] = [
       ]},
       { code: 'L2.3.2', name: 'Approval', domain: 'CONVERSATION', processes: [
         { code: 'L3.3.2.1', name: 'Client approval', owner: 'Hiring manager', status: B,
-          tasks: ['BUILT 2026-10-05 by etyme-architect, with etyme-demand\u2019s rule (`approverIsKnownAtClient`): the approver named on a link or on evidence is somebody at the client \u2014 an address at its own verified domain, at a domain it proved, or a person seated there \u2014 checked in both doors of lib/week-approval before anything is written, refused in a sentence and logged; the seeded Northbend approves from northbend.example, a reserved name', 'One assertion per party, per date range', 'Partial approval is ordinary',
+          tasks: ['BUILT 2026-10-05 by etyme-architect, with etyme-demand\u2019s rule (`approverIsKnownAtClient`): the approver named on a link or on evidence is somebody at the client \u2014 an address at its own verified domain, at a domain it proved, or a person seated there \u2014 checked in both doors of lib/week-approval before anything is written, refused in a sentence and logged; the seeded Northbend approves from northbend.example, a reserved name. Off-platform client (2026-10-19): while the client is a shell nobody has claimed, the approver may be the address its supplier recorded for it or at that address\u2019s company domain (RECORDED_CONTACT, RECORDED_DOMAIN), never a consumer provider\u2019s; an unrecorded address and a worker\u2019s own are refused; once claimed, its own domain and seats decide. The signature reads \u201cApproved by email: Dana Whitfield, dana@acme.com \u2014 Acme was not on Etyme\u201d.', 'BUILT 2026-10-19 by etyme-architect, the door\u2019s half: `clientOfRecord` reads, for a client nobody has claimed, the addresses the firm that listed it recorded \u2014 its invitation (not one it revoked) and its own address book \u2014 and never an address of that firm\u2019s own people or the worker\u2019s (`offPlatformRecord`); both doors store `WeekApproval.clientOffPlatform` where the yes rested on that record, and every screen reads the sentence from the row, so an approval given before the client claimed its record still says it was not on Etyme', 'One assertion per party, per date range', 'Partial approval is ordinary',
             'A week coming due is put in front of both signatures \u2014 the client that received the work and the employer that pays for it \u2014 and never in front of the person whose hours they are',
             'A week over the contract\u2019s weekly hours asks what happens to them \u2014 paid at the usual rate, paid at a premium, or the time given back \u2014 from every desk that signs a week, priced from the route\u2019s own numbers, and the reason given for a flagged week rides with the signature. Until 2026-09-21 the program dashboard and the decisions queue never asked, so a 45-hour week could not be signed from either and the screen said nothing',
             'A week this side has already signed reads as signed, names who it is waiting on, offers no second tick and leaves this side\u2019s count',
@@ -1637,7 +1650,8 @@ export const MATRIX: L1[] = [
             '__integration__/approver-is-at-the-client.test.ts',
             '__tests__/invariants/timesheet-list-approval.test.ts', '__integration__/timesheet-list-approval-words.test.ts',
             '__tests__/invariants/my-work-approved-by-email.test.ts', '__integration__/my-work-approved-by-email.test.ts',
-            '__integration__/seeded-evidence-names-the-paid-supplier.test.ts'] },
+            '__integration__/seeded-evidence-names-the-paid-supplier.test.ts',
+            '__integration__/off-platform-client-approves-by-email.test.ts'] },
         { code: 'L3.3.2.2', name: 'Employer acceptance', owner: 'Delivery manager', status: B,
           tasks: ['Accepts the basis for pay', 'A different number needs a reason',
             'DECIDED 2026-09-28 by the founder: the signed week travels down the chain — the client signs first, then each firm down the chain accepts what it pays, the employer last; no rung accepts before the rung above it has, and every rung accepts the one week, never a copy',

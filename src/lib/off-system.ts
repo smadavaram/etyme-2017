@@ -37,6 +37,7 @@
  */
 
 import type { SupplierStanding } from '@/lib/counterparty'
+import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 
 export interface CompanyStanding {
   id: string
@@ -278,9 +279,23 @@ export function mayNameCounterparty(input: {
   }
 
   if (isShell(other)) {
+    // Your own record, or one nobody owns. A shell another firm listed is
+    // that firm's record of its counterparty, not yours: naming it would
+    // write your contract onto somebody else's register — and, for a
+    // client, make your recorded contacts nothing and theirs your
+    // approvers — so it needs something between the two of you first,
+    // the same as a firm that is here.
+    if (other.listedById == null || other.listedById === me || input.relationshipExists) {
+      return {
+        ok: true,
+        says: `${other.name} is not on Etyme. This is your own record of them until they join.`,
+      }
+    }
     return {
-      ok: true,
-      says: `${other.name} is not on Etyme. This is your own record of them until they join.`,
+      ok: false,
+      says:
+        `${other.name} is on another firm's register, not yours, and has nothing on file with you. ` +
+        `Put them on your own register as your ${input.as} — that makes your own record of them.`,
     }
   }
 
@@ -294,5 +309,84 @@ export function mayNameCounterparty(input: {
       `${other.name} is on Etyme and has nothing on file with you. A firm cannot name ` +
       `another as its ${input.as} without them — ask them to add you, or invite them to ` +
       `the deal, and it is theirs to accept.`,
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// THE PERSON AT A CLIENT THAT IS NOT HERE
+// ═════════════════════════════════════════════════════════════════════
+
+export type ContactVerdict =
+  | { ok: true; email: string; contactName: string | null; remove: boolean; says: string }
+  | { ok: false; status: number; code: string; field?: string; says: string }
+
+/**
+ * May this firm record (or take off) the person at a client it listed?
+ *
+ * While a client is not on Etyme, the address its supplier records is
+ * what an approval of a week by email is checked against — that address,
+ * or another at its company domain (`approverIsKnownAtClient`, demand's).
+ * So the supplier is trusted to name the client's person, and the rules
+ * here keep that trust to what it is:
+ *
+ *   - only the firm that listed the client, and only while nobody has
+ *     claimed it — once claimed, the client's own domain and seats decide
+ *     who approves for it, and its record is not the supplier's to edit;
+ *   - never somebody at the supplier itself: a firm recording its own
+ *     staffer as the client's approver is the hole a worker naming herself
+ *     was, one rung up;
+ *   - always a named person when an address is added, because an
+ *     approval nobody can be traced to is not an approval.
+ */
+export function recordClientContact(input: {
+  callerCompanyId: string
+  client: CompanyStanding | null
+  email: unknown
+  contactName?: unknown
+  remove?: boolean
+  /** The addresses of everybody seated at the caller's own firm. */
+  ownSeatEmails: readonly (string | null | undefined)[]
+}): ContactVerdict {
+  const c = input.client
+  if (!c || c.listedById !== input.callerCompanyId) {
+    return { ok: false, status: 404, code: 'NOT_FOUND', says: 'That client is not one you listed. Put them on your register first.' }
+  }
+  if (!isShell(c)) {
+    return {
+      ok: false, status: 409, code: 'ON_ETYME',
+      says: `${c.name} is on Etyme now, so its own people decide who approves for it. Ask them to seat the person you mean.`,
+    }
+  }
+  const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
+  if (!email) {
+    return { ok: false, status: 422, code: 'VALIDATION', field: 'email', says: `Give the email address of the person at ${c.name}.` }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, status: 422, code: 'VALIDATION', field: 'email', says: `${email} is not an email address. Give the address the person at ${c.name} reads.` }
+  }
+  const name = typeof input.contactName === 'string' ? input.contactName.trim() : ''
+  if (input.remove) {
+    return {
+      ok: true, email, contactName: null, remove: true,
+      says: `${email} is no longer recorded for ${c.name}, so it cannot be named as its approver. Approvals already given stand.`,
+    }
+  }
+  const own = new Set(input.ownSeatEmails.filter((e): e is string => typeof e === 'string').map((e) => e.trim().toLowerCase()))
+  if (own.has(email)) {
+    return {
+      ok: false, status: 422, code: 'VALIDATION', field: 'email',
+      says: `${email} is somebody at your own firm. Record the person at ${c.name} who approves the hours.`,
+    }
+  }
+  if (!name) {
+    return { ok: false, status: 422, code: 'VALIDATION', field: 'contactName', says: `Name the person at ${c.name} whose address this is.` }
+  }
+  const domain = domainOfEmail(email)
+  const colleagues = domain && !isConsumerDomain(domain) ? `, or a colleague at @${domain},` : ''
+  return {
+    ok: true, email, contactName: name, remove: false,
+    says:
+      `${name} (${email}) is recorded at ${c.name}. While ${c.name} is not on Etyme, ${name}${colleagues} ` +
+      `can approve a week by email, and the approval says ${c.name} was not on Etyme.`,
   }
 }

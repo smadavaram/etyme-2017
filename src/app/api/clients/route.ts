@@ -5,11 +5,12 @@ import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { defaultPostureFor } from '@/lib/walls'
-import { mayList, shellNotice, type CompanyStanding } from '@/lib/off-system'
+import { mayList, shellNotice, recordClientContact, type CompanyStanding } from '@/lib/off-system'
 
 /**
- * GET  /api/clients — who this firm sells to, and which of them are here
- * POST /api/clients — list one that is not
+ * GET   /api/clients — who this firm sells to, and which of them are here
+ * POST  /api/clients — list one that is not
+ * PATCH /api/clients — record the person at a listed client, or take one off
  *
  * ── The door that was missing ────────────────────────────────────────
  *
@@ -228,12 +229,41 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // An invitation, where an address was given. It is the claim path — the
-  // day somebody at that firm signs in with it, every row already points
-  // at this company id and becomes theirs.
-  let invite: { token: string; email: string } | null = null
+  // The person at the client, where one was given, in the firm's own
+  // address book — the way the supplier path fills it. While the client is
+  // not on Etyme this is also who may approve a week by email for it
+  // (`clientOfRecord` in lib/week-approval): the supplier is trusted to
+  // name the client's person. Written every time an address is given,
+  // invited or not.
   const email = body.email ? String(body.email).trim().toLowerCase() : null
-  if (email && !verdict.reuse) {
+  const contactName = body.contactName ? String(body.contactName).trim() : null
+  let contact: { email: string } | null = null
+  let contactRefused: string | null = null
+  if (email) {
+    const contactVerdict = recordClientContact({
+      callerCompanyId: companyId,
+      client,
+      email,
+      contactName: contactName ?? email.split('@')[0],
+      ownSeatEmails: (await prisma.context.findMany({
+        where: { companyId, revokedAt: null },
+        select: { person: { select: { primaryEmail: true } } },
+      })).map((x) => x.person.primaryEmail),
+    })
+    if (contactVerdict.ok && !contactVerdict.remove) {
+      await keepContact(companyId, client.id, contactVerdict.email, contactVerdict.contactName!, caller.person.id)
+      contact = { email: contactVerdict.email }
+    } else if (!contactVerdict.ok) {
+      contactRefused = contactVerdict.says
+    }
+  }
+
+  // An invitation only where the caller asked for one. It is the client's
+  // door to take its record, and today nothing sends it: the letter to a
+  // client is conversation's to write, so no screen offers the choice and
+  // a claim link is never made for an address nobody chose to invite.
+  let invite: { token: string; email: string } | null = null
+  if (email && body.invite === true && !verdict.reuse) {
     const existing = await prisma.supplierInvite.findFirst({
       where: { byId: companyId, email },
       select: { token: true, email: true },
@@ -245,7 +275,7 @@ export async function POST(request: NextRequest) {
           companyId: client.id,
           byId: companyId,
           email,
-          contactName: body.contactName ? String(body.contactName).trim() : null,
+          contactName,
           domain,
           token: randomBytes(24).toString('hex'),
         },
@@ -259,7 +289,7 @@ export async function POST(request: NextRequest) {
       action: 'CLIENT_LISTED',
       summary: `${caller.person.name} put ${client.name} on the register`,
       reason: verdict.says,
-      payload: { clientCompanyId: client.id, msaId: msa.id, invited: Boolean(invite) },
+      payload: { clientCompanyId: client.id, msaId: msa.id, contact: contact?.email ?? null, invited: Boolean(invite) },
       reversible: true,
     },
   })
@@ -274,17 +304,141 @@ export async function POST(request: NextRequest) {
           yours: true,
         },
         msaId: msa.id,
+        contact,
         invited: invite ? { email: invite.email } : null,
         message:
           `${client.name} is on your register. You can record the contracts you already ` +
           `hold with them, and the purchase orders they handed you, today. ` +
-          (invite
-            ? `${invite.email} has a link to take possession of the record when they want it.`
-            : `Nothing reaches them until you invite somebody there.`),
+          (contact ? `${contact.email} is recorded as your contact there. ` : '') +
+          (contactRefused ? `${contactRefused} ` : '') +
+          `Nothing reaches them until you invite somebody there.`,
       },
     },
     { status: 201 }
   )
+}
+
+/**
+ * Record the person at a client this firm listed, or take one off.
+ *
+ * Body: `{ clientId, email, contactName?, remove? }`.
+ *
+ * POST writes the client's contact only when the client is first listed,
+ * so a supplier that listed a client with no address — or the wrong one —
+ * could never add it, and that client refused every approver for a week's
+ * hours: the supplier could neither send "Approve by email" nor attach
+ * the client's approval (`clientOfRecord` in lib/week-approval).
+ *
+ * **The supplier is trusted to name the client's person.** While the
+ * client is not on Etyme, nobody at it can say who works there, so the
+ * address the supplier records is what an approval by email is checked
+ * against — that exact address, or another at its company domain. So a
+ * colleague of the recorded person may approve too, and every such
+ * approval says the client was not on Etyme. That is the founder's rule
+ * for a client that is not here, stated so it is a choice and not a
+ * surprise. It ends the day the client claims its record: from then its
+ * own domain and seats decide, and this route refuses.
+ *
+ * The address is kept in the firm's own address book (`CompanyContact`),
+ * the row POST writes. Nothing is sent and no claim link is made: an
+ * invitation is a separate choice. Taking one off removes it, and revokes
+ * an invitation to the same address; nothing already approved changes.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'Clients')
+  if (notStaff) return notStaff
+
+  if (!hasPermission(caller.permissions, 'assignments.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({ doing: 'Recording the person at a client — the same role that records a contract —', needs: 'assignments.write', kind: caller.company?.kind, companyName: caller.company?.name }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const companyId = caller.company!.id
+  const body = await request.json().catch(() => ({}))
+  const clientId = typeof body.clientId === 'string' ? body.clientId : ''
+
+  const [client, seats] = await Promise.all([
+    clientId
+      ? prisma.company.findUnique({ where: { id: clientId }, select: { id: true, name: true, claimedAt: true, listedById: true } })
+      : null,
+    prisma.context.findMany({
+      where: { companyId, revokedAt: null },
+      select: { person: { select: { primaryEmail: true } } },
+    }),
+  ])
+
+  const verdict = recordClientContact({
+    callerCompanyId: companyId,
+    client,
+    email: body.email,
+    contactName: body.contactName,
+    remove: body.remove === true,
+    ownSeatEmails: seats.map((x) => x.person.primaryEmail),
+  })
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { error: { code: verdict.code, message: verdict.says, ...(verdict.field ? { field: verdict.field } : {}) } },
+      { status: verdict.status }
+    )
+  }
+  const shell = client!
+
+  if (verdict.remove) {
+    // Off the address book, and off any invitation to the same address,
+    // because both are read as the client's recorded person.
+    const [gone, revoked] = await Promise.all([
+      prisma.companyContact.deleteMany({ where: { companyId, atCompanyId: shell.id, email: verdict.email } }),
+      prisma.supplierInvite.updateMany({
+        where: { byId: companyId, companyId: shell.id, email: verdict.email, state: { not: 'REVOKED' } },
+        data: { state: 'REVOKED' },
+      }),
+    ])
+    if (gone.count + revoked.count === 0) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: `${verdict.email} is not recorded for ${shell.name}.`, field: 'email' } },
+        { status: 404 }
+      )
+    }
+  } else {
+    await keepContact(companyId, shell.id, verdict.email, verdict.contactName!, caller.person.id)
+  }
+
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: verdict.remove ? 'CLIENT_CONTACT_REMOVED' : 'CLIENT_CONTACT_RECORDED',
+      summary: verdict.remove
+        ? `${caller.person.name} took ${verdict.email} off ${shell.name}`
+        : `${caller.person.name} recorded ${verdict.email} at ${shell.name}`,
+      reason: verdict.says,
+      payload: { clientCompanyId: shell.id, email: verdict.email },
+      reversible: true,
+    },
+  })
+
+  return NextResponse.json({ data: { clientId: shell.id, email: verdict.email, removed: verdict.remove, message: verdict.says } })
+}
+
+/**
+ * The person at a client in this firm's address book: added, or renamed
+ * where the address is already there. One row per address per client.
+ */
+async function keepContact(companyId: string, atCompanyId: string, email: string, name: string, byId: string) {
+  await prisma.companyContact.upsert({
+    where: { companyId_atCompanyId_email: { companyId, atCompanyId, email } },
+    update: { name },
+    create: { companyId, atCompanyId, email, name, kind: 'HIRING_MANAGER', createdById: byId },
+  })
 }
 
 /**

@@ -43,7 +43,7 @@ import { topDown, signersOf, tellNext, type LadderRung, type Signer } from '@/ap
 import {
   linkExpiresAt, linkVerdict, checkSendBack, checkEvidence, mayActForTheClient, scopeFor,
   mayReadEvidence, evidenceReadLog, approvedByWords, letterToApprover, signaturesWritten, dayOf,
-  whoAskedSentence, approverIsKnownAtClient, type ClientOfRecord,
+  whoAskedSentence, approverIsKnownAtClient, offPlatformApprovalWords, restsOnSupplierRecord, type ClientOfRecord,
   SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
 } from '@/app/api/timesheets/approval-by-email'
 import { formatDay } from '@/lib/format-date'
@@ -427,30 +427,159 @@ async function trail(row: {
  * every person holding a live seat at it. The worker naming her own
  * address as the client's approver was the gap: the evidence would have
  * read as the client's yes.
+ *
+ * A client that is not on Etyme — a record its supplier listed
+ * (`POST /api/clients`) and nobody has claimed — has none of those, so
+ * every approver was refused and a supplier whose client is not here could
+ * neither send the link nor attach the client's approval: Tapin's first
+ * day. For such a client the addresses its supplier recorded for it stand
+ * in (`offPlatformRecord`), and the row says the client was not on Etyme.
+ * The day it claims the record, `claimedAt` is set and its own domain and
+ * seats decide again, as for every client.
  */
-async function clientOfRecord(clientId: string, clientName: string): Promise<ClientOfRecord> {
+async function clientOfRecord(c: WeekChain): Promise<ClientOfRecord> {
+  const clientId = c.clientId
   const [company, domains, seats] = await Promise.all([
-    prisma.company.findUnique({ where: { id: clientId }, select: { domain: true, domainVerified: true } }),
+    prisma.company.findUnique({
+      where: { id: clientId },
+      select: { domain: true, domainVerified: true, claimedAt: true, listedById: true },
+    }),
     prisma.companyDomain.findMany({ where: { companyId: clientId, verifiedAt: { not: null } }, select: { domain: true } }),
     prisma.context.findMany({
       where: { companyId: clientId, revokedAt: null, suspendedAt: null },
       select: { person: { select: { primaryEmail: true } } },
     }),
   ])
-  return {
-    name: clientName,
+  const own: ClientOfRecord = {
+    name: c.clientName,
     domain: company?.domainVerified ? company.domain : null,
     aliases: domains.map((d) => d.domain),
     seatedEmails: seats.map((x) => x.person.primaryEmail),
   }
+  if (!company || company.claimedAt != null) return { ...own, offPlatform: false }
+
+  const lister = company.listedById
+  const [invites, contacts, lister_] = lister
+    ? await Promise.all([
+        prisma.supplierInvite.findMany({ where: { companyId: clientId, byId: lister }, select: { byId: true, email: true, state: true } }),
+        prisma.companyContact.findMany({ where: { companyId: lister, atCompanyId: clientId }, select: { companyId: true, email: true } }),
+        prisma.company.findUnique({
+          where: { id: lister },
+          select: {
+            domain: true, domainVerified: true,
+            claimedDomains: { where: { verifiedAt: { not: null } }, select: { domain: true } },
+            contexts: { where: { revokedAt: null }, select: { person: { select: { primaryEmail: true } } } },
+          },
+        }),
+      ])
+    : [[], [], null]
+  const rec = offPlatformRecord({
+    claimedAt: company.claimedAt,
+    listedById: lister,
+    invites,
+    contacts,
+    listerSeatedEmails: lister_?.contexts.map((x) => x.person.primaryEmail) ?? [],
+    listerDomains: [
+      ...(lister_?.domainVerified && lister_.domain ? [lister_.domain] : []),
+      ...(lister_?.claimedDomains.map((d) => d.domain) ?? []),
+    ],
+    workerEmail: c.week.personEmail,
+  })
+  return { ...own, ...rec }
 }
 
-/** Null where the approver is at the client; the refusal where not, logged like any other. */
-async function approverRefusal(r: Reader, c: WeekChain, approverEmail: string, action: 'APPROVAL_LINK_SEND' | 'APPROVAL_EVIDENCE_ATTACH'): Promise<Refused | null> {
-  const v = approverIsKnownAtClient({ approverEmail, client: await clientOfRecord(c.clientId, c.clientName) })
-  if (v.ok) return null
+/**
+ * Whether the client is off the platform, and which addresses its
+ * supplier recorded for it. Pure, so the choice is tested on its own.
+ *
+ * Read only from the firm that listed the client, because it is that
+ * firm's record: the address on its invitation to the client (not one it
+ * revoked) and the contacts in its own address book at the client. Never
+ * an address of the listing firm itself — a seat there or an address at a
+ * domain it proved — and never the worker's: a supplier recording its own
+ * staffer as the client's approver is the same hole as the worker naming
+ * herself, one rung up.
+ */
+export function offPlatformRecord(i: {
+  claimedAt: Date | null
+  listedById: string | null
+  invites: readonly { byId: string; email: string; state: string }[]
+  contacts: readonly { companyId: string; email: string | null }[]
+  listerSeatedEmails: readonly (string | null | undefined)[]
+  listerDomains: readonly (string | null | undefined)[]
+  workerEmail: string | null
+}): { offPlatform: boolean; recordedContacts: string[] } {
+  if (i.claimedAt != null) return { offPlatform: false, recordedContacts: [] }
+  const lower = (e: string | null | undefined) => (typeof e === 'string' ? e.trim().toLowerCase() : '')
+  const listerSeats = new Set(i.listerSeatedEmails.map(lower).filter(Boolean))
+  const listerDomains = i.listerDomains.map((d) => lower(d).replace(/^@/, '')).filter(Boolean)
+  const worker = lower(i.workerEmail)
+  const theirOwn = (e: string) => {
+    const at = e.split('@')[1] ?? ''
+    return listerSeats.has(e) || e === worker || listerDomains.some((d) => at === d || at.endsWith('.' + d))
+  }
+  const recorded = i.listedById
+    ? [
+        ...i.invites.filter((x) => x.byId === i.listedById && x.state !== 'REVOKED').map((x) => lower(x.email)),
+        ...i.contacts.filter((x) => x.companyId === i.listedById).map((x) => lower(x.email)),
+      ]
+    : []
+  return {
+    offPlatform: true,
+    recordedContacts: [...new Set(recorded.filter((e) => e.includes('@') && !theirOwn(e)))],
+  }
+}
+
+/**
+ * Whether the approver is somebody at the client: where so, whether the
+ * client was off the platform when it was asked; where not, the refusal,
+ * logged like any other.
+ */
+async function approverAtClient(
+  r: Reader,
+  c: WeekChain,
+  approverEmail: string,
+  action: 'APPROVAL_LINK_SEND' | 'APPROVAL_EVIDENCE_ATTACH'
+): Promise<{ ok: true; offPlatform: boolean } | Refused> {
+  const client = await clientOfRecord(c)
+  const v = approverIsKnownAtClient({ approverEmail, client })
+  // The flag is whether the yes rests on the supplier's record of the
+  // client rather than the client's own: demand's reasons say which.
+  if (v.ok) return { ok: true, offPlatform: restsOnSupplierRecord(v.how) }
   await logRefusal(r, c, action, v.says)
   return refuse(422, v.code, v.says, 'approverEmail')
+}
+
+/**
+ * The sentence an approval by email reads as, on every screen.
+ *
+ * Where the client was not on Etyme when it approved, demand's sentence
+ * says so, with the address it came from — "Approved by email: Dana
+ * Whitfield, dana@acme.com — Acme was not on Etyme" — because the
+ * approver stood on the supplier's record of the client, not the
+ * client's own. Read from the row, so it still reads that way after the
+ * client claims its record. Otherwise the usual words.
+ */
+export function approvalWords(i: {
+  approverName: string
+  approverEmail: string
+  clientName: string
+  clientOffPlatform: boolean | null
+  on: Date
+  how: 'LINK' | 'EVIDENCE'
+  now: Date
+}): string {
+  if (i.clientOffPlatform) {
+    return offPlatformApprovalWords({ approverName: i.approverName, approverEmail: i.approverEmail, clientName: i.clientName })
+  }
+  return approvedByWords({ approverName: i.approverName, on: i.on, how: i.how, now: i.now })
+}
+
+/** The clause an automation log adds where the client was not on Etyme. */
+function offPlatformBecause(c: WeekChain, offPlatform: boolean, approverEmail: string): string {
+  return offPlatform
+    ? ` ${c.clientName} is not on Etyme, so ${approverEmail} was accepted as an address its supplier recorded for it.`
+    : ''
 }
 
 // ── Send a link ───────────────────────────────────────────────────────
@@ -483,8 +612,8 @@ export async function sendApprovalLink(
 
   const approver = checkApprover(input.approverName, input.approverEmail, c.clientName)
   if (!approver.ok) return refuse(422, 'VALIDATION', approver.says, approver.field)
-  const notAtClient = await approverRefusal(r, c, approver.email, 'APPROVAL_LINK_SEND')
-  if (notAtClient) return notAtClient
+  const atClient = await approverAtClient(r, c, approver.email, 'APPROVAL_LINK_SEND')
+  if (!atClient.ok) return atClient
   const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
   if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
 
@@ -503,7 +632,7 @@ export async function sendApprovalLink(
       timesheetId, how: 'LINK', clientCompanyId: c.clientId,
       approverName: approver.name, approverEmail: approver.email,
       sentById: r.personId, sentByCompanyId: r.companyId, sentAs: who.as, sentAt: now,
-      tokenHash: hashLinkToken(token), expiresAt,
+      tokenHash: hashLinkToken(token), expiresAt, clientOffPlatform: atClient.offPlatform,
       contracts: { create: scope.contracts.map((id, position) => ({ sellContractId: id, position })) },
     },
     select: { id: true },
@@ -539,8 +668,10 @@ export async function sendApprovalLink(
       companyId: r.companyId ?? c.employerId,
       action: 'WEEK_APPROVAL_LINK_SENT',
       summary: `Approval link for ${c.week.personName}’s week sent to ${approver.name} at ${c.clientName}`,
-      reason: `${r.personName} asked for it. Delivery: ${delivery.state.toLowerCase()} — ${delivery.note}`,
-      payload: { weekApprovalId: row.id, timesheetId, to: approver.email, delivery: delivery.state, contracts: scope.contracts, expiresAt: expiresAt.toISOString() },
+      reason:
+        `${r.personName} asked for it.${offPlatformBecause(c, atClient.offPlatform, approver.email)} ` +
+        `Delivery: ${delivery.state.toLowerCase()} — ${delivery.note}`,
+      payload: { weekApprovalId: row.id, timesheetId, to: approver.email, delivery: delivery.state, contracts: scope.contracts, expiresAt: expiresAt.toISOString(), clientOffPlatform: atClient.offPlatform },
       // An email cannot be called back. The link can be overtaken, and runs out on its own.
       reversible: false,
     },
@@ -601,8 +732,8 @@ export async function attachEvidence(
     c.clientName
   )
   if (!ev.ok) return refuse(422, 'VALIDATION', ev.says, ev.field)
-  const notAtClient = await approverRefusal(r, c, ev.approverEmail, 'APPROVAL_EVIDENCE_ATTACH')
-  if (notAtClient) return notAtClient
+  const atClient = await approverAtClient(r, c, ev.approverEmail, 'APPROVAL_EVIDENCE_ATTACH')
+  if (!atClient.ok) return atClient
   const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
   if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
 
@@ -621,15 +752,21 @@ export async function attachEvidence(
       timesheetId, how: 'EVIDENCE', clientCompanyId: c.clientId,
       approverName: ev.approverName, approverEmail: ev.approverEmail,
       sentById: r.personId, sentByCompanyId: r.companyId, sentAs: who.as, sentAt: now,
-      evidenceKind: ev.kind, approvedOn: signedAt,
+      evidenceKind: ev.kind, approvedOn: signedAt, clientOffPlatform: atClient.offPlatform,
       contracts: { create: scope.contracts.map((id, position) => ({ sellContractId: id, position })) },
       file: { create: file },
     },
     select: { id: true },
   })
 
-  const words = approvedByWords({ approverName: ev.approverName, on: signedAt, how: 'EVIDENCE', now })
-  const signed = await signForClient(c, row.id, signedAt, words, { by: `${r.personName} attached ${EVIDENCE_KINDS[ev.kind as EvidenceKind].toLowerCase()} (${ev.says.replace(/\.$/, '')})` })
+  const words = approvalWords({
+    approverName: ev.approverName, approverEmail: ev.approverEmail, clientName: c.clientName,
+    clientOffPlatform: atClient.offPlatform, on: signedAt, how: 'EVIDENCE', now,
+  })
+  const signed = await signForClient(c, row.id, signedAt, words, {
+    by: `${r.personName} attached ${EVIDENCE_KINDS[ev.kind as EvidenceKind].toLowerCase()} (${ev.says.replace(/\.$/, '')})` +
+      `${offPlatformBecause(c, atClient.offPlatform, ev.approverEmail).replace(/\.$/, '')}`,
+  })
   if (!signed.ok) {
     // Nothing was signed, so the evidence stands for nothing: take it back.
     await prisma.weekApproval.delete({ where: { id: row.id } }).catch(() => {})
@@ -801,8 +938,8 @@ async function rowByToken(token: string) {
   return prisma.weekApproval.findUnique({
     where: { tokenHash: hashLinkToken(token) },
     select: {
-      id: true, how: true, timesheetId: true, approverName: true, sentAt: true, expiresAt: true, usedAt: true,
-      outcome: true, sentById: true, sentByCompanyId: true,
+      id: true, how: true, timesheetId: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true,
+      outcome: true, sentById: true, sentByCompanyId: true, clientOffPlatform: true,
       sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
     },
   })
@@ -884,7 +1021,10 @@ export async function answerLink(
 
   if (answer.answer === 'APPROVE') {
     if (opened.view.approveRefused) return refuse(409, 'SIGN_IN_ETYME', opened.view.approveRefused)
-    const words = approvedByWords({ approverName: row.approverName, on: now, how: 'LINK', now })
+    const words = approvalWords({
+      approverName: row.approverName, approverEmail: row.approverEmail, clientName: c.clientName,
+      clientOffPlatform: row.clientOffPlatform, on: now, how: 'LINK', now,
+    })
     const signed = await signForClient(c, row.id, now, words, { by: `${row.approverName} pressed Approve on the link ${row.sentBy.name} sent`, outcome: 'APPROVED' })
     if (!signed.ok) return signed
     await tellAfterApproval(c, { words, senderId: row.sentById, how: 'LINK' })
@@ -1099,6 +1239,7 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
     select: {
       id: true, how: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true, sentById: true, sentByCompanyId: true,
       outcome: true, sendBackCode: true, sendBackNote: true, evidenceKind: true, approvedOn: true, assertionId: true,
+      clientOffPlatform: true,
       sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
       contracts: { select: { sellContractId: true }, orderBy: { position: 'asc' } },
       file: { select: { fileName: true, sizeBytes: true } },
@@ -1124,7 +1265,10 @@ export async function readWeekApprovals(r: Reader, timesheetId: string, now = ne
       how: a.how as 'LINK' | 'EVIDENCE',
       state,
       words: state === 'APPROVED' && approvedAt
-        ? approvedByWords({ approverName: a.approverName, on: approvedAt, how: a.how as 'LINK' | 'EVIDENCE', now })
+        ? approvalWords({
+            approverName: a.approverName, approverEmail: a.approverEmail, clientName: c.clientName,
+            clientOffPlatform: a.clientOffPlatform, on: approvedAt, how: a.how as 'LINK' | 'EVIDENCE', now,
+          })
         : null,
       approverName: a.approverName,
       approverEmail: a.approverEmail,
@@ -1262,13 +1406,21 @@ export async function approvalWordsFor(
   if (weeks.length === 0) return out
   const rows = await prisma.weekApproval.findMany({
     where: { timesheetId: { in: weeks.map((w) => w.id) }, assertionId: { not: null } },
-    select: { timesheetId: true, how: true, approverName: true, usedAt: true, approvedOn: true, contracts: { select: { sellContractId: true } } },
+    select: {
+      timesheetId: true, how: true, approverName: true, approverEmail: true, usedAt: true, approvedOn: true, clientOffPlatform: true,
+      clientCompany: { select: { name: true } }, contracts: { select: { sellContractId: true } },
+    },
   })
   for (const a of rows) {
     const w = weeks.find((x) => x.id === a.timesheetId)!
     const v = mayReadEvidence(r, { personId: w.personId }, a.contracts.map((x) => x.sellContractId), w.ladder)
     const on = a.how === 'EVIDENCE' ? a.approvedOn : a.usedAt
-    if (v.ok && on) out.set(a.timesheetId, approvedByWords({ approverName: a.approverName, on, how: a.how as 'LINK' | 'EVIDENCE', now }))
+    if (v.ok && on) {
+      out.set(a.timesheetId, approvalWords({
+        approverName: a.approverName, approverEmail: a.approverEmail, clientName: a.clientCompany.name,
+        clientOffPlatform: a.clientOffPlatform, on, how: a.how as 'LINK' | 'EVIDENCE', now,
+      }))
+    }
   }
   return out
 }

@@ -1433,6 +1433,14 @@ model WeekApproval {
   /// The day the approver said yes, as the evidence shows it.
   approvedOn   DateTime?
 
+  /// Whether the client was not on Etyme when this was sent or attached:
+  /// a record its supplier listed and nobody had claimed, so the approver
+  /// was accepted on an address the supplier recorded for it rather than
+  /// on the client's own domain or seats. Kept on the row so the signature
+  /// still says "<client> was not on Etyme" after the client claims its
+  /// record. Null on rows written before 2026-10-19, read as false.
+  clientOffPlatform Boolean?
+
   /// The client's signature this wrote. Null until the week is approved.
   assertionId String?        @unique
   assertion   WorkAssertion? @relation(fields: [assertionId], references: [id], onDelete: SetNull)

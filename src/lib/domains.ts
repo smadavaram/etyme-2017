@@ -363,6 +363,9 @@ export const DOMAINS: Domain[] = [
       // the ledger, the performers and the routes. The rules under
       // lib/twin/rules are the domains whose arithmetic they are.
       'lib/twin', 'app/api/twin',
+      // The one-off that marks every signed-up firm as on Etyme
+      // (2026-10-19); its rule is claimSignedUpFirms in lib/company-create.
+      'scripts/backfill-claimed-at.ts',
       // The model boundary (2026-10-13): the per-company switch and the
       // log of what left. The masking at the edge is conversation's.
       'lib/model-boundary',

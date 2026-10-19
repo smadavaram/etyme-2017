@@ -112,7 +112,15 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
     entityType: '',
     domain: '',
     slug: '',
+    // A client is written down through the clients door, with the person
+    // there: while the client is not on Etyme, that person is who may
+    // approve a week by email for it.
+    contactName: '',
+    email: '',
   })
+  // A client a supplier writes down is a client, whatever the Kind box
+  // said, and it is not given an Etyme address until somebody there joins.
+  const isClient = form.relationship === 'CLIENT'
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -127,15 +135,26 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
     setError(null)
 
     try {
-      const res = await fetch('/api/companies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          kind: form.kind,
-          relationship: form.relationship,
-        }),
-      })
+      const res = isClient
+        ? await fetch('/api/clients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: form.name,
+              contactName: form.contactName.trim() || undefined,
+              email: form.email.trim() || undefined,
+              domain: form.domain.trim() || undefined,
+            }),
+          })
+        : await fetch('/api/companies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: form.name,
+              kind: form.kind,
+              relationship: form.relationship,
+            }),
+          })
 
       if (!res.ok) {
         // Parsed inside the failure branch, so an empty body threw
@@ -147,6 +166,11 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
       }
 
       const body = await res.json()
+      if (isClient) {
+        onCreated(body.data?.message ?? `${form.name} is on your register.`)
+        onClose()
+        return
+      }
       const companyName = body.data?.company?.name ?? form.name
       // The route says what just happened — on your register, or a firm
       // of your own with you as its owner. Two different acts, and the
@@ -193,6 +217,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!isClient && (
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
               <select
@@ -208,6 +233,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="CONSULTANT_CORP">My own consulting corporation — one person</option>
               </select>
             </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
               <select
@@ -222,6 +248,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="MSP">An MSP — they run the program we work in</option>
               </select>
             </div>
+            {!isClient && (
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
               <input
@@ -233,7 +260,39 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 placeholder="LLC, Corp, GmbH…"
               />
             </div>
+            )}
           </div>
+
+          {isClient && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-etyme-muted mb-1">Their contact</label>
+                <input
+                  type="text"
+                  value={form.contactName}
+                  onChange={(e) => setForm({ ...form, contactName: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  placeholder="Dana Whitfield"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-etyme-muted mb-1">Their email</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  placeholder="dana@client.example"
+                />
+              </div>
+              <p className="sm:col-span-2 text-xs text-etyme-muted">
+                This is your own record of them until they join. The person you name here can approve
+                your timesheets by email.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -247,6 +306,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 placeholder="techpeple.example"
               />
             </div>
+            {!isClient && (
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Etyme address</label>
               <div className="flex items-center">
@@ -264,6 +324,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <p className="text-[10px] text-etyme-faint mt-1">{form.slug}.etyme.com</p>
               )}
             </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
