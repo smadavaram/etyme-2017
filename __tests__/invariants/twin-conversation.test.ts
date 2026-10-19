@@ -44,10 +44,12 @@ import { recordModelPrompt, WITHHELD } from '@/lib/model-boundary'
 import { feedWhere } from '@/lib/twin/ledger'
 import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
+import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK, offRecord, knownFirm, firmsByForm } from '@/app/api/conversations/twin/transaction'
 import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   billCardTitle, billRows, billFromPayload, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
+  NOT_GROUNDED, NOT_YET, REPLACED_NOTE, grounded, cardIdsOf,
   type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
@@ -171,7 +173,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(held[0]).toMatchObject({ held: 1, hoursOverAccepted: null, hoursNotAccepted: 44 })
   })
 
-  it('approve and reject in Ask Etyme call the one approval route and never write state themselves', async () => {
+  it('approve and reject in Ask Etyme call the one approval route and never write state themselves; the route keeps only the seat’s own conversation, through its one door', async () => {
     const read = readers()
 
     const yes = await respond('approve 1', read, { env: NO_KEY })
@@ -209,14 +211,24 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     }
     const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
     expect(chat).toContain('decisionRequest(item.approvalId, decision, reason)')
-    // The chat reaches two places only: its own question route (the
-    // greeting and each question), and the one approval route.
+    // The chat reaches two places only: its own route (the greeting and the
+    // saved lines, Show earlier, Clear, a card's mark, each question), and
+    // the one approval route.
+    expect(chat).toContain("const THREAD = '/api/conversations/twin'")
     const calls = [...chat.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
-    expect(calls).toEqual(["'/api/conversations/twin'", "'/api/conversations/twin'", 'url'])
-    // After a yes the reply links to the record and to the ledger entry.
+    expect(calls).toEqual(['THREAD', '`${THREAD}?only=thread&take=1000`', 'THREAD', 'THREAD', 'THREAD', 'url'])
+    // After a yes the reply links to the record and to the ledger entry,
+    // and only then is the yes recorded on the line that drew the card.
     expect(chat).toContain("{ label: 'See it in the ledger', href: entryHref(entry) }")
-    // "Not now" changes nothing: it is the chat's own state, never a request.
-    expect(chat).toContain("const later = (item: WaitingItem) => setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))")
+    expect(chat.indexOf('await keepCard({ approvalId: item.approvalId, state: decision, turnId, number, said })')).toBeGreaterThan(chat.indexOf('const res = await fetch(url, init)'))
+    // "Not now" sends nothing to the approval route: the card reads kept waiting, and its own line remembers.
+    expect(chat).toContain("setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))")
+    expect(chat).toContain("if (turnId) void keepCard({ approvalId: item.approvalId, state: 'LATER', turnId })")
+    // The route writes the conversation only through lib/ask-etyme-thread,
+    // and keeps a yes or a no only where the record already bears it out.
+    const route = readFileSync(join(root, 'app/api/conversations/twin/route.ts'), 'utf8')
+    expect(route).toContain("import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'")
+    expect(route).toMatch(/const onRecord = await prisma\.twinApproval\.findUnique\(\{ where: \{ id: approvalId \}, select: \{ decision: true \} \}\)\n\s+if \(onRecord\?\.decision !== state\)/)
   })
 
   it('why on an entry answers with the ledger’s own rule and rationale', async () => {
@@ -842,5 +854,104 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
     expect(hello.recommend?.says).toBe('Open bill INV-0042 and answer Northbend Athletic; they put it on hold.')
     expect(hello.says).toBe('Northbend Athletic put one of your bills on hold. Checked just now.')
     expect((hello.more ?? []).map((l) => l.says)).not.toContain(SINCE_HEADING)
+  })
+})
+
+describe('Ask Etyme never goes beyond the transaction', () => {
+  it('an answer from the model that cites no line of the record is not shown; the person reads “I cannot answer that yet” and where to look', async () => {
+    // A fluent paragraph with no line behind it: the model's own knowledge.
+    const read = readers({
+      model: vi.fn(async () => ({ text: 'Most staffing firms bill at a 25 percent markup over pay.', model: SMALL_MODEL, tokensIn: 90, tokensOut: 12 })),
+    })
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect(read.model).toHaveBeenCalledTimes(1)
+    expect(a).toEqual({ kind: 'TEXT', says: NOT_GROUNDED, links: [{ label: 'Open the ledger', href: '/dashboard/twin' }] })
+    expect(NOT_GROUNDED).toBe('I cannot answer that yet. Open the ledger to read what Etyme checked, or try a question below.')
+    expect(voiceBreaks(NOT_GROUNDED)).toEqual([])
+    // The log keeps what the model wrote, marked as not shown.
+    const logged = (read.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(logged.replaced).toBe(true)
+    expect(logged.maskedAnswer).toBe(`${REPLACED_NOTE}Most staffing firms bill at a 25 percent markup over pay.`)
+
+    // A citation that is not one of the lines it was given is no citation.
+    const madeUp = readers({ model: vi.fn(async () => ({ text: 'Pinnacle was late [ckinvented1].', model: SMALL_MODEL, tokensIn: 1, tokensOut: 1 })) })
+    expect(await respond('Which supplier is slowest to send its invoice?', madeUp, { env: KEY })).toMatchObject({ kind: 'TEXT', says: NOT_GROUNDED })
+
+    // The model's own "cannot answer" reads the same to the person, and is not logged as replaced.
+    const honest = readers({ model: vi.fn(async () => ({ text: NOT_YET, model: SMALL_MODEL, tokensIn: 1, tokensOut: 1 })) })
+    expect(await respond('Which supplier is slowest to send its invoice?', honest, { env: KEY })).toMatchObject({ kind: 'TEXT', says: NOT_GROUNDED })
+    expect((honest.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0].replaced).toBeUndefined()
+
+    // The one sentence for any act stands as it is; an answer citing a line it was given is shown.
+    expect(grounded(ASK_THE_DESK, [])).toEqual({ show: true, replaced: false })
+    expect(grounded('Pinnacle billed over [entry-442].', [{ id: 'entry-442' } as never])).toEqual({ show: true, replaced: false })
+  })
+
+  it('a replaced answer is kept in the company’s prompt log under its own purpose, so “what left” shows it was not shown', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    stored.length = 0
+    const caller = { person: { id: 'p-lorena', name: 'Lorena' }, company: { id: 'co-nb', name: 'Northbend Athletic', kind: 'CLIENT' }, permissions: ['governance.read'] } as any
+    await readersFor(caller, 'co-nb').logPrompt({ model: SMALL_MODEL, maskedPrompt: 'Question: q', maskedAnswer: `${REPLACED_NOTE}FIRM_1 is cheap.`, tokensIn: 1, tokensOut: 1, realValues: [], replaced: true })
+    await readersFor(caller, 'co-nb').logPrompt({ model: SMALL_MODEL, maskedPrompt: 'Question: q', maskedAnswer: 'FIRM_1 billed [entry-442].', tokensIn: 1, tokensOut: 1, realValues: [] })
+    expect(stored.map((r) => r.purpose)).toEqual(['ASK_ETYME_REPLACED', 'ASK_ETYME'])
+    expect(stored[0].maskedAnswer.startsWith(REPLACED_NOTE)).toBe(true)
+  })
+
+  it('a general question with no record behind it is refused in one sentence before any model is called', async () => {
+    for (const q of ['What is the capital of France?', 'Write a poem about our timesheets', 'Who is the president of Brazil?', 'Tell me a joke', 'How tall is Mount Everest?']) {
+      const read = readers()
+      const a = await respond(q, read, { env: KEY })
+      expect(a, q).toEqual({ kind: 'TEXT', says: ONLY_THE_RECORD })
+      expect(read.model, q).not.toHaveBeenCalled()
+      expect(read.logPrompt, q).not.toHaveBeenCalled()
+    }
+    expect(ONLY_THE_RECORD).toBe('I answer only about your company’s own record: jobs, candidates, timesheets, bills, invoice receipts, payroll, papers and people.')
+    expect(voiceBreaks(ONLY_THE_RECORD)).toEqual([])
+    // It is refused even where the company has the model off: no model would be allowed to answer it.
+    const off = readers({ modelOn: vi.fn(async () => false) })
+    expect(await respond('What is the capital of France?', off, { env: NO_KEY })).toEqual({ kind: 'TEXT', says: ONLY_THE_RECORD })
+  })
+
+  it('a question about another company’s book, or a benchmark across companies, is refused in one sentence before any model is called', async () => {
+    for (const q of [
+      'What do other companies pay their contractors?',
+      'What is the market rate for a Java developer?',
+      'How do our rates compare with our competitors?',
+      'How much did Halden Systems Inc bill last month?',
+    ]) {
+      const read = readers()
+      expect(await respond(q, read, { env: KEY }), q).toEqual({ kind: 'TEXT', says: NOT_ANOTHER_BOOK })
+      expect(read.model, q).not.toHaveBeenCalled()
+    }
+    expect(NOT_ANOTHER_BOOK).toBe('I answer only about your company’s own jobs, timesheets, bills and people, never another company’s book or rates.')
+    expect(voiceBreaks(NOT_ANOTHER_BOOK)).toEqual([])
+    // A firm this company trades with, named by its legal form, is its own book.
+    expect(firmsByForm('Did Computer Systems Inc bill us twice?')).toEqual(['Did Computer Systems Inc'])
+    expect(knownFirm('Did Computer Systems Inc', { people: [], firms: ['Computer Systems Inc'] })).toBe(true)
+    const own = readers()
+    await respond('Did Computer Systems Inc bill us twice?', own, { env: KEY })
+    expect(own.model).toHaveBeenCalledTimes(1)
+    // "Our other clients" is the reader's own book.
+    expect(await offRecord('Which of our other clients pay late?', { named: async () => ({}), names: async () => ({ people: [], firms: [] }) })).toBeNull()
+  })
+
+  it('a question in the trade’s words, or one that names somebody on the record, reaches the rules and then the model', async () => {
+    const byName = readers()
+    await respond('How is Helena Marsh doing?', byName, { env: KEY })
+    expect(byName.model).toHaveBeenCalledTimes(1)
+    const byWords = readers()
+    await respond('Which supplier is slowest to send its invoice?', byWords, { env: KEY })
+    expect(byWords.model).toHaveBeenCalledTimes(1)
+    // The trade's words decide without reading anybody's name.
+    expect(byWords.vocabulary).toHaveBeenCalledTimes(1) // masking, once, as before
+    const nobody = readers({ named: vi.fn(async () => ({})) })
+    expect(await respond('How is Barnaby doing?', nobody, { env: KEY })).toEqual({ kind: 'TEXT', says: ONLY_THE_RECORD })
+    expect(nobody.model).not.toHaveBeenCalled()
+  })
+
+  it('an answer keeps its cards by their question ids, so a reload draws them answered', () => {
+    expect(cardIdsOf({ kind: 'NEEDS', says: 'One thing.', items: WAITING })).toEqual(['appr-441'])
+    expect(cardIdsOf({ kind: 'CONFIRM', says: 'Approve?', decision: 'APPROVED', reason: null, item: WAITING[0] })).toEqual(['appr-441'])
+    expect(cardIdsOf({ kind: 'TEXT', says: 'No card.' })).toEqual([])
   })
 })

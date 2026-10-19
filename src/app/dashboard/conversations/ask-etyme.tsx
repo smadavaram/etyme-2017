@@ -31,20 +31,54 @@ import {
  * and the reply says what happened with links to the record and the
  * ledger entry. Nothing in this file writes state any other way.
  *
- * The thread lives for this page load only (KNOWN-LIMITS.md, "Ask Etyme"):
- * a stored thread needs a per-person conversation the schema does not
- * have yet.
+ * One conversation per seat, kept (founder, 2026-10-18). On load the
+ * seat's saved lines are drawn first and today's greeting under them, as
+ * the newest message, because the greeting is "what needs you now" and a
+ * thread is read from the bottom. A card answered stays answered: what
+ * the route says became of it is drawn from the saved line. After the
+ * approval route answers a card, the chat asks its own route to record
+ * that on the line, and to keep the reply. Clear starts over from the
+ * greeting. A seat whose conversation is not kept — a demo seat other
+ * visitors share — reads why, once, at the top.
  */
+
+/** What the route says became of each card on a saved line. */
+type SavedCards = Record<string, { state: 'APPROVED' | 'REJECTED' | 'LATER' | 'OVERTAKEN'; number?: string }>
 
 type Turn =
   | { id: number; from: 'you'; text: string }
-  | { id: number; from: 'etyme'; answer: Answer }
+  /** `savedId` is the line on the seat's thread; a greeting, or a seat that keeps none, has none. */
+  | { id: number; from: 'etyme'; answer: Answer; savedId?: string; saved?: SavedCards }
   | { id: number; from: 'note'; text: string }
+  /** A quiet line about the conversation itself: an answer not kept, a Clear done. */
+  | { id: number; from: 'aside'; text: string }
+
+/** A saved line as the route returns it. */
+interface SavedLine {
+  id: string
+  speaker: 'PERSON' | 'ETYME'
+  text: string
+  answer: unknown
+  cards: SavedCards
+  at: string
+}
+
+interface ThreadIn { saved: boolean; notKeptBecause: string | null; earlier: boolean; turns: SavedLine[] }
+
+const THREAD = '/api/conversations/twin'
+
+/** Whether a saved answer is one this screen draws; an older shape reads as its words. */
+function asAnswer(line: SavedLine): Answer {
+  const a = line.answer as { kind?: unknown; says?: unknown } | null
+  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL']
+  if (a && typeof a === 'object' && typeof a.kind === 'string' && kinds.includes(a.kind) && typeof a.says === 'string') return a as Answer
+  return { kind: 'TEXT', says: line.text }
+}
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
-/** What happened to a card: answered (with the words), kept waiting, or refused by the route. */
-type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER'; number?: string } | { state: 'ERROR'; text: string }
+/** What happened to a card: answered (with the words), kept waiting, closed by events, or refused by the route. */
+type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER' | 'OVERTAKEN'; number?: string } | { state: 'ERROR'; text: string }
 type Cards = Record<string, CardState>
 
 type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null) => void
@@ -56,7 +90,12 @@ const SUBTITLE = 'Answers from your record and its rules. Anything it does is re
 
 export function AskEtyme() {
   const session = useSession()
+  // The saved lines from before this page load, oldest first; then this load's turns, greeting first.
+  const [history, setHistory] = useState<Turn[]>([])
   const [turns, setTurns] = useState<Turn[]>([])
+  const [notKept, setNotKept] = useState<string | null>(null)
+  const [earlier, setEarlier] = useState(false)
+  const [oldestAt, setOldestAt] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [pending, setPending] = useState(true)
   const [refused, setRefused] = useState<string | null>(null)
@@ -72,27 +111,102 @@ export function AskEtyme() {
   const seat = seatSays({ role: desk.isConsultant ? 'Consultant' : desk.roleName, company: desk.seatedAtClient ?? session.company?.name ?? null, sample: session.isDemo })
 
   const add = (t: DistributiveOmit<Turn, 'id'>) => setTurns((all) => [...all, { ...t, id: next.current++ } as Turn])
+  const fromSaved = (lines: SavedLine[]): Turn[] =>
+    lines.map((l) => (l.speaker === 'PERSON'
+      ? { id: next.current++, from: 'you', text: l.text }
+      : { id: next.current++, from: 'etyme', answer: asAnswer(l), savedId: l.id, saved: l.cards ?? {} }))
 
-  // The greeting: what needs this seat today, from the ledger and the rules.
+  // The saved lines, then the greeting: what needs this seat now, from the ledger and the rules.
+  const live = useRef(true)
+  async function load(aside?: string) {
+    setPending(true)
+    try {
+      const res = await fetch(THREAD)
+      const body = await res.json().catch(() => null)
+      if (!live.current) return
+      if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
+      const thread: ThreadIn | null = body?.data?.thread ?? null
+      if (thread) {
+        setHistory(fromSaved(thread.turns))
+        setNotKept(thread.saved ? null : thread.notKeptBecause)
+        setEarlier(thread.earlier)
+        setOldestAt(thread.turns[0]?.at ?? null)
+      }
+      const first: Turn[] = aside ? [{ id: next.current++, from: 'aside', text: aside }] : []
+      if (!res.ok || !body?.data?.answer) { setTurns([...first, { id: next.current++, from: 'note', text: body?.error?.message ?? statusMeans(res.status) }]); return }
+      setTurns([...first, { id: next.current++, from: 'etyme', answer: body.data.answer as Answer }])
+    } catch {
+      if (live.current) setTurns([{ id: next.current++, from: 'note', text: 'Etyme could not be reached. Check your connection, then ask a question.' }])
+    } finally {
+      if (live.current) setPending(false)
+    }
+  }
   useEffect(() => {
-    let live = true
-    fetch('/api/conversations/twin')
-      .then(async (res) => {
-        const body = await res.json().catch(() => null)
-        if (!live) return
-        if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
-        if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
-        add({ from: 'etyme', answer: body.data.answer as Answer })
-      })
-      .catch(() => { if (live) add({ from: 'note', text: 'Etyme could not be reached. Check your connection, then ask a question.' }) })
-      .finally(() => { if (live) setPending(false) })
-    return () => { live = false }
+    live.current = true
+    void load()
+    return () => { live.current = false }
   }, [])
 
   // Newest at the bottom, and the thread follows it.
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [turns, pending])
+
+  /** "Show earlier": the lines older than the oldest one drawn, put above it. */
+  async function showEarlier() {
+    if (!oldestAt) return
+    try {
+      const res = await fetch(`${THREAD}?only=thread&take=1000`)
+      const body = await res.json().catch(() => null)
+      const thread: ThreadIn | null = body?.data?.thread ?? null
+      if (!res.ok || !thread) return
+      const older = thread.turns.filter((l) => l.at < oldestAt)
+      setHistory((h) => [...fromSaved(older), ...h])
+      setOldestAt(older[0]?.at ?? oldestAt)
+      setEarlier(thread.earlier)
+    } catch {
+      // Nothing changes; the button stays for another try.
+    }
+  }
+
+  /** Clear: the seat starts over from the greeting. The old lines stay on the record, unshown. */
+  async function clear() {
+    if (pending) return
+    setPending(true)
+    try {
+      const res = await fetch(THREAD, { method: 'DELETE' })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); setPending(false); return }
+      setHistory([])
+      setCards({})
+      setEarlier(false)
+      setOldestAt(null)
+      await load(body?.data?.saved
+        ? 'Conversation cleared. Earlier lines stay on the record and are no longer shown.'
+        : 'Conversation cleared.')
+    } catch {
+      add({ from: 'note', text: 'Your conversation was not cleared, so nothing changed. Check your connection and try again.' })
+      setPending(false)
+    }
+  }
+
+  /**
+   * Record on the seat's own line what the approval route said became of
+   * a card, and keep the reply after a yes or a no. It approves nothing.
+   */
+  async function keepCard(mark: { approvalId: string; state: 'APPROVED' | 'REJECTED' | 'LATER'; turnId?: string; number?: string; said?: Answer }) {
+    try {
+      const res = await fetch(THREAD, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mark),
+      })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) add({ from: 'aside', text: body?.error?.message ?? 'This answer was not kept, so it will not be here after a reload.' })
+    } catch {
+      add({ from: 'aside', text: 'This answer was not kept, so it will not be here after a reload.' })
+    }
+  }
 
   async function ask(question: string) {
     const q = question.trim()
@@ -101,7 +215,7 @@ export function AskEtyme() {
     setText('')
     setPending(true)
     try {
-      const res = await fetch('/api/conversations/twin', {
+      const res = await fetch(THREAD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: q }),
@@ -109,7 +223,11 @@ export function AskEtyme() {
       const body = await res.json().catch(() => null)
       if (res.status === 401 || res.status === 403) { setRefused(body?.error?.message ?? statusMeans(res.status)); return }
       if (!res.ok || !body?.data?.answer) { add({ from: 'note', text: body?.error?.message ?? statusMeans(res.status) }); return }
-      add({ from: 'etyme', answer: body.data.answer as Answer })
+      add({ from: 'etyme', answer: body.data.answer as Answer, ...(typeof body.data.turnId === 'string' ? { savedId: body.data.turnId } : {}) })
+      // Kept everywhere but a seat that keeps nothing, which the top line already says.
+      if (body.data.kept === false && typeof body.data.notKeptBecause === 'string' && body.data.notKeptBecause !== notKept) {
+        add({ from: 'aside', text: body.data.notKeptBecause })
+      }
     } catch {
       add({ from: 'note', text: 'Your question did not reach Etyme. Check your connection and ask again.' })
     } finally {
@@ -117,8 +235,8 @@ export function AskEtyme() {
     }
   }
 
-  /** A yes or a no, through the one approval route. Nothing else here writes. */
-  const decide: Decide = async (item, decision, reason) => {
+  /** A yes or a no, through the one approval route; then the line that drew the card records it. */
+  const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string) => {
     setDeciding(item.approvalId)
     const { url, init } = decisionRequest(item.approvalId, decision, reason)
     try {
@@ -132,19 +250,18 @@ export function AskEtyme() {
       const number: string | undefined = typeof body?.data?.result?.number === 'string' ? body.data.result.number : undefined
       setCards((c) => ({ ...c, [item.approvalId]: { state: decision, ...(number ? { number } : {}) } }))
       const entry: string | null = typeof body?.data?.ledgerEntryId === 'string' ? body.data.ledgerEntryId : null
-      add({
-        from: 'etyme',
-        answer: {
-          kind: 'TEXT',
-          says: item.bill
-            ? `${decision === 'APPROVED' ? billSentSays(item.bill, number) : billKeptSays(item.bill)} Recorded under your name.`
-            : `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
-          links: [
-            { label: `Open ${item.title}`, href: item.href },
-            ...(entry ? [{ label: 'See it in the ledger', href: entryHref(entry) }] : []),
-          ],
-        },
-      })
+      const said: Answer = {
+        kind: 'TEXT',
+        says: item.bill
+          ? `${decision === 'APPROVED' ? billSentSays(item.bill, number) : billKeptSays(item.bill)} Recorded under your name.`
+          : `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
+        links: [
+          { label: `Open ${item.title}`, href: item.href },
+          ...(entry ? [{ label: 'See it in the ledger', href: entryHref(entry) }] : []),
+        ],
+      }
+      add({ from: 'etyme', answer: said })
+      await keepCard({ approvalId: item.approvalId, state: decision, turnId, number, said })
     } catch {
       setCards((c) => ({ ...c, [item.approvalId]: { state: 'ERROR', text: 'Your answer did not reach Etyme, so nothing changed. Try again.' } }))
     } finally {
@@ -152,7 +269,11 @@ export function AskEtyme() {
     }
   }
 
-  const later = (item: WaitingItem) => setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))
+  // "Not now" changes nothing on the record: the card reads kept waiting, and the line that drew it remembers.
+  const later = (item: WaitingItem, turnId?: string) => {
+    setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))
+    if (turnId) void keepCard({ approvalId: item.approvalId, state: 'LATER', turnId })
+  }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -193,8 +314,16 @@ export function AskEtyme() {
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-6 sm:px-6">
+            {notKept && (
+              <p role="note" className="mx-auto mb-5 max-w-[760px] text-center text-[12.5px] leading-snug text-etyme-muted">{notKept}</p>
+            )}
+            {earlier && (
+              <p className="mx-auto mb-5 max-w-[760px] text-center">
+                <button type="button" onClick={() => void showEarlier()} className="text-[12.5px] text-etyme-action-press underline-offset-2 hover:underline">Show earlier</button>
+              </p>
+            )}
             <ol className="mx-auto flex max-w-[760px] flex-col gap-5" aria-live="polite">
-              {turns.map((t) => (
+              {[...history, ...turns].map((t) => (
                 <li key={t.id}>
                   {t.from === 'you' && (
                     <div className="flex justify-end">
@@ -202,9 +331,18 @@ export function AskEtyme() {
                     </div>
                   )}
                   {t.from === 'note' && <FromEtyme><FormMessage tone="error">{t.text}</FormMessage></FromEtyme>}
+                  {t.from === 'aside' && <p className="text-center text-[12.5px] leading-snug text-etyme-muted">{t.text}</p>}
                   {t.from === 'etyme' && (
                     <FromEtyme>
-                      <Reply answer={t.answer} firstName={firstName} seat={seat} cards={cards} deciding={deciding} onDecide={decide} onLater={later} />
+                      <Reply
+                        answer={t.answer}
+                        firstName={firstName}
+                        seat={seat}
+                        cards={{ ...(t.saved ?? {}), ...cards }}
+                        deciding={deciding}
+                        onDecide={(item, d, r) => void decide(item, d, r, t.savedId)}
+                        onLater={(item) => later(item, t.savedId)}
+                      />
                     </FromEtyme>
                   )}
                 </li>
@@ -256,7 +394,20 @@ export function AskEtyme() {
                   </svg>
                 </button>
               </form>
-              <p className="mt-2 text-center text-[12px] leading-snug text-etyme-faint">{FOOTER_LINE}</p>
+              <div className="mt-2 flex items-start gap-3">
+                <p className="min-w-0 flex-1 text-left text-[12px] leading-snug text-etyme-faint sm:text-center">{FOOTER_LINE}</p>
+                {/* Clear sits with the box on every width: the phone header carries the logo and the flip only. */}
+                {(history.length > 0 || turns.length > 1) && (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void clear()}
+                    className="shrink-0 text-[12px] leading-snug text-etyme-action-press underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    Clear conversation
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </>
@@ -463,9 +614,10 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
       {done ? (
         <p className="mt-2">
           <span className={`chip ${card.state === 'APPROVED' ? 'chip--verified' : 'chip--passive'}`}>
-            {card.state === 'APPROVED' ? 'Approved' : card.state === 'REJECTED' ? 'Rejected' : 'Kept waiting'}
+            {card.state === 'APPROVED' ? 'Approved' : card.state === 'REJECTED' ? 'Rejected' : card.state === 'OVERTAKEN' ? 'Closed' : 'Kept waiting'}
           </span>
           {card.state === 'LATER' && <span className="ml-2 text-[12.5px] text-etyme-muted">Nothing changed. Ask “What needs me today?” to see it again.</span>}
+          {card.state === 'OVERTAKEN' && <span className="ml-2 text-[12.5px] text-etyme-muted">The record moved on before anybody answered, so there is nothing to approve.</span>}
         </p>
       ) : rejecting ? (
         <form
@@ -530,10 +682,10 @@ function BillCard({ item, card, busy, onDecide }: { item: WaitingItem; card?: Ca
       {done ? (
         <p className="mt-2.5">
           <span className={`chip ${card.state === 'APPROVED' ? 'chip--verified' : 'chip--passive'}`}>
-            {card.state === 'APPROVED' ? 'Sent' : 'Not sent'}
+            {card.state === 'APPROVED' ? 'Sent' : card.state === 'OVERTAKEN' ? 'Closed' : 'Not sent'}
           </span>
           <span className="ml-2 text-[12.5px] text-etyme-muted">
-            {card.state === 'APPROVED' ? billSentSays(b, card.number) : billKeptSays(b)}
+            {card.state === 'APPROVED' ? billSentSays(b, card.number) : card.state === 'OVERTAKEN' ? 'The bill changed before anybody answered, so it was not sent from here.' : billKeptSays(b)}
           </span>
           <span className="ml-2 text-[12.5px]"><Link href={item.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">Open bill</Link></span>
         </p>

@@ -568,8 +568,10 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       // Every name this reader may read and that a ledger line or a
       // question could carry: the people on its company's placements (both
       // sides, inside its account walls), its own colleagues, the firms it
-      // trades with and its own name. Read only when something is about
-      // to leave, and never sent anywhere itself.
+      // trades with and its own name. Read when something is about to
+      // leave, or when the rules must tell whether a question with no word
+      // of the trade names somebody on the record (./transaction); never
+      // sent anywhere itself.
       const company = caller.company
       if (!company) return { people: [], firms: [] }
       const wall = await accountFilterFor(caller)
@@ -674,7 +676,9 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         maskedAnswer: entry.maskedAnswer,
         tokensIn: entry.tokensIn,
         tokensOut: entry.tokensOut,
-        purpose: 'ASK_ETYME',
+        // A replaced answer is kept, marked, so the company's log shows what
+        // the model wrote and that the person was not shown it.
+        purpose: entry.replaced ? 'ASK_ETYME_REPLACED' : 'ASK_ETYME',
         realValues: entry.realValues,
       })
     },

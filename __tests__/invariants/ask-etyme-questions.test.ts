@@ -15,6 +15,12 @@
  * words. The company's model switch is off throughout, as it is by
  * default, so a question the rules cannot answer says so.
  *
+ * Since 2026-10-19 four more hold the transaction (founder, 2026-10-18,
+ * "ensure no conversation goes beyond environment and transaction"): a
+ * general question and another company's book are refused by rule in one
+ * sentence, before the switch is even read, because no model would be
+ * allowed to answer them.
+ *
  * The one new test file the founder approved with the plan.
  */
 
@@ -25,6 +31,7 @@ import {
   type LimitEntry, type WeekRow, type ToldReceipt, type RosterEntry,
 } from '@/app/api/conversations/twin/ask'
 import { OWNER_DESKS } from '@/lib/twin/readers'
+import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
 const NO_KEY = {}
@@ -253,6 +260,14 @@ describe('Lorena, program manager at Northbend Athletic', () => {
       'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
+  it('the program manager asks “What is the capital of France?” and is refused in one sentence that says what Ask Etyme helps with', async () => {
+    await check('PM', 'What is the capital of France?', 'REFUSED', ONLY_THE_RECORD)
+  })
+
+  it('the program manager asks “What do other companies pay for a data engineer?” and is refused in one sentence, because another company’s book is not hers', async () => {
+    await check('PM', 'What do other companies pay for a data engineer?', 'REFUSED', NOT_ANOTHER_BOOK)
+  })
+
   it('the program manager asks “Who starts next week?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('PM', 'Who starts next week?', 'NOT_YET',
       'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
@@ -374,6 +389,10 @@ describe('the hiring manager at Northbend Athletic', () => {
       'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
   })
 
+  it('the hiring manager asks “Write a poem about our timesheets” and is refused in one sentence that says what Ask Etyme helps with', async () => {
+    await check('HM', 'Write a poem about our timesheets', 'REFUSED', ONLY_THE_RECORD)
+  })
+
   it('the hiring manager asks “Who rolls off in the next 30 days?” and is told honestly that Etyme cannot answer it yet', async () => {
     await check('HM', 'Who rolls off in the next 30 days?', 'NOT_YET',
       'I cannot answer that yet. This question needs the model, and your company has not turned it on. An owner or admin can turn it on under Settings.')
@@ -410,6 +429,10 @@ describe('the account manager at Pinnacle Resourcing', () => {
   it('a supplier’s account manager asks “Approve my invoice PR-2026-0442” and the rules answer it', async () => {
     await check('SUPPLIER', 'Approve my invoice PR-2026-0442', 'ANSWERED',
       'Nothing from Etyme is waiting on you, so there is nothing to answer.')
+  })
+
+  it('a supplier’s account manager asks “What is the market rate for a Java developer?” and is refused in one sentence, because no benchmark crosses companies', async () => {
+    await check('SUPPLIER', 'What is the market rate for a Java developer?', 'REFUSED', NOT_ANOTHER_BOOK)
   })
 
   it('a supplier’s account manager asks “Which of my invoices to Northbend are unpaid?” and is told honestly that Etyme cannot answer it yet', async () => {

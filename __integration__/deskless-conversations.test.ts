@@ -3,7 +3,10 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as list } from '@/app/api/conversations/route'
 import { GET as readMessages, POST as writeThread } from '@/app/api/conversations/messages/route'
 import { getCallerContext } from '@/lib/api-context'
-import { readThread, appendTurn, markCard, clearThread } from '@/lib/ask-etyme-thread'
+import { readThread, appendTurn, markCard, clearThread, NOT_KEPT_IN_DEMO } from '@/lib/ask-etyme-thread'
+import { GET as askGet, POST as askPost, PATCH as askPatch, DELETE as askDelete } from '@/app/api/conversations/twin/route'
+import { ONLY_THE_RECORD } from '@/app/api/conversations/twin/transaction'
+import { ensureDefaultRoles } from '@/lib/company-roles'
 
 /**
  * Sign-up walk, round four: the one door opens Conversations to a seat
@@ -359,5 +362,129 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     const me = await seatOf(AVERY, avery.seat)
     expect(await appendTurn({ ...me, readOnly: true }, { speaker: 'PERSON', text: 'Hi' })).toMatchObject({ ok: true, saved: false })
     expect(await readThread({ ...me, isService: true })).toMatchObject({ ok: false, code: 'NO_PERSON' })
+  })
+})
+
+// The same thread through Ask Etyme's own route, the way the screen uses
+// it: the greeting is rebuilt every time and never kept; every question
+// and its answer are; a card's answer is recorded on the line that drew
+// it; Clear starts over.
+describe('Ask Etyme keeps the conversation through its own route, and the greeting is always today’s', () => {
+  const RAE = 'rae.receivables@pinnacle-staff.test'
+  let seatId = ''
+  let raeId = ''
+  let question = ''
+  const at = (method: string, body?: unknown, url = '/api/conversations/twin') =>
+    req(method, url, body, { 'x-context-id': seatId })
+
+  beforeAll(async () => {
+    await freshWorld()
+    const pinnacle = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true, kind: true } })
+    // Accounts Receivable, whoever sends bills, as Pinnacle gets it the next time somebody opens Users & permissions.
+    await ensureDefaultRoles(pinnacle.id, pinnacle.kind)
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: pinnacle.id, name: 'Accounts Receivable' }, select: { id: true } })
+    raeId = (await prisma.person.create({ data: { primaryEmail: RAE, name: 'Rae Okonkwo' }, select: { id: true } })).id
+    seatId = (await prisma.context.create({
+      data: { personId: raeId, companyId: pinnacle.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' },
+      select: { id: true },
+    })).id
+    // One question Ask Etyme puts to whoever sends bills at Pinnacle.
+    const asked = await prisma.twinAction.create({
+      data: {
+        companyId: pinnacle.id, twinKind: 'SUPPLIER', actorType: 'TWIN', actorId: 'SUPPLIER', onAuthorityOfRole: 'Owner',
+        tier: 'NEEDS_APPROVAL', outcome: 'AWAITING_APPROVAL', action: 'bill.send', entityType: 'Invoice', entityId: 'inv-route-walk',
+        partyCompanyIds: [pinnacle.id], ruleCited: 'bill.send', rationale: 'A drafted bill waits for a yes.', surface: 'CRON', payload: {},
+      },
+      select: { id: true },
+    })
+    question = (await prisma.twinApproval.create({
+      data: { twinActionId: asked.id, companyId: pinnacle.id, needsPermission: 'invoices.issue' },
+      select: { id: true },
+    })).id
+  }, 600_000)
+
+  it('a question and its answer are shown again after a reload, in order, with the card still answered', async () => {
+    as(RAE)
+    const asked = await json(await askPost(at('POST', { text: 'What needs me today?' })))
+    expect(asked.status).toBe(200)
+    expect(asked.body.data.answer.kind).toBe('NEEDS')
+    expect(asked.body.data.answer.items.map((i: { approvalId: string }) => i.approvalId)).toContain(question)
+    expect(asked.body.data).toMatchObject({ kept: true, notKeptBecause: null })
+    const turnId: string = asked.body.data.turnId
+
+    // A reply after a yes is kept only once the record bears the yes out.
+    const early = await json(await askPatch(at('PATCH', { turnId, approvalId: question, state: 'APPROVED', said: { kind: 'TEXT', says: 'Sent.' } })))
+    expect(early.status).toBe(409)
+    expect(early.body.error.message).toBe('The record does not show that answer on this question, so it is not kept in your conversation.')
+
+    // The approval route said yes (recorded here as it would record it), and the screen marks the card and keeps the reply.
+    await prisma.twinApproval.update({ where: { id: question }, data: { decision: 'APPROVED', decidedAt: new Date(), surface: 'WEB' } })
+    const marked = await json(await askPatch(at('PATCH', {
+      turnId, approvalId: question, state: 'APPROVED',
+      said: { kind: 'TEXT', says: 'Approved Invoice receipt. Done, and recorded in Etyme’s ledger under your name.', links: [
+        { label: 'Open Invoice receipt', href: '/dashboard/invoices/inv-route-walk' },
+        { label: 'Somewhere else', href: 'https://elsewhere.example/' },
+      ] },
+    })))
+    expect(marked.status).toBe(200)
+    expect(marked.body.data).toMatchObject({ kept: true })
+
+    // A reload: the saved lines in the order they were said, then today's greeting, which is not one of them.
+    const back = await json(await askGet(at('GET')))
+    expect(back.status).toBe(200)
+    expect(back.body.data.answer.kind).toBe('NEEDS')
+    const thread = back.body.data.thread
+    expect(thread).toMatchObject({ saved: true, notKeptBecause: null, earlier: false })
+    expect(thread.turns.map((t: { speaker: string; text: string }) => [t.speaker, t.text])).toEqual([
+      ['PERSON', 'What needs me today?'],
+      ['ETYME', asked.body.data.answer.says],
+      ['ETYME', 'Approved Invoice receipt. Done, and recorded in Etyme’s ledger under your name.'],
+    ])
+    expect(thread.turns[1].cards[question].state).toBe('APPROVED')
+    expect(thread.turns[2].approvalId).toBe(question)
+    // Only a link inside Etyme is kept on the reply.
+    expect(thread.turns[2].answer.links).toEqual([{ label: 'Open Invoice receipt', href: '/dashboard/invoices/inv-route-walk' }])
+  })
+
+  it('a general question with no record behind it is refused in one sentence before any model is called, and the refusal is kept like any answer', async () => {
+    as(RAE)
+    const before = await prisma.modelPrompt.count()
+    const r = await json(await askPost(at('POST', { text: 'What is the capital of France?' })))
+    expect(r.status).toBe(200)
+    expect(r.body.data.answer).toEqual({ kind: 'TEXT', says: ONLY_THE_RECORD })
+    expect(await prisma.modelPrompt.count()).toBe(before)
+    const back = await json(await askGet(at('GET', undefined, '/api/conversations/twin?only=thread')))
+    expect(back.body.data.thread.turns.slice(-2).map((t: { text: string }) => t.text)).toEqual(['What is the capital of France?', ONLY_THE_RECORD])
+  })
+
+  it('Clear starts the thread over and the old lines are not shown', async () => {
+    as(RAE)
+    const cleared = await json(await askDelete(at('DELETE')))
+    expect(cleared.status).toBe(200)
+    expect(cleared.body.data.saved).toBe(true)
+    const back = await json(await askGet(at('GET')))
+    expect(back.body.data.thread.turns).toEqual([])
+    // The greeting still opens the chat: it is today's, and it was never a line.
+    expect(back.body.data.answer.kind).toBe('NEEDS')
+    // Kept on the record, unshown.
+    expect(await prisma.askEtymeTurn.count({ where: { thread: { personId: raeId } } })).toBe(5)
+  })
+
+  it('a seeded demo seat is told its thread is not kept, in one line, with no error', async () => {
+    const demo = 'world-pinnacle-recruiter@demo.etyme.local'
+    const shared = await prisma.context.findFirstOrThrow({
+      where: { person: { primaryEmail: demo } }, select: { id: true, personId: true },
+    })
+    as(demo)
+    const hello = await json(await askGet(req('GET', '/api/conversations/twin', undefined, { 'x-context-id': shared.id })))
+    expect(hello.status).toBe(200)
+    expect(hello.body.data.answer.kind).toBe('NEEDS')
+    expect(hello.body.data.thread).toEqual({ saved: false, notKeptBecause: NOT_KEPT_IN_DEMO, earlier: false, turns: [] })
+    const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What needs me today?' }, { 'x-context-id': shared.id })))
+    expect(asked.status).toBe(200)
+    expect(asked.body.data).toMatchObject({ kept: false, turnId: null, notKeptBecause: NOT_KEPT_IN_DEMO })
+    const cleared = await json(await askDelete(req('DELETE', '/api/conversations/twin', undefined, { 'x-context-id': shared.id })))
+    expect(cleared).toMatchObject({ status: 200, body: { data: { saved: false, notKeptBecause: NOT_KEPT_IN_DEMO } } })
+    expect(await prisma.askEtymeThread.count({ where: { personId: shared.personId } })).toBe(0)
   })
 })

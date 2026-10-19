@@ -354,17 +354,52 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 
 ## Ask Etyme (was the twin's conversation panel) — etyme-conversation
 
-- **The thread is kept for one page load, not stored.** A stored thread
-  needs a conversation that belongs to one person, and `Conversation`
-  belongs to a company and is listed to everybody at it. What is needed
-  from the architect: `Conversation.ownerPersonId String?` (null for
-  every thread today) with the company's list excluding rows that name
-  somebody else, and a topic value `ETYME`. Replies would go in the
-  existing `Message.metadata` with type `ETYME_ANSWER`. Until then
-  leaving the chat and coming back starts again from the greeting, which
-  is rebuilt from the ledger each time, so nothing in it goes stale.
-- **The pinned row says what Ask Etyme answers, not its last reply**,
-  because there is no stored last reply (above).
+- **The thread is kept, one per seat, since 2026-10-19.** Every question
+  and its answer are saved on the seat's own thread
+  (`lib/ask-etyme-thread`, the architect's door) and drawn again after a
+  reload, a phone switch or a sign-out, oldest first, with today's
+  greeting under them as the newest message. **The greeting itself is
+  not saved**: it is "what needs you now", rebuilt from the ledger on
+  every load, and a saved one would be yesterday's queue with yesterday's
+  cards. A card's yes, no or Not now is recorded on the line that drew
+  it after the approval route answers, and the reply after a yes or a no
+  is kept only where the record already shows that decision; a card in
+  the greeting is on no saved line, so a Not now there lasts the page
+  load, and the next greeting asks again. Clear starts over from the
+  greeting; the old lines stay on the record and are no longer shown.
+  "Show earlier" fetches up to 1,000 lines once; a longer thread shows
+  its newest 1,000.
+- **A seeded demo seat keeps no conversation, and says why once at the
+  top of the thread**: every visitor who opens that desk is seated as
+  the same seeded person, so a saved thread would show one stranger
+  another's questions. The shared sample and an API key keep none
+  either. A visitor's own demo sandbox, at their own address, keeps one.
+- **Not yet in a person's data export, erasure or retention**: the
+  saved thread is regulatory's to add (`lib/access-log`,
+  `lib/erasure`, `lib/retention`), as the matrix row says.
+- **Never beyond the transaction is a word test, by rule**
+  (`app/api/conversations/twin/transaction.ts`). A free-text question
+  is on the record when it uses a word of the trade the record holds
+  (job, candidate, timesheet, bill, invoice, payroll, paperwork, the
+  time limit and about a hundred more), carries a reference (an invoice
+  number, a ledger id) or names a person or firm the reader may read.
+  A short list of general asks (a poem, the weather, a capital city,
+  code) and anything naming another company's book or a benchmark
+  ("other companies", "market rate", "competitors", a firm named
+  "… Inc" that the reader does not trade with) is refused in one
+  sentence before the model switch is read. A question about the record
+  in words the list does not hold is refused too, and the sentence says
+  what to ask; "thanks" and "hello" are refused the same way.
+- **The model's answer must cite a line it was given.** An answer with
+  no `[id]` from the ledger lines sent, other than the one sentence for
+  an act, is not shown: the person reads "I cannot answer that yet." and
+  a link to the ledger. It is logged with purpose `ASK_ETYME_REPLACED`
+  and "Not shown to the person: …" ahead of the masked text, so the
+  company's prompt log shows it. A citation proves a line was read, not
+  that every sentence came from it.
+- **The pinned row says what Ask Etyme answers, not its last reply.**
+  The last reply is saved now; drawing it on the Conversations list is
+  not built.
 - **"What did we spend by supplier this month?" counts invoice receipts
   by the day each was billed** (`issuedAt`, else `submittedAt`), in the
   UTC calendar month, never a draft, cancelled or void one, and only

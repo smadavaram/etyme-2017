@@ -18,11 +18,16 @@
  *   reject <item> because <reason>        the same, with the reason
  *   invoice variance by supplier …        per supplier, from the twin's invoice verdicts
  *
- * Anything else goes to the model with the ledger lines as context, and
- * only if a key is configured. The model describes; it never acts and it
- * is never the gate. Nothing in this file or the route writes state: a
- * yes or a no is sent by the panel to POST /api/twin/approvals/:id, the
- * one door the web and Teams share.
+ * Anything else is first held to the transaction (./transaction): a
+ * general question, or one about another company's book, is refused in
+ * one sentence before any model is called. What is left goes to the
+ * model with the ledger lines as context, only where the company turned
+ * it on and a key is configured, and an answer that cites none of those
+ * lines is not shown (`grounded`). The model describes; it never acts and
+ * it is never the gate. Nothing in this file writes state: a yes or a no
+ * is sent by the panel to POST /api/twin/approvals/:id, the one door the
+ * web and Teams share, and the route keeps the seat's own conversation
+ * through lib/ask-etyme-thread and nothing else.
  */
 
 import { formatDay, formatMonth } from '@/lib/format-date'
@@ -31,6 +36,7 @@ import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
+import { offRecord } from './transaction'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -419,6 +425,8 @@ export interface PromptLog {
   tokensOut: number | null
   /** The real values the masker replaced, so the log can refuse a text that still holds one. Never stored. */
   realValues: string[]
+  /** True where the answer cited no line it was given, so the person was shown NOT_GROUNDED instead. */
+  replaced?: boolean
 }
 
 /** The one sentence the model says for any act. Checked in the test, so it cannot drift. */
@@ -458,6 +466,30 @@ export function ledgerContext(lines: readonly LedgerLine[], cap = 60): string {
     .slice(0, cap)
     .map((l) => `[${l.id}] ${l.ts.slice(0, 10)} · ${l.outcome} · ${l.says} · ${l.entityType} ${l.entityId} · Rule: ${l.ruleCited} · Why: ${l.rationale}`)
     .join('\n')
+}
+
+/**
+ * What the person reads where the model's answer cites no line of the
+ * record it was given: the voice's last rule, and where to look.
+ */
+export const NOT_GROUNDED = `${NOT_YET} Open the ledger to read what Etyme checked, or try a question below.`
+export const LEDGER_LINK: { label: string; href: string } = { label: 'Open the ledger', href: '/dashboard/twin' }
+
+/** How a replaced answer is kept in the company's prompt log, ahead of what the model wrote (masked). */
+export const REPLACED_NOTE = 'Not shown to the person: it cited no line of the record. The model wrote: '
+
+/**
+ * Whether a model's answer may be shown: it cites at least one ledger line
+ * it was given, or it is the one sentence it says for any act. Anything
+ * else — a fluent paragraph with no line behind it, the model's own
+ * "cannot answer" — is replaced by NOT_GROUNDED, and only the first is
+ * logged as replaced, because "cannot answer" is what it was told to say.
+ */
+export function grounded(text: string, lines: readonly LedgerLine[]): { show: boolean; replaced: boolean } {
+  const said = text.trim()
+  if (said === ASK_THE_DESK) return { show: true, replaced: false }
+  if (citedIds(said, lines).length > 0) return { show: true, replaced: false }
+  return { show: false, replaced: said !== NOT_YET }
 }
 
 /** Ids the model cited in square brackets that really are ledger lines it was given. */
@@ -1135,7 +1167,11 @@ export interface Readers {
   ledgerLines(): Promise<LedgerLine[]>
   /** Whether this company's settings desk turned the model on (lib/model-boundary's switch). */
   modelOn(): Promise<boolean>
-  /** The people and firms this reader may read, for masking; read only when something is about to leave. */
+  /**
+   * The people and firms this reader may read: for masking when something
+   * is about to leave, and for the transaction rule when a question has no
+   * word of the trade or names a firm by its legal form.
+   */
   vocabulary(): Promise<MaskVocabulary>
   /** Asks the model, masked text in, masked text out; only called with the switch and the key both on. */
   model(system: string, question: string, context: string): Promise<ModelReply | null>
@@ -1629,6 +1665,11 @@ export async function respond(
     }
 
     case 'ASK': {
+      // Never beyond the transaction: a general question, or one about
+      // another company's book, is refused by rule before anything else —
+      // the switch included, because no model would be allowed to answer it.
+      const off = await offRecord(intent.text, { named: (t) => read.named(t), names: () => read.vocabulary() })
+      if (off) return { kind: 'TEXT', says: off }
       // Free text leaves only when the company turned the model on AND the
       // deployment has a key; the company's switch is said first, because
       // it is the one a person can change.
@@ -1644,14 +1685,19 @@ export async function respond(
       const maskedContext = masker.mask(ledgerContext(lines))
       const reply = await read.model(MODEL_SYSTEM, maskedQuestion, maskedContext)
       if (!reply) return { kind: 'TEXT', says: 'The model did not answer just now. ' + WHAT_I_ANSWER }
+      // An answer with no line of the record behind it is not shown, and
+      // the log says so beside what the model wrote.
+      const check = grounded(reply.text, lines)
       await read.logPrompt({
         model: reply.model,
         maskedPrompt: `Ledger lines:\n${maskedContext}\n\nQuestion: ${maskedQuestion}`,
-        maskedAnswer: reply.text,
+        maskedAnswer: check.replaced ? `${REPLACED_NOTE}${reply.text}` : reply.text,
         tokensIn: reply.tokensIn,
         tokensOut: reply.tokensOut,
         realValues: masker.realValues(),
+        ...(check.replaced ? { replaced: true } : {}),
       })
+      if (!check.show) return { kind: 'TEXT', says: NOT_GROUNDED, links: [LEDGER_LINK] }
       const said = masker.unmask(reply.text)
       const byId = new Map(lines.map((l) => [l.id, l]))
       return {
@@ -1664,4 +1710,15 @@ export async function respond(
       }
     }
   }
+}
+
+/**
+ * The questions whose cards an answer carries, by approval id, so the
+ * saved line knows which cards it drew (lib/ask-etyme-thread). The
+ * greeting is never saved; a "What needs me today?" asked later is.
+ */
+export function cardIdsOf(answer: Answer): string[] {
+  if (answer.kind === 'NEEDS') return answer.items.map((i) => i.approvalId)
+  if (answer.kind === 'CONFIRM') return [answer.item.approvalId]
+  return []
 }
