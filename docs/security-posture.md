@@ -305,7 +305,7 @@ systems drop and the half an investigation needs.
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
 **Coverage, stated honestly.** 46 route files write an access-log row
-through `src/lib/access-log.ts`, out of 315 API route files. They are the routes that
+through `src/lib/access-log.ts`, out of 316 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -367,6 +367,19 @@ or marking a card on a line of it, is refused, and the refusal is filed
 as `ASK_ETYME_THREAD_VIEW` before the answer goes out. The person reading
 their own conversation writes no row, because it is not a read of
 anybody else's data.
+
+**A bill opened by its link, by somebody with no seat.** A supplier's
+bill reaches the firm that pays it as a letter and a read-only link
+(`src/lib/notify/bill-delivery.ts`). The link names one bill and the
+address it was sent to, and stops working 90 days after the bill is due.
+The reader is the payer's contact at that address and holds no seat, so
+each open is written before the bill is handed over, and if the row
+cannot be written the bill is not shown. A link that ran out, or a bill
+that was cancelled, is refused and the refusal is written first. These
+rows have a name of their own, `BILL_LINK_VIEW`, so "who opened our bills
+from outside Etyme" is one query. **Not done yet:** until the delivery
+code switches to that name, the rows are filed as `TIMESHEET_VIEW`, with
+the bill number and the address in the reason.
 
 ---
 
@@ -803,7 +816,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 46 route files of 315 (section 4).
+- Access logging covers 46 route files of 316 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their

@@ -7,13 +7,16 @@ import type { TermsShown } from '@/lib/bench-filter'
  *
  * ── Why a link and not a login ───────────────────────────────────────
  *
- * A consultant on a vendor's bench has no seat. No `Context` row, no
- * password, nothing to sign in with — they are a record somebody else
- * created, not a user. That is fine and mostly correct: a working
- * contractor already has accounts on six vendor portals and adoption of
- * a seventh is close to zero.
+ * A consultant a vendor adds does have a seat: `POST /api/consultants`
+ * writes a CONSULTANT `Context` for them at that vendor. What they do
+ * not have, on the day they are added, is a way in that they chose. They
+ * have no password until they sign up themselves — by email and password
+ * or with Google, on the address the vendor recorded — and only then can
+ * they open their own pages and file their own week. Many never do: a
+ * working contractor already has accounts on six vendor portals and
+ * adoption of a seventh is close to zero.
  *
- * It stops being fine the moment their answer is required for anything.
+ * That matters the moment their answer is required for anything.
  * `BenchListing.state` now starts at INVITED and only the consultant
  * moves it, and without a way to answer that is not consent — it is a
  * deadlock. Every new listing would be permanently unsubmittable.

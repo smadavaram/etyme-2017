@@ -102,6 +102,18 @@ export type AccessAction =
   | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
   | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
   | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+  // ── A bill opened by the link it was emailed with ──────────────────
+  //
+  // `lib/notify/bill-delivery` (etyme-conversation, 2026-10-19): a
+  // supplier's bill reaches the firm that pays it as a letter and a
+  // read-only signed link. The reader is the payer's recorded contact at
+  // the address the bill went to, and holds no seat. Each open, and each
+  // refusal of a link that ran out or a bill that was cancelled, was filed
+  // as TIMESHEET_VIEW with the bill and the address in the reason, so
+  // "who opened our bills from outside Etyme" could only be answered by
+  // reading reasons. It is a read of the hours and the rate of the people
+  // on the bill, by somebody with no seat, and it gets a name of its own.
+  | 'BILL_LINK_VIEW'            // a bill opened by its signed link, the reader being the payer's recorded contact, no seat; or the link refused
   // ── The shared sample seat the home page frames ────────────────────
   //
   // `lib/sample-seat` (etyme-architect, 2026-10-14): anybody, with no

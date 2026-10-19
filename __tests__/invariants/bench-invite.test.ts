@@ -3,9 +3,9 @@ import { signInvite, readInvite, inviteUrl, inviteText } from '@/lib/bench-invit
 import { signReply, readReplyToken } from '@/lib/reply-link'
 
 /**
- * A consultant on a vendor's bench has no seat — no Context row, no
- * password, nothing to sign in with. That was fine while nobody needed
- * their answer for anything.
+ * A consultant a vendor adds holds a CONSULTANT seat at that vendor, but
+ * no password and no way in until they sign up themselves, and many never
+ * do. That was fine while nobody needed their answer for anything.
  *
  * It stopped being fine when BenchListing.state started at INVITED and
  * only the consultant could move it. Without a way to answer, that is
@@ -197,7 +197,7 @@ describe('no route creates a bench listing without asking', () => {
   })
 
   it('and sends the invitation, because an unanswerable one is a deadlock', () => {
-    // A consultant on a bench has no seat. A listing that starts INVITED
+    // A consultant on a bench may never sign in. A listing that starts INVITED
     // with no link sent is permanently unsubmittable.
     const offenders = CREATORS.filter((f) => {
       const src = readFileSync(join(ROOT, f), 'utf8')
