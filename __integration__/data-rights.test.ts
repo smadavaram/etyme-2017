@@ -5,7 +5,7 @@ import { GET as myData, POST as askForMyData } from '@/app/api/me/data/route'
 import { GET as deskQueue, POST as deskAct } from '@/app/api/data-requests/route'
 import { GET as holdList, POST as holdAct } from '@/app/api/legal-holds/route'
 import { GET as breachList, POST as breachAct } from '@/app/api/breaches/route'
-import { runRetentionSweep } from '@/lib/data-request'
+import { runRetentionSweep, exportFor } from '@/lib/data-request'
 import { daysOnSite } from '@/lib/tenure-days'
 import { isTombstone } from '@/lib/erasure'
 
@@ -43,6 +43,8 @@ const who = { helena: '', anders: '' }
 const co = { northbend: '', talvern: '' }
 let helenaDaysBefore = 0
 let helenaHolders: string[] = []
+/** Helena's saved Ask Etyme conversation, and the answer she gave on one of its cards. */
+const ask = { thread: '', approval: '' }
 
 /**
  * Wait for a fire-and-forget write to land.
@@ -184,6 +186,66 @@ describe('a person asks what is held about them', () => {
   })
 })
 
+describe('a person’s own conversation with Ask Etyme is hers to see and hers to have forgotten', () => {
+  it('a person’s export carries their own Ask Etyme thread word for word, cleared lines included, and the answer they gave on a card', async () => {
+    // Written straight to the tables: the route that saves a conversation
+    // is still to come, and what is being checked is what the export and
+    // the erasure do with what is held, not how it got there.
+    const seat = await prisma.context.findFirst({ where: { personId: who.helena, companyId: { not: null } } })
+    const companyId = seat?.companyId ?? co.northbend
+    const asked = new Date(Date.now() - 2 * 3_600_000)
+    const thread = await prisma.askEtymeThread.create({
+      data: {
+        personId: who.helena, companyId, lastTurnAt: new Date(),
+        clearedAt: new Date(asked.getTime() + 60_000),
+        turns: {
+          create: [
+            { speaker: 'PERSON', text: 'When does my visa run out?', createdAt: asked },
+            { speaker: 'ETYME', text: 'Your work authorization runs to March 3, 2027.', createdAt: new Date(asked.getTime() + 1_000) },
+            { speaker: 'PERSON', text: 'Which of my weeks are not signed yet?' },
+          ],
+        },
+      },
+    })
+    ask.thread = thread.id
+
+    const act = await prisma.twinAction.create({
+      data: {
+        companyId: co.northbend, actorType: 'TWIN', actorId: 'PROGRAM_MANAGER',
+        onAuthorityOfRole: 'Program Manager', tier: 'NEEDS_APPROVAL', outcome: 'AWAITING_APPROVAL',
+        action: 'PAY_INVOICE_RECEIPT', entityType: 'VendorBill', entityId: 'walk-ask-etyme',
+        partyCompanyIds: [co.northbend], ruleCited: 'invoice-match', rationale: 'A clean receipt, put up for a yes.',
+        surface: 'WEB', payload: {},
+      },
+    })
+    const approval = await prisma.twinApproval.create({
+      data: {
+        twinActionId: act.id, companyId: co.northbend, needsPermission: 'payments.record',
+        approverPersonId: who.helena, decision: 'APPROVED', decidedAt: new Date(), surface: 'WEB',
+      },
+    })
+    ask.approval = approval.id
+
+    const file = await exportFor(who.helena)
+    const convos = file!.categories['Conversations with Ask Etyme'] as {
+      lines: { who: string; words?: string; clearedFromScreen: boolean }[]
+    }[]
+    expect(convos).toHaveLength(1)
+    const lines = convos[0].lines
+    expect(lines.map((l) => l.who)).toEqual(['You', 'Ask Etyme', 'You'])
+    expect(lines[0]).toMatchObject({ words: 'When does my visa run out?', clearedFromScreen: true })
+    expect(lines[2]).toMatchObject({ words: 'Which of my weeks are not signed yet?', clearedFromScreen: false })
+    // Ask Etyme's words are the company's record and name other people, so
+    // they are listed and not repeated.
+    expect(JSON.stringify(lines[1])).not.toContain('March 3, 2027')
+
+    const seatCategory = file!.categories['A seat at a company, and what was decided from it'] as {
+      cardsAnswered: { answer: string; about: string }[]
+    }
+    expect(seatCategory.cardsAnswered).toEqual([expect.objectContaining({ answer: 'APPROVED', about: 'PAY_INVOICE_RECEIPT' })])
+  })
+})
+
 describe('a person asks to be forgotten', () => {
   it('nothing changes on the day she asks, and she is told the day it runs and how to stop it', async () => {
     as(HELENA)
@@ -258,6 +320,21 @@ describe('a person asks to be forgotten', () => {
       expect(r.bytes).toBeNull()
       expect(r.textExtract).toBeNull()
     }
+  })
+
+  it('her saved Ask Etyme conversation is gone, every line of it, and the answer she gave on a card is still on Northbend Athletic’s record under the tombstone', async () => {
+    expect(ask.thread, 'the conversation was never written').not.toBe('')
+    expect(await prisma.askEtymeThread.count({ where: { personId: who.helena } })).toBe(0)
+    expect(await prisma.askEtymeTurn.count({ where: { threadId: ask.thread } })).toBe(0)
+
+    const kept = await prisma.twinApproval.findUniqueOrThrow({
+      where: { id: ask.approval },
+      select: { decision: true, decidedAt: true, approverPersonId: true, approver: { select: { name: true } } },
+    })
+    expect(kept.decision).toBe('APPROVED')
+    expect(kept.decidedAt).not.toBeNull()
+    expect(kept.approverPersonId).toBe(who.helena)
+    expect(kept.approver?.name).toBe('Erased person')
   })
 
   it('every firm that held her is told, and told there is nothing for it to do', async () => {

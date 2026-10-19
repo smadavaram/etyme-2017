@@ -405,15 +405,15 @@ describe('What the three documents say is what the code does', () => {
     expect(PRIVACY).toMatch(/Ending a Business User's access deletes no records/)
   })
 
-  it('erasure is described as it runs: fourteen days to change your mind, four things deleted, the name replaced, shared records kept', () => {
+  it('erasure is described as it runs: fourteen days to change your mind, five things deleted, the name replaced, shared records kept', () => {
     expect(COOLING_DAYS).toBe(14)
     expect(PRIVACY).toMatch(/We wait 14 days, so you can change your mind/)
     expect(DPA).toMatch(/An erasure waits 14 days so the person can withdraw it/)
 
     const deleted = SCHEDULE.filter((l) => l.fate === 'DELETED').map((l) => l.category).sort()
-    expect(deleted).toEqual(['A consultant’s own profile', 'Bars and preferences', 'Identity and sign-in', 'Resumes'])
+    expect(deleted).toEqual(['A consultant’s own profile', 'Bars and preferences', 'Conversations with Ask Etyme', 'Identity and sign-in', 'Resumes'])
     expect(PRIVACY).toMatch(
-      /On day 14, your sign-in methods, Worker profile, unsent resumes, and any bars or favorites set against your name are deleted/
+      /On day 14, your sign-in methods, Worker profile, unsent resumes, saved Ask Etyme conversations, and any bars or favorites set against your name are deleted/
     )
 
     const erasure = read('src/lib/erasure.ts')

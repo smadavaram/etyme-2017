@@ -446,3 +446,46 @@ describe('what is held about a business user has a line like anything else', () 
   })
 })
 
+
+describe('a person’s own conversation with Ask Etyme has a line like anything else', () => {
+  const ASK = 'Conversations with Ask Etyme'
+
+  it('the saved Ask Etyme conversation is a category the privacy notice names, held about everybody who has a seat', () => {
+    const line = HELD.find((h) => h.category === ASK)
+    expect(line, 'the notice does not name the saved conversation').toBeDefined()
+    expect(line!.about).toBe('Everybody')
+    expect(line!.provenBy).toContain('AskEtymeThread')
+    expect(line!.provenBy).toContain('AskEtymeTurn')
+  })
+
+  it('it is deleted when the person asks to be forgotten, and nothing waits before it goes', () => {
+    const line = scheduleFor(ASK)!
+    expect(line.fate).toBe('DELETED')
+    const v = verdictFor(ASK, { now })
+    expect(v.verdict).toBe('DELETE')
+    expect(v.until).toBeNull()
+  })
+
+  it('until then, lines cleared from the screen are kept as long as the twin’s ledger they explain, and no period is invented for either', () => {
+    const line = scheduleFor(ASK)!
+    expect(line.months).toBe(0)
+    expect(line.basis).toMatch(/cleared from the screen stay on the record/)
+    expect(line.basis).toMatch(/twin’s ledger/)
+    expect(line.basis).toMatch(/no period is set for either, because none can be cited/)
+    // The ledger itself is on no timer, the way the logs are not.
+    expect(scheduleFor('Logs')!.months).toBeNull()
+  })
+
+  it('a yes or a no given on a card is not deleted with the conversation: it is under the seat it was given from, kept with the name replaced', () => {
+    expect(scheduleFor(ASK)!.basis).toMatch(/A yes or a no they gave on a card is not deleted with it/)
+    expect(HELD.find((h) => h.category === 'A seat at a company, and what was decided from it')!.provenBy)
+      .toContain('TwinApproval.approverPersonId')
+    expect(scheduleFor('A seat at a company, and what was decided from it')!.fate).toBe('KEPT_ANONYMIZED')
+  })
+
+  it('a legal hold naming the person keeps the conversation too, like every other category', () => {
+    const v = verdictFor(ASK, { now, underLegalHold: true, holdReason: 'A wage claim is open.' })
+    expect(v.verdict).toBe('HELD_UNTIL')
+    expect(v.says).toContain('A wage claim is open.')
+  })
+})

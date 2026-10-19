@@ -399,6 +399,7 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
     invoiceLines, messages, accessLogs, blacklists, doNotSubmits, favorites,
     seats, approvals, raised, signedWeeks, overtimeCalls, classedOthers,
     supplierDecisions, holdsPlaced, breachesOpened, censuses, signatures,
+    cardsAnswered, askEtymeThreads,
   ] = await Promise.all([
     prisma.credential.findMany({ where: { personId }, select: { provider: true, email: true, lastUsedAt: true, createdAt: true } }),
     prisma.consultantProfile.findUnique({ where: { personId }, select: { headline: true, skills: true, location: true, workAuth: true, rateFloor: true, slug: true, mobile: true, availableFrom: true, visibility: true } }),
@@ -500,6 +501,34 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
         signedAt: true, method: true, attestation: true, attestedAt: true,
       },
     }),
+    // A yes or a no on an Ask Etyme card, or on Teams. The question and
+    // the answer, not what the card was about: the invoice receipt or the
+    // week behind it is the company's, and the people on it are theirs.
+    prisma.twinApproval.findMany({
+      where: { approverPersonId: personId },
+      select: {
+        decision: true, decidedAt: true, surface: true, reasonFromApprover: true,
+        requestedAt: true,
+        company: { select: { name: true } },
+        twinAction: { select: { action: true } },
+      },
+      orderBy: { requestedAt: 'asc' },
+    }),
+    // Their own conversations with Ask Etyme, one per seat, every line,
+    // the cleared ones included: Clear hides a line from the screen and
+    // it is still held, so it is still theirs to see here.
+    prisma.askEtymeThread.findMany({
+      where: { personId },
+      select: {
+        createdAt: true, lastTurnAt: true, clearedAt: true,
+        company: { select: { name: true } },
+        turns: {
+          select: { speaker: true, text: true, cards: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
   ])
 
   // Days on site, per client, counted once per day however many firms
@@ -568,6 +597,12 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
         legalHoldsPlaced: holdsPlaced,
         incidentsOpened: breachesOpened,
         agreementsSigned: signatures,
+        cardsAnswered: cardsAnswered.map((a) => ({
+          company: a.company.name, asked: a.requestedAt, about: a.twinAction.action,
+          answer: a.decision, answered: a.decidedAt,
+          where: a.surface, reason: a.reasonFromApprover,
+          note: 'Your answer to a question Ask Etyme asked you. It is your company’s record of its own decision, so it stays if you ask to be forgotten, with your name replaced.',
+        })),
       },
       'A contractor census': censuses.map((c) => ({
         ...c,
@@ -578,6 +613,24 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
           'prove we deleted them when we said we would.',
       })),
       'Messages': messages,
+      'Conversations with Ask Etyme': askEtymeThreads.map((t) => ({
+        company: t.company.name,
+        started: t.createdAt,
+        lastSpoke: t.lastTurnAt,
+        cleared: t.clearedAt,
+        lines: t.turns.map((l) => {
+          const clearedFromScreen = !!t.clearedAt && l.createdAt <= t.clearedAt
+          return l.speaker === 'PERSON'
+            ? { at: l.createdAt, who: 'You', words: l.text, clearedFromScreen }
+            : { at: l.createdAt, who: 'Ask Etyme', cards: l.cards, clearedFromScreen }
+        }),
+        note:
+          'Every line is here, including the ones you cleared from the screen, which are ' +
+          'still held. Your own questions are here word for word. Ask Etyme’s answers are ' +
+          'listed by when they came and what became of each card, and their words are not ' +
+          'repeated: they are your company’s record and name other people. The lines you ' +
+          'have not cleared are in your conversation, where you can read them.',
+      })),
       'Logs': accessLogs,
     },
     notIncluded: NOT_IN_AN_EXPORT,

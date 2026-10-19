@@ -227,3 +227,40 @@ describe('a business user asks to be forgotten too', () => {
   })
 })
 
+
+describe('a person’s own conversation with Ask Etyme, and the cards they answered in it', () => {
+  const ASK = 'Conversations with Ask Etyme'
+  const SEAT = 'A seat at a company, and what was decided from it'
+  const plan = planErasure(footprint({
+    counts: { ...footprint().counts, [ASK]: 12, [SEAT]: 3 },
+  }))
+  const SRC = readFileSync(join(process.cwd(), 'src/lib/erasure.ts'), 'utf8')
+
+  it('the plan deletes the saved conversation, and the letter says it is forgotten', () => {
+    const line = plan.lines.find((l) => l.category === ASK)!
+    expect(line.disposition).toBe('DELETED')
+    expect(line.rows).toBe(12)
+    expect(willDelete(plan)).toContain(ASK)
+    expect(fateOf(ASK)!.fate).toBe('FORGOTTEN')
+  })
+
+  it('the decisions made on cards stay on the company’s record under a marker, because an approval is the company’s, not the person’s', () => {
+    expect(plan.lines.find((l) => l.category === SEAT)!.disposition).toBe('ANONYMIZED')
+    expect(willDelete(plan)).not.toContain(SEAT)
+  })
+
+  it('erasure deletes every one of the person’s threads, cleared lines included, and touches no approval', () => {
+    const at = SRC.indexOf('tx.askEtymeThread.deleteMany')
+    expect(at, 'erasure no longer deletes the saved conversation').toBeGreaterThan(-1)
+    expect(SRC.slice(at, SRC.indexOf('\n', at))).toContain('where: { personId } }')
+    // Nothing in the transaction deletes or blanks the twin's ledger.
+    expect(SRC).not.toMatch(/tx\.twinApproval\.(delete|update)/)
+    expect(SRC).not.toMatch(/tx\.twinAction\.(delete|update)/)
+  })
+
+  it('the footprint counts the conversation’s lines and the cards a person answered, so the letter is about what is really held', () => {
+    expect(SRC).toContain('prisma.askEtymeTurn.count({ where: { thread: { personId } } })')
+    expect(SRC).toContain('prisma.twinApproval.count({ where: { approverPersonId: personId } })')
+    expect(SRC).toContain("'Conversations with Ask Etyme': askEtyme")
+  })
+})

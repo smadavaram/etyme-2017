@@ -10,13 +10,18 @@
  *
  * A change here is a change to a legal document. Change the words only
  * on the founder's word or to correct a fact, and say which.
+ *
+ * Corrected 2026-10-19, a fact: each seat now keeps one saved Ask Etyme
+ * conversation (founder, 2026-10-18), which is personal information the
+ * text did not name. The change is two cells of the table in section 3 and the
+ * "Last updated" date, and nothing else.
  */
 export const DPA_SOURCE = `> **Notice:** This document is a draft and has not yet been reviewed by legal counsel. Text in square brackets marks a point counsel must decide before publication.
 
 # Data Processing Addendum
 
 **Effective date:** [to be set on publication]
-**Last updated:** October 15, 2026
+**Last updated:** October 19, 2026
 
 This Data Processing Addendum ("DPA") forms part of the Terms of Service between Etyme Inc. ("Etyme", "we", "us") and the Customer that accepts it. Etyme's address is 3201 Yorktown Ave, Ste. 110B, Durham, NC 27713, and you can reach us at support@etyme.com.
 
@@ -49,8 +54,8 @@ The same information can fall under both. For example, a Worker keeps their own 
 
 | Data subjects | Categories of personal data |
 |---|---|
-| Workers and candidates | Identity and sign-in details; profile (headline, skills, location, work authorization type, minimum rate, mobile number, availability); resumes and the text read from them; visa petition history; records that third parties ran checks (I-9, E-Verify, background, education, drug screening); onboarding documents; employment status positions taken by companies; pay and bill rates, timesheets, expenses and payments; total days on a Client's site; messages |
-| Business Users at a Client | Identity and sign-in details; role, permissions and team; actions taken in the Services; signer details on agreements; messages |
+| Workers and candidates | Identity and sign-in details; profile (headline, skills, location, work authorization type, minimum rate, mobile number, availability); resumes and the text read from them; visa petition history; records that third parties ran checks (I-9, E-Verify, background, education, drug screening); onboarding documents; employment status positions taken by companies; pay and bill rates, timesheets, expenses and payments; total days on a Client's site; messages; saved conversations with Ask Etyme |
+| Business Users at a Client | Identity and sign-in details; role, permissions and team; actions taken in the Services, including answers given on Ask Etyme cards; signer details on agreements; messages; saved conversations with Ask Etyme |
 | Business Users at a Supplier | The same as for Business Users at a Client |
 | Named references and contacts at other companies | Name, company and contact details |
 | Contacts at prospective Clients | Name, work email, team, and the files sent for a contractor spend review |

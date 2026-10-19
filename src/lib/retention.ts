@@ -237,6 +237,33 @@ export const SCHEDULE: ScheduleLine[] = [
       'none is offered.',
   },
   {
+    // AskEtymeThread and AskEtymeTurn (2026-10-19). Two clocks, and they
+    // answer different questions. While the person is here, a line they
+    // cleared from the screen is kept, because a card answered in Ask
+    // Etyme is an answer somebody gave and the twin's ledger entry for it
+    // points at a question this history explains — so it is kept exactly
+    // as long as that ledger is, which is to say with no period, the way
+    // the Logs line keeps the access and automation logs. When they ask to
+    // be forgotten, the conversation goes: what an auditor needs from it —
+    // the question, the yes or the no, who gave it, when and on which door
+    // — is on TwinApproval and TwinAction, which stay under the seat
+    // category with the name replaced. The person's own words are not
+    // needed to prove the decision, so they are not kept to prove it.
+    category: 'Conversations with Ask Etyme',
+    fate: 'DELETED',
+    anchor: 'NONE',
+    months: 0,
+    basis:
+      'No statute requires a person’s conversation with their own company’s record to be ' +
+      'kept, and no counterparty reads it, so nothing here is anybody else’s record. Until ' +
+      'they ask to be forgotten, lines cleared from the screen stay on the record for as ' +
+      'long as the twin’s ledger they explain, and no period is set for either, because none ' +
+      'can be cited. When they ask, the conversation is deleted whole. A yes or a no they ' +
+      'gave on a card is not deleted with it: the decision, who gave it, when and where are ' +
+      'on the twin’s ledger, which is the company’s record of its own decision and is kept ' +
+      'with the name replaced, like every other decision made from a seat.',
+  },
+  {
     category: 'A seat at a company, and what was decided from it',
     fate: 'KEPT_ANONYMIZED',
     anchor: 'NONE',

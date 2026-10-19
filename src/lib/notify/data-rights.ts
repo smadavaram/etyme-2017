@@ -138,6 +138,12 @@ export const FATES: CategoryFate[] = [
     until: null,
   },
   {
+    category: 'Conversations with Ask Etyme',
+    fate: 'FORGOTTEN',
+    why: 'Your saved conversations with Ask Etyme — the questions you typed and the answers shown to you, including lines you cleared — are erased. A yes or a no you gave on one of its cards stays as your company\'s record of its own decision, under a marker instead of your name.',
+    until: null,
+  },
+  {
     category: 'Onboarding paperwork',
     fate: 'UNDER_A_MARKER',
     why: 'The checklist of what a placement needed stays as that placement\'s record. Documents that are not required by law are erased with it.',

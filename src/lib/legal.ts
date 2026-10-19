@@ -382,8 +382,8 @@ export const HELD: HeldCategory[] = [
       'The seat itself — which company granted it, the role and the permissions on it, ' +
       'the org unit it sits in, why it was granted, when it was last used and whether it ' +
       'is suspended or ended — and every act taken from it: a job request raised, an ' +
-      'approval given or refused with the reason in words, somebody else’s week of hours ' +
-      'signed off, an overtime call, a position taken on how a worker is engaged, a ' +
+      'approval given or refused with the reason in words, a yes or a no on an Ask Etyme ' +
+      'card, somebody else’s week of hours signed off, an overtime call, a position taken on how a worker is engaged, a ' +
       'supplier decided by a role, a payment run approved, a legal hold placed, an ' +
       'incident opened. An agreement carries the signer’s own name, title and email as they ' +
       'appear on the paper. An order names the company that raised it and not a person, ' +
@@ -393,7 +393,7 @@ export const HELD: HeldCategory[] = [
       'Context, Role, OrgUnit, Requirement.raisedById, RequirementApproval, ' +
       'Timesheet.clientApprovedById and Timesheet.employerAcceptedById, OvertimeDecision, ' +
       'ClassificationCall, SupplierRequest, PaymentRun, LegalHold, Breach, ' +
-      'AgreementSignature in prisma/schema.prisma',
+      'AgreementSignature, TwinApproval.approverPersonId in prisma/schema.prisma',
   },
   {
     category: 'Bars and preferences',
@@ -445,6 +445,24 @@ export const HELD: HeldCategory[] = [
       'notifications and their delivery, and emails the system sent.',
     about: 'Everybody',
     provenBy: 'Conversation, Message, Notification in prisma/schema.prisma',
+  },
+  {
+    // Added 2026-10-19 with the saved thread (founder, 2026-10-18: one
+    // Ask Etyme conversation per person, saved). Not "Messages": a message
+    // is written to another company and is its record of a deal too, so it
+    // stays under a marker. This conversation is one person talking to
+    // their own company's record, nobody else reads it, and so it is the
+    // person's own words — deleted when they ask to be forgotten. A yes or
+    // a no they gave on a card is not in here: that is a decision, held on
+    // the twin's ledger, and it is under the seat it was given from.
+    category: 'Conversations with Ask Etyme',
+    examples:
+      'Each seat keeps one saved conversation with Ask Etyme: the questions the person ' +
+      'typed, the answers shown to them with their tables, links and cards, what became ' +
+      'of each card, and when they pressed Clear. Lines cleared from the screen stay on ' +
+      'the record. Nobody else at the company and nobody at another company can read it.',
+    about: 'Everybody',
+    provenBy: 'AskEtymeThread, AskEtymeTurn in prisma/schema.prisma; src/lib/ask-etyme-thread.ts',
   },
   {
     category: 'Logs',

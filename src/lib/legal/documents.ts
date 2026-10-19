@@ -205,6 +205,7 @@ export const NOTICE_CATEGORY: Record<string, string> = {
   'Company and supplier information': 'Company and supplier records',
   'Payment details': 'Payment details',
   Messages: 'Messages',
+  'Ask Etyme conversations': 'Conversations with Ask Etyme',
   Logs: 'Logs',
 }
 

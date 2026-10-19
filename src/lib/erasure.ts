@@ -226,7 +226,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     credentials, profile, resumes, visas, verifications, packets,
     classifications, exempts, sells, buys, timesheets, messages,
     accessLogs, blacklists, doNotSubmits, favorites, censuses,
-    seats, approvals, requisitions, signedWeeks, deskDecisions,
+    seats, approvals, requisitions, signedWeeks, deskDecisions, askEtyme,
   ] = await Promise.all([
     prisma.credential.count({ where: { personId } }),
     prisma.consultantProfile.count({ where: { personId } }),
@@ -264,6 +264,16 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
       prisma.classificationCall.count({ where: { decidedById: personId } }),
       prisma.supplierRequest.count({ where: { decidedById: personId } }),
       prisma.legalHold.count({ where: { placedById: personId } }),
+      // A yes or a no on an Ask Etyme card, or on Teams: the company's
+      // record of a decision made from the seat, kept under a marker.
+      prisma.twinApproval.count({ where: { approverPersonId: personId } }),
+    ]).then((n) => n.reduce((a, b) => a + b, 0)),
+    // Their saved conversations with Ask Etyme, one per seat, and every
+    // line in them — the cleared lines included, because cleared is
+    // hidden from the screen and still held.
+    Promise.all([
+      prisma.askEtymeThread.count({ where: { personId } }),
+      prisma.askEtymeTurn.count({ where: { thread: { personId } } }),
     ]).then((n) => n.reduce((a, b) => a + b, 0)),
   ])
 
@@ -287,6 +297,7 @@ export async function footprintFor(personId: string, now = new Date()): Promise<
     'Company and supplier records': 0,
     'Payment details': 0,
     'Messages': messages,
+    'Conversations with Ask Etyme': askEtyme,
     'Logs': accessLogs,
     'A seat at a company, and what was decided from it':
       seats + approvals + requisitions + signedWeeks + deskDecisions,
@@ -525,6 +536,21 @@ export async function executeErasure(
         },
       })
     }
+
+    // 4d. Their own conversations with Ask Etyme, one per seat, deleted
+    //     whole: the lines they cleared from the screen go too, and every
+    //     line goes with its thread (AskEtymeTurn cascades). These are the
+    //     person's own words to their own company's record, and nobody
+    //     else's record depends on them.
+    //
+    //     What does not go is what they decided. A yes or a no on a card —
+    //     the question, the answer, who gave it, when, on which door and
+    //     the reason — is on TwinApproval and TwinAction, the twin's
+    //     ledger, which is the company's record of its own decision. It
+    //     stays, pointing at the tombstone like every other decision made
+    //     from a seat. A turn pointed at the approval and never the other
+    //     way, so deleting the turn leaves the approval exactly as it was.
+    await tx.askEtymeThread.deleteMany({ where: { personId } })
 
     // 5. The tombstone. Everything else on this person goes on pointing
     //    at this row and now resolves to nobody — which is what keeps the
