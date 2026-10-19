@@ -135,3 +135,23 @@ export function basisSays(what: string): string {
     `where nobody stated the hours for the seat. It is an estimate, not signed time.`
   )
 }
+
+/**
+ * The one line under a month's spend figure, where the figure is on a
+ * first screen: "estimate from current rates, 160 hours a month, not
+ * signed time".
+ *
+ * The founder, 2026-10-19: the paragraph under the six figures becomes
+ * one line under the figure it explains. `basisSays` stays the whole
+ * sentence for a page that has room for it; this is its one fact, with
+ * the seats that carry no rate named after it, because a total of some
+ * seats presented as the total of all of them is the plausible wrong
+ * number on a CFO's page.
+ */
+export function spendLine(spend: { priced: number; unpriced: number }): string {
+  const line = `estimate from current rates, ${HOURS_PER_MONTH} hours a month, not signed time`
+  if (spend.unpriced <= 0) return line
+  return `${line}; ${spend.unpriced} ${spend.unpriced === 1 ? 'person has' : 'people have'} no rate and ${
+    spend.unpriced === 1 ? 'is' : 'are'
+  } not in it`
+}

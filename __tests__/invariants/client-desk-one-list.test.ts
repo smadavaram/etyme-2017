@@ -35,14 +35,16 @@ describe('The headline and the box under it read one list', () => {
   it('every start paperwork will refuse and every supplier with no agreement is a row, and the headline counts the rows of the queue and nothing else', () => {
     const items = deskItems({ startingSoon, vendors })
     expect(items.map((i) => i.who)).toEqual(['Samuel Adeyinka — through Brightmoor', 'Wrenfield Technical'])
-    const queue = items.map((i) => ({ type: i.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT' }))
-    expect(deskHeadline(deskCounts({ decisions: queue })).total).toBe(items.length)
-    expect(deskHeadline(deskCounts({ decisions: queue })).says).toMatch(/^2 things need you\./)
+    const queue = items.map((i) => ({ type: i.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT', title: i.who, named: i.named }))
+    expect(deskHeadline(queue).total).toBe(items.length)
+    expect(deskCounts({ decisions: queue }).queue).toBe(items.length)
+    expect(deskHeadline(queue).says).toBe("Two things need you: Samuel Adeyinka's start, and Wrenfield Technical's missing agreement.")
   })
 
   it('with one decision beside the two rows the headline says three, the length of the queue', () => {
-    const counts = deskCounts({ decisions: [{ type: 'TIMESHEET_APPROVAL' }, { type: 'START_HELD' }, { type: 'NO_AGREEMENT' }] })
-    expect(deskHeadline(counts).total).toBe(3)
+    const queue = [{ type: 'TIMESHEET_APPROVAL' }, { type: 'START_HELD' }, { type: 'NO_AGREEMENT' }]
+    expect(deskHeadline(queue).total).toBe(3)
+    expect(deskHeadline(queue).says).toMatch(/^Three things need you: /)
   })
 
   it('a start that only warns is not a row, because it refuses nobody', () => {
@@ -64,11 +66,14 @@ describe('The headline and the box under it read one list', () => {
   it('the program page, the Ask Etyme mark and the greeting say one number: the dashboard headline reads the decision queue and adds nothing of its own', () => {
     const page = src('src/app/dashboard/program/page.tsx')
     expect(page).toContain('const counts = deskCounts({ decisions: queue })')
+    expect(page).toContain('const said = deskHeadline(queue)')
     expect(page).not.toContain('deskItems(')
     expect(page).toContain('queue.length === 0 && (')
     const decisions = src('src/app/api/decisions/route.ts')
-    expect(decisions).toContain("import { deskItems } from '@/app/dashboard/program/needs-you'")
-    expect(decisions).toContain("type: item.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT'")
+    expect(decisions).toContain("import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'")
+    expect(decisions).toContain('deskRows(deskItems({ startingSoon: held, vendors }), startOf, now)')
+    // And the route says the sentence itself, so the greeting can say the same one.
+    expect(decisions).toContain('says: deskHeadline(decisions).says')
   })
 
   it('a held start reaches the desk that starts people, and a supplier with no agreement the desk that manages suppliers, at a client only', () => {

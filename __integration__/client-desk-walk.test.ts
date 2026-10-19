@@ -574,3 +574,70 @@ describe('an expense Northbend pays for waits on its AP clerk to accept it', () 
     expect(next.subtitle).toBe('$250.00 · Travel · from Techpeple')
   })
 })
+
+describe('the Today headline is one sentence with the names in it, and says the queue’s own number', () => {
+  const APTIVA = 'world-aptiva@demo.etyme.local'
+  const read = async (who: string) => {
+    as(who)
+    const queue = await json(await readDecisions(req('GET', '/api/decisions')))
+    expect(queue.status, JSON.stringify(queue.body)).toBe(200)
+    const program = await json(await readProgram(req('GET', '/api/program')))
+    return { queue: queue.body.data, program: program.body?.data, programStatus: program.status }
+  }
+
+  it('for Northbend’s program manager, hiring manager and AP clerk the page’s headline and the decision queue’s total are one number and one sentence', async () => {
+    const { deskHeadline } = await import('@/app/dashboard/program/needs-you')
+    for (const who of [PROGRAMME, HIRING, AP]) {
+      const { queue, program, programStatus } = await read(who)
+      // The page reads the queue itself for a client's own seat.
+      if (programStatus === 200) {
+        expect(program.seated, who).toBe(false)
+        expect(program.programQueue, who).toBeNull()
+      }
+      const said = deskHeadline(queue.decisions)
+      expect(said.total, who).toBe(queue.total)
+      expect(queue.says, who).toBe(said.says)
+      // One sentence, never a count with no name in it.
+      expect(queue.says, who).not.toMatch(/held up by paperwork|people on site with no agreement on file/)
+      console.log(`${who}: ${queue.says}`)
+    }
+  })
+
+  it('the program manager’s sentence names the start paperwork holds and the supplier with no agreement: "Two things need you: Ingrid Sørensen’s start, and Teleworld Solutions’ missing agreement."', async () => {
+    const { possessive } = await import('@/app/dashboard/program/needs-you')
+    const { queue } = await read(PROGRAMME)
+    const held = queue.decisions.filter((d: any) => d.type === 'START_HELD')
+    const noPaper = queue.decisions.filter((d: any) => d.type === 'NO_AGREEMENT')
+    expect(held.length + noPaper.length, 'the seeded desk holds a start and a supplier with no agreement').toBeGreaterThan(0)
+    if (queue.decisions.length <= 3) {
+      for (const d of held) expect(queue.says).toContain(`${possessive(d.named.whose)} start`)
+      for (const d of noPaper) expect(queue.says).toContain(`${possessive(d.named.whose)} missing agreement`)
+    }
+    expect(queue.says).toBe("Two things need you: Ingrid Sørensen's start, and Teleworld Solutions' missing agreement.")
+  })
+
+  it('a held start’s row says what is missing once, and never names the person a second time', async () => {
+    const { queue } = await read(PROGRAMME)
+    for (const d of queue.decisions.filter((x: any) => x.type === 'START_HELD')) {
+      expect(d.subtitle).not.toContain(d.named.whose)
+      expect((d.subtitle.match(/proof of right to work/g) ?? []).length).toBeLessThanOrEqual(1)
+      console.log(`held start row: ${d.title} | ${d.subtitle}`)
+    }
+  })
+
+  it('Aptiva’s seat in Cavanaugh Glassworks’ program reads only Cavanaugh’s program — Ruben Ortega’s week at Harlow Health is not on it', async () => {
+    const { deskHeadline } = await import('@/app/dashboard/program/needs-you')
+    const { queue, program, programStatus } = await read(APTIVA)
+    expect(programStatus, JSON.stringify(program)).toBe(200)
+    expect(program.client.name).toBe('Cavanaugh Glassworks')
+    expect(program.seated).toBe(true)
+    // Aptiva's own book is real, and is its own queue's — never this page's.
+    const own = JSON.stringify(queue.decisions)
+    const onPage = JSON.stringify(program.programQueue)
+    expect(onPage).not.toContain('Ruben Ortega')
+    expect(onPage).not.toContain('Harlow Health')
+    for (const row of program.programQueue) expect(['START_HELD', 'NO_AGREEMENT']).toContain(row.type)
+    console.log(`Aptiva's own queue mentions Ruben Ortega: ${own.includes('Ruben Ortega')}`)
+    console.log(`${APTIVA} on Cavanaugh's page: ${deskHeadline(program.programQueue).says}`)
+  })
+})

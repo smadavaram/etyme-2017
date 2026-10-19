@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import { contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'
+import { heldStartSays } from '@/app/dashboard/program/needs-you'
 
 /**
  * The two things on a client's desk that are not approvals and still
@@ -50,7 +51,7 @@ export interface StartLine {
 export async function startPaperwork(
   c: StartLine,
   opts: { supplierPhrase: string; clientName: string; now: Date }
-): Promise<{ outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null }> {
+): Promise<{ outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null; short: string | null }> {
   const [personVerifications, supplierCertificates] = await Promise.all([
     prisma.verification.findMany({ where: { personId: c.personId }, select: VERIFICATION_SHAPE }),
     // `personId: null`: a person's own file is not the firm's standing.
@@ -64,7 +65,17 @@ export async function startPaperwork(
     through: c.endDate,
     ...(await lineExtras({ sellContractId: c.id })),
   })
-  return { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null }
+  // The row's own sentence, where papers alone hold the start: the
+  // person is named on the row already, so it says what is missing once
+  // and what to do once (`heldStartSays`). Each item carries the
+  // clearance's own phrase for it, so a license names its board.
+  const short = heldStartSays({
+    outcome: papers.outcome,
+    blocking: papers.blocking.map((i) => ({ ...i, said: i.said ?? sentencePhrases([i])[0] })),
+    licenseBlocks: papers.license.outcome === 'BLOCK',
+    coverBlocks: papers.cover.outcome === 'BLOCK',
+  })
+  return { outcome: papers.outcome, says: papers.says, fix: papers.fix ?? null, short }
 }
 
 /** The suppliers, of those named, with an agreement on file with this client. */

@@ -19,6 +19,7 @@ import {
   annualSpendMinor,
   programMonthlySpend,
   basisSays,
+  spendLine,
 } from '@/lib/program-spend'
 
 describe('what a contingent program costs a month', () => {
@@ -84,5 +85,20 @@ describe('what a contingent program costs a month', () => {
     const says = basisSays('Annualized from the rates this client is billed')
     expect(says).toContain('160 hours a month')
     expect(says).toContain('estimate')
+  })
+})
+
+describe('the one line under the month’s spend figure', () => {
+  it('says "estimate from current rates, 160 hours a month, not signed time" where every seat has a rate', () => {
+    expect(spendLine({ priced: 7, unpriced: 0 })).toBe('estimate from current rates, 160 hours a month, not signed time')
+  })
+
+  it('names the seats with no rate, so a total of some seats never reads as the total of all of them', () => {
+    expect(spendLine({ priced: 6, unpriced: 1 })).toBe(
+      'estimate from current rates, 160 hours a month, not signed time; 1 person has no rate and is not in it'
+    )
+    expect(spendLine({ priced: 4, unpriced: 3 })).toBe(
+      'estimate from current rates, 160 hours a month, not signed time; 3 people have no rate and are not in it'
+    )
   })
 })

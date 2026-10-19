@@ -14,8 +14,9 @@ import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 import { seatTrail, actingDesk } from '@/lib/program-seat'
-import { hasPermission } from '@/lib/permissions'
-import { programMonthlySpend, basisSays } from '@/lib/program-spend'
+import { hasPermission, hasAnyPermission } from '@/lib/permissions'
+import { programMonthlySpend, spendLine } from '@/lib/program-spend'
+import { deskItems, deskRows } from '@/app/dashboard/program/needs-you'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { oneLinePerAsk } from '@/app/api/requirements/[id]/matches/asked'
 
@@ -396,7 +397,7 @@ export async function GET(request: NextRequest) {
         vendor: firm(c.company),
         startDate: c.startDate.toISOString(),
         daysUntil: Math.ceil((c.startDate.getTime() - now.getTime()) / 86_400_000),
-        paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
+        paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix, short: papers.short },
         placement: placementStatus(
           {
             state: c.state, startDate: c.startDate, endDate: c.endDate,
@@ -544,6 +545,29 @@ export async function GET(request: NextRequest) {
   // same desk and the same permission `POST /api/requirements` asks for,
   // so the dashboard never offers a button the route would refuse.
   const raiseDesk = await actingDesk(caller)
+
+  // ── A seat in another company's program reads only that program ────
+  //
+  // The founder, 2026-10-19: an MSP's own book never appears on the
+  // client's page. `GET /api/decisions` answers for the caller's own firm,
+  // so a seated MSP reading it here read Ruben Ortega's week at Harlow
+  // Health — Aptiva's own work — under Cavanaugh's name. Under a seat the
+  // page reads this queue instead: what in this program needs somebody,
+  // the same rows the client's own seats get (`deskRows`), for the
+  // permissions the seat carries, never the reader's firm's. The MSP's
+  // own work is on its own Today and in Ask Etyme.
+  const programQueue = seat
+    ? deskRows(
+        deskItems({
+          startingSoon: hasAnyPermission(acting.permissions, ['assignments.write'])
+            ? cleared.filter((c) => c.paperwork.outcome === 'BLOCK')
+            : [],
+          vendors: hasAnyPermission(acting.permissions, ['vendors.manage']) ? vendors : [],
+        }),
+        new Map(cleared.map((c) => [c.contractId, new Date(c.startDate)])),
+        now
+      )
+    : null
   const mayRaise = raiseDesk?.companyId === clientCompany.id && hasPermission(raiseDesk.permissions, 'requirements.write')
 
   return NextResponse.json({
@@ -553,6 +577,10 @@ export async function GET(request: NextRequest) {
         name: clientCompany.name,
       },
       mayRaise,
+      /** True where the reader is in a seat this client granted another company. */
+      seated: seat != null,
+      /** Under a seat, what in this program needs somebody; null for the client's own seats. */
+      programQueue,
       summary: {
         activeContractors: onSitePeople.size,
         // The Contractors tab lists everybody with a live line here —
@@ -564,26 +592,14 @@ export async function GET(request: NextRequest) {
         notStarted: listedPeople.size - onSitePeople.size,
         vendors: vendors.length,
         monthlySpend: totalMonthlySpend,
-        // What the figure rests on, in a sentence, because 160 hours a
-        // month is a stated assumption and not a measurement. A
-        // twenty-hour validation seat priced at 160 is twice its real
-        // cost. `basisSays` has been imported here since the helper was
-        // written and never called, so the page said "from current
-        // rates" and never said the rest of it.
-        //
-        // The unpriced heads are named too: the total is the total of
-        // the seats that have a rate on the rung this client pays, and a
-        // total of some of them presented as the total of all of them is
-        // the plausible wrong number on a CFO's page.
-        monthlySpendBasis:
-          basisSays(
-            `This month counts ${spend.priced} ${spend.priced === 1 ? 'contractor' : 'contractors'} on site, ` +
-            'at the rate on the contract you pay,'
-          ) +
-          (spend.unpriced > 0
-            ? ` ${spend.unpriced} ${spend.unpriced === 1 ? 'person has' : 'people have'} no rate on the rung ` +
-              `you pay and ${spend.unpriced === 1 ? 'is' : 'are'} not in this figure.`
-            : ''),
+        // What the figure rests on, as the one line under the figure
+        // (founder, 2026-10-19: the paragraph under the six figures
+        // becomes one line under the figure it explains). 160 hours a
+        // month is a stated assumption and not a measurement, and the
+        // seats with no rate on the rung this client pays are named, so
+        // the total of some seats is never presented as the total of all
+        // of them (`spendLine`).
+        monthlySpendSays: spendLine(spend),
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,

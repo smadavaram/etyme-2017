@@ -10,7 +10,8 @@ import { useRouter } from 'next/navigation'
 import type { Route } from 'next'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
-import { deskCounts, deskHeadline, onSiteSub, whoseQueue, emptyQueueSays } from './needs-you'
+import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named } from './needs-you'
+import { formatDay } from '@/lib/format-date'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -30,6 +31,13 @@ interface ProgramData {
   client: { id: string; name: string }
   /** Whether this seat may raise a job request here — the route's own permission. */
   mayRaise?: boolean
+  /** True where the reader is in a seat this client granted another company. */
+  seated?: boolean
+  /**
+   * Under a seat, what in this program needs somebody — the page's queue
+   * in place of the reader's own firm's, which is never shown here.
+   */
+  programQueue?: Decision[] | null
   summary: {
     activeContractors: number
     /** Everybody the Contractors tab lists, in people: on site plus not started. */
@@ -38,8 +46,8 @@ interface ProgramData {
     notStarted?: number
     vendors: number
     monthlySpend: number // cents, at 160 hours a month
-    /** What that figure rests on, in a sentence. From `lib/program-spend`. */
-    monthlySpendBasis?: string
+    /** The one line under that figure, saying what it rests on. From `lib/program-spend`. */
+    monthlySpendSays?: string
     pendingApprovals: number
     openRoles: number
     endingSoon: number
@@ -111,7 +119,8 @@ interface ProgramData {
     vendor: { id: string; name: string; via?: string }
     startDate: string
     daysUntil: number
-    paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null }
+    /** `short` is the sentence said once, where papers alone hold the start. */
+    paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null; short?: string | null }
     /** The one word every screen reads for this placement (`placementStatus`). */
     placement?: { status: string; word: string }
   }[]
@@ -146,6 +155,8 @@ interface Decision {
   createdAt: string
   /** A sentence when the week does not fit the contract; approve anyway needs a reason. */
   flag?: string | null
+  /** What the headline calls this row: "Ingrid Sørensen's start". */
+  named?: Named | null
 }
 
 interface TenureRow {
@@ -252,12 +263,6 @@ const TENURE_WORD: Record<string, string> = {
 export default function ProgramPage() {
   const [data, setData] = useState<ProgramData | null>(null)
   const [decisions, setDecisions] = useState<Decision[] | null>(null)
-  // Whose book the queue is. A seated program office reads the client's
-  // program with its own firm's decisions under it, and the page has to
-  // say so (`whoseQueue`).
-  const [queueBook, setQueueBook] = useState<
-    { company: string | null; seated: boolean; clientName: string | null } | null
-  >(null)
   const [tenure, setTenure] = useState<Tenure | null>(null)
   // Why tenure could not be read — the door's own sentence. Without it a
   // refused read left "Reading…" under Tenure to watch for ever (sign-up
@@ -268,7 +273,6 @@ export default function ProgramPage() {
   const [queueSays, setQueueSays] = useState<string | null>(null)
   // The program read refused this reader: the sentence and nothing else.
   const [refused, setRefused] = useState<string | null>(null)
-  const [firstGood, setFirstGood] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
@@ -289,22 +293,31 @@ export default function ProgramPage() {
       }
       const body = await readJson(res)
       setData(body.data)
+      // A seat in another company's program reads that program and
+      // nothing else (founder, 2026-10-19). The decision queue answers for
+      // the reader's own firm, so under a seat it is not read here at all:
+      // the route sends what in this program needs somebody instead, and
+      // the reader's own work stays on its own Today and in Ask Etyme.
+      if (body.data?.seated) {
+        setDecisions(body.data.programQueue ?? [])
+        setQueueSays(null)
+      } else {
+        // The queue is its own read. A page whose queue cannot load still
+        // shows the picture, and says so in one line rather than taking
+        // the page down.
+        fetch('/api/decisions').then(readJson).then((b) => {
+          setDecisions(b?.data?.decisions ?? [])
+          setQueueSays(null)
+        }).catch((err: any) => {
+          setDecisions([])
+          setQueueSays(err?.message ?? 'Your queue could not be read.')
+        })
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-    // The queue and the exposure are their own reads. A desk whose queue
-    // cannot load still shows the picture; a picture whose queue fails
-    // says so in one line rather than taking the page down.
-    fetch('/api/decisions').then(readJson).then((b) => {
-      setDecisions(b?.data?.decisions ?? [])
-      setQueueBook(b?.data?.reading ?? null)
-      setQueueSays(null)
-    }).catch((err: any) => {
-      setDecisions([])
-      setQueueSays(err?.message ?? 'Your queue could not be read.')
-    })
     fetch('/api/tenure').then(readJson).then((b) => {
       setTenure(b?.data ?? null)
       setTenureSays(null)
@@ -312,7 +325,6 @@ export default function ProgramPage() {
       setTenure(null)
       setTenureSays(err?.message ?? 'Tenure could not be read.')
     })
-    fetch('/api/first-good').then(readJson).then((b) => setFirstGood(b?.data ?? null)).catch(() => {})
   }
 
   useEffect(() => {
@@ -434,8 +446,10 @@ export default function ProgramPage() {
   // will refuse and a supplier with people on site and no agreement are
   // rows of that queue now, not a second sum added here.
   const counts = deskCounts({ decisions: queue })
-  const said = deskHeadline(counts)
-  const exceptions = counts.exceptions
+  // One sentence with the names in it, built from the same rows the count
+  // is (`deskHeadline`): "Two things need you: Ingrid Sørensen's start,
+  // and Teleworld's missing agreement."
+  const said = deskHeadline(queue)
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
@@ -511,11 +525,9 @@ export default function ProgramPage() {
           onApprovals={() => setTab('approvals')}
           queue={queue}
           queueLoaded={decisions !== null}
-          queueBook={queueBook}
           queueSays={queueSays}
           tenure={tenure}
           tenureSays={tenureSays}
-          firstGood={firstGood}
           busy={busy}
           onApprove={approve}
           onExtend={handleExtend}
@@ -575,26 +587,22 @@ function plural(n: number, one: string, many = `${one}s`): string {
  * everything else opens where the decision is made. Under the queue,
  * what was done today, so a clear desk is not an empty page.
  */
-function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureSays, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
+function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, onApprove, onExtend, onRolloff, onApprovals }: {
   data: ProgramData
   onApprovals: () => void
   queue: Decision[]
   queueLoaded: boolean
-  /** Whose book the queue is, as /api/decisions says it. */
-  queueBook: { company: string | null; seated: boolean; clientName: string | null } | null
   /** Why the queue was not read, when the read refused or failed. */
   queueSays: string | null
   tenure: Tenure | null
   /** Why tenure was not read, when the read refused or failed. */
   tenureSays: string | null
-  firstGood: any
   busy: string | null
   onApprove: (d: Decision, note?: string) => void
   onExtend: (contractId: string) => void
   onRolloff: (contractId: string) => void
 }) {
   const s = data.summary
-  const whoseBook = whoseQueue(queueBook ?? {})
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -630,16 +638,14 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
     <div className="space-y-8">
       {/* ── Yours today ── */}
       <section>
-        <div className="flex items-baseline justify-between gap-3 mb-1">
+        {/* One book. Under a seat the rows are this program's own
+            (`programQueue`), never the reader's firm's, so no clause is
+            needed to say whose they are. */}
+        <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 className="font-serif text-lg text-etyme-ink">Yours today</h2>
-          {queue.length > 0 && <Link href={{ pathname: '/dashboard/decisions' }} className="text-xs text-etyme-action hover:underline">All decisions</Link>}
-        </div>
-        {/* Whose book. Everything else on this page is the client's; the
-            queue is the reader's own firm's, and a seated program office
-            reading both without a word between them signs the wrong
-            week. */}
-        <div className="mb-3">
-          {whoseBook && <p className="text-xs text-etyme-muted max-w-2xl">{whoseBook}</p>}
+          {/* The decisions page is the reader's own firm's queue, so a seat
+              in another company's program is not sent there from here. */}
+          {queue.length > 0 && !data.seated && <Link href={{ pathname: '/dashboard/decisions' }} className="text-xs text-etyme-action hover:underline">All decisions</Link>}
         </div>
         <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
           {!queueLoaded && <LoadingState compact says="Reading…" />}
@@ -716,11 +722,13 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
               </div>
             )
           })}
-          {queue.length > 8 && (
+          {queue.length > 8 && (data.seated ? (
+            <p className="p-3 text-center text-xs text-etyme-muted">and {queue.length - 8} more</p>
+          ) : (
             <Link href={{ pathname: '/dashboard/decisions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">
               and {queue.length - 8} more
             </Link>
-          )}
+          ))}
         </div>
 
         {/* ── Done today ── */}
@@ -732,7 +740,7 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
                 <div key={t.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
                   <span className="text-etyme-verified font-mono text-xs">✓</span>
                   <span className="flex-1 text-etyme-muted">{t.what} — <span className="text-etyme-ink">{t.who}</span></span>
-                  <span className="text-xs text-etyme-faint tabular-nums">{clock(t.at)}</span>
+                  <span className="text-xs text-etyme-faint tabular-nums">{doneAt(t.at, clock)}</span>
                 </div>
               ))}
             </div>
@@ -750,7 +758,11 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
         <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
         {/* The spend behind the number is the budget page: every cost
             center, what is committed and what is left. */}
-        <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" href="/dashboard/program/budget" />
+        {/* The one figure here that is an estimate says so in its own
+            line: 160 hours a month at current rates, not signed time, and
+            any seat with no rate named (`spendLine`). The paragraph that
+            sat under the six figures was this one fact said at length. */}
+        <Stat label="This month" value={compact(s.monthlySpend)} sub={s.monthlySpendSays ?? 'estimate from current rates, 160 hours a month, not signed time'} href="/dashboard/program/budget" />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
         {/* A refused tenure read draws no tile: a dash over "reading"
             is a spinner that never ends. */}
@@ -760,13 +772,6 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
         <Stat label={jobListWord('CLIENT').plural} value={s.openRoles} sub="published or drafted" href="/dashboard/requisitions" />
       </div>
 
-      {/* The one figure here that is an estimate says so, under the row
-          it sits in. "From current rates" is true and is not the whole
-          of it: 160 hours a month is an assumption, and the total counts
-          only the seats that have a rate on the rung this client pays. */}
-      {s.monthlySpendBasis && (
-        <p className="-mt-1 text-xs text-etyme-muted">{s.monthlySpendBasis}</p>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-8">
@@ -783,8 +788,10 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
                         {c.placement && <span className="chip ml-2">{c.placement.word}</span>}
                       </p>
                       <p className={`text-xs mt-1 ${c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : c.paperwork.outcome === 'WARN' ? 'text-etyme-muted' : 'text-etyme-verified'}`}>
-                        {c.paperwork.outcome === 'PASS' ? 'Paperwork complete. Nothing stops the start.' : c.paperwork.says}
-                        {c.paperwork.outcome !== 'PASS' && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}
+                        {c.paperwork.outcome === 'PASS'
+                          ? 'Paperwork complete. Nothing stops the start.'
+                          : c.paperwork.short ?? c.paperwork.says}
+                        {c.paperwork.outcome !== 'PASS' && !c.paperwork.short && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}
                       </p>
                     </div>
                     <div className="text-right">
@@ -855,7 +862,9 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
                     </p>
                     <div className="flex gap-2">
                       <button onClick={() => onExtend(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Extend</button>
-                      <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 bg-etyme-attention text-white rounded hover:opacity-90">Roll off</button>
+                      {/* A plain button like Extend: ending a contract on its date is
+                          an ordinary choice, not an alarm. */}
+                      <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Roll off</button>
                     </div>
                   </div>
                 ))}
@@ -925,16 +934,6 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
               {data.openRoles.length > 6 && (
                 <Link href={{ pathname: '/dashboard/requisitions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">and {data.openRoles.length - 6} more</Link>
               )}
-              {/* The number's sentence, under the list it is about.
-                  It is only printed where the two agree about there
-                  being roles at all: a first-run line over a list of
-                  two requirements is the bug this guard closes, and the
-                  route's own `openNow` is counted off the same
-                  population the list is. */}
-              {firstGood?.says && data.openRoles.length > 0 &&
-                (firstGood.roles > 0 || firstGood.openNow > 0) && (
-                <p className="p-3 text-xs text-etyme-faint">{firstGood.says}</p>
-              )}
             </div>
           </section>
         </div>
@@ -943,9 +942,9 @@ function Today({ data, queue, queueLoaded, queueBook, queueSays, tenure, tenureS
   )
 }
 
-/** "Sep 3" from an ISO string. */
+/** "Sep 3" from an ISO string, through the one date formatter. */
 function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  return formatDay(iso, { year: false })
 }
 
 /** "9:12 AM" from an ISO string. */

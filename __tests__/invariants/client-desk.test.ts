@@ -89,11 +89,13 @@ describe('what the client desk is told', () => {
     expect(page).toContain('emptyQueueSays({')
   })
 
-  it('the headline is a sentence about the reader, not a label', () => {
+  it('the headline is one sentence about the reader with the names in it, not a label and not a count', () => {
     // The sentence moved into `needs-you.ts` on 2026-09-21, because the
-    // page was counting the approval queue and calling that the desk.
+    // page was counting the approval queue and calling that the desk; on
+    // 2026-10-19 it became one sentence naming what needs the reader.
     expect(needsYou).toContain("'Nothing needs you today.'")
-    expect(needsYou).toContain("'thing needs', 'things need'")
+    expect(needsYou).toContain("total === 1 ? 'thing needs' : 'things need'")
+    expect(needsYou).toContain('export function deskHeadline(queue: readonly QueueRow[]): DeskHeadline')
     expect(page).toContain('said.says')
   })
 
@@ -114,10 +116,9 @@ describe('what the client desk is told', () => {
     expect(decisions).toMatch(/actionUrl: `\/dashboard\/timesheets\?id=\$\{ts\.id\}`,\s*amount,\s*flag,/)
   })
 
-  it('the headline counts exceptions; a flagged week is approved anyway only with a reason, and the reason goes on the signature', () => {
+  it('a flagged week is named in the headline like any other, and is approved anyway only with a reason that goes on the signature', () => {
     expect(needsYou).toContain("input.decisions.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length")
-    expect(needsYou).toContain("c.exceptions === 1 ? 'has an exception' : 'have exceptions'")
-    expect(page).toContain('const exceptions = counts.exceptions')
+    expect(decisions).toContain("named: { whose: ts.person.name, what: 'week', whats: 'weeks' }")
     expect(page).toContain('Approve anyway')
     expect(page).toContain("if (reason.trim()) { onApprove(d, reason.trim()); setReasonFor(null) }")
     expect(page).toContain('body: JSON.stringify(note ? { note } : {})')
@@ -134,8 +135,10 @@ describe('what the client desk is told', () => {
     // and every held start reaches the headline (2026-10-06).
     expect(program).toContain(".filter((c) => c.state !== 'IN_PROGRESS')")
     expect(program).toContain('startingSoon: cleared.slice(0, 5)')
-    expect(program).toContain('paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix }')
+    expect(program).toContain('paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix, short: papers.short }')
     expect(page).toContain("'Paperwork complete. Nothing stops the start.'")
+    // A held start says what is missing once, where papers alone hold it.
+    expect(page).toContain(': c.paperwork.short ?? c.paperwork.says}')
   })
 
   it('the week-early paperwork verdict on the dashboard reads what the client\u2019s own order asked for', () => {
@@ -146,7 +149,7 @@ describe('what the client desk is told', () => {
     // packet for the role and saw nothing until the start date.
     // The verdict is read in one place, by the page and the queue alike.
     expect(program).toContain("import { startPaperwork, agreementsOnFile } from './desk-findings'")
-    expect(findings).toContain("import { contractClearance, lineExtras } from '@/lib/contract-clearance'")
+    expect(findings).toContain("import { contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'")
     expect(findings).toContain('...(await lineExtras({ sellContractId: c.id })),')
     // Last inside the call, not first: the order's answer must not be
     // overwritten by the shape it was merged into.
@@ -165,18 +168,37 @@ describe('what the client desk is told', () => {
     expect(program).not.toContain("const CERTS = ['INSURANCE_GL'")
   })
 
-  it('the month\u2019s spend carries the sentence it rests on, not just "from current rates"', () => {
-    // 160 hours a month is a stated assumption, not a measurement, and
-    // `basisSays` was imported into this route the day the helper was
-    // written and never called. A twenty-hour validation seat priced at
-    // 160 is twice its real cost, and the page said nothing about it.
-    expect(program).toContain('monthlySpendBasis:')
-    expect(program).toContain('basisSays(')
-    expect(program).toContain("'at the rate on the contract you pay,'")
+  it('the month\u2019s spend carries the line it rests on under the figure: "estimate from current rates, 160 hours a month, not signed time"', () => {
+    // 160 hours a month is a stated assumption, not a measurement. It was
+    // a paragraph under the six figures; since 2026-10-19 it is the one
+    // line under the figure it explains (`spendLine`).
+    const spend = read('src/lib/program-spend.ts')
+    expect(spend).toContain('`estimate from current rates, ${HOURS_PER_MONTH} hours a month, not signed time`')
+    expect(program).toContain('monthlySpendSays: spendLine(spend),')
     // And the heads with no rate are named, so the total of some seats is
     // never presented as the total of all of them.
-    expect(program).toContain('spend.unpriced > 0')
-    expect(page).toContain('{s.monthlySpendBasis}')
+    expect(spend).toContain('if (spend.unpriced <= 0) return line')
+    expect(page).toContain('sub={s.monthlySpendSays ??')
+    // The paragraph has left the page.
+    expect(page).not.toContain('monthlySpendBasis')
+    expect(program).not.toContain('This month counts')
+  })
+
+  it('"Roll off" on the list of contracts ending within 60 days is a plain button like "Extend", not an alarm', () => {
+    const roll = page.slice(page.indexOf('onClick={() => onRolloff(c.contractId)}'))
+    const button = roll.slice(0, roll.indexOf('</button>'))
+    expect(button).toContain('border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas')
+    expect(button).not.toContain('bg-etyme-attention')
+  })
+
+  it('the job requests list carries no line about how fast the first good candidate came, which is not the client’s first-screen question', () => {
+    expect(page).not.toContain('firstGood')
+    expect(page).not.toContain('/api/first-good')
+  })
+
+  it('a contract ending soon says in words whether anybody has acted, never "Event created"', () => {
+    expect(decisions).not.toContain("'Event created'")
+    expect(decisions).toContain("rolloffEvent ? 'Roll-off started' : 'Nobody has acted yet'")
   })
 
   it('each supplier carries the standing this client gave it, and a published role with nobody in five days says so', () => {
@@ -346,7 +368,7 @@ describe('an expense waiting on this firm to accept it', () => {
     expect(hasAnyPermission(role('AP Clerk'), ACCEPTS_EXPENSES)).toBe(true)
     expect(decisions).toContain('if (hasAnyPermission(caller.permissions, ACCEPTS_EXPENSES)) {')
     expect(decisions).toContain('const waiting = await expensesWaitingOn(companyId)')
-    expect(decisions).toContain("decisions.push({ type: 'EXPENSE_ACCEPTANCE', ...expenseAcceptanceDecision(e, now) })")
+    expect(decisions).toContain("type: 'EXPENSE_ACCEPTANCE',\n        named: { whose: e.personName, what: 'expense', whats: 'expenses' },\n        ...expenseAcceptanceDecision(e, now),")
   })
 
   it('the queue asks for exactly the permissions the accept route asks for, so it never offers a card the route refuses', () => {

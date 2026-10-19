@@ -294,8 +294,8 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
   // guard for a box that ever reads empty under a headline that is not.
   const counts = deskCounts({ decisions: [{ type: 'START_HELD' }, { type: 'NO_AGREEMENT' }] })
 
-  it('under "2 things need you" the box never says nothing is waiting on you', () => {
-    expect(deskHeadline(counts).says).toMatch(/^2 things need you/)
+  it('under "Two things need you" the box never says nothing is waiting on you', () => {
+    expect(deskHeadline([{ type: 'START_HELD' }, { type: 'NO_AGREEMENT' }]).says).toMatch(/^Two things need you: /)
     const said = emptyQueueSays({ counts, approvalsWithOthers: 3, doneToday: 1 })
     expect(said).not.toContain('Nothing is waiting on you')
     expect(said).toBe(
@@ -322,7 +322,7 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
   })
 
   it('the This month tile opens the spend behind the number', () => {
-    expect(src('src/app/dashboard/program/page.tsx')).toContain('sub="from current rates" href="/dashboard/program/budget"')
+    expect(src('src/app/dashboard/program/page.tsx')).toContain("not signed time'} href=\"/dashboard/program/budget\"")
   })
 
   it('one month on site reads "1 month", never "1 months"', () => {

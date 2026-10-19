@@ -28,7 +28,7 @@ import { logBulkAccess } from '@/lib/access-log'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { startPaperwork, agreementsOnFile } from '@/app/api/program/desk-findings'
-import { deskItems } from '@/app/dashboard/program/needs-you'
+import { deskItems, deskRows, deskHeadline } from '@/app/dashboard/program/needs-you'
 
 /**
  * GET /api/decisions
@@ -234,6 +234,7 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
         title: `Approve timesheet — ${ts.person.name}`,
+        named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
         subtitle: asClient
           ? `${ts.totalHours}h · through ${supplier} · ${period}`
           : `${ts.totalHours}h · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}`,
@@ -290,6 +291,7 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
         title: `Accept timesheet — ${ts.person.name}`,
+        named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
         subtitle: `${ts.totalHours}h · from ${paysOn?.company.name ?? 'your supplier'} · ${periodWord(ts.periodStart, ts.periodEnd)} · signed above you`,
         urgency: daysSinceSigned >= 5 ? 'HIGH' : daysSinceSigned >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'TIMESHEET',
@@ -339,6 +341,7 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'EXPENSE_APPROVAL',
         title: `Review expense — ${exp.person.name}`,
+        named: { whose: exp.person.name, what: 'expense', whats: 'expenses' },
         // Expense.total is a Decimal in whole currency, not cents — the
         // schema says so where InvoiceLine is defined. Dividing by a
         // hundred turned a $149.98 expense into "$1.50" on the founder's
@@ -380,7 +383,11 @@ export async function GET(request: NextRequest) {
       })
     }
     for (const e of waiting) {
-      decisions.push({ type: 'EXPENSE_ACCEPTANCE', ...expenseAcceptanceDecision(e, now) })
+      decisions.push({
+        type: 'EXPENSE_ACCEPTANCE',
+        named: { whose: e.personName, what: 'expense', whats: 'expenses' },
+        ...expenseAcceptanceDecision(e, now),
+      })
     }
   }
 
@@ -424,7 +431,13 @@ export async function GET(request: NextRequest) {
         book && book.waiting.length > 0 ? book.notAccepted : null,
         billDesk
       )
-      if (row) decisions.push({ type: 'BILL_DISPUTED', ...row })
+      if (row) {
+        decisions.push({
+          type: 'BILL_DISPUTED',
+          named: { whose: b.vendorCompany.name, what: 'invoice receipt', whats: 'invoice receipts' },
+          ...row,
+        })
+      }
     }
   }
 
@@ -451,6 +464,7 @@ export async function GET(request: NextRequest) {
         decisions.push({
           type: 'SUPPLIER_REVIEW',
           title: `Review supplier — ${w.name}`,
+          named: { whose: w.name, what: 'supplier review', whats: 'supplier reviews' },
           subtitle: required.length > 0
             ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]}: ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
             : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · with ${STAGE_WORD[stage]}: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
@@ -528,6 +542,7 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'REQUISITION_APPROVAL',
         title: `Approve job request — ${a.requirement.title}`,
+        named: { whose: null, what: `the ${a.requirement.title} job request`, whats: 'job requests' },
         // What it is waiting for, in the engine's own words — the reason
         // the rule wrote when it routed this to this desk, which is the
         // question this desk is being asked.
@@ -596,6 +611,9 @@ export async function GET(request: NextRequest) {
         type: row.type,
         title: row.title,
         subtitle: row.subtitle,
+        named: row.type === 'CONTRACT_START'
+          ? { whose: c.person.name, what: 'start', whats: 'starts' }
+          : { whose: c.person.name, what: 'contract', whats: 'contracts' },
         urgency: row.urgency,
         entityType: 'SELL_CONTRACT',
         entityId: c.id,
@@ -658,7 +676,10 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'ROLLOFF_ACTION',
         title: `Rolloff in ${daysLeft}d — ${sc.person.name}`,
-        subtitle: [endClientName, shownRate != null ? `$${shownRate / 100}/hr` : null, rolloffEvent ? 'Event created' : 'No action yet']
+        named: { whose: sc.person.name, what: 'last day', whats: 'last days' },
+        // What a person would say of the roll-off, never the row the
+        // system wrote for it ("Event created" was machine talk).
+        subtitle: [endClientName, shownRate != null ? `$${shownRate / 100}/hr` : null, rolloffEvent ? 'Roll-off started' : 'Nobody has acted yet']
           .filter(Boolean).join(' · '),
         urgency: daysLeft <= 7 ? 'HIGH' : daysLeft <= 14 ? 'MEDIUM' : 'LOW',
         entityType: 'SELL_CONTRACT',
@@ -694,6 +715,7 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'SUBMISSION_REVIEW',
         title: `Review submission — ${sub.person.name}`,
+        named: { whose: sub.person.name, what: 'submission', whats: 'submissions' },
         subtitle: `${sub.requirement.title} · $${sub.rate / 100}/hr · ${daysSinceSubmit}d since submitted`,
         urgency: daysSinceSubmit >= 7 ? 'HIGH' : daysSinceSubmit >= 3 ? 'MEDIUM' : 'LOW',
         entityType: 'SUBMISSION',
@@ -755,9 +777,13 @@ export async function GET(request: NextRequest) {
       )
       const outstanding = Number(inv.total) - Number(inv.paid)
 
+      const customer = inv.engagement.msa?.client.name ?? inv.engagement.sellContracts[0]?.clientCompany?.name ?? null
       decisions.push({
         type: 'INVOICE_OVERDUE',
         title: `Overdue bill — ${inv.number}`,
+        named: customer
+          ? { whose: customer, what: 'overdue bill', whats: 'overdue bills' }
+          : { whose: null, what: `overdue bill ${inv.number}`, whats: 'overdue bills' },
         // Same again, and worse here: a $7,600 overdue invoice read
         // "$76.00 outstanding", which is an amount nobody chases.
         subtitle:
@@ -838,23 +864,11 @@ export async function GET(request: NextRequest) {
     const vendors = [...onSiteBy.values()].map((v) => ({ ...v, agreement: agreed.has(v.id) }))
 
     const startOf = new Map(held.map((h) => [h.contractId, h.startDate]))
-    for (const item of deskItems({ startingSoon: held, vendors })) {
-      const contractId = item.kind === 'START' ? item.key.replace(/^start-/, '') : null
-      const startsOn = contractId ? startOf.get(contractId) ?? null : null
-      decisions.push({
-        type: item.kind === 'START' ? 'START_HELD' : 'NO_AGREEMENT',
-        title: item.who,
-        subtitle: item.says,
-        // Neither has waited on anybody yet, so neither reads as "waited
-        // more than five days"; a start inside a week is the one that is.
-        urgency: startsOn && startsOn.getTime() - now.getTime() <= 7 * 86_400_000 ? 'HIGH' : 'MEDIUM',
-        entityType: item.kind === 'START' ? 'SELL_CONTRACT' : 'COMPANY',
-        entityId: contractId ?? item.key.replace(/^agreement-/, ''),
-        dueDate: startsOn ? startsOn.toISOString() : null,
-        actionUrl: item.href,
-        amount: null,
-        createdAt: (startsOn ?? now).toISOString(),
-      })
+    // The rows are the program page's own (`deskRows`), so a held start is
+    // one row whether a client's own seat reads it here or a seat another
+    // company granted reads it on the program page.
+    for (const row of deskRows(deskItems({ startingSoon: held, vendors }), startOf, now)) {
+      decisions.push(row)
     }
   }
 
@@ -885,6 +899,7 @@ export async function GET(request: NextRequest) {
     decisions.push({
       type: 'TWIN_QUESTION',
       title: TWIN_ACTS[q.action]?.says ?? q.rationale,
+      named: { whose: null, what: 'a question from Ask Etyme', whats: 'questions from Ask Etyme' },
       subtitle: [q.label, q.rationale, waited <= 0 ? 'asked today' : `asked ${waited}d ago`]
         .filter(Boolean).join(' · '),
       urgency: waited >= 7 ? 'HIGH' : waited >= 3 ? 'MEDIUM' : 'LOW',
@@ -957,6 +972,14 @@ export async function GET(request: NextRequest) {
       decisions,
       counts,
       total: decisions.length,
+      /**
+       * The one sentence for this seat, with the names in it: "Two things
+       * need you: Ingrid Sørensen's start, and Teleworld's missing
+       * agreement." Built from these rows (`deskHeadline`), so the
+       * program page's headline, the Ask Etyme mark and the greeting can
+       * say one number and one sentence.
+       */
+      says: deskHeadline(decisions).says,
       /** The first line for a supplier with a client and nothing else yet, or null. */
       welcome,
       reading: {
