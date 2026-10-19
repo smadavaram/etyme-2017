@@ -9,6 +9,8 @@ import { receiptFor } from '@/lib/money/rung-billing'
 import type { Carried } from '@/lib/money/client-overtime'
 import { carriedForLines } from '@/lib/money/client-overtime-read'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
+import { payersOwn } from '@/lib/money/expense-acceptance'
+import { acceptancesOn } from '@/lib/money/expense-acceptance-read'
 
 /**
  * A line as this file needs to read it: the money on it, and the records
@@ -427,6 +429,25 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
     'invoice'
   )
 
+  // ── What the payer accepted of each expense on the bill ─────────────
+  //
+  // An expense is accepted like a week (the founder, 2026-10-19): the
+  // receipt behind an expense line is the payer's own acceptance — the
+  // customer on the line billed — for exactly what it accepted, never the
+  // employer's approval of what the worker claimed.
+  const expenseDecisions = await acceptancesOn(invoice.invoiceLines.flatMap(l => (l.expenseId ? [l.expenseId] : [])))
+  const expenseReceipt = new Map<string, { cents: number | null; says: string | null }>()
+  for (const l of invoice.invoiceLines) {
+    if (!l.expense || !l.sellContract) continue
+    const own = payersOwn(l.sellContract.clientCompanyId, expenseDecisions.get(l.expense.id) ?? [])
+    expenseReceipt.set(l.expense.id, {
+      cents: own.kind === 'ACCEPTED' ? own.cents : null,
+      says: own.kind === 'ACCEPTED'
+        ? null
+        : `${l.person?.name ?? 'This'}’s expense: the firm this bill is to has ${own.kind === 'SENT_BACK' ? 'sent it back' : 'not accepted it'}, so there is nothing to pay it against.`,
+    })
+  }
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
@@ -464,7 +485,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
     expenses: Object.fromEntries(
       invoice.invoiceLines
         .flatMap(l => (l.expense ? [l.expense] : []))
-        .map(e => [e.id, { id: e.id, status: e.status, totalCents: decimalToCents(e.total) }])
+        .map(e => [e.id, {
+          id: e.id, status: e.status, totalCents: decimalToCents(e.total),
+          ...(expenseReceipt.has(e.id) ? { acceptedCents: expenseReceipt.get(e.id)!.cents } : {}),
+        }])
     ),
     timesheets: Object.fromEntries(
       invoice.invoiceLines
@@ -517,6 +541,12 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
     // the total each was granted at. The engine decides which of them it
     // will honor; a waiver on a duplicate payment is simply ignored.
     overrides: waivers.live,
+    receiptSays: Object.fromEntries(
+      invoice.invoiceLines.flatMap(l => {
+        const says = l.expenseId ? expenseReceipt.get(l.expenseId)?.says : null
+        return says ? [[l.id, says]] : []
+      })
+    ),
   }
 
   const result = threeWayMatch(input)

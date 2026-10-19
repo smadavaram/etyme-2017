@@ -27,6 +27,8 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
 import { termsFor, ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT } from '@/lib/money/order-terms'
 import { decimalsFor } from '@/lib/money'
+import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, legsFor } from '@/lib/money/expense-acceptance-read'
 import { formatDay } from '@/lib/format-date'
 import { alreadyReceived, alreadyOnABill, type ReceiptAlready, type BillOnRecord } from '@/lib/money/billed-elsewhere'
 
@@ -84,7 +86,10 @@ export interface LineOptions {
   /** Weeks this firm has not accepted, never offered, and the sentence. */
   waiting: WaitingOption[]
   waitingSays: string | null
+  /** Expenses this firm accepted, at what it accepted. */
   expenses: SumOption[]
+  /** Expenses approved on the line that this firm has not accepted, never offered, each in a sentence. */
+  expensesToAccept: { id: string; says: string }[]
   milestones: SumOption[]
 }
 
@@ -208,14 +213,46 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
         where: {
           sellContractId: { in: onLine },
           personId: { in: buy.candidates.map((c) => c.personId) },
-          billable: true,
           status: 'APPROVED',
         },
-        select: { id: true, category: true, total: true, periodStart: true, person: { select: { name: true } } },
+        select: {
+          id: true, category: true, total: true, periodStart: true, billable: true, companyId: true,
+          person: { select: { name: true } },
+        },
         orderBy: { periodStart: 'desc' },
         take: 200,
       })
     : []
+  // What this firm accepted of each (the founder, 2026-10-19: an expense
+  // is accepted like a week), and whether the agreement with the supplier
+  // makes the kind billable on this leg. The same reading the check makes
+  // (lib/money/keyed-receipt), so the form offers only what it would take.
+  const decisions = await acceptancesOn(expenseRows.map((e) => e.id))
+  const supplierLeg = buy.supplierSellContractId
+    ? (await legsFor([buy.supplierSellContractId])).get(buy.supplierSellContractId) ?? null
+    : null
+  const offered: { id: string; says: string; amountMinor: number }[] = []
+  const expensesToAccept: { id: string; says: string }[] = []
+  for (const e of expenseRows) {
+    const leg = supplierLeg ? legBills(e, supplierLeg) : { bills: e.billable, says: null }
+    if (!leg.bills) continue
+    const label = `${e.person?.name ?? 'Somebody'} · ${e.category.toLowerCase()} · ${formatDay(e.periodStart)}`
+    const claimed = Math.round(parseFloat(e.total.toString()) * 10 ** decimalsFor(currency))
+    // Raised on this firm's own book: its own approval stands.
+    if (e.companyId === companyId) {
+      offered.push({ id: e.id, says: label, amountMinor: claimed })
+      continue
+    }
+    const own = payersOwn(companyId, decisions.get(e.id) ?? [])
+    if (own.kind === 'ACCEPTED') offered.push({ id: e.id, says: label, amountMinor: own.cents })
+    else {
+      expensesToAccept.push({
+        id: e.id,
+        says: `${e.person?.name ?? 'Somebody'}’s ${e.category.toLowerCase()} expense of ${formatDay(e.periodStart)} is ${own.kind === 'SENT_BACK' ? 'sent back' : 'not accepted yet'}, so it is not offered. Accept it first.`,
+      })
+    }
+  }
+
   const milestoneRows = buy.workOrderId
     ? await prisma.orderMilestone.findMany({
         where: { orderId: buy.workOrderId, status: 'ACCEPTED' },
@@ -233,12 +270,8 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
     weeks,
     waiting,
     waitingSays: waiting.length > 0 ? book?.notAccepted ?? null : null,
-    expenses: expenseRows.map((e) => ({
-      id: e.id,
-      says: `${e.person?.name ?? 'Somebody'} · ${e.category.toLowerCase()} · ${formatDay(e.periodStart)}`,
-      amountMinor: Math.round(parseFloat(e.total.toString()) * 10 ** decimalsFor(currency)),
-      heldBy: heldSums.get(e.id) ?? null,
-    })),
+    expenses: offered.map((e) => ({ ...e, heldBy: heldSums.get(e.id) ?? null })),
+    expensesToAccept,
     milestones: milestoneRows.map((m) => ({
       id: m.id,
       says: m.acceptedAt ? `${m.name} · accepted ${formatDay(m.acceptedAt)}` : m.name,

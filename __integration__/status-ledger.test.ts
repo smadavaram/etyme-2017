@@ -13,6 +13,7 @@ import { POST as sendTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { POST as approveTimesheet } from '@/app/api/timesheets/[id]/approve/route'
 import { POST as fileExpense } from '@/app/api/expenses/route'
 import { POST as expenseAction } from '@/app/api/expenses/actions/route'
+import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { POST as submitInvoice } from '@/app/api/invoices/[id]/submit/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
@@ -309,7 +310,7 @@ describe('the ledger: one placement, every table, every station', () => {
     expect(approvals.filter((c) => !own(c.dueOn) && c.completedAt)).toEqual([])
   })
 
-  it('a flight Tariq paid for: expense DRAFT, SUBMITTED, APPROVED', async () => {
+  it('a flight Tariq paid for: expense DRAFT, SUBMITTED, APPROVED, and accepted by Northbend, which pays for it', async () => {
     as(PINNACLE)
     const r = await json(await fileExpense(req('POST', '/api/expenses', {
       sellContractId: it_.contract, personId: it_.worker, category: 'TRAVEL', billable: true,
@@ -329,6 +330,14 @@ describe('the ledger: one placement, every table, every station', () => {
       expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
     }
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('APPROVED')
+
+    // Pinnacle approved it to reimburse Tariq; Northbend, which pays for
+    // it, accepts it before it goes on a bill (the founder, 2026-10-19).
+    as(NIKE.ap)
+    const a = await call(acceptExpense, 'POST', `/api/expenses/${it_.expense}/accept`, it_.expense, { decision: 'accept' })
+    expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
+    expect(await prisma.expenseAcceptance.findUniqueOrThrow({ where: { expenseId_companyId: { expenseId: it_.expense, companyId: co['world-nike'] } } }))
+      .toMatchObject({ status: 'ACCEPTED', acceptedCents: 41_250 })
   })
 
   it('the invoice: ISSUED on raising with the expense on it as INVOICED, SUBMITTED on sending, and the week’s own invoice date is done where it was written, and no later one ever', async () => {

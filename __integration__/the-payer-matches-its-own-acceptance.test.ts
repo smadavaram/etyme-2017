@@ -11,6 +11,9 @@ import { POST as generate } from '@/app/api/invoices/generate/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { GET as receiptsList } from '@/app/api/ap/receipts/route'
 import { GET as receiptOptions } from '@/app/api/ap/receipts/options/route'
+import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
+import { readForAcceptance } from '@/lib/money/expense-acceptance-read'
+import { acceptanceChain } from '@/lib/money/expense-acceptance'
 
 /**
  * A supplier's invoice is matched against what the firm paying it
@@ -604,7 +607,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     expect((await cancel('CE-HM-6', 'Keyed twice before the duplicate rule existed.')).status).toBe(200)
   })
 
-  it('a typed-in receipt’s expense line is paid only against an expense approved on that line', async () => {
+  it('a typed-in receipt’s expense line is paid only against the paying firm’s own acceptance of an expense approved on that line, and a rung below cannot accept before the client', async () => {
     const expenseLine = (expenseId: string) => [{ expenseId, amountCents: 25_000 }]
     const noPeriod = { periodStart: undefined, periodEnd: undefined }
 
@@ -614,12 +617,35 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
 
     const ownCost = await receive('CE-HM-E1', expenseLine(t.ownCost), 25_000, noPeriod)
     expect(ownCost.status).toBe(422)
-    expect(ownCost.body.error.message).toMatch(/recorded as the firm’s own cost and not billable/)
+    // The agreement between the two firms is silent, so Techpeple's own flag decides.
+    expect(ownCost.body.error.message).toMatch(/^Line 1 bills Helena Marsh’s travel expense of .*, which is not billable on this leg: Techpeple recorded this travel expense as its own cost, and the agreement between Computer Systems Inc and Techpeple does not say which expenses are billable\./)
 
     await prisma.expense.update({ where: { id: t.expense }, data: { status: 'APPROVED', approvedAt: new Date() } })
+
+    // Approved by Techpeple to reimburse Helena is not accepted by
+    // Computer Systems, which pays for it (the founder, 2026-10-19).
+    const unaccepted = await receive('CE-HM-E1', expenseLine(t.expense), 25_000, noPeriod)
+    expect(unaccepted.status).toBe(422)
+    expect(unaccepted.body.error.message).toMatch(/^Line 1 bills Helena Marsh’s travel expense of [A-Z][a-z]+ \d+, \d{4}, which your firm has not accepted\. Accept it first, then it is paid\./)
+
+    const accept = async (who: string, body: unknown = { decision: 'accept' }) => {
+      as(who)
+      return json(await acceptExpense(req('POST', `/api/expenses/${t.expense}/accept`, body), params(t.expense)))
+    }
+    // Computer Systems cannot accept before Northbend, and Techpeple never accepts its own.
+    const early = await accept(CS)
+    expect(early.status, JSON.stringify(early.body)).toBe(409)
+    expect(early.body.error.message).toMatch(/^Northbend Athletic accepts Helena Marsh’s travel expense of .* first, then Computer Systems Inc\. It has not yet\.$/)
+    const own = await accept(TECHPEPLE)
+    expect(own.status).toBe(403)
+    expect(own.body.error.code).toBe('OWN_EXPENSE')
+    expect((await accept(NIKE)).status).toBe(200)
+    expect((await accept(CS)).status).toBe(200)
+    expect(await prisma.expenseAcceptance.count({ where: { expenseId: t.expense, status: 'ACCEPTED' } })).toBe(2)
+
     const wrongSum = await receive('CE-HM-E1', [{ expenseId: t.expense, amountCents: 27_500 }], 27_500, noPeriod)
     expect(wrongSum.status).toBe(422)
-    expect(wrongSum.body.error.message).toMatch(/Line 1 bills \$275\.00 for Helena Marsh’s travel expense of .*; \$250\.00 was approved\./)
+    expect(wrongSum.body.error.message).toMatch(/Line 1 bills \$275\.00 for Helena Marsh’s travel expense of .*; \$250\.00 was accepted\./)
 
     const ok = await receive('CE-HM-E1', expenseLine(t.expense), 25_000, noPeriod)
     expect(ok.status, JSON.stringify(ok.body)).toBe(200)
@@ -914,7 +940,22 @@ describe('the invoice receipt form offers a week only where the check would take
     expect(sent.map((x) => x.number).sort()).toEqual([...new Set(onBills.map((w: any) => w.heldBy))].sort())
     p.freed = inside[0]
     p.billed = onBills[0]
-    p.expense = o.expenses.find((x: any) => !x.heldBy)
+    // The seeded travel expense. Where a firm above Computer Systems'
+    // supplier has to accept it first, the form names it and does not
+    // offer it until each firm that pays for it has (the founder,
+    // 2026-10-19); one Computer Systems raised on its own book is its own
+    // approval, and is offered as it was.
+    const toAccept = o.expensesToAccept[0]
+    if (toAccept) {
+      expect(toAccept.says).toMatch(/ is not accepted yet, so it is not offered\. Accept it first\.$/)
+      expect(o.expenses.map((x: any) => x.id)).not.toContain(toAccept.id)
+      const read = (await readForAcceptance(toAccept.id))!
+      for (const step of acceptanceChain(read.expense, read.legs).steps) {
+        const by = await prisma.context.findFirstOrThrow({ where: { companyId: step.companyId, type: 'EMPLOYEE', revokedAt: null }, select: { personId: true } })
+        await prisma.expenseAcceptance.create({ data: { expenseId: toAccept.id, companyId: step.companyId, byId: by.personId, acceptedCents: read.expense.totalCents, status: 'ACCEPTED' } })
+      }
+    }
+    p.expense = (await options()).expenses.find((x: any) => !x.heldBy)
     expect(p.expense, 'the seeded travel expense').toBeTruthy()
   })
 

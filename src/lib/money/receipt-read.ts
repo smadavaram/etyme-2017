@@ -84,7 +84,7 @@ function lineSays(l: ReceiptLine, failed: ReceiptCheck[], currency: string): { m
     }
   }
   if (own.length > 0) return { matches: false, says: own[0].reason }
-  return { matches: true, says: `${l.kind === 'EXPENSE' ? 'Approved expense' : 'Accepted milestone'}: ${amount(l.amountCents, currency)}` }
+  return { matches: true, says: `${l.kind === 'EXPENSE' ? 'Accepted expense' : 'Accepted milestone'}: ${amount(l.amountCents, currency)}` }
 }
 
 export function readReceipt(input: {

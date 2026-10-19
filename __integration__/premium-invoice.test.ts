@@ -7,6 +7,8 @@ import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { POST as withdrawBill } from '@/app/api/invoices/[id]/withdraw/route'
 import { generateBill } from '@/lib/money/bill-generate'
+import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
+import { legsFor } from '@/lib/money/expense-acceptance-read'
 
 /**
  * The week Northbend Athletic's desk signed at time and a half, as far as the document.
@@ -295,5 +297,89 @@ describe('a sub-vendor’s bill sent on the platform prices the overtime the cli
     expect(line.amountCents).toBe(45 * rate + 5 * rate)
     const extension = (await matchInvoice(line.invoiceId))!.checks.find((c) => c.code === 'EXTENSION')!
     expect(extension.outcome, extension.reason).toBe('PASS')
+  })
+})
+
+/**
+ * An expense is accepted like a week (the founder, 2026-10-19).
+ *
+ * Omar Haddad, Brightmoor's, on Northbend Athletic's site. Brightmoor
+ * approves his flight to reimburse him; Northbend, which pays for it,
+ * accepts it before it is billed, and the bill carries what Northbend
+ * accepted — never what Omar claimed.
+ */
+describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend accepted', () => {
+  const x: Record<string, any> = {}
+  const NIKE_HIRING = `world-nike-hiring${D}`
+  const plan = async () => {
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: it_.contract.companyId }, select: { id: true, name: true, kind: true } })
+    return generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: it_.contract.engagementId }, { dryRun: true })
+  }
+  /** What was left off, said either on the plan or in the refusal where nothing else is left to bill. */
+  const leftOffSays = (made: any): string => (made.ok ? made.planned.heldBack ?? '' : made.body.error.message ?? '')
+  const raise = (category: string, total: number) =>
+    prisma.expense.create({
+      data: {
+        companyId: it_.contract.companyId, sellContractId: it_.contract.id, personId: it_.sheet.personId,
+        category, billable: true, description: `${category} for the release weekend`,
+        periodStart: it_.sheet.periodStart, periodEnd: it_.sheet.periodStart, items: [], total,
+        status: 'APPROVED', approvedAt: new Date(),
+      },
+    })
+
+  beforeAll(async () => {
+    x.flight = (await raise('TRAVEL', 412.5)).id
+  })
+
+  it('an expense Northbend has not accepted is left off the bill with a sentence', async () => {
+    const made = await plan()
+    expect(leftOffSays(made)).toMatch(/Omar Haddad’s travel expense of [A-Z][a-z]+ \d+, \d{4} is not on this bill: Northbend Athletic has not accepted it yet\./)
+  })
+
+  it('a bill carries the expense at the amount the firm above accepted, never the amount the worker claimed', async () => {
+    as(NIKE_HIRING)
+    const a = await json(await acceptExpense(
+      req('POST', `/api/expenses/${x.flight}/accept`, { decision: 'accept', amountCents: 38_000, reason: 'Economy fare is $380 on this route.' }),
+      { params: Promise.resolve({ id: x.flight }) }
+    ))
+    expect(a.status, JSON.stringify(a.body)).toBe(200)
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: it_.contract.companyId }, select: { id: true, name: true, kind: true } })
+    const made = await generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: it_.contract.engagementId }, { status: 'DRAFT' })
+    expect(made.ok && made.status === 201, JSON.stringify((made as any).body)).toBe(true)
+    const draftId = (made as { invoiceId: string }).invoiceId
+    const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: draftId, expenseId: x.flight } })
+    expect(line.amountCents).toBe(38_000)
+    expect(line.description).toContain('(accepted $380.00 of $412.50)')
+    // The three-way check's receipt for it is Northbend's acceptance.
+    const m = await matchInvoice(draftId)
+    expect(m!.checks.find((c) => c.code === 'RECEIPT')!.outcome, JSON.stringify(m!.checks)).toBe('PASS')
+
+    // Withdrawn, so the rest of the walk reads the world as it was.
+    as(BRIGHTMOOR)
+    const out = await json(await withdrawBill(
+      req('POST', `/api/invoices/${draftId}/withdraw`, { reason: 'Checking the expense line only.' }),
+      { params: Promise.resolve({ id: draftId }) }
+    ))
+    expect(out.status, JSON.stringify(out.body)).toBe(200)
+  })
+
+  it('an expense of a kind the agreement does not list is left off the bill with a sentence naming the agreement', async () => {
+    const leg = (await legsFor([it_.contract.id])).get(it_.contract.id)!
+    expect(leg.agreement, 'Brightmoor and Northbend trade under an agreement').toBeTruthy()
+    await prisma.masterAgreement.update({ where: { id: leg.agreement!.id }, data: { billableExpenseKinds: ['TRAVEL'], billableExpenseKindsSaid: true } })
+    try {
+      const course = (await raise('TRAINING', 600)).id
+      const made = await plan()
+      expect(leftOffSays(made)).toContain(
+        `Omar Haddad’s training expense is not on this bill: The agreement between ${leg.agreement!.clientName} and ${leg.agreement!.vendorName} does not list training expenses as billable, so Northbend Athletic does not pay for this one.`
+      )
+      // And Northbend has nothing to accept on it.
+      as(NIKE_HIRING)
+      const a = await json(await acceptExpense(req('POST', `/api/expenses/${course}/accept`, { decision: 'accept' }), { params: Promise.resolve({ id: course }) }))
+      expect(a.status).toBe(422)
+      expect(a.body.error.code).toBe('NOT_BILLABLE')
+    } finally {
+      await prisma.masterAgreement.update({ where: { id: leg.agreement!.id }, data: { billableExpenseKinds: [], billableExpenseKindsSaid: false } })
+    }
   })
 })

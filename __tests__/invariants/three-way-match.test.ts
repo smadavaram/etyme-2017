@@ -468,20 +468,32 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
 
 // ── Expense lines ──────────────────────────────────────────
 
-describe('An expense on the invoice is witnessed by the approved expense behind it', () => {
-  const withExpense = (status: string, totalCents = 41_250) => clean({
+describe('An expense on the invoice is witnessed by the payer’s own acceptance of it', () => {
+  const withExpense = (status: string, totalCents = 41_250, acceptedCents?: number | null) => clean({
     invoice: { id: 'inv1', totalCents: 1_081_250, periodStart: PERIOD_START, periodEnd: PERIOD_END },
     lines: [
       { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
       { id: 'l2', timesheetId: null, expenseId: 'e1', personName: 'Priya Raman', hours: 0, rateCents: 0, amountCents: 41_250 },
     ],
-    expenses: { e1: { id: 'e1', status, totalCents } },
+    expenses: { e1: { id: 'e1', status, totalCents, ...(acceptedCents === undefined ? {} : { acceptedCents }) } },
   })
 
-  it('an approved expense for the amount claimed is a receipt, and the invoice matches', () => {
-    const r = threeWayMatch(withExpense('INVOICED'))
+  it('the three-way check’s receipt for an expense is the payer’s acceptance, for exactly the amount it accepted', () => {
+    const r = threeWayMatch(withExpense('INVOICED', 41_250, 41_250))
     expect(failed(r, 'RECEIPT')).toBeUndefined()
-    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('an approved expense')
+    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('an accepted expense')
+  })
+
+  it('an expense the employer approved and the payer has not accepted is no receipt', () => {
+    expect(failed(threeWayMatch(withExpense('INVOICED', 41_250, null)), 'RECEIPT')?.lines).toEqual(['l2'])
+  })
+
+  it('an expense billed at the amount claimed where the payer accepted less is no receipt', () => {
+    expect(failed(threeWayMatch(withExpense('INVOICED', 41_250, 38_000)), 'RECEIPT')?.lines).toEqual(['l2'])
+  })
+
+  it('where nobody read an acceptance, the employer’s approval for the amount claimed still stands as it did', () => {
+    expect(failed(threeWayMatch(withExpense('INVOICED')), 'RECEIPT')).toBeUndefined()
   })
 
   it('an expense line is not asked to multiply out — its amount is the expense', () => {

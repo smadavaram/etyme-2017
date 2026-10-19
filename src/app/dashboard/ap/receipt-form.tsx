@@ -188,7 +188,7 @@ export function ReceiptForm({ books, onSaved, onClose }: {
       </div>
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">
         Type in what the supplier&rsquo;s invoice states. Each line is checked against what you accepted: the
-        hours on a week, the amount on an approved expense or an accepted milestone.
+        hours on a week, the amount you accepted on an expense, or an accepted milestone.
       </p>
 
       {suppliers.length === 0 && (
@@ -322,7 +322,7 @@ function LineRow({ n, line, options, currency, onPick, onChange, onRemove }: {
   onChange: (p: Partial<Line>) => void
   onRemove: () => void
 }) {
-  const label = line.kind === 'HOURS' ? 'Week' : line.kind === 'EXPENSE' ? 'Approved expense' : 'Accepted milestone'
+  const label = line.kind === 'HOURS' ? 'Week' : line.kind === 'EXPENSE' ? 'Accepted expense' : 'Accepted milestone'
   const week = line.kind === 'HOURS' ? options.weeks.find((w: any) => w.timesheetId === line.ref) : null
   return (
     <div className="rounded border border-etyme-rule p-3 space-y-2">

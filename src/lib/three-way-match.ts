@@ -201,6 +201,15 @@ export interface ExpenseFacts {
   periodEnd?: Date
   /** Whose expense, for the sentence. */
   personName?: string
+  /**
+   * What the firm paying this invoice itself accepted of the expense, in
+   * cents (the founder, 2026-10-19: an expense is accepted like a week).
+   * The receipt behind an expense line is that acceptance, for exactly
+   * its amount. Null where the payer has not accepted it, which is no
+   * receipt. Absent only where the caller did not read it — the
+   * employer's approval then stands as it did before.
+   */
+  acceptedCents?: number | null
 }
 
 /** The receipt behind a milestone line. */
@@ -370,8 +379,9 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 
   // ── RECEIPT — is every line witnessed? ──
   // An hours line is witnessed by an approved timesheet. An expense line
-  // is witnessed by the approved expense behind it, for exactly the
-  // amount claimed — a receipt for a different number is no receipt.
+  // is witnessed by the payer's own acceptance of the expense behind it,
+  // for exactly the amount accepted — a receipt for a different number is
+  // no receipt.
   const expenses = input.expenses ?? {}
   const milestones = input.milestones ?? {}
   const unreceipted = lines.filter(l => {
@@ -381,7 +391,10 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     }
     if (l.expenseId) {
       const e = expenses[l.expenseId]
-      return !e || !['APPROVED', 'INVOICED', 'PAID'].includes(e.status) || e.totalCents !== l.amountCents
+      if (!e || !['APPROVED', 'INVOICED', 'PAID'].includes(e.status)) return true
+      // The payer's own acceptance where it was read; the approved total otherwise.
+      const receipt = e.acceptedCents === undefined ? e.totalCents : e.acceptedCents
+      return receipt === null || receipt !== l.amountCents
     }
     if (!l.timesheetId) return true
     const ts = timesheets[l.timesheetId]
@@ -393,7 +406,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     ? {
         code: 'RECEIPT', outcome: 'PASS',
         reason: expenseLines
-          ? `${allLines(lines.length)} backed by an approved timesheet, an approved expense or an accepted milestone`
+          ? `${allLines(lines.length)} backed by an approved timesheet, an accepted expense or an accepted milestone`
           : `${allLines(lines.length)} backed by an approved timesheet`,
       }
     : {

@@ -417,6 +417,17 @@ describe('A typed-in invoice receipt is matched line by line, like a platform in
     expect(more.checks.find((c) => c.code === 'RECEIPT')!.outcome).toBe('FAIL')
   })
 
+  it('a typed-in receipt’s expense line matches the paying firm’s own acceptance of the expense, never the supplier’s approval alone', () => {
+    const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
+    const approved = { id: 'ex-1', status: 'APPROVED', totalCents: 25_000, periodStart: AUG.start, periodEnd: AUG.start }
+    const said = 'Line 1 bills Helena Marsh’s travel expense of Aug 2, 2026, which your firm has not accepted. Accept it first, then it is paid.'
+    const waiting = receipt([expenseLine], { expenses: { 'ex-1': { ...approved, acceptedCents: null } }, receiptSays: { 'line-2': said } })
+    expect(waiting.checks.find((c) => c.code === 'RECEIPT')).toMatchObject({ outcome: 'FAIL', overridable: false, reason: said })
+    // Accepted for less: the supplier's invoice for the whole is no receipt.
+    expect(receipt([expenseLine], { expenses: { 'ex-1': { ...approved, acceptedCents: 22_000 } } }).matched).toBe(false)
+    expect(receipt([{ ...expenseLine, amountCents: 22_000 }], { expenses: { 'ex-1': { ...approved, acceptedCents: 22_000 } } }).checks.find((c) => c.code === 'RECEIPT')!.outcome).toBe('PASS')
+  })
+
   it('an expense incurred outside the receipt’s period fails the period check, as a week would', () => {
     const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
     const july = new Date('2026-07-20T00:00:00Z')

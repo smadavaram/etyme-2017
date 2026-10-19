@@ -12,6 +12,8 @@ import { methodFor } from '@/lib/money/overtime-method'
 import { payLineFor, payLineSays, weeklyWorked } from '@/lib/money/pay-line'
 import { acceptanceForPay, payBands, payCut, paidDayMaps, straightTimeSays } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
+import { clientsDecisions } from '@/lib/money/client-overtime'
+import { topLegsOver } from '@/lib/money/client-overtime-read'
 
 /**
  * GET /api/payroll/export?provider=ADP&from=&to=
@@ -175,6 +177,12 @@ export async function GET(request: NextRequest) {
     return end >= fromDay && end <= toDay
   })
 
+  // The top of the ladder over each week's hours: the line the end client
+  // pays, where the client's overtime answer is written. In a chain the
+  // line the hours are filed on carries no answer of its own any more
+  // (the founder, 2026-10-19; lib/money/client-overtime).
+  const tops = await topLegsOver(inFile.map((s) => s.sellContractId))
+
   const rows: SheetToPay[] = inFile.map((s) => {
     // The buy contract in force over this work, and this person on it.
     // Null all the way down where nothing on the buy side describes
@@ -205,14 +213,16 @@ export async function GET(request: NextRequest) {
     // What the client decided about each week that went over the line.
     // A billing fact on the sell leg — read so the file can say what the
     // employer still owes on top of it, never to price the wage.
-    const decisions: Decision[] = s.overtimeDecisions
-      .filter((d) => d.sellContractId === s.sellContractId)
+    // Read off the top leg, or the end client's own answer on another leg —
+    // never another firm's, and never the filing line's alone.
+    const top = tops.get(s.sellContractId) ?? { sellContractId: s.sellContractId, clientCompanyId: null }
+    const decisions: Decision[] = clientsDecisions(s.overtimeDecisions, top)
       .map((d) => ({
         weekOf: d.weekOf.toISOString().slice(0, 10),
         treatment: d.treatment as Decision['treatment'],
         appliedBps: d.appliedBps,
         overtimeHours: Number(d.overtimeHours),
-        accrualBps: d.accrualBps,
+        accrualBps: d.accrualBps ?? undefined,
       }))
 
     // ── Whose line is the pay side judged on ────────────────────────

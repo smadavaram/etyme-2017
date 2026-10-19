@@ -32,7 +32,9 @@ import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
-import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
+import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
+import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
+import { legsFor, acceptancesOn } from '@/lib/money/expense-acceptance-read'
 import { emit } from '@/lib/events'
 import { billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
@@ -85,7 +87,7 @@ export interface PlannedBill {
   sellContractIds: string[]
   expenseCount: number
   milestoneCount: number
-  /** Weeks left off because the firm above has not accepted them, in words. */
+  /** Weeks, and expenses, left off because the firm above has not accepted them, in words. */
   heldBack: string | null
   /** Overtime nobody has decided, left off, in words. */
   pending: string | null
@@ -462,14 +464,19 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
   // ── Expenses that ride on this invoice ──────────────────────────────
   //
-  // Approved, client-billable, not yet on an invoice, on our own
-  // contracts. They become lines of their own with the expense behind
-  // them (src/lib/expense-billing.ts). An invoice may carry only expenses
-  // — a month with no hours and one flight is still a month to bill.
+  // Approved, not yet on an invoice, on our own contracts. They become
+  // lines of their own with the expense behind them
+  // (src/lib/expense-billing.ts). An invoice may carry only expenses — a
+  // month with no hours and one flight is still a month to bill.
+  //
+  // Not filtered on the employer's own `billable` flag here: whether this
+  // kind of expense is billable on this leg is the agreement's where it
+  // says (the founder, 2026-10-19), and the flag only where it is silent.
+  // Both are decided below, with what the payer accepted.
   let expenseRows = await prisma.expense.findMany({
     where: {
       sellContractId: { in: ownIds },
-      status: 'APPROVED', billable: true, invoiceId: null,
+      status: 'APPROVED', invoiceId: null,
       ...(asked.start ? { periodEnd: { gte: asked.start } } : {}),
       ...(asked.end ? { periodStart: { lte: asked.end } } : {}),
     },
@@ -619,6 +626,34 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     expenseRows = expenseRows.filter((e) => inWindow(e.periodEnd, period))
     milestones = milestones.filter((m) => inWindow(m.acceptedAt ?? new Date(), period))
   }
+
+  // ── Which expenses the firm paying this bill has accepted ───────────
+  //
+  // An expense is accepted like a week (the founder, 2026-10-19): the
+  // payer — the customer on the line being billed — accepts it before it
+  // pays it, and the bill carries what it accepted, never what the worker
+  // claimed. One it has not accepted, or sent back, and one of a kind the
+  // agreement between the two firms does not make billable, is left off
+  // and said, the way a week the firm above has not accepted is.
+  const expenseLegs = await legsFor(expenseRows.map((e) => e.sellContractId))
+  const expenseDecisions = await acceptancesOn(expenseRows.map((e) => e.id))
+  const sortedExpenses = sortForBill(
+    expenseRows.map((e) => {
+      const leg = expenseLegs.get(e.sellContractId)
+      return {
+        id: e.id, status: e.status, billable: e.billable, invoiceId: e.invoiceId,
+        sellContractId: e.sellContractId, personId: e.personId, personName: e.person.name,
+        category: e.category, description: e.description, total: Number(e.total),
+        currency: e.sellContract.billCurrency, periodStart: e.periodStart, periodEnd: e.periodEnd,
+        payerName: leg?.payerName,
+        own: leg ? payersOwn(leg.payerId, expenseDecisions.get(e.id) ?? []) : { kind: 'NONE' as const },
+        leg: leg ? legBills(e, leg) : undefined,
+      }
+    })
+  )
+  const expensesLeftOff: LeftOff[] = sortedExpenses.leftOff
+  const expensesOn = new Set(sortedExpenses.on.map((e) => e.id))
+  expenseRows = expenseRows.filter((e) => expensesOn.has(e.id))
 
   /**
    * What each timesheet is worth to this invoice, priced once and read
@@ -893,14 +928,17 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
   // Said, never swallowed: the weeks a rung may not bill yet, each in a
   // sentence naming the week and the firm whose acceptance it waits on.
-  const heldSays = heldBack.length > 0 ? heldBack.map((h) => h.says).join(' ') : null
+  const heldSays = heldBack.length + expensesLeftOff.length > 0
+    ? [...heldBack.map((h) => h.says), ...expensesLeftOff.map((x) => x.says)].join(' ')
+    : null
 
-  if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0 && heldBack.length > 0) {
+  if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0 && heldBack.length + expensesLeftOff.length > 0) {
     return reply(422, {
         error: {
           code: 'NOT_ACCEPTED_ABOVE',
           message: heldSays,
           heldBack,
+          expensesLeftOff,
         },
       })
   }
@@ -941,14 +979,8 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
   const lines = Array.from(linesByContract.values())
 
-  const expLines = billableNow(
-    expenseRows.map((e) => ({
-      id: e.id, status: e.status, billable: e.billable, invoiceId: e.invoiceId,
-      sellContractId: e.sellContractId, personId: e.personId, personName: e.person.name,
-      category: e.category, description: e.description, total: Number(e.total),
-      currency: e.sellContract.billCurrency, periodEnd: e.periodEnd,
-    }))
-  ).map((e) => expenseLine(e, minorPerUnit(e.currency)))
+  // At the amount the payer accepted, decided above.
+  const expLines = sortedExpenses.on.map((e) => expenseLine(e, minorPerUnit(e.currency)))
 
   // ── Consolidation: contracts may share an invoice, companies may not ──
   //
@@ -1501,7 +1533,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         overtime: { pendingHours, says: pendingSays },
         // The weeks left off because the firm above has not accepted
         // them, or accepted a number nobody has said how to price.
-        heldBack: { weeks: heldBack, says: heldSays },
+        heldBack: { weeks: heldBack, expenses: expensesLeftOff, says: heldSays },
         selfBilling: { selfBilled: self.selfBilled, says: self.says },
         // Determined and shown. It is NOT a queryable field on the
         // invoice — `Invoice` carries no tax columns, so this lives with

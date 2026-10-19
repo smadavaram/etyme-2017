@@ -57,6 +57,8 @@ import { descend } from '@/lib/work-chain'
 import { overBillCheck } from '@/lib/purchase-order'
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
+import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, legsFor } from '@/lib/money/expense-acceptance-read'
 import {
   matchVendorBill, threeWayMatch, OVERRIDABLE,
   type AcceptedWork, type MatchResult, type PurchaseOrderFacts,
@@ -656,7 +658,7 @@ async function checkLines(
       where: { id: { in: ids } },
       select: {
         id: true, status: true, billable: true, total: true, personId: true, sellContractId: true,
-        periodStart: true, periodEnd: true, category: true,
+        periodStart: true, periodEnd: true, category: true, companyId: true,
         person: { select: { name: true } },
       },
     })
@@ -670,6 +672,14 @@ async function checkLines(
       : []
     const onThisLine = new Set([...linked.map((x) => x.sellContractId), ...below])
     const people = new Set(candidates.map((c) => c.personId))
+    // What this payer itself accepted of each, and the agreement between
+    // it and the supplier: the receipt for an expense is the payer's own
+    // acceptance (the founder, 2026-10-19), and whether the kind is
+    // billable on this leg is that agreement's where it says.
+    const decisions = await acceptancesOn(ids)
+    const supplierLeg = ctx.buy?.supplierSellContractId
+      ? (await legsFor([ctx.buy.supplierSellContractId])).get(ctx.buy.supplierSellContractId) ?? null
+      : null
 
     for (const l of expenseLines) {
       const e = byId.get(l.expenseId!)
@@ -687,14 +697,31 @@ async function checkLines(
         refuse(l, `${n(l)} names one person and bills ${what}. A line is for the person whose expense it is.`)
         continue
       }
-      if (!e.billable) {
-        refuse(l, `${n(l)} bills ${what}, which was recorded as the firm’s own cost and not billable, so no invoice is paid for it.`)
+      const leg = supplierLeg ? legBills(e, supplierLeg) : { bills: e.billable, says: null }
+      if (!leg.bills) {
+        refuse(l, leg.says
+          ? `${n(l)} bills ${what}, which is not billable on this leg: ${leg.says}`
+          : `${n(l)} bills ${what}, which was recorded as the firm’s own cost and not billable, so no invoice is paid for it.`)
         continue
       }
-      expenses[e.id] = { id: e.id, status: e.status, totalCents: cents, periodStart: e.periodStart, periodEnd: e.periodEnd, personName: e.person?.name }
+      // Raised on the payer's own book (a supplier not on the platform,
+      // whose person it carries itself): its own approval is the receipt,
+      // because nobody accepts their own. Otherwise, its acceptance.
+      const raisedHere = e.companyId === r.companyId
+      const own = raisedHere ? null : payersOwn(r.companyId, decisions.get(e.id) ?? [])
+      expenses[e.id] = {
+        id: e.id, status: e.status, totalCents: cents, periodStart: e.periodStart, periodEnd: e.periodEnd, personName: e.person?.name,
+        ...(own ? { acceptedCents: own.kind === 'ACCEPTED' ? own.cents : null } : {}),
+      }
       if (!EXPENSE_OK.includes(e.status)) {
         says[l.id] = `${n(l)} bills ${what}, which is ${e.status.toLowerCase()}, not approved, so it is not paid.`
-      } else if (cents !== l.amountCents) {
+      } else if (own && own.kind === 'SENT_BACK') {
+        says[l.id] = `${n(l)} bills ${what}, which your firm sent back${own.reason ? `: ${own.reason}` : ''}. Accept it first, then it is paid.`
+      } else if (own && own.kind === 'NONE') {
+        says[l.id] = `${n(l)} bills ${what}, which your firm has not accepted. Accept it first, then it is paid.`
+      } else if (own && own.kind === 'ACCEPTED' && own.cents !== l.amountCents) {
+        says[l.id] = `${n(l)} bills ${amount(l.amountCents, currency)} for ${what}; ${amount(own.cents, currency)} was accepted.`
+      } else if (!own && cents !== l.amountCents) {
         says[l.id] = `${n(l)} bills ${amount(l.amountCents, currency)} for ${what}; ${amount(cents, currency)} was approved.`
       }
     }
