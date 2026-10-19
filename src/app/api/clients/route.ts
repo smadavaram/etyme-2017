@@ -6,6 +6,10 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { defaultPostureFor } from '@/lib/walls'
 import { mayList, shellNotice, recordClientContact, type CompanyStanding } from '@/lib/off-system'
+import { clientInviteLetter } from '@/lib/reaching-out'
+import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
+import { configuredSenders } from '@/lib/senders'
+import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 
 /**
  * GET   /api/clients — who this firm sells to, and which of them are here
@@ -258,29 +262,40 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // An invitation only where the caller asked for one. It is the client's
-  // door to take its record, and today nothing sends it: the letter to a
-  // client is conversation's to write, so no screen offers the choice and
-  // a claim link is never made for an address nobody chose to invite.
-  let invite: { token: string; email: string } | null = null
-  if (email && body.invite === true && !verdict.reuse) {
-    const existing = await prisma.supplierInvite.findFirst({
-      where: { byId: companyId, email },
-      select: { token: true, email: true },
+  // An invitation only where the caller asked for one, to the person it
+  // just recorded. It is the client's door to take its record: the letter
+  // (conversation's `clientInviteLetter`) says the supplier keeps a record
+  // of their work together and offers the one thing to do with it. Sent
+  // once, when the invitation is made; asking again sends nothing more.
+  let invite: { email: string; delivery: { state: string; note: string } | null } | null = null
+  if (contact && body.invite === true) {
+    const existing = await prisma.supplierInvite.findUnique({
+      where: { byId_email: { byId: companyId, email: contact.email } },
+      select: { companyId: true, token: true, email: true },
     })
-    invite =
-      existing ??
-      (await prisma.supplierInvite.create({
-        data: {
-          companyId: client.id,
-          byId: companyId,
-          email,
-          contactName,
-          domain,
-          token: randomBytes(24).toString('hex'),
-        },
+    if (existing && existing.companyId !== client.id) {
+      contactRefused = `${contact.email} is already invited to another firm on your register, so no invitation went to ${client.name}.`
+    } else if (existing) {
+      invite = { email: existing.email, delivery: null }
+    } else {
+      const made = await prisma.supplierInvite.create({
+        data: { companyId: client.id, byId: companyId, email: contact.email, contactName, domain, token: randomBytes(24).toString('hex') },
         select: { token: true, email: true },
-      }))
+      })
+      const letter = clientInviteLetter({
+        supplierName: caller.company!.name,
+        contactName,
+        clientName: client.name,
+        claimUrl: claimLinkFor(made.token),
+      })
+      const out = await attemptDelivery(
+        // Email, never Teams: a firm that has never heard of us has no
+        // channel here, and would not want one before it decides.
+        routeFor({ isConsultant: false, email: made.email, teamsWebhookUrl: null }),
+        made.email, letter.subject, letter.body, configuredSenders(), new Date(),
+      )
+      invite = { email: made.email, delivery: { state: out.state, note: out.note } }
+    }
   }
 
   await prisma.automationLog.create({
@@ -289,7 +304,7 @@ export async function POST(request: NextRequest) {
       action: 'CLIENT_LISTED',
       summary: `${caller.person.name} put ${client.name} on the register`,
       reason: verdict.says,
-      payload: { clientCompanyId: client.id, msaId: msa.id, contact: contact?.email ?? null, invited: Boolean(invite) },
+      payload: { clientCompanyId: client.id, msaId: msa.id, contact: contact?.email ?? null, invited: Boolean(invite), delivery: invite?.delivery?.state ?? null },
       reversible: true,
     },
   })
@@ -305,13 +320,13 @@ export async function POST(request: NextRequest) {
         },
         msaId: msa.id,
         contact,
-        invited: invite ? { email: invite.email } : null,
+        invited: invite ? { email: invite.email, delivery: invite.delivery } : null,
         message:
           `${client.name} is on your register. You can record the contracts you already ` +
           `hold with them, and the purchase orders they handed you, today. ` +
           (contact ? `${contact.email} is recorded as your contact there. ` : '') +
           (contactRefused ? `${contactRefused} ` : '') +
-          `Nothing reaches them until you invite somebody there.`,
+          invitedSays(invite),
       },
     },
     { status: 201 }
@@ -427,6 +442,17 @@ export async function PATCH(request: NextRequest) {
   })
 
   return NextResponse.json({ data: { clientId: shell.id, email: verdict.email, removed: verdict.remove, message: verdict.says } })
+}
+
+/**
+ * What the screen says about the invitation, and only what happened: sent
+ * only where the email left.
+ */
+function invitedSays(invite: { email: string; delivery: { state: string; note: string } | null } | null): string {
+  if (!invite) return 'Nothing reaches them until you invite somebody there.'
+  if (!invite.delivery) return `${invite.email} was invited before; no second email was sent.`
+  if (invite.delivery.state === 'SENT') return `${invite.email} has been sent a link to take the record when they want it.`
+  return `The invitation to ${invite.email} is ready, but the email did not leave: ${invite.delivery.note}`
 }
 
 /**

@@ -620,11 +620,11 @@ export async function POST(request: NextRequest) {
       companyName: seeded.companyName,
       counts: seeded.counts,
       side,
-      // A firm's sandbox seats its owner, whose menu has Conversations, so it
-      // lands in Ask Etyme (lib/nav-table, landingFor); a candidate on their
-      // own work, as before.
-      landing:
-        side === 'CANDIDATE' ? '/dashboard/my-work' : ASK_ETYME_HREF,
+      // Every sandbox lands in Ask Etyme (lib/nav-table, landingFor): a
+      // firm's owner, whose menu has Conversations, and since 2026-10-19 a
+      // candidate too, whose greeting is her own week; her own work is one
+      // click behind it.
+      landing: ASK_ETYME_HREF,
       expiresInDays: DEMO_DAYS,
       resumed: false,
     },

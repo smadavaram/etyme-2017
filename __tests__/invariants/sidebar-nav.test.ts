@@ -1397,10 +1397,12 @@ describe('Ask Etyme sits above the sections, wherever Conversations is', () => {
     expect(pinnedOn(deskless).map((i) => i.label)).toEqual(['Ask Etyme'])
   })
 
-  it('is not drawn on a menu that has no Conversations', () => {
+  it('is drawn on a worker’s menu too, because Ask Etyme answers her about her own work, and on no menu with neither', () => {
     const menu = getNavForKind(null, true)
-    const has = itemsOf(menu).some((i) => i.href === '/dashboard/conversations')
-    expect(pinnedOn(menu).length).toBe(has ? 1 : 0)
+    const has = itemsOf(menu).some((i) => i.href === '/dashboard/conversations' || i.href === '/dashboard/my-work')
+    expect(has).toBe(true)
+    expect(pinnedOn(menu).map((i) => i.label)).toEqual(['Ask Etyme'])
+    expect(pinnedOn([{ title: 'Elsewhere', items: [{ label: 'Bills', href: '/dashboard/invoices', icon: '' }] }] as any)).toEqual([])
   })
 
   it('asks for exactly what Conversations asks for, so it never offers a door that refuses', () => {

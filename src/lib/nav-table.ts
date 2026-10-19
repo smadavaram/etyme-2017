@@ -335,18 +335,24 @@ export const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
 export const ETYME_MARK_ICON = 'etyme-mark'
 export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON }
 
-/** The entries drawn above this menu's sections: Ask Etyme where the menu has Conversations. */
+/**
+ * The entries drawn above this menu's sections: Ask Etyme where the menu
+ * has Conversations, or a worker's own work (since 2026-10-19 Ask Etyme
+ * answers a worker about her own weeks, papers and chain, from her own
+ * pages — conversation's `twin/worker`).
+ */
 export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
-  const hasConversations = sections.some((s) => s.items.some((i) => i.href === '/dashboard/conversations'))
-  return hasConversations ? [ASK_ETYME] : []
+  const has = (href: string) => sections.some((s) => s.items.some((i) => i.href === href))
+  return has('/dashboard/conversations') || has('/dashboard/my-work') ? [ASK_ETYME] : []
 }
 
 /**
  * Where a seat lands after signing in and through the demo door (founder,
  * 2026-10-12, "Ask Etyme is the app"): in Ask Etyme, wherever the seat's
- * own menu has Conversations, because the greeting there is its desk.
- * Anybody else — a consultant, whose menu has no Conversations — lands
- * where lib/console-home says. One answer, read by the sign-in landing
+ * own menu pins it — a menu with Conversations, because the greeting
+ * there is its desk, or a worker's menu with her own work, because since
+ * 2026-10-19 the greeting there is her week. Anybody else lands where
+ * lib/console-home says. One answer, read by the sign-in landing
  * (components/desk-home) and the demo door (app/api/demo).
  *
  * The console is unchanged: `/dashboard` and the sidebar's Dashboard link

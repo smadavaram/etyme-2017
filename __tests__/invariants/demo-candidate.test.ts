@@ -35,8 +35,11 @@ describe('the candidate demo is a real third door, not just the other two relabe
     expect(ROUTE).toContain('seedDemoConsultant')
   })
 
-  it('lands a candidate on their own work, not a company dashboard', () => {
-    expect(ROUTE).toMatch(/side === 'CANDIDATE' \? '\/dashboard\/my-work'/)
+  it('lands a candidate in Ask Etyme, greeted with her own week, and never on a company dashboard', () => {
+    // Since 2026-10-19 Ask Etyme answers a worker about her own work, so
+    // every sandbox lands there; her own work is one click behind it.
+    expect(ROUTE).toContain('landing: ASK_ETYME_HREF,')
+    expect(ROUTE).not.toMatch(/side === 'CANDIDATE' \? '\/dashboard\/my-work'/)
   })
 
   it('is reachable from the home page, as a quiet link wherever the company doors are', () => {

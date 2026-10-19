@@ -117,6 +117,9 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
     // approve a week by email for it.
     contactName: '',
     email: '',
+    // Send their contact a link to take the record. Off by default: the
+    // record is the supplier's own until the client wants it.
+    invite: false,
   })
   // A client a supplier writes down is a client, whatever the Kind box
   // said, and it is not given an Etyme address until somebody there joins.
@@ -144,6 +147,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
               contactName: form.contactName.trim() || undefined,
               email: form.email.trim() || undefined,
               domain: form.domain.trim() || undefined,
+              invite: form.invite && form.email.trim() !== '',
             }),
           })
         : await fetch('/api/companies', {
@@ -291,6 +295,16 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 This is your own record of them until they join. The person you name here can approve
                 your timesheets by email.
               </p>
+              <label className="sm:col-span-2 flex items-center gap-2 text-sm text-etyme-ink">
+                <input
+                  type="checkbox"
+                  checked={form.invite}
+                  disabled={form.email.trim() === ''}
+                  onChange={(e) => setForm({ ...form, invite: e.target.checked })}
+                />
+                Invite them to Etyme
+                {form.email.trim() === '' && <span className="text-xs text-etyme-faint">— give their email first</span>}
+              </label>
             </div>
           )}
 

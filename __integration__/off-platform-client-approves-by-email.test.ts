@@ -98,6 +98,24 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
     expect(list.body.data.clients.find((c: { id: string }) => c.id === it_.client)).toMatchObject({ onEtyme: false, yours: true })
   })
 
+  it('a supplier that asks to invite its client makes the invitation once, and is told it was sent only where the email left', async () => {
+    as(OWNER)
+    const body = { name: 'Quarry Lane Foods', contactName: 'Mo Reyes', email: 'mo.reyes@quarry-lane.example', invite: true }
+    const first = await json(await listClient(req('POST', '/api/clients', body)))
+    expect(first.status, JSON.stringify(first.body)).toBe(201)
+    const shell = await prisma.company.findUniqueOrThrow({ where: { id: first.body.data.client.id } })
+    expect(shell.kind).toBe('CLIENT')
+    expect(await prisma.supplierInvite.count({ where: { companyId: shell.id, email: 'mo.reyes@quarry-lane.example' } })).toBe(1)
+    // A demo firm's letters do not leave, and the screen says so rather than "sent".
+    expect(first.body.data.invited.delivery.state).toBe('DEMO_SKIPPED')
+    expect(first.body.data.message).toContain('The invitation to mo.reyes@quarry-lane.example is ready, but the email did not leave')
+    expect(first.body.data.message).not.toContain('has been sent')
+
+    const again = await json(await listClient(req('POST', '/api/clients', body)))
+    expect(again.body.data.message).toContain('mo.reyes@quarry-lane.example was invited before; no second email was sent.')
+    expect(await prisma.supplierInvite.count({ where: { companyId: shell.id } })).toBe(1)
+  })
+
   it('an address the supplier never recorded for an off-platform client is still refused, and the refusal is logged', async () => {
     as(OWNER)
     const r = await send(it_.week1, 'Pat Stranger', 'pat@somewhere-else.example')
