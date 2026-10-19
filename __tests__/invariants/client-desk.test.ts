@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { expenseAcceptanceDecision, kindWord, ACCEPTS_EXPENSES } from '@/app/api/decisions/expense-acceptance'
+import { rolesFor } from '@/lib/company-defaults'
+import { hasAnyPermission } from '@/lib/permissions'
+import { chipsFor } from '@/app/dashboard/decisions/chips'
 
 /**
  * The client dashboard, read from Northbend Athletic's program desk: five contractors
@@ -308,5 +312,94 @@ describe('what the client desk is told', () => {
     // is not claimed at forty.
     expect(seed).toContain('const sheetHours = Object.values(days).reduce((a, b) => a + b, 0)')
     expect(seed).toContain('totalHours: sheetHours,')
+  })
+})
+
+// ── An expense this firm pays for, its turn to accept ──────────────────
+//
+// The founder, 2026-10-19 (decision 1): an expense is accepted by each
+// firm that pays for it, the client first. Money says whose turn it is
+// and records the answer; the queue only puts the card in front of the
+// person who can give it.
+
+describe('an expense waiting on this firm to accept it', () => {
+  const decisions = read('src/app/api/decisions/route.ts')
+  const decisionsPage = read('src/app/dashboard/decisions/page.tsx')
+  const row = read('src/app/api/decisions/expense-acceptance.ts')
+  const now = new Date('2026-10-19T12:00:00Z')
+  const helenasTrain = {
+    expenseId: 'exp-1', personName: 'Helena Marsh', from: 'Computer Systems Inc', category: 'TRAVEL',
+    upToCents: 25_000, currency: 'USD',
+    periodStart: new Date('2026-10-14T00:00:00Z'), approvedAt: new Date('2026-10-18T09:00:00Z'),
+  }
+  const role = (name: string) => rolesFor('CLIENT').find((r) => r.name === name)!.permissions
+
+  it("an expense the client has not accepted is on the AP clerk's queue as Accept expense, with the amount, the kind and the firm it came from", () => {
+    const card = expenseAcceptanceDecision(helenasTrain, now)
+    expect(card.title).toBe('Accept expense — Helena Marsh')
+    expect(card.subtitle).toBe('$250.00 · Travel · from Computer Systems Inc')
+    expect(card.entityType).toBe('EXPENSE')
+    expect(card.entityId).toBe('exp-1')
+    expect(card.actionUrl).toBe('/dashboard/expenses')
+    expect(card.amount).toBe(250)
+    // The AP clerk is the desk that pays, and the route's gate admits it.
+    expect(hasAnyPermission(role('AP Clerk'), ACCEPTS_EXPENSES)).toBe(true)
+    expect(decisions).toContain('if (hasAnyPermission(caller.permissions, ACCEPTS_EXPENSES)) {')
+    expect(decisions).toContain('const waiting = await expensesWaitingOn(companyId)')
+    expect(decisions).toContain("decisions.push({ type: 'EXPENSE_ACCEPTANCE', ...expenseAcceptanceDecision(e, now) })")
+  })
+
+  it('the queue asks for exactly the permissions the accept route asks for, so it never offers a card the route refuses', () => {
+    expect([...ACCEPTS_EXPENSES].sort()).toEqual(['payments.record', 'timesheets.approve'])
+    const route = read('src/app/api/expenses/[id]/accept/route.ts')
+    expect(route).toContain("const DECIDES: Permission[] = ['timesheets.approve', 'payments.record']")
+  })
+
+  it('a seat that neither signs the work nor pays for it is not shown an expense to accept', () => {
+    expect(hasAnyPermission(role('Compliance Officer'), ACCEPTS_EXPENSES)).toBe(false)
+  })
+
+  it('the card names the firm directly below and nothing else about who raised the expense', () => {
+    const card = expenseAcceptanceDecision(helenasTrain, now)
+    expect(`${card.title} ${card.subtitle}`).not.toMatch(/Techpeple/)
+    // The row reads `from`, money's "the firm directly below", and no
+    // other field of the expense names a firm.
+    expect(row).toContain('from ${e.from}')
+    expect(row).not.toMatch(/companyName|sellerName|employer\w*Name/)
+  })
+
+  it('the kind of expense is said in plain words, never the stored value', () => {
+    expect(kindWord('TRAVEL')).toBe('Travel')
+    expect(kindWord('RELOCATION')).toBe('Relocation')
+    expect(kindWord('SOFT_SKILLS')).toBe('Soft skills')
+  })
+
+  it('an expense in another currency is said in its own currency and adds nothing to the dollar total', () => {
+    const card = expenseAcceptanceDecision({ ...helenasTrain, currency: 'EUR', upToCents: 18_050 }, now)
+    expect(card.subtitle).toMatch(/^€180\.50 · Travel · from Computer Systems Inc$/)
+    expect(card.amount).toBeNull()
+    expect(card.currency).toBe('EUR')
+  })
+
+  it('an expense waiting five days is urgent, two days is soon, and a fresh one is low', () => {
+    const at = (iso: string) => expenseAcceptanceDecision({ ...helenasTrain, approvedAt: new Date(iso) }, now).urgency
+    expect(at('2026-10-14T12:00:00Z')).toBe('HIGH')
+    expect(at('2026-10-17T12:00:00Z')).toBe('MEDIUM')
+    expect(at('2026-10-19T08:00:00Z')).toBe('LOW')
+  })
+
+  it('a firm with nothing to accept sees no such card, and no chip for it', () => {
+    const reader = { kind: 'CLIENT' as const, isConsultant: false, permissions: role('AP Clerk') }
+    expect(chipsFor(reader, {}, 0).map((c) => c.key)).not.toContain('EXPENSE_ACCEPTANCE')
+    expect(chipsFor(reader, { EXPENSE_ACCEPTANCE: 1 }, 1).map((c) => c.label)).toContain('Expenses to accept')
+  })
+
+  it('accepting from the card goes through the one accept route', () => {
+    expect(decisionsPage).toContain('fetch(`/api/expenses/${entityId}/accept`')
+    expect(decisionsPage).toContain("decideExpense(entityId, { decision: 'accept' })")
+    expect(decisionsPage).toContain("decideExpense(sendingBack.expenseId, { decision: 'send_back', reason })")
+    // The card's Accept sends no figure: the route records the most this
+    // firm may accept, which is the amount the card shows.
+    expect(decisionsPage).not.toMatch(/decision: 'accept', amountCents/)
   })
 })

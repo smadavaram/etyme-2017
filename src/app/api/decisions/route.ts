@@ -18,6 +18,8 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
+import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptance'
+import { expensesWaitingOn } from '@/lib/money/expense-acceptance-read'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
 import { waitingQuestions } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
@@ -40,6 +42,7 @@ import { deskItems } from '@/app/dashboard/program/needs-you'
  * Categories:
  *   TIMESHEET_APPROVAL — submitted timesheets awaiting approval
  *   EXPENSE_APPROVAL   — submitted expenses awaiting approval
+ *   EXPENSE_ACCEPTANCE — an approved expense this firm pays for, its turn to accept
  *   ROLLOFF_ACTION     — contracts ending soon with no action
  *   SUBMISSION_REVIEW  — submissions waiting for vendor review
  *   INVOICE_OVERDUE    — invoices past due
@@ -349,6 +352,35 @@ export async function GET(request: NextRequest) {
         amount: Number(exp.total),
         createdAt: exp.submittedAt?.toISOString() ?? exp.createdAt.toISOString(),
       })
+    }
+  }
+
+  // ── 2a. Expenses waiting on this firm to accept them ──────────────
+  //
+  // The founder, 2026-10-19 (decision 1): an expense is accepted like a
+  // week, by each firm that pays for it, the client first. Money says
+  // whose turn it is (`expensesWaitingOn`) and owns the one route that
+  // records the answer; the row is `./expense-acceptance`. Gated on the
+  // same two permissions that route asks for, so the card is never one
+  // the route refuses.
+  if (hasAnyPermission(caller.permissions, ACCEPTS_EXPENSES)) {
+    const waiting = await expensesWaitingOn(companyId)
+    if (waiting.length > 0) {
+      // A person's expense read on this firm's queue is a read of their
+      // data, and the queue row carries no person id of its own.
+      const people = await prisma.expense.findMany({
+        where: { id: { in: waiting.map((e) => e.expenseId) } },
+        select: { personId: true },
+      })
+      logBulkAccess([...new Set(people.map((p) => p.personId))], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId,
+        action: 'CONTRACT_VIEW',
+        reason: 'Read in the decision queue: an expense this firm pays for, waiting on it to accept',
+      })
+    }
+    for (const e of waiting) {
+      decisions.push({ type: 'EXPENSE_ACCEPTANCE', ...expenseAcceptanceDecision(e, now) })
     }
   }
 

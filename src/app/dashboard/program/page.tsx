@@ -176,6 +176,7 @@ const KIND_WORD: Record<string, string> = {
   // vocabulary — never the type.
   REQUISITION_APPROVAL: 'Job request',
   EXPENSE_APPROVAL: 'Expense',
+  EXPENSE_ACCEPTANCE: 'Expense',
   ROLLOFF_ACTION: 'Ending',
   SUBMISSION_REVIEW: 'Candidate',
   SUPPLIER_REVIEW: 'Supplier',

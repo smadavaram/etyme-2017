@@ -45,6 +45,14 @@ interface Decision {
    * a half." The firm accepting is told, never asked (founder, 2026-10-19).
    */
   clientDecided?: string | null
+  /**
+   * An expense to accept: the most this firm may accept, in minor units,
+   * and its currency. Accept sends no figure, so the route records exactly
+   * this; a smaller figure is a decision made on the expenses page, with
+   * its reason.
+   */
+  upToCents?: number
+  currency?: string
   createdAt: string
 }
 
@@ -56,6 +64,7 @@ function typeIcon(type: string): string {
     TIMESHEET_APPROVAL: '▦',
     REQUISITION_APPROVAL: '⊞',
     EXPENSE_APPROVAL:   '◫',
+    EXPENSE_ACCEPTANCE: '◫',
     ROLLOFF_ACTION:     '⚠',
     SUBMISSION_REVIEW:  '◇',
     CONTRACT_PAPERING:  '✎',
@@ -76,6 +85,7 @@ function typeLabel(type: string): string {
     // retired name and __tests__/invariants/sidebar-nav fails on it.
     REQUISITION_APPROVAL: 'Job request',
     EXPENSE_APPROVAL:   'Expense',
+    EXPENSE_ACCEPTANCE: 'Expense',
     ROLLOFF_ACTION:     'Rolloff',
     SUBMISSION_REVIEW:  'Submission',
     CONTRACT_PAPERING:  'To paper',
@@ -152,6 +162,9 @@ export default function DecisionsPage() {
   const [deciding, setDeciding] = useState<
     { timesheetId: string; personName: string; weeks: PendingWeek[]; lead: string } | null
   >(null)
+  // An expense being sent back, and the reason being typed for it.
+  const [sendingBack, setSendingBack] = useState<{ expenseId: string; title: string } | null>(null)
+  const [sendBackReason, setSendBackReason] = useState('')
 
   const fetchDecisions = useCallback(async () => {
     setLoading(true)
@@ -249,6 +262,46 @@ export default function DecisionsPage() {
     } finally {
       setActing(null)
     }
+  }
+
+  // ── An expense this firm pays for: accept it, or send it back ──────
+  //
+  // Through the one route that records a firm's decision on an expense
+  // (`POST /api/expenses/:id/accept`, money's), the way the timesheet card
+  // signs through the timesheet's own route. The queue writes nothing.
+  async function decideExpense(entityId: string, body: { decision: 'accept' } | { decision: 'send_back'; reason: string }) {
+    setActing(entityId)
+    try {
+      const res = await fetch(`/api/expenses/${entityId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(out.error?.message ?? 'The expense could not be decided.')
+      // The route's own sentence: who accepted how much, or why it went back.
+      showToast(out.data?.message ?? (body.decision === 'accept' ? 'Expense accepted' : 'Expense sent back'))
+      setDecisions(prev => prev.filter(d => !(d.type === 'EXPENSE_ACCEPTANCE' && d.entityId === entityId)))
+      return true
+    } catch (err: any) {
+      showToast(err.message, 'error')
+      return false
+    } finally {
+      setActing(null)
+    }
+  }
+
+  function handleAcceptExpense(entityId: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    void decideExpense(entityId, { decision: 'accept' })
+  }
+
+  function handleSendBackExpense(entityId: string, title: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setSendBackReason('')
+    setSendingBack({ expenseId: entityId, title })
   }
 
   // ── Filtered list ─────────────────────────────────
@@ -405,6 +458,27 @@ export default function DecisionsPage() {
                       {acting === d.entityId ? '…' : 'Approve'}
                     </button>
                   )}
+                  {d.type === 'EXPENSE_ACCEPTANCE' && (
+                    <>
+                      <button
+                        onClick={(e) => handleAcceptExpense(d.entityId, e)}
+                        disabled={acting === d.entityId}
+                        className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                                   bg-etyme-verified text-white hover:bg-etyme-verified/90
+                                   transition-colors disabled:opacity-50"
+                      >
+                        {acting === d.entityId ? '…' : 'Accept'}
+                      </button>
+                      <button
+                        onClick={(e) => handleSendBackExpense(d.entityId, d.title, e)}
+                        disabled={acting === d.entityId}
+                        className="px-3 py-1.5 text-[11px] font-medium rounded-md border border-etyme-rule
+                                   text-etyme-ink hover:bg-etyme-canvas transition-colors disabled:opacity-50"
+                      >
+                        Send back
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Amount + time */}
@@ -448,6 +522,47 @@ export default function DecisionsPage() {
             setDecisions((prev) => prev.filter((d) => !(d.entityType === 'TIMESHEET' && d.entityId === signed)))
           }}
         />
+      )}
+
+      {/* Sending an expense back: a reason, because somebody already spent the money */}
+      {sendingBack && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-etyme-ink/30 p-4" role="dialog" aria-modal="true">
+          <form
+            className="w-full max-w-md rounded-lg bg-etyme-surface p-5 shadow-lg"
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const reason = sendBackReason.trim()
+              if (!reason) return
+              const done = await decideExpense(sendingBack.expenseId, { decision: 'send_back', reason })
+              if (done) setSendingBack(null)
+            }}
+          >
+            <p className="text-[13px] font-medium text-etyme-ink">
+              Send back {sendingBack.title.replace(/^Accept expense — /, '')}’s expense
+            </p>
+            <p className="text-[12px] text-etyme-muted mt-1">
+              Say why. The firm that sent it and the person who spent the money both read this.
+            </p>
+            <textarea
+              autoFocus
+              value={sendBackReason}
+              onChange={(e) => setSendBackReason(e.target.value)}
+              rows={3}
+              className="mt-3 w-full rounded-md border border-etyme-rule bg-etyme-raised p-2 text-[13px] text-etyme-ink"
+              placeholder="For example: no receipt attached for the hotel night."
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button type="button" onClick={() => setSendingBack(null)}
+                className="px-3 py-1.5 text-[12px] rounded-md border border-etyme-rule text-etyme-ink hover:bg-etyme-canvas">
+                Cancel
+              </button>
+              <button type="submit" disabled={!sendBackReason.trim() || acting === sendingBack.expenseId}
+                className="px-3 py-1.5 text-[12px] font-medium rounded-md bg-etyme-attention text-white hover:opacity-90 disabled:opacity-50">
+                {acting === sendingBack.expenseId ? '…' : 'Send back'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {/* Toast notification */}

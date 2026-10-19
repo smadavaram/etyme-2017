@@ -13,6 +13,7 @@ import { POST as release } from '@/app/api/requisitions/[id]/distribute/route'
 import { GET as supplierRegister } from '@/app/api/suppliers/route'
 import { POST as recordRole } from '@/app/api/requirements/route'
 import { GET as sharedWithMe } from '@/app/api/invitations/route'
+import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
 
 /**
  * Northbend Athletic, walked as its desks — the client tester's walk of
@@ -31,6 +32,8 @@ const HIRING = `world-nike-hiring${D}`
 const PROGRAMME = `world-nike-programme${D}`
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-techpeple${D}`
+const AP = `world-nike-ap${D}`
+const COMPLIANCE = `world-nike-compliance${D}`
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s: Record<string, any> = {}
 
@@ -494,5 +497,80 @@ describe('time off is never taken in place of overtime pay, and the approval say
     ))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.message).toMatch(/^Approved 45h — \$[\d,]+\.\d{2} billable\. /)
+  })
+})
+
+describe('an expense Northbend pays for waits on its AP clerk to accept it', () => {
+  // Helena Marsh works at Northbend through Computer Systems, employed by
+  // Techpeple. Techpeple approved a train fare she spent on the job; each
+  // firm that pays for it accepts it before it pays, Northbend first
+  // (the founder, 2026-10-19, decision 1).
+  const e: Record<string, any> = {}
+  const queue = async (who: string) => {
+    as(who)
+    const r = await json(await readDecisions(req('GET', '/api/decisions')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    return r.body.data.decisions as any[]
+  }
+  const cardFor = (rows: any[]) => rows.find((d) => d.type === 'EXPENSE_ACCEPTANCE' && d.entityId === e.id)
+
+  beforeAll(async () => {
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
+    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { personId: helena.id, companyId: techpeple.id, clientCompanyId: cs.id, state: 'IN_PROGRESS' },
+      select: { id: true },
+    })
+    const day = new Date()
+    e.id = (await prisma.expense.create({
+      data: {
+        companyId: techpeple.id, sellContractId: line.id, personId: helena.id, category: 'TRAVEL',
+        billable: true, description: 'Train to the Tualatin site for the cut-over', periodStart: day, periodEnd: day,
+        items: [], total: 250, status: 'APPROVED', approvedAt: day,
+      },
+    })).id
+    e.northbend = s.northbend
+  })
+
+  it("an expense the client has not accepted is on the AP clerk's queue as Accept expense, with the amount, the kind and the firm it came from", async () => {
+    const card = cardFor(await queue(AP))
+    expect(card, 'the card on the AP clerk’s queue').toBeTruthy()
+    expect(card.title).toBe('Accept expense — Helena Marsh')
+    expect(card.subtitle).toBe('$250.00 · Travel · from Computer Systems Inc')
+    expect(card.actionUrl).toBe('/dashboard/expenses')
+    // The firm Northbend pays, never the one that employs her below it.
+    expect(`${card.title} ${card.subtitle}`).not.toContain('Techpeple')
+  })
+
+  it('a firm with nothing to accept sees no such card', async () => {
+    // Techpeple raised it: its own approval was the yes, and it never accepts its own.
+    expect(cardFor(await queue(SUB))).toBeUndefined()
+    // Computer Systems pays for it too, but not before Northbend has accepted it.
+    expect(cardFor(await queue(PRIME))).toBeUndefined()
+    // A seat that neither signs the work nor pays for it is shown none at all.
+    expect((await queue(COMPLIANCE)).filter((d) => d.type === 'EXPENSE_ACCEPTANCE')).toEqual([])
+  })
+
+  it('accepting from the card goes through the one accept route', async () => {
+    const card = cardFor(await queue(AP))
+    as(AP)
+    const r = await json(await acceptExpense(
+      req('POST', `/api/expenses/${card.entityId}/accept`, { decision: 'accept' }),
+      withId(card.entityId)
+    ))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const row = await prisma.expenseAcceptance.findUniqueOrThrow({
+      where: { expenseId_companyId: { expenseId: e.id, companyId: e.northbend } },
+    })
+    // The full amount the card showed, and nothing else.
+    expect(row).toMatchObject({ status: 'ACCEPTED', acceptedCents: 25_000 })
+
+    // It leaves Northbend's queue and is Computer Systems' turn now, from
+    // the firm directly below it.
+    expect(cardFor(await queue(AP))).toBeUndefined()
+    const next = cardFor(await queue(PRIME))
+    expect(next, 'the card on Computer Systems’ queue').toBeTruthy()
+    expect(next.subtitle).toBe('$250.00 · Travel · from Techpeple')
   })
 })

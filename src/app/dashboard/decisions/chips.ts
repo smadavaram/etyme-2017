@@ -18,6 +18,7 @@ export type DecisionType =
   | 'TIMESHEET_APPROVAL'
   | 'REQUISITION_APPROVAL'
   | 'EXPENSE_APPROVAL'
+  | 'EXPENSE_ACCEPTANCE'
   | 'ROLLOFF_ACTION'
   | 'SUBMISSION_REVIEW'
   | 'CONTRACT_PAPERING'
@@ -44,6 +45,10 @@ export const CHIP_PAGES: Readonly<Record<DecisionType, readonly string[]>> = {
   TIMESHEET_APPROVAL: ['/dashboard/timesheets'],
   REQUISITION_APPROVAL: ['/dashboard/requisitions', '/dashboard/requirements'],
   EXPENSE_APPROVAL: ['/dashboard/expenses'],
+  // An expense a firm above the worker's employer pays for, its turn to
+  // accept (the founder, 2026-10-19). Offered where one is waiting, so no
+  // reader's chips change on a day nothing is.
+  EXPENSE_ACCEPTANCE: [],
   ROLLOFF_ACTION: ['/dashboard/rolloff'],
   SUBMISSION_REVIEW: ['/dashboard/submissions'],
   CONTRACT_PAPERING: ['/dashboard/submissions'],
@@ -62,6 +67,7 @@ const LABELS: ReadonlyArray<[DecisionType, string]> = [
   ['TIMESHEET_APPROVAL', 'Timesheets'],
   ['REQUISITION_APPROVAL', 'Job requests'],
   ['EXPENSE_APPROVAL', 'Expenses'],
+  ['EXPENSE_ACCEPTANCE', 'Expenses to accept'],
   ['ROLLOFF_ACTION', 'Rolloff'],
   ['SUBMISSION_REVIEW', 'Submissions'],
   ['CONTRACT_PAPERING', 'To paper'],
