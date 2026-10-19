@@ -18,11 +18,18 @@ import { GET as read, POST as reply } from '@/app/api/conversations/messages/rou
 const D = '@demo.etyme.local'
 const NIKE_PM = `world-nike-programme${D}`
 
-/** Notices are fire-and-forget; give the bell a moment to ring. */
-async function noticesAbout(threadId: string, atLeast: number, tries = 30) {
+/**
+ * Notices are fire-and-forget; give the bell a moment to ring. `until`
+ * names the notice being waited for, so a firm with more seats (and so
+ * more notices from the first note) does not end the wait early.
+ */
+async function noticesAbout(
+  threadId: string, atLeast: number, tries = 30,
+  until: (n: { personId: string }) => boolean = () => true,
+) {
   for (let i = 0; i < tries; i++) {
     const rows = await prisma.notification.findMany({ where: { entityId: threadId }, orderBy: { createdAt: 'asc' } })
-    if (rows.length >= atLeast) return rows
+    if (rows.filter(until).length >= atLeast) return rows
     await new Promise((r) => setTimeout(r, 50))
   }
   return prisma.notification.findMany({ where: { entityId: threadId }, orderBy: { createdAt: 'asc' } })
@@ -119,7 +126,9 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it('the answer reaches the desk that asked, and the rest of Pinnacle is not told about its own reply', async () => {
-    const rows = await noticesAbout(roleThread, 2)
+    // Wait for the reply's notice itself: every desk at Pinnacle that was
+    // told of the first note already has a row on this thread.
+    const rows = await noticesAbout(roleThread, 1, 30, (n) => n.personId === nike.pmPersonId)
     const toNike = rows.filter((n) => n.personId === nike.pmPersonId)
     expect(toNike).toHaveLength(1)
     expect(toNike[0].title).toMatch(new RegExp(`^.+ at ${pinnacle.name} on ${role.title}$`))

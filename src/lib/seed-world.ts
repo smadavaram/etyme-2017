@@ -1733,18 +1733,21 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     // only its owner seated, so the Accounts payable screen could not be
     // opened as the person it is for (/api/demo desk `ap` answered
     // NOT_SEEDED at Computer Systems, 2026-10-19). One seat each, added
-    // after the owner so the owner stays the firm's first seat.
-    const MIDDLE_FIRM_AP: { slug: string; name: string }[] = [
-      { slug: 'computer-systems', name: 'Lorna Whitcombe' },
-      { slug: 'vertex-global',    name: 'Callum Dravecky' },
-      { slug: 'pinnacle',         name: 'Ingrid Halvorsen' },
-      { slug: 'teleworld',        name: 'Ravi Kalathil' },
-      { slug: 'sundara',          name: 'Meenakshi Raman' },
+    // after the owner so the owner stays the firm's first seat. Keyed
+    // `firm` and `clerk`, never `slug` and `name`: the public-page guard
+    // reads every `slug, name` pair in this file as a seeded firm, and a
+    // clerk read as a firm made "Ravi" a company name.
+    const MIDDLE_FIRM_AP: { firm: string; clerk: string }[] = [
+      { firm: 'computer-systems', clerk: 'Lorna Whitcombe' },
+      { firm: 'vertex-global',    clerk: 'Callum Dravecky' },
+      { firm: 'pinnacle',         clerk: 'Ingrid Halvorsen' },
+      { firm: 'teleworld',        clerk: 'Ravi Kalathil' },
+      { firm: 'sundara',          clerk: 'Meenakshi Raman' },
     ]
     for (const m of MIDDLE_FIRM_AP) {
-      const firm = firmBySlug.get(m.slug)
+      const firm = firmBySlug.get(m.firm)
       if (!firm) continue
-      const kind = FIRMS.find((f) => f.slug === m.slug)?.kind
+      const kind = FIRMS.find((f) => f.slug === m.firm)?.kind
       const seed = kind ? rolesFor(kind).find((r) => r.name === 'AP & Payroll') : undefined
       if (!seed) continue
       const role =
@@ -1753,9 +1756,9 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           data: { companyId: firm.id, name: 'AP & Payroll', permissions: seed.permissions, isDefault: false },
           select: { id: true },
         }))
-      const email = `${PREFIX}${m.slug}-payroll@${DOMAIN}`
+      const email = `${PREFIX}${m.firm}-payroll@${DOMAIN}`
       const who = await db.person.upsert({
-        where: { primaryEmail: email }, update: { name: m.name }, create: { name: m.name, primaryEmail: email },
+        where: { primaryEmail: email }, update: { name: m.clerk }, create: { name: m.clerk, primaryEmail: email },
       })
       if (!(await db.context.findFirst({ where: { personId: who.id, companyId: firm.id } }))) {
         await db.context.create({

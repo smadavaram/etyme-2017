@@ -261,15 +261,29 @@ describe('every seat on the demo page opens', () => {
     expect(await whoIsSitting(cookie!)).toBe('Lakshmi Iyer')
   })
 
-  it('asking for the AP desk at Teleworld says nobody holds AP & Payroll there and names the desks that are seated, owner first', async () => {
-    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'ap' }) as NextRequest)
+  it('asking for the AP desk at Techpeple says nobody holds AP & Payroll there and names the desks that are seated, owner first', async () => {
+    // Techpeple is a bench firm of three: an owner, a recruiter and a
+    // resource manager. It pays nobody below it, so it has no AP desk.
+    const res = await demo(req('POST', '/api/demo', { as: 'world-techpeple', desk: 'ap' }) as NextRequest)
     expect(res.status).toBe(404)
     const err = (await res.json()).error
-    expect(err.message).toMatch(/^Nobody holds the AP & Payroll role at Teleworld Solutions in the demo; these roles are seated: Owner/)
+    expect(err.message).toMatch(/^Nobody holds the AP & Payroll role at Techpeple in the demo; these roles are seated: Owner/)
+    expect(err.message).toContain('Recruiter')
+    expect(err.message).toContain('Resource Manager')
     expect(err.message).not.toMatch(/nobody is seated/i)
     // And the door the sentence points at does open.
-    const { body } = await sit('world-teleworld')
+    const { body } = await sit('world-techpeple')
+    expect(body.companyName).toBe('Techpeple')
+  })
+
+  it('asking for the AP desk at Teleworld seats its AP & Payroll clerk, because an integrator pays the firms below it', async () => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'ap' }) as NextRequest)
+    expect(res.status).toBe(200)
+    const body = (await res.json()).data
     expect(body.companyName).toBe('Teleworld Solutions')
+    expect(body.role).toBe('AP & Payroll')
+    const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
+    expect(await whoIsSitting(m![1])).toBe('Ravi Kalathil')
   })
 
   it('the demo door seats a delivery manager — each of Teleworld’s two, by name, on the firm’s own bench', async () => {
