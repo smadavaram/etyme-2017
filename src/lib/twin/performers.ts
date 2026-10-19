@@ -35,6 +35,13 @@ export interface PerformContext {
   action: string
   entity: { type: string; id: string; partyCompanyIds: string[] }
   authorityPersonId: string | null
+  /**
+   * The person saying yes, on a question being decided: the approver
+   * written to the question in the same transaction the performer's
+   * `inTx` runs in, and the same person in `check` and `after`. Null when
+   * the twin acts alone or is only asking, because nobody said yes.
+   */
+  approverPersonId: string | null
   /** The ledger entry's rule and rationale, for the notice's body. */
   ruleCited: string
   rationale: string

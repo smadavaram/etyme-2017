@@ -115,6 +115,7 @@ function fresh() {
 
 import { act, ledger, decideApproval, overtakenSays, ownerOnlyException, OWNER_ONLY_EXCEPTION } from '../../src/lib/twin/ledger'
 import { TWIN_ACTS } from '../../src/lib/autonomy'
+import { PERFORMERS, type Performer, type PerformContext } from '../../src/lib/twin/performers'
 import { feedLine, outcomeWord } from '../../src/lib/twin/feed-words'
 import { actsPerDay } from '../../src/lib/twin/acts'
 import { modelOnFor, setModelOn, recordModelPrompt, WITHHELD } from '../../src/lib/model-boundary'
@@ -216,6 +217,41 @@ describe('the twin’s ledger', () => {
     expect(refusal.rationale).toBe(said)
     expect(refusal.rationale).not.toBe(base.rationale)
   })
+  it('the act done on a yes is told who said yes, in the transaction and after it, and the twin acting alone is told nobody did', async () => {
+    const seen: [string, string | null][] = []
+    const watch = (action: string) => {
+      const p = PERFORMERS[action] as Performer
+      const was = { inTx: p.inTx, after: p.after }
+      p.inTx = async (tx, c: PerformContext) => { seen.push([`${action} inTx`, c.approverPersonId]); return was.inTx ? was.inTx(tx, c) : {} }
+      p.after = async (c: PerformContext) => { seen.push([`${action} after`, c.approverPersonId]); if (was.after) await was.after(c) }
+      return () => { p.inTx = was.inTx; p.after = was.after }
+    }
+    const undo = [watch('invoice_receipt.approve'), watch('summary.draft')]
+    try {
+      T().vendorBill.push({ id: 'bill-1', companyId: CLIENT, status: 'RECEIVED', buyContractId: null })
+      const asked = await act({ ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-1' } })
+      if (asked.outcome !== 'AWAITING_APPROVAL') throw new Error('the twin did not ask')
+      const yes = await decideApproval({
+        approvalId: asked.approvalId,
+        decider: { personId: 'pat', personName: 'Pat Okafor', companyId: CLIENT, permissions: ['payments.record'] },
+        decision: 'APPROVED', surface: 'WEB',
+      })
+      expect(yes).toMatchObject({ ok: true, outcome: 'PERFORMED' })
+      expect(T().twinApproval[0].approverPersonId).toBe('pat')
+
+      const alone = await act({ ...base, action: 'summary.draft', entity: { type: 'Invoice', id: 'inv-442' } })
+      expect(alone.outcome).toBe('PERFORMED')
+      expect(seen).toEqual([
+        ['invoice_receipt.approve inTx', 'pat'],
+        ['invoice_receipt.approve after', 'pat'],
+        ['summary.draft inTx', null],
+        ['summary.draft after', null],
+      ])
+    } finally {
+      undo.forEach((u) => u())
+    }
+  })
+
   it('the twin never asks for a yes on a typed-in invoice receipt the paying team’s own check refuses, and says the check’s sentence', async () => {
     T().vendorBill.push({ id: 'bill-dup', companyId: CLIENT, status: 'RECEIVED', buyContractId: null })
     const says = 'Pinnacle Resourcing’s invoice PR-2026-0442 bills the week of Oct 4, 2026, which invoice receipt PR-2026-0431 already bills.'

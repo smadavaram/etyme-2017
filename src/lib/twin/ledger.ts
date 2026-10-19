@@ -378,6 +378,9 @@ export async function act(input: ActInput): Promise<ActResult> {
     action: input.action,
     entity: { type: input.entity.type, id: input.entity.id, partyCompanyIds: parties },
     authorityPersonId: input.authority.personId,
+    // Nobody has said yes on the way in; a question asked here is answered
+    // through decideApproval, which carries the approver.
+    approverPersonId: null,
     ruleCited: base.ruleCited,
     rationale: base.rationale,
     payload: base.payload,
@@ -731,6 +734,9 @@ export async function decideApproval(args: {
     action: asked.action,
     entity: { type: asked.entityType, id: asked.entityId, partyCompanyIds: asked.partyCompanyIds },
     authorityPersonId: asked.authorityPersonId,
+    // The person saying yes now, the same id written to the question's
+    // approverPersonId below, so a performer never reads it back.
+    approverPersonId: args.decider.personId,
     ruleCited: asked.ruleCited,
     rationale: asked.rationale,
     payload,

@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as listClients, POST as listClient, PATCH as recordContact } from '@/app/api/clients/route'
 import { POST as sendOrAttach } from '@/app/api/week-approvals/route'
 import { POST as claim } from '@/app/api/claim/[token]/route'
-import { answerLink, openLink, approvalWords, readWeekApprovals, readerOf, newLinkToken, hashLinkToken } from '@/lib/week-approval'
+import { answerLink, openLink, approvalWords, readWeekApprovals, readerOf, newLinkToken, hashLinkToken, recordedContactsFor } from '@/lib/week-approval'
 
 /**
  * Tapin's first day: a supplier whose client is not on Etyme.
@@ -114,6 +114,29 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
     const again = await json(await listClient(req('POST', '/api/clients', body)))
     expect(again.body.data.message).toContain('mo.reyes@quarry-lane.example was invited before; no second email was sent.')
     expect(await prisma.supplierInvite.count({ where: { companyId: shell.id } })).toBe(1)
+  })
+
+  it('the addresses a supplier recorded for its client are read in one place, lowercased, never the supplier’s own people, another firm’s record, a revoked invitation or the worker', async () => {
+    const other = await prisma.company.findFirstOrThrow({ where: { id: { notIn: [it_.client, it_.brightmoor] } }, select: { id: true } })
+    const made = await Promise.all([
+      prisma.companyContact.create({ data: { companyId: it_.brightmoor, atCompanyId: it_.client, name: 'Lee Ap', email: 'Lee.Ap@Larkspur-Freight.example', kind: 'AP' } }),
+      prisma.companyContact.create({ data: { companyId: it_.brightmoor, atCompanyId: it_.client, name: 'Our owner', email: OWNER } }),
+      prisma.companyContact.create({ data: { companyId: it_.brightmoor, atCompanyId: it_.client, name: 'Ines Carvalho', email: 'ines.carvalho@seed.etyme.invalid' } }),
+      prisma.companyContact.create({ data: { companyId: other.id, atCompanyId: it_.client, name: 'Not ours', email: 'theirs@larkspur-freight.example' } }),
+    ])
+    const revoked = await prisma.supplierInvite.create({
+      data: { companyId: it_.client, byId: it_.brightmoor, email: 'gone@larkspur-freight.example', token: `revoked-${Date.now()}`, state: 'REVOKED' },
+    })
+    try {
+      const all = await recordedContactsFor(it_.client, it_.brightmoor)
+      expect([...all].sort()).toEqual([DANA, 'ines.carvalho@seed.etyme.invalid', 'lee.ap@larkspur-freight.example'].sort())
+      // The worker is the caller's to name; the week's approval names her.
+      const forTheWeek = await recordedContactsFor(it_.client, it_.brightmoor, { excludeEmails: [' Ines.Carvalho@seed.etyme.INVALID '] })
+      expect([...forTheWeek].sort()).toEqual([DANA, 'lee.ap@larkspur-freight.example'].sort())
+    } finally {
+      await prisma.companyContact.deleteMany({ where: { id: { in: made.map((m) => m.id) } } })
+      await prisma.supplierInvite.delete({ where: { id: revoked.id } })
+    }
   })
 
   it('an address the supplier never recorded for an off-platform client is still refused, and the refusal is logged', async () => {

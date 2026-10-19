@@ -458,34 +458,60 @@ async function clientOfRecord(c: WeekChain): Promise<ClientOfRecord> {
   }
   if (!company || company.claimedAt != null) return { ...own, offPlatform: false }
 
-  const lister = company.listedById
-  const [invites, contacts, lister_] = lister
-    ? await Promise.all([
-        prisma.supplierInvite.findMany({ where: { companyId: clientId, byId: lister }, select: { byId: true, email: true, state: true } }),
-        prisma.companyContact.findMany({ where: { companyId: lister, atCompanyId: clientId }, select: { companyId: true, email: true } }),
-        prisma.company.findUnique({
-          where: { id: lister },
-          select: {
-            domain: true, domainVerified: true,
-            claimedDomains: { where: { verifiedAt: { not: null } }, select: { domain: true } },
-            contexts: { where: { revokedAt: null }, select: { person: { select: { primaryEmail: true } } } },
-          },
-        }),
-      ])
-    : [[], [], null]
-  const rec = offPlatformRecord({
-    claimedAt: company.claimedAt,
-    listedById: lister,
+  // Off the platform: the addresses the firm that listed the client
+  // recorded for it, through the one reader the bill letter also uses.
+  const recordedContacts = company.listedById
+    ? await recordedContactsFor(clientId, company.listedById, { excludeEmails: [c.week.personEmail] })
+    : []
+  return { ...own, offPlatform: true, recordedContacts }
+}
+
+/**
+ * The addresses a supplier recorded for a client, lowercased: its own
+ * invitation to the client (not one it revoked) and the contacts in its
+ * own address book at the client. Never an address of the supplier
+ * itself — a seat there, or an address at a domain it proved — and never
+ * one of `excludeEmails` (the worker's, so a firm cannot record its own
+ * worker as the client). The exclusions are `offPlatformRecord`'s, read
+ * once here for every door that writes to a client off Etyme: the week's
+ * approval by email (`clientOfRecord`) and the bill letter
+ * (lib/notify/bill-delivery).
+ *
+ * It reads the supplier's record whether or not the client has since
+ * claimed its company; whether the record still decides is the caller's
+ * question, and `clientOfRecord` asks it before calling.
+ */
+export async function recordedContactsFor(
+  clientCompanyId: string,
+  supplierCompanyId: string,
+  opts: { excludeEmails?: readonly (string | null | undefined)[] } = {}
+): Promise<string[]> {
+  const [invites, contacts, supplier] = await Promise.all([
+    prisma.supplierInvite.findMany({ where: { companyId: clientCompanyId, byId: supplierCompanyId }, select: { byId: true, email: true, state: true } }),
+    prisma.companyContact.findMany({ where: { companyId: supplierCompanyId, atCompanyId: clientCompanyId }, select: { companyId: true, email: true } }),
+    prisma.company.findUnique({
+      where: { id: supplierCompanyId },
+      select: {
+        domain: true, domainVerified: true,
+        claimedDomains: { where: { verifiedAt: { not: null } }, select: { domain: true } },
+        contexts: { where: { revokedAt: null }, select: { person: { select: { primaryEmail: true } } } },
+      },
+    }),
+  ])
+  const { recordedContacts } = offPlatformRecord({
+    claimedAt: null,
+    listedById: supplierCompanyId,
     invites,
     contacts,
-    listerSeatedEmails: lister_?.contexts.map((x) => x.person.primaryEmail) ?? [],
+    listerSeatedEmails: supplier?.contexts.map((x) => x.person.primaryEmail) ?? [],
     listerDomains: [
-      ...(lister_?.domainVerified && lister_.domain ? [lister_.domain] : []),
-      ...(lister_?.claimedDomains.map((d) => d.domain) ?? []),
+      ...(supplier?.domainVerified && supplier.domain ? [supplier.domain] : []),
+      ...(supplier?.claimedDomains.map((d) => d.domain) ?? []),
     ],
-    workerEmail: c.week.personEmail,
+    workerEmail: null,
   })
-  return { ...own, ...rec }
+  const excluded = new Set((opts.excludeEmails ?? []).map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : '')).filter(Boolean))
+  return recordedContacts.filter((e) => !excluded.has(e))
 }
 
 /**
