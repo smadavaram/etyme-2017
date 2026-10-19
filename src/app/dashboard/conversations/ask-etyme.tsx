@@ -609,6 +609,7 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
   return (
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
       <p className="font-medium">{only === 'REJECTED' ? 'Reject' : 'Approve'} {item.title}?</p>
+      {item.askedYouBecause && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.askedYouBecause}</p>}
       <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.says} {item.ruleCited}</p>
       <Links links={[{ label: `Open ${item.title}`, href: item.href }]} />
       {done ? (
@@ -671,6 +672,7 @@ function BillCard({ item, card, busy, onDecide }: { item: WaitingItem; card?: Ca
   return (
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
       <p className="font-medium">{billCardTitle(b)}</p>
+      {item.askedYouBecause && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.askedYouBecause}</p>}
       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px] tabular-nums">
         {rows.map((r, i) => (
           <div key={`${i}:${r.label}`} className="contents">

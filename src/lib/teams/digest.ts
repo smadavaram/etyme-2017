@@ -17,6 +17,13 @@
  * person, so a button for them would be a button that only says no).
  * Where the program owner may approve too, it is on their card.
  *
+ * A bill Ask Etyme drafted goes to whoever may send it, read off the
+ * ledger's own `waitingQuestions` so the card is offered exactly where the
+ * approval route would take the answer: somebody who sends bills, never
+ * the owner the twin acts for — except where nobody else at the firm sends
+ * bills (founder, 2026-10-19, decision 2), when the owner is asked and
+ * the card says why under its title.
+ *
  * ── How often ────────────────────────────────────────────────────────
  *
  * A nudge has a cost. Each item is said when it first appears, and once
@@ -43,8 +50,10 @@ import { programManagerAt } from '@/lib/twin/run'
 import { teamsBotConfig } from '@/lib/teams/config'
 import { conversationFor, rememberConversation } from '@/lib/teams/store'
 import { openPersonalChat, sendToConversation } from '@/lib/teams/connector'
-import { asMessage, digestCard, digestHeading, invoiceTitle, tenureTitle, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
-import { INVOICE_APPROVE, TENURE_TOLD, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
+import { asMessage, digestCard, digestHeading, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
+import { INVOICE_APPROVE, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
+import { waitingQuestions } from '@/lib/twin/ledger'
+import { BILL_SEND } from '@/app/api/conversations/twin/ask'
 
 /** The note on a digest the bot itself delivered, so /ready can count it. */
 export const TEAMS_BOT_SENT_NOTE = 'Sent by the Etyme bot in Teams'
@@ -108,7 +117,31 @@ function mayDecide(r: Recipient, needs: string, authorityPersonId: string | null
 export interface DigestFor {
   invoices: InvoiceApprovalFacts[]
   risks: TenureAlertFacts[]
+  /** Bills Ask Etyme drafted that this person may send. */
+  bills: BillSendFacts[]
   keys: string[]
+}
+
+/**
+ * The bills this person may send at this company, as the ledger reads it:
+ * a `bill.send` question whose `mayDecide` is true for them, with the
+ * owner-only exception's sentence where it applies. Never decided again
+ * here, so the digest and the approval route cannot disagree.
+ */
+async function billsFor(personId: string, companyId: string, permissions: readonly string[]): Promise<(BillSendFacts & { keys: DigestItemKey })[]> {
+  const [person, company] = await Promise.all([
+    prisma.person.findUnique({ where: { id: personId }, select: { id: true, name: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true, kind: true } }),
+  ])
+  if (!person || !company) return []
+  const questions = await waitingQuestions({ person, company, permissions } as unknown as Parameters<typeof waitingQuestions>[0], { take: 200 })
+  const out: (BillSendFacts & { keys: DigestItemKey })[] = []
+  for (const q of questions) {
+    if (q.action !== BILL_SEND || !q.mayDecide) continue
+    const f = await billSendFacts(q.id, companyId, q.askedYouBecause)
+    if (f) out.push({ ...f, keys: { key: `bill:${q.id}` } })
+  }
+  return out
 }
 
 /**
@@ -122,7 +155,7 @@ export async function digestFor(personId: string, companyId: string, opts: { all
     select: { role: { select: { permissions: true } } },
     orderBy: { grantedAt: 'desc' },
   })
-  if (!seat) return { invoices: [], risks: [], keys: [] }
+  if (!seat) return { invoices: [], risks: [], bills: [], keys: [] }
   const me: Recipient = { personId, permissions: (seat.role?.permissions as string[] | undefined) ?? [] }
   const owner = await programManagerAt(companyId)
 
@@ -157,23 +190,30 @@ export async function digestFor(personId: string, companyId: string, opts: { all
     }
   }
 
+  // Said once, when it appears: an unsent bill has no day after which it
+  // cannot be fixed, so there is no second call.
+  const bills = await billsFor(personId, companyId, me.permissions)
+
   if (opts.all) {
-    return { invoices, risks, keys: [] }
+    return { invoices, risks, bills, keys: [] }
   }
   const said = await alreadySaid(personId, companyId)
   const dueSoon = (f: { dueAt?: string | null }) => !!f.dueAt && new Date(f.dueAt).getTime() - now.getTime() <= LAST_CALL_DAYS * DAY
   const inv = toSay(invoices, said, dueSoon)
   const rk = toSay(risks, said, () => false)
+  const bl = toSay(bills, said, () => false)
   return {
     invoices: inv.map((x) => x.item),
     risks: rk.map((x) => x.item),
-    keys: [...inv.flatMap((x) => x.keys), ...rk.flatMap((x) => x.keys)],
+    bills: bl.map((x) => x.item),
+    keys: [...bl.flatMap((x) => x.keys), ...inv.flatMap((x) => x.keys), ...rk.flatMap((x) => x.keys)],
   }
 }
 
 /** The same digest as plain lines, for the channel or the email that stands in for the bot. */
-export function digestLines(d: Pick<DigestFor, 'invoices' | 'risks'>): string {
+export function digestLines(d: Pick<DigestFor, 'invoices' | 'risks'> & Partial<Pick<DigestFor, 'bills'>>): string {
   const lines = [
+    ...(d.bills ?? []).map((f) => `• ${f.title}${f.askedYouBecause ? ` — ${f.askedYouBecause}` : ''}`),
     ...d.invoices.map((f) => `• ${invoiceTitle(f)}${f.variances.length ? ` — ${f.variances[0]}` : ''}`),
     ...d.risks.map((f) => `• ${tenureTitle(f)}`),
   ]
@@ -190,10 +230,10 @@ export interface TeamsDigestResult {
 /** Send one person their digest, by the bot where it can, else the existing notice. */
 async function sendDigest(personId: string, companyId: string, now: Date): Promise<TeamsDigestResult> {
   const d = await digestFor(personId, companyId, { now })
-  const heading = digestHeading(d.invoices.length, d.risks.length)
-  const card = digestCard(d.invoices, d.risks)
+  const heading = digestHeading(d.invoices.length, d.risks.length, d.bills.length)
+  const card = digestCard(d.invoices, d.risks, d.bills)
   if (!heading || !card) return { personId, via: 'NOTHING', items: 0 }
-  const items = d.invoices.length + d.risks.length
+  const items = d.invoices.length + d.risks.length + d.bills.length
   const record = { saidKeys: d.keys, href: '/dashboard', twinDigest: true }
 
   const config = teamsBotConfig()
@@ -239,7 +279,7 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
   try {
     const owner = await programManagerAt(companyId)
     const needs = await prisma.twinApproval.findMany({
-      where: { companyId, decision: 'PENDING', twinAction: { action: INVOICE_APPROVE } },
+      where: { companyId, decision: 'PENDING', twinAction: { action: { in: [INVOICE_APPROVE, BILL_SEND] } } },
       select: { needsPermission: true },
       distinct: ['needsPermission'],
     })
@@ -273,8 +313,8 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
 /** For the person who asks the bot: their open items, said or not, as one card. */
 export async function cardForAsker(personId: string, companyId: string): Promise<Record<string, unknown> | null> {
   const d = await digestFor(personId, companyId, { all: true })
-  const card = digestCard(d.invoices, d.risks)
-  const heading = digestHeading(d.invoices.length, d.risks.length)
+  const card = digestCard(d.invoices, d.risks, d.bills)
+  const heading = digestHeading(d.invoices.length, d.risks.length, d.bills.length)
   return card && heading ? asMessage(card, heading) : null
 }
 

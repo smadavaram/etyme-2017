@@ -271,4 +271,98 @@ describe('the Etyme bot in Teams', () => {
     expect(night()).toBe(1) // two days from due, once more
     expect(night()).toBe(0) // and never again
   })
+  it('the same card reaches the owner’s Teams digest: where nobody but the owner sends bills, the bill Ask Etyme drafted is on their card with the line saying why they are asked, and Send bill goes through the one approval route', async () => {
+    // Halcyon Talent's shape: one seat, the Owner, who is also the person
+    // Ask Etyme acts for. The record is faked for this one sentence, so
+    // the digest reads the ledger's own waitingQuestions over it.
+    const BILL = {
+      customerName: 'Northbend Athletic',
+      period: { start: '2026-03-01', end: '2026-03-31', label: 'March 2026' },
+      hours: 80, totalMinor: 896000, currency: 'USD',
+      people: [{ personName: 'Rosa Delgado', hours: 80, amountMinor: 896000 }],
+      builtFrom: { timesheetIds: ['ts-a', 'ts-b'], weeks: 2, expenses: 0, milestones: 0 },
+      dueSays: 'Due May 1, 2026: net 30 from the bill date, as your agreement with Northbend Athletic says.',
+      heldBack: null, setAside: [], invoiceId: 'inv_rosa01', invoiceNumber: 'INV-0042',
+    }
+    const world = { otherSender: false, action: 'bill.send', selfApprovalReason: 'Nobody else at the firm sends bills, so the owner Ask Etyme acts for may say yes to its drafted bill (founder, 2026-10-19).' as string | null }
+    const row = () => ({
+      id: 'appr_bill01', requestedAt: new Date('2026-04-01T06:00:00Z'), needsPermission: 'invoices.issue', selfApprovalReason: world.selfApprovalReason, decision: 'PENDING',
+      twinAction: {
+        id: 'entry_bill01', action: world.action, entityType: 'Invoice', entityId: 'inv_rosa01',
+        ruleCited: 'Billed monthly, from your agreement with Northbend Athletic.',
+        rationale: 'Bill INV-0042 to Northbend Athletic for March 2026 is drafted: $8,960.00, 80 hours. Send it?',
+        onAuthorityOfRole: 'Owner', authorityPersonId: 'person_sade', payload: BILL, companyId: 'co_halcyon',
+        actorType: 'TWIN', actorId: 'twin_supplier', twinKind: 'SUPPLIER', authorityPerson: { name: 'Sade Balogun' },
+      },
+    })
+    vi.resetModules()
+    vi.doMock('@/lib/db', () => ({
+      prisma: {
+        context: {
+          findFirst: vi.fn(async (args: any) => {
+            if (args?.where?.role?.name) return null // nobody seated as program manager at a supplier
+            if (args?.where?.personId?.notIn) return world.otherSender ? { id: 'ctx_ines' } : null // anybody else who sends bills
+            return { role: { permissions: ['*'] } } // the owner's own seat
+          }),
+          findMany: vi.fn(async () => []),
+        },
+        twinApproval: {
+          // Only the bill is pending; no invoice receipt waits at a supplier.
+          findMany: vi.fn(async (args: any) => (args?.where?.twinAction?.action === 'invoice_receipt.approve' ? [] : [row()])),
+          findFirst: vi.fn(async () => row()),
+        },
+        person: { findUnique: vi.fn(async () => ({ id: 'person_sade', name: 'Sade Balogun' })), findMany: vi.fn(async () => []) },
+        company: { findUnique: vi.fn(async () => ({ id: 'co_halcyon', name: 'Halcyon Talent', kind: 'VENDOR' })), findMany: vi.fn(async () => []) },
+        roleContract: { findFirst: vi.fn(async () => null) },
+        notification: { findMany: vi.fn(async () => []) },
+        twinAction: { findMany: vi.fn(async () => []) },
+      },
+    }))
+    try {
+      const { digestFor } = await import('@/lib/teams/digest')
+      const cards = await import('@/lib/teams/cards')
+      const d = await digestFor('person_sade', 'co_halcyon')
+      expect(d.bills).toHaveLength(1)
+      expect(d.keys).toEqual(['bill:appr_bill01'])
+      const [bill] = d.bills
+      expect(bill.title).toBe('Bill ready to send — Northbend Athletic, March 2026')
+      expect(bill.askedYouBecause).toBe('Only you send bills here, so Ask Etyme asks you.')
+
+      expect(cards.digestHeading(0, 0, 1)).toBe('1 bill to send')
+      const card = cards.digestCard(d.invoices, d.risks, d.bills) as Card
+      expect(card.body[0].text).toBe('1 bill to send')
+      const items = card.body[1].items
+      // The title, then the line saying why the owner is asked, then the bill's rows.
+      expect(items[0].text).toBe('Bill ready to send — Northbend Athletic, March 2026')
+      expect(items[1].text).toBe('Only you send bills here, so Ask Etyme asks you.')
+      expect(Object.fromEntries(items[2].facts.map((f: any) => [f.title, f.value]))).toMatchObject({ Hours: '80', Amount: '$8,960.00', 'Built from': '2 signed weeks' })
+      const actions = items.find((i: any) => i.type === 'ActionSet').actions
+      expect(actions.map((a: any) => a.title)).toEqual(['Send bill', 'Not now', 'Why?'])
+
+      // Send bill is a yes through the one door, and the answer is said in the button's words.
+      const sade: BoundPerson = { ...dana, personId: 'person_sade', personName: 'Sade Balogun', companyId: 'co_halcyon', companyName: 'Halcyon Talent', companyKind: 'VENDOR', roleName: 'Owner', permissions: ['*'] }
+      const decide = vi.fn(async () => ({ ok: true as const, outcome: 'PERFORMED' as const, entryId: 'entry_2', result: { number: 'INV-0042' } }))
+      const sent = await answerCardAction(readCardAction(actions[0].data)!, sade, { decide, why: vi.fn() })
+      expect(decide).toHaveBeenCalledWith(expect.objectContaining({ approvalId: 'appr_bill01', decision: 'APPROVED', surface: 'TEAMS' }))
+      expect(sent.says).toBe('Sent: bill INV-0042. It is recorded under your name, from Teams.')
+      // Not now keeps it a draft, with the person's words where they gave some and a plain sentence where not.
+      const keep = actions[1].card.actions[0].data
+      expect(readCardAction(keep)).toMatchObject({ decision: 'REJECTED', reason: cards.BILL_NOT_NOW_REASON, as: 'bill' })
+      expect(readCardAction({ ...keep, note: 'I will send it with the expenses' })).toMatchObject({ reason: 'I will send it with the expenses' })
+
+      // Once somebody else sends bills, the owner's digest no longer carries it.
+      world.otherSender = true
+      expect((await digestFor('person_sade', 'co_halcyon', { all: true })).bills).toEqual([])
+      // Nor does it ever carry a question asked on the owner's authority for any other act.
+      world.otherSender = false
+      world.action = 'payroll.release'
+      expect((await digestFor('person_sade', 'co_halcyon', { all: true })).bills).toEqual([])
+      world.action = 'bill.send'
+      world.selfApprovalReason = null
+      expect((await digestFor('person_sade', 'co_halcyon', { all: true })).bills).toEqual([])
+    } finally {
+      vi.doUnmock('@/lib/db')
+      vi.resetModules()
+    }
+  })
 })

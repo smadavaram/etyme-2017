@@ -456,3 +456,45 @@ describe('the account manager at Pinnacle Resourcing', () => {
   })
 
 })
+
+describe('Sade, owner of Halcyon Talent, where nobody else sends bills', () => {
+  // A one-person firm: the Owner is the only seat, and the person Ask
+  // Etyme acts for. Its drafted bill is put to her under the owner-only
+  // exception (founder, 2026-10-19, decision 2), and the item says why.
+  const BILL_0042: WaitingItem = {
+    n: 1, approvalId: 'appr-bill', entryId: 'entry-bill', action: 'bill.send',
+    says: 'Send a bill Ask Etyme drafted from signed weeks.',
+    title: 'INV-0042 to Northbend Athletic',
+    ruleCited: 'Billed monthly, from your agreement with Northbend Athletic.',
+    rationale: 'Bill INV-0042 to Northbend Athletic for March 2026 is drafted: $8,960.00, 80 hours. Send it?',
+    href: '/dashboard/invoices/inv-0042',
+    bill: {
+      customerName: 'Northbend Athletic',
+      period: { start: '2026-03-01', end: '2026-03-31', label: 'March 2026' },
+      hours: 80, totalMinor: 896000, currency: 'USD',
+      people: [{ personName: 'Rosa Delgado', hours: 80, amountMinor: 896000 }],
+      builtFrom: { timesheetIds: ['ts-a', 'ts-b'], weeks: 2, expenses: 0, milestones: 0 },
+      dueSays: 'Due May 1, 2026: net 30 from the bill date.',
+      heldBack: null, setAside: [], invoiceId: 'inv-0042', invoiceNumber: 'INV-0042',
+    },
+    askedYouBecause: 'Only you send bills here, so Ask Etyme asks you.',
+  }
+
+  async function askOwner(question: string): Promise<Answer> {
+    const s = seat('SUPPLIER')
+    return respond(question, { ...s.read, waiting: async () => [BILL_0042] }, { env: NO_KEY, now: NOW, companyKind: 'VENDOR', permissions: ['*'] })
+  }
+
+  it('the owner of a one-person firm asks “What needs me today?” and the rules answer it with the bill Ask Etyme drafted, which says why she is asked', async () => {
+    const a = await askOwner('What needs me today?')
+    const said = spoken(a)
+    expect(said).toBe('Send bill INV-0042 to Northbend Athletic; it is built from weeks Northbend Athletic signed. ' +
+      'Etyme drafted one bill for you to send; send it below, or say not now. Checked just now.')
+    expect(a.kind).toBe('NEEDS')
+    if (a.kind !== 'NEEDS') return
+    expect(a.items.map((i) => [i.title, i.askedYouBecause])).toEqual([['INV-0042 to Northbend Athletic', 'Only you send bills here, so Ask Etyme asks you.']])
+    expect(voiceBreaks(said)).toEqual([])
+    score.ANSWERED++
+  })
+})
+

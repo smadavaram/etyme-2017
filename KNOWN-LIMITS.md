@@ -479,12 +479,17 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   the person's reason or, where they give none, a sentence saying so,
   because the nightly run asks about a draft once and a no that is not
   recorded would ask again every night. The draft stays on the Bills page.
-- **The bill card and the hold card are web only.** The Teams door
-  carries invoice receipts and the time limit and nothing else; it does
-  not render the twin's questions generically, so a `bill.send` question
-  never reaches Teams, and the supplier's twin's nightly pass sends no
-  Teams digest at all. Carrying it is a third list in `lib/teams/digest`
-  and a call from the supplier half of `cron/twin` (architect's).
+- **The bill card reaches Teams; the hold card is still web only
+  (2026-10-19).** The digest carries a third list, the `bill.send`
+  questions this person may answer, read off the ledger's own
+  `waitingQuestions` (`mayDecide`), so the owner of a firm where nobody
+  else sends bills gets the card with "Only you send bills here, so Ask
+  Etyme asks you." under its title, and nobody else's own-authority
+  question ever appears. Send bill and Keep it as a draft go through
+  `decideApproval` with surface TEAMS. A bill is said once, when it
+  appears, with no second call: the question carries its due day only as
+  a sentence, so there is no date to call it before. A bill on hold
+  still reaches nobody in Teams.
 - **A hold on a bill is a card for whoever sends bills
   (`invoices.issue`), not a number on the badge.** The badge is the
   decisions queue's count (etyme-demand); a held bill is not in it.

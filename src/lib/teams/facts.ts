@@ -11,7 +11,8 @@ import { ruleSetFor } from '@/lib/twin/rule-set'
 import { rate } from '@/lib/money-display'
 import { appLink } from '@/lib/notify'
 import { logBulkAccess } from '@/lib/access-log'
-import type { InvoiceApprovalFacts, TenureAlertFacts } from '@/lib/teams/cards'
+import type { BillSendFacts, InvoiceApprovalFacts, TenureAlertFacts } from '@/lib/teams/cards'
+import { BILL_SEND, billFromPayload, billRows, billCardTitle, billItemTitle, hrefFor } from '@/app/api/conversations/twin/ask'
 
 export const INVOICE_APPROVE = 'invoice_receipt.approve'
 export const TENURE_TOLD = 'tenure.warning.notify_program_owner'
@@ -133,5 +134,32 @@ export async function tenureAlertFacts(
     rationale: e.rationale,
     escalateApprovalId: ask && reader.mayEscalate({ needsPermission: ask.needsPermission, authorityPersonId: ask.twinAction.authorityPersonId }) ? ask.id : null,
     link: appLink(`/dashboard/people/${e.entityId}`),
+  }
+}
+
+/**
+ * Everything the bill card shows, for one pending `bill.send` question,
+ * in the web card's own words. Null where the question is not a bill, is
+ * answered, or its payload lacks a figure the card shows: a card with a
+ * blank amount is worse than none. `askedYouBecause` is the ledger's own
+ * sentence for the owner-only exception, passed through as it was read.
+ */
+export async function billSendFacts(approvalId: string, companyId: string, askedYouBecause: string | null = null): Promise<BillSendFacts | null> {
+  const a = await prisma.twinApproval.findFirst({
+    where: { id: approvalId, companyId, decision: 'PENDING' },
+    select: { id: true, twinAction: { select: { action: true, entityType: true, entityId: true, ruleCited: true, rationale: true, payload: true } } },
+  })
+  if (!a || a.twinAction.action !== BILL_SEND) return null
+  const bill = billFromPayload(a.twinAction.payload)
+  if (!bill) return null
+  return {
+    approvalId: a.id,
+    title: billCardTitle(bill),
+    name: billItemTitle(bill),
+    rows: billRows(bill),
+    askedYouBecause,
+    ruleCited: a.twinAction.ruleCited,
+    rationale: a.twinAction.rationale,
+    link: appLink(hrefFor(a.twinAction.entityType, a.twinAction.entityId)),
   }
 }

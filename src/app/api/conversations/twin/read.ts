@@ -10,7 +10,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
-import { feedWhere, ledgerFeed, waitingQuestions } from '@/lib/twin/ledger'
+import { feedWhere, ledgerFeed, waitingQuestions, ownerOnlyException } from '@/lib/twin/ledger'
 import { TWIN_ACTS } from '@/lib/autonomy'
 import { hasPermission, hasAnyPermission, desksHolding, type Permission } from '@/lib/permissions'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
@@ -149,7 +149,7 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
         orderBy: { requestedAt: 'asc' },
         take: 100,
         select: {
-          id: true, needsPermission: true,
+          id: true, needsPermission: true, selfApprovalReason: true,
           twinAction: {
             select: {
               id: true, action: true, entityType: true, entityId: true, ruleCited: true, rationale: true,
@@ -158,14 +158,29 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           },
         },
       })
+      // The owner-only exception (founder, 2026-10-19, decision 2): a bill
+      // put to the owner Ask Etyme acts for, because nobody else at the
+      // firm sends bills. Whether it still stands is the ledger's answer
+      // (`waitingQuestions`, read the way the approval route reads it),
+      // never decided again here; asked only where such a question exists.
+      const putToMe = rows.some((r) =>
+        !!r.selfApprovalReason && !!ownerOnlyException(r.twinAction.action) && r.twinAction.authorityPersonId === caller.person.id)
+      const askedYou = new Map<string, string>()
+      if (putToMe) {
+        for (const q of await waitingQuestions(caller, { take: 200 })) {
+          if (q.mayDecide && q.askedYouBecause) askedYou.set(q.id, q.askedYouBecause)
+        }
+      }
       // Only what this seat may answer: the desk the act needs, and never
-      // something asked on its own authority or that it asked for itself.
+      // something asked on its own authority or that it asked for itself,
+      // except the one bill the ledger says is the owner's to send.
       // The approval route checks all of it again; this keeps the list to
       // things the reader can act on.
       const mine = rows.filter((r) => {
         const p = asRecord(r.twinAction.payload)
-        return hasPermission(caller.permissions, r.needsPermission as Permission) &&
-          r.twinAction.authorityPersonId !== caller.person.id &&
+        if (!hasPermission(caller.permissions, r.needsPermission as Permission)) return false
+        if (askedYou.has(r.id)) return true
+        return r.twinAction.authorityPersonId !== caller.person.id &&
           p.requestedByPersonId !== caller.person.id
       })
       const personIds = mine.filter((r) => r.twinAction.entityType === 'Person').map((r) => r.twinAction.entityId)
@@ -195,6 +210,7 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
           href: hrefFor(a.entityType, a.entityId, a.id),
           action: a.action,
           ...(bill ? { bill } : {}),
+          ...(askedYou.has(r.id) ? { askedYouBecause: askedYou.get(r.id)! } : {}),
         }
       })
     },
@@ -265,7 +281,9 @@ export function readersFor(caller: CallerContext, companyId: string): Readers {
       const holders = new Map(await Promise.all(perms.map(async (p) => [p, await peopleAtDesk(caller.company!.id, p)] as const)))
       return questions
         .map((q) => {
-          const own = q.whyNot?.startsWith('The twin asked this on your authority') ?? false
+          // The ledger's own fact, so a question taken back from the owner
+          // (somebody else sends bills now) still reads as not theirs.
+          const own = q.own
           return {
             // A bill this firm drafted to send upward is a bill; only what a
             // supplier sent in is an invoice receipt.

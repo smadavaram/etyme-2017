@@ -19,7 +19,7 @@ import { join } from 'node:path'
 // database. Nothing in Ask Etyme's own answering touches either.
 const stored: Array<{ maskedPrompt: string; maskedAnswer: string; model: string; purpose: string }> = []
 const noticeCalls: Array<{ op: string; args: any }> = []
-const BILL_DB: { approvals: any[]; invoices: any[]; holds: any[] } = { approvals: [], invoices: [], holds: [] }
+const BILL_DB: { approvals: any[]; invoices: any[]; holds: any[]; otherSender: boolean } = { approvals: [], invoices: [], holds: [], otherSender: false }
 const UNREAD = [
   { id: 'n-1', type: 'TIMESHEET', title: 'Helena Marsh filed her week', entityId: null, data: null },
   { id: 'n-2', type: 'SYSTEM', title: 'Priya joined Northbend Athletic', entityId: null, data: { href: '/dashboard/settings/users' } },
@@ -36,12 +36,17 @@ vi.mock('@/lib/db', () => ({
     twinApproval: { findMany: vi.fn(async () => BILL_DB.approvals) },
     invoice: { findMany: vi.fn(async () => BILL_DB.invoices) },
     automationLog: { findMany: vi.fn(async () => BILL_DB.holds) },
+    // The owner-only exception (2026-10-19), read through the ledger's own
+    // waitingQuestions: the shipped role contract, and whether anybody
+    // else at the firm sends bills.
+    roleContract: { findFirst: vi.fn(async () => null) },
+    context: { findFirst: vi.fn(async () => (BILL_DB.otherSender ? { id: 'ctx-ines' } : null)) },
     modelPrompt: { create: vi.fn(async ({ data }: { data: { maskedPrompt: string; maskedAnswer: string; model: string; purpose: string } }) => { stored.push(data); return { id: `mp-${stored.length}` } }) },
   },
 }))
 vi.mock('@/lib/alerts', () => ({ reportError: vi.fn(async () => undefined) }))
 import { recordModelPrompt, WITHHELD } from '@/lib/model-boundary'
-import { feedWhere } from '@/lib/twin/ledger'
+import { feedWhere, OWNER_ONLY_EXCEPTION } from '@/lib/twin/ledger'
 import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK, offRecord, knownFirm, firmsByForm } from '@/app/api/conversations/twin/transaction'
@@ -624,17 +629,34 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
   it('the greeting’s count of what needs you is the decisions queue’s own total, the figure on the Ask Etyme mark, and the twin’s own questions are said after it as also', async () => {
     const hello = await today(readers(), { now: NOW, greeting: true, needs: async () => 5 })
     expect(hello.kind === 'NEEDS' && hello.says).toBe(
-      'Five things need you; the most urgent is first under Needs attention. ' +
+      'Five things need you; open the list to see them, most urgent first. ' +
       'One of them is a question from Etyme; approve it below, or reject it with a reason. Checked just now.')
     // A queue that could not have counted them (fewer than Etyme asks) says them as also.
     const short = await today(readers({ waiting: async () => [WAITING[0], { ...WAITING[0], n: 2, approvalId: 'appr-2' }] }), { now: NOW, greeting: true, needs: async () => 1 })
     expect(short.kind === 'NEEDS' && short.says).toMatch(/Etyme is also asking you two things;/)
     const two = await today(readers({ waiting: async () => [WAITING[0], { ...WAITING[0], n: 2, approvalId: 'appr-2' }] }), { now: NOW, greeting: true, needs: async () => 4 })
     expect(two.kind === 'NEEDS' && two.says).toMatch(/Four things need you; .* Two of them are questions from Etyme; approve each below/)
-    expect(hello.kind === 'NEEDS' && hello.saysLinks).toEqual([{ text: 'Needs attention', href: DECISIONS_HREF }])
+    expect(hello.kind === 'NEEDS' && hello.saysLinks).toEqual([{ text: 'open the list', href: DECISIONS_HREF }])
     const one = await today(readers({ waiting: async () => [] }), { now: NOW, greeting: true, needs: async () => 1 })
-    expect(one.kind === 'NEEDS' && one.says).toBe('One thing needs you; the most urgent is first under Needs attention. Checked just now.')
+    expect(one.kind === 'NEEDS' && one.says).toBe('One thing needs you; open the list to see it. Checked just now.')
     expect(voiceBreaks(hello.says)).toEqual([])
+  })
+
+  it('the greeting never sends anybody to “Needs attention”, which left the menu; it says to open the list, and those words open it', async () => {
+    for (const needs of [1, 2, 5]) {
+      for (const waiting of [[], WAITING]) {
+        const hello = await today(readers({ waiting: async () => waiting }), { now: NOW, greeting: true, needs: async () => needs })
+        if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
+        expect(hello.says).not.toMatch(/Needs attention|under /)
+        for (const l of hello.saysLinks ?? []) {
+          expect(hello.says).toContain(l.text)
+          expect(l.href).toBe(DECISIONS_HREF)
+        }
+        expect(voiceBreaks(hello.says)).toEqual([])
+      }
+    }
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/ask.ts'), 'utf8')
+    expect(src).not.toMatch(/`[^`\n]*under Needs attention/)
   })
 
   it('a seat the decisions queue owes nothing, and Etyme asks nothing, reads that nothing needs it; a queue that could not be read leaves the headline to the twin’s own questions', async () => {
@@ -772,7 +794,9 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
     const hello = await today(readers({ waiting: async () => items, othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }) }), { now: NOW, greeting: true, needs: async () => 1 })
     if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
     expect(hello.recommend?.says).toBe('Send bill INV-0042 to Northbend Athletic; it is built from weeks Northbend Athletic signed.')
-    expect(hello.says).toBe('One thing needs you; the most urgent is first under Needs attention. It is the bill Etyme drafted; send it below, or say not now. Checked just now.')
+    expect(hello.says).toBe('One thing needs you. It is the bill Etyme drafted; send it below, or say not now. Checked just now.')
+    // Every one of them is a card below, so no list is offered.
+    expect(hello.saysLinks).toEqual([])
     expect(hello.items[0].bill?.invoiceNumber).toBe('INV-0042')
     for (const line of [hello.recommend!.says, hello.says]) {
       expect(voiceBreaks(line)).toEqual([])
@@ -812,6 +836,70 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
     // The badge counts what the decisions queue counts: a twin question only where the seat may decide it.
     const queue = readFileSync(join(process.cwd(), 'src/app/api/decisions/route.ts'), 'utf8')
     expect(queue).toMatch(/waitingQuestions\(caller\)\)\.filter\(\(q\) => q\.mayDecide\)/)
+  })
+
+  // Halcyon Talent's shape: one seat, the Owner, who is also the person
+  // Ask Etyme acts for. The question as the ledger writes it under the
+  // owner-only exception (founder, 2026-10-19, decision 2).
+  const ownerAskedRow = (over: { action?: string; selfApprovalReason?: string | null; needsPermission?: string } = {}) => {
+    const r = askedRow(over.action ? { action: over.action } : {})
+    return {
+      ...r,
+      ...(over.needsPermission ? { needsPermission: over.needsPermission } : {}),
+      requestedAt: new Date('2026-04-01T06:00:00Z'),
+      selfApprovalReason: over.selfApprovalReason === undefined ? OWNER_ONLY_EXCEPTION['bill.send'] : over.selfApprovalReason,
+      twinAction: {
+        ...r.twinAction, companyId: 'c-brightmoor', twinKind: 'SUPPLIER', actorType: 'TWIN', actorId: 'twin-supplier',
+        onAuthorityOfRole: 'Owner', authorityPerson: { name: 'Sade Balogun' },
+      },
+    }
+  }
+
+  it('where nobody but the owner sends bills, the owner reads the twin’s bill card in Ask Etyme with the line saying why they are asked', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    BILL_DB.approvals = [ownerAskedRow()]
+    BILL_DB.otherSender = false
+    const items = await readersFor(seat('p-owner', OWNER), 'c-brightmoor').waiting()
+    expect(items.map((i) => i.approvalId)).toEqual(['appr-bill'])
+    const [item] = items
+    expect(item.bill).toEqual(ROSA_BILL)
+    expect(item.askedYouBecause).toBe('Only you send bills here, so Ask Etyme asks you.')
+    expect(voiceBreaks(item.askedYouBecause!)).toEqual([])
+    // The card draws it under its title, on the bill card and on the plain question alike.
+    const ui = readFileSync(join(process.cwd(), 'src/app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    const card = ui.slice(ui.indexOf('function BillCard('))
+    expect(card.indexOf('{item.askedYouBecause')).toBeGreaterThan(card.indexOf('{billCardTitle(b)}'))
+    expect(card.indexOf('{item.askedYouBecause')).toBeLessThan(card.indexOf('{rows.map('))
+    // The greeting leads with it, in the words of sending, and the list is not offered for a card already below.
+    const hello = await today(readers({ waiting: async () => items, othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }) }), { now: NOW, greeting: true, needs: async () => 1 })
+    if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect(hello.recommend?.says).toBe('Send bill INV-0042 to Northbend Athletic; it is built from weeks Northbend Athletic signed.')
+    expect(hello.items[0].askedYouBecause).toBe('Only you send bills here, so Ask Etyme asks you.')
+    // Somebody else seated who sends bills takes the question back, and the card leaves the owner's screen.
+    BILL_DB.otherSender = true
+    expect(await readersFor(seat('p-owner', OWNER), 'c-brightmoor').waiting()).toEqual([])
+    // And the person who now sends bills reads it with no such line: it was never an exception for them.
+    const theirs = await readersFor(seat('p-ines', AR), 'c-brightmoor').waiting()
+    expect(theirs.map((i) => i.approvalId)).toEqual(['appr-bill'])
+    expect(theirs[0].askedYouBecause).toBeUndefined()
+    BILL_DB.otherSender = false
+  })
+
+  it('a question asked on the owner’s own authority for any other act stays hidden from the owner', async () => {
+    const { readersFor } = await import('@/app/api/conversations/twin/read')
+    const owner = readersFor(seat('p-owner', OWNER), 'c-brightmoor')
+    // An invoice receipt asked on the owner's authority, even carrying the bill's reason, is not theirs to answer.
+    BILL_DB.approvals = [ownerAskedRow({ action: 'invoice_receipt.approve', needsPermission: 'payments.record' })]
+    expect(await owner.waiting()).toEqual([])
+    // Nor is a bill the ledger did not put to the owner: no reason recorded, no exception.
+    BILL_DB.approvals = [ownerAskedRow({ selfApprovalReason: null })]
+    expect(await owner.waiting()).toEqual([])
+    // Nor anything on the never floor or that moves money out: the exception names one act.
+    for (const action of ['payroll.release', 'payment.record', 'agreement.sign']) {
+      BILL_DB.approvals = [ownerAskedRow({ action })]
+      expect(await owner.waiting(), action).toEqual([])
+    }
+    expect(Object.keys(OWNER_ONLY_EXCEPTION)).toEqual(['bill.send'])
   })
 
   it('a yes on the bill card goes through the one approval route, and "Not now" with no reason still records a reason that says so', () => {

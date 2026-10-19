@@ -548,6 +548,13 @@ export interface WaitingItem {
   action?: string
   /** For `bill.send`: the drafted bill, as the card shows it. */
   bill?: BillCardPayload
+  /**
+   * Why this seat is asked, where it would otherwise not be: the owner Ask
+   * Etyme acts for, asked to send its bill because nobody else at the firm
+   * sends bills (founder, 2026-10-19). Said under the card's title, so the
+   * exception is on the screen. Absent on every other question.
+   */
+  askedYouBecause?: string
 }
 
 export type Verdict = 'CLEAN' | 'MISMATCH' | 'BLOCKED'
@@ -687,12 +694,17 @@ export function varianceSays(rows: readonly VarianceRow[], label: string, stale:
   return parts.join(' ')
 }
 
-/** The page that lists every decision a seat owes, under its own title "Needs attention". */
+/** The page that lists every decision a seat owes, most urgent first. */
 export const DECISIONS_HREF = '/dashboard/decisions'
+
+/** The words in the headline that open that page. */
+export const DECISIONS_LINK_TEXT = 'open the list'
 
 /**
  * The headline, where the decisions queue was read: "Five things need
- * you; the most urgent is first under Needs attention." The number is
+ * you; open the list to see them, most urgent first." No menu entry is
+ * named: Needs attention left the menu on 2026-10-13, so the sentence
+ * says what the link opens rather than where to find it. The number is
  * GET /api/decisions' own `total` for this seat — the figure on the Ask
  * Etyme mark — never counted a second way here. The twin's own questions
  * are not in that queue, so they are said after it as "also". Null where
@@ -700,7 +712,13 @@ export const DECISIONS_HREF = '/dashboard/decisions'
  */
 export function needsCountSays(needs: number, items: readonly WaitingItem[]): { says: string; links: { text: string; href: string }[] } | null {
   if (needs <= 0) return null
-  const head = `${counted(needs, 'thing')} ${needs === 1 ? 'needs' : 'need'} you; the most urgent is first under Needs attention.`
+  // Where every one of them is a card below, the list adds nothing and is not offered.
+  const allBelow = items.length === needs
+  const head = allBelow
+    ? `${counted(needs, 'thing')} ${needs === 1 ? 'needs' : 'need'} you.`
+    : needs === 1
+      ? `One thing needs you; ${DECISIONS_LINK_TEXT} to see it.`
+      : `${counted(needs, 'thing')} need you; ${DECISIONS_LINK_TEXT} to see them, most urgent first.`
   // The queue counts the twin's questions this seat may answer (section 6
   // of GET /api/decisions), so where the count holds them they are said as
   // part of it, never as something on top of it.
@@ -716,7 +734,7 @@ export function needsCountSays(needs: number, items: readonly WaitingItem[]): { 
         : one
           ? ' Etyme is also asking you one thing; approve it below, or reject it with a reason.'
           : ` Etyme is also asking you ${counted(items.length, 'thing').toLowerCase()}; approve each below, or reject it with a reason.`
-  return { says: head + also, links: [{ text: 'Needs attention', href: DECISIONS_HREF }] }
+  return { says: head + also, links: allBelow ? [] : [{ text: DECISIONS_LINK_TEXT, href: DECISIONS_HREF }] }
 }
 
 /** A notice this person has not read, as the greeting says it. */

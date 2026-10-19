@@ -8,6 +8,9 @@
  *                                   Approve · Reject · Why?
  *   a contractor near the time limit contractor, days left, supplier —
  *                                   Acknowledge · Escalate
+ *   a bill to send                  the bill Ask Etyme drafted, in the rows
+ *                                   the web card shows — Send bill · Not now
+ *                                   · Open bill · Why?
  *   the nightly digest              "3 invoice receipts need approval ·
  *                                   1 contractor near the time limit", each with its own
  *                                   buttons, and never sent empty
@@ -34,7 +37,8 @@ const VERSION = '1.5'
 
 /** What a button sends back. `etyme` names the act so nothing else is mistaken for one. */
 export type CardAction =
-  | { etyme: 'twin.approval'; approvalId: string; decision: 'APPROVED' | 'REJECTED'; reason?: string }
+  /** `as: 'bill'` where the button sends a bill, so the answer is said in the words the button used. */
+  | { etyme: 'twin.approval'; approvalId: string; decision: 'APPROVED' | 'REJECTED'; reason?: string; as?: 'bill' }
   | { etyme: 'twin.why'; approvalId: string }
   | { etyme: 'tenure.ack'; twinActionId: string; personName?: string; tier?: string }
 
@@ -72,6 +76,33 @@ export interface TenureAlertFacts {
   /** The person's page in Etyme, where escalating is done when there is no question to answer. */
   link: string | null
 }
+
+/**
+ * A bill Ask Etyme drafted, waiting for somebody who sends bills. The
+ * title and rows are the web card's own (`billCardTitle`, `billRows`), so
+ * the two doors cannot word one bill two ways.
+ */
+export interface BillSendFacts {
+  approvalId: string
+  /** "Bill ready to send — Northbend Athletic, March 2026" */
+  title: string
+  /** "INV-0042 to Northbend Athletic", the bill as a list names it. */
+  name: string
+  rows: { label: string; value: string }[]
+  /**
+   * Why this person is asked where they otherwise would not be: the owner
+   * Ask Etyme acts for, because nobody else at the firm sends bills.
+   * Said under the title. Null for everybody else.
+   */
+  askedYouBecause: string | null
+  ruleCited: string
+  rationale: string
+  /** The draft in Etyme, where it is edited. */
+  link: string | null
+}
+
+/** What "Keep it as a draft" records when the person gives no reason: true, and plain. */
+export const BILL_NOT_NOW_REASON = 'Not now, said in Teams with no reason given. The draft stays on the Bills page.'
 
 type Element = Record<string, unknown>
 
@@ -180,6 +211,41 @@ export function invoiceApprovalCard(f: InvoiceApprovalFacts): Element {
   )
 }
 
+// ── A bill to send ────────────────────────────────────────────────────
+
+/** Send bill · Not now · Open bill · Why? for one bill Ask Etyme drafted. */
+export function billActions(f: BillSendFacts): Element[] {
+  const send: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'APPROVED', as: 'bill' }
+  const keep: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'REJECTED', as: 'bill', reason: BILL_NOT_NOW_REASON }
+  return [
+    { type: 'Action.Submit', title: 'Send bill', style: 'positive', data: send },
+    {
+      type: 'Action.ShowCard', title: 'Not now',
+      card: adaptive(
+        [
+          text('Why not now? Optional. The bill stays a draft, and your answer is recorded under your name.'),
+          { type: 'Input.Text', id: 'note', isMultiline: true, placeholder: 'For example: I will send it with the expenses' },
+        ],
+        [{ type: 'Action.Submit', title: 'Keep it as a draft', data: keep }],
+      ),
+    },
+    ...(f.link ? [{ type: 'Action.OpenUrl', title: 'Open bill', url: f.link }] : []),
+    { type: 'Action.ShowCard', title: 'Why?', card: whyCard(f.ruleCited, f.rationale) },
+  ]
+}
+
+function billFacts(f: BillSendFacts): Element[] {
+  return [
+    ...(f.askedYouBecause ? [text(f.askedYouBecause, { isSubtle: true, spacing: 'Small' })] : []),
+    facts(f.rows.map((r) => [r.label, r.value])),
+  ]
+}
+
+/** The bill card, sent on its own. */
+export function billSendCard(f: BillSendFacts): Element {
+  return adaptive([text(f.title, { weight: 'Bolder', size: 'Medium' }), ...billFacts(f)], billActions(f))
+}
+
 // ── The time limit ────────────────────────────────────────────────────
 
 export function tenureTitle(f: Pick<TenureAlertFacts, 'personName' | 'daysToLimit' | 'tier'>): string {
@@ -218,9 +284,10 @@ export function tenureAlertCard(f: TenureAlertFacts): Element {
 
 // ── The digest ────────────────────────────────────────────────────────
 
-/** "3 invoice receipts need approval · 1 contractor near the time limit", or null when there is nothing. */
-export function digestHeading(invoices: number, risks: number): string | null {
+/** "1 bill to send · 3 invoice receipts need approval · 1 contractor near the time limit", or null when there is nothing. */
+export function digestHeading(invoices: number, risks: number, bills = 0): string | null {
   const parts: string[] = []
+  if (bills > 0) parts.push(`${bills} bill${bills === 1 ? '' : 's'} to send`)
   if (invoices > 0) parts.push(`${invoices} invoice receipt${invoices === 1 ? ' needs' : 's need'} approval`)
   if (risks > 0) parts.push(`${risks} contractor${risks === 1 ? '' : 's'} near the time limit`)
   return parts.length ? parts.join(' · ') : null
@@ -230,10 +297,16 @@ export function digestHeading(invoices: number, risks: number): string | null {
  * The nightly digest: one card, each item with its own buttons. Null
  * when there is nothing to say — an empty digest is never sent.
  */
-export function digestCard(invoices: readonly InvoiceApprovalFacts[], risks: readonly TenureAlertFacts[]): Element | null {
-  const heading = digestHeading(invoices.length, risks.length)
+export function digestCard(invoices: readonly InvoiceApprovalFacts[], risks: readonly TenureAlertFacts[], bills: readonly BillSendFacts[] = []): Element | null {
+  const heading = digestHeading(invoices.length, risks.length, bills.length)
   if (!heading) return null
   const body: Element[] = [text(heading, { weight: 'Bolder', size: 'Medium' })]
+  for (const f of bills) {
+    body.push({
+      type: 'Container', separator: true, spacing: 'Medium',
+      items: [text(f.title, { weight: 'Bolder' }), ...billFacts(f), { type: 'ActionSet', actions: billActions(f) }],
+    })
+  }
   for (const f of invoices) {
     body.push({
       type: 'Container', separator: true, spacing: 'Medium',
@@ -263,7 +336,14 @@ export function readCardAction(value: unknown): CardAction | null {
     const approvalId = id('approvalId')
     const decision = v.decision === 'APPROVED' || v.decision === 'REJECTED' ? v.decision : null
     if (!approvalId || !decision) return null
-    return { etyme: 'twin.approval', approvalId, decision, ...(typeof v.reason === 'string' ? { reason: v.reason.slice(0, 2000) } : {}) }
+    // "Not now" on a bill: what the person typed, else the sentence the button carries.
+    const note = typeof v.note === 'string' && v.note.trim() ? v.note : null
+    const reason = note ?? (typeof v.reason === 'string' ? v.reason : null)
+    return {
+      etyme: 'twin.approval', approvalId, decision,
+      ...(reason != null ? { reason: reason.slice(0, 2000) } : {}),
+      ...(v.as === 'bill' ? { as: 'bill' as const } : {}),
+    }
   }
   if (v.etyme === 'twin.why') {
     const approvalId = id('approvalId')

@@ -64,6 +64,19 @@ export async function answerCardAction(action: CardAction, bound: BoundPerson, d
       decider: deciderFrom(bound),
     })
     if (!out.ok) return { says: out.says }
+    // A bill is answered in the words its buttons used: sent, or kept as a draft.
+    if (action.as === 'bill') {
+      const number = typeof out.result?.number === 'string' ? out.result.number : null
+      return out.outcome === 'PERFORMED'
+        ? {
+            says: `Sent${number ? `: bill ${number}` : ''}. It is recorded under your name, from Teams.`,
+            answered: { title: `Bill${number ? ` ${number}` : ''} sent by ${bound.personName} in Teams`, sentence: 'Recorded under their name.' },
+          }
+        : {
+            says: 'Not sent. The bill stays a draft on the Bills page, and your answer is recorded under your name.',
+            answered: { title: `Kept as a draft by ${bound.personName} in Teams`, sentence: `Their reason: ${reason}` },
+          }
+    }
     if (out.outcome === 'PERFORMED') {
       return {
         says: 'Approved. It is recorded under your name, from Teams.',
