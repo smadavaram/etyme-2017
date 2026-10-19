@@ -26,6 +26,21 @@
  * silent (`lib/money/expense-acceptance`). An expense of a kind the
  * agreement leaves out is left off with a sentence naming the agreement.
  *
+ * ── At every rung (2026-10-19) ───────────────────────────────────────
+ *
+ * In a chain each firm bills the expense to the firm above it, on its
+ * own sell line, at what that firm accepted — once per line, the same
+ * as a week (`InvoiceLine`'s unique is (expenseId, sellContractId)). The
+ * expense's own `invoiceId` and its status INVOICED and PAID are the
+ * employer's rung only (coordinator's decision, reversible by the
+ * founder in a sentence): the employer's bill of it to the firm directly
+ * above. So a firm above the employer reads whether it already billed an
+ * expense from its own lines, never from that column, and an expense the
+ * employer has already billed or been paid for is still one the firm in
+ * the middle has to bill on. Its amount is in the currency it was raised
+ * in; a bill in another currency leaves it off, said, because rupees and
+ * dollars are never added and nothing here converts one into the other.
+ *
  * Pure, so the rules — which expenses, and what the line says — are
  * tested as sentences. The routes do the reading and writing.
  */
@@ -60,7 +75,20 @@ export interface ExpenseRow {
    * between the two firms (`legBills`). Absent: the employer's own flag.
    */
   leg?: { bills: boolean; says: string | null }
+  /**
+   * True where the firm billing is above the employer, on a line over the
+   * one the expense was raised on. `sellContractId` is then the billing
+   * firm's own line, and `status`/`invoiceId` are the employer's rung's
+   * and do not say whether this firm billed it; the caller reads that off
+   * this firm's own lines.
+   */
+  aboveTheEmployer?: boolean
+  /** The currency of the line it would be billed on. Absent: the expense's own. */
+  billCurrency?: string
 }
+
+/** The employer's statuses at which a firm above may bill it on: it is approved, whatever the employer did with it since. */
+const APPROVED_OR_BILLED = ['APPROVED', 'INVOICED', 'PAID']
 
 /** One expense left off a bill, and why, in a sentence. */
 export interface LeftOff {
@@ -80,10 +108,22 @@ export function sortForBill(expenses: ExpenseRow[]): { on: ExpenseRow[]; leftOff
   const on: ExpenseRow[] = []
   const leftOff: LeftOff[] = []
   for (const e of expenses) {
-    if (e.status !== 'APPROVED' || e.invoiceId !== null) continue
+    const candidate = e.aboveTheEmployer
+      ? APPROVED_OR_BILLED.includes(e.status)
+      : e.status === 'APPROVED' && e.invoiceId === null
+    if (!candidate) continue
     const leg = e.leg ?? { bills: e.billable, says: null }
     if (!leg.bills) {
       if (leg.says) leftOff.push({ expenseId: e.id, says: `${e.personName}’s ${e.category.toLowerCase()} expense is not on this bill: ${leg.says}` })
+      continue
+    }
+    if (e.billCurrency && e.billCurrency.toUpperCase() !== e.currency.toUpperCase()) {
+      leftOff.push({
+        expenseId: e.id,
+        says:
+          `${e.personName}’s ${e.category.toLowerCase()} expense is not on this bill: it was accepted in ${e.currency.toUpperCase()} ` +
+          `and this bill is in ${e.billCurrency.toUpperCase()}, and nothing here converts one into the other.`,
+      })
       continue
     }
     const why = notAcceptedSays(

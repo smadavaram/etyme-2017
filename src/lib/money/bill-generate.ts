@@ -33,8 +33,8 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
-import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
-import { legsFor, acceptancesOn } from '@/lib/money/expense-acceptance-read'
+import { billsOnLeg, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
+import { legsOverMany, acceptancesOn } from '@/lib/money/expense-acceptance-read'
 import { emit } from '@/lib/events'
 import { billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
@@ -44,7 +44,7 @@ import {
 import { minorPerUnit } from '@/lib/money'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { fromUnits, amount } from '@/lib/money-display'
-import { whereHoursLive } from '@/lib/work-chain'
+import { whereHoursLive, descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { lineFor, type Decision } from '@/lib/overtime'
 import {
@@ -473,10 +473,26 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // kind of expense is billable on this leg is the agreement's where it
   // says (the founder, 2026-10-19), and the flag only where it is silent.
   // Both are decided below, with what the payer accepted.
+  //
+  // And on every line below ours in the chain, where we are a firm in the
+  // middle (2026-10-19): the expense was raised on the employer's line,
+  // and we bill it to our own customer on our own line, at what our
+  // customer accepted, once. The employer's `invoiceId` and status are
+  // the employer's rung's, so whether we have billed it is our own lines,
+  // the same question a week is asked.
+  /** A line an expense may be raised on → the contract of ours that bills it. */
+  const ourLineOver = new Map<string, string>()
+  for (const own of ownIds) {
+    for (const line of descend(own, rungs)) if (!ourLineOver.has(line)) ourLineOver.set(line, own)
+  }
+  const belowIds = [...ourLineOver.keys()].filter((id) => !ownIds.includes(id))
   let expenseRows = await prisma.expense.findMany({
     where: {
-      sellContractId: { in: ownIds },
-      status: 'APPROVED', invoiceId: null,
+      OR: [
+        { sellContractId: { in: ownIds }, status: 'APPROVED', invoiceId: null },
+        ...(belowIds.length > 0 ? [{ sellContractId: { in: belowIds }, status: { in: [...APPROVED_BY_EMPLOYER] } }] : []),
+      ],
+      invoiceLines: { none: { sellContractId: { in: ownIds } } },
       ...(asked.start ? { periodEnd: { gte: asked.start } } : {}),
       ...(asked.end ? { periodStart: { lte: asked.end } } : {}),
     },
@@ -588,8 +604,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // containing the most recent work when nobody asked.
   // The contract whose terms shape the period: the first with hours, or,
   // on an expenses-only invoice, the first expense's own contract.
+  const firstExpenseOurs = expenseRows[0] ? ourContract.get(ourLineOver.get(expenseRows[0].sellContractId) ?? expenseRows[0].sellContractId) : undefined
   const anchorContract =
     billing[0]?.sellContract ??
+    // Our own line, never the employer's below it: the period a firm in
+    // the middle bills is its own.
+    firstExpenseOurs ??
     expenseRows[0]?.sellContract ??
     (await prisma.sellContract.findFirstOrThrow({
       where: { engagementId },
@@ -635,19 +655,33 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // claimed. One it has not accepted, or sent back, and one of a kind the
   // agreement between the two firms does not make billable, is left off
   // and said, the way a week the firm above has not accepted is.
-  const expenseLegs = await legsFor(expenseRows.map((e) => e.sellContractId))
-  const expenseDecisions = await acceptancesOn(expenseRows.map((e) => e.id))
+  //
+  // The payer is the customer on OUR line — the client, or the firm above
+  // us — whichever line below ours the expense was raised on. Whether
+  // this leg bills it at all is the whole chain's: it travels up only as
+  // far as each leg's agreement takes it (`billsOnLeg`).
+  const [expenseChains, expenseDecisions] = await Promise.all([
+    legsOverMany(expenseRows.map((e) => e.sellContractId)),
+    acceptancesOn(expenseRows.map((e) => e.id)),
+  ])
+  /** The expenses billed on our own line, the employer's rung: the only ones this bill marks INVOICED. */
+  const employersRung = new Set(expenseRows.filter((e) => ownIds.includes(e.sellContractId)).map((e) => e.id))
   const sortedExpenses = sortForBill(
     expenseRows.map((e) => {
-      const leg = expenseLegs.get(e.sellContractId)
+      const ours = ourLineOver.get(e.sellContractId) ?? e.sellContractId
+      const chain = expenseChains.get(e.sellContractId) ?? []
+      const leg = chain.find((l) => l.sellContractId === ours)
       return {
         id: e.id, status: e.status, billable: e.billable, invoiceId: e.invoiceId,
-        sellContractId: e.sellContractId, personId: e.personId, personName: e.person.name,
+        // Billed on our line, which is the employer's own where we are the employer.
+        sellContractId: ours, personId: e.personId, personName: e.person.name,
         category: e.category, description: e.description, total: Number(e.total),
         currency: e.sellContract.billCurrency, periodStart: e.periodStart, periodEnd: e.periodEnd,
         payerName: leg?.payerName,
         own: leg ? payersOwn(leg.payerId, expenseDecisions.get(e.id) ?? []) : { kind: 'NONE' as const },
-        leg: leg ? legBills(e, leg) : undefined,
+        leg: leg ? billsOnLeg(e, chain, ours) : undefined,
+        aboveTheEmployer: !employersRung.has(e.id),
+        billCurrency: ourContract.get(ours)?.billCurrency ?? e.sellContract.billCurrency,
       }
     })
   )
@@ -1031,6 +1065,15 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   const milestoneCents = milestones.reduce((sum, m) => sum + m.amountCents, 0)
   const total = lines.reduce((sum, line) => sum + line.amountCents, 0) / minorPerUnit(currency) + expenseTotal(expLines, minorPerUnit(currency)) + milestoneCents / minorPerUnit(currency)
 
+  // The order this bill draws on: the one its weeks' line is on, else —
+  // on a bill of expenses alone — the one the line its expenses are
+  // billed on is on. A bill of only an expense used to name no order, so
+  // the payer's check asked for one it had and refused to pay it.
+  const billOrderId =
+    billing.find((t) => t.sellContract.workOrderId)?.sellContract.workOrderId ??
+    expLines.map((l) => contractById.get(l.sellContractId)?.workOrderId ?? null).find((x) => x != null) ??
+    null
+
   // ── The order's ceiling, before anything is drafted ─────────────────
   //
   // Release walk, 2026-10-18: a bill was drafted for $4,720 against an
@@ -1044,7 +1087,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // sent and every invoice receipt typed in against the order
   // (lib/money/order-drawn), and only in the order's currency.
   {
-    const orderId = billing.find((t) => t.sellContract.workOrderId)?.sellContract.workOrderId ?? null
+    const orderId = billOrderId
     const order = orderId
       ? await prisma.workOrder.findUnique({ where: { id: orderId }, select: { id: true, number: true, amount: true, currency: true } })
       : null
@@ -1306,8 +1349,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
           payerId: partners.payer.party.id,
           // Inherit the PO the work was authorized under. Without it the
           // three-way match has only two records to compare.
-          workOrderId: billing.find(t => t.sellContract.workOrderId)
-            ?.sellContract.workOrderId ?? null,
+          workOrderId: billOrderId,
         },
       })
 
@@ -1387,7 +1429,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       }
 
       // The expenses, each a line of its own with the expense behind it,
-      // and the expense marked INVOICED with this invoice on it.
+      // and the expense marked INVOICED with this invoice on it — where
+      // this is the employer's own bill of it. A firm above the employer
+      // bills it on its own line and leaves the employer's column alone:
+      // that column is the employer's rung, and each rung above reads
+      // billed and paid from its own lines (coordinator's decision,
+      // 2026-10-19).
       for (const l of expLines) {
         await tx.invoiceLine.create({
           data: {
@@ -1402,7 +1449,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
             description: l.description,
           },
         })
-        await tx.expense.update({ where: { id: l.expenseId }, data: { status: 'INVOICED', invoiceId: invoice.id } })
+        if (employersRung.has(l.expenseId)) {
+          await tx.expense.update({ where: { id: l.expenseId }, data: { status: 'INVOICED', invoiceId: invoice.id } })
+        }
       }
 
       // Deliberately no write back to Timesheet here. The InvoiceLine rows

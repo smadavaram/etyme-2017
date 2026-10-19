@@ -11,6 +11,10 @@ import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
 import { GET as listExpenses } from '@/app/api/expenses/route'
 import { POST as expenseActions } from '@/app/api/expenses/actions/route'
 import { legsFor } from '@/lib/money/expense-acceptance-read'
+import { POST as recordPayment } from '@/app/api/invoices/[id]/payments/route'
+import { GET as receiptOptions } from '@/app/api/ap/receipts/options/route'
+import { ladderFor } from '@/lib/work-chain-read'
+import { descend } from '@/lib/work-chain'
 
 /**
  * The week Northbend Athletic's desk signed at time and a half, as far as the document.
@@ -487,5 +491,173 @@ describe('the expenses page reads each expense as the firm reading it, and the A
     expect(top.client).toMatchObject({ name: line.clientCompany.name, role: 'SUPPLIER' })
     expect(top.chain.line).toBe('Approved by the employer · waiting on you')
     expect(JSON.stringify(top)).not.toContain(line.company.name)
+  })
+})
+
+/**
+ * A firm in the middle of a chain bills its client for an expense
+ * (the founder, 2026-10-19, decision 1, and the unique the architect
+ * relaxed to (expenseId, sellContractId) the same day).
+ *
+ * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
+ * employed by Techpeple. Techpeple approves her $250 train fare to
+ * reimburse her; Northbend accepts it, then Computer Systems. Techpeple
+ * bills it to Computer Systems and Computer Systems bills it to
+ * Northbend, each on its own line, each matched against its own payer's
+ * acceptance; Northbend pays Computer Systems and Computer Systems pays
+ * Techpeple. The expense's own status is Techpeple's rung's; every rung
+ * above reads billed and paid from its own lines.
+ */
+describe('Helena Marsh’s train fare is billed up the chain a rung at a time and paid down it', () => {
+  const NIKE_HIRING = `world-nike-hiring${D}`
+  const NIKE_AP = `world-nike-ap${D}`
+  const w: Record<string, any> = {}
+  const params = (id: string) => ({ params: Promise.resolve({ id }) })
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+
+  const billFor = async (who: string, engagementId: string) => {
+    as(who)
+    return json(await generateInvoice(req('POST', '/api/invoices/generate', { engagementId, periodStart: w.day, periodEnd: w.day })))
+  }
+  const send = async (who: string, id: string) => {
+    const bill = await prisma.invoice.findUniqueOrThrow({ where: { id }, select: { status: true } })
+    if (bill.status === 'SUBMITTED') return
+    as(who)
+    const r = await json(await sendBill(req('POST', `/api/invoices/${id}/submit`, {}), params(id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+  }
+  const pay = async (who: string, id: string) => {
+    const bill = await prisma.invoice.findUniqueOrThrow({ where: { id }, select: { total: true } })
+    as(who)
+    return json(await recordPayment(req('POST', `/api/invoices/${id}/payments`, { amount: Number(bill.total), method: 'ACH', reference: `PAY-${id.slice(-4)}` }), params(id)))
+  }
+  const rowAs = async (who: string) => {
+    as(who)
+    const r = await json(await listExpenses(req('GET', '/api/expenses?limit=100')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    return (r.body.data.expenses as any[]).find((e) => e.id === w.train)
+  }
+
+  beforeAll(async () => {
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
+    const tpLine = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, company: { slug: 'world-techpeple' } } })
+    const csLine = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, company: { slug: 'world-computer-systems' } } })
+    // A day no week is filed on under either firm's engagement, so each bill is for the train fare alone.
+    const lines = await prisma.sellContract.findMany({ where: { engagementId: { in: [tpLine.engagementId, csLine.engagementId].filter((x): x is string => !!x) } }, select: { id: true } })
+    const rungs = await ladderFor(lines.map((l) => l.id))
+    const under = [...new Set(lines.flatMap((l) => descend(l.id, rungs)))]
+    const earliest = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: { in: under } }, orderBy: { periodStart: 'asc' } })
+    let d = new Date(earliest.periodStart.getTime() - 86_400_000)
+    for (let i = 0; i < 400; i++, d = new Date(d.getTime() - 86_400_000)) {
+      const busy = await prisma.timesheet.count({ where: { sellContractId: { in: under }, periodStart: { lte: d }, periodEnd: { gte: d } } })
+      const spent = await prisma.expense.count({ where: { sellContractId: { in: under }, periodStart: { lte: d }, periodEnd: { gte: d } } })
+      if (busy + spent === 0) break
+    }
+    const train = await prisma.expense.create({
+      data: {
+        companyId: tpLine.companyId, sellContractId: tpLine.id, personId: helena.id, category: 'TRAVEL', billable: true,
+        description: 'Train to the Tualatin site for the cut-over', periodStart: d, periodEnd: d, items: [], total: 250,
+        status: 'APPROVED', approvedAt: new Date(),
+      },
+    })
+    Object.assign(w, { train: train.id, tpLine, csLine, day: day(d) })
+
+    // Northbend accepts it first, then Computer Systems.
+    for (const who of [NIKE_HIRING, CS]) {
+      as(who)
+      const a = await json(await acceptExpense(req('POST', `/api/expenses/${w.train}/accept`, { decision: 'accept' }), params(w.train)))
+      expect(a.status, `${who}: ${JSON.stringify(a.body)}`).toBe(200)
+    }
+  }, 240_000)
+
+  it('the employer’s bill of the same expense to the middle firm is a separate line and both pass their own check', async () => {
+    // Before Techpeple bills it here, Computer Systems' invoice receipt form offers it, at what Computer Systems accepted.
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: w.csLine.companyId, vendorCompanyId: w.tpLine.companyId, candidates: { some: { personId: w.tpLine.personId } } },
+    })
+    const offered = async () => {
+      as(CS)
+      const r = await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${buy.id}`)))
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
+      return (r.body.data.expenses as any[]).find((x) => x.id === w.train) ?? null
+    }
+    expect(await offered()).toMatchObject({ amountMinor: 25_000 })
+
+    const tp = await billFor(TECHPEPLE, w.tpLine.engagementId)
+    expect(tp.status, JSON.stringify(tp.body)).toBe(201)
+    const tpLine = await prisma.invoiceLine.findFirstOrThrow({ where: { expenseId: w.train, sellContractId: w.tpLine.id } })
+    expect(tpLine.amountCents).toBe(25_000)
+    // Techpeple's own bill is the employer's rung: the expense's column names it.
+    expect(await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).toMatchObject({ status: 'INVOICED', invoiceId: tpLine.invoiceId })
+    w.tpBill = tpLine.invoiceId
+
+    const cs = await billFor(CS, w.csLine.engagementId)
+    expect(cs.status, JSON.stringify(cs.body)).toBe(201)
+    const lines = await prisma.invoiceLine.findMany({ where: { expenseId: w.train }, orderBy: { createdAt: 'asc' } })
+    expect(lines.map((l) => l.sellContractId)).toEqual([w.tpLine.id, w.csLine.id])
+    w.csBill = lines[1].invoiceId
+
+    await send(TECHPEPLE, w.tpBill)
+    await send(CS, w.csBill)
+    // Sent here, it is not offered to be typed in a second time.
+    expect(await offered()).toBeNull()
+    for (const id of [w.tpBill, w.csBill]) {
+      const m = (await matchInvoice(id))!
+      for (const code of ['RECEIPT', 'DUPLICATE']) {
+        expect(m.checks.find((c) => c.code === code)!.outcome, `${code}: ${JSON.stringify(m.checks)}`).toBe('PASS')
+      }
+    }
+  })
+
+  it('a firm in the middle bills its client for an expense at what the client accepted, on its own line, once', async () => {
+    const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: w.csBill, expenseId: w.train } })
+    expect(line).toMatchObject({ sellContractId: w.csLine.id, amountCents: 25_000, timesheetId: null })
+    // What Northbend reads names Helena and the fare, never the firm below Computer Systems.
+    expect(line.description).toBe('Helena Marsh — Travel expense: Train to the Tualatin site for the cut-over')
+    const bill = await prisma.invoice.findUniqueOrThrow({ where: { id: w.csBill }, select: { total: true, workOrderId: true } })
+    expect(Number(bill.total)).toBe(250)
+    // Drawn on the order Computer Systems' line is on, as any bill on that line is.
+    expect(bill.workOrderId).toBe(w.csLine.workOrderId)
+    // Billing it on Computer Systems' line does not move Techpeple's column.
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).invoiceId).toBe(w.tpBill)
+    // Once: a second run finds nothing left to bill.
+    const again = await billFor(CS, w.csLine.engagementId)
+    expect(again.status, JSON.stringify(again.body)).toBe(422)
+    expect(await prisma.invoiceLine.count({ where: { expenseId: w.train, sellContractId: w.csLine.id } })).toBe(1)
+  })
+
+  it('a rung reads an expense as billed or paid only from its own line, never from a rung below', async () => {
+    const csNumber = (await prisma.invoice.findUniqueOrThrow({ where: { id: w.csBill } })).number
+    const tpNumber = (await prisma.invoice.findUniqueOrThrow({ where: { id: w.tpBill } })).number
+
+    // Northbend pays Computer Systems. Techpeple has not been paid, and its column says so.
+    const nb = await pay(NIKE_AP, w.csBill)
+    expect(nb.status, JSON.stringify(nb.body)).toBeLessThan(300)
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('INVOICED')
+
+    const top = await rowAs(NIKE_AP)
+    expect(top.status).toBe('PAID')
+    expect(top.chain.line).toBe(`Approved by the employer · accepted by you $250.00 · accepted by Computer Systems Inc $250.00 · billed to you on ${csNumber}, paid`)
+    expect(JSON.stringify(top)).not.toContain(tpNumber)
+    expect(JSON.stringify(top)).not.toContain('Techpeple')
+
+    const mid = await rowAs(CS)
+    expect(mid.status).toBe('PAID')
+    expect(mid.chain.line).toContain(`billed to you on ${tpNumber}`)
+    expect(mid.chain.line).toContain(`billed to Northbend Athletic on ${csNumber}, paid`)
+    expect(mid.chain.line).not.toContain(`${tpNumber}, paid`)
+
+    const bottom = await rowAs(TECHPEPLE)
+    expect(bottom.status).toBe('INVOICED')
+    expect(bottom.chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}`)
+    expect(bottom.chain.line).not.toContain(csNumber)
+
+    // Computer Systems pays Techpeple: now the employer's rung is paid too.
+    const paid = await pay(CS, w.tpBill)
+    expect(paid.status, JSON.stringify(paid.body)).toBeLessThan(300)
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('PAID')
+    expect((await rowAs(TECHPEPLE)).chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}, paid`)
+    // And the client's own reading did not move with it.
+    expect((await rowAs(NIKE_AP)).chain.line).not.toContain(tpNumber)
   })
 })

@@ -285,9 +285,14 @@ is still short, each refused rather than guessed:
   receipt closed. A receipt typed in again for the same period closes no
   second date (it would have closed the next period's), so the date stays
   closed through the correction, which is the right end state.
-- **Expense approval is one status across the chain** — an expense line
-  is paid against `Expense.status` APPROVED, not against the paying firm's
-  own acceptance of it. Waiting on the founder; not built.
+- **An expense's own status is the employer's rung only** (coordinator's
+  decision, 2026-10-19, reversible by the founder in a sentence).
+  `Expense.invoiceId` and INVOICED/PAID say what the employer did with it;
+  every firm above bills it on its own line at what its customer accepted,
+  and reads billed and paid from its own lines. An expense accepted in one
+  currency is left off a bill in another, said, and never converted. No
+  chain four firms deep is on the seed, so an expense stopped two rungs
+  below the firm billing is tested in pure code only (`billsOnLeg`).
 - **Two receipts for one week let in before 2026-10-18** are paid once:
   the one recorded first, or the one already part paid; the other is
   refused at payment and left out of a run.

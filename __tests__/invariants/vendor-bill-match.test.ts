@@ -778,3 +778,36 @@ describe('A sub-vendor’s overtime is the client’s decision, at the pair’s 
     expect(byDefault.weeks[0]).toMatchObject({ regular: 40, over: 3 })
   })
 })
+
+describe('one expense billed at two rungs, each matched against its own payer’s acceptance (2026-10-19)', () => {
+  // Helena Marsh's $250 train fare: Techpeple bills Computer Systems, and
+  // Computer Systems bills Northbend Athletic, each on its own line.
+  const bill = (id: string, acceptedCents: number | null, amountCents = 25_000) => threeWayMatch({
+    invoice: { id, totalCents: amountCents, periodStart: new Date('2026-09-01T00:00:00Z'), periodEnd: new Date('2026-09-30T00:00:00Z') },
+    lines: [{ id: `${id}-l1`, timesheetId: null, expenseId: 'train', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents }],
+    timesheets: {},
+    // The employer's column reads INVOICED once Techpeple has billed it; the receipt is each payer's own acceptance.
+    expenses: { train: { id: 'train', status: 'INVOICED', totalCents: 25_000, acceptedCents } },
+    po: null,
+    poRequired: false,
+  })
+  const outcome = (r: ReturnType<typeof threeWayMatch>, code: string) => r.checks.find((c) => c.code === code)!.outcome
+
+  it('the employer’s bill of the same expense to the middle firm is a separate line and both pass their own check', () => {
+    const toMiddle = bill('tp-bill', 25_000) // Computer Systems' acceptance
+    const toClient = bill('cs-bill', 25_000) // Northbend's acceptance
+    for (const r of [toMiddle, toClient]) {
+      expect(outcome(r, 'RECEIPT')).toBe('PASS')
+      // Not a duplicate of each other: one expense, two rungs, two lines.
+      expect(outcome(r, 'DUPLICATE')).toBe('PASS')
+    }
+  })
+
+  it('a rung’s bill for more than its own payer accepted fails, whatever the rung above accepted', () => {
+    // Northbend accepted $240; Computer Systems billing it $250 has no receipt for that number.
+    expect(outcome(bill('cs-bill', 24_000), 'RECEIPT')).toBe('FAIL')
+    expect(outcome(bill('cs-bill', 24_000, 24_000), 'RECEIPT')).toBe('PASS')
+    // And a payer that has not accepted it gives no receipt at all.
+    expect(outcome(bill('cs-bill', null), 'RECEIPT')).toBe('FAIL')
+  })
+})

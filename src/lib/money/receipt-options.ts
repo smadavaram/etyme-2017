@@ -27,7 +27,7 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
 import { termsFor, ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT } from '@/lib/money/order-terms'
 import { decimalsFor } from '@/lib/money'
-import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
+import { legBills, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, legsFor } from '@/lib/money/expense-acceptance-read'
 import { formatDay } from '@/lib/format-date'
 import { alreadyReceived, alreadyOnABill, type ReceiptAlready, type BillOnRecord } from '@/lib/money/billed-elsewhere'
@@ -213,7 +213,15 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
         where: {
           sellContractId: { in: onLine },
           personId: { in: buy.candidates.map((c) => c.personId) },
-          status: 'APPROVED',
+          // Approved by the employer, whatever the employer has done with
+          // it since: its INVOICED and PAID are its own rung's bill
+          // (2026-10-19), and say nothing about whether this firm has
+          // received it. What this firm already holds is `heldOn`'s.
+          status: { in: [...APPROVED_BY_EMPLOYER] },
+          // Not one the supplier already sent this firm a bill for here:
+          // the check refuses it, naming that bill, so the form does not
+          // offer it.
+          invoiceLines: { none: { sellContract: { clientCompanyId: companyId }, invoice: { status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } } } },
         },
         select: {
           id: true, category: true, total: true, periodStart: true, billable: true, companyId: true,

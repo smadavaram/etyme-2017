@@ -178,6 +178,38 @@ export function acceptanceChain(e: Pick<ExpenseOnRecord, 'category' | 'billable'
   return { steps: run, stopped }
 }
 
+/**
+ * Whether the bill on this sell line carries this expense, and the
+ * sentence where it does not.
+ *
+ * The expense travels up the chain only as far as each leg bills it
+ * (`acceptanceChain`), so a firm above the employer bills it only where
+ * every leg from the employer's up to its own does. On the employer's
+ * own line this is exactly `legBills` on that leg.
+ *
+ * Said to the firm billing, in names it already trades with: a stop on
+ * its own leg or on its own supplier's is that leg's sentence; a stop
+ * further down names only its own supplier, because a sub-vendor's name
+ * is the firm above it's to keep.
+ */
+export function billsOnLeg(
+  e: Pick<ExpenseOnRecord, 'category' | 'billable'>,
+  legsTopFirst: readonly Leg[],
+  sellContractId: string
+): { bills: boolean; says: string | null } {
+  const leg = legsTopFirst.find((l) => l.sellContractId === sellContractId)
+  if (!leg) return { bills: false, says: null }
+  const chain = acceptanceChain(e, legsTopFirst)
+  if (chain.steps.some((s) => s.leg.sellContractId === sellContractId)) return { bills: true, says: null }
+  const stop = chain.stopped!
+  if (stop.leg.sellContractId === sellContractId || stop.leg.payerId === leg.sellerId) return { bills: false, says: stop.says }
+  const supplier = legsTopFirst.find((l) => l.payerId === leg.sellerId)
+  return {
+    bills: false,
+    says: `${supplier?.sellerName ?? `${leg.sellerName}’s supplier`} does not bill it to ${leg.sellerName}, so ${leg.payerName} does not pay for it.`,
+  }
+}
+
 /** What this firm may accept at most: the approved amount at the top, what the firm above accepted below it. */
 export function capFor(
   e: Pick<ExpenseOnRecord, 'totalCents'>,
@@ -430,6 +462,12 @@ export function rowFor(i: {
   reader: { id: string; name: string }
   /** The person reading, so a worker is never offered their own expense to accept. */
   personId: string
+  /**
+   * The bills this expense is on at the reader's own rung — the reader's
+   * own bill of it upward and its own supplier's bill of it to the
+   * reader — from `rungBilled`. Absent: the row says nothing about bills.
+   */
+  billed?: RungBilled
 }): ExpenseRow {
   const { expense: e, legsTopFirst: legs, acceptances, reader } = i
   const own = e.companyId === reader.id
@@ -498,6 +536,11 @@ export function rowFor(i: {
     if (may.ok && state !== 'SENT_BACK') state = 'YOURS'
   }
 
+  // The reader's own rung's bills, and no other's: what it billed upward,
+  // and what its own supplier billed it. A bill between two firms below
+  // the reader is not the reader's to read (`rungBilled`).
+  if (i.billed) parts.push(...billedWords(i.billed))
+
   // Where the reader is the last firm it travels to, it carries the cost:
   // the agreement above it says why, in the words it already uses.
   const goesNoHigher = chain.stopped && (own ? true : chain.stopped.leg.sellerId === reader.id)
@@ -529,4 +572,88 @@ export function rejectRefusal(
     `${e.personName}’s ${word(e.category)} expense of ${formatDay(e.periodStart)} cannot be rejected, because ` +
     `${first.companyName} accepted ${amount(first.acceptedCents, e.currency)} of it on ${formatDay(first.createdAt)}.`
   )
+}
+
+
+// ── Billed and paid, per rung ────────────────────────────────────────
+
+/**
+ * One bill line an expense is on, as the reader's rung reads it.
+ *
+ * Read only where the reader is the seller or the payer on the line's
+ * contract: the query is scoped that way and `rungBilled` checks again.
+ */
+export interface ExpenseBillLine {
+  /** The firm that issued the bill: the seller on the line's contract. */
+  sellerId: string
+  /** The firm it is addressed to: the customer on the line's contract. */
+  payerId: string
+  payerName: string
+  /** The bill's own number and status. */
+  number: string
+  status: string
+}
+
+/** A bill as one rung reads it: not sent yet, sent, or paid in full. */
+export type BillState = 'DRAFT' | 'BILLED' | 'PAID'
+
+export interface RungBilled {
+  /** The reader's own bill of the expense to the firm above it. */
+  byReader: { to: string; number: string; state: BillState } | null
+  /** Its own supplier's bill of the expense to the reader. Never a draft: a draft has not been sent. */
+  toReader: { number: string; state: Exclude<BillState, 'DRAFT'> } | null
+}
+
+/** A bill that holds nothing: withdrawn, cancelled or void. */
+const DEAD = ['VOID', 'CANCELLED']
+
+const stateOf = (status: string): BillState => (status === 'DRAFT' ? 'DRAFT' : status === 'PAID' ? 'PAID' : 'BILLED')
+
+/**
+ * Where an expense stands on the bills of one rung.
+ *
+ * Coordinator's decision, 2026-10-19 (reversible by the founder in a
+ * sentence): `Expense.invoiceId` and its status INVOICED and PAID are the
+ * employer's rung only — the employer's own bill of the expense to the
+ * firm directly above it. Every rung above reads billed and paid from its
+ * own lines. So a client never reads an expense as invoiced because a
+ * sub-vendor two rungs down billed the firm in the middle, and the firm
+ * in the middle reads its own bill upward and its supplier's bill to it,
+ * and nothing between two firms below it.
+ */
+export function rungBilled(readerId: string, lines: readonly ExpenseBillLine[]): RungBilled {
+  const live = lines.filter((l) => !DEAD.includes(l.status))
+  const mine = live.find((l) => l.sellerId === readerId) ?? null
+  const theirs = live.find((l) => l.payerId === readerId && l.status !== 'DRAFT') ?? null
+  return {
+    byReader: mine ? { to: mine.payerName, number: mine.number, state: stateOf(mine.status) } : null,
+    toReader: theirs ? { number: theirs.number, state: stateOf(theirs.status) as Exclude<BillState, 'DRAFT'> } : null,
+  }
+}
+
+/** The words a row adds for its own rung's bills. */
+export function billedWords(b: RungBilled): string[] {
+  const out: string[] = []
+  if (b.toReader) out.push(`billed to you on ${b.toReader.number}${b.toReader.state === 'PAID' ? ', paid' : ''}`)
+  if (b.byReader) {
+    out.push(
+      b.byReader.state === 'DRAFT'
+        ? `on draft bill ${b.byReader.number} to ${b.byReader.to}, not sent`
+        : `billed to ${b.byReader.to} on ${b.byReader.number}${b.byReader.state === 'PAID' ? ', paid' : ''}`
+    )
+  }
+  return out
+}
+
+/**
+ * The expense's status as a firm above the employer reads it: INVOICED
+ * once the reader has sent its own bill of it upward, PAID once that bill
+ * is paid in full; until it has — and always for the client at the top,
+ * which bills it to nobody — the same of its own supplier's bill to it.
+ * APPROVED where neither bill exists. Never the employer's own column,
+ * which is the employer's rung.
+ */
+export function rungStatus(b: RungBilled): 'APPROVED' | 'INVOICED' | 'PAID' {
+  const s = b.byReader && b.byReader.state !== 'DRAFT' ? b.byReader.state : b.toReader?.state ?? null
+  return s === 'PAID' ? 'PAID' : s === 'BILLED' ? 'INVOICED' : 'APPROVED'
 }

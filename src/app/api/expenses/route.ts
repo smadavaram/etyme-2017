@@ -4,7 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { isConsultantSeat } from '@/lib/seat'
-import { rowFor, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
+import { rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, expenseOf, legsOverMany, linesBelowPaid, EXPENSE_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
 
@@ -130,7 +130,12 @@ export async function GET(request: NextRequest) {
     const paidWhere = reading?.seated && reading.sellContractWhere ? reading.sellContractWhere : { clientCompanyId: readerId }
     const lines = await linesBelowPaid(paidWhere)
     const approved = [...APPROVED_BY_EMPLOYER] as string[]
-    const statusIn = status ? (approved.includes(status.toUpperCase()) ? [status.toUpperCase()] : []) : approved
+    // Every approved status, whatever was asked: the status a payer reads
+    // is its own rung's, worked out below from its own bills, and the
+    // column is the employer's (coordinator's decision, 2026-10-19). The
+    // filter asked for is applied to the rung's status after.
+    const statusIn = status && !approved.includes(status.toUpperCase()) ? [] : approved
+    const { status: _employersColumn, ...paidNarrow } = narrow
     const [ownRows, paidRows] = await Promise.all([
       // Under a seat the book is the client's, and a client raises no expenses.
       reading?.seated
@@ -142,7 +147,7 @@ export async function GET(request: NextRequest) {
         ? Promise.resolve([] as any[])
         : prisma.expense.findMany({
             where: {
-              ...narrow,
+              ...paidNarrow,
               sellContractId: sellContractId
                 ? (lines.has(sellContractId) ? sellContractId : '__none__')
                 : { in: [...lines] },
@@ -156,9 +161,13 @@ export async function GET(request: NextRequest) {
   }
   const truncated = rows.length > CEILING
 
-  const [legs, decisions] = consultant
-    ? [new Map<string, Leg[]>(), new Map<string, AcceptanceRow[]>()]
-    : await Promise.all([legsOverMany(rows.map((r) => r.sellContractId)), acceptancesOn(rows.map((r) => r.id))])
+  const [legs, decisions, bills] = consultant
+    ? [new Map<string, Leg[]>(), new Map<string, AcceptanceRow[]>(), new Map<string, ExpenseBillLine[]>()]
+    : await Promise.all([
+        legsOverMany(rows.map((r) => r.sellContractId)),
+        acceptancesOn(rows.map((r) => r.id)),
+        billsAtRung(readerId, rows.map((r) => r.id)),
+      ])
 
   const shaped = rows
     .map((r) => {
@@ -167,11 +176,16 @@ export async function GET(request: NextRequest) {
         : rowFor({
             expense: expenseOf(r), legsTopFirst: legs.get(r.sellContractId) ?? [], acceptances: decisions.get(r.id) ?? [],
             reader: { id: readerId, name: readerName }, personId: caller.person.id,
+            billed: rungBilled(readerId, bills.get(r.id) ?? []),
           })
-      return { r, view }
+      // Billed and paid are the reader's own rung's. The column is the
+      // employer's, so a firm above it reads its own bills instead.
+      const rung = consultant || r.companyId === readerId ? r.status : rungStatus(rungBilled(readerId, bills.get(r.id) ?? []))
+      return { r, view, rung }
     })
     .filter(({ view }) => consultant || view!.visible)
-    .map(({ r, view }) => ({
+    .filter(({ r, rung }) => !status || r.companyId === readerId || consultant || rung === status.toUpperCase())
+    .map(({ r, view, rung }) => ({
       id: r.id,
       person: { id: r.personId, name: r.person.name },
       // The one firm on the row: whom the employer bills, or whom a payer
@@ -189,7 +203,7 @@ export async function GET(request: NextRequest) {
       total: Number(r.total),
       currency: (r.sellContract.billCurrency ?? 'USD').toUpperCase(),
       receiptUrl: r.receiptUrl,
-      status: r.status,
+      status: rung,
       submittedAt: r.submittedAt?.toISOString() ?? null,
       approvedAt: r.approvedAt?.toISOString() ?? null,
       rejectedReason: r.rejectedReason,
@@ -244,6 +258,38 @@ export async function GET(request: NextRequest) {
         : null,
     },
   })
+}
+
+/**
+ * The bills each expense is on at the reader's own rung: lines the reader
+ * issued, and lines issued to it. Scoped in the query, so a bill between
+ * two firms below the reader is never read at all.
+ */
+async function billsAtRung(readerId: string, expenseIds: string[]): Promise<Map<string, ExpenseBillLine[]>> {
+  const out = new Map<string, ExpenseBillLine[]>()
+  if (!readerId || expenseIds.length === 0) return out
+  const lines = await prisma.invoiceLine.findMany({
+    where: {
+      expenseId: { in: expenseIds },
+      sellContract: { OR: [{ companyId: readerId }, { clientCompanyId: readerId }] },
+      invoice: { status: { notIn: ['VOID', 'CANCELLED'] } },
+    },
+    select: {
+      expenseId: true,
+      invoice: { select: { number: true, status: true } },
+      sellContract: { select: { companyId: true, clientCompanyId: true, clientCompany: { select: { name: true } } } },
+    },
+  })
+  for (const l of lines) {
+    if (!l.expenseId || !l.sellContract) continue
+    const list = out.get(l.expenseId) ?? []
+    list.push({
+      sellerId: l.sellContract.companyId, payerId: l.sellContract.clientCompanyId,
+      payerName: l.sellContract.clientCompany.name, number: l.invoice.number, status: l.invoice.status,
+    })
+    out.set(l.expenseId, list)
+  }
+  return out
 }
 
 /**
