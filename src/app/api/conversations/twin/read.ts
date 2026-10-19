@@ -32,7 +32,7 @@ import { NextRequest } from 'next/server'
 import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
 import { ladderFor } from '@/lib/work-chain-read'
 import { whereHoursLive } from '@/lib/work-chain'
-import { programMonthlySpend } from '@/lib/program-spend'
+import { firmBilling } from './billing'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import {
@@ -713,25 +713,9 @@ export function readersFor(caller: CallerContext, companyId: string, request?: N
     },
 
     async billing(): Promise<Billing | null> {
-      // A firm's own money: what its live lines bill, read by a seat that
-      // reads money. A client's is the program dashboard's, read there.
-      const company = caller.company
-      if (!ownCompany || !company || company.kind === 'CLIENT' || !hasPermission(caller.permissions, 'invoices.read')) return null
-      const wall = await accountFilterFor(caller)
-      const lines = await prisma.sellContract.findMany({
-        where: andAll({ companyId: company.id, state: 'IN_PROGRESS' }, wall.where),
-        take: 2000,
-        select: { personId: true, billRate: true, billCurrency: true, requirement: { select: { hoursPerWeek: true } } },
-      })
-      if (lines.length === 0) return null
-      const people = new Set(lines.map((l) => l.personId)).size
-      const currencies = [...new Set(lines.map((l) => (l.billCurrency ?? 'USD').toUpperCase()))]
-      const spend = programMonthlySpend(lines.map((l) => ({ rateMinorPerHour: l.billRate ?? null, hoursPerWeek: l.requirement?.hoursPerWeek ?? null })))
-      // A total of some lines presented as the total of all of them is the
-      // plausible wrong number; where any line has no rate, or two
-      // currencies would be added, the figure is left out.
-      const priced = spend.unpriced === 0 && currencies.length === 1
-      return { people, monthlyMinor: priced ? spend.totalMinor : null, currency: priced ? currencies[0] : null }
+      // A firm's own lines only, read in ./billing, apart from every read
+      // here that is scoped by a site.
+      return ownCompany ? firmBilling(caller) : null
     },
 
     async rollingOff(days: number) {

@@ -1512,6 +1512,16 @@ describe('every first screen names a person and the step in front of them (found
     expect(readAsk('What have I billed and not been paid?').kind).toBe('UNPAID')
   })
 
+  it('a firm’s money line reads only the firm’s own sell lines, never a line scoped by the site it works at, so no rung’s rate in a chain reaches it', () => {
+    const billing = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/billing.ts'), 'utf8')
+    expect(billing).toContain("where: andAll({ companyId: company.id, state: 'IN_PROGRESS' }, wall.where),")
+    expect(billing).not.toMatch(/endClientFilter|clientCompanyId|endClientCompanyId/)
+    // The reads scoped by a site carry no rate at all.
+    const read = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
+    expect(read).toContain('endClientFilter(')
+    expect(read).not.toMatch(/billRate|payRate/)
+  })
+
   it('a client’s money line names both figures, a firm’s names what its people bill and what its sub-vendors billed it, and a figure the record cannot price is left out', async () => {
     const rows = spendBySupplier([{ invoiceId: 'i', number: 'N', supplier: 'S', currency: 'USD', totalMinor: 4258700, paidMinor: 0 }])
     const oct = new Date('2026-10-01T00:00:00Z')
