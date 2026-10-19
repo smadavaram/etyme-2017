@@ -15,10 +15,11 @@ import { runSupplierBills, type SupplierBillRun } from '@/lib/money/supplier-bil
  * the automation log are written there, under the role contract.
  *
  * Each supplier firm is then given the same Teams digest a client
- * program is (`tellOnTeams`, conversation's digest). The digest does not
- * yet carry the bill.send questions, so today it tells a supplier's
- * people nothing about bills; those are in Ask Etyme only, and the change
- * the digest needs is written in KNOWN-LIMITS.md under Platform.
+ * program is (`tellOnTeams`, conversation's digest). Since 2026-10-19 the
+ * digest carries each drafted bill's bill.send question as a card, to
+ * whoever may send it, answered with Send bill or Keep it as a draft
+ * through `decideApproval` on surface TEAMS; it is sent once, with no
+ * second reminder before the bill is due (KNOWN-LIMITS.md, item 21).
  */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {

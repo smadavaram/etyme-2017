@@ -45,7 +45,10 @@ import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
 import { seedCalendar, holidayKeys, primeCalendar } from '@/lib/seed-calendar'
 import { seedStanding, STANDING_PARTS } from '@/lib/seed-standing'
 import { seedOrderToCash, ORDER_TO_CASH_PARTS, PART_SHARES, type OrderToCashPart } from '@/lib/seed-order-to-cash'
-import { seedRateChange } from '@/lib/seed-rate-change'
+import { seedRateChange, RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
+import type { SeedContext } from '@/lib/seed-order-to-cash'
+import { readForAcceptance } from '@/lib/money/expense-acceptance-read'
+import { mayDecide } from '@/lib/money/expense-acceptance'
 import { seedPayrollRuns } from '@/lib/seed-payroll-runs'
 import { seedSectorSuppliers, seedSectorPapers, SECTOR_SUPPLIERS, SECTOR_OWNERS } from '@/lib/seed-sector-suppliers'
 import { seedBenchMatching } from '@/lib/seed-bench-matching'
@@ -338,6 +341,117 @@ async function worldAnchor(): Promise<{ createdAt: Date } | null> {
 async function worldId(): Promise<string | null> {
   const first = await db.company.findUnique({ where: { slug: PREFIX + FIRMS[0].slug }, select: { id: true } })
   return first?.id ?? null
+}
+
+
+/**
+ * Two of Rosa Delgado's expenses, accepted like a week.
+ *
+ * The founder, 2026-10-19 (decision 1): an expense is accepted like a
+ * week — the worker's employer approves it for reimbursement, and each
+ * firm that pays for it accepts it before it pays it, the client first.
+ * Rosa is on Brightmoor's own payroll, billed straight to Northbend
+ * Athletic, so one firm accepts: Northbend.
+ *
+ * Two, because there are two places to be. One Northbend's AP clerk
+ * accepted in full, which is the receipt a bill for it carries; one
+ * Brightmoor approved and Northbend has not looked at yet, which is what
+ * Northbend's queue and Brightmoor's "waiting on" read. No bill is raised
+ * for either, as no bill is raised for her weeks (lib/seed-rate-change).
+ *
+ * The acceptance is screened by `mayDecide`, the rule the accept route
+ * runs, before it is written: a seed that wrote a row the route would
+ * refuse would be showing the demo a decision the product cannot make.
+ *
+ * Idempotent: an expense is found by its line and description, and the
+ * acceptance by its unique (expense, firm).
+ */
+export async function seedRosaExpenses(ctx: SeedContext): Promise<{ expenses: number; acceptances: number }> {
+  const done = { expenses: 0, acceptances: 0 }
+  const firm = ctx.firmBySlug.get('brightmoor')
+  const client = ctx.firmBySlug.get('nike')
+  if (!firm || !client) return done
+  const desk = (slug: string, key: string) =>
+    db.person.findUnique({ where: { primaryEmail: `${ctx.prefix}${slug}-${key}@${ctx.domain}` }, select: { id: true } })
+  const [payroll, ap, rosa] = await Promise.all([
+    desk('brightmoor', 'payroll'),
+    desk('nike', 'ap'),
+    db.person.findUnique({ where: { primaryEmail: RATE_CHANGE_PERSON.email }, select: { id: true } }),
+  ])
+  if (!payroll || !ap || !rosa) return done
+  const line = await db.sellContract.findFirst({
+    where: { companyId: firm.id, clientCompanyId: client.id, personId: rosa.id },
+    select: { id: true },
+  })
+  if (!line) return done
+
+  const plan: {
+    description: string
+    items: { description: string; quantity: number; unitPrice: number }[]
+    submittedOn: number
+    approvedOn: number
+    acceptedOn: number | null
+  }[] = [
+    {
+      description: 'Scanner rollout at the Reno distribution center',
+      items: [
+        { description: 'Flight, PDX–RNO return', quantity: 1, unitPrice: 286 },
+        { description: 'Hotel, two nights', quantity: 2, unitPrice: 145 },
+      ],
+      submittedOn: -20, approvedOn: -19, acceptedOn: -16,
+    },
+    {
+      description: 'Peak-season inventory count in Sparks',
+      items: [
+        { description: 'Rental car, three days', quantity: 3, unitPrice: 62 },
+        { description: 'Fuel', quantity: 1, unitPrice: 48 },
+      ],
+      submittedOn: -6, approvedOn: -5, acceptedOn: null,
+    },
+  ]
+
+  for (const e of plan) {
+    const total = Math.round(e.items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0) * 100) / 100
+    let expense = await db.expense.findFirst({
+      where: { sellContractId: line.id, description: e.description }, select: { id: true },
+    })
+    if (!expense) {
+      expense = await db.expense.create({
+        data: {
+          companyId: firm.id, sellContractId: line.id, personId: rosa.id,
+          category: 'TRAVEL', billable: true, description: e.description,
+          periodStart: day(e.submittedOn - 3), periodEnd: day(e.submittedOn - 1),
+          items: e.items as never, total,
+          status: 'APPROVED',
+          submittedAt: day(e.submittedOn),
+          approvedById: payroll.id, approvedAt: day(e.approvedOn),
+          createdAt: day(e.submittedOn),
+        },
+        select: { id: true },
+      })
+      done.expenses++
+    }
+    if (e.acceptedOn == null) continue
+    if (await db.expenseAcceptance.findUnique({
+      where: { expenseId_companyId: { expenseId: expense.id, companyId: client.id } }, select: { id: true },
+    })) continue
+    const read = await readForAcceptance(expense.id)
+    if (!read) continue
+    const verdict = mayDecide({
+      expense: read.expense, legsTopFirst: read.legs, acceptances: read.acceptances,
+      firm: { id: client.id, name: 'Northbend Athletic' }, personId: ap.id,
+      decision: 'ACCEPT', cents: Math.round(total * 100),
+    })
+    if (!verdict.ok) throw new Error(`The seed would write an acceptance the route refuses: ${verdict.says}`)
+    await db.expenseAcceptance.create({
+      data: {
+        expenseId: expense.id, companyId: client.id, byId: ap.id,
+        ...verdict.row, createdAt: day(e.acceptedOn),
+      },
+    })
+    done.acceptances++
+  }
+  return done
 }
 
 /**
@@ -1919,7 +2033,13 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // puts the document an I-9 was completed from behind every I-9 it
   // finds, so an I-9 written after it gained its passport on the second
   // seeding instead of the first.
-  await step('rate-change', () => seedRateChange(ctx))
+  // Her two expenses, one accepted by Northbend and one waiting
+  // (seedRosaExpenses), inside the same step because they hang off the
+  // line this step writes.
+  await step('rate-change', async () => {
+    await seedRateChange(ctx)
+    await seedRosaExpenses(ctx)
+  })
   // The two suppliers outside IT (lib/seed-sector-suppliers), before
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))

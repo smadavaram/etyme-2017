@@ -4409,6 +4409,12 @@ model Expense {
   approvedById    String?
   approvedAt      DateTime?
   rejectedReason  String?
+  /// The one invoice it was billed on. Single-valued from before an
+  /// expense could be billed at more than one rung (InvoiceLine's unique
+  /// is per contract since 2026-10-19), so in a chain it names the last
+  /// rung that billed it; the lines are the truth, and status
+  /// INVOICED/PAID is likewise one value for every rung. Money's to
+  /// settle before a middle firm bills an expense upward.
   invoiceId       String? // linked when invoiced (client-billable only)
   invoiceLines    InvoiceLine[]
   vendorBillLines VendorBillLine[]
@@ -4445,8 +4451,9 @@ model Expense {
 /// between each pair (`MasterAgreement.billableExpenseKinds`), not from
 /// the supplier's own `Expense.billable` flag.
 ///
-/// Nothing writes this yet: money builds acceptance into the chain next
-/// (matrix L3.3.1.2).
+/// Written by lib/money/expense-acceptance (d29b780e6, matrix L3.3.1.2);
+/// the seeded world carries one accepted and one waiting on Rosa
+/// Delgado's Brightmoor → Northbend line.
 model ExpenseAcceptance {
   id String @id @default(cuid())
 
@@ -5439,9 +5446,18 @@ model InvoiceLine {
   /// The guard worth keeping is the one against billing the same week
   /// twice on the same contract, and that is what this says.
   @@unique([timesheetId, sellContractId])
-  /// An expense is billed once, full stop — there is no chain to bill it up.
-  @@unique([expenseId])
-  /// So is a milestone.
+  /// One line per expense per contract, the same rule as the hours above.
+  ///
+  /// This was `@@unique([expenseId])` — "billed once, there is no chain"
+  /// — and that stopped being the rule on 2026-10-19, when an expense
+  /// came to be accepted like a week: each firm that pays it accepts it,
+  /// and each rung bills the amount it accepted to the firm above, on its
+  /// own sell line. One expense, two invoices, two lines, the same as one
+  /// week. The guard kept is billing it twice on the same contract.
+  /// Every expense line carries its sellContractId (lib/expense-billing),
+  /// so the NULLs-are-distinct gap in a composite unique does not open.
+  @@unique([expenseId, sellContractId])
+  /// A milestone is billed once, on the order it sits on.
   @@unique([milestoneId])
   @@index([invoiceId])
   @@index([sellContractId])

@@ -105,31 +105,20 @@ rule set, the nightly run. What is short of that:
     counted as a fallback, never as Teams.
 20. **`TeamsConversation` has a table and no writer of the
     architect's.** Conversation's bot binds and reads it.
-21. **The supplier half of `cron/twin` now calls the Teams digest, and
-    the digest has nothing to say to a supplier yet (2026-10-18).** Each
-    supplier firm gets `tellOnTeams` after its bill run, counted per
-    firm as bot, fallback or nothing, the same as a client program. But
-    `lib/teams/digest` (conversation's) knows only invoice receipts and
-    the time limit, so for a supplier every row reads NOTHING and no
-    message is sent: a `bill.send` question is in Ask Etyme only. The
-    change the digest needs, for etyme-conversation:
-    - `digestFor` reads a third list: `TwinApproval` rows PENDING whose
-      `twinAction.action` is `bill.send`, filtered by the same
-      `mayDecide` (holds `needsPermission`, i.e. `invoices.issue`; is
-      not the authority the twin acts for; did not ask for it). Keys
-      `bill:<approvalId>` and a last call `bill:<approvalId>:due`.
-    - Facts per row, the same as the Ask Etyme card (`ask.ts`/`read.ts`):
-      customer, period, hours, amount, due line. A `billSendFacts` in
-      `lib/teams/facts` and a `billTitle` and a row in `digestCard` in
-      `lib/teams/cards`, with Send bill and Not now as `Action.Submit`
-      carrying the approval id — answered only through `decideApproval`
-      with surface TEAMS, exactly as the invoice card is; Not now on a
-      bill is a recorded no with its reason, as on the web.
-    - `tellProgramOwnerOnTeams` adds the desks holding the pending
-      `bill.send` approvals' `needsPermission` to the people it sends
-      to (it reads `INVOICE_APPROVE` only today); `digestHeading` counts
-      bills.
-    No other Teams path writes state; nothing here adds one.
+21. **Closed 2026-10-19 by etyme-conversation (2e9d58418): the
+    supplier's Teams digest carries the drafted bill.** After its bill
+    run each supplier firm gets `tellOnTeams`, and `lib/teams/digest`
+    now reads the `bill.send` questions through `waitingQuestions`, to
+    each person whose `mayDecide` is true (holds `invoices.issue`, and
+    the owner only where nobody else sends bills, with "Only you send
+    bills here, so Ask Etyme asks you." under the title). The card is
+    customer, period, hours, amount and due line (`billSendFacts`), with
+    Send bill and Keep it as a draft answered only through
+    `decideApproval` on surface TEAMS. What is short of the plan above:
+    **no second reminder before the bill is due.** A bill question is
+    keyed `bill:<approvalId>` and nothing else, so it is sent once; the
+    invoice receipt's `:due` last call has no bill equivalent. No other
+    Teams path writes state; nothing here adds one.
 
 ## Staff bootstrap — etyme-architect (2026-10-14)
 
