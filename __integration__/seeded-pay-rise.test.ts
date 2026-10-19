@@ -399,7 +399,7 @@ describe('a pay rise on the seeded world', () => {
     expect(line.costAllocations.map((a) => [a.costCenter.code, a.shareBps])).toEqual([[DISTRIBUTION, 10_000]])
   })
 
-  it('every week Northbend signed for her is spent against that cost center’s budget, at $112 an hour', async () => {
+  it('every week Northbend signed for her is spent against that cost center’s budget at $112 an hour, with the $576 travel expense Northbend accepted and not the $234 one it has not', async () => {
     const signed = await prisma.timesheet.findMany({
       where: { sellContractId: sellId, clientApprovedAt: { not: null } },
       select: { totalHours: true },
@@ -407,13 +407,30 @@ describe('a pay rise on the seeded world', () => {
     const hours = signed.reduce((n, t) => n + Number(t.totalHours), 0)
     expect(hours).toBeGreaterThan(0)
 
+    // Her two travel expenses, both approved by Brightmoor for her pay.
+    // Northbend accepted one in full; the other waits on its AP clerk.
+    // An expense is spend against the cost center once the client has
+    // accepted it, at what it accepted — never on the employer's
+    // approval alone, which is an opinion about reimbursing her, not
+    // about what Northbend owes.
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId }, select: { clientCompanyId: true } })
+    const expenses = await prisma.expense.findMany({
+      where: { sellContractId: sellId, billable: true },
+      select: { total: true, status: true, acceptances: { where: { companyId: line.clientCompanyId }, select: { status: true, acceptedCents: true } } },
+      orderBy: { total: 'desc' },
+    })
+    expect(expenses.map((e) => [Number(e.total), e.status, e.acceptances.map((a) => [a.status, a.acceptedCents])])).toEqual([
+      [576, 'APPROVED', [['ACCEPTED', 57_600]]],
+      [234, 'APPROVED', []],
+    ])
+
     as(NORTHBEND_HIRING)
     const r = await json(await budget(req('GET', '/api/program/budget')))
     expect(r.status).toBe(200)
     const center = r.body.data.centers.find((c: any) => c.code === DISTRIBUTION)
     expect(center).toBeDefined()
     expect(center.unit).toBe('Distribution')
-    expect(center.actualCents).toBe(Math.round(hours * 11_200))
+    expect(center.actualCents).toBe(Math.round(hours * 11_200) + 57_600)
   })
 
   it('a month whose last week is accepted the evening before the world is born is not yet run that day, and is run from the day after, whatever day the world is born', () => {

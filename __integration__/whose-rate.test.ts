@@ -239,7 +239,7 @@ describe('tenure counts days actually served, never the length of the contract',
 })
 
 describe('what a client has spent is counted at the desk that signed for it', () => {
-  it('charges a week filed on a supplier\u2019s own leg to the cost center that owns the role', async () => {
+  it('charges a week filed on a supplier\u2019s own leg to the cost center that owns the role, and an expense only once Northbend has accepted it', async () => {
     as(NIKE_HIRING)
     const budgets = await json(await budget(req('GET', '/api/program/budget')))
     expect(budgets.status).toBe(200)
@@ -249,11 +249,23 @@ describe('what a client has spent is counted at the desk that signed for it', ()
       (n: number, t: any) => n + (t.overtime.billableCents ?? 0), 0
     )
 
+    // What Northbend itself accepted of an expense, at the amount it
+    // accepted. An expense its supplier approved and Northbend has not
+    // looked at yet is not spend: on the seeded world that is Rosa
+    // Delgado's $576 trip, accepted, beside a $234 one still waiting.
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const accepted = await prisma.expenseAcceptance.findMany({
+      where: { companyId: northbend.id, status: 'ACCEPTED', expense: { billable: true } },
+      select: { acceptedCents: true },
+    })
+    const acceptedCents = accepted.reduce((n, a) => n + a.acceptedCents, 0)
+    expect(acceptedCents).toBe(57_600)
+
     // Helena's weeks hang off Techpeple's leg, which no cost center is
     // allocated, so the budget missed every one of them: $18k against
     // the $35,800 the client had signed for.
     expect(signed).toBeGreaterThan(0)
-    expect(budgets.body.data.summary.actualCents).toBe(signed)
+    expect(budgets.body.data.summary.actualCents).toBe(signed + acceptedCents)
   })
 })
 
