@@ -1726,6 +1726,47 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
         supplierDesks++
       }
     }
+
+    // A middle firm's AP & Payroll desk. A prime or an integrator that
+    // buys from a firm below it receives that firm's invoice and pays
+    // it, and that is the AP & Payroll desk's job. Each of these had
+    // only its owner seated, so the Accounts payable screen could not be
+    // opened as the person it is for (/api/demo desk `ap` answered
+    // NOT_SEEDED at Computer Systems, 2026-10-19). One seat each, added
+    // after the owner so the owner stays the firm's first seat.
+    const MIDDLE_FIRM_AP: { slug: string; name: string }[] = [
+      { slug: 'computer-systems', name: 'Lorna Whitcombe' },
+      { slug: 'vertex-global',    name: 'Callum Dravecky' },
+      { slug: 'pinnacle',         name: 'Ingrid Halvorsen' },
+      { slug: 'teleworld',        name: 'Ravi Kalathil' },
+      { slug: 'sundara',          name: 'Meenakshi Raman' },
+    ]
+    for (const m of MIDDLE_FIRM_AP) {
+      const firm = firmBySlug.get(m.slug)
+      if (!firm) continue
+      const kind = FIRMS.find((f) => f.slug === m.slug)?.kind
+      const seed = kind ? rolesFor(kind).find((r) => r.name === 'AP & Payroll') : undefined
+      if (!seed) continue
+      const role =
+        (await db.role.findFirst({ where: { companyId: firm.id, name: 'AP & Payroll' }, select: { id: true } })) ??
+        (await db.role.create({
+          data: { companyId: firm.id, name: 'AP & Payroll', permissions: seed.permissions, isDefault: false },
+          select: { id: true },
+        }))
+      const email = `${PREFIX}${m.slug}-payroll@${DOMAIN}`
+      const who = await db.person.upsert({
+        where: { primaryEmail: email }, update: { name: m.name }, create: { name: m.name, primaryEmail: email },
+      })
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: firm.id } }))) {
+        await db.context.create({
+          data: {
+            personId: who.id, companyId: firm.id, roleId: role.id, type: 'EMPLOYEE',
+            grantReason: 'Seeded supplier seat — AP & Payroll',
+          },
+        })
+      }
+      supplierDesks++
+    }
   })
 
   // ── A compliance desk a program office sits at ─────────────────────
