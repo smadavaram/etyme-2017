@@ -1,7 +1,7 @@
 import { sign, read, baseUrl } from '@/lib/signed-link'
 import { amount, rate } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
-import { formatDay, formatRange } from '@/lib/format-date'
+import { formatDay, formatMonthLong, formatRange } from '@/lib/format-date'
 import { andList, hello, paragraphs } from '@/lib/notify/letters'
 import type { DeliveryState } from '@/lib/notification-delivery'
 
@@ -148,7 +148,7 @@ export function billPeriod(start: Date, end: Date): string {
     start.getUTCMonth() === end.getUTCMonth() &&
     nextDay.getUTCDate() === 1
   if (wholeMonth) {
-    return start.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' })
+    return formatMonthLong(start)
   }
   return formatRange(start, end)
 }

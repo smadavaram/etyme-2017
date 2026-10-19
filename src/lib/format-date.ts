@@ -95,6 +95,13 @@ export function formatMonth(d: DayInput | null | undefined): string | null {
   return d == null ? null : toDate(d).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', year: 'numeric' })
 }
 
+/** The month said in full — "October 2026" — for a letter, where "Oct 2026" reads clipped. */
+export function formatMonthLong(d: DayInput): string
+export function formatMonthLong(d: DayInput | null | undefined): string | null
+export function formatMonthLong(d: DayInput | null | undefined): string | null {
+  return d == null ? null : toDate(d).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' })
+}
+
 /**
  * Two days: "Oct 6 – Oct 10, 2026" inside one year, the year said once;
  * "Dec 29, 2025 – Jan 2, 2026" across two; one day alone where both are
