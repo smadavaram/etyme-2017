@@ -6,7 +6,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { readThread, appendTurn, markCard, clearThread, NOT_KEPT_IN_DEMO } from '@/lib/ask-etyme-thread'
 import { GET as askGet, POST as askPost, PATCH as askPatch, DELETE as askDelete } from '@/app/api/conversations/twin/route'
 import { ONLY_THE_RECORD } from '@/app/api/conversations/twin/transaction'
-import { NOT_THEIR_RATE, FILE_IT_YOURSELF, NEVER_FILES, WORKER_NOT_KEPT, WORKER_CLOSE } from '@/app/api/conversations/twin/worker'
+import { NOT_THEIR_RATE, FILE_IT_YOURSELF, NEVER_FILES, WORKER_CLOSE } from '@/app/api/conversations/twin/worker'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 /**
@@ -631,16 +631,30 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(await prisma.askEtymeThread.count({ where: { personId: person.id, companyId: techpeple } })).toBe(1)
   })
 
-  it('a candidate with no company seat reads her own greeting, and is told in one line that her conversation is not kept yet', async () => {
+  it('a candidate with no company seat keeps her own Ask Etyme thread, read back after a reload', async () => {
     as(SOLO)
     const r = await json(await askGet(req('GET', '/api/conversations/twin')))
     expect(r.status).toBe(200)
     expect(r.body.data.answer.kind).toBe('WORKER')
     expect(r.body.data.answer.says).toBe('Nothing needs you today. Checked just now.')
     expect(r.body.data.answer.more.map((l: any) => l.says)).toContain('Nobody has placed you yet. Firms find you through Your page.')
-    expect(r.body.data.thread).toEqual({ saved: false, notKeptBecause: WORKER_NOT_KEPT, earlier: false, turns: [] })
+    expect(r.body.data.thread).toMatchObject({ saved: true, notKeptBecause: null, turns: [] })
     const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What am I owed?' })))
-    expect(asked.body.data).toMatchObject({ kept: false, notKeptBecause: WORKER_NOT_KEPT })
+    expect(asked.body.data).toMatchObject({ kept: true, notKeptBecause: null })
     expect(asked.body.data.answer.says).toBe('Nothing is owed to you right now. Checked just now.')
+    // The reload: her question and the answer come back under the greeting.
+    const back = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(back.body.data.thread.turns.map((t: any) => [t.speaker, t.text])).toEqual([
+      ['PERSON', 'What am I owed?'], ['ETYME', asked.body.data.answer.says],
+    ])
+    const rui = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: SOLO }, select: { id: true } })
+    expect(await prisma.askEtymeThread.findMany({ where: { personId: rui.id }, select: { companyId: true, personOnlyId: true } }))
+      .toEqual([{ companyId: null, personOnlyId: rui.id }])
+    // Clear starts her over, and the greeting stands.
+    const cleared = await json(await askDelete(req('DELETE', '/api/conversations/twin')))
+    expect(cleared.body.data).toMatchObject({ saved: true, notKeptBecause: null })
+    const after = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(after.body.data.thread.turns).toEqual([])
+    expect(after.body.data.answer.kind).toBe('WORKER')
   })
 })

@@ -9,7 +9,7 @@ import { GET as programPicture } from '@/app/api/program/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker, WORKER_NOT_KEPT } from './worker'
+import { isWorkerSeat, workerToday, respondWorker } from './worker'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
 
@@ -61,8 +61,9 @@ import { owedTotal } from './owed'
  * bench, or a firm's own employee whose seat reads only their own work —
  * is greeted and answered about her own work, from her own doors
  * (./worker-read), by rules only: no model, no twin act, no firm's queue.
- * Her thread is kept exactly as any seat's. A worker with no company seat
- * at all has no thread to keep yet, and is told so in one line.
+ * Her thread is kept exactly as any seat's. A candidate with no company
+ * seat at all keeps one thread of her own, keyed on her alone by the door
+ * (`threadKey` in lib/ask-etyme-thread), and Clear clears it.
  */
 /**
  * People on site today and the suppliers they come through, as the
@@ -211,7 +212,7 @@ async function owedCount(caller: Caller, request: NextRequest) {
 /** The worker's greeting and her saved thread. Rules only; the one write is her own notices marked read. */
 async function workerGreeting(caller: Caller, request: NextRequest) {
   const take = takeOf(request)
-  const thread = caller.company ? () => threadFor(caller, take) : async (): Promise<ThreadOut> => ({ saved: false, notKeptBecause: WORKER_NOT_KEPT, earlier: false, turns: [] })
+  const thread = () => threadFor(caller, take)
   if (request.nextUrl.searchParams.get('only') === 'thread') {
     return NextResponse.json({ data: { thread: await thread() } })
   }
@@ -261,9 +262,7 @@ export async function POST(request: NextRequest) {
     }
     const kept = !text.trim()
       ? { kept: false, turnId: null, notKeptBecause: null }
-      : caller.company
-        ? await keep(caller, text.trim(), answer)
-        : { kept: false, turnId: null, notKeptBecause: WORKER_NOT_KEPT }
+      : await keep(caller, text.trim(), answer)
     return NextResponse.json({ data: { answer, ...kept } })
   }
   if (!caller.company) {
@@ -360,11 +359,8 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  // A worker with no company seat keeps nothing, so Clear has nothing to clear.
-  if (!caller.company && asWorker(caller)) {
-    return NextResponse.json({ data: { saved: false, clearedAt: null, notKeptBecause: WORKER_NOT_KEPT } })
-  }
-  if (!caller.company) {
+  // A candidate with no company seat clears her own thread, keyed on her alone.
+  if (!caller.company && !asWorker(caller)) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   try {
@@ -376,7 +372,7 @@ export async function DELETE(request: NextRequest) {
         : { saved: false, clearedAt: null, notKeptBecause: cleared.says },
     })
   } catch (err) {
-    await reportError('Ask Etyme could not clear a conversation', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
+    await reportError('Ask Etyme could not clear a conversation', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
     return NextResponse.json({ error: { code: 'NOT_CLEARED', message: 'Your conversation was not cleared, so nothing changed. Staff have been told; try again in a minute.' } }, { status: 500 })
   }
 }

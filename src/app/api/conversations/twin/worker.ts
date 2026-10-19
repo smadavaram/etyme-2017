@@ -85,13 +85,6 @@ export const WORKER_FOOTER = 'Etyme answers from your own record. It never files
 /** The boundary, the greeting's last line, for a worker: nothing she types leaves. */
 export const WORKER_BOUNDARY = 'Your record stays yours. Every read is logged. Nothing you type leaves to a model.'
 
-/**
- * A worker signed in through no company seat — an independent candidate.
- * Her answers work on the screen; the saved thread is keyed to a company
- * seat, so it waits on a thread that can belong to a person alone.
- */
-export const WORKER_NOT_KEPT = 'Your conversation is not kept after you leave this page yet. Your answers still work here.'
-
 /** A general question with no record behind it. */
 export const ONLY_YOUR_WORK =
   'I answer only about your own work: your weeks, your pay, your papers, your interviews and your consent.'
