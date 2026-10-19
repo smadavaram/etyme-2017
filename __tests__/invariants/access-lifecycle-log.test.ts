@@ -359,3 +359,50 @@ describe('every access-log row goes through one door', () => {
     }
   })
 })
+
+// ── One person's own Ask Etyme conversation ────────────────────────────
+//
+// `lib/ask-etyme-thread` is the architect's door; the name it files a
+// refusal under is this domain's, in the AccessAction union. Until
+// 2026-10-19 the door wrote the name with a cast, because the union did
+// not have it, and a name the type does not know is a name nobody can be
+// sure is spelled the way a query will look for it.
+
+/** The names the AccessAction union lists, read from its source. */
+function accessActionNames(): string[] {
+  const src = readFileSync(join(process.cwd(), 'src/lib/access-log.ts'), 'utf8')
+  const start = src.indexOf('export type AccessAction =')
+  expect(start, 'cannot find the AccessAction union').toBeGreaterThan(-1)
+  const end = src.indexOf('\ninterface ', start)
+  const body = src.slice(start, end)
+    .split('\n')
+    .map((l) => l.replace(/\/\/.*$/, ''))
+    .join('\n')
+  return [...body.matchAll(/\|\s*'([A-Z_]+)'/g)].map((m) => m[1])
+}
+
+describe('a refused read of somebody else’s Ask Etyme conversation is in the trail under a name of its own', () => {
+  const DOOR = readFileSync(join(process.cwd(), 'src/lib/ask-etyme-thread.ts'), 'utf8')
+
+  it('the name the Ask Etyme door files a refusal under is one the access log lists, spelled out in full', () => {
+    const named = DOOR.match(/THREAD_READ_ACTION\s*=\s*'([A-Z_]+)'/)
+    expect(named, 'the door no longer names the action it files a refusal under').not.toBeNull()
+    expect(named![1]).toBe('ASK_ETYME_THREAD_VIEW')
+    expect(accessActionNames()).toContain('ASK_ETYME_THREAD_VIEW')
+  })
+
+  it('both of the door’s refusals — reading another person’s conversation, and marking a card on a line of it — wait for their row before they answer', () => {
+    const sites = [...DOOR.matchAll(/recordRefusal\(/g)].map((m) => m.index!)
+    expect(sites.length, 'the door refuses in two places').toBeGreaterThanOrEqual(2)
+    for (const at of sites) {
+      expect(DOOR.slice(Math.max(0, at - 6), at), 'a refusal that does not wait for its row').toBe('await ')
+      expect(DOOR.slice(at, DOOR.indexOf('})', at))).toContain('action: THREAD_READ_ACTION')
+    }
+  })
+
+  it('every action name in the access log is listed once, so a new name cannot shadow an old one', () => {
+    const names = accessActionNames()
+    expect(names.length).toBeGreaterThan(20)
+    expect(new Set(names).size).toBe(names.length)
+  })
+})

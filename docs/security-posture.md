@@ -359,6 +359,15 @@ sample only when it hands the log its caller (`accessActor` in
 `src/lib/access-log.ts`), and none does yet; one look at the frame writes
 sixteen `CONTRACT_VIEW` rows under her name from `/api/program`.
 
+**A person's own Ask Etyme conversation.** Each seat keeps one saved
+conversation, read only by the person it belongs to
+(`src/lib/ask-etyme-thread.ts`). Nobody else at the company and nobody at
+another company can open it. Asking for another person's conversation,
+or marking a card on a line of it, is refused, and the refusal is filed
+as `ASK_ETYME_THREAD_VIEW` before the answer goes out. The person reading
+their own conversation writes no row, because it is not a read of
+anybody else's data.
+
 ---
 
 ## 5. Segregation of duties, enforced
@@ -712,6 +721,13 @@ Stated in one place so a reviewer does not have to assemble it.
 - A resume a candidate removes is soft-deleted: hidden from their list,
   still readable by a company it was already sent to, because Etyme
   cannot unsend it (`Resume.deletedAt`).
+- **A saved Ask Etyme conversation is not yet in the export, the erasure
+  or the retention schedule.** The tables exist and nothing writes them
+  yet; the route that saves a conversation is still to come. The privacy
+  notice does not list the conversation as a category yet either. All
+  three are owed before the route ships, and until they land an erasure
+  would leave a person's own questions to Ask Etyme on the record under
+  the tombstone.
 
 **Infrastructure**
 - No data residency control. One deployment, one database, no regional

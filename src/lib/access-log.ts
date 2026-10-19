@@ -116,6 +116,18 @@ export type AccessAction =
   // tried in; its actor is SAMPLE. It holds the method and the route and
   // nothing about the visitor: no address, no browser.
   | 'SAMPLE_WRITE'              // the shared sample tried to change something, and was refused
+  // ── One person's own Ask Etyme conversation ────────────────────────
+  //
+  // `lib/ask-etyme-thread` (etyme-architect, 2026-10-19): each seat keeps
+  // one saved conversation, read by nobody but the person it belongs to
+  // (founder, 2026-10-18). The door reads and writes only the caller's
+  // own thread at the caller's own company, so the one row this name is
+  // filed under is a refusal: somebody asked for another person's thread,
+  // or tried to mark a card on a line of it, and was told no. Named on its
+  // own rather than filed under PROFILE_VIEW or CONTRACT_VIEW, because
+  // "who tried to read somebody's conversation with Ask Etyme" is a
+  // question a person asks about themselves, and it should be one query.
+  | 'ASK_ETYME_THREAD_VIEW'     // asked for, or tried to write on, another person's Ask Etyme conversation, and was refused
 
 interface LogAccessBase {
   /** The person whose data was accessed */
