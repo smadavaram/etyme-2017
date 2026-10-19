@@ -2734,6 +2734,37 @@ pays on its own agreement, never on a rule the platform sets:
   sent-back bill landing as a card (money, conversation); then Ask Etyme
   for workers.
 
+**Four decisions on the founder's "go with your recommendations",
+2026-10-19**, each reversible in a sentence:
+1. **An expense is accepted like a week.** The worker's employer approves
+   it for reimbursement; each firm above accepts it before it pays it,
+   the client first and then down the chain, nobody accepting their own;
+   whether a kind of expense is billable comes from the agreement between
+   each pair, not from the supplier's own flag. Today only the firm that
+   raised the expense approves it, and the payer never does; that is the
+   gap this closes. Schema: an acceptance per firm on the expense, and
+   billable kinds on the agreement (architect), then money.
+2. **Where nobody but the Owner sends bills, the Owner may say yes to
+   the twin's bill in Ask Etyme.** "Nobody signs their own" protects money
+   going out; a bill is a request for money coming in, and the Owner is
+   reviewing the machine's draft, not their own work. The exception
+   applies only when no other seat at the firm holds `invoices.issue`,
+   and the ledger records that it applied. Anywhere a second person
+   exists, that person says yes and the Owner still cannot.
+3. **A sub-vendor's overtime is priced on the decision made when the
+   client signed the week**, carried down the chain the way the hours
+   already are; never on the sub-vendor's own contract alone.
+4. **On a cut week, a sub-vendor's invoice loses overtime first**, the
+   same as every bill, because to the firm paying it, it is a bill. The
+   worker's own pay keeps the opposite rule (ordinary hours first),
+   because on pay the firm is protecting its worker.
+
+**And the privacy notice and DPA name the saved Ask Etyme conversation**
+(founder, the same day, "go with your recommendations" on the lines
+shown to him): a row in sections 3 and 10, four words in section 11,
+two cells of the DPA's section 3, "Last updated" October 19, 2026 — a
+fact correction, nothing else moved.
+
 ### Why collapsing the layers still breaks real cases — read now as header and lines
 
 **A sell contract is per person; an order is not.** One order for a
