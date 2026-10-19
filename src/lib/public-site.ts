@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
 import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
+import { speaksForItself } from '@/lib/public-site/speaks'
 
 /**
  * What the world sees at techpeple.etyme.com.
@@ -205,6 +206,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     select: {
       id: true, name: true, slug: true, kind: true, supplierPosture: true,
       siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
+      claimedAt: true, _count: { select: { contexts: { where: { roleId: { not: null } } } } },
       siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
       locations: {
         where: { isRemote: false },
@@ -215,6 +217,10 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   })
 
   if (!company?.siteLiveAt) return null
+  // A firm somebody else wrote down has no page: nobody there agreed to one.
+  if (!speaksForItself({ siteLiveAt: company.siteLiveAt, claimedAt: company.claimedAt, seats: company._count.contexts })) {
+    return null
+  }
 
   const audience = audienceFor(company.kind)
 

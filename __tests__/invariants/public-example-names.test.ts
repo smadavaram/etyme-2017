@@ -39,6 +39,7 @@ import { ASK_COPY } from '@/lib/public-site/leads'
 import { CENSUS_COPY, promises } from '@/lib/census-copy'
 import { sampleFirms } from '@/lib/public-site/sample-desk'
 import { SAMPLE_LABEL } from '@/lib/public-site/sample-desk-view'
+import { speaksForItself } from '@/lib/public-site/speaks'
 
 const ROOT = process.cwd()
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8')
@@ -278,5 +279,31 @@ describe('An invented company never reads as a customer', () => {
     // wording passes, so the change is not blocked by this file.
     const demo = read('src/app/demo/page.tsx')
     expect(demo).toMatch(/the companies are invented|not a customer|not customers/)
+  })
+})
+
+describe('a company another firm wrote down has no public page', () => {
+  const live = new Date('2026-10-19T00:00:00Z')
+
+  it('a client a supplier put on its own register gets no public page, because nobody there agreed to one', () => {
+    expect(speaksForItself({ siteLiveAt: live, claimedAt: null, seats: 0 })).toBe(false)
+  })
+
+  it('a firm that signed up and seated somebody keeps its public page', () => {
+    expect(speaksForItself({ siteLiveAt: live, claimedAt: null, seats: 1 })).toBe(true)
+  })
+
+  it('a firm that took possession of the record somebody else made gets its public page', () => {
+    expect(speaksForItself({ siteLiveAt: live, claimedAt: live, seats: 0 })).toBe(true)
+  })
+
+  it('a firm whose page was never turned on has none, whoever is seated there', () => {
+    expect(speaksForItself({ siteLiveAt: null, claimedAt: live, seats: 3 })).toBe(false)
+  })
+
+  it('the public page asks the rule before it draws anything', () => {
+    const LIB = readFileSync(join(process.cwd(), 'src/lib/public-site.ts'), 'utf8')
+    expect(LIB).toContain('speaksForItself({')
+    expect(LIB).toContain('claimedAt: true')
   })
 })
