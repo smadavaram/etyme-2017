@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { approvedLine, setPasswordHref, backToClaim, jobsWaiting, WORK_ACCOUNT } from '@/app/claim/[token]/words'
+import { approvedLine, setPasswordHref, backToClaim, jobsWaiting, WORK_ACCOUNT, clientClaimLine, claimLine, claimEyebrow } from '@/app/claim/[token]/words'
 
 /**
  * The page an approved supplier opens to take its account.
@@ -57,5 +57,26 @@ describe('a firm that has just claimed its account opens setup', () => {
   it('a newly claimed owner is sent to setup, whichever door they signed in by, never to invitations', () => {
     expect(ROUTE).toContain("landing: '/start'")
     expect(ROUTE).not.toContain("landing: '/dashboard/invitations'")
+  })
+})
+
+describe('a client its supplier invited claims its own record', () => {
+  const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/claim/[token]/route.ts'), 'utf8')
+
+  it('a client a supplier invited is told the supplier keeps a record of their work together, never that the supplier approved it', () => {
+    expect(clientClaimLine('Tapin')).toBe('Tapin, your supplier, keeps a record of your work together on Etyme. Set a password to take it.')
+    expect(clientClaimLine('Tapin', true)).toBe('Tapin, your supplier, keeps a record of your work together on Etyme.')
+    expect(claimLine({ company: 'Northbend Athletic', invitedBy: 'Tapin', invitedAs: 'CLIENT' })).not.toContain('approved')
+    expect(claimLine({ company: 'Brookfield Walk Staffing', invitedBy: 'Northbend Athletic', invitedAs: 'SUPPLIER' })).toBe(
+      'Brookfield Walk Staffing was approved by Northbend Athletic. Set a password to take this account.'
+    )
+    expect(claimEyebrow('CLIENT')).toBe('Client account')
+    expect(claimEyebrow('SUPPLIER')).toBe('Supplier account')
+  })
+
+  it('the claim read says whether the invited company is a client, from the company’s own kind, and the page never offers a client jobs', () => {
+    expect(ROUTE).toContain("invitedAs: invite.company.kind === 'CLIENT' ? 'CLIENT' : 'SUPPLIER',")
+    expect(PAGE).toContain('{claimLine(claim, claim.alreadyClaimed)}')
+    expect(PAGE).toContain("claim.invitedAs !== 'CLIENT' && jobsWaiting(")
   })
 })

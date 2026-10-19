@@ -6,6 +6,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { readThread, appendTurn, markCard, clearThread, NOT_KEPT_IN_DEMO } from '@/lib/ask-etyme-thread'
 import { GET as askGet, POST as askPost, PATCH as askPatch, DELETE as askDelete } from '@/app/api/conversations/twin/route'
 import { ONLY_THE_RECORD } from '@/app/api/conversations/twin/transaction'
+import { NOT_THEIR_RATE, FILE_IT_YOURSELF, NEVER_FILES, WORKER_NOT_KEPT, WORKER_CLOSE } from '@/app/api/conversations/twin/worker'
 import { ensureDefaultRoles } from '@/lib/company-roles'
 
 /**
@@ -486,5 +487,127 @@ describe('Ask Etyme keeps the conversation through its own route, and the greeti
     const cleared = await json(await askDelete(req('DELETE', '/api/conversations/twin', undefined, { 'x-context-id': shared.id })))
     expect(cleared).toMatchObject({ status: 200, body: { data: { saved: false, notKeptBecause: NOT_KEPT_IN_DEMO } } })
     expect(await prisma.askEtymeThread.count({ where: { personId: shared.personId } })).toBe(0)
+  })
+})
+
+// Ask Etyme for workers (founder, 2026-10-16: the same Ask Etyme, inside
+// their own pages). Walked as the seeded Helena Marsh — on Techpeple's
+// bench, on site at Northbend Athletic through Computer Systems Inc — and
+// Karthik Menon, Teleworld's own W2 with a seat that reads only his own
+// work; then a worker whose thread is kept, and a candidate with no
+// company seat at all.
+describe('a worker reads Ask Etyme about her own work, from her own pages, and Etyme never files for her', () => {
+  const HELENA = 'helena.marsh@seed.etyme.invalid'
+  const KARTHIK_AT = 'karthik.menon@seed.etyme.invalid'
+  const INES = 'ines.okafor@walkthrough.test'
+  const SOLO = 'rui.candidate@walkthrough.test'
+  let helena = ''
+  let techpeple = ''
+
+  beforeAll(async () => {
+    await freshWorld()
+    helena = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA }, select: { id: true } })).id
+    techpeple = (await prisma.company.findFirstOrThrow({ where: { name: 'Techpeple' }, select: { id: true } })).id
+    const ines = await prisma.person.create({ data: { primaryEmail: INES, name: 'Ines Okafor' }, select: { id: true } })
+    await prisma.context.create({ data: { personId: ines.id, companyId: techpeple, type: 'CONSULTANT', grantReason: 'Said yes to the bench' } })
+    const rui = await prisma.person.create({ data: { primaryEmail: SOLO, name: 'Rui Costa' }, select: { id: true } })
+    await prisma.context.create({ data: { personId: rui.id, type: 'CONSULTANT', grantReason: 'Signed up as a candidate' } })
+  }, 600_000)
+
+  it('a worker’s greeting says the week to file, what is signed, what is owed and when, and names every firm in the chain and no rate but her own', async () => {
+    as(HELENA)
+    const r = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(r.status).toBe(200)
+    expect(r.body.data.worker).toBe(true)
+    const a = r.body.data.answer
+    expect(a.kind).toBe('WORKER')
+    expect(a.where).toEqual(['Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc.'])
+    // A week that ended and is not filed, with the hours her job runs.
+    const file = a.cards.find((c: any) => c.act === 'FILE_WEEK')
+    expect(file).toMatchObject({ button: 'File my week', href: '/dashboard/my-work' })
+    expect(file.title).toMatch(/^Your week of [A-Z][a-z]{2} \d+–(?:[A-Z][a-z]{2} )?\d+ isn’t filed yet\.$/)
+    expect(file.says).toMatch(/^40 hours are expected; file it when you are ready\./)
+    expect(a.note).toBe(NEVER_FILES)
+    const lines = a.more.map((l: any) => l.says)
+    // Where the newest week stands, what is owed and for how many unpaid hours, and the rule.
+    expect(lines).toContain('A week is owed to you once Techpeple accepts it, not when the client signs it.')
+    expect(lines.some((l: string) => /^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Techpeple accepted and has not paid yet\.$/.test(l))).toBe(true)
+    expect(lines).toContain(WORKER_CLOSE)
+    // Every firm by name; no rate of any rung, hers included, in the greeting.
+    const said = JSON.stringify(a)
+    expect(said).not.toMatch(/\$145\.00|\$118\.00|\$90\.00 an hour/)
+    expect(said).not.toMatch(/\bdesk\b|program office/i)
+    // A seeded seat every visitor shares keeps no thread, and says so.
+    expect(r.body.data.thread).toEqual({ saved: false, notKeptBecause: NOT_KEPT_IN_DEMO, earlier: false, turns: [] })
+  })
+
+  it('Ask Etyme never files a worker’s week; the card opens her own page, and no week is written', async () => {
+    as(HELENA)
+    const before = await prisma.timesheet.count({ where: { personId: helena } })
+    const r = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'File my week' })))
+    expect(r.status).toBe(200)
+    expect(r.body.data.answer.says).toBe(FILE_IT_YOURSELF)
+    expect(r.body.data.answer.cards.map((c: any) => [c.act, c.href])).toEqual([['FILE_WEEK', '/dashboard/my-work']])
+    expect(await prisma.timesheet.count({ where: { personId: helena } })).toBe(before)
+  })
+
+  it('a worker asks what she is owed and reads the employer’s acceptance, never the client’s signature, as the moment it became owed', async () => {
+    as(HELENA)
+    const r = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What am I owed?' })))
+    expect(r.status).toBe(200)
+    const a = r.body.data.answer
+    expect(a.says).toMatch(/^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Techpeple accepted and has not paid yet\. Checked just now\.$/)
+    expect(a.more.map((l: any) => l.says)).toContain('A week is owed to you once Techpeple accepts it, not when the client signs it.')
+    // Every week in the owed table is one Techpeple accepted; none is waiting on a signature.
+    const accepted = await prisma.timesheet.findMany({
+      where: { personId: helena, OR: [{ employerAcceptedAt: { not: null } }, { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } }] },
+      select: { id: true },
+    })
+    const ids = new Set(accepted.map((t) => t.id))
+    for (const row of a.table.rows) expect(ids.has(row.href.split('/').pop())).toBe(true)
+    // And what one firm charges another for her is never said.
+    const rate = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What does Northbend pay for me?' })))
+    expect(rate.body.data.answer.says).toBe(NOT_THEIR_RATE)
+  })
+
+  it('Karthik Menon, an integrator’s own W2 with no desk, reads his own chain and weeks, never his firm’s queue', async () => {
+    as(KARTHIK_AT)
+    const r = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(r.status).toBe(200)
+    const a = r.body.data.answer
+    expect(a.kind).toBe('WORKER')
+    expect(a.where[0]).toMatch(/^Employed by Teleworld Solutions · (working|worked) at Corveldt Aerospace/)
+    expect(JSON.stringify(a)).not.toMatch(/Meera|invoice receipt|time limit/i)
+    const consent = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'Who has my consent?' })))
+    expect(consent.body.data.answer.more.map((l: any) => l.says)).toContain(
+      'Teleworld Solutions employs you, so it puts you forward without asking. You are told each time.'
+    )
+  })
+
+  it('a worker’s saved thread is kept exactly as any seat’s: her question and the answer come back after a reload, at her own seat', async () => {
+    as(INES)
+    const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'Who has my consent?' })))
+    expect(asked.status).toBe(200)
+    expect(asked.body.data).toMatchObject({ kept: true, notKeptBecause: null })
+    const back = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(back.body.data.answer.kind).toBe('WORKER')
+    expect(back.body.data.thread.turns.map((t: any) => [t.speaker, t.text])).toEqual([
+      ['PERSON', 'Who has my consent?'], ['ETYME', asked.body.data.answer.says],
+    ])
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: INES }, select: { id: true } })
+    expect(await prisma.askEtymeThread.count({ where: { personId: person.id, companyId: techpeple } })).toBe(1)
+  })
+
+  it('a candidate with no company seat reads her own greeting, and is told in one line that her conversation is not kept yet', async () => {
+    as(SOLO)
+    const r = await json(await askGet(req('GET', '/api/conversations/twin')))
+    expect(r.status).toBe(200)
+    expect(r.body.data.answer.kind).toBe('WORKER')
+    expect(r.body.data.answer.says).toBe('Nothing needs you today. Checked just now.')
+    expect(r.body.data.answer.more.map((l: any) => l.says)).toContain('Nobody has placed you yet. Firms find you through Your page.')
+    expect(r.body.data.thread).toEqual({ saved: false, notKeptBecause: WORKER_NOT_KEPT, earlier: false, turns: [] })
+    const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What am I owed?' })))
+    expect(asked.body.data).toMatchObject({ kept: false, notKeptBecause: WORKER_NOT_KEPT })
+    expect(asked.body.data.answer.says).toBe('Nothing is owed to you right now. Checked just now.')
   })
 })

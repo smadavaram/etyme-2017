@@ -37,6 +37,7 @@ import { newMasker, type MaskVocabulary } from './mask'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord } from './transaction'
+import type { WorkerAnswer } from './worker'
 
 // ── What was asked ───────────────────────────────────────────────────
 
@@ -606,6 +607,8 @@ export type Answer =
   | { kind: 'CONFIRM'; says: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; item: WaitingItem }
   | { kind: 'VARIANCE'; says: string; period: { from: string; to: string; label: string }; rows: VarianceRow[] }
   | { kind: 'MODEL'; says: string; links: Link[] }
+  /** A worker's own work: what needs her, where her weeks stand, her chain (./worker). */
+  | WorkerAnswer
 
 /** Hours as a clerk writes them: "41.5", "40". */
 export function hrs(n: number): string {

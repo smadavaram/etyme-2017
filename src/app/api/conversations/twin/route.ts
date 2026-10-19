@@ -9,6 +9,8 @@ import { GET as programPicture } from '@/app/api/program/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, markNoticesSeen } from './notices'
+import { isWorkerSeat, workerToday, respondWorker, WORKER_NOT_KEPT } from './worker'
+import { workerFacts } from './worker-read'
 
 /**
  * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
@@ -52,6 +54,13 @@ import { unreadNotices, markNoticesSeen } from './notices'
  * default; a supplier reads another company's twin only through the
  * ledger's own scope. The thread is always the seat's own, at the seat's
  * own company.
+ *
+ * A worker's seat (./worker, `isWorkerSeat`) — somebody on a firm's
+ * bench, or a firm's own employee whose seat reads only their own work —
+ * is greeted and answered about her own work, from her own doors
+ * (./worker-read), by rules only: no model, no twin act, no firm's queue.
+ * Her thread is kept exactly as any seat's. A worker with no company seat
+ * at all has no thread to keep yet, and is told so in one line.
  */
 /**
  * People on site today and the suppliers they come through, as the
@@ -97,6 +106,11 @@ function needsFor(request: NextRequest): () => Promise<number | null> {
 }
 
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
+
+/** Whether this caller reads Ask Etyme as a worker. */
+function asWorker(caller: Caller): boolean {
+  return isWorkerSeat({ contextType: caller.context.type, permissions: caller.permissions, isService: caller.isService, readOnly: caller.readOnly })
+}
 const NOT_ANSWERED = 'Etyme could not read the record just now, so there is no answer. Staff have been told; try again in a minute.'
 
 /** The thread as the screen reads it: dates as text, nothing the screen does not draw. */
@@ -145,6 +159,7 @@ function takeOf(request: NextRequest): number | undefined {
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  if (asWorker(caller)) return workerGreeting(caller, request)
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -166,6 +181,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: { answer, model, thread: await threadFor(caller, take) } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
+    return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+  }
+}
+
+/** The worker's greeting and her saved thread. Rules only; the one write is her own notices marked read. */
+async function workerGreeting(caller: Caller, request: NextRequest) {
+  const take = takeOf(request)
+  const thread = caller.company ? () => threadFor(caller, take) : async (): Promise<ThreadOut> => ({ saved: false, notKeptBecause: WORKER_NOT_KEPT, earlier: false, turns: [] })
+  if (request.nextUrl.searchParams.get('only') === 'thread') {
+    return NextResponse.json({ data: { thread: await thread() } })
+  }
+  try {
+    const notices = await unreadNotices(caller)
+    const answer = workerToday(await workerFacts(caller, request), { greeting: true, notices })
+    await markNoticesSeen(caller, notices.shown.map((n) => n.id))
+    return NextResponse.json({ data: { answer, model: 'OFF', worker: true, thread: await thread() } })
+  } catch (err) {
+    await reportError('Ask Etyme could not greet a worker', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
 }
@@ -193,6 +226,23 @@ async function keep(caller: Caller, question: string, answer: Answer): Promise<{
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  if (asWorker(caller)) {
+    const body = await request.json().catch(() => ({}))
+    const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
+    let answer: Answer
+    try {
+      answer = await respondWorker(text, { facts: () => workerFacts(caller, request) })
+    } catch (err) {
+      await reportError('Ask Etyme could not answer a worker', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+      return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+    }
+    const kept = !text.trim()
+      ? { kept: false, turnId: null, notKeptBecause: null }
+      : caller.company
+        ? await keep(caller, text.trim(), answer)
+        : { kept: false, turnId: null, notKeptBecause: WORKER_NOT_KEPT }
+    return NextResponse.json({ data: { answer, ...kept } })
+  }
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
@@ -287,6 +337,10 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // A worker with no company seat keeps nothing, so Clear has nothing to clear.
+  if (!caller.company && asWorker(caller)) {
+    return NextResponse.json({ data: { saved: false, clearedAt: null, notKeptBecause: WORKER_NOT_KEPT } })
+  }
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }

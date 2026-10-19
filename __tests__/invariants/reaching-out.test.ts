@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  inviteLetter, nudgeLetter, shouldNudge, NUDGE_AFTER_DAYS, type Invite,
+  inviteLetter, nudgeLetter, shouldNudge, NUDGE_AFTER_DAYS, clientInviteLetter, type Invite,
 } from '@/lib/reaching-out'
 
 /**
@@ -126,5 +126,27 @@ describe('the nudge', () => {
     // invitation becomes spam.
     expect(shouldNudge({ sentAt: daysAgo(9), remindedAt: null, state: 'PENDING' }, 0, 0, NOW).why)
       .toBe('Nothing is waiting for them to answer.')
+  })
+})
+
+describe('the letter to a client a supplier invites', () => {
+  const letter = clientInviteLetter({
+    supplierName: 'Tapin', contactName: 'Dana Whitfield', clientName: 'Northbend Athletic',
+    claimUrl: 'https://etyme2040.vercel.app/claim/xyz789',
+  })
+  const words = letter.body.split(/\s+/).filter((w) => w && !w.startsWith('http')).length
+
+  it('a client invited by its supplier is told the supplier keeps a record of their work together, and to take it by setting a password at the claim link', () => {
+    expect(letter.subject).toBe('Tapin keeps a record of your work together on Etyme')
+    expect(letter.body).toContain('Dana,')
+    expect(letter.body).toContain('Tapin, your supplier, keeps a record of your work together on Etyme:\nyour contractors, their signed weeks and the bills.')
+    expect(letter.body).toContain('Take the record: set a password here.\nhttps://etyme2040.vercel.app/claim/xyz789')
+    expect(letter.body).toContain('If this is not the right person at Northbend Athletic, forward it on.')
+  })
+
+  it('the client’s letter is plain: between sixty and a hundred words, no pitch, no AI, and never says the supplier approved anybody', () => {
+    expect(words).toBeGreaterThanOrEqual(60)
+    expect(words).toBeLessThanOrEqual(100)
+    expect(letter.body).not.toMatch(/\bAI\b|intelligen|platform|powerful|seamless|approved by|desk|program office|!/i)
   })
 })

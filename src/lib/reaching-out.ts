@@ -78,6 +78,51 @@ export function inviteLetter(i: Invite): Letter {
   return { subject, body }
 }
 
+/** A client a supplier already works with, invited to take the record of their work together. */
+export interface ClientInvite {
+  /** The supplier inviting them: "Tapin". */
+  supplierName: string
+  contactName: string | null
+  /** The client company, as the supplier wrote it down. */
+  clientName: string
+  claimUrl: string
+}
+
+/**
+ * The letter to a client that is not on Etyme yet, from a supplier that
+ * works for it.
+ *
+ * The supplier letter above speaks to a firm being offered work; this one
+ * speaks to the firm that pays. A supplier does not approve its client
+ * and does not sell it anything, so the letter says one fact — the
+ * supplier keeps a record of their work together — and offers the one
+ * thing to do with it: take it. No pitch, no AI, no claim the reader
+ * cannot check by opening the link. The subject names the supplier, the
+ * name the client already knows.
+ */
+export function clientInviteLetter(i: ClientInvite): Letter {
+  const hello = i.contactName ? `${i.contactName.split(' ')[0]},` : 'Hello,'
+  return {
+    subject: `${i.supplierName} keeps a record of your work together on Etyme`,
+    body: [
+      hello,
+      '',
+      `${i.supplierName}, your supplier, keeps a record of your work together on Etyme:`,
+      'your contractors, their signed weeks and the bills.',
+      '',
+      'Take the record: set a password here.',
+      i.claimUrl,
+      '',
+      `Once it is yours, you can approve weeks and read bills there. ${i.supplierName} can`,
+      'still send them by email, as now. Your contractors and bills are not shown to',
+      'other suppliers.',
+      '',
+      `If this is not the right person at ${i.clientName}, forward it on. The link`,
+      'only works for an address at your own company.',
+    ].join('\n'),
+  }
+}
+
 /**
  * The nudge, a few days later.
  *

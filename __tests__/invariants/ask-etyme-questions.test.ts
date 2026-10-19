@@ -32,6 +32,7 @@ import {
 } from '@/app/api/conversations/twin/ask'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
+import { respondWorker, type WorkerFacts, type WorkerAnswer } from '@/app/api/conversations/twin/worker'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
 const NO_KEY = {}
@@ -147,6 +148,7 @@ function seat(desk: Desk): Seat {
 
 /** Everything a reply says, in reading order: the recommendation, the headline, the lines under it. */
 function spoken(a: Answer): string {
+  if (a.kind === 'WORKER') return [a.recommend?.says, a.says, ...a.more.map((l) => l.says)].filter(Boolean).join(' ')
   if (a.kind === 'NEEDS') return [a.recommend?.says, a.says, ...(a.more ?? []).map((l) => l.says)].filter(Boolean).join(' ')
   return a.says
 }
@@ -498,3 +500,107 @@ describe('Sade, owner of Halcyon Talent, where nobody else sends bills', () => {
   })
 })
 
+
+describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend Athletic', () => {
+  // Read on Monday Oct 19, 2026, from her own pages: one week ended and not
+  // filed, one week the client signed and the firms below have not
+  // accepted, one week Techpeple accepted and owes her, one paid.
+  const HELENA: WorkerFacts = {
+    seat: 'CONSULTANT', seatAt: 'Techpeple',
+    placements: [{ site: 'Northbend Athletic', through: ['Computer Systems Inc'], employer: 'Techpeple', tie: 'EMPLOYED', live: true, endDate: '2027-03-28', payRateMinor: 9000, payCurrency: 'USD', rateNote: null }],
+    toFile: [{ periodStart: '2026-10-11', periodEnd: '2026-10-17', site: 'Northbend Athletic', ended: true, wholeWeek: true, expectedHours: 40, dueOn: '2026-10-19' }],
+    returned: [],
+    sent: [
+      { id: 'ts-oct4', periodStart: '2026-10-04', periodEnd: '2026-10-10', hours: 40, stage: 'WAITING_FOR_EMPLOYER', waitingOn: 'Computer Systems Inc', client: 'Northbend Athletic', employer: 'Techpeple', approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null },
+      { id: 'ts-sep27', periodStart: '2026-09-27', periodEnd: '2026-10-03', hours: 40, stage: 'OWED', waitingOn: null, client: 'Northbend Athletic', employer: 'Techpeple', approvedBy: null, stillOwedMinor: 360000, owedHours: 40, currency: 'USD', dueOn: '2026-11-09', overdue: false, paidOn: null },
+      { id: 'ts-sep20', periodStart: '2026-09-20', periodEnd: '2026-09-26', hours: 40, stage: 'PAID', waitingOn: null, client: 'Northbend Athletic', employer: 'Techpeple', approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: '2026-10-09' },
+    ],
+    ownCompanyBills: null, weeksWithNoRate: 0,
+    papers: [{ id: 'doc-nda', name: 'Non-disclosure agreement', todo: 'sign', askedBy: 'Northbend Athletic', dueOn: null, stopsWork: false, href: '/dashboard/my-work/paperwork' }],
+    runningOut: [], interviews: [], stays: [],
+    consent: { benches: [{ firm: 'Techpeple', since: 'Mar 2, 2026', stay: 'You stay on Techpeple’s bench until you cancel.' }], asking: [], employers: [] },
+    unread: [],
+  }
+
+  async function worker(question: string, outcome: Outcome, expected: string) {
+    const a: WorkerAnswer = await respondWorker(question, { facts: async () => HELENA })
+    const said = spoken(a)
+    expect(said).toBe(expected)
+    expect(said.startsWith(NOT_YET)).toBe(outcome === 'NOT_YET')
+    if (outcome === 'REFUSED') expect(a.table).toBeUndefined()
+    expect(voiceBreaks(said)).toEqual([])
+    // Her own rate is said only when she asks for it; no firm's rate, ever.
+    expect(JSON.stringify(a)).not.toMatch(/\$118|\$145|11800|14500/)
+    score[outcome]++
+  }
+
+  it('a worker asks “What needs me today?” and reads the week to file first, then where her weeks stand and when one is owed', async () => {
+    await worker('What needs me today?', 'ANSWERED',
+      'File your week of Oct 11–17 for Northbend Athletic. Two things need you. Checked just now. Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. $3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. A week is owed to you once Techpeple accepts it, not when the client signs it.')
+  })
+
+  it('a worker asks “Is my week signed?” and reads who signed it and who has still to accept it', async () => {
+    await worker('Is my week signed?', 'ANSWERED',
+      'Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. Checked just now.')
+  })
+
+  it('a worker asks “Did Northbend approve my hours?” and the rules answer it', async () => {
+    await worker('Did Northbend approve my hours?', 'ANSWERED',
+      'Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. Checked just now.')
+  })
+
+  it('a worker asks “What am I owed?” and reads the employer’s acceptance, never the client’s signature, as the moment it became owed', async () => {
+    await worker('What am I owed?', 'ANSWERED',
+      '$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. Checked just now. The next pay day for it is Nov 9. One week you sent, 40 hours, is not owed yet. It waits for Computer Systems Inc. A week is owed to you once Techpeple accepts it, not when the client signs it.')
+  })
+
+  it('a worker asks “When do I get paid?” and the rules answer it', async () => {
+    await worker('When do I get paid?', 'ANSWERED',
+      '$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. Checked just now. The next pay day for it is Nov 9. One week you sent, 40 hours, is not owed yet. It waits for Computer Systems Inc. A week is owed to you once Techpeple accepts it, not when the client signs it.')
+  })
+
+  it('a worker asks “What papers are due?” and the rules answer it', async () => {
+    await worker('What papers are due?', 'ANSWERED',
+      'Sign your Non-disclosure agreement for Northbend Athletic. One paper is asked of you. Checked just now.')
+  })
+
+  it('a worker asks “Who has my consent?” and the rules answer it', async () => {
+    await worker('Who has my consent?', 'ANSWERED',
+      'One firm holds your consent to put you forward: Techpeple. Checked just now. You stay on Techpeple’s bench until you cancel.')
+  })
+
+  it('a worker asks “Who employs me?” and reads every firm in her chain by name', async () => {
+    await worker('Who employs me?', 'ANSWERED',
+      'Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc. You see every firm in your chain. What one firm charges another stays between them.')
+  })
+
+  it('a worker asks “What is my rate?” and reads her own pay and nobody else’s', async () => {
+    await worker('What is my rate?', 'ANSWERED', 'At Northbend Athletic, Techpeple pays you $90.00 an hour.')
+  })
+
+  it('a worker asks “What does Northbend pay for me?” and is refused in one sentence', async () => {
+    await worker('What does Northbend pay for me?', 'REFUSED', 'Etyme shows you your own pay only; what one firm charges another stays between them.')
+  })
+
+  it('a worker asks “File my week” and is told Etyme never files it; the card opens her own page', async () => {
+    await worker('File my week', 'REFUSED', 'Etyme never files your week; you file it on Your work.')
+  })
+
+  it('a worker asks “Approve my timesheet” and is told who signs it', async () => {
+    await worker('Approve my timesheet', 'REFUSED', 'Etyme never signs a week; Northbend Athletic signs it, then Techpeple accepts it.')
+  })
+
+  it('a worker asks “What is the capital of France?” and is refused in one sentence that says what Ask Etyme helps with', async () => {
+    await worker('What is the capital of France?', 'REFUSED',
+      'I answer only about your own work: your weeks, your pay, your papers, your interviews and your consent.')
+  })
+
+  it('a worker asks “What do other consultants earn here?” and is refused, because another person’s pay is not hers', async () => {
+    await worker('What do other consultants earn here?', 'REFUSED', 'I answer only about your own work, never another person’s pay or a firm’s rates.')
+  })
+
+  it('a worker asks “How many vacation days do I have left?” and is told honestly that Etyme cannot answer it yet', async () => {
+    await worker('How many vacation days do I have left?', 'NOT_YET',
+      'I cannot answer that yet. Ask about what needs you, your signed weeks, your pay, your papers or your consent.')
+  })
+})

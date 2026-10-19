@@ -51,11 +51,15 @@ import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK, offRecord, knownFirm, firmsByForm } from '@/app/api/conversations/twin/transaction'
 import {
+  workerToday, respondWorker, isWorkerSeat, owedSays, chainSays, cardsFor, WORKER_QUESTIONS, WORKER_CLOSE, WORKER_BOUNDARY, NEVER_FILES,
+  FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, type WorkerFacts, type WorkerAnswer, type SentWeek,
+} from '@/app/api/conversations/twin/worker'
+import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   billCardTitle, billRows, billFromPayload, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   NOT_GROUNDED, NOT_YET, REPLACED_NOTE, grounded, cardIdsOf,
-  type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
+  type Answer, type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
@@ -207,6 +211,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     const root = join(process.cwd(), 'src')
     const files = [
       'app/api/conversations/twin/route.ts', 'app/api/conversations/twin/ask.ts', 'app/api/conversations/twin/read.ts',
+      'app/api/conversations/twin/worker.ts', 'app/api/conversations/twin/worker-read.ts',
       'app/dashboard/conversations/ask-etyme.tsx', 'components/twin-conversation.tsx',
     ]
     for (const f of files) {
@@ -216,12 +221,14 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     }
     const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
     expect(chat).toContain('decisionRequest(item.approvalId, decision, reason)')
-    // The chat reaches two places only: its own route (the greeting and the
-    // saved lines, Show earlier, Clear, a card's mark, each question), and
-    // the one approval route.
+    // The chat reaches three places only: its own route (the greeting and the
+    // saved lines, Show earlier, Clear, a card's mark, each question), the
+    // one approval route, and — for a worker's own Renew — the bench route
+    // her Who has you page already renews a stay through.
     expect(chat).toContain("const THREAD = '/api/conversations/twin'")
+    expect(chat).toContain("const RENEW = '/api/me/benches'")
     const calls = [...chat.matchAll(/fetch\(([^,)]+)/g)].map((m) => m[1].trim())
-    expect(calls).toEqual(['THREAD', '`${THREAD}?only=thread&take=1000`', 'THREAD', 'THREAD', 'THREAD', 'url'])
+    expect(calls).toEqual(['THREAD', '`${THREAD}?only=thread&take=1000`', 'THREAD', 'THREAD', 'THREAD', 'url', 'RENEW'])
     // After a yes the reply links to the record and to the ledger entry,
     // and only then is the yes recorded on the line that drew the card.
     expect(chat).toContain("{ label: 'See it in the ledger', href: entryHref(entry) }")
@@ -341,8 +348,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(header).toContain('aria-label="Close Ask Etyme"')
     expect(SUGGESTED_QUESTIONS).toEqual(['What needs me today?', 'Who is near the time limit?', 'What did we spend by supplier this month?', 'Which timesheets are waiting for approval?'])
     expect(FOOTER_LINE).toBe('Etyme answers from the record and its rules. It asks before any outside message or money moves, and every act is in the ledger.')
-    expect(chat).toContain('{FOOTER_LINE}')
-    expect(chat).toContain('placeholder="Ask Etyme about your program…"')
+    expect(chat).toContain('{worker ? WORKER_FOOTER : FOOTER_LINE}')
+    expect(chat).toContain("placeholder={worker ? 'Ask Etyme about your work…' : 'Ask Etyme about your program…'}")
     // The boundary is said on the first screen, and says the truth about the model.
     expect(boundarySays('OFF')).toBe('Your data stays in your company. Every read is logged. Nothing leaves to a model; your company has not turned it on.')
     expect(boundarySays('ON')).toBe('Your data stays in your company. Every read is logged. Free-text questions go to the model your company turned on, masked; every prompt is logged under Settings.')
@@ -1041,5 +1048,219 @@ describe('Ask Etyme never goes beyond the transaction', () => {
     expect(cardIdsOf({ kind: 'NEEDS', says: 'One thing.', items: WAITING })).toEqual(['appr-441'])
     expect(cardIdsOf({ kind: 'CONFIRM', says: 'Approve?', decision: 'APPROVED', reason: null, item: WAITING[0] })).toEqual(['appr-441'])
     expect(cardIdsOf({ kind: 'TEXT', says: 'No card.' })).toEqual([])
+  })
+})
+
+// ── Ask Etyme for a worker (founder, 2026-10-16: the same Ask Etyme, inside her own pages) ──
+
+/** Helena Marsh, on Techpeple's bench, on site at Northbend Athletic through Computer Systems Inc, read on Monday Oct 19, 2026. */
+function helena(over: Partial<WorkerFacts> = {}): WorkerFacts {
+  const week = (id: string, start: string, end: string, stage: SentWeek['stage'], o: Partial<SentWeek> = {}): SentWeek => ({
+    id, periodStart: start, periodEnd: end, hours: 40, stage, waitingOn: null, client: 'Northbend Athletic', employer: 'Techpeple',
+    approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null, ...o,
+  })
+  return {
+    seat: 'CONSULTANT', seatAt: 'Techpeple',
+    placements: [{
+      site: 'Northbend Athletic', through: ['Computer Systems Inc'], employer: 'Techpeple', tie: 'EMPLOYED', live: true, endDate: '2027-03-28',
+      payRateMinor: 9000, payCurrency: 'USD', rateNote: null,
+    }],
+    toFile: [
+      { periodStart: '2026-10-11', periodEnd: '2026-10-17', site: 'Northbend Athletic', ended: true, wholeWeek: true, expectedHours: 40, dueOn: '2026-10-19' },
+      // This week, still running: hers to file as she goes, not a thing to chase.
+      { periodStart: '2026-10-18', periodEnd: '2026-10-19', site: 'Northbend Athletic', ended: false, wholeWeek: false, expectedHours: null, dueOn: null },
+    ],
+    returned: [],
+    sent: [
+      // Signed by the client, not yet accepted by her employer: waiting, never owed.
+      week('ts-oct4', '2026-10-04', '2026-10-10', 'WAITING_FOR_EMPLOYER', { waitingOn: 'Computer Systems Inc' }),
+      // Accepted by Techpeple, the firm that pays her: owed, with its pay day.
+      week('ts-sep27', '2026-09-27', '2026-10-03', 'OWED', { stillOwedMinor: 360000, owedHours: 40, currency: 'USD', dueOn: '2026-11-09' }),
+      week('ts-sep20', '2026-09-20', '2026-09-26', 'PAID', { paidOn: '2026-10-09' }),
+    ],
+    ownCompanyBills: null,
+    weeksWithNoRate: 0,
+    papers: [],
+    runningOut: [],
+    interviews: [],
+    stays: [],
+    consent: { benches: [{ firm: 'Techpeple', since: 'Mar 2, 2026', stay: 'You stay on Techpeple’s bench until you cancel.' }], asking: [], employers: [] },
+    unread: [],
+    ...over,
+  }
+}
+
+/** Every word an answer says, in reading order, cards and table included. */
+function everything(a: WorkerAnswer): string {
+  return [
+    ...(a.where ?? []), a.recommend?.says, a.says,
+    ...a.cards.flatMap((c) => [c.title, c.says, c.button]), a.note,
+    ...(a.table ? a.table.rows.flatMap((r) => r.cells) : []),
+    ...a.more.map((l) => l.says),
+  ].filter(Boolean).join(' ')
+}
+
+describe('Ask Etyme for a worker: her own work, from her own pages, by rules', () => {
+  it('a worker’s greeting says the week to file, what is signed, what is owed and when, and names every firm in the chain and no rate but her own', () => {
+    const a = workerToday(helena(), { greeting: true })
+    expect(a.kind).toBe('WORKER')
+    expect(a.greeting).toBe(true)
+    // The chain by name, every firm, no rate.
+    expect(a.where).toEqual(['Employed by Techpeple · working at Northbend Athletic through Computer Systems Inc.'])
+    // What needs her: the week that ended and is not filed, first.
+    expect(a.recommend?.says).toBe('File your week of Oct 11–17 for Northbend Athletic.')
+    expect(a.says).toBe('One thing needs you. Checked just now.')
+    expect(a.cards.map((c) => [c.title, c.says, c.button, c.href])).toEqual([
+      ['Your week of Oct 11–17 isn’t filed yet.', '40 hours are expected; file it when you are ready. It is due Oct 19.', 'File my week', '/dashboard/my-work'],
+    ])
+    expect(a.note).toBe(NEVER_FILES)
+    // Where her weeks stand, then what is owed and when, then the rule, then the close and the boundary.
+    expect(a.more.map((l) => l.says)).toEqual([
+      'Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple.',
+      '$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet.',
+      'A week is owed to you once Techpeple accepts it, not when the client signs it.',
+      WORKER_CLOSE,
+      WORKER_BOUNDARY,
+    ])
+    // No rate of any rung: not hers ($90 an hour, said only when she asks), and never a firm's.
+    const said = everything(a)
+    expect(said).not.toMatch(/\$90|\$118|\$145|an hour|per hour|bill rate/)
+    for (const line of [a.recommend!.says, a.says, ...a.more.map((l) => l.says), ...a.cards.map((c) => `${c.title} ${c.says}`)]) {
+      expect(voiceBreaks(line), line).toEqual([])
+    }
+    // Never the two words nobody uses.
+    expect(said).not.toMatch(/\bdesk\b|program office/i)
+  })
+
+  it('a week still running is not put to her as unfiled, and the hours expected are said only for a whole week from the job’s own hours', () => {
+    const now = helena({ toFile: [{ periodStart: '2026-10-18', periodEnd: '2026-10-19', site: 'Northbend Athletic', ended: false, wholeWeek: false, expectedHours: null, dueOn: null }] })
+    expect(cardsFor(now)).toEqual([])
+    expect(workerToday(now).says).toBe('Nothing needs you today. Checked just now.')
+    // A week the placement covers only in part: no figure is invented for it.
+    const part = helena({ toFile: [{ periodStart: '2026-10-14', periodEnd: '2026-10-17', site: 'Northbend Athletic', ended: true, wholeWeek: false, expectedHours: null, dueOn: null }] })
+    expect(cardsFor(part)[0].says).toBe('File it when you are ready.')
+  })
+
+  it('Ask Etyme never files a worker’s week; the card opens her own page', async () => {
+    const facts = vi.fn(async () => helena())
+    for (const q of ['File my week', 'Submit my hours for last week', 'Log 40 hours for me']) {
+      const a = await respondWorker(q, { facts })
+      expect(a.says, q).toBe(FILE_IT_YOURSELF)
+      expect(a.cards.map((c) => [c.act, c.button, c.href]), q).toEqual([['FILE_WEEK', 'File my week', '/dashboard/my-work']])
+    }
+    // Nothing to file: said, with the page.
+    const none = await respondWorker('File my week', { facts: async () => helena({ toFile: [] }) })
+    expect(none.says).toBe(`${FILE_IT_YOURSELF} Every week you can file is filed.`)
+    expect(none.links).toEqual([{ label: 'Open Your work', href: '/dashboard/my-work' }])
+    // Signing is the client's and her employer's, never Etyme's.
+    expect((await respondWorker('Approve my timesheet', { facts })).says).toBe('Etyme never signs a week; Northbend Athletic signs it, then Techpeple accepts it.')
+    // And no file under Ask Etyme writes a week: no POST to her filing route, no timesheet written.
+    const root = join(process.cwd(), 'src')
+    for (const f of ['app/api/conversations/twin/worker.ts', 'app/api/conversations/twin/worker-read.ts', 'app/api/conversations/twin/route.ts', 'app/dashboard/conversations/ask-etyme.tsx']) {
+      const src = readFileSync(join(root, f), 'utf8')
+      expect(src, f).not.toMatch(/POST as (myWork|createTimesheet|submitTimesheet)|timesheets\/[^'"`]*submit|prisma\.timesheet\.(create|update)/)
+      expect(src, f).not.toMatch(/fetch\(['"`]\/api\/(me\/work|timesheets)/)
+    }
+  })
+
+  it('a worker asks what she is owed and reads the employer’s acceptance, never the client’s signature, as the moment it became owed', async () => {
+    const a = await respondWorker('What am I owed?', { facts: async () => helena() })
+    expect(a.says).toBe('$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. Checked just now.')
+    expect(a.more.map((l) => l.says)).toEqual([
+      'The next pay day for it is Nov 9.',
+      'One week you sent, 40 hours, is not owed yet. It waits for Computer Systems Inc.',
+      'A week is owed to you once Techpeple accepts it, not when the client signs it.',
+    ])
+    // The week the client signed is in no amount; the accepted one is, with its pay day; the paid one says paid.
+    expect(a.table?.rows.map((r) => r.cells)).toEqual([
+      ['Sep 27–Oct 3', '40', '$3,600.00', 'Nov 9'],
+      ['Sep 20–26', '40', 'Paid', 'Oct 9'],
+    ])
+    // A client's signature alone owes her nothing.
+    const signedOnly = await respondWorker('When do I get paid?', {
+      facts: async () => helena({ sent: helena().sent.filter((w) => w.stage === 'WAITING_FOR_EMPLOYER') }),
+    })
+    expect(signedOnly.says).toBe('Nothing is owed to you right now. Checked just now.')
+    // A part already paid is not owed again: the amount is for the unpaid hours.
+    const part = owedSays({ ...helena(), sent: [{ ...helena().sent[1], stillOwedMinor: 144000, owedHours: 16 }] })
+    expect(part.says).toBe('$1,440.00 is owed to you, for 16 hours Techpeple accepted and has not paid yet.')
+  })
+
+  it('a worker is told only her own rate, and what one firm charges another for her is refused in one sentence', async () => {
+    const facts = async () => helena()
+    expect((await respondWorker('What is my rate?', { facts })).says).toBe('At Northbend Athletic, Techpeple pays you $90.00 an hour.')
+    for (const q of ['What does Northbend pay for me?', 'What is the bill rate for me?', 'What markup does Computer Systems make on me?']) {
+      expect((await respondWorker(q, { facts })).says, q).toBe(NOT_THEIR_RATE)
+    }
+    expect((await respondWorker('What is the capital of France?', { facts })).says).toBe(ONLY_YOUR_WORK)
+    // The chain, asked: every firm by name, no rate.
+    const chain = await respondWorker('Who employs me?', { facts })
+    expect(chain.says).toBe(chainSays(helena().placements[0]))
+    expect(chain.more.map((l) => l.says)).toEqual(['You see every firm in your chain. What one firm charges another stays between them.'])
+  })
+
+  it('papers asked of her, an interview waiting on her answer and a bench stay running out are cards that open her own pages', () => {
+    const f = helena({
+      toFile: [],
+      papers: [{ id: 'doc-1', name: 'Non-disclosure agreement', todo: 'sign', askedBy: 'Northbend Athletic', dueOn: '2026-10-23', stopsWork: false, href: '/dashboard/my-work/paperwork' }],
+      interviews: [{ id: 'iv-1', role: 'ERP finance lead', with: 'Cavanaugh Glassworks', round: 1, waitingOnYou: true, booked: false }],
+      stays: [{ listingId: 'bl-1', firm: 'Techpeple', endsOn: '2026-10-25', ended: false, days: 60 }],
+    })
+    const a = workerToday(f)
+    expect(a.cards.map((c) => [c.act, c.title, c.button, c.href])).toEqual([
+      ['PAPER', 'Non-disclosure agreement for Northbend Athletic', 'Sign', '/dashboard/my-work/paperwork'],
+      ['INTERVIEW', 'Cavanaugh Glassworks asked to interview you for ERP finance lead.', 'Answer interview', '/dashboard/my-work'],
+      ['RENEW', 'Your stay on Techpeple’s bench ends on Oct 25.', 'Renew for 60 days', '/dashboard/my-benches'],
+    ])
+    expect(a.cards[2].listingId).toBe('bl-1')
+    expect(a.recommend?.says).toBe('Sign your Non-disclosure agreement for Northbend Athletic.')
+    expect(a.says).toBe('Three things need you. Checked just now.')
+    // No card files a week here, so the line about filing is not said.
+    expect(a.note).toBeUndefined()
+  })
+
+  it('a renewal card renews her stay through the bench route she already uses, on her own press; nothing in the worker’s chat asks the approval route or adds an act', () => {
+    const chat = readFileSync(join(process.cwd(), 'src', 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    const renew = chat.slice(chat.indexOf('const renew = async'), chat.indexOf('// "Not now" changes nothing'))
+    expect(renew).toContain("const res = await fetch(RENEW, {\n        method: 'PATCH',")
+    expect(renew).toContain('body: JSON.stringify({ renew: card.listingId }),')
+    expect(renew).not.toContain('decisionRequest')
+    // The worker's module asks nothing of the twin's ledger.
+    for (const f of ['app/api/conversations/twin/worker.ts', 'app/api/conversations/twin/worker-read.ts']) {
+      const src = readFileSync(join(process.cwd(), 'src', f), 'utf8')
+      expect(src, f).not.toMatch(/@\/lib\/twin\/|requestApproval|decideApproval|\bact\(/)
+    }
+  })
+
+  it('a part of her record that could not be read is said, never answered as nothing', async () => {
+    const a = workerToday(helena({ toFile: [], sent: [], unread: ['weeks'] }))
+    expect(a.more[0].says).toBe('Etyme could not read your weeks and pay just now, so they are not in this list. Staff have been told.')
+    const owed = await respondWorker('What am I owed?', { facts: async () => helena({ unread: ['weeks'] }) })
+    expect(owed.says).toBe('Etyme could not read your weeks and pay just now, so they are not in this list. Staff have been told.')
+    expect(owed.table).toBeUndefined()
+  })
+
+  it('a worker’s seat is somebody on a firm’s bench, or a firm’s own employee with only the reads of their own work; a seat with a desk reads the firm’s Ask Etyme', () => {
+    expect(isWorkerSeat({ contextType: 'CONSULTANT', permissions: [] })).toBe(true)
+    expect(isWorkerSeat({ contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'] })).toBe(true)
+    expect(isWorkerSeat({ contextType: 'EMPLOYEE', permissions: ['invoices.read', 'payments.record'] })).toBe(false)
+    expect(isWorkerSeat({ contextType: 'EMPLOYEE', permissions: ['*'] })).toBe(false)
+    expect(isWorkerSeat({ contextType: 'CONSULTANT', permissions: [], readOnly: true })).toBe(false)
+    expect(isWorkerSeat({ contextType: 'EMPLOYEE', permissions: [], isService: true })).toBe(false)
+  })
+
+  it('a worker’s chips are her five questions, the box and the line under it are about her work, and her greeting closes on what Etyme never does for her', () => {
+    expect(WORKER_QUESTIONS).toEqual(['What needs me today?', 'Is my week signed?', 'What am I owed?', 'What papers are due?', 'Who has my consent?'])
+    const chat = readFileSync(join(process.cwd(), 'src', 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
+    expect(chat).toContain('{(worker ? WORKER_QUESTIONS : SUGGESTED_QUESTIONS).map((q) => (')
+    expect(chat).toContain('if (body?.data?.worker === true) setWorker(true)')
+    expect(WORKER_CLOSE).toBe('Ask me about your weeks, your pay, your papers and your consent. I never file or sign anything for you.')
+    expect(WORKER_BOUNDARY).toBe('Your record stays yours. Every read is logged. Nothing you type leaves to a model.')
+    // The line under her box is hers too: never the firm's line about outside messages and money.
+    expect(WORKER_FOOTER).toBe('Etyme answers from your own record. It never files, signs or sends anything for you.')
+    // A saved worker answer is drawn again on a reload, as a worker answer.
+    expect(chat).toContain("'MODEL', 'WORKER']")
+    const asAnswer: Answer = workerToday(helena())
+    expect(cardIdsOf(asAnswer)).toEqual([])
   })
 })

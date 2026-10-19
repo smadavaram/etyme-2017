@@ -18,6 +18,26 @@ export function approvedLine(company: string, approvedBy: string, taken = false)
   return taken ? said : `${said} Set a password to take this account.`
 }
 
+/**
+ * The same line for a client a supplier invited. A supplier does not
+ * approve its client, so it never says "approved by": it says what the
+ * supplier keeps and what taking it means.
+ */
+export function clientClaimLine(supplier: string, taken = false): string {
+  const said = `${supplier}, your supplier, keeps a record of your work together on Etyme.`
+  return taken ? said : `${said} Set a password to take it.`
+}
+
+/** The page's first line: who the claim is from, in the words for whoever is claiming. */
+export function claimLine(claim: { company: string; invitedBy: string; invitedAs?: 'CLIENT' | 'SUPPLIER' }, taken = false): string {
+  return claim.invitedAs === 'CLIENT' ? clientClaimLine(claim.invitedBy, taken) : approvedLine(claim.company, claim.invitedBy, taken)
+}
+
+/** The eyebrow over the company's name. */
+export function claimEyebrow(invitedAs?: 'CLIENT' | 'SUPPLIER'): string {
+  return invitedAs === 'CLIENT' ? 'Client account' : 'Supplier account'
+}
+
 export const SET_PASSWORD = 'Set a password'
 
 export const WORK_ACCOUNT = 'Or sign in with your work account'

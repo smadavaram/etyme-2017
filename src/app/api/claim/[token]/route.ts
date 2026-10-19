@@ -34,7 +34,7 @@ export async function GET(
   const invite = await prisma.supplierInvite.findUnique({
     where: { token },
     include: {
-      company: { select: { id: true, name: true, claimedAt: true } },
+      company: { select: { id: true, name: true, claimedAt: true, kind: true } },
       by: { select: { name: true } },
     },
   })
@@ -64,6 +64,8 @@ export async function GET(
       rolesWaiting: waiting,
       signedInAs: email,
       mayClaim: email ? mayClaim(email, invite.email) : null,
+      // A client a supplier invited reads its own line; a supplier does not approve its client.
+      invitedAs: invite.company.kind === 'CLIENT' ? 'CLIENT' : 'SUPPLIER',
     },
   })
 }

@@ -8,7 +8,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { signIn, getProviders } from 'next-auth/react'
 import { EtymeLogo } from '@/components/logo'
-import { approvedLine, SET_PASSWORD, WORK_ACCOUNT, setPasswordHref, backToClaim, jobsWaiting } from './words'
+import { claimLine, claimEyebrow, SET_PASSWORD, WORK_ACCOUNT, setPasswordHref, backToClaim, jobsWaiting } from './words'
 
 /**
  * Taking possession of a supplier record.
@@ -31,6 +31,8 @@ interface Claim {
   rolesWaiting: number
   signedInAs: string | null
   mayClaim: boolean | null
+  /** A client a supplier invited, or a supplier a client listed. */
+  invitedAs?: 'CLIENT' | 'SUPPLIER'
 }
 
 export default function ClaimPage() {
@@ -99,14 +101,14 @@ export default function ClaimPage() {
         {claim && (
           <div className="mt-10 space-y-6">
             <div>
-              <p className="eyebrow">Supplier account</p>
+              <p className="eyebrow">{claimEyebrow(claim.invitedAs)}</p>
               <h1 className="headline-serif mt-2 text-[34px] leading-[1.05]">
                 {claim.company}
               </h1>
               <p className="mt-3 max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
-                {approvedLine(claim.company, claim.invitedBy, claim.alreadyClaimed)}
+                {claimLine(claim, claim.alreadyClaimed)}
               </p>
-              {jobsWaiting(claim.rolesWaiting, claim.invitedBy) && (
+              {claim.invitedAs !== 'CLIENT' && jobsWaiting(claim.rolesWaiting, claim.invitedBy) && (
                 <p className="mt-2 max-w-[46ch] text-[14px] text-etyme-ink">
                   {jobsWaiting(claim.rolesWaiting, claim.invitedBy)}
                 </p>

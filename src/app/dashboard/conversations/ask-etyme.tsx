@@ -14,6 +14,7 @@ import {
   billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
 } from '@/app/api/conversations/twin/ask'
+import { WORKER_QUESTIONS, WORKER_FOOTER, type WorkerAnswer, type WorkerCard as WorkerCardFact } from '@/app/api/conversations/twin/worker'
 
 /**
  * Ask Etyme — a chat inside Conversations, the way a person expects a
@@ -40,6 +41,13 @@ import {
  * that on the line, and to keep the reply. Clear starts over from the
  * greeting. A seat whose conversation is not kept — a demo seat other
  * visitors share — reads why, once, at the top.
+ *
+ * A worker reads the same chat about her own work (founder, 2026-10-16:
+ * the same Ask Etyme, inside her own pages). Her chips are her five
+ * questions; her cards open her own pages — "File my week" opens Your
+ * work, because Etyme never files a week for her — and the one card that
+ * does something, Renew, is her own press on the bench route her Who has
+ * you page already uses. No approval route, no act of the twin.
  */
 
 /** What the route says became of each card on a saved line. */
@@ -66,11 +74,13 @@ interface SavedLine {
 interface ThreadIn { saved: boolean; notKeptBecause: string | null; earlier: boolean; turns: SavedLine[] }
 
 const THREAD = '/api/conversations/twin'
+/** Her bench stays: the route Who has you renews a stay through. */
+const RENEW = '/api/me/benches'
 
 /** Whether a saved answer is one this screen draws; an older shape reads as its words. */
 function asAnswer(line: SavedLine): Answer {
   const a = line.answer as { kind?: unknown; says?: unknown } | null
-  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL']
+  const kinds = ['TEXT', 'NEEDS', 'TIME_LIMIT', 'SPEND', 'WEEKS', 'WHY', 'CONFIRM', 'VARIANCE', 'MODEL', 'WORKER']
   if (a && typeof a === 'object' && typeof a.kind === 'string' && kinds.includes(a.kind) && typeof a.says === 'string') return a as Answer
   return { kind: 'TEXT', says: line.text }
 }
@@ -101,6 +111,9 @@ export function AskEtyme() {
   const [refused, setRefused] = useState<string | null>(null)
   const [cards, setCards] = useState<Cards>({})
   const [deciding, setDeciding] = useState<string | null>(null)
+  // A worker's own Ask Etyme: her five questions, her cards (the route says which seat this is).
+  const [worker, setWorker] = useState(false)
+  const [renewed, setRenewed] = useState<Record<string, { ok: boolean; says: string }>>({})
   const next = useRef(1)
   const end = useRef<HTMLDivElement>(null)
   const firstName = session.person?.name?.trim().split(/\s+/)[0] ?? null
@@ -132,6 +145,7 @@ export function AskEtyme() {
         setEarlier(thread.earlier)
         setOldestAt(thread.turns[0]?.at ?? null)
       }
+      if (body?.data?.worker === true) setWorker(true)
       const first: Turn[] = aside ? [{ id: next.current++, from: 'aside', text: aside }] : []
       if (!res.ok || !body?.data?.answer) { setTurns([...first, { id: next.current++, from: 'note', text: body?.error?.message ?? statusMeans(res.status) }]); return }
       setTurns([...first, { id: next.current++, from: 'etyme', answer: body.data.answer as Answer }])
@@ -269,6 +283,30 @@ export function AskEtyme() {
     }
   }
 
+  /** Renew a bench stay: her own press, on the route her Who has you page uses. Nothing else here writes. */
+  const renew = async (card: WorkerCardFact) => {
+    if (!card.listingId) return
+    setDeciding(card.key)
+    try {
+      const res = await fetch(RENEW, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ renew: card.listingId }),
+      })
+      const body = await res.json().catch(() => null)
+      setRenewed((r) => ({
+        ...r,
+        [card.key]: res.ok
+          ? { ok: true, says: body?.data?.message ?? 'Renewed.' }
+          : { ok: false, says: body?.error?.message ?? statusMeans(res.status) },
+      }))
+    } catch {
+      setRenewed((r) => ({ ...r, [card.key]: { ok: false, says: 'Your renewal did not reach Etyme, so nothing changed. Try again.' } }))
+    } finally {
+      setDeciding(null)
+    }
+  }
+
   // "Not now" changes nothing on the record: the card reads kept waiting, and the line that drew it remembers.
   const later = (item: WaitingItem, turnId?: string) => {
     setCards((c) => ({ ...c, [item.approvalId]: { state: 'LATER' } }))
@@ -342,6 +380,8 @@ export function AskEtyme() {
                         deciding={deciding}
                         onDecide={(item, d, r) => void decide(item, d, r, t.savedId)}
                         onLater={(item) => later(item, t.savedId)}
+                        renewed={renewed}
+                        onRenew={(card) => void renew(card)}
                       />
                     </FromEtyme>
                   )}
@@ -359,7 +399,7 @@ export function AskEtyme() {
           <div className="border-t border-etyme-rule/60 bg-etyme-canvas px-3 pb-3 pt-2.5 sm:px-6 sm:pb-4">
             <div className="mx-auto max-w-[760px]">
               <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
-                {SUGGESTED_QUESTIONS.map((q) => (
+                {(worker ? WORKER_QUESTIONS : SUGGESTED_QUESTIONS).map((q) => (
                   <button
                     key={q}
                     type="button"
@@ -372,7 +412,7 @@ export function AskEtyme() {
                 ))}
               </div>
               <form onSubmit={onSubmit} className="flex items-end gap-2.5 rounded-[16px] border border-etyme-rule bg-etyme-raised py-2 pl-4 pr-2 focus-within:border-etyme-action focus-within:ring-2 focus-within:ring-etyme-action-wash shadow-[0_8px_30px_-22px_rgba(0,0,0,0.35)]">
-                <label htmlFor="ask-etyme-box" className="sr-only">Ask Etyme about your program</label>
+                <label htmlFor="ask-etyme-box" className="sr-only">{worker ? 'Ask Etyme about your work' : 'Ask Etyme about your program'}</label>
                 <textarea
                   id="ask-etyme-box"
                   rows={1}
@@ -380,7 +420,7 @@ export function AskEtyme() {
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={onKey}
                   maxLength={2000}
-                  placeholder="Ask Etyme about your program…"
+                  placeholder={worker ? 'Ask Etyme about your work…' : 'Ask Etyme about your program…'}
                   className="max-h-40 min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] text-etyme-ink placeholder:text-etyme-faint focus-visible:outline-none"
                 />
                 <button
@@ -395,7 +435,7 @@ export function AskEtyme() {
                 </button>
               </form>
               <div className="mt-2 flex items-start gap-3">
-                <p className="min-w-0 flex-1 text-left text-[12px] leading-snug text-etyme-faint sm:text-center">{FOOTER_LINE}</p>
+                <p className="min-w-0 flex-1 text-left text-[12px] leading-snug text-etyme-faint sm:text-center">{worker ? WORKER_FOOTER : FOOTER_LINE}</p>
                 {/* Clear sits with the box on every width: the phone header carries the logo and the flip only. */}
                 {(history.length > 0 || turns.length > 1) && (
                   <button
@@ -461,7 +501,7 @@ function Links({ links }: { links?: AnswerLink[] }) {
   )
 }
 
-function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater }: {
+function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater, renewed, onRenew }: {
   answer: Answer
   firstName: string | null
   seat: string | null
@@ -469,8 +509,13 @@ function Reply({ answer, firstName, seat, cards, deciding, onDecide, onLater }: 
   deciding: string | null
   onDecide: Decide
   onLater: (item: WaitingItem) => void
+  renewed: Record<string, { ok: boolean; says: string }>
+  onRenew: (card: WorkerCardFact) => void
 }) {
   switch (answer.kind) {
+    case 'WORKER':
+      return <WorkerReply answer={answer} firstName={firstName} deciding={deciding} renewed={renewed} onRenew={onRenew} />
+
     case 'TEXT':
       return <><p>{answer.says}</p><Links links={answer.links} /></>
 
@@ -838,5 +883,95 @@ function WeekTable({ rows }: { rows: WeekRow[] }) {
         </tr>
       ))}
     </ReplyTable>
+  )
+}
+
+/**
+ * A worker's reply: her name, the chain she works through, what to do
+ * first, the cards, where her weeks stand. Every card opens her own page;
+ * Renew is her own press on her bench route. Nothing here asks the
+ * approval route, because nothing here is the twin's to do.
+ */
+function WorkerReply({ answer, firstName, deciding, renewed, onRenew }: {
+  answer: WorkerAnswer
+  firstName: string | null
+  deciding: string | null
+  renewed: Record<string, { ok: boolean; says: string }>
+  onRenew: (card: WorkerCardFact) => void
+}) {
+  const hello = answer.greeting ? `${partOfDay(new Date().getHours())}${firstName ? `, ${firstName}` : ''}.` : null
+  return (
+    <>
+      {hello && <p>{hello}</p>}
+      {(answer.where ?? []).map((w) => <p key={w} className="mt-0.5 text-[13px] text-etyme-muted">{w}</p>)}
+      {answer.recommend && (
+        <div className={`${hello ? 'mt-2' : ''} mb-2.5 rounded-[12px] border border-etyme-action-line bg-etyme-action-wash/60 px-3.5 py-2.5`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-etyme-action-press">Recommended</p>
+          <p className="mt-0.5 font-medium"><Rich line={answer.recommend} /></p>
+        </div>
+      )}
+      <p className={hello && !answer.recommend ? 'mt-2' : ''}>{answer.says}</p>
+      {answer.cards.length > 0 && (
+        <ol className="mt-2 flex flex-col gap-2">
+          {answer.cards.map((c) => (
+            <WorkerCardView key={c.key} card={c} busy={deciding === c.key} done={renewed[c.key]} onRenew={onRenew} />
+          ))}
+        </ol>
+      )}
+      {answer.note && <p className="mt-1.5 text-[12.5px] text-etyme-muted">{answer.note}</p>}
+      {answer.table && (
+        <ReplyTable caption={answer.table.caption} head={answer.table.head.map((label, i) => ({ label, n: i > 0 && i < answer.table!.head.length - 1 }))}>
+          {answer.table.rows.map((r, i) => (
+            <tr key={`${i}:${r.cells[0]}`}>
+              <th scope="row" className={`${td} font-medium`}>
+                {r.href
+                  ? <Link href={r.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">{r.cells[0]}</Link>
+                  : r.cells[0]}
+              </th>
+              {r.cells.slice(1).map((cell, j) => (
+                <td key={j} className={j < r.cells.length - 2 ? tdN : td}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </ReplyTable>
+      )}
+      {answer.more.map((line, i) => <p key={`${i}:${line.says}`} className="mt-2.5"><Rich line={line} /></p>)}
+      <Links links={answer.links} />
+    </>
+  )
+}
+
+/** One thing that is hers to do: what, why, and the button that opens it. */
+function WorkerCardView({ card, busy, done, onRenew }: {
+  card: WorkerCardFact
+  busy: boolean
+  done?: { ok: boolean; says: string }
+  onRenew: (card: WorkerCardFact) => void
+}) {
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{card.title}</p>
+      <p className="mt-0.5 text-[13px] text-etyme-muted">{card.says}</p>
+      {done?.ok ? (
+        <p className="mt-2">
+          <span className="chip chip--verified">Renewed</span>
+          <span className="ml-2 text-[12.5px] text-etyme-muted">{done.says}</span>
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {card.act === 'RENEW' ? (
+            <>
+              <button type="button" className="btn-primary text-[13px]" disabled={busy} onClick={() => onRenew(card)}>
+                {busy ? 'Renewing…' : card.button}
+              </button>
+              <Link href={card.href as Route} className="btn-secondary text-[13px]">Open Who has you</Link>
+            </>
+          ) : (
+            <Link href={card.href as Route} className="btn-primary text-[13px]">{card.button}</Link>
+          )}
+        </div>
+      )}
+      {done && !done.ok && <div className="mt-2"><FormMessage tone="error">{done.says}</FormMessage></div>}
+    </li>
   )
 }
