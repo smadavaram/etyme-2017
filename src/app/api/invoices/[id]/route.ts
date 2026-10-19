@@ -374,6 +374,9 @@ export async function GET(
             matched: match.matched,
             cleanMatch: match.cleanMatch,
             summary: match.summary,
+            // An exception recorded for another total, which no longer
+            // covers this invoice — the sentence, or null.
+            voidedWaiver: match.voidedWaiver ?? null,
             checks: match.checks.map(c => ({
               ...c,
               // Say plainly whether this is anybody's to wave through.
@@ -393,6 +396,8 @@ export async function GET(
         by: o.by,
         at: o.createdAt.toISOString(),
         totalAtOverride: o.invoiceTotalCentsAtOverride / 100,
+        // Whether it still covers the invoice at its total now.
+        stillCovers: o.invoiceTotalCentsAtOverride === decimalToCents(invoice.total),
       })),
     },
   })

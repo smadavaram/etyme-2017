@@ -405,7 +405,23 @@ export async function POST(request: NextRequest) {
   // Whichever came first, the second never owes the same hours again
   // (lib/money/billed-elsewhere). Nobody can wave it through: paying
   // twice is not a judgment call.
-  if (coversFrom && coversTo) {
+  //
+  // A receipt typed in with lines holds only the weeks its hours lines
+  // name, the rule `alreadyReceived` already keeps between two receipts:
+  // its period is the span of everything it bills, so an expense dated a
+  // fortnight earlier stretched it over weeks it does not bill and the
+  // intake refused hours the receipt never claimed (walk, 2026-10-19:
+  // Priya Raman's week of Oct 8 with her Sep 24 travel). A receipt with
+  // lines and no hours line holds no week; its expense or milestone is
+  // checked against the supplier's bills by the line check.
+  const hourLineIds = lines ? lines.flatMap((l) => (l.timesheetId ? [l.timesheetId] : [])) : []
+  const spans: { from: Date; to: Date }[] = lines && lines.length > 0
+    ? (await prisma.timesheet.findMany({ where: { id: { in: hourLineIds } }, select: { periodStart: true, periodEnd: true } }))
+        .map((t) => ({ from: t.periodStart, to: t.periodEnd }))
+    : coversFrom && coversTo ? [{ from: coversFrom, to: coversTo }] : []
+  if (spans.length > 0) {
+    const spanFrom = spans.reduce((a, x) => (x.from < a ? x.from : a), spans[0].from)
+    const spanTo = spans.reduce((a, x) => (x.to > a ? x.to : a), spans[0].to)
     const people = buyContractId
       ? (await prisma.buyContractCandidate.findMany({ where: { buyContractId }, select: { personId: true } })).map((c) => c.personId)
       : null
@@ -415,7 +431,7 @@ export async function POST(request: NextRequest) {
         invoiceLines: {
           some: {
             sellContract: { companyId: vendorCompanyId, clientCompanyId: companyId },
-            timesheet: { periodStart: { lte: coversTo }, periodEnd: { gte: coversFrom } },
+            timesheet: { periodStart: { lte: spanTo }, periodEnd: { gte: spanFrom } },
           },
         },
       },
@@ -427,27 +443,26 @@ export async function POST(request: NextRequest) {
         },
       },
     })
-    const twice = alreadyOnABill(
-      {
-        periodStart: coversFrom.toISOString().slice(0, 10),
-        periodEnd: coversTo.toISOString().slice(0, 10),
-        personIds: people,
-      },
-      generated.map((g) => ({
-        number: g.number,
-        vendorName: vendor.name,
-        lines: g.invoiceLines.flatMap((l) =>
-          l.personId && l.timesheet
-            ? [{ personId: l.personId, personName: l.person?.name ?? 'Somebody', days: (l.timesheet.days as Record<string, number>) ?? {} }]
-            : []
-        ),
-      }))
-    )
-    if (twice) {
-      return NextResponse.json(
-        { error: { code: 'ALREADY_BILLED', message: twice.says, bills: twice.bills } },
-        { status: 409 }
+    const onRecord = generated.map((g) => ({
+      number: g.number,
+      vendorName: vendor.name,
+      lines: g.invoiceLines.flatMap((l) =>
+        l.personId && l.timesheet
+          ? [{ personId: l.personId, personName: l.person?.name ?? 'Somebody', days: (l.timesheet.days as Record<string, number>) ?? {} }]
+          : []
+      ),
+    }))
+    for (const span of spans) {
+      const twice = alreadyOnABill(
+        { periodStart: span.from.toISOString().slice(0, 10), periodEnd: span.to.toISOString().slice(0, 10), personIds: people },
+        onRecord
       )
+      if (twice) {
+        return NextResponse.json(
+          { error: { code: 'ALREADY_BILLED', message: twice.says, bills: twice.bills } },
+          { status: 409 }
+        )
+      }
     }
   }
 
@@ -473,6 +488,32 @@ export async function POST(request: NextRequest) {
       },
       { status: 422 }
     )
+  }
+
+  // ── Checked before saving ─────────────────────────────────────────
+  //
+  // The screen asks what the check would say before the clerk saves, and
+  // it is the same check, run to this point, writing nothing: every
+  // refusal above has already been said in its own sentence, and what is
+  // left is whether the receipt would be recorded clean or held.
+  if (body.preview === true) {
+    return NextResponse.json({
+      data: {
+        preview: true,
+        wouldBe: statusAfterMatch,
+        match: {
+          matched: match.matched,
+          cleanMatch: match.cleanMatch,
+          summary: match.summary,
+          checks: match.checks,
+          poAfter: match.poAfter,
+        },
+        note: failedSoft.length > 0
+          ? `It would be recorded and held. ${match.summary.replace(/[.\s]+$/, '')}. It stays out of a payment run until ` +
+            `somebody whose role pays waives the difference with a reason, or the supplier sends a corrected invoice.`
+          : 'It passes the check. Record it, and it can be paid on its due date.',
+      },
+    })
   }
 
   const bill = await prisma.vendorBill.create({

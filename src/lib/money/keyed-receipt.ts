@@ -329,7 +329,7 @@ async function otherReceipts(r: KeyedReceipt, then: 'record' | 'pay'): Promise<O
   return { receipts, sums }
 }
 
-async function buyRatePeriods(buyContractId: string): Promise<RatePeriod[]> {
+export async function buyRatePeriods(buyContractId: string): Promise<RatePeriod[]> {
   return ratePeriods(
     await prisma.rateHistory.findMany({
       where: { contractType: 'BUY', contractId: buyContractId },

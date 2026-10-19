@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
+import { liveWaivers } from '@/lib/money/keyed-lines'
 import { rateInForce } from '@/lib/contract-rate'
 import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type Period } from '@/lib/periods'
 import { lineFor, type Decision } from '@/lib/overtime'
@@ -194,7 +195,11 @@ export interface LineFact {
   amountCents: number
 }
 
-export type MatchWithLines = MatchResult & { lines: LineFact[] }
+export type MatchWithLines = MatchResult & {
+  lines: LineFact[]
+  /** Where an exception was recorded for another total and so no longer stands — the sentence. */
+  voidedWaiver?: string | null
+}
 
 export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | null> {
   const invoice = await prisma.invoice.findUnique({
@@ -380,6 +385,26 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   const approvedOn = (l: (typeof invoice.invoiceLines)[number]): number =>
     cutPricing(l)?.hours ?? receiptOf(l).hours
 
+  // ── A waiver describes one total ────────────────────────────────────
+  //
+  // The same rule as a typed-in receipt (lib/money/keyed-lines). The
+  // exception stored the total it was granted at and was honored whatever
+  // the total became, so a waiver granted on $4,800 went on covering the
+  // same invoice at $12,000. Now it is void once the total changes, said
+  // in a sentence, and somebody records it again if it still stands.
+  const waivers = liveWaivers(
+    invoice.matchOverrides.map(o => ({
+      code: o.code,
+      reason: o.reason,
+      byName: o.by.name,
+      at: o.createdAt,
+      totalCentsAtOverride: o.invoiceTotalCentsAtOverride,
+    })),
+    decimalToCents(invoice.total),
+    invoice.currency,
+    'invoice'
+  )
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
@@ -466,14 +491,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
       : null,
     // A PO is required once the contract being billed was raised against one.
     poRequired: Boolean(invoice.engagement.sellContracts[0]?.workOrderId),
-    // Exceptions an AP clerk has recorded. The engine decides which of them
-    // it will honor; a waiver on a duplicate payment is simply ignored.
-    overrides: invoice.matchOverrides.map(o => ({
-      code: o.code as any,
-      reason: o.reason,
-      byName: o.by.name,
-      at: o.createdAt,
-    })),
+    // Exceptions an AP clerk has recorded, while the invoice is still for
+    // the total each was granted at. The engine decides which of them it
+    // will honor; a waiver on a duplicate payment is simply ignored.
+    overrides: waivers.live,
   }
 
   const result = threeWayMatch(input)
@@ -495,7 +516,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
       amountCents: l.amountCents,
     }
   })
-  return { ...result, lines }
+  return { ...result, lines, voidedWaiver: waivers.voided }
 }
 
 // ── The payer's gate: may this invoice receipt be paid now? ───────────
@@ -552,7 +573,10 @@ export function receiptStateRefusal(inv: { number: string; status: string }): Pa
 }
 
 /** The refusal the three-way check decides, or null. No database. */
-export function matchRefusal(number: string, match: { matched: boolean; summary: string } | null): PayGate | null {
+export function matchRefusal(
+  number: string,
+  match: { matched: boolean; summary: string; voidedWaiver?: string | null } | null,
+): PayGate | null {
   if (!match) {
     return {
       ok: false, code: 'MATCH_FAILED',
@@ -563,7 +587,8 @@ export function matchRefusal(number: string, match: { matched: boolean; summary:
   return {
     ok: false, code: 'MATCH_FAILED',
     says:
-      `Invoice ${number} does not pass the check now: ${match.summary}. ` +
+      `Invoice ${number} does not pass the check now: ${match.summary.replace(/[.\s]+$/, '')}. ` +
+      (match.voidedWaiver ? `${match.voidedWaiver} ` : '') +
       `Fix it or record an exception with a reason on its page, then pay it.`,
   }
 }
@@ -581,7 +606,7 @@ export function matchRefusal(number: string, match: { matched: boolean; summary:
  */
 export function payGate(
   inv: { number: string; status: string },
-  match: { matched: boolean; summary: string } | null,
+  match: { matched: boolean; summary: string; voidedWaiver?: string | null } | null,
 ): PayGate {
   return receiptStateRefusal(inv) ?? matchRefusal(inv.number, match) ?? { ok: true }
 }

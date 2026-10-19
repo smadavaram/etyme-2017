@@ -147,11 +147,17 @@ export interface StoredWaiver {
  * a sentence, and somebody records it again if it still stands. A waiver
  * on a check nobody may waive is never honored, whatever a row says —
  * the engine ignores it too.
+ *
+ * The same rule for an invoice a supplier sent here (`matchInvoice` in
+ * lib/invoice-match, 2026-10-19): its waiver stored the total it was
+ * granted at and was honored whatever the total became.
  */
 export function liveWaivers(
   stored: readonly StoredWaiver[],
   totalCents: number,
   currency: string,
+  /** What the sentence calls the document: a typed-in receipt, or an invoice a supplier sent here. */
+  noun: 'receipt' | 'invoice' = 'receipt',
 ): { live: MatchOverride[]; voided: string | null } {
   const live: MatchOverride[] = []
   const stale: StoredWaiver[] = []
@@ -164,7 +170,7 @@ export function liveWaivers(
   return {
     live,
     voided: first
-      ? `The exception ${first.byName} recorded was for ${said(first.totalCentsAtOverride, currency)}; the receipt is now ` +
+      ? `The exception ${first.byName} recorded was for ${said(first.totalCentsAtOverride, currency)}; the ${noun} is now ` +
         `${said(totalCents, currency)}, so it no longer covers it. Record the exception again if it still stands.`
       : null,
   }

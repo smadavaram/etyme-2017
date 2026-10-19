@@ -26,9 +26,11 @@ import type { CompanyKind } from '@/lib/company-defaults'
  *      E's rule: warn, capture a reason, proceed — never silently permit.
  *
  * Withdrawing an exception is deliberately as easy as granting one. A
- * waiver granted on Monday against a $4,800 invoice should not still be
- * covering a $12,000 one on Friday, which is why the amount at the time is
- * recorded alongside it.
+ * waiver granted on Monday against a $4,800 invoice does not still cover
+ * a $12,000 one on Friday: the amount at the time is recorded alongside
+ * it, and since 2026-10-19 the match honors it only while the invoice is
+ * for that total — the same rule as a typed-in receipt's. Before, the
+ * amount was stored and nothing read it.
  *
  * And two gates in front of all three, added 2026-10-06. The invoice was
  * found by id alone, so any signed-in caller could waive a check on any
@@ -163,6 +165,8 @@ export async function POST(
       reason,
       byId: caller.person.id,
       invoiceTotalCentsAtOverride: decimalToCents(invoice.total),
+      // Recorded again, it is a new judgment, dated today.
+      createdAt: new Date(),
     },
   })
 
@@ -199,6 +203,9 @@ export async function POST(
       message: after?.matched
         ? `Exception recorded. The invoice can now be submitted, and carries the exception with it.`
         : `Exception recorded, but the invoice still does not match.`,
+      // A waiver is for this total: once the invoice says another, it no
+      // longer covers it (`matchInvoice` in lib/invoice-match).
+      atTotal: invoice.total.toString(),
     },
   })
 }

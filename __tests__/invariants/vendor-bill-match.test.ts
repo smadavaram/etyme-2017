@@ -14,6 +14,10 @@ import {
 } from '@/lib/three-way-match'
 import { liveWaivers, readLines } from '@/lib/money/keyed-lines'
 import { overBillCheck as poOverBillCheck } from '@/lib/purchase-order'
+import {
+  receiptDoors, paymentSays, lineFromWeek, linesAgainstTotal, toMinor, NOBODY_WAIVES,
+  type ReceiptFacts, type ReaderRole,
+} from '@/lib/money/receipt-screen'
 
 const NOW = new Date('2026-08-29T00:00:00Z')
 
@@ -461,6 +465,15 @@ describe('Exceptions on a typed-in receipt describe one total', () => {
     )
   })
 
+  it('a waiver on an invoice a supplier sent here is void once its total changes too, and the sentence says what it was for and what the invoice is now', () => {
+    const w = liveWaivers([waiver('QUANTITY', 480_000)], 1_200_000, 'USD', 'invoice')
+    expect(w.live).toEqual([])
+    expect(w.voided).toBe(
+      'The exception Dana Whitfield recorded was for $4,800.00; the invoice is now $12,000.00, so it no longer covers it. Record the exception again if it still stands.'
+    )
+    expect(liveWaivers([waiver('QUANTITY', 480_000)], 480_000, 'USD', 'invoice').live.map((x) => x.code)).toEqual(['QUANTITY'])
+  })
+
   it('a waiver on the rate, a week nobody accepted, the same work twice or a bare total is never honored, whatever a row says', () => {
     const w = liveWaivers(['PRICE', 'RECEIPT', 'DUPLICATE', 'AMOUNT', 'NO_SUCH_CHECK'].map((c) => waiver(c, 100)), 100, 'USD')
     expect(w.live).toEqual([])
@@ -495,5 +508,123 @@ describe('The lines a clerk types in', () => {
   it('a receipt with no lines is a total, checked on its amount as before', () => {
     expect(readLines(undefined, 'USD')).toBeNull()
     expect(readLines([], 'USD')).toBeNull()
+  })
+})
+
+describe('The Accounts payable screen offers on an invoice receipt only what its route would allow, in the route’s own sentences', () => {
+  const PAYS: ReaderRole = { mayRecord: true, recordSays: null, mayWaive: true, waiveSays: null, mayPay: true, paySays: null }
+  const READS: ReaderRole = {
+    mayRecord: false, recordSays: 'Recording what a supplier has invoiced belongs to whoever pays them.',
+    mayWaive: false, waiveSays: 'Recording an exception is a decision to pay something that did not match, so it belongs to AP & Payroll at Computer Systems, who pays invoices.',
+    mayPay: false, paySays: 'Recording a payment is not part of your role.',
+  }
+  const held = (over: Partial<ReceiptFacts> = {}): ReceiptFacts => ({
+    number: 'CE-HM-L1', vendorName: 'Techpeple', status: 'DISPUTED', currency: 'USD',
+    totalCents: 495_600, paidCents: 0, paymentCount: 0, inRun: null,
+    checks: [
+      { code: 'QUANTITY', outcome: 'FAIL', reason: 'Helena Marsh: billed 42h, approved 40h', name: 'The hours billed are the hours signed' },
+      { code: 'PRICE', outcome: 'PASS', reason: 'Every rate is the agreed rate' },
+    ],
+    hard: null, waivers: [], ...over,
+  })
+  const refusedGate = { ok: false, says: 'Techpeple’s invoice CE-HM-L1 for $4,956.00 does not pass the check now: Helena Marsh: billed 42h, approved 40h.' }
+
+  it('a held invoice receipt offers Waive with a reason only on a check somebody may waive, and only to a role that pays', () => {
+    const d = receiptDoors(held(), PAYS, refusedGate)
+    expect(d.failing).toEqual([
+      expect.objectContaining({ code: 'QUANTITY', reason: 'Helena Marsh: billed 42h, approved 40h', waivable: true, waive: { offered: true, says: null } }),
+    ])
+    // Pay is not drawn while the check refuses it, and the gate's own sentence is said instead.
+    expect(d.pay).toEqual({ offered: false, says: refusedGate.says })
+  })
+
+  it('a check nobody may waive is shown failing in its own sentence with no Waive button, and says nobody can wave it through', () => {
+    const d = receiptDoors(held({ checks: [{ code: 'PRICE', outcome: 'FAIL', reason: 'Helena Marsh: billed at $125.00, agreed $118.00' }] }), PAYS, refusedGate)
+    expect(d.failing[0]).toMatchObject({ code: 'PRICE', reason: 'Helena Marsh: billed at $125.00, agreed $118.00', waivable: false, waive: { offered: false, says: NOBODY_WAIVES } })
+    expect(NOBODY_WAIVES).toBe('Nobody can wave this through.')
+  })
+
+  it('to a role that does not pay, the screen names who may waive and who may pay instead of drawing the buttons', () => {
+    const d = receiptDoors(held(), READS, { ok: true })
+    expect(d.failing[0].waive).toEqual({ offered: false, says: READS.waiveSays })
+    expect(d.pay).toEqual({ offered: false, says: READS.paySays })
+    expect(d.cancel).toEqual({ offered: false, says: READS.recordSays })
+  })
+
+  it('an invoice receipt that passes is offered Pay and Cancel to the role that pays', () => {
+    const d = receiptDoors(held({ status: 'RECEIVED', checks: [] }), PAYS, { ok: true })
+    expect(d.pay).toEqual({ offered: true, says: null })
+    expect(d.cancel).toEqual({ offered: true, says: null })
+    expect(d.failing).toEqual([])
+  })
+
+  it('an invoice receipt with money paid on it offers no Cancel, and says money that went out is undone with the supplier', () => {
+    const d = receiptDoors(held({ status: 'APPROVED', paidCents: 100_000, paymentCount: 1 }), PAYS, { ok: true })
+    expect(d.cancel).toEqual({
+      offered: false,
+      says: '$1,000.00 has been paid on Techpeple’s invoice CE-HM-L1, so it is not cancelled. Money that went out is undone with Techpeple, not by taking the receipt off the record.',
+    })
+  })
+
+  it('an invoice receipt in a payment run waiting to be released offers no Cancel until the run is cancelled', () => {
+    const d = receiptDoors(held({ inRun: { status: 'APPROVED' } }), PAYS, refusedGate)
+    expect(d.cancel.offered).toBe(false)
+    expect(d.cancel.says).toBe('Techpeple’s invoice CE-HM-L1 is in a payment run that is approved and waiting to be released. Cancel the run first, then this receipt.')
+  })
+
+  it('a waived difference names who waived it and why, the total it was waived at, and that it no longer covers the receipt if the total changes', () => {
+    const at = new Date('2026-10-18T15:00:00Z')
+    const w = { code: 'QUANTITY', reason: 'Two hours of handover the client asked for in writing.', byName: 'Dana Park', at, totalCentsAtOverride: 495_600 }
+    const live = receiptDoors(held({ status: 'RECEIVED', waivers: [w] }), PAYS, { ok: true })
+    expect(live.waivers[0]).toMatchObject({ live: true, byName: 'Dana Park' })
+    expect(live.waivers[0].says).toBe(
+      'Waived by Dana Park on Oct 18, 2026, at $4,956.00: “Two hours of handover the client asked for in writing.” It no longer covers this invoice receipt if the total changes.'
+    )
+    const stale = receiptDoors(held({ totalCents: 483_800, waivers: [w] }), PAYS, refusedGate)
+    expect(stale.waivers[0].live).toBe(false)
+    expect(stale.waivers[0].says).toBe(
+      'Waived by Dana Park on Oct 18, 2026, at $4,956.00: “Two hours of handover the client asked for in writing.” The invoice receipt is now $4,838.00, so it no longer covers it.'
+    )
+    expect(stale.voidedWaiver).toMatch(/^The exception Dana Park recorded was for \$4,956\.00; the receipt is now \$4,838\.00/)
+  })
+
+  it('a paid or cancelled invoice receipt offers nothing to waive and nothing to pay', () => {
+    for (const status of ['PAID', 'CANCELLED']) {
+      const d = receiptDoors(held({ status, paidCents: status === 'PAID' ? 495_600 : 0, paymentCount: status === 'PAID' ? 1 : 0 }), PAYS, { ok: false, says: 'x' })
+      expect(d.failing).toEqual([])
+      expect(d.pay).toEqual({ offered: false, says: null })
+    }
+  })
+
+  it('a paid invoice receipt says who paid whom, when, how and the reference', () => {
+    expect(paymentSays({
+      paidBy: 'Computer Systems', paidTo: 'Techpeple', amountMinor: 495_600, currency: 'USD',
+      at: new Date('2026-10-18T12:00:00Z'), method: 'Wire', reference: 'CS-8102', recordedBy: 'Dana Park',
+    })).toBe('Computer Systems paid Techpeple $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park.')
+    expect(paymentSays({
+      paidBy: 'Computer Systems', paidTo: 'Techpeple', amountMinor: 100, currency: 'USD',
+      at: new Date('2026-10-18T12:00:00Z'), method: null, reference: null, recordedBy: null,
+    })).toBe('Computer Systems paid Techpeple $1.00 on Oct 18, 2026.')
+  })
+
+  it('a line picked from an accepted week is filled with the hours accepted at the agreed rate, and its amount is the two multiplied, in whole cents', () => {
+    expect(lineFromWeek({ timesheetId: 't', personName: 'Helena Marsh', weekOf: '2026-10-04', hoursAccepted: 38, rateMinor: 11_800 }))
+      .toEqual({ hours: 38, rateMinor: 11_800, amountMinor: 448_400 })
+    // 7.33 h at $133.33 is $977.3089, kept as $977.31.
+    expect(lineFromWeek({ timesheetId: 't', personName: 'A', weekOf: '2026-10-04', hoursAccepted: 7.33, rateMinor: 13_333 })!.amountMinor).toBe(97_731)
+    // A week whose rate changed inside it is not filled at one rate.
+    expect(lineFromWeek({ timesheetId: 't', personName: 'A', weekOf: '2026-10-04', hoursAccepted: 40, rateMinor: null })).toBeNull()
+    expect(toMinor('4,484.00', 'USD')).toBe(448_400)
+    expect(toMinor('2500', 'JPY')).toBe(2500)
+    expect(toMinor('', 'USD')).toBeNull()
+    expect(toMinor('forty', 'USD')).toBeNull()
+  })
+
+  it('the screen says before saving when the lines do not add up to the total typed in', () => {
+    expect(linesAgainstTotal([448_400, 25_000], 473_400, 'USD')).toBeNull()
+    expect(linesAgainstTotal([448_400, 25_000], 472_000, 'USD')).toBe(
+      'The lines add up to $4,734.00 and the total typed in is $4,720.00. Type the total and each line as the supplier’s invoice states them; a receipt whose lines do not add up is refused.'
+    )
+    expect(linesAgainstTotal([], 472_000, 'USD')).toBeNull()
   })
 })

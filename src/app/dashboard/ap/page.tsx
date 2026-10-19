@@ -14,6 +14,7 @@ import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
+import { Receipts } from './receipts'
 
 /**
  * Accounts payable.
@@ -42,10 +43,11 @@ import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
  * and gets off the screen.
  */
 
-type Tab = 'chains' | 'hops' | 'clause' | 'exceptions' | 'runs'
+type Tab = 'chains' | 'receipts' | 'hops' | 'clause' | 'exceptions' | 'runs'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'chains', label: 'Accounts payable' },
+  { key: 'receipts', label: 'Invoice receipts' },
   { key: 'hops', label: 'Every hop' },
   { key: 'clause', label: 'Pay when paid' },
   { key: 'exceptions', label: 'Invoice receipts that did not match' },
@@ -72,6 +74,9 @@ export default function ApPage() {
   const [denied, setDenied] = useState<string | null>(null)
   const [currency, setCurrency] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('chains')
+  // A receipt opened from the exception queue, shown in Invoice receipts.
+  const [focus, setFocus] = useState<string | null>(null)
+  const openReceipt = useCallback((id: string) => { setFocus(id); setTab('receipts') }, [])
   // A program office running somebody else's program opens on that
   // program's payables. This is the way back to its own — and it is in
   // the URL, not in React state, so a
@@ -155,6 +160,13 @@ export default function ApPage() {
         />
       )}
 
+      {!loading && !error && !denied && !book && data && (data.source === 'SUPPLIER_INVOICES' || data.source === 'NONE') && (
+        <div className="space-y-2">
+          <h2 className="font-serif text-[18px] text-etyme-ink">Invoice receipts typed in</h2>
+          <Receipts books={books} focus={focus} />
+        </div>
+      )}
+
       {!loading && !error && !denied && data?.source === 'NONE' && (
         <div className="panel">
           <p className="text-[13px] text-etyme-ink">
@@ -206,7 +218,7 @@ export default function ApPage() {
                 ? (data.chains?.length ?? 0)
                 : t.key === 'clause'
                   ? (data.payWhenPaid?.length ?? 0)
-                  : t.key === 'exceptions' || t.key === 'runs'
+                  : t.key === 'exceptions' || t.key === 'runs' || t.key === 'receipts'
                     ? undefined
                     : (data.hops?.filter((h: any) => h.currency === book.currency).length ?? 0),
             }))}
@@ -217,7 +229,8 @@ export default function ApPage() {
           {tab === 'chains' && <Chains data={data} book={book} />}
           {tab === 'hops' && <Hops data={data} book={book} />}
           {tab === 'clause' && <Clause data={data} book={book} />}
-          {tab === 'exceptions' && <Exceptions />}
+          {tab === 'receipts' && <Receipts books={books} focus={focus} />}
+          {tab === 'exceptions' && <Exceptions books={books} onOpen={openReceipt} />}
           {tab === 'runs' && (
             <PaymentRuns
               currency={book.currency}
@@ -703,20 +716,20 @@ const word = (code: string) => CHECK_PHRASE[code as MatchCode] ?? code
 const title = (c: { code: string; name?: string }) =>
   c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
 
-function Exceptions() {
+function Exceptions({ books, onOpen }: { books: Books; onOpen: (id: string) => void }) {
   const [data, setData] = useState<any>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/ap/bills')
+    fetch(booksHref('/api/ap/bills', books))
       .then(async (r) => {
         const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [books])
 
   if (loading) {
     return <LoadingState says="Re-checking every open invoice receipt…" />
@@ -782,10 +795,15 @@ function Exceptions() {
               ))}
           </ul>
 
-          <p className="mt-2 text-[11px] text-etyme-faint tabular-nums">
-            arrived {e.ageDays}d ago
-            {e.poAfter && ` · ${compact(e.poAfter.remainingCents, e.currency)} left on the PO after it`}
-          </p>
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-[11px] text-etyme-faint tabular-nums">
+              arrived {e.ageDays}d ago
+              {e.poAfter && ` · ${compact(e.poAfter.remainingCents, e.currency)} left on the PO after it`}
+            </p>
+            <button type="button" className="text-[13px] text-etyme-action underline" onClick={() => onOpen(e.id)}>
+              Open it to waive, cancel or pay
+            </button>
+          </div>
         </article>
       ))}
     </div>

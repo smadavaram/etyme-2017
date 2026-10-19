@@ -443,6 +443,9 @@ export default function InvoiceDetail() {
             <div>
               <Lbl>{m.matched ? (m.cleanMatch ? 'Matched' : 'Matched with exceptions') : 'Does not match'}</Lbl>
               <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">{m.summary}</p>
+              {m.voidedWaiver && (
+                <p className="text-sm text-etyme-attention mt-1">{m.voidedWaiver}</p>
+              )}
               {m.workOrder && (
                 <p className="text-sm text-etyme-muted mt-1 tabular-nums">
                   {amountFromUnits(m.workOrder.remaining)} left on the purchase order

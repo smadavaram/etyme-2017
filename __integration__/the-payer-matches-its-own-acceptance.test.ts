@@ -9,6 +9,8 @@ import { POST as waive, DELETE as unwaive } from '@/app/api/ap/bills/[id]/match/
 import { GET as unappliedCash } from '@/app/api/ar/payments/route'
 import { POST as generate } from '@/app/api/invoices/generate/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
+import { GET as receiptsList } from '@/app/api/ap/receipts/route'
+import { GET as receiptOptions } from '@/app/api/ap/receipts/options/route'
 
 /**
  * A supplier's invoice is matched against what the firm paying it
@@ -395,6 +397,50 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     })).id
   }, 240_000)
 
+  it('the form offers the weeks Computer Systems accepted on Techpeple’s buy line, with the hours accepted and the agreed rate beside each, and nothing it has not approved', async () => {
+    as(CS)
+    const suppliers = await json(await receiptOptions(req('GET', '/api/ap/receipts/options')))
+    expect(suppliers.status, JSON.stringify(suppliers.body)).toBe(200)
+    const techpeple = suppliers.body.data.suppliers.find((x: any) => x.id === s.techpeple)
+    expect(techpeple?.lines.map((l: any) => l.buyContractId)).toContain(s.buy)
+    expect(techpeple.lines.find((l: any) => l.buyContractId === s.buy)).toMatchObject({ rateMinor: s.rate, currency: 'USD', people: ['Helena Marsh'] })
+
+    const r = await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${s.buy}`)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.weeks.find((w: any) => w.timesheetId === t.week)).toMatchObject({
+      personName: 'Helena Marsh', hoursAccepted: 40, rateMinor: s.rate, heldBy: null, says: null,
+    })
+    // The week of the first describe, which Computer Systems accepted at thirty-eight.
+    expect(r.body.data.weeks.find((w: any) => w.timesheetId === s.week)?.hoursAccepted).toBe(38)
+    // An expense still waiting for approval, one the firm carried as its own
+    // cost, and a milestone delivered but not accepted are not offered.
+    expect(r.body.data.expenses.map((x: any) => x.id)).not.toContain(t.expense)
+    expect(r.body.data.expenses.map((x: any) => x.id)).not.toContain(t.ownCost)
+    expect(r.body.data.milestones.map((x: any) => x.id)).not.toContain(t.milestone)
+
+    // Only whoever records invoice receipts reads the form, and the supplier
+    // never reads the payer's buy line.
+    as(TECHPEPLE)
+    expect([403, 404]).toContain((await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${s.buy}`)))).status)
+  })
+
+  it('checking a typed-in receipt before saving runs the same check as recording it, and writes nothing', async () => {
+    const before = await prisma.vendorBill.count({ where: { companyId: s.cs } })
+    const held = await receive('CE-HM-P1', [week(42)], 42 * s.rate, { preview: true })
+    expect(held.status, JSON.stringify(held.body)).toBe(200)
+    expect(held.body.data).toMatchObject({ preview: true, wouldBe: 'DISPUTED' })
+    expect(held.body.data.match.checks.find((c: any) => c.code === 'QUANTITY')).toMatchObject({ outcome: 'FAIL', overridable: true, reason: 'Helena Marsh: billed 42h, approved 40h' })
+    expect(held.body.data.note).toMatch(/^It would be recorded and held\. /)
+    const clean = await receive('CE-HM-P1', [week(40)], 40 * s.rate, { preview: true })
+    expect(clean.body.data).toMatchObject({ preview: true, wouldBe: 'RECEIVED' })
+    // A refusal is said in the intake's own sentence, before anything is saved.
+    const sum = await receive('CE-HM-P1', [week(40)], 41 * s.rate, { preview: true })
+    expect(sum.status).toBe(422)
+    expect(sum.body.error.checks.find((c: any) => c.code === 'HEADER_TOTAL').outcome).toBe('FAIL')
+    expect(await prisma.vendorBill.count({ where: { companyId: s.cs } })).toBe(before)
+    expect(await prisma.automationLog.count({ where: { payload: { path: ['number'], equals: 'CE-HM-P1' } } })).toBe(0)
+  })
+
   it('a typed-in receipt with a line for the week Computer Systems accepted is matched against that acceptance, and its line is kept with the person it is for', async () => {
     const r = await receive('CE-HM-K1', [week(40)], 40 * s.rate)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -510,6 +556,42 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     expect(c.status).toBe(409)
     expect(c.body.error.code).toBe('PAID')
     expect((await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-L1') } })).status).toBe('PAID')
+  })
+
+  it('the list of invoice receipts carries each one’s lines, its exceptions with who and why, what still fails, whether it may be paid or cancelled, and who paid whom', async () => {
+    as(CS)
+    const r = await json(await receiptsList(req('GET', '/api/ap/receipts')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.role).toMatchObject({ mayRecord: true, mayWaive: true, mayPay: true })
+    const row = (n: string) => r.body.data.receipts.find((x: any) => x.number === n)
+
+    const paid = row('CE-HM-L1')
+    expect(paid.status).toBe('PAID')
+    expect(paid.lines).toEqual([expect.objectContaining({ kind: 'HOURS', hours: 42, rateMinor: s.rate, amountMinor: 42 * s.rate })])
+    expect(paid.lines[0].says).toMatch(/^Helena Marsh · week of /)
+    expect(paid.payments[0]).toMatch(/^Computer Systems[^.]* paid Techpeple \$[\d,.]+ on [A-Z][a-z]{2} \d+, \d{4} by WIRE, reference CS-8102\. Recorded by /)
+    expect(paid.doors.waivers).toEqual([expect.objectContaining({ code: 'QUANTITY', live: true, reason: 'Two hours of handover the client asked for in writing.' })])
+    expect(paid.doors.pay).toEqual({ offered: false, says: null })
+    expect(paid.doors.cancel.offered).toBe(false)
+    expect(paid.doors.cancel.says).toMatch(/has been paid on Techpeple’s invoice CE-HM-L1, so it is not cancelled/)
+
+    const cancelled = row('CE-HM-K1')
+    expect(cancelled.status).toBe('CANCELLED')
+    expect(cancelled.cancelled).toMatch(/: “Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1\.”$/)
+    expect(cancelled.doors.cancel).toEqual({ offered: false, says: null })
+
+    // Held by the duplicate rule, in a run waiting to be released: nobody
+    // may wave it through, and it is not cancelled until the run is.
+    const twin = row('CE-HM-6')
+    expect(twin.doors.failing.find((f: any) => f.code === 'DUPLICATE')).toMatchObject({ waivable: false, waive: { offered: false, says: 'Nobody can wave this through.' } })
+    expect(twin.doors.pay.offered).toBe(false)
+    expect(twin.doors.pay.says).toMatch(/already on Techpeple’s invoice CE-HM-4/)
+    expect(twin.doors.cancel.says).toMatch(/is in a payment run that is approved and waiting to be released\. Cancel the run first, then this receipt\.$/)
+
+    // The supplier reads its own book, never the payer's receipts.
+    as(TECHPEPLE)
+    const theirs = await json(await receiptsList(req('GET', '/api/ap/receipts')))
+    expect(JSON.stringify(theirs.body)).not.toContain('CE-HM-L1')
   })
 
   it('a receipt in a payment run waiting to be released is not cancelled until the run is', async () => {
@@ -716,5 +798,79 @@ describe('a supplier’s bill sent on the platform closes the payer’s receipt 
     const closed = before.filter((c) => !after.some((a) => a.id === c.id))
     expect(closed).toHaveLength(1)
     expect(closed[0].dueOn.getTime()).toBeGreaterThanOrEqual(sheet.periodEnd.getTime())
+  })
+})
+
+describe('the invoice receipt form offers a week only where the check would take it, and a line holds only the week it names', () => {
+  const p: Record<string, any> = {}
+  const options = async () => {
+    as(CS)
+    const r = await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${p.buy}`)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    return r.body.data
+  }
+  const preview = async (lines: unknown[], totalCents: number) => {
+    as(CS)
+    return json(await recordBill(req('POST', '/api/ap/bills', {
+      vendorCompanyId: p.vendor, number: 'CE-PR-PREVIEW', buyContractId: p.buy, currency: 'USD',
+      total: totalCents / 100, dueAt: new Date(Date.now() + 30 * 86_400_000).toISOString(), lines, preview: true,
+    })))
+  }
+
+  beforeAll(async () => {
+    // Priya Raman's buy line at Computer Systems, as seeded: one week
+    // inside a receipt typed in as a total, the rest on bills Techpeple sent.
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: {
+        company: { name: 'Computer Systems Inc' },
+        vendorCompany: { name: 'Techpeple' },
+        candidates: { some: { person: { name: 'Priya Raman' } } },
+      },
+      select: { id: true, vendorCompanyId: true },
+    })
+    p.buy = buy.id
+    p.vendor = buy.vendorCompanyId
+    p.total = await prisma.vendorBill.findFirstOrThrow({
+      where: { buyContractId: buy.id, status: { not: 'CANCELLED' }, lines: { none: {} }, periodStart: { not: null } },
+      select: { id: true, number: true, periodStart: true, periodEnd: true },
+    })
+  })
+
+  it('a week inside an invoice receipt typed in as a total is shown as already on it, and a week on a bill the supplier sent is shown as already on that bill', async () => {
+    const o = await options()
+    const inside = o.weeks.filter((w: any) => w.weekOf >= p.total.periodStart.toISOString().slice(0, 10) && w.weekOf <= p.total.periodEnd.toISOString().slice(0, 10))
+    expect(inside.length).toBeGreaterThan(0)
+    for (const w of inside) expect(w.heldBy).toBe(p.total.number)
+    const onBills = o.weeks.filter((w: any) => w.heldBy && w.heldBy !== p.total.number)
+    expect(onBills.length).toBeGreaterThan(0)
+    const sent = await prisma.invoice.findMany({ where: { number: { in: onBills.map((w: any) => w.heldBy) } }, select: { number: true } })
+    expect(sent.map((x) => x.number).sort()).toEqual([...new Set(onBills.map((w: any) => w.heldBy))].sort())
+    p.freed = inside[0]
+    p.billed = onBills[0]
+    p.expense = o.expenses.find((x: any) => !x.heldBy)
+    expect(p.expense, 'the seeded travel expense').toBeTruthy()
+  })
+
+  it('once the total-only receipt is cancelled its week is offered again, and a receipt for that week with an expense dated in an earlier week is not refused over hours it does not bill', async () => {
+    const c = await cancel(p.total.number, 'Keyed as a total; keyed again with its line.')
+    expect(c.status, JSON.stringify(c.body)).toBe(200)
+    const o = await options()
+    const freed = o.weeks.find((w: any) => w.timesheetId === p.freed.timesheetId)
+    expect(freed.heldBy).toBeNull()
+    const hours = freed.hoursAccepted * freed.rateMinor
+    const r = await preview([
+      { timesheetId: freed.timesheetId, hours: freed.hoursAccepted, rateCents: freed.rateMinor, amountCents: hours },
+      { expenseId: p.expense.id, amountCents: p.expense.amountMinor },
+    ], hours + p.expense.amountMinor)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data).toMatchObject({ preview: true, wouldBe: 'RECEIVED' })
+  })
+
+  it('a line for a week already on a bill the supplier sent is refused in a sentence naming that bill', async () => {
+    const w = p.billed
+    const r = await preview([{ timesheetId: w.timesheetId, hours: w.hoursAccepted, rateCents: w.rateMinor, amountCents: w.hoursAccepted * w.rateMinor }], w.hoursAccepted * w.rateMinor)
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('ALREADY_BILLED')
+    expect(r.body.error.message).toMatch(new RegExp(`^Priya Raman’s hours for .+ are already on Techpeple’s bill .*${w.heldBy}`))
   })
 })
