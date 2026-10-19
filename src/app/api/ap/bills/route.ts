@@ -16,6 +16,7 @@ import {
   checkKeyedReceipt, keyedPayGate, asKeyed, KEYED_SELECT,
 } from '@/lib/money/keyed-receipt'
 import { amount } from '@/lib/money-display'
+import { formatDay } from '@/lib/format-date'
 import { readLines } from '@/lib/money/keyed-lines'
 import {
   booksFor, noteMoneyRead, seatMayPay, seatedRefusal, moneyTrailFor,
@@ -854,7 +855,7 @@ export async function PATCH(request: NextRequest) {
       },
       readInASeat: reading.seated,
       note: settled
-        ? 'Paid in full. This is the date every float figure on this supplier counts to.'
+        ? `Paid in full on ${formatDay(paidAt)}. Days to pay for this supplier count to this date.`
         : 'Part paid. No paid date is set — the obligation is still open, and dating it ' +
           'now would report the first installment as the day they were paid.',
     },

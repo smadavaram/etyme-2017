@@ -50,6 +50,17 @@ interface Check {
   overridable: boolean
   overriddenBy?: { name: string; reason: string; at: string }
 }
+
+/** An exception recorded on this bill, as the route returns it (whole currency). */
+interface Override {
+  code: string
+  reason: string
+  by: { id: string; name: string }
+  at: string
+  totalAtOverride: number
+  /** Whether it still covers the bill at its total now. */
+  stillCovers: boolean
+}
 interface Band {
   kind: 'REGULAR' | 'LEAVE' | 'OVERTIME'
   hours: number
@@ -123,8 +134,14 @@ function checkTitle(c: Check): string {
   return c.name ?? CHECK_NAME[c.code as MatchCode] ?? c.code
 }
 
-function CheckRow({ c, mayWaive, onWaive, onWithdraw }: {
+function CheckRow({ c, voided, mayWaive, onWaive, onWithdraw }: {
   c: Check
+  /**
+   * An exception recorded on this check for another total. It no longer
+   * covers the bill, so the row says so rather than reading as never
+   * waived, or as still waived.
+   */
+  voided?: Override | null
   /** Only the desk that pays waives a check, or withdraws an exception (lib/money/pay-desk). */
   mayWaive: boolean
   onWaive: (code: string) => void
@@ -148,6 +165,12 @@ function CheckRow({ c, mayWaive, onWaive, onWithdraw }: {
           {waived && c.overriddenBy && (
             <p className="text-xs text-etyme-muted mt-1">
               Waived by {c.overriddenBy.name}: {c.overriddenBy.reason}
+            </p>
+          )}
+          {failed && voided && (
+            <p className="text-xs text-etyme-attention mt-1 tabular-nums">
+              Voided: waived by {voided.by.name} at {amountFromUnits(voided.totalAtOverride)} ({voided.reason}).
+              The total has changed since, so this waiver no longer covers it.
             </p>
           )}
           {failed && !c.overridable && (
@@ -466,7 +489,9 @@ export default function InvoiceDetail() {
             )}
           <div className="border-t border-etyme-rule divide-y divide-etyme-rule">
             {checks.map(c => (
-              <CheckRow key={c.code} c={c} mayWaive={waiveVerdict.mayWaive} onWaive={waive} onWithdraw={withdraw} />
+              <CheckRow key={c.code} c={c}
+                voided={((m.overrides ?? []) as Override[]).find((o) => o.code === c.code && !o.stillCovers) ?? null}
+                mayWaive={waiveVerdict.mayWaive} onWaive={waive} onWithdraw={withdraw} />
             ))}
           </div>
         </div>

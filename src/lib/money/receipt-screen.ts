@@ -22,6 +22,8 @@ import { CHECK_NAME, OVERRIDABLE, type MatchCheck, type MatchCode } from '@/lib/
 import { liveWaivers, type StoredWaiver } from '@/lib/money/keyed-lines'
 import { amount } from '@/lib/money-display'
 import { decimalsFor } from '@/lib/money'
+import { formatDay } from '@/lib/format-date'
+import { dayOfMomentFor } from '@/lib/when'
 
 export interface ReceiptFacts {
   number: string
@@ -89,8 +91,12 @@ export const NOBODY_WAIVES = 'Nobody can wave this through.'
 
 const name = (code: string) => CHECK_NAME[code as MatchCode] ?? code
 
-const day = (d: Date) =>
-  d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+/**
+ * A waiver's time is a moment (when the exception was recorded), so it is
+ * printed as the day it fell on. This file composes sentences with no
+ * reader beside it, so the day is UTC's, as it was before.
+ */
+const waivedOn = (at: Date) => dayOfMomentFor(at, null)
 
 /**
  * The doors on one receipt. `gate` is the payment's own answer
@@ -133,7 +139,7 @@ export function receiptDoors(r: ReceiptFacts, role: ReaderRole, gate: { ok: bool
         at: w.at,
         live: stands,
         says:
-          `Waived by ${w.byName} on ${day(w.at)}, at ${amount(w.totalCentsAtOverride, r.currency)}: “${w.reason}” ` +
+          `Waived by ${w.byName} on ${waivedOn(w.at)}, at ${amount(w.totalCentsAtOverride, r.currency)}: “${w.reason}” ` +
           (stands
             ? 'It no longer covers this invoice receipt if the total changes.'
             : `The invoice receipt is now ${amount(r.totalCents, r.currency)}, so it no longer covers it.`),
@@ -195,7 +201,7 @@ export interface PaymentFacts {
 /** "Computer Systems paid Techpeple $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park." */
 export function paymentSays(p: PaymentFacts): string {
   return (
-    `${p.paidBy} paid ${p.paidTo} ${amount(p.amountMinor, p.currency)} on ${day(p.at)}` +
+    `${p.paidBy} paid ${p.paidTo} ${amount(p.amountMinor, p.currency)} on ${formatDay(p.at)}` +
     (p.method ? ` by ${p.method}` : '') +
     (p.reference ? `, reference ${p.reference}` : '') +
     '.' +

@@ -92,8 +92,8 @@ describe('The three-way check counts in words', () => {
   }
   const receipt = (input: MatchInput) => threeWayMatch(input).checks.find((c) => c.code === 'RECEIPT')!.reason
 
-  it('a check over one line says “the one line”, never “All 1 lines”', () => {
-    expect(receipt(one)).toBe('The one line is backed by an approved timesheet')
+  it('a check over one line says “The line”, never “All 1 lines”', () => {
+    expect(receipt(one)).toBe('The line is backed by an approved timesheet')
     expect(receipt(one)).not.toContain('All 1 lines')
   })
 
@@ -105,6 +105,16 @@ describe('The three-way check counts in words', () => {
       timesheets: { ts1: sheet('ts1'), ts2: sheet('ts2'), ts3: sheet('ts3') },
     }
     expect(receipt(three)).toBe('All 3 lines are backed by an approved timesheet')
+  })
+
+  it('a check over two lines says “Both lines”, never “All 2 lines”', () => {
+    const two: MatchInput = {
+      ...one,
+      invoice: { ...one.invoice, totalCents: 1_160_000 },
+      lines: ['1', '2'].map((n) => ({ id: `l${n}`, timesheetId: `ts${n}`, personName: 'Helena Marsh', hours: 40, rateCents: 14_500, amountCents: 580_000 })),
+      timesheets: { ts1: sheet('ts1'), ts2: sheet('ts2') },
+    }
+    expect(receipt(two)).toBe('Both lines are backed by an approved timesheet')
   })
 
   it('a purchase order check names its dates the way a clerk writes them', () => {

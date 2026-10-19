@@ -329,7 +329,7 @@ function plain(d: Date): string {
 
 /** "the one line" · "all 3 lines" — a count of one is not "All 1 lines". */
 function allLines(n: number): string {
-  return n === 1 ? 'The one line is' : `All ${n} lines are`
+  return n === 1 ? 'The line is' : n === 2 ? 'Both lines are' : `All ${n} lines are`
 }
 
 /**
