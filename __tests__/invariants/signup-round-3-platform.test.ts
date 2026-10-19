@@ -73,10 +73,11 @@ describe('a colleague seated as Member reads only their own work (item 5)', () =
 })
 
 describe('an empty firm reads a sentence, not a zero (item 12)', () => {
-  it('the pipeline, contracts and bench tiles say there is nothing yet, in words', () => {
+  it('the billing, unbilled, rolling-off and bench figures say there is nothing yet, in words', () => {
     const page = src('src/app/dashboard/page.tsx')
-    expect(page).toContain("'Nothing is billing yet, so there is no monthly revenue to show.'")
-    expect(page).toContain("'No contracts yet. One appears when a client awards you a person.'")
+    expect(page).toContain("'Nobody is on site today, so nothing is billing.'")
+    expect(page).toContain("'Every week a client signed is on a bill.'")
+    expect(page).toContain("'Nobody’s placement ends in the next 30 days.'")
     expect(page).toContain("'Nobody on the bench yet.'")
   })
 })
@@ -107,10 +108,12 @@ describe('a program office lands on its own desk, not a supplier’s sales desk 
     expect(dashboardReads(['*'], 'MSP')).toEqual({ bench: false, automation: true, target: false, pipeline: false })
   })
 
-  it('without a program it reads that it has none in sentences, its decisions and its activity, and no figure', () => {
+  it('without a program it reads that it has none in sentences and its decisions, and no figure', () => {
     const page = src('src/app/dashboard/page.tsx')
-    expect(page).toContain("if (kind === 'MSP') return <ProgramOfficeWithoutProgram")
-    const desk = page.slice(page.indexOf('function ProgramOfficeWithoutProgram'), page.indexOf('function StatCard'))
+    // An MSP with a book of its own reads the firm's Today like any seller;
+    // without one, the page says it has no program yet.
+    expect(page).toContain("if (kind === 'MSP' && !hasBook) return <ProgramOfficeWithoutProgram")
+    const desk = page.slice(page.indexOf('function ProgramOfficeWithoutProgram'))
     expect(desk).toContain('No program yet')
     expect(desk).not.toMatch(/StatCard|TheBar|monthlyRevenue|pipeline|\bbench\b|toLocaleString/i)
   })

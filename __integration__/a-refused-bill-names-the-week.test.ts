@@ -7,6 +7,7 @@ import { GET as invoiceRead } from '@/app/api/invoices/[id]/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { POST as sendBills } from '@/app/api/invoices/submit/route'
 import { POST as withdrawBill } from '@/app/api/invoices/[id]/withdraw/route'
+import { GET as today } from '@/app/api/today/route'
 import { act, decideApproval, waitingQuestions } from '@/lib/twin/ledger'
 import { supplierAuthorityAt } from '@/lib/twin/run'
 import { billsDueAt } from '@/lib/money/supplier-bills'
@@ -940,5 +941,85 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(t.billingThisMonth.totals).toEqual([{ currency: 'USD', amountMinor: null, pricedMinor: 3904000, count: 3, unpriced: 1 }])
     const week = t.signedNotBilled.weeks.find((w) => w.personName === 'Ravi Subramanian')!
     expect(week).toMatchObject({ amountMinor: null, unpriced: 'no rate' })
+  })
+})
+
+describe('a selling firm’s Today page names who is where, what is unbilled, who rolls off and who is on the bench', () => {
+  const OWNERS = { brightmoor: 'world-brightmoor@demo.etyme.local', teleworld: 'world-teleworld@demo.etyme.local' }
+  const readToday = async (email: string) => {
+    as(email)
+    return json(await today(req('GET', '/api/today')))
+  }
+
+  beforeAll(async () => {
+    await freshWorld()
+  }, 600_000)
+
+  it('Teleworld’s owner reads Karthik Menon on the bench with the day he joined it, and Felix Brenner and Amara Nwosu rolling off Northbend Athletic by name', async () => {
+    const { status, body } = await readToday(OWNERS.teleworld)
+    expect(status).toBe(200)
+    const t = body.data
+    expect(t.bench.map((b: { name: string }) => b.name)).toEqual(['Karthik Menon'])
+    expect(t.bench[0].since < t.asOf).toBe(true)
+    const rolling = t.rollingOff.map((r: { name: string; client: string; days: number }) => [r.name, r.client])
+    expect(rolling).toEqual(expect.arrayContaining([['Felix Brenner', 'Northbend Athletic'], ['Amara Nwosu', 'Northbend Athletic']]))
+    for (const r of t.rollingOff) expect(r.days).toBeLessThanOrEqual(30)
+    expect(t.picture).toContain(`${t.rollingOff.length} roll off within 30 days.`)
+    expect(t.picture).toContain('1 on the bench.')
+  })
+
+  it('Brightmoor’s owner reads billing this month and the unbilled weeks at exactly the figures money computes, with every person by name', async () => {
+    const { body } = await readToday(OWNERS.brightmoor)
+    const t = body.data
+    const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
+    const money = (await firmTuesday(brightmoor.id))!
+    expect(t.billing.totals).toEqual(money.billingThisMonth.totals)
+    expect(t.billing.names).toEqual(money.billingThisMonth.people.map((p) => p.personName))
+    expect(t.signed.count).toBe(money.signedNotBilled.count)
+    expect(t.signed.totals).toEqual(money.signedNotBilled.totals)
+    const people = t.whoIsWhere.flatMap((g: { people: { name: string }[] }) => g.people.map((p) => p.name)).sort()
+    expect(people).toEqual(money.billingThisMonth.people.map((p) => p.personName).sort())
+    expect(t.picture).toMatch(/^\d+ (person|people) billing at \d+ clients?\./)
+  })
+
+  it('every person the page names is on the access trail, read by the owner, before the answer is used', async () => {
+    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNERS.teleworld }, select: { id: true } })
+    await prisma.accessLog.deleteMany({ where: { actorPersonId: owner.id, reason: { startsWith: 'Read on the firm’s Today page' } } })
+    const { body } = await readToday(OWNERS.teleworld)
+    const t = body.data
+    const named = new Set<string>([
+      ...t.whoIsWhere.flatMap((g: { people: { personId: string }[] }) => g.people.map((p) => p.personId)),
+      ...t.rollingOff.map((r: { personId: string }) => r.personId),
+      ...t.bench.map((b: { personId: string }) => b.personId),
+    ])
+    // The bulk write is not awaited by the route, so give it its turn.
+    await new Promise((r) => setTimeout(r, 300))
+    const rows = await prisma.accessLog.findMany({
+      where: { actorPersonId: owner.id, reason: { startsWith: 'Read on the firm’s Today page' } },
+      select: { subjectId: true, allowed: true },
+    })
+    expect(rows.every((r) => r.allowed)).toBe(true)
+    for (const id of named) expect(rows.map((r) => r.subjectId), id).toContain(id)
+    expect(rows.map((r) => r.subjectId)).not.toContain(owner.id)
+  })
+
+  it('a recruiter reads who is where, who rolls off and the bench, and no money at all', async () => {
+    const { status, body } = await readToday('world-brightmoor-recruiter@demo.etyme.local')
+    expect(status).toBe(200)
+    const t = body.data
+    expect(t.billing).toBeNull()
+    expect(t.signed).toBeNull()
+    expect(t.unpaid).toBeNull()
+    expect(t.whoIsWhere.length).toBeGreaterThan(0)
+    for (const g of t.whoIsWhere) expect(g.totals).toBeNull()
+    expect(t.bench).not.toBeNull()
+    expect(t.picture).not.toMatch(/signed and not yet billed/)
+  })
+
+  it('a client is told in a sentence that its Today is its program page', async () => {
+    const { status, body } = await readToday('world-nike-programme@demo.etyme.local')
+    expect(status).toBe(403)
+    expect(body.error.code).toBe('NOT_A_SELLER')
+    expect(body.error.message).toBe('Northbend Athletic buys from its suppliers and bills nobody, so its Today is its program page.')
   })
 })

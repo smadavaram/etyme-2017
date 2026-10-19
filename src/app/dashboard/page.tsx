@@ -5,237 +5,140 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/components/session-provider'
 import { consoleHome } from '@/lib/console-home'
-import { landingFor } from '@/lib/nav-table'
+import { landingFor, mayOpen } from '@/lib/nav-table'
 import { deskOf } from '@/components/shell/sidebar-props'
 import { refusalSentence } from '@/lib/refusal-words'
-import { dashboardReads, NOT_YOURS, type DashboardReads } from '@/lib/dashboard-reads'
-import { dayOfMomentFor, readerZone } from '@/lib/when'
+import { hasPermission } from '@/lib/permissions'
+import { formatDay, formatDayLong } from '@/lib/format-date'
+import { amount, compact } from '@/lib/money-display'
+import {
+  NOT_YOURS_TODAY, queueRowView, benchSays, lastDaySays, weeksByPerson,
+  type QueueRowIn, type QueueRowView, type TodayReads,
+} from '@/lib/today-page'
 
 /**
- * Vendor Dashboard — the "Today" view.
+ * A selling firm's Today — a supplier's, an integrator's, an MSP's own
+ * book.
  *
- * CLAUDE.md design system:
- *   Decision surfaces: "Prose, reasoning, confidence, calm. 3–10 items.
- *   Serif headlines, generous space. User decides well and leaves."
+ * The founder, 2026-10-19 ("Nine links, no flip, and every first screen
+ * names a person"): *a firm's Today page reads what a firm asks on a
+ * Tuesday: billing this month, signed and not yet billed, rolling off in
+ * 30 days, on the bench, each with the names.* So the page is a headline
+ * with the names in it (the decision queue's own sentence, `data.says`
+ * from GET /api/decisions, word for word), one line of the picture, the
+ * four figures with the names under each, then what is the reader's to
+ * decide beside who is where and what is billed.
  *
- * Shows: live counts from APIs — contracts, decisions, bench, pipeline.
- * Links into working surfaces for each actionable item.
+ * Every figure is read from the service that computes it, once, on the
+ * server (GET /api/today): billing and the unbilled weeks are money's
+ * `firmTuesday`, rolling off is supply's `releasing`, the bench is
+ * supply's `benchSpell`, and the unpaid bills are the receivable book.
+ * Nothing on this page adds, multiplies or estimates.
+ *
+ * Gone, on the founder's word: the submissions target, what a submission
+ * costs, the pipeline estimate and its bars, the 160-hour revenue guess,
+ * and the log of what the system did — which lives on the ledger, one
+ * link at the bottom.
  */
 
 // ── Types ────────────────────────────────────────────
 
-interface Decision {
-  type: string
-  title: string
-  subtitle: string
-  urgency: 'HIGH' | 'MEDIUM' | 'LOW'
-  actionUrl: string
-  amount: number | null
+interface CurrencyTotal {
+  currency: string
+  amountMinor: number | null
+  pricedMinor: number
+  count: number
+  unpriced: number
 }
 
-interface DashboardData {
-  /** A supplier with nothing yet: who its client is, from GET /api/decisions (sign-up walk, round two, item 29). */
+interface TodayData {
+  asOf: string
+  company: { name: string; kind: string }
+  reads: TodayReads
+  picture: string
+  billing: { totals: CurrencyTotal[]; people: number; names: string[]; basis: string; unpriced: string[] } | null
+  signed: {
+    count: number
+    onDrafts: number
+    totals: CurrencyTotal[]
+    unpriced: string[]
+    byClient: {
+      client: string
+      weeks: number
+      totals: CurrencyTotal[]
+      people: { personName: string }[]
+      drafts: { invoiceId: string; number: string }[]
+    }[]
+  } | null
+  rollingOff: { contractId: string; personId: string; name: string; client: string | null; days: number; lastDay: string; started: boolean }[] | null
+  bench: { personId: string; name: string; since: string }[] | null
+  whoIsWhere: { client: string; people: { personId: string; name: string }[]; totals: CurrencyTotal[] | null }[] | null
+  unpaid: { invoiceId: string; number: string; client: string; currency: string; outstandingMinor: number; dueOn: string; daysOverdue: number }[] | null
+}
+
+interface Queue {
+  says: string
   welcome: string | null
-  decisions: Decision[]
-  totalDecisions: number
-  highCount: number
-  contracts: { total: number; active: number; draft: number; ending: number }
-  bench: { name: string; skill: string; status: string; daysSince: number }[]
-  pipeline: { total: number; monthlyRevenue: number }
-  recentAutomation: { summary: string; at: string }[]
-  /** Which panels this seat may read; the rest say so rather than show a zero. */
-  reads: DashboardReads
+  total: number
+  rows: QueueRowIn[]
 }
 
-/** Good submissions per day per requirement, and what one costs. */
-interface Bar {
-  target: number
-  window: number
-  bar: { rate: number | null; good: number; sent: number; requirements: number; says: string; hit: boolean }
-  stopping: { reason: string; count: number; label: string }[]
-  cost: {
-    perSubmission: number | null
-    shown: string
-    trend: string | null
-    filtered: { kept: number; considered: number; percent: number | null }
-    worst: { agent: string; micros: number } | null
-  }
-  recurring: {
-    headline: string | null
-    recordsChecked: number
-    patterns: { code: string; hits: number; outOf: number; percent: number; says: string; reallyFix: string }[]
-  }
-}
+/** How many unpaid bills the page lists before pointing at Accounts receivable. */
+const UNPAID_SHOWN = 6
 
 // ── Helpers ──────────────────────────────────────────
 
-function urgencyDot(urgency: string): string {
-  switch (urgency) {
-    case 'HIGH': return 'evidence-dot--blocked'
-    case 'MEDIUM': return 'evidence-dot--pending'
-    case 'LOW': return 'evidence-dot--pending'
-    default: return ''
-  }
+/** "Ravi Subramanian, Omar Haddad and 3 more". */
+function namesLine(names: readonly string[], shown = 4): string {
+  const unique = [...new Set(names)]
+  if (unique.length <= shown) return unique.join(', ')
+  return `${unique.slice(0, shown).join(', ')} and ${unique.length - shown} more`
 }
 
-function urgencyAction(urgency: string): string {
-  switch (urgency) {
-    case 'HIGH': return 'chip--danger'
-    case 'MEDIUM': return 'chip--attention'
-    case 'LOW': return 'chip--action'
-    default: return 'chip--passive'
-  }
+/**
+ * A figure's value per currency. A currency with a row that has no
+ * amount has no whole, and says so rather than printing the part as if
+ * it were the total.
+ */
+function totalValues(totals: readonly CurrencyTotal[]): { value: string; note: string | null }[] {
+  return totals.map((t) =>
+    t.amountMinor != null
+      ? { value: compact(t.amountMinor, t.currency), note: null }
+      : {
+          value: '—',
+          note:
+            `${amount(t.pricedMinor, t.currency)} on what can be priced; ` +
+            `${t.unpriced} of ${t.count} cannot be priced yet, so there is no total.`,
+        }
+  )
 }
 
-function urgencyLabel(urgency: string): string {
-  switch (urgency) {
-    case 'HIGH': return 'Urgent'
-    case 'MEDIUM': return 'Review'
-    case 'LOW': return 'View'
-    default: return 'View'
-  }
+/** "$21,120" beside a client, or nothing where it cannot be said. */
+function clientFigure(totals: readonly CurrencyTotal[] | null): string | null {
+  if (!totals || totals.length === 0) return null
+  return totals.map((t) => (t.amountMinor != null ? `${compact(t.amountMinor, t.currency)} a month` : 'no monthly figure')).join(' · ')
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date()
-  const d = new Date(dateStr)
-  const diffMs = now.getTime() - d.getTime()
-  const mins = Math.floor(diffMs / (1000 * 60))
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'yesterday'
-  if (days < 7) return `${days}d ago`
-  return dayOfMomentFor(d, readerZone())
-}
-
-function greetingTime(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'morning'
-  if (hour < 17) return 'afternoon'
-  return 'evening'
-}
-
-function todayLabel(): string {
-  return dayOfMomentFor(new Date(), readerZone(), { long: true, year: false })
+async function readJson(res: Response) {
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(body?.error?.message ?? `The server answered ${res.status}.`)
+  return body
 }
 
 // ── Page ─────────────────────────────────────────────
-
-
-/**
- * The one number, and what it costs.
- *
- * Good submissions per day, per requirement. Not users, not logins, not
- * model accuracy, not requirements processed. Five and there is a
- * business; two and something is wrong that no further feature will fix.
- *
- * Meant to be looked at with the customer in the room — both sides read
- * the same screen, which turns pricing day into arithmetic instead of an
- * argument. So it sits at the top, not in a reports tab.
- */
-function TheBar() {
-  const [b, setB] = useState<Bar | null>(null)
-
-  useEffect(() => {
-    fetch('/api/bar?days=30')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => body && setB(body.data))
-      .catch(() => {})
-  }, [])
-
-  if (!b) return null
-
-  const { bar, cost, stopping, target } = b
-
-  return (
-    <div className="panel mb-8">
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0">
-          <p className="eyebrow mb-1">The number · last {b.window} days</p>
-          <div className="flex items-baseline gap-3">
-            <span
-              className="headline-serif text-[42px] leading-none tabular-nums"
-              style={{ color: bar.hit ? 'var(--color-verified)' : 'var(--color-ink)' }}
-            >
-              {bar.rate ?? '—'}
-            </span>
-            <span className="text-[13px] text-etyme-faint">
-              good submissions a day, per job · target {target}
-            </span>
-          </div>
-          <p className="mt-2 max-w-[52ch] text-[13px] text-etyme-muted">{bar.says}</p>
-
-          {stopping.length > 0 && (
-            <p className="mt-1 text-[12px] text-etyme-attention">
-              What is stopping it:{' '}
-              {stopping.map((s) => `${s.count} on ${s.label.toLowerCase()}`).join(', ')}.
-            </p>
-          )}
-        </div>
-
-        <div className="shrink-0 border-l border-etyme-rule pl-6">
-          <p className="stat-label">Cost per submission</p>
-          <p className="stat-value">{cost.shown}</p>
-          <p className="mt-0.5 text-[11px] text-etyme-faint">
-            {cost.trend ?? 'no week to compare yet'}
-          </p>
-          {cost.filtered.percent !== null && (
-            <p className="mt-2 text-[11px] text-etyme-faint">
-              Rules removed {cost.filtered.percent}% before anything was paid for
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Step four of the loop: the fix that should not have to happen
-          twice. The check tells somebody Ravi has no CV and they attach
-          one; tomorrow it says Kavitha. Nothing noticed that the answer
-          was never "attach a CV".
-
-          Silent when there is no pattern, because a panel that always has
-          something in it is a panel nobody reads. */}
-      {b.recurring?.headline && (
-        <div className="mt-5 border-t border-etyme-rule pt-4">
-          <p className="eyebrow mb-2">Keeps coming back</p>
-          {b.recurring.patterns.map((p) => (
-            <div key={p.code} className="mb-3 last:mb-0">
-              <p className="text-[13px] text-etyme-ink">
-                <strong className="font-semibold">{p.says}</strong>
-              </p>
-              <p className="mt-0.5 max-w-[62ch] text-[12px] text-etyme-muted">{p.reallyFix}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function DashboardPage() {
   const router = useRouter()
   const session = useSession()
   // Whose dashboard this is.
   //
-  // This page is the seller's own book — pipeline, bench, what is
-  // ending. Three kinds of reader have no business on it and each was
-  // getting it, found on the browser walk of 2026-09-21:
-  //
-  //   · an **integrator** was redirected to /dashboard/program, which
-  //     then resolved a client for it, so Teleworld Solutions, Sundara
-  //     Systems and a Sundara engineer holding two read permissions
-  //     each read Corveldt Aerospace's own program — its headcount
-  //     across both suppliers and its monthly spend. A GSI sells. It
-  //     holds no seat and has no program to open.
-  //   · a **consultant** typing the bare URL got the vendor console,
-  //     "PIPELINE $0K · ON BENCH 0", and four refusals behind it.
-  //   · a **one-person corporation** got the same console, offering a
-  //     bench of strangers to somebody whose only consultant is herself.
-  //
-  // The answer is `lib/console-home`, which the sidebar's own Dashboard
-  // link and the demo door read too, so the three doors cannot disagree.
+  // This page is the seller's own book. Three kinds of reader have no
+  // business on it, found on the browser walk of 2026-09-21: an
+  // integrator was once sent to a client's program, a consultant typing
+  // the bare URL got the vendor console, and a one-person corporation got
+  // a bench of strangers. The answer is `lib/console-home`, which the
+  // sidebar's own link and the demo door read too, so the three doors
+  // cannot disagree.
   const [sendingOn, setSendingOn] = useState(true)
 
   useEffect(() => {
@@ -247,13 +150,9 @@ export default function DashboardPage() {
       worker: deskOf(session).worker,
       permissions: deskOf(session).permissions,
     })
-    // A firm whose console is this page (a supplier's Today) reads it
-    // here: its Dashboard link points at /dashboard, and the tables stay
-    // one click from Ask Etyme. Anybody else typing /dashboard goes where
-    // signing in and the demo door send them, through the one function
-    // the three doors share (`landingFor` in lib/nav-table): Ask Etyme
-    // where the seat's menu has Conversations, else lib/console-home's
-    // answer — My work for a consultant.
+    // Anybody whose console is not this page goes where signing in and
+    // the demo door send them, through the one function the three doors
+    // share (`landingFor` in lib/nav-table).
     if (home.href !== '/dashboard') {
       router.replace(landingFor({
         kind: session.company?.kind ?? null,
@@ -267,377 +166,404 @@ export default function DashboardPage() {
     setSendingOn(false)
   }, [router, session])
 
-  const [data, setData] = useState<DashboardData | null>(null)
+  const [today, setToday] = useState<TodayData | null>(null)
+  const [queue, setQueue] = useState<Queue | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string>('there')
+  const [busy, setBusy] = useState<string | null>(null)
+  const [said, setSaid] = useState<{ key: string; text: string } | null>(null)
 
   const permissions = session.permissions
   const kind = session.company?.kind ?? null
+  const words = { kind: session.company?.kind, company: session.company?.name }
+
+  // Two reads, both on the server: the queue the Ask Etyme mark and the
+  // greeting also read, and the firm's Today. Nothing else is asked.
   const fetchDashboard = useCallback(async () => {
-    setLoading(true)
     setError(null)
-    // Only what this seat may read, asked the way the menu asks
-    // (lib/dashboard-reads). A route that would refuse is not called.
-    const reads = dashboardReads(permissions, kind)
     try {
-      // Fetch in parallel: decisions, contracts, bench, me, automation.
-      // A program office with no program has no contracts of its own to
-      // count (it places nobody), so it is not asked for them.
-      const [decisionsRes, contractsRes, benchRes, meRes, automationRes] = await Promise.all([
-        fetch('/api/decisions').then((r) => r.ok ? r.json() : { data: { decisions: [], counts: {} } }),
-        kind === 'MSP'
-          ? Promise.resolve({ data: { contracts: [] } })
-          : fetch('/api/contracts').then((r) => r.ok ? r.json() : { data: { contracts: [] } }),
-        reads.bench
-          ? fetch('/api/bench').then((r) => r.ok ? r.json() : { data: { listings: [] } })
-          : Promise.resolve({ data: {} }),
-        fetch('/api/me').then((r) => r.ok ? r.json() : { data: {} }),
-        reads.automation
-          ? fetch('/api/automation?limit=5').then((r) => r.ok ? r.json() : { data: { entries: [] } })
-          : Promise.resolve({ data: { entries: [] } }),
+      const [q, t] = await Promise.all([
+        fetch('/api/decisions').then(readJson),
+        fetch('/api/today').then(readJson),
       ])
-
-      // Parse name
-      const name = meRes.data?.person?.name ?? 'there'
-      const firstName = name.split(' ')[0]
-      setUserName(firstName)
-
-      // Parse decisions
-      const decisions = decisionsRes.data?.decisions ?? []
-      const highCount = decisions.filter((d: any) => d.urgency === 'HIGH').length
-
-      // Parse contracts
-      const contracts = contractsRes.data?.contracts ?? []
-      const activeContracts = contracts.filter((c: any) => c.state === 'IN_PROGRESS')
-      const draftContracts = contracts.filter((c: any) => c.state === 'DRAFT')
-      const now = new Date()
-      const in28 = new Date(now)
-      in28.setDate(in28.getDate() + 28)
-      const endingContracts = activeContracts.filter((c: any) => {
-        const end = new Date(c.endDate)
-        return end <= in28 && end >= now
+      setQueue({
+        says: typeof q?.data?.says === 'string' ? q.data.says : 'Nothing needs you today.',
+        welcome: typeof q?.data?.welcome === 'string' ? q.data.welcome : null,
+        total: q?.data?.decisions?.length ?? 0,
+        rows: (q?.data?.decisions ?? []) as QueueRowIn[],
       })
-
-      // Parse bench — API returns { tiers: { RETAINED: [...], MARKETING: [...] } }
-      const benchTiers = benchRes.data?.tiers ?? {}
-      const allBenchListings = [
-        ...(benchTiers.RETAINED ?? []),
-        ...(benchTiers.MARKETING ?? []),
-      ]
-      const benchItems = allBenchListings.slice(0, 5).map((bl: any) => ({
-        name: bl.consultant?.person?.name ?? 'Unknown',
-        skill: bl.consultant?.headline ?? bl.consultant?.skills?.[0] ?? '',
-        status: bl.tier === 'RETAINED' ? 'available' : 'marketing',
-        daysSince: Math.max(0, Math.floor((now.getTime() - new Date(bl.consultant?.availableFrom ?? bl.grantedAt).getTime()) / (1000 * 60 * 60 * 24))),
-      }))
-
-      // Pipeline revenue (sum of active contract bill rates as monthly)
-      const monthlyRevenue = activeContracts.reduce(
-        (sum: number, c: any) => sum + (c.billRate ?? 0) / 100 * 160,
-        0
-      )
-
-      // Automation
-      const recentAutomation = (automationRes.data?.entries ?? []).map((e: any) => ({
-        summary: e.summary,
-        at: e.at,
-      }))
-
-      setData({
-        welcome: typeof decisionsRes.data?.welcome === 'string' ? decisionsRes.data.welcome : null,
-        decisions: decisions.slice(0, 5),
-        totalDecisions: decisions.length,
-        highCount,
-        contracts: {
-          total: contracts.length,
-          active: activeContracts.length,
-          draft: draftContracts.length,
-          ending: endingContracts.length,
-        },
-        bench: benchItems,
-        pipeline: {
-          total: activeContracts.length,
-          monthlyRevenue,
-        },
-        recentAutomation,
-        reads,
-      })
+      setToday(t.data as TodayData)
     } catch (err: any) {
-      setError(refusalSentence(err.message, { kind: session.company?.kind, company: session.company?.name }) || 'The dashboard could not be loaded.')
+      setError(refusalSentence(err.message, words) || 'Today could not be read just now.')
     } finally {
       setLoading(false)
     }
-  }, [permissions, kind, session.company?.kind, session.company?.name])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.company?.kind, session.company?.name])
 
   // Nothing is asked until we know this reader stays here: a client, a
-  // consultant or a one-person firm is sent to its own console first,
-  // and fetching the seller's panels on the way out is what answered
-  // every client desk with a 403 it never saw.
+  // consultant or a one-person firm is sent to its own console first.
   useEffect(() => {
     if (sendingOn) return
     fetchDashboard()
   }, [sendingOn, fetchDashboard])
 
+  /** One POST through a route that already does the act, then read the page again. */
+  async function act(key: string, url: string) {
+    setBusy(key)
+    setSaid(null)
+    try {
+      await readJson(await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
+      await fetchDashboard()
+    } catch (err: any) {
+      setSaid({ key, text: refusalSentence(err.message, words) || 'That did not go through. Nothing was changed.' })
+    } finally {
+      setBusy(null)
+    }
+  }
+
   // Held until we know whose dashboard this is, so a client never sees a
-  // frame of the vendor's before being sent to their own.
+  // frame of the seller's before being sent to their own.
   if (sendingOn || loading) {
     return (
       <div className="animate-fade-in py-20 text-center text-etyme-muted">
-        Loading dashboard…
+        Reading today…
       </div>
     )
   }
 
-  if (error) {
+  if (error || !today || !queue) {
     return (
       <div className="animate-fade-in py-20 text-center">
-        <p className="text-etyme-attention font-medium mb-2">Unable to load dashboard</p>
+        <p className="text-etyme-ink font-medium mb-2">Today could not be read</p>
         <p className="text-sm text-etyme-muted mb-4">{error}</p>
-        <button
-          onClick={() => { setError(null); fetchDashboard() }}
-          className="btn-secondary"
-        >
-          Retry
+        <button onClick={() => { setLoading(true); fetchDashboard() }} className="btn-secondary">
+          Try again
         </button>
       </div>
     )
   }
 
-  const d = data
+  const t = today
+  const rolling = new Map((t.rollingOff ?? []).map((r) => [r.contractId, { ...r }]))
+  const rows = queue.rows.map((r) => queueRowView(r, rolling, { terminate: hasPermission(permissions ?? [], 'assignments.terminate') }))
+  const mayIssue = hasPermission(permissions ?? [], 'invoices.issue')
+  const ledger = mayOpen('/dashboard/twin', permissions)
 
-  // A program office places nobody, so a supplier's sales desk is not its
-  // Today (sign-up walk, round three, item 15). With a seat at a client it
-  // never reaches this page — lib/console-home opens the client's program
-  // through the seat. Without one, it reads what is addressed to it and a
-  // sentence that says there is no program yet, and no figure at all.
-  if (kind === 'MSP') return <ProgramOfficeWithoutProgram d={d} userName={userName} officeName={session.company?.name ?? 'Your firm'} />
+  // A program office places nobody, so with no book of its own it reads
+  // that it has no program yet (sign-up walk, round three, item 15).
+  const hasBook =
+    (t.whoIsWhere?.length ?? 0) > 0 || (t.signed?.count ?? 0) > 0 || (t.rollingOff?.length ?? 0) > 0 || (t.unpaid?.length ?? 0) > 0
+  if (kind === 'MSP' && !hasBook) return <ProgramOfficeWithoutProgram t={t} queue={queue} rows={rows} officeName={session.company?.name ?? 'Your firm'} ledger={ledger} />
 
   return (
     <div className="animate-fade-in">
-      {/* Hero — today's summary */}
+      {/* The headline: one sentence with the names in it. */}
       <div className="mb-8">
-        <div className="eyebrow mb-2">Today · {todayLabel()}</div>
-        <h1 className="headline-serif text-heading text-etyme-ink mb-2">
-          Good {greetingTime()}, {userName}
-        </h1>
-        {d?.welcome && d.totalDecisions === 0 && (
-          <p className="text-body text-etyme-ink max-w-xl mb-1">{d.welcome}</p>
+        <div className="eyebrow mb-2">Today · {formatDayLong(t.asOf, { weekday: true, year: false })}</div>
+        <h1 className="headline-serif text-heading text-etyme-ink mb-2 max-w-3xl">{queue.says}</h1>
+        {queue.welcome && queue.total === 0 && (
+          <p className="text-body text-etyme-ink max-w-xl mb-1">{queue.welcome}</p>
         )}
-        <p className="text-body text-etyme-muted max-w-xl">
-          {d && d.totalDecisions > 0
-            ? `${d.totalDecisions} item${d.totalDecisions !== 1 ? 's' : ''} need${d.totalDecisions === 1 ? 's' : ''} your attention${d.highCount > 0 ? ` — ${d.highCount} urgent` : ''}.`
-            : 'All clear — nothing needs your attention right now.'}
-          {d && d.contracts.ending > 0 && ` ${d.contracts.ending} contract${d.contracts.ending !== 1 ? 's' : ''} ending within 28 days.`}
-        </p>
+        <p className="text-body text-etyme-muted max-w-2xl">{t.picture}</p>
       </div>
 
-      {d?.reads.target && <TheBar />}
-
-      {/* Stat cards */}
+      {/* Four figures, each with the names under it. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard
-          label="Active Contracts"
-          value={String(d?.contracts.active ?? 0)}
-          subtitle={`${d?.contracts.active ?? 0} sell · ${d?.contracts.draft ?? 0} draft`}
-          empty={d && d.contracts.total === 0 ? 'No contracts yet. One appears when a client awards you a person.' : null}
-          tone="default"
+        <Figure
+          label="Billing this month"
+          denied={t.billing ? null : NOT_YOURS_TODAY.billing}
+          values={t.billing ? totalValues(t.billing.totals) : []}
+          empty={t.billing && t.billing.people === 0 ? 'Nobody is on site today, so nothing is billing.' : null}
+          lines={t.billing ? [
+            `${t.billing.people} ${t.billing.people === 1 ? 'person' : 'people'} on site, at current rates`,
+            namesLine(t.billing.names),
+            ...t.billing.unpriced.slice(0, 2),
+          ] : []}
+          note={t.billing && t.billing.people > 0 ? t.billing.basis : null}
         />
-        {d?.reads.pipeline && (
-          <StatCard
-            label="Pipeline"
-            value={`$${Math.round((d?.pipeline.monthlyRevenue ?? 0) / 1000)}K`}
-            subtitle="monthly revenue"
-            empty={d && d.pipeline.total === 0 ? 'Nothing is billing yet, so there is no monthly revenue to show.' : null}
-            tone="default"
-          />
-        )}
-        <StatCard
-          label="Pending Actions"
-          value={String(d?.totalDecisions ?? 0)}
-          subtitle={d?.highCount ? `${d.highCount} urgent` : 'none urgent'}
-          tone={d?.highCount ? 'attention' : 'default'}
+        <Figure
+          label="Signed, not yet billed"
+          denied={t.signed ? null : NOT_YOURS_TODAY.bills}
+          values={t.signed ? totalValues(t.signed.totals) : []}
+          empty={t.signed && t.signed.count === 0 ? 'Every week a client signed is on a bill.' : null}
+          lines={t.signed ? [
+            `${t.signed.count} ${t.signed.count === 1 ? 'week' : 'weeks'}`,
+            weeksByPerson(t.signed.byClient.flatMap((g) => g.people)),
+            t.signed.onDrafts > 0 ? `${t.signed.onDrafts} on bills drafted, waiting for you` : '',
+            ...t.signed.unpriced.slice(0, 2),
+          ].filter(Boolean) : []}
         />
-        <StatCard
-          label="On Bench"
-          value={d && !d.reads.bench ? '—' : String(d?.bench.length ?? 0)}
-          subtitle={d && !d.reads.bench ? 'not yours to see' : `${d?.bench.filter(b => b.status === 'available').length ?? 0} available now`}
-          empty={d && d.reads.bench && d.bench.length === 0 ? 'Nobody on the bench yet.' : null}
-          tone="verified"
+        <Figure
+          label="Rolling off in 30 days"
+          denied={t.rollingOff ? null : NOT_YOURS_TODAY.people}
+          values={t.rollingOff ? [{ value: String(t.rollingOff.length), note: null }] : []}
+          empty={t.rollingOff && t.rollingOff.length === 0 ? 'Nobody’s placement ends in the next 30 days.' : null}
+          lines={(t.rollingOff ?? []).slice(0, 4).map((r) => lastDaySays(r, t.asOf))
+            .concat((t.rollingOff?.length ?? 0) > 4 ? [`and ${(t.rollingOff?.length ?? 0) - 4} more`] : [])}
+        />
+        <Figure
+          label="On the bench"
+          denied={t.bench ? null : NOT_YOURS_TODAY.bench}
+          values={t.bench ? [{ value: String(t.bench.length), note: null }] : []}
+          empty={t.bench && t.bench.length === 0 ? 'Nobody on the bench yet.' : null}
+          lines={(t.bench ?? []).slice(0, 4).map((b) => benchSays(b, t.asOf))
+            .concat((t.bench?.length ?? 0) > 4 ? [`and ${(t.bench?.length ?? 0) - 4} more`] : [])}
         />
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left — Decision queue */}
+      {/* Two columns from the large breakpoint up; one, stacked, on a phone. */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3">
-          <div className="panel">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="headline-serif text-[18px] text-etyme-ink">
-                Yours to decide
-              </h2>
-              <Link href="/dashboard/decisions" className="text-[12px] text-etyme-action hover:underline">
-                View all →
-              </Link>
-            </div>
-
-            {d && d.decisions.length === 0 && (
-              <div className="py-8 text-center text-etyme-muted text-[13px]">
-                ✓ All clear — nothing needs your attention right now.
-              </div>
-            )}
-
-            <div className="space-y-0">
-              {d?.decisions.map((decision, i) => (
-                <Link
-                  key={i}
-                  href={decision.actionUrl as any}
-                  className="flex items-start gap-3 py-3 border-b border-etyme-rule last:border-b-0 hover:bg-etyme-canvas/40 transition-colors -mx-2 px-2 rounded-sm"
-                >
-                  <span className={`evidence-dot ${urgencyDot(decision.urgency)} mt-1.5 flex-shrink-0`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-etyme-ink">{decision.title}</div>
-                    <div className="text-[12px] text-etyme-muted mt-0.5">{decision.subtitle}</div>
-                  </div>
-                  <span className={`chip ${urgencyAction(decision.urgency)} flex-shrink-0 mt-0.5`}>
-                    {urgencyLabel(decision.urgency)}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent system activity */}
-          {d && d.recentAutomation.length > 0 && (
-            <div className="panel mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="headline-serif text-[18px] text-etyme-ink">
-                  System activity
-                </h2>
-                <Link href="/dashboard/automation" className="text-[12px] text-etyme-action hover:underline">
-                  View log →
-                </Link>
-              </div>
-              <div className="space-y-2">
-                {d.recentAutomation.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1">
-                    <span className="text-[10px] text-etyme-faint opacity-50">⚙</span>
-                    <span className="text-[12px] text-etyme-muted flex-1 truncate">{entry.summary}</span>
-                    <span className="text-[10px] text-etyme-faint tabular-nums shrink-0">{timeAgo(entry.at)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <Decide rows={rows} busy={busy} said={said} onAct={act} />
         </div>
 
-        {/* Right — Bench + pipeline */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Bench snapshot */}
-          <div className="panel">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="headline-serif text-[18px] text-etyme-ink">
-                Bench
-              </h2>
-              {d?.reads.bench && (
-                <Link href="/dashboard/bench" className="text-[12px] text-etyme-action hover:underline">
-                  View all →
-                </Link>
-              )}
-            </div>
-            {d && !d.reads.bench && (
-              <div className="py-4 text-center text-etyme-muted text-[12px]">
-                {NOT_YOURS.bench}
-              </div>
-            )}
-            {d && d.reads.bench && d.bench.length === 0 && (
-              <div className="py-4 text-center text-etyme-muted text-[12px]">
-                No consultants on bench.
-              </div>
-            )}
-            <div className="space-y-2.5">
-              {d?.bench.map((item, i) => (
-                <div key={i} className="flex items-center gap-3 py-1">
-                  <div className="w-7 h-7 rounded-full bg-etyme-action/10 text-etyme-action
-                                  text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                    {item.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-etyme-ink truncate">{item.name}</div>
-                    <div className="text-[11px] text-etyme-faint">{item.skill}</div>
-                  </div>
-                  <span className={`chip ${item.status === 'available' ? 'chip--verified' : 'chip--action'}`}>
-                    {item.status === 'available' ? `${item.daysSince}d` : 'network'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Contract pipeline */}
-          <div className="panel">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="headline-serif text-[18px] text-etyme-ink">
-                Contract Pipeline
-              </h2>
-              <Link href="/dashboard/contracts" className="text-[12px] text-etyme-action hover:underline">
-                View all →
-              </Link>
-            </div>
-            <div className="space-y-2.5">
-              <PipelineRow label="Draft"       count={d?.contracts.draft ?? 0}  color="faint" />
-              <PipelineRow label="In Progress" count={d?.contracts.active ?? 0} color="verified" />
-              <PipelineRow label="Ending Soon" count={d?.contracts.ending ?? 0} color="attention" />
-            </div>
-          </div>
-
-          {/* Revenue */}
-          {d && d.pipeline.monthlyRevenue > 0 && (
-            <div className="panel">
-              <h2 className="headline-serif text-[18px] text-etyme-ink mb-3">
-                Revenue
-              </h2>
-              <div className="flex items-baseline gap-2">
-                <span className="stat-value text-etyme-verified">
-                  ${Math.round(d.pipeline.monthlyRevenue).toLocaleString()}
-                </span>
-                <span className="text-body-sm text-etyme-faint">est. monthly</span>
-              </div>
-              <p className="text-[11px] text-etyme-faint mt-1">
-                Based on {d.contracts.active} active contract{d.contracts.active !== 1 ? 's' : ''} at 160 hrs/mo
-              </p>
-            </div>
-          )}
+          <WhoIsWhere t={t} />
+          <Bills t={t} mayIssue={mayIssue} busy={busy} said={said} onAct={act} />
         </div>
       </div>
+
+      {ledger && (
+        <p className="mt-8 text-[13px]">
+          <Link href="/dashboard/twin" className="text-etyme-action hover:underline">
+            Everything Etyme did, in the ledger
+          </Link>
+        </p>
+      )}
     </div>
   )
 }
 
 // ─── Sub-components ────────────────────────────────
 
+/** "Yours to decide": the queue by name, a plain button where one route does the act, Look otherwise. */
+function Decide({ rows, busy, said, onAct }: {
+  rows: QueueRowView[]
+  busy: string | null
+  said: { key: string; text: string } | null
+  onAct: (key: string, url: string) => void
+}) {
+  return (
+    <div className="panel">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="headline-serif text-[18px] text-etyme-ink">Yours to decide</h2>
+        <Link href="/dashboard/decisions" className="text-[12px] text-etyme-action hover:underline">See all</Link>
+      </div>
+      {rows.length === 0 && (
+        <p className="py-6 text-center text-[13px] text-etyme-muted">Nothing is waiting on you.</p>
+      )}
+      <div>
+        {rows.slice(0, 8).map((r) => (
+          <div key={r.key} className="py-3 border-b border-etyme-rule last:border-b-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-etyme-ink">{r.who}</div>
+                <div className="text-[12px] text-etyme-muted mt-0.5">{r.says}</div>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {r.act ? (
+                  <>
+                    <button className="btn-primary" disabled={busy === r.key} onClick={() => onAct(r.key, r.act!.url)}>
+                      {busy === r.key ? r.act.busy : r.act.label}
+                    </button>
+                    <Link href={r.href as any} className="btn-secondary">Look</Link>
+                  </>
+                ) : (
+                  <Link href={r.href as any} className="btn-secondary">Look</Link>
+                )}
+              </div>
+            </div>
+            {said?.key === r.key && <p className="mt-2 text-[12px] text-etyme-ink">{said.text}</p>}
+          </div>
+        ))}
+      </div>
+      {rows.length > 8 && (
+        <p className="mt-3 text-[12px] text-etyme-muted">
+          And {rows.length - 8} more. <Link href="/dashboard/decisions" className="text-etyme-action hover:underline">See all</Link>
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** "Who is where": the firm's people by client, the monthly figure beside each, and Our bench last. */
+function WhoIsWhere({ t }: { t: TodayData }) {
+  return (
+    <div className="panel">
+      <h2 className="headline-serif text-[18px] text-etyme-ink mb-4">Who is where</h2>
+      {!t.whoIsWhere && <p className="text-[12px] text-etyme-muted">{NOT_YOURS_TODAY.people}</p>}
+      {t.whoIsWhere && t.whoIsWhere.length === 0 && (
+        <p className="text-[12px] text-etyme-muted">Nobody is on a client’s site today.</p>
+      )}
+      <div className="space-y-3">
+        {(t.whoIsWhere ?? []).map((g) => (
+          <div key={g.client} className="border-b border-etyme-rule pb-3 last:border-b-0 last:pb-0">
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="text-[13px] font-medium text-etyme-ink">{g.client}</div>
+              {clientFigure(g.totals) && (
+                <div className="text-[12px] text-etyme-ink tabular-nums shrink-0">{clientFigure(g.totals)}</div>
+              )}
+            </div>
+            <div className="text-[12px] text-etyme-muted mt-0.5">{g.people.map((p) => p.name).join(', ')}</div>
+          </div>
+        ))}
+        {t.bench && (
+          <div className="pt-1">
+            <div className="text-[13px] font-medium text-etyme-ink">Our bench</div>
+            <div className="text-[12px] text-etyme-muted mt-0.5">
+              {t.bench.length === 0 ? 'Nobody on the bench yet.' : t.bench.map((b) => benchSays(b, t.asOf)).join(' · ')}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** "Bills": the weeks signed and not yet billed by client, Send where a draft holds them, then what was sent and is unpaid. */
+function Bills({ t, mayIssue, busy, said, onAct }: {
+  t: TodayData
+  mayIssue: boolean
+  busy: string | null
+  said: { key: string; text: string } | null
+  onAct: (key: string, url: string) => void
+}) {
+  const unpaid = t.unpaid ?? []
+  return (
+    <div className="panel">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="headline-serif text-[18px] text-etyme-ink">Bills</h2>
+        {t.signed && (
+          <Link href="/dashboard/invoices" className="text-[12px] text-etyme-action hover:underline">Open bills</Link>
+        )}
+      </div>
+      {!t.signed && <p className="text-[12px] text-etyme-muted">{NOT_YOURS_TODAY.bills}</p>}
+      {t.signed && (
+        <>
+          <div className="stat-label mb-2">Signed, not yet billed</div>
+          {t.signed.byClient.length === 0 && (
+            <p className="text-[12px] text-etyme-muted mb-3">Every week a client signed is on a bill.</p>
+          )}
+          <div className="space-y-3 mb-5">
+            {t.signed.byClient.map((g) => (
+              <div key={g.client} className="border-b border-etyme-rule pb-3 last:border-b-0 last:pb-0">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="text-[13px] font-medium text-etyme-ink">{g.client}</div>
+                  <div className="text-[12px] text-etyme-ink tabular-nums shrink-0">
+                    {totalValues(g.totals).map((v) => v.value).join(' · ')}
+                  </div>
+                </div>
+                <div className="text-[12px] text-etyme-muted mt-0.5">{weeksByPerson(g.people)}</div>
+                {g.drafts.map((d) => {
+                  const key = `send-${d.invoiceId}`
+                  return (
+                    <div key={d.invoiceId} className="mt-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[12px] text-etyme-muted">Bill {d.number} is drafted.</span>
+                        {mayIssue ? (
+                          <button className="btn-primary" disabled={busy === key} onClick={() => onAct(key, `/api/invoices/${d.invoiceId}/submit`)}>
+                            {busy === key ? 'Sending…' : 'Send'}
+                          </button>
+                        ) : (
+                          <Link href="/dashboard/invoices" className="btn-secondary">Look</Link>
+                        )}
+                      </div>
+                      {said?.key === key && <p className="mt-1 text-[12px] text-etyme-ink">{said.text}</p>}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div className="stat-label mb-2">Sent, not yet paid</div>
+          {unpaid.length === 0 && <p className="text-[12px] text-etyme-muted">Every bill sent has been paid.</p>}
+          <div className="space-y-2">
+            {unpaid.slice(0, UNPAID_SHOWN).map((b) => (
+              <div key={b.invoiceId} className="flex items-baseline justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] text-etyme-ink">{b.client}</div>
+                  <div className="text-[12px] text-etyme-muted">
+                    Bill {b.number} · {b.daysOverdue > 0
+                      ? `was due ${formatDay(b.dueOn)}, ${b.daysOverdue} ${b.daysOverdue === 1 ? 'day' : 'days'} late`
+                      : `due ${formatDay(b.dueOn)}`}
+                  </div>
+                </div>
+                <div className="text-[12px] text-etyme-ink tabular-nums shrink-0">{amount(b.outstandingMinor, b.currency)}</div>
+              </div>
+            ))}
+          </div>
+          {unpaid.length > UNPAID_SHOWN && (
+            <p className="mt-3 text-[12px] text-etyme-muted">
+              And {unpaid.length - UNPAID_SHOWN} more.{' '}
+              <Link href="/dashboard/ar" className="text-etyme-action hover:underline">Open accounts receivable</Link>
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** One of the four figures: the label, the value, and the names under it. */
+function Figure({ label, values, lines, note = null, empty = null, denied = null }: {
+  label: string
+  values: { value: string; note: string | null }[]
+  lines: string[]
+  note?: string | null
+  /** Where there is nothing to count, the sentence that says so in place of a zero. */
+  empty?: string | null
+  /** Where the part is not this seat's to read, the sentence that says so. */
+  denied?: string | null
+}) {
+  return (
+    <div className="panel">
+      <div className="stat-label mb-2">{label}</div>
+      {denied ? (
+        <p className="text-[12px] text-etyme-muted">{denied}</p>
+      ) : empty ? (
+        <p className="text-[13px] text-etyme-muted">{empty}</p>
+      ) : (
+        <>
+          {values.map((v, i) => (
+            <div key={i}>
+              <div className="stat-value text-etyme-ink tabular-nums">{v.value}</div>
+              {v.note && <p className="text-[11px] text-etyme-muted mt-1">{v.note}</p>}
+            </div>
+          ))}
+          <div className="mt-1 space-y-0.5">
+            {lines.filter(Boolean).map((l, i) => (
+              <p key={i} className="text-[12px] text-etyme-muted">{l}</p>
+            ))}
+          </div>
+          {note && <p className="text-[11px] text-etyme-faint mt-2">{note}</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
 /**
  * A program office's Today before any client has granted it a seat.
  *
- * Its desk is the programs it runs: the people on site, the suppliers it
- * governs, the hours waiting and the decisions. Every one of those lives
- * in a client's program and is read through the seat, so with no seat
- * there is nothing to count, and the page says that in sentences rather
- * than drawing zeros. Nothing here is money.
+ * Its work is the programs it runs, every one read through a seat a
+ * client granted, so with no seat and no book of its own there is
+ * nothing to count, and the page says that in sentences rather than
+ * drawing zeros. Nothing here is money.
  */
-function ProgramOfficeWithoutProgram({ d, userName, officeName }: { d: DashboardData | null; userName: string; officeName: string }) {
+function ProgramOfficeWithoutProgram({ t, queue, rows, officeName, ledger }: {
+  t: TodayData
+  queue: Queue
+  rows: QueueRowView[]
+  officeName: string
+  ledger: boolean
+}) {
   return (
     <div className="animate-fade-in">
       <div className="mb-8">
-        <div className="eyebrow mb-2">Today · {todayLabel()}</div>
-        <h1 className="headline-serif text-heading text-etyme-ink mb-2">
-          Good {greetingTime()}, {userName}
-        </h1>
-        <p className="text-body text-etyme-muted max-w-xl">
-          {d && d.totalDecisions > 0
-            ? `${d.totalDecisions} item${d.totalDecisions !== 1 ? 's' : ''} need${d.totalDecisions === 1 ? 's' : ''} your attention${d.highCount > 0 ? ` — ${d.highCount} urgent` : ''}.`
-            : 'Nothing needs your attention right now.'}
-        </p>
+        <div className="eyebrow mb-2">Today · {formatDayLong(t.asOf, { weekday: true, year: false })}</div>
+        <h1 className="headline-serif text-heading text-etyme-ink mb-2">{queue.says}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -651,118 +577,29 @@ function ProgramOfficeWithoutProgram({ d, userName, officeName }: { d: Dashboard
               <li className="text-etyme-muted">Once they do, this page opens on their program: the people on site, the suppliers, the hours waiting and the decisions.</li>
             </ul>
           </div>
-
-          {d && d.decisions.length > 0 && (
+        </div>
+        <div className="lg:col-span-2">
+          {rows.length > 0 && (
             <div className="panel">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="headline-serif text-[18px] text-etyme-ink">Yours to decide</h2>
-                <Link href="/dashboard/decisions" className="text-[12px] text-etyme-action hover:underline">View all →</Link>
-              </div>
-              {d.decisions.map((decision, i) => (
-                <Link
-                  key={i}
-                  href={decision.actionUrl as any}
-                  className="flex items-start gap-3 py-3 border-b border-etyme-rule last:border-b-0 hover:bg-etyme-canvas/40 transition-colors -mx-2 px-2 rounded-sm"
-                >
-                  <span className={`evidence-dot ${urgencyDot(decision.urgency)} mt-1.5 flex-shrink-0`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-medium text-etyme-ink">{decision.title}</div>
-                    <div className="text-[12px] text-etyme-muted mt-0.5">{decision.subtitle}</div>
-                  </div>
-                  <span className={`chip ${urgencyAction(decision.urgency)} flex-shrink-0 mt-0.5`}>
-                    {urgencyLabel(decision.urgency)}
-                  </span>
+              <h2 className="headline-serif text-[18px] text-etyme-ink mb-4">Yours to decide</h2>
+              {rows.map((r) => (
+                <Link key={r.key} href={r.href as any} className="block py-3 border-b border-etyme-rule last:border-b-0">
+                  <div className="text-[13px] font-medium text-etyme-ink">{r.who}</div>
+                  <div className="text-[12px] text-etyme-muted mt-0.5">{r.says}</div>
                 </Link>
               ))}
             </div>
           )}
         </div>
-
-        <div className="lg:col-span-2">
-          {d && d.recentAutomation.length > 0 && (
-            <div className="panel">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="headline-serif text-[18px] text-etyme-ink">System activity</h2>
-                <Link href="/dashboard/automation" className="text-[12px] text-etyme-action hover:underline">View log →</Link>
-              </div>
-              <div className="space-y-2">
-                {d.recentAutomation.map((entry, i) => (
-                  <div key={i} className="flex items-center gap-3 py-1">
-                    <span className="text-[10px] text-etyme-faint opacity-50">⚙</span>
-                    <span className="text-[12px] text-etyme-muted flex-1 truncate">{entry.summary}</span>
-                    <span className="text-[10px] text-etyme-faint tabular-nums shrink-0">{timeAgo(entry.at)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
-    </div>
-  )
-}
 
-function StatCard({
-  label, value, subtitle, tone, empty = null,
-}: {
-  label: string
-  value: string
-  subtitle: string
-  tone: 'default' | 'attention' | 'verified'
-  /** Where there is nothing to count yet, the sentence that says so in place of a zero. */
-  empty?: string | null
-}) {
-  if (empty) {
-    return (
-      <div className="panel">
-        <div className="stat-label mb-2">{label}</div>
-        <p className="text-[13px] text-etyme-muted">{empty}</p>
-      </div>
-    )
-  }
-  const valueColor = {
-    default:   'text-etyme-ink',
-    attention: 'text-etyme-attention',
-    verified:  'text-etyme-verified',
-  }[tone]
-
-  return (
-    <div className="panel">
-      <div className="stat-label mb-2">{label}</div>
-      <div className={`stat-value ${valueColor}`}>{value}</div>
-      <div className="text-[12px] text-etyme-faint mt-1">{subtitle}</div>
-    </div>
-  )
-}
-
-function PipelineRow({
-  label, count, color,
-}: {
-  label: string
-  count: number
-  color: 'faint' | 'attention' | 'action' | 'verified'
-}) {
-  const barColor = {
-    faint:     'bg-etyme-faint/30',
-    attention: 'bg-etyme-attention/60',
-    action:    'bg-etyme-action/60',
-    verified:  'bg-etyme-verified/60',
-  }[color]
-
-  const maxWidth = Math.max(10, (count / 20) * 100)
-
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-[140px] text-[12px] text-etyme-muted truncate">{label}</div>
-      <div className="flex-1 h-[6px] bg-etyme-rule/50 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full ${barColor} transition-all`}
-          style={{ width: `${maxWidth}%` }}
-        />
-      </div>
-      <div className="w-6 text-right text-[12px] font-medium text-etyme-ink tabular-nums">
-        {count}
-      </div>
+      {ledger && (
+        <p className="mt-8 text-[13px]">
+          <Link href="/dashboard/twin" className="text-etyme-action hover:underline">
+            Everything Etyme did, in the ledger
+          </Link>
+        </p>
+      )}
     </div>
   )
 }

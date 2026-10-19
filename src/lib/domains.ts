@@ -499,6 +499,10 @@ export const DOMAINS: Domain[] = [
       // Which of the seller's dashboard panels a seat may read, asked the
       // way the menu asks, so the dashboard calls no route that refuses.
       'lib/dashboard-reads',
+      // A selling firm's Today page (founder, 2026-10-19): who may read
+      // which part, and the sentences it is drawn with; and the one route
+      // that reads it. The figures are money's and supply's.
+      'lib/today-page', 'app/api/today',
       // Which of the three consoles a seat opens on. Read by
       // /dashboard's own redirect, the sidebar's Dashboard link and the
       // demo door — three doors onto one question that had three

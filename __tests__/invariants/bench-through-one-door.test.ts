@@ -109,10 +109,9 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  * than offering nobody. `compliance-pickers.test.ts` holds the
  * sentences.
  *
- * And three more re-derive the shape correctly, so they are right today
+ * And two more re-derive the shape correctly, so they are right today
  * and one refactor from being wrong:
  *
- *   · `app/dashboard/page` (etyme-architect) — reads `data.tiers`.
  *   · `app/dashboard/reports` (etyme-money) — reads `data.tiers`.
  *   · `app/dashboard/submissions` (etyme-demand) — reads `data.tiers`.
  *
@@ -123,7 +122,6 @@ const CALLS_THE_BENCH = /fetch\(\s*[`'"]\/api\/bench/
  * five — and that is a conversation with the bench desk.
  */
 const STILL_READS_BY_HAND = [
-  'src/app/dashboard/page.tsx',
   'src/app/dashboard/reports/page.tsx',
   'src/app/dashboard/submissions/page.tsx',
 ]
