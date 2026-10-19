@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { approverIsKnownAtClient } from '@/app/api/timesheets/approval-by-email'
+import { approverIsKnownAtClient, offPlatformApprovalWords, restsOnSupplierRecord } from '@/app/api/timesheets/approval-by-email'
 
 /**
  * The person named as a client's approver on evidence must be somebody
@@ -57,5 +57,71 @@ describe('whether an approver is known at the client', () => {
     expect(v.ok).toBe(false)
     if (v.ok) throw new Error('expected a refusal')
     expect(v.says).toContain('Give the email address')
+  })
+})
+
+/**
+ * A client that is not on Etyme: a record its supplier listed, nobody has
+ * claimed it, so it has no domain, no aliases and no seats. Day one for a
+ * supplier whose client is not on Etyme.
+ */
+const ACME_OFF_PLATFORM = {
+  name: 'Acme',
+  domain: null,
+  aliases: [],
+  seatedEmails: [],
+  offPlatform: true,
+  recordedContacts: ['Dana@Acme.example'],
+}
+
+describe('whether an approver is known at a client that is not on Etyme', () => {
+  it('a supplier whose client is not on Etyme sends the approval link to the person it recorded for that client, and the signature says the client was not on Etyme', () => {
+    const v = approverIsKnownAtClient({ approverEmail: 'dana@acme.example', client: ACME_OFF_PLATFORM })
+    expect(v).toEqual({ ok: true, how: 'RECORDED_CONTACT' })
+    if (!v.ok) throw new Error('expected the recorded contact to be accepted')
+    expect(restsOnSupplierRecord(v.how)).toBe(true)
+    expect(offPlatformApprovalWords({ approverName: ' Dana Whitfield ', approverEmail: 'Dana@Acme.example', clientName: 'Acme' }))
+      .toBe('Approved by email: Dana Whitfield, dana@acme.example — Acme was not on Etyme')
+  })
+
+  it('somebody else at the recorded person’s company domain may be named, and the client’s own reasons never rest on the supplier’s record', () => {
+    expect(approverIsKnownAtClient({ approverEmail: 'raj.patel@ops.acme.example', client: ACME_OFF_PLATFORM }))
+      .toEqual({ ok: true, how: 'RECORDED_DOMAIN' })
+    expect(restsOnSupplierRecord('DOMAIN')).toBe(false)
+    expect(restsOnSupplierRecord('SEATED')).toBe(false)
+  })
+
+  it('an address the supplier never recorded for an off-platform client is still refused', () => {
+    const v = approverIsKnownAtClient({ approverEmail: 'dana@acme-billing.example', client: ACME_OFF_PLATFORM })
+    expect(v.ok).toBe(false)
+    if (v.ok) throw new Error('expected a refusal')
+    expect(v.code).toBe('APPROVER_NOT_AT_CLIENT')
+    expect(v.says).toContain('dana@acme-billing.example is not an address recorded for Acme, which is not on Etyme')
+    expect(v.says).toContain('@acme.example')
+  })
+
+  it('a worker naming their own address for an off-platform client is still refused', () => {
+    expect(approverIsKnownAtClient({ approverEmail: 'helena.marsh@gmail.com', client: ACME_OFF_PLATFORM }).ok).toBe(false)
+  })
+
+  it('a recorded consumer address lets that one person approve and nobody else on that provider', () => {
+    const solo = { ...ACME_OFF_PLATFORM, recordedContacts: ['owner.acme@gmail.com'] }
+    expect(approverIsKnownAtClient({ approverEmail: 'owner.acme@gmail.com', client: solo }))
+      .toEqual({ ok: true, how: 'RECORDED_CONTACT' })
+    expect(approverIsKnownAtClient({ approverEmail: 'helena.marsh@gmail.com', client: solo }).ok).toBe(false)
+  })
+
+  it('an off-platform client with no address recorded refuses every approver and says the address has to be recorded first', () => {
+    const v = approverIsKnownAtClient({ approverEmail: 'dana@acme.example', client: { ...ACME_OFF_PLATFORM, recordedContacts: [] } })
+    expect(v.ok).toBe(false)
+    if (v.ok) throw new Error('expected a refusal')
+    expect(v.says).toContain('Acme is not on Etyme and no address is recorded for it')
+  })
+
+  it('once the client claims its record, its own domain and seats decide, as before', () => {
+    const claimed = { ...ACME_OFF_PLATFORM, offPlatform: false, domain: 'acme-group.example', seatedEmails: ['lee@acme-group.example'] }
+    expect(approverIsKnownAtClient({ approverEmail: 'dana@acme.example', client: claimed }).ok).toBe(false)
+    expect(approverIsKnownAtClient({ approverEmail: 'pat@acme-group.example', client: claimed }))
+      .toEqual({ ok: true, how: 'DOMAIN' })
   })
 })

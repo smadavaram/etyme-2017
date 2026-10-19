@@ -320,10 +320,38 @@ export interface ClientOfRecord {
   aliases?: readonly (string | null | undefined)[]
   /** The addresses of every person holding a live seat at the client. */
   seatedEmails: readonly (string | null | undefined)[]
+  /**
+   * The client is not on Etyme: a record a supplier listed for it
+   * (`isShell` in lib/off-system — nobody has claimed it). Only then are
+   * `recordedContacts` read. Once the client claims its record this is
+   * false, and its own domain and seats decide, as before.
+   */
+  offPlatform?: boolean
+  /**
+   * The addresses the supplier recorded for the client when it listed it
+   * (the `SupplierInvite` email written by POST /api/clients). Read only
+   * while `offPlatform` is true.
+   */
+  recordedContacts?: readonly (string | null | undefined)[]
+}
+
+/**
+ * Why an approver counts as somebody at the client. The first three read
+ * the client's own record; the two RECORDED_ reasons stand only while the
+ * client is not on Etyme, and stand on what its supplier recorded for it.
+ */
+export type ApproverHow = 'DOMAIN' | 'ALIAS' | 'SEATED' | 'RECORDED_CONTACT' | 'RECORDED_DOMAIN'
+
+/** The reasons that rest on the supplier's record of an off-platform client. */
+export const RECORDED_REASONS = ['RECORDED_CONTACT', 'RECORDED_DOMAIN'] as const satisfies readonly ApproverHow[]
+
+/** Whether an accepted approver rests on the supplier's record, not the client's own. */
+export function restsOnSupplierRecord(how: ApproverHow): boolean {
+  return (RECORDED_REASONS as readonly ApproverHow[]).includes(how)
 }
 
 export type ApproverVerdict =
-  | { ok: true; how: 'DOMAIN' | 'ALIAS' | 'SEATED' }
+  | { ok: true; how: ApproverHow }
   | { ok: false; code: 'APPROVER_NOT_AT_CLIENT'; says: string }
 
 /** The address, or a subdomain of it, belongs to this domain. */
@@ -355,6 +383,11 @@ function cleanDomain(d: string | null | undefined): string | null {
  *    an approver whose mail is on another domain but whom the client has
  *    seated (the seeded Northbend approver is one).
  *
+ * While the client is not on Etyme (a record its supplier listed, nobody
+ * has claimed), it has none of the three, so two more stand in: the exact
+ * address the supplier recorded for it, or an address at that address's
+ * company domain. Once it claims the record they no longer count.
+ *
  * Anything else is refused in a sentence. Nobody is refused for the case
  * of the letters: addresses are compared lowercased.
  */
@@ -385,6 +418,40 @@ export function approverIsKnownAtClient(i: {
   for (const a of i.client.aliases ?? []) {
     const alias = cleanDomain(a ?? null)
     if (alias && underDomain(addressDomain, alias)) return { ok: true, how: 'ALIAS' }
+  }
+
+  // A client that is not on Etyme has no domain, aliases or seats of its
+  // own, so its supplier's record of it is the only thing to read. Always a
+  // named person (founder, 2026-09-30): the exact address recorded, or an
+  // address at that address's own company domain — never a consumer
+  // provider's, so recording somebody's Gmail lets that one address
+  // approve and no other.
+  if (i.client.offPlatform) {
+    const recorded = (i.client.recordedContacts ?? [])
+      .filter((e): e is string => typeof e === 'string')
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => domainOfEmail(e))
+    if (recorded.includes(email)) return { ok: true, how: 'RECORDED_CONTACT' }
+    const recordedDomains = [...new Set(recorded.map((e) => cleanDomain(domainOfEmail(e))).filter((d): d is string => !!d))]
+    if (recordedDomains.some((d) => underDomain(addressDomain, d))) return { ok: true, how: 'RECORDED_DOMAIN' }
+
+    if (!recorded.length) {
+      return {
+        ok: false,
+        code: 'APPROVER_NOT_AT_CLIENT',
+        says:
+          `${clientName} is not on Etyme and no address is recorded for it, so nobody there can be named as the approver yet. ` +
+          `The address of the person at ${clientName} who approves the hours has to be on its record first.`,
+      }
+    }
+    const at = recordedDomains.length ? ` Its addresses end in ${recordedDomains.map((d) => '@' + d).join(' or ')}.` : ''
+    return {
+      ok: false,
+      code: 'APPROVER_NOT_AT_CLIENT',
+      says:
+        `${email} is not an address recorded for ${clientName}, which is not on Etyme.${at} ` +
+        `Give the address of the person at ${clientName} who approved this week.`,
+    }
   }
 
   const where = main ? ` Its addresses end in @${main}.` : ''
@@ -567,6 +634,19 @@ export function evidenceReadLog(
 export function approvedByWords(i: { approverName: string; on: Date; how: 'LINK' | 'EVIDENCE'; now: Date }): string {
   const base = `Approved by email: ${i.approverName}, ${dayOf(i.on, i.now)}`
   return i.how === 'EVIDENCE' ? `${base} — evidence attached` : base
+}
+
+/**
+ * The signature an off-platform client's approval carries, so a reader can
+ * tell it from a seat's: "Approved by email: Dana Whitfield, dana@acme.com
+ * — Acme was not on Etyme". Said of the day it was approved, so it reads
+ * the same after the client claims its record.
+ */
+export function offPlatformApprovalWords(i: { approverName: string; approverEmail: string; clientName: string }): string {
+  const name = i.approverName.trim()
+  const email = i.approverEmail.trim().toLowerCase()
+  const client = i.clientName.trim() || 'The client'
+  return `Approved by email: ${name}, ${email} — ${client} was not on Etyme`
 }
 
 /**
