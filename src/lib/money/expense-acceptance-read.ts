@@ -145,8 +145,12 @@ export async function readForAcceptance(expenseId: string): Promise<
 export interface ExpenseToAccept {
   expenseId: string
   personName: string
-  /** The firm that raised it. */
-  raisedBy: string
+  /**
+   * The firm directly below this one in the chain — its own supplier,
+   * whose name it already knows. Never the employer further down, whose
+   * name is the firm above it's to keep.
+   */
+  from: string
   category: string
   /** What this firm may accept at most, in minor units. */
   upToCents: number
@@ -207,7 +211,7 @@ export async function expensesWaitingOn(companyId: string, take = 25): Promise<E
     const at = chain.steps.findIndex((s) => s.companyId === companyId)
     const above = at > 0 ? decisions.find((d) => d.companyId === chain.steps[at - 1].companyId) : null
     out.push({
-      expenseId: r.id, personName: e.personName, raisedBy: e.companyName, category: e.category,
+      expenseId: r.id, personName: e.personName, from: next.leg.sellerName, category: e.category,
       upToCents: at === 0 ? e.totalCents : above?.acceptedCents ?? 0,
       currency: e.currency, periodStart: e.periodStart, approvedAt: r.approvedAt,
     })
