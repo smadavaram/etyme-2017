@@ -409,9 +409,14 @@ describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () 
     expect(door).not.toMatch(/\blogAccess\(/)
     // Nothing leaves from here: no model client, no network.
     expect(door).not.toMatch(/\bfetch\(|anthropic|@\/lib\/model-boundary'/i)
-    // And nothing else in the product reads or writes the two tables.
+    // And nothing else in the product reads or writes the two tables,
+    // except the person's own data rights (regulatory, 2026-10-19): their
+    // export reads their thread and erasure deletes it, keyed on the person
+    // whose data it is. That list grows only by a decision.
+    const DATA_RIGHTS = [join('lib', 'data-request.ts'), join('lib', 'erasure.ts')]
     const elsewhere = (globSync('src/**/*.{ts,tsx}', { cwd: process.cwd() }) as string[])
       .filter((f) => !f.endsWith(join('lib', 'ask-etyme-thread.ts')))
+      .filter((f) => !DATA_RIGHTS.some((d) => f.endsWith(d)))
       .filter((f) => /prisma\.askEtyme(Thread|Turn)\b|tx\.askEtyme(Thread|Turn)\b/.test(readFileSync(join(process.cwd(), f), 'utf8')))
     expect(elsewhere, 'a file other than lib/ask-etyme-thread touches the saved conversation').toEqual([])
     // Not passing on nothing: the door itself is what the pattern finds.

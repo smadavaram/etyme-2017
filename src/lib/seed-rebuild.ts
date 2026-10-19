@@ -113,6 +113,9 @@ export const DELETE_ORDER = [
   'CreditNote', 'PaymentRunItem', 'ClassificationCall', 'ExemptAssertion', 'MarketingLead',
   'ReconciliationRun', 'SourcedContact', 'DataRequest', 'LegalHold', 'BreachCompany', 'CensusFile',
   'CensusRead', 'OrderMilestone', 'Role', 'ConsultantProfile', 'VisaPetition', 'ApprovalRule', 'Submission',
+  // A firm's acceptance of an expense (2026-10-19) goes before the expense,
+  // the firm and the person who decided.
+  'ExpenseAcceptance',
   'OvertimeDecision', 'Invoice', 'Expense', 'VendorBill', 'LedgerAccount', 'JournalEntry', 'Conversation',
   'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',

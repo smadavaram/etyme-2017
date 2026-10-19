@@ -7,7 +7,7 @@ import { GET as invoiceRead } from '@/app/api/invoices/[id]/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { POST as sendBills } from '@/app/api/invoices/submit/route'
 import { POST as withdrawBill } from '@/app/api/invoices/[id]/withdraw/route'
-import { act, decideApproval } from '@/lib/twin/ledger'
+import { act, decideApproval, waitingQuestions } from '@/lib/twin/ledger'
 import { supplierAuthorityAt } from '@/lib/twin/run'
 import { billsDueAt } from '@/lib/money/supplier-bills'
 import { runSupplierBills } from '@/lib/money/supplier-bills-run'
@@ -217,10 +217,10 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     expect(again.asked).toBe(0)
   })
 
-  it('where only the owner the twin acts for may send bills, the twin asks nobody and says to send it from the Bills page', async () => {
+  it('where nobody but the owner sends bills, Ask Etyme asks the owner, and the ledger says the exception applied', async () => {
     // A one-person firm, drawn on Brightmoor for one moment: every other
-    // seat that may send a bill steps away, and nothing is put in a queue
-    // nobody may answer.
+    // seat that may send a bill steps away. The owner the twin acts for
+    // is asked (founder, 2026-10-19, decision 2), and may answer.
     const authority = await supplierAuthorityAt(t.brightmoor)
     expect(authority.role).toBe('Owner')
     const others = await prisma.context.findMany({
@@ -234,20 +234,99 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     const ids = others.map((o) => o.id)
     await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: new Date() } })
     try {
-      const questionsBefore = await prisma.twinApproval.count({ where: { companyId: t.brightmoor } })
       const r = await act({
         companyId: t.brightmoor, twin: 'SUPPLIER', action: 'bill.send',
         entity: { type: 'Invoice', id: t.draft.id, partyCompanyIds: [t.brightmoor, t.northbend] },
         rule: 'The agreement’s billing date has come.', rationale: 'A one-person firm, for the test.',
         surface: 'WEB', authority, payload: {},
       })
-      expect(r.outcome).toBe('REFUSED')
-      expect((r as { says: string }).says).toContain('Send it from the Bills page.')
-      expect(await prisma.twinApproval.count({ where: { companyId: t.brightmoor } })).toBe(questionsBefore)
+      expect(r.outcome).toBe('AWAITING_APPROVAL')
+      if (r.outcome !== 'AWAITING_APPROVAL') return
+      expect(r.says).toContain('Only you send bills here, so Ask Etyme asks you.')
+
+      // The question and the entry that asked it both say the exception applied.
+      const question = await prisma.twinApproval.findUniqueOrThrow({ where: { id: r.approvalId }, include: { twinAction: true } })
+      expect(question.needsPermission).toBe('invoices.issue')
+      expect(question.selfApprovalReason).toContain('Nobody else at the firm sends bills')
+      expect((question.twinAction.payload as Record<string, unknown>).ownerOnlyException).toBe(question.selfApprovalReason)
+      expect(await prisma.automationLog.count({
+        where: { companyId: t.brightmoor, action: 'TWIN_APPROVAL_REQUESTED', payload: { path: ['approvalId'], equals: r.approvalId } },
+      })).toBe(1)
+
+      // The owner's queue offers the yes, with the reason in a sentence.
+      const owner = await decider('world-brightmoor@demo.etyme.local')
+      const waiting = await waitingQuestions({
+        company: { id: t.brightmoor, kind: 'VENDOR', name: 'Brightmoor Staffing' } as any,
+        person: { id: owner.personId } as any,
+        permissions: owner.permissions as any,
+      })
+      const mine = waiting.find((q) => q.id === r.approvalId)!
+      expect(mine.mayDecide).toBe(true)
+      expect(mine.own).toBe(false)
+      expect(mine.askedYouBecause).toBe('Only you send bills here, so Ask Etyme asks you.')
+
+      // The owner answers it. A no, here, so the draft stays for the
+      // stories below; the yes that sends one is walked at the end.
+      const no = await decideApproval({ approvalId: r.approvalId, decider: owner, decision: 'REJECTED', reason: 'Not this month; I will send it with the expenses.', surface: 'WEB' })
+      expect(no.ok, JSON.stringify(no)).toBe(true)
+      const answered = await prisma.twinAction.findFirstOrThrow({ where: { approvalId: r.approvalId, actorType: 'PERSON' } })
+      expect(answered.actorId).toBe(owner.personId)
+      expect((answered.payload as Record<string, unknown>).ownerOnlyException).toBe(question.selfApprovalReason)
       expect((await prisma.invoice.findUniqueOrThrow({ where: { id: t.draft.id } })).status).toBe('DRAFT')
     } finally {
       await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: null } })
     }
+  })
+
+  it('where a second person sends bills, the owner still cannot say yes to the twin’s bill', async () => {
+    const authority = await supplierAuthorityAt(t.brightmoor)
+    const owner = await decider('world-brightmoor@demo.etyme.local')
+
+    // Asked with Accounts Receivable, Finance and Admin seated: the
+    // question is theirs, and it claims no exception.
+    const asked = await prisma.twinApproval.findUniqueOrThrow({ where: { id: t.approvalId } })
+    expect(asked.selfApprovalReason).toBeNull()
+
+    // And a question asked while the owner was alone is taken back the
+    // moment somebody else sends bills: the owner's yes is refused.
+    const others = await prisma.context.findMany({
+      where: {
+        companyId: t.brightmoor, revokedAt: null, personId: { not: authority.personId! },
+        role: { permissions: { hasSome: ['invoices.issue', '*'] } },
+      },
+      select: { id: true },
+    })
+    const ids = others.map((o) => o.id)
+    await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: new Date() } })
+    let approvalId = ''
+    try {
+      const r = await act({
+        companyId: t.brightmoor, twin: 'SUPPLIER', action: 'bill.send',
+        entity: { type: 'Invoice', id: t.draft.id, partyCompanyIds: [t.brightmoor, t.northbend] },
+        rule: 'The agreement’s billing date has come.', rationale: 'A one-person firm, for the test.',
+        surface: 'WEB', authority, payload: {},
+      })
+      expect(r.outcome).toBe('AWAITING_APPROVAL')
+      approvalId = (r as { approvalId: string }).approvalId
+    } finally {
+      await prisma.context.updateMany({ where: { id: { in: ids } }, data: { revokedAt: null } })
+    }
+    const late = await decideApproval({ approvalId, decider: owner, decision: 'APPROVED', surface: 'WEB' })
+    expect(late.ok).toBe(false)
+    if (late.ok) return
+    expect(late.status).toBe(403)
+    expect(late.says).toContain('Somebody else at your firm sends bills now, so they answer this.')
+    expect((await prisma.twinApproval.findUniqueOrThrow({ where: { id: approvalId } })).decision).toBe('PENDING')
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: t.draft.id } })).status).toBe('DRAFT')
+    const waiting = await waitingQuestions({
+      company: { id: t.brightmoor, kind: 'VENDOR', name: 'Brightmoor Staffing' } as any,
+      person: { id: owner.personId } as any,
+      permissions: owner.permissions as any,
+    })
+    const mine = waiting.find((q) => q.id === approvalId)!
+    expect(mine.mayDecide).toBe(false)
+    expect(mine.askedYouBecause).toBeNull()
+    expect(mine.whyNot).toContain('Somebody else at your firm sends bills now')
   })
 
   it('the twin never sends a bill without a yes from somebody who sends bills, and the owner it acts for is never that somebody', async () => {
@@ -282,68 +361,88 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
   })
 })
 
-describe('a draft nobody else may send is said once, not every night', () => {
+describe('a draft only the owner may send is asked once, not every night', () => {
   // Halcyon Talent, as seeded: one seat, the Owner, who is also the
-  // person the supplier's twin acts for. Nobody else may send its bills.
+  // person the supplier's twin acts for. Nobody else may send its bills,
+  // so Ask Etyme asks the Owner (founder, 2026-10-19, decision 2).
   const h: Record<string, any> = {}
 
   beforeAll(async () => {
     h.halcyon = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-halcyon' } })).id
   })
 
-  const refusals = () => prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'REFUSED' } })
+  const questions = () => prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })
 
-  it('a one-person firm’s drafted bill is checked against its weeks and passes, and the twin asks nobody because only the owner it acts for may send it, naming the bill to open and send', async () => {
+  it('a one-person firm’s drafted bill is checked against its weeks and passes, and Ask Etyme asks the owner it acts for, because only they send bills', async () => {
     const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
     expect(run.drafted).toBe(1)
-    expect(run.asked).toBe(0)
-    expect(run.outcomes.REFUSED).toBe(1)
-    const refused = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'REFUSED' } })
-    // Refused for want of another person to say yes, not because the
-    // draft failed the three-way check: the record was asked first and said yes.
-    expect(refused.ruleCited).toBe('Segregation of duties: nobody signs their own, and nobody else may')
-    h.draftId = refused.entityId
-    const number = (await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).number
-    expect(String((refused.payload as Record<string, unknown>).said)).toContain(`Send it from the Bills page: open ${number} and press Send.`)
+    expect(run.asked).toBe(1)
+    expect(run.outcomes.REFUSED).toBe(0)
+    const asked = await prisma.twinAction.findFirstOrThrow({
+      where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL' },
+      include: { approvalRequested: true },
+    })
+    expect(asked.approvalRequested?.needsPermission).toBe('invoices.issue')
+    expect(asked.approvalRequested?.selfApprovalReason).toContain('Nobody else at the firm sends bills')
+    expect((asked.payload as Record<string, unknown>).ownerOnlyException).toBe(asked.approvalRequested?.selfApprovalReason)
+    h.draftId = asked.entityId
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).status).toBe('DRAFT')
   })
 
-  it('the next night, with nothing changed, the twin neither drafts again nor writes the same refusal again', async () => {
+  it('the next night, with nothing changed, the twin neither drafts again nor asks again', async () => {
     const drafts = await prisma.invoice.count({ where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } } })
-    const before = await refusals()
+    const before = await questions()
     const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
     expect(run.drafted).toBe(0)
+    expect(run.asked).toBe(0)
     expect(run.outcomes.REFUSED).toBe(0)
-    expect(run.unchanged).toBe(1)
-    expect(await refusals()).toBe(before)
+    expect(await questions()).toBe(before)
     expect(await prisma.invoice.count({ where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } } })).toBe(drafts)
   })
 
-  it('once somebody who sends bills is seated at the firm, the next night asks them about the same draft', async () => {
+  it('once somebody who sends bills is seated at the firm, the question about the same draft is theirs, and the owner can no longer answer it', async () => {
     const role = await prisma.role.create({ data: { companyId: h.halcyon, name: 'Accounts Receivable', permissions: ['invoices.issue', 'invoices.read'] } })
     const person = await prisma.person.create({ data: { name: 'Ines Halloran', primaryEmail: 'ines.halloran@halcyon.example' } })
     await prisma.context.create({ data: { personId: person.id, companyId: h.halcyon, type: 'EMPLOYEE', roleId: role.id } })
+    const rows = await questions()
     const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
-    expect(run.asked).toBe(1)
-    expect(run.unchanged).toBe(0)
+    expect(run.asked).toBe(0)
+    expect(await questions()).toBe(rows)
     const asked = await prisma.twinAction.findFirstOrThrow({
       where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL', entityId: h.draftId },
       include: { approvalRequested: true },
     })
-    expect(asked.approvalRequested?.needsPermission).toBe('invoices.issue')
-    // And a night after that, the question waits: nothing new is written.
-    const rows = await prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })
-    const again = await runSupplierBills(h.halcyon, { surface: 'CRON' })
-    expect(again.asked).toBe(0)
-    expect(await prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })).toBe(rows)
+    expect(asked.approvalRequested?.decision).toBe('PENDING')
+    const company = { id: h.halcyon, kind: 'VENDOR', name: 'Halcyon Talent' } as any
+    const ines = await waitingQuestions({ company, person: { id: person.id } as any, permissions: ['invoices.issue', 'invoices.read'] as any })
+    expect(ines.find((q) => q.id === asked.approvalRequested!.id)?.mayDecide).toBe(true)
+    const ownerSeat = await prisma.context.findFirstOrThrow({
+      where: { companyId: h.halcyon, revokedAt: null, role: { name: 'Owner' } },
+      select: { personId: true, person: { select: { name: true } }, role: { select: { permissions: true } } },
+    })
+    const owner = await waitingQuestions({ company, person: { id: ownerSeat.personId } as any, permissions: (ownerSeat.role?.permissions ?? []) as any })
+    expect(owner.find((q) => q.id === asked.approvalRequested!.id)?.mayDecide).toBe(false)
+    const refused = await decideApproval({
+      approvalId: asked.approvalRequested!.id,
+      decider: { personId: ownerSeat.personId, personName: ownerSeat.person.name, companyId: h.halcyon, permissions: ownerSeat.role?.permissions ?? [] },
+      decision: 'APPROVED', surface: 'WEB',
+    })
+    expect(refused.ok).toBe(false)
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.draftId } })).status).toBe('DRAFT')
   })
 
   it('a bill the twin drafted says Ask Etyme drafted it, in the words the firm reads', async () => {
     const drafted = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.draft', outcome: 'PERFORMED' } })
     expect(drafted.twinKind).toBe('SUPPLIER')
     const asked = await prisma.twinAction.findFirstOrThrow({ where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL' } })
-    expect(asked.rationale).toContain('Drafted by Ask Etyme')
     expect(asked.rationale).not.toContain('twin')
+    // The question as the firm's log reads it names Ask Etyme, and says
+    // why it went to the owner.
+    const said = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: h.halcyon, action: 'TWIN_APPROVAL_REQUESTED', payload: { path: ['twinActionId'], equals: asked.id } },
+    })
+    expect(said.summary).toMatch(/^Ask Etyme asked the person it acts for, because nobody else at the firm may answer/)
+    expect(said.summary).not.toContain('twin')
   })
 })
 
@@ -501,5 +600,58 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     expect(out.says).toContain('This question is closed, because it was overtaken: Bill ')
     expect(out.says).toContain('Nothing was done on your answer.')
     expect(out.says).not.toContain('already answered')
+  })
+})
+
+/**
+ * The owner's yes, end to end (founder, 2026-10-19, decision 2). A
+ * seeded firm where nobody but the Owner sends bills: the nightly pass
+ * drafts, asks the Owner, and the Owner's yes sends the bill through the
+ * same check the Bills page runs, recorded under their name with the
+ * exception on the line.
+ */
+describe('where only the owner sends bills, the owner’s yes in Ask Etyme sends the twin’s bill', () => {
+  it('the owner says yes to the twin’s drafted bill, the bill is sent, and the ledger records the owner-only exception', async () => {
+    const firms = await prisma.company.findMany({
+      where: { slug: { startsWith: 'world-', notIn: ['world-halcyon', 'world-brightmoor'] }, kind: { in: ['VENDOR', 'GSI', 'CONSULTANT_CORP'] }, isDemo: false },
+      select: { id: true, name: true, kind: true },
+      orderBy: { slug: 'asc' },
+    })
+    let found: { companyId: string; approvalId: string; invoiceId: string } | null = null
+    for (const f of firms) {
+      const authority = await supplierAuthorityAt(f.id)
+      if (!authority.personId) continue
+      const others = await prisma.context.count({
+        where: { companyId: f.id, revokedAt: null, personId: { not: authority.personId }, role: { permissions: { hasSome: ['invoices.issue', '*'] } } },
+      })
+      if (others > 0) continue
+      await runSupplierBills(f.id, { surface: 'CRON' })
+      const asked = await prisma.twinAction.findFirst({
+        where: { companyId: f.id, action: 'bill.send', outcome: 'AWAITING_APPROVAL', approvalRequested: { decision: 'PENDING', selfApprovalReason: { not: null } } },
+        include: { approvalRequested: true },
+      })
+      if (asked?.approvalRequested) { found = { companyId: f.id, approvalId: asked.approvalRequested.id, invoiceId: asked.entityId }; break }
+    }
+    expect(found, 'a seeded firm where only the owner sends bills and a bill is due').not.toBeNull()
+    if (!found) return
+    const seat = await prisma.context.findFirstOrThrow({
+      where: { companyId: found.companyId, revokedAt: null, personId: (await supplierAuthorityAt(found.companyId)).personId! },
+      select: { personId: true, person: { select: { name: true } }, role: { select: { permissions: true } } },
+    })
+    const yes = await decideApproval({
+      approvalId: found.approvalId,
+      decider: { personId: seat.personId, personName: seat.person.name, companyId: found.companyId, permissions: seat.role?.permissions ?? [] },
+      decision: 'APPROVED', surface: 'WEB',
+    })
+    expect(yes.ok, JSON.stringify(yes)).toBe(true)
+    const sent = await prisma.invoice.findUniqueOrThrow({ where: { id: found.invoiceId } })
+    expect(sent.status).toBe('SUBMITTED')
+    const line = await prisma.twinAction.findFirstOrThrow({ where: { approvalId: found.approvalId, actorType: 'PERSON', outcome: 'PERFORMED' } })
+    expect(line.actorId).toBe(seat.personId)
+    expect(String((line.payload as Record<string, unknown>).ownerOnlyException)).toContain('Nobody else at the firm sends bills')
+    const logged = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: found.companyId, action: 'TWIN_ACT_APPROVED', payload: { path: ['approvalId'], equals: found.approvalId } },
+    })
+    expect(logged.summary).toContain('the owner answered, because nobody else at the firm may')
   })
 })

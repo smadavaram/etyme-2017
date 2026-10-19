@@ -70,6 +70,8 @@ model Person {
   verifications            Verification[]
   enrollments              Enrollment[]
   expenses                 Expense[]
+  /// Expense acceptances this person decided for their firm (2026-10-19).
+  expensesAccepted         ExpenseAcceptance[]       @relation("expenseAcceptedBy")
   requisitionsRaised       Requirement[]             @relation("requisitionRaiser")
   requisitionsOwned        Requirement[]             @relation("requisitionOwner")
   requisitionsReporting    Requirement[]             @relation("requisitionReportsTo")
@@ -772,6 +774,8 @@ model Company {
   courses               Course[]
   // Expenses
   expenses              Expense[]
+  /// Expenses this firm accepted or sent back for its own rung (2026-10-19).
+  expenseAcceptances    ExpenseAcceptance[]
   // Conversations
   conversations         Conversation[]
   // Threads another company opened with this one (a client to its supplier).
@@ -2173,6 +2177,28 @@ model MasterAgreement {
   /// SPLIT · START · END. Null = not said.
   billStraddle  String?
 
+  // ── Which expenses are billable ────────────────────────────────────
+  //
+  // Founder, 2026-10-19 ("go with your recommendations", decision 1):
+  // whether a kind of expense is billable comes from the agreement
+  // between each pair, not from the supplier's own `Expense.billable`
+  // flag. The vocabulary is `Expense.category`'s:
+  //
+  //   TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
+  //
+  // A list cannot be null in this database, so whether the agreement said
+  // anything is its own column: `billableExpenseKindsSaid` false means the
+  // agreement is silent and the list is ignored (money's cascade asks the
+  // next document down, as it does for the rhythm above); true means the
+  // list is what was agreed, and an empty list then means no expense is
+  // billable under it. An empty list alone could not tell "none" from
+  // "nobody asked", which is the same trap the rhythm columns avoid.
+
+  /// Kinds of expense billable under this agreement, in `Expense.category`'s words.
+  billableExpenseKinds     String[] @default([])
+  /// Whether the agreement said which expenses are billable. False = silent.
+  billableExpenseKindsSaid Boolean  @default(false)
+
   currency     String    @default("USD")
   /// When it was fully executed — both sides signed. Null means work is
   /// running on a handshake, which is the ordinary state of this industry
@@ -2315,24 +2341,27 @@ model MasterAgreementVersion {
   version Int
 
   // ── The terms, as they stood after this change ──
-  paymentTerms        Int
-  paymentTermsFrom    String
+  paymentTerms             Int
+  paymentTermsFrom         String
   /// The billing rhythm as it stood, null where the agreement did not say.
-  billFrequency       String?
-  billAnchor          String?
-  billStraddle        String?
-  currency            String
-  minMarginPct        Int?
-  capacity            Int?
-  disclosesSubVendors Boolean   @default(false)
-  effectiveDate       DateTime?
-  expiresAt           DateTime?
-  renewalKind         String
-  renewalMonths       Int?
-  noticeDays          Int?
-  status              String
-  signedAt            DateTime?
-  executedFileName    String?
+  billFrequency            String?
+  billAnchor               String?
+  billStraddle             String?
+  /// Which expenses were billable, as it stood (founder, 2026-10-19).
+  billableExpenseKinds     String[]  @default([])
+  billableExpenseKindsSaid Boolean   @default(false)
+  currency                 String
+  minMarginPct             Int?
+  capacity                 Int?
+  disclosesSubVendors      Boolean   @default(false)
+  effectiveDate            DateTime?
+  expiresAt                DateTime?
+  renewalKind              String
+  renewalMonths            Int?
+  noticeDays               Int?
+  status                   String
+  signedAt                 DateTime?
+  executedFileName         String?
 
   /// RECORDED · AMENDED · SIGNED · DOCUMENT_ATTACHED · RENEWED · EXPIRED · TERMINATED
   action      String
@@ -4360,22 +4389,22 @@ model Invoice {
 // Lifecycle: DRAFT → SUBMITTED → APPROVED → INVOICED → PAID  or  → REJECTED at any point.
 // BUILD.md §6.3: "Client-billable expenses appear on invoices."
 model Expense {
-  id              String           @id @default(cuid())
+  id              String              @id @default(cuid())
   companyId       String
-  company         Company          @relation(fields: [companyId], references: [id])
+  company         Company             @relation(fields: [companyId], references: [id])
   sellContractId  String
-  sellContract    SellContract     @relation(fields: [sellContractId], references: [id])
+  sellContract    SellContract        @relation(fields: [sellContractId], references: [id])
   personId        String // consultant who incurred the expense
-  person          Person           @relation(fields: [personId], references: [id])
+  person          Person              @relation(fields: [personId], references: [id])
   category        String // TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
-  billable        Boolean          @default(true) // client-billable vs internal company expense
+  billable        Boolean             @default(true) // client-billable vs internal company expense
   description     String
   periodStart     DateTime
   periodEnd       DateTime
   items           Json // [{ description, quantity, unitPrice, expenseType }]
-  total           Decimal          @db.Decimal(12, 2)
+  total           Decimal             @db.Decimal(12, 2)
   receiptUrl      String?
-  status          String           @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
+  status          String              @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
   submittedAt     DateTime?
   approvedById    String?
   approvedAt      DateTime?
@@ -4383,12 +4412,72 @@ model Expense {
   invoiceId       String? // linked when invoiced (client-billable only)
   invoiceLines    InvoiceLine[]
   vendorBillLines VendorBillLine[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  /// Each firm's own acceptance before it pays (founder, 2026-10-19).
+  acceptances     ExpenseAcceptance[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([companyId, status])
   @@index([sellContractId])
   @@index([personId])
+}
+
+/// One firm's acceptance of an expense, before it pays it.
+///
+/// Founder, 2026-10-19 ("go with your recommendations", decision 1): an
+/// expense is accepted like a week. The worker's employer approves it for
+/// reimbursement (`Expense.approvedById`, unchanged); each firm above
+/// accepts it before it pays it, the client first and then down the
+/// chain, nobody accepting their own. Before this table only the firm
+/// that raised the expense approved it, and the firm paying for it never
+/// did.
+///
+/// One row per firm per expense, the way `WorkAssertion` gives each firm
+/// its own position on a week: the firm speaks for its own rung and no
+/// other. `acceptedCents` is what this firm accepts, which may be less
+/// than the expense's total — the same shape as `acceptedHours` on a
+/// week, and a firm bills upward or pays downward on what was accepted
+/// at its rung, never on the total asked. SENT_BACK carries the reason,
+/// required by the route money builds: a no nobody can read is the one
+/// an auditor stops on.
+///
+/// Whether a kind of expense is billable at all comes from the agreement
+/// between each pair (`MasterAgreement.billableExpenseKinds`), not from
+/// the supplier's own `Expense.billable` flag.
+///
+/// Nothing writes this yet: money builds acceptance into the chain next
+/// (matrix L3.3.1.2).
+model ExpenseAcceptance {
+  id String @id @default(cuid())
+
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  /// The firm accepting, for its own rung.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The person at that firm who decided. Never the person who raised the
+  /// expense, and never a seat at the firm that raised it.
+  byId String
+  by   Person @relation("expenseAcceptedBy", fields: [byId], references: [id])
+
+  /// What this firm accepts, in minor units of the expense's currency.
+  /// Zero on a SENT_BACK row.
+  acceptedCents Int
+  status        ExpenseAcceptanceStatus
+  /// Why, where it was sent back or accepted for less than asked.
+  reason        String?
+  createdAt     DateTime                @default(now())
+
+  @@unique([expenseId, companyId])
+  @@index([companyId, status])
+  @@index([byId])
+}
+
+enum ExpenseAcceptanceStatus {
+  ACCEPTED
+  SENT_BACK
 }
 
 model Payment {
@@ -8654,6 +8743,19 @@ model TwinApproval {
   /// Where the answer came from; null while nobody has answered.
   surface            TwinSurface?
   reasonFromApprover String?
+
+  /// Null on every question but one kind: the reason the person the twin
+  /// acts for may answer this one. Founder, 2026-10-19 ("go with your
+  /// recommendations", decision 2): where nobody at the firm but the
+  /// Owner the supplier's twin acts for sends bills (`invoices.issue`),
+  /// the Owner may say yes to the twin's drafted bill, because a bill is
+  /// money coming in and the Owner is reviewing the machine's draft, not
+  /// their own work. Written only by `act` in lib/twin/ledger, for
+  /// `bill.send` only, and only when no other seat holds the permission;
+  /// `decideApproval` checks again when the answer comes, so a second
+  /// person seated since takes the question back. Never set for any
+  /// other act.
+  selfApprovalReason String?
 
   /// The entry recording the answer.
   decisions     TwinAction[]   @relation("twinApprovalDecision")

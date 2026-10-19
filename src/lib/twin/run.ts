@@ -67,8 +67,13 @@ export async function programManagerAt(companyId: string): Promise<Authority> {
  * Receivable, Finance, Admin — are exactly the ones who must be able to
  * say yes to `bill.send`. Acting on the owner's authority keeps every one
  * of them free to answer. A firm where only that person may send bills
- * (a one-person firm) is not asked at all: the ledger refuses the
- * question in a sentence that names the Bills page (NO_OTHER_APPROVER).
+ * (a one-person firm, sixteen of the nineteen seeded suppliers) asks that
+ * person: the owner-only exception (founder, 2026-10-19, decision 2;
+ * `ownerOnlyException` in lib/twin/ledger), for `bill.send` only, recorded
+ * on the question and on the answer, and taken back the moment a second
+ * seat that sends bills exists. Where not even the owner may send bills,
+ * the ledger still refuses the question in a sentence that names the
+ * Bills page (NO_OTHER_APPROVER).
  * Falls back to the role and no person, the same way the program
  * manager's does, never to a refusal.
  */

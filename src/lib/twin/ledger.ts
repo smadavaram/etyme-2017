@@ -43,7 +43,7 @@ import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { TWIN_ACTS, isTwinAct } from '@/lib/autonomy'
 import { askTheDesk, hasAnyPermission, hasPermission, type Permission } from '@/lib/permissions'
-import { twinRefusal, type TwinRefusalWhy } from '@/lib/refusal-words'
+import { twinRefusal, ownerOnlyAsked, ownerOnlyNoLonger, type TwinRefusalWhy } from '@/lib/refusal-words'
 import { logBulkAccess } from '@/lib/access-log'
 import type { CallerContext } from '@/lib/api-context'
 import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
@@ -152,22 +152,33 @@ export async function ledger(entry: LedgerEntry): Promise<{ ok: true; id: string
  */
 export async function requestApproval(
   entry: Omit<LedgerEntry, 'outcome' | 'approvalId'>,
-  needsPermission: string
+  needsPermission: string,
+  /**
+   * Set only by `act`, only under the owner-only exception
+   * (`ownerOnlyException`): the reason the person the twin acts for may
+   * answer this one question.
+   */
+  selfApprovalReason: string | null = null
 ): Promise<{ ok: true; entryId: string; approvalId: string } | { ok: false }> {
   try {
     const out = await prisma.$transaction(async (tx) => {
       const row = await writeEntry(tx, { ...entry, outcome: 'AWAITING_APPROVAL' })
       const approval = await tx.twinApproval.create({
-        data: { twinActionId: row.id, companyId: entry.companyId, needsPermission },
+        data: { twinActionId: row.id, companyId: entry.companyId, needsPermission, ...(selfApprovalReason ? { selfApprovalReason } : {}) },
         select: { id: true },
       })
       await tx.automationLog.create({
         data: {
           companyId: entry.companyId,
           action: 'TWIN_APPROVAL_REQUESTED',
-          summary: `${cap(twinName(entry.twinKind))} asked a person: ${TWIN_ACTS[entry.action]?.says ?? entry.action}`,
+          summary: selfApprovalReason
+            ? `${cap(twinName(entry.twinKind))} asked the person it acts for, because nobody else at the firm may answer: ${TWIN_ACTS[entry.action]?.says ?? entry.action}`
+            : `${cap(twinName(entry.twinKind))} asked a person: ${TWIN_ACTS[entry.action]?.says ?? entry.action}`,
           reason: entry.ruleCited,
-          payload: { twinActionId: row.id, approvalId: approval.id, twinAct: entry.action, entityType: entry.entityType, entityId: entry.entityId },
+          payload: {
+            twinActionId: row.id, approvalId: approval.id, twinAct: entry.action, entityType: entry.entityType, entityId: entry.entityId,
+            ...(selfApprovalReason ? { ownerOnlyException: selfApprovalReason } : {}),
+          },
           // Nothing withdraws a question once asked; a person answers it.
           reversible: false,
         },
@@ -382,7 +393,27 @@ export async function act(input: ActInput): Promise<ActResult> {
     // A question nobody may answer is a dead question. Where the only
     // holder of the permission is the person the twin acts for (or who
     // asked), the twin says so in a sentence instead of asking.
-    if (!(await someoneElseMayDecide(input, needs))) {
+    if (!(await someoneElseMayDecide(input.companyId, needs, [input.authority.personId, input.requestedByPersonId]))) {
+      // The one exception (founder, 2026-10-19, decision 2): a bill the
+      // twin drafted, at a firm where nobody but the owner it acts for
+      // sends bills, is put to that owner. Only where the owner holds the
+      // permission themselves and did not ask for the thing; ledgered on
+      // the entry and on the question, and checked again on the answer.
+      const exception = ownerOnlyException(input.action)
+      const owner = input.authority.personId
+      if (exception && owner && owner !== input.requestedByPersonId && (await seatHolds(input.companyId, owner, needs))) {
+        const ownerAsked = await requestApproval({ ...base, payload: { ...base.payload, ownerOnlyException: exception } }, needs, exception)
+        if (!ownerAsked.ok) return { outcome: 'FAILED', says: NOT_RECORDED }
+        void tellTheDesk(input, needs, ownerAsked.approvalId, { askTheOwner: true }).catch((err) =>
+          report(`Asked the owner for approval of ${input.action} and could not tell them.`, err, input.companyId, owner)
+        )
+        return {
+          outcome: 'AWAITING_APPROVAL',
+          entryId: ownerAsked.entryId,
+          approvalId: ownerAsked.approvalId,
+          says: `Waiting for a person: ${doing} ${ownerOnlyAsked()}`,
+        }
+      }
       return refuse(
         base,
         twinRefusal({ why: 'NO_OTHER_APPROVER', doing, authorityName: input.authority.personName, twin: input.twin, byHand: input.byHand ?? what.byHand }),
@@ -443,12 +474,51 @@ export async function act(input: ActInput): Promise<ActResult> {
   }
 }
 
+// ── The owner-only exception ──────────────────────────────────────────
+
+/**
+ * The acts the person the twin acts for may answer, where nobody else at
+ * the firm may, and the reason recorded when they do. Founder,
+ * 2026-10-19 ("go with your recommendations", decision 2): "nobody signs
+ * their own" protects money going out; a bill is a request for money
+ * coming in, and the Owner is reviewing the machine's draft, not their
+ * own work. So at a firm where no other seat holds `invoices.issue`, the
+ * Owner may say yes to the supplier's twin's bill. Anywhere a second
+ * person sends bills, that person says yes and the Owner still cannot.
+ *
+ * One act and no other, on purpose: money going out, a signature, an
+ * award and every other question keep "nobody signs their own" with no
+ * exception. Adding a line here is the founder's decision, not a fix.
+ */
+export const OWNER_ONLY_EXCEPTION: Readonly<Record<string, string>> = Object.freeze({
+  'bill.send':
+    'Nobody else at the firm sends bills, so the owner Ask Etyme acts for may say yes to its drafted bill (founder, 2026-10-19).',
+})
+
+/** The reason the owner may answer this act where nobody else may; null for every act but sending a bill. */
+export function ownerOnlyException(action: string): string | null {
+  return Object.prototype.hasOwnProperty.call(OWNER_ONLY_EXCEPTION, action) ? OWNER_ONLY_EXCEPTION[action] : null
+}
+
+/** Whether this person's own live seat at the company holds the permission. */
+async function seatHolds(companyId: string, personId: string, needs: string): Promise<boolean> {
+  const seat = await prisma.context.findFirst({
+    where: {
+      companyId, personId, revokedAt: null, type: { not: 'CONSULTANT' },
+      role: { permissions: { hasSome: [needs, '*'] } },
+      ...NOT_THE_SAMPLE_SEAT,
+    },
+    select: { id: true },
+  })
+  return !!seat
+}
+
 /** Whether anybody other than the twin's authority, or who asked, holds the permission that decides. */
-async function someoneElseMayDecide(input: ActInput, needs: string): Promise<boolean> {
-  const notThem = [input.authority.personId, input.requestedByPersonId].filter((p): p is string => !!p)
+async function someoneElseMayDecide(companyId: string, needs: string, exclude: (string | null | undefined)[]): Promise<boolean> {
+  const notThem = exclude.filter((p): p is string => typeof p === 'string' && !!p)
   const other = await prisma.context.findFirst({
     where: {
-      companyId: input.companyId, revokedAt: null, type: { not: 'CONSULTANT' },
+      companyId, revokedAt: null, type: { not: 'CONSULTANT' },
       role: { permissions: { hasSome: [needs, '*'] } },
       ...(notThem.length ? { personId: { notIn: notThem } } : {}),
       ...NOT_THE_SAMPLE_SEAT,
@@ -458,8 +528,12 @@ async function someoneElseMayDecide(input: ActInput, needs: string): Promise<boo
   return !!other
 }
 
-/** Tell the people at the desk that decides, never the twin's own authority. */
-async function tellTheDesk(input: ActInput, needs: string, approvalId: string): Promise<void> {
+/**
+ * Tell the people at the desk that decides, never the twin's own
+ * authority — except under the owner-only exception, where the owner is
+ * the one person asked.
+ */
+async function tellTheDesk(input: ActInput, needs: string, approvalId: string, opts: { askTheOwner?: boolean } = {}): Promise<void> {
   const { notifyBulk } = await import('@/lib/notify')
   const desk = await prisma.context.findMany({
     where: {
@@ -469,7 +543,9 @@ async function tellTheDesk(input: ActInput, needs: string, approvalId: string): 
     select: { personId: true },
     take: 10,
   })
-  const to = [...new Set(desk.map((d) => d.personId))].filter((p) => p !== input.authority.personId)
+  const to = opts.askTheOwner && input.authority.personId
+    ? [input.authority.personId]
+    : [...new Set(desk.map((d) => d.personId))].filter((p) => p !== input.authority.personId)
   await notifyBulk(to.map((personId) => ({
     personId,
     companyId: input.companyId,
@@ -517,7 +593,7 @@ export async function decideApproval(args: {
   const approval = await prisma.twinApproval.findUnique({
     where: { id: args.approvalId },
     select: {
-      id: true, companyId: true, decision: true, needsPermission: true,
+      id: true, companyId: true, decision: true, needsPermission: true, selfApprovalReason: true,
       twinAction: {
         select: {
           id: true, twinKind: true, action: true, entityType: true, entityId: true, partyCompanyIds: true,
@@ -546,6 +622,13 @@ export async function decideApproval(args: {
 
   const asked = approval.twinAction
   const payload = (asked.payload ?? {}) as Record<string, unknown>
+  // The owner-only exception (founder, 2026-10-19): this question was put
+  // to the person the twin acts for because nobody else at the firm may
+  // answer it. Only for the act it was written for, and never for whoever
+  // asked for the thing.
+  const isAuthority = args.decider.personId === asked.authorityPersonId
+  const isRequester = !!payload.requestedByPersonId && args.decider.personId === payload.requestedByPersonId
+  const ownerOnly = isAuthority && !isRequester && !!approval.selfApprovalReason && !!ownerOnlyException(asked.action)
   const contract = await contractFor(approval.companyId, asked.twinKind)
   const tier = tierIn(contract, asked.action)
   const person: Omit<LedgerEntry, 'outcome'> = {
@@ -569,7 +652,10 @@ export async function decideApproval(args: {
     // The twin's own note stays with the entry, under its name; the line's
     // reason is the person's (below), because an auditor reading a no must
     // read why the person said it.
-    payload: { askedIn: asked.id, decision: args.decision, reason: args.reason ?? null, twinRationale: asked.rationale },
+    payload: {
+      askedIn: asked.id, decision: args.decision, reason: args.reason ?? null, twinRationale: asked.rationale,
+      ...(ownerOnly ? { ownerOnlyException: approval.selfApprovalReason } : {}),
+    },
   }
   const refused = async (status: 403 | 422, says: string, rule: string): Promise<DecideResult> => {
     // Awaited before the refusal goes out; reported, never thrown, on failure.
@@ -581,7 +667,13 @@ export async function decideApproval(args: {
   // Nobody signs their own first: a person the twin asked on behalf of is
   // told somebody else answers, never invited to widen a desk that would
   // still be refused.
-  if (args.decider.personId === asked.authorityPersonId || args.decider.personId === payload.requestedByPersonId) {
+  if (ownerOnly) {
+    // A second person who sends bills, seated since the question was
+    // asked, takes it back: the exception holds only while nobody else may.
+    if (await someoneElseMayDecide(approval.companyId, approval.needsPermission, [asked.authorityPersonId, payload.requestedByPersonId as string | undefined])) {
+      return refused(403, ownerOnlyNoLonger(), 'Segregation of duties: the owner answers only while nobody else at the firm may')
+    }
+  } else if (isAuthority || isRequester) {
     return refused(403, twinRefusal({
       why: 'OWN_AUTHORITY', doing: TWIN_ACTS[asked.action]?.says ?? asked.action,
       authorityName: args.decider.personId === asked.authorityPersonId ? asked.authorityPerson?.name : args.decider.personName,
@@ -612,9 +704,9 @@ export async function decideApproval(args: {
           data: {
             companyId: approval.companyId,
             action: 'TWIN_ACT_REJECTED',
-            summary: `${args.decider.personName} said no to the twin: ${TWIN_ACTS[asked.action]?.says ?? asked.action}`,
+            summary: `${args.decider.personName} said no to the twin: ${TWIN_ACTS[asked.action]?.says ?? asked.action}${ownerOnly ? ' (the owner answered, because nobody else at the firm may)' : ''}`,
             reason,
-            payload: { twinActionId: row.id, approvalId: approval.id, byPersonId: args.decider.personId },
+            payload: { twinActionId: row.id, approvalId: approval.id, byPersonId: args.decider.personId, ...(ownerOnly ? { ownerOnlyException: approval.selfApprovalReason } : {}) },
             reversible: false,
           },
         })
@@ -659,9 +751,12 @@ export async function decideApproval(args: {
         data: {
           companyId: approval.companyId,
           action: 'TWIN_ACT_APPROVED',
-          summary: `${args.decider.personName} said yes to the twin: ${TWIN_ACTS[asked.action]?.says ?? asked.action}`,
+          summary: `${args.decider.personName} said yes to the twin: ${TWIN_ACTS[asked.action]?.says ?? asked.action}${ownerOnly ? ' (the owner answered, because nobody else at the firm may)' : ''}`,
           reason: reason ?? asked.ruleCited,
-          payload: { twinActionId: row.id, approvalId: approval.id, byPersonId: args.decider.personId, result: result as Prisma.InputJsonValue },
+          payload: {
+            twinActionId: row.id, approvalId: approval.id, byPersonId: args.decider.personId, result: result as Prisma.InputJsonValue,
+            ...(ownerOnly ? { ownerOnlyException: approval.selfApprovalReason } : {}),
+          },
           reversible: false,
         },
       })
@@ -995,6 +1090,13 @@ export interface WaitingQuestion {
    */
   own: boolean
   whyNot: string | null
+  /**
+   * Set where this question was put to the reader under the owner-only
+   * exception (founder, 2026-10-19): "Only you send bills here, so Ask
+   * Etyme asks you." Null on every other question and for every other
+   * reader.
+   */
+  askedYouBecause: string | null
 }
 
 /**
@@ -1016,7 +1118,7 @@ export async function waitingQuestions(
     orderBy: { requestedAt: 'desc' },
     take: Math.min(Math.max(opts.take ?? 50, 1), 200),
     select: {
-      id: true, requestedAt: true, needsPermission: true,
+      id: true, requestedAt: true, needsPermission: true, selfApprovalReason: true,
       twinAction: {
         select: {
           action: true, entityType: true, entityId: true, ruleCited: true, rationale: true,
@@ -1037,17 +1139,36 @@ export async function waitingQuestions(
   for (const kind of new Set(visible.map((r) => r.twinAction.twinKind))) {
     contracts.set(kind, await contractFor(reader.company.id, kind))
   }
+  // The owner-only exception, read the way decideApproval reads it: a
+  // question put to the reader because nobody else may answer it, and
+  // still nobody else may. One look per permission, not per question.
+  const someoneElse = new Map<string, boolean>()
+  for (const r of visible) {
+    const a = r.twinAction
+    const p = (a.payload ?? {}) as Record<string, unknown>
+    if (!r.selfApprovalReason || !ownerOnlyException(a.action) || reader.person.id !== a.authorityPersonId || reader.person.id === p.requestedByPersonId) continue
+    const key = `${r.needsPermission}\u0000${p.requestedByPersonId ?? ''}`
+    if (!someoneElse.has(key)) {
+      someoneElse.set(key, await someoneElseMayDecide(reader.company.id, r.needsPermission, [a.authorityPersonId, p.requestedByPersonId as string | undefined]))
+    }
+  }
   return visible.map((r) => {
     const a = r.twinAction
     const payload = (a.payload ?? {}) as Record<string, unknown>
     const holds = hasPermission(reader.permissions, r.needsPermission as Permission)
-    const own = reader.person.id === a.authorityPersonId || reader.person.id === payload.requestedByPersonId
+    const ownerOnlyKey = `${r.needsPermission}\u0000${payload.requestedByPersonId ?? ''}`
+    const ownerOnly = someoneElse.has(ownerOnlyKey) && !!r.selfApprovalReason && !!ownerOnlyException(a.action) &&
+      reader.person.id === a.authorityPersonId && reader.person.id !== payload.requestedByPersonId
+    const ownerMayAnswer = ownerOnly && someoneElse.get(ownerOnlyKey) === false
+    const own = !ownerMayAnswer && (reader.person.id === a.authorityPersonId || reader.person.id === payload.requestedByPersonId)
     const contract = contracts.get(a.twinKind)
     const never = contract ? tierIn(contract, a.action) === 'NEVER' : false
     // The same order the answer is checked in (decideApproval): your own
     // first, then the desk; and a yes the contract now forbids, last.
     const whyNot = own
-      ? 'The twin asked this on your authority, so somebody else answers it. Nobody signs their own.'
+      ? ownerOnly
+        ? ownerOnlyNoLonger()
+        : 'The twin asked this on your authority, so somebody else answers it. Nobody signs their own.'
       : !holds
         ? askTheDesk({ doing: 'Answering this question from the twin', needs: r.needsPermission as Permission, kind: reader.company!.kind, companyName: reader.company!.name })
         : never
@@ -1063,6 +1184,7 @@ export async function waitingQuestions(
       mayDecide: holds && !own && !never,
       own,
       whyNot,
+      askedYouBecause: ownerMayAnswer ? ownerOnlyAsked() : null,
     }
   })
 }

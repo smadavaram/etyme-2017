@@ -113,7 +113,8 @@ function fresh() {
   h.notifyBulk.mockClear()
 }
 
-import { act, ledger, decideApproval, overtakenSays } from '../../src/lib/twin/ledger'
+import { act, ledger, decideApproval, overtakenSays, ownerOnlyException, OWNER_ONLY_EXCEPTION } from '../../src/lib/twin/ledger'
+import { TWIN_ACTS } from '../../src/lib/autonomy'
 import { feedLine, outcomeWord } from '../../src/lib/twin/feed-words'
 import { actsPerDay } from '../../src/lib/twin/acts'
 import { modelOnFor, setModelOn, recordModelPrompt, WITHHELD } from '../../src/lib/model-boundary'
@@ -312,5 +313,48 @@ describe('a question from the twin overtaken by events', () => {
     expect(line).toContain('was closed unanswered')
     expect(line).not.toMatch(/said (yes|no)/)
     expect(outcomeWord('OVERTAKEN')).toBe('Overtaken')
+  })
+})
+
+/**
+ * Owner-only firms (founder, 2026-10-19, decision 2): where nobody at the
+ * firm but the Owner the supplier's twin acts for sends bills, the Owner
+ * may say yes to the twin's drafted bill. One act, and no other. The
+ * seated case — who is asked, the ledger saying so, a second sender
+ * taking it back — is walked on the seeded world in
+ * __integration__/a-refused-bill-names-the-week.test.ts.
+ */
+describe('the owner-only exception', () => {
+  it('the exception never applies to any act but sending a bill', () => {
+    expect(Object.keys(OWNER_ONLY_EXCEPTION)).toEqual(['bill.send'])
+    for (const action of Object.keys(TWIN_ACTS)) {
+      expect(ownerOnlyException(action) !== null, action).toBe(action === 'bill.send')
+    }
+    // Not a name inherited from an object either.
+    expect(ownerOnlyException('toString')).toBeNull()
+    expect(ownerOnlyException('constructor')).toBeNull()
+  })
+
+  it('a question on any other act that claims the exception is still refused to the person the twin acts for', async () => {
+    T().twinAction.push({
+      id: 'asked-1', companyId: CLIENT, twinKind: 'PROGRAM_MANAGER', action: 'invoice_receipt.approve',
+      entityType: 'VendorBill', entityId: 'bill-9', partyCompanyIds: [CLIENT], onAuthorityOfRole: 'Program Manager',
+      authorityPersonId: 'dana', ruleCited: 'Clean against accepted hours.', rationale: 'Approve it.', payload: {},
+      outcome: 'AWAITING_APPROVAL', actorType: 'TWIN', actorId: 'PROGRAM_MANAGER',
+    })
+    T().twinApproval.push({
+      id: 'q-1', twinActionId: 'asked-1', companyId: CLIENT, needsPermission: 'payments.record', decision: 'PENDING',
+      selfApprovalReason: 'Written by hand, as if the exception applied.',
+    })
+    const out = await decideApproval({
+      approvalId: 'q-1',
+      decider: { personId: 'dana', personName: 'Dana Whitfield', companyId: CLIENT, permissions: ['*'] },
+      decision: 'APPROVED', surface: 'WEB',
+    })
+    expect(out.ok).toBe(false)
+    if (out.ok) return
+    expect(out.status).toBe(403)
+    expect(out.says).toContain('acts on their authority')
+    expect(T().twinApproval[0].decision).toBe('PENDING')
   })
 })

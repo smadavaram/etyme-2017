@@ -1573,8 +1573,12 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/one-week-filed-by-the-worker.test.ts', '__integration__/one-week-filed-by-the-worker.test.ts',
             '__integration__/party-uniform.test.ts',
             '__tests__/invariants/flagged-weeks-first.test.ts', '__integration__/flagged-weeks-first.test.ts'] },
-        { code: 'L3.3.1.2', name: 'Expense capture', owner: 'Consultant', status: B,
-          tasks: ['Receipt, policy check, staleness', 'Billable versus absorbed', 'Rides on the next invoice', 'Paid when the invoice is paid'],
+        { code: 'L3.3.1.2', name: 'Expense capture', owner: 'Consultant', status: P,
+          // PARTIAL since 2026-10-19: the founder's decision 1 that day (an
+          // expense is accepted like a week) has its schema and nothing
+          // that writes it yet. BUILT again when money lands it.
+          tasks: ['Receipt, policy check, staleness', 'Billable versus absorbed', 'Rides on the next invoice', 'Paid when the invoice is paid',
+            'OWED BY etyme-money (schema landed 2026-10-19 by etyme-architect): an expense accepted like a week \u2014 the worker\u2019s employer approves it for reimbursement, each firm above accepts it before it pays it, the client first and then down the chain, nobody accepting their own, one ExpenseAcceptance per firm per expense (acceptedCents, ACCEPTED or SENT_BACK with a reason); whether a kind is billable comes from the agreement between each pair (MasterAgreement.billableExpenseKinds, read only where billableExpenseKindsSaid), not the supplier\u2019s own Expense.billable flag \u2014 prisma/schema.prisma, src/lib/expense-approval.ts, src/lib/expense-billing.ts'],
           implementedBy: ['src/lib/expense-approval.ts', 'src/lib/expense-billing.ts',
             'src/app/api/expenses/actions/route.ts'],
           testedBy: ['__tests__/invariants/expense-approval.test.ts', '__tests__/invariants/expense-billing.test.ts',
@@ -2580,7 +2584,8 @@ export const MATRIX: L1[] = [
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
             'DONE 2026-10-19 by etyme-architect, the founder\u2019s one Ask Etyme conversation per person, saved (2026-10-18): the tables \u2014 AskEtymeThread, one per seat, unique on person and company, with clearedAt; AskEtymeTurn, who said it (PERSON or ETYME), the words as shown, the answer with its links, tables and cards, the cards\u2019 approval ids and what became of each, and the question it answered \u2014 and the one door to them: readThread, appendTurn, markCard and clearThread read and write only the caller\u2019s own thread at the caller\u2019s own company; asking for another person\u2019s thread is refused, and the refusal is logged and awaited before it is returned (recordRefusal); a card answered on Teams reads answered, because the approval\u2019s own decision wins over the mark; Clear hides the old lines and keeps them on the record; a seeded demo seat every visitor shares, the shared sample and an API key keep no thread, and the door says why in a sentence \u2014 prisma/schema.prisma, src/lib/ask-etyme-thread.ts',
             'OWED BY etyme-conversation: the route and the screen over the saved thread \u2014 GET /api/conversations/twin returns readThread\u2019s lines under the greeting, POST appends the question and the answer through appendTurn, a card\u2019s yes, no or Not now calls markCard after the approval route answers, a Clear button calls clearThread, and the screen shows notKeptBecause where saved is false; until then the thread still lives on the screen only (KNOWN-LIMITS, Ask Etyme) \u2014 src/app/api/conversations/twin/route.ts, src/app/dashboard/conversations/ask-etyme.tsx',
-            'OWED BY etyme-regulatory: ASK_ETYME_THREAD_VIEW as one line in AccessAction (the door writes it with a cast until then); the saved thread in a person\u2019s data export and erasure footprint, and a retention rule for it \u2014 src/lib/access-log.ts, src/lib/erasure.ts, src/lib/retention.ts',
+            'DONE 2026-10-19 by etyme-regulatory: ASK_ETYME_THREAD_VIEW is one line in AccessAction, so the door\u2019s two refusals are filed under a name the type knows and the cast is redundant \u2014 src/lib/access-log.ts',
+            'DONE 2026-10-19 by etyme-regulatory (0f323fb06), the founder having approved the notice lines the same day: the saved thread as its own category, in a person\u2019s export and deleted on erasure, the answers on its cards kept under the seat with the name replaced, and its retention line \u2014 src/lib/legal.ts, src/lib/retention.ts, src/lib/erasure.ts, src/lib/data-request.ts',
           ],
           implementedBy: [
             'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts', 'src/lib/twin/performers.ts',
@@ -2603,8 +2608,11 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/conversations/ask-etyme.tsx', 'src/app/dashboard/conversations/etyme/page.tsx', 'src/app/dashboard/conversations/page.tsx',
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/lib/agent-run.ts',
             'src/lib/ask-etyme-thread.ts',
+            'src/lib/access-log.ts', 'src/lib/legal.ts', 'src/lib/retention.ts', 'src/lib/erasure.ts', 'src/lib/data-request.ts',
           ],
-          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts', '__tests__/invariants/schema-terms.test.ts', '__integration__/deskless-conversations.test.ts'] },
+          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts', '__tests__/invariants/schema-terms.test.ts', '__integration__/deskless-conversations.test.ts',
+            '__tests__/invariants/access-lifecycle-log.test.ts', '__tests__/invariants/erasure.test.ts', '__tests__/invariants/retention.test.ts',
+            '__integration__/data-rights.test.ts'] },
         // Added 2026-10-18 by etyme-architect, on the founder's "Billing
         // and paying follow the agreement between each pair". Step 1 of
         // four: the frame and the schema. PARTIAL because the twin has
@@ -2635,6 +2643,8 @@ export const MATRIX: L1[] = [
             'DONE 2026-10-18 by etyme-money (was OWED): the withdraw route\u2019s decideApproval block was dead \u2014 withdrawDraft closes the bill.send question as overtaken inside its own transaction, so billSendQuestion is always null; delete the block and the field \u2014 src/app/api/invoices/[id]/withdraw/route.ts, src/lib/money/bill-withdraw.ts',
             'OWED BY etyme-money: the bill run\u2019s own sentences still say \u201cthe supplier\u2019s twin\u201d (SUPPLIER_TWIN_NAME and two strings) \u2014 src/lib/money/supplier-bills.ts',
             'OWED BY etyme-demand: the agreement routes write the three rhythm terms and the amendment trail records them (MasterAgreementVersion has the columns) \u2014 src/app/api/program/agreements/trail.ts, src/app/api/cron/agreement-terms/route.ts',
+            'DONE 2026-10-19 by etyme-architect, the founder\u2019s decision 2 the same day: where no seat at the firm but the owner Ask Etyme acts for sends bills (invoices.issue), Ask Etyme asks the owner to send its drafted bill instead of refusing, saying \u201cOnly you send bills here, so Ask Etyme asks you.\u201d; the question carries the reason (TwinApproval.selfApprovalReason) and the asking entry, the answer and both automation-log rows say the exception applied (ownerOnlyException); the owner answers only while nobody else may \u2014 a second sender seated since takes the question back, and wherever a second person sends bills the owner still cannot say yes; bill.send only, never another act (OWNER_ONLY_EXCEPTION, ownerOnlyException, decideApproval and waitingQuestions in src/lib/twin/ledger.ts; ownerOnlyAsked and ownerOnlyNoLonger in src/lib/refusal-words.ts; prisma/schema.prisma). Where not even the owner holds invoices.issue the twin still refuses with NO_OTHER_APPROVER',
+            'OWED BY etyme-conversation: Ask Etyme\u2019s waiting list and the Teams digest still drop every question asked on the reader\u2019s own authority, so the owner of a one-person firm does not yet see the card the twin now asks them \u2014 read q.mayDecide and q.askedYouBecause from waitingQuestions (or TwinApproval.selfApprovalReason) instead of comparing authorityPersonId \u2014 src/app/api/conversations/twin/read.ts, src/lib/teams/digest.ts',
           ],
           implementedBy: [
             'prisma/schema.prisma', 'src/lib/autonomy.ts', 'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts',

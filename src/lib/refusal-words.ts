@@ -146,3 +146,20 @@ export function twinRefusal(args: {
     }
   }
 }
+
+// ── The owner-only exception, said ────────────────────────────────────
+//
+// Founder, 2026-10-19 (decision 2): where nobody at the firm but the
+// Owner the supplier's twin acts for sends bills, Ask Etyme asks the
+// Owner to send its drafted bill. The gate is `ownerOnlyException` in
+// src/lib/twin/ledger.ts; these are its two sentences.
+
+/** On the question, to the Owner it was put to. */
+export function ownerOnlyAsked(): string {
+  return 'Only you send bills here, so Ask Etyme asks you.'
+}
+
+/** To the Owner, once somebody else at the firm sends bills too. */
+export function ownerOnlyNoLonger(): string {
+  return 'Somebody else at your firm sends bills now, so they answer this. Ask Etyme acts on your authority, so you answer its bills only while nobody else sends them.'
+}

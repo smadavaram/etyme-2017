@@ -147,11 +147,12 @@ export const EMPTY_SAYS = 'A line in the conversation needs words.'
 export const TOO_LONG_SAYS = 'That answer is too large to keep in the conversation.'
 export const BAD_STATE_SAYS = 'A card is approved, rejected, kept for later or overtaken; nothing else.'
 
-/** The access-log action a refused read of somebody else's thread is filed under. */
-// AccessAction is regulatory's (lib/access-log); this name is owed to its
-// union as one line, and is written here, whole, so the trail names the
-// read for what it is rather than under a neighbor's action.
-export const THREAD_READ_ACTION = 'ASK_ETYME_THREAD_VIEW' as AccessAction
+/**
+ * The access-log action a refused read of somebody else's thread is filed
+ * under. One line in AccessAction since 2026-10-19 (regulatory), so the
+ * type checks the name and no cast is needed.
+ */
+export const THREAD_READ_ACTION = 'ASK_ETYME_THREAD_VIEW' satisfies AccessAction
 
 /** How many lines a read returns by default, newest kept. */
 export const SHOWN_TURNS = 200

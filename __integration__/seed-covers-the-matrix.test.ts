@@ -81,6 +81,12 @@ const RUNTIME: Record<string, string> = {
   // refuses. Written once etyme-conversation's route calls appendTurn.
   askEtymeThread: 'written the first time a person at their own seat says something to Ask Etyme; a shared demo seat keeps none',
   askEtymeTurn: 'written for each line a person and Ask Etyme say at the person’s own seat, through appendTurn',
+  // An expense accepted like a week (founder, 2026-10-19, decision 1).
+  // Each row is a named person at a firm accepting or sending back an
+  // expense before it pays; a seeded one would put a name on a money
+  // decision nobody made. Nothing writes it until money builds acceptance
+  // into the chain.
+  expenseAcceptance: 'written when a firm accepts an expense before it pays it, or sends it back with a reason, under a named person',
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',
