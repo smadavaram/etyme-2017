@@ -68,7 +68,7 @@ describe('nobody is told about a thread they cannot open', () => {
   it('a colleague with no desk is not among the staff told of a first note from another company', () => {
     expect(hearsForTheFirm([])).toBe(false)
     expect(hearsForTheFirm(['submissions.read'])).toBe(true)
-    expect(NOTICES).toContain('hearsForTheFirm(')
+    expect(NOTICES).toContain('whoAtTheFirmHears(')
   })
 
   it('a worker seated with only the reads of their own work is not told of a first note from another company either, because they cannot open that thread', () => {

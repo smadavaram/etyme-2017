@@ -30,6 +30,7 @@
  */
 
 import { isDeskless } from '@/lib/nav-table'
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
 
 export type ThreadTopic = 'REQUIREMENT' | 'SUBMISSION'
 
@@ -210,6 +211,56 @@ export function isOnThread(participants: unknown, personId: string): boolean {
  */
 export function hearsForTheFirm(permissions: readonly string[] | null | undefined): boolean {
   return !holdsNoThreadDesk(permissions)
+}
+
+/**
+ * The permissions that work a job or a candidate across a deal: reading
+ * who was put forward, putting somebody forward, or owning the job
+ * itself. These are the desks that can answer a question about a job
+ * request or a candidate.
+ */
+const WORKS_A_JOB: readonly Permission[] = ['submissions.read', 'submissions.create', 'requirements.write']
+
+/**
+ * Whether a seat hears about a first note on a thread of this topic, for
+ * a firm with nobody on the thread yet.
+ *
+ * The desk that acts is the desk that hears. A client's question about a
+ * job or a candidate is for the supplier's recruiters, resource managers
+ * and account managers, every one of them, and not for its AP & Payroll
+ * clerk, HR, Accounts Receivable or the contract manager, who cannot
+ * answer it. Any other topic falls back to `hearsForTheFirm`.
+ */
+export function hearsForTopic(
+  permissions: readonly string[] | null | undefined,
+  topic: string | null | undefined,
+): boolean {
+  if (!hearsForTheFirm(permissions)) return false
+  if (topic !== 'REQUIREMENT' && topic !== 'SUBMISSION') return true
+  // `hasAnyPermission` reads the owner's wildcard as every permission.
+  return hasAnyPermission(permissions ?? [], WORKS_A_JOB)
+}
+
+/**
+ * The seats at the other company told of a first note, in the order
+ * given (most senior first), at most `limit` of them.
+ *
+ * `answers` is true when that company is the side written to: the
+ * supplier on a client's thread. There only the desks that work the
+ * thread's topic hear (`hearsForTopic`). The side that opened the thread
+ * hears by the older rule, any seat with a desk (`hearsForTheFirm`). The
+ * limit is applied after the rule, so seats that cannot act never push a
+ * desk that can out of the count.
+ */
+export function whoAtTheFirmHears(
+  seats: readonly { personId: string; permissions: readonly string[] | null | undefined }[],
+  rule: { topic: string | null | undefined; answers: boolean },
+  limit = 10,
+): string[] {
+  return seats
+    .filter((s) => (rule.answers ? hearsForTopic(s.permissions, rule.topic) : hearsForTheFirm(s.permissions)))
+    .slice(0, limit)
+    .map((s) => s.personId)
 }
 
 export interface Participant {

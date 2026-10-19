@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   whoMayOpen, canRead, sideOf, whoHears, withAuthor, messageNotice, suppliersOnRole,
+  hearsForTopic, whoAtTheFirmHears,
   type RoleFacts, type CandidateFacts,
 } from '@/lib/threads'
+import { rolesFor } from '@/lib/company-defaults'
 
 /**
  * Conversations between a client and its suppliers.
@@ -178,5 +180,76 @@ describe('which suppliers a client may write to on a role', () => {
         cleared: [techpeple, { id: 'c-tekwave', name: 'TekWave' }],
       }).map((f) => f.name)
     ).toEqual(['Pinnacle', 'Techpeple', 'TekWave'])
+  })
+})
+
+/**
+ * The desk that acts is the desk that hears. Found by the release pass,
+ * 2026-10-19: a client's first note on a job reached every seat at the
+ * supplier with any desk, so Pinnacle's AP & Payroll clerk was told
+ * about a question on "HCM integration lead" she could not answer.
+ * The permissions here are the shipped supplier roles, not copies.
+ */
+describe('who at a supplier hears a client\'s first note', () => {
+  const vendor = (name: string) => {
+    const r = rolesFor('VENDOR').find((x) => x.name === name)
+    if (!r) throw new Error(`no shipped supplier role called ${name}`)
+    return r.permissions as string[]
+  }
+  const client = (name: string) => {
+    const r = rolesFor('CLIENT').find((x) => x.name === name)
+    if (!r) throw new Error(`no shipped client role called ${name}`)
+    return r.permissions as string[]
+  }
+
+  it("a client's question about a job reaches the supplier's recruiter, resource manager and account manager, and not its AP & Payroll clerk", () => {
+    expect(hearsForTopic(vendor('Recruiter'), 'REQUIREMENT')).toBe(true)
+    expect(hearsForTopic(vendor('Resource Manager'), 'REQUIREMENT')).toBe(true)
+    expect(hearsForTopic(vendor('Account Manager'), 'REQUIREMENT')).toBe(true)
+    expect(hearsForTopic(vendor('AP & Payroll'), 'REQUIREMENT')).toBe(false)
+  })
+
+  it("a client's question about a candidate reaches the people who read submissions, and not the AP & Payroll clerk", () => {
+    expect(hearsForTopic(vendor('Recruiter'), 'SUBMISSION')).toBe(true)
+    expect(hearsForTopic(vendor('Account Manager'), 'SUBMISSION')).toBe(true)
+    expect(hearsForTopic(vendor('AP & Payroll'), 'SUBMISSION')).toBe(false)
+  })
+
+  it("HR, Accounts Receivable, Finance, Compliance and the contract manager at a supplier are not told of a client's question about a job, because none of them works one", () => {
+    for (const desk of ['HR', 'Accounts Receivable', 'Finance', 'Compliance Officer', 'Contract Manager']) {
+      expect(hearsForTopic(vendor(desk), 'REQUIREMENT'), desk).toBe(false)
+    }
+  })
+
+  it('the owner and the admin hold every permission, so they are told', () => {
+    expect(hearsForTopic(vendor('Owner'), 'REQUIREMENT')).toBe(true)
+    expect(hearsForTopic(vendor('Admin'), 'SUBMISSION')).toBe(true)
+    // The seeded and self-made owner holds the wildcard rather than a list.
+    expect(hearsForTopic(['*'], 'REQUIREMENT')).toBe(true)
+  })
+
+  it('a colleague who holds no permission yet is still not told, and neither is a worker who reads only their own work', () => {
+    expect(hearsForTopic([], 'REQUIREMENT')).toBe(false)
+    expect(hearsForTopic(['assignments.read', 'timesheets.read'], 'REQUIREMENT')).toBe(false)
+  })
+
+  it('everyone who may act is told: three recruiters at one supplier all hear, and seats that cannot act do not push them out of the count', () => {
+    const seats = [
+      ...Array.from({ length: 12 }, (_, i) => ({ personId: `ap-${i}`, permissions: vendor('AP & Payroll') })),
+      { personId: 'rec-1', permissions: vendor('Recruiter') },
+      { personId: 'rec-2', permissions: vendor('Recruiter') },
+      { personId: 'rec-3', permissions: vendor('Recruiter') },
+      { personId: 'hr', permissions: vendor('HR') },
+    ]
+    expect(whoAtTheFirmHears(seats, { topic: 'REQUIREMENT', answers: true })).toEqual(['rec-1', 'rec-2', 'rec-3'])
+  })
+
+  it("the client's side hears a supplier's note by the old rule, any seat with a desk, so its AP clerk is not dropped", () => {
+    const seats = [
+      { personId: 'pm', permissions: client('Program Manager') },
+      { personId: 'ap', permissions: client('AP Clerk') },
+      { personId: 'member', permissions: [] },
+    ]
+    expect(whoAtTheFirmHears(seats, { topic: 'REQUIREMENT', answers: false })).toEqual(['pm', 'ap'])
   })
 })

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { hasAnyPermission } from '@/lib/permissions'
 import { GET as list, POST as open } from '@/app/api/conversations/route'
 import { GET as read, POST as reply } from '@/app/api/conversations/messages/route'
 
@@ -38,6 +39,9 @@ async function noticesAbout(
 let nike: { id: string; pmPersonId: string }
 let role: { id: string; title: string }
 let pinnacle: { id: string; name: string; seat: string; staff: string[] }
+/** Pinnacle's AP & Payroll clerk (Ingrid Halvorsen, seeded) and the seats that work its jobs. */
+let pinnacleClerk: string
+let pinnacleWorksJobs: string[]
 let stranger: { id: string; name: string; seat: string }
 let meiLin: { email: string; submissionId: string }
 let roleThread: string
@@ -74,6 +78,18 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     })
     pinnacle = { id: pin.id, name: pin.name, ...staffOf(pin) }
 
+    const pinSeats = await prisma.context.findMany({
+      where: { companyId: pin.id, revokedAt: null, NOT: { roleId: null } },
+      select: { personId: true, person: { select: { name: true } }, role: { select: { name: true, permissions: true } } },
+    })
+    const clerk = pinSeats.find((c) => c.role?.name === 'AP & Payroll')
+    if (!clerk) throw new Error('Pinnacle has no AP & Payroll clerk seeded')
+    expect(clerk.person.name).toBe('Ingrid Halvorsen')
+    pinnacleClerk = clerk.personId
+    pinnacleWorksJobs = pinSeats
+      .filter((c) => hasAnyPermission(c.role?.permissions ?? [], ['submissions.read', 'submissions.create', 'requirements.write']))
+      .map((c) => c.personId)
+
     // A vendor in the world that Northbend Athletic never asked to work this role.
     const other = await prisma.company.findFirstOrThrow({
       where: { kind: 'VENDOR', id: { notIn: [...onRole, pinnacle.id] }, contexts: { some: { revokedAt: null, type: 'EMPLOYEE' } } },
@@ -109,6 +125,15 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     expect(rows.every((n) => n.type === 'CONVERSATION' && n.channel === 'IN_APP')).toBe(true)
     expect(rows[0].title).toMatch(new RegExp(`^.+ at Northbend Athletic on ${role.title}$`))
     expect(rows[0].body).toBe('Can your Workday people start before the end of the month?')
+  })
+
+  it("a client's question about a job reaches Pinnacle's owner, who works its jobs, and not Ingrid Halvorsen, its AP & Payroll clerk", async () => {
+    expect(pinnacleWorksJobs.length, 'nobody at Pinnacle works a job').toBeGreaterThan(0)
+    const rows = await noticesAbout(roleThread, pinnacleWorksJobs.length, 30, (n) => pinnacleWorksJobs.includes(n.personId))
+    const heard = new Set(rows.map((n) => n.personId))
+    for (const id of pinnacleWorksJobs) expect(heard.has(id), `${id} works jobs at Pinnacle and was not told`).toBe(true)
+    expect(heard.has(pinnacle.staff[0]), "Pinnacle's first seat, its owner, was not told").toBe(true)
+    expect(heard.has(pinnacleClerk), 'the AP & Payroll clerk was told about a job she cannot act on').toBe(false)
   })
 
   it('Pinnacle sees the thread as one Northbend Athletic opened with them, and answers on it', async () => {
@@ -211,6 +236,13 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     expect(right.status, JSON.stringify(right.body)).toBe(201)
     expect(right.body.data.conversation.title).toBe(`Mei-Lin Chao · ${role.title}`)
     candidateThread = right.body.data.conversation.id
+  })
+
+  it("a question about Mei-Lin reaches Pinnacle's owner and not its AP & Payroll clerk", async () => {
+    const rows = await noticesAbout(candidateThread, pinnacleWorksJobs.length, 30, (n) => pinnacleWorksJobs.includes(n.personId))
+    const heard = new Set(rows.map((n) => n.personId))
+    expect(heard.has(pinnacle.staff[0])).toBe(true)
+    expect(heard.has(pinnacleClerk)).toBe(false)
   })
 
   it('asking again lands on the same thread rather than a second one', async () => {
