@@ -12,6 +12,8 @@ import { supplierAuthorityAt } from '@/lib/twin/run'
 import { billsDueAt } from '@/lib/money/supplier-bills'
 import { runSupplierBills } from '@/lib/money/supplier-bills-run'
 import { iso } from '@/lib/periods'
+import { billDeliverySays } from '@/lib/notify/bill-delivery'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * A refused bill names the week, the person and who must sign first.
@@ -358,6 +360,27 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
     expect(sent.status).toBe('SUBMITTED')
     expect(sent.issuedAt).not.toBeNull()
     expect(sent.submittedAt).not.toBeNull()
+  })
+
+  it('the twin’s send reaches the customer the same way a person’s send does', async () => {
+    // Northbend Athletic is on Etyme: its accounts payable seat is told
+    // in the app and on its channel, as when a person presses Send, and
+    // the sending is recorded under the person who said yes, not the twin.
+    const ar = await decider('world-brightmoor-ar@demo.etyme.local')
+    const event = await prisma.event.findFirstOrThrow({ where: { subjectType: 'Invoice', subjectId: t.draft.id, type: 'invoice.submitted' } })
+    expect(event.companyId).toBe(t.brightmoor)
+    expect(event.actorPersonId).toBe(ar.personId)
+    const says = `Sent on Etyme to Northbend Athletic’s AP Clerk on ${formatDay(new Date(), { year: false })}`
+    expect(await billDeliverySays(t.draft.id)).toBe(says)
+
+    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_AP }, select: { id: true } })
+    const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: t.draft.id } })
+    expect(notice.title).toContain(`Brightmoor Staffing’s bill ${t.draft.number}`)
+
+    // Brightmoor's Bills page says so on the row.
+    as('world-brightmoor-finance@demo.etyme.local')
+    const ours = await json(await invoiceList(req('GET', `/api/invoices?limit=50&engagementId=${t.rosa.engagementId}`)))
+    expect(ours.body.data.invoices.find((r: any) => r.id === t.draft.id)?.deliverySays).toBe(says)
   })
 })
 

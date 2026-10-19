@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
  * POST /api/invoices/submit
@@ -65,6 +66,8 @@ export async function POST(request: NextRequest) {
     number: string | null
     status: 'submitted' | 'skipped' | 'not_found'
     reason?: string
+    /** Whom a sent bill reached, in the Bills page's sentence; null where delivery failed. */
+    delivery?: string | null
     checks?: { reason: string }[]
   }> = []
 
@@ -92,8 +95,15 @@ export async function POST(request: NextRequest) {
         markSent(tx, { invoiceId, companyId, by: { personId: caller.person.id, name: caller.person.name } })
       )
       if (sent.raised) await announceRaised(invoiceId, companyId, { personId: caller.person.id })
+      // Each bill to the firm that pays it, after its own transaction, the
+      // same call as the single Send (lib/notify/bill-delivery). A delivery
+      // that fails leaves the bill sent and says so on the row.
+      const delivered = await sendBillToCustomer({ invoiceId, byPersonId: caller.person.id }).catch((err) => {
+        void reportError('bill-delivery', err, { companyId }).catch(() => {})
+        return null
+      })
       submitted++
-      results.push({ invoiceId, number: sent.number, status: 'submitted' })
+      results.push({ invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null })
     } catch (err: any) {
       if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) {
         skipped++

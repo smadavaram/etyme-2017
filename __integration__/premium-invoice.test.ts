@@ -1,10 +1,16 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { weekStart } from '@/lib/overtime'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { matchInvoice } from '@/lib/invoice-match'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
 import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
+import { POST as sendBills } from '@/app/api/invoices/submit/route'
+import { POST as resendBill } from '@/app/api/invoices/[id]/resend/route'
+import { GET as listInvoices } from '@/app/api/invoices/route'
+import { POST as listClient } from '@/app/api/clients/route'
+import { RESEND_NOT_WITHIN_MS } from '@/lib/notify/bill-delivery'
+import { formatDay } from '@/lib/format-date'
 import { POST as withdrawBill } from '@/app/api/invoices/[id]/withdraw/route'
 import { generateBill } from '@/lib/money/bill-generate'
 import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
@@ -659,5 +665,143 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect((await rowAs(TECHPEPLE)).chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}, paid`)
     // And the client's own reading did not move with it.
     expect((await rowAs(NIKE_AP)).chain.line).not.toContain(tpNumber)
+  })
+})
+
+/**
+ * A sent bill reaches the firm that pays it (Tapin's day one, blocker 3,
+ * 2026-10-19: a bill was sent and nothing reached the client). Brightmoor
+ * Staffing bills Harrow Lane Foods, a client it wrote down that is not on
+ * Etyme, with the person there who receives bills recorded. The Send
+ * button, the bulk Send and Send again are money's doors; the letter is
+ * conversation's (lib/notify/bill-delivery), called after the bill's own
+ * transaction.
+ */
+describe('a bill sent from the Bills page reaches the person the supplier recorded at the client', () => {
+  const PAYABLES = 'payables@harrow-lane.test'
+  const mail: { to: string; subject: string; text: string }[] = []
+  const h: Record<string, any> = {}
+  const params = (id: string) => ({ params: Promise.resolve({ id }) })
+
+  beforeAll(async () => {
+    process.env.NEXTAUTH_URL = 'https://etyme.example'
+    process.env.RESEND_API_KEY = 'test-key'
+    process.env.NOTIFY_FROM_EMAIL = 'bills@etyme.test'
+    vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+      const b = JSON.parse(String(init?.body ?? '{}'))
+      mail.push({ to: b.to, subject: b.subject, text: b.text })
+      return new Response('{}', { status: 200 })
+    })
+    h.brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })).id
+    h.owner = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: BRIGHTMOOR } })).id
+
+    as(BRIGHTMOOR)
+    const listed = await json(await listClient(req('POST', '/api/clients', { name: 'Harrow Lane Foods', contactName: 'Dana Whitfield', email: PAYABLES })))
+    expect(listed.status, JSON.stringify(listed.body)).toBe(201)
+    h.harrow = listed.body.data.client.id
+
+    // One person, two weeks Harrow Lane signed, at Brightmoor's rate.
+    const msa = await prisma.masterAgreement.findFirstOrThrow({ where: { vendorId: h.brightmoor, clientId: h.harrow } })
+    const engagement = await prisma.engagement.create({ data: { title: 'Harrow Lane line maintenance', msaId: msa.id } })
+    const worker = await prisma.person.create({ data: { name: 'Ines Okafor', primaryEmail: 'ines.okafor@seed.etyme.invalid' } })
+    const line = await prisma.sellContract.create({
+      data: {
+        companyId: h.brightmoor, clientCompanyId: h.harrow, personId: worker.id, engagementId: engagement.id,
+        billRate: 14500, state: 'IN_PROGRESS', startDate: new Date('2026-09-01T00:00:00.000Z'),
+      },
+    })
+    for (const sunday of ['2026-09-06', '2026-09-13']) {
+      const start = new Date(`${sunday}T00:00:00.000Z`)
+      const day = (n: number) => new Date(start.getTime() + n * 86_400_000).toISOString().slice(0, 10)
+      const at = new Date(start.getTime() + 8 * 86_400_000)
+      const ts = await prisma.timesheet.create({
+        data: {
+          sellContractId: line.id, personId: worker.id, periodStart: start, periodEnd: new Date(start.getTime() + 6 * 86_400_000),
+          days: { [day(1)]: 8, [day(2)]: 8, [day(3)]: 8, [day(4)]: 8, [day(5)]: 8 }, totalHours: 40,
+          status: 'APPROVED', submittedAt: at, clientApprovedAt: at, approvedAt: at,
+        },
+      })
+      await prisma.workAssertion.create({
+        data: { timesheetId: ts.id, companyId: h.harrow, role: 'CLIENT_APPROVAL', hours: 40, rateCents: 14500, state: 'LIVE', byId: h.owner },
+      })
+    }
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: h.brightmoor }, select: { id: true, name: true, kind: true } })
+    const made = await generateBill({ company, person: { id: h.owner, name: 'Brightmoor owner' } }, { engagementId: engagement.id })
+    expect(made.ok && made.status === 201, JSON.stringify((made as any).body)).toBe(true)
+    h.bill = (made as { invoiceId: string }).invoiceId
+    h.number = (await prisma.invoice.findUniqueOrThrow({ where: { id: h.bill } })).number
+  }, 240_000)
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('sending a bill emails the client’s recorded person once and the Bills page says to whom and when', async () => {
+    as(BRIGHTMOOR)
+    const out = await json(await sendBill(req('POST', `/api/invoices/${h.bill}/submit`, {}), params(h.bill)))
+    expect(out.status, JSON.stringify(out.body)).toBe(200)
+    const says = `Sent to ${PAYABLES} on ${formatDay(new Date(), { year: false })}`
+    expect(out.body.data.delivery).toBe(says)
+    expect(mail).toHaveLength(1)
+    expect(mail[0].to).toBe(PAYABLES)
+    expect(mail[0].subject).toContain(`Brightmoor Staffing’s bill ${h.number} for Ines Okafor`)
+    const event = await prisma.event.findFirstOrThrow({ where: { subjectType: 'Invoice', subjectId: h.bill, type: 'invoice.submitted' } })
+    expect(event.actorPersonId).toBe(h.owner)
+
+    // Sending it again from the list is refused as already sent, and no second letter goes.
+    const bulk = await json(await sendBills(req('POST', '/api/invoices/submit', { invoiceIds: [h.bill] })))
+    expect(bulk.status).toBe(200)
+    expect(bulk.body.data.submitted).toBe(0)
+    expect(mail).toHaveLength(1)
+
+    // The Bills page and the bill's own page say to whom and when.
+    const list = await json(await listInvoices(req('GET', '/api/invoices?limit=50')))
+    expect(list.status).toBe(200)
+    expect(list.body.data.invoices.find((r: any) => r.id === h.bill)?.deliverySays).toBe(says)
+    const one = await json(await readInvoice(req('GET', `/api/invoices/${h.bill}`), params(h.bill)))
+    expect(one.body.data.invoice.deliverySays).toBe(says)
+  })
+
+  it('Send again is a person’s own act, needs invoices.issue, and is refused within five minutes of the last sending', async () => {
+    // A seat at Brightmoor that does not send bills is told who does.
+    const recruiter = await prisma.context.findFirstOrThrow({
+      where: { companyId: h.brightmoor, revokedAt: null, type: { not: 'CONSULTANT' }, role: { NOT: { permissions: { hasSome: ['invoices.issue', '*'] } } } },
+      select: { person: { select: { primaryEmail: true } } },
+    })
+    as(recruiter.person.primaryEmail)
+    const refused = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.message).toMatch(/^Sending a bill again is done by /)
+    expect(mail).toHaveLength(1)
+
+    // A double press is not a second letter.
+    as(BRIGHTMOOR)
+    const soon = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
+    expect(soon.status).toBe(409)
+    expect(soon.body.error.code).toBe('JUST_SENT')
+    expect(mail).toHaveLength(1)
+
+    // After five minutes it goes, under the name of the person who pressed it.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const later = new Date(Date.now() + RESEND_NOT_WITHIN_MS + 60_000)
+    vi.setSystemTime(later)
+    try {
+      const again = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
+      expect(again.status, JSON.stringify(again.body)).toBe(200)
+      expect(again.body.data).toMatchObject({ sent: true, to: [PAYABLES] })
+      expect(again.body.data.message).toBe(`Sent again to ${PAYABLES} on ${formatDay(later, { year: false })}`)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(mail).toHaveLength(2)
+    const resent = await prisma.event.findFirstOrThrow({ where: { subjectType: 'Invoice', subjectId: h.bill, type: 'invoice.resent' } })
+    expect(resent.actorPersonId).toBe(h.owner)
+
+    // Another firm cannot send Brightmoor's bill at all.
+    as('world-nike-ap@demo.etyme.local')
+    const stranger = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
+    expect([403, 404]).toContain(stranger.status)
+    expect(mail).toHaveLength(2)
   })
 })

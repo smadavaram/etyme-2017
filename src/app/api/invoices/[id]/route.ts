@@ -12,6 +12,7 @@ import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
+import { billDeliverySays } from '@/lib/notify/bill-delivery'
 
 /**
  * GET /api/invoices/:id
@@ -258,6 +259,11 @@ export async function GET(
   // read through the same call the match uses so the working and the check agree.
   const carried = await carriedForLines(invoice.invoiceLines)
 
+  // Whom our own bill reached, and when, or why it did not
+  // (lib/notify/bill-delivery). Null on an invoice receipt, and on a bill
+  // Etyme never sent anywhere, where the page says nothing rather than guess.
+  const deliverySays = direction === 'RECEIVABLE' ? await billDeliverySays(invoice.id) : null
+
   return NextResponse.json({
     data: {
       invoice: {
@@ -265,6 +271,7 @@ export async function GET(
         number: invoice.number,
         status: invoice.status,
         direction,
+        deliverySays,
         // Minor units, beside the whole-currency figures older readers use.
         totalMinor,
         paidMinor,

@@ -14,6 +14,7 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
 import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
+import { offersSendAgain } from '@/lib/money/bill-resend'
 
 /** The status in words a clerk says, never the enum. */
 const STATUS_WORDS: Record<string, string> = {
@@ -297,7 +298,19 @@ export default function InvoiceDetail() {
       alert(`${j.error?.message ?? 'Could not submit'}${cs ? '\n\n' + cs : ''}`)
       return
     }
-    if (j.data?.message) showToast(j.data.message)
+    // What was sent, and whom it reached: "Sent to dana@acme.com on Oct 19".
+    if (j.data?.message) showToast(j.data.delivery ? `${j.data.message}. ${j.data.delivery}.` : j.data.message)
+    await load()
+  }
+
+  /** Send a sent bill to the customer again: a person's own act, refused within five minutes of the last. */
+  async function sendAgain() {
+    const res = await fetch(`/api/invoices/${id}/resend`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    })
+    const j = await res.json().catch(() => ({}) as any)
+    if (!res.ok) { showToast(j.error?.message ?? 'The bill was not sent again.', 'error'); return }
+    showToast(j.data?.message ?? 'Sent again.', j.data?.sent ? 'success' : 'error')
     await load()
   }
 
@@ -432,6 +445,33 @@ export default function InvoiceDetail() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Whom our bill reached, and when — "Sent to dana@acme.com on Oct
+          19" — or why it did not, read from what the sending recorded.
+          Send again for whoever sends bills; the route refuses a second
+          press within five minutes and says so. */}
+      {inv.direction === 'RECEIVABLE' && inv.status !== 'DRAFT' && (inv.deliverySays || offersSendAgain({
+        status: inv.status, direction: inv.direction, readingInASeat,
+        permissions: session.loading ? null : session.permissions,
+      })) && (
+        <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-surface p-4 flex items-start justify-between gap-4">
+          <div>
+            <Lbl>Sent to the customer</Lbl>
+            <p className={`text-sm mt-1 ${/\bNot (sent|emailed)\b/.test(inv.deliverySays ?? '') ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+              {inv.deliverySays ?? `Etyme has no record of sending this bill to ${inv.client?.name ?? 'the customer'}.`}
+            </p>
+          </div>
+          {offersSendAgain({
+            status: inv.status, direction: inv.direction, readingInASeat,
+            permissions: session.loading ? null : session.permissions,
+          }) && (
+            <button onClick={sendAgain}
+              className="px-4 py-2 border border-etyme-rule text-etyme-ink rounded text-sm font-medium hover:bg-etyme-sunk shrink-0">
+              Send again
+            </button>
+          )}
         </div>
       )}
 

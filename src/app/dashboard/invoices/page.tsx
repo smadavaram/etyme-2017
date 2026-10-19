@@ -98,6 +98,12 @@ interface Invoice {
   daysOverdue: number
   payments: InvoicePayment[]
   /**
+   * Whom our own bill reached, and when — "Sent to dana@acme.com on Oct
+   * 19" — or why it did not. Null on an invoice receipt and on a bill
+   * Etyme never sent.
+   */
+  deliverySays?: string | null
+  /**
    * What the payer needs to decide, on an invoice this firm is asked to
    * pay (lib/money/receipt-read). Null on the side that collects.
    */
@@ -855,9 +861,16 @@ export default function InvoicesPage() {
       key: 'status',
       label: 'Status',
       render: (row) => (
-        <span className={`chip ${statusChipClass(row.status)}`}>
-          {row.status === 'PARTIALLY_PAID' ? 'Partial' : row.status.charAt(0) + row.status.slice(1).toLowerCase()}
-        </span>
+        <div>
+          <span className={`chip ${statusChipClass(row.status)}`}>
+            {row.status === 'PARTIALLY_PAID' ? 'Partial' : row.status.charAt(0) + row.status.slice(1).toLowerCase()}
+          </span>
+          {row.deliverySays && (
+            <p className={`text-[11px] mt-0.5 max-w-[220px] ${/\bNot (sent|emailed)\b/.test(row.deliverySays) ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+              {row.deliverySays}
+            </p>
+          )}
+        </div>
       ),
       sortValue: (row) => row.status,
     },

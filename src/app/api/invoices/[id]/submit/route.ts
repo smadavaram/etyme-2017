@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
  * POST /api/invoices/:id/submit
@@ -66,6 +67,15 @@ export async function POST(
       markSent(tx, { invoiceId: id, companyId, by: { personId: caller.person.id, name: caller.person.name } })
     )
     if (sent.raised) await announceRaised(id, companyId, { personId: caller.person.id })
+    // Now that the bill is sent, it goes to the firm that pays it: a
+    // letter off Etyme, a notice on it (lib/notify/bill-delivery). Outside
+    // the transaction, because a letter cannot be called back; and a
+    // failure here never unsends the bill — it says it was not delivered,
+    // and Send again is the way it goes.
+    const delivered = await sendBillToCustomer({ invoiceId: id, byPersonId: caller.person.id }).catch((err) => {
+      void reportError('bill-delivery', err, { companyId }).catch(() => {})
+      return null
+    })
     const result = await prisma.invoice.findUniqueOrThrow({ where: { id }, select: { id: true, number: true, status: true, total: true, currency: true, submittedAt: true, dueAt: true } })
     return NextResponse.json({
       data: {
@@ -79,6 +89,10 @@ export async function POST(
           dueAt: result.dueAt.toISOString(),
         },
         message: sent.raised ? `Bill ${result.number} raised and sent for client review` : `Bill ${result.number} submitted for client review`,
+        // Whom it reached, in the Bills page's own sentence: "Sent to
+        // dana@acme.com on Oct 19", or why it was not. Null where the
+        // delivery itself failed and staff were told.
+        delivery: delivered?.says ?? null,
       },
     })
   } catch (err: any) {

@@ -59,6 +59,8 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { generateBill, type BillCaller, type PlannedBill } from '@/lib/money/bill-generate'
 import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
+import { reportError } from '@/lib/alerts'
 import { fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 import type { Performer, PerformContext } from '@/lib/twin/performers'
@@ -346,9 +348,40 @@ export const billSend: Performer = {
     }
   },
   async after(c) {
-    // The event a bill raised on the Bills page sends, now that this one is raised.
-    await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true })
+    try {
+      // The event a bill raised on the Bills page sends, now that this one is raised.
+      await announceRaised(c.entity.id, c.companyId, { personId: null, twin: true })
+    } finally {
+      // And to the firm that pays it, the same way a person's Send reaches
+      // it (lib/notify/bill-delivery), after the ledger's transaction has
+      // committed. The sender is the person who said yes, read off the
+      // answered question, because the twin sends nothing on its own.
+      const byPersonId = await whoSaidYes(c).catch(() => null)
+      await sendBillToCustomer({ invoiceId: c.entity.id, byPersonId }).catch((err) => {
+        void reportError('bill-delivery', err, { companyId: c.companyId }).catch(() => {})
+        return null
+      })
+    }
   },
+}
+
+/**
+ * Who said yes to sending this bill: the approver on the answered
+ * `bill.send` question about it. `PerformContext` carries the question,
+ * not the person who answered it, so the answer is read back from the
+ * record it was written to in the same transaction.
+ */
+async function whoSaidYes(c: PerformContext): Promise<string | null> {
+  const yes = await prisma.twinApproval.findFirst({
+    where: {
+      companyId: c.companyId,
+      decision: 'APPROVED',
+      twinAction: { action: 'bill.send', entityType: 'Invoice', entityId: c.entity.id },
+    },
+    orderBy: { decidedAt: 'desc' },
+    select: { approverPersonId: true },
+  })
+  return yes?.approverPersonId ?? null
 }
 
 /** What `PERFORMERS` in lib/twin/performers takes for the two bill acts. */

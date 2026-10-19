@@ -19,6 +19,7 @@ import { nothingToBillSays, type WeekNotBillable } from '@/lib/money/nothing-to-
 import { labelOf } from '@/lib/cycle-kinds'
 import { getNavForKind } from '@/components/shell/sidebar'
 import { threeWayMatch, type MatchInput } from '@/lib/three-way-match'
+import { offersSendAgain } from '@/lib/money/bill-resend'
 
 const D = (s: string) => new Date(`${s}T00:00:00.000Z`)
 
@@ -195,5 +196,25 @@ describe('A placement’s billing dates, from the side that reads them', () => {
 
   it('hours read the same to both sides', () => {
     expect(labelOf('TIMESHEET_APPROVE', 'PAYER')).toBe(labelOf('TIMESHEET_APPROVE', 'SUPPLIER'))
+  })
+})
+
+describe('Send again, on a bill that has gone to the customer', () => {
+  const AR = ['invoices.issue', 'invoices.read']
+  it('Send again is a person’s own act, needs invoices.issue, and is offered only on our own bill once it has been sent and is still owed', () => {
+    expect(offersSendAgain({ status: 'SUBMITTED', direction: 'RECEIVABLE', permissions: AR })).toBe(true)
+    expect(offersSendAgain({ status: 'PARTIALLY_PAID', direction: 'RECEIVABLE', permissions: ['*'] })).toBe(true)
+    // Whoever does not send bills is not offered it.
+    expect(offersSendAgain({ status: 'SUBMITTED', direction: 'RECEIVABLE', permissions: ['invoices.read', 'payments.record'] })).toBe(false)
+    // A draft or a raised bill is sent with Send; a paid or cancelled one has nothing to send.
+    for (const status of ['DRAFT', 'ISSUED', 'PAID', 'CANCELLED']) {
+      expect(offersSendAgain({ status, direction: 'RECEIVABLE', permissions: AR })).toBe(false)
+    }
+  })
+  it('an invoice receipt a supplier sent us, or a client’s book read from a seat there, is never offered Send again', () => {
+    expect(offersSendAgain({ status: 'SUBMITTED', direction: 'PAYABLE', permissions: AR })).toBe(false)
+    expect(offersSendAgain({ status: 'SUBMITTED', direction: 'RECEIVABLE', permissions: AR, readingInASeat: true })).toBe(false)
+    // Until the session says what the seat holds, no button.
+    expect(offersSendAgain({ status: 'SUBMITTED', direction: 'RECEIVABLE', permissions: null })).toBe(false)
   })
 })

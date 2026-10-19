@@ -12,6 +12,7 @@ import {
 } from '@/lib/ar-ageing'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { booksFor, noteMoneyRead, seatedRefusal } from '@/lib/money/seated-books'
+import { billDeliverySaysFor } from '@/lib/notify/bill-delivery'
 
 /**
  * GET /api/invoices
@@ -307,15 +308,23 @@ export async function GET(request: NextRequest) {
   // words, who worked, the hours billed against the hours signed, and the
   // order with what is left on it (lib/money/receipt-read). Read through
   // the same match the invoice's own page and the pay route use.
+  // Whom each of our own bills reached, and when — "Sent to
+  // dana@acme.com on Oct 19", or why it was not — read from what the
+  // sending recorded, never from the status (lib/notify/bill-delivery).
+  // Only on the side that collects: an invoice receipt says nothing about
+  // whom its supplier emailed. One query for the page.
+  const sentTo = await billDeliverySaysFor(classified.filter((r) => r.direction === 'RECEIVABLE').map((r) => r.id))
   const withReceipt = await Promise.all(
     classified.map(async (row) => {
-      if (row.direction !== 'PAYABLE') return { ...row, receipt: null }
+      const deliverySays = row.direction === 'RECEIVABLE' ? sentTo.get(row.id) ?? null : null
+      if (row.direction !== 'PAYABLE') return { ...row, deliverySays, receipt: null }
       const m = await matchInvoice(row.id)
-      if (!m) return { ...row, receipt: null }
+      if (!m) return { ...row, deliverySays, receipt: null }
       const read = readReceipt({ matched: m.matched, checks: m.checks, lines: m.lines, currency: row.currency })
       const inv = invoices.find((i) => i.id === row.id)
       return {
         ...row,
+        deliverySays,
         receipt: {
           ...read,
           // Where a question about it is asked: the job request behind
