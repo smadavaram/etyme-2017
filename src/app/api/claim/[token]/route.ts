@@ -91,7 +91,7 @@ export async function POST(
 
   const invite = await prisma.supplierInvite.findUnique({
     where: { token },
-    include: { company: { select: { id: true, name: true, domain: true, claimedAt: true } } },
+    include: { company: { select: { id: true, name: true, domain: true, claimedAt: true, kind: true } } },
   })
 
   if (!invite || invite.state === 'REVOKED') {
@@ -143,10 +143,15 @@ export async function POST(
     select: { id: true, name: true },
   })
 
+  // The roles of the kind of firm being claimed. A client a supplier
+  // invited is seated in the client's own roles: a supplier's Recruiter
+  // and AP & Payroll mean nothing at a firm that only buys.
+  const kindRoles = rolesFor(invite.company.kind)
+
   const roles = existingRoles.length
     ? existingRoles
     : await Promise.all(
-        rolesFor('VENDOR').map((r) =>
+        kindRoles.map((r) =>
           prisma.role.create({
             data: {
               companyId: invite.companyId,
@@ -159,7 +164,7 @@ export async function POST(
         )
       )
 
-  const ownerName = rolesFor('VENDOR').find((r) => r.isOwner)?.name
+  const ownerName = kindRoles.find((r) => r.isOwner)?.name
   const owner = roles.find((r) => r.name === ownerName) ?? roles[0]
 
   const domain = companyDomain(email)
@@ -191,7 +196,7 @@ export async function POST(
         companyId: invite.companyId,
         roleId: owner.id,
         type: 'EMPLOYEE',
-        grantReason: `Claimed a supplier invitation from ${invite.byId}`,
+        grantReason: `Claimed a ${invite.company.kind === 'CLIENT' ? 'client' : 'supplier'} invitation from ${invite.byId}`,
       },
     }),
     prisma.company.update({

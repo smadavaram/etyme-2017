@@ -11,9 +11,11 @@ import { readersFor } from './read'
 import { unreadNotices, markNoticesSeen } from './notices'
 import { isWorkerSeat, workerToday, respondWorker, WORKER_NOT_KEPT } from './worker'
 import { workerFacts } from './worker-read'
+import { owedTotal } from './owed'
 
 /**
  * GET    /api/conversations/twin[?take=n][&only=thread]   the greeting, and the seat's saved thread
+ * GET    /api/conversations/twin?only=owed       { data: { total } } the mark's number, nothing marked seen (./owed)
  * POST   /api/conversations/twin   { text, companyId? }  one question, one answer, both kept
  * PATCH  /api/conversations/twin   { approvalId, state, turnId?, number?, said? }
  *                                                        what became of a card, and the reply after a yes or a no
@@ -159,6 +161,9 @@ function takeOf(request: NextRequest): number | undefined {
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+  // The mark's number: the greeting's own count, read with no notice
+  // marked seen and no line kept, so polling it changes nothing.
+  if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)
   if (asWorker(caller)) return workerGreeting(caller, request)
   if (!caller.company) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
@@ -181,6 +186,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: { answer, model, thread: await threadFor(caller, take) } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
+    return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
+  }
+}
+
+/**
+ * `{ data: { total } }` for the Ask Etyme mark: a worker's cards, or a
+ * firm seat's decisions total; null where it could not be read. Reads only.
+ */
+async function owedCount(caller: Caller, request: NextRequest) {
+  const worker = asWorker(caller)
+  if (!worker && !caller.company) {
+    return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
+  }
+  try {
+    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request), needs: needsFor(request) })
+    return NextResponse.json({ data: { total } })
+  } catch (err) {
+    await reportError('Ask Etyme could not count what a seat owes', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
   }
 }

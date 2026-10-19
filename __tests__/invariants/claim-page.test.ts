@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { rolesFor } from '@/lib/company-defaults'
 import { approvedLine, setPasswordHref, backToClaim, jobsWaiting, WORK_ACCOUNT, clientClaimLine, claimLine, claimEyebrow } from '@/app/claim/[token]/words'
 
 /**
@@ -78,5 +79,19 @@ describe('a client its supplier invited claims its own record', () => {
     expect(ROUTE).toContain("invitedAs: invite.company.kind === 'CLIENT' ? 'CLIENT' : 'SUPPLIER',")
     expect(PAGE).toContain('{claimLine(claim, claim.alreadyClaimed)}')
     expect(PAGE).toContain("claim.invitedAs !== 'CLIENT' && jobsWaiting(")
+  })
+
+  it('the first person to claim a client\'s record is seated in the client\'s own roles, not a supplier\'s', () => {
+    // The roles are the claimed company's kind, read off the record, and
+    // the owner's seat is found in that same set.
+    expect(ROUTE).toContain('const kindRoles = rolesFor(invite.company.kind)')
+    expect(ROUTE).toContain('kindRoles.map(')
+    expect(ROUTE).toContain('const ownerName = kindRoles.find((r) => r.isOwner)?.name')
+    expect(ROUTE).not.toContain("rolesFor('VENDOR')")
+    // The client's set has its own owner and none of a supplier's desks.
+    const client = rolesFor('CLIENT')
+    expect(client.some((r) => r.isOwner)).toBe(true)
+    expect(client.map((r) => r.name)).not.toContain('Recruiter')
+    expect(client.map((r) => r.name)).not.toEqual(rolesFor('VENDOR').map((r) => r.name))
   })
 })

@@ -49,6 +49,8 @@ import { recordModelPrompt, WITHHELD } from '@/lib/model-boundary'
 import { feedWhere, OWNER_ONLY_EXCEPTION } from '@/lib/twin/ledger'
 import { desksHolding } from '@/lib/permissions'
 import { newMasker } from '@/app/api/conversations/twin/mask'
+import { owedTotal } from '@/app/api/conversations/twin/owed'
+import { owedFrom } from '@/lib/owed-count'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK, offRecord, knownFirm, firmsByForm } from '@/app/api/conversations/twin/transaction'
 import {
   workerToday, respondWorker, isWorkerSeat, owedSays, chainSays, cardsFor, WORKER_QUESTIONS, WORKER_CLOSE, WORKER_BOUNDARY, NEVER_FILES,
@@ -1262,5 +1264,48 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(chat).toContain("'MODEL', 'WORKER']")
     const asAnswer: Answer = workerToday(helena())
     expect(cardIdsOf(asAnswer)).toEqual([])
+  })
+
+  it('the mark’s count for a worker is her greeting’s cards, read without marking anything seen', async () => {
+    // Three things need her: a week sent back, a week saved and never sent, a week to file.
+    const three = helena({
+      returned: [{ periodStart: '2026-09-13', periodEnd: '2026-09-19', site: 'Northbend Athletic', reason: 'Tuesday reads 14 hours' }],
+      sent: [{
+        id: 'ts-draft', periodStart: '2026-09-06', periodEnd: '2026-09-12', hours: 40, stage: 'NOT_SENT', waitingOn: null, client: 'Northbend Athletic',
+        employer: 'Techpeple', approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null,
+      }],
+    })
+    expect(cardsFor(three)).toHaveLength(3)
+    expect(workerToday(three, { greeting: true }).says).toBe('Three things need you. Checked just now.')
+
+    noticeCalls.length = 0
+    const needs = vi.fn(async () => 9)
+    const total = await owedTotal({ worker: true, facts: async () => three, needs })
+    expect(total).toBe(3)
+    // The firm's decisions queue owes a worker nothing, so it is not asked.
+    expect(needs).not.toHaveBeenCalled()
+    // Read without a write: no notice read or marked seen.
+    expect(noticeCalls).toEqual([])
+    // The answer's shape is the one the mark already reads off the decisions queue.
+    expect(owedFrom({ data: { total } })).toBe(3)
+
+    // A firm's seat reads the greeting's own headline figure, the decisions total; never a guess.
+    const facts = vi.fn(async () => three)
+    expect(await owedTotal({ worker: false, facts, needs: async () => 5 })).toBe(5)
+    expect(await owedTotal({ worker: false, facts, needs: async () => null })).toBeNull()
+    expect(await owedTotal({ worker: false, facts, needs: async () => { throw new Error('down') } })).toBeNull()
+    expect(facts).not.toHaveBeenCalled()
+    expect(owedFrom({ data: { total: null } })).toBeNull()
+
+    // The route answers it before any greeting, and that branch marks nothing, keeps nothing.
+    const route = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/route.ts'), 'utf8')
+    const branch = route.indexOf("if (request.nextUrl.searchParams.get('only') === 'owed') return owedCount(caller, request)")
+    expect(branch).toBeGreaterThan(0)
+    expect(branch).toBeLessThan(route.indexOf('if (asWorker(caller)) return workerGreeting(caller, request)'))
+    const body = route.slice(route.indexOf('async function owedCount('), route.indexOf("/** The worker's greeting and her saved thread."))
+    expect(body).toContain('return NextResponse.json({ data: { total } })')
+    expect(body).not.toMatch(/markNoticesSeen|unreadNotices|appendTurn|markCard|clearThread|prisma\./)
+    const owedSrc = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/owed.ts'), 'utf8')
+    expect(owedSrc).not.toMatch(/markNoticesSeen|unreadNotices|appendTurn|prisma/)
   })
 })
