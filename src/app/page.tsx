@@ -15,14 +15,20 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  * and ten words, and the test for every word: which buyer asked for it,
  * and can the reader check it by clicking something on this page.
  *
- *   hero        the question and the category line, word for word
+ *   hero        the question and the category line, word for word, and
+ *               since the founder's drawing of 2026-10-19 one line under
+ *               them: most companies cannot answer it without three weeks
+ *               and a spreadsheet nobody trusts
  *   #demo       the product shown working, in one compact panel
  *               (`lib/public-site/story-panel`, since the founder's
  *               "Build it" later on 2026-10-14): Ask Etyme answers, a
  *               decision card presses itself, the table changes, across
  *               four chips — Job, Candidates, Timesheets, Invoices — with
  *               every name and figure the seeded demo's, and one button
- *               to the full demo
+ *               to the full demo. Since 2026-10-19 the bar names the
+ *               person in front of each step (Marcus Oyelaran, Helena
+ *               Marsh, Renata Kowal) and the line under it says they are
+ *               three people at a demo company on one morning
  *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
  *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
@@ -81,6 +87,9 @@ export default function LandingPage() {
           </h1>
           <p className="mt-3 text-[17px] leading-snug text-etyme-muted md:text-[18px]">
             Enterprise contingent workforce management.
+          </p>
+          <p className="mt-2 text-[16px] leading-snug text-etyme-muted">
+            Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.
           </p>
         </section>
 

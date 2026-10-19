@@ -31,6 +31,26 @@
  *                                        month's total is computed from the
  *                                        seed's dates, so no total is shown
  *   7 contractors · 4 suppliers          the same, and counted below
+ *
+ * And the founder's drawing of 2026-10-19, which names the person in
+ * front of each step (Marcus Oyelaran, Helena Marsh, Renata Kowal):
+ *
+ *   drawing                              seed, and so the panel
+ *   "$60,000 a month: Helena Marsh,      $135,200 a month for the 7 contractors
+ *   Omar Haddad and Lucía Fernández,     the seed puts on site through 4
+ *   through 3 suppliers"                 suppliers — the question is "across
+ *                                        every supplier", and the three named
+ *                                        are 3 of 7; the table says "3 of 7"
+ *   "Computer Systems Inc accepts the    Computer Systems Inc accepts next,
+ *   same 40 hours next, then pays you"   then her employer, who pays her:
+ *                                        Computer Systems Inc is not Helena's
+ *                                        employer, and the client never reads
+ *                                        the firm below it
+ *   "he has them at the top of his       "they are on his list": nothing on the
+ *   list"                                record orders his list
+ *   two earlier weeks "Paid"             "Accepted": every rung signed them;
+ *                                        whether payroll has paid one depends
+ *                                        on the day the world was born
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
@@ -42,16 +62,22 @@ import { NORTHBEND_TWIN_RECEIPTS } from '@/lib/twin/seed-demo'
 import { TENURE_DEMO } from '@/lib/twin/seed-tenure-demo'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import {
-  STORY, STORY_BAR, STEP_NAMES, STORIES, APTIVA_BAR, APTIVA_BOOK, storyCopy, storyChromeCopy, storyIndex,
-  type Cell, type StoryStep,
+  STORY, STORY_BAR, STEP_NAMES, STORIES, APTIVA_BAR, APTIVA_BOOK, APTIVA_WHO, NORTHBEND_PEOPLE, STORY_STEP_MS, WEEK_WORDS,
+  storyCopy, storyChromeCopy, storyIndex, startOf, weekLabel, cellText,
+  type Cell, type StoryStep, type StoryKey,
 } from '@/lib/public-site/story'
+import { programMonthlySpend } from '@/lib/program-spend'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+import { OFFERED } from '@/lib/seed-bench-matching'
+import { MOVE_DESKS } from '@/lib/seed-internal-moves'
+import { RATE_CHANGE_RATES } from '@/lib/seed-rate-change'
+import { everyDoorView } from '@/lib/public-site/parties'
 import { SECTOR_SUPPLIERS } from '@/lib/seed-sector-suppliers'
 import { rolesFor } from '@/lib/company-defaults'
 import { hasPermission } from '@/lib/permissions'
 import { StoryPanel } from '@/lib/public-site/story-panel'
 import { STEPS } from '@/lib/public-site/steps'
 import { STEP_PAGES, stepEyebrow } from '@/lib/public-site/docs/process'
-import { MENU } from '@/lib/public-site/nav'
 import { MODULES } from '@/lib/public-site/modules'
 import { PARTY_PAGES } from '@/lib/public-site/parties'
 
@@ -63,31 +89,110 @@ const WORLD = read('src/lib/seed-world.ts')
 /** A seeded firm's name, read off the world seed's firm list. */
 const firm = (slug: string) => WORLD.match(new RegExp(`slug: '${slug}',\\s*name: '([^']+)'`))![1]
 const dollars = (cents: number) => `$${cents / 100}`
-const text = (c: Cell) => (typeof c === 'string' ? c : c.t)
+/** What a cell reads before the page is live: a pill's first words, a week as "Last week". */
+const text = (c: Cell) => cellText(c)
+/** What a pill reads once the card has pressed. */
+const after = (c: Cell) => (typeof c === 'object' && 'pill' in c && c.then ? c.then.t : cellText(c))
 const step = (chip: string) => STORY.find((s) => s.chip === chip)!
-const said = (chip: string) => {
-  const s = step(chip)
-  return [...s.chat.flatMap((m) => [m.text, m.card?.t ?? '', m.card?.s ?? '']), ...s.table.rows.flat().map(text), s.sum.rest].join(' ')
+const sayAll = (s: StoryStep) =>
+  [...s.chat.flatMap((m) => [m.text, m.card?.t ?? '', m.card?.s ?? '', m.status?.t ?? '', m.status?.then.t ?? '']),
+    ...s.table.rows.flat().map(text), ...(s.table.added ?? []).map(text), s.sum.big, s.sum.rest].join(' ')
+const said = (chip: string) => sayAll(step(chip))
+/** "$135,200" from cents. */
+const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`
+/** The world's birthday, as any fixed day: every seeded date counts from it. */
+const BORN = new Date('2026-10-15T00:00:00.000Z')
+const back = (days: number) => new Date(BORN.getTime() - days * 86_400_000)
+/** The people the seed puts on site at Northbend today, with the rate Northbend pays each. */
+function northbendOnSite() {
+  const moves = read('src/lib/seed-internal-moves.ts')
+  return [
+    ...nike.placements.filter((p) => p.state === 'IN_PROGRESS').map((p) => ({ person: p.person, firm: p.via[1], bill: p.rates[0] })),
+    ...TENURE_DEMO.lines.filter((l) => l.state === 'IN_PROGRESS').map((l) => ({ person: TENURE_DEMO.person, firm: l.via, bill: l.rates[0] })),
+    { person: RATE_CHANGE_PERSON.name, firm: 'brightmoor', bill: RATE_CHANGE_RATES.bill },
+    ...[...moves.matchAll(/person: '([^']+)', client: 'nike'[\s\S]*?bill: ([\d_]+),[\s\S]*?end: (-?\d+)/g)]
+      .filter((m) => Number(m[3]) > 0).map((m) => ({ person: m[1], firm: 'teleworld', bill: Number(m[2].replace(/_/g, '')) })),
+  ]
 }
+/** The world seed's placements and the names given them, read off its source: neither is exported. */
+const WORLD_PLACEMENTS = (() => {
+  const block = WORLD.slice(WORLD.indexOf('const PLACEMENTS: Placement[] = ['), WORLD.indexOf('const NAMES: string[] = ['))
+  return [...block.matchAll(/via: \[([^\]]+)\]/g)].map((m) => m[1].split(',').map((x) => x.trim().replace(/'/g, '')))
+})()
+const WORLD_NAMES = [...WORLD.slice(WORLD.indexOf('const NAMES: string[] = ['), WORLD.indexOf('/**', WORLD.indexOf('const NAMES: string[] = ['))).matchAll(/'([^']+)'/g)].map((m) => m[1])
 
 describe('Every name and figure on the panel is the seeded demo’s', () => {
 
-  it('the job step sends the seeded open job, at its rate band and months, to the three suppliers the seed releases it to', () => {
+  it('the bar names the person in front of each step beside the company: Marcus Oyelaran for the job and the candidates, Helena Marsh for her week, Renata Kowal for the invoices', () => {
+    expect(STORY.map((s) => s.who)).toEqual([
+      'Marcus Oyelaran, hiring manager', 'Marcus Oyelaran, hiring manager',
+      'Helena Marsh, contractor through Computer Systems Inc', 'Renata Kowal, AP clerk',
+    ])
+    expect(nike.people.hiring).toBe('Marcus Oyelaran')
+    expect(nike.people.ap).toBe('Renata Kowal')
+    // Helena is on site through Computer Systems Inc, the firm Northbend pays.
+    const helena = nike.placements.find((p) => p.person === 'Helena Marsh' && p.state === 'IN_PROGRESS')!
+    expect(NORTHBEND_PEOPLE.worker).toBe(`Helena Marsh, contractor through ${firm(helena.via[1])}`)
+    // Three people over four steps, a step every 5.2 seconds: a loop of about twenty-one seconds.
+    expect(STORY_STEP_MS).toBe(5200)
+    expect((STORY_STEP_MS * STORY.length) / 1000).toBeCloseTo(20.8)
+  })
+
+  it('the job step opens on the headline’s own question, and answers it with what the seed’s seven contractors cost a month at current rates: $135,200', () => {
+    const s = step('Job')
+    expect(s.chat[0]).toEqual({ who: 'me', text: 'What am I paying across every supplier this month?' })
+    const onSite = northbendOnSite()
+    expect(new Set(onSite.map((o) => o.person)).size).toBe(7)
+    expect(new Set(onSite.map((o) => o.firm)).size).toBe(4)
+    // The dashboard's own arithmetic: each bill rate at a 160-hour month.
+    expect(read('src/app/api/program/route.ts')).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
+    const month = programMonthlySpend(onSite.map((o) => ({ rateMinorPerHour: o.bill }))).totalMinor
+    expect(money(month)).toBe('$135,200')
+    expect(s.chat[1].text.startsWith(`${money(month)} a month: 7 contractors through 4 suppliers, at current rates.`)).toBe(true)
+    expect(s.sum).toEqual({ big: money(month), rest: 'a month across every supplier, from current rates, in one answer' })
+    // The drawing's $60,000 is the three named rows alone, which are three of seven.
+    const three = programMonthlySpend(['Helena Marsh', 'Omar Haddad', 'Lucía Fernández'].map((n) => ({ rateMinorPerHour: onSite.find((o) => o.person === n)!.bill }))).totalMinor
+    expect(money(three)).toBe('$60,000')
+    expect(storyCopy().join(' ')).not.toContain('$60,000')
+    expect(s.table.title).toBe('Contractors on site · 3 of 7')
+  })
+
+  it('the job step’s contractors carry the supplier and rate the seed gives them, and their months here counted the way the time limit counts them: whole months, never rounded up', () => {
+    const live = (person: string) => nike.placements.find((p) => p.person === person && p.state === 'IN_PROGRESS')!
+    const lines = (person: string) => nike.placements.filter((p) => p.person === person)
+    const months = (person: string) => monthsOf(daysOnSite(lines(person).map((p) => ({
+      startDate: back(p.startedDaysAgo), endDate: p.state === 'ENDED' ? back(-p.endsInDays) : null,
+    })), BORN))
+    expect(months('Helena Marsh')).toBe(6)
+    expect(months('Omar Haddad')).toBe(1)
+    expect(months('Lucía Fernández')).toBe(14)
+    expect(new Set(lines('Lucía Fernández').map((p) => p.via[1])).size).toBe(2)
+    expect(nike.governance.tenureCapMonths).toBe(18)
+    const rows = step('Job').table.rows.map((r) => r.map(text))
+    expect(rows).toEqual([
+      ['Helena Marsh', firm(live('Helena Marsh').via[1]), dollars(live('Helena Marsh').rates[0]), String(months('Helena Marsh'))],
+      ['Omar Haddad', firm(live('Omar Haddad').via[1]), dollars(live('Omar Haddad').rates[0]), String(months('Omar Haddad'))],
+      ['Lucía Fernández', firm(live('Lucía Fernández').via[1]), dollars(live('Lucía Fernández').rates[0]), `14 of ${nike.governance.tenureCapMonths} · 2 suppliers`],
+    ])
+    expect(step('Job').chat[1].text).toContain(`Lucía Fernández has 14 months here across two suppliers. The limit is ${nike.governance.tenureCapMonths}.`)
+  })
+
+  it('the job step’s card sends the seeded open job, at its band and months, to the three suppliers the seed releases it to, and the job appears under the contractors when it presses', () => {
     const s = said('Job')
     expect(s).toContain(nike.open.title)
-    expect(s).toContain(`Bill rate ${dollars(nike.open.band[0])} to ${dollars(nike.open.band[1])} an hour`)
     // The seed writes the open job for twelve months, at the program's own site.
     expect(read('src/lib/seed-programmes.ts')).toMatch(/billMin: p\.open\.band\[0\], billMax: p\.open\.band\[1\], months: 12/)
-    expect(s).toContain(`12 months · ${nike.loc}`)
     const to = nike.open.to.map(firm)
-    expect(step('Job').chat[1].card!.s).toBe(to.join(', '))
-    expect(s).toContain(`Sent to your ${to.length} approved suppliers`)
-    // Within the band, so it cleared by rule: the seed writes it AUTO_APPROVED.
+    const band = `$${nike.open.band[0] / 100}–${nike.open.band[1] / 100}`
+    const msg = step('Job').chat[2]
+    expect(msg.text).toBe(`Send the ${nike.open.title} job to your ${to.length} approved suppliers? It is within budget, so it needs no approval.`)
+    expect(msg.card).toEqual({ t: `${nike.open.title} · 12 months · ${nike.loc}`, s: `${to.join(', ')} · ${band} an hour`, yes: 'Send' })
+    // Within the band, so it clears by rule: the seed writes it AUTO_APPROVED.
     expect(read('src/lib/seed-programmes.ts')).toMatch(/status: 'OPEN', approvalState: 'AUTO_APPROVED'/)
     expect(nike.open.band[1]).toBeLessThanOrEqual(nike.governance.band[1])
-    const [open, routed] = step('Job').table.rows
-    expect(open.map(text)).toEqual([nike.open.title, String(to.length), `$${nike.open.band[0] / 100}–${nike.open.band[1] / 100}`, 'Open'])
-    expect(routed.map(text)).toEqual([`Supply-planning consultants (${nike.routed.headcount})`, '—', `up to ${dollars(nike.routed.billMax)}`, 'Waiting for the VP'])
+    expect(step('Job').table.added!.map(text)).toEqual([`${nike.open.title} (open)`, `${to.length} suppliers`, band, 'Sent'])
+    // The row that lights is the one the card added.
+    expect(step('Job').table.flash).toBe(step('Job').table.rows.length)
   })
 
   it('the candidates step lists the seeded job’s three candidates, each with the supplier, rate and interview state the seed gives them', () => {
@@ -109,43 +214,70 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(said('Candidates')).toContain(`3 candidates from ${new Set(nike.open.candidates.map((c) => c.from)).size} suppliers`)
   })
 
-  it('the timesheets step shows the three weeks the seed leaves waiting: Helena at 40, Lucía at 44 on a 40-hour week, Omar at 45', () => {
-    const live = (person: string) => nike.placements.find((p) => p.person === person && p.state === 'IN_PROGRESS')!
-    const helena = live('Helena Marsh'), lucia = live('Lucía Fernández'), omar = live('Omar Haddad')
-    expect(helena.weeks?.awaiting).toBe(1)
+  it('the timesheets step is Helena’s own week, waiting on Marcus Oyelaran, who signs it, and flipping to signed where a card would press', () => {
+    const helena = nike.placements.find((p) => p.person === 'Helena Marsh' && p.state === 'IN_PROGRESS')!
+    // One week waiting at the top, three signed before it, forty hours each.
+    expect(helena.weeks).toEqual({ approved: 3, awaiting: 1 })
     expect(helena.exceptionHours).toBeUndefined()
-    expect(lucia.weeks?.awaiting).toBe(1)
-    expect(lucia.exceptionHours).toBe(44)
-    expect(omar.overtimeWeekHours).toBe(45)
-    expect(omar.overtimeAfterHours).toBe(40)
-    // The client sees the rung it pays: the first firm under it.
-    const rows = step('Timesheets').table.rows.map((r) => r.map(text))
-    expect(rows).toEqual([
-      ['Helena Marsh', firm(helena.via[1]), '40', 'Approved'],
-      ['Lucía Fernández', firm(lucia.via[1]), String(lucia.exceptionHours), `${lucia.exceptionHours! - 40} hours over`],
-      ['Omar Haddad', firm(omar.via[1]), String(omar.overtimeWeekHours), `${omar.overtimeWeekHours! - 40} hours over`],
+    // The seed signs every week as the program's hiring manager.
+    expect(read('src/lib/seed-programmes.ts')).toMatch(/clientApprovedById: desk\.hiring\.personId/)
+    const s = step('Timesheets')
+    expect(s.chat[0]).toEqual({ who: 'me', text: 'Is my week signed yet? My pay waits on it.' })
+    expect(s.chat[1].text).toBe(`Not yet. Your 40 hours are with ${nike.people.hiring}, who signs them. They are due by Wednesday, and they are on his list.`)
+    // Due by Wednesday: the default approve-by day, and no seed sets another.
+    const daysOff = read('src/lib/days-off.ts')
+    expect(daysOff).toContain('approveByWeekday: 3, // Wednesday')
+    for (const f of ['seed-programmes', 'seed-world', 'seed-doors']) expect(read(`src/lib/${f}.ts`), f).not.toContain('approveByWeekday')
+    expect(s.chat[1].status).toEqual({ pill: 'wait', t: `Waiting for ${nike.people.hiring}`, then: { pill: 'ok', t: `Signed by ${nike.people.hiring} ✓` } })
+    expect(s.chat.some((m) => m.card)).toBe(false)
+    // Then down the chain: the firm Northbend pays, then her employer, the bottom rung.
+    expect(helena.via).toEqual(['nike', 'computer-systems', 'techpeple'])
+    expect(s.chat[2].text).toBe(`Signed, just now. ${firm(helena.via[1])} accepts the same 40 hours next, then your employer, who pays you. Nobody types your week in again.`)
+    // The client never reads the firm below the one it pays, on this panel or any other Northbend step.
+    for (const st of STORY) expect(sayAll(st), st.chip).not.toContain(firm('techpeple'))
+    expect(s.table.rows.map((r) => r.map(text))).toEqual([
+      [WEEK_WORDS[0], '40', nike.people.hiring, 'Waiting'],
+      [WEEK_WORDS[1], '40', nike.people.hiring, 'Accepted'],
+      [WEEK_WORDS[2], '40', nike.people.hiring, 'Accepted'],
     ])
-    expect(said('Timesheets')).toContain('3 timesheets are waiting for your approval. Two are over the hours on the contract.')
-    expect(said('Timesheets')).toContain(`Lucía Fernández submitted 44 hours on a 40-hour contract. Check with ${firm('pinnacle')}`)
+    expect(after(s.table.rows[0][3])).toBe('Signed')
+    expect(s.sum).toEqual({ big: '1', rest: 'week, signed once at the top; every firm below accepts the same week' })
   })
 
-  it('the invoices step is the twin’s two seeded receipts from Pinnacle, priced at the rate Pinnacle bills Northbend', () => {
+  it('a week is said as its days once the page is live: the Sunday-to-Saturday week before today, through the one date formatter', () => {
+    // Monday Oct 19: the last whole week is Oct 11–17, and so on the Saturday after.
+    expect(weekLabel('2026-10-19')).toBe('Oct 11–17')
+    expect(weekLabel('2026-10-24')).toBe('Oct 11–17')
+    // On the Sunday the week that just ended is the one.
+    expect(weekLabel('2026-10-25')).toBe('Oct 18–24')
+    // Earlier weeks, and across a month.
+    expect(weekLabel('2026-10-19', 1)).toBe('Oct 4–10')
+    expect(weekLabel('2026-10-19', 2)).toBe('Sep 27–Oct 3')
+    // Before the page is live, words; the server and the browser draw the same first frame.
+    expect(cellText({ week: 0 })).toBe('Last week')
+    expect(cellText({ week: 0 }, '2026-10-19')).toBe('Oct 11–17')
+    expect(read('src/lib/public-site/story.ts')).toContain("import { formatDay } from '@/lib/format-date'")
+    expect(read('src/lib/public-site/story-panel.tsx')).toContain('setToday(new Date().toISOString().slice(0, 10))')
+  })
+
+  it('the invoices step is Renata Kowal paying the twin’s clean seeded receipt from Pinnacle, at the rate Pinnacle bills Northbend, and holding the one that bills more hours than were approved', () => {
     const [clean, held] = NORTHBEND_TWIN_RECEIPTS.filter((r) => r.number)
     expect(clean).toMatchObject({ number: 'PR-2026-0441', hoursBilled: 40, hoursAccepted: 40, expected: 'CLEAN', supplier: 'pinnacle' })
     expect(held).toMatchObject({ number: 'PR-2026-0442', hoursBilled: 41.5, hoursAccepted: 40, expected: 'MISMATCH', supplier: 'pinnacle' })
     const rate = nike.placements.find((p) => p.person === clean.person && p.via[1] === 'pinnacle' && p.state === 'IN_PROGRESS')!.rates[0]
     const total = (clean.hoursBilled * rate) / 100
-    expect(step('Invoices').chat[1].card!.t).toBe(`Pay invoice ${clean.number} for $${total.toLocaleString('en-US')}?`)
-    expect(step('Invoices').chat[1].card!.s).toContain(`${clean.hoursAccepted} approved hours × ${dollars(rate)}`)
+    const s = step('Invoices')
+    expect(s.chat[0].text).toBe('Which of Pinnacle Resourcing’s invoices can we pay today?')
+    expect(s.chat[1].text).toBe(`${clean.number}: ${clean.hoursAccepted} approved hours at the contract rate of ${dollars(rate)}. The hours, the invoice receipt and the rate agree.`)
+    expect(s.chat[1].card).toEqual({ t: `Pay invoice ${clean.number} for $${total.toLocaleString('en-US')}?`, s: `${clean.hoursAccepted} approved hours × ${dollars(rate)} · ${firm('pinnacle')}`, yes: 'Pay' })
+    expect(s.chat[2].text).toBe(`${held.number} is on hold. It bills ${held.hoursBilled} hours; ${held.hoursAccepted} were approved. Nobody pays the ${held.hoursBilled - held.hoursAccepted} hours until somebody signs them.`)
     // The list a client reads for what suppliers send is invoice receipts (CLAUDE.md, 2026-09-28).
-    expect(step('Invoices').table.title).toBe('Invoice receipts')
-    expect(step('Invoices').table.head[0].t).toBe('Invoice receipt')
-    expect(step('Invoices').table.rows.map((r) => r.map(text))).toEqual([
+    expect(s.table.title).toBe('Invoice receipts')
+    expect(s.table.head[0].t).toBe('Invoice receipt')
+    expect(s.table.rows.map((r) => r.map(text))).toEqual([
       [clean.number, `${clean.hoursBilled} h`, `${clean.hoursAccepted} h`, 'Paid'],
       [held.number, `${held.hoursBilled} h`, `${held.hoursAccepted} h`, `On hold: ${held.hoursBilled - held.hoursAccepted} h over`],
     ])
-    expect(said('Invoices')).toContain(`it bills ${held.hoursBilled} hours, but ${held.hoursAccepted} were approved`)
-    expect(said('Invoices')).toContain(firm('pinnacle'))
   })
 
   it('the bar’s 7 contractors and 4 suppliers are the people and firms the seed puts on site at Northbend today', () => {
@@ -153,14 +285,7 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     // own lines, the time-limit demo's, the rate-change seed's, and the
     // integrator's two moves (read off its source: its lines are not
     // exported).
-    const moves = read('src/lib/seed-internal-moves.ts')
-    const onSite: { person: string; firm: string }[] = [
-      ...nike.placements.filter((p) => p.state === 'IN_PROGRESS').map((p) => ({ person: p.person, firm: p.via[1] })),
-      ...TENURE_DEMO.lines.filter((l) => l.state === 'IN_PROGRESS').map((l) => ({ person: TENURE_DEMO.person, firm: l.via })),
-      { person: RATE_CHANGE_PERSON.name, firm: 'brightmoor' },
-      ...[...moves.matchAll(/person: '([^']+)', client: 'nike'[\s\S]*?end: (-?\d+)/g)]
-        .filter((m) => Number(m[2]) > 0).map((m) => ({ person: m[1], firm: 'teleworld' })),
-    ]
+    const onSite = northbendOnSite()
     // The rate-change person is Brightmoor's own W2 at Northbend, still working.
     expect(read('src/lib/seed-rate-change.ts')).toMatch(/on Brightmoor Staffing's own payroll/)
     const people = new Set(onSite.map((o) => o.person))
@@ -177,9 +302,9 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(STORIES.northbend.steps).toBe(STORY)
   })
 
-  it('no stand-in figure from the drawing reached the panel', () => {
+  it('no stand-in figure from either drawing reached the panel', () => {
     const all = storyCopy().join(' ')
-    for (const gone of ['Java developer', '$21,120', '$42,587', 'BR-2026-0417', 'VT-2026-0108', '86%', 'Ravi Iyer', 'Oct 5', 'Veritan Talent']) {
+    for (const gone of ['Java developer', '$21,120', '$42,587', 'BR-2026-0417', 'VT-2026-0108', '86%', 'Ravi Iyer', 'Oct 5', 'Veritan Talent', '$60,000', 'top of his list']) {
       expect(all, gone).not.toContain(gone)
     }
   })
@@ -380,7 +505,220 @@ describe('The MSP door’s story is Aptiva Workforce’s seat in Cavanaugh Glass
       expect(s.table.head.length, s.chip).toBeLessThanOrEqual(4)
       expect(s.table.flash, s.chip).toBeLessThan(s.table.rows.length)
     }
-    expect(storyChromeCopy('aptiva')).toEqual([APTIVA_BAR.company, APTIVA_BAR.rest, ...STEP_NAMES])
+    expect(storyChromeCopy('aptiva')).toEqual([APTIVA_BAR.company, APTIVA_BAR.rest, APTIVA_WHO, ...STEP_NAMES])
+  })
+
+  it('the bar names Rashida Coleman, Aptiva’s program manager, the first seat the seed gives Aptiva, on every step', () => {
+    expect(WORLD).toMatch(/slug: 'aptiva',\s*name: 'Aptiva Workforce',\s*kind: 'MSP',\s*seat: 'Program manager', who: 'Rashida Coleman'/)
+    expect(APTIVA_WHO).toBe('Rashida Coleman, program manager')
+    for (const s of story.steps) expect(s.who, s.chip).toBe(APTIVA_WHO)
+  })
+})
+
+/**
+ * Every door and tab plays its own party's person, at the step that party
+ * acts on (founder, 2026-10-19). Read against the seed like the rest.
+ *
+ * Where the seed and the drawing differ, and so the panel:
+ *
+ *   drawing                              seed, and so the panel
+ *   Brightmoor "3 people billing ·       "3 people billing": the seed holds both,
+ *   2 clients"                           and the door's 165-word cap holds one
+ *   Techpeple's bench: Meera             Grace Lindqvist and Peter Halloran;
+ *   Balakrishnan, Ifeoma Balogun,        Meera is Nimbus Talent's and Tobias
+ *   Tobias Lindgren                      Lindgren Sahasra Infotech's; Ifeoma is
+ *                                        Techpeple's, already put forward
+ *   a bench shown "to a firm that        shown to the firms Techpeple sells to:
+ *   asked"                               no seeded firm has asked (no BenchWant)
+ *   Felix Brenner Nov 2, Amara Nwosu     no dates: both count from the day the
+ *   Nov 9                                world was born; "a week later" is the
+ *                                        seed's 18 and 25 days
+ *   Sunil Raghavan flags who rolls off   Ingrid Solberg flagged them, and the
+ *                                        panel says so; Sunil asks
+ *   $3,600 "on the seeded pay date"      "$3,600 to pay her": the pay date
+ *                                        counts from the day the world was born
+ *
+ * And three doors play a week one step on from where the seed leaves it,
+ * the way the home page signs the week the seed leaves with Marcus: the
+ * sub-vendor's week (the seed's waits on Marcus), the solopreneur's
+ * (the seed's newest waits on Halcyon), and Jonas Whitaker asked for his
+ * papers. The names, hours and rates are the seed's.
+ */
+describe('Each door plays its own party’s person, every name and figure the seed’s', () => {
+  const only = (key: StoryKey) => { expect(STORIES[key].steps, key).toHaveLength(1); return STORIES[key].steps[0] }
+  const rows = (st: StoryStep) => st.table.rows.map((r) => r.map(text))
+  const SEEDS = read('src/lib/seed-programmes.ts')
+  const DOORS_SEED = read('src/lib/seed-doors.ts')
+  const helena = nike.placements.find((p) => p.person === 'Helena Marsh' && p.state === 'IN_PROGRESS')!
+
+  it('each door and tab plays its own story at the step its person acts on', () => {
+    expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.story, v.step]]))).toEqual({
+      '/for/suppliers': ['brightmoor', 'submit'],
+      '/for/suppliers?tab=sub': ['techpeple-sub', 'approve'],
+      '/for/suppliers?tab=bench': ['techpeple-bench', 'submit'],
+      '/for/program-offices': ['aptiva', 'source'],
+      '/for/integrators': ['teleworld', 'submit'],
+      '/for/contractors': ['helena', 'approve'],
+      '/for/contractors?tab=solo': ['byrne', 'pay'],
+    })
+    for (const v of everyDoorView()) {
+      const story = STORIES[v.story!]
+      expect(story.steps[startOf(story, storyIndex(v.step))].embed, v.href).toBe(v.step)
+    }
+  })
+
+  it('a prime vendor is Marisa Delacroix, Brightmoor’s account manager, reading who applied from Brightmoor and the one on its bench who matches', () => {
+    expect(WORLD).toContain("{ desk: 'account',    role: 'Account Manager',     name: 'Marisa Delacroix' }")
+    const st = only('brightmoor')
+    expect(st.who).toBe('Marisa Delacroix, account manager')
+    expect(STORIES.brightmoor.bar.company).toBe(firm('brightmoor'))
+    expect(st.chat[0].text).toBe(`Who applied for Northbend’s ${nike.open.title} job from us?`)
+    const rajesh = nike.open.candidates.find((c) => c.from === 'brightmoor')!
+    expect(nike.open.candidates.filter((c) => c.from === 'brightmoor')).toHaveLength(1)
+    expect(rajesh.person).toBe('Rajesh Iyer')
+    expect(rajesh.round).toMatchObject({ state: 'CONFIRMED' })
+    expect(rajesh.round!.interviewers.some((i) => i.startsWith(nike.people.hiring))).toBe(true)
+    expect(st.chat[1].text).toBe(`Rajesh Iyer, at ${dollars(rajesh.rate)} an hour. His interview with ${nike.people.hiring} is booked.`)
+    const jonas = OFFERED.find((o) => o.name === 'Jonas Whitaker')!
+    expect(jonas.firm).toBe('brightmoor')
+    expect(jonas.skills).toEqual(expect.arrayContaining(['HCM integration', 'REST APIs']))
+    expect(st.chat[2].card).toEqual({ t: 'Ask Jonas Whitaker for his work papers?', s: `On your bench · HCM integration, REST APIs · ${jonas.location}`, yes: 'Ask' })
+    // Nothing on file for him: the seed that writes him writes no paperwork, and no other seed names him.
+    expect(read('src/lib/seed-bench-matching.ts')).not.toMatch(/verification|docInstance/i)
+    for (const f of ['seed-world', 'seed-programmes', 'seed-doors']) expect(read(`src/lib/${f}.ts`), f).not.toContain('Jonas Whitaker')
+    expect(rows(st)).toEqual([
+      ['Rajesh Iyer', 'Applied', dollars(rajesh.rate), 'Interview booked'],
+      ['Jonas Whitaker', 'Your bench', `$${jonas.rate[0] / 100}–${jonas.rate[1] / 100}`, 'Papers missing'],
+    ])
+    expect(after(st.table.rows[1][3])).toBe('Papers asked')
+  })
+
+  it('Brightmoor’s bar counts the 3 people it has billing today: Omar Haddad and Rosa Delgado at Northbend, and one at Nordway Retail', () => {
+    const atNorthbend = northbendOnSite().filter((o) => o.firm === 'brightmoor').map((o) => o.person)
+    expect(atNorthbend.sort()).toEqual(['Omar Haddad', 'Rosa Delgado'])
+    const elsewhere = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('brightmoor'))
+    expect(elsewhere.map((p) => [p.person, p.via[0]])).toEqual([['Ravi Subramanian', 'nordway']])
+    // Lucía's and the time-limit person's Brightmoor lines have ended.
+    expect(nike.placements.filter((p) => p.via[1] === 'brightmoor' && p.state !== 'IN_PROGRESS').every((p) => p.state === 'ENDED')).toBe(true)
+    expect(TENURE_DEMO.lines.find((l) => l.via === 'brightmoor')!.state).toBe('ENDED')
+    expect(STORIES.brightmoor.bar.rest).toBe(`a sample supplier · ${atNorthbend.length + elsewhere.length} people billing`)
+  })
+
+  it('a sub-vendor is Bhavesh Nair, Techpeple’s owner, accepting Helena Marsh’s 40 hours after the client and the prime, and billing the prime for the same hours', () => {
+    expect(WORLD).toMatch(/slug: 'techpeple',\s*name: 'Techpeple',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
+    const st = only('techpeple-sub')
+    expect(st.who).toBe('Bhavesh Nair, owner')
+    expect(helena.via).toEqual(['nike', 'computer-systems', 'techpeple'])
+    const [, primeRate, pay] = helena.rates
+    expect(st.chat[1].text).toBe(`Helena Marsh’s 40 hours at ${firm('nike')}. ${nike.people.hiring} signed them, and ${firm('computer-systems')} accepted them.`)
+    expect(st.chat[1].card).toEqual({ t: 'Accept Helena Marsh’s week?', s: `40 hours · ${money(40 * pay)} to pay her`, yes: 'Accept' })
+    expect(money(40 * pay)).toBe('$3,600')
+    expect(st.chat[2].text).toBe(`Accepted. Bill ${firm('computer-systems')} for the same 40 hours at ${dollars(primeRate)}: ${money(40 * primeRate)}.`)
+    expect(st.sum.big).toBe(money(40 * primeRate))
+    // Every signed week was accepted by the employer, last, at its own rate.
+    expect(SEEDS).toMatch(/role: 'EMPLOYER_ACCEPTANCE', hours: sheetHours,\s*rateCents: pl\.rates\[pl\.rates\.length - 1\]/)
+    expect(rows(st)).toEqual([
+      [WEEK_WORDS[0], '40', '$3,600', 'Waiting for you'],
+      [WEEK_WORDS[1], '40', '$3,600', 'Accepted'],
+      [WEEK_WORDS[2], '40', '$3,600', 'Accepted'],
+    ])
+  })
+
+  it('a bench vendor is Linnea Qadri, Techpeple’s recruiter, reading who on its bench its partners see, each by their own yes', () => {
+    expect(WORLD).toContain("{ desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' }")
+    const st = only('techpeple-bench')
+    expect(st.who).toBe('Linnea Qadri, recruiter')
+    // The bench nobody has placed: the names after the placements, a firm each in turn.
+    const vendors = WORLD.match(/const benchVendors = \[([^\]]+)\]/)![1].split(',').map((x) => x.trim().replace(/'/g, ''))
+    const bench = WORLD_NAMES.slice(WORLD_PLACEMENTS.length).map((name, i) => ({ name, firm: vendors[i % vendors.length], i }))
+    const techpeple = bench.filter((b) => b.firm === 'techpeple')
+    expect(techpeple.map((b) => b.name)).toEqual(['Grace Lindqvist', 'Peter Halloran'])
+    // Marketed: shown to the firms Techpeple trades with, by the person's own grant.
+    expect(WORLD).toMatch(/consultantId: profile\.id, companyId: co\.id, tier: 'MARKETING', state: 'GRANTED'/)
+    expect(st.chat[1].text).toBe('Grace Lindqvist and Peter Halloran. Each said yes to being shown to the firms we sell to.')
+    // Ifeoma is Techpeple's, put forward to Computer Systems for Harlow Health's job, screen booked, I-9 asked.
+    const live = WORLD.slice(WORLD.indexOf("role: 'Epic Beaker analyst'"), WORLD.indexOf("role: 'Python market risk developer'"))
+    expect(live).toMatch(/prime: 'computer-systems', bench: 'techpeple',\s*name: 'Ifeoma Balogun'/)
+    expect(live).toMatch(/stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED'/)
+    expect(DOORS_SEED).toMatch(/companySlug: 'techpeple',\s*name: 'I-9, with the document it is completed from',\s*needsSignature: true/)
+    expect(st.chat[2].text).toBe(`Ifeoma Balogun is put forward to ${firm('computer-systems')} for an Epic Beaker analyst job. Her phone screen is booked. Her I-9 is not signed yet.`)
+    // The seed's other two in flight are other firms' bench, so the panel does not claim them.
+    expect(WORLD).toMatch(/bench: 'sahasra',\s*name: 'Tobias Lindgren'/)
+    expect(WORLD).toMatch(/bench: 'nimbus',\s*name: 'Meera Balakrishnan'/)
+    for (const not of ['Tobias Lindgren', 'Meera Balakrishnan']) expect(sayAll(st)).not.toContain(not)
+    const skills = (i: number) => (WORLD.slice(WORLD.indexOf('const PLACEMENTS: Placement[] = [')).match(/skills: \[([^\]]+)\]/g)![i]).replace(/skills: \[|\]|'/g, '').split(',').map((x) => x.trim()).join(', ')
+    expect(rows(st)).toEqual([
+      ['Grace Lindqvist', skills(techpeple[0].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
+      ['Peter Halloran', skills(techpeple[1].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
+      ['Ifeoma Balogun', 'Epic, Beaker, LIS', 'I-9 not signed'],
+    ])
+  })
+
+  it('an integrator is Sunil Raghavan, Teleworld’s delivery manager, putting its own employee Karthik Menon forward, with the two coming off Northbend’s project after him', () => {
+    expect(WORLD).toMatch(/slug: 'teleworld',\s*name: 'Teleworld Solutions',\s*kind: 'GSI',\s*seat: 'Delivery manager', who: 'Sunil Raghavan'/)
+    const st = only('teleworld')
+    expect(st.who).toBe('Sunil Raghavan, delivery manager')
+    // Karthik: Teleworld's own W2, his Corveldt line ended, the open DO-178C job not given to him by the seed.
+    expect(DOORS_SEED).toMatch(/sellerSlug: 'teleworld',\s*clientSlug: 'corveldt',\s*buyFromId: null,\s*contractType: 'W2'/)
+    expect(DOORS_SEED).toMatch(/skills: \['DO-178C', 'LDRA', 'Embedded C'\][\s\S]{0,200}state: 'ENDED'/)
+    expect(DOORS_SEED).toContain('Deliberately not the open DO-178C seat.')
+    const job = WORLD.slice(WORLD.indexOf("role: 'DO-178C verification engineer'"))
+    expect(job).toMatch(/^role: 'DO-178C verification engineer', skills: \['DO-178C', 'Embedded C', 'LDRA'\],\s*loc: 'Wichita, KS',\s*client: 'corveldt', prime: 'teleworld'/)
+    expect(st.chat[0].text).toBe(`Who on our bench matches ${firm('corveldt')}’s DO-178C verification engineer job?`)
+    expect(st.chat[1].card).toEqual({ t: 'Put Karthik Menon forward?', s: `DO-178C verification engineer · ${firm('corveldt')} · Wichita, KS`, yes: 'Put forward' })
+    // The two flagged at Northbend, a week apart, both by Ingrid Solberg.
+    const moves = read('src/lib/seed-internal-moves.ts')
+    const end = (who: string) => Number(moves.match(new RegExp(`person: '${who}'[\\s\\S]*?end: (-?\\d+)`))![1])
+    expect(end('Amara Nwosu') - end('Felix Brenner')).toBe(7)
+    expect(moves).toContain('releasedById: staff.get(MOVE_DESKS.portland.name)!')
+    expect(MOVE_DESKS.portland.name).toBe('Ingrid Solberg')
+    expect(moves).toMatch(/person: 'Amara Nwosu'[\s\S]*?release: \{ keepUntil: 45 \}/)
+    expect(st.chat[2].text).toBe(`Felix Brenner comes off ${firm('nike')}’s project first, then Amara Nwosu a week later. Ingrid Solberg flagged them both.`)
+    // 4 on site through Teleworld: its three moves still running, and one through the world's Corveldt chain.
+    const running = [...moves.matchAll(/person: '([^']+)', client: '[^']+'[\s\S]*?end: (-?\d+)/g)].filter((m) => Number(m[2]) > 0).map((m) => m[1])
+    const chain = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('teleworld')).map((p) => p.person)
+    expect(running).toEqual(['Felix Brenner', 'Amara Nwosu', 'Deepa Varma'])
+    expect(chain).toEqual(['Marcus Whitfield'])
+    expect(STORIES.teleworld.bar.rest).toBe(`a sample integrator and supplier · ${running.length + chain.length} people on site`)
+  })
+
+  it('a worker is Helena Marsh on her own Ask Etyme: the home page’s Timesheets step, the same words', () => {
+    expect(STORIES.helena.steps[0]).toBe(step('Timesheets'))
+    expect(STORIES.helena.bar.company).toBe(firm('nike'))
+  })
+
+  it('a solopreneur is Colleen Byrne billing Halcyon Talent from her own company for 36 hours Harlow Health signed and Halcyon accepted, at the agreed $92', () => {
+    const st = only('byrne')
+    expect(st.who).toBe('Colleen Byrne, ICU travel nurse and owner')
+    expect(STORIES.byrne.bar.company).toBe('Byrne Critical Care LLC')
+    expect(DOORS_SEED).toContain("name: 'Byrne Critical Care LLC',\n      kind: 'CONSULTANT_CORP'")
+    // Her company sells her to Halcyon at $92; her week is three twelve-hour shifts.
+    expect(DOORS_SEED).toMatch(/companyId: nurseCorp\.id,\s*clientCompanyId: co\('halcyon'\)\.id,[\s\S]{0,400}billRate: 9_200/)
+    expect(DOORS_SEED).toContain('return { start, end, days, hours: 36 }')
+    // Signed down the chain: Harlow Health, then Halcyon, then her own company.
+    expect(DOORS_SEED).toMatch(/role: 'CLIENT_APPROVAL', hours: week\.hours,\s*rateCents: 11_400/)
+    expect(DOORS_SEED).toMatch(/companyId: co\('halcyon'\)\.id, role: 'PASS_THROUGH'/)
+    expect(st.chat[1].text).toBe(`Yes. ${firm('harlow-health')} signed your 36 hours, and ${firm('halcyon')} accepted them. You bill Halcyon only for hours it accepted.`)
+    expect(money(36 * 9200)).toBe('$3,312')
+    expect(st.chat[1].card).toEqual({ t: `Bill ${firm('halcyon')} $3,312?`, s: '36 accepted hours × $92 · Byrne Critical Care LLC', yes: 'Send' })
+    expect(rows(st)).toEqual([
+      [WEEK_WORDS[0], '36', '$3,312', 'Ready to bill'],
+      [WEEK_WORDS[1], '36', '$3,312', 'Accepted'],
+      [WEEK_WORDS[2], '36', '$3,312', 'Accepted'],
+    ])
+    expect(after(st.table.rows[0][3])).toBe('Billed')
+  })
+
+  it('every door story is one step in the Northbend story’s shape, with the four chips on its bar and its person first', () => {
+    for (const key of ['brightmoor', 'techpeple-sub', 'techpeple-bench', 'teleworld', 'helena', 'byrne'] as StoryKey[]) {
+      const st = only(key)
+      const same = STORY.find((x) => x.chip === st.chip)!
+      expect([st.n, st.embed], key).toEqual([same.n, same.embed])
+      expect(st.table.head.length, key).toBeLessThanOrEqual(4)
+      expect(st.table.flash, key).toBeLessThan(st.table.rows.length + (st.table.added ? 1 : 0))
+      expect(st.chat.some((m) => m.card || m.status), `${key} has something that presses`).toBe(true)
+      expect(storyChromeCopy(key)).toEqual([STORIES[key].bar.company, STORIES[key].bar.rest, st.who, ...STEP_NAMES])
+    }
   })
 })
 
@@ -441,10 +779,39 @@ describe('The panel plays the four steps and is never blank', () => {
     expect(src).toContain('aria-pressed={i === cur}')
   })
 
+  it('names the person in front of the step on the bar, with a small dot, and on a door draws the four chips with its one step pressable', () => {
+    const src = read('src/lib/public-site/story-panel.tsx')
+    expect(src).toContain('{steps[cur].who}')
+    expect(src).toContain('rounded-full bg-etyme-verified')
+    const home = panel(2)
+    expect(home).toContain(NORTHBEND_PEOPLE.worker)
+    const door = renderToStaticMarkup(createElement(StoryPanel, { start: storyIndex('approve'), story: 'techpeple-sub' }))
+    expect(door).toContain('Bhavesh Nair, owner')
+    for (const name of STEP_NAMES) expect(door, name).toContain(name)
+    // One step to press on a door; the other three are names.
+    expect(door.match(/<button/g)).toHaveLength(1)
+    expect(door).toContain('data-story-step="3"')
+    expect(door).not.toMatch(/data-story-step="3" hidden/)
+  })
+
+  it('flips a status where a card would press, shows the row a card adds once it presses, and plays a door’s one step once and holds', () => {
+    const src = read('src/lib/public-site/story-panel.tsx')
+    expect(src).toContain('const presses = (m: StoryStep[\'chat\'][number]) => Boolean(m.card || m.status)')
+    expect(src).toContain('<PillView c={m.status} pressed={played.pressed} />')
+    expect(src).toContain('const p = pressed && c.then ? c.then : c')
+    expect(src).toContain('played.pressed && s.table.added ? [...s.table.rows, s.table.added] : s.table.rows')
+    expect(src).toContain('if (steps.length === 1) return')
+    // With no script nothing is pressed: Helena's week reads as waiting, and the job is not yet sent.
+    const html = panel(2)
+    expect(html).toContain('Waiting for Marcus Oyelaran')
+    expect(html).not.toContain('Signed by Marcus Oyelaran ✓')
+    expect(panel(0)).not.toContain('HCM integration lead (open)')
+  })
+
   it('never plays for a reader who asked for reduced motion', () => {
     const src = read('src/lib/public-site/story-panel.tsx')
     expect(src).toContain("window.matchMedia('(prefers-reduced-motion: reduce)').matches")
-    expect(src).toContain('if (!reduce.current) playStep(start)')
+    expect(src).toContain('if (!reduce.current) playStep(first)')
     expect(src).toMatch(/motion-reduce:transition-none/)
   })
 
@@ -476,8 +843,8 @@ describe('The four steps are Job, Candidates, Timesheets and Invoices everywhere
   it('the chips, the spine, the menu and the documentation say the same four names in the same order', () => {
     expect(STEP_NAMES).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
     expect(STEPS.map((s) => s.name)).toEqual(STEP_NAMES)
-    // The menu sheet's four cards (2026-10-15) and the step pages' eyebrows.
-    expect(MENU.steps.map((s) => s.t)).toEqual(STEP_NAMES)
+    // The step pages' eyebrows. (The header's menu sheet carried the four
+    // from 2026-10-15 until it left on 2026-10-19.)
     expect(MODULES.map((m) => m.eyebrow)).toEqual(STEP_NAMES.map((n, i) => `Step ${i + 1} of 4 · ${n}`))
     // The documentation's step pages, one per step since 2026-10-15, each "Step n of 4".
     const docSteps = STEP_PAGES.filter((p) => p.n !== null)

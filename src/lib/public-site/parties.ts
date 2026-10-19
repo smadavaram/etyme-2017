@@ -1,6 +1,6 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget } from './flow'
-import { copyOfSkeleton, ON_SCREEN_DOOR, type BandKind } from './skeleton-words'
+import { copyOfSkeleton, ON_SCREEN_DOOR, watching, type BandKind } from './skeleton-words'
 import type { StoryKey } from './story'
 
 /**
@@ -32,8 +32,9 @@ import type { StoryKey } from './story'
  * frame or behind the button under it, which seats them at their own
  * desk in the full demo.
  *
- * The frame shows the client's program manager's screens, because those
- * are the sample's; a door says so in its caption, in one line.
+ * The frame showed the client's program manager's screens, because those
+ * were the sample's, and a door said so in its caption. Since 2026-10-19
+ * each door plays its own person (below), and the caption is gone.
  *
  * A door never reads as aimed at a supplier, and `lib/positioning` reads
  * each one for it.
@@ -51,10 +52,22 @@ import type { StoryKey } from './story'
  *     open a tab and the page works with no script. The first tab is the
  *     door's own address and needs no `?tab`.
  *   - A tab swaps the headline, the line under it, the three lines and
- *     the sign-up. It never swaps the panel: every door plays the story
- *     it played before, opened at the same step. The drawing's per-tab
- *     panel captions describe stories that are not built yet, and are
- *     left out until they are.
+ *     the sign-up.
+ *
+ * ── Each door and tab plays its own person, decided 2026-10-19 ───────
+ *
+ * "Build it", on the drawing of every public page
+ * (https://claude.ai/artifact/A91ZWwSnKqEgD5DyxotzcN, the Doors tab): a
+ * door stops playing Northbend's program manager and plays its own party's
+ * named person from the seed, at the step that party acts on, and the line
+ * under the panel names them. So a tab now swaps the panel too: Marisa
+ * Delacroix at Brightmoor Staffing for a prime vendor, Bhavesh Nair at
+ * Techpeple for a sub-vendor, Linnea Qadri on Techpeple's bench, Sunil
+ * Raghavan at Teleworld Solutions, Helena Marsh for a worker, Colleen
+ * Byrne for a solopreneur; the MSPs' door keeps Aptiva Workforce and names
+ * Rashida Coleman. The caption that said "your client's screen" is gone
+ * with the client's screen; the line names whose screen it is. The words
+ * of every headline, line, band and button are unchanged.
  */
 
 export type PartySlug = 'suppliers' | 'program-offices' | 'integrators' | 'contractors'
@@ -72,6 +85,12 @@ export interface DoorTab {
   signUp?: { t: string; href: string }
   /** The band, where this tab's reader is not setting up what the door's first tab is. */
   band?: BandKind
+  /** The story the panel plays on this tab: this tab's own person. */
+  story?: StoryKey
+  /** The panel's starting step on this tab: the one its person acts on. */
+  step?: EmbedStep
+  /** The line under the panel on this tab, naming its person. */
+  panelLabel?: string
 }
 
 export interface PartyPage {
@@ -85,8 +104,8 @@ export interface PartyPage {
   purpose: string
   /** The frame's starting screen: the one this party's work reaches. */
   step: EmbedStep
-  /** One line saying whose screen the frame shows, for a reader who is not the client. */
-  caption: string
+  /** One line saying whose screen the frame shows, where the line under the panel does not. */
+  caption?: string
   /** What you do here, who is involved, what happens next. */
   lines: [string, string, string]
   /** The sign-up band's filled button: this party's own form. */
@@ -106,15 +125,20 @@ export interface PartyPage {
 
 /** A door whose top-level words are its first tab's, so a reader of the door without a tab reads the default. */
 function withTabs(door: Omit<PartyPage, 'headline' | 'purpose' | 'lines' | 'tabs'>, tabs: DoorTab[]): PartyPage {
-  const first = tabs[0]
+  return { ...door, ...tabWords(door, tabs[0]), tabs }
+}
+
+/** What one tab changes on its door: the words, the sign-up, and the panel's person. */
+function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | 'label'>, tab: DoorTab) {
   return {
-    ...door,
-    headline: first.headline,
-    purpose: first.purpose,
-    lines: first.lines,
-    signUp: first.signUp ?? door.signUp,
-    band: first.band ?? door.band,
-    tabs,
+    headline: tab.headline,
+    purpose: tab.purpose,
+    lines: tab.lines,
+    signUp: tab.signUp ?? door.signUp,
+    band: tab.band ?? door.band,
+    story: tab.story ?? door.story,
+    step: tab.step ?? door.step,
+    label: tab.panelLabel ?? door.label,
   }
 }
 
@@ -125,7 +149,6 @@ export const SUPPLIERS: PartyPage = withTabs({
   route: '/for/suppliers',
   eyebrow: 'For suppliers and bench firms',
   step: 'submit',
-  caption: 'Your client’s screen, where your people arrive.',
   signUp: SUPPLIER_SIGN_UP,
   demoLabel: 'Open as a supplier’s account manager, no account',
   demo: { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } },
@@ -135,6 +158,9 @@ export const SUPPLIERS: PartyPage = withTabs({
     label: 'Prime vendor',
     headline: 'Fill your client’s jobs through every sub-vendor at once, and keep your client yours.',
     purpose: 'Each sub-vendor sees its own rate. Your client’s name is yours to share.',
+    story: 'brightmoor',
+    step: 'submit',
+    panelLabel: watching('Marisa Delacroix, account manager', 'at Brightmoor Staffing'),
     lines: [
       'Send a client’s job to all your sub-vendors in one go, each with its own rate range.',
       'Your account manager, and your sub-vendors with their insurance and papers checked.',
@@ -146,6 +172,9 @@ export const SUPPLIERS: PartyPage = withTabs({
     label: 'Sub-vendor',
     headline: 'Bill from the same approved week as your prime.',
     purpose: 'Your rates and your people stay yours.',
+    story: 'techpeple-sub',
+    step: 'approve',
+    panelLabel: watching('Bhavesh Nair, owner', 'of Techpeple'),
     lines: [
       'Put your people forward. Accept the week your prime approved, then bill from it.',
       'Your prime and your people.',
@@ -157,6 +186,9 @@ export const SUPPLIERS: PartyPage = withTabs({
     label: 'Bench vendor',
     headline: 'Your whole bench in front of every firm you sell to, at once.',
     purpose: 'Each person by their own consent.',
+    story: 'techpeple-bench',
+    step: 'submit',
+    panelLabel: watching('Linnea Qadri, recruiter', 'at Techpeple'),
     lines: [
       'Mark who is shown to your partners. Each person says yes first.',
       'You, and every firm you sell to.',
@@ -172,7 +204,6 @@ export const PROGRAM_OFFICES: PartyPage = {
   headline: 'Every supplier, every worker, every invoice, across every program you run.',
   purpose: 'Your clients stay yours.',
   step: 'source',
-  caption: 'The job requests screen.',
   lines: [
     'Send jobs, compare candidates, and see every week and invoice across the client’s suppliers.',
     'The client gives you a seat in its own program. Every look at a person is logged.',
@@ -187,7 +218,7 @@ export const PROGRAM_OFFICES: PartyPage = {
   // the client's program because Aptiva holds a live seat there
   // (`seatedAt` in app/api/demo, `consoleHome` in lib/console-home).
   story: 'aptiva',
-  label: `You are Aptiva Workforce’s program manager, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
+  label: `You are watching Rashida Coleman, program manager at Aptiva Workforce, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
   demoLabel: 'Open as the program manager, no account',
   demo: { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } },
 }
@@ -199,7 +230,8 @@ export const INTEGRATORS: PartyPage = {
   headline: 'Staff your next project with your own people first.',
   purpose: 'Buy outside only for the gap.',
   step: 'submit',
-  caption: 'A client’s screen, where your people arrive.',
+  story: 'teleworld',
+  label: watching('Sunil Raghavan, delivery manager', 'at Teleworld Solutions'),
   lines: [
     'Flag who rolls off, and when. Another manager reserves them for an open seat.',
     'Your project managers. HR is told of every move.',
@@ -215,7 +247,6 @@ export const CONTRACTORS: PartyPage = withTabs({
   route: '/for/contractors',
   eyebrow: 'For contractors and consultants',
   step: 'approve',
-  caption: 'The client’s screen, where your week waits.',
   // The candidate's own form, opened on its tab (?as=candidate, 2026-10-13).
   signUp: { t: 'Sign up with your email', href: '/signup?as=candidate' },
   band: 'SELF',
@@ -227,6 +258,9 @@ export const CONTRACTORS: PartyPage = withTabs({
     label: 'Worker',
     headline: 'Your hours, pay, papers and history, in one place that moves with you.',
     purpose: 'Yours, not the agency’s.',
+    story: 'helena',
+    step: 'approve',
+    panelLabel: watching('Helena Marsh, a contractor', 'at Northbend Athletic'),
     lines: [
       'File your week once.',
       'You, and every firm between you and the client, by name.',
@@ -238,6 +272,9 @@ export const CONTRACTORS: PartyPage = withTabs({
     label: 'Solopreneur',
     headline: 'What a 50-person firm runs on: timesheets, bills, papers. For a firm of one.',
     purpose: 'File your week, bill your client, get paid.',
+    story: 'byrne',
+    step: 'pay',
+    panelLabel: watching('Colleen Byrne, ICU travel nurse and owner', 'of Byrne Critical Care LLC'),
     lines: [
       'File your week, bill your client, and keep your company papers current.',
       'Just you, and your client.',
@@ -263,22 +300,14 @@ export function tabHref(p: PartyPage, key: string): string {
 }
 
 /**
- * The door as a reader of one tab meets it: the tab's words over the
- * door's panel. An absent or unknown tab is the first, so an old link or
+ * The door as a reader of one tab meets it: the tab's words, and the
+ * tab's own person in the panel. An absent or unknown tab is the first, so an old link or
  * a mistyped one still opens the door rather than a missing page.
  */
 export function doorTab(p: PartyPage, key?: string | null): PartyPage & { tab: DoorTab | null } {
   if (!p.tabs) return { ...p, tab: null }
   const tab = p.tabs.find((t) => t.key === key) ?? p.tabs[0]
-  return {
-    ...p,
-    headline: tab.headline,
-    purpose: tab.purpose,
-    lines: tab.lines,
-    signUp: tab.signUp ?? p.signUp,
-    band: tab.band ?? p.band,
-    tab,
-  }
+  return { ...p, ...tabWords(p, tab), tab }
 }
 
 /** Every way a door can be read: one view per tab, or the door itself where it has none. */

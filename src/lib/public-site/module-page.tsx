@@ -49,7 +49,7 @@ export function ModulePageView({ m }: { m: ModulePage }) {
         </section>
 
         {/* ── The product, working, at this step ── */}
-        <LiveDemo step={m.step}>
+        <LiveDemo step={m.step} label={m.label}>
           <DemoLink target={m.demo} label={OPEN_DEMO} className={PRIMARY_BUTTON} />
         </LiveDemo>
 

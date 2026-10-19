@@ -29,7 +29,7 @@ import DocsSlugPage from '@/app/(site)/docs/[slug]/page'
 import ProcessHomePage from '@/app/(site)/docs/process/page'
 import ProcessStagePage from '@/app/(site)/docs/process/[stage]/page'
 import ProcessPartyPage from '@/app/(site)/docs/process/[stage]/[party]/page'
-import { MENU, FOOTER, menuLinks } from '@/lib/public-site/nav'
+import { FOOTER, everyFrameLink } from '@/lib/public-site/nav'
 import { FOLDED, foldedInto } from '@/lib/public-site/folded'
 import GovernancePage from '@/app/(site)/governance/page'
 import ContractsPage from '@/app/(site)/contracts/page'
@@ -95,7 +95,7 @@ const boxesSayWho = (boxes: FlowBox[]) => boxes.every((b) => b.who !== undefined
 
 describe('The four steps are the one spine of the site', () => {
 
-  it('the home page walks the four steps as four chips on the panel, Job first, and the menu sheet draws the same four steps, each to its own page', () => {
+  it('the home page walks the four steps as four chips on the panel, Job first, under the names the spine gives each page', () => {
     // The founder's home page of 2026-10-14 replaced the three steps of
     // 2026-10-09 (Connect, Control, Reconcile) and the four step cards with
     // four chips; his "Build it" the same evening put them on the panel
@@ -106,24 +106,25 @@ describe('The four steps are the one spine of the site', () => {
     expect(STORY.map((s) => s.chip)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
     expect(STORY.map((s) => s.chip)).toEqual(STEPS.map((s) => s.name))
     expect(page).not.toContain('const HOW')
-    expect(MENU.steps.map((s) => s.href)).toEqual(STEPS.map((s) => s.route))
-    expect(MENU.steps.map((s) => s.t)).toEqual(STEPS.map((s) => s.name))
+    // The header's menu sheet drew them too, from 2026-10-15 until it left
+    // on 2026-10-19; the documentation carries them in order now.
+    expect(STEPS.map((s) => s.route)).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
   })
 
   it('the first step is Job, never Hire, on every menu, page and chart', () => {
     // "Source, never Hire" (2026-09-30) is superseded by the founder's
     // four nouns (2026-10-14); a contingent worker is still never hired.
     expect(STEPS[0].name).toBe('Job')
-    expect(MENU.steps[0]).toMatchObject({ n: 1, t: 'Job', href: '/requisitions' })
+    expect(STEPS[0]).toMatchObject({ n: 1, name: 'Job', route: '/requisitions' })
     expect(STEP_PAGES[0].title).toBe('Job')
     for (const s of STEPS) expect(s.name, `step ${s.n}`).not.toMatch(/\bhire\b/i)
   })
 
-  it('the menu sheet and the product pages read the four steps in one order, and every product page is one step', () => {
+  it('the spine and the product pages read the four steps in one order, and every product page is one step', () => {
     // Since 2026-10-15 there are four product pages, not eight: Job at
     // /requisitions, Candidates at /submissions, Timesheets, Invoices.
     expect(SPINE_ORDER).toEqual(['/requisitions', '/submissions', '/timesheets', '/invoices'])
-    expect(MENU.steps.map((s) => s.href)).toEqual(SPINE_ORDER)
+    expect(STEPS.map((s) => s.route)).toEqual(SPINE_ORDER)
     expect(MODULES.map((m) => m.route)).toEqual(SPINE_ORDER)
     expect([...MODULE_ROUTES]).toEqual(SPINE_ORDER)
     for (const m of MODULES) expect(STEPS.filter((s) => s.route === m.route), m.route).toHaveLength(1)
@@ -211,8 +212,9 @@ describe('“See this step in the demo” opens the exact screen as the right de
     const page = html(createElement(ModulePageView, { m }))
     const demo = page.slice(page.indexOf('id="demo"'))
     expect(demo).toMatch(/<a href="\/demo"/)
-    // And every firm on the panel is said to be a demo company, under it.
-    expect(demo).toContain('Every firm on this screen is a demo company, not a customer.')
+    // And the line under the panel names the person it plays, and says
+    // their firm is a demo company (2026-10-19).
+    expect(demo).toContain('You are watching Helena Marsh, a contractor at Northbend Athletic, a demo company, not a customer.')
   })
 })
 
@@ -237,7 +239,7 @@ describe('No link lands in the middle of another page', () => {
 
   it('no link on the public site, the header or the footer goes to a section in the middle of another page', () => {
     const data = [
-      ...menuLinks(),
+      ...everyFrameLink(),
       ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
       ...MODULES.flatMap((m) => [m.prev.href, m.next.href]),
       ...DOCS_HOME.groups.flatMap((g) => g.links.map((l) => l.href)),
@@ -416,7 +418,7 @@ describe('Every old documentation address still works', () => {
 
   it('no menu, footer or page of the site links to an old address', () => {
     const links = [
-      ...menuLinks(),
+      ...everyFrameLink(),
       ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
       ...MODULES.flatMap((m) => [m.prev.href, m.next.href]),
     ]

@@ -15,7 +15,10 @@
  *   2. "Today" beside "With Etyme": what goes wrong now, and what the
  *      record does instead
  *   3. the panel that shows the product working, opened at this step
- *      (`./story-panel`, unchanged)
+ *      (`./story-panel`), with the line under it naming the person in
+ *      front of the step (founder, 2026-10-19): Marcus Oyelaran for Job
+ *      and Candidates, Helena Marsh for Timesheets, Renata Kowal for
+ *      Invoices
  *   4. three lines: what you do, who is involved, what happens next
  *   5. Previous and Next, so the four pages read as one story: Job's
  *      Previous is the documentation's "How Etyme works", Invoices' Next
@@ -40,7 +43,7 @@ import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget } from './flow'
 import { STEPS } from './steps'
-import { copyOfSkeleton, OPEN_DEMO, CLIENT_SIGN_UP } from './skeleton-words'
+import { copyOfSkeleton, OPEN_DEMO, CLIENT_SIGN_UP, watching } from './skeleton-words'
 
 /** A link to the page before or after a step, as drawn. */
 export interface StepLink {
@@ -67,6 +70,8 @@ export interface ModulePage {
   withEtyme: string
   /** The panel's starting step. */
   step: EmbedStep
+  /** The line under the panel: the person in front of this page's step, at the demo company. */
+  label: string
   /** What you do, who is involved, what happens next. */
   lines: [string, string, string]
   /** The page before this one, and the page after it. */
@@ -170,6 +175,7 @@ const AS_WRITTEN: AsWritten[] = [
     today: 'A hiring manager emails four suppliers. One never sees it. Nobody can say who quoted what.',
     withEtyme: 'One job request, sent to the suppliers Procurement approved. Within budget, it goes out with no approval.',
     step: 'source',
+    label: watching('Marcus Oyelaran, hiring manager', 'at Northbend Athletic'),
     lines: [
       'Write the job, the months and the rate.',
       'The hiring manager, Procurement, and the budget owner when it is over plan.',
@@ -183,6 +189,7 @@ const AS_WRITTEN: AsWritten[] = [
     today: 'Resumes land in five inboxes. The same person comes from two suppliers. On day one, the I-9 is missing.',
     withEtyme: 'One list per job. The first supplier to send a person wins. Nobody starts without a US work form (I-9).',
     step: 'submit',
+    label: watching('Marcus Oyelaran, hiring manager', 'at Northbend Athletic'),
     lines: [
       'Compare, interview, choose one.',
       'The hiring manager, and HR for the papers.',
@@ -196,6 +203,7 @@ const AS_WRITTEN: AsWritten[] = [
     today: 'Timesheets come by email and spreadsheet. A 44-hour week on a 40-hour contract gets paid anyway.',
     withEtyme: 'The contractor files the week. You see it flagged before you approve. Nobody approves their own hours.',
     step: 'approve',
+    label: watching('Helena Marsh, a contractor', 'at Northbend Athletic'),
     lines: [
       'Approve the week, or send it back with a reason.',
       'The contractor and the hiring manager.',
@@ -209,6 +217,7 @@ const AS_WRITTEN: AsWritten[] = [
     today: 'AP matches invoices to timesheets by hand. Extra hours and old rates slip through.',
     withEtyme: 'The hours, the invoice and the contract rate must agree. If they do, pay. If not, it says why.',
     step: 'pay',
+    label: watching('Renata Kowal, AP clerk', 'at Northbend Athletic'),
     lines: [
       'Pay what matched, in one step.',
       'The AP clerk.',
@@ -263,7 +272,7 @@ export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } 
     body: [
       ...LINE_LABELS.flatMap((label, i) => [label, m.lines[i]]),
       m.prev.t, m.next.t,
-      ...copyOfSkeleton({ step: m.step, button: OPEN_DEMO }),
+      ...copyOfSkeleton({ step: m.step, button: OPEN_DEMO, label: m.label }),
     ],
   }
 }

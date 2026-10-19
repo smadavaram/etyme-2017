@@ -1,6 +1,17 @@
 /**
- * The public site's header, its menu sheet and its footer, as data.
- * Every public page draws this header, the home page included.
+ * The public site's header and its footer, as data. Every public page
+ * draws this header, the home page included.
+ *
+ * ── No menu, decided by the founder 2026-10-19 ───────────────────────
+ *
+ * "Even the menu has very [little] value, it can be on the footer." So
+ * the header is the logo and Sign in, nothing else, at every width, and
+ * the sheet behind the menu icon is gone with the icon. What the sheet
+ * carried that the footer did not — the demo and About — is on the
+ * footer's one row now (`FOOTER_LINKS`). The four steps stay reachable
+ * through Documentation, whose home is the four steps in order, and Sign
+ * up stays in the band on every page. What follows is the history of the
+ * sheet, kept so nobody rebuilds it from an older drawing.
  *
  * ── The menu tells one story in four steps. Decided 2026-10-15 ───────
  *
@@ -34,46 +45,7 @@
  * test holds that no public page does.
  */
 
-import { SEE_IT } from './funnel'
-import { STEPS } from './steps'
-import { FOOTER_LINKS, CLIENT_SIGN_UP } from './skeleton-words'
-
-/** One of the four step cards on the menu sheet. */
-export interface StepCard {
-  n: number
-  /** The step's name. */
-  t: string
-  /** Its one line, as drawn. */
-  l: string
-  /** The top of its step page. */
-  href: string
-}
-
-/** A small link on the sheet's bottom row; `short` is what a phone shows, where it differs. */
-export interface SmallLink {
-  t: string
-  short?: string
-  href: string
-}
-
-/** The menu sheet behind the header's menu icon, word for word as drawn. */
-export const MENU = {
-  kicker: 'How Etyme works',
-  heading: 'Four steps. Every contractor, every supplier, one place.',
-  /** The heading on a phone, where the longer one wraps to four lines. */
-  headingPhone: 'Four steps. Every contractor, one place.',
-  steps: STEPS.map((s): StepCard => ({ n: s.n, t: s.name, l: s.menu, href: s.route })),
-  small: [
-    { t: 'Security', href: '/security' },
-    { t: 'Documentation', short: 'Docs', href: '/docs' },
-    { t: 'About', href: '/about' },
-    { t: 'Contact', href: '/contact' },
-  ] as SmallLink[],
-  /** The outlined button: the demo, no account. */
-  see: { t: SEE_IT.t, href: SEE_IT.href },
-  /** The filled button: the client's sign-up. */
-  signUp: { t: CLIENT_SIGN_UP.t, href: CLIENT_SIGN_UP.href },
-}
+import { FOOTER_LINKS } from './skeleton-words'
 
 export interface FooterGroup {
   heading: string
@@ -104,63 +76,33 @@ export const ADDRESS = {
   email: 'support@etyme.com',
 }
 
-/** Every href the menu sheet draws: the four steps, the small row and the two buttons. */
-export function menuLinks(): string[] {
-  return [
-    ...MENU.steps.map((s) => s.href),
-    ...MENU.small.map((l) => l.href),
-    MENU.see.href,
-    MENU.signUp.href,
-  ]
-}
-
-/** Every href the header, the sheet and the footer draw, for the test. */
+/** Every href the header and the footer draw, for the test. */
 export function everyFrameLink(): string[] {
-  return [
-    ...menuLinks(),
-    '/login',
-    ...FOOTER.flatMap((g) => g.links.map((l) => l.href)),
-  ]
+  return [HEADER.signIn.href, ...FOOTER.flatMap((g) => g.links.map((l) => l.href))]
 }
 
-/** Every word the menu sheet shows, at either width. */
-export function menuCopy(): string[] {
-  return [
-    MENU.kicker, MENU.heading, MENU.headingPhone,
-    ...MENU.steps.flatMap((s) => [s.t, s.l]),
-    ...MENU.small.flatMap((l) => [l.t, l.short ?? '']),
-    MENU.see.t, MENU.signUp.t,
-  ].filter(Boolean)
-}
-
-/** Every word the header, the sheet and the footer show. */
+/** Every word the header and the footer show. */
 export function frameCopy(): string[] {
   return [
-    'Sign in',
-    ...menuCopy(),
+    HEADER.signIn.t,
     ...FOOTER.flatMap((g) => [g.heading, ...g.links.map((l) => l.label), g.note ?? '']),
   ].filter(Boolean)
 }
 
 /**
- * Every label on something a reader presses in the header and its sheet,
- * for the guard that refuses a button promising an account. The header
- * is the logo, Sign in and the menu icon, whose accessible name is
- * "Menu" (2026-10-14); the sheet adds the demo button. Its "Sign up" is
- * the client's sign-up (`CLIENT_SIGN_UP`), the one label the guard lets
- * promise an account, and is read there.
+ * Every label on something a reader presses in the header, for the guard
+ * that refuses a button promising an account. The header is the logo and
+ * Sign in (2026-10-19).
  */
 export function frameButtons(): string[] {
-  return ['Sign in', 'Menu', MENU.see.t]
+  return [HEADER.signIn.t]
 }
 
 /**
- * The header, as the founder decided it on 2026-10-14 ("Menu into
- * icon"): the logo, Sign in and a menu icon, at every width. Read by the
- * test, so the header cannot grow a second button again.
+ * The header, as the founder decided it on 2026-10-19 ("it can be on the
+ * footer"): the logo and Sign in, at every width. Read by the test, so
+ * the header cannot grow a menu or a second button again.
  */
 export const HEADER = {
   signIn: { t: 'Sign in', href: '/login' },
-  /** The icon's accessible name. The word is never drawn. */
-  menu: 'Menu',
 } as const

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { EtymeMark } from '@/components/logo'
 import {
   STORIES, DEFAULT_STORY, ASK_ETYME, STORY_DONE, STORY_NOT_NOW, STORY_STEPS_LABEL, STORY_STEP_MS,
-  type Cell, type Pill, type StoryStep, type StoryKey,
+  STORY, cellText, startOf, type Cell, type Pill, type PillCell, type StoryStep, type StoryKey,
 } from './story'
 
 /**
@@ -22,6 +22,19 @@ import {
  * and the other three are in the document, hidden. The words are data
  * (`./story`), checked against the seed. Nothing waits on a frame or a
  * request.
+ *
+ * ── It names the person in front of the step ─────────────────────────
+ *
+ * Beside the company on the bar, with a small dot: the person the step
+ * is in front of (founder, 2026-10-19). On the home page that is three
+ * people over four steps — Marcus Oyelaran, Helena Marsh, Renata Kowal —
+ * and on a door it is that party's own person. A status inside an answer
+ * and a pill in the table may flip where a card presses (Helena's week,
+ * from waiting to signed), and a row may appear (the job sent).
+ *
+ * A week is said as its days ("Oct 11–17") once the page is live, read
+ * off the reader's own today; before that it reads "Last week", so the
+ * first frame the server sends is the frame the browser draws.
  *
  * ── It plays on its own, and stops for a reader ──────────────────────
  *
@@ -42,17 +55,26 @@ const PILL: Record<Pill, string> = {
   mute: 'bg-etyme-sunk text-etyme-muted',
 }
 
-function CellView({ c }: { c: Cell }) {
-  if (typeof c === 'string') return <>{c}</>
-  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-px text-[11px] font-semibold ${PILL[c.pill]}`}>{c.t}</span>
+function PillView({ c, pressed }: { c: PillCell; pressed: boolean }) {
+  const p = pressed && c.then ? c.then : c
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-px text-[11px] font-semibold transition-colors ${PILL[p.pill]}`}>{p.t}</span>
+}
+
+function CellView({ c, pressed, today }: { c: Cell; pressed: boolean; today: string | null }) {
+  if (typeof c === 'string' || 'week' in c) return <>{cellText(c, today)}</>
+  return <PillView c={c} pressed={pressed} />
 }
 
 /** How far a step has played: messages shown, and whether the card has been pressed. */
 interface Played { shown: number; pressed: boolean }
 
+/** A message that presses: a card's Yes, or a status that flips where a card would. */
+const presses = (m: StoryStep['chat'][number]) => Boolean(m.card || m.status)
+
 const WHOLE: Played = { shown: 99, pressed: false }
 
-function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played: Played; lit: boolean }) {
+function StepBody({ s, book, played, lit, today }: { s: StoryStep; book: string; played: Played; lit: boolean; today: string | null }) {
+  const rows = played.pressed && s.table.added ? [...s.table.rows, s.table.added] : s.table.rows
   return (
     <div className="grid md:min-h-[300px] md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       {/* The conversation. */}
@@ -72,6 +94,11 @@ function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played
             } ${i < played.shown ? 'opacity-100' : 'translate-y-1.5 opacity-0'}`}
           >
             {m.text}
+            {m.status && (
+              <span className="mt-1.5 block">
+                <PillView c={m.status} pressed={played.pressed} />
+              </span>
+            )}
             {m.card && (
               <div className="mt-2 rounded-lg border border-etyme-rule bg-etyme-surface px-2.5 py-2">
                 <p className="text-[13px] font-semibold">{m.card.t}</p>
@@ -116,7 +143,7 @@ function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played
             </tr>
           </thead>
           <tbody>
-            {s.table.rows.map((r, i) => (
+            {rows.map((r, i) => (
               <tr
                 key={i}
                 data-story-flash={i === s.table.flash ? '' : undefined}
@@ -129,7 +156,7 @@ function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played
                       s.table.head[j]?.right ? 'text-right' : 'text-left'
                     } ${s.table.head[j]?.wide ? 'hidden sm:table-cell' : ''} ${j === 0 ? '' : 'whitespace-nowrap'}`}
                   >
-                    <CellView c={c} />
+                    <CellView c={c} pressed={played.pressed} today={today} />
                   </td>
                 ))}
               </tr>
@@ -143,17 +170,22 @@ function StepBody({ s, book, played, lit }: { s: StoryStep; book: string; played
 
 /**
  * Which story plays is the page's to say (`./story`, `STORIES`): every
- * page plays Northbend Athletic's program manager unless it names another,
- * and the MSPs' door names Aptiva Workforce's, in Cavanaugh Glassworks'
- * program. A key rather than the words, so the server hands the browser
- * one short string.
+ * page plays Northbend Athletic's three people unless it names another;
+ * the MSPs' door names Aptiva Workforce's, in Cavanaugh Glassworks'
+ * program, and each other door and tab its own party's person. A key
+ * rather than the words, so the server hands the browser one short
+ * string. `start` is the page's step as its index in the Northbend story;
+ * a door's story opens at its own step with the same screen.
  */
 export function StoryPanel({
   start = 0, story: key = DEFAULT_STORY, children,
 }: { start?: number; story?: StoryKey; children?: React.ReactNode }) {
   const story = STORIES[key]
   const steps = story.steps
-  const [cur, setCur] = useState(start)
+  const first = startOf(story, start)
+  const [cur, setCur] = useState(first)
+  // The reader's own today, once the page is live; the weeks read as their days from then.
+  const [today, setToday] = useState<string | null>(null)
   // Before the page is live every step is whole and nothing is pressed:
   // that is what a reader with no script sees.
   const [played, setPlayed] = useState<Played>(WHOLE)
@@ -185,15 +217,19 @@ export function StoryPanel({
     let t = 150
     s.chat.forEach((m, k) => {
       after(t, () => setPlayed((p) => ({ ...p, shown: k + 1 })))
-      if (m.card) {
+      if (presses(m)) {
         after(t + 1100, () => {
           setPlayed((p) => ({ ...p, pressed: true }))
           setLit(true)
           after(900, () => setLit(false))
         })
+        // What comes after the press is said after it.
+        t += 1100
       }
       t += 700
     })
+    // A door's story is one step: it plays once and holds there.
+    if (steps.length === 1) return
     after(STORY_STEP_MS, () => {
       if (hold.current) {
         // A reader is in the panel: wait, and look again shortly.
@@ -208,7 +244,8 @@ export function StoryPanel({
   useEffect(() => {
     reduce.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setLive(true)
-    if (!reduce.current) playStep(start)
+    setToday(new Date().toISOString().slice(0, 10))
+    if (!reduce.current) playStep(first)
     return clear
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -227,33 +264,51 @@ export function StoryPanel({
         <EtymeMark size={18} />
         <b className="font-semibold text-etyme-ink">{story.bar.company}</b>
         <span>{story.bar.rest}</span>
+        {/* The person in front of this step. */}
+        <span data-story-who="" className="flex items-center gap-1.5 text-etyme-ink">
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified" />
+          {steps[cur].who}
+        </span>
         <div role="group" aria-label={STORY_STEPS_LABEL} className="flex w-full flex-wrap gap-1.5 md:ml-auto md:w-auto">
-          {steps.map((s, i) => (
-            <button
-              key={s.chip}
-              type="button"
-              aria-pressed={i === cur}
-              onClick={() => playStep(i)}
-              disabled={!live}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] transition-colors disabled:cursor-default ${FOCUS} ${
-                i === cur
-                  ? 'border-etyme-ink bg-etyme-ink text-etyme-canvas'
-                  : i < cur
-                    ? 'border-etyme-verified bg-etyme-raised text-etyme-verified'
-                    : 'border-etyme-rule bg-etyme-raised text-etyme-ink hover:border-etyme-ink'
-              }`}
-            >
-              <span className={`tabular-nums ${i === cur ? 'opacity-70' : 'text-etyme-faint'}`}>{s.n}</span>
-              {s.chip}
-            </button>
-          ))}
+          {/* The four steps, always: a door that plays one of them shows the
+              other three as names, so the reader sees where its step sits. */}
+          {STORY.map(({ n, chip }) => {
+            const i = steps.findIndex((s) => s.chip === chip)
+            if (i < 0) {
+              return (
+                <span key={chip} className="flex items-center gap-1.5 rounded-full border border-etyme-rule px-3 py-1 text-[13px] text-etyme-faint">
+                  <span className="tabular-nums">{n}</span>
+                  {chip}
+                </span>
+              )
+            }
+            return (
+              <button
+                key={chip}
+                type="button"
+                aria-pressed={i === cur}
+                onClick={() => playStep(i)}
+                disabled={!live}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] transition-colors disabled:cursor-default ${FOCUS} ${
+                  i === cur
+                    ? 'border-etyme-ink bg-etyme-ink text-etyme-canvas'
+                    : i < cur
+                      ? 'border-etyme-verified bg-etyme-raised text-etyme-verified'
+                      : 'border-etyme-rule bg-etyme-raised text-etyme-ink hover:border-etyme-ink'
+                }`}
+              >
+                <span className={`tabular-nums ${i === cur ? 'opacity-70' : 'text-etyme-faint'}`}>{n}</span>
+                {chip}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Every step is in the document; one is shown. */}
       {steps.map((s, i) => (
         <div key={s.chip} data-story-step={s.n} hidden={i !== cur}>
-          <StepBody s={s} book={story.book} played={i === cur ? played : WHOLE} lit={i === cur && lit} />
+          <StepBody s={s} book={story.book} played={i === cur ? played : WHOLE} lit={i === cur && lit} today={today} />
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-etyme-rule bg-etyme-surface px-3.5 py-2.5 text-[13px] text-etyme-muted">
             <p>
               <span className="mr-1 font-serif text-[20px] text-etyme-ink">{s.sum.big}</span>

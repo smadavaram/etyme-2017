@@ -9,8 +9,22 @@
 import type { EmbedStep } from '@/lib/sample-seat'
 import { storyChromeCopy, type StoryKey } from './story'
 
-/** The line under the panel where the reader sits as the program manager: the home page and the product pages. */
-export const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'
+/**
+ * The line under the home page's panel: who the reader is watching, and
+ * that every firm on it is a demo company (founder's drawing, 2026-10-19).
+ * The panel names each of the three on its bar as their step plays.
+ */
+export const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. Every firm on this screen is a demo company, not a customer.'
+
+/**
+ * The line under a panel that plays one named person: "You are watching
+ * Marcus Oyelaran, hiring manager at Northbend Athletic, a demo company,
+ * not a customer." The firm is named once, with the label in the same
+ * sentence, as every example firm on a public page is.
+ */
+export function watching(person: string, at: string): string {
+  return `You are watching ${person} ${at}, a demo company, not a customer.`
+}
 /** The line under the panel on a party door, whose reader is not the program manager. */
 export const ON_SCREEN_DOOR = 'Every firm on this screen is a demo company, not a customer.'
 /** The button in the panel's footer. */
@@ -28,7 +42,10 @@ export const DOORS: { t: string; href: string }[] = [
 /**
  * The footer: every party's door in the order of the chain — Clients,
  * MSPs, Integrators, Suppliers, Workers (founder, 2026-10-14: "in
- * sequence") — then the documentation, security, the legal pages, contact. Clients is the home page, because
+ * sequence") — then the demo, the documentation, About, security, the
+ * legal pages, contact. The demo and About joined on 2026-10-19, when the
+ * header's menu left and the footer took what it carried (founder: "it
+ * can be on the footer"). Clients is the home page, because
  * the home page is written to the client (founder, 2026-10-14: "Footer
  * is missing clients which links to home page").
  */
@@ -38,7 +55,9 @@ export const FOOTER_LINKS: { t: string; href: string }[] = [
   { t: 'Integrators', href: '/for/integrators' },
   { t: 'Suppliers', href: '/for/suppliers' },
   { t: 'Workers', href: '/for/contractors' },
+  { t: 'Demo', href: '/demo' },
   { t: 'Documentation', href: '/docs' },
+  { t: 'About', href: '/about' },
   { t: 'Security', href: '/security' },
   { t: 'Privacy', href: '/privacy' },
   { t: 'Terms', href: '/terms' },

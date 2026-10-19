@@ -35,7 +35,8 @@ import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
 import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
-import { MENU, FOOTER, FOOTER as SITE_FOOTER, everyFrameLink, frameCopy, menuLinks } from '@/lib/public-site/nav'
+import { FOOTER, FOOTER as SITE_FOOTER, HEADER, everyFrameLink, frameCopy } from '@/lib/public-site/nav'
+import { STEPS } from '@/lib/public-site/steps'
 import { TOPICS } from '@/lib/public-site/docs/topics'
 
 const ROOT = process.cwd()
@@ -221,10 +222,10 @@ describe('Every product page and party door is the home page’s shape, opened a
   const SKELETON = read('src/lib/public-site/skeleton.tsx')
   const SKELETON_PAGES = PUBLIC_PAGES.filter((p) => p.kind === 'MODULE' || p.kind === 'PARTY')
 
-  it('there are four product pages, one for each step, in the order a hire moves, one for each card on the menu sheet', () => {
+  it('there are four product pages, one for each step, in the order a hire moves, one for each step on the spine', () => {
     expect(MODULES.map((m) => m.route)).toEqual([...MODULE_ROUTES])
     expect(MODULES.map((m) => m.n)).toEqual([1, 2, 3, 4])
-    expect(MENU.steps.map((s) => s.href)).toEqual([...MODULE_ROUTES])
+    expect(STEPS.map((s) => s.route)).toEqual([...MODULE_ROUTES])
   })
 
   it('every party door reads its tabs where it has them, the headline, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
@@ -299,7 +300,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     })
     for (const m of MODULES) expect(EMBED_STEPS, m.route).toContain(m.step)
     expect(VIEW).toContain('<LiveDemo step={step}')
-    expect(read('src/lib/public-site/module-page.tsx')).toContain('<LiveDemo step={m.step}>')
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<LiveDemo step={m.step} label={m.label}>')
   })
 
   it('each party door opens the frame at the screen its party acts on: suppliers and integrators at Submit, program offices at Source, contractors at Approve', () => {
@@ -519,82 +520,55 @@ describe('Security, About and Contact say only what can be checked', () => {
 
 describe('One header and footer on every new page', () => {
 
-  it('every page carries the same header, and its sheet tells the four steps, then Security, Documentation, About and Contact, the demo and Sign up', () => {
-    // The founder's drawing of 2026-10-15, replacing Platform (eight
-    // feature names), Solutions (six roles), How It Works and "Explore the
-    // Live Demo". One header, drawn by one component, on every page; the
-    // sheet sits behind the menu icon at every width.
-    expect(MENU.kicker).toBe('How Etyme works')
-    expect(MENU.heading).toBe('Four steps. Every contractor, every supplier, one place.')
-    expect(MENU.headingPhone).toBe('Four steps. Every contractor, one place.')
-    expect(MENU.steps.map((s) => [s.n, s.t, s.l, s.href])).toEqual([
-      [1, 'Job', 'Send it once. Every approved supplier gets it.', '/requisitions'],
-      [2, 'Candidates', 'Everyone who applied, on one screen.', '/submissions'],
-      [3, 'Timesheets', 'Approve the week in one tap.', '/timesheets'],
-      [4, 'Invoices', 'Pay only what you approved.', '/invoices'],
-    ])
-    expect(MENU.small.map((l) => [l.t, l.href])).toEqual([
-      ['Security', '/security'], ['Documentation', '/docs'], ['About', '/about'], ['Contact', '/contact'],
-    ])
-    expect(MENU.small.find((l) => l.href === '/docs')!.short).toBe('Docs')
-    expect(MENU.see).toEqual({ t: 'See it working, no account', href: '/demo' })
-    expect(MENU.signUp).toEqual({ t: 'Sign up', href: '/signup' })
+  it('every page carries the same header, the logo and Sign in, and the footer carries the doors, the demo, the documentation, About and the rest', () => {
+    // The founder's drawing of 2026-10-15 put the four steps on a sheet
+    // behind a menu icon; on 2026-10-19 the icon and the sheet left ("Even
+    // the menu has very [little] value, it can be on the footer"). One
+    // header, drawn by one component, on every page: the logo and Sign in.
+    expect(HEADER).toEqual({ signIn: { t: 'Sign in', href: '/login' } })
     // No feature names, no roles, no second way in.
     expect(frameCopy().join(' ')).not.toMatch(/Platform|Solutions|How It Works|By team|Explore the Live Demo|Governance|The chain/)
-    // And the footer, one row on every page since 2026-10-15, reaches the
-    // documentation and contact.
-    for (const h of ['/docs', '/contact']) expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
-    // The home page draws the same header, rather than a copy of it: the
-    // logo, Sign in and the menu icon at every width, with no variant for
-    // the home page (2026-10-14).
+    // The footer, one row on every page since 2026-10-15, carries what the
+    // sheet carried that it did not already: the demo and About.
+    expect(FOOTER.flatMap((g) => g.links.map((l) => l.label))).toEqual([
+      'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Demo', 'Documentation', 'About', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
+    ])
+    for (const h of ['/demo', '/docs', '/about', '/contact']) expect(FOOTER.flatMap((g) => g.links.map((l) => l.href)), h).toContain(h)
+    // The home page draws the same header, rather than a copy of it, with
+    // no variant for the home page (2026-10-14).
     const home = read('src/app/page.tsx')
     expect(home).toContain('<SiteHeader />')
     expect(home).not.toContain('const NAV_MENUS')
-    const header = read('src/lib/public-site/frame.tsx')
-    expect(header).not.toContain('onHome')
+    const frame = read('src/lib/public-site/frame.tsx')
+    expect(frame).not.toContain('onHome')
+    expect(frame).not.toMatch(/<details|SheetCloser|MENU\./)
     for (const f of ['docs-page.tsx', 'company-page.tsx']) {
       expect(read(`src/lib/public-site/${f}`), f).toContain('<SiteFrame>')
     }
     // The step pages and the party doors draw the same header.
     expect(read('src/lib/public-site/sub-page.tsx')).toContain('<SiteHeader />')
     expect(read('src/lib/public-site/module-page.tsx')).toContain('<SiteHeader />')
-    // The sheet draws the four cards, the small row and the two buttons once each.
-    const frame = read('src/lib/public-site/frame.tsx')
-    expect(frame.match(/MENU\.steps\.map/g)?.length, 'the sheet draws the four steps, once').toBe(1)
-    expect(frame.match(/MENU\.small\.map/g)?.length, 'the sheet draws the small row, once').toBe(1)
-    expect(frame).toContain('{MENU.see.t}')
-    expect(frame).toContain('{MENU.signUp.t}')
-    // On a phone the cards stack, Sign up comes before the demo, and the
-    // short heading and "Docs" are drawn, as the drawing shows.
-    expect(frame).toMatch(/<ol className="grid gap-2\.5 sm:grid-cols-2/)
-    expect(frame).toMatch(/flex-col-reverse[^"]*sm:flex-row/)
-    expect(frame.indexOf('{MENU.see.t}')).toBeLessThan(frame.indexOf('{MENU.signUp.t}'))
-    expect(frame).toMatch(/<span className="sm:hidden">\{MENU\.headingPhone\}<\/span>/)
-    expect(frame).toMatch(/<span className="sm:hidden">\{l\.short\}<\/span>/)
   })
 
-  it('each step card on the menu goes to the top of its step page, and every link on the sheet goes to a page that exists', () => {
-    // A card has one destination everywhere: the top of a page, never the
+  it('every link in the header and the footer goes to the top of a page that exists', () => {
+    // A link has one destination everywhere: the top of a page, never the
     // middle of one (2026-09-30).
-    for (const h of menuLinks()) {
+    for (const h of everyFrameLink()) {
       expect(h, h).not.toContain('#')
-      expect(pageAt(h) !== null || ['/signup', '/demo'].includes(h), h).toBe(true)
+      expect(pageAt(h) !== null || ['/signup', '/demo', '/login', '/'].includes(h), h).toBe(true)
     }
-    for (const c of MENU.steps) expect(pageAt(c.href)?.kind, c.href).toBe('MODULE')
     expect(read('src/app/page.tsx')).not.toContain('const DESKS')
   })
 
-  it('the right of every header is Sign in and the menu icon, and no filled button', () => {
+  it('the right of every header is Sign in, and no filled button and no menu', () => {
     // The audit was the filled button from 2026-10-09 and the example
-    // program before it. Since 2026-10-14 the header carries no button to
-    // press but Sign in and the icon (the founder: "Menu into icon").
+    // program before it. From 2026-10-14 the header carried Sign in and a
+    // menu icon; since 2026-10-19 it carries Sign in alone.
     const frame = read('src/lib/public-site/frame.tsx')
-    // The bar, up to the sheet the icon opens; the sheet's own Sign up
-    // (2026-10-15) is behind the icon, not in the bar.
-    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</summary>'))
+    const right = frame.slice(frame.indexOf('ml-auto flex'), frame.indexOf('</header>'))
     expect(right).toContain('href={HEADER.signIn.href}')
-    expect(right).toContain('aria-label={HEADER.menu}')
     expect(right).not.toContain('bg-etyme-action')
+    expect(right).not.toMatch(/<summary|aria-label=\{HEADER\.menu\}/)
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {
@@ -723,7 +697,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     // sign-up band, "Your door:", Clients first, and the same links in its
     // one-row footer; since the same day every product page and door draws
     // that band and that footer. The shared header and footer carry none.
-    const header = menuLinks()
+    const header = [HEADER.signIn.href]
     for (const p of PARTY_PAGES) expect(header, p.route).not.toContain(p.route)
     for (const p of PARTY_PAGES) {
       expect(DOORS.map((d) => d.href), p.route).toContain(p.route)
@@ -736,10 +710,23 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(view).toContain('<SkeletonFooter />')
   })
 
-  it('each door says whose screen the frame shows, and that every firm on it is a demo company', () => {
-    for (const p of PARTY_PAGES) {
-      expect(p.caption, p.route).toMatch(/screen/)
-      expect(all(copyOfPartyPage(p))).toContain(ON_SCREEN_DOOR)
+  it('each door and tab names, under the panel, the person whose screen it plays, and says their firm is a demo company, not a customer', () => {
+    // Since 2026-10-19 a door plays its own party's person (founder: "the
+    // public pages speak as the party's own person"), so the caption that
+    // said "your client's screen" is gone and the line names them.
+    const lines = Object.fromEntries(everyDoorView().map((v) => [v.href, v.label]))
+    expect(lines).toEqual({
+      '/for/suppliers': 'You are watching Marisa Delacroix, account manager at Brightmoor Staffing, a demo company, not a customer.',
+      '/for/suppliers?tab=sub': 'You are watching Bhavesh Nair, owner of Techpeple, a demo company, not a customer.',
+      '/for/suppliers?tab=bench': 'You are watching Linnea Qadri, recruiter at Techpeple, a demo company, not a customer.',
+      '/for/program-offices': `You are watching Rashida Coleman, program manager at Aptiva Workforce, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
+      '/for/integrators': 'You are watching Sunil Raghavan, delivery manager at Teleworld Solutions, a demo company, not a customer.',
+      '/for/contractors': 'You are watching Helena Marsh, a contractor at Northbend Athletic, a demo company, not a customer.',
+      '/for/contractors?tab=solo': 'You are watching Colleen Byrne, ICU travel nurse and owner of Byrne Critical Care LLC, a demo company, not a customer.',
+    })
+    for (const v of everyDoorView()) {
+      expect(v.caption, v.href).toBeUndefined()
+      expect(all(copyOfPartyPage(v, v.tab?.key)), v.href).toContain(v.label!)
     }
     expect(ON_SCREEN_DOOR).toBe('Every firm on this screen is a demo company, not a customer.')
   })
@@ -795,13 +782,18 @@ describe('Four doors for the parties who are not the client, reached by link and
     // The founder, on this door, 2026-10-15: "use a sample MSP company".
     const p = doorAt('program-offices')!
     expect(p.story).toBe('aptiva')
-    expect(p.label).toBe(`You are Aptiva Workforce’s program manager, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`)
+    expect(p.label).toBe(`You are watching Rashida Coleman, program manager at Aptiva Workforce, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`)
     expect(all(copyOfPartyPage(p))).toContain('an MSP running Cavanaugh Glassworks’ program')
-    // Every other door plays the client's own program manager, as before.
-    for (const d of PARTY_PAGES.filter((x) => x.slug !== 'program-offices')) {
-      expect(d.story, d.route).toBeUndefined()
-      expect(d.label, d.route).toBeUndefined()
-    }
+    // Every other door and tab plays its own party's person (2026-10-19).
+    expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.story, v.step]]))).toEqual({
+      '/for/suppliers': ['brightmoor', 'submit'],
+      '/for/suppliers?tab=sub': ['techpeple-sub', 'approve'],
+      '/for/suppliers?tab=bench': ['techpeple-bench', 'submit'],
+      '/for/program-offices': ['aptiva', 'source'],
+      '/for/integrators': ['teleworld', 'submit'],
+      '/for/contractors': ['helena', 'approve'],
+      '/for/contractors?tab=solo': ['byrne', 'pay'],
+    })
     const view = read('src/lib/public-site/party-page.tsx')
     expect(view).toContain('label={p.label ?? ON_SCREEN_DOOR}')
     expect(view).toContain('story={p.story}')
@@ -879,12 +871,20 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(read('src/app/(auth)/signup/page.tsx')).toContain('?type=solo')
   })
 
-  it('a tab changes the words and never the panel: every tab of a door plays the door’s story, at the door’s step, with the door’s line under it and its button', () => {
+  it('a tab changes the words and the person in the panel, and keeps the door’s button', () => {
+    // Until 2026-10-19 a tab never changed the panel. Since the founder's
+    // drawing of that day each tab plays its own party's person, with the
+    // line under the panel naming them; the button under the panel is the
+    // door's, word for word.
     for (const p of PARTY_PAGES) {
-      for (const v of everyDoorView().filter((x) => x.slug === p.slug)) {
-        expect([v.story, v.step, v.caption, v.label, v.demoLabel, JSON.stringify(v.demo)], v.href)
-          .toEqual([p.story, p.step, p.caption, p.label, p.demoLabel, JSON.stringify(p.demo)])
-      }
+      const views = everyDoorView().filter((x) => x.slug === p.slug)
+      for (const v of views) expect([v.demoLabel, JSON.stringify(v.demo)], v.href).toEqual([p.demoLabel, JSON.stringify(p.demo)])
+      if (views.length > 1) expect(new Set(views.map((v) => v.story)).size, p.route).toBe(views.length)
+    }
+    // The door's own address is its first tab, panel included.
+    for (const p of PARTY_PAGES.filter((x) => x.tabs)) {
+      const first = everyDoorView().find((v) => v.href === p.route)!
+      expect([p.story, p.step, p.label]).toEqual([first.story, first.step, first.label])
     }
   })
 

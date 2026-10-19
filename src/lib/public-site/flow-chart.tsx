@@ -15,6 +15,12 @@
  * hidden from a screen reader, because the list's order already says
  * what comes next.
  *
+ * A role pill wraps onto a second line inside its box and is never cut
+ * short: "HR · Procurement · the budget owner" read "HR · Procurement ·
+ * the bud…" on a desktop, where six boxes share one row (founder's walk,
+ * 2026-10-19). The chip's own no-wrap is overridden here, not in the
+ * shared chip, which stays one line everywhere else.
+ *
  * The colors are the brand's tokens, and each party keeps one color on
  * every chart: the client in the action violet (as text, `#4421D6`), a
  * supplier in clay, the worker in the verified green, the program office
@@ -59,9 +65,14 @@ export function FlowChart({ label, boxes }: { label: string; boxes: FlowBox[] })
             key={`${i}-${b.t}`}
             className="relative flex flex-col rounded-lg border border-etyme-rule bg-etyme-raised px-3.5 py-3 shadow-sm"
           >
-            <span className="flex items-center gap-2">
-              <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-etyme-faint">{i + 1}</span>
-              {b.who && <span className={`chip ${ACTOR_CHIP[b.who]}`}>{b.role ?? ACTOR_LABEL[b.who]}</span>}
+            <span className="flex min-w-0 items-start gap-2">
+              <span aria-hidden="true" className="shrink-0 pt-0.5 font-mono text-[11px] tabular-nums text-etyme-faint">{i + 1}</span>
+              {/* A role wraps to a second line rather than being cut short (founder's walk, 2026-10-19). */}
+              {b.who && (
+                <span className={`chip ${ACTOR_CHIP[b.who]} min-w-0 max-w-full whitespace-normal break-words text-left leading-snug`}>
+                  {b.role ?? ACTOR_LABEL[b.who]}
+                </span>
+              )}
             </span>
             <span className="mt-2 text-[14px] leading-snug text-etyme-ink">{b.t}</span>
             {i < boxes.length - 1 && <Arrow />}

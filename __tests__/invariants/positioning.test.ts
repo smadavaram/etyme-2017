@@ -66,7 +66,8 @@ import { STORY, storyCopy } from '@/lib/public-site/story'
 import { BAND, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
-import { MENU, menuLinks } from '@/lib/public-site/nav'
+import { HEADER, everyFrameLink } from '@/lib/public-site/nav'
+import { STEPS } from '@/lib/public-site/steps'
 import { deriveSupplierPacket, deriveStartPacket } from '@/lib/packet-derivation'
 import { CLOSE_BAND, SEE_IT, GET_THE_AUDIT, closeBandCopy } from '@/lib/public-site/funnel'
 import { FOOTER as SITE_FOOTER, frameCopy } from '@/lib/public-site/nav'
@@ -133,7 +134,10 @@ const words = copyFrom(PAGE)
 // Two since 2026-10-14: the founder's question and the category under
 // it. His support line of 2026-10-10 was cut with the home page he
 // approved that day, as a sentence nothing on the page let a reader check.
-const FOLD = 2
+// Three since his drawing of 2026-10-19: one line under the category,
+// "Most companies cannot answer this without three weeks and a
+// spreadsheet nobody trusts."
+const FOLD = 3
 const live: Copy = { hero: words.slice(0, FOLD), body: words.slice(FOLD) }
 
 describe('The live home page still says what we agreed it says', () => {
@@ -434,10 +438,10 @@ describe('Below the hero, the page says what the business is', () => {
     // which is how a screening headline made this a hiring tool. Until
     // 2026-10-15 About said the whole span in nine stations; the founder's
     // drawing cut About to five lines, and the first says the four steps
-    // in the trade's words. The menu sheet teaches the same four on every
-    // page (2026-10-15), each with one line.
+    // in the trade's words. The documentation's spine carries the same four
+    // in order (the header's menu sheet carried them until 2026-10-19).
     expect(ABOUT_PAGE).toContain('manage contractors from all its suppliers: jobs, candidates, timesheets and invoices.')
-    expect(MENU.steps.map((s) => s.t)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
   })
 
   it('leaves the hero to say what the software is, and argues nothing about other people’s companies anywhere', () => {
@@ -500,10 +504,10 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('is written to the client’s people by job title — program manager, Procurement, hiring manager, HR, AP clerk', () => {
     // The client is the customer, decided 2026-09-10. Writing to "a
-    // company" is writing to nobody. The home page seats the reader as the
-    // program manager in the line under the live product (2026-10-14); each
+    // company" is writing to nobody. The line under the home page's panel
+    // names the three people it plays by job title (2026-10-19); each
     // step page says who is involved by job title (2026-10-15).
-    expect(PAGE).toContain("const ON_SCREEN = 'You are the program manager.")
+    expect(PAGE).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk.")
     const involved = MODULES.map((m) => m.lines[1]).join(' ')
     for (const job of ['hiring manager', 'Procurement', 'budget owner', 'HR', 'AP clerk']) expect(involved, job).toContain(job)
   })
@@ -587,7 +591,7 @@ describe('Below the hero, the page says what the business is', () => {
   it('walks the hire through every role on the step pages, so no one role reads as the whole product', () => {
     // About walked one hire in six milestones until 2026-10-15. The
     // documentation's five step pages walk it now, each box saying who.
-    expect(MENU.small.find((l) => l.t === 'Documentation')?.href).toBe('/docs')
+    expect(SKELETON_FOOTER_LINKS.find((l) => l.t === 'Documentation')?.href).toBe('/docs')
     const roles = new Set(STEP_PAGES.flatMap((p) => p.flow.map((b) => b.role)))
     for (const r of ['Hiring manager', 'Supplier', 'Worker', 'AP clerk', 'Compliance officer', 'Program manager']) {
       expect(roles.has(r), r).toBe(true)
@@ -633,9 +637,10 @@ describe('Below the hero, the page says what the business is', () => {
     expect(ABOUT_PAGE).toContain('Etyme never supplies workers and never runs a bench')
     expect(ABOUT_PAGE).toContain('Free while we test')
     expect(ABOUT_PAGE).toContain('Durham, NC 27713')
-    // The menu every public page draws, the home page's included, links
+    // The footer every public page draws, the home page's included, links
     // to the top of About — no link lands in the middle of a page (2026-09-30).
-    expect(MENU.small.map((l) => l.href)).toContain('/about')
+    // It moved there from the header's menu sheet on 2026-10-19.
+    expect(SKELETON_FOOTER_LINKS.map((l) => l.href)).toContain('/about')
     expect(PAGE).not.toMatch(/'\/about#/)
   })
 
@@ -684,16 +689,23 @@ describe('Below the hero, the page says what the business is', () => {
   it('keeps the hero to the question and the category, with the live product straight under them', () => {
     // The page the founder approved on 2026-10-14: the question, the
     // category line, and then the product itself. No buttons in the hero,
-    // no screenshot beside it and no lines under it: the one button is
-    // under the product, and the audit is the second call in the sign-up
-    // band.
-    expect(live.hero).toHaveLength(2)
+    // no screenshot beside it: the one button is under the product. Since
+    // the founder's drawing of 2026-10-19, one line under the category
+    // says what not knowing costs today.
+    expect(live.hero).toHaveLength(3)
+    expect(live.hero[2]).toBe('Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.')
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
-    expect(copyFrom(top)).toEqual(['Know what every contractor costs, across every supplier.', 'Enterprise contingent workforce management.'])
+    expect(copyFrom(top)).toEqual([
+      'Know what every contractor costs, across every supplier.', 'Enterprise contingent workforce management.',
+      'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
+    ])
     expect(top).not.toContain('<CountedLink')
     expect(at('demo')).toBeGreaterThan(at('top'))
     expect(PAGE).not.toContain('const GLANCE')
-    expect(hero).not.toContain('three weeks')
+    // "Three weeks" left the hero on 2026-09-28 as a claim a reader could
+    // not check; the founder drew it back on 2026-10-19 as the one line
+    // under the category, and it is held to that one line, word for word.
+    expect(hero.split('three weeks').length - 1).toBe(1)
   })
   it('still passes the four positioning rules after the rewrite', () => {
     expect(verdict(live).ok).toBe(true)
@@ -1000,8 +1012,8 @@ describe('The record is the product, and Etyme running the program is offered qu
     for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ABOUT.title, ABOUT.lede]) {
       expect(heading, heading).not.toContain('MSP')
     }
-    // Every public menu links to the top of About, never into it.
-    expect(MENU.small.map((l) => l.href)).toContain('/about')
+    // Every public footer links to the top of About, never into it.
+    expect(SKELETON_FOOTER_LINKS.map((l) => l.href)).toContain('/about')
   })
 
   it('says your own team running it first, and Etyme running it second', () => {
@@ -1161,12 +1173,14 @@ describe('The page shows the product before it describes it', () => {
   })
 
   it('the top of the page reads in seconds: the question and the category, and then the product', () => {
-    // Between the question and the live product a reader meets one line,
-    // the category, and nothing else.
+    // Between the question and the live product a reader meets two lines:
+    // the category, and since 2026-10-19 the founder's line on what not
+    // knowing costs today. Nothing else.
     const top = PAGE.slice(PAGE.indexOf('<h1'), PAGE.indexOf('<LiveDemo'))
     expect(copyFrom(top)).toEqual([
       'Know what every contractor costs, across every supplier.',
       'Enterprise contingent workforce management.',
+      'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
     ])
   })
   it('names the category, no size of company, and no company at all', () => {
@@ -1236,7 +1250,7 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     expect(PAGE).toContain('href={SEE_IT.href}')
     expect(PAGE).toContain('Open the demo, no account')
     expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
-    expect(PAGE).toContain("const ON_SCREEN = 'You are the program manager. Every firm on this screen is a demo company, not a customer.'")
+    expect(PAGE).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. Every firm on this screen is a demo company, not a customer.'")
     expect(namedCompanies(all)).toEqual([])
   })
   it('names the three programs the seed actually builds, so no door opens on nothing', () => {
@@ -1382,19 +1396,17 @@ describe('The claim about how much of this is a model is computed, not asserted'
 
 describe('The header reads as an enterprise product, not a job board', () => {
 
-  it('is the shared header, and its sheet tells the product as four steps, never as feature names or roles', () => {
+  it('is the shared header, the logo and Sign in, with no menu of feature names, roles or anything else', () => {
     // Platform, Solutions, How It Works and Security (2026-10-09) became
-    // the four steps on 2026-10-15, the founder's drawing: "Menu pages
-    // almost seem useless and out of context and do not tell their story
-    // cleanly." The home page draws the same header every public page draws.
+    // the four steps on a menu sheet on 2026-10-15, and the sheet left on
+    // 2026-10-19 (founder: "Even the menu has very [little] value, it can
+    // be on the footer"). The home page draws the same header every
+    // public page draws, and the four steps are the documentation's spine.
     expect(PAGE).toContain('<SiteHeader />')
-    expect(MENU.heading).toBe('Four steps. Every contractor, every supplier, one place.')
-    expect(MENU.steps.map((s) => s.t)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
+    expect(Object.keys(HEADER)).toEqual(['signIn'])
+    expect(FRAME_SRC).not.toContain('<details')
+    expect(STEPS.map((s) => s.name)).toEqual(['Job', 'Candidates', 'Timesheets', 'Invoices'])
     expect(frameCopy().join(' ')).not.toMatch(/\b(?:Platform|Solutions|How It Works)\b/)
-    // The sheet names the category before anything else, the same guard the pages are held to.
-    const sheet = check({ hero: [MENU.kicker, MENU.heading, MENU.headingPhone], body: MENU.steps.map((s) => s.l) })
-    expect(sheet.map((f) => f.rule)).not.toContain('category-first')
-    expect(sheet.map((f) => f.rule)).not.toContain('never-lead-with-ai')
   })
   it('never says "I\'m hiring" — that is job-board language, not an enterprise layer', () => {
     // The CTA text lives in a `label` prop, invisible to copyFrom — this
@@ -1415,7 +1427,7 @@ describe('The header reads as an enterprise product, not a job board', () => {
   it('sends every header link to a page that exists, or a section that exists on it', () => {
     // The thread's roles led to anchors on its home page that were never
     // written. Every header link here is a route with a file behind it.
-    for (const href of menuLinks()) {
+    for (const href of everyFrameLink()) {
       const path = href.split('#')[0]
       const candidates = ['', '(site)', '(auth)'].map((group) => join(process.cwd(), 'src/app', group, path.slice(1), 'page.tsx'))
       const docs = path.startsWith('/docs/') && docRoutes().includes(path)
@@ -1547,8 +1559,10 @@ describe('The footer is where a company keeps its papers', () => {
     // own one-row footer since 2026-10-14, and both carry the legal pages.
     expect(FOOTER_LINKS).toContain('/terms')
     expect(FOOTER_LINKS).toContain('/privacy')
+    // The demo and About joined the row on 2026-10-19, when the header's
+    // menu left and the footer took what it carried.
     expect(HOME_FOOTER_LINKS.map((l) => l.t)).toEqual([
-      'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Documentation', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
+      'Clients', 'MSPs', 'Integrators', 'Suppliers', 'Workers', 'Demo', 'Documentation', 'About', 'Security', 'Privacy', 'Terms', 'DPA', 'Contact',
     ])
     expect(HOME_FOOTER_LINKS.find((l) => l.t === 'Clients')?.href).toBe('/')
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toEqual(expect.arrayContaining(['/terms', '/privacy', '/dpa', '/contact', '/docs', '/security']))
@@ -1742,7 +1756,9 @@ function readerWords(): number {
 // corrected three times). Measured at 102 the same day; the ceiling is the
 // drawing's own count, so a fixed line fits and a new section does not.
 // The history of the old ceilings is in git.
-const CEILING = 110
+// 2026-10-19: 110 → 125, for the founder's drawing of that day: one line
+// under the category and the line under the panel naming its three people.
+const CEILING = 125
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1773,8 +1789,9 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // Security is one line after the band, linking the page that says it all.
     expect(PAGE.indexOf('id="security"')).toBeGreaterThan(at('sign-up'))
     expect(PAGE).toMatch(/<p id="security"/)
-    // The menu sheet carries the four steps, and only them (2026-10-15).
-    expect(MENU.steps).toHaveLength(4)
+    // The spine carries the four steps, and only them (the header's menu
+    // sheet carried them from 2026-10-15 until it left on 2026-10-19).
+    expect(STEPS).toHaveLength(4)
   })
   it('every section taken off the home page lives on a public page', () => {
     // Moved, not deleted. Each row is a section that was on the home page
@@ -1809,7 +1826,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     // The sections that left have no anchor here any more — except #why,
     // which is the one line on price the close still carries, and
     // #modules, which left on 2026-09-27 and came back the next day.
-    expect(MENU.steps.map((s) => s.href)).toEqual(MODULES.map((m) => m.route))
+    expect(STEPS.map((s) => s.route)).toEqual(MODULES.map((m) => m.route))
     for (const gone of ['exposure', 'lifecycle', 'monday', 'alongside', 'who', 'compliance', 'gap', 'ways']) {
       expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
     }
@@ -1821,15 +1838,15 @@ describe('The home page reads as a product page, and every band leads deeper', (
     expect(CANDIDATES_PAGE).toContain('Nobody starts without a US work form (I-9)')
   })
 
-  it('the four steps live on the menu sheet, each with its line and its page, and the home page walks them as chips rather than cards', () => {
+  it('the four steps live on the spine, each with its line and its page, and the home page walks them as chips rather than cards', () => {
     // The step cards left the home page on 2026-10-14 for the four chips
-    // under the live product. Since 2026-10-15 the menu sheet carries the
-    // four steps, one line each, each opening its own page; the eight
-    // parts that hung under them folded into them.
+    // under the live product. From 2026-10-15 the menu sheet carried the
+    // four steps, one line each, each opening its own page; the sheet left
+    // on 2026-10-19, and the spine keeps the lines it drew.
     expect(PAGE).not.toContain('const TILES')
     expect(PAGE).not.toContain('const STEP_LINE')
-    expect(PAGE).not.toContain('MENU.steps.map')
-    expect(MENU.steps.map((s) => [s.t, s.l])).toEqual([
+    expect(PAGE).not.toContain('STEPS.map')
+    expect(STEPS.map((s) => [s.name, s.menu])).toEqual([
       ['Job', 'Send it once. Every approved supplier gets it.'],
       ['Candidates', 'Everyone who applied, on one screen.'],
       ['Timesheets', 'Approve the week in one tap.'],
@@ -1837,7 +1854,7 @@ describe('The home page reads as a product page, and every band leads deeper', (
     ])
     expect(PAGE).not.toContain("from '@/lib/public-site/module-icons'")
     expect(MODULES).toHaveLength(4)
-    for (const m of MODULES) expect(MENU.steps.find((s) => s.href === m.route)?.t, m.route).toBe(m.title)
+    for (const m of MODULES) expect(STEPS.find((s) => s.route === m.route)?.name, m.route).toBe(m.title)
   })
 })
 
@@ -1948,11 +1965,11 @@ describe('The line about teams around the world', () => {
 
 describe('Specialist teams around the world, after the band left the home page', () => {
 
-  it('is off the home page and out of the menu, so no link lands on a band that is gone', () => {
+  it('is off the home page and out of the header and footer, so no link lands on a band that is gone', () => {
     expect(PAGE).not.toContain('id="specialist-teams"')
     expect(PAGE).not.toContain('const WORLD')
-    expect(menuLinks()).not.toContain('#specialist-teams')
-    expect(MENU.steps).toHaveLength(4)
+    expect(everyFrameLink()).not.toContain('#specialist-teams')
+    expect(STEPS).toHaveLength(4)
   })
 
   it('asks each country for its own paperwork, which is the one claim of the band the code already makes true', () => {
@@ -2236,8 +2253,8 @@ function inOurWords(text: string): string {
   // the steps either side: Timesheets' Next is "Invoices".
   for (const m of MODULES) t = t.split(`${m.prev.t} ${m.next.t}`).join(' ')
   t = t.replace(/\bStep 4 of 4 · Invoices\b/g, ' ')
-  // And as the fourth card on the menu sheet, its name over its line.
-  for (const c of MENU.steps) t = t.split(`${c.t} ${c.l}`).join(` ${c.l}`)
+  // And as the fourth step on the spine, its name over its line.
+  for (const c of STEPS) t = t.split(`${c.name} ${c.menu}`).join(` ${c.menu}`)
   // Two lines of the Invoices step page, word for word as the founder
   // approved them on 2026-10-15, in which "invoice" is what a supplier
   // sends: the invoices AP matches by hand today, and the invoice the
@@ -2332,9 +2349,9 @@ describe('Plain words on public pages, defined once', () => {
     // and since 2026-10-14 it says none of the three words at all.
     expect(pages.map(([route]) => route)).toContain('/')
     expect(supplierSide(all).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []).toEqual([])
-    expect(MENU.steps.map((s) => s.t)).toEqual(expect.arrayContaining(['Job', 'Invoices']))
+    expect(STEPS.map((s) => s.name)).toEqual(expect.arrayContaining(['Job', 'Invoices']))
     // The addresses stay: an address is not a word anybody reads.
-    expect(MENU.steps.map((s) => s.href)).toEqual(expect.arrayContaining(['/requisitions', '/invoices']))
+    expect(STEPS.map((s) => s.route)).toEqual(expect.arrayContaining(['/requisitions', '/invoices']))
   })
 
   it('the documentation says job, job request and bill, and keeps “invoice” only for what a supplier sends', () => {
@@ -2475,25 +2492,25 @@ describe('The header stays, and one scroll lands on one band', () => {
     // The scroll padding is the header's own height, at both widths.
     expect(cls).toMatch(/\[html:has\(&\)\]:scroll-pt-\[\d+px\]/)
     expect(cls).toMatch(/lg:\[html:has\(&\)\]:scroll-pt-\[\d+px\]/)
-    // A phone's drawer scrolls inside itself, so no link is out of reach.
-    expect(header).toMatch(/max-h-\[calc\(100dvh-[\d.]+rem\)\][^"]*overflow-y-auto/)
+    // 69 pixels: 12 above and below Sign in's 44-pixel target, and the rule.
+    expect(cls).toContain('[html:has(&)]:scroll-pt-[69px]')
+    expect(FRAME_SRC).toContain("const TAP = 'inline-flex h-11")
   })
 
-  it('the header is one row at every width: the logo, Sign in and the menu icon, which opens a sheet under it', () => {
+  it('the header is one row at every width: the logo and Sign in, and no menu', () => {
     // The founder, 2026-09-28, on his phone: Sign in is never hidden at
-    // any width, and the menu opens a sheet under the header rather than
-    // a second row. Since 2026-10-14 ("Menu into icon") the menu is an
-    // icon named "Menu" for a screen reader, and the audit button is gone.
+    // any width. Since 2026-10-14 the menu was an icon, and on 2026-10-19
+    // it left ("Even the menu has very [little] value, it can be on the
+    // footer"): the header is the logo and Sign in, a 44-pixel target.
     const header = FRAME_SRC.slice(FRAME_SRC.indexOf('export function SiteHeader'), FRAME_SRC.indexOf('export function SiteFooter'))
     const signIn = header.match(/<a\s+href=\{HEADER\.signIn\.href\}\s+className=\{`([^`]+)`\}/)![1]
     expect(signIn).not.toMatch(/(?:^|\s)hidden\b/)
+    expect(signIn).toContain('${TAP}')
     expect(header).not.toContain('PRIMARY')
-    expect(header).toContain('aria-label={HEADER.menu}')
     const nav = header.match(/<nav\s+aria-label="Main"\s+className="([^"]+)"/)![1]
     expect(nav).not.toMatch(/flex-wrap/)
-    const sheet = header.slice(header.indexOf('<details'))
-    expect(sheet).toMatch(/className="absolute inset-x-0 top-full/)
-    expect(header).toContain('<SheetCloser id="site-sheet" />')
+    expect(header).not.toMatch(/<details|<summary|SheetCloser|HEADER\.menu/)
+    expect((header.match(/<a\s/g) ?? []).length, 'the logo and Sign in').toBe(2)
   })
   it('a reader who stops within a third of a screen of the next band glides to it, and anywhere else nothing moves', () => {
     // The home page at 390 by 844, as measured: the hero, the steps, the

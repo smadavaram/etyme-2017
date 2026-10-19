@@ -3,6 +3,13 @@
 import { useEffect } from 'react'
 
 /**
+ * UNUSED since 2026-10-19: the header's menu sheet is gone (founder: "it
+ * can be on the footer"), and nothing imports this. It is left on disk
+ * only because the delivery matrix row L3.1.4.1 names it under
+ * implementedBy, and `matrix.test.ts` fails on a named file that does not
+ * exist; the row is the architect's. Delete it in the same commit that
+ * takes it off the row.
+ *
  * Closes the phone sheet when a link in it is followed or Escape is
  * pressed. The sheet is a `details` element, so it opens and closes with
  * no script at all; this only adds the two closings a reader expects —
