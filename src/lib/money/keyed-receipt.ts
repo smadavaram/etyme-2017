@@ -57,8 +57,8 @@ import { descend } from '@/lib/work-chain'
 import { overBillCheck } from '@/lib/purchase-order'
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
-import { legBills, payersOwn } from '@/lib/money/expense-acceptance'
-import { acceptancesOn, legsFor } from '@/lib/money/expense-acceptance-read'
+import { billsToPayer, payersOwn } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, legsFor, legsOverMany } from '@/lib/money/expense-acceptance-read'
 import {
   matchVendorBill, threeWayMatch, OVERRIDABLE,
   type AcceptedWork, type MatchResult, type PurchaseOrderFacts,
@@ -672,14 +672,18 @@ async function checkLines(
       : []
     const onThisLine = new Set([...linked.map((x) => x.sellContractId), ...below])
     const people = new Set(candidates.map((c) => c.personId))
-    // What this payer itself accepted of each, and the agreement between
-    // it and the supplier: the receipt for an expense is the payer's own
+    // What this payer itself accepted of each, and whether the supplier
+    // bills it on this leg: the receipt for an expense is the payer's own
     // acceptance (the founder, 2026-10-19), and whether the kind is
-    // billable on this leg is that agreement's where it says.
-    const decisions = await acceptancesOn(ids)
-    const supplierLeg = ctx.buy?.supplierSellContractId
-      ? (await legsFor([ctx.buy.supplierSellContractId])).get(ctx.buy.supplierSellContractId) ?? null
-      : null
+    // billable is the whole chain's up to the supplier's line — each
+    // leg's agreement where it says — as the supplier's own bill reads it
+    // (`billsToPayer`).
+    const supplierLineId = ctx.buy?.supplierSellContractId ?? null
+    const [decisions, chains, supplierLeg] = await Promise.all([
+      acceptancesOn(ids),
+      legsOverMany(rows.map((e) => e.sellContractId)),
+      supplierLineId ? legsFor([supplierLineId]).then((m) => m.get(supplierLineId) ?? null) : Promise.resolve(null),
+    ])
 
     for (const l of expenseLines) {
       const e = byId.get(l.expenseId!)
@@ -697,7 +701,7 @@ async function checkLines(
         refuse(l, `${n(l)} names one person and bills ${what}. A line is for the person whose expense it is.`)
         continue
       }
-      const leg = supplierLeg ? legBills(e, supplierLeg) : { bills: e.billable, says: null }
+      const leg = billsToPayer(e, chains.get(e.sellContractId) ?? [], supplierLineId, supplierLeg)
       if (!leg.bills) {
         refuse(l, leg.says
           ? `${n(l)} bills ${what}, which is not billable on this leg: ${leg.says}`

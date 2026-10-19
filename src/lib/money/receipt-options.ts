@@ -27,8 +27,8 @@ import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
 import { termsFor, ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT } from '@/lib/money/order-terms'
 import { decimalsFor } from '@/lib/money'
-import { legBills, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
-import { acceptancesOn, legsFor } from '@/lib/money/expense-acceptance-read'
+import { billsToPayer, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, legsFor, legsOverMany } from '@/lib/money/expense-acceptance-read'
 import { formatDay } from '@/lib/format-date'
 import { alreadyReceived, alreadyOnABill, type ReceiptAlready, type BillOnRecord } from '@/lib/money/billed-elsewhere'
 
@@ -224,7 +224,7 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
           invoiceLines: { none: { sellContract: { clientCompanyId: companyId }, invoice: { status: { notIn: ['DRAFT', 'CANCELLED', 'VOID'] } } } },
         },
         select: {
-          id: true, category: true, total: true, periodStart: true, billable: true, companyId: true,
+          id: true, category: true, total: true, periodStart: true, billable: true, companyId: true, sellContractId: true,
           person: { select: { name: true } },
         },
         orderBy: { periodStart: 'desc' },
@@ -232,17 +232,22 @@ export async function lineOptionsFor(companyId: string, buyContractId: string, n
       })
     : []
   // What this firm accepted of each (the founder, 2026-10-19: an expense
-  // is accepted like a week), and whether the agreement with the supplier
-  // makes the kind billable on this leg. The same reading the check makes
-  // (lib/money/keyed-receipt), so the form offers only what it would take.
-  const decisions = await acceptancesOn(expenseRows.map((e) => e.id))
-  const supplierLeg = buy.supplierSellContractId
-    ? (await legsFor([buy.supplierSellContractId])).get(buy.supplierSellContractId) ?? null
-    : null
+  // is accepted like a week), and whether the supplier bills the kind on
+  // this leg — the whole chain's answer up to the supplier's line, as the
+  // supplier's own bill reads it (`billsToPayer`). The same reading the
+  // check makes (lib/money/keyed-receipt), so the form offers only what it
+  // would take.
+  const [decisions, chains, supplierLeg] = await Promise.all([
+    acceptancesOn(expenseRows.map((e) => e.id)),
+    legsOverMany(expenseRows.map((e) => e.sellContractId)),
+    buy.supplierSellContractId
+      ? legsFor([buy.supplierSellContractId]).then((m) => m.get(buy.supplierSellContractId!) ?? null)
+      : Promise.resolve(null),
+  ])
   const offered: { id: string; says: string; amountMinor: number }[] = []
   const expensesToAccept: { id: string; says: string }[] = []
   for (const e of expenseRows) {
-    const leg = supplierLeg ? legBills(e, supplierLeg) : { bills: e.billable, says: null }
+    const leg = billsToPayer(e, chains.get(e.sellContractId) ?? [], buy.supplierSellContractId, supplierLeg)
     if (!leg.bills) continue
     const label = `${e.person?.name ?? 'Somebody'} · ${e.category.toLowerCase()} · ${formatDay(e.periodStart)}`
     const claimed = Math.round(parseFloat(e.total.toString()) * 10 ** decimalsFor(currency))

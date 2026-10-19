@@ -22,7 +22,9 @@ import { as, req, json, resetDatabase, prisma } from './harness'
 import { POST as registerCompany } from '@/app/api/companies/route'
 import { GET as getCounterparties, POST as addCounterparty } from '@/app/api/counterparties/route'
 import { POST as addContact } from '@/app/api/contacts/route'
-import { POST as createContract } from '@/app/api/contracts/route'
+import { GET as listContracts, POST as createContract } from '@/app/api/contracts/route'
+import { GET as listClients, POST as addClient } from '@/app/api/clients/route'
+import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF, type RegisterClient } from '@/lib/money/client-options'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { POST as activateContract } from '@/app/api/contracts/[id]/activate/route'
 import { GET as readChain, POST as assertHours } from '@/app/api/timesheets/[id]/assert/route'
@@ -339,5 +341,82 @@ describe('Chapter 6 — the money is visible where a person would look for it', 
     // $95 billed, $80 paid + 22% W2 burden on pay. Real numbers or nothing.
     expect(overall.revenueCents).toBe(380_000)
     expect(overall.costUnknown).toBe(false)
+  })
+})
+
+/**
+ * A supplier's first contract, recorded on its first day.
+ *
+ * Tapin's first morning on Etyme (2026-10-19): "Record a placement" read
+ * its client list only off the firm's existing sell contracts, so a firm
+ * with none was offered nobody to bill, even after adding its client from
+ * Companies. The form now reads the firm's register first
+ * (`lib/money/client-options`), and the route's refusal says where to add
+ * a client rather than naming an API path.
+ */
+describe('Chapter 7 — a supplier records its first contract for a client not on Etyme', () => {
+  const OWNER = 'priya@tallowstaffing.com'
+  let firmId = ''
+  let ownerId = ''
+  let shellId = ''
+
+  const register = async () => {
+    as(OWNER)
+    const r = await json(await listClients(req('GET', '/api/clients')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    return r.body.data.clients as RegisterClient[]
+  }
+
+  beforeAll(async () => {
+    as(OWNER)
+    const r = await json(await registerCompany(req('POST', '/api/companies', { name: 'Tallow Staffing', kind: 'VENDOR' })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    firmId = r.body.data.company.id
+    ownerId = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNER } })).id
+  }, 120_000)
+
+  it('with no clients the form says to add one from Companies and that they need not be on Etyme', async () => {
+    const options = clientOptions(await register(), [])
+    expect(options).toEqual([])
+    expect(NO_CLIENTS_SAYS).toBe('No clients yet. Add one from Companies — they do not need to be on Etyme.')
+    expect(NO_CLIENTS_HREF).toBe('/dashboard/companies')
+
+    // And the route, asked for a client nobody added, says the same thing in words, not an API path.
+    as(OWNER)
+    const r = await json(await createContract(req('POST', '/api/contracts', {
+      personId: ownerId, companyId: firmId, clientCompanyId: 'no-such-client',
+      billRate: 9000, billCurrency: 'USD', startDate: '2026-10-19', payRate: 7000, payCurrency: 'USD', contractType: 'W2',
+    })))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('We could not find that client. Add them from Companies first; they do not need to be on Etyme.')
+    expect(r.body.error.message).not.toMatch(/\/api\//)
+  })
+
+  it('a supplier’s first new contract offers the client it added from Companies, marked not on Etyme yet', async () => {
+    as(OWNER)
+    const added = await json(await addClient(req('POST', '/api/clients', { name: 'Harrow Freight Lines' })))
+    expect(added.status, JSON.stringify(added.body)).toBeLessThan(300)
+    shellId = (await prisma.company.findFirstOrThrow({ where: { name: 'Harrow Freight Lines', listedById: firmId } })).id
+
+    // No sell contract exists yet, and the client is offered all the same.
+    expect(await prisma.sellContract.count({ where: { companyId: firmId } })).toBe(0)
+    const options = clientOptions(await register(), [])
+    expect(options).toEqual([{ id: shellId, name: 'Harrow Freight Lines — not on Etyme yet' }])
+
+    // Picking it records the contract.
+    as(OWNER)
+    const r = await json(await createContract(req('POST', '/api/contracts', {
+      personId: ownerId, companyId: firmId, clientCompanyId: shellId,
+      billRate: 9000, billCurrency: 'USD', startDate: '2026-10-19', payRate: 7000, payCurrency: 'USD', contractType: 'W2',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+
+    // Once it is on a contract too, it is offered once, and still says it is not on Etyme yet.
+    as(OWNER)
+    const list = await json(await listContracts(req('GET', '/api/contracts?side=sell&limit=100')))
+    expect(list.status, JSON.stringify(list.body)).toBe(200)
+    expect(clientOptions(await register(), list.body.data.contracts)).toEqual([
+      { id: shellId, name: 'Harrow Freight Lines — not on Etyme yet' },
+    ])
   })
 })

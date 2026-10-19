@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { hasPermission } from '@/lib/permissions'
+import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 
 /**
  * Karthik Menon holds no assignments.write, and the contracts page offered
@@ -32,5 +33,45 @@ describe('Record a placement is offered only to a seat the route will let record
     // And the question has the answer it should, for a worker and for an owner.
     expect(hasPermission(['timesheets.write', 'me.read'], 'assignments.write')).toBe(false)
     expect(hasPermission(['*'], 'assignments.write')).toBe(true)
+  })
+})
+
+/**
+ * Tapin's first morning (2026-10-19): the client list was read only off
+ * the firm's own sell contracts, so its first contract offered nobody to
+ * bill, even after it added its client from Companies.
+ */
+describe('Record a placement offers the clients on the firm’s register, before it has any contract', () => {
+  it('a supplier’s first new contract offers the client it added from Companies, marked not on Etyme yet', () => {
+    const register = [
+      { id: 'harrow', name: 'Harrow Freight Lines', onEtyme: false },
+      { id: 'northbend', name: 'Northbend Athletic', onEtyme: true },
+    ]
+    expect(clientOptions(register, [])).toEqual([
+      { id: 'harrow', name: 'Harrow Freight Lines — not on Etyme yet' },
+      { id: 'northbend', name: 'Northbend Athletic' },
+    ])
+    // A client also named on a contract is offered once, and keeps its words.
+    const contracts = [
+      { clientCompany: { id: 'harrow', name: 'Harrow Freight Lines' }, endClientCompany: { id: 'cavanaugh', name: 'Cavanaugh Glassworks' } },
+    ]
+    expect(clientOptions(register, contracts)).toEqual([
+      { id: 'cavanaugh', name: 'Cavanaugh Glassworks' },
+      { id: 'harrow', name: 'Harrow Freight Lines — not on Etyme yet' },
+      { id: 'northbend', name: 'Northbend Athletic' },
+    ])
+    // The page reads the register beside its contracts, and hands both to the one function.
+    expect(page).toContain("fetch('/api/clients')")
+    expect(page).toContain('setClientCompanies(clientOptions(register, contracts))')
+  })
+
+  it('with no clients the form says to add one from Companies and that they need not be on Etyme', () => {
+    expect(NO_CLIENTS_SAYS).toBe('No clients yet. Add one from Companies — they do not need to be on Etyme.')
+    expect(NO_CLIENTS_HREF).toBe('/dashboard/companies')
+    expect(page).toMatch(/\{!loadingOptions && clientCompanies\.length === 0 && \(/)
+    expect(page).toContain('<Link href={NO_CLIENTS_HREF}')
+    // The route's refusal says the same in words, and names no API path.
+    expect(route).toContain("'We could not find that client. Add them from Companies first; they do not need to be on Etyme.'")
+    expect(route).not.toContain('POST /api/clients with their name')
   })
 })

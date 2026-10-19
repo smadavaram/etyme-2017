@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { billableNow, sortForBill, expenseLine, expenseTotal, type ExpenseRow } from '@/lib/expense-billing'
-import { billsOnLeg, rungBilled, rungStatus, billedWords, rowFor, type Leg, type ExpenseBillLine } from '@/lib/money/expense-acceptance'
+import { billsOnLeg, billsToPayer, rungBilled, rungStatus, billedWords, rowFor, type Leg, type ExpenseBillLine } from '@/lib/money/expense-acceptance'
 
 /**
  * A client-billable expense rides on the next invoice and is paid with it.
@@ -184,6 +184,41 @@ describe('a firm in the middle of a chain bills its client for an expense (the f
     const far = billsOnLeg(travel, deep, 'cs-line')
     expect(far).toEqual({ bills: false, says: 'Techpeple does not bill it to Computer Systems, so Northbend Athletic does not pay for it.' })
     expect(far.says).not.toContain('Quillon')
+  })
+})
+
+describe('the payer reads an expense’s billability the way the bill does', () => {
+  it('the receipt form and the typed-in check judge an expense’s billability on the whole chain, as the bill does', () => {
+    const travel = { category: 'TRAVEL', billable: true }
+    // Northbend ← Computer Systems ← Techpeple ← Quillon Staffing, whose agreement with Techpeple bills no expense.
+    const quillon: Leg = {
+      sellContractId: 'sub-line', sellerId: 'sub', sellerName: 'Quillon Staffing', payerId: 'tp', payerName: 'Techpeple',
+      agreement: { id: 'a', kinds: [], said: true, clientName: 'Techpeple', vendorName: 'Quillon Staffing' },
+    }
+    const deep: Leg[] = [...LEGS, quillon]
+    // Read on Computer Systems' line alone, the expense would be billable; the bill reads the whole chain and leaves it off.
+    expect(billsOnLeg(travel, deep, 'cs-line').bills).toBe(false)
+    const paying = billsToPayer(travel, deep, 'cs-line', LEGS[0])
+    expect(paying.bills).toBe(billsOnLeg(travel, deep, 'cs-line').bills)
+    // Said to Northbend, it names Computer Systems and nobody below it.
+    expect(paying.says).toBe('The firm that supplies Computer Systems does not bill it for this travel expense, so Northbend Athletic does not pay for it.')
+    expect(paying.says).not.toMatch(/Techpeple|Quillon/)
+    // Where every leg bills it, the payer pays for it, as the bill carries it.
+    expect(billsToPayer(travel, LEGS, 'tp-line', LEGS[1])).toEqual({ bills: true, says: null })
+    // A stop on the supplier's own leg is that leg's sentence, naming the two of them.
+    expect(billsToPayer({ category: 'TRAVEL', billable: false }, LEGS, 'tp-line', LEGS[1])).toEqual({
+      bills: false,
+      says: 'Techpeple recorded this travel expense as its own cost, and no agreement between Computer Systems and Techpeple says which expenses are billable.',
+    })
+    // With no chain through the supplier's line, the supplier's leg decides, then the employer's own flag.
+    expect(billsToPayer({ category: 'TRAVEL', billable: false }, [], null, null)).toEqual({ bills: false, says: null })
+    // Both doors ask this, never the supplier's leg alone.
+    for (const file of ['src/lib/money/receipt-options.ts', 'src/lib/money/keyed-receipt.ts']) {
+      const src = read(file)
+      expect(src, file).toContain('billsToPayer(e, chains.get(e.sellContractId) ?? []')
+      expect(src, file).toContain('legsOverMany(')
+      expect(src, file).not.toMatch(/\blegBills\(/)
+    }
   })
 })
 

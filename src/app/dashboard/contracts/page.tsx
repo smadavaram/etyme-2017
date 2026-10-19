@@ -20,6 +20,7 @@ import {
   type OrderParties,
 } from '@/lib/order-naming'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
+import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 
 /**
@@ -302,11 +303,12 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [meRes, consultantsRes, contractsRes, registerRes] = await Promise.all([
+        const [meRes, consultantsRes, contractsRes, registerRes, clientsRes] = await Promise.all([
           fetch('/api/me'),
           fetch('/api/consultants?limit=100'),
           fetch('/api/contracts?side=sell&limit=100'),
           fetch('/api/counterparties'),
+          fetch('/api/clients'),
         ])
 
         // Whom this firm buys from: the suppliers on its own register.
@@ -335,23 +337,13 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
           setConsultants(mapped)
         }
 
-        // Extract unique client companies from existing sell contracts
-        if (contractsRes.ok) {
-          const body = await contractsRes.json()
-          const rawContracts = body.data?.contracts ?? []
-          const seen = new Map<string, string>()
-          for (const c of rawContracts) {
-            if (c.clientCompany?.id && c.clientCompany?.name) {
-              seen.set(c.clientCompany.id, c.clientCompany.name)
-            }
-            if (c.endClientCompany?.id && c.endClientCompany?.name) {
-              seen.set(c.endClientCompany.id, c.endClientCompany.name)
-            }
-          }
-          setClientCompanies(
-            Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
-          )
-        }
+        // Whom this firm bills: the clients on its register first — the
+        // ones it added from Companies, here or not — then any named on its
+        // own sell contracts. Its first contract has no sell contracts to
+        // read, so the register is the whole list (`lib/money/client-options`).
+        const register = clientsRes.ok ? (await clientsRes.json()).data?.clients ?? [] : []
+        const contracts = contractsRes.ok ? (await contractsRes.json()).data?.contracts ?? [] : []
+        setClientCompanies(clientOptions(register, contracts))
       } catch {
         // Options loading is best-effort
       } finally {
@@ -496,6 +488,11 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+                {!loadingOptions && clientCompanies.length === 0 && (
+                  <p className="text-xs text-etyme-muted mt-1">
+                    <Link href={NO_CLIENTS_HREF} className="text-etyme-action hover:underline">{NO_CLIENTS_SAYS}</Link>
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>End client (where consultant works)</label>

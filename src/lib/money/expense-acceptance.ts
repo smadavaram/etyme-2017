@@ -210,6 +210,41 @@ export function billsOnLeg(
   }
 }
 
+/**
+ * Whether the firm paying a supplier's invoice pays for this expense, and
+ * the sentence where it does not: the receipt form and the typed-in check
+ * ask this, so they agree with the bill the supplier generates.
+ *
+ * The verdict is `billsOnLeg` on the supplier's own line, the bill's own
+ * question, so an expense a leg further down does not bill is not paid for
+ * here either, whatever the supplier's own agreement says. Only the
+ * sentence differs, because it is read by the payer, not the biller: a
+ * stop on the supplier's own leg is that leg's sentence, which names the
+ * two of them; a stop further down names nobody below the supplier,
+ * because a sub-vendor's name is the supplier's to keep.
+ *
+ * Where the expense's chain does not run through the supplier's line — an
+ * expense on the payer's own line, or a supplier not on Etyme — there is no
+ * chain to read, and the supplier's leg decides, or the employer's flag.
+ */
+export function billsToPayer(
+  e: Pick<ExpenseOnRecord, 'category' | 'billable'>,
+  legsTopFirst: readonly Leg[],
+  supplierSellContractId: string | null | undefined,
+  supplierLeg: Leg | null
+): { bills: boolean; says: string | null } {
+  const leg = supplierSellContractId ? legsTopFirst.find((l) => l.sellContractId === supplierSellContractId) : undefined
+  if (!leg) return supplierLeg ? legBills(e, supplierLeg) : { bills: e.billable, says: null }
+  const verdict = billsOnLeg(e, legsTopFirst, leg.sellContractId)
+  if (verdict.bills) return verdict
+  const own = legBills(e, leg)
+  if (!own.bills) return own
+  return {
+    bills: false,
+    says: `The firm that supplies ${leg.sellerName} does not bill it for this ${word(e.category)} expense, so ${leg.payerName} does not pay for it.`,
+  }
+}
+
 /** What this firm may accept at most: the approved amount at the top, what the firm above accepted below it. */
 export function capFor(
   e: Pick<ExpenseOnRecord, 'totalCents'>,

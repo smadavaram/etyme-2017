@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'NOT_FOUND',
           message:
-            'No company of that id. If the client is not on Etyme, put them on your register first — POST /api/clients with their name — and use the id it gives you.',
+            'We could not find that client. Add them from Companies first; they do not need to be on Etyme.',
           field: 'clientCompanyId',
         },
       },
