@@ -299,32 +299,44 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const relationshipExists =
-    clientCompany.claimedAt == null
-      ? true
-      : Boolean(
-          (await prisma.masterAgreement.findFirst({
-            where: { vendorId: companyId, clientId: clientCompanyId },
-            select: { id: true },
-          })) ??
-            (await prisma.counterparty.findFirst({
-              where: {
-                OR: [
-                  { companyId, otherCompanyId: clientCompanyId },
-                  { companyId: clientCompanyId, otherCompanyId: companyId },
-                ],
-              },
-              select: { id: true },
-            })) ??
-            (await prisma.sellContract.findFirst({
-              where: { companyId, clientCompanyId },
-              select: { id: true },
-            })) ??
-            (await prisma.requirementInvitation.findFirst({
-              where: { toCompanyId: companyId, requirement: { companyId: clientCompanyId } },
-              select: { id: true },
-            }))
-        )
+  // Whether the two firms already work together, asked of every client,
+  // shell or tenant. A shell another firm put on its register is that
+  // firm's record, not ours, and passes only where something real lies
+  // between us — an agreement, an order, a contract, our own register, or
+  // a job they sent us. Answering "yes" for every shell would let any
+  // firm write its contracts onto another firm's client.
+  const relationshipExists = Boolean(
+    (await prisma.masterAgreement.findFirst({
+      where: { vendorId: companyId, clientId: clientCompanyId },
+      select: { id: true },
+    })) ??
+      (await prisma.counterparty.findFirst({
+        where: {
+          OR: [
+            { companyId, otherCompanyId: clientCompanyId },
+            { companyId: clientCompanyId, otherCompanyId: companyId },
+          ],
+        },
+        select: { id: true },
+      })) ??
+      (await prisma.workOrder.findFirst({
+        where: {
+          OR: [
+            { issuedById: clientCompanyId, issuedToId: companyId },
+            { issuedById: companyId, issuedToId: clientCompanyId },
+          ],
+        },
+        select: { id: true },
+      })) ??
+      (await prisma.sellContract.findFirst({
+        where: { companyId, clientCompanyId },
+        select: { id: true },
+      })) ??
+      (await prisma.requirementInvitation.findFirst({
+        where: { toCompanyId: companyId, requirement: { companyId: clientCompanyId } },
+        select: { id: true },
+      }))
+  )
 
   const naming = mayNameCounterparty({
     callerCompanyId: companyId,

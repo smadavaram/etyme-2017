@@ -384,7 +384,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'VALIDATION',
           message:
-            'No company of that id. If the client who gave you this order is not on Etyme, list them first and use the id you get back.',
+            'We could not find that client. Add them from Companies first; they do not need to be on Etyme.',
           field: 'issuedById',
         },
       },

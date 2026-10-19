@@ -228,7 +228,45 @@ describe('a staffing firm arrives before its clients do', () => {
       )
     )
     expect(r.status).toBe(404)
-    expect(r.body.error.message).toContain('POST /api/clients')
+    expect(r.body.error.message).toBe(
+      'We could not find that client. Add them from Companies first; they do not need to be on Etyme.'
+    )
+  })
+
+  it('a firm cannot record a contract naming a client another firm put on its register, unless they already work together', async () => {
+    // Halvard is a shell Veritan listed. Auralis has its own employee and
+    // nothing at all with Halvard on file.
+    const kai = await prisma.person.create({ data: { name: 'Kai Lund', primaryEmail: 'kai@auralis.test' } })
+    await prisma.context.create({
+      data: { personId: kai.id, companyId: co.auralis, type: 'EMPLOYEE', grantReason: 'Auralis employee' },
+    })
+    const contract = () =>
+      req('POST', '/api/contracts', {
+        personId: kai.id,
+        companyId: co.auralis,
+        clientCompanyId: co.halvard,
+        billRate: 10_000,
+        startDate: day(-10).toISOString(),
+        endDate: day(80).toISOString(),
+      })
+
+    as(AURALIS)
+    const refused = await json(await writeContract(contract()))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.code).toBe('NOT_YOURS')
+    expect(refused.body.error.message).toContain("is on another firm's register, not yours")
+    expect(await prisma.sellContract.count({ where: { companyId: co.auralis } })).toBe(0)
+
+    // Once Auralis has Halvard on its own register, the two work together
+    // and the contract is Auralis's to record.
+    await prisma.counterparty.create({
+      data: { companyId: co.auralis, otherCompanyId: co.halvard, relationship: 'CLIENT', status: 'ACTIVE' },
+    })
+    const recorded = await json(await writeContract(contract()))
+    expect(recorded.body?.error, JSON.stringify(recorded.body)).toBeUndefined()
+    const row = await prisma.sellContract.findUniqueOrThrow({ where: { id: recorded.body.data.sellContract.id } })
+    expect(row.companyId).toBe(co.auralis)
+    expect(row.clientCompanyId).toBe(co.halvard)
   })
 })
 
