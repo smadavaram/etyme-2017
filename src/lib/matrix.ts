@@ -671,7 +671,8 @@ export const MATRIX: L1[] = [
         { code: 'L3.1.3.4', name: 'Talking to a supplier', owner: 'Hiring manager', status: B,
           tasks: ['Demand opens, supply answers', 'Only a firm on the deal', 'From the role or the candidate',
             'The other side is told', 'Own notes never leave the company',
-            'FIXED 2026-10-08: a seat with no desk reads only the threads that name it (conversation, 0bff5f5da)'],
+            'FIXED 2026-10-08: a seat with no desk reads only the threads that name it (conversation, 0bff5f5da)',
+            'FIXED 2026-10-19: a client\u2019s first note on a job or a candidate reaches the supplier\u2019s people who work jobs \u2014 recruiters, resource managers, account managers, the owner \u2014 every one of them, and never its AP & Payroll clerk, HR, Accounts Receivable or contract manager (conversation, 0fdea317e)'],
           implementedBy: [
             'src/lib/threads.ts', 'src/lib/thread-notices.ts', 'src/components/thread.tsx',
             'src/app/api/conversations/route.ts', 'src/app/api/conversations/messages/route.ts',
