@@ -262,12 +262,6 @@ const REGISTER: Record<string, { may: string[]; because: string }> = {
       'and the deletion of the export, belong to etyme-supply and etyme-demand ' +
       'respectively; this line goes when they are done.',
   },
-  'src/app/api/expenses/route.ts': {
-    may: ['expenseScope'],
-    because:
-      'A vendor owns its expenses; a client is a party only to the billable ones ' +
-      'raised against work at its own sites, because those land on its invoices.',
-  },
   'src/app/api/invoices/[id]/route.ts': {
     may: ['invoiceScope'],
     because: 'An invoice has two parties and both sit on the agreement behind it.',

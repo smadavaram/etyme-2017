@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { writingDesk, seatedRefusal, moneyTrailFor } from '@/lib/money/seated-books'
 import { askTheDesk } from '@/lib/permissions'
+import { rejectRefusal } from '@/lib/money/expense-acceptance'
 
 /**
  * POST /api/expenses/actions
@@ -23,7 +24,8 @@ import { askTheDesk } from '@/lib/permissions'
  * Transition rules:
  *   submit:  DRAFT → SUBMITTED (consultant submits for review)
  *   approve: SUBMITTED → APPROVED (manager confirms)
- *   reject:  SUBMITTED | APPROVED → REJECTED (with reason)
+ *   reject:  SUBMITTED | APPROVED → REJECTED (with reason), and never
+ *            once a firm above has accepted it
  *
  * There is no 'invoice' action. An approved client-billable expense rides
  * on the next invoice raised for its engagement (src/lib/expense-billing.ts)
@@ -175,7 +177,43 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const results: { id: string; status: string; error?: string }[] = []
+  const results: { id: string; status: string; error?: string; code?: string }[] = []
+
+  // ── An acceptance above stands ─────────────────────────────────────
+  //
+  // Once a firm above has accepted an expense (the founder, 2026-10-19:
+  // an expense is accepted like a week), it is on that firm's books and
+  // on the bill to it. The employer taking its approval back then would
+  // leave a bill for money its own worker was told was refused. A
+  // send-back above does not stop a rejection: that firm has said it
+  // will not pay. `rejectRefusal` says it in one sentence; every firm
+  // that accepts is above the employer, and the employer reads the chain
+  // above it, so naming the firm hides nobody.
+  const acceptedAbove = new Map<string, { companyName: string; acceptedCents: number; createdAt: Date }[]>()
+  const words = new Map<string, { personName: string; currency: string }>()
+  if (decision === 'reject') {
+    const ids = expenses.filter((e) => e.status === 'APPROVED').map((e) => e.id)
+    if (ids.length > 0) {
+      const [rows, about] = await Promise.all([
+        prisma.expenseAcceptance.findMany({
+          where: { expenseId: { in: ids }, status: 'ACCEPTED' },
+          select: { expenseId: true, acceptedCents: true, createdAt: true, company: { select: { name: true } } },
+        }),
+        prisma.expense.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, person: { select: { name: true } }, sellContract: { select: { billCurrency: true } } },
+        }),
+      ])
+      for (const r of rows) {
+        const list = acceptedAbove.get(r.expenseId) ?? []
+        list.push({ companyName: r.company.name, acceptedCents: r.acceptedCents, createdAt: r.createdAt })
+        acceptedAbove.set(r.expenseId, list)
+      }
+      for (const a of about) {
+        words.set(a.id, { personName: a.person.name, currency: (a.sellContract.billCurrency ?? 'USD').toUpperCase() })
+      }
+    }
+  }
 
   for (const expense of expenses) {
     if (!FROM[decision].includes(expense.status)) {
@@ -183,6 +221,20 @@ export async function POST(request: NextRequest) {
         id: expense.id,
         status: expense.status,
         error: `Cannot ${decision} an expense in ${expense.status} status`,
+      })
+      continue
+    }
+
+    if (decision === 'reject' && acceptedAbove.has(expense.id)) {
+      const w = words.get(expense.id)!
+      results.push({
+        id: expense.id,
+        status: expense.status,
+        code: 'ACCEPTED_ABOVE',
+        error: rejectRefusal(
+          { personName: w.personName, category: expense.category, periodStart: expense.periodStart, currency: w.currency },
+          acceptedAbove.get(expense.id)!
+        )!,
       })
       continue
     }
@@ -236,7 +288,7 @@ export async function POST(request: NextRequest) {
         // the claim as filed. An approval can be undone while the
         // expense is still unbilled, because reject accepts an APPROVED
         // expense — once it is INVOICED it can no longer be taken back
-        // here.
+        // here, and not once a firm above has accepted it.
         reversible: decision === 'approve',
       },
     })
@@ -272,6 +324,15 @@ export async function POST(request: NextRequest) {
     if (notifications.length > 0) {
       notifyBulk(notifications)
     }
+  }
+
+  // Nothing done, and every one refused because a firm above accepted it:
+  // a refusal, said in its own sentence, not a success with errors.
+  if (successCount === 0 && results.length > 0 && results.every((r) => r.code === 'ACCEPTED_ABOVE')) {
+    return NextResponse.json(
+      { error: { code: 'ACCEPTED_ABOVE', message: results.map((r) => r.error).join(' '), results } },
+      { status: 409 }
+    )
   }
 
   return NextResponse.json({

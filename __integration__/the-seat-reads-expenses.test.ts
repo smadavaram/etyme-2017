@@ -78,13 +78,18 @@ describe('a program office at a client\'s desk reads the client\'s expenses', ()
     expect(body.data.expenses.length).toBeGreaterThan(0)
   })
 
-  it('shows it no supplier\'s internal cost, only what is billable to the client', async () => {
+  it('shows it no supplier\'s internal cost: only what is billable to the client, or what the client\'s own agreement leaves out, said in a sentence', async () => {
     // A supplier's own costs stay with the supplier, the same rule that
     // keeps pay rates and margin off a client's screen — and a seat is
-    // the client's desk, not a wider one.
+    // the client's book, not a wider one. Since 2026-10-19 billable is
+    // the agreement's word where it said, and a kind the client's own
+    // agreement leaves out is shown with that agreement's sentence.
     as(OFFICE)
     const { body } = await json(await expenses(req('GET', '/api/expenses?limit=100')))
-    for (const e of body.data.expenses) expect(e.billable).toBe(true)
+    for (const e of body.data.expenses) {
+      if (e.billable) continue
+      expect(e.chain?.notBillableSays ?? '').toMatch(/^The agreement between Cavanaugh Glassworks and /)
+    }
   })
 
   it('gives the office its own book back when it asks for it, and drops the clause', async () => {

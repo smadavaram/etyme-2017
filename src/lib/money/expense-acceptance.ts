@@ -366,3 +366,167 @@ export function notAcceptedSays(
   }
   return `${whose} is not on this bill: ${payerName} has not accepted it yet.`
 }
+
+// ── One row on the expenses page, as one firm reads it ──────────────
+
+/**
+ * Where an expense stands, for the firm reading it.
+ *
+ * - OWN          the reader raised it and has not approved it yet
+ * - YOURS        the reader pays for it, and it is the reader's turn to accept
+ * - WAITING      a firm above the reader has not accepted yet
+ * - ACCEPTED     every firm the reader can see has accepted
+ * - SENT_BACK    a firm the reader can see sent it back
+ * - NOT_BILLABLE the agreement the reader pays under does not bill this kind
+ */
+export type RowState = 'OWN' | 'YOURS' | 'WAITING' | 'ACCEPTED' | 'SENT_BACK' | 'NOT_BILLABLE'
+
+export interface ExpenseRow {
+  /** False: the reader has no business seeing this expense, and the list leaves it off. */
+  visible: boolean
+  state: RowState
+  /**
+   * Whether this expense is billed to the reader (a payer) or by the
+   * reader upward (the employer), under the agreement each pair signed.
+   * Never the employer's own flag where an agreement said.
+   */
+  billable: boolean
+  /** "Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you". Null before the employer approves. */
+  line: string | null
+  /** What the reader may accept now, in minor units; null where it may not. */
+  upToCents: number | null
+  /** Why it is not billed to the reader, or why it goes no higher than the reader. */
+  notBillableSays: string | null
+  /**
+   * The one firm on the row: whom the employer bills for it, or whom a
+   * payer is billed by — its own supplier, never a firm below that.
+   */
+  counterparty: { name: string; role: 'CLIENT' | 'SUPPLIER' } | null
+}
+
+const HIDDEN: ExpenseRow = {
+  visible: false, state: 'WAITING', billable: false, line: null, upToCents: null, notBillableSays: null, counterparty: null,
+}
+
+/**
+ * The expenses page's row for one firm.
+ *
+ * Who sees it: the employer that raised it, always; a firm that pays for
+ * it, once the employer has approved it; and the firm whose own
+ * agreement is the one that leaves this kind out, so it can read why it
+ * is not billed to it. A supplier's own cost under an agreement that did
+ * not say stays with the supplier, as it always did.
+ *
+ * What it names: the firms at and above the reader, and the reader's own
+ * supplier. The employer is named only where it is the reader or the
+ * reader's own supplier; further down it is "the employer", and a firm
+ * below the reader's own supplier is not on the line at all — a
+ * sub-vendor's name is the firm above it's to keep.
+ */
+export function rowFor(i: {
+  expense: ExpenseOnRecord
+  legsTopFirst: readonly Leg[]
+  acceptances: readonly AcceptanceRow[]
+  reader: { id: string; name: string }
+  /** The person reading, so a worker is never offered their own expense to accept. */
+  personId: string
+}): ExpenseRow {
+  const { expense: e, legsTopFirst: legs, acceptances, reader } = i
+  const own = e.companyId === reader.id
+  const chain = acceptanceChain(e, legs)
+  const approved = (APPROVED_BY_EMPLOYER as readonly string[]).includes(e.status)
+  const at = chain.steps.findIndex((s) => s.companyId === reader.id)
+  const paysLeg = legs.find((l) => l.payerId === reader.id) ?? null
+  const bottom = legs[legs.length - 1] ?? null
+  const stopsAtReader = !!chain.stopped && chain.stopped.leg.payerId === reader.id
+
+  if (!own) {
+    if (!approved || !paysLeg) return HIDDEN
+    if (at < 0 && !(stopsAtReader && chain.stopped!.leg.agreement?.said)) return HIDDEN
+  }
+
+  const counterparty: ExpenseRow['counterparty'] = own
+    ? bottom ? { name: bottom.payerName, role: 'CLIENT' } : null
+    : { name: paysLeg!.sellerName, role: 'SUPPLIER' }
+
+  if (own && !approved) {
+    return {
+      visible: true, state: 'OWN', billable: chain.steps.length > 0, line: null, upToCents: null,
+      notBillableSays: chain.stopped?.says ?? null, counterparty,
+    }
+  }
+
+  const money = (c: number) => amount(c, e.currency)
+  const employer = own ? 'you' : paysLeg!.sellerId === e.companyId ? e.companyName : 'the employer'
+  const parts = [`Approved by ${employer}`]
+
+  if (at < 0 && !own) {
+    // The reader's own agreement leaves this kind out.
+    return {
+      visible: true, state: 'NOT_BILLABLE', billable: false, line: parts.join(' · '), upToCents: null,
+      notBillableSays: chain.stopped!.says, counterparty,
+    }
+  }
+
+  // The employer reads every firm above it; a payer reads down to its own supplier.
+  const last = own ? chain.steps.length - 1 : Math.min(at + 1, chain.steps.length - 1)
+  let state: RowState = 'ACCEPTED'
+  for (let k = 0; k <= last; k++) {
+    const s = chain.steps[k]
+    const who = s.companyId === reader.id ? 'you' : s.name
+    const d = acceptances.find((a) => a.companyId === s.companyId)
+    if (!d) {
+      parts.push(`waiting on ${who}`)
+      if (state === 'ACCEPTED') state = s.companyId === reader.id ? 'YOURS' : k < at || own ? 'WAITING' : 'ACCEPTED'
+      break
+    }
+    if (d.status === 'SENT_BACK') {
+      parts.push(`sent back by ${who}${d.reason ? `: ${d.reason}` : ''}`)
+      if (k <= at || own) state = 'SENT_BACK'
+      break
+    }
+    parts.push(`accepted by ${who} ${money(d.acceptedCents)}`)
+  }
+
+  let upToCents: number | null = null
+  if (!own) {
+    const may = mayDecide({
+      expense: e, legsTopFirst: legs, acceptances, firm: reader, personId: i.personId, decision: 'ACCEPT',
+    })
+    if (may.ok) upToCents = may.capCents
+    // Its own turn, whatever the line read: the rules are `mayDecide`'s.
+    if (may.ok && state !== 'SENT_BACK') state = 'YOURS'
+  }
+
+  // Where the reader is the last firm it travels to, it carries the cost:
+  // the agreement above it says why, in the words it already uses.
+  const goesNoHigher = chain.stopped && (own ? true : chain.stopped.leg.sellerId === reader.id)
+  return {
+    visible: true, state, billable: own ? chain.steps.length > 0 : true, line: parts.join(' · '), upToCents,
+    notBillableSays: goesNoHigher ? chain.stopped!.says : null, counterparty,
+  }
+}
+
+/**
+ * Why the employer may not reject an approved expense, or null where it may.
+ *
+ * Once a firm above has accepted an expense it is on that firm's books
+ * and on the bill to it; the employer taking its approval back would
+ * leave a bill for money nobody approved. A send-back above does not
+ * stop it: that firm has said it will not pay, and the employer may then
+ * say it will not either.
+ *
+ * Names the firm that accepted. Every firm that accepts is above the
+ * employer, and the employer reads the chain above it.
+ */
+export function rejectRefusal(
+  e: Pick<ExpenseOnRecord, 'personName' | 'category' | 'periodStart' | 'currency'>,
+  accepted: readonly { companyName: string; acceptedCents: number; createdAt: Date }[]
+): string | null {
+  const first = [...accepted].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
+  if (!first) return null
+  return (
+    `${e.personName}’s ${word(e.category)} expense of ${formatDay(e.periodStart)} cannot be rejected, because ` +
+    `${first.companyName} accepted ${amount(first.acceptedCents, e.currency)} of it on ${formatDay(first.createdAt)}.`
+  )
+}

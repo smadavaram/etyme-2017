@@ -8,6 +8,7 @@ import { ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } f
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { WhereItStands } from './where-it-stands'
 
 /**
  * Expenses working surface — reimbursable and company expenses.
@@ -29,10 +30,25 @@ import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 
 // ── Types ────────────────────────────────────────────
 
+/**
+ * Where an expense stands for the firm reading it, as the route read it
+ * (`rowFor` in lib/money/expense-acceptance). The page draws it and
+ * decides nothing.
+ */
+interface ChainView {
+  state: 'OWN' | 'YOURS' | 'WAITING' | 'ACCEPTED' | 'SENT_BACK' | 'NOT_BILLABLE'
+  /** "Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you" */
+  line: string | null
+  /** What this firm may accept now, in cents; null where it may not. */
+  upToCents: number | null
+  notBillableSays: string | null
+}
+
 interface Expense {
   id: string
   person: { id: string; name: string }
-  client: { id: string; name: string }
+  /** Whom the employer bills for it, or whom a payer is billed by. Never a firm further down. */
+  client: { id: null; name: string; role: 'CLIENT' | 'SUPPLIER' } | null
   sellContractId: string
   category: string
   billable: boolean
@@ -40,7 +56,12 @@ interface Expense {
   periodStart: string
   periodEnd: string
   items: { description: string; quantity: number; unitPrice: number; expenseType?: string }[]
+  /** Whole currency, the unit `Expense.total` is kept in. */
   total: number
+  currency: string
+  /** This firm raised it. */
+  own: boolean
+  chain: ChainView | null
   receiptUrl: string | null
   status: string
   submittedAt: string | null
@@ -80,12 +101,17 @@ function categoryLabel(cat: string): string {
 
 // ── Currency formatting ──────────────────────────────
 
-function formatUSD(cents: number): string {
+/**
+ * Whole currency, which is what `Expense.total` and an item's unit price
+ * are kept in — never cents. The name said USD and the argument said
+ * cents, and neither was true.
+ */
+function formatUSD(whole: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
+    currency,
     minimumFractionDigits: 2,
-  }).format(cents)
+  }).format(whole)
 }
 
 // ── Date helpers ─────────────────────────────────────
@@ -124,7 +150,7 @@ interface ContractOption {
 interface LineItem {
   description: string
   quantity: number
-  unitPrice: string // dollars as string for input; converted to cents on POST
+  unitPrice: string // dollars as typed; sent as dollars, the unit the route sums into the total
 }
 
 const CATEGORIES = ['TRAVEL', 'EQUIPMENT', 'TRAINING', 'RELOCATION', 'MEALS', 'OTHER'] as const
@@ -229,7 +255,10 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
         items: items.map((item) => ({
           description: item.description,
           quantity: item.quantity,
-          unitPrice: Math.round((parseFloat(item.unitPrice) || 0) * 100),
+          // Dollars, to the cent. The route sums quantity × unit price
+          // straight into `Expense.total`, which is whole currency, so a
+          // price sent in cents stored a $412.50 flight as $41,250.00.
+          unitPrice: Math.round((parseFloat(item.unitPrice) || 0) * 100) / 100,
         })),
         receiptUrl: receiptUrl || undefined,
       }
@@ -484,7 +513,12 @@ export default function ExpensesPage() {
   const [readOnce, setReadOnce] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
-  const [totals, setTotals] = useState({ grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
+  // Null where the route would not add them up — more than one currency,
+  // or more rows than it read — with its sentence in `totalsSay`.
+  const [totals, setTotals] = useState<{ grand: number; billable: number; billableCount: number; internal: number; internalCount: number; currency?: string } | null>(null)
+  const [totalsSay, setTotalsSay] = useState<string | null>(null)
+  /** The expense a decision is being saved on. */
+  const [deciding, setDeciding] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showModal, setShowModal] = useState(false)
@@ -531,7 +565,8 @@ export default function ExpensesPage() {
       const body = await res.json()
       setRefusedSaid(null)
       setExpenses(body.data?.expenses ?? [])
-      setTotals(body.data?.totals ?? { grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
+      setTotals(body.data?.totals ?? null)
+      setTotalsSay(body.data?.totalsSay ?? null)
       setReading(body.data?.reading ?? null)
     } catch (err: any) {
       setError(err.message)
@@ -549,7 +584,9 @@ export default function ExpensesPage() {
   // ── Batch actions ──────────────────────────────────
 
   async function handleBatchAction(action: string, ids?: string[]) {
-    const targetIds = ids ?? expenses.filter((e) => {
+    // Only this firm's own: an expense another firm raised is accepted
+    // on its row, never approved here.
+    const targetIds = ids ?? expenses.filter((e) => e.own).filter((e) => {
       if (action === 'submit') return e.status === 'DRAFT'
       if (action === 'approve') return e.status === 'SUBMITTED'
       return false
@@ -589,10 +626,39 @@ export default function ExpensesPage() {
     }
   }
 
+  // ── Accept, or send back, an expense this firm pays for ─────────────
+  //
+  // Through the one route that records a firm's decision on an expense
+  // (`POST /api/expenses/:id/accept`); the page says the route's sentence
+  // back and reads the list again, so the row shows what was recorded.
+  async function decide(row: Expense, body: { decision: 'accept' } | { decision: 'send_back'; reason: string }): Promise<boolean> {
+    setDeciding(row.id)
+    try {
+      const res = await fetch(`/api/expenses/${row.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const out = await res.json().catch(() => ({}) as any)
+      if (!res.ok) throw new Error(out.error?.message ?? 'The expense could not be decided.')
+      setToast({ message: out.data?.message ?? (body.decision === 'accept' ? 'Expense accepted' : 'Expense sent back'), type: 'success' })
+      setTimeout(() => setToast(null), 4000)
+      await fetchExpenses()
+      return true
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+      setTimeout(() => setToast(null), 5000)
+      return false
+    } finally {
+      setDeciding(null)
+    }
+  }
+
   // ── Stats ──────────────────────────────────────────
   const stats = {
     total: expenses.length,
-    pending: expenses.filter((e) => e.status === 'SUBMITTED').length,
+    pending: expenses.filter((e) => e.own && e.status === 'SUBMITTED').length,
+    toAccept: expenses.filter((e) => e.chain?.upToCents != null).length,
     approved: expenses.filter((e) => e.status === 'APPROVED').length,
     totalAmount: expenses.reduce((sum, e) => sum + e.total, 0),
   }
@@ -617,12 +683,19 @@ export default function ExpensesPage() {
       width: 'min-w-[200px]',
     },
     {
+      // Whom this firm bills for it, or whom it is billed by: its own
+      // supplier, never a firm further down the chain.
       key: 'client',
-      label: 'Client',
-      render: (row) => (
-        <span className="text-etyme-ink">{row.client.name}</span>
-      ),
-      sortValue: (row) => row.client.name,
+      label: isClient ? 'Supplier' : 'Client or supplier',
+      render: (row) => row.client ? (
+        <span className="text-etyme-ink">
+          {row.client.name}
+          {!isClient && (
+            <span className="block text-[11px] text-etyme-faint">{row.client.role === 'CLIENT' ? 'your client' : 'your supplier'}</span>
+          )}
+        </span>
+      ) : <span className="text-etyme-faint">—</span>,
+      sortValue: (row) => row.client?.name ?? '',
       hideOnMobile: true,
     },
     {
@@ -637,8 +710,10 @@ export default function ExpensesPage() {
       key: 'kind',
       label: 'Kind',
       render: (row) => (
+        // Billable under the agreement between each pair, as the route
+        // read it — not the supplier's own flag.
         <span className={`chip ${row.billable ? 'chip--action' : 'chip--passive'}`}>
-          {row.billable ? 'Billable' : 'Internal'}
+          {row.billable ? 'Billable' : row.own ? 'Internal' : 'Not billable'}
         </span>
       ),
       sortValue: (row) => row.billable ? 'Billable' : 'Internal',
@@ -661,11 +736,26 @@ export default function ExpensesPage() {
       label: 'Amount',
       render: (row) => (
         <span className="tabular-nums font-medium">
-          {formatUSD(row.total)}
+          {formatUSD(row.total, row.currency)}
         </span>
       ),
       sortValue: (row) => row.total,
       align: 'right' as const,
+    },
+    {
+      // The row's reading, not an action column: the card on a phone
+      // carries it, and the Accept and Send back buttons with it.
+      key: 'stands',
+      label: 'Where it stands',
+      render: (row) => (
+        <WhereItStands
+          view={row.chain}
+          money={(cents) => formatUSD(cents / 100, row.currency)}
+          busy={deciding === row.id}
+          onDecide={(d) => decide(row, d)}
+        />
+      ),
+      sortValue: (row) => (row.chain?.state === 'YOURS' ? '0' : row.chain?.state ?? row.status),
     },
     {
       key: 'period',
@@ -703,17 +793,23 @@ export default function ExpensesPage() {
   // ── Search filter ──────────────────────────────────
   const searchFilter = (row: Expense, q: string) =>
     row.person.name.toLowerCase().includes(q) ||
-    row.client.name.toLowerCase().includes(q) ||
+    (row.client?.name ?? '').toLowerCase().includes(q) ||
+    (row.chain?.line ?? '').toLowerCase().includes(q) ||
     row.category.toLowerCase().includes(q) ||
     row.description.toLowerCase().includes(q) ||
     row.status.toLowerCase().includes(q) ||
-    (row.billable ? 'billable' : 'internal').includes(q)
+    (row.billable ? 'billable' : row.own ? 'internal' : 'not billable').includes(q)
 
   // ── Status filter options ──────────────────────────
+  // A client sees a supplier's expense only once the supplier has
+  // approved it, so it is offered no draft or submitted filter that could
+  // only ever read empty.
   const statusOptions: { key: StatusFilter; label: string; count?: number }[] = [
     { key: 'ALL', label: 'All' },
-    { key: 'DRAFT', label: 'Draft', count: expenses.filter((e) => e.status === 'DRAFT').length },
-    { key: 'SUBMITTED', label: 'Submitted', count: expenses.filter((e) => e.status === 'SUBMITTED').length },
+    ...(isClient ? [] : [
+      { key: 'DRAFT' as const, label: 'Draft', count: expenses.filter((e) => e.status === 'DRAFT').length },
+      { key: 'SUBMITTED' as const, label: 'Submitted', count: expenses.filter((e) => e.status === 'SUBMITTED').length },
+    ]),
     { key: 'APPROVED', label: 'Approved', count: expenses.filter((e) => e.status === 'APPROVED').length },
     { key: 'INVOICED', label: 'Billed' },
     { key: 'PAID', label: 'Paid' },
@@ -751,7 +847,9 @@ export default function ExpensesPage() {
               label="Which expenses"
               options={(['all', 'billable', 'internal'] as KindFilter[]).map((k) => ({
                 key: k,
-                label: k === 'all' ? 'All' : k === 'billable' ? 'Billable' : 'Internal',
+                // A client's "not billable" is a kind its agreement leaves
+                // out, never its own internal cost.
+                label: k === 'all' ? 'All' : k === 'billable' ? 'Billable' : isClient ? 'Not billable' : 'Internal',
               }))}
               value={kindFilter}
               onChange={setKindFilter}
@@ -773,27 +871,28 @@ export default function ExpensesPage() {
 
       {/* Stats row — prototype Stat component pattern */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Total expenses" value={formatUSD(totals.grand)} sub={`${stats.total} reports`} />
-        <Stat label="Client-billable" value={formatUSD(totals.billable)} sub={`${totals.billableCount} reports`} />
-        <Stat label="Internal" value={formatUSD(totals.internal)} sub={`${totals.internalCount} reports`} />
+        {/* No figure the route would not add up: one currency, every row read. */}
+        <Stat label="Total expenses" value={totals ? formatUSD(totals.grand, totals.currency) : '—'} sub={totals ? `${stats.total} reports` : totalsSay ?? ''} />
+        <Stat label="Billable" value={totals ? formatUSD(totals.billable, totals.currency) : '—'} sub={totals ? `${totals.billableCount} reports` : ''} />
+        <Stat label={isClient ? 'Not billable' : 'Internal'} value={totals ? formatUSD(totals.internal, totals.currency) : '—'} sub={totals ? `${totals.internalCount} reports` : ''} />
         <Stat
-          label="Pending approval"
-          value={stats.pending}
-          tone={stats.pending > 0 ? 'attention' : 'default'}
-          sub="awaiting review"
+          label="Waiting on you"
+          value={stats.pending + stats.toAccept}
+          tone={stats.pending + stats.toAccept > 0 ? 'attention' : 'default'}
+          sub={isClient ? 'to accept' : `${stats.pending} to approve · ${stats.toAccept} to accept`}
         />
       </div>
 
       {/* Action bar */}
-      {(stats.pending > 0 || expenses.some((e) => e.status === 'DRAFT')) && (
-        <div className="flex gap-2 mb-4">
-          {expenses.some((e) => e.status === 'DRAFT') && (
+      {(stats.pending > 0 || expenses.some((e) => e.own && e.status === 'DRAFT')) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {expenses.some((e) => e.own && e.status === 'DRAFT') && (
             <button
               onClick={() => handleBatchAction('submit')}
               disabled={actionLoading}
               className="btn-secondary text-[13px] disabled:opacity-50"
             >
-              {actionLoading ? 'Processing…' : `Submit all drafts (${expenses.filter((e) => e.status === 'DRAFT').length})`}
+              {actionLoading ? 'Processing…' : `Submit all drafts (${expenses.filter((e) => e.own && e.status === 'DRAFT').length})`}
             </button>
           )}
           {stats.pending > 0 && (
@@ -832,7 +931,9 @@ export default function ExpensesPage() {
         searchFilter={searchFilter}
         searchPlaceholder="Search by consultant, client, category, or status…"
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} expenses.` : 'No expenses yet.'}
-        emptyDetail="Expenses are created when consultants submit reimbursable costs against their sell contracts."
+        emptyDetail={isClient
+          ? 'A supplier’s expense shows here once the supplier has approved it, for you to accept before it is billed.'
+          : 'Your workers’ expenses, and your suppliers’ expenses on work you pay for once they have approved them.'}
         exportName={`expenses-${kindFilter}`}
         defaultPageSize={20}
       />
@@ -843,7 +944,7 @@ export default function ExpensesPage() {
           {filtered.length} expense{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
           {kindFilter !== 'all' && ` · ${kindFilter}`}
-          {` · ${formatUSD(filtered.reduce((sum, e) => sum + e.total, 0))}`}
+          {totals && ` · ${formatUSD(filtered.reduce((sum, e) => sum + e.total, 0), totals.currency)}`}
         </p>
       )}
 

@@ -8,6 +8,8 @@ import { POST as sendBill } from '@/app/api/invoices/[id]/submit/route'
 import { POST as withdrawBill } from '@/app/api/invoices/[id]/withdraw/route'
 import { generateBill } from '@/lib/money/bill-generate'
 import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
+import { GET as listExpenses } from '@/app/api/expenses/route'
+import { POST as expenseActions } from '@/app/api/expenses/actions/route'
 import { legsFor } from '@/lib/money/expense-acceptance-read'
 
 /**
@@ -381,5 +383,109 @@ describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend
     } finally {
       await prisma.masterAgreement.update({ where: { id: leg.agreement!.id }, data: { billableExpenseKinds: [], billableExpenseKindsSaid: false } })
     }
+  })
+})
+
+/**
+ * The expenses page, on the same world: each firm reads where an
+ * expense stands in its own words, and the firm whose turn it is
+ * accepts it on the row, through the one route that records it.
+ */
+describe('the expenses page reads each expense as the firm reading it, and the AP clerk accepts on the row', () => {
+  const AP = `world-nike-ap${D}`
+  const x: Record<string, any> = {}
+  const list = async () => {
+    const r = await json(await listExpenses(req('GET', '/api/expenses?limit=100')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    return r.body.data.expenses as any[]
+  }
+  const raise = (line: { id: string; companyId: string; personId: string }, category: string, total: number, billable = true) =>
+    prisma.expense.create({
+      data: {
+        companyId: line.companyId, sellContractId: line.id, personId: line.personId,
+        category, billable, description: `${category} for the expenses page`,
+        periodStart: it_.sheet.periodStart, periodEnd: it_.sheet.periodStart, items: [], total,
+        status: 'APPROVED', approvedAt: new Date(),
+      },
+    })
+
+  beforeAll(async () => {
+    x.omarLine = { id: it_.contract.id, companyId: it_.contract.companyId, personId: it_.sheet.personId }
+    x.leg = (await legsFor([it_.contract.id])).get(it_.contract.id)!
+    x.hotel = (await raise(x.omarLine, 'TRAVEL', 275)).id
+  })
+
+  it('the AP clerk accepts a waiting expense from the expenses page, and the row then reads accepted with the amount', async () => {
+    as(AP)
+    const before = (await list()).find((e) => e.id === x.hotel)
+    expect(before, 'Northbend’s list does not show Brightmoor’s approved expense').toBeTruthy()
+    expect(before.chain).toMatchObject({ state: 'YOURS', upToCents: 27_500, line: `Approved by ${x.leg.sellerName} · waiting on you` })
+    expect(before.client).toMatchObject({ name: x.leg.sellerName, role: 'SUPPLIER' })
+
+    const a = await json(await acceptExpense(req('POST', `/api/expenses/${x.hotel}/accept`, { decision: 'accept' }), { params: Promise.resolve({ id: x.hotel }) }))
+    expect(a.status, JSON.stringify(a.body)).toBe(200)
+
+    const after = (await list()).find((e) => e.id === x.hotel)
+    expect(after.chain).toMatchObject({ state: 'ACCEPTED', upToCents: null, line: `Approved by ${x.leg.sellerName} · accepted by you $275.00` })
+  })
+
+  it('the employer cannot reject an expense a firm above has accepted', async () => {
+    as(BRIGHTMOOR)
+    const r = await json(await expenseActions(req('POST', '/api/expenses/actions', { action: 'reject', expenseIds: [x.hotel], reason: 'Changed our mind.' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(409)
+    expect(r.body.error.code).toBe('ACCEPTED_ABOVE')
+    expect(r.body.error.message).toMatch(
+      new RegExp(`^Omar Haddad’s travel expense of [A-Z][a-z]+ \\d+, \\d{4} cannot be rejected, because ${x.leg.payerName} accepted \\$275\\.00 of it on [A-Z][a-z]+ \\d+, \\d{4}\\.$`)
+    )
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: x.hotel } })).status).toBe('APPROVED')
+    // And the employer's own row reads the acceptance.
+    const mine = (await list()).find((e) => e.id === x.hotel)
+    expect(mine.chain.line).toBe(`Approved by you · accepted by ${x.leg.payerName} $275.00`)
+    expect(mine.client).toMatchObject({ name: x.leg.payerName, role: 'CLIENT' })
+  })
+
+  it('a client’s expenses page reads billable kinds from the agreement, not the supplier’s flag', async () => {
+    expect(x.leg.agreement, 'Brightmoor and Northbend trade under an agreement').toBeTruthy()
+    await prisma.masterAgreement.update({ where: { id: x.leg.agreement.id }, data: { billableExpenseKinds: ['TRAVEL'], billableExpenseKindsSaid: true } })
+    try {
+      // Brightmoor marked the cab its own cost; the agreement bills travel.
+      const cab = (await raise(x.omarLine, 'TRAVEL', 48, false)).id
+      // Brightmoor marked the dinner billable; the agreement does not list meals.
+      const dinner = (await raise(x.omarLine, 'MEALS', 62, true)).id
+      as(AP)
+      const rows = await list()
+      expect(rows.find((e) => e.id === cab)).toMatchObject({ billable: true, chain: { state: 'YOURS', upToCents: 4_800 } })
+      expect(rows.find((e) => e.id === dinner)).toMatchObject({
+        billable: false,
+        chain: {
+          state: 'NOT_BILLABLE', upToCents: null,
+          notBillableSays: `The agreement between ${x.leg.agreement.clientName} and ${x.leg.agreement.vendorName} does not list meals expenses as billable, so ${x.leg.payerName} does not pay for this one.`,
+        },
+      })
+    } finally {
+      await prisma.masterAgreement.update({ where: { id: x.leg.agreement.id }, data: { billableExpenseKinds: [], billableExpenseKindsSaid: false } })
+    }
+  })
+
+  it('a middle firm’s list shows its supplier’s expense on a line it pays, and the client’s names nobody below its own supplier', async () => {
+    // Helena Marsh: Northbend Athletic ← Computer Systems ← Techpeple, who employs her.
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { person: { name: 'Helena Marsh' }, company: { slug: 'world-techpeple' } },
+      select: { id: true, companyId: true, personId: true, company: { select: { name: true } }, clientCompany: { select: { name: true } } },
+    })
+    const flight = (await raise(line, 'TRAVEL', 412.5)).id
+
+    as(CS)
+    const mid = (await list()).find((e) => e.id === flight)
+    expect(mid, 'Computer Systems’ list does not show its supplier’s expense').toBeTruthy()
+    expect(mid.client).toMatchObject({ name: line.company.name, role: 'SUPPLIER' })
+    expect(mid.chain).toMatchObject({ state: 'WAITING', upToCents: null, line: `Approved by ${line.company.name} · waiting on ${x.leg.payerName}` })
+
+    as(AP)
+    const top = (await list()).find((e) => e.id === flight)
+    expect(top, 'Northbend’s list does not show the expense on its site').toBeTruthy()
+    expect(top.client).toMatchObject({ name: line.clientCompany.name, role: 'SUPPLIER' })
+    expect(top.chain.line).toBe('Approved by the employer · waiting on you')
+    expect(JSON.stringify(top)).not.toContain(line.company.name)
   })
 })

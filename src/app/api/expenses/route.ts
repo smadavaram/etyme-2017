@@ -3,8 +3,9 @@ import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { expenseScope } from '@/lib/resolve-client-company'
-import { endClientFilter } from '@/lib/resolve-end-client'
+import { isConsultantSeat } from '@/lib/seat'
+import { rowFor, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
+import { acceptancesOn, expenseOf, legsOverMany, linesBelowPaid, EXPENSE_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
 
 /**
@@ -77,18 +78,24 @@ export async function GET(request: NextRequest) {
   const sellContractId = url.searchParams.get('sellContractId')
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '50', 10)))
 
-  // Scope to the caller's side: a vendor owns its expenses; a client sees
-  // only the billable ones raised against work at their own sites.
+  // ── Whose rows ──────────────────────────────────────────────────────
   //
-  // Seated, the scope is the client's own: the billable expenses raised
-  // against work at that client's sites. That is exactly the branch
-  // `expenseScope` takes for a client reading its own book, applied to
-  // the company whose desk this reader is sitting at — a supplier's
-  // internal costs stay with the supplier either way.
-  const scope = reading?.seated
-    ? { billable: true, sellContract: endClientFilter(reading.companyId) }
-    : expenseScope(caller)
-  if (!scope) {
+  // A consultant reads their own. A firm reads the expenses it raised —
+  // its own workers' — and, since the founder's decision of 2026-10-19
+  // that an expense is accepted like a week, the ones it pays for: raised
+  // on a line below a line it pays, once the employer has approved them.
+  // That is how a middle firm sees its supplier's expenses, and how a
+  // client sees every supplier's at its sites.
+  //
+  // Which of those a payer may read, and what the row says, is
+  // `rowFor` in lib/money/expense-acceptance: billable is the agreement
+  // between each pair where it says, never the supplier's own flag; a
+  // supplier's own cost under an agreement that did not say stays the
+  // supplier's; and no row names a firm below the reader's own supplier.
+  // So `client` is no longer the line's own customer, which on a deep
+  // chain was a firm the reader had no business knowing.
+  const consultant = isConsultantSeat(caller)
+  if (!consultant && !caller.company) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: notAtACompany('The expense book') } },
       { status: 403 }
@@ -96,111 +103,139 @@ export async function GET(request: NextRequest) {
   }
   if (reading) noteMoneyRead(reading, 'Expense book read')
 
-  const where: any = { ...scope }
+  const readerId = reading?.companyId ?? caller.company?.id ?? ''
+  const readerName = reading?.companyName ?? caller.company?.name ?? ''
+  const narrow: Record<string, unknown> = {}
+  if (status) narrow.status = status.toUpperCase()
+  if (category) narrow.category = category.toUpperCase()
+  if (sellContractId) narrow.sellContractId = sellContractId
 
-  if (status) where.status = status.toUpperCase()
-  if (billable !== null && billable !== undefined && billable !== '') {
-    where.billable = billable === 'true'
+  const SELECT = {
+    ...EXPENSE_SELECT,
+    description: true, periodEnd: true, items: true, receiptUrl: true,
+    submittedAt: true, approvedAt: true, rejectedReason: true, createdAt: true,
+  } as const
+
+  // A ceiling, said rather than hidden: past it the totals are not
+  // offered, because a total over part of a book is a number nobody can
+  // stand behind.
+  const CEILING = 2000
+  let rows: any[]
+  if (consultant) {
+    rows = await prisma.expense.findMany({
+      where: { personId: caller.person.id, ...narrow }, select: SELECT, orderBy: { createdAt: 'desc' }, take: CEILING + 1,
+    })
+  } else {
+    // What this firm pays: the client's own scope under a seat, its own otherwise.
+    const paidWhere = reading?.seated && reading.sellContractWhere ? reading.sellContractWhere : { clientCompanyId: readerId }
+    const lines = await linesBelowPaid(paidWhere)
+    const approved = [...APPROVED_BY_EMPLOYER] as string[]
+    const statusIn = status ? (approved.includes(status.toUpperCase()) ? [status.toUpperCase()] : []) : approved
+    const [ownRows, paidRows] = await Promise.all([
+      // Under a seat the book is the client's, and a client raises no expenses.
+      reading?.seated
+        ? Promise.resolve([] as any[])
+        : prisma.expense.findMany({
+            where: { companyId: readerId, ...narrow }, select: SELECT, orderBy: { createdAt: 'desc' }, take: CEILING + 1,
+          }),
+      lines.size === 0 || statusIn.length === 0
+        ? Promise.resolve([] as any[])
+        : prisma.expense.findMany({
+            where: {
+              ...narrow,
+              sellContractId: sellContractId
+                ? (lines.has(sellContractId) ? sellContractId : '__none__')
+                : { in: [...lines] },
+              companyId: { not: readerId },
+              status: { in: statusIn as any },
+            },
+            select: SELECT, orderBy: { createdAt: 'desc' }, take: CEILING + 1,
+          }),
+    ])
+    rows = [...ownRows, ...paidRows]
   }
-  if (category) where.category = category.toUpperCase()
-  if (sellContractId) where.sellContractId = sellContractId
+  const truncated = rows.length > CEILING
 
-  const [expenses, counts] = await Promise.all([
-    prisma.expense.findMany({
-      where,
-      include: {
-        person: { select: { id: true, name: true } },
-        sellContract: {
-          select: {
-            id: true,
-            // No `billRate` here, and that is the point.
-            //
-            // It was selected and never read — not by this response,
-            // not by the screen, not by the actions route. A dead
-            // select is harmless until the list it sits on is scoped by
-            // the SITE the work happens at, which is how a client and
-            // now a seat read this page: in a chain the row carries the
-            // bottom rung's rate, which is the prime's whole margin by
-            // subtraction. `rate-party.test.ts` scans for exactly that
-            // shape, and the answer to it is to stop fetching the
-            // number rather than to walk it up a chain nothing on this
-            // page displays.
-            clientCompany: { select: { id: true, name: true } },
-            endClientCompany: { select: { id: true, name: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    }),
-    prisma.expense.groupBy({
-      by: ['status'],
-      where: scope,
-      _sum: { total: true },
-      _count: true,
-    }),
-  ])
+  const [legs, decisions] = consultant
+    ? [new Map<string, Leg[]>(), new Map<string, AcceptanceRow[]>()]
+    : await Promise.all([legsOverMany(rows.map((r) => r.sellContractId)), acceptancesOn(rows.map((r) => r.id))])
 
-  // Build summary by status
+  const shaped = rows
+    .map((r) => {
+      const view: ExpenseRow | null = consultant
+        ? null
+        : rowFor({
+            expense: expenseOf(r), legsTopFirst: legs.get(r.sellContractId) ?? [], acceptances: decisions.get(r.id) ?? [],
+            reader: { id: readerId, name: readerName }, personId: caller.person.id,
+          })
+      return { r, view }
+    })
+    .filter(({ view }) => consultant || view!.visible)
+    .map(({ r, view }) => ({
+      id: r.id,
+      person: { id: r.personId, name: r.person.name },
+      // The one firm on the row: whom the employer bills, or whom a payer
+      // is billed by — its own supplier. Never a firm below that.
+      client: view?.counterparty ? { id: null, name: view.counterparty.name, role: view.counterparty.role } : null,
+      sellContractId: r.sellContractId,
+      category: r.category,
+      // Billed to this reader, or by this reader upward, under the
+      // agreement each pair signed. A consultant reads the employer's flag.
+      billable: view ? view.billable : r.billable,
+      description: r.description,
+      periodStart: r.periodStart.toISOString(),
+      periodEnd: r.periodEnd.toISOString(),
+      items: r.items,
+      total: Number(r.total),
+      currency: (r.sellContract.billCurrency ?? 'USD').toUpperCase(),
+      receiptUrl: r.receiptUrl,
+      status: r.status,
+      submittedAt: r.submittedAt?.toISOString() ?? null,
+      approvedAt: r.approvedAt?.toISOString() ?? null,
+      rejectedReason: r.rejectedReason,
+      createdAt: r.createdAt.toISOString(),
+      own: consultant || r.companyId === readerId,
+      chain: view
+        ? { state: view.state, line: view.line, upToCents: view.upToCents, notBillableSays: view.notBillableSays }
+        : null,
+    }))
+    .filter((e) => billable == null || billable === '' || e.billable === (billable === 'true'))
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+
+  // Summed in whole currency, the unit `Expense.total` is kept in, over
+  // every row the reader may see — not only the page it was handed.
   const summary: Record<string, { count: number; total: number }> = {}
-  let grandTotal = 0
-  let billableTotal = 0
-  let internalTotal = 0
-
-  for (const row of counts) {
-    summary[row.status] = {
-      count: row._count,
-      total: Number(row._sum.total ?? 0),
-    }
-    grandTotal += Number(row._sum.total ?? 0)
+  let grand = 0, billableTotal = 0, internalTotal = 0, billableCount = 0, internalCount = 0
+  const currencies = new Set(shaped.map((e) => e.currency))
+  for (const e of shaped) {
+    summary[e.status] ??= { count: 0, total: 0 }
+    summary[e.status].count++
+    summary[e.status].total += e.total
+    grand += e.total
+    if (e.billable) { billableTotal += e.total; billableCount++ } else { internalTotal += e.total; internalCount++ }
   }
-
-  // Calculate billable vs internal totals
-  const [billableSums, internalSums] = await Promise.all([
-    prisma.expense.aggregate({
-      where: { ...scope, billable: true },
-      _sum: { total: true },
-      _count: true,
-    }),
-    prisma.expense.aggregate({
-      where: { ...scope, billable: false },
-      _sum: { total: true },
-      _count: true,
-    }),
-  ])
-
-  billableTotal = Number(billableSums._sum.total ?? 0)
-  internalTotal = Number(internalSums._sum.total ?? 0)
+  // Rupees and dollars are never added, and a total over part of a book is not a total.
+  const totalsSay =
+    truncated ? `More than ${CEILING.toLocaleString('en-US')} expenses match. Narrow the list by status to read its totals.`
+    : currencies.size > 1 ? 'These expenses are in more than one currency, so they are not added together.'
+    : null
+  const round = (n: number) => Math.round(n * 100) / 100
 
   return NextResponse.json({
     data: {
-      expenses: expenses.map((e) => ({
-        id: e.id,
-        person: e.person,
-        client: e.sellContract.clientCompany,
-        sellContractId: e.sellContractId,
-        category: e.category,
-        billable: e.billable,
-        description: e.description,
-        periodStart: e.periodStart.toISOString(),
-        periodEnd: e.periodEnd.toISOString(),
-        items: e.items,
-        total: Number(e.total),
-        receiptUrl: e.receiptUrl,
-        status: e.status,
-        submittedAt: e.submittedAt?.toISOString() ?? null,
-        approvedAt: e.approvedAt?.toISOString() ?? null,
-        rejectedReason: e.rejectedReason,
-        createdAt: e.createdAt.toISOString(),
-      })),
-      summary,
-      totals: {
-        grand: grandTotal,
-        billable: billableTotal,
-        billableCount: billableSums._count,
-        internal: internalTotal,
-        internalCount: internalSums._count,
-      },
+      expenses: shaped.slice(0, limit),
+      summary: totalsSay ? null : summary,
+      totals: totalsSay
+        ? null
+        : {
+            grand: round(grand),
+            billable: round(billableTotal),
+            billableCount,
+            internal: round(internalTotal),
+            internalCount,
+            currency: [...currencies][0] ?? 'USD',
+          },
+      totalsSay,
       // Whose book this is, in the shape every other money route already
       // returns it, so the page frames itself from the same block that
       // decided the rows.

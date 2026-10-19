@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { check, gates, returnIt, STALE_AFTER_DAYS, type Expense, type Policy } from '@/lib/expense-approval'
 import {
-  mayDecide, acceptanceChain, legBills, capFor, waitingOn,
+  mayDecide, acceptanceChain, legBills, capFor, waitingOn, rowFor, rejectRefusal,
   type ExpenseOnRecord, type Leg, type AcceptanceRow,
 } from '@/lib/money/expense-acceptance'
 
@@ -247,5 +248,104 @@ describe('an expense is accepted by each firm that pays it, the client first', (
     const silent: Leg = { ...bottom, agreement: { id: 'm', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Techpeple' } }
     expect(legBills({ category: 'MEALS', billable: true }, silent).bills).toBe(true)
     expect(legBills({ category: 'TRAVEL', billable: false }, silent).bills).toBe(false)
+  })
+})
+
+// ── The expenses page, as each firm reads it ─────────────────────────
+
+const TP = { id: 'techpeple', name: 'Techpeple' }
+const row = (reader: { id: string; name: string }, over: Partial<Parameters<typeof rowFor>[0]> = {}) =>
+  rowFor({ expense: helenaExpense(), legsTopFirst: LEGS, acceptances: [], reader, personId: 'someone', ...over })
+
+describe('the expenses page reads where an expense stands, in the trade’s words', () => {
+  it('a middle firm’s row reads approved by its own supplier, accepted by the firm above with the amount, and waiting on it', () => {
+    const r = row(CSF, { acceptances: [accepted('northbend', 41_250)] })
+    expect(r.visible).toBe(true)
+    expect(r.line).toBe('Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you')
+    expect(r.state).toBe('YOURS')
+    expect(r.upToCents).toBe(41_250)
+    expect(r.counterparty).toEqual({ name: 'Techpeple', role: 'SUPPLIER' })
+  })
+
+  it('a middle firm waits on the firm above, and is offered nothing to accept until it has', () => {
+    const r = row(CSF)
+    expect(r.line).toBe('Approved by Techpeple · waiting on Northbend Athletic')
+    expect(r.state).toBe('WAITING')
+    expect(r.upToCents).toBeNull()
+  })
+
+  it('a client’s row never names a firm below its own supplier', () => {
+    const before = row(NB)
+    expect(before.line).toBe('Approved by the employer · waiting on you')
+    expect(before.counterparty).toEqual({ name: 'Computer Systems', role: 'SUPPLIER' })
+    const after = row(NB, { acceptances: [accepted('northbend', 41_250)] })
+    expect(after.line).toBe('Approved by the employer · accepted by you $412.50 · waiting on Computer Systems')
+    expect(after.state).toBe('ACCEPTED')
+    expect(after.upToCents).toBeNull()
+    expect(JSON.stringify([before, after])).not.toContain('Techpeple')
+  })
+
+  it('the employer’s own row reads approved by you, and every firm above it by name', () => {
+    const r = row(TP, { acceptances: [accepted('northbend', 41_250), accepted('cs', 41_250)] })
+    expect(r.line).toBe('Approved by you · accepted by Northbend Athletic $412.50 · accepted by Computer Systems $412.50')
+    expect(r.state).toBe('ACCEPTED')
+    expect(r.billable).toBe(true)
+    expect(r.counterparty).toEqual({ name: 'Computer Systems', role: 'CLIENT' })
+  })
+
+  it('a firm that pays for an expense sees nothing of it before the employer approves it', () => {
+    expect(row(NB, { expense: helenaExpense({ status: 'SUBMITTED' }) }).visible).toBe(false)
+    expect(row(CSF, { expense: helenaExpense({ status: 'DRAFT' }) }).visible).toBe(false)
+    expect(row(TP, { expense: helenaExpense({ status: 'SUBMITTED' }) })).toMatchObject({ visible: true, state: 'OWN', line: null })
+  })
+
+  it('a client’s expenses page reads billable kinds from the agreement, not the supplier’s flag', () => {
+    const travelOnly: Leg = { ...top, agreement: { id: 'msa', kinds: ['TRAVEL'], said: true, clientName: 'Northbend Athletic', vendorName: 'Computer Systems' } }
+    const listed = row(NB, { legsTopFirst: [travelOnly, { ...bottom, agreement: { id: 'm2', kinds: ['TRAVEL'], said: true, clientName: 'Computer Systems', vendorName: 'Techpeple' } }], expense: helenaExpense({ billable: false }) })
+    expect(listed).toMatchObject({ visible: true, billable: true, state: 'YOURS', notBillableSays: null })
+
+    const meals = row(NB, { legsTopFirst: [travelOnly, bottom], expense: helenaExpense({ category: 'MEALS', billable: true }) })
+    expect(meals).toMatchObject({ visible: true, billable: false, state: 'NOT_BILLABLE', upToCents: null })
+    expect(meals.notBillableSays).toBe('The agreement between Northbend Athletic and Computer Systems does not list meals expenses as billable, so Northbend Athletic does not pay for this one.')
+    // The firm under it carries it, and its row says why it goes no higher.
+    expect(row(CSF, { legsTopFirst: [travelOnly, bottom], expense: helenaExpense({ category: 'MEALS' }) }).notBillableSays).toBe(meals.notBillableSays)
+  })
+
+  it('a supplier’s own cost under an agreement that did not say stays off every list above it', () => {
+    const ownCost = helenaExpense({ billable: false })
+    expect(row(NB, { expense: ownCost }).visible).toBe(false)
+    expect(row(CSF, { expense: ownCost }).visible).toBe(false)
+    expect(row(TP, { expense: ownCost })).toMatchObject({ visible: true, billable: false })
+  })
+
+  it('a firm that sent an expense back reads why, and may still accept it', () => {
+    const back: AcceptanceRow = { companyId: 'northbend', status: 'SENT_BACK', acceptedCents: 0, reason: 'No receipt attached.', createdAt: new Date('2026-10-14T00:00:00Z') }
+    const r = row(NB, { acceptances: [back] })
+    expect(r.line).toBe('Approved by the employer · sent back by you: No receipt attached.')
+    expect(r.state).toBe('SENT_BACK')
+    expect(r.upToCents).toBe(41_250)
+    expect(row(CSF, { acceptances: [back] })).toMatchObject({ state: 'SENT_BACK', upToCents: null })
+  })
+})
+
+describe('an employer’s approval stands once a firm above has accepted the expense', () => {
+  it('the employer cannot reject an expense a firm above has accepted', () => {
+    const says = rejectRefusal(helenaExpense(), [{ companyName: 'Northbend Athletic', acceptedCents: 41_250, createdAt: new Date('2026-10-14T00:00:00Z') }])
+    expect(says).toBe('Helena Marsh’s travel expense of Oct 12, 2026 cannot be rejected, because Northbend Athletic accepted $412.50 of it on Oct 14, 2026.')
+  })
+
+  it('an expense nobody above has accepted can still be rejected by its employer', () => {
+    expect(rejectRefusal(helenaExpense(), [])).toBeNull()
+  })
+})
+
+describe('the add expense form writes the amount the worker typed', () => {
+  it('the add expense form sends a unit price in dollars, the unit the route sums into the expense total, never in cents', () => {
+    // `Expense.total` is whole currency and the route sums quantity × unit
+    // price into it as sent. The form sent cents, so a $412.50 flight was
+    // stored as $41,250.00.
+    const page = readFileSync('src/app/dashboard/expenses/page.tsx', 'utf8')
+    expect(page).toContain('unitPrice: Math.round((parseFloat(item.unitPrice) || 0) * 100) / 100,')
+    expect(page).not.toMatch(/unitPrice: Math\.round\(\(parseFloat\(item\.unitPrice\) \|\| 0\) \* 100\),/)
   })
 })

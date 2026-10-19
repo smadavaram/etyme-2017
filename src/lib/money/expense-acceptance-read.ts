@@ -199,11 +199,16 @@ export async function expensesWaitingOn(companyId: string, take = 25): Promise<E
     orderBy: { approvedAt: 'asc' },
     take: 200,
   })
-  const acc = await acceptancesOn(rows.map((r) => r.id))
+  // One ladder query and one leg query for the whole queue, not two per
+  // expense: this runs on every page that shows the Ask Etyme number.
+  const [acc, legsByLine] = await Promise.all([
+    acceptancesOn(rows.map((r) => r.id)),
+    legsOverMany(rows.map((r) => r.sellContractId)),
+  ])
   const out: ExpenseToAccept[] = []
   for (const r of rows) {
     const e = expenseOf(r)
-    const legs = await legsOver(r.sellContractId)
+    const legs = legsByLine.get(r.sellContractId) ?? []
     const chain = acceptanceChain(e, legs)
     const decisions = acc.get(r.id) ?? []
     const next = waitingOn(chain, decisions)
@@ -219,3 +224,54 @@ export async function expensesWaitingOn(companyId: string, take = 25): Promise<E
   }
   return out
 }
+
+/**
+ * The lines a firm pays, and every line below them in their chains: where
+ * an expense this firm may pay for is raised.
+ *
+ * `paidWhere` is the reader's own scope of what it pays — the client's
+ * under a seat, unit by unit where the seat is narrower. Ids only, so a
+ * long program costs a list of strings.
+ */
+export async function linesBelowPaid(paidWhere: Record<string, unknown>): Promise<Set<string>> {
+  const paid = await prisma.sellContract.findMany({ where: paidWhere, select: { id: true } })
+  const below = new Set<string>(paid.map((p) => p.id))
+  let frontier = paid.map((p) => p.id)
+  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
+    const links = await prisma.contractLink.findMany({
+      where: { sellContractId: { in: frontier } },
+      select: { buyContract: { select: { supplierSellContractId: true } } },
+    })
+    frontier = links
+      .map((l) => l.buyContract.supplierSellContractId)
+      .filter((id): id is string => !!id && !below.has(id))
+    frontier.forEach((id) => below.add(id))
+  }
+  return below
+}
+
+/**
+ * The legs over each of these lines, the client's first and the line
+ * itself last: `legsOver` for a whole page at once, in two queries.
+ */
+export async function legsOverMany(lineIds: readonly string[]): Promise<Map<string, Leg[]>> {
+  const ids = [...new Set(lineIds)]
+  const out = new Map<string, Leg[]>()
+  if (ids.length === 0) return out
+  const ladders = await laddersOver(ids)
+  const order = new Map<string, string[]>()
+  const every = new Set<string>()
+  for (const id of ids) {
+    const ladder = ladders.get(id) ?? []
+    const chain = ladder.length > 0 ? ladder.map((r) => r.sellContractId) : [id]
+    order.set(id, chain)
+    chain.forEach((c) => every.add(c))
+  }
+  const rows = await prisma.sellContract.findMany({ where: { id: { in: [...every] } }, select: LEG_SELECT })
+  const by = new Map(rows.map((r) => [r.id, legOf(r)]))
+  for (const [id, chain] of order) out.set(id, chain.flatMap((c) => (by.has(c) ? [by.get(c)!] : [])))
+  return out
+}
+
+/** The expense columns a row is read with, for a list that reads many. */
+export { EXPENSE_SELECT }
