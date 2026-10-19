@@ -14,8 +14,11 @@ import { notify } from '@/lib/notify'
 import {
   lineFor, splitWeeks, valueOf, weekStart, weeksAwaitingDecision, saysAwaiting,
   mayDecide, mayChange, priceChoice, isTreatment, treatmentSays, decidingLeg,
-  type Decision, type Treatment, type ChainRung,
+  clientDecidesOvertimeSays,
+  type Decision, type Treatment, type ChainRung, type OvertimePolicy,
 } from '@/lib/overtime'
+import type { Carried } from '@/lib/money/client-overtime'
+import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'
 import { weekFlag, flaggedWeekSays } from '@/lib/timesheet-flag'
 import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
 import { compTimeLawful } from '@/lib/worker-classification'
@@ -254,6 +257,27 @@ export async function POST(
     nextSigner = turn.next
   }
 
+  // ── Below the top, the client has already decided the overtime ──────
+  //
+  // The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): below
+  // the top of a chain, which hours are overtime is the client's decision
+  // when it signed the week, carried down the way the hours are, and a
+  // rung's own answer prices nothing (`lib/money/client-overtime`). So the
+  // firm in the middle and the employer are not asked; they read what the
+  // client decided, as a fact. An answer one of them sends anyway is
+  // refused in a sentence, before anything is written, rather than kept
+  // on a row nobody reads. The top — the client's signature, and both
+  // presses of a direct placement — is unchanged.
+  const belowTop = !direct && asParty !== 'CLIENT'
+  const topRung = ladder[0] ?? null
+  const clientName = topRung ? nameOf(topRung.endClientCompanyId ?? topRung.clientCompanyId) : 'The client'
+  if (belowTop && Array.isArray(body?.overtime) && body.overtime.length > 0) {
+    return NextResponse.json(
+      { error: { code: 'CLIENT_DECIDED_OVERTIME', message: clientDecidesOvertimeSays(clientName) } },
+      { status: 422 }
+    )
+  }
+
   // Accepting a different number needs a reason. Somebody finding out
   // from their payslip is the fastest way to lose a good contractor.
   const accepted = acceptWith(
@@ -349,17 +373,47 @@ export async function POST(
   // client is not the sub's agreement with the prime, and reading the
   // wrong one is the same error as reading the wrong rate.
   const ownLeg = timesheet.overtimeDecisions.filter((d) => d.sellContractId === leg.sellContractId)
-  const priorDecisions: Decision[] = ownLeg.map((d) => ({
-    weekOf: d.weekOf.toISOString().slice(0, 10),
-    treatment: d.treatment as Treatment,
-    appliedBps: d.appliedBps,
-    overtimeHours: Number(d.overtimeHours),
-    accrualBps: d.accrualBps,
-  }))
+
+  // Below the top: the client's answers on its own leg, each priced at
+  // the multiplier on this firm's own line with the firm it pays — the
+  // one rule money bills and matches by, so what this firm is told at
+  // acceptance is what its invoice will say. Where the client's answer
+  // cannot be read, the week is still accepted and no figure is given.
+  const topLeg = topRung
+    ? { sellContractId: topRung.sellContractId, clientCompanyId: topRung.endClientCompanyId ?? topRung.clientCompanyId }
+    : null
+  const carried: Carried | null = belowTop
+    ? clientDecidedFor({
+        rows: timesheet.overtimeDecisions,
+        top: topLeg,
+        pairLineId: leg.sellContractId,
+        pairMultiplierBps: deciding.overtimeMultiplierBps,
+        personName: timesheet.person.name,
+      })
+    : null
+  const clientDecided = carried == null ? null : clientDecidedSentence(clientName, carried)
+  /** The line the week is split on: this leg's own at the top, the client's below it. */
+  const splitPolicy: OvertimePolicy = carried == null
+    ? policy
+    : carried.ok
+      ? carried.policy
+      : { afterHours: null, multiplierBps: deciding.overtimeMultiplierBps ?? 15_000 }
+
+  const priorDecisions: Decision[] = carried != null
+    ? carried.ok ? carried.decisions : []
+    : ownLeg.map((d) => ({
+        weekOf: d.weekOf.toISOString().slice(0, 10),
+        treatment: d.treatment as Treatment,
+        appliedBps: d.appliedBps,
+        overtimeHours: Number(d.overtimeHours),
+        accrualBps: d.accrualBps,
+      }))
 
   /** What the caller answered this time, one per week. */
   const answers = new Map<string, { treatment: Treatment; multiplierBps: number | null; reason: string | null }>()
-  const rawAnswers = Array.isArray(body?.overtime) ? body.overtime : []
+  // Only the top is asked; below it the refusal above has already
+  // turned away any answer sent.
+  const rawAnswers = !belowTop && Array.isArray(body?.overtime) ? body.overtime : []
   for (const a of rawAnswers) {
     if (!a || typeof a.weekOf !== 'string' || !isTreatment(a.treatment)) continue
     answers.set(weekStart(a.weekOf), {
@@ -384,12 +438,14 @@ export async function POST(
   // The split as it stands: prior decisions applied, this call's answers
   // not yet. A prior decision whose week has since been amended is stale
   // and reads as undecided, which is what makes an amendment ask again.
-  const standing = splitWeeks((timesheet.days as Record<string, number>) ?? {}, policy, {
+  const standing = splitWeeks((timesheet.days as Record<string, number>) ?? {}, splitPolicy, {
     leaveDays,
     decisions: priorDecisions,
   })
 
-  const awaiting = weeksAwaitingDecision(standing)
+  // Below the top nothing waits on this firm: the client has answered,
+  // and a week the client left unanswered holds no overtime down here.
+  const awaiting = belowTop ? [] : weeksAwaitingDecision(standing)
   const unanswered = awaiting.filter((w) => !answers.has(w.weekOf))
   if (unanswered.length > 0) {
     return NextResponse.json(
@@ -516,12 +572,19 @@ export async function POST(
       accrualBps: w.accrualBps,
     })),
   ]
-  const finalSplit = splitWeeks((timesheet.days as Record<string, number>) ?? {}, policy, {
+  const finalSplit = splitWeeks((timesheet.days as Record<string, number>) ?? {}, splitPolicy, {
     leaveDays,
     decisions: settled,
   })
   const value = valueOf(finalSplit, deciding.billRate)
   const billAmount = value.totalCents / 100
+  /**
+   * The figure this press may stand behind. Null below the top where the
+   * client's overtime answer could not be read: the acceptance stands —
+   * the hours happened — and the sentence says why there is no number,
+   * because a week priced on a guess is worse than a blank.
+   */
+  const worth: number | null = carried && !carried.ok ? null : billAmount
 
   // Where a row that carries this figure is filed.
   //
@@ -697,15 +760,17 @@ export async function POST(
           summary:
             `Timesheet approved: ${hours}h filed, ` +
             `${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h billable ` +
-            `at $${(deciding.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)}` +
+            `at $${(deciding.billRate / 100).toFixed(2)}/hr = ` +
+            (worth == null ? 'not priced' : `$${worth.toFixed(2)}`) +
             (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
-            (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : ''),
+            (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') +
+            (clientDecided ? `. ${clientDecided}` : ''),
           reason: `Approved by ${person.name} — ${allowed.reason}`,
           payload: {
             timesheetId: id,
             hours,
             billRate: deciding.billRate,
-            billAmount,
+            billAmount: worth,
             // Which contract was answered, and therefore whose money the
             // figures above are.
             sellContractId: leg.sellContractId,
@@ -915,7 +980,11 @@ export async function POST(
       // sit on, where a chain keeps somebody else's number.
       decidedOnSellContractId: leg.sellContractId,
       billRateCents: deciding.billRate,
-      billAmount,
+      billAmount: worth,
+      // Below the top: what the client decided about the overtime, as
+      // this firm was told it. Null at the top, where the answer is the
+      // `overtime` list below.
+      clientDecided,
       // ── The audit trail for the overtime answer ──────────────────────
       //
       // What was decided, and what it replaced. A decision that can be
@@ -964,6 +1033,23 @@ export async function POST(
       nextSigner.role === 'EMPLOYER_ACCEPTANCE'
         ? timesheet.person.name
         : nameOf(ladder.find((r) => r.sellContractId === nextSigner!.rungId)?.companyId ?? '')
+    // The rung the week goes to is below the top, so it is told what the
+    // client decided about the overtime, at the multiplier on its own line
+    // with the firm it pays — read after this press, because the client's
+    // answer may have been written by it.
+    const nextLine =
+      nextSigner!.rungId === timesheet.sellContractId
+        ? timesheet.sellContract.overtimeMultiplierBps
+        : rungs.find((r) => r.rung.sellContractId === nextSigner!.rungId)?.contract?.overtimeMultiplierBps ?? null
+    const forNext = topLeg
+      ? clientDecidedFor({
+          rows: await prisma.overtimeDecision.findMany({ where: { timesheetId: id } }),
+          top: topLeg,
+          pairLineId: nextSigner.rungId,
+          pairMultiplierBps: nextLine,
+          personName: timesheet.person.name,
+        })
+      : null
     const said = tellNext({
       personName: timesheet.person.name,
       period: `${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)}`,
@@ -971,6 +1057,7 @@ export async function POST(
       signedBy: nameOf(onBehalfOf),
       signedRole: asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',
       paysName: pays,
+      clientDecided: forNext?.ok ? clientDecidedSentence(clientName, forNext) : null,
     })
     const desk = await prisma.context.findMany({
       where: {
@@ -1015,12 +1102,17 @@ export async function POST(
   // not "billable" — it is what this firm pays for the week.
   const worthWord = asParty === 'CLIENT' ? 'billable' : 'to pay for the week'
 
+  const worthSays = worth == null ? '' : ` — ${amount(Math.round(worth * 100))} ${worthWord}`
   return NextResponse.json({
     data: {
       id,
       status: g.mayInvoice && g.mayPay ? 'APPROVED' : 'SUBMITTED',
       totalHours: hours,
-      billAmount,
+      billAmount: worth,
+      // Below the top, the client's overtime decision as a fact — "Northbend
+      // Athletic decided 5 hours at time and a half." — or, where it could
+      // not be read, why the week carries no figure. Null at the top.
+      clientDecided,
       approvedBy: person.name,
       overtime: writing.map((w) => ({
         weekOf: w.weekOf,
@@ -1029,10 +1121,12 @@ export async function POST(
       })),
       bankedHours: bankedNow,
       message:
-        writing.length > 0
-          ? `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}. ` +
-            writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
-          : `Approved ${hours}h — ${amount(Math.round(billAmount * 100))} ${worthWord}`,
+        belowTop
+          ? `Accepted ${hours}h${worthSays}.` + (clientDecided ? ` ${clientDecided}` : '')
+          : writing.length > 0
+            ? `Approved ${hours}h${worthSays}. ` +
+              writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
+            : `Approved ${hours}h${worthSays}`,
       // Null where the books took it; one sentence where they did not.
       postingSays: notPosted,
     },

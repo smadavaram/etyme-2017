@@ -146,13 +146,22 @@ export function tellNext(i: {
   signedBy: string
   signedRole: SignRole
   paysName: string
+  /**
+   * What the client decided about the week's overtime, said as a fact on
+   * the receiving rung's own line (`clientDecidedSays` in lib/overtime).
+   * Below the top it is the client's decision, carried down, and the rung
+   * is told rather than asked (founder, 2026-10-19). Absent where the
+   * client decided nothing.
+   */
+  clientDecided?: string | null
 }): { title: string; body: string } {
   const verb = i.signedRole === 'CLIENT_APPROVAL' ? 'signed' : 'accepted'
   return {
     title: `${i.personName}’s week is yours to accept`,
     body:
       `${i.signedBy} ${verb} ${i.hours} hours for ${i.period}. Accept what you pay ${i.paysName} for it; ` +
-      'nobody below you pays on this week until you do.',
+      'nobody below you pays on this week until you do.' +
+      (i.clientDecided ? ` ${i.clientDecided}` : ''),
   }
 }
 

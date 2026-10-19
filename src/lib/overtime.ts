@@ -592,6 +592,52 @@ export function says(policy: OvertimePolicy, opts: { timeOff?: boolean } = {}): 
   )
 }
 
+// ── Below the top, the client has decided ─────────────────────────────
+
+/**
+ * What a firm below the top of a chain reads when it accepts a week: the
+ * client's overtime decision, said as a fact.
+ *
+ * The founder, 2026-10-19 (CLAUDE.md, "Four decisions on the founder's
+ * 'go with your recommendations'", item 3): below the top of a chain,
+ * which hours of a week are overtime is the client's decision, made when
+ * it signed the week and carried down the way the hours are
+ * (`lib/money/client-overtime`). A rung's own answer prices nothing, so
+ * the firm in the middle and the employer are told, never asked.
+ *
+ * `decisions` are the client's, already priced at the multiplier on the
+ * reader's own line (`carriedOvertime`), so "time and a half" is what the
+ * reader's own pair agreed an overtime hour is worth. The client's own
+ * multiplier is a price between the client and the firm it buys from, and
+ * it is never quoted to a firm below.
+ *
+ * Null where the client decided nothing about the week: nothing in it is
+ * overtime below the top, and there is nothing to say.
+ */
+export function clientDecidedSays(clientName: string, decisions: readonly Decision[]): string | null {
+  const said = decisions
+    .filter((d) => d.overtimeHours > 0)
+    .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+  if (said.length === 0) return null
+  const one = (d: Decision) =>
+    `${hrs(d.overtimeHours)} ` +
+    (d.treatment === 'SAME_RATE'
+      ? 'at the usual rate'
+      : d.treatment === 'TIME_OFF'
+        ? 'banked as time off'
+        : `at ${multipleWord(d.appliedBps)}`)
+  if (said.length === 1) return `${clientName} decided ${one(said[0])}.`
+  return `${clientName} decided ${said.map((d) => `${one(d)} in the week of ${DAY(d.weekOf)}`).join(', and ')}.`
+}
+
+/**
+ * The refusal when a firm below the top sends an overtime answer of its
+ * own. One sentence: who decided, and what to do instead.
+ */
+export function clientDecidesOvertimeSays(clientName: string): string {
+  return `${clientName} decided the overtime on this week when it signed it, so accept the week without an overtime answer of your own.`
+}
+
 // ── Which leg is whose ─────────────────────────────────────────────────
 
 /**

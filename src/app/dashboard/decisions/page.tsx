@@ -39,6 +39,12 @@ interface Decision {
   dueDate: string | null
   actionUrl: string
   amount: number | null
+  /**
+   * Below the top of a chain: what the client decided about the week's
+   * overtime, as a fact — "Northbend Athletic decided 5 hours at time and
+   * a half." The firm accepting is told, never asked (founder, 2026-10-19).
+   */
+  clientDecided?: string | null
   createdAt: string
 }
 
@@ -209,7 +215,10 @@ export default function DecisionsPage() {
         }
         throw new Error(body.error?.message ?? 'Approval failed')
       }
-      showToast('Timesheet approved')
+      // The server's own sentence: below the top of a chain it carries
+      // what the client decided about the overtime.
+      const done = await res.json().catch(() => ({}))
+      showToast(done.data?.message ?? 'Timesheet approved')
       // Remove from local list immediately
       setDecisions(prev => prev.filter(d => !(d.entityType === 'TIMESHEET' && d.entityId === entityId)))
     } catch (err: any) {
@@ -367,6 +376,9 @@ export default function DecisionsPage() {
                   </div>
 
                   <p className="text-[12px] text-etyme-muted">{d.subtitle}</p>
+                  {d.clientDecided && (
+                    <p className="text-[12px] text-etyme-muted mt-0.5">{d.clientDecided}</p>
+                  )}
                 </div>
 
                 {/* Inline actions */}

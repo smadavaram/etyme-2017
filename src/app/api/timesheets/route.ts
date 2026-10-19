@@ -28,6 +28,9 @@ import {
   lineFor, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
   type Decision, type Treatment,
 } from '@/lib/overtime'
+import type { Carried } from '@/lib/money/client-overtime'
+import { clientDecidedFor, clientDecidedSentence } from './client-decided'
+import { topLegsOver } from '@/lib/money/client-overtime-read'
 
 /**
  * GET /api/timesheets
@@ -246,8 +249,13 @@ export async function GET(request: NextRequest) {
         },
         // The list has to be able to say "this one has a question on it"
         // before anybody clicks Approve and is refused.
+        // Which leg each answer is on and who gave it: below the top of a
+        // chain the row reads the client's answer, not its own leg's.
         overtimeDecisions: {
-          select: { weekOf: true, treatment: true, appliedBps: true, overtimeHours: true },
+          select: {
+            sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true,
+            accrualBps: true, afterHours: true, decidedByCompanyId: true,
+          },
         },
       },
     })
@@ -286,6 +294,47 @@ export async function GET(request: NextRequest) {
         .filter((t) => t.sellContract.companyId !== (t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId))
         .map(async (t) => turns.set(t.id, (await weekTurn(t, turnFirm)).turn))
     )
+  }
+
+  // ── Below the top of a chain, the client decided the overtime ───────
+  //
+  // The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): which
+  // hours of a week are overtime is the client's decision when it signed,
+  // carried down; a rung's own answer prices nothing. So a firm below the
+  // top — the one in the middle, or the employer — is never offered the
+  // question on its row. It reads the client's decision as a fact, priced
+  // at the multiplier on the line it reads (`lib/money/client-overtime`),
+  // the same rule its invoice is matched on. The client, the worker and a
+  // direct placement read as before.
+  const belowTop = new Map<string, { carried: Carried; clientName: string }>()
+  if (!asClient && !onBench && turnFirm) {
+    const chained = timesheets.filter(
+      (t) => t.sellContract.companyId !== (t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId)
+    )
+    if (chained.length > 0) {
+      const tops = await topLegsOver(chained.map((t) => t.sellContractId))
+      const clientIds = [...new Set([...tops.values()].map((x) => x?.clientCompanyId).filter((x): x is string => !!x))]
+      const clientNames = new Map(
+        (await prisma.company.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } }))
+          .map((c) => [c.id, c.name])
+      )
+      for (const t of chained) {
+        const top = tops.get(t.sellContractId) ?? null
+        if (top && top.clientCompanyId === turnFirm) continue
+        belowTop.set(t.id, {
+          // The line this reader's row is priced on is the one the hours
+          // are filed against (`priceFor`), so that is the pair.
+          carried: clientDecidedFor({
+            rows: t.overtimeDecisions,
+            top,
+            pairLineId: t.sellContractId,
+            pairMultiplierBps: priced.get(t.id)?.multiplierBps,
+            personName: t.person.name,
+          }),
+          clientName: (top?.clientCompanyId && clientNames.get(top.clientCompanyId)) || 'The client',
+        })
+      }
+    }
   }
 
   // ── Who approved, where the client approved by email ──────────────
@@ -441,7 +490,7 @@ export async function GET(request: NextRequest) {
           overtime: overtimeOf(t, seen, {
             role: t.sellContract.requirement,
             stillToSign: signature.waitingOnYou,
-          }),
+          }, belowTop.get(t.id) ?? null),
         }
       }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -784,8 +833,11 @@ function overtimeOf(
     overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
   },
   seen: Seen,
-  ask: { role: { hoursPerWeek: number | null } | null; stillToSign: boolean }
+  ask: { role: { hoursPerWeek: number | null } | null; stillToSign: boolean },
+  /** Below the top of a chain: the client's decision, carried down. Null everywhere else. */
+  below: { carried: Carried; clientName: string } | null = null
 ) {
+  if (below) return overtimeCarried(t, seen, below)
   // The approval route's own line (`lineFor`): the contract's where it
   // names one, the role's hours where it is silent and the week is still
   // to be signed or was decided against that line. So the row says it
@@ -834,6 +886,50 @@ function overtimeOf(
         says: treatmentSays(w.treatment!, w.appliedBps ?? 10_000),
       })),
     says: waiting.length > 0 ? saysAwaiting(waiting, t.person.name, policy) : null,
+    clientDecided: null as string | null,
+  }
+}
+
+/**
+ * A row read below the top of a chain: the client's overtime decision,
+ * carried down, and no question.
+ *
+ * Nothing waits on this reader — `weeks` is empty and `says` is null, so
+ * no screen offers it the overtime choice — and `clientDecided` says, as
+ * a fact, what the client decided. Where the client's answer cannot be
+ * read the row is not priced at all and the sentence says why: a value
+ * made from a guess is worse than a blank.
+ */
+function overtimeCarried(
+  t: { days: unknown; leaveDays: unknown },
+  seen: Seen,
+  below: { carried: Carried; clientName: string }
+) {
+  const c = below.carried
+  const policy = c.ok ? c.policy : { afterHours: null, multiplierBps: seen.multiplierBps ?? 15_000 }
+  const split = splitWeeks((t.days as Record<string, number>) ?? {}, policy, {
+    leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+    decisions: c.ok ? c.decisions : [],
+  })
+  return {
+    afterHours: policy.afterHours,
+    multiplierBps: policy.multiplierBps,
+    rateCents: seen.rate.cents,
+    billableCents: !c.ok || seen.rate.cents == null ? null : valueOf(split, seen.rate.cents).totalCents,
+    // A week the client left unanswered holds no overtime down here.
+    pendingHours: 0,
+    bankedHours: split.bankedHours,
+    leaveHours: split.leaveHours,
+    weeks: [] as { weekOf: string; workedHours: number; overtimeHours: number }[],
+    decided: split.weeks
+      .filter((w) => w.treatment != null)
+      .map((w) => ({
+        weekOf: w.weekOf,
+        hours: w.overtimeHours + w.bankedHours,
+        says: treatmentSays(w.treatment!, w.appliedBps ?? 10_000),
+      })),
+    says: null as string | null,
+    clientDecided: clientDecidedSentence(below.clientName, c),
   }
 }
 

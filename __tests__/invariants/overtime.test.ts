@@ -17,9 +17,12 @@ import {
   STRAIGHT_TIME,
   decidingLeg,
   ladderOrder,
+  clientDecidedSays,
+  clientDecidesOvertimeSays,
   type Decision,
   type ChainRung,
 } from '@/lib/overtime'
+import { clientDecidedFor, clientDecidedSentence } from '@/app/api/timesheets/client-decided'
 
 /**
  * Overtime, after the correction: a multiplier on a contract is an
@@ -519,5 +522,79 @@ describe('in a chain, nobody decides their own leg', () => {
       expect(leg.says).not.toContain('techpeple-cs')
       expect(leg.says.endsWith('.')).toBe(true)
     }
+  })
+})
+
+// ── The founder, 2026-10-19: below the top, the client decided ─────────
+//
+// Which hours of a week are overtime is the client's decision when it
+// signed the week, carried down; a rung's own answer prices nothing. So a
+// firm in the middle, and the employer, are told what the client decided
+// and never asked — and each reads it on its own line, because what an
+// overtime hour is worth is its own pair's agreement.
+describe('below the top of a chain, the client’s overtime decision is read, never asked', () => {
+  const TOP = { sellContractId: 'cs-northbend', clientCompanyId: 'northbend' }
+  const row = (o: Partial<{ sellContractId: string; weekOf: string; treatment: string; appliedBps: number; overtimeHours: number; decidedByCompanyId: string }> = {}) => ({
+    sellContractId: o.sellContractId ?? 'cs-northbend',
+    weekOf: new Date(`${o.weekOf ?? '2026-09-13'}T00:00:00.000Z`),
+    treatment: o.treatment ?? 'PREMIUM',
+    // The client chose double time on its own leg, with a reason.
+    appliedBps: o.appliedBps ?? 20_000,
+    overtimeHours: o.overtimeHours ?? 5,
+    accrualBps: 10_000,
+    afterHours: 40,
+    decidedByCompanyId: o.decidedByCompanyId ?? 'northbend',
+  })
+
+  it('a firm in the middle accepting a week reads the client’s overtime decision and is not asked to decide it', () => {
+    // Computer Systems pays Techpeple on Techpeple's own line, which says
+    // an overtime hour is time and a half. Northbend's double time is a
+    // price between Northbend and Computer Systems, and is never quoted down.
+    const c = clientDecidedFor({ rows: [row()], top: TOP, pairLineId: 'techpeple-cs', pairMultiplierBps: 15_000, personName: 'Helena Marsh' })
+    expect(c.ok).toBe(true)
+    expect(clientDecidedSentence('Northbend Athletic', c)).toBe('Northbend Athletic decided 5 hours at time and a half.')
+  })
+
+  it('where the firm’s own line is the client’s, as on a two-firm placement, the premium the client chose stands', () => {
+    const c = clientDecidedFor({ rows: [row()], top: TOP, pairLineId: 'cs-northbend', pairMultiplierBps: 15_000, personName: 'Helena Marsh' })
+    expect(clientDecidedSentence('Northbend Athletic', c)).toBe('Northbend Athletic decided 5 hours at double time.')
+  })
+
+  it('a week the client decided nothing about has nothing to say, and nothing in it is overtime below the top', () => {
+    const c = clientDecidedFor({ rows: [], top: TOP, pairLineId: 'techpeple-cs', pairMultiplierBps: 15_000, personName: 'Helena Marsh' })
+    expect(c.ok && c.policy.afterHours).toBeNull()
+    expect(clientDecidedSentence('Northbend Athletic', c)).toBeNull()
+  })
+
+  it('a firm’s own answer on its own leg is never read as the client’s', () => {
+    const c = clientDecidedFor({
+      rows: [row({ sellContractId: 'techpeple-cs', decidedByCompanyId: 'computer-systems' })],
+      top: TOP, pairLineId: 'techpeple-cs', pairMultiplierBps: 15_000, personName: 'Helena Marsh',
+    })
+    expect(clientDecidedSentence('Northbend Athletic', c)).toBeNull()
+  })
+
+  it('two heavy weeks are said week by week, in the trade’s words', () => {
+    expect(clientDecidedSays('Northbend Athletic', [
+      decided('2026-09-20', 'SAME_RATE', 10_000, 3),
+      decided('2026-09-13', 'PREMIUM', 15_000, 5),
+    ])).toBe(
+      'Northbend Athletic decided 5 hours at time and a half in the week of September 13, ' +
+        'and 3 hours at the usual rate in the week of September 20.'
+    )
+  })
+
+  it('a client’s answer that cannot be read is said in a sentence, never priced on a guess', () => {
+    const c = clientDecidedFor({ rows: [row()], top: null, pairLineId: 'techpeple-cs', pairMultiplierBps: 15_000, personName: 'Helena Marsh' })
+    expect(c.ok).toBe(false)
+    expect(clientDecidedSentence('Northbend Athletic', c)).toContain('not priced on a guess')
+  })
+
+  it('an overtime answer from a rung below the top is refused in a sentence', () => {
+    const says = clientDecidesOvertimeSays('Northbend Athletic')
+    expect(says).toBe(
+      'Northbend Athletic decided the overtime on this week when it signed it, so accept the week without an overtime answer of your own.'
+    )
+    expect(says.split('. ').length).toBe(1)
   })
 })

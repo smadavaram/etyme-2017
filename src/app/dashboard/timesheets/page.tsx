@@ -134,6 +134,13 @@ interface OvertimeState {
   weeks: PendingWeek[]
   decided: { weekOf: string; hours: number; says: string }[]
   says: string | null
+  /**
+   * Below the top of a chain: what the client decided about the overtime
+   * when it signed, said as a fact — "Northbend Athletic decided 5 hours
+   * at time and a half." The firm in the middle and the employer are told,
+   * never asked (founder, 2026-10-19), so such a row never carries `weeks`.
+   */
+  clientDecided?: string | null
 }
 
 type StatusFilter = 'ALL' | 'OPEN' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
@@ -987,6 +994,9 @@ export default function TimesheetsPage() {
           {row.approvedBy && (
             <span className="text-[11px] text-etyme-muted">{row.approvedBy}</span>
           )}
+          {row.overtime?.clientDecided && (
+            <span className="text-[11px] text-etyme-muted">{row.overtime.clientDecided}</span>
+          )}
           {(row.overtime?.weeks?.length ?? 0) > 0 && (
             <button
               onClick={(e) => {
@@ -1451,6 +1461,9 @@ function WeekPanel({ row, onClose, onSign }: { row: Timesheet; onClose: () => vo
 
         {(row.overtime?.pendingHours ?? 0) > 0 && (
           <p className="mt-3 text-[12px] text-etyme-attention">{row.overtime?.says}</p>
+        )}
+        {row.overtime?.clientDecided && (
+          <p className="mt-3 text-[12px] text-etyme-muted">{row.overtime.clientDecided}</p>
         )}
         {row.signature?.says && <p className="mt-3 text-[12px] text-etyme-muted">{row.signature.says}</p>}
         {row.approvedBy && !row.signature?.says?.startsWith(row.approvedBy) && (

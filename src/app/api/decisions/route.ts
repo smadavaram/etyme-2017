@@ -9,6 +9,8 @@ import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { weekFlag, periodWord } from '@/lib/timesheet-flag'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
 import { weekTurn } from '@/app/api/timesheets/ladder'
+import type { LadderRung } from '@/app/api/timesheets/chain-turn'
+import { clientDecidedFor, clientDecidedSentence } from '@/app/api/timesheets/client-decided'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
@@ -90,6 +92,10 @@ export async function GET(request: NextRequest) {
           select: {
             id: true, personId: true, startDate: true, endDate: true,
             billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+            // What an overtime hour is worth between the employer and the
+            // firm above it: the line the client's decision is priced on
+            // when the week reaches the employer (`clientDecidedOn`).
+            overtimeMultiplierBps: true,
             company: { select: { name: true } },
             clientCompany: { select: { name: true } },
             requirement: { select: { hoursPerWeek: true } },
@@ -173,9 +179,13 @@ export async function GET(request: NextRequest) {
       // The employer's turn comes last, once every firm above it has
       // signed (`app/api/timesheets/chain-turn`). Offering it sooner put
       // a week on its desk that the approve route now refuses.
+      let clientDecided: string | null = null
       if (!asClient && sc.companyId !== (sc.endClientCompanyId ?? sc.clientCompanyId)) {
-        const { turn } = await weekTurn(ts, companyId)
+        const { turn, ladder } = await weekTurn(ts, companyId)
         if (!turn.ok) continue
+        // Below the top: the client decided the overtime when it signed,
+        // and the employer is told, never asked (founder, 2026-10-19).
+        clientDecided = await clientDecidedOn(ts.id, ts.person.name, ladder, sc.id, sc.overtimeMultiplierBps)
       }
       // Inside a sentence, so the phrase and not the cell: "through
       // Computer Systems" where the name is this reader's to read, and
@@ -232,6 +242,9 @@ export async function GET(request: NextRequest) {
         actionUrl: `/dashboard/timesheets?id=${ts.id}`,
         amount,
         flag,
+        // Below the top of a chain, the client's overtime decision as a
+        // fact on the card; null at the top and where it decided nothing.
+        clientDecided,
         createdAt: waitingSince(ts).toISOString(),
       })
     }
@@ -264,11 +277,11 @@ export async function GET(request: NextRequest) {
       take: 20,
     })
     for (const ts of reached) {
-      const { turn } = await weekTurn(ts, companyId)
+      const { turn, ladder } = await weekTurn(ts, companyId)
       if (!turn.ok || turn.signer.role !== 'PASS_THROUGH') continue
       const paysOn = await prisma.sellContract.findUnique({
         where: { id: turn.signer.rungId },
-        select: { billRate: true, company: { select: { name: true } } },
+        select: { billRate: true, overtimeMultiplierBps: true, company: { select: { name: true } } },
       })
       const daysSinceSigned = Math.floor((now.getTime() - (ts.clientApprovedAt ?? ts.periodEnd).getTime()) / 86_400_000)
       decisions.push({
@@ -283,6 +296,9 @@ export async function GET(request: NextRequest) {
         actionUrl: `/dashboard/timesheets?id=${ts.id}`,
         // What this firm pays on the rung it is accepting — its own contract.
         amount: paysOn ? Number(ts.totalHours) * (paysOn.billRate / 100) : null,
+        // The client's overtime decision, on this firm's own line with the
+        // firm it pays. It is told, never asked (founder, 2026-10-19).
+        clientDecided: await clientDecidedOn(ts.id, ts.person.name, ladder, turn.signer.rungId, paysOn?.overtimeMultiplierBps),
         flag: weekFlag({
           hours: Number(ts.totalHours), hoursPerWeek: ts.sellContract.requirement?.hoursPerWeek ?? null,
           periodEnd: ts.periodEnd, contractEnd: ts.sellContract.endDate,
@@ -918,4 +934,38 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+/**
+ * What the client decided about a week's overtime, said to a firm below
+ * the top of its chain — or null where the client decided nothing.
+ *
+ * The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): below
+ * the top, which hours are overtime is the client's decision when it
+ * signed, carried down (`lib/money/client-overtime`), and each firm reads
+ * it priced at the multiplier on its own line with the firm it pays —
+ * the same reading its invoice will be matched on. Where the client's
+ * answer cannot be read, the card says why in the rule's own sentence.
+ */
+async function clientDecidedOn(
+  timesheetId: string,
+  personName: string,
+  ladder: LadderRung[],
+  pairLineId: string,
+  pairMultiplierBps: number | null | undefined
+): Promise<string | null> {
+  const top = ladder[0]
+  if (!top) return null
+  const clientId = top.endClientCompanyId ?? top.clientCompanyId
+  const rows = await prisma.overtimeDecision.findMany({ where: { timesheetId } })
+  if (rows.length === 0) return null
+  const client = await prisma.company.findUnique({ where: { id: clientId }, select: { name: true } })
+  const carried = clientDecidedFor({
+    rows,
+    top: { sellContractId: top.sellContractId, clientCompanyId: clientId },
+    pairLineId,
+    pairMultiplierBps,
+    personName,
+  })
+  return clientDecidedSentence(client?.name ?? 'The client', carried)
 }

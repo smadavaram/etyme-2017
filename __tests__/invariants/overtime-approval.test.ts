@@ -151,3 +151,22 @@ describe('in a chain, nobody decides their own leg', () => {
     expect(LADDER).toContain('for (let depth = 0; depth < 8 && frontier.length > 0; depth++)')
   })
 })
+
+describe('below the top of a chain, the client decided the overtime (founder, 2026-10-19)', () => {
+  it('a firm below the top is never asked the overtime question, and only the top’s answers are read', () => {
+    expect(APPROVE).toContain("const belowTop = !direct && asParty !== 'CLIENT'")
+    expect(APPROVE).toContain('const awaiting = belowTop ? [] : weeksAwaitingDecision(standing)')
+    expect(APPROVE).toContain('const rawAnswers = !belowTop && Array.isArray(body?.overtime) ? body.overtime : []')
+  })
+
+  it('an overtime answer from a rung below the top is refused in a sentence before anything is written', () => {
+    expect(at("code: 'CLIENT_DECIDED_OVERTIME'")).toBeLessThan(at('workAssertion.create'))
+    expect(at("code: 'CLIENT_DECIDED_OVERTIME'")).toBeLessThan(at('prisma.$transaction'))
+    expect(APPROVE).toContain('message: clientDecidesOvertimeSays(clientName)')
+  })
+
+  it('a firm below the top reads the client’s decision through the same rule money bills by', () => {
+    expect(APPROVE).toContain("import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'")
+    expect(APPROVE).toContain('pairLineId: leg.sellContractId,')
+  })
+})
