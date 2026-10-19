@@ -1268,6 +1268,18 @@ a link opens nothing and closes nothing. The section table under
 "Navigation per company type" is replaced by this one, and
 `sidebar-nav.test.ts` reads this one.
 
+**1b. Ask Etyme and Conversations are one entry.** Decided by the
+founder the same day (*"Can Ask Etyme and Conversations be clubbed?"*).
+They were two menu entries for one screen: Ask Etyme pinned at the top,
+and Conversations under Today, opening the same page with Ask Etyme as
+its first row. The Conversations entry leaves every menu. Ask Etyme is
+the one door; the other threads stay in the left column beside the chat
+on a desktop and behind a back arrow on the phone; and when another
+company writes to this seat, the greeting says so in a sentence with a
+link ("Brightmoor Staffing wrote to you about the HCM integration lead
+job."), so a person who never opens the list misses nothing. The count
+on the mark already covers both.
+
 **2. The flip is gone.** On a desktop the sidebar is always open and
 Today is its second entry, so the flip was a second door to a page an
 inch away. On the phone the header is the logo, the Ask Etyme mark with
