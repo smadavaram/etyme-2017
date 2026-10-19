@@ -1354,6 +1354,32 @@ flip (architect); the greeting rule for every party (conversation); the
 firm's Today page (architect, with money for the figures); the public
 panels and doors (market). A release pass before each deploy.
 
+**Built and shipped the same day** (production a60753b0d, seventeen
+commits, release pass green: 11,166 unit, 2,264 integration, build).
+Six domains built at once on disjoint files and nothing collided. What
+was decided on the way, each the coordinator's call and reversible in a
+sentence: an MSP reads eight links, because it has no People of its
+own; the worker's menu is Ask Etyme plus her five pages; the phone
+header uses the chat bubble for Ask Etyme so two Etyme marks do not sit
+side by side; the desktop header keeps "+ New" and the account menu,
+which holds the only sign-out; the firm's Today page is served by one
+new route (`/api/today`) that logs every person it names; "an I-9", not
+"her I-9", because the record stores no pronouns; "Etyme asked Renata",
+not "asked her", for the same reason. Two faults the walk found and did
+not fix, each with its owner: the bill generator loads only running
+placements, so a signed week on a placement that has since ended can
+never be billed (Karthik Menon's fourteen weeks, about $72,000; money's
+next piece); and the "QA test message — please ignore" thread in the
+demo is production data, not seed, and there is no staff route to
+delete a thread. The home panel's "across every supplier" answer is
+$135,200 for all seven contractors, the seed's figure, not the $60,000
+the drawing showed for three of them. Still owed: the queue's own
+titles ("Rolloff in 18d", "40h", "3d") are reworded on the Today page
+and not yet at their source (demand); the decisions read runs about
+twenty-six queries in a row and the mark polls it every minute (demand,
+architect); an MSP's questions in Ask Etyme still read its own book
+while seated in a client's program (conversation).
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in
