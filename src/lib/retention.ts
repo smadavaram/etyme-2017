@@ -254,7 +254,7 @@ export const SCHEDULE: ScheduleLine[] = [
     anchor: 'NONE',
     months: 0,
     basis:
-      'No statute requires a person’s conversation with their own company’s record to be ' +
+      'No statute requires a person’s conversation with Ask Etyme to be ' +
       'kept, and no counterparty reads it, so nothing here is anybody else’s record. Until ' +
       'they ask to be forgotten, lines cleared from the screen stay on the record for as ' +
       'long as the twin’s ledger they explain, and no period is set for either, because none ' +

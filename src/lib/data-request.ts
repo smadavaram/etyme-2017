@@ -613,28 +613,66 @@ export async function exportFor(personId: string, now = new Date()): Promise<Exp
           'prove we deleted them when we said we would.',
       })),
       'Messages': messages,
-      'Conversations with Ask Etyme': askEtymeThreads.map((t) => ({
-        company: t.company.name,
-        started: t.createdAt,
-        lastSpoke: t.lastTurnAt,
-        cleared: t.clearedAt,
-        lines: t.turns.map((l) => {
-          const clearedFromScreen = !!t.clearedAt && l.createdAt <= t.clearedAt
-          return l.speaker === 'PERSON'
-            ? { at: l.createdAt, who: 'You', words: l.text, clearedFromScreen }
-            : { at: l.createdAt, who: 'Ask Etyme', cards: l.cards, clearedFromScreen }
-        }),
-        note:
-          'Every line is here, including the ones you cleared from the screen, which are ' +
-          'still held. Your own questions are here word for word. Ask Etyme’s answers are ' +
-          'listed by when they came and what became of each card, and their words are not ' +
-          'repeated: they are your company’s record and name other people. The lines you ' +
-          'have not cleared are in your conversation, where you can read them.',
-      })),
+      'Conversations with Ask Etyme': askEtymeThreads.map(askEtymeThreadInExport),
       'Logs': accessLogs,
     },
     notIncluded: NOT_IN_AN_EXPORT,
     neverUsed: [...NOT_USED],
+  }
+}
+
+// ── One saved Ask Etyme conversation, as the export shows it ─────────
+
+/**
+ * A saved thread as `exportFor` reads it. `company` may be null: a
+ * candidate with no seat at any company keeps a conversation of her own
+ * (2026-10-19), and that thread belongs to her alone. Typed to accept
+ * either, so this compiles before and after the column is nullable.
+ */
+export interface SavedAskEtymeThread {
+  createdAt: Date
+  lastTurnAt: Date | null
+  clearedAt: Date | null
+  company: { name: string } | null
+  turns: { speaker: string; text: string | null; cards: unknown; createdAt: Date }[]
+}
+
+/** Said in place of a company's name on a thread kept before any seat. */
+export const OWN_THREAD = 'Your own conversation, before you had a seat at any company'
+
+/**
+ * One thread, every line, the cleared ones marked. The person's own
+ * words are given back word for word; Ask Etyme's are listed and not
+ * repeated, because they are read from a firm's record and can name
+ * other people — at a company, that company's; before a seat, the
+ * firms the person works through.
+ */
+export function askEtymeThreadInExport(t: SavedAskEtymeThread) {
+  const atCompany = t.company?.name ?? null
+  return {
+    company: atCompany,
+    whose: atCompany ? `Your conversation at ${atCompany}` : OWN_THREAD,
+    started: t.createdAt,
+    lastSpoke: t.lastTurnAt,
+    cleared: t.clearedAt,
+    lines: t.turns.map((l) => {
+      const clearedFromScreen = !!t.clearedAt && l.createdAt <= t.clearedAt
+      return l.speaker === 'PERSON'
+        ? { at: l.createdAt, who: 'You', words: l.text, clearedFromScreen }
+        : { at: l.createdAt, who: 'Ask Etyme', cards: l.cards, clearedFromScreen }
+    }),
+    note: atCompany
+      ? 'Every line is here, including the ones you cleared from the screen, which are ' +
+        'still held. Your own questions are here word for word. Ask Etyme’s answers are ' +
+        'listed by when they came and what became of each card, and their words are not ' +
+        'repeated: they are your company’s record and name other people. The lines you ' +
+        'have not cleared are in your conversation, where you can read them.'
+      : 'This is your own conversation, from before you had a seat at any company. No ' +
+        'company reads it. Every line is here, including the ones you cleared from the ' +
+        'screen, which are still held. Your own questions are here word for word. Ask ' +
+        'Etyme’s answers are listed by when they came, and their words are not repeated: ' +
+        'they are read from the records of the firms you work through and can name other ' +
+        'people. The lines you have not cleared are in your conversation, where you can read them.',
   }
 }
 

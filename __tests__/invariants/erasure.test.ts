@@ -8,6 +8,7 @@ import {
 import { HELD } from '@/lib/legal'
 import { FATES, fateOf } from '@/lib/notify/data-rights'
 import { ACTIONS, rungOf } from '@/lib/autonomy'
+import { askEtymeThreadInExport, OWN_THREAD } from '@/lib/data-request'
 
 /**
  * What forgetting somebody actually does.
@@ -262,5 +263,30 @@ describe('a person’s own conversation with Ask Etyme, and the cards they answe
     expect(SRC).toContain('prisma.askEtymeTurn.count({ where: { thread: { personId } } })')
     expect(SRC).toContain('prisma.twinApproval.count({ where: { approverPersonId: personId } })')
     expect(SRC).toContain("'Conversations with Ask Etyme': askEtyme")
+  })
+
+  it('a person’s export carries an Ask Etyme thread she kept before she had a seat at any company', () => {
+    const asked = new Date('2026-10-19T09:00:00Z')
+    const kept = askEtymeThreadInExport({
+      createdAt: asked, lastTurnAt: new Date(asked.getTime() + 2_000),
+      clearedAt: new Date(asked.getTime() + 500),
+      company: null,
+      turns: [
+        { speaker: 'PERSON', text: 'Which jobs match my skills?', cards: null, createdAt: asked },
+        { speaker: 'ETYME', text: 'Two jobs match: a Java developer in Tualatin and one in Elmira.', cards: null, createdAt: new Date(asked.getTime() + 1_000) },
+        { speaker: 'PERSON', text: 'Who is the client in Elmira?', cards: null, createdAt: new Date(asked.getTime() + 2_000) },
+      ],
+    })
+    // Hers, said as hers: no company named and none invented.
+    expect(kept.company).toBeNull()
+    expect(kept.whose).toBe(OWN_THREAD)
+    expect(kept.note).toContain('before you had a seat at any company')
+    expect(kept.note).toContain('No company reads it')
+    expect(kept.note).not.toContain('your company’s record')
+    // Every line, her words word for word, the cleared one marked, Ask Etyme's not repeated.
+    expect(kept.lines.map((l) => l.who)).toEqual(['You', 'Ask Etyme', 'You'])
+    expect(kept.lines[0]).toMatchObject({ words: 'Which jobs match my skills?', clearedFromScreen: true })
+    expect(kept.lines[2]).toMatchObject({ words: 'Who is the client in Elmira?', clearedFromScreen: false })
+    expect(JSON.stringify(kept.lines[1])).not.toContain('Tualatin')
   })
 })
