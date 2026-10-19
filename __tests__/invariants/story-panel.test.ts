@@ -754,7 +754,7 @@ describe('The panel plays the four steps and is never blank', () => {
     expect(northbend).toContain(STORY_BAR.rest)
     expect(northbend).not.toContain(APTIVA_BAR.company)
     const aptiva = renderToStaticMarkup(createElement(StoryPanel, { start: 0, story: 'aptiva' }))
-    expect(aptiva).toContain(`<b class="font-semibold text-etyme-ink">${APTIVA_BAR.company}</b>`)
+    expect(aptiva).toContain(`<b class="shrink-0 whitespace-nowrap font-semibold text-etyme-ink">${APTIVA_BAR.company}</b>`)
     expect(aptiva).toContain(APTIVA_BAR.rest)
     // Every table names whose book it is: Cavanaugh's, not Aptiva's own.
     expect(aptiva).toContain(`>${APTIVA_BOOK}</span>`)

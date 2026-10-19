@@ -13,8 +13,11 @@ import { storyChromeCopy, type StoryKey } from './story'
  * The line under the home page's panel: who the reader is watching, and
  * that every firm on it is a demo company (founder's drawing, 2026-10-19).
  * The panel names each of the three on its bar as their step plays.
+ * One line at 1280 since the founder read it wrapping, the same day: the
+ * label says "demo companies, not customers", the plural of his label,
+ * which the guard in `public-example-names.test.ts` reads either way.
  */
-export const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. Every firm on this screen is a demo company, not a customer.'
+export const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. All demo companies, not customers.'
 
 /**
  * The line under a panel that plays one named person: "You are watching

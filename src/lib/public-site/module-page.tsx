@@ -2,13 +2,14 @@ import { MODULES, PAIR_LABELS, LINE_LABELS, type ModulePage } from './modules'
 import { OPEN_DEMO } from './skeleton-words'
 import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
-import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON, FOCUS } from './skeleton'
+import { LiveDemo, PhoneButton, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON, FOCUS } from './skeleton'
 
 /**
  * The four step pages, each telling the story the same way (founder,
  * 2026-10-15, "build it" on the menu told as a story):
  *
- *   #top       "Step n of 4 · Name", one promise, one line under it
+ *   #top       "Step n of 4 · Name", one promise, one line under it,
+ *              and on a phone the button under that (2026-10-19)
  *   #pair      "Today" beside "With Etyme"
  *   #demo      the panel that shows the product working, opened at this
  *              step, and the button that seats the reader at this step's
@@ -21,6 +22,14 @@ import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON, FOC
  * read them, and one test counts every page against its word ceiling.
  * The party doors keep the home page's shape (`./sub-page`).
  */
+/**
+ * The step's one button: under the lede on a phone (`PhoneButton`), in the
+ * panel's footer from md up, one shown at each width.
+ */
+function StepButton({ m }: { m: ModulePage }) {
+  return <DemoLink target={m.demo} label={OPEN_DEMO} className={PRIMARY_BUTTON} />
+}
+
 export function ModulePageView({ m }: { m: ModulePage }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
@@ -34,6 +43,7 @@ export function ModulePageView({ m }: { m: ModulePage }) {
             {m.headline}
           </h1>
           <p className="mt-3 max-w-[56ch] text-[17px] leading-snug text-etyme-muted md:text-[19px]">{m.lede}</p>
+          <PhoneButton className="mt-5"><StepButton m={m} /></PhoneButton>
         </section>
 
         {/* ── Today, and with Etyme ── */}
@@ -49,8 +59,8 @@ export function ModulePageView({ m }: { m: ModulePage }) {
         </section>
 
         {/* ── The product, working, at this step ── */}
-        <LiveDemo step={m.step} label={m.label}>
-          <DemoLink target={m.demo} label={OPEN_DEMO} className={PRIMARY_BUTTON} />
+        <LiveDemo step={m.step} label={m.label} phoneButton={false}>
+          <StepButton m={m} />
         </LiveDemo>
 
         {/* ── What you do, who is involved, what happens next ── */}

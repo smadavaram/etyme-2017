@@ -20,7 +20,9 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *               them: most companies cannot answer it without three weeks
  *               and a spreadsheet nobody trusts. Since the same day the
  *               category sits above the headline as the hero's eyebrow
- *               (founder: "the category be on top over hero text")
+ *               (founder: "the category be on top over hero text"), set in
+ *               sentence case with no period, 13px and muted, one line
+ *               at 375 (founder, the same day, on the capitals)
  *   #demo       the product shown working, in one compact panel
  *               (`lib/public-site/story-panel`, since the founder's
  *               "Build it" later on 2026-10-14): Ask Etyme answers, a
@@ -30,7 +32,9 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *               to the full demo. Since 2026-10-19 the bar names the
  *               person in front of each step (Marcus Oyelaran, Helena
  *               Marsh, Renata Kowal) and the line under it says they are
- *               three people at a demo company on one morning
+ *               three people at a demo company on one morning. On a
+ *               phone the panel's button is also drawn straight under the
+ *               hero (`LiveDemo`), so the first screen has one button
  *   #sign-up    "Seen enough? Set up your company.", one button, Sign up,
  *               and every party's door on one small line, Clients first
  *   then one line for security, and the footer
@@ -84,8 +88,8 @@ export default function LandingPage() {
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── Hero: the category on top, then the question, word for word ── */}
         <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-etyme-muted">
-            Enterprise contingent workforce management.
+          <p className="mb-2 text-[13px] font-medium text-etyme-muted">
+            Enterprise contingent workforce management
           </p>
           <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.06] tracking-[-0.02em] text-etyme-ink md:text-[52px]">
             Know what every contractor costs, across every supplier.

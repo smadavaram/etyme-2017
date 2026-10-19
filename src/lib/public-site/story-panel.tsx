@@ -26,7 +26,10 @@ import {
  * ── It names the person in front of the step ─────────────────────────
  *
  * Beside the company on the bar, with a small dot: the person the step
- * is in front of (founder, 2026-10-19). On the home page that is three
+ * is in front of (founder, 2026-10-19). On a phone the bar is one line,
+ * the company and the person after a middle dot, with the four chips in
+ * one row under it that scrolls sideways (founder, the same day, on four
+ * rows of bar before any content). On the home page that is three
  * people over four steps — Marcus Oyelaran, Helena Marsh, Renata Kowal —
  * and on a door it is that party's own person. A status inside an answer
  * and a pill in the table may flip where a card presses (Helena's week,
@@ -122,7 +125,7 @@ function StepBody({ s, book, played, lit, today }: { s: StoryStep; book: string;
       </div>
 
       {/* The table the answer changes. */}
-      <div className="min-w-0 p-3.5">
+      <div className="min-w-0 bg-etyme-surface p-3.5">
         <p className="mb-1.5 flex justify-between gap-2 text-[11px] uppercase tracking-[0.06em] text-etyme-faint">
           <span>{s.table.title}</span>
           <span className="hidden sm:inline">{book}</span>
@@ -194,6 +197,7 @@ export function StoryPanel({
   const hold = useRef(false)
   const reduce = useRef(false)
   const timers = useRef<number[]>([])
+  const chipRow = useRef<HTMLDivElement>(null)
 
   const clear = () => {
     timers.current.forEach((t) => window.clearTimeout(t))
@@ -241,6 +245,18 @@ export function StoryPanel({
     })
   }
 
+  // On a phone the four chips are one row that scrolls sideways; the
+  // step playing is scrolled into the middle of it. The row is scrolled,
+  // never the page, so a reader further down is not pulled back up.
+  useEffect(() => {
+    const row = chipRow.current
+    if (!row || row.scrollWidth <= row.clientWidth) return
+    const chip = row.querySelector<HTMLElement>('[aria-pressed="true"]')
+    if (!chip) return
+    const off = chip.getBoundingClientRect().left - row.getBoundingClientRect().left
+    row.scrollTo({ left: row.scrollLeft + off - (row.clientWidth - chip.offsetWidth) / 2, behavior: reduce.current ? 'auto' : 'smooth' })
+  }, [cur])
+
   useEffect(() => {
     reduce.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setLive(true)
@@ -259,24 +275,38 @@ export function StoryPanel({
       onBlur={() => { hold.current = false }}
       className="overflow-hidden rounded-r-lg border border-etyme-rule bg-etyme-raised shadow-lift"
     >
-      {/* The bar: the mark, whose program, and the four chips. */}
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-etyme-rule bg-etyme-surface px-3.5 py-2.5 text-[13px] text-etyme-muted">
-        <EtymeMark size={18} />
-        <b className="font-semibold text-etyme-ink">{story.bar.company}</b>
-        <span>{story.bar.rest}</span>
-        {/* The person in front of this step. */}
-        <span data-story-who="" className="flex items-center gap-1.5 text-etyme-ink">
-          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified" />
-          {steps[cur].who}
-        </span>
-        <div role="group" aria-label={STORY_STEPS_LABEL} className="flex w-full flex-wrap gap-1.5 md:ml-auto md:w-auto">
+      {/* The bar: the mark, whose program, the person, and the four chips.
+          On a phone it is two rows: "Northbend Athletic · Marcus Oyelaran,
+          hiring manager" on one line, the mark and the size of the program
+          left for md up (Ask Etyme carries the mark just below), set a
+          point smaller so the home page's line is whole at 375, and the
+          four chips in one row that scrolls sideways. A door's longer title
+          ends in an ellipsis; the line under the panel says it whole. */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-etyme-rule bg-etyme-surface px-3 py-2.5 text-[13px] text-etyme-muted md:px-3.5">
+        <p data-story-bar="" className="flex min-w-0 max-w-full items-center gap-x-1 text-[12px] md:gap-x-2.5 md:text-[13px]">
+          <EtymeMark size={18} className="hidden shrink-0 md:block" />
+          <b className="shrink-0 whitespace-nowrap font-semibold text-etyme-ink">{story.bar.company}</b>
+          <span className="hidden md:inline">{story.bar.rest}</span>
+          <span aria-hidden="true" className="md:hidden">·</span>
+          {/* The person in front of this step. */}
+          <span data-story-who="" className="flex min-w-0 items-center gap-1.5 text-etyme-ink">
+            <span aria-hidden="true" className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified md:block" />
+            <span className="truncate">{steps[cur].who}</span>
+          </span>
+        </p>
+        <div
+          ref={chipRow}
+          role="group"
+          aria-label={STORY_STEPS_LABEL}
+          className="-m-1 flex basis-full flex-nowrap gap-1.5 overflow-x-auto p-1 [scrollbar-width:none] md:m-0 md:ml-auto md:basis-auto md:overflow-visible md:p-0 [&::-webkit-scrollbar]:hidden"
+        >
           {/* The four steps, always: a door that plays one of them shows the
               other three as names, so the reader sees where its step sits. */}
           {STORY.map(({ n, chip }) => {
             const i = steps.findIndex((s) => s.chip === chip)
             if (i < 0) {
               return (
-                <span key={chip} className="flex items-center gap-1.5 rounded-full border border-etyme-rule px-3 py-1 text-[13px] text-etyme-faint">
+                <span key={chip} className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-etyme-rule px-3 py-1 text-[13px] text-etyme-faint">
                   <span className="tabular-nums">{n}</span>
                   {chip}
                 </span>
@@ -289,7 +319,7 @@ export function StoryPanel({
                 aria-pressed={i === cur}
                 onClick={() => playStep(i)}
                 disabled={!live}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] transition-colors disabled:cursor-default ${FOCUS} ${
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[13px] transition-colors disabled:cursor-default ${FOCUS} ${
                   i === cur
                     ? 'border-etyme-ink bg-etyme-ink text-etyme-canvas'
                     : i < cur
@@ -314,7 +344,9 @@ export function StoryPanel({
               <span className="mr-1 font-serif text-[20px] text-etyme-ink">{s.sum.big}</span>
               {s.sum.rest}
             </p>
-            {i === cur && children}
+            {/* The page's button, from md up; on a phone it is drawn under
+                the hero instead (`LiveDemo`), so only one is ever shown. */}
+            {i === cur && children && <div className="hidden md:block">{children}</div>}
           </div>
         </div>
       ))}

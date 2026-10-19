@@ -301,7 +301,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     })
     for (const m of MODULES) expect(EMBED_STEPS, m.route).toContain(m.step)
     expect(VIEW).toContain('<LiveDemo step={step}')
-    expect(read('src/lib/public-site/module-page.tsx')).toContain('<LiveDemo step={m.step} label={m.label}>')
+    expect(read('src/lib/public-site/module-page.tsx')).toContain('<LiveDemo step={m.step} label={m.label} phoneButton={false}>')
   })
 
   it('each party door opens the frame at the screen its party acts on: suppliers and integrators at Submit, program offices at Source, contractors at Approve', () => {

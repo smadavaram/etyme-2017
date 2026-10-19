@@ -237,8 +237,10 @@ describe('An invented company never reads as a customer', () => {
     // Since 2026-10-14 the same label sits under the frame on every product
     // page, and a door's says the same of every firm under its own caption.
     const page = read('src/app/page.tsx')
-    // Since 2026-10-19 it names the three people the panel plays, by job.
-    expect(ON_SCREEN).toBe('Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. Every firm on this screen is a demo company, not a customer.')
+    // Since 2026-10-19 it names the three people the panel plays, by job,
+    // and says the label in its plural so the line fits one line at 1280.
+    expect(ON_SCREEN).toBe('Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. All demo companies, not customers.')
+    expect(SAYS_IT_IS_A_DEMO(ON_SCREEN)).toBe(true)
     expect(read('src/lib/public-site/skeleton.tsx')).toContain('label = ON_SCREEN')
     // Drawn under the panel by the skeleton since the panel replaced the
     // frame (2026-10-14), and the panel's own bar says "a sample company".

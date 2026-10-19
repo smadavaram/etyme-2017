@@ -40,20 +40,35 @@ const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${
  * in its footer is the page's own (it counts its click, or seats the
  * reader at the right job in the full demo). Under it, the page's one
  * line about what its reader is looking at, and the label that says every
- * firm on it is a demo company. The panel plays Northbend Athletic's
+ * firm on it is a demo company. On a phone the button is drawn above the
+ * panel instead (`PhoneButton`). The panel plays Northbend Athletic's
  * program manager unless the page names another story: the MSPs' door
  * plays Aptiva Workforce's seat in Cavanaugh Glassworks' program.
  */
 export function LiveDemo({
-  step, caption, label = ON_SCREEN, story, children,
-}: { step?: EmbedStep; caption?: string; label?: string; story?: StoryKey; children: React.ReactNode }) {
+  step, caption, label = ON_SCREEN, story, phoneButton = true, children,
+}: { step?: EmbedStep; caption?: string; label?: string; story?: StoryKey; phoneButton?: boolean; children: React.ReactNode }) {
   return (
     <section id="demo" aria-label="The product shown working" className="pb-4">
+      {phoneButton && <PhoneButton>{children}</PhoneButton>}
       <StoryPanel start={storyIndex(step)} story={story}>{children}</StoryPanel>
       {caption && <p className="mt-3 text-[15px] leading-snug text-etyme-ink">{caption}</p>}
       <p className={`${caption ? 'mt-1 text-etyme-muted' : 'mt-3 text-etyme-ink'} text-[15px] leading-snug`}>{label}</p>
     </section>
   )
+}
+
+/**
+ * The page's button on a phone, full width, straight under the hero
+ * (founder, 2026-10-19: no button above the fold on a phone). The same
+ * button the panel's footer draws from md up; each copy is hidden at the
+ * other's widths, so one is shown and one is in the tab order. `LiveDemo`
+ * draws it above the panel, which on the home page and the doors is
+ * straight under the hero; a step page, whose "Today" and "With Etyme"
+ * sit between, draws it in its own hero and tells `LiveDemo` not to.
+ */
+export function PhoneButton({ children, className = 'mb-4' }: { children: React.ReactNode; className?: string }) {
+  return <div data-phone-button="" className={`grid md:hidden [&_a]:w-full [&_a]:whitespace-normal ${className}`}>{children}</div>
 }
 
 /**

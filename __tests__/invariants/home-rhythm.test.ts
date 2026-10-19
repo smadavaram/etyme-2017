@@ -67,15 +67,64 @@ describe('The home page is three short sections in one column, at every width', 
     expect(PAGE).toContain('flex flex-col gap-2.5 sm:flex-row sm:flex-wrap')
   })
 
-  it('wraps the four chips onto a second line on a phone rather than scrolling them sideways', () => {
-    const chips = DEMO.slice(DEMO.indexOf('role="group" aria-label={STORY_STEPS_LABEL}'))
-    expect(chips).toMatch(/className="flex w-full flex-wrap/)
-    expect(DEMO).not.toMatch(/overflow-x-(?:auto|scroll)/)
+  it('puts the four chips in one row on a phone that scrolls sideways with no scrollbar, and scrolls the row, never the page, to the step playing', () => {
+    // Until 2026-10-19 they wrapped onto a second row, and the founder read
+    // four rows of bar on his phone before any content. One row, sideways,
+    // and only the row moves: a reader further down is not pulled back up.
+    const chips = DEMO.slice(DEMO.indexOf('ref={chipRow}'), DEMO.indexOf('{STORY.map('))
+    expect(chips).toContain('role="group"')
+    expect(chips).toMatch(/className="[^"]*\bflex basis-full flex-nowrap\b[^"]*\boverflow-x-auto\b/)
+    expect(chips).toContain('[scrollbar-width:none]')
+    expect(chips).toContain('[&::-webkit-scrollbar]:hidden')
+    expect(chips).toContain('md:ml-auto md:basis-auto md:overflow-visible')
+    expect(DEMO.match(/shrink-0 items-center gap-1\.5 whitespace-nowrap rounded-full/g)).toHaveLength(2)
+    expect(DEMO).toContain("row.querySelector<HTMLElement>('[aria-pressed=\"true\"]')")
+    expect(DEMO).toContain('row.scrollTo(')
+    expect(DEMO).not.toContain('scrollIntoView')
+  })
+
+  it('on a phone reads the bar as one line, the company and the person after a middle dot, and keeps the mark and the size of the program for md up', () => {
+    const bar = DEMO.slice(DEMO.indexOf('data-story-bar=""'), DEMO.indexOf('ref={chipRow}'))
+    expect(bar).toContain('<EtymeMark size={18} className="hidden shrink-0 md:block" />')
+    expect(bar).toContain('<b className="shrink-0 whitespace-nowrap font-semibold text-etyme-ink">{story.bar.company}</b>')
+    expect(bar).toContain('<span className="hidden md:inline">{story.bar.rest}</span>')
+    expect(bar).toContain('<span aria-hidden="true" className="md:hidden">·</span>')
+    // The small dot beside the person is for md up; on a phone the middle dot does its job.
+    expect(bar).toContain('className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified md:block"')
+    // A long title is cut with an ellipsis rather than pushing a second line.
+    expect(bar).toContain('<span className="truncate">{steps[cur].who}</span>')
   })
 
   it('puts the chat over the table on a phone and beside it from md, so the table never scrolls sideways', () => {
     expect(DEMO).toContain('grid md:min-h-[300px] md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]')
-    expect(DEMO).toContain('min-w-0 p-3.5')
+    expect(DEMO).toContain('min-w-0 bg-etyme-surface p-3.5')
+  })
+
+  it('draws the chat and the table on one surface tone, so a short table leaves no white hole under its rows', () => {
+    // The founder's desktop read, 2026-10-19: the chat ran long on step 1
+    // and the white table column under four rows read as a hole. One tone
+    // across both columns; the rows' borders carry the table.
+    expect(DEMO).toContain('flex flex-col gap-2.5 border-b border-etyme-rule bg-etyme-surface p-3.5')
+    expect(DEMO).toContain('<div className="min-w-0 bg-etyme-surface p-3.5">')
+  })
+
+  it('shows the page’s one button above the fold on a phone, full width under the hero, and from md up only in the panel’s footer, so one is shown at each width', () => {
+    // The founder, 2026-10-19: no button above the fold on a phone; it sat
+    // in the panel's footer two screens down. The same button is drawn
+    // twice and each copy is display:none at the other's widths, so a
+    // screen reader and the Tab key meet one.
+    expect(SKELETON).toContain('{phoneButton && <PhoneButton>{children}</PhoneButton>}')
+    expect(SKELETON).toContain('className={`grid md:hidden [&_a]:w-full [&_a]:whitespace-normal ${className}`}')
+    expect(SKELETON.indexOf('<PhoneButton>')).toBeLessThan(SKELETON.indexOf('<StoryPanel'))
+    expect(DEMO).toContain('{i === cur && children && <div className="hidden md:block">{children}</div>}')
+    // The home page draws no button of its own in the hero; the skeleton's sits under it.
+    const hero = OWN.slice(OWN.indexOf('id="top"'), OWN.indexOf('<LiveDemo'))
+    expect(hero).not.toMatch(/<a\b|<CountedLink|PhoneButton/)
+    // A step page, with Today and With Etyme between its lede and the panel, draws it under its lede.
+    const step = read('src/lib/public-site/module-page.tsx')
+    expect(step).toContain('<PhoneButton className="mt-5"><StepButton m={m} /></PhoneButton>')
+    expect(step.indexOf('<PhoneButton')).toBeLessThan(step.indexOf('id="pair"'))
+    expect(step).toContain('phoneButton={false}')
   })
 
   it('never waits on anything: no frame, no request, every step written into the page', () => {

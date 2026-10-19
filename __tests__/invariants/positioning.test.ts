@@ -666,7 +666,7 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('within an hour')
   })
 
-  it('says the category straight above the founder’s headline, as its eyebrow, never as the headline', () => {
+  it('says the category straight above the founder’s headline, as its eyebrow in sentence case with no period, never as the headline', () => {
     // The founder's brief, 2026-10-09: the hero is "Know what every
     // contractor costs, across every supplier.", and the category
     // ("Enterprise contingent workforce management", no size after it —
@@ -674,13 +674,18 @@ describe('Below the hero, the page says what the business is', () => {
     // message. From 2026-10-14 it was the line straight under the
     // question; since 2026-10-19 it sits on top, as the hero's eyebrow
     // (founder: "the category be on top over hero text").
-    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management')
     expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(headlinesFrom(PAGE)[0]).toBe('Know what every contractor costs, across every supplier.')
-    // Small, uppercase and muted, the way the step pages set "Step 1 of 4".
+    // Small and muted, in sentence case with normal tracking and no
+    // period, so it fits one line at 375 (founder, 2026-10-19, reading it
+    // in capitals on his phone and desktop). The category guard still
+    // finds the category in it without the period.
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<h1'))
-    expect(top).toContain('<p className="mb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-etyme-muted">')
-    expect(copyFrom(top)).toEqual(['Enterprise contingent workforce management.'])
+    expect(top).toContain('<p className="mb-2 text-[13px] font-medium text-etyme-muted">')
+    expect(top).not.toMatch(/uppercase|tracking-/)
+    expect(copyFrom(top)).toEqual(['Enterprise contingent workforce management'])
+    expect(check({ hero: ['Enterprise contingent workforce management'], body: [] }).map((f) => f.rule)).not.toContain('category-first')
   })
   it('carries no support line between the category and the question, because nothing in it could be checked by clicking', () => {
     // The founder's support line of 2026-10-10 ("Bring contractor records,
@@ -688,7 +693,7 @@ describe('Below the hero, the page says what the business is', () => {
     // every adjective on the page: the test for a word is whether the
     // reader can check it by clicking something on this page, and the live
     // product under the hero is what the line was describing.
-    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management')
     expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(all).not.toContain('Bring contractor records')
     expect(all).not.toContain('trusted control layer')
@@ -697,14 +702,16 @@ describe('Below the hero, the page says what the business is', () => {
   it('keeps the hero to the category and the question, with the live product straight under them', () => {
     // The page the founder approved on 2026-10-14: the question, the
     // category line, and then the product itself. No buttons in the hero,
-    // no screenshot beside it: the one button is under the product. Since
+    // no screenshot beside it: the one button is under the product, and on
+    // a phone the skeleton draws the same button above the panel, straight
+    // under the hero (2026-10-19). Since
     // the founder's drawing of 2026-10-19, one line under the question
     // says what not knowing costs today, and the category sits on top.
     expect(live.hero).toHaveLength(3)
     expect(live.hero[2]).toBe('Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.')
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
     expect(copyFrom(top)).toEqual([
-      'Enterprise contingent workforce management.', 'Know what every contractor costs, across every supplier.',
+      'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.',
       'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
     ])
     expect(top).not.toContain('<CountedLink')
@@ -1186,7 +1193,7 @@ describe('The page shows the product before it describes it', () => {
     // founder's line on what not knowing costs today. Nothing else.
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
     expect(copyFrom(top)).toEqual([
-      'Enterprise contingent workforce management.',
+      'Enterprise contingent workforce management',
       'Know what every contractor costs, across every supplier.',
       'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
     ])
@@ -1201,7 +1208,7 @@ describe('The page shows the product before it describes it', () => {
     // limit to 50–500 consultants — keep the business open for all." So
     // the reader is told what kind of thing it is, and nothing about who
     // may buy it.
-    const category = 'Enterprise contingent workforce management.'
+    const category = 'Enterprise contingent workforce management'
     expect(words[0]).toBe(category)
     expect(sizesTheBuyer(all), sizesTheBuyer(all).join('; ')).toEqual([])
     expect(words.filter((w) => /20 to 200|sized for|rather than five thousand/.test(w))).toEqual([])
@@ -1252,13 +1259,13 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     // door, where a visitor picks a client desk, and every line that names
     // a company says it is a demo company and not a customer. The frame
     // above it names its one company in the chrome strip, and the line
-    // under it says every firm on the screen is a demo company, not a
-    // customer.
+    // under it says they are all demo companies, not customers (one line
+    // at 1280 since 2026-10-19).
     expect(SEE_IT.href).toBe('/demo')
     expect(PAGE).toContain('href={SEE_IT.href}')
     expect(PAGE).toContain('Open the demo, no account')
     expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
-    expect(PAGE).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. Every firm on this screen is a demo company, not a customer.'")
+    expect(PAGE).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. All demo companies, not customers.'")
     expect(namedCompanies(all)).toEqual([])
   })
   it('names the three programs the seed actually builds, so no door opens on nothing', () => {
@@ -1670,7 +1677,7 @@ describe('The public page still says the four things it may not stop saying', ()
     // The category sentence is the first line, above the headline, since
     // 2026-10-19; the headline under it names contractors and suppliers —
     // the category's own nouns — before any part of the product is named.
-    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[0]).toBe('Enterprise contingent workforce management')
     expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
