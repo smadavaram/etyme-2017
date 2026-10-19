@@ -75,6 +75,12 @@ const RUNTIME: Record<string, string> = {
   // The model boundary (2026-10-13): off for every company until its
   // settings desk turns it on, so a seeded prompt would be one that never left.
   modelPrompt: 'written when Ask Etyme sends a question the rules did not answer to the model, masked, for a company that turned it on',
+  // A seat's saved Ask Etyme conversation (2026-10-18). Every seeded seat is
+  // a demo seat every visitor shares, and lib/ask-etyme-thread keeps no
+  // thread for those, so the seed writing one would be the leak the door
+  // refuses. Written once etyme-conversation's route calls appendTurn.
+  askEtymeThread: 'written the first time a person at their own seat says something to Ask Etyme; a shared demo seat keeps none',
+  askEtymeTurn: 'written for each line a person and Ask Etyme say at the person’s own seat, through appendTurn',
   accessLog: 'written by a real read of somebody else’s data, including refusals',
   docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
   approvalRuleVersion: 'written when a rule is changed, not when it is created',

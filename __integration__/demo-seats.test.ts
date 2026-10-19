@@ -286,6 +286,18 @@ describe('every seat on the demo page opens', () => {
     expect(await whoIsSitting(m![1])).toBe('Ravi Kalathil')
   })
 
+  it('asking for the recruiter or the account manager at Pinnacle seats the person who holds that role, so a client’s question can be read as each of the people who work Pinnacle’s jobs', async () => {
+    for (const [desk, role, who] of [['recruiter', 'Recruiter', 'Selma Achterberg'], ['account', 'Account Manager', 'Gideon Pask']] as const) {
+      const res = await demo(req('POST', '/api/demo', { as: 'world-pinnacle', desk }) as NextRequest)
+      expect(res.status, desk).toBe(200)
+      const body = (await res.json()).data
+      expect(body.companyName).toBe('Pinnacle Resourcing')
+      expect(body.role).toBe(role)
+      const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
+      expect(await whoIsSitting(m![1])).toBe(who)
+    }
+  })
+
   it('the demo door seats a delivery manager — each of Teleworld’s two, by name, on the firm’s own bench', async () => {
     const delivery = INTEGRATOR_SEATS.find((s) => s.slug === 'world-teleworld')!.desks!.filter((d) => d.desk === 'delivery')
     expect(delivery.map((d) => d.who)).toEqual(['Ingrid Solberg', 'Rahul Deshpande'])

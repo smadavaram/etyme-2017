@@ -127,8 +127,12 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     expect(rows[0].body).toBe('Can your Workday people start before the end of the month?')
   })
 
-  it("a client's question about a job reaches Pinnacle's owner, who works its jobs, and not Ingrid Halvorsen, its AP & Payroll clerk", async () => {
-    expect(pinnacleWorksJobs.length, 'nobody at Pinnacle works a job').toBeGreaterThan(0)
+  it("a client's question about a job reaches every one of Pinnacle's people who work jobs — its owner, its recruiter Selma Achterberg and its account manager Gideon Pask — and not Ingrid Halvorsen, its AP & Payroll clerk", async () => {
+    // The three who work jobs are named, so the walk the founder reads is
+    // the one the seed holds: the owner was the only one until 2026-10-19.
+    expect(pinnacleWorksJobs).toHaveLength(3)
+    const names = await prisma.person.findMany({ where: { id: { in: pinnacleWorksJobs } }, select: { name: true } })
+    expect(names.map((p) => p.name)).toEqual(expect.arrayContaining(['Ruth Calloway', 'Selma Achterberg', 'Gideon Pask']))
     const rows = await noticesAbout(roleThread, pinnacleWorksJobs.length, 30, (n) => pinnacleWorksJobs.includes(n.personId))
     const heard = new Set(rows.map((n) => n.personId))
     for (const id of pinnacleWorksJobs) expect(heard.has(id), `${id} works jobs at Pinnacle and was not told`).toBe(true)
@@ -238,10 +242,10 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     candidateThread = right.body.data.conversation.id
   })
 
-  it("a question about Mei-Lin reaches Pinnacle's owner and not its AP & Payroll clerk", async () => {
+  it("a question about Mei-Lin reaches Pinnacle's owner, recruiter and account manager, and not its AP & Payroll clerk", async () => {
     const rows = await noticesAbout(candidateThread, pinnacleWorksJobs.length, 30, (n) => pinnacleWorksJobs.includes(n.personId))
     const heard = new Set(rows.map((n) => n.personId))
-    expect(heard.has(pinnacle.staff[0])).toBe(true)
+    for (const id of pinnacleWorksJobs) expect(heard.has(id), `${id} works jobs at Pinnacle and was not told about Mei-Lin`).toBe(true)
     expect(heard.has(pinnacleClerk)).toBe(false)
   })
 

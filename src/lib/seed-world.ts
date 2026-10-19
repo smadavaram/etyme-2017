@@ -1770,6 +1770,46 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       }
       supplierDesks++
     }
+
+    // Pinnacle's people who work jobs. Pinnacle had only its owner and the
+    // AP & Payroll clerk above, so "a client's question about a job
+    // reaches every one of the supplier's recruiters, and not its clerk"
+    // could not be walked on the seeded world: the owner was the only
+    // person who heard. A recruiter and an account manager, seated after
+    // the owner and the clerk, so the owner stays the firm's first seat.
+    // Keyed `firm`, `desk`, `role` and `person`, never `slug` and `name`,
+    // for the clerks' reason above: the public-page guard reads every
+    // `slug, name` pair in this file as a seeded firm.
+    const PINNACLE_JOB_DESKS: { firm: string; desk: string; role: string; person: string }[] = [
+      { firm: 'pinnacle', desk: 'recruiter', role: 'Recruiter',       person: 'Selma Achterberg' },
+      { firm: 'pinnacle', desk: 'account',   role: 'Account Manager', person: 'Gideon Pask' },
+    ]
+    for (const d of PINNACLE_JOB_DESKS) {
+      const firm = firmBySlug.get(d.firm)
+      if (!firm) continue
+      const kind = FIRMS.find((f) => f.slug === d.firm)?.kind
+      const seed = kind ? rolesFor(kind).find((r) => r.name === d.role) : undefined
+      if (!seed) continue
+      const role =
+        (await db.role.findFirst({ where: { companyId: firm.id, name: d.role }, select: { id: true } })) ??
+        (await db.role.create({
+          data: { companyId: firm.id, name: d.role, permissions: seed.permissions, isDefault: false },
+          select: { id: true },
+        }))
+      const email = `${PREFIX}${d.firm}-${d.desk}@${DOMAIN}`
+      const who = await db.person.upsert({
+        where: { primaryEmail: email }, update: { name: d.person }, create: { name: d.person, primaryEmail: email },
+      })
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: firm.id } }))) {
+        await db.context.create({
+          data: {
+            personId: who.id, companyId: firm.id, roleId: role.id, type: 'EMPLOYEE',
+            grantReason: `Seeded supplier seat — ${d.role}`,
+          },
+        })
+      }
+      supplierDesks++
+    }
   })
 
   // ── A compliance desk a program office sits at ─────────────────────

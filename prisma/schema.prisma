@@ -44,6 +44,8 @@ model Person {
   teamsConversations       TeamsConversation[]
   /// Prompts this person's free-text questions sent to a model, masked.
   modelPrompts             ModelPrompt[]
+  /// Their Ask Etyme conversation, one per company seat (2026-10-18).
+  askEtymeThreads          AskEtymeThread[]
   benchWantsWritten        BenchWant[]               @relation("benchWantAuthor")
   benchWantsReceived       BenchWant[]               @relation("benchWantReceiver")
   benchHolidaySwitches     BenchHolidaySwitch[]      @relation("benchHolidaySubject")
@@ -749,6 +751,7 @@ model Company {
   twinApprovals         TwinApproval[]
   teamsConversations    TeamsConversation[]
   modelPrompts          ModelPrompt[]
+  askEtymeThreads       AskEtymeThread[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -8653,7 +8656,9 @@ model TwinApproval {
   reasonFromApprover String?
 
   /// The entry recording the answer.
-  decisions TwinAction[] @relation("twinApprovalDecision")
+  decisions     TwinAction[]   @relation("twinApprovalDecision")
+  /// Ask Etyme's replies that answered this question, in a person's thread.
+  askEtymeTurns AskEtymeTurn[]
 
   @@index([companyId, decision])
   @@index([approverPersonId])
@@ -8714,6 +8719,107 @@ model TeamsConversation {
   @@unique([personId, companyId])
   @@index([companyId])
   @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────
+// ASK ETYME — one saved conversation per seat
+// ─────────────────────────────────────────────
+//
+// Decided by the founder, 2026-10-18 (CLAUDE.md, "One Ask Etyme
+// conversation per person, saved, and it never leaves the tenant or the
+// transaction"). Until then the thread lived only on the screen and was
+// gone on a reload. Now each seat — one person at one company — has one
+// thread, kept on the record, so it survives a reload, a phone switch
+// and a sign-out. There is no list of old chats: the greeting is "what
+// needs you", and several threads would split one queue.
+//
+// It never goes beyond the environment. The thread is the seat's: nobody
+// at another company reads it, and nobody at the same company reads
+// another person's. That is enforced at the query, in one door —
+// src/lib/ask-etyme-thread.ts — which only ever reads and writes the
+// caller's own thread for the caller's own company, and refuses (and
+// logs, through recordRefusal in lib/access-log) a read of anybody
+// else's. No route reads these tables directly.
+//
+// It holds the words as the person saw them, unmasked, because it is the
+// record and it stays where the record is kept. It sends nothing
+// anywhere. Text that leaves for a model still leaves only through the
+// model boundary (src/lib/model-boundary.ts: off per company by default,
+// masked at the edge, logged as ModelPrompt), never from here.
+//
+// Clear starts over by stamping `clearedAt`; the turns before it stay on
+// the record and are not shown. Kept rather than deleted, because a card
+// answered in Ask Etyme is an answer somebody gave, and the ledger entry
+// for it points at a question this history explains.
+
+/// Who said a line in an Ask Etyme thread: the person, or Ask Etyme.
+enum AskEtymeSpeaker {
+  PERSON
+  ETYME
+}
+
+/// One person's one Ask Etyme conversation at one company. One row per
+/// seat, never two.
+model AskEtymeThread {
+  id String @id @default(cuid())
+
+  personId  String
+  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now())
+  /// When the last line was said, so a screen can say "last spoke …".
+  lastTurnAt DateTime?
+  /// Clear starts over: lines said at or before this are kept on the
+  /// record and not shown. Null until the person first presses Clear.
+  clearedAt  DateTime?
+
+  turns AskEtymeTurn[]
+
+  @@unique([personId, companyId])
+  @@index([companyId])
+}
+
+/// One line of an Ask Etyme thread, as it was shown.
+///
+/// Written only through appendTurn in src/lib/ask-etyme-thread.ts. A
+/// note the screen draws for itself — "Etyme could not be reached" — is
+/// not a line of the conversation and is not kept.
+model AskEtymeTurn {
+  id String @id @default(cuid())
+
+  threadId String
+  thread   AskEtymeThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  speaker AskEtymeSpeaker
+  /// The words as shown: the person's question, or Ask Etyme's sentence
+  /// (the answer's `says`).
+  text    String          @db.Text
+  /// Ask Etyme's whole answer as the route returned it — its links, its
+  /// table rows, its cards — so the history draws it again as it was.
+  /// Null on the person's own line.
+  answer  Json?
+
+  /// The questions (TwinApproval ids) whose cards this line carries, so
+  /// the history can read what became of each without opening `answer`.
+  cardApprovalIds String[]
+  /// What happened to each card here, by approval id: APPROVED,
+  /// REJECTED, LATER (Not now, nothing sent) or OVERTAKEN, with the bill
+  /// number a sent bill was given. The approval's own decision on the
+  /// record wins over this when the two differ (a card answered on Teams
+  /// reads answered here too).
+  cards           Json?
+
+  /// The question this line answered — Ask Etyme's reply after a yes or
+  /// a no on a card names it. Null on every other line.
+  approvalId String?
+  approval   TwinApproval? @relation(fields: [approvalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([approvalId])
 }
 
 /// The numbers a company sets for the twin's rules, one version per row,

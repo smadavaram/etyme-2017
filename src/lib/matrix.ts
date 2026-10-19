@@ -672,16 +672,17 @@ export const MATRIX: L1[] = [
           tasks: ['Demand opens, supply answers', 'Only a firm on the deal', 'From the role or the candidate',
             'The other side is told', 'Own notes never leave the company',
             'FIXED 2026-10-08: a seat with no desk reads only the threads that name it (conversation, 0bff5f5da)',
-            'FIXED 2026-10-19: a client\u2019s first note on a job or a candidate reaches the supplier\u2019s people who work jobs \u2014 recruiters, resource managers, account managers, the owner \u2014 every one of them, and never its AP & Payroll clerk, HR, Accounts Receivable or contract manager (conversation, 0fdea317e)'],
+            'FIXED 2026-10-19: a client\u2019s first note on a job or a candidate reaches the supplier\u2019s people who work jobs \u2014 recruiters, resource managers, account managers, the owner \u2014 every one of them, and never its AP & Payroll clerk, HR, Accounts Receivable or contract manager (conversation, 0fdea317e)',
+            'DONE 2026-10-19 by etyme-architect: Pinnacle Resourcing seats a Recruiter (Selma Achterberg) and an Account Manager (Gideon Pask) after its owner and its AP & Payroll clerk, added the same idempotent way, so the walk reads a client\u2019s question reaching all three people who work Pinnacle\u2019s jobs and not Ingrid Halvorsen, and /api/demo desks recruiter and account open at Pinnacle \u2014 src/lib/seed-world.ts'],
           implementedBy: [
             'src/lib/threads.ts', 'src/lib/thread-notices.ts', 'src/components/thread.tsx',
             'src/app/api/conversations/route.ts', 'src/app/api/conversations/messages/route.ts',
             'src/app/dashboard/requisitions/[id]/page.tsx', 'src/app/dashboard/submissions/page.tsx',
-            'src/app/dashboard/conversations/page.tsx',
+            'src/app/dashboard/conversations/page.tsx', 'src/lib/seed-world.ts',
           ],
           testedBy: [
             '__tests__/invariants/threads.test.ts', '__tests__/invariants/thread-screens.test.ts',
-            '__integration__/supplier-thread.test.ts',
+            '__integration__/supplier-thread.test.ts', '__integration__/demo-seats.test.ts',
             '__tests__/invariants/conversation-job-request-word.test.ts',
             '__tests__/invariants/conversations-own-threads.test.ts', '__integration__/deskless-conversations.test.ts',
           ] },
@@ -2577,6 +2578,9 @@ export const MATRIX: L1[] = [
             'DONE 2026-10-13: One icon flips between the two screens \u2014 the logo is the logo again and goes home; one icon-sized control on the right of the header, the same slot on every page and every width, for a seat whose menu pins Ask Etyme: on a dashboard page a chat bubble wearing the number (labeled \u201cAsk Etyme, n things need you\u201d) opening Ask Etyme, on Ask Etyme four squares labeled \u201cDashboard\u201d opening the desk\u2019s own Today tables; \u201cSwitch to dashboard\u201d is deleted; the number hangs off the icon\u2019s corner, adding no width at 375; a seat with no Ask Etyme has no flip; the sidebar\u2019s pinned entry keeps its number \u2014 src/components/shell/ask-etyme-mark.tsx, src/components/shell/header.tsx',
             'DONE 2026-10-13: The phone header has no words \u2014 below md, on Ask Etyme it is the logo and the flip (four squares, Dashboard) and nothing else, no menu button and no pill row; on every other page it is the logo, the flip with the number and the menu button, each in one 36px box; the company, role, demo chip, search, + and initials leave the phone header (search and add are in each list, the account and Settings by its own gate at the foot of the menu drawer with the role, and \u201cDemo \u00b7 Northbend Athletic is a sample company\u201d at its top in the demo); desktop unchanged \u2014 src/components/shell/header.tsx, src/components/shell/mobile-nav.tsx, src/components/shell/section-pills.tsx',
             'OPEN, MONEY: An approved Invoice (as against a keyed-in invoice receipt) has no approved-for-payment state, so a yes is the ledger entry and the payment is still recorded on the AP desk.',
+            'DONE 2026-10-19 by etyme-architect, the founder\u2019s one Ask Etyme conversation per person, saved (2026-10-18): the tables \u2014 AskEtymeThread, one per seat, unique on person and company, with clearedAt; AskEtymeTurn, who said it (PERSON or ETYME), the words as shown, the answer with its links, tables and cards, the cards\u2019 approval ids and what became of each, and the question it answered \u2014 and the one door to them: readThread, appendTurn, markCard and clearThread read and write only the caller\u2019s own thread at the caller\u2019s own company; asking for another person\u2019s thread is refused, and the refusal is logged and awaited before it is returned (recordRefusal); a card answered on Teams reads answered, because the approval\u2019s own decision wins over the mark; Clear hides the old lines and keeps them on the record; a seeded demo seat every visitor shares, the shared sample and an API key keep no thread, and the door says why in a sentence \u2014 prisma/schema.prisma, src/lib/ask-etyme-thread.ts',
+            'OWED BY etyme-conversation: the route and the screen over the saved thread \u2014 GET /api/conversations/twin returns readThread\u2019s lines under the greeting, POST appends the question and the answer through appendTurn, a card\u2019s yes, no or Not now calls markCard after the approval route answers, a Clear button calls clearThread, and the screen shows notKeptBecause where saved is false; until then the thread still lives on the screen only (KNOWN-LIMITS, Ask Etyme) \u2014 src/app/api/conversations/twin/route.ts, src/app/dashboard/conversations/ask-etyme.tsx',
+            'OWED BY etyme-regulatory: ASK_ETYME_THREAD_VIEW as one line in AccessAction (the door writes it with a cast until then); the saved thread in a person\u2019s data export and erasure footprint, and a retention rule for it \u2014 src/lib/access-log.ts, src/lib/erasure.ts, src/lib/retention.ts',
           ],
           implementedBy: [
             'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts', 'src/lib/twin/performers.ts',
@@ -2598,8 +2602,9 @@ export const MATRIX: L1[] = [
             'src/components/twin-conversation.tsx', 'src/app/api/conversations/twin/route.ts',
             'src/app/dashboard/conversations/ask-etyme.tsx', 'src/app/dashboard/conversations/etyme/page.tsx', 'src/app/dashboard/conversations/page.tsx',
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/lib/agent-run.ts',
+            'src/lib/ask-etyme-thread.ts',
           ],
-          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts'] },
+          testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts', '__tests__/invariants/schema-terms.test.ts', '__integration__/deskless-conversations.test.ts'] },
         // Added 2026-10-18 by etyme-architect, on the founder's "Billing
         // and paying follow the agreement between each pair". Step 1 of
         // four: the frame and the schema. PARTIAL because the twin has

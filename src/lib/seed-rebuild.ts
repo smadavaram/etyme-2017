@@ -100,6 +100,10 @@ export const DELETE_ORDER = [
   // (onDelete: Cascade), so none is left pointing at nothing, and is listed
   // after so the count of any left over is kept. The entries go before the
   // role contract they were acted under.
+  // A seat's saved Ask Etyme conversation (2026-10-18): a line may name
+  // the question it answered, so the lines go before the questions, and
+  // the thread after its lines.
+  'AskEtymeTurn', 'AskEtymeThread',
   'TwinAction', 'TwinApproval', 'RoleContract', 'RuleSet', 'TeamsConversation',
   // The log of what left for a model (lib/model-boundary): a person's and a company's.
   'ModelPrompt',
@@ -168,6 +172,10 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'TeamsConversation.tenantId': { as: 'RECORD' },
   // Who last turned the company's model switch; a person's id kept as history.
   'Company.askEtymeModelSetById': { as: 'RECORD' },
+  // The questions whose cards an Ask Etyme line carried, kept as history:
+  // the line is the seat's, and goes with the seat's thread, whatever
+  // became of the question.
+  'AskEtymeTurn.cardApprovalIds': { as: 'RECORD' },
   // ── Owned: goes with what it names ──
   'Notification.personId': { as: 'OWNED', to: ['Person'] },
   'Import.companyId': { as: 'OWNED', to: ['Company'] },

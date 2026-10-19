@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, globSync } from 'node:fs'
 import { join } from 'node:path'
 import { Prisma } from '@prisma/client'
 
@@ -363,5 +363,58 @@ describe('Billing and paying follow the agreement between each pair (founder, 20
   it('a supplier firm has a twin of its own beside the program manager’s', () => {
     const kinds = Prisma.dmmf.datamodel.enums.find((e) => e.name === 'TwinKind')!.values.map((v) => v.name)
     expect(kinds).toEqual(['PROGRAM_MANAGER', 'SUPPLIER'])
+  })
+})
+
+describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () => {
+  it('a seat has exactly one saved Ask Etyme conversation: the thread is unique on the person and the company, so the same person at two companies has two', () => {
+    expect(uniques('AskEtymeThread')).toContainEqual(['personId', 'companyId'])
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personId'])
+    expect(field('AskEtymeThread', 'person').type).toBe('Person')
+    expect(field('AskEtymeThread', 'company').type).toBe('Company')
+  })
+
+  it('Clear starts over by stamping when, so the lines before it stay on the record rather than being deleted', () => {
+    const f = field('AskEtymeThread', 'clearedAt')
+    expect(f.type).toBe('DateTime')
+    expect(f.isRequired).toBe(false)
+  })
+
+  it('a line keeps who said it, the words as shown, the answer with its cards, what became of each card, and the question it answered', () => {
+    const speakers = Prisma.dmmf.datamodel.enums.find((e) => e.name === 'AskEtymeSpeaker')!.values.map((v) => v.name)
+    expect(speakers).toEqual(['PERSON', 'ETYME'])
+    expect(field('AskEtymeTurn', 'speaker').type).toBe('AskEtymeSpeaker')
+    expect(field('AskEtymeTurn', 'text')).toMatchObject({ type: 'String', isRequired: true })
+    expect(field('AskEtymeTurn', 'answer')).toMatchObject({ type: 'Json', isRequired: false })
+    expect(field('AskEtymeTurn', 'cardApprovalIds')).toMatchObject({ type: 'String', isList: true })
+    expect(field('AskEtymeTurn', 'cards')).toMatchObject({ type: 'Json', isRequired: false })
+    expect(field('AskEtymeTurn', 'approval')).toMatchObject({ type: 'TwinApproval', isRequired: false })
+    const body = schema.match(/model AskEtymeTurn \{([\s\S]*?)^\}/m)![1]
+    expect(body, 'the lines are read by thread, in the order they were said').toMatch(/@@index\(\[threadId, createdAt\]\)/)
+  })
+
+  it('the saved conversation is additive, so production can take it on a push: nothing new on an existing table is required', () => {
+    // Person, Company and TwinApproval gain only lists of the new rows.
+    for (const [m, f] of [['Person', 'askEtymeThreads'], ['Company', 'askEtymeThreads'], ['TwinApproval', 'askEtymeTurns']] as const) {
+      expect(field(m, f).isList, `${m}.${f}`).toBe(true)
+    }
+  })
+
+  it('the thread is read and written through one door that names no other person’s thread and calls nothing outside the record', () => {
+    const door = readFileSync(join(process.cwd(), 'src/lib/ask-etyme-thread.ts'), 'utf8')
+    // Every query keys on the caller's own seat.
+    expect(door).toMatch(/personId_companyId: \{ personId: seat\.person\.id, companyId: company\.id \}/)
+    // A refused read goes through the awaited refusal, never fire-and-forget.
+    expect(door).toContain('await recordRefusal(')
+    expect(door).not.toMatch(/\blogAccess\(/)
+    // Nothing leaves from here: no model client, no network.
+    expect(door).not.toMatch(/\bfetch\(|anthropic|@\/lib\/model-boundary'/i)
+    // And nothing else in the product reads or writes the two tables.
+    const elsewhere = (globSync('src/**/*.{ts,tsx}', { cwd: process.cwd() }) as string[])
+      .filter((f) => !f.endsWith(join('lib', 'ask-etyme-thread.ts')))
+      .filter((f) => /prisma\.askEtyme(Thread|Turn)\b|tx\.askEtyme(Thread|Turn)\b/.test(readFileSync(join(process.cwd(), f), 'utf8')))
+    expect(elsewhere, 'a file other than lib/ask-etyme-thread touches the saved conversation').toEqual([])
+    // Not passing on nothing: the door itself is what the pattern finds.
+    expect(door).toMatch(/prisma\.askEtymeTurn\b/)
   })
 })

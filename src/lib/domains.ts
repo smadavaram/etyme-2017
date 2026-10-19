@@ -368,6 +368,11 @@ export const DOMAINS: Domain[] = [
       'lib/model-boundary',
       // The number on the Ask Etyme mark, where the bell was (2026-10-13).
       'lib/owed-count',
+      // The one door to a seat's saved Ask Etyme conversation (founder,
+      // 2026-10-18): the caller's own thread at the caller's own company,
+      // and nobody else's. The route and the screen over it are
+      // conversation's.
+      'lib/ask-etyme-thread',
       // The product inside the home page, read-only (founder, 2026-10-14):
       // the shared sample seat's rules, read by the middleware and the one
       // caller check, and the frame the home page shows. The home page that

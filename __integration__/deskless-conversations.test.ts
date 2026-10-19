@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as list } from '@/app/api/conversations/route'
-import { GET as readThread, POST as writeThread } from '@/app/api/conversations/messages/route'
+import { GET as readMessages, POST as writeThread } from '@/app/api/conversations/messages/route'
+import { getCallerContext } from '@/lib/api-context'
+import { readThread, appendTurn, markCard, clearThread } from '@/lib/ask-etyme-thread'
 
 /**
  * Sign-up walk, round four: the one door opens Conversations to a seat
@@ -58,14 +60,14 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
 
   it('the Member opens the thread that names them', async () => {
     as(MO)
-    const r = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${theirs}`)))
+    const r = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${theirs}`)))
     expect(r.status).toBe(200)
     expect(r.body.data.messages.map((m: any) => m.body)).toEqual(['Welcome, Mo.'])
   })
 
   it('a company thread that does not name the Member is refused in the door’s own sentence, and its words never reach them', async () => {
     as(MO)
-    const r = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${notTheirs}`)))
+    const r = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${notTheirs}`)))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe(REFUSED)
     expect(JSON.stringify(r.body)).not.toContain('$92')
@@ -91,7 +93,7 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
       where: { archivedAt: null, OR: [{ companyId: firm.id }, { withCompanyId: firm.id }] },
     })
     expect(ids.length).toBe(Math.min(50, all))
-    const read = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${notTheirs}`)))
+    const read = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${notTheirs}`)))
     expect(read.status).toBe(200)
   })
 })
@@ -153,7 +155,7 @@ describe('Karthik Menon, a worker seated at Teleworld with only the reads of his
 
   it('opening the Corveldt thread about Meera is refused to Karthik in the door’s own sentence, and its words never reach him', async () => {
     as(KARTHIK)
-    const r = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
+    const r = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('That conversation is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
     expect(JSON.stringify(r.body)).not.toContain('inclusive of expenses')
@@ -173,8 +175,189 @@ describe('Karthik Menon, a worker seated at Teleworld with only the reads of his
     const ids: string[] = r.body.data.conversations.map((c: any) => c.id)
     expect(ids).toContain(meeraThread)
     expect(ids.length).toBe(Math.min(50, firmThreads.length))
-    const read = await json(await readThread(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
+    const read = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
     expect(read.status).toBe(200)
     expect(read.body.data.messages.map((m: any) => m.body).join(' ')).toContain(MEERA_ASK)
+  })
+})
+
+// ── One Ask Etyme conversation per seat, saved (founder, 2026-10-18) ──
+//
+// The door is lib/ask-etyme-thread; the route and the screen over it are
+// conversation's. Walked against real seats resolved by the one caller
+// check, at addresses that are not reserved: a seeded demo seat is shared
+// by every visitor who asks for it, so it keeps no thread (the last
+// sentence here), and these people have to be somebody's own.
+
+describe('one Ask Etyme conversation per seat, kept on the record, and read by nobody else', () => {
+  const AVERY = 'avery.recruits@pinnacle-staff.test'
+  const JUN = 'jun.accounts@pinnacle-staff.test'
+  let pinnacle = { id: '', name: '' }
+  let nike = { id: '' }
+  let avery = { id: '', seat: '' }
+  let jun = { id: '', seat: '', nikeSeat: '' }
+  let question = ''
+  let averyTurn = ''
+
+  /** The caller the one check resolves for this person at this seat. */
+  async function seatOf(email: string, contextId: string) {
+    as(email)
+    const { caller, error } = await getCallerContext(req('GET', '/api/conversations/twin', undefined, { 'x-context-id': contextId }))
+    if (error || !caller) throw new Error(`${email} could not be seated`)
+    return caller
+  }
+
+  beforeAll(async () => {
+    await freshWorld()
+    const p = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true, name: true } })
+    pinnacle = p
+    nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const role = (companyId: string, name: string) =>
+      prisma.role.findFirstOrThrow({ where: { companyId, name }, select: { id: true } })
+    const seat = async (personId: string, companyId: string, roleName: string) =>
+      (await prisma.context.create({
+        data: { personId, companyId, type: 'EMPLOYEE', roleId: (await role(companyId, roleName)).id, grantReason: 'Joined on the domain' },
+        select: { id: true },
+      })).id
+    avery.id = (await prisma.person.create({ data: { primaryEmail: AVERY, name: 'Avery Lund' }, select: { id: true } })).id
+    jun.id = (await prisma.person.create({ data: { primaryEmail: JUN, name: 'Jun Takeda' }, select: { id: true } })).id
+    avery.seat = await seat(avery.id, pinnacle.id, 'Recruiter')
+    jun.seat = await seat(jun.id, pinnacle.id, 'Account Manager')
+    jun.nikeSeat = await seat(jun.id, nike.id, 'Member')
+
+    // One question Ask Etyme put to Pinnacle's people: send a bill.
+    const asked = await prisma.twinAction.create({
+      data: {
+        companyId: pinnacle.id, twinKind: 'SUPPLIER', actorType: 'TWIN', actorId: 'SUPPLIER', onAuthorityOfRole: 'Owner',
+        tier: 'NEEDS_APPROVAL', outcome: 'AWAITING_APPROVAL', action: 'bill.send', entityType: 'Invoice', entityId: 'inv-thread-walk',
+        partyCompanyIds: [pinnacle.id], ruleCited: 'bill.send', rationale: 'A drafted bill waits for a yes.', surface: 'CRON', payload: {},
+      },
+      select: { id: true },
+    })
+    question = (await prisma.twinApproval.create({
+      data: { twinActionId: asked.id, companyId: pinnacle.id, needsPermission: 'invoices.issue' },
+      select: { id: true },
+    })).id
+  }, 600_000)
+
+  it('a person’s question and Ask Etyme’s answer are kept on their own thread, and read back after a reload in the order they were said, the answer’s card with them', async () => {
+    const me = await seatOf(AVERY, avery.seat)
+    const asked = await appendTurn(me, { speaker: 'PERSON', text: 'What needs me today?' })
+    expect(asked).toMatchObject({ ok: true, saved: true })
+    const answer = { kind: 'NEEDS', says: 'One bill waits for you.', items: [{ n: 1, approvalId: question, title: 'INV-1042' }] }
+    const said = await appendTurn(me, { speaker: 'ETYME', text: answer.says, answer, cardApprovalIds: [question] })
+    if (!said.ok || !said.saved) throw new Error('Ask Etyme’s answer was not kept')
+    averyTurn = said.turn.id
+
+    // A reload is a new read from the record, nothing held on the screen.
+    const back = await readThread(await seatOf(AVERY, avery.seat))
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.saved).toBe(true)
+    expect(back.thread.turns.map((t) => [t.speaker, t.text])).toEqual([
+      ['PERSON', 'What needs me today?'], ['ETYME', 'One bill waits for you.'],
+    ])
+    expect(back.thread.turns[1].answer).toEqual(answer)
+    expect(back.thread.turns[1].cardApprovalIds).toEqual([question])
+    expect(back.thread.turns[1].cards).toEqual({})
+    expect(await prisma.askEtymeThread.count({ where: { personId: avery.id, companyId: pinnacle.id } })).toBe(1)
+  })
+
+  it('a person reads their own Ask Etyme thread and nobody else’s, and a read of another person’s thread is refused and logged before the refusal is returned', async () => {
+    const theirs = await seatOf(JUN, jun.seat)
+    await appendTurn(theirs, { speaker: 'PERSON', text: 'Which client owes us the most?' })
+
+    const me = await seatOf(AVERY, avery.seat)
+    const r = await readThread(me, { personId: jun.id })
+    expect(r).toEqual({
+      ok: false, status: 403, code: 'NOT_YOUR_THREAD',
+      says: 'An Ask Etyme conversation is read only by the person it belongs to. Nobody else at Pinnacle Resourcing can open it, and nobody at another company.',
+    })
+    expect(JSON.stringify(r)).not.toContain('owes us the most')
+    // Awaited by the door, so the row is there the moment the refusal is.
+    const logged = await prisma.accessLog.findMany({ where: { subjectId: jun.id, actorPersonId: avery.id } })
+    expect(logged).toHaveLength(1)
+    expect(logged[0]).toMatchObject({ action: 'ASK_ETYME_THREAD_VIEW', allowed: false, actorCompanyId: pinnacle.id })
+
+    // Asking for oneself by id is the same as asking for one's own.
+    const own = await readThread(me, { personId: avery.id })
+    if (!own.ok) throw new Error(own.says)
+    expect(own.thread.turns.map((t) => t.text)).not.toContain('Which client owes us the most?')
+  })
+
+  it('the same person seated at two companies keeps two threads, and the seat at Northbend Athletic never reads what was said at Pinnacle', async () => {
+    const atNike = await seatOf(JUN, jun.nikeSeat)
+    const empty = await readThread(atNike)
+    if (!empty.ok) throw new Error(empty.says)
+    expect(empty.thread.turns).toEqual([])
+    await appendTurn(atNike, { speaker: 'PERSON', text: 'Who is near the time limit?' })
+
+    const atPinnacle = await readThread(await seatOf(JUN, jun.seat))
+    if (!atPinnacle.ok) throw new Error(atPinnacle.says)
+    expect(atPinnacle.thread.turns.map((t) => t.text)).toEqual(['Which client owes us the most?'])
+    expect(await prisma.askEtymeThread.count({ where: { personId: jun.id } })).toBe(2)
+  })
+
+  it('a card answered in Ask Etyme stays answered after a reload, and a card answered somewhere else — on Teams — reads answered too, because the record wins', async () => {
+    const me = await seatOf(AVERY, avery.seat)
+    const later = await markCard(me, { turnId: averyTurn, approvalId: question, state: 'LATER' })
+    expect(later).toMatchObject({ ok: true, saved: true })
+    let back = await readThread(me)
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.turns[1].cards[question].state).toBe('LATER')
+
+    await prisma.twinApproval.update({ where: { id: question }, data: { decision: 'APPROVED', decidedAt: new Date(), surface: 'TEAMS' } })
+    back = await readThread(me)
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.turns[1].cards[question].state).toBe('APPROVED')
+
+    // A card that is not on the line is refused, and nothing is marked.
+    const stray = await markCard(me, { turnId: back.thread.turns[0].id, approvalId: question, state: 'APPROVED' })
+    expect(stray).toMatchObject({ ok: false, code: 'NOT_A_CARD', says: 'That card is not on this line of your conversation.' })
+  })
+
+  it('a card on somebody else’s thread cannot be marked: the attempt is refused, logged against them, and changes nothing', async () => {
+    const before = await prisma.askEtymeTurn.findUniqueOrThrow({ where: { id: averyTurn }, select: { cards: true } })
+    const r = await markCard(await seatOf(JUN, jun.seat), { turnId: averyTurn, approvalId: question, state: 'REJECTED' })
+    expect(r).toEqual({ ok: false, status: 404, code: 'NOT_IN_YOUR_THREAD', says: 'That line is not in your Ask Etyme conversation.' })
+    const after = await prisma.askEtymeTurn.findUniqueOrThrow({ where: { id: averyTurn }, select: { cards: true } })
+    expect(after.cards).toEqual(before.cards)
+    expect(await prisma.accessLog.count({ where: { subjectId: avery.id, actorPersonId: jun.id, allowed: false, action: 'ASK_ETYME_THREAD_VIEW' } })).toBe(1)
+  })
+
+  it('Clear starts over: the lines said so far stay on the record and are no longer shown, and the next line is shown', async () => {
+    const me = await seatOf(AVERY, avery.seat)
+    const cleared = await clearThread(me)
+    expect(cleared).toMatchObject({ ok: true, saved: true })
+    let back = await readThread(me)
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.turns).toEqual([])
+    expect(back.thread.clearedAt).not.toBeNull()
+    expect(await prisma.askEtymeTurn.count({ where: { thread: { personId: avery.id, companyId: pinnacle.id } } })).toBe(2)
+
+    await appendTurn(me, { speaker: 'PERSON', text: 'Starting again.' })
+    back = await readThread(me)
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.turns.map((t) => t.text)).toEqual(['Starting again.'])
+  })
+
+  it('a seeded demo seat, which every visitor who asks for it shares, keeps no thread and says why; the shared sample and an API key keep none either', async () => {
+    const shared = await prisma.context.findFirstOrThrow({
+      where: { companyId: pinnacle.id, person: { primaryEmail: 'world-pinnacle-recruiter@demo.etyme.local' } },
+      select: { id: true, personId: true },
+    })
+    const demoSeat = await seatOf('world-pinnacle-recruiter@demo.etyme.local', shared.id)
+    const said = await appendTurn(demoSeat, { speaker: 'PERSON', text: 'Hello from a visitor.' })
+    expect(said).toEqual({
+      ok: true, saved: false,
+      says: 'This conversation is not kept after you leave the page, because other visitors use this demo seat too. Open your own demo to keep one.',
+    })
+    const read = await readThread(demoSeat)
+    if (!read.ok) throw new Error(read.says)
+    expect(read.thread).toMatchObject({ saved: false, turns: [] })
+    expect(await prisma.askEtymeThread.count({ where: { personId: shared.personId } })).toBe(0)
+
+    const me = await seatOf(AVERY, avery.seat)
+    expect(await appendTurn({ ...me, readOnly: true }, { speaker: 'PERSON', text: 'Hi' })).toMatchObject({ ok: true, saved: false })
+    expect(await readThread({ ...me, isService: true })).toMatchObject({ ok: false, code: 'NO_PERSON' })
   })
 })
