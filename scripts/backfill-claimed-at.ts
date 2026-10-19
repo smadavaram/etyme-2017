@@ -11,6 +11,10 @@
  * role is claimed on the day it was made; a shell nobody has joined is
  * left alone. Safe to run twice: the second run finds nothing.
  *
+ * Where nobody holds DATABASE_URL (production), staff run the same rule
+ * through POST /api/staff/backfill-claimed-at with the CRON_SECRET bearer:
+ * it counts by default and marks on {"write": true}.
+ *
  * The rule lives in `claimSignedUpFirms` (src/lib/company-create.ts), so
  * the integration suite tests the same SQL this runs.
  */

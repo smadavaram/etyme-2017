@@ -3,6 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as addCompany } from '@/app/api/companies/route'
 import { createCompany, claimSignedUpFirms } from '@/lib/company-create'
 import { isShell } from '@/lib/off-system'
+import { POST as backfill } from '@/app/api/staff/backfill-claimed-at/route'
 
 /**
  * `Company.claimedAt` is what "on Etyme" means: null is a shell, a firm
@@ -57,5 +58,47 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     expect((await prisma.company.findUniqueOrThrow({ where: { id: seated.id } })).claimedAt).toEqual(seated.createdAt)
     expect((await prisma.company.findUniqueOrThrow({ where: { id: shell.id } })).claimedAt).toBeNull()
     expect(await claimSignedUpFirms(prisma, { write: true })).toEqual({ found: 0, claimed: 0 })
+  })
+
+  it('the one-off that marks signed-up firms as on Etyme runs behind the cron secret, counts first, writes on request, and finds nothing the second time', async () => {
+    const before = process.env.CRON_SECRET
+    process.env.CRON_SECRET = 'the-real-secret'
+    const call = (token: string | null, body?: unknown) =>
+      backfill(req('POST', '/api/staff/backfill-claimed-at', body, token ? { authorization: `Bearer ${token}` } : {}))
+    try {
+      const seated = await prisma.company.findFirstOrThrow({ where: { contexts: { some: { roleId: { not: null } } } }, select: { id: true, createdAt: true } })
+      await prisma.company.update({ where: { id: seated.id }, data: { claimedAt: null } })
+      const shell = await prisma.company.findFirstOrThrow({ where: { name: 'Ostrander Mills' }, select: { id: true } })
+      const logsBefore = await prisma.automationLog.count({ where: { action: 'SIGNED_UP_FIRMS_CLAIMED' } })
+
+      expect((await call(null, { write: true })).status).toBe(401)
+      expect((await call('not-the-secret', { write: true })).status).toBe(401)
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: seated.id } })).claimedAt).toBeNull()
+
+      const counted = await json(await call('the-real-secret'))
+      expect(counted.status, JSON.stringify(counted.body)).toBe(200)
+      expect(counted.body.data.write).toBe(false)
+      expect(counted.body.data.found).toBeGreaterThanOrEqual(1)
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: seated.id } })).claimedAt).toBeNull()
+      expect(await prisma.automationLog.count({ where: { action: 'SIGNED_UP_FIRMS_CLAIMED' } })).toBe(logsBefore)
+
+      const written = await json(await call('the-real-secret', { write: true }))
+      expect(written.status, JSON.stringify(written.body)).toBe(200)
+      expect(written.body.data.claimed).toBe(written.body.data.found)
+      expect(written.body.data.claimed).toBeGreaterThanOrEqual(1)
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: seated.id } })).claimedAt).toEqual(seated.createdAt)
+      expect((await prisma.company.findUniqueOrThrow({ where: { id: shell.id } })).claimedAt).toBeNull()
+      const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'SIGNED_UP_FIRMS_CLAIMED' }, orderBy: { at: 'desc' } })
+      expect(log.companyId).toBeNull()
+      expect(log.reversible).toBe(false)
+      expect(log.payload).toMatchObject({ claimed: written.body.data.claimed, by: 'STAFF', via: 'CRON_SECRET' })
+
+      const again = await json(await call('the-real-secret', { write: true }))
+      expect(again.body.data).toMatchObject({ found: 0, claimed: 0 })
+      expect(await prisma.automationLog.count({ where: { action: 'SIGNED_UP_FIRMS_CLAIMED' } })).toBe(logsBefore + 1)
+    } finally {
+      if (before === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = before
+    }
   })
 })

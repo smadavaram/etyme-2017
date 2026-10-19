@@ -1045,7 +1045,7 @@ export const MATRIX: L1[] = [
             'The row says which of the two parties typed it in',
             'Every row already points at the company id, so it is the claimant’s the instant they take possession',
             'A firm somebody else put on its register has no public page until somebody there joins',
-            'BUILT 2026-10-19 by etyme-architect: a firm that signed up is on Etyme from the moment it is made (`createCompany` sets `claimedAt` where its founder is seated) and only a firm somebody else wrote down is not; until then every signed-up firm read as a shell. A counterparty from Add company is on the caller’s register (`listedById`), with no public page, in the caller’s own world. `npx tsx scripts/backfill-claimed-at.ts --write` marks, once, every firm somebody holds a seat at, from the day it was made (`claimSignedUpFirms`)',
+            'BUILT 2026-10-19 by etyme-architect: a firm that signed up is on Etyme from the moment it is made (`createCompany` sets `claimedAt` where its founder is seated) and only a firm somebody else wrote down is not; until then every signed-up firm read as a shell. A counterparty from Add company is on the caller’s register (`listedById`), with no public page, in the caller’s own world. `npx tsx scripts/backfill-claimed-at.ts --write` marks, once, every firm somebody holds a seat at, from the day it was made (`claimSignedUpFirms`); on a deployment nobody holds DATABASE_URL for, staff run the same rule as POST /api/staff/backfill-claimed-at behind the CRON_SECRET — it counts by default, marks on `{"write": true}` with an automation-log row naming staff as who ran it, and finds nothing the second time',
             'BUILT 2026-10-19 by etyme-architect: a supplier writes down its client with the person there (“Add company → Client” posts to the clients door with their contact and email), kept in its own address book, and can record or take off that person later (PATCH /api/clients); never one of its own people. “Invite them to Etyme” makes the invitation and sends conversation’s letter to the client (`clientInviteLetter`) once, and the screen says it was sent only where the email left',
             'BUILT 2026-10-19 by etyme-architect: a firm cannot name as its own client a shell another firm listed unless the two already work together (`mayNameCounterparty`). OPEN for money: POST /api/contracts passes `relationshipExists: true` for every shell, so the rule does not yet bite there',
           ],
@@ -1055,7 +1055,7 @@ export const MATRIX: L1[] = [
             'src/app/api/claim/[token]/route.ts', 'src/app/claim/[token]/page.tsx', 'src/app/claim/[token]/words.ts',
             'src/lib/public-site.ts', 'src/lib/public-site/speaks.ts',
             'src/lib/company-create.ts', 'src/app/api/companies/route.ts', 'src/app/dashboard/companies/page.tsx',
-            'scripts/backfill-claimed-at.ts', 'src/lib/week-approval.ts',
+            'scripts/backfill-claimed-at.ts', 'src/app/api/staff/backfill-claimed-at/route.ts', 'src/lib/week-approval.ts',
           ],
           testedBy: [
             '__tests__/invariants/work-order.test.ts', '__integration__/work-order.test.ts',
