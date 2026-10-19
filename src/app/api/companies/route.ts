@@ -9,6 +9,7 @@ import { dealingsOf } from './dealings'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
 import { createCompany } from '@/lib/company-create'
 import { mayAddCompany } from '@/lib/counterparty'
+import { speaksForItself } from '@/lib/public-site/speaks'
 
 /**
  * POST /api/companies
@@ -439,6 +440,8 @@ export async function GET(request: NextRequest) {
       siteLiveAt: true,
       networkVerifiedAt: true,
       createdAt: true,
+      claimedAt: true,
+      _count: { select: { contexts: { where: { roleId: { not: null } } } } },
     },
   })
 
@@ -464,6 +467,12 @@ export async function GET(request: NextRequest) {
         siteLiveAt: c.siteLiveAt?.toISOString() ?? null,
         networkVerifiedAt: c.networkVerifiedAt?.toISOString() ?? null,
         createdAt: c.createdAt.toISOString(),
+        // Whether the firm is here at all, and whether its Etyme address
+        // opens a page. A client somebody else wrote down and nobody has
+        // claimed has neither, so the list never prints an address for it
+        // that leads nowhere (lib/public-site/speaks, the page's own rule).
+        onEtyme: c.claimedAt != null || c._count.contexts > 0,
+        hasPage: speaksForItself({ siteLiveAt: c.siteLiveAt, claimedAt: c.claimedAt, seats: c._count.contexts }),
       })),
     },
   })

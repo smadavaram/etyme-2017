@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as listClients, POST as listClient, PATCH as recordContact } from '@/app/api/clients/route'
 import { POST as sendOrAttach } from '@/app/api/week-approvals/route'
 import { POST as claim } from '@/app/api/claim/[token]/route'
-import { answerLink, readWeekApprovals, readerOf, newLinkToken, hashLinkToken } from '@/lib/week-approval'
+import { answerLink, openLink, approvalWords, readWeekApprovals, readerOf, newLinkToken, hashLinkToken } from '@/lib/week-approval'
 
 /**
  * Tapin's first day: a supplier whose client is not on Etyme.
@@ -160,6 +160,16 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
   })
 
   it('once the client claims its record, its own domain and seats decide, as before, and the approvals it gave off the platform still say so', async () => {
+    // Two links sent while Larkspur is not on Etyme, answered after it claims.
+    as(OWNER)
+    it_.week4 = await submittedWeek(it_.line, it_.worker, '2026-09-13')
+    it_.week5 = await submittedWeek(it_.line, it_.worker, '2026-09-20')
+    expect((await send(it_.week4, 'Dana Whitfield', DANA)).status).toBe(201)
+    expect((await send(it_.week5, 'Raj Patel', COLLEAGUE)).status).toBe(201)
+    for (const w of [it_.week4, it_.week5]) {
+      expect((await prisma.weekApproval.findFirstOrThrow({ where: { timesheetId: w } })).clientOffPlatform).toBe(true)
+    }
+
     // The invitation Larkspur would receive once its letter exists; written
     // here as the invite path writes it.
     const invite = await prisma.supplierInvite.create({
@@ -197,5 +207,39 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
       it_.week1,
     )
     expect(seen.ok && seen.seen.approvals[0].words).toBe(`Approved by email: Dana Whitfield, ${DANA} — Larkspur Freight was not on Etyme`)
+  })
+
+  it('a link sent while the client was not on Etyme and answered after it claims its record is signed as a client on Etyme, and is closed to an approver only the supplier vouched for', async () => {
+    const tokenFor = async (timesheetId: string) => {
+      const token = newLinkToken()
+      const row = await prisma.weekApproval.findFirstOrThrow({ where: { timesheetId } })
+      await prisma.weekApproval.update({ where: { id: row.id }, data: { tokenHash: hashLinkToken(token) } })
+      return { token, id: row.id }
+    }
+
+    // Dana holds a seat at Larkspur now, so her yes is Larkspur's own, given on Etyme.
+    const dana = await tokenFor(it_.week4)
+    const at = new Date()
+    const answered = await answerLink(dana.token, { answer: 'APPROVE' }, at)
+    expect(answered.ok, JSON.stringify(answered)).toBe(true)
+    expect((await prisma.weekApproval.findUniqueOrThrow({ where: { id: dana.id } })).clientOffPlatform).toBe(false)
+    const signature = await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: it_.week4, role: 'CLIENT_APPROVAL', state: 'LIVE' } })
+    expect(signature.note).toBe(approvalWords({
+      approverName: 'Dana Whitfield', approverEmail: DANA, clientName: 'Larkspur Freight', clientOffPlatform: false, on: at, how: 'LINK', now: at,
+    }))
+    expect(signature.note).not.toContain('was not on Etyme')
+
+    // Raj stood only on Brightmoor's record of Larkspur. Approve is closed, said on the page before he presses it.
+    const brightmoor = await prisma.company.findUniqueOrThrow({ where: { id: it_.brightmoor }, select: { name: true } })
+    const says =
+      `Larkspur Freight joined Etyme after this link was sent, and ${COLLEAGUE} is not an address there. ` +
+      `Ask ${brightmoor.name} to send the link to the person at Larkspur Freight who approves the hours.`
+    const raj = await tokenFor(it_.week5)
+    const opened = await openLink(raj.token)
+    expect(opened.ok && opened.view.approveRefused).toBe(says)
+    const refused = await answerLink(raj.token, { answer: 'APPROVE' })
+    expect(refused).toMatchObject({ ok: false, status: 409, says })
+    expect(await prisma.workAssertion.count({ where: { timesheetId: it_.week5, role: 'CLIENT_APPROVAL' } })).toBe(0)
+    expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week5 } })).clientApprovedAt).toBeNull()
   })
 })

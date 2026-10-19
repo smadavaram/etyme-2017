@@ -558,7 +558,9 @@ async function approverAtClient(
  * Whitfield, dana@acme.com — Acme was not on Etyme" — because the
  * approver stood on the supplier's record of the client, not the
  * client's own. Read from the row, so it still reads that way after the
- * client claims its record. Otherwise the usual words.
+ * client claims its record. The row says what the client was when the
+ * approver answered, not when the link was sent (`standingAtAnswer`).
+ * Otherwise the usual words.
  */
 export function approvalWords(i: {
   approverName: string
@@ -795,7 +797,12 @@ async function signForClient(
   weekApprovalId: string,
   at: Date,
   words: string,
-  how: { by: string; outcome?: LinkOutcome }
+  how: {
+    by: string
+    outcome?: LinkOutcome
+    /** Whether the client was off the platform at the moment it approved, where that differs from the row. */
+    clientOffPlatform?: boolean
+  }
 ): Promise<{ ok: true } | Refused> {
   const client = signaturesWritten(c.signers)[0]
   if (!client) return refuse(409, 'NO_CLIENT', 'This week has no client signature to give.')
@@ -838,7 +845,11 @@ async function signForClient(
       })
       const linked = await tx.weekApproval.updateMany({
         where: { id: weekApprovalId, assertionId: null, ...(how.outcome ? { usedAt: null } : {}) },
-        data: { assertionId: assertion.id, ...(how.outcome ? { usedAt: at, outcome: how.outcome } : {}) },
+        data: {
+          assertionId: assertion.id,
+          ...(how.outcome ? { usedAt: at, outcome: how.outcome } : {}),
+          ...(how.clientOffPlatform !== undefined ? { clientOffPlatform: how.clientOffPlatform } : {}),
+        },
       })
       if (linked.count === 0) throw new Refusal(409, 'USED', 'This approval has already been used.')
       signed = assertion.id
@@ -999,8 +1010,39 @@ export async function openLink(token: string, now = new Date()): Promise<{ ok: t
         .map(([d, h]) => ({ day: dayName(d), hours: Number(h) })),
       expiresOn: dayOf(row.expiresAt, now),
       reasons: Object.entries(SEND_BACK_REASONS).map(([code, says]) => ({ code, says })),
-      approveRefused: needsSigningInEtyme(c),
+      approveRefused: needsSigningInEtyme(c) ?? (await standingAtAnswer(row, c, told.askFirm)).refused,
     },
+  }
+}
+
+/**
+ * What the client is at the moment its approver answers, not when the
+ * link was sent.
+ *
+ * A link sent while the client was not on Etyme rests on the supplier's
+ * record of it. If the client claims its record before the approver
+ * answers, the signature describes the moment of approval: the client is
+ * on Etyme, so the row stops saying it was not, and its own domain and
+ * seats decide whether the approver is somebody there — as for a link
+ * sent today. An approver only the supplier's record vouched for is not
+ * signed in as the client's own yes: Approve is closed, in a sentence,
+ * and Send back still works. A client still not on Etyme reads as before.
+ */
+async function standingAtAnswer(
+  row: { approverEmail: string; clientOffPlatform: boolean | null },
+  c: WeekChain,
+  askFirm: string
+): Promise<{ changed: false; refused: null } | { changed: true; clientOffPlatform: false; refused: string | null }> {
+  if (!row.clientOffPlatform) return { changed: false, refused: null }
+  const client = await clientOfRecord(c)
+  if (client.offPlatform) return { changed: false, refused: null }
+  const v = approverIsKnownAtClient({ approverEmail: row.approverEmail, client })
+  if (v.ok) return { changed: true, clientOffPlatform: false, refused: null }
+  return {
+    changed: true, clientOffPlatform: false,
+    refused:
+      `${c.clientName} joined Etyme after this link was sent, and ${row.approverEmail} is not an address there. ` +
+      `Ask ${askFirm} to send the link to the person at ${c.clientName} who approves the hours.`,
   }
 }
 
@@ -1021,11 +1063,20 @@ export async function answerLink(
 
   if (answer.answer === 'APPROVE') {
     if (opened.view.approveRefused) return refuse(409, 'SIGN_IN_ETYME', opened.view.approveRefused)
+    // Read when the answer lands, not when the link was sent: a client
+    // that claimed its record in between approved as a client on Etyme.
+    const told = senderAsTheClientSees(c, { personId: row.sentById, name: row.sentBy.name, companyId: row.sentByCompanyId })
+    const standing = await standingAtAnswer(row, c, told.askFirm)
+    if (standing.refused) return refuse(409, 'SIGN_IN_ETYME', standing.refused)
+    const clientOffPlatform = standing.changed ? standing.clientOffPlatform : row.clientOffPlatform
     const words = approvalWords({
       approverName: row.approverName, approverEmail: row.approverEmail, clientName: c.clientName,
-      clientOffPlatform: row.clientOffPlatform, on: now, how: 'LINK', now,
+      clientOffPlatform, on: now, how: 'LINK', now,
     })
-    const signed = await signForClient(c, row.id, now, words, { by: `${row.approverName} pressed Approve on the link ${row.sentBy.name} sent`, outcome: 'APPROVED' })
+    const signed = await signForClient(c, row.id, now, words, {
+      by: `${row.approverName} pressed Approve on the link ${row.sentBy.name} sent`, outcome: 'APPROVED',
+      ...(standing.changed ? { clientOffPlatform: standing.clientOffPlatform } : {}),
+    })
     if (!signed.ok) return signed
     await tellAfterApproval(c, { words, senderId: row.sentById, how: 'LINK' })
     return { ok: true, says: `Thank you. ${c.week.personName}’s week is approved, with your name, this address and the time. Nothing else is needed from you.` }

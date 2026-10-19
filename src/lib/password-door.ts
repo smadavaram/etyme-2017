@@ -38,6 +38,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { landingFor } from '@/lib/nav-table'
 import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { emit } from '@/lib/events'
 import { emailSender } from '@/lib/senders'
@@ -651,7 +652,14 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
       where: { personId: person.id }, update: {},
       create: { personId: person.id, skills: [], visibility: 'INTERNAL' },
     })
-    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/dashboard/my-work', says: 'Your email is confirmed. This is your own page.' }
+    // Where every other door lands this seat (lib/nav-table, landingFor):
+    // a candidate's menu has her own work, so Ask Etyme is pinned on it
+    // and its greeting is her week. Her own pages are one click behind it.
+    return {
+      ok: true, personId: person.id, email: person.primaryEmail,
+      landing: landingFor({ kind: null, isConsultant: true }),
+      says: 'Your email is confirmed. Ask Etyme opens on your own work.',
+    }
   }
 
   // A colleague naming their company's address from the owner's domain.

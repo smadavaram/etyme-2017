@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
-import { POST as addCompany } from '@/app/api/companies/route'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { POST as addCompany, GET as listCompanies } from '@/app/api/companies/route'
 import { createCompany, claimSignedUpFirms } from '@/lib/company-create'
 import { isShell } from '@/lib/off-system'
 import { POST as backfill } from '@/app/api/staff/backfill-claimed-at/route'
@@ -33,7 +35,7 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     expect(tapin.siteLiveAt).not.toBeNull()
   })
 
-  it('a client a firm writes down from Add company is a shell on that firm’s register, with no public page, in the same world', async () => {
+  it('a client a firm writes down from Add company is a shell on that firm’s register, with no public page, in the same world, and the Companies list says it is not on Etyme yet rather than print an address that opens nothing', async () => {
     as(OWNER)
     const r = await json(await addCompany(req('POST', '/api/companies', { name: 'Ostrander Mills', kind: 'CLIENT', relationship: 'CLIENT' })))
     expect(r.status, JSON.stringify(r.body)).toBeLessThan(300)
@@ -43,6 +45,14 @@ describe('a firm that signed up is on Etyme; only a firm somebody else wrote dow
     expect(written.listedById).toBe(brightmoor.id)
     expect(written.siteLiveAt).toBeNull()
     expect(written.isDemo).toBe(brightmoor.isDemo)
+
+    const list = await json(await listCompanies(req('GET', '/api/companies')))
+    expect(list.status, JSON.stringify(list.body)).toBe(200)
+    expect(list.body.data.companies.find((c: { id: string }) => c.id === written.id)).toMatchObject({ onEtyme: false, hasPage: false })
+    expect(list.body.data.companies.find((c: { id: string }) => c.id === brightmoor.id)).toMatchObject({ onEtyme: true })
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/companies/page.tsx'), 'utf8')
+    expect(page).toContain("if (!c.onEtyme) return 'Not on Etyme yet'")
+    expect(page).not.toMatch(/\{(row|company)\.slug\}\.etyme\.com/)
   })
 
   it('the one-off marks every firm somebody has a seat at as on Etyme, leaves a shell nobody joined alone, and finds nothing the second time', async () => {

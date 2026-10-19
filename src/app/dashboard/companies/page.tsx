@@ -34,6 +34,21 @@ interface Company {
   siteLiveAt: string | null
   networkVerifiedAt: string | null
   createdAt: string
+  /** Somebody at the firm signed up or took its record; false for a client somebody else wrote down. */
+  onEtyme: boolean
+  /** Its Etyme address opens its public page. */
+  hasPage: boolean
+}
+
+/**
+ * The line under a company's name. Its address only where the address
+ * opens a page; a client nobody has claimed is "Not on Etyme yet", never
+ * an address that leads nowhere; anybody else, nothing.
+ */
+function addressLine(c: Pick<Company, 'slug' | 'onEtyme' | 'hasPage'>): string | null {
+  if (c.hasPage) return `${c.slug}.etyme.com`
+  if (!c.onEtyme) return 'Not on Etyme yet'
+  return null
 }
 
 interface Location {
@@ -418,7 +433,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
         <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold">{company.name}</h2>
-            <p className="text-[13px] text-etyme-muted mt-0.5">{company.slug}.etyme.com</p>
+            {addressLine(company) && <p className="text-[13px] text-etyme-muted mt-0.5">{addressLine(company)}</p>}
           </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -677,7 +692,7 @@ export default function CompaniesPage() {
       render: (row) => (
         <div>
           <p className="font-medium text-etyme-ink">{row.name}</p>
-          <p className="text-[11px] text-etyme-faint">{row.slug}.etyme.com</p>
+          {addressLine(row) && <p className="text-[11px] text-etyme-faint">{addressLine(row)}</p>}
         </div>
       ),
       sortValue: (row) => row.name,
@@ -688,10 +703,13 @@ export default function CompaniesPage() {
       // The reader's word for it is the address they signed up with
       // (sign-up walk, round five, problem 19), never the system's.
       label: 'Etyme address',
+      // A firm that is not on Etyme holds no address yet.
       render: (row) => (
-        <span className="text-etyme-muted text-[12px] font-mono">{row.slug}</span>
+        row.onEtyme
+          ? <span className="text-etyme-muted text-[12px] font-mono">{row.slug}</span>
+          : <span className="text-etyme-faint">—</span>
       ),
-      sortValue: (row) => row.slug,
+      sortValue: (row) => (row.onEtyme ? row.slug : ''),
       hideOnMobile: true,
     },
     {

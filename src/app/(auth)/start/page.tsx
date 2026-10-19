@@ -130,8 +130,12 @@ export default function StartPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }))
-      // A consultant has no firm and no setup: their own work is the desk.
-      if (j.data.action === 'CONSULTANT') { router.push('/dashboard/my-work'); return }
+      // A consultant has no firm and no setup: she lands where every door
+      // lands her seat (components/desk-home), Ask Etyme on her own work.
+      if (j.data.action === 'CONSULTANT') {
+        router.push(deskHome({ kind: null, isConsultant: true, role: null, permissions: [] }) as any)
+        return
+      }
       if (j.data.action === 'JOIN') setJoined(j.data)
       await load()
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }

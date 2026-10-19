@@ -9,6 +9,7 @@ import { GET as entry } from '@/app/api/onboarding/route'
 import { POST as enter } from '@/app/api/onboarding/route'
 import { GET as probe } from '@/app/api/auth/password/signup/route'
 import { verifyEmail, checkPassword, resetPassword, issueSetPassword, resetLinkState } from '@/lib/password-door'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
 import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, firmAddedYou, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
 import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { passwordDoor } from '@/lib/auth'
@@ -211,13 +212,13 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect((await checkPassword(OWNER, 'harbor lantern stays lit', '10.0.1.1')).ok).toBe(true)
   })
 
-  it('a candidate signs up with an email and a password and lands on their own page once verified', async () => {
+  it('a candidate signs up with an email and a password and, once verified, lands in Ask Etyme, which her menu pins beside her own work', async () => {
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email: CANDIDATE, password: PASSWORD, name: 'Helena Marsh' })))
     expect(r.status).toBe(200)
     expect(await prisma.context.count({ where: { person: { primaryEmail: CANDIDATE } } })).toBe(0)
 
     const v = await verifyEmail(lastLink(CANDIDATE, 'verify'))
-    expect(v).toMatchObject({ ok: true, landing: '/dashboard/my-work' })
+    expect(v).toMatchObject({ ok: true, landing: ASK_ETYME_HREF })
     const p = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: CANDIDATE }, include: { contexts: true, consultant: true } })
     expect(p.name).toBe('Helena Marsh')
     expect(p.contexts.map((c) => [c.type, c.companyId])).toEqual([['CONSULTANT', null]])
@@ -428,7 +429,7 @@ describe('a password door, until the single sign-on keys exist', () => {
   it('a candidate may become a one-person firm with the same email, and nothing they typed is thrown away', async () => {
     const email = 'amara.diallo@gmail.com'
     await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Amara Diallo' }))
-    expect(await verifyEmail(lastLink(email, 'verify'))).toMatchObject({ ok: true, landing: '/dashboard/my-work' })
+    expect(await verifyEmail(lastLink(email, 'verify'))).toMatchObject({ ok: true, landing: ASK_ETYME_HREF })
 
     // A stranger who knows the email but not the password founds nothing and changes nothing.
     await signUp(req('POST', '/api/auth/password/signup', company({ email, personName: 'Amara Diallo', name: 'Not Hers LLC', type: 'solo', address: 'not-hers', password: 'some other long phrase' })))
