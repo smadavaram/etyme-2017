@@ -168,7 +168,7 @@ describe('5: a client puts nobody forward, so its desk-less seat is not shown "t
 
   it('the refusal names the page and the client, and no permission key', () => {
     const says = clientSubmissionsRefused('Northbend Athletic')
-    expect(says).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
+    expect(says).toBe('Candidates is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
     expect(namesAPermission(says)).toBe(false)
   })
 
@@ -302,10 +302,10 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
   })
 })
 
-describe('5, as the door says it: a client’s desk-less Member is refused Submissions in one sentence', () => {
+describe('5, as the door says it: a client’s desk-less Member is refused Candidates in one sentence', () => {
   it('the sentence names the page and the client, and no permission key', () => {
     const says = clientSubmissionsRefused('Northbend Athletic')
-    expect(says).toBe('Submissions is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
+    expect(says).toBe('Candidates is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
     expect(namesAPermission(says)).toBe(false)
   })
 

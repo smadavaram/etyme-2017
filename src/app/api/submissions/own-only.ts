@@ -75,9 +75,14 @@ export function ownSubmissionsSays(company: string | null | undefined): string {
   )
 }
 
-/** The refusal a desk-less seat at a client reads on Submissions. Names nobody and no permission key. */
+/**
+ * The refusal a desk-less seat at a client reads on Candidates. Names nobody and no permission key.
+ *
+ * "Candidates", the page's name on the menu and at the desk-less door since
+ * the nine links (2026-10-19), so the route and the door say one word.
+ */
 export function clientSubmissionsRefused(company: string | null | undefined): string {
-  return noDeskYet('Submissions', company)
+  return noDeskYet('Candidates', company)
 }
 
 /** The refusal when a desk-less seat asks for somebody else's submissions. Names nobody. */
