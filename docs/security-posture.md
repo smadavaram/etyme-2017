@@ -377,9 +377,7 @@ each open is written before the bill is handed over, and if the row
 cannot be written the bill is not shown. A link that ran out, or a bill
 that was cancelled, is refused and the refusal is written first. These
 rows have a name of their own, `BILL_LINK_VIEW`, so "who opened our bills
-from outside Etyme" is one query. **Not done yet:** until the delivery
-code switches to that name, the rows are filed as `TIMESHEET_VIEW`, with
-the bill number and the address in the reason.
+from outside Etyme" is one query.
 
 ---
 

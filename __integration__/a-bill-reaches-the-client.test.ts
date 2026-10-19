@@ -175,7 +175,7 @@ describe('a bill reaches the firm that pays it', () => {
   it('the bill link opens without a sign-in, is logged as the contact’s read, and dies 90 days after the due date', async () => {
     const token = tokenIn(mail[0].text)
     const read = await prisma.accessLog.findFirstOrThrow({
-      where: { subjectId: it_.worker, action: 'TIMESHEET_VIEW', allowed: true, actorCompanyId: it_.harrow },
+      where: { subjectId: it_.worker, action: 'BILL_LINK_VIEW', allowed: true, actorCompanyId: it_.harrow },
     })
     expect(read.reason).toContain(`emailed to ${PAYABLES}`)
     expect(read.reason).toContain('Harrow Lane Foods was not on Etyme')
@@ -185,7 +185,7 @@ describe('a bill reaches the firm that pays it', () => {
       ok: false, status: 410, code: 'LINK_EXPIRED',
       says: 'This link to bill IN-HARROW-202610 ran out on Mar 15, 2027, 90 days after the bill was due. Ask Brightmoor Staffing for a copy.',
     })
-    expect(await prisma.accessLog.count({ where: { subjectId: it_.worker, action: 'TIMESHEET_VIEW', allowed: false, actorCompanyId: it_.harrow } })).toBe(1)
+    expect(await prisma.accessLog.count({ where: { subjectId: it_.worker, action: 'BILL_LINK_VIEW', allowed: false, actorCompanyId: it_.harrow } })).toBe(1)
     expect((await openBillLink(token, new Date('2027-03-14T23:59:00.000Z'))).ok).toBe(true)
 
     const forged = await getBill(token.slice(0, -3) + 'abc')

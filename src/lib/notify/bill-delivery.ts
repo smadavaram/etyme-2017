@@ -473,17 +473,17 @@ export async function openBillLink(token: string, now = new Date()): Promise<{ o
 
   if (!billLinkOpen(w.bill.dueAt, now)) {
     const says = billLinkClosedSays({ number: w.bill.number, supplierName: w.supplier.name, expiresAt: billLinkExpiresAt(w.bill.dueAt) })
-    await recordRefusal(subjects, { action: 'TIMESHEET_VIEW', ...actor, reason: `Refused ${whose}: it ran out.` })
+    await recordRefusal(subjects, { action: 'BILL_LINK_VIEW', ...actor, reason: `Refused ${whose}: it ran out.` })
     return { ok: false, status: 410, code: 'LINK_EXPIRED', says }
   }
   if (w.bill.status === 'CANCELLED') {
-    await recordRefusal(subjects, { action: 'TIMESHEET_VIEW', ...actor, reason: `Refused ${whose}: the bill is cancelled.` })
+    await recordRefusal(subjects, { action: 'BILL_LINK_VIEW', ...actor, reason: `Refused ${whose}: the bill is cancelled.` })
     return { ok: false, status: 410, code: 'CANCELLED', says: billCancelledSays({ number: w.bill.number, supplierName: w.supplier.name }) }
   }
 
   try {
     await recordAccess(subjects, {
-      action: 'TIMESHEET_VIEW', ...actor,
+      action: 'BILL_LINK_VIEW', ...actor,
       reason: `Opened ${whose}${w.payer.onEtyme ? '' : ` (${w.payer.name} was not on Etyme)`}: the hours, the weeks and the rate on this bill.`,
     })
   } catch (err) {
