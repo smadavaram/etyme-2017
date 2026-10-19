@@ -58,6 +58,18 @@ export interface DemoTarget {
   seat: string
 }
 
+/**
+ * A person's own seat in the demo, rather than a desk at a company:
+ * `POST /api/demo {"person": slug}`, the slugs `app/demo/seats` lists
+ * (Helena Marsh, Colleen Byrne). The door answers with where that person
+ * lands, so there is no screen to name here.
+ */
+export interface PersonTarget {
+  person: string
+  /** Who the reader sits as, said plainly. */
+  seat: string
+}
+
 /** The words of a chart, for the guard. */
 export function flowWords(boxes: FlowBox[]): string[] {
   return boxes.map((b) => {

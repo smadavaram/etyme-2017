@@ -2,7 +2,7 @@ import type { EmbedStep } from '@/lib/sample-seat'
 import { TryDemo } from '@/components/try-demo'
 import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
-import type { DemoTarget } from './flow'
+import type { DemoTarget, PersonTarget } from './flow'
 import type { BandKind } from './skeleton-words'
 import type { StoryKey } from './story'
 import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
@@ -41,7 +41,7 @@ export interface SubPageProps {
   /** A link at the end of the last line, to the top of the page that says the rest. */
   link?: { t: string; href: string }
   /** The button under the frame. */
-  demo: { label: string; target: DemoTarget } | { label: string; candidate: true }
+  demo: { label: string; target: DemoTarget | PersonTarget } | { label: string; candidate: true }
   /** The band's filled button, where it is not the client's sign-up. */
   signUp?: { t: string; href: string }
   /** The band: a company's, or a person's own (the contractors' door). */

@@ -1,5 +1,5 @@
 import type { EmbedStep } from '@/lib/sample-seat'
-import type { DemoTarget } from './flow'
+import type { DemoTarget, PersonTarget } from './flow'
 import { copyOfSkeleton, ON_SCREEN_DOOR, watching, type BandKind } from './skeleton-words'
 import type { StoryKey } from './story'
 
@@ -91,6 +91,9 @@ export interface DoorTab {
   step?: EmbedStep
   /** The line under the panel on this tab, naming its person. */
   panelLabel?: string
+  /** The button under the panel on this tab, and the seat it opens: the person the panel plays. */
+  demoLabel?: string
+  demo?: PartyPage['demo']
 }
 
 export interface PartyPage {
@@ -112,7 +115,7 @@ export interface PartyPage {
   signUp: { t: string; href: string }
   /** The button under the frame, and the desk it seats the reader at. A contractor's opens a person's own page. */
   demoLabel: string
-  demo: { target: DemoTarget } | { candidate: true }
+  demo: { target: DemoTarget | PersonTarget } | { candidate: true }
   /** The sign-up band: a company's unless said; a contractor's is a person's own. */
   band?: BandKind
   /** Which story the panel plays: Northbend Athletic's program manager unless said. */
@@ -129,7 +132,7 @@ function withTabs(door: Omit<PartyPage, 'headline' | 'purpose' | 'lines' | 'tabs
 }
 
 /** What one tab changes on its door: the words, the sign-up, and the panel's person. */
-function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | 'label'>, tab: DoorTab) {
+function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | 'label' | 'demoLabel' | 'demo'>, tab: DoorTab) {
   return {
     headline: tab.headline,
     purpose: tab.purpose,
@@ -139,6 +142,8 @@ function tabWords(door: Pick<PartyPage, 'signUp' | 'band' | 'story' | 'step' | '
     story: tab.story ?? door.story,
     step: tab.step ?? door.step,
     label: tab.panelLabel ?? door.label,
+    demoLabel: tab.demoLabel ?? door.demoLabel,
+    demo: tab.demo ?? door.demo,
   }
 }
 
@@ -175,6 +180,9 @@ export const SUPPLIERS: PartyPage = withTabs({
     story: 'techpeple-sub',
     step: 'approve',
     panelLabel: watching('Bhavesh Nair, owner', 'of Techpeple'),
+    // Techpeple's first seat, its owner: the demo door seats a firm's first seat when no desk is named.
+    demoLabel: 'Open as a sub-vendor, no account',
+    demo: { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } },
     lines: [
       'Put your people forward. Accept the week your prime approved, then bill from it.',
       'Your prime and your people.',
@@ -189,6 +197,8 @@ export const SUPPLIERS: PartyPage = withTabs({
     story: 'techpeple-bench',
     step: 'submit',
     panelLabel: watching('Linnea Qadri, recruiter', 'at Techpeple'),
+    demoLabel: 'Open as a bench vendor’s recruiter, no account',
+    demo: { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } },
     lines: [
       'Mark who is shown to your partners. Each person says yes first.',
       'You, and every firm you sell to.',
@@ -261,6 +271,8 @@ export const CONTRACTORS: PartyPage = withTabs({
     story: 'helena',
     step: 'approve',
     panelLabel: watching('Helena Marsh, a contractor', 'at Northbend Athletic'),
+    demoLabel: 'Open Helena’s page, no account',
+    demo: { target: { person: 'helena-marsh', seat: 'Helena Marsh' } },
     lines: [
       'File your week once.',
       'You, and every firm between you and the client, by name.',
@@ -275,6 +287,8 @@ export const CONTRACTORS: PartyPage = withTabs({
     story: 'byrne',
     step: 'pay',
     panelLabel: watching('Colleen Byrne, ICU travel nurse and owner', 'of Byrne Critical Care LLC'),
+    demoLabel: 'Open as a one-person firm, no account',
+    demo: { target: { person: 'colleen-byrne', seat: 'Colleen Byrne' } },
     lines: [
       'File your week, bill your client, and keep your company papers current.',
       'Just you, and your client.',

@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import type { DemoTarget } from './flow'
+import type { DemoTarget, PersonTarget } from './flow'
 import { count } from './count'
 
 /**
@@ -22,11 +22,20 @@ import { count } from './count'
  */
 
 /** What the click sends, and where it goes after. Pure, so a test can read it. */
-export function demoRequest(target: DemoTarget): { url: '/api/demo'; body: { as: string; desk: string }; then: string } {
-  return { url: '/api/demo', body: { as: target.as, desk: target.desk }, then: target.screen }
+export function demoRequest(target: DemoTarget): { url: '/api/demo'; body: { as: string; desk: string }; then: string }
+/**
+ * A person's own seat (2026-10-19, the doors that play Helena Marsh and
+ * Colleen Byrne): the body names the person, and the click goes where the
+ * door says that person lands, so `then` is null here.
+ */
+export function demoRequest(target: PersonTarget): { url: '/api/demo'; body: { person: string }; then: null }
+export function demoRequest(target: DemoTarget | PersonTarget): { url: '/api/demo'; body: { as: string; desk: string } | { person: string }; then: string | null }
+export function demoRequest(target: DemoTarget | PersonTarget) {
+  if ('person' in target) return { url: '/api/demo' as const, body: { person: target.person }, then: null }
+  return { url: '/api/demo' as const, body: { as: target.as, desk: target.desk }, then: target.screen }
 }
 
-export function DemoLink({ target, label, className }: { target: DemoTarget; label: string; className?: string }) {
+export function DemoLink({ target, label, className }: { target: DemoTarget | PersonTarget; label: string; className?: string }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +58,8 @@ export function DemoLink({ target, label, className }: { target: DemoTarget; lab
       if (!res.ok) throw new Error(answer?.error?.message ?? 'Could not open the example program.')
       // A seat was taken: counted first-party, nothing personal (./count).
       count('demo_started')
-      router.push(req.then as any)
+      // A person's seat lands where the door says that person does.
+      router.push((req.then ?? answer?.data?.landing ?? '/dashboard') as any)
     } catch (err: any) {
       setError(err.message)
       setBusy(false)

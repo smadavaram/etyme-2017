@@ -37,6 +37,7 @@ import { companyPage } from '@/lib/public-site/company-page'
 import { docsHomeMetadata, docMetadata } from '@/lib/public-site/docs-page'
 import { FOOTER, FOOTER as SITE_FOOTER, HEADER, everyFrameLink, frameCopy } from '@/lib/public-site/nav'
 import { STEPS } from '@/lib/public-site/steps'
+import { demoRequest } from '@/lib/public-site/demo-link'
 import { TOPICS } from '@/lib/public-site/docs/topics'
 
 const ROOT = process.cwd()
@@ -743,7 +744,8 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(doorAt('program-offices')!.signUp.href).toBe('/signup?type=msp')
     expect(doorAt('integrators')!.signUp.href).toBe('/signup?type=gsi')
     expect(doorAt('contractors')!.signUp.href).toBe('/signup?as=candidate')
-    expect('candidate' in doorAt('contractors')!.demo).toBe(true)
+    // The workers' door opens Helena Marsh's own seat (2026-10-19), the person its panel plays.
+    expect(doorAt('contractors')!.demo).toEqual({ target: { person: 'helena-marsh', seat: 'Helena Marsh' } })
   })
 
   it('the contractors door’s band asks a person to set up their own page, with the candidate sign-up and the doors line', () => {
@@ -871,16 +873,42 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(read('src/app/(auth)/signup/page.tsx')).toContain('?type=solo')
   })
 
-  it('a tab changes the words and the person in the panel, and keeps the door’s button', () => {
+  it('a tab changes the words, the person in the panel, and the button, which opens the demo as that same person', () => {
     // Until 2026-10-19 a tab never changed the panel. Since the founder's
     // drawing of that day each tab plays its own party's person, with the
-    // line under the panel naming them; the button under the panel is the
-    // door's, word for word.
+    // line under the panel naming them, and the button under it seats the
+    // reader as that person (coordinator, the same day).
     for (const p of PARTY_PAGES) {
       const views = everyDoorView().filter((x) => x.slug === p.slug)
-      for (const v of views) expect([v.demoLabel, JSON.stringify(v.demo)], v.href).toEqual([p.demoLabel, JSON.stringify(p.demo)])
       if (views.length > 1) expect(new Set(views.map((v) => v.story)).size, p.route).toBe(views.length)
     }
+    expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.demoLabel, v.demo]]))).toEqual({
+      '/for/suppliers': ['Open as a supplier’s account manager, no account',
+        { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } }],
+      '/for/suppliers?tab=sub': ['Open as a sub-vendor, no account',
+        { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } }],
+      '/for/suppliers?tab=bench': ['Open as a bench vendor’s recruiter, no account',
+        { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } }],
+      '/for/program-offices': ['Open as the program manager, no account',
+        { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } }],
+      '/for/integrators': ['Open as an integrator’s delivery manager, no account',
+        { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } }],
+      '/for/contractors': ['Open Helena’s page, no account', { target: { person: 'helena-marsh', seat: 'Helena Marsh' } }],
+      '/for/contractors?tab=solo': ['Open as a one-person firm, no account', { target: { person: 'colleen-byrne', seat: 'Colleen Byrne' } }],
+    })
+    // Each seat is one the demo door gives: a seeded firm and a desk it knows, or a person on the demo page.
+    const seats = read('src/app/demo/seats.ts')
+    for (const slug of ['world-brightmoor', 'world-techpeple', 'world-aptiva', 'world-teleworld']) expect(seats, slug).toContain(`slug: '${slug}'`)
+    for (const person of ['helena-marsh', 'colleen-byrne']) expect(seats, person).toContain(`slug: '${person}'`)
+    expect(read('src/lib/demo-desks.ts')).toContain("recruiter: ['Recruiter']")
+    // Techpeple's recruiter is Linnea Qadri, and its first seat is its owner, Bhavesh Nair.
+    const world = read('src/lib/seed-world.ts')
+    expect(world).toContain("{ desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' }")
+    expect(world).toMatch(/slug: 'techpeple',\s*name: 'Techpeple',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
+    // A person's seat posts the person, and goes where the door says that person lands.
+    expect(demoRequest({ person: 'helena-marsh', seat: 'Helena Marsh' })).toEqual({ url: '/api/demo', body: { person: 'helena-marsh' }, then: null })
+    expect(read('src/lib/public-site/demo-link.tsx')).toContain("req.then ?? answer?.data?.landing ?? '/dashboard'")
+    expect(read('src/app/api/demo/route.ts')).toContain('const door = CANDIDATE_SEATS.find((c) => c.slug === asPerson)')
     // The door's own address is its first tab, panel included.
     for (const p of PARTY_PAGES.filter((x) => x.tabs)) {
       const first = everyDoorView().find((v) => v.href === p.route)!

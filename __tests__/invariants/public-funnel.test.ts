@@ -32,7 +32,7 @@ import { checkWorkEmail } from '@/lib/census'
 import { PUBLIC_PAGES } from '@/lib/public-site/pages'
 import { CONTACT, COMPANY_PAGES } from '@/lib/public-site/company'
 import { OPEN_DEMO, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
-import { PARTY_PAGES } from '@/lib/public-site/parties'
+import { PARTY_PAGES, everyDoorView } from '@/lib/public-site/parties'
 import { MODULES } from '@/lib/public-site/modules'
 import { STEPS } from '@/lib/public-site/steps'
 import { TOPICS } from '@/lib/public-site/docs/topics'
@@ -220,8 +220,8 @@ describe('No button promises what the site cannot give', () => {
       ].flatMap((state) => offered(state).map((step) => step.button ?? '')),
       ...SITE_SOURCES.flatMap((f) => buttonLabels(read(f))),
       // The buttons the shared skeleton draws from data (2026-10-14): the
-      // demo under the frame and each door's demo.
-      OPEN_DEMO, ...PARTY_PAGES.map((p) => p.demoLabel),
+      // demo under the frame and each door's and tab's demo (2026-10-19).
+      OPEN_DEMO, ...everyDoorView().map((v) => v.demoLabel),
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('See it working, no account')
