@@ -125,16 +125,17 @@ const ABOUT_PAGE = (() => {
 /**
  * The real page, split at roughly where a first screen ends. The header is
  * a shared component since 2026-09-27 and none of its words are in this
- * file. The first screen is the hero: the headline, the category, the
+ * file. The first screen is the hero: the category, the headline, the
  * one line saying what the software does, and the caption under the
  * dashboard — four pieces since 2026-09-28, when the founder asked for a
  * hero that reads in five seconds with "less theory there".
  */
 const words = copyFrom(PAGE)
 // Two since 2026-10-14: the founder's question and the category under
-// it. His support line of 2026-10-10 was cut with the home page he
+// it, and since 2026-10-19 the category above it as the hero's eyebrow
+// ("the category be on top over hero text"). His support line of 2026-10-10 was cut with the home page he
 // approved that day, as a sentence nothing on the page let a reader check.
-// Three since his drawing of 2026-10-19: one line under the category,
+// Three since his drawing of 2026-10-19: one line under the question,
 // "Most companies cannot answer this without three weeks and a
 // spreadsheet nobody trusts."
 const FOLD = 3
@@ -665,38 +666,45 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('within an hour')
   })
 
-  it('says the category straight under the founder’s headline, never as the headline', () => {
+  it('says the category straight above the founder’s headline, as its eyebrow, never as the headline', () => {
     // The founder's brief, 2026-10-09: the hero is "Know what every
     // contractor costs, across every supplier.", and the category
     // ("Enterprise contingent workforce management", no size after it —
     // "keep the business open for all") moves into the supporting
-    // message. Since 2026-10-14 it is the line straight under the question.
-    expect(words[0]).toBe('Know what every contractor costs, across every supplier.')
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    // message. From 2026-10-14 it was the line straight under the
+    // question; since 2026-10-19 it sits on top, as the hero's eyebrow
+    // (founder: "the category be on top over hero text").
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(headlinesFrom(PAGE)[0]).toBe('Know what every contractor costs, across every supplier.')
+    // Small, uppercase and muted, the way the step pages set "Step 1 of 4".
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<h1'))
+    expect(top).toContain('<p className="mb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-etyme-muted">')
+    expect(copyFrom(top)).toEqual(['Enterprise contingent workforce management.'])
   })
-  it('carries no support line between the question and the category, because nothing in it could be checked by clicking', () => {
+  it('carries no support line between the category and the question, because nothing in it could be checked by clicking', () => {
     // The founder's support line of 2026-10-10 ("Bring contractor records,
     // supplier activity, tenure, approvals …") was cut on 2026-10-14 with
     // every adjective on the page: the test for a word is whether the
     // reader can check it by clicking something on this page, and the live
-    // product under the category is what the line was describing.
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    // product under the hero is what the line was describing.
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(all).not.toContain('Bring contractor records')
     expect(all).not.toContain('trusted control layer')
     expect(unverifiableClaims(all)).toEqual([])
   })
-  it('keeps the hero to the question and the category, with the live product straight under them', () => {
+  it('keeps the hero to the category and the question, with the live product straight under them', () => {
     // The page the founder approved on 2026-10-14: the question, the
     // category line, and then the product itself. No buttons in the hero,
     // no screenshot beside it: the one button is under the product. Since
-    // the founder's drawing of 2026-10-19, one line under the category
-    // says what not knowing costs today.
+    // the founder's drawing of 2026-10-19, one line under the question
+    // says what not knowing costs today, and the category sits on top.
     expect(live.hero).toHaveLength(3)
     expect(live.hero[2]).toBe('Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.')
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
     expect(copyFrom(top)).toEqual([
-      'Know what every contractor costs, across every supplier.', 'Enterprise contingent workforce management.',
+      'Enterprise contingent workforce management.', 'Know what every contractor costs, across every supplier.',
       'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
     ])
     expect(top).not.toContain('<CountedLink')
@@ -704,7 +712,7 @@ describe('Below the hero, the page says what the business is', () => {
     expect(PAGE).not.toContain('const GLANCE')
     // "Three weeks" left the hero on 2026-09-28 as a claim a reader could
     // not check; the founder drew it back on 2026-10-19 as the one line
-    // under the category, and it is held to that one line, word for word.
+    // under the question, and it is held to that one line, word for word.
     expect(hero.split('three weeks').length - 1).toBe(1)
   })
   it('still passes the four positioning rules after the rewrite', () => {
@@ -1172,14 +1180,14 @@ describe('The page shows the product before it describes it', () => {
     }
   })
 
-  it('the top of the page reads in seconds: the question and the category, and then the product', () => {
-    // Between the question and the live product a reader meets two lines:
-    // the category, and since 2026-10-19 the founder's line on what not
-    // knowing costs today. Nothing else.
-    const top = PAGE.slice(PAGE.indexOf('<h1'), PAGE.indexOf('<LiveDemo'))
+  it('the top of the page reads in seconds: the category on top, the question, and then the product', () => {
+    // Since 2026-10-19 the category sits above the question, and between
+    // the question and the live product a reader meets one line: the
+    // founder's line on what not knowing costs today. Nothing else.
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<LiveDemo'))
     expect(copyFrom(top)).toEqual([
-      'Know what every contractor costs, across every supplier.',
       'Enterprise contingent workforce management.',
+      'Know what every contractor costs, across every supplier.',
       'Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.',
     ])
   })
@@ -1194,7 +1202,7 @@ describe('The page shows the product before it describes it', () => {
     // the reader is told what kind of thing it is, and nothing about who
     // may buy it.
     const category = 'Enterprise contingent workforce management.'
-    expect(words[1]).toBe(category)
+    expect(words[0]).toBe(category)
     expect(sizesTheBuyer(all), sizesTheBuyer(all).join('; ')).toEqual([])
     expect(words.filter((w) => /20 to 200|sized for|rather than five thousand/.test(w))).toEqual([])
     // Nobody is named anywhere, with nothing set aside — no customer,
@@ -1659,11 +1667,11 @@ describe('The footer is where a company keeps its papers', () => {
 describe('The public page still says the four things it may not stop saying', () => {
 
   it('the home page names what Etyme is before it names anything it does', () => {
-    // The headline names contractors and suppliers — the category's own
-    // nouns — and the category sentence is the second line, before any
-    // part of the product is named.
-    expect(words[0]).toBe('Know what every contractor costs, across every supplier.')
-    expect(words[1]).toBe('Enterprise contingent workforce management.')
+    // The category sentence is the first line, above the headline, since
+    // 2026-10-19; the headline under it names contractors and suppliers —
+    // the category's own nouns — before any part of the product is named.
+    expect(words[0]).toBe('Enterprise contingent workforce management.')
+    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })

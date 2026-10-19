@@ -10,7 +10,8 @@ import { gridsWithoutBreakpoint } from '@/lib/positioning'
  * whole screen each, the same padding and heading, grounds alternating,
  * and a script that settled the scroll on the nearest band. The founder
  * approved a home page of three short sections that day ("Build it"): the
- * question and the category, the live product, the sign-up band, then one
+ * category and the question (the category on top since 2026-10-19), the
+ * live product, the sign-up band, then one
  * line for security and the footer. Three short sections read in one or
  * two scrolls, so nothing on the page is sized to a screen and nothing
  * moves the scroll; the sentences about bands went with the bands, and

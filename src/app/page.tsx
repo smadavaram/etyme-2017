@@ -15,10 +15,12 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  * and ten words, and the test for every word: which buyer asked for it,
  * and can the reader check it by clicking something on this page.
  *
- *   hero        the question and the category line, word for word, and
+ *   hero        the category line and the question, word for word, and
  *               since the founder's drawing of 2026-10-19 one line under
  *               them: most companies cannot answer it without three weeks
- *               and a spreadsheet nobody trusts
+ *               and a spreadsheet nobody trusts. Since the same day the
+ *               category sits above the headline as the hero's eyebrow
+ *               (founder: "the category be on top over hero text")
  *   #demo       the product shown working, in one compact panel
  *               (`lib/public-site/story-panel`, since the founder's
  *               "Build it" later on 2026-10-14): Ask Etyme answers, a
@@ -61,7 +63,7 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  * footer live in `lib/public-site/skeleton`, since 2026-10-14, because
  * the eight product pages and the four party doors draw the same ones
  * (the founder: "make sure even the sub pages and doors follow the same
- * structure"). This page adds only its question and the category.
+ * structure"). This page adds only its category and its question.
  */
 
 /**
@@ -80,15 +82,15 @@ export default function LandingPage() {
       <SiteHeader />
 
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* ── Hero: the question and the category, word for word ── */}
+        {/* ── Hero: the category on top, then the question, word for word ── */}
         <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
+          <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-etyme-muted">
+            Enterprise contingent workforce management.
+          </p>
           <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.06] tracking-[-0.02em] text-etyme-ink md:text-[52px]">
             Know what every contractor costs, across every supplier.
           </h1>
-          <p className="mt-3 text-[17px] leading-snug text-etyme-muted md:text-[18px]">
-            Enterprise contingent workforce management.
-          </p>
-          <p className="mt-2 text-[16px] leading-snug text-etyme-muted">
+          <p className="mt-3 text-[16px] leading-snug text-etyme-muted">
             Most companies cannot answer this without three weeks and a spreadsheet nobody trusts.
           </p>
         </section>
