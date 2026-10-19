@@ -18,6 +18,9 @@ import {
   receiptDoors, paymentSays, lineFromWeek, linesAgainstTotal, toMinor, NOBODY_WAIVES,
   type ReceiptFacts, type ReaderRole,
 } from '@/lib/money/receipt-screen'
+import { recompute, type PricedLine } from '@/lib/invoice-match'
+import { carriedOvertime, clientsDecisions, type DecisionRow } from '@/lib/money/client-overtime'
+import { payBands, payCut } from '@/lib/money/pay-hours'
 
 const NOW = new Date('2026-08-29T00:00:00Z')
 
@@ -626,5 +629,141 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
       'The lines add up to $4,734.00 and the total typed in is $4,720.00. Type the total and each line as the supplier’s invoice states them; a receipt whose lines do not add up is refused.'
     )
     expect(linesAgainstTotal([], 472_000, 'USD')).toBeNull()
+  })
+})
+
+/**
+ * The founder, 2026-10-19: a sub-vendor's overtime is priced on the
+ * decision the client made when it signed the week, carried down the chain
+ * the way the hours are; and on a cut week a sub-vendor's invoice loses
+ * overtime first, the same as every bill. Which hours are overtime is the
+ * client's; what each is worth is the pair's own line.
+ *
+ * Helena Marsh's week of August 2, 2026: Monday to Friday at nine hours,
+ * forty-five in all. Northbend Athletic's line is forty, and Northbend
+ * signed the five hours over it at double time on its own leg. Techpeple
+ * invoices Computer Systems at $100 an hour, and their own line says time
+ * and a half.
+ */
+describe('A sub-vendor’s overtime is the client’s decision, at the pair’s own rate (2026-10-19)', () => {
+  const TOP = { sellContractId: 'sc-northbend', clientCompanyId: 'co-northbend' }
+  const days: Record<string, number> = {
+    '2026-08-03': 9, '2026-08-04': 9, '2026-08-05': 9, '2026-08-06': 9, '2026-08-07': 9,
+  }
+  const decided = (over: Partial<DecisionRow> = {}): DecisionRow => ({
+    sellContractId: TOP.sellContractId, weekOf: new Date('2026-08-02T00:00:00Z'), treatment: 'PREMIUM',
+    appliedBps: 20_000, overtimeHours: 5, accrualBps: 10_000, afterHours: 40, decidedByCompanyId: TOP.clientCompanyId,
+    ...over,
+  })
+  const RATE = 10_000
+  const sheet = (rows: DecisionRow[]): PricedLine['timesheet'] => ({
+    id: 'ts-ot', periodStart: new Date('2026-08-02T00:00:00Z'), periodEnd: new Date('2026-08-08T00:00:00Z'),
+    totalHours: 45, days, leaveDays: {}, sellContractId: 'sc-techpeple',
+    overtimeDecisions: rows.map((r) => ({ ...r, accrualBps: r.accrualBps ?? 10_000 })),
+    sellContract: { overtimeAfterHours: null, overtimeMultiplierBps: 15_000, billStraddle: 'START', requirement: null },
+  } as PricedLine['timesheet'])
+  const working = (rows: DecisionRow[], cut: { hours: number } | null = null, hours = 45) =>
+    recompute(
+      {
+        hours, rateCents: RATE, amountCents: 0, sellContractId: null,
+        sellContract: { overtimeAfterHours: null, overtimeMultiplierBps: 15_000, billStraddle: 'START', workOrder: null, requirement: null },
+        timesheet: sheet(rows),
+      },
+      { start: new Date('2026-08-02T00:00:00Z'), end: new Date('2026-08-08T00:00:00Z'), label: '' },
+      cut ? { hours: cut.hours, from: null, to: null } : null,
+      carriedOvertime(rows, TOP, 15_000, 'Helena Marsh')
+    )
+  const receiptOf = (amountCents: number, premiumCents: number | null, approvedHours = 45, hours = 45) =>
+    threeWayMatch({
+      invoice: { id: 'vb-ot', totalCents: amountCents, periodStart: new Date('2026-08-02T00:00:00Z'), periodEnd: new Date('2026-08-08T00:00:00Z'), contractPeriod: null },
+      lines: [{ id: 'line-ot', timesheetId: 'ts-ot', personName: 'Helena Marsh', hours, rateCents: RATE, amountCents, premiumCents }],
+      timesheets: {
+        'ts-ot': {
+          id: 'ts-ot', status: 'APPROVED', approvedHours, contractRateCents: RATE,
+          periodStart: new Date('2026-08-02T00:00:00Z'), periodEnd: new Date('2026-08-08T00:00:00Z'), alreadyBilledOnInvoiceId: null,
+        },
+      },
+      po: null,
+      poRequired: false,
+    })
+
+  it('a sub-vendor’s receipt prices as overtime exactly the hours the client’s signature decided, at the pair’s own rate', () => {
+    const w = working([decided()])!
+    // Five hours at half again of $100: the pair's time and a half, not
+    // Northbend's double time on its own leg.
+    expect(w.hours).toBe(45)
+    expect(w.premiumCents).toBe(25_000)
+    const r = receiptOf(45 * RATE + 25_000, w.premiumCents)
+    expect(r.checks.find((c) => c.code === 'EXTENSION')!.outcome).toBe('PASS')
+    expect(r.matched).toBe(true)
+  })
+
+  it('the client’s own choice of multiplier is a price on its own leg and never reaches the rung below', () => {
+    const w = working([decided({ appliedBps: 20_000 })])!
+    expect(w.premiumCents).not.toBe(5 * RATE)
+    const atDouble = receiptOf(45 * RATE + 5 * RATE, w.premiumCents)
+    expect(atDouble.checks.find((c) => c.code === 'EXTENSION')).toMatchObject({ outcome: 'FAIL', overridable: false })
+  })
+
+  it('a premium line for hours the client did not decide as overtime is refused', () => {
+    // Computer Systems answered on Techpeple's leg; Northbend answered nothing.
+    const theirsOnly = [decided({ sellContractId: 'sc-techpeple', decidedByCompanyId: 'co-computer-systems', appliedBps: 15_000 })]
+    expect(carriedOvertime(theirsOnly, TOP, 15_000)).toMatchObject({ ok: true, decisions: [] })
+    const w = working(theirsOnly)
+    expect(w).toBeNull()
+    const r = receiptOf(45 * RATE + 25_000, w?.premiumCents ?? null)
+    expect(r.checks.find((c) => c.code === 'EXTENSION')).toMatchObject({ outcome: 'FAIL', overridable: false })
+    expect(r.matched).toBe(false)
+    // The same hours at the usual rate pass.
+    expect(receiptOf(45 * RATE, w?.premiumCents ?? null).matched).toBe(true)
+  })
+
+  it('hours the client signed at the usual rate are no premium at any rung below it', () => {
+    const w = working([decided({ treatment: 'SAME_RATE', appliedBps: 10_000 })])!
+    expect(w.hours).toBe(45)
+    expect(w.premiumCents).toBe(0)
+  })
+
+  it('hours the client banked as time off are billed by no rung below it now', () => {
+    const w = working([decided({ treatment: 'TIME_OFF', appliedBps: 0 })])!
+    expect(w.hours).toBe(40)
+    expect(w.premiumCents).toBe(-5 * RATE)
+  })
+
+  it('an answer the end client gave on the leg the hours are filed on is still the client’s answer', () => {
+    const onHoursLeg = [decided({ sellContractId: 'sc-techpeple' })]
+    expect(clientsDecisions(onHoursLeg, TOP)).toHaveLength(1)
+    expect(working(onHoursLeg)!.premiumCents).toBe(25_000)
+  })
+
+  it('where the client decided its weeks against two different overtime lines, nothing below it is priced on a guess', () => {
+    const two = [decided(), decided({ weekOf: new Date('2026-08-09T00:00:00Z'), afterHours: 45 })]
+    const c = carriedOvertime(two, TOP, 15_000, 'Helena Marsh')
+    expect(c.ok).toBe(false)
+    expect(!c.ok && c.says).toBe(
+      'The client decided Helena Marsh’s overtime against two different overtime lines, so which hours are overtime on this invoice cannot be read, and the week is not priced on a guess.'
+    )
+    expect(carriedOvertime([decided()], null, 15_000).ok).toBe(false)
+  })
+
+  it('when fewer hours are accepted on a sub-vendor’s receipt, the cut comes off overtime first, as on any bill', () => {
+    // Computer Systems accepted 43 of the 45: the two it did not accept
+    // come off the five overtime hours, leaving 40 ordinary and 3 over.
+    const w = working([decided()], { hours: 43 }, 43)!
+    expect(w.hours).toBe(43)
+    expect(w.premiumCents).toBe(3 * RATE * 0.5)
+    const r = receiptOf(40 * RATE + 3 * RATE * 1.5, w.premiumCents, 43, 43)
+    expect(r.matched).toBe(true)
+    // The worker-pay rule (ordinary first) would have left all five over
+    // the line, and a receipt priced that way fails the arithmetic.
+    expect(receiptOf(38 * RATE + 5 * RATE * 1.5, w.premiumCents, 43, 43).checks.find((c) => c.code === 'EXTENSION')!.outcome).toBe('FAIL')
+  })
+
+  it('the worker’s own pay still cuts ordinary hours first where the paying firm keeps the week’s overtime, and its default is untouched', () => {
+    const bands = payBands(days, {}, 40)
+    const kept = payCut(bands, { hours: 43, from: null, to: null }, 40, 'KEEP_WEEK_OVERTIME')
+    expect(kept.weeks[0]).toMatchObject({ regular: 38, over: 5 })
+    const byDefault = payCut(bands, { hours: 43, from: null, to: null }, 40, 'ABOVE_THE_LINE')
+    expect(byDefault.weeks[0]).toMatchObject({ regular: 40, over: 3 })
   })
 })

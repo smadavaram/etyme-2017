@@ -47,7 +47,10 @@ import { notAcceptedSays, weekWord } from '@/lib/money/payers-acceptance'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 import { alreadyReceived, heldSays, type ReceiptAlready, type AcceptedWeekRead } from '@/lib/money/billed-elsewhere'
 import { liveWaivers, type KeyedLine, type StoredWaiver } from '@/lib/money/keyed-lines'
-import { recompute, type PricedLine } from '@/lib/invoice-match'
+import { recompute, type PricedLine, type Working } from '@/lib/invoice-match'
+import { receiptFor } from '@/lib/money/rung-billing'
+import { carriedOvertime, type TopLeg } from '@/lib/money/client-overtime'
+import { topLegsOver } from '@/lib/money/client-overtime-read'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
 import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
@@ -60,6 +63,7 @@ import {
   type InvoiceLineFacts, type TimesheetFacts, type ExpenseFacts, type MilestoneFacts,
 } from '@/lib/three-way-match'
 import type { WaitingWeek } from '@/lib/money/payers-acceptance'
+import type { Prisma } from '@prisma/client'
 
 export interface KeyedReceipt {
   /** Null while it is being recorded. */
@@ -122,7 +126,7 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
   const buy = r.buyContractId
     ? await prisma.buyContract.findUnique({
         where: { id: r.buyContractId },
-        select: { workOrderId: true, supplierSellContractId: true },
+        select: { workOrderId: true, supplierSellContractId: true, overtimeMultiplierBps: true },
       })
     : null
 
@@ -141,6 +145,8 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
 
   let accepted: AcceptedWork | null = null
   let expectedCents: number | null = null
+  let overtimeCents = 0
+  let hard = order.hard
   let notAccepted: KeyedCheck['notAccepted'] = null
   let weeks: AcceptedWeekRead[] = []
 
@@ -182,11 +188,50 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
         lastDay: ours.lastDay,
         count: ours.count,
       }
+      // The overtime the client decided on each week, at this buy line's
+      // multiplier, with what we did not accept cut off overtime first —
+      // the same pricing as a line (`priceWeek`), week by week.
+      if (candidate) {
+        const sheets = await prisma.timesheet.findMany({ where: { id: { in: ours.weeks.map((w) => w.id) } }, select: WEEK_SELECT })
+        const byId = new Map(sheets.map((t) => [t.id, t]))
+        const tops = await topLegsOver(sheets.map((t) => t.sellContractId))
+        ours.weeks.forEach((w, k) => {
+          const t = byId.get(w.id)
+          if (!t) return
+          const p = priced[k]
+          const rate = p?.firstRateCents ?? candidate.payRate
+          const whose = `${t.person?.name ?? 'Somebody'}’s week of ${weekWord(t.periodStart)}`
+          const week = priceWeek(t, {
+            payerCompanyId: r.companyId,
+            top: tops.get(t.sellContractId) ?? null,
+            pairMultiplierBps: buy?.overtimeMultiplierBps ?? NaN,
+            acceptedHours: w.hours,
+            line: { hours: w.hours, rateCents: rate, amountCents: 0 },
+          })
+          if (week.says) {
+            hard ??= { code: 'OVERTIME_UNREAD', says: `${whose}: ${week.says}` }
+            return
+          }
+          const above = week.working?.premiumCents ?? 0
+          if (above === 0) return
+          if (new Set(p?.days.map((d) => d.rateCents) ?? []).size > 1) {
+            hard ??= {
+              code: 'RATE_CHANGED_IN_WEEK',
+              says:
+                `The agreed rate changed inside ${whose}, which has overtime the client decided, so what the ` +
+                `week comes to is not priced on a guess.`,
+            }
+            return
+          }
+          overtimeCents += above
+        })
+      }
       if (candidate && candidate.payCurrency.toUpperCase() === currency) {
-        // Rounded once per rate across the whole period.
+        // Rounded once per rate across the whole period, then the
+        // overtime above it, each week's rounded once.
         const byRate = new Map<number, number>()
         for (const p of priced) for (const d of p.days) byRate.set(d.rateCents, (byRate.get(d.rateCents) ?? 0) + d.hours)
-        expectedCents = [...byRate.entries()].reduce((n, [rate, h]) => n + Math.round(h * rate), 0)
+        expectedCents = [...byRate.entries()].reduce((n, [rate, h]) => n + Math.round(h * rate), 0) + overtimeCents
       }
       weeks = ours.weeks.map((w) => ({
         id: w.id,
@@ -225,11 +270,12 @@ export async function checkKeyedReceipt(r: KeyedReceipt, then: 'record' | 'pay')
     poRequired: false,
     notAccepted: notAccepted?.says ?? null,
     expectedCents,
+    overtimeCents,
     overrides: waivers.live,
   })
 
   return {
-    match, notAccepted, hard: order.hard, workOrderId, duplicate,
+    match, notAccepted, hard, workOrderId, duplicate,
     voidedWaiver: waivers.voided,
     period: r.periodStart && r.periodEnd ? { start: r.periodStart, end: r.periodEnd } : null,
   }
@@ -342,6 +388,7 @@ export async function buyRatePeriods(buyContractId: string): Promise<RatePeriod[
 
 const TERMS_SELECT = {
   overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+  companyId: true, clientCompanyId: true, endClientCompanyId: true,
   workOrder: { select: ORDER_HEADER_SELECT },
   requirement: { select: { hoursPerWeek: true } },
   ...SELL_LINE_TERMS_SELECT,
@@ -351,6 +398,80 @@ const EXPENSE_OK = ['APPROVED', 'INVOICED', 'PAID']
 const MILESTONE_OK = ['ACCEPTED', 'INVOICED']
 
 const plain = (d: Date) => formatDay(d)
+
+/** One week as its overtime is priced on an invoice receipt. */
+const WEEK_SELECT = {
+  id: true, personId: true, periodStart: true, periodEnd: true, totalHours: true, days: true, leaveDays: true,
+  sellContractId: true,
+  person: { select: { name: true } },
+  overtimeDecisions: {
+    select: {
+      sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true, accrualBps: true,
+      afterHours: true, decidedByCompanyId: true,
+    },
+  },
+  // Every live signature on the week: the payer's own is the receipt, read
+  // the way a bill upward reads it (lib/money/rung-billing).
+  assertions: {
+    where: { state: 'LIVE' as const },
+    select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+  },
+  sellContract: { select: TERMS_SELECT },
+} as const
+
+type WeekRow = Prisma.TimesheetGetPayload<{ select: typeof WEEK_SELECT }>
+
+/**
+ * What one week on a supplier's invoice to us is worth above its hours at
+ * the line's rate — the overtime the client decided, at our own line's
+ * multiplier with that supplier — and the hours that pricing bills.
+ *
+ * The founder, 2026-10-19 (lib/money/client-overtime): which hours are
+ * overtime is the answer the client gave when it signed the week, never
+ * the supplier's own contract alone; what an overtime hour is worth is
+ * this pair's agreement, the multiplier on our buy line. Where we
+ * accepted fewer hours than were worked, the cut comes off overtime
+ * first and off the last day first, as on any bill (rule 4 of
+ * 2026-09-29, `acceptedDays` in lib/periods) — never the worker-pay rule,
+ * which is the employer's and is not read here.
+ *
+ * Null where the week is plain hours × rate: nobody decided overtime on
+ * it and we accepted it whole, we accepted more than was worked, it has
+ * no daily hours to price, or only some of its days fall under this buy
+ * line (`acceptedHours` then differs from our signature). `says` where it
+ * cannot be read at all.
+ */
+function priceWeek(
+  t: WeekRow,
+  i: { payerCompanyId: string; top: TopLeg | null; pairMultiplierBps: number; acceptedHours: number; line: { hours: number; rateCents: number; amountCents: number } },
+): { working: Working | null; says: string | null } {
+  const days = (t.days as Record<string, number> | null) ?? {}
+  if (!Object.values(days).some((h) => Number(h) > 0)) return { working: null, says: null }
+  const sig = receiptFor(i.payerCompanyId, {
+    periodStart: t.periodStart,
+    periodEnd: t.periodEnd,
+    totalHours: Number(t.totalHours),
+    days,
+    personName: t.person?.name ?? '',
+    hoursContract: {
+      companyId: t.sellContract.companyId,
+      clientCompanyId: t.sellContract.clientCompanyId,
+      endClientCompanyId: t.sellContract.endClientCompanyId,
+    },
+    assertions: t.assertions,
+  })
+  if (!sig.signed || sig.straight || Math.abs(sig.hours - i.acceptedHours) > 0.005) return { working: null, says: null }
+  const carried = carriedOvertime(t.overtimeDecisions, i.top, i.pairMultiplierBps, t.person?.name ?? 'this person')
+  if (!carried.ok) return { working: null, says: carried.says }
+  const priced: PricedLine = {
+    hours: i.line.hours, rateCents: i.line.rateCents, amountCents: i.line.amountCents,
+    sellContractId: null,
+    sellContract: t.sellContract,
+    timesheet: t,
+  }
+  // The week's own dates: a line bills one whole week.
+  return { working: recompute(priced, { start: t.periodStart, end: t.periodEnd, label: '' }, sig.cut, carried), says: null }
+}
 
 /**
  * Match a receipt's lines, the way a platform invoice's lines are
@@ -367,19 +488,19 @@ const plain = (d: Date) => formatDay(d)
  *   a milestone     a milestone accepted on the order this receipt draws
  *                   on, for exactly its amount.
  *
- * A premium on an hours line is added only where it can be read without
- * a guess: the supplier bills us on the platform (its contract to us is
- * the buy line's `supplierSellContractId`), the week has an overtime
- * decision, and we accepted the whole week. Then it is priced exactly as
- * that supplier's platform invoice for the week would be
- * (`recompute` in lib/invoice-match). Anywhere else a line for more than
- * its hours at its rate fails the arithmetic, which nobody may waive.
+ * A premium on an hours line is the overtime the client decided when it
+ * signed the week, at the multiplier on this buy line (`priceWeek`, the
+ * founder's decision of 2026-10-19), whether or not the supplier is on
+ * the platform; where we accepted fewer hours than were worked the cut
+ * comes off overtime first. A line asking for a premium on hours the
+ * client did not decide as overtime fails the arithmetic, which nobody
+ * may waive.
  */
 async function checkLines(
   r: KeyedReceipt,
   then: 'record' | 'pay',
   ctx: {
-    buy: { workOrderId: string | null; supplierSellContractId: string | null } | null
+    buy: { workOrderId: string | null; supplierSellContractId: string | null; overtimeMultiplierBps: number } | null
     workOrderId: string | null
     order: { po: PurchaseOrderFacts | null; hard: KeyedCheck['hard'] }
     waivers: ReturnType<typeof liveWaivers>
@@ -426,20 +547,7 @@ async function checkLines(
   const weeksRead: AcceptedWeekRead[] = []
   if (hoursLines.length > 0 && r.buyContractId) {
     const ids = [...new Set(hoursLines.map((l) => l.timesheetId!))]
-    const sheets = await prisma.timesheet.findMany({
-      where: { id: { in: ids } },
-      select: {
-        id: true, personId: true, periodStart: true, periodEnd: true, totalHours: true, days: true, leaveDays: true,
-        sellContractId: true,
-        person: { select: { name: true } },
-        overtimeDecisions: {
-          select: {
-            sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true, accrualBps: true,
-          },
-        },
-        sellContract: { select: TERMS_SELECT },
-      },
-    })
+    const sheets = await prisma.timesheet.findMany({ where: { id: { in: ids } }, select: WEEK_SELECT })
     const byId = new Map(sheets.map((t) => [t.id, t]))
     const from = sheets.reduce<Date | null>((a, t) => (!a || t.periodStart < a ? t.periodStart : a), null)
     const to = sheets.reduce<Date | null>((a, t) => (!a || t.periodEnd > a ? t.periodEnd : a), null)
@@ -453,9 +561,8 @@ async function checkLines(
       notAccepted = { says: notAcceptedSays(payer?.name ?? 'This company', waiting, then), waiting }
     }
     const periods = await buyRatePeriods(r.buyContractId)
-    const supplierLeg = ctx.buy?.supplierSellContractId
-      ? await prisma.sellContract.findUnique({ where: { id: ctx.buy.supplierSellContractId }, select: TERMS_SELECT })
-      : null
+    // The top of the ladder over each week: whose answer on overtime is the client's.
+    const tops = await topLegsOver(sheets.map((t) => t.sellContractId))
 
     for (const l of hoursLines) {
       const t = byId.get(l.timesheetId!)
@@ -508,10 +615,24 @@ async function checkLines(
         }
         continue
       }
+      // The overtime the client decided, at this buy line's multiplier,
+      // with what we did not accept cut off overtime first.
+      const week = priceWeek(t, {
+        payerCompanyId: r.companyId,
+        top: tops.get(t.sellContractId) ?? null,
+        pairMultiplierBps: ctx.buy?.overtimeMultiplierBps ?? NaN,
+        acceptedHours: w.hours,
+        line: { hours: l.hours ?? 0, rateCents: l.rateCents ?? 0, amountCents: l.amountCents },
+      })
+      if (week.says) { refuse(l, `${n(l)} bills ${whose}. ${week.says}`); continue }
+      if (week.working) premium.set(l.id, week.working.premiumCents)
+
       timesheets[t.id] = {
         id: t.id,
         status: 'APPROVED',
-        approvedHours: w.hours,
+        // The hours the pricing bills: never one the client banked or has
+        // not decided.
+        approvedHours: week.working?.hours ?? w.hours,
         contractRateCents: rates[0] ?? priced.firstRateCents ?? candidate.payRate,
         periodStart: t.periodStart,
         periodEnd: t.periodEnd,
@@ -525,20 +646,6 @@ async function checkLines(
         periodEnd: w.periodEnd.toISOString().slice(0, 10),
       })
 
-      // The premium, only where it can be read without a guess.
-      const wholeWeek = Math.abs(w.hours - Number(t.totalHours)) < 0.005
-      if (supplierLeg && t.overtimeDecisions.length > 0 && wholeWeek) {
-        const priced: PricedLine = {
-          hours: l.hours, rateCents: l.rateCents!, amountCents: l.amountCents,
-          sellContractId: ctx.buy!.supplierSellContractId,
-          sellContract: supplierLeg,
-          timesheet: t,
-        }
-        const period = r.periodStart && r.periodEnd
-          ? { start: r.periodStart, end: r.periodEnd, label: '' }
-          : { start: t.periodStart, end: t.periodEnd, label: '' }
-        premium.set(l.id, recompute(priced, period)?.premiumCents ?? null)
-      }
     }
   }
 

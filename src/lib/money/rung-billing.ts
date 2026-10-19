@@ -56,7 +56,11 @@
  * What the remaining hours over the line are worth is still the week's
  * own decision (lib/overtime): a premium is billed at the premium,
  * banked hours are billed by nobody, and hours nobody has decided are
- * left off and said, exactly as on a week accepted whole.
+ * left off and said, exactly as on a week accepted whole. Below the top
+ * of a chain the decision read is the client's, at the pair's own
+ * multiplier (lib/money/client-overtime, the founder, 2026-10-19), and a
+ * sub-vendor's invoice to the firm above it is cut by this same rule,
+ * overtime first: to the firm paying it, it is a bill.
  *
  * ── What is still refused rather than guessed ────────────────────────
  *

@@ -259,22 +259,33 @@ is still short, each refused rather than guessed:
 
 - **A receipt typed in as a total is checked on its total.** Hours and a
   rate typed on the receipt as a whole are not stored, so at payment it is
-  held to the accepted hours at the agreed rate, to the cent, and nobody
-  may waive that. To waive an hours difference, record it with lines.
-- **An overtime premium on a typed-in line** is priced only where it can
-  be read without a guess: the supplier bills the payer on the platform
-  (`BuyContract.supplierSellContractId`), the week has an overtime decision,
-  and the payer accepted the whole week — then exactly as that supplier's
-  platform invoice would be priced (`recompute`). Where the supplier is
-  not on the platform, or the payer accepted fewer hours than an overtime
-  week's, a line asking for a premium fails the arithmetic, which nobody
-  may waive. **For the founder:** on the pay side, is a supplier's
-  overtime premium the supplier's own contract terms (as on the
-  platform), the payer's `BuyContract.overtimeMultiplierBps`, or the
-  decision the client's signer made at the top? And on a cut week, does
-  the payer's cut come off overtime first (the billing rule) or ordinary
-  hours first (the worker's pay rule) when the payer is paying a
-  sub-vendor rather than a worker?
+  held to the accepted hours at the agreed rate, with the overtime the
+  client decided (below), to the cent, and nobody may waive that. To waive an hours difference, record it with lines.
+- **Overtime on a sub-vendor's invoice is the client's decision, since
+  2026-10-19** (`lib/money/client-overtime`): which hours of a week are
+  overtime, and whether they are a premium, the usual rate or banked, is
+  the answer the client gave on its own leg when it signed; a premium hour
+  is worth the rate times the multiplier on the pair's own line — the
+  payer's buy line on a typed-in receipt, the supplier's sell line on a
+  bill sent on the platform. A cut week loses overtime first, as on any
+  bill. What is still short, each refused rather than guessed:
+  - **The pair's multiplier is held twice** — on the supplier's sell line
+    and on the payer's buy line — and nothing says they agree. A typed-in
+    receipt reads the buy line, a platform bill the sell line; where they
+    differ the same week is priced two ways depending on how it arrived.
+  - **A week only partly under this buy line** (the buy line in force for
+    some of its days) is priced at the line's rate with no overtime, so a
+    line asking for a premium on it fails the arithmetic.
+  - **A week with overtime the client decided and a rate change inside
+    it** is refused on a typed-in receipt, total or lines, rather than
+    priced on one of the two rates.
+  - **A firm in the middle still answers overtime on its own leg** when it
+    accepts the week (the approval route, etyme-demand's), and that answer
+    no longer prices anything below the top; only the client's does.
+  - **The project order's cost of a supplier** (`lib/order-postings`)
+    still prices a sub-vendor's premium the way payroll pays it, not on the
+    client's decision, so a master contract's margin can differ from what
+    the invoice receipt pays for the same week. Next in money.
 - **A rate change inside one week** cannot be stated as one line at one
   rate; such a receipt is refused with a sentence asking for it to be
   recorded as a total, which is priced day by day.

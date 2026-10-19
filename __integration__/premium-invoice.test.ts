@@ -29,6 +29,8 @@ import { generateBill } from '@/lib/money/bill-generate'
 
 const D = '@demo.etyme.local'
 const BRIGHTMOOR = `world-brightmoor${D}`
+const CS = `world-computer-systems${D}`
+const TECHPEPLE = `world-techpeple${D}`
 
 const it_: Record<string, any> = {}
 
@@ -201,5 +203,97 @@ describe('a week signed at a premium, as far as the invoice', () => {
     expect(extension.outcome, extension.reason).toBe('PASS')
     const header = match!.checks.find((c) => c.code === 'HEADER_TOTAL')!
     expect(header.outcome, header.reason).toBe('PASS')
+  })
+})
+
+/**
+ * Below the top of a chain, the founder's rule of 2026-10-19: a
+ * sub-vendor's overtime is priced on the decision the client made when it
+ * signed the week, at the pair's own rate.
+ *
+ * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
+ * employed by Techpeple. Northbend signs a forty-five hour week and
+ * decides, on its own leg, that the five over its line of forty are worth
+ * double time to it. Computer Systems' bill to Northbend carries that
+ * double time; Techpeple's bill to Computer Systems carries the same five
+ * hours at the multiplier on Techpeple's own contract with Computer
+ * Systems — never Northbend's.
+ */
+describe('a sub-vendor’s bill sent on the platform prices the overtime the client decided, at its own contract’s rate', () => {
+  const h: Record<string, any> = {}
+
+  beforeAll(async () => {
+    const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
+    const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: helena.id }, orderBy: { periodStart: 'asc' } })
+    const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
+    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const hoursLeg = await prisma.sellContract.findUniqueOrThrow({ where: { id: first.sellContractId } })
+    const top = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, companyId: cs.id } })
+    // Northbend's line with Computer Systems is forty hours.
+    await prisma.sellContract.update({ where: { id: top.id }, data: { overtimeAfterHours: 40 } })
+
+    const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
+    // A week before the earliest on the record that lies wholly inside one
+    // month, so each bill is for that week alone.
+    let back = -14
+    while (plus(first.periodStart, back).getUTCMonth() !== plus(first.periodEnd, back).getUTCMonth()) back -= 7
+    const days: Record<string, number> = {}
+    for (let i = 1; i <= 5; i++) days[plus(first.periodStart, back + i).toISOString().slice(0, 10)] = 9
+    const sheet = await prisma.timesheet.create({
+      data: {
+        sellContractId: hoursLeg.id, personId: helena.id,
+        periodStart: plus(first.periodStart, back), periodEnd: plus(first.periodEnd, back),
+        days, totalHours: 45, status: 'APPROVED', submittedAt: new Date(), approvedAt: new Date(),
+      },
+    })
+    const signer = await prisma.person.findFirstOrThrow({ where: { name: 'Marcus Oyelaran' }, select: { id: true } })
+    for (const [companyId, role, rateCents] of [
+      [top.clientCompanyId, 'CLIENT_APPROVAL', top.billRate],
+      [cs.id, 'PASS_THROUGH', hoursLeg.billRate],
+      [techpeple.id, 'EMPLOYER_ACCEPTANCE', hoursLeg.billRate],
+    ] as const) {
+      await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours: 45, rateCents, state: 'LIVE', byId: signer.id } })
+    }
+    await prisma.overtimeDecision.create({
+      data: {
+        timesheetId: sheet.id, sellContractId: top.id, weekOf: new Date(`${weekStart(Object.keys(days).sort()[0])}T00:00:00.000Z`),
+        treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 20_000,
+        decidedById: signer.id, decidedByCompanyId: top.clientCompanyId, reason: 'Cut-over weekend, double time agreed.',
+      },
+    })
+    Object.assign(h, { sheet, hoursLeg, top })
+  }, 240_000)
+
+  const billFor = async (who: string, engagementId: string) => {
+    as(who)
+    const made = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
+      engagementId,
+      periodStart: h.sheet.periodStart.toISOString().slice(0, 10),
+      periodEnd: h.sheet.periodEnd.toISOString().slice(0, 10),
+    })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    return prisma.invoiceLine.findFirstOrThrow({ where: { timesheetId: h.sheet.id, sellContractId: who === TECHPEPLE ? h.hoursLeg.id : h.top.id } })
+  }
+
+  it('Techpeple’s bill to Computer Systems carries the five hours Northbend decided, at Techpeple’s own multiplier, and the three-way check passes it', async () => {
+    const line = await billFor(TECHPEPLE, h.hoursLeg.engagementId)
+    const rate = h.hoursLeg.billRate
+    const premium = Math.round((5 * rate * (h.hoursLeg.overtimeMultiplierBps - 10_000)) / 10_000)
+    expect(Number(line.hours)).toBe(45)
+    expect(line.amountCents).toBe(45 * rate + premium)
+    // Not Northbend's double time.
+    expect(line.amountCents).not.toBe(45 * rate + 5 * rate)
+    const match = await matchInvoice(line.invoiceId)
+    const extension = match!.checks.find((c) => c.code === 'EXTENSION')!
+    expect(extension.outcome, extension.reason).toBe('PASS')
+  })
+
+  it('Computer Systems’ bill to Northbend is still priced at the double time Northbend chose on its own leg', async () => {
+    const line = await billFor(CS, h.top.engagementId)
+    const rate = h.top.billRate
+    expect(Number(line.hours)).toBe(45)
+    expect(line.amountCents).toBe(45 * rate + 5 * rate)
+    const extension = (await matchInvoice(line.invoiceId))!.checks.find((c) => c.code === 'EXTENSION')!
+    expect(extension.outcome, extension.reason).toBe('PASS')
   })
 })

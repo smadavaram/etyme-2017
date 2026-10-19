@@ -677,7 +677,17 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     }
   })
 
-  it('a week with an overtime premium decided on Techpeple’s own contract is priced per line at that premium, and a line for more is refused', async () => {
+  // ── The founder, 2026-10-19: a sub-vendor's overtime is the client's
+  // decision, carried down the chain, at the pair's own rate; and a cut
+  // week loses overtime first, as on any bill. ─────────────────────────
+  //
+  // A week of forty-five hours, Monday to Friday at nine, a week earlier
+  // than any of Helena's on the record. Every firm signs it. Northbend
+  // decides on its own leg — Computer Systems' contract to it — that the
+  // five over its line of forty are worth double time to Northbend.
+  // Techpeple invoices Computer Systems on Computer Systems' buy line,
+  // whose own multiplier is the pair's.
+  const overtimeWeek = async (o: { accepted?: number; clientDecides?: boolean; csDecidesOnTechpeple?: boolean } = {}) => {
     const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: t.helena }, orderBy: { periodStart: 'asc' } })
     const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
     const days: Record<string, number> = {}
@@ -692,34 +702,91 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const hoursLeg = await prisma.sellContract.findUniqueOrThrow({ where: { id: first.sellContractId } })
     const top = await prisma.sellContract.findFirstOrThrow({ where: { personId: t.helena, companyId: s.cs } })
     const someone = await prisma.person.findFirstOrThrow({ select: { id: true } })
-    // Every firm signs all forty-five; Computer Systems agrees time and a
-    // half on the five over the line on Techpeple's contract to it.
-    for (const [companyId, role, rateCents] of [
-      [top.clientCompanyId, 'CLIENT_APPROVAL', top.billRate],
-      [s.cs, 'PASS_THROUGH', hoursLeg.billRate],
-      [s.techpeple, 'EMPLOYER_ACCEPTANCE', s.rate],
+    for (const [companyId, role, hours, rateCents] of [
+      [top.clientCompanyId, 'CLIENT_APPROVAL', 45, top.billRate],
+      [s.cs, 'PASS_THROUGH', o.accepted ?? 45, hoursLeg.billRate],
+      [s.techpeple, 'EMPLOYER_ACCEPTANCE', 45, s.rate],
     ] as const) {
-      await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours: 45, rateCents, state: 'LIVE', byId: someone.id } })
+      await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours, rateCents, state: 'LIVE', byId: someone.id } })
     }
-    await prisma.overtimeDecision.create({
-      data: {
-        timesheetId: sheet.id, sellContractId: hoursLeg.id, weekOf: sheet.periodStart,
-        treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 15_000,
-        decidedById: someone.id, decidedByCompanyId: s.cs, reason: 'Cut-over weekend.',
-      },
-    })
+    if (o.clientDecides ?? true) {
+      await prisma.overtimeDecision.create({
+        data: {
+          timesheetId: sheet.id, sellContractId: top.id, weekOf: sheet.periodStart,
+          treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 20_000,
+          decidedById: someone.id, decidedByCompanyId: top.clientCompanyId, reason: 'Cut-over weekend, double time agreed.',
+        },
+      })
+    }
+    if (o.csDecidesOnTechpeple) {
+      await prisma.overtimeDecision.create({
+        data: {
+          timesheetId: sheet.id, sellContractId: hoursLeg.id, weekOf: sheet.periodStart,
+          treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 15_000,
+          decidedById: someone.id, decidedByCompanyId: s.cs, reason: 'Computer Systems’ own answer on Techpeple’s leg.',
+        },
+      })
+    }
+    const bps = (await prisma.buyContract.findUniqueOrThrow({ where: { id: s.buy } })).overtimeMultiplierBps
+    return {
+      sheet,
+      period: { periodStart: sheet.periodStart.toISOString(), periodEnd: sheet.periodEnd.toISOString() },
+      line: (hours: number, amountCents: number) => [{ timesheetId: sheet.id, hours, rateCents: s.rate, amountCents }],
+      premiumPerHour: (s.rate * (bps - 10_000)) / 10_000,
+    }
+  }
+
+  it('a sub-vendor’s receipt prices as overtime exactly the hours the client’s signature decided, at the pair’s own rate', async () => {
+    const w = await overtimeWeek()
     const straight = 45 * s.rate
-    const premium = Math.round(5 * s.rate * 0.5)
-    const line = (amountCents: number) => [{ timesheetId: sheet.id, hours: 45, rateCents: s.rate, amountCents }]
-    const period = { periodStart: sheet.periodStart.toISOString(), periodEnd: sheet.periodEnd.toISOString() }
+    const pairs = Math.round(5 * w.premiumPerHour)
+    // Northbend's double time is a price on its own leg, not Techpeple's.
+    const clients = 5 * s.rate
+    const atTheClientsRate = await receive('CE-HM-OT1', w.line(45, straight + clients), straight + clients, w.period)
+    expect(atTheClientsRate.status, JSON.stringify(atTheClientsRate.body)).toBe(422)
+    expect(atTheClientsRate.body.error.checks.find((c: any) => c.code === 'EXTENSION').outcome).toBe('FAIL')
 
-    const tooMuch = await receive('CE-HM-OT1', line(straight + 2 * premium), straight + 2 * premium, period)
-    expect(tooMuch.status, JSON.stringify(tooMuch.body)).toBe(422)
-    expect(tooMuch.body.error.checks.find((c: any) => c.code === 'EXTENSION').outcome).toBe('FAIL')
-
-    const ok = await receive('CE-HM-OT1', line(straight + premium), straight + premium, period)
+    const ok = await receive('CE-HM-OT1', w.line(45, straight + pairs), straight + pairs, w.period)
     expect(ok.status, JSON.stringify(ok.body)).toBe(200)
     expect(ok.body.data.bill.status).toBe('RECEIVED')
+    expect(ok.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+
+    // Typed in as a total, the same week is held to the same figure.
+    expect((await cancel('CE-HM-OT1')).status).toBe(200)
+    const short = await receive('CE-HM-OT1T', [], straight, w.period)
+    expect(short.status, JSON.stringify(short.body)).toBe(422)
+    expect(short.body.error.message).toMatch(/with \$[\d,.]+ of overtime the client decided come to/)
+    const total = await receive('CE-HM-OT1T', [], straight + pairs, w.period)
+    expect(total.status, JSON.stringify(total.body)).toBe(200)
+    expect(total.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+  })
+
+  it('a premium line for hours the client did not decide as overtime is refused', async () => {
+    // Computer Systems answered on Techpeple's leg; Northbend decided nothing.
+    const w = await overtimeWeek({ clientDecides: false, csDecidesOnTechpeple: true })
+    const straight = 45 * s.rate
+    const premium = Math.round(5 * w.premiumPerHour)
+    const r = await receive('CE-HM-OT2', w.line(45, straight + premium), straight + premium, w.period)
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.checks.find((c: any) => c.code === 'EXTENSION').outcome).toBe('FAIL')
+
+    const ok = await receive('CE-HM-OT2', w.line(45, straight), straight, w.period)
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    expect(ok.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
+  })
+
+  it('when fewer hours are accepted on a sub-vendor’s receipt, the cut comes off overtime first, as on any bill', async () => {
+    // Computer Systems accepts 43 of the 45: the two it did not accept come
+    // off the five over the line, leaving 40 ordinary and 3 overtime.
+    const w = await overtimeWeek({ accepted: 43 })
+    const billRule = 43 * s.rate + Math.round(3 * w.premiumPerHour)
+    const payRule = 43 * s.rate + Math.round(5 * w.premiumPerHour)
+    const wrong = await receive('CE-HM-OT3', w.line(43, payRule), payRule, w.period)
+    expect(wrong.status, JSON.stringify(wrong.body)).toBe(422)
+    expect(wrong.body.error.checks.find((c: any) => c.code === 'EXTENSION').outcome).toBe('FAIL')
+
+    const ok = await receive('CE-HM-OT3', w.line(43, billRule), billRule, w.period)
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
     expect(ok.body.data.match.checks.filter((c: any) => c.outcome === 'FAIL')).toEqual([])
   })
 

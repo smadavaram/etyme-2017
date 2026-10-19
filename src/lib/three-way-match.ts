@@ -832,6 +832,16 @@ export interface VendorBillMatchInput {
    * the only check that can hold it to the accepted hours.
    */
   expectedCents?: number | null
+  /**
+   * What the accepted weeks are worth above their accepted hours at the
+   * agreed rate: the overtime the client decided when it signed them, at
+   * the multiplier on this buy line, less any hour the client banked or
+   * has not decided (lib/money/client-overtime, the founder, 2026-10-19).
+   * Already inside `expectedCents`; added here to the arithmetic of a
+   * receipt that states its hours and its rate. Zero or absent where
+   * every week is plain hours × rate.
+   */
+  overtimeCents?: number | null
 }
 
 /**
@@ -912,16 +922,21 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
 
     // ── EXTENSION — the arithmetic on the face of the bill ──
     if (bill.hours != null && bill.rateCents != null) {
-      const expected = Math.round(bill.hours * bill.rateCents)
+      const overtime = input.overtimeCents ?? 0
+      const expected = Math.round(bill.hours * bill.rateCents) + overtime
+      const what =
+        overtime > 0
+          ? `${bill.hours}h × ${money(bill.rateCents)} plus ${money(overtime)} of overtime the client decided`
+          : overtime < 0
+            ? `${bill.hours}h × ${money(bill.rateCents)} less ${money(-overtime)} for hours the client banked or has not decided`
+            : `${bill.hours}h × ${money(bill.rateCents)}`
       checks.push(
         Math.abs(expected - bill.totalCents) <= EXTENSION_TOLERANCE_CENTS
           ? { code: 'EXTENSION', outcome: 'PASS', reason: 'The invoice multiplies out correctly' }
           : {
               code: 'EXTENSION',
               outcome: 'FAIL',
-              reason:
-                `${bill.hours}h × ${money(bill.rateCents)} is ${money(expected)}, invoiced ` +
-                `${money(bill.totalCents)}`,
+              reason: `${what} is ${money(expected)}, invoiced ${money(bill.totalCents)}`,
             }
       )
     }
@@ -936,6 +951,12 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
     // cent decides what it raises, not what is paid.
     if (input.expectedCents !== undefined && !(bill.hours != null && bill.rateCents != null)) {
       const expected = input.expectedCents
+      const withOvertime =
+        (input.overtimeCents ?? 0) > 0
+          ? `, with ${money(input.overtimeCents!)} of overtime the client decided`
+          : (input.overtimeCents ?? 0) < 0
+            ? `, less ${money(-input.overtimeCents!)} for hours the client banked or has not decided`
+            : ''
       checks.push(
         expected == null
           ? {
@@ -949,14 +970,14 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
             ? {
                 code: 'AMOUNT',
                 outcome: 'PASS',
-                reason: `${money(bill.totalCents)} is the ${accepted.hours}h accepted at the agreed rate`,
+                reason: `${money(bill.totalCents)} is the ${accepted.hours}h accepted at the agreed rate${withOvertime}`,
               }
             : {
                 code: 'AMOUNT',
                 outcome: 'FAIL',
                 reason:
                   `Invoiced ${money(bill.totalCents)}; the ${accepted.hours}h accepted at the agreed ` +
-                  `rate come to ${money(expected)}. Enter the hours and the rate from the invoice ` +
+                  `rate${withOvertime} come to ${money(expected)}. Enter the hours and the rate from the invoice ` +
                   `to see which of the two differs`,
               }
       )

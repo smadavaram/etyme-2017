@@ -6,6 +6,8 @@ import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type
 import { lineFor, type Decision } from '@/lib/overtime'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, type OrderHeader, type AgreementTerms } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
+import type { Carried } from '@/lib/money/client-overtime'
+import { carriedForLines } from '@/lib/money/client-overtime-read'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
 
 /**
@@ -90,9 +92,20 @@ export interface Working {
  * hours × rate and always was, which is what every invoice raised before
  * overtime became a decision looks like.
  */
-export function recompute(line: PricedLine, period: Period, accepted: AcceptedCut | null = null): Working | null {
+export function recompute(
+  line: PricedLine,
+  period: Period,
+  accepted: AcceptedCut | null = null,
+  carried: Carried | null = null
+): Working | null {
   const ts = line.timesheet
   if (!ts) return null
+
+  // Below the top of a chain (the founder, 2026-10-19): which hours are
+  // overtime is the client's answer, and what each is worth is the pair's
+  // own multiplier (lib/money/client-overtime). A week that cannot be
+  // read that way is not priced at all.
+  if (carried && !carried.ok) return null
 
   // The answers on the leg being billed, or — in a chain, where approval
   // records one decision per timesheet — the ones on the leg the hours
@@ -104,15 +117,17 @@ export function recompute(line: PricedLine, period: Period, accepted: AcceptedCu
   // A payer that accepted fewer hours than were worked is priced from
   // the days whether or not anybody decided overtime: the cut is placed
   // on the days (rule 4), and that is what the line is checked against.
-  if (answering.length === 0 && !accepted) return null
+  if ((carried ? carried.decisions.length === 0 : answering.length === 0) && !accepted) return null
 
-  const decisions: Decision[] = answering.map((d) => ({
-    weekOf: d.weekOf.toISOString().slice(0, 10),
-    treatment: d.treatment as Decision['treatment'],
-    appliedBps: d.appliedBps,
-    overtimeHours: Number(d.overtimeHours),
-    accrualBps: d.accrualBps,
-  }))
+  const decisions: Decision[] = carried
+    ? carried.decisions
+    : answering.map((d) => ({
+        weekOf: d.weekOf.toISOString().slice(0, 10),
+        treatment: d.treatment as Decision['treatment'],
+        appliedBps: d.appliedBps,
+        overtimeHours: Number(d.overtimeHours),
+        accrualBps: d.accrualBps,
+      }))
 
   // Priced on the terms of the contract being billed, the way the
   // generator priced it (`ours` in api/invoices/generate). Reading the
@@ -140,7 +155,10 @@ export function recompute(line: PricedLine, period: Period, accepted: AcceptedCu
     line.rateCents,
     // The line the week was decided against: the contract's own, else
     // the job's hours where somebody decided it — as the bill was priced.
-    lineFor(billed, billed.requirement ?? ts.sellContract.requirement, { stillToSign: false, decided: decisions.length > 0 }),
+    // Below the top, the client's line, as its answers were made.
+    carried
+      ? carried.policy
+      : lineFor(billed, billed.requirement ?? ts.sellContract.requirement, { stillToSign: false, decided: decisions.length > 0 }),
     decisions,
     accepted
   )
@@ -338,8 +356,12 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   const contractPeriod = terms ? periodFor(invoice.periodStart, periodTermsFor('SELL', terms)) : null
 
   const billedPeriod: Period = { start: inv.periodStart, end: inv.periodEnd, label: '' }
-  const premiumOn = (line: PricedLine): number | null =>
-    recompute(line, billedPeriod)?.premiumCents ?? null
+  // Below the top of a chain, the client's answer on which hours are
+  // overtime, at the multiplier on the seller's own line (the founder,
+  // 2026-10-19). A line billing the top is not in the map.
+  const carried = await carriedForLines(invoice.invoiceLines)
+  const premiumOn = (line: PricedLine & { id: string }): number | null =>
+    recompute(line, billedPeriod, null, carried.get(line.id) ?? null)?.premiumCents ?? null
 
   // ── The receipt is the payer's signature ────────────────────────────
   //
@@ -380,7 +402,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   // the hours check.
   const cutPricing = (l: (typeof invoice.invoiceLines)[number]): Working | null => {
     const r = receiptOf(l)
-    return r.cut ? recompute(l, billedPeriod, r.cut) : null
+    return r.cut ? recompute(l, billedPeriod, r.cut, carried.get(l.id) ?? null) : null
   }
   const approvedOn = (l: (typeof invoice.invoiceLines)[number]): number =>
     cutPricing(l)?.hours ?? receiptOf(l).hours

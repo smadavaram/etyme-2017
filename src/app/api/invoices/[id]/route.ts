@@ -4,6 +4,7 @@ import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { prisma } from '@/lib/db'
 import { matchInvoice, recompute } from '@/lib/invoice-match'
+import { carriedForLines } from '@/lib/money/client-overtime-read'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 import { discountDeadline, discountOn, dueOn, ladderFor } from '@/lib/billing-cascade'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, moneyTermsFor } from '@/lib/money/order-terms'
@@ -252,6 +253,11 @@ export async function GET(
   const totalMinor = fromPrismaDecimal(invoice.total, invoice.currency).minor
   const paidMinor = payments.reduce((n, p) => n + fromPrismaDecimal(p.amount, p.currency ?? invoice.currency).minor, 0)
 
+  // Below the top of a chain, a line's overtime is the client's answer at
+  // the multiplier on the seller's own line (lib/money/client-overtime),
+  // read through the same call the match uses so the working and the check agree.
+  const carried = await carriedForLines(invoice.invoiceLines)
+
   return NextResponse.json({
     data: {
       invoice: {
@@ -343,7 +349,7 @@ export async function GET(
         // Empty where there is nothing to show: straight-time work, an
         // expense, or an invoice raised before overtime was a decision.
         // Then hours × rate is the whole story and the screen prints it.
-        bands: (recompute(l, { start: invoice.periodStart, end: invoice.periodEnd, label: '' })?.bands ?? [])
+        bands: (recompute(l, { start: invoice.periodStart, end: invoice.periodEnd, label: '' }, null, carried.get(l.id) ?? null)?.bands ?? [])
           .map(b => ({
             kind: b.kind,
             hours: b.hours,

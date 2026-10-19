@@ -53,6 +53,8 @@ import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
 import { readWindow, billingWindow, inWindow } from '@/lib/money/invoice-window'
 import { whatTheRungBills } from '@/lib/money/rung-billing'
 import { billedElsewhere, type ReceiptOnRecord } from '@/lib/money/billed-elsewhere'
+import { carriedOvertime } from '@/lib/money/client-overtime'
+import { topLegsOver } from '@/lib/money/client-overtime-read'
 import { nothingToBillSays } from '@/lib/money/nothing-to-bill'
 
 type Tx = Prisma.TransactionClient
@@ -368,6 +370,10 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // rather than in six places — is what keeps a prime from accidentally
   // invoicing its client at its sub's rate.
   const ourContract = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
+  // The top of the ladder over each week's hours: the contract the end
+  // client pays. A bill on any line below it prices overtime on the
+  // client's answer (the founder, 2026-10-19; lib/money/client-overtime).
+  const tops = await topLegsOver(timesheets.map((ts) => ts.sellContractId))
   const billing = timesheets.map((ts) => {
     const ours = ourContract.get(billedBy.get(ts.sellContractId) ?? ts.sellContractId)
     // The contract the hours are filed on, kept before it is replaced:
@@ -377,10 +383,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       clientCompanyId: ts.sellContract.clientCompanyId,
       endClientCompanyId: ts.sellContract.endClientCompanyId,
     }
-    if (!ours) return { ...ts, hoursContract, payer: null }
+    const top = tops.get(ts.sellContractId) ?? null
+    if (!ours) return { ...ts, hoursContract, top, payer: null }
     return {
       ...ts,
       hoursContract,
+      top,
       // Who pays this bill: the customer on the contract being billed.
       payer: { id: ours.clientCompanyId, name: ours.clientCompany?.name ?? 'the firm above' },
       sellContractId: ours.id,
@@ -647,32 +655,56 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
     // ── What this week was decided to be worth ────────────────────────
     //
-    // The terms are our contract's; the answers are the ones given on
-    // our own leg, because a sub's agreement with a prime is not the
-    // prime's agreement with the client. Where the chain has answered
-    // only on the leg the hours live on — which is every chain today,
-    // since approval records one decision per timesheet — that answer
-    // is used rather than dropping decided overtime off the invoice
-    // silently. Noted in the matrix; it is demand's route to split.
+    // The terms are our contract's. At the top of a chain the answers are
+    // the ones given on our own leg — the client's — and where only the
+    // leg the hours live on carries one, that answer is used rather than
+    // dropping decided overtime off the bill silently. Below the top, see
+    // the next block.
     const rows = ts.overtimeDecisions ?? []
+
+    // ── Below the top: the client's answer, at our own multiplier ─────
+    //
+    // The founder, 2026-10-19: a sub-vendor's overtime is priced on the
+    // decision the client made when it signed the week, carried down the
+    // chain the way the hours are. Which hours are overtime, and whether
+    // they are a premium, the usual rate or banked, is the client's
+    // answer on its own leg; what a premium hour is worth is our own
+    // line's multiplier with the firm we bill, never the client's
+    // (lib/money/client-overtime). The top of the chain — the prime's
+    // bill to the client, and every direct placement — prices from the
+    // answer on its own leg at the multiplier chosen there, as before.
+    const belowTop = ts.payer != null && ts.top?.sellContractId !== ts.sellContractId
+    const carried = belowTop ? carriedOvertime(rows, ts.top, ts.sellContract.overtimeMultiplierBps, ts.person.name) : null
+    const unreadable = carried && !carried.ok ? carried.says : null
+
     const ownLeg = rows.filter((d) => d.sellContractId === ts.sellContractId)
-    const answering = ownLeg.length > 0 ? ownLeg : rows
+    const answering = carried?.ok ? carried.rows : ownLeg.length > 0 ? ownLeg : rows
     // The line the week was decided against: the contract's own, else —
     // where somebody decided the week — the job's hours, the same line
     // the approval asked the question on. Pricing it against the
     // contract's silence left decided overtime off the bill.
-    const policy = lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })
+    const policy = carried
+      ? carried.ok ? carried.policy : { afterHours: null, multiplierBps: ts.sellContract.overtimeMultiplierBps }
+      : lineFor(ts.sellContract, ts.sellContract.requirement, { stillToSign: false, decided: answering.length > 0 })
 
-    const decisions: Decision[] = answering.map((d) => ({
-      weekOf: d.weekOf.toISOString().slice(0, 10),
-      treatment: d.treatment as Decision['treatment'],
-      // The price comes from what was applied when somebody decided,
-      // never from the contract's multiplier as it stands today.
-      appliedBps: d.appliedBps,
-      overtimeHours: Number(d.overtimeHours),
-      accrualBps: d.accrualBps,
-    }))
-    const idOfWeek = new Map(answering.map((d) => [d.weekOf.toISOString().slice(0, 10), d.id]))
+    const decisions: Decision[] = carried
+      ? carried.ok ? carried.decisions : []
+      : answering.map((d) => ({
+          weekOf: d.weekOf.toISOString().slice(0, 10),
+          treatment: d.treatment as Decision['treatment'],
+          // The price comes from what was applied when somebody decided,
+          // never from the contract's multiplier as it stands today.
+          appliedBps: d.appliedBps,
+          overtimeHours: Number(d.overtimeHours),
+          accrualBps: d.accrualBps ?? undefined,
+        }))
+    // Rows, not their copies: the client's answer reaching a bill below it
+    // is billed too, and no longer changes without restating that bill.
+    const idOfWeek = new Map(
+      rows
+        .filter((d) => answering.some((a) => a.weekOf.getTime() === d.weekOf.getTime() && a.sellContractId === d.sellContractId))
+        .map((d) => [d.weekOf.toISOString().slice(0, 10), d.id])
+    )
 
     // How much of this timesheet belongs to the period being billed, and
     // in which bands. Read from the daily hours, so a week crossing the
@@ -690,6 +722,13 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     let billable = billableInPeriod(sheet, period, terms.straddle, rate, policy, decisions)
 
     if (!billable) continue
+
+    // A week of this period whose overtime below the top cannot be read
+    // is left off, said, and bills once it can.
+    if (unreadable) {
+      heldBack.push({ timesheetId: ts.id, kind: 'HELD', says: unreadable })
+      continue
+    }
 
 
     // ── What the firm above accepted ──────────────────────────────────
