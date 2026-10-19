@@ -183,6 +183,7 @@ describe('Colleen Byrne’s Your work, as the owner of the firm that holds her r
     const d = await hers()
     expect(d.runningOut).toHaveLength(1)
     const [license] = d.runningOut
+    expect(license.state).toBe('RUNS_OUT')
     expect(license.name).toBe('Professional license')
     expect(license.issuer).toBe('Wisconsin Board of Nursing')
     expect(license.daysLeft).toBeGreaterThan(0)

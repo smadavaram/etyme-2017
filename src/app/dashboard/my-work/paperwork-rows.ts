@@ -554,6 +554,12 @@ export interface HeldOnFile {
   /** Who issued it — the state board, the screening company. Null where nobody recorded one. */
   issuer: string | null
   status: string
+  /**
+   * The day it starts to count: its valid-from, else the day it was
+   * issued. A license or a certificate that begins next month does not
+   * cover this week, so a paper is in force only from this day.
+   */
+  validFrom: Date | string | null
   expiresAt: Date | string | null
 }
 
@@ -567,14 +573,31 @@ export interface RequiredOfHer {
   owedBy: string
 }
 
-/** A paper on her file that runs out soon, and whose lapse stops the work. */
+/**
+ * A stopping paper on her file that does not cover her for long, or at all:
+ *
+ *   RUNS_OUT  in force today and runs out within sixty days, with nothing
+ *             on file that takes over the day after
+ *   NOT_YET   on file, but not in force until a later day, and nothing
+ *             else covers her today
+ *   RAN_OUT   every copy on file has run out, and nothing newer is on file
+ */
+export type StopState = 'RUNS_OUT' | 'NOT_YET' | 'RAN_OUT'
+
+/** A paper on her file whose lapse stops the work, and where it stands. */
 export interface RunningOut {
   id: string
+  /** The type key, so two readings of one paper are said once. */
+  key?: string
+  state: StopState
   name: string
   issuer: string | null
-  /** Whole days left, counted the way the paperwork row counts them. 0 is today. */
-  daysLeft: number
-  runsOutOn: string
+  /** Whole days left on RUNS_OUT, counted the way the paperwork row counts them. 0 is today. */
+  daysLeft: number | null
+  /** The day it runs out (RUNS_OUT) or ran out (RAN_OUT). */
+  runsOutOn: string | null
+  /** The day it starts to count, on NOT_YET. */
+  startsOn: string | null
 }
 
 function sentenceCase(s: string): string {
@@ -582,14 +605,30 @@ function sentenceCase(s: string): string {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'A document'
 }
 
+const DAY_MS = 86_400_000
+
+function dayOrNull(d: Date | string | null): Date | null {
+  if (!d) return null
+  const x = new Date(d)
+  return Number.isNaN(x.getTime()) ? null : x
+}
+
 /**
- * What on her file runs out within sixty days and would stop her work.
+ * Which stopping papers on her file do not cover her well, from their start
+ * and their end together.
  *
- * Only a paper that came back (a check still running holds nothing),
- * that has an end date, that has not already run out (that one is a row
- * she owes, and the paperwork payload says so), and that a line she is
- * live on requires of her as a blocking item nobody waived. A paper no
- * line requires stops nothing, so it is not said to.
+ * Only a paper that came back counts (a check still running holds
+ * nothing), and only one required of her as blocking that nobody waived:
+ * a paper no line and no license gate requires stops nothing, so it is
+ * not said to. Per type, in order:
+ *
+ *  - A copy in force today — started on or before today, not yet ended —
+ *    covers her. If none of them has an end, nothing is said. If the
+ *    latest end is within sixty days and no copy on file starts by the day
+ *    after it, she reads when it runs out.
+ *  - With no copy in force, a copy that starts later is "not in force
+ *    until" its first day: it does not cover this week.
+ *  - With neither, the newest copy ran out.
  */
 export function papersRunningOut(input: {
   held: HeldOnFile[]
@@ -601,26 +640,60 @@ export function papersRunningOut(input: {
       .filter((r) => r.required && r.blocks && !r.waived && r.owedBy === 'WORKER')
       .map((r) => r.key)
   )
-  const soonest = new Map<string, RunningOut>()
+  const byKey = new Map<string, HeldOnFile[]>()
   for (const h of input.held) {
-    if (!ACCEPTED_ON_FILE.includes(h.status) || !h.expiresAt || !stops.has(h.key)) continue
-    const ends = new Date(h.expiresAt)
-    if (Number.isNaN(ends.getTime())) continue
-    // The same count `heldWord` makes for the row, so the line at the top
-    // and the row below it never say two different numbers.
-    const daysLeft = Math.ceil((ends.getTime() - input.on.getTime()) / 86_400_000)
-    if (daysLeft < 0 || daysLeft > RUNNING_OUT_DAYS) continue
-    const row: RunningOut = {
-      id: h.id,
-      name: sentenceCase(h.label),
-      issuer: (h.issuer ?? '').trim() || null,
-      daysLeft,
-      runsOutOn: ends.toISOString(),
-    }
-    const kept = soonest.get(h.key)
-    if (!kept || row.daysLeft < kept.daysLeft) soonest.set(h.key, row)
+    if (!ACCEPTED_ON_FILE.includes(h.status) || !stops.has(h.key)) continue
+    byKey.set(h.key, [...(byKey.get(h.key) ?? []), h])
   }
-  return [...soonest.values()].sort((a, b) => a.daysLeft - b.daysLeft || a.name.localeCompare(b.name))
+
+  const on = input.on.getTime()
+  // The same count `heldWord` makes for the row, so the line at the top
+  // and the row below it never say two different numbers.
+  const daysTo = (d: Date) => Math.ceil((d.getTime() - on) / DAY_MS)
+  const out: RunningOut[] = []
+
+  for (const [key, copies] of byKey) {
+    const dated = copies.map((h) => ({ h, from: dayOrNull(h.validFrom), to: dayOrNull(h.expiresAt) }))
+    const base = (h: HeldOnFile) => ({ id: h.id, key, name: sentenceCase(h.label), issuer: (h.issuer ?? '').trim() || null })
+
+    const inForce = dated.filter((c) => (!c.from || c.from.getTime() <= on) && (!c.to || daysTo(c.to) >= 0))
+    if (inForce.length > 0) {
+      if (inForce.some((c) => !c.to)) continue
+      const last = inForce.reduce((a, b) => (b.to!.getTime() > a.to!.getTime() ? b : a))
+      const daysLeft = daysTo(last.to!)
+      if (daysLeft > RUNNING_OUT_DAYS) continue
+      // A renewal already on file that starts by the day after this one
+      // ends keeps her covered, and nothing needs saying.
+      const takesOver = dated.some((c) =>
+        c !== last && c.from && c.from.getTime() > on &&
+        c.from.getTime() <= last.to!.getTime() + DAY_MS &&
+        (!c.to || c.to.getTime() > last.to!.getTime())
+      )
+      if (takesOver) continue
+      out.push({ ...base(last.h), state: 'RUNS_OUT', daysLeft, runsOutOn: last.to!.toISOString(), startsOn: null })
+      continue
+    }
+
+    const later = dated
+      .filter((c) => c.from && c.from.getTime() > on)
+      .sort((a, b) => a.from!.getTime() - b.from!.getTime())[0]
+    if (later) {
+      out.push({ ...base(later.h), state: 'NOT_YET', daysLeft: null, runsOutOn: null, startsOn: later.from!.toISOString() })
+      continue
+    }
+
+    const ended = dated
+      .filter((c) => c.to)
+      .sort((a, b) => b.to!.getTime() - a.to!.getTime())[0]
+    if (ended) {
+      out.push({ ...base(ended.h), state: 'RAN_OUT', daysLeft: null, runsOutOn: ended.to!.toISOString(), startsOn: null })
+    }
+  }
+
+  const rank: Record<StopState, number> = { RAN_OUT: 0, NOT_YET: 1, RUNS_OUT: 2 }
+  return out.sort((a, b) =>
+    rank[a.state] - rank[b.state] || (a.daysLeft ?? 0) - (b.daysLeft ?? 0) || a.name.localeCompare(b.name)
+  )
 }
 
 /** "Professional license" reads "your professional license"; "I-9" and "NDA" keep their capitals. */
@@ -650,10 +723,24 @@ export function workStops(input: { rows: PaperRow[]; runningOut?: RunningOut[] }
       out.push(`Your ${name} is not on file. Your work stops without it.`)
     }
   }
+  // A paper she owes that the paperwork section already says is the same
+  // paper as one read from her file: said once, in the paperwork's words.
+  const said = new Set(
+    input.rows
+      .filter((r) => r.kind === 'OWED' && r.stopsWork && !r.waived && !r.awaiting)
+      .map((r) => r.name.toLowerCase())
+  )
   for (const p of input.runningOut ?? []) {
+    if (said.has(p.name.toLowerCase())) continue
     const what = `Your ${inSentence(p.name)}${p.issuer ? ` (${p.issuer})` : ''}`
-    const when = p.daysLeft === 0 ? 'runs out today' : `runs out in ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}`
-    out.push(`${what} ${when}. Your work stops if it lapses.`)
+    if (p.state === 'NOT_YET' && p.startsOn) {
+      out.push(`${what} is not in force until ${formatDay(p.startsOn)}. Your work stops until then.`)
+    } else if (p.state === 'RAN_OUT' && p.runsOutOn) {
+      out.push(`${what} ran out on ${formatDay(p.runsOutOn)}. Your work stops until a new one is on file.`)
+    } else if (p.state === 'RUNS_OUT' && p.daysLeft != null) {
+      const when = p.daysLeft === 0 ? 'runs out today' : `runs out in ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}`
+      out.push(`${what} ${when}. Your work stops if it lapses.`)
+    }
   }
   return [...new Set(out)]
 }

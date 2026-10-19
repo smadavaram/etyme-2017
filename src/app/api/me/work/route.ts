@@ -34,7 +34,8 @@ import { papersRunningOut, type HeldOnFile, type RequiredOfHer } from '@/app/das
  * project with its start day and, where the city changes, the cities.
  */
 /**
- * What on her file runs out within sixty days and would stop her work.
+ * What on her file does not cover her well — runs out within sixty days,
+ * is not in force yet, or ran out — and would stop her work.
  *
  * Read for the one line at the top of Your work (founder, 2026-10-19:
  * money and the week before paperwork that does not stop the work). The
@@ -58,9 +59,11 @@ async function runningOutFor(personId: string, now: Date) {
       select: { buyContractId: true },
       take: 20,
     }),
+    // The start as well as the end: a paper that begins next month does
+    // not cover this week, so its start decides whether it is in force.
     prisma.verification.findMany({
-      where: { personId, expiresAt: { not: null } },
-      select: { id: true, type: true, status: true, provider: true, expiresAt: true },
+      where: { personId },
+      select: { id: true, type: true, status: true, provider: true, issuedAt: true, validFrom: true, expiresAt: true },
     }),
   ])
   if (held.length === 0 || sellLines.length + buyLines.length === 0) return []
@@ -83,7 +86,8 @@ async function runningOutFor(personId: string, now: Date) {
     })),
   ]
   const onFile: HeldOnFile[] = held.map((v) => ({
-    id: v.id, key: v.type, label: labelFor(v.type), issuer: v.provider, status: v.status, expiresAt: v.expiresAt,
+    id: v.id, key: v.type, label: labelFor(v.type), issuer: v.provider, status: v.status,
+    validFrom: v.validFrom ?? v.issuedAt, expiresAt: v.expiresAt,
   }))
   return papersRunningOut({ held: onFile, required, on: now })
 }

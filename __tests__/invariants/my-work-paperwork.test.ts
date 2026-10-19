@@ -522,12 +522,12 @@ describe('Your work opens on the week and the money', () => {
   it('a license that runs out inside the assignment is said in one sentence: when it runs out, and that her work stops if it lapses', () => {
     const lines = workStops({
       rows: [],
-      runningOut: [{ id: 'v1', name: 'Professional license', issuer: 'Wisconsin Board of Nursing', daysLeft: 24, runsOutOn: '2026-11-12T00:00:00.000Z' }],
+      runningOut: [{ id: 'v1', state: 'RUNS_OUT', name: 'Professional license', issuer: 'Wisconsin Board of Nursing', daysLeft: 24, runsOutOn: '2026-11-12T00:00:00.000Z', startsOn: null }],
     })
     expect(lines).toEqual(['Your professional license (Wisconsin Board of Nursing) runs out in 24 days. Your work stops if it lapses.'])
-    expect(workStops({ rows: [], runningOut: [{ id: 'v1', name: 'Site induction', issuer: null, daysLeft: 1, runsOutOn: '2026-10-20T00:00:00.000Z' }] }))
+    expect(workStops({ rows: [], runningOut: [{ id: 'v1', state: 'RUNS_OUT', name: 'Site induction', issuer: null, daysLeft: 1, runsOutOn: '2026-10-20T00:00:00.000Z', startsOn: null }] }))
       .toEqual(['Your site induction runs out in 1 day. Your work stops if it lapses.'])
-    expect(workStops({ rows: [], runningOut: [{ id: 'v1', name: 'Site induction', issuer: null, daysLeft: 0, runsOutOn: '2026-10-19T00:00:00.000Z' }] }))
+    expect(workStops({ rows: [], runningOut: [{ id: 'v1', state: 'RUNS_OUT', name: 'Site induction', issuer: null, daysLeft: 0, runsOutOn: '2026-10-19T00:00:00.000Z', startsOn: null }] }))
       .toEqual(['Your site induction runs out today. Your work stops if it lapses.'])
   })
 
@@ -569,8 +569,8 @@ describe('Your work opens on the week and the money', () => {
   it('a paper on file is said to stop her work only where it is required of her as blocking and nobody waived it', () => {
     const on = new Date('2026-10-19T12:00:00Z')
     const held = [
-      { id: 'v1', key: 'PROFESSIONAL_LICENSE', label: 'Professional license', issuer: 'Wisconsin Board of Nursing', status: 'CLEAR', expiresAt: '2026-11-12T00:00:00.000Z' },
-      { id: 'v2', key: 'FORKLIFT_TICKET', label: 'Forklift ticket', issuer: null, status: 'CLEAR', expiresAt: '2026-11-01T00:00:00.000Z' },
+      { id: 'v1', key: 'PROFESSIONAL_LICENSE', label: 'Professional license', issuer: 'Wisconsin Board of Nursing', status: 'CLEAR', validFrom: '2024-11-12T00:00:00.000Z', expiresAt: '2026-11-12T00:00:00.000Z' },
+      { id: 'v2', key: 'FORKLIFT_TICKET', label: 'Forklift ticket', issuer: null, status: 'CLEAR', validFrom: '2025-11-01T00:00:00.000Z', expiresAt: '2026-11-01T00:00:00.000Z' },
     ]
     const required = [{ key: 'PROFESSIONAL_LICENSE', required: true, blocks: true, waived: false, owedBy: 'WORKER' }]
     const soon = papersRunningOut({ held, required, on })
@@ -587,26 +587,52 @@ describe('Your work opens on the week and the money', () => {
     ]) expect(papersRunningOut({ held, required: [r], on })).toEqual([])
   })
 
-  it('a paper on file is said to run out only inside sixty days, only once it came back, and never once it has already run out', () => {
-    const on = new Date('2026-10-19T12:00:00Z')
-    const required = [{ key: 'K', required: true, blocks: true, waived: false, owedBy: 'WORKER' }]
-    const one = (over: Record<string, unknown>) =>
-      papersRunningOut({ held: [{ id: 'v', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-11-12T00:00:00.000Z', ...over }], required, on })
+  const ON = new Date('2026-10-19T12:00:00Z')
+  const REQUIRED = [{ key: 'K', required: true, blocks: true, waived: false, owedBy: 'WORKER' }]
+  const copy = (over: Record<string, unknown> = {}) => ({
+    id: 'v', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR',
+    validFrom: '2025-11-12T00:00:00.000Z', expiresAt: '2026-11-12T00:00:00.000Z', ...over,
+  })
+  const judged = (...held: ReturnType<typeof copy>[]) => papersRunningOut({ held, required: REQUIRED, on: ON })
+
+  it('a paper in force today is said to run out only inside sixty days, only once it came back, and not where it has no end', () => {
     expect(RUNNING_OUT_DAYS).toBe(60)
-    expect(one({})).toHaveLength(1)
-    expect(one({ expiresAt: '2027-02-01T00:00:00.000Z' })).toEqual([])
-    expect(one({ expiresAt: '2026-10-10T00:00:00.000Z' })).toEqual([])
-    expect(one({ expiresAt: null })).toEqual([])
-    expect(one({ status: 'PENDING' })).toEqual([])
-    // Two copies of one paper: the one that runs out first is the one said.
-    const two = papersRunningOut({
-      held: [
-        { id: 'a', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-12-01T00:00:00.000Z' },
-        { id: 'b', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-11-01T00:00:00.000Z' },
-      ],
-      required, on,
-    })
-    expect(two.map((p) => p.id)).toEqual(['b'])
+    expect(judged(copy())).toMatchObject([{ state: 'RUNS_OUT', daysLeft: 24 }])
+    expect(judged(copy({ expiresAt: '2027-02-01T00:00:00.000Z' }))).toEqual([])
+    expect(judged(copy({ expiresAt: null }))).toEqual([])
+    expect(judged(copy({ status: 'PENDING' }))).toEqual([])
+  })
+
+  it('a paper that starts next month does not cover this week: it is said to be not in force until its first day', () => {
+    const lines = judged(copy({ validFrom: '2026-11-02T00:00:00.000Z', expiresAt: '2027-11-02T00:00:00.000Z' }))
+    expect(lines).toMatchObject([{ state: 'NOT_YET', startsOn: '2026-11-02T00:00:00.000Z' }])
+    expect(workStops({ rows: [], runningOut: lines }))
+      .toEqual(['Your state registration is not in force until Nov 2, 2026. Your work stops until then.'])
+  })
+
+  it('a renewal on file that starts the day after the old one ends keeps her covered, and nothing is said', () => {
+    expect(judged(
+      copy({ id: 'old' }),
+      copy({ id: 'new', validFrom: '2026-11-13T00:00:00.000Z', expiresAt: '2028-11-13T00:00:00.000Z' }),
+    )).toEqual([])
+    // A renewal that leaves a gap does not: the old one is still said to run out.
+    expect(judged(
+      copy({ id: 'old' }),
+      copy({ id: 'new', validFrom: '2026-12-01T00:00:00.000Z', expiresAt: '2028-12-01T00:00:00.000Z' }),
+    )).toMatchObject([{ id: 'old', state: 'RUNS_OUT' }])
+  })
+
+  it('a paper that ran out with nothing newer on file is said to have run out, on the day it did', () => {
+    const lines = judged(copy({ validFrom: '2024-10-10T00:00:00.000Z', expiresAt: '2026-10-10T00:00:00.000Z' }))
+    expect(lines).toMatchObject([{ state: 'RAN_OUT', runsOutOn: '2026-10-10T00:00:00.000Z' }])
+    expect(workStops({ rows: [], runningOut: lines }))
+      .toEqual(['Your state registration ran out on Oct 10, 2026. Your work stops until a new one is on file.'])
+  })
+
+  it('a paper the paperwork section already names as owed is said once at the top, in the paperwork’s words', () => {
+    const rows = paperRows({ papers: [{ id: 'owed:K', kind: 'OUTSTANDING', name: 'State registration', word: 'Ran out 9 days ago', stopsWork: true, runsOutOn: '2026-10-10T00:00:00.000Z' }] })
+    const lines = workStops({ rows, runningOut: judged(copy({ expiresAt: '2026-10-10T00:00:00.000Z' })) })
+    expect(lines).toEqual(['Your state registration ran out on Oct 10, 2026. Your work stops until a new one is on file.'])
   })
 
   it('every line under a paperwork heading is short: one idea a sentence, and no sentence past twenty words', () => {
