@@ -267,6 +267,69 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     expect(signed).toBeGreaterThan(0)
     expect(budgets.body.data.summary.actualCents).toBe(signed + acceptedCents)
   })
+
+  it('a sub-vendor\u2019s bill for the same week does not read as billed to the client on its budget', async () => {
+    // Every rung bills the same signed week on its own line: Techpeple
+    // to Computer Systems, Computer Systems to Northbend. Only the second
+    // is Northbend's bill. Take one of Helena's weeks, set Northbend's
+    // line on it aside, and give it instead a paid bill from Techpeple to
+    // Computer Systems. Northbend has still been billed nothing for that
+    // week and has paid nothing for it, and its budget must say so.
+    as(NIKE_HIRING)
+    const before = (await json(await budget(req('GET', '/api/program/budget')))).body.data.summary
+
+    const week = await prisma.timesheet.findFirstOrThrow({
+      where: { personId: helenaId, clientApprovedAt: { not: null }, invoiceLines: { some: {} } },
+      select: {
+        id: true, sellContractId: true, personId: true,
+        invoiceLines: true,
+      },
+    })
+    expect(week.invoiceLines).toHaveLength(1)
+    const clientLine = week.invoiceLines[0]
+    expect(clientLine.sellContractId).not.toBe(week.sellContractId)
+    const clientInvoice = await prisma.invoice.findUniqueOrThrow({
+      where: { id: clientLine.invoiceId },
+      select: { status: true, engagementId: true, currency: true, periodStart: true, periodEnd: true },
+    })
+    expect(clientInvoice.status).not.toBe('PAID')
+
+    await prisma.invoiceLine.delete({ where: { id: clientLine.id } })
+    const subBill = await prisma.invoice.create({
+      data: {
+        engagementId: clientInvoice.engagementId,
+        number: `TEST-SUB-${week.id}`,
+        periodStart: clientInvoice.periodStart,
+        periodEnd: clientInvoice.periodEnd,
+        currency: clientInvoice.currency,
+        total: 1,
+        paid: 1,
+        dueAt: clientInvoice.periodEnd,
+        status: 'PAID',
+        invoiceLines: {
+          create: {
+            timesheetId: week.id, sellContractId: week.sellContractId, personId: week.personId,
+            hours: 0, rateCents: HELENA_SUB_RATE, amountCents: 100,
+          },
+        },
+      },
+    })
+
+    try {
+      const after = (await json(await budget(req('GET', '/api/program/budget')))).body.data.summary
+      // Still signed for, so still spent.
+      expect(after.actualCents).toBe(before.actualCents)
+      // The sub-vendor's paid bill is not Northbend paying.
+      expect(after.paidCents).toBe(before.paidCents)
+      // And with Northbend's own line gone the week is not billed at all:
+      // it has left "to pay" and gone nowhere else.
+      expect(after.toPayCents).toBeLessThan(before.toPayCents)
+      expect(after.toPayCents + after.paidCents).toBeLessThan(before.toPayCents + before.paidCents)
+    } finally {
+      await prisma.invoice.delete({ where: { id: subBill.id } })
+      await prisma.invoiceLine.create({ data: clientLine })
+    }
+  })
 })
 
 describe('a person bought through two legs of one chain has served one set of days, not two', () => {

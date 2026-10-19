@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true, sellContractId: true, totalHours: true, acceptedHours: true,
             days: true, leaveDays: true,
-            invoiceLines: { select: { invoice: { select: { status: true } } } },
+            invoiceLines: { select: { sellContractId: true, invoice: { select: { status: true } } } },
             sellContract: { select: { overtimeAfterHours: true, overtimeMultiplierBps: true, requirement: { select: { hoursPerWeek: true } } } },
             // What somebody decided about each overtime week on this
             // leg. Without it the multiplier on the contract would be
@@ -153,21 +153,41 @@ export async function GET(request: NextRequest) {
             },
           },
         }),
+        // An expense is spent once the client itself has accepted it, at
+        // what it accepted (founder, 2026-10-19: an expense is accepted
+        // like a week). The employer's approval is about reimbursing the
+        // worker and is not the client's signature, and the claimed total
+        // is what was asked, not what the client agreed to owe.
         prisma.expense.findMany({
-          where: { sellContractId: { in: chargeable }, billable: true, status: { in: ['APPROVED', 'INVOICED', 'PAID'] } },
+          where: {
+            sellContractId: { in: chargeable }, billable: true,
+            status: { in: ['APPROVED', 'INVOICED', 'PAID'] },
+            acceptances: { some: { companyId: client.id, status: 'ACCEPTED' } },
+          },
           select: {
-            id: true, sellContractId: true, total: true, status: true,
-            invoiceLines: { select: { invoice: { select: { status: true } } } },
+            id: true, sellContractId: true, status: true,
+            acceptances: { where: { companyId: client.id, status: 'ACCEPTED' }, select: { acceptedCents: true } },
+            invoiceLines: { select: { sellContractId: true, invoice: { select: { status: true } } } },
           },
         }),
       ])
     : [[], []]
 
-  /** Billed, and settled — read off the invoice the line sits on. */
-  const cash = (lines: { invoice: { status: string } }[]) => ({
-    invoiced: lines.length > 0,
-    paid: lines.some((l) => l.invoice.status === 'PAID'),
-  })
+  /**
+   * Billed, and settled — read off the invoice the line sits on, and only
+   * a line on the contract the client pays. In a chain every rung bills
+   * the same signed week (or the same expense) on its own line: the
+   * sub-vendor to the prime, the prime to the client. A sub-vendor's bill
+   * being raised or paid says nothing about what the client was billed or
+   * has paid, so only the line on the charged contract counts here.
+   */
+  const cash = (lines: { sellContractId: string | null; invoice: { status: string } }[], charged: string) => {
+    const mine = lines.filter((l) => l.sellContractId === charged)
+    return {
+      invoiced: mine.length > 0,
+      paid: mine.some((l) => l.invoice.status === 'PAID'),
+    }
+  }
 
   const work: AcceptedWork[] = sheets.flatMap((t) => {
     // Every sheet here is signed. A silent contract's week is read
@@ -187,7 +207,7 @@ export async function GET(request: NextRequest) {
         overtimeHours: Number(d.overtimeHours),
       })),
     })
-    const settled = cash(t.invoiceLines)
+    const settled = cash(t.invoiceLines, charges.get(t.sellContractId)!)
 
     // ── One row per price, not one row per sheet ──────────────────────
     //
@@ -234,8 +254,10 @@ export async function GET(request: NextRequest) {
   })
   const spend: AcceptedExpense[] = expenses.map((e) => ({
     contractId: charges.get(e.sellContractId)!,
-    amountCents: Math.round(Number(e.total) * 100),
-    ...cash(e.invoiceLines),
+    // The client's own acceptance, which the query required: never the
+    // claimed total, which may be more than the client agreed to owe.
+    amountCents: e.acceptances[0].acceptedCents,
+    ...cash(e.invoiceLines, charges.get(e.sellContractId)!),
   }))
 
   const LIVE = ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION']
