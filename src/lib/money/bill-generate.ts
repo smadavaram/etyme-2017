@@ -95,6 +95,23 @@ export interface PlannedBill {
   dueSays: string
   /** Terms an order or a line said with no reason, set aside, in words. */
   setAside: string[]
+  /**
+   * Each signed week this bill carries, as its lines price it: the hours
+   * billed and their amount in minor units. The same numbers the
+   * `InvoiceLine` rows get, so a reader of a dry run (the firm's Today
+   * figures, `lib/money/firm-today`) and the bill cannot disagree.
+   */
+  weeks: { timesheetId: string; hours: number; amountMinor: number }[]
+  /**
+   * Each week left off, and why: the firm above has not accepted it
+   * (WAITING), or the arithmetic is not decided (HELD). `billedElsewhere`
+   * is set where the week is already on an invoice receipt the payer
+   * recorded from this firm — billed, off the platform — wholly or for
+   * some of its days.
+   */
+  weeksLeftOff: { timesheetId: string; kind: 'WAITING' | 'HELD'; says: string; billedElsewhere?: 'WHOLE' | 'PART' }[]
+  /** Each week with hours over the line nobody has decided, and how many. Those hours are on no bill. */
+  weeksUndecided: { timesheetId: string; pendingHours: number }[]
 }
 
 export type BillOutcome =
@@ -708,13 +725,21 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
   /** Over the line and nobody has answered. Left off, and said out loud. */
   let pendingHours = 0
+  /** The same, per week, for a reader that needs to know which week waits. */
+  const pendingByWeek = new Map<string, number>()
 
   /**
    * Weeks a rung below the top may not bill yet: the firm above has not
    * accepted them, or it accepted a number nobody has said how to price.
    * Left off, and said out loud, the same way as undecided overtime.
    */
-  const heldBack: { timesheetId: string; kind: 'WAITING' | 'HELD'; says: string }[] = []
+  const heldBack: {
+    timesheetId: string
+    kind: 'WAITING' | 'HELD'
+    says: string
+    /** Set where the week is already on an invoice receipt the payer recorded from us: all of it, or some days. */
+    billedElsewhere?: 'WHOLE' | 'PART'
+  }[] = []
 
   for (const ts of billing) {
     const rate = ts.sellContract.billRate // cents per hour
@@ -852,7 +877,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         receiptsFor(ts.payer.id, ts.sellContractId)
       )
       if (cover.covered !== 'NONE') {
-        heldBack.push({ timesheetId: ts.id, kind: 'HELD', says: cover.says! })
+        heldBack.push({ timesheetId: ts.id, kind: 'HELD', says: cover.says!, billedElsewhere: cover.covered })
         continue
       }
     }
@@ -906,6 +931,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     // into the ordinary hours. They wait for a decision and bill on the
     // next run.
     pendingHours = Math.round((pendingHours + billable.pendingHours) * 100) / 100
+    if (billable.pendingHours > 0) pendingByWeek.set(ts.id, billable.pendingHours)
 
     // Guard: LEGACY_RULES.md — cannot invoice if time <= 0
     if (billable.hours <= 0) continue
@@ -1248,6 +1274,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     pending: pendingSays,
     dueSays: due.says,
     setAside: terms_.setAside,
+    weeks: [...priced].map(([timesheetId, p]) => ({ timesheetId, hours: p.hours, amountMinor: p.cents })),
+    weeksLeftOff: heldBack.map((h) => ({ ...h })),
+    weeksUndecided: [...pendingByWeek].map(([timesheetId, pendingHours]) => ({ timesheetId, pendingHours })),
   })
 
   const write = async (tx: Tx) => {
