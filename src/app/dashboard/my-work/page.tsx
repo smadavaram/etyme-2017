@@ -7,6 +7,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { amount, compact, rate as fmtRate } from '@/lib/money-display'
 import { YourPapers } from './papers'
 import { AskedToMarket } from './asked-to-market'
+import { workStops, type PaperRow, type RunningOut } from './paperwork-rows'
+import { formatDay } from '@/lib/format-date'
+import { momentFor, readerZone } from '@/lib/when'
 
 /**
  * A consultant's own page.
@@ -31,6 +34,8 @@ interface Placement {
   location: string | null
   payRate: number | null
   rateNote: string | null
+  /** Where she adds it, where the rate is hers to record: her own firm's contract. */
+  rateLink?: string | null
   state: string
   startDate: string
   endDate: string | null
@@ -144,14 +149,15 @@ interface Interview {
   confirmedBasis: string | null
 }
 
-/** "Tue 15 Sep, 10:00" — in the reader's own time zone, never the server's. */
+/**
+ * "Tue, Sep 15, 10:00 AM PDT" — in the reader's own time zone, never the
+ * server's, with the zone named. A slot is a moment, so it goes through
+ * the moment door (`lib/when`), read in the zone of the device reading it.
+ */
 function localTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat(undefined, {
-    weekday: 'short', day: 'numeric', month: 'short',
-    hour: '2-digit', minute: '2-digit',
-  }).format(d)
+  return momentFor(d, readerZone())
 }
 
 /** "Technical · round 2". Their word for the round, not ours. */
@@ -258,9 +264,9 @@ function InterviewCard({ iv, onAnswered }: { iv: Interview; onAnswered: () => vo
       {!waiting && iv.state !== 'CONFIRMED' && (
         <div className="mt-3 text-[13px] text-etyme-muted">
           {iv.state === 'CANCELLED'
-            ? 'This one is off.'
+            ? 'This interview is cancelled.'
             : iv.state === 'DONE'
-            ? 'Done. Waiting on what they thought.'
+            ? 'Done. Waiting to hear what they thought.'
             : `You said yes${iv.confirmedStart ? `, for ${localTime(iv.confirmedStart)}` : ''}. ${iv.submittedBy} still has to confirm it.`}
         </div>
       )}
@@ -624,7 +630,7 @@ function NothingYet({ says, listedBy = null, ownFirm = null }: {
             <li>What is approved</li>
             <li>What you are owed</li>
           </ul>
-          <p className="text-[13px] text-etyme-muted mt-3">Until then this page is empty, not zeros.</p>
+          <p className="text-[13px] text-etyme-muted mt-3">Until then, this page stays empty.</p>
         </section>
 
         <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-5">
@@ -774,10 +780,9 @@ function SentBack({ contractId, week, onSent }: { contractId: string; week: Retu
   )
 }
 
+/** "Mon, Oct 5" — a stored day, through the one day door. */
 function dayLabel(iso: string): string {
-  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
-  })
+  return formatDay(iso.slice(0, 10), { weekday: true, year: false })
 }
 
 /**
@@ -811,7 +816,7 @@ function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Prom
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">File your hours</h2>
         <p className="text-sm text-etyme-muted">
-          Every day you have worked at {current.site} is on a week you filed. The next one opens tomorrow.
+          You have filed every day you worked at {current.site}. The next week opens tomorrow.
         </p>
       </section>
     )
@@ -843,7 +848,7 @@ function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Prom
     <section className="mb-8">
       <h2 className="font-serif text-lg text-etyme-ink mb-1">File your hours</h2>
       <p className="text-xs text-etyme-muted mb-3">
-        Your hours, in your words. {current.signs ?? `After you send, they go for approval before ${current.payer} pays them.`}
+        Only you can file your hours. {current.signs ?? `After you send, they go for approval. Then ${current.payer} pays them.`}
       </p>
       <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 space-y-4">
         <div className="flex flex-wrap gap-3">
@@ -1063,6 +1068,9 @@ export default function MyWorkPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Her paperwork rows, read once by the section below the money and
+  // handed up for the line at the top that names a paper that stops work.
+  const [paperRows, setPaperRows] = useState<PaperRow[]>([])
 
   // Quiet on a refresh after sending, so the form's own sentence about
   // what was sent stays on the screen instead of a loading line.
@@ -1147,6 +1155,9 @@ export default function MyWorkPage() {
   const returnedIds = new Set(returned.map((r) => r.week.timesheetId))
   // A week sent back is corrected above, never re-sent unchanged from here.
   const open = data.timesheets.filter((t: Timesheet) => t.status === 'OPEN' && !returnedIds.has(t.id))
+  // Every paper that stops the work, in a sentence: what she owes from the
+  // paperwork rows, and what on her file runs out soon from this route.
+  const stops = workStops({ rows: paperRows, runningOut: (data.runningOut ?? []) as RunningOut[] })
 
   return (
     <div className="max-w-3xl">
@@ -1157,6 +1168,19 @@ export default function MyWorkPage() {
 
       {/* A firm asked to market them and they have not answered: first. */}
       <AskedToMarket />
+
+      {/* A paper that stops the work, one line each, above the week.
+          Every other paper waits in Your paperwork, below the money
+          (founder, 2026-10-19: "Money and the week before paperwork
+          that does not stop the work"). */}
+      {stops.length > 0 && (
+        <div className="mb-6 rounded-lg border border-etyme-attention/30 bg-etyme-surface px-4 py-3 space-y-1">
+          {stops.map((line) => (
+            <p key={line} className="text-sm text-etyme-attention">{line}</p>
+          ))}
+          <a href="#paperwork" className="text-sm text-etyme-action hover:underline">Go to your paperwork</a>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div>
@@ -1190,28 +1214,11 @@ export default function MyWorkPage() {
         </div>
       </div>
 
-      {/* Where their employer is moving them next — told, not asked, in
-          the words the notice used, and the city change said outright. */}
-      {(data.moves?.length ?? 0) > 0 && (
-        <section className="mb-8" aria-labelledby="your-next-project">
-          <h2 id="your-next-project" className="font-serif text-lg text-etyme-ink mb-3">Your next project</h2>
-          <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-            {data.moves.map((m: { kind: string; title: string; body: string; cityChange: boolean }, i: number) => (
-              <div key={i} className="p-4">
-                <div className="text-etyme-ink">{m.title}</div>
-                <p className="text-sm text-etyme-muted mt-1">{m.body}</p>
-                {m.cityChange && <span className="chip chip--attention text-[10px] mt-2 inline-block">New city</span>}
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* The week first: the one thing on this page only they may do. */}
+      {/* Their own week. The one thing on this page that only they may do. */}
+      {(data.filing?.length ?? 0) > 0 && (
+        <FileYourWeek filing={data.filing} onSent={() => load(true)} />
       )}
-
-      {/* Somebody is waiting on them to answer. Nothing else on this
-          page expires. */}
-      <YourInterviews />
-
-      <YourPapers />
 
       {/* Weeks sent back to them, first: somebody is waiting on the correction. */}
       {returned.length > 0 && (
@@ -1226,11 +1233,6 @@ export default function MyWorkPage() {
             ))}
           </div>
         </section>
-      )}
-
-      {/* Their own week. The one thing on this page that only they may do. */}
-      {(data.filing?.length ?? 0) > 0 && (
-        <FileYourWeek filing={data.filing} onSent={() => load(true)} />
       )}
 
       {/* Anything not yet sent, first. It is the only thing on this page
@@ -1255,51 +1257,7 @@ export default function MyWorkPage() {
         </section>
       )}
 
-      <section className="mb-8">
-        <h2 className="font-serif text-lg text-etyme-ink mb-3">Where you work</h2>
-        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
-          {data.placements.length === 0 && (
-            <div className="p-6 text-center text-sm text-etyme-muted">No placements yet.</div>
-          )}
-          {data.placements.map((p: Placement) => (
-            <div key={p.id} className="p-4 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                {/* One placement, the whole chain in order — the site,
-                    every firm between, and whoever pays them. The worker
-                    knows the complete chain (decided 2026-09-28); the
-                    page listed each rung as a placement of its own. */}
-                <div className="text-etyme-ink">{p.chain}</div>
-                <div className="text-xs text-etyme-muted">
-                  {p.location && `${p.location} · `}
-                  {p.span}
-                </div>
-              </div>
-              <div className="shrink-0 text-right">
-                {p.payRate != null ? (
-                  <div className="font-serif text-lg text-etyme-ink tabular-nums">
-                    {fmtRate(p.payRate)}
-                  </div>
-                ) : (
-                  // A blank with a reason beats the wrong number. This used
-                  // to show what the client is billed, which is not their
-                  // rate and is not theirs to see.
-                  <div className="text-[12px] text-etyme-faint max-w-[10rem] leading-snug">
-                    {p.rateNote}
-                  </div>
-                )}
-              </div>
-              <div className="w-28 text-right shrink-0">
-                {p.daysLeft != null && p.daysLeft <= 60 && p.daysLeft >= 0
-                  ? <Chip tone="attention">{p.daysLeft} days left</Chip>
-                  : <Chip tone={p.state === 'IN_PROGRESS' ? 'verified' : 'passive'}>
-                      {p.state.toLowerCase().replace(/_/g, ' ')}
-                    </Chip>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
+      {/* Then the money: what is owed, and every week's state. */}
       {data.owed && <YourPay owed={data.owed} />}
 
       <section className="mb-8">
@@ -1328,6 +1286,83 @@ export default function MyWorkPage() {
           ))}
         </div>
       </section>
+
+      {/* Somebody is waiting on them to answer. Nothing else on this
+          page expires. */}
+      <YourInterviews />
+
+      <section className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-3">Where you work</h2>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          {data.placements.length === 0 && (
+            <div className="p-6 text-center text-sm text-etyme-muted">No placements yet.</div>
+          )}
+          {data.placements.map((p: Placement) => (
+            <div key={p.id} className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex-1 min-w-0">
+                {/* One placement, the whole chain in order — the site,
+                    every firm between, and whoever pays them. The worker
+                    knows the complete chain (decided 2026-09-28); the
+                    page listed each rung as a placement of its own. */}
+                <div className="text-etyme-ink">{p.chain}</div>
+                <div className="text-xs text-etyme-muted">
+                  {p.location && `${p.location} · `}
+                  {p.span}
+                </div>
+              </div>
+              <div className="sm:shrink-0 sm:text-right">
+                {p.payRate != null ? (
+                  <div className="font-serif text-lg text-etyme-ink tabular-nums">
+                    {fmtRate(p.payRate)}
+                  </div>
+                ) : (
+                  // A blank with a reason beats the wrong number. This used
+                  // to show what the client is billed, which is not their
+                  // rate and is not theirs to see.
+                  <div className="text-[12px] text-etyme-faint sm:max-w-[12rem] leading-snug">
+                    {p.rateNote}
+                    {/* Her own firm holds the rate, so she is the one who
+                        adds it: one link, to the contract it is missing on. */}
+                    {p.rateLink && (
+                      <>
+                        {' '}
+                        <a href={p.rateLink} className="text-etyme-action hover:underline">Open the contract</a>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="sm:w-28 sm:text-right sm:shrink-0">
+                {p.daysLeft != null && p.daysLeft <= 60 && p.daysLeft >= 0
+                  ? <Chip tone="attention">{p.daysLeft} days left</Chip>
+                  : <Chip tone={p.state === 'IN_PROGRESS' ? 'verified' : 'passive'}>
+                      {p.state.toLowerCase().replace(/_/g, ' ')}
+                    </Chip>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Where their employer is moving them next — told, not asked, in
+          the words the notice used, and the city change said outright. */}
+      {(data.moves?.length ?? 0) > 0 && (
+        <section className="mb-8" aria-labelledby="your-next-project">
+          <h2 id="your-next-project" className="font-serif text-lg text-etyme-ink mb-3">Your next project</h2>
+          <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {data.moves.map((m: { kind: string; title: string; body: string; cityChange: boolean }, i: number) => (
+              <div key={i} className="p-4">
+                <div className="text-etyme-ink">{m.title}</div>
+                <p className="text-sm text-etyme-muted mt-1">{m.body}</p>
+                {m.cityChange && <span className="chip chip--attention text-[10px] mt-2 inline-block">New city</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Paperwork that does not stop the work: asked for, then on file. */}
+      <YourPapers onRows={setPaperRows} />
 
       {/* What has been sent about them. A consultant should not have to ask
           whether their passport went to a stranger. */}

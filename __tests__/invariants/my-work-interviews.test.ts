@@ -86,11 +86,15 @@ describe('A candidate can answer an interview from their own page', () => {
     expect(PIPELINE).toMatch(/return \{ start: null, basis: null \}/)
   })
 
-  it("the times offered are shown in the reader's own time zone, not the server's", () => {
+  it("the times offered are shown in the reader's own time zone with the zone named, through the moment door", () => {
     // Stored absolute, read local. A candidate in Pune reading a slot
     // rendered in the server's zone turns up on the wrong hour, and
-    // every test still passes.
-    expect(PAGE).toContain('new Intl.DateTimeFormat(undefined')
+    // every test still passes. Since 2026-10-19 the page asks `lib/when`
+    // for the moment in the zone of the device reading it, and names the
+    // zone, rather than formatting it by hand.
+    expect(PAGE).toContain("import { momentFor, readerZone } from '@/lib/when'")
+    expect(PAGE).toContain('momentFor(d, readerZone())')
+    expect(PAGE).not.toContain('new Intl.DateTimeFormat(')
     expect(PAGE).toMatch(/localTime\(s\.start\)/)
     // No hand-rolled slicing of an ISO string, which is the server's
     // zone by another name.

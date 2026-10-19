@@ -34,6 +34,8 @@
  * Pure. No database, no fetch, no clock beyond the day handed in.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 export type PaperRowKind = 'OWED' | 'REQUEST' | 'DOCUMENT' | 'HELD'
 
 /**
@@ -60,15 +62,15 @@ export type PaperSection = 'OWED' | 'SENT' | 'DOCUMENT' | 'REQUEST' | 'HELD'
 /** In reading order: what she must do, what is with them, then the file. */
 export const SECTIONS: { key: PaperSection; title: string; blurb: string }[] = [
   { key: 'OWED', title: 'Still needed from you',
-    blurb: 'Documents your placements require that are not on your file yet. Send one in and whoever asked for it is told; they record whether it is accepted.' },
+    blurb: 'Your placements need these, and they are not on your file yet. Send one in and whoever asked is told. They decide if it is accepted.' },
   { key: 'SENT', title: 'Sent, waiting to be checked',
-    blurb: 'You have sent these. Nothing more is needed from you until somebody has looked at them — and they are not on your file until they do.' },
+    blurb: 'You sent these. Nothing more is needed from you until somebody checks them. They go on your file once checked.' },
   { key: 'DOCUMENT', title: 'Sent to you to sign',
-    blurb: 'Papers somebody sent you. You answer these here.' },
+    blurb: 'A firm sent you these papers. Answer them here.' },
   { key: 'REQUEST', title: 'Asked for',
-    blurb: 'Somebody has opened a request. You answer these at the link it came with.' },
+    blurb: 'A firm asked you for these. Answer each one at the link it came with.' },
   { key: 'HELD', title: 'On your file',
-    blurb: 'What we already hold about you, and the day each one runs out.' },
+    blurb: 'What is on your file now, and the day each one runs out.' },
 ]
 
 /** One row as the screen draws it. */
@@ -345,7 +347,9 @@ function rowFromPaper(p: LoosePaper): PaperRow {
     // The route's own word for the row, where it sent one. It knows
     // whether the one on file ran out or was never filed at all, and
     // this file does not.
-    return { ...row, word: (p.word ?? '').trim() || row.word }
+    // And the day it ran out, where it did: the line at the top of Your
+    // work says "ran out on Oct 16", from the route's own date.
+    return { ...row, word: (p.word ?? '').trim() || row.word, runsOutOn: p.runsOutOn ?? null }
   }
   const kind = (p.kind === 'REQUEST' || p.kind === 'HELD') ? p.kind : 'DOCUMENT'
   return {
@@ -513,4 +517,143 @@ export function paperworkHeadline(rows: PaperRow[]): string {
 /** How many count against her. A waived item never does. */
 export function countedAgainst(rows: PaperRow[]): number {
   return outstanding(rows).length
+}
+
+// ── What stops the work, said once at the top of Your work ────────────
+//
+// The founder, 2026-10-19: "Money and the week before paperwork that does
+// not stop the work. A worker's first screen opens on her week and her
+// pay, not on two upload buttons." So the paperwork section moved below
+// the week and the money, and a paper that DOES stop the work keeps one
+// line at the top of the page, above File your hours, in a sentence:
+// "Your professional license (Wisconsin Board of Nursing) runs out in 24
+// days. Your work stops if it lapses."
+//
+// Two sources, because the paperwork payload deliberately carries
+// `stopsWork` only on a row she owes ("a document already held stops
+// nothing by being held"). A held paper that runs out soon is a
+// different fact — its lapse would stop the work — so `/api/me/work`
+// reads it from her file and from the lines she is live on, through the
+// one door that says what a line requires (`lib/document-requirements`).
+// Nothing here knows what a license or a check is: a nurse's state
+// registration and a welder's ticket are the same row.
+
+/** A check that came back. Anything still running holds nothing. */
+export const ACCEPTED_ON_FILE = ['CLEAR', 'CONDITIONAL']
+
+/** The window the paperwork rows already call "Runs out in N days". */
+export const RUNNING_OUT_DAYS = 60
+
+/** One paper on her file, as the route reads it. */
+export interface HeldOnFile {
+  id: string
+  /** The type key; matched against what her lines require, never shown. */
+  key: string
+  /** What it is called, as she would say it. */
+  label: string
+  /** Who issued it — the state board, the screening company. Null where nobody recorded one. */
+  issuer: string | null
+  status: string
+  expiresAt: Date | string | null
+}
+
+/** One item a line she is live on requires, after the line and any waiver have had their say. */
+export interface RequiredOfHer {
+  key: string
+  required: boolean
+  /** Whether a lapse stops the work, on this line. */
+  blocks: boolean
+  waived: boolean
+  owedBy: string
+}
+
+/** A paper on her file that runs out soon, and whose lapse stops the work. */
+export interface RunningOut {
+  id: string
+  name: string
+  issuer: string | null
+  /** Whole days left, counted the way the paperwork row counts them. 0 is today. */
+  daysLeft: number
+  runsOutOn: string
+}
+
+function sentenceCase(s: string): string {
+  const t = s.trim()
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : 'A document'
+}
+
+/**
+ * What on her file runs out within sixty days and would stop her work.
+ *
+ * Only a paper that came back (a check still running holds nothing),
+ * that has an end date, that has not already run out (that one is a row
+ * she owes, and the paperwork payload says so), and that a line she is
+ * live on requires of her as a blocking item nobody waived. A paper no
+ * line requires stops nothing, so it is not said to.
+ */
+export function papersRunningOut(input: {
+  held: HeldOnFile[]
+  required: RequiredOfHer[]
+  on: Date
+}): RunningOut[] {
+  const stops = new Set(
+    input.required
+      .filter((r) => r.required && r.blocks && !r.waived && r.owedBy === 'WORKER')
+      .map((r) => r.key)
+  )
+  const soonest = new Map<string, RunningOut>()
+  for (const h of input.held) {
+    if (!ACCEPTED_ON_FILE.includes(h.status) || !h.expiresAt || !stops.has(h.key)) continue
+    const ends = new Date(h.expiresAt)
+    if (Number.isNaN(ends.getTime())) continue
+    // The same count `heldWord` makes for the row, so the line at the top
+    // and the row below it never say two different numbers.
+    const daysLeft = Math.ceil((ends.getTime() - input.on.getTime()) / 86_400_000)
+    if (daysLeft < 0 || daysLeft > RUNNING_OUT_DAYS) continue
+    const row: RunningOut = {
+      id: h.id,
+      name: sentenceCase(h.label),
+      issuer: (h.issuer ?? '').trim() || null,
+      daysLeft,
+      runsOutOn: ends.toISOString(),
+    }
+    const kept = soonest.get(h.key)
+    if (!kept || row.daysLeft < kept.daysLeft) soonest.set(h.key, row)
+  }
+  return [...soonest.values()].sort((a, b) => a.daysLeft - b.daysLeft || a.name.localeCompare(b.name))
+}
+
+/** "Professional license" reads "your professional license"; "I-9" and "NDA" keep their capitals. */
+function inSentence(name: string): string {
+  return /^[A-Z][a-z]/.test(name) ? name.charAt(0).toLowerCase() + name.slice(1) : name
+}
+
+/**
+ * The lines at the top of Your work: every paper that stops her work,
+ * one sentence each, in the order the paperwork section reads them.
+ *
+ * A paper that does not stop the work is not here. It waits in the
+ * paperwork section, below the week and the money, where its own row
+ * says "This will not stop you working."
+ */
+export function workStops(input: { rows: PaperRow[]; runningOut?: RunningOut[] }): string[] {
+  const out: string[] = []
+  for (const r of input.rows) {
+    if (r.kind !== 'OWED' || !r.stopsWork || r.waived || r.awaiting) continue
+    const name = inSentence(r.name)
+    const notYet = /not in force until (.+)$/i.exec(r.word)
+    if (r.runsOutOn) {
+      out.push(`Your ${name} ran out on ${formatDay(r.runsOutOn)}. Your work stops until a new one is on file.`)
+    } else if (notYet) {
+      out.push(`Your ${name} is not in force until ${notYet[1]}. Your work stops until then.`)
+    } else {
+      out.push(`Your ${name} is not on file. Your work stops without it.`)
+    }
+  }
+  for (const p of input.runningOut ?? []) {
+    const what = `Your ${inSentence(p.name)}${p.issuer ? ` (${p.issuer})` : ''}`
+    const when = p.daysLeft === 0 ? 'runs out today' : `runs out in ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}`
+    out.push(`${what} ${when}. Your work stops if it lapses.`)
+  }
+  return [...new Set(out)]
 }

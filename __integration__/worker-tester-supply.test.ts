@@ -6,6 +6,8 @@ import { POST as approveWeek } from '@/app/api/timesheets/[id]/approve/route'
 import { POST as sendLink } from '@/app/api/week-approvals/route'
 import { GET as endingSoon } from '@/app/api/rolloff/route'
 import { POST as claimRolloff } from '@/app/api/rolloff/[id]/claim/route'
+import { GET as myPapers } from '@/app/api/me/papers/route'
+import { paperRows, workStops } from '@/app/dashboard/my-work/paperwork-rows'
 
 /**
  * The worker tester's walk of 2026-10-03, on the seeded Helena Marsh:
@@ -135,5 +137,72 @@ describe('Northbend Athletic’s Ending soon, as its program office reads it', (
     const c = await json(await claimRolloff(req('POST', `/api/rolloff/${ev.id}/claim`), { params: Promise.resolve({ id: ev.id }) }))
     expect(c.status).toBe(403)
     expect(c.body.error.message).toMatch(/^Only .+ works this offboarding, because the contract is theirs\.$/)
+  })
+})
+
+
+/**
+ * Your work as the seeded Colleen Byrne reads it (founder, 2026-10-19):
+ * an ICU nurse paid through her own company, Byrne Critical Care LLC,
+ * placed at Harlow Health through Halcyon Talent, whose state license
+ * runs out inside the assignment.
+ */
+const COLLEEN = 'colleen.byrne@seed.etyme.invalid'
+
+describe('Colleen Byrne’s Your work, as the owner of the firm that holds her rate', () => {
+  async function hers() {
+    as(COLLEEN)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    return r.body.data
+  }
+
+  it('her rate line says it is not recorded and she adds it on Contracts, with a link to the contract, because her own firm holds it', async () => {
+    const d = await hers()
+    const p = d.placements.find((x: any) => x.payer === 'Byrne Critical Care LLC')
+    expect(p, 'her placement through her own company').toBeTruthy()
+    expect(p.payRate).toBeNull()
+    expect(p.rateNote).toBe('Your rate on this contract is not recorded. Add it on Contracts.')
+    expect(p.rateNote).not.toContain('Byrne Critical Care LLC has it')
+    expect(p.rateLink).toBe(`/dashboard/placements/${p.id}`)
+  })
+
+  it('Helena Marsh, whose rate another firm pays, keeps her rate and is offered no contract link', async () => {
+    as(HELENA)
+    const r = await json(await myWork(req('GET', '/api/me/work')))
+    for (const p of r.body.data.placements) expect(p.rateLink).toBeNull()
+  })
+
+  it('weeks with no rate on her own firm’s contract are never said to be with an agency', async () => {
+    const d = await hers()
+    expect(d.owed.says).not.toContain('your agency')
+    expect(d.owed.says).toMatch(/\d+ more weeks? (is|are) accepted\. Your rate on that contract is not recorded, so there is no figure for (it|them)\./)
+  })
+
+  it('her license to practice, which a start is refused without, runs out inside sixty days and is the one line at the top of her page', async () => {
+    const d = await hers()
+    expect(d.runningOut).toHaveLength(1)
+    const [license] = d.runningOut
+    expect(license.name).toBe('Professional license')
+    expect(license.issuer).toBe('Wisconsin Board of Nursing')
+    expect(license.daysLeft).toBeGreaterThan(0)
+    expect(license.daysLeft).toBeLessThanOrEqual(60)
+
+    as(COLLEEN)
+    const papers = await json(await myPapers(req('GET', '/api/me/papers')))
+    const lines = workStops({ rows: paperRows(papers.body.data), runningOut: d.runningOut })
+    expect(lines).toEqual([
+      `Your professional license (Wisconsin Board of Nursing) runs out in ${license.daysLeft} days. Your work stops if it lapses.`,
+    ])
+  })
+
+  it('Helena Marsh owes two papers that do not stop her working, so her page has no line at the top', async () => {
+    as(HELENA)
+    const work = await json(await myWork(req('GET', '/api/me/work')))
+    as(HELENA)
+    const papers = await json(await myPapers(req('GET', '/api/me/papers')))
+    const rows = paperRows(papers.body.data)
+    expect(rows.filter((r) => r.todo === 'upload').length).toBeGreaterThan(0)
+    expect(workStops({ rows, runningOut: work.body.data.runningOut })).toEqual([])
   })
 })

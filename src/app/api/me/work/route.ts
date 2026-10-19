@@ -23,12 +23,71 @@ import { paidByPayroll, workerPaidAs, ownCompanyBillsSays } from '@/lib/money/pa
 import { POST as submitTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { personNotice, cityOf, dayOf, holdStands } from '@/lib/internal-moves'
 import { approvalWordsFor, readWeekApprovals, readerOf } from '@/lib/week-approval'
+import { requirementsFor } from '@/lib/document-requirements'
+import { credentialKeys } from '@/lib/contract-clearance'
+import { labelFor } from '@/lib/document-type'
+import { papersRunningOut, type HeldOnFile, type RequiredOfHer } from '@/app/dashboard/my-work/paperwork-rows'
 
 /**
  * A person's moves between their employer's projects, in the words they
  * were told them: coming off a project, held for another, and the next
  * project with its start day and, where the city changes, the cities.
  */
+/**
+ * What on her file runs out within sixty days and would stop her work.
+ *
+ * Read for the one line at the top of Your work (founder, 2026-10-19:
+ * money and the week before paperwork that does not stop the work). The
+ * paperwork payload carries `stopsWork` only on a row she owes, so a
+ * license still on file and running out says nothing there about what
+ * its lapse does. Two things say a lapse stops the work, and both are
+ * read through their own doors rather than decided here: what a line she
+ * is live on requires as a blocking item (`lib/document-requirements`),
+ * and the license-to-practice gate that refuses a start on a lapsed
+ * credential (`credentialKeys` in `lib/contract-clearance`, read from the
+ * dictionaries of the firms on her lines). The arithmetic is
+ * `papersRunningOut`. Only her own rows: her file and her own lines, so
+ * no read of anybody else's data is made and none is logged.
+ */
+async function runningOutFor(personId: string, now: Date) {
+  const live = { notIn: ['ENDED', 'CANCELLED'] as never[] }
+  const [sellLines, buyLines, held] = await Promise.all([
+    prisma.sellContract.findMany({ where: { personId, state: live }, select: { id: true, companyId: true, clientCompanyId: true }, take: 20 }),
+    prisma.buyContractCandidate.findMany({
+      where: { personId, state: 'ACTIVE', buyContract: { state: live } },
+      select: { buyContractId: true },
+      take: 20,
+    }),
+    prisma.verification.findMany({
+      where: { personId, expiresAt: { not: null } },
+      select: { id: true, type: true, status: true, provider: true, expiresAt: true },
+    }),
+  ])
+  if (held.length === 0 || sellLines.length + buyLines.length === 0) return []
+  const firms = [...new Set(sellLines.flatMap((l) => [l.companyId, l.clientCompanyId]).filter((v): v is string => !!v))]
+  const [sets, types] = await Promise.all([
+    Promise.all([
+      ...sellLines.map((l) => requirementsFor({ sellContractId: l.id })),
+      ...buyLines.map((l) => requirementsFor({ buyContractId: l.buyContractId })),
+    ]),
+    prisma.documentType.findMany({ where: { companyId: { in: firms } } }).catch(() => []),
+  ])
+  const required: RequiredOfHer[] = [
+    ...sets.flatMap((set) =>
+      (set?.items ?? []).map((i) => ({ key: i.key, required: i.required, blocks: i.blocks, waived: i.waived, owedBy: i.owedBy }))
+    ),
+    // A license to practice: a start is refused on a lapsed one, whatever
+    // the line's own set says, so its lapse stops the work.
+    ...credentialKeys(types as Parameters<typeof credentialKeys>[0]).map((key) => ({
+      key, required: true, blocks: true, waived: false, owedBy: 'WORKER',
+    })),
+  ]
+  const onFile: HeldOnFile[] = held.map((v) => ({
+    id: v.id, key: v.type, label: labelFor(v.type), issuer: v.provider, status: v.status, expiresAt: v.expiresAt,
+  }))
+  return papersRunningOut({ held: onFile, required, on: now })
+}
+
 async function movesFor(personId: string, now: Date) {
   const today = dayOf(now)
   const [releases, holds] = await Promise.all([
@@ -504,8 +563,15 @@ export async function GET(request: NextRequest) {
     const accepted = sentWeeks.filter(acceptedBy)
     const weeks: (OwedWeek & { payer: string; label: string })[] = []
     let unknownRate = 0
+    // Of those, the weeks on her own firm's contract: the rate is hers to
+    // record, so the note says so rather than sending her to an agency.
+    let unknownOwnRate = 0
     for (const t of accepted) {
-      if (!payByCompany.has(sellOf.get(t.sellContractId)?.companyId ?? '')) unknownRate++
+      const holder = sellOf.get(t.sellContractId)?.companyId ?? ''
+      if (!payByCompany.has(holder)) {
+        unknownRate++
+        if (ownFirm && holder === ownFirm.id) unknownOwnRate++
+      }
     }
     // Weeks her own company bills, said in hours and weeks and never as wages.
     const ownCompanyBills: string[] = []
@@ -623,8 +689,12 @@ export async function GET(request: NextRequest) {
       )
     }
     if (nextDue) notes.push(`The next pay day for it is ${shortDay(nextDue, now)}.`)
-    if (unknownRate > 0) {
-      notes.push(`${unknownRate} more week${unknownRate === 1 ? '' : 's'} accepted with no rate recorded on Etyme — your agency has those.`)
+    const weeksWord = (n: number) => `${n} more week${n === 1 ? ' is' : 's are'} accepted`
+    if (unknownOwnRate > 0) {
+      notes.push(`${weeksWord(unknownOwnRate)}. Your rate on that contract is not recorded, so there is no figure for ${unknownOwnRate === 1 ? 'it' : 'them'}.`)
+    }
+    if (unknownRate - unknownOwnRate > 0) {
+      notes.push(`${weeksWord(unknownRate - unknownOwnRate)}, with no rate recorded on Etyme. Your agency has the rate.`)
     }
     if (notPriced > 0) {
       notes.push(`${notPriced} week${notPriced === 1 ? ' has' : 's have'} no figure here; each says why.`)
@@ -730,6 +800,10 @@ export async function GET(request: NextRequest) {
   // asked: the employment is the consent. Read off their own rows only.
   const moves = await movesFor(personId, now)
 
+  // What on her file runs out soon and would stop her work, for the one
+  // line at the top of the page (`runningOutFor`).
+  const runningOut = await runningOutFor(personId, now)
+
   // Who signs her hours after she sends them, in order, for the filing card.
   const filingWithSigners = filing.map((f) => ({ ...f, signs: signingOrder(signersOf.get(f.contractId) ?? []) }))
 
@@ -753,6 +827,7 @@ export async function GET(request: NextRequest) {
     data: {
       person: { id: caller.person.id, name: caller.person.name },
       moves,
+      runningOut,
       standing: { ok: standing.ok, because: standing.because, says: standing.says },
       // No contract and no week yet: the page draws the empty cards, never
       // a row of zeros (sign-up walk, round two, items 35 and 38).
@@ -785,13 +860,21 @@ export async function GET(request: NextRequest) {
           payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
           rateNote: payByCompany.has(c.companyId)
             ? null
-            : paysAnybody.has(c.companyId)
-              // A line the walk could not reach the bottom of: this firm
-              // buys them from somebody else, so its figure is not theirs.
-              ? 'This firm buys you from another supplier, so what it pays is a ' +
-                'price between two firms and not your rate. Yours is on the agreement ' +
-                'with whoever employs you.'
-              : 'Your rate is not recorded on Etyme for this placement. ' + l.employer + ' has it.',
+            // She is the firm that holds the rate (a one-person firm), so
+            // nobody else has it to ask for: she adds it herself.
+            : ownFirm && c.companyId === ownFirm.id
+              ? 'Your rate on this contract is not recorded. Add it on Contracts.'
+              : paysAnybody.has(c.companyId)
+                // A line the walk could not reach the bottom of: this firm
+                // buys them from somebody else, so its figure is not theirs.
+                ? 'This firm buys you from another supplier. What it pays is a ' +
+                  'price between two firms and not your rate. Your rate is on your ' +
+                  'agreement with your employer.'
+                : 'Your rate is not recorded on Etyme for this placement. ' + l.employer + ' has it.',
+          // The contract to add it on, where the rate is hers to record.
+          rateLink: !payByCompany.has(c.companyId) && ownFirm && c.companyId === ownFirm.id
+            ? `/dashboard/placements/${c.id}`
+            : null,
           state: c.state,
           startDate: c.startDate.toISOString().slice(0, 10),
           endDate: c.endDate?.toISOString().slice(0, 10) ?? null,

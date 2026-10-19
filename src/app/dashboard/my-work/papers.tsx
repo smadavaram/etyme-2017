@@ -56,7 +56,15 @@ function toneFor(r: PaperRow): 'attention' | 'verified' | 'action' | 'passive' {
   return r.todo ? 'action' : 'passive'
 }
 
-export function YourPapers({ standalone = false }: { standalone?: boolean }) {
+export function YourPapers({ standalone = false, onRows }: {
+  standalone?: boolean
+  /**
+   * The rows, once read, for the line at the top of Your work that names
+   * a paper that stops the work. One read, so the line and the rows below
+   * it cannot disagree.
+   */
+  onRows?: (rows: PaperRow[]) => void
+}) {
   const [rows, setRows] = useState<PaperRow[] | null>(null)
   const [failed, setFailed] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -64,12 +72,18 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
   const [said, setSaid] = useState<string | null>(null)
   const [refused, setRefused] = useState<{ id: string; says: string } | null>(null)
   const [picked, setPicked] = useState<Record<string, File>>({})
+  // Which upload forms she opened. Folded by default (founder,
+  // 2026-10-19): an asked-for paper is one row with one button, not two
+  // open forms with a file chooser and a paste box each.
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setFailed(null)
     try {
       const j = await readJson(await fetch('/api/me/papers'))
-      setRows(paperRows(j?.data ?? {}))
+      const read = paperRows(j?.data ?? {})
+      setRows(read)
+      onRows?.(read)
     } catch (e: any) {
       // A page that cannot read its own file says so. An empty list here
       // would tell somebody she owes nothing, which is the one wrong
@@ -77,6 +91,8 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
       setRows(null)
       setFailed(e?.message || 'Your paperwork could not be loaded just now. Try again in a moment.')
     }
+    // `onRows` is the page's setter, the same function on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -241,7 +257,14 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                       Answer it
                     </a>
                   )}
-                  {r.todo === 'upload' && (
+                  {r.todo === 'upload' && (!opened[r.id] ? (
+                    // Folded: one button. The form below opens on it,
+                    // exactly as it was.
+                    <button onClick={() => setOpened({ ...opened, [r.id]: true })}
+                      className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                      Upload
+                    </button>
+                  ) : (
                     <div className="flex flex-col gap-2 min-w-[260px]">
                       {/* The first way, and the one somebody standing in
                           a hospital corridor actually has: the photo on
@@ -274,7 +297,7 @@ export function YourPapers({ standalone = false }: { standalone?: boolean }) {
                         {busy === r.id ? 'Sending…' : 'Send it in'}
                       </button>
                     </div>
-                  )}
+                  ))}
                   {r.todo === 'sign' && (
                     <button onClick={() => answer(r)} disabled={busy === r.id}
                       className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">

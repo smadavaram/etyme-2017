@@ -5,6 +5,7 @@ import {
   paperRows, outstanding, countedAgainst, paperworkHeadline,
   owedWord, owedConsequence, owedTodo, owedFrom, awaitingReview, isAwaiting,
   sectionOf, rowsInSection, SECTIONS, paperworkIntro, EMPTY_PAPERWORK,
+  workStops, papersRunningOut, RUNNING_OUT_DAYS,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { myPapers, outstandingItems } from '@/lib/document-request'
 
@@ -134,7 +135,7 @@ describe('A worker sees what is being asked of her', () => {
     // through — so a letter naming either lands her on the same thing.
     expect(SECTION).toContain('id="paperwork"')
     expect(SECTION).toContain('/dashboard/my-work/paperwork')
-    expect(PAGE).toContain('<YourPapers />')
+    expect(PAGE).toContain('<YourPapers onRows={setPaperRows} />')
   })
 
   it('a worker can send the document she is being chased for from the page the letter sends her to', () => {
@@ -258,6 +259,22 @@ describe('A worker sees what is being asked of her', () => {
     // The screen draws the headings from that one list.
     expect(SECTION).toContain('SECTIONS.map((g)')
     expect(SECTION).toContain('rowsInSection(all, g.key)')
+  })
+
+  it('an asked-for paper is one row with one Upload button, and the form opens only when she presses it', () => {
+    // Helena Marsh's first screen opened on two upload forms, each with a
+    // file chooser and a paste box (founder, 2026-10-19). Folded now: the
+    // row is its name, who asked and why, its word, and one button.
+    expect(SECTION).toContain("{r.todo === 'upload' && (!opened[r.id] ? (")
+    expect(SECTION).toContain('onClick={() => setOpened({ ...opened, [r.id]: true })}')
+    expect(SECTION).toMatch(/>\s*Upload\s*<\/button>/)
+    // Folded by default: nothing is opened until she presses.
+    expect(SECTION).toContain('useState<Record<string, boolean>>({})')
+    // Once opened, the form is the same form: the picker, the link box
+    // and the one send button, in that order.
+    const form = SECTION.slice(SECTION.indexOf("{r.todo === 'upload' && (!opened[r.id] ? ("), SECTION.indexOf("{r.todo === 'sign' && ("))
+    expect(form.indexOf('Take a photo or choose a file')).toBeLessThan(form.indexOf('Or paste a link to it'))
+    expect(form.indexOf('Or paste a link to it')).toBeLessThan(form.indexOf("'Send it in'"))
   })
 
   it('a worker with a photograph of her certificate can send the photograph, not a link to one', () => {
@@ -452,5 +469,151 @@ describe('A worker sees what is being asked of her', () => {
     // are the same row. No skill, no rate band, no industry word.
     expect(SECTION + read('src/app/dashboard/my-work/paperwork-rows.ts'))
       .not.toMatch(/\b(java|python|developer|engineer's cv|tech stack)\b/i)
+  })
+})
+
+
+/**
+ * Your work opens on the week and the money (founder, 2026-10-19).
+ *
+ * "Money and the week before paperwork that does not stop the work. A
+ * worker's first screen opens on her week and her pay, not on two upload
+ * buttons." Read against Helena Marsh, whose page opened on two upload
+ * forms for papers that do not stop her working, and Colleen Byrne, an
+ * ICU nurse whose license runs out inside her assignment.
+ */
+describe('Your work opens on the week and the money', () => {
+  // The worker's main page, from its own return to the end: the empty
+  // and not-a-worker answers above it are other states.
+  const MAIN = PAGE.slice(PAGE.indexOf('export default function MyWorkPage('))
+  const at = (needle: string) => {
+    const i = MAIN.lastIndexOf(needle)
+    expect(i, needle).toBeGreaterThan(-1)
+    return i
+  }
+
+  it('the page reads figures, File your hours, What you are owed, Your hours, Where you work, Your paperwork, then Your CV', () => {
+    const order = [
+      '<Lbl>Hours this month</Lbl>',
+      '<FileYourWeek filing={data.filing}',
+      '<YourPay owed={data.owed} />',
+      'mb-3">Your hours</h2>',
+      'mb-3">Where you work</h2>',
+      '<YourPapers onRows={setPaperRows} />',
+      '<YourCV />',
+    ].map(at)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+  })
+
+  it('a week sent back and a week not yet sent sit with File your hours, before the money', () => {
+    expect(at('mb-1">Sent back to you</h2>')).toBeGreaterThan(at('<FileYourWeek filing={data.filing}'))
+    expect(at('mb-3">Hours to send</h2>')).toBeLessThan(at('<YourPay owed={data.owed} />'))
+  })
+
+  it('a paper that stops the work keeps one line at the top, above File your hours, with a link to the paperwork', () => {
+    expect(at('{stops.length > 0 && (')).toBeLessThan(at('<Lbl>Hours this month</Lbl>'))
+    expect(at('{stops.length > 0 && (')).toBeLessThan(at('<FileYourWeek filing={data.filing}'))
+    expect(MAIN).toContain('href="#paperwork"')
+    // The line is built from the rows the section below read, so the two
+    // cannot disagree, and from what the route says runs out soon.
+    expect(MAIN).toContain('workStops({ rows: paperRows, runningOut:')
+  })
+
+  it('a license that runs out inside the assignment is said in one sentence: when it runs out, and that her work stops if it lapses', () => {
+    const lines = workStops({
+      rows: [],
+      runningOut: [{ id: 'v1', name: 'Professional license', issuer: 'Wisconsin Board of Nursing', daysLeft: 24, runsOutOn: '2026-11-12T00:00:00.000Z' }],
+    })
+    expect(lines).toEqual(['Your professional license (Wisconsin Board of Nursing) runs out in 24 days. Your work stops if it lapses.'])
+    expect(workStops({ rows: [], runningOut: [{ id: 'v1', name: 'Site induction', issuer: null, daysLeft: 1, runsOutOn: '2026-10-20T00:00:00.000Z' }] }))
+      .toEqual(['Your site induction runs out in 1 day. Your work stops if it lapses.'])
+    expect(workStops({ rows: [], runningOut: [{ id: 'v1', name: 'Site induction', issuer: null, daysLeft: 0, runsOutOn: '2026-10-19T00:00:00.000Z' }] }))
+      .toEqual(['Your site induction runs out today. Your work stops if it lapses.'])
+  })
+
+  it('a paper she owes that stops the work is said at the top; one that does not stop the work is not', () => {
+    const rows = paperRows({
+      owed: [
+        owedItem({ key: 'I9_EVERIFY', label: 'I-9 and E-Verify', blocks: true }),
+        owedItem({ key: 'NDA', label: 'Non-disclosure agreement', blocks: false }),
+      ],
+    })
+    expect(workStops({ rows })).toEqual(['Your I-9 and E-Verify is not on file. Your work stops without it.'])
+  })
+
+  it('Helena Marsh, who owes two papers that do not stop her working, reads no line at the top', () => {
+    const rows = paperRows({
+      papers: [
+        { id: 'owed:PRODUCT_CONFIDENTIALITY', kind: 'OUTSTANDING', name: 'Product confidentiality undertaking', word: 'Not on file', stopsWork: false, todo: 'upload', openAskAt: '/api/me/papers' },
+        { id: 'owed:NDA', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', word: 'Not on file', stopsWork: false, todo: 'upload', openAskAt: '/api/me/papers' },
+        { id: 'v1', kind: 'HELD', name: 'Background check', word: 'On file until Jun 26, 2027' },
+      ],
+    })
+    expect(workStops({ rows, runningOut: [] })).toEqual([])
+  })
+
+  it('a stopping paper that ran out or is not in force yet says so, and one waived or already sent is not said at all', () => {
+    const lapsed = paperRows({ papers: [{ id: 'owed:LICENSE', kind: 'OUTSTANDING', name: 'Professional license', word: 'Ran out 3 days ago', stopsWork: true, runsOutOn: '2026-10-16T00:00:00.000Z' }] })
+    expect(workStops({ rows: lapsed })).toEqual(['Your professional license ran out on Oct 16, 2026. Your work stops until a new one is on file.'])
+    const early = paperRows({ papers: [{ id: 'owed:INSURANCE', kind: 'OUTSTANDING', name: 'Respirator fit test', word: 'On file, but not in force until Nov 2, 2026', stopsWork: true }] })
+    expect(workStops({ rows: early })).toEqual(['Your respirator fit test is not in force until Nov 2, 2026. Your work stops until then.'])
+    const quiet = paperRows({
+      owed: [
+        owedItem({ key: 'A', label: 'background check', blocks: true, waived: true, waivedSays: 'Waived by Dana Whitfield.' }),
+        owedItem({ key: 'B', label: 'drug screen', blocks: true, received: true }),
+      ],
+    })
+    expect(workStops({ rows: quiet })).toEqual([])
+  })
+
+  it('a paper on file is said to stop her work only where it is required of her as blocking and nobody waived it', () => {
+    const on = new Date('2026-10-19T12:00:00Z')
+    const held = [
+      { id: 'v1', key: 'PROFESSIONAL_LICENSE', label: 'Professional license', issuer: 'Wisconsin Board of Nursing', status: 'CLEAR', expiresAt: '2026-11-12T00:00:00.000Z' },
+      { id: 'v2', key: 'FORKLIFT_TICKET', label: 'Forklift ticket', issuer: null, status: 'CLEAR', expiresAt: '2026-11-01T00:00:00.000Z' },
+    ]
+    const required = [{ key: 'PROFESSIONAL_LICENSE', required: true, blocks: true, waived: false, owedBy: 'WORKER' }]
+    const soon = papersRunningOut({ held, required, on })
+    // The forklift ticket is on file and no line asks for it: it stops nothing.
+    expect(soon.map((p) => p.name)).toEqual(['Professional license'])
+    expect(soon[0].daysLeft).toBe(24)
+    expect(soon[0].issuer).toBe('Wisconsin Board of Nursing')
+    // Waived, not blocking, or owed by somebody else: not hers to lose work over.
+    for (const r of [
+      { ...required[0], waived: true },
+      { ...required[0], blocks: false },
+      { ...required[0], owedBy: 'SUPPLIER' },
+      { ...required[0], required: false },
+    ]) expect(papersRunningOut({ held, required: [r], on })).toEqual([])
+  })
+
+  it('a paper on file is said to run out only inside sixty days, only once it came back, and never once it has already run out', () => {
+    const on = new Date('2026-10-19T12:00:00Z')
+    const required = [{ key: 'K', required: true, blocks: true, waived: false, owedBy: 'WORKER' }]
+    const one = (over: Record<string, unknown>) =>
+      papersRunningOut({ held: [{ id: 'v', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-11-12T00:00:00.000Z', ...over }], required, on })
+    expect(RUNNING_OUT_DAYS).toBe(60)
+    expect(one({})).toHaveLength(1)
+    expect(one({ expiresAt: '2027-02-01T00:00:00.000Z' })).toEqual([])
+    expect(one({ expiresAt: '2026-10-10T00:00:00.000Z' })).toEqual([])
+    expect(one({ expiresAt: null })).toEqual([])
+    expect(one({ status: 'PENDING' })).toEqual([])
+    // Two copies of one paper: the one that runs out first is the one said.
+    const two = papersRunningOut({
+      held: [
+        { id: 'a', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-12-01T00:00:00.000Z' },
+        { id: 'b', key: 'K', label: 'State registration', issuer: null, status: 'CLEAR', expiresAt: '2026-11-01T00:00:00.000Z' },
+      ],
+      required, on,
+    })
+    expect(two.map((p) => p.id)).toEqual(['b'])
+  })
+
+  it('every line under a paperwork heading is short: one idea a sentence, and no sentence past twenty words', () => {
+    for (const s of SECTIONS) {
+      for (const sentence of s.blurb.split(/(?<=\.)\s+/)) {
+        expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(20)
+      }
+    }
   })
 })
