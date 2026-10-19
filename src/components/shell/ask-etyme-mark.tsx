@@ -6,9 +6,15 @@
  *
  * One read for the whole shell. The header and the sidebar — drawn twice
  * on a phone, once as the rail and once in the sheet — all subscribe to
- * one store, so the page asks GET /api/decisions once when it loads and
- * once a minute after that, however many marks are on screen, and never
- * more often (`mayRefresh` in lib/owed-count).
+ * one store, so the page asks once when it loads and once a minute after
+ * that, however many marks are on screen, and never more often
+ * (`mayRefresh` in lib/owed-count).
+ *
+ * It asks GET /api/conversations/twin?only=owed, the greeting's own count
+ * read with no side effect: a firm's seat gets the decisions queue's
+ * total, a worker her greeting's cards (2026-10-19). Asking
+ * GET /api/decisions left a worker's mark blank while her greeting said
+ * three things needed her.
  */
 
 import { useEffect, useState } from 'react'
@@ -27,7 +33,7 @@ function read(): void {
   if (inFlight || !mayRefresh(lastAt, now)) return
   inFlight = true
   lastAt = now
-  fetch('/api/decisions', { cache: 'no-store' })
+  fetch('/api/conversations/twin?only=owed', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : null))
     .then((body) => { owed = owedFrom(body) })
     // A queue that cannot be read is no number, never the last one.

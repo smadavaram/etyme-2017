@@ -23,7 +23,10 @@
  * refusal is written to the access log before it is returned
  * (`recordRefusal`), like any other read of another person's data. The
  * same person seated at two companies has two threads, and each seat
- * reads only its own. Nothing here reads across tenants.
+ * reads only its own. Nothing here reads across tenants. A person with no
+ * company seat — a candidate on a firm's bench — has one thread of their
+ * own, keyed on the person alone (`threadKey`), and it carries no card a
+ * company asked, because a question is always a company's.
  *
  * ── Who has no saved thread ──────────────────────────────────────────
  *
@@ -171,7 +174,8 @@ const CARD_STATES: readonly CardState[] = ['APPROVED', 'REJECTED', 'LATER', 'OVE
  */
 export function keptFor(seat: ThreadSeat): { kept: true } | { kept: false; says: string } | ThreadRefusal {
   if (seat.isService) return { ok: false, status: 403, code: 'NO_PERSON', says: NO_PERSON_SAYS }
-  if (!seat.company) return { ok: false, status: 403, code: 'NO_COMPANY', says: NO_COMPANY_SAYS }
+  // A person with no company seat — a candidate on a firm's bench — keeps
+  // a thread of their own (2026-10-19), keyed on the person alone.
   if (seat.readOnly) return { kept: false, says: NOT_KEPT_IN_SAMPLE }
   if (reservedAddress(seat.person.primaryEmail)) return { kept: false, says: NOT_KEPT_IN_DEMO }
   return { kept: true }
@@ -252,10 +256,14 @@ const TURN_SELECT = {
   id: true, speaker: true, text: true, answer: true, cardApprovalIds: true, cards: true, approvalId: true, createdAt: true,
 } as const
 
-/** The record's decision on each question, read only at the seat's own company. */
-async function decisionsFor(companyId: string, ids: readonly string[]) {
+/**
+ * The record's decision on each question, read only at the seat's own
+ * company. A thread with no company behind it carries no questions: a
+ * question is a company's, so there is nothing to read.
+ */
+async function decisionsFor(companyId: string | null, ids: readonly string[]) {
   const unique = [...new Set(ids)]
-  if (unique.length === 0) return new Map<string, { decision: string; decidedAt: Date | null }>()
+  if (unique.length === 0 || !companyId) return new Map<string, { decision: string; decidedAt: Date | null }>()
   const rows = await prisma.twinApproval.findMany({
     where: { id: { in: unique }, companyId },
     select: { id: true, decision: true, decidedAt: true },
@@ -280,12 +288,21 @@ function emptyThread(notKeptBecause: string | null): SavedThread {
   return { id: null, saved: notKeptBecause === null, notKeptBecause, clearedAt: null, lastTurnAt: null, turns: [], earlier: false }
 }
 
+/**
+ * Which thread is the seat's: at its company, or the person's own where
+ * there is no company. Never from the request.
+ */
+export function threadKey(personId: string, companyId: string | null): Prisma.AskEtymeThreadWhereUniqueInput {
+  return companyId ? { personId_companyId: { personId, companyId } } : { personOnlyId: personId }
+}
+
 /** The seat's thread row, made the first time a line is said. */
-async function threadRowFor(personId: string, companyId: string) {
-  const where = { personId_companyId: { personId, companyId } }
+async function threadRowFor(personId: string, companyId: string | null) {
+  const where = threadKey(personId, companyId)
   const select = { id: true, lastTurnAt: true, clearedAt: true } as const
+  const create = companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }
   try {
-    return await prisma.askEtymeThread.upsert({ where, create: { personId, companyId }, update: {}, select })
+    return await prisma.askEtymeThread.upsert({ where, create, update: {}, select })
   } catch (err) {
     // Two first lines at once: the other one made it.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -309,7 +326,8 @@ export async function readThread(
 ): Promise<{ ok: true; thread: SavedThread } | ThreadRefusal> {
   const kept = keptFor(seat)
   if ('ok' in kept) return kept
-  const company = seat.company!
+  const company = seat.company
+  const where_ = company ? ` at ${company.name}` : ''
 
   if (opts.personId && opts.personId !== seat.person.id) {
     const subject = await prisma.person.findUnique({ where: { id: opts.personId }, select: { id: true } })
@@ -318,16 +336,16 @@ export async function readThread(
         ...accessActor(seat),
         action: THREAD_READ_ACTION,
         allowed: false,
-        reason: `Asked for another person’s Ask Etyme conversation at ${company.name}; a conversation is read only by its own person.`,
+        reason: `Asked for another person’s Ask Etyme conversation${where_}; a conversation is read only by its own person.`,
       })
     }
-    return { ok: false, status: 403, code: 'NOT_YOUR_THREAD', says: notYourThread(company.name) }
+    return { ok: false, status: 403, code: 'NOT_YOUR_THREAD', says: notYourThread(company?.name ?? 'their firm') }
   }
 
   if (!kept.kept) return { ok: true, thread: emptyThread(kept.says) }
 
   const thread = await prisma.askEtymeThread.findUnique({
-    where: { personId_companyId: { personId: seat.person.id, companyId: company.id } },
+    where: threadKey(seat.person.id, company?.id ?? null),
     select: { id: true, lastTurnAt: true, clearedAt: true },
   })
   if (!thread) return { ok: true, thread: emptyThread(null) }
@@ -341,7 +359,7 @@ export async function readThread(
   })
   const earlier = rows.length > take
   const shown = rows.slice(0, take).reverse() as Row[]
-  const decisions = await decisionsFor(company.id, shown.flatMap((r) => r.cardApprovalIds))
+  const decisions = await decisionsFor(company?.id ?? null, shown.flatMap((r) => r.cardApprovalIds))
   return {
     ok: true,
     thread: {
@@ -380,7 +398,7 @@ export async function appendTurn(
     return { ok: false, status: 413, code: 'TOO_LONG', says: TOO_LONG_SAYS }
   }
   if (!kept.kept) return { ok: true, saved: false, says: kept.says }
-  const company = seat.company!
+  const company = seat.company
 
   const approvalId = line.approvalId ?? null
   if (approvalId) {
@@ -388,7 +406,7 @@ export async function appendTurn(
     if (!q) return { ok: false, status: 404, code: 'NO_SUCH_QUESTION', says: NO_SUCH_QUESTION }
   }
 
-  const thread = await threadRowFor(seat.person.id, company.id)
+  const thread = await threadRowFor(seat.person.id, company?.id ?? null)
   const at = stampAfter(new Date(), thread.lastTurnAt, thread.clearedAt)
   const row = await prisma.$transaction(async (tx) => {
     const made = await tx.askEtymeTurn.create({
@@ -406,7 +424,7 @@ export async function appendTurn(
     await tx.askEtymeThread.update({ where: { id: thread.id }, data: { lastTurnAt: at } })
     return made as Row
   })
-  return { ok: true, saved: true, turn: toTurn(row, await decisionsFor(company.id, row.cardApprovalIds)) }
+  return { ok: true, saved: true, turn: toTurn(row, await decisionsFor(company?.id ?? null, row.cardApprovalIds)) }
 }
 
 /**
@@ -422,13 +440,13 @@ export async function markCard(
   if ('ok' in kept) return kept
   if (!CARD_STATES.includes(mark.state)) return { ok: false, status: 400, code: 'BAD_STATE', says: BAD_STATE_SAYS }
   if (!kept.kept) return { ok: true, saved: false, says: kept.says }
-  const company = seat.company!
+  const company = seat.company
 
   const turn = await prisma.askEtymeTurn.findUnique({
     where: { id: mark.turnId },
     select: { ...TURN_SELECT, thread: { select: { personId: true, companyId: true } } },
   })
-  if (!turn || turn.thread.personId !== seat.person.id || turn.thread.companyId !== company.id) {
+  if (!turn || turn.thread.personId !== seat.person.id || turn.thread.companyId !== (company?.id ?? null)) {
     // A line on somebody else's thread is their data: the attempt is logged
     // against them, and the answer is the same as for a line that does not exist.
     if (turn && turn.thread.personId !== seat.person.id) {
@@ -456,7 +474,7 @@ export async function markCard(
     data: { cards: marks as unknown as Prisma.InputJsonValue },
     select: TURN_SELECT,
   })
-  return { ok: true, saved: true, turn: toTurn(row as Row, await decisionsFor(company.id, row.cardApprovalIds)) }
+  return { ok: true, saved: true, turn: toTurn(row as Row, await decisionsFor(company?.id ?? null, row.cardApprovalIds)) }
 }
 
 /**
@@ -467,8 +485,8 @@ export async function clearThread(seat: ThreadSeat): Promise<{ ok: true; saved: 
   const kept = keptFor(seat)
   if ('ok' in kept) return kept
   if (!kept.kept) return { ok: true, saved: false, says: kept.says }
-  const company = seat.company!
-  const thread = await threadRowFor(seat.person.id, company.id)
+  const company = seat.company
+  const thread = await threadRowFor(seat.person.id, company?.id ?? null)
   // After the last line, so a line said in the same millisecond is cleared with the rest.
   const clearedAt = stampAfter(new Date(), thread.lastTurnAt, thread.clearedAt)
   await prisma.askEtymeThread.update({ where: { id: thread.id }, data: { clearedAt } })

@@ -344,6 +344,39 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     expect(back.thread.turns.map((t) => t.text)).toEqual(['Starting again.'])
   })
 
+  it('a candidate with no company seat keeps one Ask Etyme thread of her own, read back after a reload, never mixed with a company’s, and two first lines at once still make one', async () => {
+    const email = 'noor.candidate@inbox-mail.test'
+    const noor = await prisma.person.create({ data: { primaryEmail: email, name: 'Noor Haddad' }, select: { id: true } })
+    const hers = { person: { id: noor.id, primaryEmail: email }, company: null, context: null }
+
+    const [a, b] = await Promise.all([
+      appendTurn(hers, { speaker: 'PERSON', text: 'Which week do I still need to file?' }),
+      appendTurn(hers, { speaker: 'PERSON', text: 'When am I paid?' }),
+    ])
+    expect(a).toMatchObject({ ok: true, saved: true })
+    expect(b).toMatchObject({ ok: true, saved: true })
+    const rows = await prisma.askEtymeThread.findMany({ where: { personId: noor.id }, select: { companyId: true, personOnlyId: true } })
+    expect(rows).toEqual([{ companyId: null, personOnlyId: noor.id }])
+
+    const back = await readThread(hers)
+    if (!back.ok) throw new Error(back.says)
+    expect(back.thread.saved).toBe(true)
+    expect(back.thread.turns.map((t) => t.text).sort()).toEqual(['When am I paid?', 'Which week do I still need to file?'])
+
+    // The unique on person and company reads two nulls as different; personOnlyId is what refuses a second.
+    await expect(prisma.askEtymeThread.create({ data: { personId: noor.id, companyId: null, personOnlyId: noor.id } })).rejects.toThrow()
+
+    // Avery's own thread with no company is hers alone, and never her Pinnacle thread.
+    const me = await seatOf(AVERY, avery.seat)
+    await appendTurn({ ...me, company: null }, { speaker: 'PERSON', text: 'Only mine, no firm.' })
+    const atPinnacle = await readThread(me)
+    if (!atPinnacle.ok) throw new Error(atPinnacle.says)
+    expect(atPinnacle.thread.turns.map((t) => t.text)).not.toContain('Only mine, no firm.')
+    const ownOnly = await readThread({ ...me, company: null })
+    if (!ownOnly.ok) throw new Error(ownOnly.says)
+    expect(ownOnly.thread.turns.map((t) => t.text)).toEqual(['Only mine, no firm.'])
+  })
+
   it('a seeded demo seat, which every visitor who asks for it shares, keeps no thread and says why; the shared sample and an API key keep none either', async () => {
     const shared = await prisma.context.findFirstOrThrow({
       where: { companyId: pinnacle.id, person: { primaryEmail: 'world-pinnacle-recruiter@demo.etyme.local' } },

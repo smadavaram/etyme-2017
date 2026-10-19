@@ -1489,7 +1489,10 @@ describe('Ask Etyme carries the number the bell used to', () => {
     expect(mayRefresh(1_000, 1_000 + 59_999)).toBe(false)
     expect(mayRefresh(1_000, 1_000 + 60_000)).toBe(true)
     const mark = shell('ask-etyme-mark.tsx')
-    expect(mark).toContain("fetch('/api/decisions'")
+    // The greeting's own count, read with no side effect, so a worker's mark
+    // carries her cards and a firm's seat the decisions total (2026-10-19).
+    expect(mark).toContain("fetch('/api/conversations/twin?only=owed'")
+    expect(mark).not.toContain("fetch('/api/decisions'")
     expect(mark).toContain('setInterval(read, OWED_REFRESH_MS)')
     expect(mark).toContain('!mayRefresh(lastAt, now)')
     // One store for every mark on screen: one fetch, however many subscribe.

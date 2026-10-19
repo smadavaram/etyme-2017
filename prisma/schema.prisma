@@ -8889,10 +8889,20 @@ enum AskEtymeSpeaker {
 model AskEtymeThread {
   id String @id @default(cuid())
 
-  personId  String
-  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId     String
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The company the seat is at. Null for a person with no company seat —
+  /// a candidate on a firm's bench — who still keeps one thread
+  /// (2026-10-19).
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The person's id, set exactly where `companyId` is null, so a person
+  /// has one thread of their own with no company behind it. The unique on
+  /// (personId, companyId) cannot say that: Postgres reads two nulls as
+  /// different, so it would let one person hold two null-company threads
+  /// (regulatory's note, 2026-10-19). This unique is what stops it. Written
+  /// only by `threadRowFor` in lib/ask-etyme-thread, never from a request.
+  personOnlyId String?  @unique
 
   createdAt  DateTime  @default(now())
   /// When the last line was said, so a screen can say "last spoke …".

@@ -402,8 +402,12 @@ describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () 
 
   it('the thread is read and written through one door that names no other person’s thread and calls nothing outside the record', () => {
     const door = readFileSync(join(process.cwd(), 'src/lib/ask-etyme-thread.ts'), 'utf8')
-    // Every query keys on the caller's own seat.
-    expect(door).toMatch(/personId_companyId: \{ personId: seat\.person\.id, companyId: company\.id \}/)
+    // Every query keys on the caller's own seat: its person at its company,
+    // or the person alone where there is no company (2026-10-19).
+    expect(door).toMatch(/threadKey\(seat\.person\.id, company\?\.id \?\? null\)/)
+    expect(door).toContain('companyId ? { personId_companyId: { personId, companyId } } : { personOnlyId: personId }')
+    // and the row-maker is only ever handed the seat's own person.
+    expect(door).not.toMatch(/threadRowFor\((?!seat\.person\.id|personId: string)/)
     // A refused read goes through the awaited refusal, never fire-and-forget.
     expect(door).toContain('await recordRefusal(')
     expect(door).not.toMatch(/\blogAccess\(/)
