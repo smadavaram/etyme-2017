@@ -559,6 +559,23 @@ too large, and without Ask Etyme doing anything.
   suppliers; who applied; schedule an interview; approve a timesheet;
   pay an invoice; on hold.
 
+### The chaos is between people — decided by the founder, 2026-10-19
+
+On a proposed galaxy hero for the home page: *"I see us solving the
+chaos within the people and not planet or galaxy."* So the picture
+Etyme sells is never cosmic, abstract or decorative. It is people doing
+their day: a hiring manager who cannot say what her contractors cost,
+a worker whose week is waiting on somebody's signature, an AP clerk
+holding an invoice for two hours nobody signed, a recruiter chasing an
+I-9. The chaos is the handoffs between them; the record is what makes
+the handoffs plain. Every hero, panel, drawing and document shows a
+named person and the step in front of them, in their own words — never
+a planet, a network graph, particles or a metaphor for scale. The
+ASD-STE100 test at about 80% (short sentences, one idea each, common
+words; a staffing VP repeats the line after one read) is the copy test;
+a diagram beats a paragraph in the documentation, never on the home
+page, where the product itself is the picture.
+
 ### Why this is written down
 
 It was agreed in conversation and the landing page went on saying
