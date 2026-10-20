@@ -1235,6 +1235,44 @@ The 2026-10-14 start above slipped while the sign-up email was refused:
 etyme.com had no Resend records, so the confirmation is sent from
 `notify.etyme.com` once that domain is verified in Resend.
 
+## Every sign-in door shows the account chooser, and setup asks for addresses and papers — decided by the founder, 2026-10-20
+
+The founder, trying to sign in to Tapin as sharath@etyme.com while
+already signed in to a Gmail account: the Google door reused the
+signed-in account and gave no way to switch, so he was seated as a
+candidate (a consumer domain is a person, by the domain rule) and
+offered a one-person company's two steps, the week and the payroll.
+He asked whether Teams would do the same, and said he expects a
+company's setup to be "more elaborate: addresses, invitations, doc
+flows". Decided:
+
+- **Both OAuth doors ask the provider for the account chooser on every
+  sign-in** (`prompt=select_account` on Google and on Microsoft), and
+  the sign-in page and the first screen after it carry "Not you? Use
+  another account". Microsoft without it behaves exactly as Google
+  did, so this is one fix for both. The password door (work email,
+  password, Etyme address) stays the way in that never touches a
+  provider.
+- **The domain rule stands.** A consumer address is a candidate; that
+  was right for the address and wrong only because of the account
+  mix-up.
+- **Setup grows by one step and two fields, every answer still
+  defaulted** (this extends "Setup asks five things, then stops" of
+  2026-10-07): *Your company* asks the legal and billing address,
+  because every bill names them, and a site address per place people
+  work, which the days-off calendar hangs on; a new step, **Papers you
+  require**, is pre-filled from the shipped default sets for a W2, a
+  corp-to-corp worker and a sub-vendor (`lib/document-type`,
+  `lib/document-requirements`), so a company sees what it will ask for
+  before it asks, and adds or waives with a reason; *Your team* is
+  unchanged, invitations already live there. A company-level required
+  set is a schema request for the architect (today a set belongs to an
+  order or a line); the step writes that, and every order inherits it
+  as its floor.
+- **Built in this order:** the account chooser first, because it keeps
+  the founder out of Tapin today (architect); then the setup fields and
+  the papers step (architect, with regulatory for the sets).
+
 ## Nine links, no flip, and every first screen names a person — decided by the founder, 2026-10-19
 
 "Build it", on the drawing of every party's first screen and every
