@@ -145,10 +145,11 @@ describe('a worker files their own expense; nobody else files it for them', () =
     as(RATE_CHANGE_PERSON.email)
     const r = await json(await fileExpense(req('POST', '/api/expenses', flight())))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
-    expect(r.body.data.message).toBe('Filed. Brightmoor Staffing approves it before it is paid back to you.')
+    expect(r.body.data.message).toMatch(/^Filed\. Brightmoor Staffing approves it before it is paid back to you\. /)
     const e = await prisma.expense.findUniqueOrThrow({ where: { id: r.body.data.expense.id } })
     // Filed by the person who spent it is the submission; the employer's book holds it.
-    expect(e).toMatchObject({ status: 'SUBMITTED', personId: the.rosa, companyId: the.brightmoor, sellContractId: the.line })
+    // Her own `billable: true` is not read: the agreement with Northbend is silent, so it is not billable yet.
+    expect(e).toMatchObject({ status: 'SUBMITTED', personId: the.rosa, companyId: the.brightmoor, sellContractId: the.line, billable: false })
     expect(Number(e.total)).toBeCloseTo(412.6, 2)
     the.expense = e.id
 
@@ -176,6 +177,23 @@ describe('a worker files their own expense; nobody else files it for them', () =
     const r = await json(await fileExpense(req('POST', '/api/expenses', flight({ personId: other.id }))))
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.code).toBe('NOT_THIS_PERSON')
+  })
+
+  it('a firm raising an expense without saying whether it is billable gets the agreement’s answer, and a silent agreement is not billable', async () => {
+    as(`world-brightmoor${D}`)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', flight({ billable: undefined }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.billable.decidedBy).toBe('NOT_DECIDED')
+    expect(r.body.data.billable.says).toMatch(/so Brightmoor Staffing decides whether Northbend Athletic is billed for it\./)
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: r.body.data.expense.id } })).billable).toBe(false)
+  })
+
+  it('a firm that says its expense is billable is taken at its word, as the employer’s own record', async () => {
+    as(`world-brightmoor${D}`)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', flight())))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.billable.decidedBy).toBe('FIRM')
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: r.body.data.expense.id } })).billable).toBe(true)
   })
 
   it('her employer approves the expense she filed, the way it always has', async () => {

@@ -23,6 +23,8 @@
  * Pure: no database.
  */
 
+import { agreementName, legBills, type Leg } from '@/lib/money/expense-acceptance'
+
 /** A sell line naming the worker, as this rule needs it. */
 export interface ExpenseRung {
   id: string
@@ -85,4 +87,65 @@ export function mayFileOwnExpense(i: {
     }
   }
   return { ok: true }
+}
+
+// ── Whether the firm above is billed for it ──────────────────────────
+//
+// The founder, 2026-10-19: whether a kind of expense is billable comes
+// from the agreement between each pair, never from the supplier's own
+// flag — and so never from the worker's. The form on Your work sends no
+// flag, on purpose, and the route stored `billable: true` for every
+// filing that did not say: every worker's expense was put on the bill to
+// the firm above unless somebody remembered to say no.
+//
+// So the flag stored on a filing is decided here, from the agreement on
+// the line it is filed on: the employer's own leg, between the employer
+// and the firm directly above it.
+//
+// - The agreement lists the kind: billable, and the sentence says so.
+// - The agreement said, and does not list it: not billable, in the same
+//   sentence the expenses page reads (`legBills`).
+// - The agreement is silent, or there is none: not decided. Stored false,
+//   because a guess of true is the employer's flag written by nobody, and
+//   the sentence says the employer decides whether the firm above is
+//   billed. Under a silent agreement `legBills` reads the stored flag, so
+//   false keeps it the employer's own cost until somebody decides.
+//
+// A worker's own `billable` in the body is never read: it is not theirs
+// to say.
+
+export interface BillableOnFiling {
+  /** What `Expense.billable` stores. */
+  billable: boolean
+  /** AGREEMENT where the agreement said; NOT_DECIDED where it is silent. */
+  from: 'AGREEMENT' | 'NOT_DECIDED'
+  /** One sentence for the person filing it. */
+  says: string
+}
+
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
+
+/** Whether an expense of this kind, filed on this leg, bills the firm above. */
+export function billableOnFiling(i: { category: string; leg: Leg }): BillableOnFiling {
+  const { leg } = i
+  const kind = String(i.category).toLowerCase()
+  const a = leg.agreement
+  if (a && a.said) {
+    const v = legBills({ category: String(i.category), billable: false }, leg)
+    return {
+      billable: v.bills,
+      from: 'AGREEMENT',
+      says: v.bills
+        ? `${capitalize(agreementName(leg))} makes ${kind} expenses billable, so ${leg.payerName} is billed for it once it is accepted.`
+        : v.says!,
+    }
+  }
+  const silent = a
+    ? `${capitalize(agreementName(leg))} does not say which expenses are billable`
+    : `No agreement between ${leg.payerName} and ${leg.sellerName} says which expenses are billable`
+  return {
+    billable: false,
+    from: 'NOT_DECIDED',
+    says: `${silent}, so ${leg.sellerName} decides whether ${leg.payerName} is billed for it. For now it is recorded as ${leg.sellerName}’s own cost.`,
+  }
 }

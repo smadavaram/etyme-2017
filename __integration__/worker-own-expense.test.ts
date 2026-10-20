@@ -63,8 +63,53 @@ describe('a worker files their own expense from Your work', () => {
     const r = await json(await fileExpense(req('POST', '/api/expenses', body(on.contractId))))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
-    expect(r.body.data.message).toBe('Filed. Techpeple approves it before it is paid back to you.')
+    expect(r.body.data.message).toMatch(/^Filed\. Techpeple approves it before it is paid back to you\. /)
     it_.expenseId = r.body.data.expense.id
+    it_.filed = r.body.data
+  })
+
+  it('with no agreement that says which expenses are billable, her expense is stored as not billable and she is told Techpeple decides', async () => {
+    expect(it_.filed.billable.decidedBy).toBe('NOT_DECIDED')
+    expect(it_.filed.message).toContain('so Techpeple decides whether Computer Systems Inc is billed for it. For now it is recorded as Techpeple’s own cost.')
+    const e = await prisma.expense.findUniqueOrThrow({ where: { id: it_.expenseId }, select: { billable: true } })
+    expect(e.billable).toBe(false)
+  })
+
+  it('a billable flag Helena sends herself is not read: the expense is still not billable', async () => {
+    as(HELENA)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', { ...body(it_.helena.filing[0].contractId), billable: true })))
+    expect(r.status).toBe(201)
+    const e = await prisma.expense.findUniqueOrThrow({ where: { id: r.body.data.expense.id }, select: { billable: true } })
+    expect(e.billable).toBe(false)
+  })
+
+  it('once the agreement between Computer Systems and Techpeple lists travel, her travel expense is billable, and a meal is not', async () => {
+    const line = await prisma.sellContract.findUniqueOrThrow({
+      where: { id: it_.helena.filing[0].contractId }, select: { id: true, companyId: true, clientCompanyId: true },
+    })
+    const msa = await prisma.masterAgreement.create({
+      data: { vendorId: line.companyId, clientId: line.clientCompanyId, billableExpenseKinds: ['TRAVEL'], billableExpenseKindsSaid: true },
+    })
+    await prisma.sellContract.update({ where: { id: line.id }, data: { msaId: msa.id } })
+
+    as(HELENA)
+    const travel = await json(await fileExpense(req('POST', '/api/expenses', body(line.id))))
+    expect(travel.status).toBe(201)
+    expect(travel.body.data.billable.decidedBy).toBe('AGREEMENT')
+    expect(travel.body.data.message).toBe(
+      'Filed. Techpeple approves it before it is paid back to you. ' +
+        'The agreement between Computer Systems Inc and Techpeple makes travel expenses billable, so Computer Systems Inc is billed for it once it is accepted.'
+    )
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: travel.body.data.expense.id } })).billable).toBe(true)
+
+    const mealBody = expenseBody({
+      contractId: line.id, date: today, kind: 'MEALS', amount: '38.00', note: 'Dinner on the release night', receiptUrl: 'https://drive.example/receipt-38', today,
+    })
+    if (!mealBody.ok) throw new Error(mealBody.says)
+    const meal = await json(await fileExpense(req('POST', '/api/expenses', { ...mealBody.body, billable: true })))
+    expect(meal.status).toBe(201)
+    expect(meal.body.data.message).toContain('does not list meals expenses as billable, so Computer Systems Inc does not pay for this one.')
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: meal.body.data.expense.id } })).billable).toBe(false)
   })
 
   it('the expense she filed is hers, on her employer’s line, for the amount she typed, with her receipt link', async () => {

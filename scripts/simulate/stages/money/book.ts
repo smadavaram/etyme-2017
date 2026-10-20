@@ -343,6 +343,47 @@ export async function postForm(ctx: Ctx, seat: Actor, path: string, form: FormDa
   return { status, json, ms, ok, sentence }
 }
 
+/**
+ * A call made as nobody: no session, no cookie. For the doors whose
+ * credential is the link itself, such as the client's approver opening a
+ * one-time "Approve by email" link (`/api/approve-week/:token`). On the
+ * run's ledger as the seat `nobody`, like any other call.
+ */
+export async function asNobody(ctx: Ctx, method: 'GET' | 'POST', path: string, body?: unknown): Promise<Res> {
+  const started = new Date()
+  const t0 = performance.now()
+  let status = 0
+  let json: any = null
+  let sentence: string | null = null
+  try {
+    const res = await fetch(ctx.base + path, {
+      method,
+      headers: { accept: 'application/json', ...(body !== undefined ? { 'content-type': 'application/json' } : {}) },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      signal: AbortSignal.timeout(60_000),
+    })
+    status = res.status
+    const text = await res.text()
+    try {
+      json = text ? JSON.parse(text) : null
+    } catch {
+      json = { raw: text.slice(0, 500) }
+    }
+  } catch (e: any) {
+    sentence = `The server did not answer: ${String(e?.message ?? e)}`
+  }
+  const ms = Math.round(performance.now() - t0)
+  const ok = status >= 200 && status < 300
+  if (!ok && !sentence) {
+    const err = json?.error
+    sentence = typeof err === 'string' ? err : typeof err?.message === 'string' ? err.message : null
+  }
+  // The token is a signature that works once: the report names the door, never the token.
+  const shown = path.replace(/(\/api\/approve-week\/)[^/?]+/, '$1:token')
+  ctx.ledger.record({ at: started.toISOString(), seat: 'nobody', method, path: shown, status, ms, ...(sentence ? { sentence } : {}) })
+  return { status, json, ms, ok, sentence }
+}
+
 // ── The weeks a worker can still file ─────────────────────────────────
 
 /**
@@ -383,6 +424,8 @@ export interface WeekExtra {
   unsigned?: boolean
   /** Signed by evidence of an approval given by email, naming the approver. */
   byEmail?: string
+  /** Signed by the approver pressing Approve on the one-time link, naming them. */
+  byLink?: string
   /** Hours each firm accepted, by company id. */
   accepted?: Record<string, number>
   /** Who signed it at the top. */

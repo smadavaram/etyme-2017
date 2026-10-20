@@ -5,7 +5,7 @@ import {
   mayDecide, acceptanceChain, legBills, capFor, waitingOn, rowFor, rejectRefusal, fullyAccepted,
   type ExpenseOnRecord, type Leg, type AcceptanceRow,
 } from '@/lib/money/expense-acceptance'
-import { mayFileOwnExpense, type ExpenseRung } from '@/lib/money/own-expense'
+import { mayFileOwnExpense, billableOnFiling, type ExpenseRung } from '@/lib/money/own-expense'
 
 /**
  * The same shape as a timesheet and for the same reason: the client
@@ -421,5 +421,60 @@ describe('a worker files their own expense; nobody else files it for them', () =
     expect(src).toContain('mayFileOwnExpense(')
     expect(src).toMatch(/personId: caller\.person\.id,[\s\S]*status: 'SUBMITTED'/)
     expect(src).toContain("code: 'NOT_THIS_PERSON'")
+  })
+})
+
+describe('whether a worker’s own expense bills the firm above is the agreement’s, never the worker’s (founder, 2026-10-19)', () => {
+  const leg = (agreement: Leg['agreement']): Leg => ({
+    sellContractId: 'tp-sell', sellerId: 'techpeple', sellerName: 'Techpeple', payerId: 'cs', payerName: 'Computer Systems', agreement,
+  })
+  const said = (kinds: string[]): Leg['agreement'] => ({ id: 'msa', kinds, said: true, clientName: 'Computer Systems', vendorName: 'Techpeple' })
+
+  it('an agreement that lists travel makes a travel expense billable, and the worker is told the firm above is billed', () => {
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg(said(['TRAVEL', 'MEALS'])) })
+    expect(v).toEqual({
+      billable: true, from: 'AGREEMENT',
+      says: 'The agreement between Computer Systems and Techpeple makes travel expenses billable, so Computer Systems is billed for it once it is accepted.',
+    })
+  })
+
+  it('an agreement that lists other kinds keeps a travel expense off the bill, in the sentence the expenses page reads', () => {
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg(said(['MEALS'])) })
+    expect(v.billable).toBe(false)
+    expect(v.from).toBe('AGREEMENT')
+    expect(v.says).toBe('The agreement between Computer Systems and Techpeple does not list travel expenses as billable, so Computer Systems does not pay for this one.')
+  })
+
+  it('an agreement that says no expense is billable keeps every kind off the bill', () => {
+    const v = billableOnFiling({ category: 'EQUIPMENT', leg: leg(said([])) })
+    expect(v.billable).toBe(false)
+    expect(v.says).toBe('The agreement between Computer Systems and Techpeple makes no expense billable, so Computer Systems does not pay for this equipment expense.')
+  })
+
+  it('an agreement that does not say stores not billable, and says the employer decides whether the firm above is billed', () => {
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg({ id: 'msa', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Techpeple' }) })
+    expect(v).toEqual({
+      billable: false, from: 'NOT_DECIDED',
+      says: 'The agreement between Computer Systems and Techpeple does not say which expenses are billable, so Techpeple decides whether Computer Systems is billed for it. For now it is recorded as Techpeple’s own cost.',
+    })
+  })
+
+  it('with no agreement at all the expense is not billable until the employer decides, and the sentence names both firms', () => {
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg(null) })
+    expect(v.billable).toBe(false)
+    expect(v.from).toBe('NOT_DECIDED')
+    expect(v.says).toBe('No agreement between Computer Systems and Techpeple says which expenses are billable, so Techpeple decides whether Computer Systems is billed for it. For now it is recorded as Techpeple’s own cost.')
+  })
+
+  it('an expense filed as not decided reads as the employer’s own cost on the chain, so it never reaches the bill', () => {
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg(null) })
+    expect(legBills({ category: 'TRAVEL', billable: v.billable }, leg(null)).bills).toBe(false)
+  })
+
+  it('the expense route never stores a worker’s own billable flag and no longer defaults to billable', () => {
+    const src = readFileSync('src/app/api/expenses/route.ts', 'utf8')
+    expect(src).not.toMatch(/billable = true/)
+    expect(src).toMatch(/billableOnFiling\(\{ category: String\(category\)\.toUpperCase\(\), leg: legOf\(line!\) \}\)/)
+    expect(src).toMatch(/billable: decided\.billable,[\s\S]*status: 'SUBMITTED'/)
   })
 })

@@ -5,9 +5,9 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { isConsultantSeat } from '@/lib/seat'
 import { rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
-import { acceptancesOn, expenseOf, legsOverMany, linesBelowPaid, EXPENSE_SELECT } from '@/lib/money/expense-acceptance-read'
+import { acceptancesOn, expenseOf, legOf, legsFor, legsOverMany, linesBelowPaid, EXPENSE_SELECT, LEG_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
-import { mayFileOwnExpense } from '@/lib/money/own-expense'
+import { billableOnFiling, mayFileOwnExpense } from '@/lib/money/own-expense'
 
 /**
  * GET /api/expenses
@@ -309,6 +309,12 @@ async function billsAtRung(readerId: string, expenseIds: string[]): Promise<Map<
  *
  * Amount auto-calculated from items: sum(quantity × unitPrice).
  *
+ * Whether the firm above is billed for it (`billable`) is the agreement's
+ * on the line (`billableOnFiling` in lib/money/own-expense). A worker's
+ * filing never reads a flag from the body; the firm's door reads the
+ * firm's own where it sends one, and the agreement where it does not. A
+ * silent agreement stores false and says the employer decides.
+ *
  * LEGACY_RULES.md §4.4: "Amount auto-calculated as sum(unit_price × quantity)."
  */
 export async function POST(request: NextRequest) {
@@ -320,7 +326,7 @@ export async function POST(request: NextRequest) {
     sellContractId,
     personId,
     category,
-    billable = true,
+    billable,
     description,
     periodStart,
     periodEnd,
@@ -336,7 +342,7 @@ export async function POST(request: NextRequest) {
   const line = typeof sellContractId === 'string' && sellContractId
     ? await prisma.sellContract.findUnique({
         where: { id: sellContractId },
-        select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, company: { select: { name: true } } },
+        select: { ...LEG_SELECT, personId: true, state: true },
       })
     : null
   const deskHolds = caller.company ? (await writingDesk(caller, request)) : null
@@ -350,7 +356,9 @@ export async function POST(request: NextRequest) {
           select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, company: { select: { name: true } } },
         })
       : []
-    const asRung = (r: NonNullable<typeof line>) => ({ ...r, companyName: r.company.name })
+    const asRung = (r: { id: string; personId: string; companyId: string; clientCompanyId: string; state: string; company: { name: string } }) => ({
+      id: r.id, personId: r.personId, companyId: r.companyId, clientCompanyId: r.clientCompanyId, state: r.state, companyName: r.company.name,
+    })
     const verdict = mayFileOwnExpense({
       callerPersonId: caller.person.id,
       askedPersonId: typeof personId === 'string' ? personId : null,
@@ -362,6 +370,10 @@ export async function POST(request: NextRequest) {
     }
     const invalid = refusedFields({ sellContractId, personId: caller.person.id, category, description, periodStart, periodEnd, items })
     if (invalid) return invalid
+    // Whether the firm above is billed: the agreement on this line says,
+    // or nobody has yet. The worker's own `billable`, if the body carries
+    // one, is never read (founder, 2026-10-19).
+    const decided = billableOnFiling({ category: String(category).toUpperCase(), leg: legOf(line!) })
     const expense = await prisma.expense.create({
       data: {
         // The firm whose contract bills it: the worker's employer, which
@@ -370,7 +382,7 @@ export async function POST(request: NextRequest) {
         sellContractId: line!.id,
         personId: caller.person.id,
         category: String(category).toUpperCase(),
-        billable,
+        billable: decided.billable,
         description,
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
@@ -385,8 +397,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         data: {
-          expense: { id: expense.id, status: expense.status, total: Number(expense.total) },
-          message: `Filed. ${line!.company.name} approves it before it is paid back to you.`,
+          expense: { id: expense.id, status: expense.status, total: Number(expense.total), billable: expense.billable },
+          billable: { decidedBy: decided.from, says: decided.says },
+          message: `Filed. ${line!.company.name} approves it before it is paid back to you. ${decided.says}`,
         },
       },
       { status: 201 }
@@ -471,13 +484,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // The firm's own record of whether it bills the expense, where it says.
+  // Where it does not, the agreement on the line decides, and a silent
+  // agreement stores false — never a default of true nobody chose.
+  const decided = typeof billable === 'boolean'
+    ? null
+    : billableOnFiling({ category: String(category).toUpperCase(), leg: (await legsFor([sellContractId])).get(sellContractId)! })
+
   const expense = await prisma.expense.create({
     data: {
       companyId: desk.companyId,
       sellContractId,
       personId,
       category: category.toUpperCase(),
-      billable,
+      billable: decided ? decided.billable : billable,
       description,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
@@ -489,7 +509,12 @@ export async function POST(request: NextRequest) {
   })
 
   return NextResponse.json(
-    { data: { expense: { id: expense.id, status: expense.status, total: Number(expense.total) } } },
+    {
+      data: {
+        expense: { id: expense.id, status: expense.status, total: Number(expense.total), billable: expense.billable },
+        billable: decided ? { decidedBy: decided.from, says: decided.says } : { decidedBy: 'FIRM', says: null },
+      },
+    },
     { status: 201 }
   )
 }

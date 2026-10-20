@@ -10,9 +10,13 @@
  *   - a week over the overtime line carries the client's answer on the
  *     extra hours, a premium or the same rate, with why;
  *   - some weeks are approved by email instead: the worker sends the
- *     client's approver a one-time link, and where the link cannot be
- *     opened the approval the approver gave by email is attached as
- *     evidence, naming them. Always a named person.
+ *     client's approver a one-time link. This run has no email key, so
+ *     the route hands the link back to the worker (e795f4617), and on
+ *     every other such week the approver opens it — as nobody, the link
+ *     being the credential — reads the week and presses Approve. On the
+ *     rest, and wherever the link is refused, the approval the approver
+ *     gave by email is attached as evidence, naming them. Always a named
+ *     person, and the two ways are counted apart.
  *
  * A few weeks are left unsigned on purpose — the newest week of every
  * fifth placement — because a bill and an invoice receipt are refused on
@@ -22,7 +26,7 @@
  * flagged week is not signed without a reason.
  */
 import { defineStage, type Ctx, type WeekFact } from '../../stage'
-import { placementsOf, seatWith, workerSeat, postForm, todayIso, says, weekExtra, type Placement, type WeekExtra } from './book'
+import { placementsOf, seatWith, workerSeat, postForm, asNobody, todayIso, says, weekExtra, type Placement, type WeekExtra } from './book'
 
 const FLAG_REASON = 'Agreed with the hiring manager: the release needed the extra hours this week.'
 const OT_REASON = 'Overtime agreed in advance for the release weekend.'
@@ -91,17 +95,24 @@ export default defineStage({
 
     let inEtyme = 0
     let byEmail = 0
+    let byLink = 0
     let linksMinted = 0
     let linksDelivered = 0
+    let linksHandedBack = 0
+    let linksOpened = 0
+    let handBackSays: string | null = null
+    let linkSays: string | null = null
+    const linkRefusals = new Map<string, number>()
     let withReason = 0
     let overtimeAnswered = 0
     let i = 0
-    const emailWeeks = new Set(
-      weeks
-        .filter((w) => !held.has(w.id) && ['PLAIN', 'WEEKEND'].includes(weekExtra(w).variant))
-        .filter(() => i++ % 6 === 2)
-        .map((w) => w.id)
-    )
+    const emailOrder = weeks
+      .filter((w) => !held.has(w.id) && ['PLAIN', 'WEEKEND'].includes(weekExtra(w).variant))
+      .filter(() => i++ % 6 === 2)
+      .map((w) => w.id)
+    const emailWeeks = new Set(emailOrder)
+    // Every other week asked for by email is answered on the link itself.
+    const answeredOnLink = new Set(emailOrder.filter((_, n) => n % 2 === 0))
 
     await ctx.parallel(weeks.filter((w) => !held.has(w.id)), async (w) => {
       const p = placements.find((x) => x.id === w.contractId)
@@ -123,9 +134,36 @@ export default defineStage({
           if (link.ok) {
             linksMinted++
             if (link.json?.data?.delivery?.state === 'SENT') linksDelivered++
+            const handed: string | undefined = link.json?.data?.link
+            if (handed) {
+              linksHandedBack++
+              handBackSays ??= link.json?.data?.says ?? null
+            }
+            // The approver opens the link the worker forwarded: no sign-in,
+            // the token is the credential. Reads the week, then Approve.
+            const token = handed ? handed.split('?')[0].split('/').filter(Boolean).pop() : undefined
+            if (token && answeredOnLink.has(w.id)) {
+              const opened = await asNobody(ctx, 'GET', `/api/approve-week/${token}`)
+              if (opened.ok) {
+                linksOpened++
+                const answered = await asNobody(ctx, 'POST', `/api/approve-week/${token}`, { answer: 'APPROVE' })
+                if (answered.ok) {
+                  byLink++
+                  linkSays ??= answered.json?.data?.says ?? null
+                  x.byLink = approver.personName
+                  x.clientSignedBy = `link:${approver.personName}`
+                  return
+                }
+                const why = answered.sentence ?? `refused with ${answered.status}`
+                linkRefusals.set(why, (linkRefusals.get(why) ?? 0) + 1)
+              } else {
+                const why = opened.sentence ?? `refused with ${opened.status}`
+                linkRefusals.set(why, (linkRefusals.get(why) ?? 0) + 1)
+              }
+            }
           }
-          // The link went nowhere a person could open it, so the approval
-          // the approver gave by email is attached as evidence.
+          // Not answered on the link, so the approval the approver gave by
+          // email is attached as evidence.
           const form = new FormData()
           form.set('timesheetId', w.id)
           form.set('how', 'EVIDENCE')
@@ -180,15 +218,23 @@ export default defineStage({
       }
     })
 
-    const signed = inEtyme + byEmail
+    const signed = inEtyme + byLink + byEmail
+    const refusedOnLink = [...linkRefusals].map(([why, n]) => `${n} × “${why}”`).join('; ')
     return {
       closed: signed,
       of: weeks.length,
       says: says([
-        `${signed} of ${weeks.length} weeks signed by the client: ${inEtyme} in Etyme and ${byEmail} by an approval given by email and attached as evidence, each naming the approver.`,
+        `${signed} of ${weeks.length} weeks signed by the client: ${inEtyme} in Etyme, ${byLink} signed by email link, the approver pressing Approve on the one-time link, and ${byEmail} attached as evidence of an approval given by email, each naming the approver.`,
         withReason ? `${withReason} flagged weeks were signed with the reason they are right.` : null,
         overtimeAnswered ? `${overtimeAnswered} weeks over forty hours carried the client's answer on the extra hours.` : null,
-        linksMinted ? `${linksMinted} one-time approval links were made; ${linksDelivered} left by email, because this run has no email key, and the route does not hand the link back to whoever asked for it, so nobody could open one.` : null,
+        linksMinted
+          ? `${linksMinted} one-time approval links were made; ${linksDelivered} left by email and ${linksHandedBack} were handed back to the worker, because this run has no email key` +
+            (handBackSays ? ` (“${handBackSays}”)` : '') +
+            `. ${linksOpened} were opened by the approver with no sign-in` +
+            (linkSays ? `, and Approve said “${linkSays}”` : '') +
+            '.'
+          : null,
+        refusedOnLink ? `Refused on the link, and attached as evidence instead: ${refusedOnLink}.` : null,
         `${held.size} weeks were left waiting on the client on purpose.`,
       ]),
     }
