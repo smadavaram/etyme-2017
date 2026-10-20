@@ -149,26 +149,45 @@ export async function billsDueAt(companyId: string, now: Date = new Date()): Pro
   const out: BillDue[] = []
   const engagementsDone = new Set<string>()
 
-  for (const line of lines) {
+  // Read once for every line, not once per line (regulatory's profile of
+  // the nightly run, 2026-10-20: two reads a line, 271 of timesheets and
+  // 252 of invoices over nineteen firms). The same two questions, asked
+  // of the firm's whole book and answered per line below.
+  const lineIds = lines.map((l) => l.id)
+  const hoursOnOf = new Map(lines.map((l) => [l.id, whereHoursLive(l.id, rungs)]))
+  const [drafts, signed] = await Promise.all([
     // One draft waiting per placement: it is answered before the next.
-    const waiting = await prisma.invoice.findFirst({
-      where: { status: 'DRAFT', invoiceLines: { some: { sellContractId: line.id } } },
-      select: { id: true },
-    })
-    if (waiting) continue
-
-    const hoursOn = whereHoursLive(line.id, rungs)
-    const weeks = await prisma.timesheet.findMany({
+    prisma.invoiceLine.findMany({
+      where: { sellContractId: { in: lineIds }, invoice: { status: 'DRAFT' } },
+      select: { sellContractId: true },
+      distinct: ['sellContractId'],
+    }),
+    prisma.timesheet.findMany({
       where: {
-        sellContractId: hoursOn,
+        sellContractId: { in: [...new Set(hoursOnOf.values())] },
         // Signed at the top. Whether the firm above this one accepted it
         // is the generator's own question, asked below on the dry run.
         assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
-        invoiceLines: { none: { sellContractId: line.id } },
       },
-      select: { periodStart: true, periodEnd: true, days: true },
+      select: {
+        sellContractId: true, periodStart: true, periodEnd: true, days: true,
+        // Which of this firm's own lines already bill the week.
+        invoiceLines: { where: { sellContractId: { in: lineIds } }, select: { sellContractId: true } },
+      },
       orderBy: { periodStart: 'asc' },
-    })
+    }),
+  ])
+  const draftWaiting = new Set(drafts.map((d) => d.sellContractId))
+  /** The generator's dry run per engagement and period, read once. */
+  const dryRuns = new Map<string, ReturnType<typeof generateBill>>()
+
+  for (const line of lines) {
+    if (draftWaiting.has(line.id)) continue
+
+    const hoursOn = hoursOnOf.get(line.id)!
+    const weeks = signed.filter(
+      (w) => w.sellContractId === hoursOn && !w.invoiceLines.some((x) => x.sellContractId === line.id)
+    )
     if (weeks.length === 0) continue
 
     const terms = periodTermsFor('SELL', line)
@@ -184,11 +203,18 @@ export async function billsDueAt(companyId: string, now: Date = new Date()): Pro
     for (const period of [...periods.values()].sort((a, b) => a.start.getTime() - b.start.getTime())) {
       const key = `${line.engagementId}:${iso(period.start)}`
       if (engagementsDone.has(key)) break
-      const dry = await generateBill(
-        twinCaller(company, null),
-        { engagementId: line.engagementId, periodStart: iso(period.start), periodEnd: iso(period.end) },
-        { dryRun: true }
-      )
+      // A bill is per engagement and period, so two placements on one
+      // engagement ask the generator the same question: asked once.
+      let ask = dryRuns.get(key)
+      if (!ask) {
+        ask = generateBill(
+          twinCaller(company, null),
+          { engagementId: line.engagementId, periodStart: iso(period.start), periodEnd: iso(period.end) },
+          { dryRun: true }
+        )
+        dryRuns.set(key, ask)
+      }
+      const dry = await ask
       // Nothing signed and accepted above in this period, or nothing the
       // generator would put on a bill: no draft, and nothing said.
       if (!dry.ok || dry.planned.timesheetIds.length === 0) continue

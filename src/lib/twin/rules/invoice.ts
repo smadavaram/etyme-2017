@@ -55,7 +55,7 @@
 import { prisma } from '@/lib/db'
 import { ruleSetFor } from '@/lib/twin/rule-set'
 import { CHECK_NAME, decimalToCents, type MatchCode } from '@/lib/three-way-match'
-import { matchInvoice, type MatchWithLines, type LineFact } from '@/lib/invoice-match'
+import { matchInvoice, matchInvoices, type MatchWithLines, type LineFact } from '@/lib/invoice-match'
 import { amount } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
 import { directionFrom, invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
@@ -438,13 +438,20 @@ export async function pendingReceiptsFor(
     take: 500,
   })
 
-  const verdicts: InvoiceVerdict[] = []
-  for (const head of rows) {
+  const pending = rows.flatMap((head) => {
     const parties = partiesOf({ agreement: head.engagement.msa, order: head.workOrder })
-    if (directionFrom(parties, companyId) !== 'PAYABLE') continue
+    if (directionFrom(parties, companyId) !== 'PAYABLE') return []
     // Settled to the cent is not pending, whatever the status says.
-    if (decimalToCents(head.total) - decimalToCents(head.paid) <= 1) continue
-    const match = await matchInvoice(head.id)
+    if (decimalToCents(head.total) - decimalToCents(head.paid) <= 1) return []
+    return [{ head, parties }]
+  })
+  // Every pending receipt checked in one pass rather than one receipt at a
+  // time (regulatory's profile, 2026-10-20): the same check, read once.
+  const matches = await matchInvoices(pending.map((p) => p.head.id))
+
+  const verdicts: InvoiceVerdict[] = []
+  for (const { head, parties } of pending) {
+    const match = matches.get(head.id)
     if (!match) continue
     verdicts.push(verdictFrom(match, using, {
       id: head.id, number: head.number, currency: head.currency, dueAt: head.dueAt,

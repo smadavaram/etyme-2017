@@ -173,6 +173,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
   })
 
   it('moves the premium the law’s forty earned when a raise reaches the week, in the back pay it proposes', async () => {
+    expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-06' })).status).toBe(200)
     const paid = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process', period: '2026-06' })
     expect(paid.status).toBe(200)
     // $66 to $69 is under five per cent, so it clears on its own and its

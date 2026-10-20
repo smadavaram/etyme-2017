@@ -193,6 +193,7 @@ describe('where the paying firm keeps the week’s overtime, pay is the hours th
   })
 
   it('records the days it paid as the days accepted, so the next run pays nothing twice', async () => {
+    expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-07' })).status).toBe(200)
     const paid = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process', period: '2026-07' })
     const row = paid.body.data.details.find((x: any) => x.buyContractId === buyId)
     expect(row.totalHours).toBe(160)

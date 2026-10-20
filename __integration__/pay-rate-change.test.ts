@@ -169,6 +169,7 @@ describe('a pay rise from $66 to $70 on a Wednesday', () => {
   // ── Before the rise: one period, once ──────────────────────────────
 
   it("pays June's days in June's run and nothing from any other month", async () => {
+    expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-06' })).status).toBe(200)
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process', period: '2026-06' })
     expect(r.status).toBe(200)
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)

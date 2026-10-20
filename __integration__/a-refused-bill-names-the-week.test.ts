@@ -818,18 +818,14 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(s.weeks).toEqual([])
   })
 
-  it('a week on a placement that has since ended is counted with no amount, and says bills are made only for placements still running', async () => {
+  it('a week signed on a placement that has since ended is priced like any other, because the Bills page bills it', async () => {
     const { signedNotBilled: s } = await read('world-teleworld')
     const karthik = s.weeks.filter((w) => w.personName === 'Karthik Menon')
     expect(karthik.length).toBeGreaterThan(10)
     for (const w of karthik) {
-      expect(w.amountMinor).toBeNull()
-      expect(w.unpriced).toBe('ended')
-      expect(w.says).toContain('bills are made only for placements still running')
+      expect(w.unpriced, w.says ?? '').toBeNull()
+      expect(w.amountMinor).toBeGreaterThan(0)
     }
-    // So the currency’s total is blank, never the total of the rest.
-    expect(s.totals[0].amountMinor).toBeNull()
-    expect(s.totals[0].unpriced).toBe(karthik.length)
   })
 
   it('a week the client signed and the firm above has not accepted is counted with no amount, and says it waits on that firm', async () => {

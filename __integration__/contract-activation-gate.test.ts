@@ -39,6 +39,7 @@ describe('activating a contract on paperwork', () => {
   let seatPersonId: string
   let contractId: string
   let personId: string
+  let i9Id: string
 
   const post = async (body: Record<string, unknown>) =>
     json(await activate(req('POST', `/api/contracts/${contractId}/activate`, body), { params: Promise.resolve({ id: contractId }) }))
@@ -91,7 +92,7 @@ describe('activating a contract on paperwork', () => {
   })
 
   it('with an I-9 but no background check, it warns and asks for a reason', async () => {
-    await prisma.verification.create({
+    i9Id = (await prisma.verification.create({
       data: {
         personId,
         type: 'I9_EVERIFY',
@@ -102,15 +103,38 @@ describe('activating a contract on paperwork', () => {
         verifiedById: seatPersonId,
         verifiedAt: new Date(),
       },
-    })
+    })).id
     as(seat)
     const r = await post({ action: 'activate' })
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('DOCUMENTS_WARN')
     expect(r.body.error.overridable).toBe(true)
     expect(r.body.error.chasing.map((c: { key: string }) => c.key)).toContain('BACKGROUND_CHECK')
+    // Nothing is recorded behind this I-9 yet, and the start says so.
+    expect(r.body.error.message).toMatch(/on file with nothing behind it/)
     const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })
     expect(still.state).toBe('DRAFT')
+  })
+
+  it('an I-9 completed from a passport recorded behind it reads as backed at the start, the way the placement page reads it', async () => {
+    // Found by the simulation, 2026-10-20: the start read neither the
+    // form's edition nor the documents behind it, so every I-9 read "on
+    // file with nothing behind it" at the start however it was papered.
+    const passport = await prisma.verification.create({
+      data: {
+        personId, type: 'PASSPORT', status: 'CLEAR', provider: 'US Department of State',
+        issuedAt: new Date(Date.now() - 400 * 86_400_000), expiresAt: new Date(Date.now() + 2_000 * 86_400_000),
+        uploadedById: seatPersonId, verifiedById: seatPersonId, verifiedAt: new Date(),
+      },
+    })
+    await prisma.documentBacking.create({ data: { formId: i9Id, evidenceId: passport.id, satisfiedKey: 'PASSPORT' } })
+    as(seat)
+    const r = await post({ action: 'activate' })
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('DOCUMENTS_WARN')
+    expect(r.body.error.message).not.toMatch(/nothing behind it/)
+    // The background check still warns: only the I-9 changed.
+    expect(r.body.error.chasing.map((c: { key: string }) => c.key)).toContain('BACKGROUND_CHECK')
   })
 
   it('with a reason recorded, it proceeds — and the reason travels with the record', async () => {
@@ -127,6 +151,24 @@ describe('activating a contract on paperwork', () => {
     })
     expect(log).not.toBeNull()
     expect((log!.payload as { documentsOverride?: string }).documentsOverride).toMatch(/waived/)
+  })
+
+  it('the worker is told the placement started, at which client, through which firm, and who started it', async () => {
+    const sell = await prisma.sellContract.findUniqueOrThrow({
+      where: { id: contractId },
+      select: { company: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+    })
+    const client = sell.endClientCompany?.name ?? sell.clientCompany.name
+    let told = null
+    for (let i = 0; i < 20 && !told; i++) {
+      told = await prisma.notification.findFirst({ where: { personId, type: 'CONTRACT', entityId: contractId } })
+      if (!told) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(told, 'the worker was told').not.toBeNull()
+    expect(told!.title).toBe(`Your placement at ${client} has started — work may begin`)
+    expect(told!.body).toContain(`at ${client}`)
+    if (sell.company.name !== client) expect(told!.body).toContain(`through ${sell.company.name}`)
+    expect(told!.body).toMatch(/started the placement\.$/)
   })
 
   it('a supplier whose insurance has lapsed cannot activate, however complete the person is', async () => {

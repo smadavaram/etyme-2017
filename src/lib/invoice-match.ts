@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { liveWaivers } from '@/lib/money/keyed-lines'
 import { rateInForce } from '@/lib/contract-rate'
@@ -221,10 +222,8 @@ export type MatchWithLines = MatchResult & {
   voidedWaiver?: string | null
 }
 
-export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | null> {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    include: {
+/** Everything the check reads off an invoice, in one load. */
+const MATCH_INCLUDE = {
       invoiceLines: {
         include: {
           person: { select: { name: true } },
@@ -293,46 +292,93 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
       engagement: {
         select: { sellContracts: { select: { workOrderId: true }, take: 1 } },
       },
-    },
-  })
+    } satisfies Prisma.InvoiceInclude
 
-  if (!invoice) return null
-  // Narrowed once, so the helpers below can read it without TypeScript
-  // re-asking whether the invoice exists.
+type LoadedInvoice = Prisma.InvoiceGetPayload<{ include: typeof MATCH_INCLUDE }>
+
+/** What several invoices share and is read once for all of them. */
+interface SharedFacts {
+  /** Every standing invoice on each order the invoices draw on. */
+  onOrders: Array<{ id: string; workOrderId: string | null; total: { toString(): string } }>
+  /** What typed-in invoice receipts drew on each order, in the order's currency. */
+  receiptsDrawn: Map<string, number>
+  rateRows: Array<{ id: string; contractId: string; rate: number; fromDate: Date; toDate: Date | null; approvalState: string }>
+  carried: Map<string, Carried>
+  expenseDecisions: Awaited<ReturnType<typeof acceptancesOn>>
+}
+
+export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | null> {
+  return (await matchInvoices([invoiceId])).get(invoiceId) ?? null
+}
+
+/**
+ * The three-way check on several invoices, read in one pass.
+ *
+ * The same check as `matchInvoice`, line for line: each invoice is
+ * computed alone (`matchFrom`); only the reads are shared. The twin's
+ * daily run checked every pending receipt one at a time, five reads a
+ * receipt and a dozen statements behind the first (regulatory's profile,
+ * 2026-10-20). An invoice that does not exist is absent from the map.
+ */
+export async function matchInvoices(invoiceIds: readonly string[]): Promise<Map<string, MatchWithLines>> {
+  const out = new Map<string, MatchWithLines>()
+  const ids = [...new Set(invoiceIds)]
+  if (ids.length === 0) return out
+  const invoices = await prisma.invoice.findMany({ where: { id: { in: ids } }, include: MATCH_INCLUDE })
+  if (invoices.length === 0) return out
+
+  const allLines = invoices.flatMap((i) => i.invoiceLines)
+  const orders = [...new Map(invoices.flatMap((i) => (i.workOrderId && i.workOrder ? [[i.workOrder.id, i.workOrder] as const] : []))).values()]
+  const orderIds = [...new Set(invoices.flatMap((i) => (i.workOrderId ? [i.workOrderId] : [])))]
+  const contractIds = [...new Set(allLines.flatMap((l) => (l.sellContractId ? [l.sellContractId] : [])))]
+  const [onOrders, drawn, rateRows, carried, expenseDecisions] = await Promise.all([
+    orderIds.length
+      ? prisma.invoice.findMany({
+          where: { workOrderId: { in: orderIds }, status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] } },
+          select: { id: true, workOrderId: true, total: true },
+        })
+      : Promise.resolve([]),
+    // And the invoice receipts the payer typed in against each order
+    // (lib/money/order-drawn): one order filled once by each path was
+    // paid twice past its ceiling, because each check counted only its
+    // own kind. Only those in the order's currency are added.
+    Promise.all(orders.map(async (o) => [o.id, (await drawnOnOrder(o, { only: 'RECEIPTS' })).cents] as const)),
+    contractIds.length
+      ? prisma.rateHistory.findMany({
+          where: { contractType: 'SELL', contractId: { in: contractIds } },
+          select: { id: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+        })
+      : Promise.resolve([]),
+    // Below the top of a chain, the client's answer on which hours are
+    // overtime, at the multiplier on the seller's own line (the founder,
+    // 2026-10-19). A line billing the top is not in the map.
+    carriedForLines(allLines),
+    acceptancesOn(allLines.flatMap((l) => (l.expenseId ? [l.expenseId] : []))),
+  ])
+  const facts: SharedFacts = { onOrders, receiptsDrawn: new Map(drawn), rateRows, carried, expenseDecisions }
+  for (const inv of invoices) out.set(inv.id, matchFrom(inv, facts))
+  return out
+}
+
+/** The check on one loaded invoice. No database: everything it reads was read above. */
+function matchFrom(invoice: LoadedInvoice, facts: SharedFacts): MatchWithLines {
+
   const inv = invoice
 
   // What else has drawn on this purchase order. Computed rather than stored:
   // a denormalised balance drifts, and a drifted ceiling is worse than none.
   let consumedCents = 0
   if (invoice.workOrderId) {
-    const others = await prisma.invoice.findMany({
-      where: {
-        workOrderId: invoice.workOrderId,
-        id: { not: invoice.id },
-        status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] },
-      },
-      select: { total: true },
-    })
+    const others = facts.onOrders.filter((o) => o.workOrderId === invoice.workOrderId && o.id !== invoice.id)
     consumedCents = others.reduce((s, i) => s + decimalToCents(i.total), 0)
-    // And the invoice receipts the payer typed in against the same order
-    // (lib/money/order-drawn): one order filled once by each path was
-    // paid twice past its ceiling, because each check counted only its
-    // own kind. Only those in the order's currency are added.
-    if (invoice.workOrder) {
-      consumedCents += (await drawnOnOrder(invoice.workOrder, { only: 'RECEIPTS' })).cents
-    }
+    // And the invoice receipts the payer typed in against the same order.
+    if (invoice.workOrder) consumedCents += facts.receiptsDrawn.get(invoice.workOrder.id) ?? 0
   }
 
   // The rate the contract carried on the day the work was done. Amendments
   // are effective-dated and approved, so a rate that genuinely changed is
   // expressed on the contract rather than argued about on the invoice.
-  const contractIds = [...new Set(invoice.invoiceLines.flatMap(l => (l.sellContractId ? [l.sellContractId] : [])))]
-  const rateRows = contractIds.length
-    ? await prisma.rateHistory.findMany({
-        where: { contractType: 'SELL', contractId: { in: contractIds } },
-        select: { id: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
-      })
-    : []
+  const rateRows = facts.rateRows
 
   function contractedRateFor(contractId: string, fallbackCents: number, asOf: Date): number {
     return rateInForce(
@@ -361,7 +407,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   // Below the top of a chain, the client's answer on which hours are
   // overtime, at the multiplier on the seller's own line (the founder,
   // 2026-10-19). A line billing the top is not in the map.
-  const carried = await carriedForLines(invoice.invoiceLines)
+  const carried = facts.carried
   const premiumOn = (line: PricedLine & { id: string }): number | null =>
     recompute(line, billedPeriod, null, carried.get(line.id) ?? null)?.premiumCents ?? null
 
@@ -435,7 +481,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchWithLines | 
   // receipt behind an expense line is the payer's own acceptance — the
   // customer on the line billed — for exactly what it accepted, never the
   // employer's approval of what the worker claimed.
-  const expenseDecisions = await acceptancesOn(invoice.invoiceLines.flatMap(l => (l.expenseId ? [l.expenseId] : [])))
+  const expenseDecisions = facts.expenseDecisions
   const expenseReceipt = new Map<string, { cents: number | null; says: string | null }>()
   for (const l of invoice.invoiceLines) {
     if (!l.expense || !l.sellContract) continue

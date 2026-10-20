@@ -213,6 +213,45 @@ describe('wages count in the year they were paid', () => {
   })
 })
 
+describe('pay never goes out before it is worked out (the founder, 2026-10-07, reaffirmed 2026-10-20)', () => {
+  // Rosa Delgado is Brightmoor's own W2, with accepted weeks on the record.
+  // A run asked for no period pays the one holding her latest accepted week.
+  const rosaLine = async () => {
+    const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
+    const line = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: company.id, vendorCompanyId: null, candidates: { some: { person: { name: RATE_CHANGE_PERSON.name } } } },
+      select: { id: true },
+    })
+    return { companyId: company.id, buyId: line.id }
+  }
+
+  it('a pay period nobody has worked out is not paid: the run refuses it in a sentence and marks nothing paid', async () => {
+    const { companyId, buyId } = await rosaLine()
+    const runsBefore = await prisma.automationLog.count({ where: { companyId, action: 'PAYROLL_RUN' } })
+    const paidBefore = await prisma.cycle.count({ where: { buyContractId: buyId, kind: 'SALARY_PAY', completedAt: { not: null } } })
+    as(BRIGHTMOOR)
+    const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.code).toBe('NOT_WORKED_OUT')
+    expect(r.body.error.message).toMatch(new RegExp(`^Pay for ${RATE_CHANGE_PERSON.name} for .+ has not been worked out yet, and pay never goes out before it is worked out\\. Calculate that period first, then pay\\.$`))
+    expect(await prisma.automationLog.count({ where: { companyId, action: 'PAYROLL_RUN' } })).toBe(runsBefore)
+    expect(await prisma.cycle.count({ where: { buyContractId: buyId, kind: 'SALARY_PAY', completedAt: { not: null } } })).toBe(paidBefore)
+  })
+
+  it('once the period is worked out, the same press pays it, for the period the calculation worked out', async () => {
+    const { buyId } = await rosaLine()
+    as(BRIGHTMOOR)
+    const worked = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate' })))
+    expect(worked.status, JSON.stringify(worked.body)).toBe(200)
+    const paid = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process' })))
+    expect(paid.status, JSON.stringify(paid.body)).toBe(200)
+    const calc = worked.body.data.details.find((x: any) => x.personName === RATE_CHANGE_PERSON.name)
+    const row = paid.body.data.details.find((x: any) => x.personName === RATE_CHANGE_PERSON.name)
+    expect(row.refused).toBeNull()
+    expect(row.payPeriod).toEqual(calc.payPeriod)
+  })
+})
+
 describe('1099 and corp-to-corp payments count in the year they were paid', () => {
   const year = new Date().getUTCFullYear()
   const pack = async (y: number) => {

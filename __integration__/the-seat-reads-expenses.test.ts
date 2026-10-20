@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
-import { GET as expenses } from '@/app/api/expenses/route'
+import { GET as expenses, POST as fileExpense } from '@/app/api/expenses/route'
+import { POST as decideExpenses } from '@/app/api/expenses/actions/route'
+import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 
 /**
  * The expense book follows the seat, the way every other money page does.
@@ -117,5 +119,69 @@ describe('a program office at a client\'s desk reads the client\'s expenses', ()
       where: { actorCompanyId: id.aptiva, reason: { contains: 'Expense book read' } },
     })
     expect(logged, 'a read in somebody else\'s book left no trail').not.toBeNull()
+  })
+})
+
+describe('a worker files their own expense; nobody else files it for them', () => {
+  // Rosa Delgado is Brightmoor's own W2 on Northbend Athletic's site, and
+  // signs in as herself. Until 2026-10-20 she could not file the flight she
+  // paid for: the route asked for a seat that reads invoices.
+  const the = { rosa: '', line: '', brightmoor: '', expense: '' }
+  const flight = (over: Record<string, unknown> = {}) => ({
+    sellContractId: the.line, personId: the.rosa, category: 'TRAVEL', billable: true,
+    description: 'Flight to the client site', periodStart: '2026-09-06', periodEnd: '2026-09-12',
+    items: [{ description: 'Return flight', quantity: 1, unitPrice: 412.6, expenseType: 'AIRFARE' }],
+    ...over,
+  })
+
+  beforeAll(async () => {
+    const rosa = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: RATE_CHANGE_PERSON.email }, select: { id: true } })
+    const brightmoor = await prisma.company.findFirstOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: rosa.id, companyId: brightmoor.id }, select: { id: true } })
+    Object.assign(the, { rosa: rosa.id, line: line.id, brightmoor: brightmoor.id })
+  })
+
+  it('a worker files their own expense; nobody else files it for them', async () => {
+    as(RATE_CHANGE_PERSON.email)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', flight())))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.message).toBe('Filed. Brightmoor Staffing approves it before it is paid back to you.')
+    const e = await prisma.expense.findUniqueOrThrow({ where: { id: r.body.data.expense.id } })
+    // Filed by the person who spent it is the submission; the employer's book holds it.
+    expect(e).toMatchObject({ status: 'SUBMITTED', personId: the.rosa, companyId: the.brightmoor, sellContractId: the.line })
+    expect(Number(e.total)).toBeCloseTo(412.6, 2)
+    the.expense = e.id
+
+    // Not in somebody else's name, through her own door.
+    const other = await prisma.person.findFirstOrThrow({ where: { name: 'Omar Haddad' }, select: { id: true } })
+    const forOmar = await json(await fileExpense(req('POST', '/api/expenses', flight({ personId: other.id }))))
+    expect(forOmar.status).toBe(403)
+    expect(forOmar.body.error.message).toBe('You file your own expenses. Anybody else files theirs from their own page, and nobody files one for them.')
+  })
+
+  it('another worker cannot file an expense on her placement', async () => {
+    const other = await prisma.context.findFirstOrThrow({
+      where: { type: 'CONSULTANT', revokedAt: null, personId: { not: the.rosa } },
+      select: { personId: true },
+    })
+    as((await prisma.person.findUniqueOrThrow({ where: { id: other.personId }, select: { primaryEmail: true } })).primaryEmail)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', flight({ personId: undefined }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.message).toMatch(/^This placement is not yours/)
+  })
+
+  it('a firm raising an expense on a placement does so in the name of the person on it, and no other', async () => {
+    as(`world-brightmoor${D}`)
+    const other = await prisma.person.findFirstOrThrow({ where: { name: 'Omar Haddad' }, select: { id: true } })
+    const r = await json(await fileExpense(req('POST', '/api/expenses', flight({ personId: other.id }))))
+    expect(r.status, JSON.stringify(r.body)).toBe(422)
+    expect(r.body.error.code).toBe('NOT_THIS_PERSON')
+  })
+
+  it('her employer approves the expense she filed, the way it always has', async () => {
+    as(`world-brightmoor${D}`)
+    const r = await json(await decideExpenses(req('POST', '/api/expenses/actions', { action: 'approve', expenseIds: [the.expense] })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: the.expense } })).status).toBe('APPROVED')
   })
 })

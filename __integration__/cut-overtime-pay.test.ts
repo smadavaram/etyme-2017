@@ -150,6 +150,7 @@ describe('on a line nobody changed, overtime is paid only on the accepted hours 
   })
 
   it('processing July marks July’s pay day done, nine days after the month, and leaves August’s open', async () => {
+    expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-07' })).status).toBe(200)
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process', period: '2026-07' })
     expect(r.status).toBe(200)
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)

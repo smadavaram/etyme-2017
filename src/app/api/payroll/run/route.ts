@@ -19,6 +19,8 @@ import { paidByPayroll, notPayrollSays } from '@/lib/money/paid-through'
 import { weekStart } from '@/lib/overtime'
 import { daySpan, plainDate } from '@/lib/plain-date'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import { workedOutKeys, isWorkedOut, notWorkedOutSays, type NotWorkedOut } from '@/lib/money/payroll-worked-out'
+import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
 
 /**
  * POST /api/payroll/run
@@ -200,6 +202,27 @@ export async function POST(request: NextRequest) {
   // And what earlier runs already paid, so no hour is paid twice.
   const book = await paidBook(companyId, contracts.map((c) => c.id))
 
+  // Pay never goes out before it is worked out (the founder, 2026-10-07,
+  // reaffirmed 2026-10-20). What the `calculate` runs worked out, read
+  // only when this run pays (lib/money/payroll-worked-out).
+  const workedOut =
+    action === 'process'
+      ? workedOutKeys(
+          (
+            await prisma.automationLog.findMany({
+              where: { companyId, action: 'PAYROLL_RUN', payload: { path: ['action'], equals: 'calculate' } },
+              select: { payload: true },
+            })
+          ).map((r) => r.payload as { contracts?: any[] } | null)
+        )
+      : null
+  // Who would be paid unworked, collected over the whole batch and refused
+  // together — nothing in the batch is paid while one of them stands.
+  const notWorkedOut: NotWorkedOut[] = []
+  // The sheets each person is paid on in this run, for the line that says
+  // what was billed as overtime and not paid (lib/money/overtime-not-paid).
+  const sheetsRun = new Set<string>()
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const processed: Array<{
@@ -351,6 +374,16 @@ export async function POST(request: NextRequest) {
             })
             continue
           }
+          if (
+            payPeriod && workedOut &&
+            !isWorkedOut(workedOut, {
+              buyContractId: bc.id, buyContractCandidateId: cand.id,
+              start: payPeriod.start.toISOString(), end: payPeriod.end.toISOString(),
+            })
+          ) {
+            notWorkedOut.push({ personName: cand.person.name, periodLabel: payPeriod.label })
+            continue
+          }
           if (payPeriod) windows.push({ period: payPeriod, terms, startedOn: cand.startDate ?? null })
 
           // Each day in the period, at the rate in force that day, less
@@ -390,6 +423,7 @@ export async function POST(request: NextRequest) {
                 terms.straddle
               )
               if (!share || share.hours <= 0) continue
+              sheetsRun.add(t.id)
               if (t.cut) {
                 const cutNote = payCutSays(t.cut, { personName: cand.person.name, employerName: bc.company?.name ?? null })
                 if (cutNote && !acceptedSaid.includes(cutNote)) acceptedSaid.push(cutNote)
@@ -530,6 +564,10 @@ export async function POST(request: NextRequest) {
         for (const p of processed) if (p.buyContractId === bc.id) p.cyclesCompleted = completed
       }
 
+      // Somebody would be paid unworked: nothing in the batch is paid, and
+      // the cycles marked above roll back with the rest.
+      if (notWorkedOut.length > 0) throw new NotWorkedOutYet(notWorkedOutSays(notWorkedOut))
+
       // Log the payroll run — and, on a run that pays, every day it paid,
       // which is what the next run reads so that no hour is paid twice
       // (lib/payroll-paid).
@@ -546,6 +584,9 @@ export async function POST(request: NextRequest) {
             period: period ?? null,
             contracts: processed.map((p) => ({
               buyContractId: p.buyContractId,
+              // Which person a calculation worked out, so a payment can
+              // ask for that person's and nobody else's.
+              buyContractCandidateId: p.buyContractCandidateId,
               person: p.personName,
               payPeriod: p.payPeriod,
               hours: p.totalHours,
@@ -573,6 +614,18 @@ export async function POST(request: NextRequest) {
     const grossSays = totals(result.map((p) => ({ minor: p.grossPay, currency: p.currency })))
     const refused = result.filter((p) => p.refused)
 
+    // Overtime the clients were billed on these weeks that the workers are
+    // not paid, because nobody recorded whether they are exempt. The pay
+    // rule is not moved here; the gap is said, with the amount.
+    let overtimeNotPaid: OvertimeNotPaid | null = null
+    try {
+      const run = await overtimeNotPaidFor(companyId, { buyContractIds: contracts.map((c) => c.id), timesheetIds: [...sheetsRun] })
+      overtimeNotPaid = run.says ? run : null
+    } catch (err) {
+      // A failed read leaves the line off; it never stops a run that paid.
+      reportError('Reading overtime billed and not paid failed:', err)
+    }
+
     return NextResponse.json({
       data: {
         action,
@@ -580,12 +633,20 @@ export async function POST(request: NextRequest) {
         totalGrossPay: totalGross,
         totalHours: result.reduce((s, p) => s + p.totalHours, 0),
         details: result.map(({ paid, ...rest }) => rest),
+        overtimeNotPaid,
         message:
           `Payroll ${action} complete: ${result.length} contracts, ${grossSays} gross` +
-          (refused.length > 0 ? `. ${refused.length} left out, each with a reason on the row.` : ''),
+          (refused.length > 0 ? `. ${refused.length} left out, each with a reason on the row.` : '') +
+          (overtimeNotPaid?.says ? `. ${overtimeNotPaid.says}` : ''),
       },
     })
   } catch (err: any) {
+    if (err instanceof NotWorkedOutYet) {
+      return NextResponse.json(
+        { error: { code: 'NOT_WORKED_OUT', message: err.message } },
+        { status: 422 }
+      )
+    }
     reportError('Payroll run failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Payroll run failed' } },
@@ -593,6 +654,9 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+/** Thrown inside the run's transaction so that nothing it marked is kept. */
+class NotWorkedOutYet extends Error {}
 
 type Asked = { month: string } | Period | null | 'INVALID'
 

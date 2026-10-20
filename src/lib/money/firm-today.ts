@@ -19,6 +19,12 @@
  * else 160 (`lib/program-spend`, the convention the client's program page
  * uses). It is not signed time and never reads as if it were.
  *
+ * Under it, one line where it is true: the weeks this firm billed its
+ * clients overtime on that its own workers were paid straight time for,
+ * because nobody recorded whether they are exempt — with the amount
+ * (lib/money/overtime-not-paid). The pay rule is the founder's and does
+ * not move here; the gap is said.
+ *
  * ── Signed and not yet billed ────────────────────────────────────────
  *
  * Every week the client at the top signed (a live CLIENT_APPROVAL on the
@@ -50,11 +56,12 @@ import { formatRange } from '@/lib/format-date'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { monthlyHours, HOURS_PER_MONTH, WEEKS_PER_MONTH, FULL_TIME_WEEK } from '@/lib/program-spend'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
-import { generateBill, type BillCaller, type BillOutcome } from '@/lib/money/bill-generate'
+import { generateBill, BILLABLE_LINE_STATES, type BillCaller, type BillOutcome } from '@/lib/money/bill-generate'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { weekStart, weekEnd } from '@/lib/overtime'
 import { billingStraddle, periodFor, workedSpan, iso, type Period } from '@/lib/periods'
+import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
 
 /** The kinds of firm that sell people, and so have a Tuesday of this shape. A client only buys. */
 export const SELLING_KINDS = ['VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const
@@ -108,6 +115,13 @@ export interface BillingThisMonth {
   totals: CurrencyTotal[]
   /** What the figure rests on, to print beside it. */
   basis: string
+  /**
+   * Overtime this firm billed its clients on weeks of workers it pays by
+   * payroll and has not classified as exempt or not, so the workers were
+   * paid straight time (lib/money/overtime-not-paid). `says` is the line
+   * printed under the figure; null where there is nothing to say.
+   */
+  overtimeNotPaid: OvertimeNotPaid
 }
 
 /** Why a signed week has no amount, in a word. */
@@ -124,8 +138,12 @@ export type WeekUnpriced =
   | 'partly billed'
   /** The bill for its period would go over the order's ceiling. */
   | 'ceiling'
-  /** The placement has ended, and the Bills page bills only running placements. */
-  | 'ended'
+  /**
+   * The placement is paused, cancelled or not yet started, and a bill is
+   * raised only on a running or ended one (`BILLABLE_LINE_STATES`). An
+   * ended placement is billed for the weeks signed before its last day.
+   */
+  | 'not running'
   /** The placement is on no engagement, so no bill can be made for it. */
   | 'no engagement'
   /** The Bills page would refuse the bill for another reason, said in `says`. */
@@ -306,15 +324,17 @@ export async function firmTuesday(companyId: string, today: Date = new Date()): 
   if (!company || !(SELLING_KINDS as readonly string[]).includes(company.kind)) return null
   const day = dayOf(today)
 
-  const [billingThisMonth, signedNotBilled] = await Promise.all([
+  const [billing, signedNotBilled, overtimeNotPaid] = await Promise.all([
     billingAt(company.id, day),
     signedAt(company),
+    overtimeNotPaidFor(company.id),
   ])
+  const billingThisMonth: BillingThisMonth = { ...billing, overtimeNotPaid }
   return { companyId: company.id, companyName: company.name, asOf: iso(day), billingThisMonth, signedNotBilled }
 }
 
 /** "Billing this month": every line of this firm that is live today, at today's rate. */
-async function billingAt(companyId: string, day: Date): Promise<BillingThisMonth> {
+async function billingAt(companyId: string, day: Date): Promise<Omit<BillingThisMonth, 'overtimeNotPaid'>> {
   const lines = await prisma.sellContract.findMany({
     where: {
       companyId,
@@ -481,9 +501,15 @@ async function signedAt(company: { id: string; name: string; kind: string }): Pr
       weeks.push(off('no engagement', `${ts.person.name}’s placement is on no engagement, so no bill can be made for it yet.`))
       continue
     }
-    if (line.state !== 'IN_PROGRESS') {
-      weeks.push(off('ended',
-        `${ts.person.name}’s placement has ended, and bills are made only for placements still running, ` +
+    // The same states the Bills page bills (lib/money/bill-generate): a
+    // running placement, and one that has ended, for the weeks signed
+    // before its last day. This read used to refuse an ended one after the
+    // generator had stopped refusing it (5ee828da0), so the figure said
+    // Karthik Menon's fourteen signed weeks could not be billed while the
+    // Bills page billed them.
+    if (!(BILLABLE_LINE_STATES as readonly string[]).includes(line.state)) {
+      weeks.push(off('not running',
+        `${ts.person.name}’s placement is not running, and a bill is made only for a running or ended placement, ` +
         'so this week cannot be billed yet.'))
       continue
     }

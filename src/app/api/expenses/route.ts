@@ -7,6 +7,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { rowFor, rungBilled, rungStatus, APPROVED_BY_EMPLOYER, type AcceptanceRow, type ExpenseBillLine, type ExpenseRow, type Leg } from '@/lib/money/expense-acceptance'
 import { acceptancesOn, expenseOf, legsOverMany, linesBelowPaid, EXPENSE_SELECT } from '@/lib/money/expense-acceptance-read'
 import { booksFor, noteMoneyRead, seatedRefusal, writingDesk } from '@/lib/money/seated-books'
+import { mayFileOwnExpense } from '@/lib/money/own-expense'
 
 /**
  * GET /api/expenses
@@ -295,7 +296,17 @@ async function billsAtRung(readerId: string, expenseIds: string[]): Promise<Map<
 /**
  * POST /api/expenses
  *
- * Create a new expense report. Consultants submit; managers approve.
+ * Create a new expense report. Two doors, one rule each:
+ *
+ * - **The worker's own** (2026-10-20): a worker files their own expense,
+ *   on their own placement, in their own name, on the rung their employer
+ *   holds (`mayFileOwnExpense` in lib/money/own-expense). It lands
+ *   SUBMITTED, waiting on the employer's approval. Nobody files one in
+ *   their name through this door.
+ * - **The firm's**: a seat that reads invoices raises an expense on one of
+ *   its own placements, for the person on that placement, from their
+ *   receipt. It lands as a DRAFT the firm submits.
+ *
  * Amount auto-calculated from items: sum(quantity × unitPrice).
  *
  * LEGACY_RULES.md §4.4: "Amount auto-calculated as sum(unit_price × quantity)."
@@ -303,6 +314,86 @@ async function billsAtRung(readerId: string, expenseIds: string[]): Promise<Map<
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  const body = await request.json().catch(() => ({}))
+  const {
+    sellContractId,
+    personId,
+    category,
+    billable = true,
+    description,
+    periodStart,
+    periodEnd,
+    items,
+    receiptUrl,
+  } = body ?? {}
+
+  // ── The worker's own door ───────────────────────────────────────────
+  //
+  // Read first, because a worker holds no seat that reads invoices and the
+  // firm's door would refuse them for it. A line that names the caller is
+  // the caller's own placement, whatever else their seat holds.
+  const line = typeof sellContractId === 'string' && sellContractId
+    ? await prisma.sellContract.findUnique({
+        where: { id: sellContractId },
+        select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, company: { select: { name: true } } },
+      })
+    : null
+  const deskHolds = caller.company ? (await writingDesk(caller, request)) : null
+  const firmMay = Boolean(deskHolds && hasPermission(deskHolds.permissions, 'invoices.read'))
+  const ownLine = Boolean(line && line.personId === caller.person.id)
+
+  if (ownLine || (!firmMay && isConsultantSeat(caller))) {
+    const rungs = line
+      ? await prisma.sellContract.findMany({
+          where: { personId: line.personId },
+          select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, company: { select: { name: true } } },
+        })
+      : []
+    const asRung = (r: NonNullable<typeof line>) => ({ ...r, companyName: r.company.name })
+    const verdict = mayFileOwnExpense({
+      callerPersonId: caller.person.id,
+      askedPersonId: typeof personId === 'string' ? personId : null,
+      line: line ? asRung(line) : null,
+      rungs: rungs.map(asRung),
+    })
+    if (!verdict.ok) {
+      return NextResponse.json({ error: { code: verdict.code, message: verdict.says } }, { status: verdict.status })
+    }
+    const invalid = refusedFields({ sellContractId, personId: caller.person.id, category, description, periodStart, periodEnd, items })
+    if (invalid) return invalid
+    const expense = await prisma.expense.create({
+      data: {
+        // The firm whose contract bills it: the worker's employer, which
+        // approves it before any firm above accepts it.
+        companyId: line!.companyId,
+        sellContractId: line!.id,
+        personId: caller.person.id,
+        category: String(category).toUpperCase(),
+        billable,
+        description,
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+        items,
+        total: totalOf(items),
+        receiptUrl: receiptUrl ?? null,
+        // Filed by the person who spent it: that is the submission.
+        status: 'SUBMITTED',
+        submittedAt: new Date(),
+      },
+    })
+    return NextResponse.json(
+      {
+        data: {
+          expense: { id: expense.id, status: expense.status, total: Number(expense.total) },
+          message: `Filed. ${line!.company.name} approves it before it is paid back to you.`,
+        },
+      },
+      { status: 201 }
+    )
+  }
+
+  // ── The firm's door ─────────────────────────────────────────────────
   if (!caller.company) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'An expense is raised by a company' } },
@@ -314,8 +405,8 @@ export async function POST(request: NextRequest) {
   // client's under a seat, the caller's own otherwise or with
   // `?books=own`. It was always the caller's own, under the caller's own
   // role, whatever book the screen was showing.
-  const desk = (await writingDesk(caller, request))!
-  if (!hasPermission(desk.permissions, 'invoices.read')) {
+  const desk = deskHolds!
+  if (!firmMay) {
     return NextResponse.json(
       {
         error: {
@@ -334,50 +425,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const body = await request.json()
-  const {
-    sellContractId,
-    personId,
-    category,
-    billable = true,
-    description,
-    periodStart,
-    periodEnd,
-    items,
-    receiptUrl,
-  } = body
-
-  // Validate required fields
-  if (!sellContractId || !personId || !category || !description || !periodStart || !periodEnd) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Missing required fields: sellContractId, personId, category, description, periodStart, periodEnd' } },
-      { status: 422 }
-    )
-  }
-
-  // Validate items
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'At least one expense item is required' } },
-      { status: 422 }
-    )
-  }
-
-  // Validate each item
-  for (const item of items) {
-    if (!item.description || typeof item.quantity !== 'number' || typeof item.unitPrice !== 'number') {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'Each item must have description, quantity (number), and unitPrice (number)' } },
-        { status: 422 }
-      )
-    }
-    if (item.quantity <= 0 || item.unitPrice < 0) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'Item quantity must be positive and unitPrice must be non-negative' } },
-        { status: 422 }
-      )
-    }
-  }
+  const invalid = refusedFields({ sellContractId, personId, category, description, periodStart, periodEnd, items })
+  if (invalid) return invalid
 
   // The sell contract must be the desk's own: an expense is raised by the
   // firm whose contract bills it.
@@ -407,12 +456,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Calculate total from items: sum(quantity × unitPrice)
-  const total = items.reduce(
-    (sum: number, item: { quantity: number; unitPrice: number }) =>
-      sum + item.quantity * item.unitPrice,
-    0
-  )
+  // The expense is the placement's person's: raised from their receipt,
+  // in their name, and never in somebody else's on their line.
+  if (personId !== sellContract.personId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_THIS_PERSON',
+          message: 'An expense on a placement is the expense of the person on it. Raise it on their own placement, in their name.',
+          field: 'personId',
+        },
+      },
+      { status: 422 }
+    )
+  }
 
   const expense = await prisma.expense.create({
     data: {
@@ -425,7 +482,7 @@ export async function POST(request: NextRequest) {
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       items,
-      total,
+      total: totalOf(items),
       receiptUrl: receiptUrl ?? null,
       status: 'DRAFT',
     },
@@ -435,4 +492,43 @@ export async function POST(request: NextRequest) {
     { data: { expense: { id: expense.id, status: expense.status, total: Number(expense.total) } } },
     { status: 201 }
   )
+}
+
+/** The fields an expense needs, refused in a sentence where one is missing or wrong. */
+function refusedFields(f: {
+  sellContractId: unknown; personId: unknown; category: unknown; description: unknown
+  periodStart: unknown; periodEnd: unknown; items: unknown
+}): NextResponse | null {
+  if (!f.sellContractId || !f.personId || !f.category || !f.description || !f.periodStart || !f.periodEnd) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Missing required fields: sellContractId, personId, category, description, periodStart, periodEnd' } },
+      { status: 422 }
+    )
+  }
+  if (!Array.isArray(f.items) || f.items.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'At least one expense item is required' } },
+      { status: 422 }
+    )
+  }
+  for (const item of f.items) {
+    if (!item.description || typeof item.quantity !== 'number' || typeof item.unitPrice !== 'number') {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Each item must have description, quantity (number), and unitPrice (number)' } },
+        { status: 422 }
+      )
+    }
+    if (item.quantity <= 0 || item.unitPrice < 0) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Item quantity must be positive and unitPrice must be non-negative' } },
+        { status: 422 }
+      )
+    }
+  }
+  return null
+}
+
+/** sum(quantity × unitPrice), in whole currency: `Expense.total` is a Decimal. */
+function totalOf(items: Array<{ quantity: number; unitPrice: number }>): number {
+  return items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
 }

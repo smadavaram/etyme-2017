@@ -8,7 +8,7 @@ import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { writingDesk, seatedRefusal } from '@/lib/money/seated-books'
 import { amount } from '@/lib/money-display'
 import {
-  acceptanceChain, capFor, mayDecide, nextDown, waitingOn, type Decision,
+  acceptanceChain, capFor, fullyAccepted, mayDecide, nextDown, waitingOn, type Decision,
 } from '@/lib/money/expense-acceptance'
 import { readForAcceptance } from '@/lib/money/expense-acceptance-read'
 
@@ -170,14 +170,26 @@ export async function POST(request: NextRequest, { params }: Params) {
     const money = (c: number) => amount(c, e.currency)
     const what = `${e.personName}’s ${e.category.toLowerCase()} expense`
     const accepted = verdict.row.status === 'ACCEPTED'
-    notify({
-      personId: e.personId, companyId: e.companyId, type: 'EXPENSE', entityId: e.id,
-      title: accepted ? 'An expense of yours was accepted' : 'An expense of yours was sent back',
-      body: accepted
-        ? `Your ${e.category.toLowerCase()} expense was accepted at ${money(verdict.row.acceptedCents)} by a firm that pays for it.`
-        : `Your ${e.category.toLowerCase()} expense was sent back: ${verdict.row.reason}`,
-      data: { expenseId: e.id, decision: verdict.row.status },
+    // The worker hears the outcome once: when the last firm that pays for
+    // it has accepted (`fullyAccepted`), or when one sends it back. Each
+    // firm's step is told to the firm below, not to the worker — one
+    // worker read "An expense of yours was accepted" once per firm.
+    const done = accepted && fullyAccepted(chain, read.acceptances, {
+      companyId: desk.companyId, status: 'ACCEPTED', acceptedCents: verdict.row.acceptedCents,
+      reason: verdict.row.reason, createdAt: row.createdAt,
     })
+    if (done || !accepted) {
+      notify({
+        personId: e.personId, companyId: e.companyId, type: 'EXPENSE', entityId: e.id,
+        title: accepted
+          ? `Your ${e.category.toLowerCase()} expense was accepted`
+          : `Your ${e.category.toLowerCase()} expense was sent back`,
+        body: accepted
+          ? `Your ${e.category.toLowerCase()} expense was accepted at ${money(verdict.row.acceptedCents)} by every firm that pays for it.`
+          : `Your ${e.category.toLowerCase()} expense was sent back: ${verdict.row.reason}`,
+        data: { expenseId: e.id, decision: verdict.row.status },
+      })
+    }
     if (below) {
       const seats = await prisma.context.findMany({
         where: {

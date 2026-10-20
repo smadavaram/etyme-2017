@@ -21,6 +21,9 @@ import { POST as recordPayment } from '@/app/api/invoices/[id]/payments/route'
 import { GET as receiptOptions } from '@/app/api/ap/receipts/options/route'
 import { ladderFor } from '@/lib/work-chain-read'
 import { descend } from '@/lib/work-chain'
+import { overtimeNotPaidFor } from '@/lib/money/overtime-not-paid'
+import { firmTuesday } from '@/lib/money/firm-today'
+import { POST as runPayroll } from '@/app/api/payroll/run/route'
 
 /**
  * The week Northbend Athletic's desk signed at time and a half, as far as the document.
@@ -183,6 +186,72 @@ describe('a week signed at a premium, as far as the invoice', () => {
     })
     expect(decision.billedAt).not.toBeNull()
     expect(decision.appliedBps).toBe(15_000)
+  })
+
+  // ── Billed at a premium, paid at straight time (simulation, 2026-10-20) ──
+  //
+  // Brightmoor employs Omar Haddad and has not recorded whether he is
+  // exempt, so payroll pays his five hours over the line at straight time
+  // and will not guess. The bill above carried $330 of premium on them.
+  // The pay rule does not move; the gap is said, with the amount.
+  const OMAR_SAYS =
+    '1 week billed overtime the worker was not paid, because exempt status is not recorded: ' +
+    '$330.00 of premium billed on Omar Haddad’s week. Record on the placement whether they are exempt from overtime.'
+
+  it('Brightmoor reads, under Billing this month, the week it billed overtime that Omar Haddad is paid straight time for, with the $330', async () => {
+    const scoped = await overtimeNotPaidFor(it_.contract.companyId, { timesheetIds: [it_.sheet.id] })
+    expect(scoped.weeks).toBe(1)
+    expect(scoped.totals).toEqual([{ currency: 'USD', amountMinor: 33_000 }])
+    expect(scoped.says).toBe(OMAR_SAYS)
+    const today = (await firmTuesday(it_.contract.companyId))!
+    expect(today.billingThisMonth.overtimeNotPaid.says).toContain('Omar Haddad')
+    expect(today.billingThisMonth.overtimeNotPaid.totals.find((t) => t.currency === 'USD')!.amountMinor).toBeGreaterThanOrEqual(33_000)
+  })
+
+  it('the payroll run that works out Omar Haddad’s week says the same line, and still pays him straight time', async () => {
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: it_.contract.companyId, candidates: { some: { personId: it_.sheet.personId } }, vendorCompanyId: null },
+      select: { id: true },
+    })
+    // The employer accepts the week before payroll pays it, after the client signed it.
+    const acceptedByEmployer = await prisma.workAssertion.findFirst({
+      where: { timesheetId: it_.sheet.id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+    })
+    if (!acceptedByEmployer) {
+      const seat = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: BRIGHTMOOR }, select: { id: true } })
+      await prisma.workAssertion.create({
+        data: { timesheetId: it_.sheet.id, companyId: it_.contract.companyId, role: 'EMPLOYER_ACCEPTANCE', hours: 45, rateCents: 9_600, state: 'LIVE', byId: seat.id },
+      })
+    }
+    as(BRIGHTMOOR)
+    const r = await json(await runPayroll(req('POST', '/api/payroll/run', {
+      buyContractIds: [buy.id], action: 'calculate',
+      period: { start: it_.sheet.periodStart.toISOString().slice(0, 10), end: it_.sheet.periodEnd.toISOString().slice(0, 10) },
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.overtimeNotPaid.says).toBe(OMAR_SAYS)
+    expect(r.body.data.message).toContain(OMAR_SAYS)
+    const row = r.body.data.details.find((x: any) => x.buyContractId === buy.id)
+    expect(row.premiumCents).toBe(0)
+  })
+
+  it('once Brightmoor records whether Omar Haddad is exempt, his week leaves the line', async () => {
+    const buy = await prisma.buyContract.findFirstOrThrow({
+      where: { companyId: it_.contract.companyId, candidates: { some: { personId: it_.sheet.personId } }, vendorCompanyId: null },
+      select: { id: true },
+    })
+    const said = await prisma.exemptAssertion.create({
+      data: {
+        buyContractId: buy.id, personId: it_.sheet.personId, assertedByCompanyId: it_.contract.companyId,
+        status: 'NONEXEMPT', basis: null, wageRule: 'US_FLSA',
+        screenOutcome: 'ETYME_CANNOT_SAY', screenRulesOut: [], screenSays: 'Recorded by the test.',
+      },
+    })
+    try {
+      expect((await overtimeNotPaidFor(it_.contract.companyId, { timesheetIds: [it_.sheet.id] })).says).toBeNull()
+    } finally {
+      await prisma.exemptAssertion.delete({ where: { id: said.id } })
+    }
   })
 
   it('the line the screen is handed shows its working, and the working adds up to the amount charged', async () => {

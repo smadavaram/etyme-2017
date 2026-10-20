@@ -4,6 +4,9 @@ import { onPayrollFor, payrollClientFor, periodPayStatus } from '@/lib/money/pay
 import { depositPayDays, depositDeadline } from '@/lib/payroll-export'
 import { generateCycles, localKey } from '@/lib/cycle-generator'
 import { periodFor, type Terms } from '@/lib/periods'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { workedOutKeys, isWorkedOut, notWorkedOutSays } from '@/lib/money/payroll-worked-out'
 
 /**
  * Four things a browser walk of the seeded world found on the payroll
@@ -191,5 +194,54 @@ describe('deposit deadlines follow the pay days on the lines', () => {
     const days = depositPayDays([{ dueOn: D(localKey(cycles[0].dueOn)), completedAt: null, contractType: 'W2' }], 2026, D('2026-07-01'))
     expect(days[0].payDay.toISOString().slice(0, 10)).toBe('2026-07-03')
     expect(days[0].payDay.getUTCDay()).toBe(5)
+  })
+})
+
+describe('pay never goes out before it is worked out (the founder, 2026-10-07, reaffirmed 2026-10-20)', () => {
+  const july = { start: '2026-07-01T00:00:00.000Z', end: '2026-07-31T00:00:00.000Z' }
+  const calculated = (rows: object[]) => workedOutKeys([{ contracts: rows as any }])
+
+  it('a period a calculate run worked out for this person on this line may be paid', () => {
+    const keys = calculated([{ buyContractId: 'bc1', buyContractCandidateId: 'c1', payPeriod: { start: '2026-07-01', end: '2026-07-31' }, refused: null }])
+    expect(isWorkedOut(keys, { buyContractId: 'bc1', buyContractCandidateId: 'c1', ...july })).toBe(true)
+  })
+
+  it('a period nobody calculated is not worked out, and neither is another period, another person or another line', () => {
+    const keys = calculated([{ buyContractId: 'bc1', buyContractCandidateId: 'c1', payPeriod: { start: '2026-07-01', end: '2026-07-31' } }])
+    expect(isWorkedOut(new Set(), { buyContractId: 'bc1', buyContractCandidateId: 'c1', ...july })).toBe(false)
+    expect(isWorkedOut(keys, { buyContractId: 'bc1', buyContractCandidateId: 'c1', start: '2026-08-01', end: '2026-08-31' })).toBe(false)
+    expect(isWorkedOut(keys, { buyContractId: 'bc1', buyContractCandidateId: 'c2', ...july })).toBe(false)
+    expect(isWorkedOut(keys, { buyContractId: 'bc2', buyContractCandidateId: 'c1', ...july })).toBe(false)
+  })
+
+  it('a calculation that refused the person worked nothing out for them', () => {
+    const keys = calculated([{ buyContractId: 'bc1', buyContractCandidateId: 'c1', payPeriod: null, refused: 'No accepted hours for Rosa Delgado, so there is no period to pay.' }])
+    expect(isWorkedOut(keys, { buyContractId: 'bc1', buyContractCandidateId: 'c1', ...july })).toBe(false)
+  })
+
+  it('a calculation written before the run named the person covers everybody on its line for that period', () => {
+    const keys = calculated([{ buyContractId: 'bc1', payPeriod: { start: '2026-07-01', end: '2026-07-31' } }])
+    expect(isWorkedOut(keys, { buyContractId: 'bc1', buyContractCandidateId: 'anyone', ...july })).toBe(true)
+  })
+
+  it('the refusal names whose pay, for which period, and says to calculate first', () => {
+    expect(notWorkedOutSays([{ personName: 'Rosa Delgado', periodLabel: 'July 2026' }])).toBe(
+      'Pay for Rosa Delgado for July 2026 has not been worked out yet, and pay never goes out before it is worked out. ' +
+        'Calculate that period first, then pay.'
+    )
+    expect(notWorkedOutSays([
+      { personName: 'Rosa Delgado', periodLabel: 'July 2026' },
+      { personName: 'Omar Haddad', periodLabel: 'July 2026' },
+      { personName: 'Rosa Delgado', periodLabel: 'July 2026' },
+    ])).toMatch(/^Pay for Rosa Delgado for July 2026 and Omar Haddad for July 2026 has not been worked out yet.*Calculate those periods first, then pay\.$/)
+  })
+
+  it('the payroll run refuses to pay a period with no calculation behind it, before anything is marked paid', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/payroll/run/route.ts'), 'utf8')
+    expect(src).toMatch(/action === 'process'\s*\?\s*workedOutKeys\(/)
+    expect(src).toContain("code: 'NOT_WORKED_OUT'")
+    // Thrown inside the transaction, so the pay days it marked roll back.
+    expect(src.indexOf('throw new NotWorkedOutYet')).toBeGreaterThan(src.indexOf('prisma.$transaction'))
+    expect(src.indexOf('throw new NotWorkedOutYet')).toBeLessThan(src.indexOf('tx.automationLog.create'))
   })
 })

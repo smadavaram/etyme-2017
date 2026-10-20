@@ -15,6 +15,7 @@ import { payLineFor, payLineOn, payLineSays, weeklyWorked, outsideTheUS, type Pa
 import { sheetOvertime, wageLineFor } from '@/lib/money/sheet-overtime'
 import { buildExport, type SheetToPay } from '@/lib/payroll-export'
 import type { ExemptAssertion } from '@/lib/worker-classification'
+import { premiumBilled, overtimeNotPaid } from '@/lib/money/overtime-not-paid'
 
 const US = { wageRule: 'US_FLSA', payCurrency: 'USD', entityCountry: null, siteCountry: null }
 
@@ -228,5 +229,62 @@ describe('the client’s bill does not move', () => {
       // Nobody decides the line on their own any more.
       expect(src).not.toMatch(/overtimeAfterHours \?\? [a-zA-Z!.]+\.overtimeAfterHours/)
     }
+  })
+})
+
+describe('overtime a client was billed and the worker was not paid, because nobody recorded whether they are exempt', () => {
+  it('the premium a bill line carried is what it billed above its hours at its straight rate: 45 hours at $132 billed $6,270 carries $330', () => {
+    expect(premiumBilled([{ hours: 45, rateCents: 13_200, amountCents: 627_000 }])).toBe(33_000)
+  })
+
+  it('a line billed at straight time, or under it on a cut week, carries no premium and never a negative one', () => {
+    expect(premiumBilled([{ hours: 45, rateCents: 13_200, amountCents: 594_000 }])).toBe(0)
+    expect(premiumBilled([{ hours: 40, rateCents: 13_200, amountCents: 500_000 }])).toBe(0)
+  })
+
+  it('says how many weeks, how much and whose, and what to record, in one line', () => {
+    const r = overtimeNotPaid([
+      { timesheetId: 't1', personName: 'Omar Haddad', currency: 'USD', premiumMinor: 33_000, weeks: ['2026-09-06'] },
+      { timesheetId: 't2', personName: 'Anders Lund', currency: 'USD', premiumMinor: 22_950, weeks: ['2026-08-02'] },
+    ])
+    expect(r.weeks).toBe(2)
+    expect(r.totals).toEqual([{ currency: 'USD', amountMinor: 55_950 }])
+    expect(r.says).toBe(
+      '2 weeks billed overtime the worker was not paid, because exempt status is not recorded: ' +
+        '$559.50 of premium billed on Omar Haddad’s and Anders Lund’s weeks. ' +
+        'Record on each placement whether each person is exempt from overtime.'
+    )
+  })
+
+  it('two currencies are said side by side and never added', () => {
+    const r = overtimeNotPaid([
+      { timesheetId: 't1', personName: 'Omar Haddad', currency: 'USD', premiumMinor: 33_000, weeks: ['2026-09-06'] },
+      { timesheetId: 't2', personName: 'Priya Raman', currency: 'INR', premiumMinor: 900_000, weeks: ['2026-09-06'] },
+    ])
+    expect(r.totals).toEqual([{ currency: 'USD', amountMinor: 33_000 }, { currency: 'INR', amountMinor: 900_000 }])
+    expect(r.says).toMatch(/\$330\.00 and ₹9,000(\.00)? of premium/)
+  })
+
+  it('a sheet with two weeks over the line counts both, and a sheet with no premium on it counts nothing', () => {
+    const r = overtimeNotPaid([
+      { timesheetId: 't1', personName: 'Omar Haddad', currency: 'USD', premiumMinor: 66_000, weeks: ['2026-09-06', '2026-09-13'] },
+      { timesheetId: 't2', personName: 'Omar Haddad', currency: 'USD', premiumMinor: 0, weeks: ['2026-09-20'] },
+    ])
+    expect(r.weeks).toBe(2)
+    expect(r.people).toEqual(['Omar Haddad'])
+    expect(r.says).toMatch(/^2 weeks billed overtime.*on Omar Haddad’s weeks\. Record on the placement whether they are exempt from overtime\.$/)
+  })
+
+  it('nothing billed above straight time says nothing at all', () => {
+    expect(overtimeNotPaid([]).says).toBeNull()
+  })
+
+  it('the pay rule does not move: payroll still pays a worker nobody classified at straight time', () => {
+    const line = payLineFor({
+      buyAfterHours: null, sellAfterHours: null, personName: 'Omar Haddad', contractType: 'W2', weAreTheEmployer: true,
+      exemptStatus: null, where: { wageRule: null, payCurrency: 'USD', entityCountry: null, siteCountry: 'US' },
+    })
+    expect(line.afterHours).toBeNull()
+    expect(line.reason).toBe('UNRECORDED')
   })
 })

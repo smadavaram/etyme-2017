@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { contractClearance, startPreview, hrNotice, owedBy, whenWords } from '@/lib/contract-clearance'
+import { readFileSync } from 'node:fs'
+import { partiesSay, siteSay } from '@/app/api/contracts/[id]/activate/words'
 
 /**
  * The papers are asked for when somebody is placed.
@@ -198,5 +200,37 @@ describe('who owes a document', () => {
 
   it('a type nobody has defined is asked of the person, because a document with no owner is theirs to hand over', () => {
     expect(owedBy('SOMETHING_A_CLIENT_INVENTED_ON_TUESDAY')).toBe('PERSON')
+  })
+})
+
+describe('the start says who may change a placement, what the I-9 was completed from, and where the work is (simulation, 2026-10-20)', () => {
+  const route = readFileSync('src/app/api/contracts/[id]/activate/route.ts', 'utf8')
+
+  it('names each firm that may change it once, with "or" before the last', () => {
+    expect(partiesSay(['Brightmoor Staffing', 'Northbend Athletic', 'Northbend Athletic'])).toBe('Brightmoor Staffing or Northbend Athletic')
+    expect(partiesSay(['Brightmoor Staffing', 'Northbend Athletic', null])).toBe('Brightmoor Staffing or Northbend Athletic')
+    expect(partiesSay(['Techpeple', 'Computer Systems', 'Northbend Athletic'])).toBe('Techpeple, Computer Systems or Northbend Athletic')
+  })
+
+  it('a role that does not start placements is told "Starting a placement is done by", never "activated is done by"', () => {
+    expect(route).toContain("activate: 'Starting a placement'")
+    expect(route).toMatch(/askTheDesk\(\{ doing: DOING\[action as Action\]/)
+  })
+
+  it('the start reads the I-9’s edition and the documents behind it, the two columns the placement page reads', () => {
+    expect(route).toMatch(/formEdition: true,/)
+    expect(route).toMatch(/backedBy: \{\s*select: \{\s*evidence: \{ select: \{ type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true \} \}/)
+  })
+
+  it('says where the work is: the client’s site and its town, or that it is remote', () => {
+    expect(siteSay('Northbend Athletic', { name: 'Tualatin campus', city: 'Tualatin', state: 'OR' })).toBe('Northbend Athletic’s site in Tualatin, OR')
+    expect(siteSay('Northbend Athletic', { name: 'Remote', isRemote: true })).toBe('Northbend Athletic, working remotely')
+    expect(siteSay('Northbend Athletic', null)).toBe('Northbend Athletic')
+  })
+
+  it('the worker’s notice names the client in its title, never only "Contract activated"', () => {
+    expect(route).toContain('title: `Your placement at ${clientName} ${TOLD[action as Action]}`')
+    expect(route).toContain("activate: 'has started — work may begin'")
+    expect(route).not.toContain('title: `Contract ${')
   })
 })

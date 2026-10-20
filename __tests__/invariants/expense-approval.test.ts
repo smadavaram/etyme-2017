@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { check, gates, returnIt, STALE_AFTER_DAYS, type Expense, type Policy } from '@/lib/expense-approval'
 import {
-  mayDecide, acceptanceChain, legBills, capFor, waitingOn, rowFor, rejectRefusal,
+  mayDecide, acceptanceChain, legBills, capFor, waitingOn, rowFor, rejectRefusal, fullyAccepted,
   type ExpenseOnRecord, type Leg, type AcceptanceRow,
 } from '@/lib/money/expense-acceptance'
+import { mayFileOwnExpense, type ExpenseRung } from '@/lib/money/own-expense'
 
 /**
  * The same shape as a timesheet and for the same reason: the client
@@ -347,5 +348,78 @@ describe('the add expense form writes the amount the worker typed', () => {
     const page = readFileSync('src/app/dashboard/expenses/page.tsx', 'utf8')
     expect(page).toContain('unitPrice: Math.round((parseFloat(item.unitPrice) || 0) * 100) / 100,')
     expect(page).not.toMatch(/unitPrice: Math\.round\(\(parseFloat\(item\.unitPrice\) \|\| 0\) \* 100\),/)
+  })
+})
+
+describe('the worker hears once that an expense was accepted, when every firm that pays for it has (simulation, 2026-10-20)', () => {
+  const chain = acceptanceChain(helenaExpense(), LEGS)
+
+  it('the client accepting first does not finish it; the firm under the client accepting does', () => {
+    expect(fullyAccepted(chain, [], accepted('northbend', 41_250))).toBe(false)
+    expect(fullyAccepted(chain, [accepted('northbend', 41_250)], accepted('cs', 41_250))).toBe(true)
+  })
+
+  it('on a direct placement the client’s acceptance is the last one', () => {
+    const direct = acceptanceChain(helenaExpense(), [{ ...bottom, payerId: 'northbend', payerName: 'Northbend Athletic' }])
+    expect(fullyAccepted(direct, [], accepted('northbend', 41_250))).toBe(true)
+  })
+
+  it('a send-back anywhere in the chain means it is not accepted', () => {
+    const back: AcceptanceRow = { companyId: 'northbend', status: 'SENT_BACK', acceptedCents: 0, reason: 'No receipt.', createdAt: new Date() }
+    expect(fullyAccepted(chain, [back], accepted('cs', 41_250))).toBe(false)
+  })
+
+  it('the accept route tells the worker only when it is fully accepted, or sent back, and the firms as each accepts', () => {
+    const src = readFileSync('src/app/api/expenses/[id]/accept/route.ts', 'utf8')
+    expect(src).not.toContain("'An expense of yours was accepted'")
+    expect(src).toMatch(/if \(done \|\| !accepted\) \{\s*notify\(/)
+    expect(src).toContain('by every firm that pays for it')
+  })
+})
+
+describe('a worker files their own expense; nobody else files it for them', () => {
+  const rung = (over: Partial<ExpenseRung>): ExpenseRung => ({
+    id: 'tp-sell', personId: 'helena', companyId: 'techpeple', companyName: 'Techpeple', clientCompanyId: 'cs', state: 'IN_PROGRESS', ...over,
+  })
+  const own = rung({})
+  const above = rung({ id: 'cs-sell', companyId: 'cs', companyName: 'Computer Systems', clientCompanyId: 'northbend' })
+  const RUNGS = [own, above]
+
+  it('a worker files an expense on their own placement, on the rung their employer holds', () => {
+    expect(mayFileOwnExpense({ callerPersonId: 'helena', askedPersonId: 'helena', line: own, rungs: RUNGS })).toEqual({ ok: true })
+    expect(mayFileOwnExpense({ callerPersonId: 'helena', line: own, rungs: RUNGS })).toEqual({ ok: true })
+  })
+
+  it('a worker cannot file one in somebody else’s name, and is told everybody files their own', () => {
+    const r = mayFileOwnExpense({ callerPersonId: 'helena', askedPersonId: 'priya', line: own, rungs: RUNGS })
+    expect(r).toMatchObject({ ok: false, status: 403, code: 'NOT_YOURS' })
+    expect((r as any).says).toBe('You file your own expenses. Anybody else files theirs from their own page, and nobody files one for them.')
+  })
+
+  it('a worker cannot file one on somebody else’s placement', () => {
+    const r = mayFileOwnExpense({ callerPersonId: 'priya', line: own, rungs: RUNGS })
+    expect(r).toMatchObject({ ok: false, status: 403, code: 'NOT_YOURS' })
+    expect((r as any).says).toMatch(/^This placement is not yours/)
+  })
+
+  it('a worker filing on the rung above their employer is sent to their employer’s placement, by name', () => {
+    const r = mayFileOwnExpense({ callerPersonId: 'helena', line: above, rungs: RUNGS })
+    expect(r).toMatchObject({ ok: false, status: 422, code: 'NOT_YOUR_RUNG' })
+    expect((r as any).says).toBe(
+      'File it on your placement with Techpeple, which approves it. ' +
+        'This line is Computer Systems’s, and an expense filed here would never reach your employer.'
+    )
+  })
+
+  it('nothing is filed on a placement canceled before it started, or on one that does not exist', () => {
+    expect(mayFileOwnExpense({ callerPersonId: 'helena', line: rung({ state: 'CANCELLED' }), rungs: [rung({ state: 'CANCELLED' })] })).toMatchObject({ ok: false, code: 'NEVER_RAN' })
+    expect(mayFileOwnExpense({ callerPersonId: 'helena', line: null, rungs: [] })).toMatchObject({ ok: false, status: 404 })
+  })
+
+  it('the expense route takes the worker’s own filing as submitted, and still refuses a firm raising one in another person’s name', () => {
+    const src = readFileSync('src/app/api/expenses/route.ts', 'utf8')
+    expect(src).toContain('mayFileOwnExpense(')
+    expect(src).toMatch(/personId: caller\.person\.id,[\s\S]*status: 'SUBMITTED'/)
+    expect(src).toContain("code: 'NOT_THIS_PERSON'")
   })
 })

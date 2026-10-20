@@ -401,6 +401,21 @@ export function waitingOn(chain: Chain, acceptances: readonly AcceptanceRow[]): 
   return null
 }
 
+/**
+ * Whether every firm that pays for this expense has accepted it, with
+ * `decided` standing in for whatever that firm had before.
+ *
+ * The worker is told once, at this moment (simulation, 2026-10-20: one
+ * worker read "An expense of yours was accepted" twice, once per firm in
+ * the chain). The firms are told as each accepts; the worker hears the
+ * outcome, not each step.
+ */
+export function fullyAccepted(chain: Chain, acceptances: readonly AcceptanceRow[], decided?: AcceptanceRow | null): boolean {
+  if (chain.steps.length === 0) return false
+  const rows = decided ? [...acceptances.filter((a) => a.companyId !== decided.companyId), decided] : acceptances
+  return chain.steps.every((s) => rows.some((a) => a.companyId === s.companyId && a.status === 'ACCEPTED'))
+}
+
 // ── What the paying firm itself accepted ─────────────────────────────
 
 /** The payer's own decision on an expense, as a bill or a receipt reads it. */

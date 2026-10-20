@@ -252,6 +252,10 @@ describe('4 · nobody starts without paperwork', () => {
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_A_PARTY')
     expect(r.body.error.message).toMatch(/not a party/)
+    // Each firm that may change it is named once, joined with "or" (simulation, 2026-10-20).
+    const named = /Only (.+) can change it\.$/.exec(r.body.error.message)![1].split(/, | or /)
+    expect(new Set(named).size).toBe(named.length)
+    expect(named.length).toBeGreaterThanOrEqual(2)
   })
 
   it('the AP clerk is a party and still cannot start somebody — that is not the clerk\'s job', async () => {
@@ -259,7 +263,7 @@ describe('4 · nobody starts without paperwork', () => {
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, { action: 'activate' })
     expect(r.status).toBe(403)
     // The refusal names the desks that do this, never the permission key.
-    expect(r.body.error.message).toMatch(/activated is done by .*Program Manager/)
+    expect(r.body.error.message).toMatch(/^Starting a placement is done by .*Program Manager/)
     expect(r.body.error.message).not.toMatch(/assignments\.write|\b[a-z]+\.(read|write)\b/)
   })
 

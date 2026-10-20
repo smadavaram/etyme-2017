@@ -235,6 +235,11 @@ describe('on the seeded Rosa Delgado, a week is owed to her once her employer ac
 
   it('a paid week shows what was paid and when', async () => {
     as(BRIGHTMOOR_PAYROLL)
+    // Worked out first, then paid: pay never goes out before it is worked out.
+    const worked = await json(await runPayroll(req('POST', '/api/payroll/run', {
+      buyContractIds: [the.buyId], action: 'calculate', period: { start: the.periodStart, end: the.periodEnd },
+    })))
+    expect(worked.status, JSON.stringify(worked.body)).toBe(200)
     const run = await json(await runPayroll(req('POST', '/api/payroll/run', {
       buyContractIds: [the.buyId], action: 'process', period: { start: the.periodStart, end: the.periodEnd },
     })))

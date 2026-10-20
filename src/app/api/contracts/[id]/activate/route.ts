@@ -8,6 +8,7 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
+import { partiesSay, siteSay } from './words'
 
 /**
  * POST /api/contracts/:id/activate
@@ -52,6 +53,29 @@ const NEEDS: Record<Action, Permission> = {
   cancel:   'assignments.terminate',
 }
 
+// What each action is, said as the start of a refusal to somebody whose
+// role does not do it: "Starting a placement is done by …". The log's
+// past-tense summaries below read wrong there ("activated is done by").
+const DOING: Record<Action, string> = {
+  verify:   'Sending a placement for verification',
+  activate: 'Starting a placement',
+  pause:    'Pausing a placement',
+  resume:   'Resuming a placement',
+  complete: 'Ending a placement',
+  cancel:   'Canceling a placement before it starts',
+}
+
+// What the worker reads about their own placement, after "Your placement
+// at <client>". Each names the client, so the notice says what it is about.
+const TOLD: Record<Action, string> = {
+  verify:   'was sent for verification',
+  activate: 'has started — work may begin',
+  pause:    'is paused',
+  resume:   'has resumed',
+  complete: 'has ended',
+  cancel:   'was canceled before it started',
+}
+
 // Human-readable descriptions for the automation log
 const ACTION_SUMMARIES: Record<Action, string> = {
   verify:   'submitted for verification',
@@ -87,6 +111,8 @@ export async function POST(
       company: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
       endClientCompany: { select: { id: true, name: true } },
+      // Where the work is done, which the worker is told when it starts.
+      workLocation: { select: { name: true, city: true, state: true, isRemote: true } },
       // The role, because the clearance picks the start packet off it:
       // a nurse is asked for a state license and a developer is not.
       // A SellContract carries no title of its own.
@@ -118,7 +144,7 @@ export async function POST(
       {
         error: {
           code: 'NOT_A_PARTY',
-          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can change it.`,
+          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${partiesSay([contract.company.name, contract.clientCompany.name, contract.endClientCompany?.name])} can change it.`,
         },
       },
       { status: 403 }
@@ -130,7 +156,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: askTheDesk({ doing: ACTION_SUMMARIES[action as Action].replace(/ —.*$/, ''), needs: needs, kind: caller.company?.kind, companyName: caller.company?.name }),
+          message: askTheDesk({ doing: DOING[action as Action], needs: needs, kind: caller.company?.kind, companyName: caller.company?.name }),
         },
       },
       { status: 403 }
@@ -206,10 +232,24 @@ export async function POST(
       type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
       provider: true, result: true,
     } as const
-    const [personVerifications, supplier, supplierCertificates] = await Promise.all([
+    // 2026-10-20, found by the simulation: the person's own rows also need
+    // the form's edition and the documents recorded behind it, the two
+    // columns the placement page already selects. Without them every I-9
+    // read "on file with nothing behind it" at the start, and an edition
+    // was never judged — the same column-nobody-selects fault as above.
+    const now = new Date()
+    const [personRows, supplier, supplierCertificates] = await Promise.all([
       prisma.verification.findMany({
         where: { personId: contract.personId },
-        select: FLOOR_AND_CEILING,
+        select: {
+          ...FLOOR_AND_CEILING,
+          formEdition: true,
+          backedBy: {
+            select: {
+              evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } },
+            },
+          },
+        },
       }),
       prisma.company.findUnique({ where: { id: contract.companyId }, select: { name: true } }),
       prisma.verification.findMany({
@@ -220,13 +260,29 @@ export async function POST(
         select: FLOOR_AND_CEILING,
       }),
     ])
+    // What each form was completed from, and whether that document is in
+    // force today — read the way the placement page reads it, so the page
+    // and the button give one verdict.
+    const personVerifications = personRows.map((v) => ({
+      ...v,
+      backedBy: v.backedBy.map((b) => {
+        const from = b.evidence.validFrom ?? b.evidence.issuedAt
+        return {
+          key: b.evidence.type,
+          inForce:
+            (b.evidence.status === 'CLEAR' || b.evidence.status === 'CONDITIONAL') &&
+            !(from && from > now) &&
+            !(b.evidence.expiresAt && b.evidence.expiresAt < now),
+        }
+      }),
+    }))
     const papers = contractClearance({
       personName: contract.person.name,
       personVerifications,
       supplierName: supplier?.name ?? 'the supplier',
       supplierCertificates,
       clientName: contract.clientCompany.name,
-      on: new Date(),
+      on: now,
       // 2026-09-17. The role decides which start packet is run, and a
       // licensed role's packet requires the license — so a nurse with no
       // license on file at all is refused here, where before there was
@@ -433,13 +489,21 @@ export async function POST(
   const notifyActions = ['activate', 'complete', 'cancel', 'pause', 'resume'] as const
   if ((notifyActions as readonly string[]).includes(action)) {
     const clientName = contract.endClientCompany?.name ?? contract.clientCompany.name
+    // Where and for whom (simulation, 2026-10-20): "Contract activated —
+    // work may begin" named neither, and seven workers read it.
+    const at = siteSay(clientName, contract.workLocation)
+    const role = contract.requirement?.title ? ` as ${contract.requirement.title}` : ''
+    const through = contract.company.name !== clientName ? ` through ${contract.company.name}` : ''
 
     notify({
       personId: contract.person.id,
       companyId: contract.companyId,
       type: 'CONTRACT',
-      title: `Contract ${ACTION_SUMMARIES[action as Action]}`,
-      body: `Your contract at ${clientName} has been ${ACTION_SUMMARIES[action as Action]} by ${caller.person.name}`,
+      title: `Your placement at ${clientName} ${TOLD[action as Action]}`,
+      body:
+        action === 'activate'
+          ? `You start${role} at ${at}, working for ${clientName}${through}. ${caller.person.name} started the placement.`
+          : `Your placement${role} at ${at}, for ${clientName}${through}, ${TOLD[action as Action]}. ${caller.person.name} made the change.`,
       entityId: id,
       data: { contractId: id, action, from: previousState, to: newState },
     })

@@ -114,6 +114,8 @@ describe('back pay for a raise dated before days already paid', () => {
   }, 900_000)
 
   it("pays June at $66, with the premium on the forty-five-hour week's five hours over the line", async () => {
+    // Worked out first, then paid: pay never goes out before it is worked out.
+    expect((await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'calculate', period: '2026-06' })).status).toBe(200)
     const r = await call(owner, runPayroll, 'POST', '/api/payroll/run', { buyContractIds: [buyId], action: 'process', period: '2026-06' })
     expect(r.status).toBe(200)
     const row = r.body.data.details.find((x: any) => x.buyContractId === buyId)
