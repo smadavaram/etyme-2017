@@ -1380,6 +1380,59 @@ twenty-six queries in a row and the mark polls it every minute (demand,
 architect); an MSP's questions in Ask Etyme still read its own book
 while seated in a client's program (conversation).
 
+## Every transaction is simulated end to end, and agents close them without asking — decided by the founder, 2026-10-20
+
+*"Post and simulate transactions in every step from job posting to
+approval to submissions to matching to interviewing and hiring to
+contract on buy and sell sides for all parties, timesheets submission,
+approval, expenses submission and approval and billing and payroll or
+vendor payments — load test with hundreds of simulated transactions.
+Don't ask for my approvals — let agents talk to each other, harness,
+learn like humans do and close transactions like in the real world."*
+
+What this changes, and the shape it takes:
+
+- **A simulation harness drives the real routes, as each party's seat.**
+  Never rows written into tables: a hiring manager posts a job through
+  `POST /api/requisitions`, HR and Procurement clear it through the
+  approval routes, suppliers submit through `POST /api/submissions`
+  with the person's consent on a bench listing, the worker files the
+  week through the worker's own route, the client signs it, each rung
+  accepts, bills are generated and sent, invoice receipts recorded,
+  the three-way check run, the AP clerk pays, payroll runs. Every
+  actor is a seeded seat opened through the demo door, so the same
+  rules, refusals and logs apply as to a person. The harness lives in
+  `scripts/simulate/` and runs against a local build on a fresh copy of
+  the seeded world template (`__integration__/templates.ts`).
+- **Hundreds of placements, in parallel, with timings.** Across the
+  three seeded clients and every seeded supplier and sub-vendor, a
+  year of weeks each. The run reports what closed at every station,
+  what refused and why, and how long each route took under load. That
+  is the load test; a route that falls over under two hundred
+  concurrent weeks is a fault with an owner.
+- **A refusal is a lesson, not a stop.** When a rule refuses an actor
+  (a missing I-9, a supplier not cleared, a week over the line), the
+  harness records the sentence and the owning domain decides: the
+  actor was wrong and learns (files the I-9 first, asks Procurement to
+  clear the firm), or the rule was wrong and is fixed. Either way the
+  run goes again. The founder is not asked; every change is reversible
+  in a sentence and recorded here.
+- **The new test files the testing budget held back are now allowed
+  for this:** the simulation itself, and the screen-by-screen walk that
+  opens every link and tab of every seat against the simulated world,
+  asserts every figure on a screen against its own API, and keeps a
+  screenshot per page to diff against the last run.
+- **Built in this order**, one domain per set of files: the harness,
+  the actors and the report (architect); the job-to-award stage
+  (demand); bench, consent and matching (supply); paperwork and the
+  start (regulatory); weeks, expenses, bills, receipts, payments and
+  payroll (money); the notices between parties as the handoffs
+  (conversation). Then one full run, a release pass and the report.
+- **What the seed becomes:** the simulation's closing state is a
+  world of thousands of real transactions made the way people make
+  them, and that is what the demo shows. The hand-written seed stays as
+  the day-one world the simulation starts from.
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in
