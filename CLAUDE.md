@@ -1622,6 +1622,23 @@ bench are positions, not a kind: `supplierPosture` is written
 explicitly, which no seed has done before, so every screen that reads
 it meets a value for the first time.
 
+**Ten thousand documents through the real routes. Set by the founder,
+2026-10-20:** *"Exchange 10000 documents like insurance, W-9, NCA
+during submissions and screening and background checks."* So the
+simulation gains a documents station (regulatory): on a supplier's
+first submission to a client it sends what a supplier owes (W-9,
+certificates of insurance, good standing, the signed NDA and NCA, the
+MSA where none stands); at screening the candidate sends what a
+candidate owes from their own page (résumé, ID, the I-9 completed from
+a named document, education, the consent and identifiers for a
+background check, never the report) and HR examines each; the
+background-check package goes out and the provider's verdict comes
+back verbatim with name, reference and date. Every file is a real
+small file through the real upload routes, every ask tells the person,
+every refusal is a lesson, and the report counts documents by kind and
+bytes stored, with the paper routes' timings under that load. The
+station runs unchanged on the generated world.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
