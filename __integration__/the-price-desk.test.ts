@@ -154,7 +154,11 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
       select: { personId: true, person: { select: { primaryEmail: true } } },
     })
     consultantEmail = line.person.primaryEmail
-    if (!(await prisma.context.findFirst({ where: { personId: line.personId, type: 'CONSULTANT' } }))) {
+    // At this firm, not anywhere: since 2026-10-20 the world is born with
+    // every placed worker's own company-less seat (lib/own-seat), and a
+    // check for any consultant seat found that one and never seated them
+    // at the firm the test reads as.
+    if (!(await prisma.context.findFirst({ where: { personId: line.personId, type: 'CONSULTANT', companyId: vendorId } }))) {
       await prisma.context.create({
         data: {
           personId: line.personId,
