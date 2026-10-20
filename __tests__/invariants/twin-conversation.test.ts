@@ -66,7 +66,7 @@ import {
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   FIRM_QUESTIONS, SOLO_QUESTIONS, questionsFor, closeFor, placeholderFor, partyOf, queueFrom, queueCards, queueName, namedNeedsSays,
   threadsSay, whenSays, weekDueOn, billedSays, billingSays, rolloffSays, benchSays, unbilledSays, unpaidSays, OPEN_THE_LIST,
-  sentencesOf, type QueueRead,
+  sentencesOf, type QueueRead, type QueueItem,
   billCardTitle, billRows, billFromPayload, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   NOT_GROUNDED, NOT_YET, REPLACED_NOTE, grounded, cardIdsOf,
   type Answer, type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
@@ -1477,6 +1477,39 @@ describe('every first screen names a person and the step in front of them (found
     expect(card.act).toBeNull()
     expect(card.href).toBe('/dashboard/timesheets?id=ts-l')
     expect(card.fact).toBe('44 hours, through Brightmoor Staffing, Oct 4 – Oct 10. 44 hours against a 40-hour job. Open it to approve with a reason.')
+  })
+
+  it('a roll-off card says the days the queue wrote — “Felix Brenner rolls off in 18 days”, today and tomorrow as such — and never “rolls off soon” where the queue gave a day', () => {
+    const roll = (title: string, dueDate: string | null = '2026-11-06T00:00:00.000Z'): QueueItem => ({
+      type: 'ROLLOFF_ACTION', title, whose: 'Felix Brenner', subtitle: 'Northbend Athletic · $132/hr · Nobody has acted yet', entityId: 'sc-felix', dueDate,
+    })
+    expect(queueName(roll('Rolls off in 18 days — Felix Brenner'))).toBe('Felix Brenner rolls off in 18 days')
+    expect(queueName(roll('Rolls off in 1 day — Felix Brenner'))).toBe('Felix Brenner rolls off in 1 day')
+    expect(queueName(roll('Rolls off today — Felix Brenner'))).toBe('Felix Brenner rolls off today')
+    expect(queueName(roll('Rolls off tomorrow — Felix Brenner'))).toBe('Felix Brenner rolls off tomorrow')
+    // A title that says no day: the last day itself, and "soon" only with neither.
+    expect(queueName(roll('Felix Brenner'))).toBe('Felix Brenner rolls off on Nov 6')
+    expect(queueName(roll('Felix Brenner', null))).toBe('Felix Brenner rolls off soon')
+    const [card] = queueCards({ total: 1, items: [roll('Rolls off in 18 days — Felix Brenner')] })
+    expect(card.title).toBe('Felix Brenner rolls off in 18 days.')
+    expect(card.fact).toBe('Northbend Athletic, $132/hr, nobody has acted yet.')
+    expect(voiceBreaks(card.title)).toEqual([])
+  })
+
+  it('an invoice receipt waiting to be paid names the supplier and the invoice — “Brightmoor Staffing’s invoice receipt BRS-0412 waits for you to pay it” — with the amount and the due day as its fact', () => {
+    const [card] = queueCards({
+      total: 1,
+      items: [{
+        type: 'INVOICE_RECEIPT_TO_PAY', title: 'Pay invoice receipt — Brightmoor Staffing', whose: 'Brightmoor Staffing',
+        subtitle: 'Invoice BRS-0412 · $6,400.00 · due in 3 days', entityType: 'INVOICE', entityId: 'inv-412', actionUrl: '/dashboard/invoices/inv-412',
+      }],
+    })
+    expect(card.title).toBe('Brightmoor Staffing’s invoice receipt BRS-0412 waits for you to pay it.')
+    expect(card.fact).toBe('Invoice BRS-0412, $6,400.00, due in 3 days.')
+    // Paying is the payment route's question, through the three-way check: the card opens the receipt.
+    expect(card.act).toBeNull()
+    expect(card.href).toBe('/dashboard/invoices/inv-412')
+    expect(voiceBreaks(card.title)).toEqual([])
   })
 
   it('“Since you last looked” says who and what — the weeks to approve by a day with the names in it, and a worker’s week by its dates — and never a count in parentheses', () => {

@@ -2148,7 +2148,7 @@ const lowerNumber = (n: number) => (n < NUM_LOWER.length ? NUM_LOWER[n] : String
 export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): string {
   // The person the row is about: the route's own word where it gave one,
   // else the name after the dash in its title.
-  const PERSON_ROWS = ['TIMESHEET_APPROVAL', 'EXPENSE_APPROVAL', 'EXPENSE_ACCEPTANCE', 'ROLLOFF_ACTION', 'SUBMISSION_REVIEW', 'START_HELD']
+  const PERSON_ROWS = ['TIMESHEET_APPROVAL', 'EXPENSE_APPROVAL', 'EXPENSE_ACCEPTANCE', 'ROLLOFF_ACTION', 'SUBMISSION_REVIEW', 'START_HELD', 'INVOICE_RECEIPT_TO_PAY']
   const who = PERSON_ROWS.includes(d.type) && d.whose?.trim() ? d.whose.trim() : afterDash(d.title)
   switch (d.type) {
     case 'START_HELD':
@@ -2165,14 +2165,16 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
       return `${possessive(who)} expense waits for your approval`
     case 'EXPENSE_ACCEPTANCE':
       return `${possessive(who)} expense waits for you to accept it`
-    case 'ROLLOFF_ACTION': {
-      const days = d.title.match(/in (\d+)d\b/)?.[1]
-      return days ? `${who} rolls off in ${days} days` : `${who} rolls off soon`
-    }
+    case 'ROLLOFF_ACTION':
+      return `${who} rolls off ${rollsOffWhen(d)}`
     case 'SUBMISSION_REVIEW':
       return `${possessive(who)} submission waits for your review`
     case 'INVOICE_OVERDUE':
       return `Bill ${who} is overdue`
+    case 'INVOICE_RECEIPT_TO_PAY': {
+      const number = (d.subtitle ?? '').match(/^Invoice (\S+)/)?.[1]
+      return `${possessive(who)} invoice receipt${number ? ` ${number}` : ''} waits for you to pay it`
+    }
     case 'SUPPLIER_REVIEW':
       return `${who} waits for your review as a supplier`
     case 'REQUISITION_APPROVAL':
@@ -2190,6 +2192,19 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
     default:
       return cap(d.title)
   }
+}
+
+/**
+ * When a roll-off falls, in the queue's own words: "in 18 days", "today",
+ * "tomorrow". The queue says it once in the title ("Rolls off in 18 days
+ * — Felix Brenner", `app/api/decisions/words`), and this prints what it
+ * wrote rather than counting again. Where the title says no day, the
+ * last day itself ("on Nov 6"), and only with neither, "soon".
+ */
+function rollsOffWhen(d: QueueItem): string {
+  const said = d.title.match(/\bRolls off (today|tomorrow|in \d+ days?)(?= — |$)/i)?.[1]
+  if (said) return said.toLowerCase()
+  return d.dueDate ? `on ${DAY_UTC(d.dueDate)}` : 'soon'
 }
 
 /** The last sentence of a row's own words: "Put one on file." */
