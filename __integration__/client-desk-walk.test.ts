@@ -188,8 +188,19 @@ describe('one job request names the same people it waits on', () => {
   it('a job request routed to a person names the same people on the list and on its own page', async () => {
     const apps = await prisma.costCenter.findFirstOrThrow({
       where: { companyId: s.northbend, code: { startsWith: 'APPS' } },
-      select: { id: true },
+      select: { id: true, headcountPlans: { orderBy: { period: 'desc' }, take: 1, select: { id: true, approvedHeads: true } } },
     })
+    // Outside plan by headcount, not by money: since 2026-10-20 the seeded
+    // Technology value rule reaches $400,000, so this $120,000 job clears
+    // on value, and the later sentences read that figure. Apps' plan is
+    // filled to the heads already on site, so one more head is HR's
+    // question; the plan is put back once the job is raised.
+    const plan = apps.headcountPlans[0]
+    expect(plan, 'Apps carries a headcount plan').toBeTruthy()
+    const onSite = await prisma.contractCostAllocation.count({
+      where: { costCenterId: apps.id, sellContract: { state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] } } },
+    })
+    await prisma.headcountPlan.update({ where: { id: plan.id }, data: { approvedHeads: onSite } })
     as(HIRING)
     const raised = await json(
       await raiseJobRequest(
@@ -208,7 +219,7 @@ describe('one job request names the same people it waits on', () => {
           costCenterId: apps.id,
         })
       )
-    )
+    ).finally(() => prisma.headcountPlan.update({ where: { id: plan.id }, data: { approvedHeads: plan.approvedHeads } }))
     expect(raised.status, JSON.stringify(raised.body)).toBeLessThan(300)
     const id = raised.body.data?.requisition?.id ?? raised.body.data?.id
     expect(id).toBeTruthy()
@@ -221,6 +232,8 @@ describe('one job request names the same people it waits on', () => {
 
     s.raised = id
     expect(card.approvalState).toBe('PENDING_APPROVAL')
+    const heads = (page.body.data.checked.checks as any[]).find((c) => c.code === 'HEADCOUNT_PLAN')
+    expect(heads.outcome).toBe('ROUTE')
     expect(card.waitingOn).toMatch(/^Waiting on /)
     expect(page.body.data.waitingOn).toBe(card.waitingOn)
     // Every desk at the rank in play is named, not whichever row came first.

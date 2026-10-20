@@ -49,7 +49,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
 import { PERFORMERS, type PerformContext } from '@/lib/twin/performers'
 import { OWNER_DESKS } from '@/lib/twin/readers'
-import { feedLine } from '@/lib/twin/feed-words'
+import { feedLine, questionTitle, type QuestionFacts } from '@/lib/twin/feed-words'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 export type Surface = 'TEAMS' | 'WEB' | 'CRON'
@@ -604,15 +604,49 @@ async function tellTheDesk(input: ActInput, needs: string, approvalId: string, o
   const to = opts.askTheOwner && input.authority.personId
     ? [input.authority.personId]
     : [...new Set(desk.map((d) => d.personId))].filter((p) => p !== input.authority.personId)
+  if (to.length === 0) return
+  const title = questionTitle(input.action, input.entity.type, await questionFacts(input))
   await notifyBulk(to.map((personId) => ({
     personId,
     companyId: input.companyId,
     type: 'SYSTEM' as const,
-    title: `${cap(twinName(input.twin))} is asking you to decide`,
+    title,
     body: `${TWIN_ACTS[input.action]?.says ?? input.action} ${input.rule} ${input.rationale}`.trim(),
     entityId: approvalId,
     data: { twinApprovalId: approvalId, href: '/dashboard' },
   })))
+}
+
+/**
+ * What the question's heading names, from the act's own payload first and
+ * the record only for what the payload does not carry. A read that fails
+ * leaves the fact out; the heading says less, never something wrong.
+ */
+async function questionFacts(input: ActInput): Promise<QuestionFacts> {
+  const p = (input.payload ?? {}) as Record<string, unknown>
+  const str = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim() : null)
+  const period = p.period && typeof p.period === 'object' ? str((p.period as Record<string, unknown>).label) : null
+  const suppliers = Array.isArray(p.suppliers) ? p.suppliers.filter((x): x is string => typeof x === 'string' && !!x) : []
+  const facts: QuestionFacts = {
+    number: str(p.number) ?? str(p.invoiceNumber),
+    supplierName: str(p.supplierName) ?? (suppliers.length === 1 ? suppliers[0] : null),
+    customerName: str(p.customerName),
+    periodLabel: period,
+    personName: str(p.personName),
+    tier: str(p.tier),
+  }
+  try {
+    if (input.entity.type === 'Person' && !facts.personName) {
+      const who = await prisma.person.findUnique({ where: { id: input.entity.id }, select: { name: true } })
+      facts.personName = str(who?.name)
+    } else if (input.entity.type === 'Invoice' && !facts.number) {
+      const inv = await prisma.invoice.findUnique({ where: { id: input.entity.id }, select: { number: true } })
+      facts.number = str(inv?.number)
+    }
+  } catch {
+    // The heading says less; the question still goes.
+  }
+  return facts
 }
 
 // ── A person answering ────────────────────────────────────────────────

@@ -39,7 +39,12 @@ import { baseUrl } from '@/lib/signed-link'
 import { weekFlag } from '@/lib/timesheet-flag'
 import { lineFor, splitWeeks, weeksAwaitingDecision, type Decision, type Treatment } from '@/lib/overtime'
 import { ladderAbove } from '@/app/api/timesheets/ladder'
-import { topDown, signersOf, tellNext, type LadderRung, type Signer } from '@/app/api/timesheets/chain-turn'
+import {
+  topDown, signersOf, tellNext, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays, workerToldSays,
+  type LadderRung, type Signer,
+} from '@/app/api/timesheets/chain-turn'
+import { signatureRateCents } from '@/app/api/timesheets/signature-rate'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import {
   linkExpiresAt, linkVerdict, checkSendBack, checkEvidence, mayActForTheClient, scopeFor,
   mayReadEvidence, evidenceReadLog, approvedByWords, letterToApprover, signaturesWritten, dayOf,
@@ -800,8 +805,8 @@ export async function attachEvidence(
     await prisma.weekApproval.delete({ where: { id: row.id } }).catch(() => {})
     return signed
   }
-  await tellAfterApproval(c, { words, senderId: r.personId === c.week.personId ? null : r.personId, how: 'EVIDENCE' })
-  return { ok: true, id: row.id, words, says: `${words}. ${nextSays(c)}` }
+  await tellAfterApproval(c, { words, senderId: r.personId === c.week.personId ? null : r.personId, how: 'EVIDENCE', standsFor: signed.standsFor })
+  return { ok: true, id: row.id, words, says: `${words}. ${signed.standsFor ? signed.standsFor.says : nextSays(c)}` }
 }
 
 // ── Writing the client's signature ────────────────────────────────────
@@ -829,9 +834,10 @@ async function signForClient(
     /** Whether the client was off the platform at the moment it approved, where that differs from the row. */
     clientOffPlatform?: boolean
   }
-): Promise<{ ok: true } | Refused> {
+): Promise<{ ok: true; standsFor: SoleFirm | null } | Refused> {
   const client = signaturesWritten(c.signers)[0]
   if (!client) return refuse(409, 'NO_CLIENT', 'This week has no client signature to give.')
+  const standsFor = await soleFirmBelow(c)
   // The client's own rung. `signersOf` (api/timesheets/chain-turn) gives
   // the CLIENT_APPROVAL signer the top rung's id, and the top rung is the
   // one sell line the client pays on — so its bill rate IS the rate on the
@@ -846,6 +852,7 @@ async function signForClient(
   })
   const clientRateCents = rateInForce(top.billRate, ratePeriods(topRates), c.week.periodStart).rateCents
   let signed: string | null = null
+  let soleAccepted: string | null = null
   try {
     await prisma.$transaction(async (tx) => {
       const moved = await tx.timesheet.updateMany({
@@ -880,6 +887,40 @@ async function signForClient(
       if (linked.count === 0) throw new Refusal(409, 'USED', 'This approval has already been used.')
       signed = assertion.id
 
+      // A one-person firm below the client: the client's signature stands
+      // as her firm's acceptance, in the same transaction, the way the
+      // approve button writes it (api/timesheets/[id]/approve), so a week
+      // approved by email never asks her to accept her own week.
+      if (standsFor) {
+        await tx.timesheet.update({
+          where: { id: c.week.id },
+          data: {
+            employerAcceptedById: null, employerAcceptedAt: at, acceptedHours: c.week.totalHours,
+            acceptedNote: standsFor.says, status: 'APPROVED',
+          },
+        })
+        const accepted = await tx.workAssertion.create({
+          data: {
+            timesheetId: c.week.id, companyId: standsFor.companyId, role: 'EMPLOYER_ACCEPTANCE',
+            hours: c.week.totalHours, rateCents: standsFor.payRateCents, state: 'LIVE', at,
+            byId: null, auto: true, note: standsFor.says,
+          },
+          select: { id: true },
+        })
+        soleAccepted = accepted.id
+        await tx.automationLog.create({
+          data: {
+            companyId: standsFor.companyId,
+            action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE',
+            summary: `${c.week.personName}’s week of ${weekSays(c.week.periodStart, c.week.periodEnd)} accepted for ${standsFor.name}`,
+            reason: standsFor.says,
+            payload: { timesheetId: c.week.id, weekApprovalId, signedByCompanyId: client.companyId, hours: c.week.totalHours, assertionId: accepted.id },
+            // Withdrawn on the ledger with the client's signature it rests on.
+            reversible: true,
+          },
+        })
+      }
+
       await tx.automationLog.create({
         data: {
           companyId: top.companyId,
@@ -910,7 +951,83 @@ async function signForClient(
       reportError('week-approval: posting a week approved by email', err),
     )
   }
-  return { ok: true }
+  // The one-person firm's acceptance posts its pay only where it has a pay
+  // line: a pay posting at a rate nobody set is a number nobody can stand
+  // behind (the approve route's rule).
+  if (soleAccepted && standsFor && standsFor.payRateCents > 0) {
+    await postAssertion(soleAccepted, null).catch((err) =>
+      reportError('week-approval: posting a one-person firm’s acceptance on a week approved by email', err),
+    )
+  }
+  return { ok: true, standsFor }
+}
+
+/** The firm below the client that accepts on the client's signature, because nobody there but the worker may. */
+interface SoleFirm {
+  companyId: string
+  name: string
+  /** The sentence on the acceptance and the automation log. */
+  says: string
+  /** What the firm pays the worker per hour, on its own pay line; zero where it has none. */
+  payRateCents: number
+}
+
+/**
+ * Where the week goes next to the worker's own employer, and every seat
+ * there that may accept hours is the worker's (`acceptsOnlyForItself` in
+ * api/timesheets/chain-turn): the client's signature stands as that
+ * firm's acceptance. Null anywhere a second person may accept, and
+ * wherever a firm sits between the client and the employer.
+ */
+async function soleFirmBelow(c: WeekChain): Promise<SoleFirm | null> {
+  const next = c.signers[1]
+  if (!next || next.role !== 'EMPLOYER_ACCEPTANCE' || c.week.employerAcceptedAt) return null
+  const acceptors = await prisma.context.findMany({
+    where: {
+      companyId: next.companyId, revokedAt: null,
+      role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+      ...NOT_THE_SAMPLE_SEAT,
+    },
+    select: { personId: true },
+  })
+  if (!acceptsOnlyForItself(acceptors, c.week.personId)) return null
+  const name = c.names.get(next.companyId) ?? 'Her firm'
+  return {
+    companyId: next.companyId,
+    name,
+    says: standsAsAcceptanceSays({ signedBy: c.clientName, firmName: name, personName: c.week.personName }),
+    payRateCents: signatureRateCents({
+      role: 'EMPLOYER_ACCEPTANCE', companyId: next.companyId, ladder: [],
+      ownBuyLineCents: await payLineCents(next.companyId, c),
+    }),
+  }
+}
+
+/**
+ * The employer's pay line for this person, at the rate in force on the
+ * first day worked: the buy line linked to the contract the hours are on,
+ * else any of the employer's naming the person. Null where it has none.
+ * The approve route reads the same line (`payRateOn` there); the figure is
+ * a record of what the signer's firm pays, and no posting reads it.
+ */
+async function payLineCents(employerId: string, c: WeekChain): Promise<number | null> {
+  const lines = await prisma.buyContract.findMany({
+    where: { companyId: employerId, candidates: { some: { personId: c.week.personId } } },
+    select: {
+      id: true,
+      sellLinks: { select: { sellContractId: true } },
+      candidates: { where: { personId: c.week.personId }, select: { payRate: true } },
+    },
+  })
+  const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === c.week.sellContractId)) ?? lines[0]
+  const opening = line?.candidates[0]?.payRate ?? 0
+  if (!line || opening <= 0) return null
+  const rows = await prisma.rateHistory.findMany({
+    where: { contractType: 'BUY', contractId: line.id },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const firstWorked = Object.entries(c.week.days).filter(([, h]) => Number(h) > 0).map(([d]) => d.slice(0, 10)).sort()[0]
+  return rateInForce(opening, ratePeriods(rows), firstWorked ? new Date(`${firstWorked}T00:00:00Z`) : c.week.periodStart).rateCents
 }
 
 /** Who has the week now, in a sentence. */
@@ -925,15 +1042,18 @@ function nextSays(c: WeekChain): string {
  * approve route sends a rung when the week reaches it, so the desk that
  * acts is the desk that hears, on its desk and by email.
  */
-async function tellAfterApproval(c: WeekChain, i: { words: string; senderId: string | null; how: 'LINK' | 'EVIDENCE' }) {
-  const next = c.signers[1]
+async function tellAfterApproval(c: WeekChain, i: { words: string; senderId: string | null; how: 'LINK' | 'EVIDENCE'; standsFor?: SoleFirm | null }) {
+  const week = weekSays(c.week.periodStart, c.week.periodEnd)
+  // A one-person firm's acceptance was written on the client's signature:
+  // nobody is left to ask, and nobody is told it was taken.
+  const next = i.standsFor ? null : c.signers[1]
   if (next) {
     const pays = next.role === 'EMPLOYER_ACCEPTANCE'
       ? c.week.personName
       : c.rungs.get(next.rungId)?.sellerName ?? 'the firm below you'
     const said = tellNext({
       personName: c.week.personName,
-      period: `${c.week.periodStart.toISOString().slice(0, 10)} – ${c.week.periodEnd.toISOString().slice(0, 10)}`,
+      period: week,
       hours: c.week.totalHours,
       signedBy: c.clientName,
       signedRole: 'CLIENT_APPROVAL',
@@ -952,17 +1072,20 @@ async function tellAfterApproval(c: WeekChain, i: { words: string; senderId: str
       })
     }
   }
+  // The worker hears once, when the top signs — the same words the
+  // approve button sends (`workerToldSays`), with how it was approved.
+  const told = workerToldSays({ week, hours: c.week.totalHours, signedBy: c.clientName })
   void notify({
     personId: c.week.personId, companyId: c.employerId, type: 'TIMESHEET', channel: 'EMAIL',
-    title: 'Timesheet approved',
-    body: `Your week ${c.week.periodStart.toISOString().slice(0, 10)} – ${c.week.periodEnd.toISOString().slice(0, 10)} (${c.week.totalHours}h). ${i.words}.`,
+    title: told.title,
+    body: `${told.body} ${i.words}.`,
     entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` },
   })
   if (i.senderId && i.senderId !== c.week.personId) {
     void notify({
       personId: i.senderId, type: 'TIMESHEET',
-      title: `${c.week.personName}’s week is approved`,
-      body: `${i.words}. ${nextSays(c)}`,
+      title: `${c.week.personName}’s week of ${week} is approved`,
+      body: `${i.words}. ${i.standsFor ? '' : nextSays(c)}`.trim(),
       entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` },
     })
   }
@@ -1104,7 +1227,7 @@ export async function answerLink(
       ...(standing.changed ? { clientOffPlatform: standing.clientOffPlatform } : {}),
     })
     if (!signed.ok) return signed
-    await tellAfterApproval(c, { words, senderId: row.sentById, how: 'LINK' })
+    await tellAfterApproval(c, { words, senderId: row.sentById, how: 'LINK', standsFor: signed.standsFor })
     return { ok: true, says: `Thank you. ${c.week.personName}’s week is approved, with your name, this address and the time. Nothing else is needed from you.` }
   }
 

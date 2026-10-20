@@ -379,3 +379,67 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(r.body.error.message).toMatch(/A week like this is signed in Etyme by somebody at Northbend Athletic, with the reason it is right, so it cannot be approved by email\.$/)
   })
 })
+
+describe('a one-person firm’s week approved by email is never put back to her to accept', () => {
+  it('the client’s emailed approval stands as her own firm’s acceptance, written automatically with the reason, and she is told once that her week is approved', async () => {
+    // Colleen Byrne is Byrne Critical Care LLC, and nobody else there may
+    // accept hours. Her seeded chain runs through Halcyon to Harlow Health;
+    // here Byrne sells her to Halcyon directly, so the week goes from the
+    // client's signature straight to her own firm.
+    const colleen = await prisma.person.findFirstOrThrow({ where: { name: 'Colleen Byrne' }, select: { id: true, primaryEmail: true } })
+    const byrne = await prisma.company.findFirstOrThrow({ where: { name: 'Byrne Critical Care LLC' }, select: { id: true } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { companyId: byrne.id, personId: colleen.id } })
+    const direct = await prisma.sellContract.create({
+      data: {
+        companyId: line.companyId, clientCompanyId: line.clientCompanyId, endClientCompanyId: null,
+        personId: colleen.id, requirementId: line.requirementId, engagementId: line.engagementId, msaId: line.msaId,
+        billRate: line.billRate, billCurrency: line.billCurrency, paymentTerms: line.paymentTerms,
+        state: 'IN_PROGRESS', startDate: line.startDate, endDate: line.endDate,
+      },
+    })
+    const like = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: line.id }, orderBy: { periodStart: 'desc' } })
+    const week = await prisma.timesheet.create({
+      data: {
+        sellContractId: direct.id, personId: colleen.id, periodStart: like.periodStart, periodEnd: like.periodEnd,
+        days: like.days ?? {}, totalHours: like.totalHours, status: 'SUBMITTED', submittedAt: like.periodEnd,
+      },
+    })
+    const chain = (await readWeekChain(week.id))!
+    expect(chain.ladder).toHaveLength(1)
+    expect(chain.signers.map((x) => x.role)).toEqual(['CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE'])
+    expect(needsSigningInEtyme(chain)).toBeNull()
+
+    as(colleen.primaryEmail)
+    const r = await attach(
+      { timesheetId: week.id, how: 'EVIDENCE', approverName: 'Avery Collins', approverEmail: await seatedAt(chain.clientId), kind: 'EMAIL' },
+      { name: 'approval.eml', text: 'From: Avery Collins\nApproved.' }
+    )
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const says = `Byrne Critical Care LLC is Colleen Byrne’s own firm, and nobody accepts their own week, so ${chain.clientName}’s signature stands as Byrne Critical Care LLC’s acceptance.`
+    expect(r.body.data.says).toContain(says)
+
+    const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: week.id }, include: { assertions: { where: { state: 'LIVE' } } } })
+    expect(row.status).toBe('APPROVED')
+    expect(row.employerAcceptedAt).not.toBeNull()
+    expect(row.acceptedNote).toBe(says)
+    const accepted = row.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')!
+    expect(accepted).toMatchObject({ companyId: byrne.id, auto: true, note: says })
+    expect(row.assertions.map((a) => a.role).sort()).toEqual(['CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE'])
+
+    const logged = await prisma.automationLog.findFirstOrThrow({
+      where: { companyId: byrne.id, action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE', payload: { path: ['timesheetId'], equals: week.id } },
+    })
+    expect(logged.reason).toBe(says)
+    expect(logged.reversible).toBe(true)
+
+    const named = weekSays(week.periodStart, week.periodEnd)
+    await vi.waitFor(async () => {
+      const toHer = await prisma.notification.findMany({ where: { personId: colleen.id, entityId: week.id }, select: { title: true } })
+      expect(toHer.map((n) => n.title)).toEqual([`Your week of ${named} is approved`])
+    })
+    // Nobody is asked to accept it, and no notice says “Timesheet approved”.
+    const anyAsk = await prisma.notification.count({ where: { entityId: week.id, title: { contains: 'is yours to accept' } } })
+    expect(anyAsk).toBe(0)
+    expect(await prisma.notification.count({ where: { entityId: week.id, title: 'Timesheet approved' } })).toBe(0)
+  })
+})

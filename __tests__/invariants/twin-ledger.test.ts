@@ -116,7 +116,7 @@ function fresh() {
 import { act, ledger, decideApproval, overtakenSays, ownerOnlyException, OWNER_ONLY_EXCEPTION } from '../../src/lib/twin/ledger'
 import { TWIN_ACTS } from '../../src/lib/autonomy'
 import { PERFORMERS, type Performer, type PerformContext } from '../../src/lib/twin/performers'
-import { feedLine, outcomeWord } from '../../src/lib/twin/feed-words'
+import { feedLine, outcomeWord, questionTitle } from '../../src/lib/twin/feed-words'
 import { actsPerDay } from '../../src/lib/twin/acts'
 import { modelOnFor, setModelOn, recordModelPrompt, WITHHELD } from '../../src/lib/model-boundary'
 
@@ -392,5 +392,49 @@ describe('the owner-only exception', () => {
     expect(out.status).toBe(403)
     expect(out.says).toContain('acts on their authority')
     expect(T().twinApproval[0].decision).toBe('PENDING')
+  })
+})
+
+describe('the twin’s question says who and what', () => {
+  it('a question to pay an invoice receipt is titled with the supplier and the number: "Pay Techpeple’s invoice INV-1042?"', () => {
+    expect(questionTitle('invoice_receipt.approve', 'Invoice', { number: 'INV-1042', supplierName: 'Techpeple' })).toBe('Pay Techpeple’s invoice INV-1042?')
+  })
+
+  it('a question to send a bill is titled with the number and the customer: "Send bill INV-2209 to Northbend Athletic?"', () => {
+    expect(questionTitle('bill.send', 'Invoice', { number: 'INV-2209', customerName: 'Northbend Athletic', periodLabel: 'Sep 2026' })).toBe('Send bill INV-2209 to Northbend Athletic?')
+  })
+
+  it('a question to write to a supplier about a time limit names the supplier and the person', () => {
+    expect(questionTitle('tenure.warning.notify_supplier', 'Person', { personName: 'Lucía Fernández', supplierName: 'Brightmoor Staffing', tier: 'WARN_60' }))
+      .toBe('Tell Brightmoor Staffing that Lucía Fernández is near the time limit?')
+    expect(questionTitle('tenure.warning.notify_supplier', 'Person', { personName: 'Lucía Fernández', tier: 'BREACH' }))
+      .toBe('Tell the supplier that Lucía Fernández is at the time limit?')
+  })
+
+  it('a fact the ledger does not carry is left out of the title, never guessed', () => {
+    expect(questionTitle('invoice_receipt.approve', 'Invoice', { number: 'INV-1042' })).toBe('Pay invoice INV-1042?')
+    expect(questionTitle('invoice_receipt.approve', 'Invoice', {})).toBe('Pay a supplier’s invoice?')
+    expect(questionTitle('bill.send', 'Invoice', {})).toBe('Send a drafted bill?')
+  })
+
+  it('no question title says "is asking you to decide" for any act the twin may ask about', () => {
+    for (const action of Object.keys(TWIN_ACTS)) {
+      const t = questionTitle(action, 'Invoice', { number: 'INV-1' })
+      expect(t, action).not.toMatch(/asking you to decide/)
+      expect(t, action).toMatch(/\?$/)
+    }
+  })
+
+  it('the person asked to pay an invoice receipt reads the supplier and the number in the notice title', async () => {
+    T().vendorBill.push({ id: 'bill-1', companyId: CLIENT, status: 'RECEIVED', buyContractId: null })
+    const asked = await act({
+      ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-1' },
+      payload: { number: 'INV-1042', supplierName: 'Techpeple' },
+    })
+    expect(asked.outcome).toBe('AWAITING_APPROVAL')
+    await vi.waitFor(() => expect(h.notifyBulk).toHaveBeenCalled())
+    const sent = (h.notifyBulk.mock.calls[0] as unknown as [{ title: string; entityId: string }[]])[0]
+    expect(sent.length).toBeGreaterThan(0)
+    for (const n of sent) expect(n.title).toBe('Pay Techpeple’s invoice INV-1042?')
   })
 })

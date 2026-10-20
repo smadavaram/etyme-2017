@@ -111,6 +111,59 @@ export function questionLine(action: string, entityType: string, label: string |
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** What a question's heading names: the record, the firm and the person, where the ledger carries them. */
+export interface QuestionFacts {
+  /** The record's own number: an invoice receipt's or a bill's. */
+  number?: string | null
+  /** The supplier whose invoice it is, or whose person it is about. */
+  supplierName?: string | null
+  /** The customer a bill goes to. */
+  customerName?: string | null
+  /** The billing period, as the bill card says it: "Sep 2026". */
+  periodLabel?: string | null
+  /** The person a question is about. */
+  personName?: string | null
+  /** A time-limit question: BREACH when at or past it. */
+  tier?: string | null
+}
+
+const text = (x: string | null | undefined): string | null => (typeof x === 'string' && x.trim() ? x.trim() : null)
+
+/**
+ * The notice that puts the twin's question to a person, as one question
+ * in the trade's words: who and what, never "Ask Etyme is asking you to
+ * decide" (handoffs station, 2026-10-20). "Pay Techpeple’s invoice
+ * INV-1042?", "Send bill INV-2209 to Northbend Athletic?". A fact the
+ * ledger does not carry is left out of the sentence, never guessed. Pure.
+ */
+export function questionTitle(action: string, entityType: string, f: QuestionFacts = {}): string {
+  const number = text(f.number)
+  const supplier = text(f.supplierName)
+  const customer = text(f.customerName)
+  const person = text(f.personName)
+  switch (action) {
+    case 'invoice_receipt.approve':
+      if (supplier && number) return `Pay ${possessive(supplier)} invoice ${number}?`
+      if (number) return `Pay invoice ${number}?`
+      if (supplier) return `Pay ${possessive(supplier)} invoice?`
+      return 'Pay a supplier’s invoice?'
+    case 'bill.send': {
+      const period = text(f.periodLabel)
+      if (number && customer) return `Send bill ${number} to ${customer}?`
+      if (customer) return `Send the bill to ${customer}${period ? ` for ${period}` : ''}?`
+      if (number) return `Send bill ${number}?`
+      return 'Send a drafted bill?'
+    }
+    case 'tenure.warning.notify_supplier': {
+      const where = f.tier === 'BREACH' ? 'is at the time limit' : 'is near the time limit'
+      const to = supplier ?? 'the supplier'
+      return person ? `Tell ${to} that ${person} ${where}?` : `Tell ${to} about a time limit?`
+    }
+    default:
+      return `${questionLine(action, entityType, number ?? person ?? null)}?`
+  }
+}
+
 export interface LineInput {
   /** TWIN, PERSON or SYSTEM; CHANGE for an edit of the contract or the rules. */
   actorType: string
