@@ -571,3 +571,50 @@ describe('A ceiling nobody can stand behind is not invented', () => {
     expect((await prisma.submission.findUniqueOrThrow({ where: { id: it_.unpricedSubmission } })).status).toBe('PLACED')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════
+// Two awards in the same second
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Two awards to one supplier in the same second still make one document', () => {
+
+  it('two people awarded to the same supplier at the same moment both go through, on one order', async () => {
+    // Found by the simulation (2026-10-20): twenty awards at once, and two
+    // between the same client and supplier each raised an order with the
+    // same number; the second failed with a server error.
+    const harbor = await company('Harbor Freightworks', 'harbor-freightworks', 'CLIENT', 'program@harbor.invalid')
+    const seats: string[] = []
+    const subs: string[] = []
+    for (const [title, name, email] of [
+      ['Data engineer — Harbor', 'Lena Park', 'lena@veritan.invalid'],
+      ['Data analyst — Harbor', 'Omar Siddiq', 'omar@veritan.invalid'],
+    ] as const) {
+      const seat = await prisma.requirement.create({
+        data: {
+          companyId: harbor.companyId, title, skills: ['SQL'], status: 'OPEN', approvalState: 'APPROVED',
+          headcount: 1, billMin: 9_000, billMax: 12_000, months: 12, budgetCents: 20_000_000,
+          raisedById: harbor.personId, ownerId: harbor.personId,
+        },
+      })
+      const personId = await worker(name, email, co.veritan, (await prisma.role.findFirstOrThrow({ where: { companyId: co.veritan } })).id)
+      const s = await prisma.submission.create({
+        data: {
+          requirementId: seat.id, personId, fromCompanyId: co.veritan, toCompanyId: harbor.companyId,
+          kind: 'INTERNAL', rate: 10_000, contractType: 'W2', status: 'SUBMITTED',
+        },
+      })
+      seats.push(seat.id)
+      subs.push(s.id)
+    }
+
+    as('program@harbor.invalid')
+    const [a, b] = await Promise.all(subs.map((id) => award(id, { startDate: '2026-10-05', endDate: '2027-10-04' })))
+    expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
+    expect(b.body?.error, JSON.stringify(b.body)).toBeUndefined()
+
+    const orders = await prisma.workOrder.findMany({ where: { issuedById: harbor.companyId, issuedToId: co.veritan } })
+    expect(orders).toHaveLength(1)
+    const lines = await prisma.sellContract.findMany({ where: { requirementId: { in: seats } }, select: { workOrderId: true } })
+    expect(lines.map((l) => l.workOrderId)).toEqual([orders[0].id, orders[0].id])
+  })
+})

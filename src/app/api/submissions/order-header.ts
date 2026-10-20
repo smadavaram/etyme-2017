@@ -26,7 +26,7 @@ import { chooseHeader, headerWindow, orderNumbers, orderNumberAttempt, ORDER_RHY
 import { termsFor } from '@/lib/money/order-terms'
 
 /** A transaction client or the plain one; only the order table is touched. */
-type OrderWriter = Pick<Prisma.TransactionClient, 'workOrder'>
+type OrderWriter = Pick<Prisma.TransactionClient, 'workOrder' | '$executeRaw'>
 
 /**
  * Exactly the columns a caller needs back. Selected in one place so two
@@ -80,17 +80,36 @@ export interface FoundHeader {
 }
 
 export async function headerFor(db: OrderWriter, input: HeaderInput): Promise<FoundHeader> {
-  const candidates = await db.workOrder.findMany({
-    where: { issuedById: input.buyerId, issuedToId: input.sellerId },
-    select: HEADER_SELECT,
-  })
+  const read = () =>
+    db.workOrder.findMany({
+      where: { issuedById: input.buyerId, issuedToId: input.sellerId },
+      select: HEADER_SELECT,
+    })
+  const choose = (candidates: Awaited<ReturnType<typeof read>>) =>
+    chooseHeader(candidates, {
+      issuedById: input.buyerId,
+      issuedToId: input.sellerId,
+      start: input.start,
+      end: input.end,
+    })
 
-  const choice = chooseHeader(candidates, {
-    issuedById: input.buyerId,
-    issuedToId: input.sellerId,
-    start: input.start,
-    end: input.end,
-  })
+  let candidates = await read()
+  let choice = choose(candidates)
+
+  // About to raise one: one pair, one writer at a time. Two awards between
+  // the same client and supplier in the same second each found no open
+  // order, each raised one, and the second collided on the number — a
+  // server error to the hiring manager and, had the numbers differed, two
+  // open orders for one pair. Found by the simulation at twenty awards at
+  // once (2026-10-20). The lock is held until this award's transaction
+  // ends, so the second waits, reads again, finds the order the first
+  // raised and joins it. Only raising waits: a line joining an order that
+  // already exists takes no lock.
+  if (!choice.id) {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.buyerId}), hashtext(${input.sellerId}))`
+    candidates = await read()
+    choice = choose(candidates)
+  }
 
   if (choice.id) {
     const found = candidates.find((c) => c.id === choice.id)!
