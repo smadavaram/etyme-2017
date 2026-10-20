@@ -16,6 +16,7 @@ import {
 } from '@/lib/outbound-pack'
 import { requiredOfUsBy } from '@/lib/document-request'
 import { loadOwnDocuments } from './own-documents'
+import { papersCounted } from '@/lib/contract-clearance'
 
 /**
  * GET  /api/outbound-pack — can we answer a client's screening today
@@ -387,7 +388,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'OUTBOUND_PACK_SENT',
-      summary: `${caller.person.name} sent ${pack.sending.length} of our own document(s) to ${recipientEmail} — ${spec.label}`,
+      summary: `${caller.person.name} sent ${papersCounted(pack.sending.length)} of our own to ${recipientEmail}: ${spec.label}`,
       reason:
         (clientCompanyId ? 'Assembled against that customer\u2019s own order set. ' : '') +
         (pack.refusals.length > 0

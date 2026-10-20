@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { checkToRecord, mayRecordCheck, type CheckToRecord } from '@/lib/attestation'
+import { checkToRecord, mayRecordCheck, examinedFromAPacket, withArticle, type CheckToRecord } from '@/lib/attestation'
 import { heldFromDocInstances } from '@/lib/document-request'
-import { contractClearance } from '@/lib/contract-clearance'
+import { contractClearance, papersAsked, papersCounted } from '@/lib/contract-clearance'
 
 /**
  * Putting a check on file — the door the simulation of 2026-10-20 found
@@ -336,5 +336,73 @@ describe('a worker’s own page offers the button the paper needs', () => {
     const row = papers.find((p) => p.id === 'ask-1')
     expect(row?.todo).toBe('sign')
     expect(row?.needsSignature).toBe(true)
+  })
+})
+
+describe('a notice counts its papers in a word and names every one', () => {
+  it('three papers before the start are counted in a word and named with their articles: an I-9, a background check and a license', () => {
+    const p = papersAsked([
+      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify' },
+      { key: 'BACKGROUND_CHECK', label: 'Background check' },
+      { key: 'PROFESSIONAL_LICENSE', label: 'Professional license' },
+    ])
+    expect(p.counted).toBe('three papers')
+    expect(p.named).toBe('an I-9 (checked with E-Verify), a background check and a professional license')
+    expect(`Vertex Global needs ${p.counted} before you start: ${p.named}`).not.toMatch(/\(s\)|\b\d+ (papers?|documents?)\b/)
+  })
+
+  it('one paper is “one paper”, never “1 document(s)”', () => {
+    expect(papersAsked([{ key: 'BACKGROUND_CHECK', label: 'Background check' }]).counted).toBe('one paper')
+    expect(papersCounted(1)).toBe('one paper')
+    expect(papersCounted(2)).toBe('two papers')
+  })
+
+  it('the right to work and the I-9 are one paper in the count, as they are one phrase in the sentence', () => {
+    const p = papersAsked([
+      { key: 'RIGHT_TO_WORK', label: 'Proof of right to work' },
+      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify' },
+      { key: 'NDA', label: 'Signed non-disclosure agreement' },
+    ])
+    expect(p.counted).toBe('two papers')
+    expect(p.named).toBe('proof of right to work (I-9, checked with E-Verify) and a signed non-disclosure agreement')
+  })
+
+  it('a license that names its board keeps the article it was written with', () => {
+    const p = papersAsked([{ key: 'PROFESSIONAL_LICENSE', label: 'State nursing license', said: 'a state nursing license (Wisconsin Board of Nursing)' }])
+    expect(p.named).toBe('a state nursing license (Wisconsin Board of Nursing)')
+  })
+
+  it('a form is given the article its letters take, and a plural or a mass noun none', () => {
+    expect(withArticle('I-9')).toBe('an I-9')
+    expect(withArticle('W-9')).toBe('a W-9')
+    expect(withArticle('NDA')).toBe('an NDA')
+    expect(withArticle('education evaluation')).toBe('an education evaluation')
+    expect(withArticle('driver’s license')).toBe('a driver’s license')
+    expect(withArticle('references')).toBe('references')
+    expect(withArticle('proof of right to work')).toBe('proof of right to work')
+  })
+})
+
+describe('an accepted packet item reaches the start check only as a recorded examination', () => {
+  it('an I-9, a license, a passport or a visa accepted from a document request can be recorded as the employer’s examination', () => {
+    for (const k of ['I9_EVERIFY', 'RIGHT_TO_WORK', 'PROFESSIONAL_LICENSE', 'PASSPORT', 'VISA', 'GREEN_CARD']) {
+      expect(examinedFromAPacket(k), k).toBe(true)
+    }
+  })
+
+  it('a background check or a drug screen never becomes a check from a packet item, because the report goes to the firm that ordered it', () => {
+    expect(examinedFromAPacket('BACKGROUND_CHECK')).toBe(false)
+    expect(examinedFromAPacket('DRUG_SCREENING')).toBe(false)
+  })
+
+  it('a paper about a firm, or one nobody records, is not a person’s examination', () => {
+    expect(examinedFromAPacket('INSURANCE_GL')).toBe(false)
+    expect(examinedFromAPacket('NDA')).toBe(false)
+  })
+
+  it('a document that is not on the I-9 list is refused with its own article', () => {
+    const v = checkToRecord(base({ formEdition: '01/20/25', evidence: [{ type: 'EDUCATION_EVALUATION', expiresAt: days(400) }] }), ON)
+    expect(v.ok).toBe(false)
+    if (!v.ok) expect(v.message).toMatch(/^An education evaluation is not a document an I-9 can be completed from/)
   })
 })

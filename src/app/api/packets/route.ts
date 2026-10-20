@@ -23,6 +23,9 @@ import {
   type RequiredLine,
 } from '@/lib/document-request'
 import type { EffectiveRequirement } from '@/lib/document-requirements'
+import { papersAsked, papersCounted, countWord } from '@/lib/contract-clearance'
+
+const upperFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 import {
   deriveSupplierPacket,
   deriveStartPacket,
@@ -476,10 +479,10 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'PACKET_REQUESTED',
-      summary: `${caller.person.name} asked ${recipientEmail} for ${asking.length} document(s) — ${spec.label}`,
+      summary: `${caller.person.name} asked ${recipientEmail} for ${papersAsked(asking).counted}: ${papersAsked(asking).named}`,
       reason:
         (resolved.length > asking.length
-          ? `${resolved.length - asking.length} item(s) skipped because they are already on file and current`
+          ? `${upperFirst(papersCounted(resolved.length - asking.length))} not asked for, because ${resolved.length - asking.length === 1 ? 'it is' : 'they are'} already on file and current`
           : 'Nothing was already on file') +
         (extras.length
           ? `. ${extras.length} of them ${extras.length === 1 ? 'is' : 'are'} asked for by the lines between the two firms rather than by the packet: ` +
@@ -525,8 +528,8 @@ export async function POST(request: NextRequest) {
       personId: insider.id,
       companyId: caller.company.id,
       type: 'SYSTEM',
-      title: `${caller.company.name} needs ${asking.length} document(s) from you`,
-      body: `${spec.label}: ${asking.map((a) => a.label).join(', ')}`,
+      title: `${caller.company.name} needs ${papersAsked(asking).counted} from you: ${papersAsked(asking).named}`,
+      body: `${spec.label}. These are the papers ${caller.company.name} needs: ${papersAsked(asking).named}.`,
       entityId: packet.id,
       channel: 'EMAIL',
     })
@@ -557,8 +560,8 @@ export async function POST(request: NextRequest) {
           .map((r) => ({ label: r.label, note: r.note })),
         message:
           resolved.length > asking.length
-            ? `Asking for ${asking.length} of ${resolved.length}. The rest is already on file and current, so we are not asking again.`
-            : `Asking for ${asking.length} document(s).`,
+            ? `Asking for ${countWord(asking.length)} of ${countWord(resolved.length)}: ${papersAsked(asking).named}. The rest is already on file and current, so we are not asking again.`
+            : `Asking for ${papersAsked(asking).counted}: ${papersAsked(asking).named}.`,
       },
     },
     { status: 201 }

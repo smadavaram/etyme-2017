@@ -5,6 +5,9 @@ import { recordAccess } from '@/lib/access-log'
 import {
   newToken, clampExpiry, summarize, isShareableKind,
 } from '@/lib/document-share'
+import { papersAsked, papersCounted } from '@/lib/contract-clearance'
+
+const upperFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 
 /**
  * GET  /api/document-shares  — what this company has sent out
@@ -154,7 +157,7 @@ export async function POST(request: NextRequest) {
       actorPersonId: caller.person.id,
       actorCompanyId: caller.company.id,
       action: 'DOCUMENTS_SHARED_EXTERNALLY',
-      reason: `${share.items.length} document(s) sent to ${share.recipientEmail} — ${share.purpose}`,
+      reason: `${upperFirst(papersCounted(share.items.length))} sent to ${share.recipientEmail}: ${share.purpose}`,
     })
   }
 
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'DOCUMENTS_SHARED',
-      summary: `${share.items.length} document(s) shared with ${share.recipientEmail}`,
+      summary: `${upperFirst(papersCounted(share.items.length))} shared with ${share.recipientEmail}: ${papersAsked(share.items).named}`,
       reason: share.purpose,
       payload: {
         shareId: share.id,
@@ -183,7 +186,7 @@ export async function POST(request: NextRequest) {
         recipient: share.recipientEmail,
         documentCount: share.items.length,
         expiresAt: share.expiresAt.toISOString().slice(0, 10),
-        message: `${share.items.length} document(s) ready to send. The link works until ${share.expiresAt.toISOString().slice(0, 10)} and can be withdrawn at any time.`,
+        message: `${upperFirst(papersCounted(share.items.length))} ready to send: ${papersAsked(share.items).named}. The link works until ${share.expiresAt.toISOString().slice(0, 10)} and can be withdrawn at any time.`,
       },
     },
     { status: 201 }

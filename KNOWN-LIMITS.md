@@ -202,6 +202,47 @@ read is on the access log under the program owner and the twin's kind
    `capMonths: null` turns it off. A warning keyed to a limit day also
    repeats its tier if the contract dates move that day.
 
+7. **Its own cost, measured (2026-10-20).** On a copy of the seeded
+   world with 300 placements added at one client (312 lines, 82
+   warnings), the rule is four queries whatever the number of people:
+   the client's two governance rules, every line in one read, the
+   disclosure terms, and one batched access-log write. 50 to 80 ms. The
+   nightly run's time is elsewhere: the ledger's `act` reads the role
+   contract and the dedup row once per act (architect), the bill run
+   reads timesheets and invoices once per week (money), and the receipt
+   rule reads about five rows per receipt (money).
+
+## Paperwork reaching the start — etyme-regulatory (2026-10-20)
+
+What is built: a recorded check reaches the start check
+(`POST /api/compliance/verifications`), and since today so does a paper
+accepted from a document request, where the firm that employs or places
+the person records the examination as it accepts it (`/api/packets/[id]/review`,
+the same `checkToRecord` and the same writer). What is short of that:
+
+1. **A supplier's own document library does not reach the start check.**
+   A paper a firm keeps about itself or its people outside a document
+   request (the outbound pack's own documents, a firm's uploaded file)
+   is read by the pack and by nothing that decides a start. Only a
+   recorded check, or an accepted packet item that became one, counts.
+2. **The identifiers do not go to the screening company.** The worker's
+   consent and the details a background check is run against are
+   collected; nothing hands them to a provider. The firm orders the
+   check outside Etyme and records the report in the provider's words.
+   The adverse-action steps after an unfavorable report are said in a
+   sentence and are not a workflow.
+3. **A paper accepted before today, with nothing examined, does not
+   count, and nothing turns it into a check.** Its file is on the item;
+   HR accepts it again with the examination given, and then it counts.
+4. **An accept by a firm with no placement for the person records
+   nothing.** The accept stands and the answer says why. A client asking
+   a worker for a paper reads it; it is never the client's examination.
+5. **No screen calls the review route yet.** Document requests lists
+   what is waiting on a person ("Waiting on you"), and nothing on it
+   accepts an item; the route takes the edition, the evidence, the board
+   and the number, and is reached by the API only. A review panel with
+   those fields is the next piece.
+
 ## Invoice rule — etyme-money
 
 - **The tolerance decides what the twin raises, not what is paid.** The

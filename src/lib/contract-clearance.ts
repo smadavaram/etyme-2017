@@ -47,7 +47,7 @@
  * A warning captures a reason and proceeds. Never silently.
  */
 
-import { orderedNotCollected, readVerdict } from '@/lib/attestation'
+import { orderedNotCollected, readVerdict, withArticle } from '@/lib/attestation'
 import {
   packetByKey,
   resolveItems,
@@ -86,6 +86,9 @@ import {
   type Edition,
   type EditionFinding,
 } from '@/lib/document-type'
+
+/** Re-exported for the notices that count and name papers. */
+export { withArticle }
 
 export type Outcome = 'PASS' | 'WARN' | 'BLOCK'
 
@@ -877,6 +880,51 @@ function names(items: Named[]): string {
   return `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`
 }
 
+// ── Papers, counted and named ────────────────────────────────────────
+//
+// Found by the simulation of 2026-10-20: a worker's notice read "Vertex
+// Global needs 3 document(s) before you start". A bracketed plural is a
+// form's way of not deciding, and a count with nothing named is a count
+// she has to open the email to understand. So a notice says the number
+// in a word and names every paper with its article: "three papers before
+// you start: an I-9, a background check and a professional license".
+// One paper is "one paper". The right to work and the I-9 fold into one
+// phrase, as they do in every sentence here, and are counted as one,
+// because the count is what she reads, not how many rows the checklist
+// keeps.
+
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve']
+
+/** A count as a person says it: "one", "three", "14". */
+export function countWord(n: number): string {
+  return n >= 0 && n < COUNT_WORDS.length ? COUNT_WORDS[n] : String(n)
+}
+
+/** "one paper", "three papers", "14 papers". */
+export function papersCounted(n: number): string {
+  return `${countWord(n)} paper${n === 1 ? '' : 's'}`
+}
+
+/**
+ * The papers a notice asks for, counted in a word and named.
+ *
+ *   papersAsked([I-9, background check, license])
+ *   → { count: 3, counted: 'three papers', named: 'an I-9 (checked with E-Verify), a background check and a professional license' }
+ *
+ * `counted` and `named` agree by construction: both are read off the
+ * same folded phrases.
+ */
+export function papersAsked(items: { key?: string; label: string; said?: string }[]): {
+  count: number
+  counted: string
+  named: string
+} {
+  const phrases = sentencePhrases(items).map(withArticle)
+  const named =
+    phrases.length <= 1 ? phrases.join('') : `${phrases.slice(0, -1).join(', ')} and ${phrases[phrases.length - 1]}`
+  return { count: phrases.length, counted: papersCounted(phrases.length), named }
+}
+
 /**
  * Several findings as prose, ending on exactly one full stop.
  *
@@ -1078,6 +1126,8 @@ export interface ClearanceAsk {
   hint: string
   required: boolean
   owedBy: OwedBy
+  /** How it is named inside a sentence, where that differs from the label (the license). */
+  said?: string
   /** The dictionary's own word, for a screen that wants to show it. */
   suppliedBy: string | null
   /** BLOCK where the absence is legally grounded; WARN everywhere else. */
@@ -1206,6 +1256,7 @@ export function startPreview(
       label: i.label,
       hint: i.hint,
       required: i.required,
+      ...(i.said ? { said: i.said } : {}),
       owedBy: owedBy(i.key, types),
       suppliedBy: typeByKey(i.key, types)?.suppliedBy ?? null,
       weight: i.blocks ? ('BLOCK' as Outcome) : ('WARN' as Outcome),

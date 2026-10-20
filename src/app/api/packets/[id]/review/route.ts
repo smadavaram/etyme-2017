@@ -4,9 +4,25 @@ import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { progressOf } from '@/lib/packets'
+import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import {
+  checkToRecord,
+  examinedFromAPacket,
+  mayRecordCheck,
+  orderedNotCollected,
+  recordLabel,
+  withArticle,
+  type ExaminedEvidence,
+} from '@/lib/attestation'
+import { writeCheck } from '@/app/api/compliance/verifications/record'
 
 /**
  * POST /api/packets/:id/review   { itemId, action: 'accept' | 'reject', note?, validUntil? }
+ *   accepting an examined paper may also carry what was examined, the
+ *   same fields a recorded check takes:
+ *   { formEdition, evidence: [{ type, expiresAt }] }        an I-9
+ *   { issuer, licenseNumber, licenseState, expiresAt }      a license
+ *   { expiresAt }  (or validUntil)                          a passport, a visa
  *
  * Somebody looking at what arrived.
  *
@@ -15,6 +31,28 @@ import { progressOf } from '@/lib/packets'
  * uploads land as RECEIVED and a person moves them to ACCEPTED or
  * REJECTED — and accepting an insurance certificate asks when it expires,
  * because that date is what stops the next placement.
+ *
+ * ── An accepted paper reaches the start check (2026-10-20) ─────────
+ *
+ * Found by the simulation: an I-9 or a license accepted here was a
+ * packet row and nothing else, and the start check reads recorded checks
+ * only, so a placement whose papers had all been accepted still could
+ * not start. Now accepting a paper of a kind the start check reads, by
+ * the firm that employs or places the person, records the examination
+ * through the same rule and the same writer as Record a check
+ * (`checkToRecord`, `mayRecordCheck`, `writeCheck`), and the item keeps
+ * the row it became. So it is read exactly as a recorded check is,
+ * because it is one.
+ *
+ * What is never true: a file accepted with nothing examined counting as
+ * an examination. An I-9 needs its edition and the document behind it;
+ * a license its board and number; a passport the day it runs out. Where
+ * those are not given the file is still accepted — somebody looked at
+ * it — and the answer says, in a sentence, that it does not count toward
+ * the start yet and what to give. Where they are given and wrong, nothing
+ * changes and the sentence says what to fix. A screening company's
+ * verdict never comes from a packet: the report goes to the firm that
+ * ordered it.
  */
 export async function POST(
   request: NextRequest,
@@ -73,7 +111,7 @@ export async function POST(
 
   const packet = await prisma.documentPacket.findFirst({
     where: { id, companyId: caller.company.id },
-    select: { id: true, label: true, completedAt: true, recipientEmail: true },
+    select: { id: true, label: true, completedAt: true, recipientEmail: true, subjectPersonId: true },
   })
   if (!packet) {
     return NextResponse.json(
@@ -110,9 +148,30 @@ export async function POST(
     )
   }
 
+  // ── Whether accepting this paper records an examination ──
+  const now = new Date()
+  const examined = action === 'accept' ? await examinationOf({
+    packet, item, body, validUntil, now,
+    caller: {
+      companyId: caller.company.id,
+      companyName: caller.company.name,
+      personId: caller.person.id,
+      personName: caller.person.name,
+      holds: (p) => hasPermission(caller.permissions ?? [], p as never),
+      actor: accessActor(caller),
+    },
+  }) : null
+  if (examined?.refused) {
+    return NextResponse.json(
+      { error: { code: examined.refused.code, message: examined.refused.message, ...(examined.refused.field ? { field: examined.refused.field } : {}) } },
+      { status: examined.refused.status }
+    )
+  }
+
   await prisma.packetItem.update({
     where: { id: itemId },
     data: {
+      ...(examined?.verificationId ? { verificationId: examined.verificationId } : {}),
       state: action === 'accept' ? 'ACCEPTED' : 'REJECTED',
       reviewedById: caller.person.id,
       reviewedAt: new Date(),
@@ -162,12 +221,165 @@ export async function POST(
       itemId,
       state: action === 'accept' ? 'ACCEPTED' : 'REJECTED',
       progress,
+      // Whether it reaches the start check, said either way: an accepted
+      // paper that does not count is never left to look as if it did.
+      countsTowardStart: examined ? !!examined.verificationId : null,
       message:
         action === 'accept'
-          ? validUntil
-            ? `${item.label} accepted, good until ${validUntil.toISOString().slice(0, 10)}. We will ask again before it lapses.`
-            : `${item.label} accepted.`
+          ? (validUntil
+              ? `${item.label} accepted, good until ${validUntil.toISOString().slice(0, 10)}. We will ask again before it lapses.`
+              : `${item.label} accepted.`) + (examined?.says ? ` ${examined.says}` : '')
           : `${item.label} sent back to ${packet.recipientEmail}. They can see why and send another.`,
     },
   })
+}
+
+// ── The examination, recorded through the one rule ───────────────────
+
+/** The fields a recorded check takes, beyond the date a packet already asks for. */
+const EXAMINATION_FIELDS = ['formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt'] as const
+
+interface Examined {
+  /** The recorded check the item became. */
+  verificationId?: string
+  /** What the answer adds, in a sentence. */
+  says?: string
+  /** Nothing changes, and why. */
+  refused?: { status: number; code: string; message: string; field?: string }
+}
+
+async function examinationOf(input: {
+  packet: { id: string; subjectPersonId: string | null }
+  item: { id: string; key: string; label: string }
+  body: Record<string, unknown>
+  validUntil: Date | null
+  now: Date
+  caller: {
+    companyId: string
+    companyName: string
+    personId: string
+    personName: string
+    holds: (permission: string) => boolean
+    actor: ReturnType<typeof accessActor>
+  }
+}): Promise<Examined | null> {
+  const { packet, item, body, caller, now } = input
+  const personId = packet.subjectPersonId
+  if (!personId) return null
+
+  if (orderedNotCollected(item.key)) {
+    return {
+      says:
+        `The ${recordLabel(item.key)} itself counts toward the start once the screening company’s report is recorded; ` +
+        `a file sent here is not their report.`,
+    }
+  }
+  if (!examinedFromAPacket(item.key)) return null
+
+  const given = EXAMINATION_FIELDS.some((f) => {
+    const v = body[f]
+    return Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== ''
+  })
+  const refuse = (status: number, code: string, message: string, field?: string): Examined | { says: string } =>
+    given ? { refused: { status, code, message, field } } : { says: `It does not count toward the start yet. ${message}` }
+
+  const [person, line] = await Promise.all([
+    prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
+    // The placement this firm employs or places the person on, newest
+    // first. A firm with none is not the employer, and records nothing.
+    prisma.sellContract.findFirst({
+      where: {
+        companyId: caller.companyId,
+        personId,
+        state: { notIn: ['CANCELLED'] },
+        ...(typeof body.contractId === 'string' && body.contractId ? { id: body.contractId } : {}),
+      },
+      orderBy: { startDate: 'desc' },
+      select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+    }),
+  ])
+  const subjectName = person?.name ?? 'this person'
+  const buyerName = line ? (line.endClientCompany?.name ?? line.clientCompany.name) : 'the client'
+
+  const may = mayRecordCheck({
+    about: 'PERSON',
+    side: line ? 'EMPLOYER' : null,
+    holds: caller.holds,
+    callerFirm: caller.companyName,
+    subjectName,
+    employerName: line ? caller.companyName : 'the firm that employs or places them',
+    buyerName,
+    type: item.key,
+  })
+  if (!may.ok) {
+    if (given) {
+      await recordRefusal([personId], {
+        ...caller.actor,
+        action: 'COMPLIANCE_CHECK',
+        reason: `Refused recording ${withArticle(recordLabel(item.key))} from a document request: not this seat’s or this firm’s to record`,
+      })
+    }
+    return refuse(403, may.code, may.message)
+  }
+
+  // ── Dates and evidence, as the paper prints them ──
+  const dateOf = (v: unknown): Date | null | 'BAD' => {
+    if (v == null || v === '') return null
+    const d = new Date(String(v))
+    return Number.isNaN(d.getTime()) ? 'BAD' : d
+  }
+  const dates: Record<string, Date | null> = {}
+  for (const [f, words] of [['issuedOn', 'the day it was issued'], ['validFrom', 'the day it starts'], ['expiresAt', 'the day it runs out']] as const) {
+    const d = dateOf(body[f])
+    if (d === 'BAD') return { refused: { status: 422, code: 'VALIDATION', message: `Give ${words} as a date, like 2027-06-30.`, field: f } }
+    dates[f] = d
+  }
+  const evidence: ExaminedEvidence[] = []
+  if (Array.isArray(body.evidence)) {
+    for (const e of body.evidence as Record<string, unknown>[]) {
+      const at = e?.expiresAt ? new Date(String(e.expiresAt)) : null
+      if (at && Number.isNaN(at.getTime())) {
+        return { refused: { status: 422, code: 'VALIDATION', message: 'Give each document’s expiry as a date, like 2031-04-30.', field: 'evidence' } }
+      }
+      evidence.push({
+        type: String(e?.type ?? '').toUpperCase(),
+        issuer: typeof e?.issuer === 'string' ? e.issuer : null,
+        reference: typeof e?.reference === 'string' ? e.reference : null,
+        expiresAt: at,
+      })
+    }
+  }
+  const str = (k: string): string | null => (typeof body[k] === 'string' ? (body[k] as string) : null)
+
+  const verdict = checkToRecord(
+    {
+      about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
+      issuer: str('issuer'), issuedOn: dates.issuedOn, validFrom: dates.validFrom,
+      // The packet's own date is the paper's expiry where nothing else names one.
+      expiresAt: dates.expiresAt ?? input.validUntil,
+      formEdition: str('formEdition'), evidence, reference: str('reference'),
+      licenseNumber: str('licenseNumber'), licenseState: str('licenseState'),
+    },
+    now
+  )
+  if (!verdict.ok) return refuse(422, verdict.code, verdict.message, verdict.field)
+
+  const written = await writeCheck({
+    row: verdict.row,
+    subject: { personId },
+    personId,
+    recordedById: caller.personId,
+    recordingCompanyId: caller.companyId,
+    now,
+  })
+  logAccess({
+    subjectId: personId,
+    ...caller.actor,
+    action: 'COMPLIANCE_CHECK',
+    reason: `Recorded ${withArticle(recordLabel(item.key))} from a document request, for the placement at ${buyerName}`,
+  })
+  return {
+    verificationId: written.id,
+    says: `${verdict.says} It counts toward the start.`,
+  }
 }

@@ -611,6 +611,18 @@ export function orderedNotCollected(documentKey: string): boolean {
 }
 
 /**
+ * Whether a packet item of this kind can become a recorded check when the
+ * employer accepts it: a document somebody else issued, examined by the
+ * firm that employs or places the person — an I-9 completed from the
+ * evidence shown, a license, a passport, a visa. Never a screening
+ * company's verdict: the report goes to whoever ordered it, and a file a
+ * worker sent is not it.
+ */
+export function examinedFromAPacket(documentKey: string): boolean {
+  return (RECORDABLE_ABOUT_A_PERSON as readonly string[]).includes(documentKey) && !orderedNotCollected(documentKey)
+}
+
+/**
  * What to say on a row for a check somebody else orders.
  *
  * `firm` is whoever is responsible for ordering it on this line. Null
@@ -838,6 +850,31 @@ export function recordLabel(key: string): string {
   return RECORD_LABEL[key] ?? key.toLowerCase().replace(/_/g, ' ')
 }
 
+/** Letters whose spoken name starts with a vowel sound: an I-9, an NDA, an RN license. */
+const VOWEL_SOUNDING_LETTERS = new Set('AEFHILMNORSX'.split(''))
+
+/**
+ * A phrase from `sentencePhrases` in lib/contract-clearance, or a check's `recordLabel`, with the article a person would say.
+ *
+ * Kept as is where it already has one ("an I-9", "a state nursing
+ * license"), where it is a mass noun ("proof of right to work") or a
+ * plural ("references"). A form's code is read by its letters, so "I-9"
+ * takes "an" and "W-9" takes "a"; a word by its first letter.
+ */
+export function withArticle(phrase: string): string {
+  const p = phrase.trim()
+  if (!p) return p
+  const first = p.split(/\s+/)[0]
+  if (/^(a|an|the|your|their|our|proof|evidence)$/i.test(first)) return p
+  // A plural, not a possessive: "references", never "driver’s license".
+  if (/[^s'’u]s$/i.test(first)) return p
+  const isCode = /[A-Z]/.test(first) && (/\d|-/.test(first) || first === first.toUpperCase())
+  const an = isCode
+    ? VOWEL_SOUNDING_LETTERS.has(first.charAt(0).toUpperCase())
+    : (/^[aeio]/i.test(first) && !/^eu/i.test(first)) || (/^u/i.test(first) && !/^u(ni|s[eu]|ti)/i.test(first))
+  return `${an ? 'an' : 'a'} ${p}`
+}
+
 function upperFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
@@ -1020,7 +1057,7 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
     if (!provider) {
       return no(
         'NO_PROVIDER',
-        `Name the screening company that ran the ${what}. A ${what} with nobody named on it is this firm’s own note, ` +
+        `Name the screening company that ran the ${what}. ${upperFirst(withArticle(what))} with nobody named on it is this firm’s own note, ` +
           `and only a provider’s report is recorded as a verdict.`,
         'provider'
       )
@@ -1180,7 +1217,7 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
       if (!(I9_EVIDENCE as readonly string[]).includes(e.type)) {
         return no(
           'NOT_ON_THE_LIST',
-          `A ${recordLabel(e.type)} is not a document an I-9 can be completed from. ` +
+          `${upperFirst(withArticle(recordLabel(e.type)))} is not a document an I-9 can be completed from. ` +
             `Use a passport, a green card, a visa, a work permit or a driver’s license.`,
           'evidence'
         )
@@ -1233,7 +1270,7 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
   if (printed && !expiresAt) {
     return no(
       'NO_EXPIRY',
-      `A ${what} runs out, so it cannot go on file without the date printed on it. A document with no expiry ` +
+      `${upperFirst(withArticle(what))} runs out, so it cannot go on file without the date printed on it. A document with no expiry ` +
         `recorded looks current on every screen until somebody audits it.`,
       'expiresAt'
     )

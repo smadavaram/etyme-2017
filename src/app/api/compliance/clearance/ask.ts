@@ -4,7 +4,7 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { packetByKey, startPacketFor } from '@/lib/packets'
-import { startPreview, hrNotice, lineExtras, type StartPreview } from '@/lib/contract-clearance'
+import { startPreview, hrNotice, lineExtras, papersAsked, countWord, type StartPreview } from '@/lib/contract-clearance'
 import { possessive } from '@/lib/requisition-approval'
 
 /**
@@ -338,6 +338,9 @@ export async function askForClearance(input: {
 
   const spec = packetByKey(startPacketFor(roleTitle))
   const label = spec?.label ?? 'Starting somebody'
+  // "three papers … an I-9, a background check and a professional
+  // license": counted in a word and named, never "3 document(s)".
+  const papers = papersAsked(preview.askOfPerson)
 
   // Why they are being asked, written to them. Not "your contract is in
   // DRAFT" — the worker has no idea what that is.
@@ -383,8 +386,8 @@ export async function askForClearance(input: {
       companyId: contract.companyId,
       action: 'PACKET_REQUESTED',
       summary:
-        `Asked ${contract.person.name} for ${preview.askOfPerson.length} document(s) before starting` +
-        `${clientName ? ` at ${clientName}` : ''} — ${label}`,
+        `Asked ${contract.person.name} for ${papers.counted} before the start` +
+        `${clientName ? ` at ${clientName}` : ''}: ${papers.named}`,
       reason:
         `The placement was made, so the papers are asked for now rather than when somebody tries to start them. ` +
         preview.says,
@@ -422,8 +425,15 @@ export async function askForClearance(input: {
     personId: contract.personId,
     companyId: contract.companyId,
     type: 'SYSTEM',
-    title: `${contract.company?.name ?? 'Your agency'} needs ${preview.askOfPerson.length} document(s) before you start`,
-    body: `${reason} ${preview.askOfPerson.map((a) => a.label).join(', ')}.`,
+    // The job leads the body and is in the title, so the notice says what
+    // it is about wherever it is read, the greeting's one line included.
+    title:
+      `${contract.company?.name ?? 'Your agency'} needs ${papers.counted} before you start` +
+      `${roleTitle ? ` as ${roleTitle}` : ''}: ${papers.named}`,
+    body:
+      `${roleTitle ?? 'Your placement'}${clientName ? ` at ${clientName}` : ''}` +
+      `${contract.startDate ? `, starting ${contract.startDate.toISOString().slice(0, 10)}` : ''}. ` +
+      (papers.count === 1 ? `This is the paper we need before your first day: ${papers.named}.` : `These are the papers we need before your first day: ${papers.named}.`),
     entityId: packet.id,
     channel: 'EMAIL',
   })
@@ -436,8 +446,10 @@ export async function askForClearance(input: {
     alreadyAsked: false,
     told,
     says:
-      `Asked ${contract.person.name} for ${preview.askOfPerson.length} document(s), and told ` +
-      `${told.length} person(s) here that the placement needs clearing.`,
+      `Asked ${contract.person.name} for ${papers.counted}: ${papers.named}. ` +
+      (told.length === 0
+        ? 'Nobody else here needed telling.'
+        : `Told ${countWord(told.length)} ${told.length === 1 ? 'person' : 'people'} here that the placement needs clearing.`),
   }
 }
 

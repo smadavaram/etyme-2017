@@ -5,10 +5,12 @@ import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import { emit } from '@/lib/events'
+import { writeCheck } from './record'
 import {
   checkToRecord,
   mayRecordCheck,
   recordLabel,
+  withArticle,
   type ExaminedEvidence,
   type RecordingSide,
 } from '@/lib/attestation'
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
       endClientCompany: { select: { name: true } },
     },
   })
-  if (!contract) return refuse(404, 'NOT_FOUND', 'There is no placement with that id.')
+  if (!contract) return refuse(404, 'NOT_FOUND', 'That placement could not be found. Open it from its own page and record the check there.')
 
   const raw = contractSide(caller, contract)
   const side: RecordingSide = raw === 'SUPPLIER' ? 'EMPLOYER' : raw === 'PAYER' || raw === 'END_CLIENT' ? 'BUYER' : null
@@ -84,7 +86,8 @@ export async function POST(request: NextRequest) {
       await recordRefusal([contract.personId], {
         ...accessActor(caller),
         action: 'COMPLIANCE_CHECK',
-        reason: `Refused recording a ${recordLabel(type)}: ${may.code}`,
+        // The log is read by people: the refusal in words, never its code.
+        reason: `Refused recording ${withArticle(recordLabel(type))}: ${REFUSED_BECAUSE[may.code]}`,
       })
     }
     return refuse(403, may.code, may.message)
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
   const dates: Record<string, Date | null> = {}
   for (const f of ['renderedOn', 'issuedOn', 'validFrom', 'expiresAt']) {
     const d = dateOf(f)
-    if (d === 'BAD') return refuse(422, 'VALIDATION', `Give ${f} as a date, like 2027-06-30.`, f)
+    if (d === 'BAD') return refuse(422, 'VALIDATION', `Give ${DATE_WORDS[f]} as a date, like 2027-06-30.`, f)
     dates[f] = d
   }
   const evidence: ExaminedEvidence[] = []
@@ -158,72 +161,23 @@ export async function POST(request: NextRequest) {
   const row = verdict.row
   const subject = about === 'PERSON' ? { personId: contract.personId } : { companyId: contract.companyId }
 
-  // The same paper recorded twice is one paper. Matched on what is
-  // printed on it, so a second press does not leave two rows for one
-  // certificate — two rows for one certificate is how a lapse hides
-  // behind its own renewal.
-  const already = await prisma.verification.findFirst({
-    where: {
-      ...subject,
-      type: row.type as never,
-      status: row.status as never,
-      referenceId: row.referenceId,
-      expiresAt: row.expiresAt,
-      formEdition: row.formEdition,
-      provider: row.provider,
-    },
-    select: { id: true },
+  const written = await writeCheck({
+    row,
+    subject,
+    personId: contract.personId,
+    recordedById: caller.person.id,
+    recordingCompanyId: caller.company.id,
+    now,
   })
-
-  const id = already?.id ?? (await prisma.$transaction(async (tx) => {
-    const made = await tx.verification.create({
-      data: {
-        ...subject,
-        type: row.type as never,
-        status: row.status as never,
-        provider: row.provider,
-        referenceId: row.referenceId,
-        issuedAt: row.issuedAt,
-        validFrom: row.validFrom,
-        expiresAt: row.expiresAt,
-        formEdition: row.formEdition,
-        result: (row.result ?? undefined) as never,
-        orderedByCompanyId: row.ordered ? caller.company!.id : null,
-        orderedAt: row.orderedAt,
-        uploadedById: caller.person.id,
-        verifiedById: caller.person.id,
-        verifiedAt: row.verifiedAt,
-      },
-      select: { id: true },
-    })
-    for (const e of row.evidence) {
-      const seen = await tx.verification.create({
-        data: {
-          personId: contract.personId,
-          type: e.type as never,
-          status: 'CLEAR',
-          provider: e.provider,
-          referenceId: e.referenceId,
-          expiresAt: e.expiresAt,
-          uploadedById: caller.person.id,
-          verifiedById: caller.person.id,
-          verifiedAt: now,
-        },
-        select: { id: true },
-      })
-      await tx.documentBacking.create({
-        data: { formId: made.id, evidenceId: seen.id, satisfiedKey: e.type, recordedById: caller.person.id },
-      })
-    }
-    return made.id
-  }))
+  const id = written.id
+  const already = written.already ? written : null
 
   if (about === 'PERSON') {
     logAccess({
       subjectId: contract.personId,
       ...accessActor(caller),
       action: 'COMPLIANCE_CHECK',
-      reason: `Recorded a ${recordLabel(type)} for the placement at ${buyerName}`,
+      reason: `Recorded ${withArticle(recordLabel(type))} for the placement at ${buyerName}`,
     })
   }
   if (!already) {
@@ -250,6 +204,21 @@ export async function POST(request: NextRequest) {
     },
     { status: already ? 200 : 201 }
   )
+}
+
+/** A refusal's reason on the access log, in words. */
+const REFUSED_BECAUSE: Record<'NOT_A_PARTY' | 'NOT_YOURS_TO_RECORD' | 'FORBIDDEN', string> = {
+  NOT_A_PARTY: 'the firm is not a party to the placement',
+  NOT_YOURS_TO_RECORD: 'it is the other firm’s to record',
+  FORBIDDEN: 'the seat does not record checks',
+}
+
+/** Each date field, as the paper names it. */
+const DATE_WORDS: Record<string, string> = {
+  renderedOn: 'the day the provider reported',
+  issuedOn: 'the day it was issued',
+  validFrom: 'the day it starts',
+  expiresAt: 'the day it runs out',
 }
 
 function refuse(status: number, code: string, message: string, field?: string) {
