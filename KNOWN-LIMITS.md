@@ -667,3 +667,26 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
    and the two `audit_form_*` events stay in `lib/public-site/market-events`
    because rows already written carry them; nothing on the site sends
    them any more.
+
+## The simulation harness — etyme-architect (2026-10-20)
+
+- **No clock override.** The app reads the real day everywhere, so a run
+  cannot move "today" forward. Weeks a station files are real past and
+  present weeks; a year of weeks means weeks that ended in the past.
+  `advanceDay()` is not offered because there is nothing for it to move.
+- **Workers with no door.** The demo page seats six people by name. Every
+  other worker, and every role at a seeded firm no door names, is opened
+  with the same signed session cookie the door would set (`worker/…`,
+  `staff/…` keys). The session is identical; the knock is skipped.
+- **The seed decides who is seated.** Only Brightmoor Staffing seats every
+  supplier role; most firms seat an Owner and one or two more. A station
+  that needs a role a firm does not seat acts as the Owner, and says so.
+- **One machine, one database pool.** Timings are a local `next start`
+  against local Postgres with Prisma's default pool, not the serverless
+  host. A p95 here is a ranking of routes, not a promise about production.
+- **The build is a whole `next build`** into `.next-sim`, redone whenever a
+  file under `src/` is newer than the last one (a few minutes). Its
+  compiler cache is deleted after each build, because it filled the disk
+  on the first full run. `--no-build` reuses what is there.
+- **The database is kept** (`etyme_sim_<stamp>`, about 25 MB) unless
+  `--drop`. Nothing sweeps old ones yet.

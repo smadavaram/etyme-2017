@@ -1433,6 +1433,30 @@ What this changes, and the shape it takes:
   them, and that is what the demo shows. The hand-written seed stays as
   the day-one world the simulation starts from.
 
+**The harness is built, 2026-10-20 (architect).** `npm run simulate --
+--placements 200 --weeks 12` copies today's world template to
+`etyme_sim_<stamp>`, builds the app into `.next-sim` when anything
+changed (never `.next`, which somebody's `next dev` may be writing),
+starts it on a free port, runs the stations, stops it by its pid, and
+writes `reports/simulation-<stamp>.md` with the JSON ledger beside it.
+What a station author needs to know:
+- **A station is one file in its owner's folder**,
+  `scripts/simulate/stages/<domain>/<station>.ts`, and `stage.ts` says
+  what it is handed: the seats (`ctx.cast`), the facts earlier stations
+  made (`ctx.world`), the run's flags, `ctx.parallel` and
+  `ctx.expectRefusal`. `stages/demand/post-jobs.ts` is the worked
+  example. Every other station is a stub that says whose it is.
+- **Every seat opens through the demo door.** A worker or a firm's
+  role the demo page has no door for gets the same signed session the
+  door would set, keyed `worker/` or `staff/`, never a row.
+- **Reading is allowed, writing is impossible.** `ctx.read` connects as
+  a database role that can only select, in read-only transactions.
+- **There is no clock override.** "Today" is the real day; a station
+  works in real weeks, and the nightly jobs run when a station calls
+  `ctx.cast.cron('<name>')`.
+- **Nothing leaves the machine.** The server is started without the
+  email, model and Teams keys.
+
 ## One tenant is one domain name — decided 2026-09-21
 
 **The founder's rule: one tenant = one domain name.** A company signs in

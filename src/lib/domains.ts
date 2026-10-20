@@ -63,6 +63,8 @@ export const DOMAINS: Domain[] = [
       'difference between attesting that a check happened and declaring a person fit.',
     l2: ['L2.2.3', 'L2.7.1', 'L2.7.3', 'L2.7.4'],
     owns: [
+      // Its station of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/regulatory',
       // The job twin's time-limit rule and its one demo contractor (2026-10-12).
       // The twin's door is the architect's (lib/twin); the rule is regulatory's.
       'lib/twin/rules/tenure', 'lib/twin/seed-tenure-demo',
@@ -143,6 +145,8 @@ export const DOMAINS: Domain[] = [
       'has actually been paid. Refuses to show a number it cannot stand behind.',
     l2: ['L2.4.1', 'L2.4.2', 'L2.4.3', 'L2.5.1', 'L2.5.2', 'L2.5.3', 'L2.6.1', 'L2.6.2'],
     owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/money',
       // The job twin's invoice-receipt rule and its three demo receipts
       // (2026-10-12). The twin's door is the architect's (lib/twin).
       'lib/twin/rules/invoice', 'lib/twin/seed-demo',
@@ -203,6 +207,8 @@ export const DOMAINS: Domain[] = [
       'noise, and how to write to somebody who did not ask to hear from you.',
     l2: ['L2.1.3', 'L2.3.2'],
     owns: [
+      // Its station of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/conversation',
       'app/dashboard/conversations', 'app/dashboard/texts',
       'app/api/conversations', 'app/api/texts', 'app/api/events',
       'app/answer', 'app/claim',
@@ -243,6 +249,8 @@ export const DOMAINS: Domain[] = [
       'invitations, submissions, screening, the award and the seat.',
     l2: ['L2.1.1', 'L2.1.3', 'L2.2.1'],
     owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/demand',
       'app/dashboard/requisitions', 'app/dashboard/invitations', 'app/dashboard/leads',
       'app/dashboard/decisions', 'app/dashboard/program',
       'app/api/requisitions', 'app/api/invitations', 'app/api/leads',
@@ -284,6 +292,8 @@ export const DOMAINS: Domain[] = [
       'them on evidence rather than a forwarded CV. Matching, burn, rolloff.',
     l2: ['L2.1.2', 'L2.7.2'],
     owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/supply',
       'app/dashboard/alumni', 'app/dashboard/my-benches', 'app/dashboard/my-page',
       'app/dashboard/training', 'app/api/training',
       // Training that starts, finishes or stops.
@@ -359,6 +369,9 @@ export const DOMAINS: Domain[] = [
       'system, and the agent loop itself.',
     l2: ['L2.1.5', 'L2.2.2', 'L2.6.3', 'L2.7.6'],
     owns: [
+      // The simulation's harness, actors and report (CLAUDE.md, 2026-10-20).
+      // Each domain owns its stations under scripts/simulate/stages/<domain>.
+      'scripts/simulate',
       // The job twin's door (2026-10-12): the role contract, the rule set,
       // the ledger, the performers and the routes. The rules under
       // lib/twin/rules are the domains whose arithmetic they are.

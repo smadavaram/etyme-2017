@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Where the build goes. `.next` unless a script asks for its own folder:
+  // the simulation (scripts/simulate) builds into `.next-sim` so a
+  // production build and somebody's `next dev` never write one folder at
+  // once (2026-10-20).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   experimental: {
     typedRoutes: true,
     // argon2 is a native module (the password door's hash). Bundling it
