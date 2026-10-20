@@ -14,9 +14,11 @@ import { Ledger, faultsOf, percentile, routeStats, type Call } from '../../scrip
 import { lessonsOf } from '../../scripts/simulate/lessons'
 import { routeOf } from '../../scripts/simulate/routes'
 import { parseArgs } from '../../scripts/simulate/args'
-import { STAGE_ORDER, emptyWorld, parallel } from '../../scripts/simulate/stage'
+import { STAGE_ORDER, emptyWorld, parallel, batchRefusal } from '../../scripts/simulate/stage'
 import { STAGES } from '../../scripts/simulate/stages'
-import { reportMarkdown } from '../../scripts/simulate/report'
+import { reportMarkdown, benchLine } from '../../scripts/simulate/report'
+import { newSeats, type SeatSpec } from '../../scripts/simulate/actors'
+import { pruneable, withoutAddedInclude } from '../../scripts/simulate/server'
 
 let n = 0
 function call(over: Partial<Call>): Call {
@@ -180,5 +182,81 @@ describe('The report is read by the founder', () => {
     expect(md).not.toMatch(/\bdesks?\b/i)
     expect(md).not.toMatch(/program office/i)
     expect(md).toContain('"Raising a job request is for whoever is hiring."')
+  })
+})
+
+// ── What two runs at once and the first stations found (2026-10-20) ────
+
+describe('A refusal said person by person is still a refusal', () => {
+  it('a batch that answers 200 and refuses every person in it, in words, is a rule that held', () => {
+    const json = { data: { results: [{ personId: 'p1', status: 'error', error: 'Ifeoma Balogun has not agreed to be marketed by you.' }] } }
+    expect(batchRefusal(json)).toEqual({ allRefused: true, sentences: ['Ifeoma Balogun has not agreed to be marketed by you.'] })
+  })
+
+  it('a batch where one person went through is not a refusal of the call', () => {
+    const json = { data: { results: [{ status: 'created' }, { status: 'duplicate', error: 'First submission wins.' }] } }
+    expect(batchRefusal(json)?.allRefused).toBe(false)
+  })
+
+  it('an answer that is not a batch is read the ordinary way', () => {
+    expect(batchRefusal({ data: { id: 'x' } })).toBeNull()
+    expect(batchRefusal(null)).toBeNull()
+  })
+})
+
+describe('A person seated during the run can be sat as by the next station', () => {
+  const seat = (key: string): SeatSpec => ({ key, door: { email: `${key}@x.invalid` }, personName: key, email: `${key}@x.invalid`, personId: key, role: 'Worker', company: null })
+
+  it('only seats the catalog does not hold yet are added, and none twice', () => {
+    expect(newSeats([seat('a'), seat('b')], [seat('b'), seat('c'), seat('c')]).map((s) => s.key)).toEqual(['c'])
+  })
+})
+
+describe('The world carries the bench, and the report says it in a line', () => {
+  it('an empty world starts with an empty bench', () => {
+    expect(emptyWorld().bench).toEqual([])
+  })
+
+  it('the line counts who may be put forward today and who said no', () => {
+    expect(benchLine([])).toBe('People on a bench: none recorded this run')
+    expect(benchLine([
+      { kind: 'LISTING', state: 'GRANTED' }, { kind: 'LISTING', state: 'DECLINED' }, { kind: 'EMPLOYEE', state: 'EMPLOYEE' },
+    ])).toBe("People on a bench: 3, 2 of them may be put forward today (1 the firm's own between projects); 1 said no")
+  })
+})
+
+describe('A build never takes away the build another run is serving from', () => {
+  const now = 100 * 3_600_000
+  const old = now - 7 * 3_600_000
+  const fresh = now - 3_600_000
+
+  it('the build pointed at is never deleted, however old', () => {
+    const gone = pruneable([{ name: 'b1', under: 'builds', mtimeMs: old }], 'b1', now)
+    expect(gone).toEqual([])
+  })
+
+  it('a build nobody points at is kept six hours for a server still using it, and deleted after', () => {
+    const gone = pruneable([
+      { name: 'b-old', under: 'builds', mtimeMs: old },
+      { name: 'b-fresh', under: 'builds', mtimeMs: fresh },
+    ], 'b-now', now)
+    expect(gone).toEqual([{ name: 'b-old', under: 'builds' }])
+  })
+
+  it('the lock, the pointer and the builds folder are never pruned; an old build left at the top is', () => {
+    const gone = pruneable([
+      { name: 'build.lock', under: 'top', mtimeMs: old }, { name: 'current', under: 'top', mtimeMs: old },
+      { name: 'builds', under: 'top', mtimeMs: old }, { name: 'server', under: 'top', mtimeMs: old },
+    ], null, now)
+    expect(gone).toEqual([{ name: 'server', under: 'top' }])
+  })
+
+  it('the include line next build adds for its own folder is taken out again, and nothing else is touched', () => {
+    const before = JSON.stringify({ compilerOptions: { strict: true }, include: ['**/*.ts'] }, null, 2) + '\n'
+    const after = JSON.stringify({ compilerOptions: { strict: true }, include: ['**/*.ts', '.next-sim/builds/x/types/**/*.ts'] }, null, 2)
+    expect(withoutAddedInclude(before, after, '.next-sim/builds/x')).toBe(before)
+    const other = JSON.stringify({ compilerOptions: { strict: false }, include: ['**/*.ts', '.next-sim/builds/x/types/**/*.ts'] })
+    expect(withoutAddedInclude(before, other, '.next-sim/builds/x')).toBeNull()
+    expect(withoutAddedInclude(before, before, '.next-sim/builds/x')).toBeNull()
   })
 })

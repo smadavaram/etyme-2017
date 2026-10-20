@@ -725,9 +725,39 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 - **One machine, one database pool.** Timings are a local `next start`
   against local Postgres with Prisma's default pool, not the serverless
   host. A p95 here is a ranking of routes, not a promise about production.
-- **The build is a whole `next build`** into `.next-sim`, redone whenever a
-  file under `src/` is newer than the last one (a few minutes). Its
-  compiler cache is deleted after each build, because it filled the disk
-  on the first full run. `--no-build` reuses what is there.
+- **The build is a whole `next build`**, redone whenever a file under
+  `src/` is newer than the last one (a few minutes). Since 2026-10-20 each
+  build goes into its own folder, `.next-sim/builds/<stamp>`, under a lock
+  (`.next-sim/build.lock`); `.next-sim/current` is pointed at it only once
+  it finished, and a server keeps the build it started on. A second run
+  waits for the first run's build and uses it. A build's compiler cache is
+  deleted once that build has finished, so every build compiles from
+  nothing. Folders nobody points at are deleted after six hours, so a run
+  longer than six hours whose build was replaced meanwhile can lose its
+  files. `next build` adds its folder to tsconfig.json's include list; the
+  run takes that one line out again, and leaves the file alone (and says
+  so in the build log) if anything else in it changed. `--no-build` reuses
+  the current build.
 - **The database is kept** (`etyme_sim_<stamp>`, about 25 MB) unless
   `--drop`. Nothing sweeps old ones yet.
+- **Two routes are slow under load, and their owners know.** Measured on
+  2026-10-20 with twenty calls at once on a four-CPU machine:
+  - `GET /api/cron/twin` ran at a p95 of 6.8 seconds. Most of it was the
+    twin's own: each act read the role contract again (175 reads in one
+    night) and looked up its finding key again (225), and each invoice
+    receipt read its supplier on its own. Since 2026-10-20 a run reads the
+    contract, the keys and the suppliers once (`runMemo` in lib/twin/ledger,
+    `invoiceSupplierIds` in lib/twin/performers); not yet measured again.
+    What remains is the rules' own reads (regulatory's tenure, money's
+    invoice match). Owner: etyme-architect, with regulatory and money for
+    their rules.
+  - Ask Etyme's greeting ran over two seconds at p95 for every party
+    under twenty reads at once. The greeting reads the decisions queue,
+    which runs about twenty-six queries in a row. Owner:
+    etyme-conversation for the greeting, etyme-demand for the decisions
+    read.
+- **A run's finding keys are read once, at its start.** A second run of
+  the same company's twin that writes a key after that read is still
+  caught by the ledger's unique key: an act done alone then reads as
+  already done, and an act that asks a person fails and staff are told.
+  The window was one act long before; it is one run long now.

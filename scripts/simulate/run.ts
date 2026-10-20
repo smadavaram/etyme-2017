@@ -22,7 +22,7 @@ import { parseArgs } from './args'
 import { Ledger, faultsOf, isError, isRefusal } from './ledger'
 import { lessonsOf } from './lessons'
 import { writeReport, type StageRun } from './report'
-import { build, freePort, serverEnv, staleBecause, start, DIST_DIR, type Running } from './server'
+import { build, freePort, serverEnv, start, type Running } from './server'
 import { emptyWorld, expectRefusalOn, parallel, type Ctx } from './stage'
 import { STAGES } from './stages'
 import { dropWorld, prepareWorld } from './world-db'
@@ -69,11 +69,12 @@ async function main() {
   try {
     const port = await freePort()
     const env = serverEnv({ databaseUrl: db.url, nextAuthSecret, cronSecret, port })
-    const stale = args.build === 'always' ? 'a rebuild was asked for' : args.build === 'never' ? null : staleBecause()
-    if (stale) {
-      say(`building the app into ${DIST_DIR}, because ${stale} (a few minutes)`)
-      build(env, join(REPORTS, `simulation-${stamp}.build.log`))
-      buildNote = `built for this run because ${stale}`
+    if (args.build !== 'never') {
+      // Into a folder of its own, under a lock, and pointed at only once it
+      // finished (server.ts): a failed build or another run's build never
+      // takes away the one a server is using.
+      const why = await build(env, join(REPORTS, `simulation-${stamp}.build.log`), { force: args.build === 'always', say })
+      if (why) buildNote = `built for this run because ${why}`
     }
     say(`starting the app on port ${port}`)
     server = await start(env, port, join(REPORTS, `simulation-${stamp}.server.log`))
@@ -81,15 +82,18 @@ async function main() {
     say(`app ready at ${base}`)
 
     catalog = await readCatalog(reader)
-    for (const s of catalog.seats) {
-      if (!s.company) continue
-      const c = (world.companies[s.company.slug] ??= { ...s.company, seats: [] })
-      c.seats.push(s.key)
+    const placeSeats = (seats: typeof catalog.seats) => {
+      for (const s of seats) {
+        if (!s.company) continue
+        const c = (world.companies[s.company.slug] ??= { ...s.company, seats: [] })
+        if (!c.seats.includes(s.key)) c.seats.push(s.key)
+      }
     }
+    placeSeats(catalog.seats)
     say(`${catalog.seats.length} seats in the world, at ${Object.keys(world.companies).length} firms`)
 
     const wire: Wire = { base, ledger, secret: nextAuthSecret, cronSecret, timeoutMs: args.timeoutMs }
-    cast = new Cast(catalog, wire)
+    cast = new Cast(catalog, wire, reader)
     const options = { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only }
 
     for (const stage of STAGES) {
@@ -111,6 +115,17 @@ async function main() {
       }
       run.ms = Date.now() - t0
       stages.push(run)
+      // A station that seated somebody (a delivery manager, a new worker on
+      // a bench) leaves a seat the next station can sit in.
+      try {
+        const added = await cast.refresh()
+        if (added.length) {
+          placeSeats(added)
+          say(`${stage.name}: ${added.length} new seat${added.length === 1 ? '' : 's'} in the world`)
+        }
+      } catch (e: any) {
+        say(`${stage.name}: the seats could not be read again — ${String(e?.message ?? e)}`)
+      }
       if (stage.built) {
         const sc = ledger.ofStage(stage.name)
         say(

@@ -59,6 +59,23 @@ export function seatLabel(catalog: Catalog, key: string): string {
   return `${s.personName}, ${s.role} at ${s.company?.name ?? 'no firm'}`
 }
 
+/**
+ * The bench in one line: how many people, how many of them may be put
+ * forward today (said yes, or the firm's own between projects), and how
+ * many said no. Read off the facts supply's stations leave (`benchOf`).
+ */
+export function benchLine(bench: readonly { kind: string; state: string }[]): string {
+  if (bench.length === 0) return 'People on a bench: none recorded this run'
+  const live = bench.filter((b) => b.state === 'GRANTED' || b.kind === 'EMPLOYEE').length
+  const no = bench.filter((b) => b.state === 'DECLINED').length
+  const own = bench.filter((b) => b.kind === 'EMPLOYEE').length
+  return (
+    `People on a bench: ${bench.length}, ${live} of them may be put forward today` +
+    (own ? ` (${own} the firm's own between projects)` : '') +
+    (no ? `; ${no} said no` : '')
+  )
+}
+
 export function reportMarkdown(r: RunRecord): string {
   const calls = r.ledger.calls
   const stats = routeStats(calls)
@@ -108,6 +125,7 @@ export function reportMarkdown(r: RunRecord): string {
     ['Payroll runs', w.payrollRuns.length],
   ]
   for (const [k, v] of counts) L.push(`- ${k}: ${v}`)
+  L.push(`- ${benchLine(w.bench ?? [])}`)
   L.push('')
 
   L.push('## What refused, and why')

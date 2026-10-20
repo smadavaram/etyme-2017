@@ -182,7 +182,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
   { desk: 'procurement', label: 'Procurement lead',
     waiting: 'A job request is waiting for you to say which suppliers may see it.' },
   { desk: 'vp', label: 'Approver',
-    waiting: 'A job request over $250k is in your queue. Your yes is one of two.' },
+    waiting: 'A job request over $500k is in your queue. Your yes is one of two.' },
   { desk: 'ap', label: 'AP clerk',
     waiting: 'A bill has matched the hours and is waiting to be paid.' },
   { desk: 'compliance', label: 'Compliance officer',
@@ -204,7 +204,7 @@ export const CLIENT_DESKS: ClientDesk[] = [
   // published requisition, so a desk that stops being the last yes
   // breaks the build rather than the founder's walk.
   { desk: '', label: 'Account owner',
-    waiting: 'People, roles and permissions. And the last yes on the job request over $250k, after the approver.' },
+    waiting: 'People, roles and permissions. And the last yes on the job request over $500k, after the approver.' },
 ]
 
 /**

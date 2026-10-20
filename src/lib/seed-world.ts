@@ -33,6 +33,7 @@
  * makes it safe to re-run after a timeout — it picks up where it stopped.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { renameRetiredFirms } from '@/lib/seed-renames'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
@@ -59,6 +60,7 @@ import { seedPipeline } from '@/lib/seed-pipeline'
 import { costCenterCode, legacyCostCenterCode, findCostCenter } from '@/lib/seed-coding'
 import { seedDocumentRequirements } from '@/lib/seed-document-requirements'
 import { rolesFor, RENAMED_ROLES, GRANTED_SINCE } from '@/lib/company-defaults'
+import { ownSeatGrantReason } from '@/lib/own-seat'
 // A seeded bill is shaped by the two doors a real one is: `periodFor`
 // under the terms of the document the line is on, and `dueOn` under what
 // those terms count from.
@@ -247,7 +249,7 @@ export function worldStepNames(): string[] {
     ...FIRMS.map((f) => `firm:${f.slug}`),
     'calendar', 'counterparties',
     ...PLACEMENTS.map((_, i) => `placement:${i}`),
-    'bench', 'in-flight', 'payroll', 'payroll-invitations',
+    'bench', 'in-flight', 'payroll', 'sundara-delivery', 'payroll-invitations',
     ...programSteps().map((s) => s.name),
     // The job twin's demo at Northbend: a contractor near the time limit,
     // and two more invoice receipts (one clean, one over the accepted hours).
@@ -260,6 +262,7 @@ export function worldStepNames(): string[] {
     'pipeline',
     'document-requirements', 'sector-papers',
     ...payrollRunSteps().map((st) => st.name),
+    'own-seats',
     'claim',
   ]
 }
@@ -685,29 +688,49 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       // The year the world was born, which is the year its weeks are in
       // (lib/seed-days). It was the literal '2026'.
       const period = seedPlanYear()
-      if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } }))) {
+      // Room to hire within plan (2026-10-20): Security and R&D 1 hold four
+      // open heads, so a contractor job charged there publishes itself.
+      // Apps stays at six: three or four of its heads are seeded placements,
+      // so a single job still fits, and the three multi-head jobs the
+      // programs seed as "over Apps' plan" (lib/seed-programmes) stay over
+      // it, which is the over-plan path the demo shows. A plan written with
+      // the old three heads is widened on the next seeding.
+      const heads = d.code === 'APPS' ? 6 : 4
+      const budget = d.code === 'APPS' ? 2_400_000 : 1_200_000
+      const plan = await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } })
+      if (!plan) {
         await db.headcountPlan.create({
-          data: {
-            costCenterId: cc.id, period,
-            approvedHeads: d.code === 'APPS' ? 6 : 3,
-            annualBudget: d.code === 'APPS' ? 2_400_000 : 900_000,
-            currency: 'USD',
-          },
+          data: { costCenterId: cc.id, period, approvedHeads: heads, annualBudget: budget, currency: 'USD' },
         })
+      } else if (d.code !== 'APPS' && plan.approvedHeads === 3 && Number(plan.annualBudget) === 900_000) {
+        await db.headcountPlan.update({ where: { id: plan.id }, data: { approvedHeads: heads, annualBudget: budget } })
       }
     }
 
-    // Anything over $250k a year is the VP's. Most requisitions fall
-    // under it and clear themselves, which is the point — governance
-    // slower than the workaround produces the workaround.
-    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Over $250k' } }))) {
-      await db.approvalRule.create({
-        data: {
-          companyId: c.id, name: 'Over $250k', thresholdAmount: 250_000,
-          approverId: approver.id, rank: 1, isActive: true, authoredById: p.id,
-        },
-      })
+    /**
+     * A value rule by its name, written once. A world seeded under the
+     * rule's earlier name and line has it renamed and moved in place, so a
+     * second seeding never leaves two lines for one person.
+     */
+    async function valueRule(r: { name: string; was: string; threshold: number; data: Omit<Prisma.ApprovalRuleUncheckedCreateInput, 'companyId' | 'name' | 'thresholdAmount'> }) {
+      const found = await db.approvalRule.findFirst({ where: { companyId: c.id, name: { in: [r.name, r.was] } }, select: { id: true, name: true } })
+      if (!found) {
+        await db.approvalRule.create({ data: { companyId: c.id, name: r.name, thresholdAmount: r.threshold, ...r.data } })
+      } else if (found.name === r.was) {
+        await db.approvalRule.update({ where: { id: found.id }, data: { name: r.name, thresholdAmount: r.threshold } })
+      }
     }
+
+    // Anything over $500k a year is the VP's. Most requisitions fall
+    // under it and clear themselves, which is the point — governance
+    // slower than the workaround produces the workaround. It was $250k,
+    // and a twelve-month job at the top of a seeded rate band is about
+    // $300k, so the simulation (2026-10-20) found no job at all published
+    // itself. A many-head job is still over it.
+    await valueRule({
+      name: 'Over $500k', was: 'Over $250k', threshold: 500_000,
+      data: { approverId: approver.id, rank: 1, isActive: true, authoredById: p.id },
+    })
 
     // The lead: a rule with no threshold, which catches whatever a check
     // routes and matches nothing else. Without one, a requisition
@@ -716,15 +739,14 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     // Scoped to Technology. A requisition raised in R&D 1 must reach this
     // person through R&D and Technology, without the rule being copied
     // onto either.
-    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Technology — over $80k' } }))) {
-      await db.approvalRule.create({
-        data: {
-          companyId: c.id, name: 'Technology — over $80k', thresholdAmount: 80_000,
-          approverId: approver.id, rank: 1, isActive: true, authoredById: p.id,
-          orgUnitId: unitByName.get('Technology')!.id,
-        },
-      })
-    }
+    // $400k, not the $80k it was: $80k is four months of one contractor,
+    // so every job of a year routed to this person and none published
+    // itself (simulation, 2026-10-20). A year of one contractor at any
+    // seeded rate clears it.
+    await valueRule({
+      name: 'Technology — over $400k', was: 'Technology — over $80k', threshold: 400_000,
+      data: { approverId: approver.id, rank: 1, isActive: true, authoredById: p.id, orgUnitId: unitByName.get('Technology')!.id },
+    })
 
     if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Program lead' } }))) {
       await db.approvalRule.create({
@@ -1612,6 +1634,31 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     }
   })
 
+  // Somebody at Sundara who staffs its practices (2026-10-20). Teleworld
+  // seats two delivery managers (lib/seed-internal-moves); Sundara seated
+  // only its owner and its payroll clerk, so the simulation found nobody
+  // there who could flag an engineer coming off a project or put one of
+  // its own people forward. Firm-wide, so she sees every practice's people.
+  await step('sundara-delivery', async () => {
+    const sundara = firmBySlug.get('sundara')!
+    const seed = rolesFor('GSI').find((r) => r.name === 'Delivery Manager')!
+    const role =
+      (await db.role.findFirst({ where: { companyId: sundara.id, name: seed.name }, select: { id: true } })) ??
+      (await db.role.create({ data: { companyId: sundara.id, name: seed.name, permissions: seed.permissions, isDefault: false }, select: { id: true } }))
+    const email = `${PREFIX}sundara-delivery@${DOMAIN}`
+    const who = await db.person.upsert({
+      where: { primaryEmail: email }, update: { name: 'Vidya Natarajan' }, create: { name: 'Vidya Natarajan', primaryEmail: email },
+    })
+    if (!(await db.context.findFirst({ where: { personId: who.id, companyId: sundara.id } }))) {
+      await db.context.create({
+        data: {
+          personId: who.id, companyId: sundara.id, roleId: role.id, type: 'EMPLOYEE', persona: 'MANAGER',
+          grantReason: 'Delivery manager — every practice',
+        },
+      })
+    }
+  })
+
   // And a seat one of them can actually answer with somebody off that
   // payroll. Corveldt's DO-178C verification engineer is open and
   // Corveldt chose which suppliers see it, so without an invitation the
@@ -2119,6 +2166,40 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   for (const { name, share } of payrollRunSteps()) {
     await step(name, () => seedPayrollRuns(ctx, share))
   }
+
+  // ── Everybody on their own work holds their own seat ───────────────
+  //
+  // The simulation (2026-10-20) signed in as every seeded worker and nine
+  // people on placements and three asked onto a bench had no seat at all,
+  // so every door refused them their own week, papers and terms. The door
+  // now gives such a person their own seat on first sign-in (lib/own-seat);
+  // the world is born with it instead, the way a candidate who signs up is,
+  // so the demo and the simulation see the same seats a person would.
+  // Only people with no seat anywhere, and only work at a world firm. No
+  // automation row: nothing here acted on anybody's behalf, it is the seed.
+  await step('own-seats', async () => {
+    const world = (await db.company.findMany({ where: { slug: { in: [...WORLD_SLUGS] } }, select: { id: true } })).map((c) => c.id)
+    const people = await db.person.findMany({
+      where: {
+        contexts: { none: {} },
+        OR: [
+          { sellContracts: { some: { OR: [{ companyId: { in: world } }, { clientCompanyId: { in: world } }] } } },
+          { submissions: { some: { OR: [{ fromCompanyId: { in: world } }, { toCompanyId: { in: world } }] } } },
+          { consultant: { listings: { some: { companyId: { in: world } } } } },
+        ],
+      },
+      select: {
+        id: true,
+        _count: { select: { sellContracts: true, submissions: true } },
+      },
+    })
+    for (const p of people) {
+      const because = p._count.sellContracts > 0 ? 'on a placement'
+        : p._count.submissions > 0 ? 'put forward to a job'
+        : 'asked onto a bench'
+      await db.context.create({ data: { personId: p.id, type: 'CONSULTANT', grantReason: ownSeatGrantReason(because) } })
+    }
+  })
 
   // ── A firm with a seat took possession of itself ───────────────────
   //

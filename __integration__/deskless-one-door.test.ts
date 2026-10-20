@@ -511,3 +511,103 @@ describe('nobody imports into, or reads an import of, a company that is not thei
     expect(nina.text).not.toContain('Wichita')
   })
 })
+
+/**
+ * Simulation, 2026-10-20: nine placed workers and three people on a bench
+ * and nowhere else held no seat at all — a firm placed or listed them
+ * before they ever signed in — and every door refused them their own
+ * work with "nobody has given you a seat yet". A person on their own work
+ * is their own seat (lib/own-seat). The world is born with those seats
+ * now, so each person here has theirs taken away first, the way a real
+ * worker arrives: listed by a firm, never signed in.
+ */
+describe('a person on their own work is their own seat, even when no firm has seated them', () => {
+  const PLACED = 'daniel.osei@seed.etyme.invalid'
+  const BENCHED = 'naomi.adeyemi@seed.etyme.invalid'
+  const NOBODY = 'no.work.here@walk-own-seat.example'
+  const PAUSED = 'paused.worker@walk-own-seat.example'
+  const ids: Record<string, string> = {}
+
+  async function routeAt(path: string) {
+    return import(/* @vite-ignore */ `@/app/api/${path}/route`)
+  }
+
+  beforeAll(async () => {
+    await freshWorld()
+    for (const email of [PLACED, BENCHED]) {
+      const p = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, select: { id: true } })
+      ids[email] = p.id
+      await prisma.context.deleteMany({ where: { personId: p.id } })
+    }
+    // Naomi is asked, not yet answered, so she has something of her own to agree.
+    const listing = await prisma.benchListing.findFirstOrThrow({ where: { consultant: { personId: ids[BENCHED] } }, select: { id: true } })
+    await prisma.benchListing.update({
+      where: { id: listing.id },
+      data: { state: 'INVITED', respondedAt: null, invitedAt: new Date() },
+    })
+    ids.listing = listing.id
+    // Somebody with no work at all, and somebody on a placement whose seat at a firm is paused.
+    await prisma.person.create({ data: { name: 'No Work Here', primaryEmail: NOBODY } })
+    const paused = await prisma.person.create({ data: { name: 'Paused Worker', primaryEmail: PAUSED } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids[PLACED] }, select: { companyId: true } })
+    await prisma.context.create({
+      data: { personId: paused.id, companyId: line.companyId, type: 'CONSULTANT', suspendedAt: new Date(), suspendReason: 'on leave until November' },
+    })
+    const profile = await prisma.consultantProfile.create({ data: { personId: paused.id, skills: ['SQL'], visibility: 'INTERNAL' } })
+    await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: line.companyId, tier: 'MARKETING', state: 'GRANTED' } })
+  }, 600_000)
+
+  it('a person on a placement with no firm seat opens their own work and Ask Etyme', async () => {
+    as(PLACED)
+    const work = await (await routeAt('me/work')).GET(req('GET', '/api/me/work'))
+    expect(work.status, await work.clone().text()).toBe(200)
+    const greeting = await (await routeAt('conversations/twin')).GET(req('GET', '/api/conversations/twin'))
+    const text = await greeting.text()
+    expect(greeting.status, text).toBe(200)
+    expect(text).not.toContain('nobody has given you a seat')
+
+    // The seat is their own: no company, no permission, and the reason on it.
+    const seats = await prisma.context.findMany({ where: { personId: ids[PLACED] } })
+    expect(seats).toHaveLength(1)
+    expect(seats[0]).toMatchObject({ type: 'CONSULTANT', companyId: null, roleId: null })
+    expect(seats[0].grantReason).toContain('on a placement')
+    const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'OWN_SEAT_OPENED', payload: { path: ['personId'], equals: ids[PLACED] } } })
+    expect(log.reversible).toBe(true)
+    expect(log.companyId).toBeNull()
+  })
+
+  it('a bench-only consultant agrees their own terms and sends their own papers', async () => {
+    as(BENCHED)
+    const papers = await (await routeAt('me/papers')).GET(req('GET', '/api/me/papers'))
+    expect(papers.status, await papers.clone().text()).toBe(200)
+    // Sending a paper reaches the papers route itself: it answers in its
+    // own words about the paper, never with the seat refusal.
+    const sent = await (await routeAt('me/papers')).POST(req('POST', '/api/me/papers', { documentTypeKey: 'I9' }))
+    expect(await sent.text()).not.toContain('nobody has given you a seat')
+    expect(sent.status).not.toBe(401)
+
+    const { POST: respond } = await routeAt('me/benches/[id]/respond')
+    const res = await respond(req('POST', `/api/me/benches/${ids.listing}/respond`, { said: 'ACCEPT', stayDays: 'UNTIL_CANCELLED' }), {
+      params: Promise.resolve({ id: ids.listing }),
+    })
+    expect(res.status, await res.clone().text()).toBe(200)
+    const listing = await prisma.benchListing.findUniqueOrThrow({ where: { id: ids.listing }, select: { state: true } })
+    expect(listing.state).toBe('GRANTED')
+  })
+
+  it('somebody with no work at all is still told that nobody has given them a seat, and no seat is made', async () => {
+    as(NOBODY)
+    const r = await json(await (await routeAt('me/work')).GET(req('GET', '/api/me/work')))
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NO_SEAT')
+    expect(await prisma.context.count({ where: { person: { primaryEmail: NOBODY } } })).toBe(0)
+  })
+
+  it('a person whose seat at a firm is paused is told it is paused, and is not given a seat around the pause', async () => {
+    as(PAUSED)
+    const r = await json(await (await routeAt('me/work')).GET(req('GET', '/api/me/work')))
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('SUSPENDED')
+    expect(await prisma.context.count({ where: { person: { primaryEmail: PAUSED } } })).toBe(1)
+  })
+})

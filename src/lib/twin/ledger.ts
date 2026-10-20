@@ -230,6 +230,42 @@ export interface ActInput {
    * record.
    */
   byHand?: string
+  /**
+   * What the run this act belongs to has already read: the role contract
+   * and every finding key already on the ledger. Without it each act reads
+   * both again — 175 contract reads and 225 key lookups on one night,
+   * most of the nightly run's 6.8 seconds (simulation, 2026-10-20).
+   */
+  memo?: RunMemo
+}
+
+/** What one run reads once and every act in it shares (`runMemo`). */
+export interface RunMemo {
+  companyId: string
+  twin: TwinKindName
+  contract: Contract
+  /** Entry ids by `action` and finding key: written before the run, and by it. */
+  seen: Map<string, string>
+}
+
+const seenKey = (action: string, dedupKey: string) => `${action}\u0000${dedupKey}`
+
+/**
+ * Read once for a run: the role contract and the finding keys already on
+ * the ledger for these acts. A run racing this one and writing a key after
+ * this read is still caught, by the unique key on the ledger (P2002 below).
+ */
+export async function runMemo(companyId: string, actions: readonly string[], twin: TwinKindName = 'PROGRAM_MANAGER'): Promise<RunMemo> {
+  const [contract, rows] = await Promise.all([
+    contractFor(companyId, twin),
+    prisma.twinAction.findMany({
+      where: { companyId, action: { in: [...actions] }, dedupKey: { not: null } },
+      select: { id: true, action: true, dedupKey: true },
+    }),
+  ])
+  const seen = new Map<string, string>()
+  for (const r of rows) if (r.dedupKey) seen.set(seenKey(r.action, r.dedupKey), r.id)
+  return { companyId, twin, contract, seen }
 }
 
 export type ActResult =
@@ -330,10 +366,27 @@ async function twinDrafted(companyId: string, entityType: string, entityId: stri
  * writes exactly one ledger entry. Never throws.
  */
 export async function act(input: ActInput): Promise<ActResult> {
+  const result = await actOnce(input)
+  // A key this act wrote is one the rest of the run need not look up.
+  const memo = usableMemo(input)
+  if (memo && input.dedupKey && (result.outcome === 'PERFORMED' || result.outcome === 'AWAITING_APPROVAL' || result.outcome === 'ALREADY')) {
+    memo.seen.set(seenKey(input.action, input.dedupKey), result.entryId)
+  }
+  return result
+}
+
+/** The run's memo, where it was read for this company and this twin; else nothing. */
+function usableMemo(input: ActInput): RunMemo | null {
+  const m = input.memo
+  return m && m.companyId === input.companyId && m.twin === (input.twin ?? 'PROGRAM_MANAGER') ? m : null
+}
+
+async function actOnce(input: ActInput): Promise<ActResult> {
   const parties = [...new Set(input.entity.partyCompanyIds?.length ? input.entity.partyCompanyIds : [input.companyId])]
+  const memo = usableMemo(input)
   let contract: Contract
   try {
-    contract = await contractFor(input.companyId, input.twin ?? 'PROGRAM_MANAGER')
+    contract = memo ? memo.contract : await contractFor(input.companyId, input.twin ?? 'PROGRAM_MANAGER')
   } catch (err) {
     await report(`Could not read the twin's role contract, so ${input.action} was not attempted.`, err, input.companyId, input.authority.personId)
     return { outcome: 'FAILED', says: NOT_RECORDED }
@@ -346,11 +399,13 @@ export async function act(input: ActInput): Promise<ActResult> {
     refuse(base, twinRefusal({ why, doing, authorityName: input.authority.personName, twin: input.twin }), rule)
 
   if (input.dedupKey) {
-    const seen = await prisma.twinAction.findFirst({
-      where: { companyId: input.companyId, action: input.action, dedupKey: input.dedupKey },
-      select: { id: true },
-    })
-    if (seen) return { outcome: 'ALREADY', entryId: seen.id, says: 'This was already recorded; nothing new was done.' }
+    const seenId = memo
+      ? memo.seen.get(seenKey(input.action, input.dedupKey)) ?? null
+      : (await prisma.twinAction.findFirst({
+          where: { companyId: input.companyId, action: input.action, dedupKey: input.dedupKey },
+          select: { id: true },
+        }))?.id ?? null
+    if (seenId) return { outcome: 'ALREADY', entryId: seenId, says: 'This was already recorded; nothing new was done.' }
   }
 
   if (!input.rule.trim() || !input.rationale.trim()) {

@@ -31,6 +31,10 @@ import type { PrismaClient } from '@prisma/client'
 import type { DomainKey } from '@/lib/domains'
 import { expecting, type Actor, type Cast, type Res } from './actors'
 import type { Ledger } from './ledger'
+import type { BenchFact } from './stages/supply/bench-facts'
+
+// The shape is supply's (stages/supply/bench-facts.ts); the world carries it.
+export type { BenchFact }
 
 // ── The world the stages fill ──────────────────────────────────────────
 
@@ -83,12 +87,14 @@ export interface World {
   receipts: ReceiptFact[]
   payments: PaymentFact[]
   payrollRuns: PayrollRunFact[]
+  /** Who is on whose bench, with whose consent (supply's stations write it, `benchOf`). */
+  bench: BenchFact[]
 }
 
 export function emptyWorld(): World {
   return {
     companies: {}, jobs: [], submissions: [], awards: [], contracts: [], weeks: [],
-    expenses: [], bills: [], receipts: [], payments: [], payrollRuns: [],
+    expenses: [], bills: [], receipts: [], payments: [], payrollRuns: [], bench: [],
   }
 }
 
@@ -193,17 +199,47 @@ export async function parallel<T, R>(items: T[], fn: (item: T, i: number) => Pro
   return out
 }
 
+/**
+ * The refusals inside a batch answer, or null where the answer is not a
+ * batch. `POST /api/submissions` answers 200 for the call and says, per
+ * person, which were refused and why (`data.results[i].error`), so a rule
+ * that held for every person in it is a refusal, said item by item.
+ * Pure. Held only where every item was refused with a sentence: one
+ * person through is the rule not holding for that call.
+ */
+export function batchRefusal(json: unknown): { allRefused: boolean; sentences: string[] } | null {
+  const body = json as { data?: { results?: unknown }; results?: unknown } | null
+  const results = body?.data?.results ?? body?.results
+  if (!Array.isArray(results) || results.length === 0) return null
+  const sentences = results
+    .map((r: any) => (r && typeof r.error === 'string' && r.status !== 'created' ? r.error : null))
+  return {
+    allRefused: sentences.every((x) => x !== null),
+    sentences: sentences.filter((x): x is string => x !== null),
+  }
+}
+
 export async function expectRefusalOn(
   ledger: Ledger, seat: Actor, call: (a: Actor) => Promise<Res>, phrase: string | RegExp
 ): Promise<Res> {
   const res = await expecting.run({ expected: true }, () => call(seat))
   const last = [...ledger.calls].reverse().find((c) => c.seat === seat.key && c.expected)
-  const sentence = res.sentence ?? null
-  const refused = res.status >= 400 && res.status < 500
-  const carries = sentence != null && (typeof phrase === 'string' ? sentence.includes(phrase) : phrase.test(sentence))
+  const batch = res.ok ? batchRefusal(res.json) : null
+  const says = (x: string) => (typeof phrase === 'string' ? x.includes(phrase) : phrase.test(x))
+  let sentence = res.sentence ?? null
+  let refused = res.status >= 400 && res.status < 500
+  let carries = sentence != null && says(sentence)
+  if (batch) {
+    // Refused person by person inside a 200: the sentence is the one that
+    // carries the expected words, else the first.
+    refused = batch.allRefused
+    sentence = batch.sentences.find(says) ?? batch.sentences[0] ?? null
+    carries = batch.sentences.length > 0 && batch.sentences.every(says)
+  }
   ledger.expectations.push({
     stage: ledger.stage, seat: seat.key, route: last ? `${last.method} ${last.route}` : '(no call made)',
     phrase: String(phrase), status: res.status, sentence, held: refused && carries,
+    ...(batch ? { perItem: true } : {}),
   })
   return res
 }

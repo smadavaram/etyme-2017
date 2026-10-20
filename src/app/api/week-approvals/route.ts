@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { readerOf, readerAtWeek, readWeekApprovals, sendApprovalLink, attachEvidence, type Refused } from '@/lib/week-approval'
+import { emailSender } from '@/lib/senders'
+import { prisma } from '@/lib/db'
+import { linkHandedBack } from './hand-back'
 
 /**
  * GET  /api/week-approvals?timesheetId=…   the client's approvals on a week,
@@ -81,5 +84,30 @@ export async function POST(request: NextRequest) {
     contracts: Array.isArray(body?.contracts) ? body.contracts.map(String) : null,
   })
   if (!out.ok) return no(out)
+
+  // With no email set up, the link goes back to whoever asked for it, said
+  // so, and the hand-over is on the record — never the link itself, which
+  // is a signature that works once (./hand-back).
+  const approverName = String(body?.approverName ?? '').trim() || 'the approver'
+  const back = linkHandedBack({ emailSetUp: emailSender() !== null, url: out.url, approverName })
+  if (back) {
+    await prisma.automationLog.create({
+      data: {
+        companyId: reader.companyId,
+        action: 'WEEK_APPROVAL_LINK_HANDED_BACK',
+        summary: `Approval link for ${approverName} handed to ${reader.personName}, because email is not set up`,
+        reason:
+          `${reader.personName} asked for the link to be emailed to ${approverName}, and this deployment has no email key, ` +
+          `so the link was shown to ${reader.personName} to send themselves.`,
+        payload: { weekApprovalId: out.id, handedTo: reader.personId },
+        // Shown once; it cannot be taken back, and it runs out on its own.
+        reversible: false,
+      },
+    })
+    return NextResponse.json(
+      { data: { id: out.id, says: back.says, delivery: out.delivery, link: back.link, linkHandedBack: true } },
+      { status: 201 }
+    )
+  }
   return NextResponse.json({ data: { id: out.id, says: out.says, delivery: out.delivery } }, { status: 201 })
 }

@@ -22,6 +22,9 @@ import {
   realPersonId,
 } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { ownSeatFor, ownSeatGrantReason } from '@/lib/own-seat'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const STAFF = ['ops@etyme.com', 'Founder@Etyme.com']
 
@@ -178,5 +181,49 @@ describe('a consultant who belongs to no company was never the problem', () => {
     })
     if (verdict.staff) throw new Error('a consultant is not staff')
     expect(verdict.says).toContain('consultant')
+  })
+})
+
+// ── Their own work is their own seat (simulation, 2026-10-20) ──────────
+
+
+describe('a person on their own work is their own seat, though no firm seated them', () => {
+  const none = { placements: 0, submissions: 0, listings: 0 }
+
+  it('a person on a placement is their own seat, and the reason names the placement', () => {
+    const v = ownSeatFor({ name: 'Daniel Osei', work: { ...none, placements: 1 }, paused: false, ownSeatRemoved: false })
+    expect(v).toEqual({ open: true, because: 'Daniel Osei is on a placement' })
+  })
+
+  it('a person put forward to a job, or asked onto a bench and nowhere else, is their own seat too', () => {
+    expect(ownSeatFor({ name: 'Jonas Whitaker', work: { ...none, submissions: 1 }, paused: false, ownSeatRemoved: false }).open).toBe(true)
+    expect(ownSeatFor({ name: 'Naomi Adeyemi', work: { ...none, listings: 1 }, paused: false, ownSeatRemoved: false }))
+      .toEqual({ open: true, because: 'Naomi Adeyemi was asked onto a bench' })
+  })
+
+  it('somebody with no work at all is not given a seat, and still reads that nobody has given them one', () => {
+    expect(ownSeatFor({ name: 'Marisol', work: none, paused: false, ownSeatRemoved: false }).open).toBe(false)
+  })
+
+  it('a pause at a firm is not walked around: a paused person on a placement is not given a seat of their own', () => {
+    expect(ownSeatFor({ name: 'Priya', work: { ...none, placements: 1 }, paused: true, ownSeatRemoved: false }).open).toBe(false)
+  })
+
+  it('a person whose own seat was taken away is not given another one behind the decision', () => {
+    expect(ownSeatFor({ name: 'Priya', work: { ...none, placements: 1 }, paused: false, ownSeatRemoved: true }).open).toBe(false)
+  })
+
+  it('the seat says why it exists, and that it opens their own work only, at no company and with no permission', () => {
+    expect(ownSeatGrantReason('Daniel Osei is on a placement')).toBe(
+      'Their own seat: Daniel Osei is on a placement. Their own work only — no company and no permission.'
+    )
+  })
+
+  it('the caller check asks whether a person is on their own work before it ever says nobody has given them a seat', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/api-context.ts'), 'utf8')
+    const body = src.slice(src.indexOf('export async function getCallerContext'))
+    expect(body.indexOf('ownSeatFor(')).toBeGreaterThan(0)
+    expect(body.indexOf('ownSeatFor(')).toBeLessThan(body.indexOf('whenThereIsNoSeat('))
+    expect(body).toContain('openOwnSeat(prisma, person, verdict.because)')
   })
 })

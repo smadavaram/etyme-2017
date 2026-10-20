@@ -179,4 +179,6 @@ export interface Expectation {
   status: number
   sentence: string | null
   held: boolean
+  /** The call answered 200 and refused inside it, person by person (a batch). */
+  perItem?: boolean
 }

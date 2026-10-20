@@ -252,3 +252,21 @@ export async function invoiceSupplierId(invoiceId: string): Promise<string | nul
   if (!inv) return null
   return partiesOf({ agreement: inv.engagement?.msa ?? null, order: inv.workOrder }).vendor?.id ?? null
 }
+
+/**
+ * The supplier on each of several invoice receipts, in one read: a run
+ * read them one receipt at a time (simulation, 2026-10-20). A receipt
+ * not found is absent from the map.
+ */
+export async function invoiceSupplierIds(invoiceIds: readonly string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>()
+  if (invoiceIds.length === 0) return out
+  const rows = await prisma.invoice.findMany({
+    where: { id: { in: [...new Set(invoiceIds)] } },
+    select: { ...INVOICE_PARTIES_SELECT, id: true },
+  })
+  for (const inv of rows) {
+    out.set(inv.id, partiesOf({ agreement: inv.engagement?.msa ?? null, order: inv.workOrder }).vendor?.id ?? null)
+  }
+  return out
+}

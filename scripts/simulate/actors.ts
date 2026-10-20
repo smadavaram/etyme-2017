@@ -155,8 +155,11 @@ export async function readCatalog(db: PrismaClient): Promise<Catalog> {
   }
   const seatedEmails = () => new Set(seats.filter((s) => !('as' in s.door)).map((s) => s.email))
 
-  // Every other worker: a consultant context at a seeded firm, or the
-  // person on a seeded contract.
+  // Every other worker: a consultant context at a seeded firm, the person
+  // on a seeded contract, somebody put forward to a seeded firm's job, or
+  // somebody asked onto a seeded firm's bench. The last two were missing,
+  // so a person on a bench and nowhere else had no seat in the run
+  // (2026-10-20); they are their own seat (lib/own-seat).
   const byEmail = new Map(rows.map((r) => [r.email, r]))
   const workers = await db.$queryRawUnsafe<{ personId: string; person: string; email: string }[]>(`
     select distinct p.id as "personId", p.name as person, p."primaryEmail" as email
@@ -167,6 +170,12 @@ export async function readCatalog(db: PrismaClient): Promise<Catalog> {
     ) or exists (
       select 1 from "SellContract" s join "Company" co on co.id = s."companyId"
       where s."personId" = p.id and co.slug like 'world-%'
+    ) or exists (
+      select 1 from "Submission" s join "Company" co on co.id = s."fromCompanyId"
+      where s."personId" = p.id and co.slug like 'world-%'
+    ) or exists (
+      select 1 from "BenchListing" b join "ConsultantProfile" cp on cp.id = b."consultantId" join "Company" co on co.id = b."companyId"
+      where cp."personId" = p.id and co.slug like 'world-%'
     )
     order by p.name`)
   for (const w of workers) {
@@ -311,11 +320,42 @@ export class Actor {
   delete<T = any>(path: string, body?: unknown) { return this.request<T>('DELETE', path, body) }
 }
 
+/**
+ * The seats in `fresh` that `known` does not have yet, by key. Pure: the
+ * catalog only grows during a run, so a seat a station made is added and
+ * a seat already handed out is never replaced under the actor holding it.
+ */
+export function newSeats(known: readonly SeatSpec[], fresh: readonly SeatSpec[]): SeatSpec[] {
+  const have = new Set(known.map((s) => s.key))
+  const added: SeatSpec[] = []
+  for (const s of fresh) {
+    if (have.has(s.key)) continue
+    have.add(s.key)
+    added.push(s)
+  }
+  return added
+}
+
 /** Every seat, opened on first use and kept for the run. */
 export class Cast {
   private readonly actors = new Map<string, Actor>()
 
-  constructor(readonly catalog: Catalog, private readonly wire: Wire) {}
+  constructor(readonly catalog: Catalog, private readonly wire: Wire, private readonly read?: PrismaClient) {}
+
+  /**
+   * Read the seats again, after a station seated somebody, and add the new
+   * ones (2026-10-20: a delivery manager seated mid-run had no seat in the
+   * catalog, so the next station could not sit as them). Returns what was
+   * added.
+   */
+  async refresh(): Promise<SeatSpec[]> {
+    if (!this.read) return []
+    const fresh = await readCatalog(this.read)
+    const added = newSeats(this.catalog.seats, fresh.seats)
+    this.catalog.seats.push(...added)
+    this.catalog.unreachable.splice(0, this.catalog.unreachable.length, ...fresh.unreachable)
+    return added
+  }
 
   get seats(): SeatSpec[] { return this.catalog.seats }
 

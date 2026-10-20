@@ -16,6 +16,7 @@ import {
 } from '@/lib/watch'
 import { packetByKey, resolveItems, itemsToAsk, withRequirements, type HeldDocument } from '@/lib/packets'
 import { coverGaps } from '@/lib/cover-gap'
+import { papersAsked } from '@/lib/contract-clearance'
 import { documentFindings, requiredOfSupplier } from '@/lib/document-request'
 import { everyDocumentLetter, sendDocumentLapses } from '@/lib/notify/documents'
 import {
@@ -521,13 +522,15 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
     select: { id: true },
   })
 
+  // Counted in a word and named, never "3 document(s)" (lib/contract-clearance).
+  const papers = papersAsked(asking)
   await prisma.automationLog.create({
     data: {
       companyId: askingCompanyId,
       action: 'PACKET_REOPENED',
       summary: chasingSelf
-        ? `Reminded ${verification.company.name} to renew ${asking.length} document(s) — ${f.headline}`
-        : `Asked ${verification.company.name} for ${asking.length} document(s) — ${f.headline}`,
+        ? `Reminded ${verification.company.name} to renew ${papers.counted}: ${papers.named} — ${f.headline}`
+        : `Asked ${verification.company.name} for ${papers.counted}: ${papers.named} — ${f.headline}`,
       // Plain English, as CLAUDE.md requires of anything done unprompted.
       reason: f.detail,
       payload: {
@@ -565,8 +568,8 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
 
   return {
     done: chasingSelf
-      ? `Reminded ${verification.company.name} to renew ${asking.length} document(s)`
-      : `Asked ${verification.company.name} for ${asking.length} document(s) on behalf of ${holder!.name}`,
+      ? `Reminded ${verification.company.name} to renew ${papers.counted}`
+      : `Asked ${verification.company.name} for ${papers.counted} on behalf of ${holder!.name}`,
     because: null,
   }
 }

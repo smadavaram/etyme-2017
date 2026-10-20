@@ -595,7 +595,7 @@ const MAY_SPELL: Record<string, string> = {
  */
 const OWED = new Map<string, string>([])
 
-const SKIP_DIRS = new Set(['node_modules', '.git', '.next', '.vercel', 'coverage'])
+const SKIP_DIRS = new Set(['node_modules', '.git', '.next', '.next-sim', '.vercel', 'coverage'])
 const BINARY = /\.(png|jpe?g|gif|webp|ico|svg|pdf|docx?|xlsx?|pptx?|zip|gz|woff2?|ttf|otf|rdb|mp4|mov|lock)$/i
 
 function everyTextFile(dir = ''): string[] {

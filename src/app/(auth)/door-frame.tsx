@@ -24,7 +24,7 @@ export function DoorFrame({ children }: { children: React.ReactNode }) {
         </Link>
         <div className="max-w-md">
           <p className="font-serif text-2xl text-white leading-snug mb-4 tracking-[-0.02em] text-balance">
-            Enterprise contingent workforce management.
+            Enterprise contingent workforce management
           </p>
           <p className="text-sm text-white/50 leading-relaxed">
             Every supplier&rsquo;s contractors on one record: jobs, timesheets, bills and time on site.

@@ -5,6 +5,7 @@ import { senderAsTheClientSees, checkApprover, needsSigningInEtyme, hashLinkToke
 import { recordClientContact } from '@/lib/off-system'
 import { topDown, signersOf, type LadderRung } from '@/app/api/timesheets/chain-turn'
 import { whoAskedSentence } from '@/app/api/timesheets/approval-by-email'
+import { linkHandedBack } from '@/app/api/week-approvals/hand-back'
 
 /**
  * The door to a client's approval given outside Etyme (lib/week-approval).
@@ -206,5 +207,30 @@ describe('the person a supplier records at a client that is not on Etyme', () =>
 
   it('a recorded address can be taken off, and approvals already given stand', () => {
     expect(record({ remove: true, contactName: undefined })).toMatchObject({ ok: true, remove: true, says: 'dana.whitfield@larkspur-freight.example is no longer recorded for Larkspur Freight, so it cannot be named as its approver. Approvals already given stand.' })
+  })
+})
+
+// ── The link, when no email can carry it (simulation, 2026-10-20) ──────
+
+describe('the one-time approval link and who may hold it', () => {
+  const url = 'https://etyme.example/answer/week/abc123'
+
+  it('with email set up, the link goes only to the approver and never back to the person who asked for it', () => {
+    expect(linkHandedBack({ emailSetUp: true, url, approverName: 'Dana Whitfield' })).toBeNull()
+  })
+
+  it('with no email set up, the person who asked is handed the link and told plainly that it was not sent', () => {
+    const back = linkHandedBack({ emailSetUp: false, url, approverName: 'Dana Whitfield' })
+    expect(back?.link).toBe(url)
+    expect(back?.says).toBe(
+      'Email is not set up here, so the link was not sent to Dana Whitfield. Here it is for you to send them yourself. It works once, and only for this week.'
+    )
+  })
+
+  it('the route writes the hand-over on the record and never writes the link itself into it', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/week-approvals/route.ts'), 'utf8')
+    expect(route).toContain("action: 'WEEK_APPROVAL_LINK_HANDED_BACK'")
+    const log = route.slice(route.indexOf('prisma.automationLog.create'), route.indexOf("reversible: false"))
+    expect(log).not.toMatch(/\burl\b|back\.link/)
   })
 })

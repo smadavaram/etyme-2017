@@ -15,6 +15,7 @@ import { desklessDoor, recordNamedBy, type RecordFamily } from '@/lib/deskless-d
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
+import { ownSeatFor, ownWorkOf, ownSeatWasRemoved, openOwnSeat } from '@/lib/own-seat'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -494,22 +495,52 @@ export async function getCallerContext(
   // believes it worked.
   const usable = { revokedAt: null, suspendedAt: null }
 
-  const context = contextId
+  const seatInclude = {
+    company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
+    role: { select: { id: true, name: true, permissions: true } },
+  } as const
+
+  let context = contextId
     ? await prisma.context.findFirst({
         where: { id: contextId, personId: person.id, ...usable },
-        include: {
-          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
-          role: { select: { id: true, name: true, permissions: true } },
-        },
+        include: seatInclude,
       })
     : await prisma.context.findFirst({
         where: { personId: person.id, ...usable },
-        include: {
-          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
-          role: { select: { id: true, name: true, permissions: true } },
-        },
+        include: seatInclude,
         orderBy: { grantedAt: 'desc' },
       })
+
+  if (!context && !contextId) {
+    // ── Their own work is their own seat (simulation, 2026-10-20) ──────
+    //
+    // Nine placed workers and three people asked onto a bench had no seat
+    // at all — a firm placed or listed them before they ever signed in —
+    // and were refused their own week, papers, terms and Ask Etyme with
+    // "nobody has given you a seat yet". The work was theirs. So somebody
+    // on a placement, a submission or a bench listing is given the
+    // company-less consultant seat a candidate gets at sign-up: their own
+    // work, no company, no permission (lib/own-seat). Not where a seat at
+    // a firm is paused, and not where their own seat was taken away: those
+    // keep the sentences below. Staff are answered below as before; a
+    // staff member who is also on a placement is seated as themselves.
+    const paused = await prisma.context.findFirst({
+      where: { personId: person.id, revokedAt: null, suspendedAt: { not: null } },
+      select: { id: true },
+    })
+    const verdict = paused
+      ? ({ open: false } as const)
+      : ownSeatFor({
+          name: person.name,
+          work: await ownWorkOf(prisma, person.id),
+          paused: false,
+          ownSeatRemoved: await ownSeatWasRemoved(prisma, person.id),
+        })
+    if (verdict.open) {
+      const id = await openOwnSeat(prisma, person, verdict.because)
+      context = await prisma.context.findUnique({ where: { id }, include: seatInclude })
+    }
+  }
 
   if (!context) {
     // Why they have no seat decides what they are told, and one of the

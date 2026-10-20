@@ -32,8 +32,8 @@ import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
 import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
 import { ruleSetFor } from '@/lib/twin/rule-set'
-import { act, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
-import { invoiceSupplierId } from '@/lib/twin/performers'
+import { act, runMemo, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
+import { invoiceSupplierIds } from '@/lib/twin/performers'
 
 /** The role the twin acts in, by its name on a client's roles. */
 export const PROGRAM_MANAGER_ROLE = 'Program Manager'
@@ -135,10 +135,19 @@ export async function tellOnTeams(companyId: string): Promise<RunSummary['teamsD
   }
 }
 
+/** Every act a program run takes, so the run reads their recorded keys once. */
+const RUN_ACTS = [
+  'tenure.warning.record', 'tenure.warning.notify_program_owner',
+  'invoice_receipt.record', 'invoice_receipt.flag_mismatch', 'invoice_receipt.approve',
+] as const
+
 export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
   const surface = opts.surface ?? 'CRON'
   const authority = await programManagerAt(companyId)
   const rules = await ruleSetFor(companyId)
+  // The role contract and every finding key already recorded, read once
+  // for the run rather than once per act (2026-10-20).
+  const memo = await runMemo(companyId, RUN_ACTS)
   const outcomes: RunSummary['outcomes'] = { PERFORMED: 0, AWAITING_APPROVAL: 0, REFUSED: 0, ALREADY: 0, FAILED: 0 }
   const tally = (r: ActResult) => { outcomes[r.outcome]++; return r }
 
@@ -152,37 +161,38 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
     const payload = { tier: w.tier, daysOnSite: w.daysOnSite, daysToLimit: w.daysToLimit, limitOn: w.limitOn.toISOString(), capMonths: w.capMonths, suppliers: w.suppliers, ruleSetVersion: rules.version }
     const recorded = tally(await act({
       companyId, action: 'tenure.warning.record', entity, rule: w.ruleCited, rationale: w.rationale,
-      surface, authority, payload, dedupKey: w.key,
+      surface, authority, payload, dedupKey: w.key, memo,
     }))
     if (recorded.outcome !== 'PERFORMED') continue
     tally(await act({
       companyId, action: 'tenure.warning.notify_program_owner', entity, rule: w.ruleCited, rationale: w.rationale,
-      surface, authority, dedupKey: w.key,
+      surface, authority, dedupKey: w.key, memo,
       payload: { ...payload, title: w.tier === 'BREACH' ? `${w.personName} is at the time limit` : `${w.personName} is ${w.daysToLimit} days from the time limit` },
     }))
   }
 
   // ── Invoice receipts ──
   const verdicts = await pendingReceiptsFor(companyId, { hoursTolerancePct: rules.hoursTolerancePct, source: rules.source })
+  const suppliers = await invoiceSupplierIds(verdicts.map((v) => v.invoiceId))
   for (const v of verdicts) {
-    const supplier = await invoiceSupplierId(v.invoiceId)
+    const supplier = suppliers.get(v.invoiceId) ?? null
     const entity = { type: 'Invoice', id: v.invoiceId, partyCompanyIds: supplier ? [companyId, supplier] : [companyId] }
     const payload = { number: v.number, supplierName: v.supplierName, verdict: v.verdict, payable: v.payable, failing: v.failing, ruleSetVersion: rules.version }
     const key = `${v.invoiceId}:${v.verdict}`
     const recorded = tally(await act({
       companyId, action: 'invoice_receipt.record', entity, rule: v.ruleCited, rationale: v.rationale,
-      surface, authority, payload, dedupKey: key,
+      surface, authority, payload, dedupKey: key, memo,
     }))
     if (recorded.outcome !== 'PERFORMED') continue
     if (v.verdict !== 'CLEAN') {
       tally(await act({
         companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
-        surface, authority, payload, dedupKey: key,
+        surface, authority, payload, dedupKey: key, memo,
       }))
     } else if (v.payable) {
       tally(await act({
         companyId, action: 'invoice_receipt.approve', entity, rule: v.ruleCited, rationale: v.rationale,
-        surface, authority, payload, dedupKey: v.invoiceId,
+        surface, authority, payload, dedupKey: v.invoiceId, memo,
       }))
     } else {
       // Inside the hours tolerance but not payable — a week not accepted,
@@ -190,7 +200,7 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
       // team is told why, the same way a mismatch is.
       tally(await act({
         companyId, action: 'invoice_receipt.flag_mismatch', entity, rule: v.ruleCited, rationale: v.rationale,
-        surface, authority, payload, dedupKey: key,
+        surface, authority, payload, dedupKey: key, memo,
       }))
     }
   }

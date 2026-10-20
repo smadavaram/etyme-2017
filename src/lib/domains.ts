@@ -384,6 +384,9 @@ export const DOMAINS: Domain[] = [
       'lib/model-boundary',
       // The number on the Ask Etyme mark, where the bell was (2026-10-13).
       'lib/owed-count',
+      // A person on their own work is their own seat, whether or not a firm
+      // seated them (simulation, 2026-10-20). Read by the one caller check.
+      'lib/own-seat',
       // The one door to a seat's saved Ask Etyme conversation (founder,
       // 2026-10-18): the caller's own thread at the caller's own company,
       // and nobody else's. The route and the screen over it are

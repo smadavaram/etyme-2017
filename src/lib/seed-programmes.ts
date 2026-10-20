@@ -938,6 +938,11 @@ export async function seedProgrammes(
       }
 
       // ── What is on file ──────────────────────────────────────────
+      // Dated from the start where the work has started, and from today
+      // where it has not: a draft starting in ten days had its report
+      // dated two days from now (Samuel Adeyinka, Oct 22, found by the
+      // simulation on 2026-10-20). A report is never dated in the future.
+      const onFile = paperDay(pl.startedDaysAgo)
       const papers: { type: 'I9_EVERIFY' | 'BACKGROUND_CHECK'; expiresAt: Date | null }[] = []
       if (pl.papers !== 'NO_I9') papers.push({ type: 'I9_EVERIFY', expiresAt: null })
       if (pl.papers === 'CLEAR' || pl.papers === 'NO_I9') papers.push({ type: 'BACKGROUND_CHECK', expiresAt: day(250) })
@@ -947,15 +952,15 @@ export async function seedProgrammes(
         await db.verification.create({
           data: {
             personId: who.id, type: v.type, status: 'CLEAR', provider: v.type === 'I9_EVERIFY' ? 'E-Verify' : 'Sterling',
-            issuedAt: day(-pl.startedDaysAgo - 8), expiresAt: v.expiresAt,
-            uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-pl.startedDaysAgo - 7),
+            issuedAt: day(-onFile - 8), expiresAt: v.expiresAt,
+            uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-onFile - 7),
             // Who bought the report, where somebody bought one. The
             // employer ordered it and the screening company posted it
             // back to them — which is the fact the row could not carry
             // until 2026-09-22, and the reason a reader could not tell a
             // provider's verdict from a desk's note.
             ...(v.type === 'BACKGROUND_CHECK'
-              ? { orderedByCompanyId: employer.id, orderedAt: day(-pl.startedDaysAgo - 12) }
+              ? { orderedByCompanyId: employer.id, orderedAt: day(-onFile - 12) }
               : {}),
             result: { outcome: 'CLEAR' },
           },
@@ -1437,12 +1442,12 @@ export async function seedProgrammes(
         await db.verification.create({
           data: {
             personId: dWho.id, type: v.type, status: 'CLEAR', provider: v.provider,
-            issuedAt: day(-d.startedDaysAgo - 8), expiresAt: v.expiresAt,
+            issuedAt: day(-paperDay(d.startedDaysAgo) - 8), expiresAt: v.expiresAt,
             ...(v.type === 'BACKGROUND_CHECK'
-              ? { orderedByCompanyId: supplier.id, orderedAt: day(-d.startedDaysAgo - 12) }
+              ? { orderedByCompanyId: supplier.id, orderedAt: day(-paperDay(d.startedDaysAgo) - 12) }
               : {}),
             uploadedById: supplierSeat.personId, verifiedById: desk.compliance.personId,
-            verifiedAt: day(-d.startedDaysAgo - 7), result: { outcome: 'CLEAR' },
+            verifiedAt: day(-paperDay(d.startedDaysAgo) - 7), result: { outcome: 'CLEAR' },
           },
         })
       }
@@ -1625,7 +1630,7 @@ export async function seedProgrammes(
 
     // ── A role waiting on the VP ───────────────────────────────────
     //
-    // Over the $250k line the office set for itself, so it routes. It
+    // Over the $500k line the client set for itself, so it routes. It
     // sits in the VP's queue, and in the hiring manager's as "waiting".
     const vp = await db.person.findUnique({ where: { primaryEmail: `${slug}-vp@${domain}` } })
     const routed =
@@ -1663,7 +1668,7 @@ export async function seedProgrammes(
           { requirementId: routed.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-2),
             reason: `Within the going rate — $${Math.round(p.routed.billMax / 100)}/hr is in line with what Apps already pays. Procurement not needed.` },
           { requirementId: routed.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
-            reason: `Over $250k: about $${annual.toLocaleString('en-US')} a year across ${p.routed.headcount} heads.` },
+            reason: `Over $500k: about $${annual.toLocaleString('en-US')} a year across ${p.routed.headcount} heads.` },
           ...(leadId
             ? [{ requirementId: routed.id, approverId: leadId, rank: 2, stage: 'FINAL' as const, outcome: 'PENDING' as const,
                  reason: `The final word on Apps' spend — about $${annual.toLocaleString('en-US')} a year.` }]
@@ -1676,6 +1681,15 @@ export async function seedProgrammes(
   }
 
   return { placements, people: people.size }
+}
+
+/**
+ * Days ago a placement's papers are counted back from: its start where it
+ * has started, today where it has not. So a paper on file is dated at least
+ * a week in the past, never on a day that has not happened.
+ */
+export function paperDay(startedDaysAgo: number): number {
+  return Math.max(startedDaysAgo, 0)
 }
 
 /** The programs, for a page that lists them. */

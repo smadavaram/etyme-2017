@@ -27,9 +27,11 @@
  * "Apps — contingent". A budget screen that puts a nurse in the Apps
  * department is a wrong fact on a page the buyer reads.
  *
- * The plan on each cost center is one head for a year at the job's bill
- * rate, rounded up to the next ten thousand dollars. It is computed from
- * the rate rather than typed, so it moves if the rate does.
+ * The plan on each cost center is the seeded job's head plus four held
+ * open (`OPEN_HEADS`; Northbend's distribution keeps none), each funded
+ * for a year at the job's bill rate, rounded up to the next ten thousand
+ * dollars. It is computed from the rate rather than typed, so it moves if
+ * the rate does.
  *
  * ── Dates and re-seeding ─────────────────────────────────────────────
  *
@@ -50,7 +52,18 @@ export interface SeedDepartment {
   name: string
   /** The short code its cost center is numbered from: "DIST", "EHS". */
   code: string
+  /**
+   * Heads the plan holds open beyond the one seeded job. Four unless said:
+   * most job requests must clear without a person (Addendum E), and a
+   * plan already full on the day the world is born routed every job the
+   * simulation raised there to HR (2026-10-20). One unit keeps nought, so
+   * "over plan" still has somewhere to show.
+   */
+  openHeads?: number
 }
+
+/** Heads a seeded department's plan holds open beyond its one seeded job. */
+export const OPEN_HEADS = 4
 
 /** Hours in a working year, for sizing a plan to one head. */
 const YEAR_HOURS = 2_080
@@ -143,10 +156,21 @@ export async function departmentAt(input: {
       data: { companyId: clientId, code, name: `${dept.name} — contingent`, orgUnitId: unit.id, ownerId },
     }))
 
+  // The plan: the seeded job's head and the heads held open, each funded
+  // for a year at the job's rate. A plan written before the open heads
+  // existed (one head, one head-year) is widened on the next seeding;
+  // one somebody has since changed is left alone.
+  const heads = 1 + (dept.openHeads ?? OPEN_HEADS)
   const period = seedPlanYear()
-  if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } }))) {
+  const plan = await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period } })
+  if (!plan) {
     await db.headcountPlan.create({
-      data: { costCenterId: cc.id, period, approvedHeads: 1, annualBudget: planFor(billCents), currency: 'USD' },
+      data: { costCenterId: cc.id, period, approvedHeads: heads, annualBudget: planFor(billCents) * heads, currency: 'USD' },
+    })
+  } else if (heads > 1 && plan.approvedHeads === 1 && Number(plan.annualBudget) === planFor(billCents)) {
+    await db.headcountPlan.update({
+      where: { id: plan.id },
+      data: { approvedHeads: heads, annualBudget: planFor(billCents) * heads },
     })
   }
 

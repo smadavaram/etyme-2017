@@ -151,6 +151,32 @@ describe('a client approves a week by email, and the proof travels down the chai
     await prisma.weekApproval.delete({ where: { id: row.id } })
   })
 
+  it('with no email set up, the link goes back to the person who asked for it, said so, and the hand-over is on the record without the link', async () => {
+    // Simulation, 2026-10-20: the link was minted and thrown away when no
+    // email could carry it, so no firm before its email was set up could
+    // ever use approve by email.
+    as(HELENA)
+    const key = process.env.RESEND_API_KEY
+    delete process.env.RESEND_API_KEY
+    try {
+      const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+      expect(r.status).toBe(201)
+      expect(r.body.data.linkHandedBack).toBe(true)
+      expect(r.body.data.link).toMatch(/\/answer\/week\//)
+      expect(r.body.data.says).toBe(
+        'Email is not set up here, so the link was not sent to Dana Whitfield. Here it is for you to send them yourself. It works once, and only for this week.'
+      )
+      const log = await prisma.automationLog.findFirstOrThrow({
+        where: { action: 'WEEK_APPROVAL_LINK_HANDED_BACK', payload: { path: ['weekApprovalId'], equals: r.body.data.id } },
+      })
+      expect(JSON.stringify(log)).not.toContain(r.body.data.link)
+      await prisma.weekApproval.delete({ where: { id: r.body.data.id } })
+    } finally {
+      process.env.RESEND_API_KEY = key
+    }
+  })
+
   it('a worker sends “Approve by email” on her own week, and the letter to the client’s approver carries a one-time link and no rate', async () => {
     as(HELENA)
     const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })

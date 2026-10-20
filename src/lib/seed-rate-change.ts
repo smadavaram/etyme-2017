@@ -103,7 +103,10 @@ const ROLE = {
  * Where her job is charged at Northbend: the distribution center's own
  * department, under Operations. Not Apps — she works at the warehouse.
  */
-export const RATE_CHANGE_DEPARTMENT: SeedDepartment = { name: 'Distribution', code: 'DIST' }
+// Kept at its limit on purpose: the one seeded plan with no open head,
+// so a job raised against Northbend's distribution budget still shows
+// "over plan" and goes to HR, where every other plan has room (2026-10-20).
+export const RATE_CHANGE_DEPARTMENT: SeedDepartment = { name: 'Distribution', code: 'DIST', openHeads: 0 }
 
 /** The desk that proposes the rise. Brightmoor's Admin role, which nobody else holds. */
 const ADMIN = { desk: 'admin', name: 'Harriet Mwangi', role: 'Admin' }
