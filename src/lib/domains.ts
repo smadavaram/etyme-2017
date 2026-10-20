@@ -73,6 +73,8 @@ export const DOMAINS: Domain[] = [
       'app/api/roles', 'app/api/documents', 'app/api/document-shares',
       // A document asked for, sent, uploaded or signed — and the consultant's own view of it.
       'lib/document-request', 'app/api/me/papers', 'app/dashboard/documents',
+      // The generated world's papers: verifications in every state, visas, cover (docs/seed-scale-brief.md).
+      'lib/seed-scale/papers',
       // A visa petition from filing to the day it runs out.
       'lib/visa-petition',
       // Terms, privacy and the DPA. Under regulation rather than the market,
@@ -166,6 +168,8 @@ export const DOMAINS: Domain[] = [
       'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
       'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
+      // The generated world's rates: the pure bands and pairs the other three import, then the rows.
+      'lib/seed-scale/rates',
       'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/commission', 'app/dashboard/payroll/commissions', 'lib/holidays',
       'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
       'lib/payroll-export', 'lib/three-way-match', 'lib/purchase-order',
@@ -257,6 +261,8 @@ export const DOMAINS: Domain[] = [
       'app/api/openings', 'app/api/decisions', 'app/api/program',
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
+      // The generated world's jobs, invitations, submissions and interviews.
+      'lib/seed-scale/jobs',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
       // What a program costs a month: the 160-hour assumption, said out
       // loud once and imported by the dashboard, the org view and the
@@ -307,6 +313,8 @@ export const DOMAINS: Domain[] = [
       // the hold, the confirmation and the move (2026-09-30), and the
       // world's one story of it.
       'lib/internal-moves', 'lib/seed-internal-moves',
+      // The generated world's people: profiles, benches, courses, careers.
+      'lib/seed-scale/people',
       // Bench profit — bench to bill, per course, utilization (2026-09-30)
       // — and the niche bench vendor that gives it numbers on the world.
       'lib/bench-profit', 'lib/seed-bench-profit',
@@ -470,6 +478,8 @@ export const DOMAINS: Domain[] = [
       // them: the shell's "Your terms" link. The rule is demand's
       // (lib/award/terms-on-record); this only finds the page.
       'lib/your-terms',
+      // The generated world at the founder's scale: the types, the frame and the steps (docs/seed-scale-brief.md).
+      'lib/seed-scale',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       // One way to print a calendar day on a screen: UTC, American order,
       // the year shown. lib/when is its twin for a moment in somebody's zone.
