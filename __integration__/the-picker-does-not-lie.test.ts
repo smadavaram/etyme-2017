@@ -138,3 +138,97 @@ describe('a picker does not offer what the button will refuse', () => {
     expect(body.data.says).not.toMatch(/invoices\.issue|NOT_THE_SUPPLIER/)
   })
 })
+
+/**
+ * A placement that has ended still owes its signed weeks.
+ *
+ * Karthik Menon's placement at Corveldt Aerospace ended on September 30
+ * with fourteen weeks Corveldt had signed and Teleworld had never billed.
+ * The generator read running placements only, so the day the placement
+ * ended those weeks became unbillable for ever: 528 hours at $136, about
+ * $72,000 of work done and approved (the founder's walk, 2026-10-19).
+ */
+describe('a placement that has ended is still billed for the weeks signed before its last day', () => {
+  const TELEWORLD = `world-teleworld${D}`
+  let engagementId = ''
+  let lastMonth: [string, string] = ['', '']
+
+  /** Each calendar month a placement ran in, first day to last, as the agreement bills it. */
+  const calendarMonths = (from: Date, to: Date): [string, string][] => {
+    const out: [string, string][] = []
+    let y = from.getUTCFullYear()
+    let m = from.getUTCMonth()
+    while (Date.UTC(y, m, 1) <= to.getTime()) {
+      out.push([new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10), new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10)])
+      m++
+      if (m === 12) { m = 0; y++ }
+    }
+    return out
+  }
+
+  beforeAll(async () => {
+    await freshWorld()
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { person: { name: 'Karthik Menon' }, state: 'ENDED', company: { slug: 'world-teleworld' } },
+      select: { engagementId: true },
+    })
+    engagementId = line.engagementId!
+  }, 600_000)
+
+  it("offers Teleworld Karthik Menon's ended placement, because Corveldt signed weeks nobody has billed", async () => {
+    as(TELEWORLD)
+    const { status, body } = await json(await billable(req('GET', '/api/invoices/generate')))
+    expect(status).toBe(200)
+    expect(body.data.engagements.map((e: any) => e.id)).toContain(engagementId)
+  })
+
+  it('raises one bill, not two, when two people ask for the same month at the same moment, and tells the second what is already billed', async () => {
+    as(TELEWORLD)
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { engagementId }, select: { startDate: true, endDate: true } })
+    const [start, end] = calendarMonths(line.startDate, line.endDate!)[0]
+    const ask = async () => json(await generate(req('POST', '/api/invoices/generate', { engagementId, periodStart: start, periodEnd: end })))
+    const [a, b] = await Promise.all([ask(), ask()])
+    const statuses = [a.status, b.status].sort()
+    expect(statuses).toEqual([201, 422])
+    const second = a.status === 422 ? a : b
+    expect(second.body.error.message).toMatch(/already on/)
+    expect(second.body.error.message).not.toMatch(/number is already taken/)
+  })
+
+  it('bills every one of his signed weeks at his rate, one bill per month of the agreement, nothing left out', async () => {
+    as(TELEWORLD)
+    const line = await prisma.sellContract.findFirstOrThrow({
+      where: { engagementId },
+      select: { id: true, billRate: true, startDate: true, endDate: true },
+    })
+    const signed = await prisma.timesheet.findMany({
+      where: { sellContractId: line.id, assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
+      select: { totalHours: true },
+    })
+    const owed = signed.reduce((n, t) => n + Number(t.totalHours), 0)
+    expect(owed, 'the seed holds his signed weeks').toBeGreaterThan(0)
+
+    const months = calendarMonths(line.startDate, line.endDate!)
+    for (const [start, end] of months) {
+      const out = await json(await generate(req('POST', '/api/invoices/generate', { engagementId, periodStart: start, periodEnd: end })))
+      // The first month was billed by the test above.
+      if (out.status === 422) expect(out.body.error.message).toMatch(/already on/)
+      else expect(out.status, `${start}: ${out.body?.error?.message}`).toBe(201)
+    }
+    const lines = await prisma.invoiceLine.findMany({
+      where: { sellContractId: line.id, timesheetId: { not: null } },
+      select: { hours: true, amountCents: true },
+    })
+    expect(lines.reduce((n, l) => n + Number(l.hours), 0)).toBe(owed)
+    expect(lines.reduce((n, l) => n + l.amountCents, 0)).toBe(Math.round(owed * line.billRate))
+    lastMonth = months[months.length - 1]
+  })
+
+  it('bills each of those weeks once: asking again finds nothing left and says so', async () => {
+    as(TELEWORLD)
+    const [start, end] = lastMonth
+    const out = await json(await generate(req('POST', '/api/invoices/generate', { engagementId, periodStart: start, periodEnd: end })))
+    expect(out.status).toBe(422)
+    expect(out.body.error.message).toMatch(/already on|nothing to bill/)
+  })
+})

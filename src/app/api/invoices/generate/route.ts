@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
-import { generateBill } from '@/lib/money/bill-generate'
+import { generateBill, BILLABLE_LINE_STATES } from '@/lib/money/bill-generate'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -59,9 +59,29 @@ export async function GET(request: NextRequest) {
   // somewhere. Narrowed to what may actually be billed below; asking
   // the database for "ours" first keeps the page off every engagement
   // in the world.
+  // A running line, or an ended one still holding a signed week nobody
+  // billed: the generator bills both (`BILLABLE_LINE_STATES`), and a
+  // picker that dropped ended placements hid the one bill a firm most
+  // needs to raise, for work already done (Karthik Menon's fourteen
+  // weeks, the founder's walk of 2026-10-19).
   const engagements = await prisma.engagement.findMany({
     where: {
-      sellContracts: { some: { state: 'IN_PROGRESS' } },
+      sellContracts: {
+        some: {
+          OR: [
+            { state: 'IN_PROGRESS' },
+            {
+              state: 'ENDED',
+              timesheets: {
+                some: {
+                  assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
+                  invoiceLines: { none: {} },
+                },
+              },
+            },
+          ],
+        },
+      },
       OR: [
         { msa: { vendorId: caller.company!.id } },
         { workOrders: { some: { issuedToId: caller.company!.id } } },
@@ -89,7 +109,7 @@ export async function GET(request: NextRequest) {
         take: 1,
       },
       sellContracts: {
-        where: { state: 'IN_PROGRESS' },
+        where: { state: { in: [...BILLABLE_LINE_STATES] } },
         select: {
           companyId: true, clientCompanyId: true,
           company: { select: { id: true, name: true } },
