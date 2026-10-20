@@ -1314,6 +1314,19 @@ things, then stops" (2026-10-07) in its second half only:
   domain until the domain is verified, no I-9 chased for a party whose
   set was never confirmed. Everything else works on the defaults.
 - **What is answered is recorded with who and when**, as before.
+- **The brief for the whole of it, in the founder's words: "real easy
+  but secure and neat."** Easy: one item per screen, every field
+  filled with a default, Skip for now on every item, a minute each,
+  and the company works before any of it is done. Secure: only the
+  Owner and Admin see the checklist; bank details go through the same
+  Finance verification a supplier walks and are shown as the bank, the
+  account name and four digits; the domain is claimed only by
+  verification; every answer carries who and when; nothing in it is
+  readable by another company. Neat: one column, the brand kit, the
+  home page's density, a short heading and plain fields, no cards of
+  explanation, no progress bars with percentages, the trade's words
+  (ASD-STE100 at about 80%). The drawing is judged on those three
+  words before the build.
 
 ## Nine links, no flip, and every first screen names a person — decided by the founder, 2026-10-19
 
