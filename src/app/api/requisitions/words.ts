@@ -14,6 +14,8 @@
  * count, with no database and no clock, so the tests run it directly.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 const SMALL = [
   'no', 'one', 'two', 'three', 'four', 'five', 'six',
   'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
@@ -97,9 +99,9 @@ export function positionsSays(headcount: number | null | undefined): string {
   return `${n} ${n === 1 ? 'position' : 'positions'}`
 }
 
-/** "Oct 30, 2026", read in UTC so the server's zone never moves the day. */
+/** "Oct 30, 2026", through the one formatter, which reads every day in UTC. */
 function closesSays(at: Date): string {
-  return at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return formatDay(at)
 }
 
 export interface JobSentFacts {

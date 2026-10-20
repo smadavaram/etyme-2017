@@ -606,6 +606,8 @@ describe('the shared sample seat on the requisition pickers', () => {
     for (const page of [LIST_PAGE, DETAIL_PAGE]) expect(page).toContain("fetch('/api/program/team')")
     // A desk asked by permission on a supplier's walk is not the sample either.
     const desks = code(read('src/lib/supplier-desks.ts'))
-    expect(desks).toMatch(/permissions: \{ has: permission \} \}, \.\.\.NOT_THE_SAMPLE_SEAT/)
+    // An Owner's `*` counts as the permission (2026-10-20), and the sample
+    // is still left out of the same query.
+    expect(desks).toMatch(/permissions: \{ hasSome: \[permission, '\*'\] \} \}, \.\.\.NOT_THE_SAMPLE_SEAT/)
   })
 })

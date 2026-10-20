@@ -70,9 +70,8 @@ export async function laddersAbove(
 
   // A chain deeper than eight firms is a data fault rather than a
   // business arrangement, and stopping beats looping forever on one.
-  for (let depth = 0; depth < 8; depth++) {
-    const frontier = [...new Set([...walks.values()].flatMap((w) => w.frontier))]
-    if (frontier.length === 0) break
+  let frontier = [...new Set([...walks.values()].flatMap((w) => w.frontier))]
+  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
     const links = await prisma.contractLink.findMany({
       where: { buyContract: { supplierSellContractId: { in: frontier } } },
       select: {
@@ -89,23 +88,25 @@ export async function laddersAbove(
       wanted.forEach((id) => w.seen.add(id))
       wantedBy.set(w, wanted)
     }
-    const all = [...new Set([...wantedBy.values()].flat())]
-    const rows = all.length
-      ? await prisma.sellContract.findMany({
-          where: { id: { in: all } },
-          select: {
-            id: true, billRate: true, companyId: true,
-            clientCompanyId: true, endClientCompanyId: true,
-            overtimeAfterHours: true, overtimeMultiplierBps: true,
-            company: { select: { name: true } },
-            clientCompany: { select: { name: true } },
-            endClientCompany: { select: { name: true } },
-          },
-        })
-      : []
+    // Nobody bought any of these from the firm below: every walk stops
+    // here. A direct placement asks this one question and no other.
+    const wanted = [...new Set([...wantedBy.values()].flat())]
+    if (wanted.length === 0) break
 
-    for (const [w, wanted] of wantedBy) {
-      for (const row of rows.filter((r) => wanted.includes(r.id))) {
+    const rows = await prisma.sellContract.findMany({
+      where: { id: { in: wanted } },
+      select: {
+        id: true, billRate: true, companyId: true,
+        clientCompanyId: true, endClientCompanyId: true,
+        overtimeAfterHours: true, overtimeMultiplierBps: true,
+        company: { select: { name: true } },
+        clientCompany: { select: { name: true } },
+        endClientCompany: { select: { name: true } },
+      },
+    })
+
+    for (const [w, mine] of wantedBy) {
+      for (const row of rows.filter((r) => mine.includes(r.id))) {
         const below =
           links.find((l) => l.sellContractId === row.id && w.frontier.includes(l.buyContract.supplierSellContractId ?? ''))
             ?.buyContract.supplierSellContractId ?? null
@@ -130,8 +131,9 @@ export async function laddersAbove(
           },
         })
       }
-      w.frontier = wanted
+      w.frontier = mine
     }
+    frontier = [...new Set([...walks.values()].flatMap((x) => x.frontier))]
   }
 
   // The bottom rung comes back too, with no contract of its own: the

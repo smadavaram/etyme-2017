@@ -373,7 +373,10 @@ describe('a client’s approval is recorded at the rate the client agreed', () =
     const quoted = [...approve.matchAll(/(?:rateCents|billRateCents)\s*:\s*([A-Za-z0-9_.]+)/g)]
       .map((m) => m[1])
       .filter((r) => r.includes('billRate') || r.includes('Rate'))
-      .filter((r) => r !== 'payRateCents')
+      // The one-person firm's acceptance, written on the signature above it
+      // (2026-10-20), is an employer's acceptance too: it is on her firm's
+      // pay line, so it carries her pay rate, asserted on its own below.
+      .filter((r) => r !== 'payRateCents' && r !== 'solePayRateCents')
     expect(quoted.length).toBeGreaterThan(0)
     for (const r of quoted) expect(r).toBe('deciding.billRate')
   })
@@ -385,5 +388,17 @@ describe('a client’s approval is recorded at the rate the client agreed', () =
     expect(approve).toContain("rateCents: role === 'EMPLOYER_ACCEPTANCE' ? payRateCents : deciding.billRate")
     expect(approve).toContain('rateCents: payRateCents')
     expect(approve).toContain('rateInForce(')
+  })
+
+  it('a one-person firm’s acceptance, written on the client’s signature, is at her firm’s pay rate, while the client’s own signature stays at the bill rate', () => {
+    // The acceptance is on the pay line, so it is priced like every other
+    // employer's acceptance: the pay rate in force on the first day worked,
+    // read off her firm's own buy line (`payRateOn`). The signature that
+    // stands for it is the client's, and that row is the bill rate.
+    expect(approve).toMatch(/solePayRateCents = await payRateOn\(\s*standsFor\.companyId,/)
+    expect(approve).toMatch(/role: 'EMPLOYER_ACCEPTANCE',\s*hours: accepted\.hours \?\? hours,\s*rateCents: solePayRateCents,/)
+    expect(approve).toContain("rateCents: role === 'EMPLOYER_ACCEPTANCE' ? payRateCents : deciding.billRate")
+    // A pay line with no rate is never posted as pay: zero is not a figure.
+    expect(approve).toContain('solePayRateCents > 0 ? soleAcceptance : null')
   })
 })
