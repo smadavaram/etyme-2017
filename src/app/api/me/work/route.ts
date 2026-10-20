@@ -9,6 +9,7 @@ import {
   type OwedWeek, type WaitingWeek, type WeekSigner,
 } from '@/lib/consultant-portfolio'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
+import { rungVerdict } from '@/app/api/timesheets/filing'
 import { rateInForce, ratePeriods } from '@/lib/contract-rate'
 import { paidBook, paidKey, PAYROLL_RUN, PAYROLL_OFF_CYCLE } from '@/lib/payroll-paid'
 import { acceptanceForPay } from '@/lib/money/pay-hours'
@@ -1033,17 +1034,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Which rung is theirs to file on, and what they are told where it is
+  // not, decided by the timesheets door itself (`rungVerdict`), so a week
+  // on an ended placement reads the same here as there: the day it ended,
+  // and who adds a week still owed — never "your hours go on the contract
+  // with the firm that employs you" to somebody on exactly that contract.
   const rung = rungsToFile(rungs, today).find((r) => r.id === contractId)
   if (!rung) {
-    const r = rungs.find((x) => x.id === contractId)!
+    const refused = rungVerdict(rungs, contractId, today)
     return NextResponse.json(
       {
         error: {
-          code: 'NOT_THIS_CONTRACT',
+          code: refused && !refused.ok ? refused.code : 'NOT_TAKING_HOURS',
           message:
-            r.state === 'IN_PROGRESS' || r.state === 'ENDED'
-              ? 'Your hours go on the contract with the firm that employs you, not this one. Choose that placement.'
-              : 'This placement is not taking hours. Ask the firm that employs you.',
+            refused && !refused.ok ? refused.says : 'This placement is not taking hours. Ask the firm that employs you.',
         },
       },
       { status: 409 }

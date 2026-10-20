@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { amount, compact, rate as fmtRate } from '@/lib/money-display'
 import { YourPapers } from './papers'
 import { AskedToMarket } from './asked-to-market'
+import { YourExpense } from './your-expense'
 import { workStops, type PaperRow, type RunningOut } from './paperwork-rows'
 import { formatDay } from '@/lib/format-date'
 import { momentFor, readerZone } from '@/lib/when'
@@ -1218,6 +1219,12 @@ export default function MyWorkPage() {
       {/* Their own week. The one thing on this page that only they may do. */}
       {(data.filing?.length ?? 0) > 0 && (
         <FileYourWeek filing={data.filing} onSent={() => load(true)} />
+      )}
+
+      {/* Their own expense, beside the week, on the same placement: the
+          one their employer approves (2026-10-20). */}
+      {(data.filing?.length ?? 0) > 0 && (
+        <YourExpense on={data.filing} currency={data.owed?.currency ?? null} />
       )}
 
       {/* Weeks sent back to them, first: somebody is waiting on the correction. */}
