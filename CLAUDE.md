@@ -3010,8 +3010,14 @@ pays on its own agreement, never on a rule the platform sets:
    already are; never on the sub-vendor's own contract alone.
 4. **On a cut week, a sub-vendor's invoice loses overtime first**, the
    same as every bill, because to the firm paying it, it is a bill. The
-   worker's own pay keeps the opposite rule (ordinary hours first),
-   because on pay the firm is protecting its worker.
+   worker's own pay keeps the pay rule, which since 2026-09-30 is:
+   overtime only on the accepted hours above the line by default, and
+   "keep the week's overtime" (ordinary hours cut first) as a setting
+   the paying firm may choose, recorded with who and why. (Corrected
+   2026-10-20: the first version of this line said the worker's pay
+   "keeps the opposite rule, ordinary hours first", which was the
+   2026-09-29 default that 2026-09-30 superseded; the simulation found
+   the two lines disagreeing.)
 
 **And the privacy notice and DPA name the saved Ask Etyme conversation**
 (founder, the same day, "go with your recommendations" on the lines
