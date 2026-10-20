@@ -130,3 +130,47 @@ export function whyNotOpen(r: DoorRow): DoorRefusal | null {
       'any supplier, so there is nothing to answer.',
   }
 }
+
+// ── Who came, from whom, for which job ──────────────────────────────────
+//
+// The receiving firm was told "New submission for “Cybersecurity
+// analyst”" over "A candidate was submitted to your requirement" — no
+// name, no supplier — and the simulation of 2026-10-20 counted 1,340 of
+// them, identical, to 500 people. A list of those is a list of one line.
+// The title is now the sentence a hiring manager says: who, from which
+// supplier, for which job.
+
+/** "Ana Ruiz", "Ana Ruiz and Omar Haddad", "Ana Ruiz and 3 others". */
+function whoCame(people: readonly string[]): string {
+  const names = people.filter((p) => typeof p === 'string' && p.trim()).map((p) => p.trim())
+  if (names.length === 0) return 'Somebody'
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names[0]} and ${names.length - 1} others`
+}
+
+/** Every name, the way a person lists them: "A, B and C". */
+function listed(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
+ * What the firm a candidate was put forward to reads. The supplier named
+ * is the firm that submitted to it — the rung it buys from — never a
+ * firm further down, whose name is that firm's to keep.
+ */
+export function putForwardNotice(i: {
+  supplierName: string
+  people: readonly string[]
+  roleTitle: string
+}): { title: string; body: string } {
+  const names = i.people.filter((p) => typeof p === 'string' && p.trim()).map((p) => p.trim())
+  const title = `${i.supplierName} put ${whoCame(names)} forward for ${i.roleTitle}`
+  const shown = names.length > 6 ? [...names.slice(0, 6), `${names.length - 6} more`] : names
+  const body =
+    names.length <= 1
+      ? `${i.supplierName} put ${whoCame(names)} forward for the ${i.roleTitle} job. Read the submission and decide whether to interview.`
+      : `${i.supplierName} put ${names.length} candidates forward for the ${i.roleTitle} job: ${listed(shown)}. Read each submission and decide whom to interview.`
+  return { title, body }
+}

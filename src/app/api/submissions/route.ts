@@ -18,6 +18,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { submissionKind, tellEmployee, blockedSays, deliveryDeskSays } from './kind'
 import { networkOffer, adoptedKinds, tellAdoptedPerson, tellSupplier, supplierWallSays, ourBarSays } from './adopt'
+import { putForwardNotice } from './words'
 import { awardDoor } from '@/lib/award'
 import { maySeeOutside } from '@/lib/walls'
 import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
@@ -218,6 +219,9 @@ export async function POST(request: NextRequest) {
       // The job's length, for whether it would carry somebody past the
       // client's time limit. Null is "nobody said", and is said so.
       months: true,
+      // Who hears first that somebody came: whoever owns the job, and
+      // whoever raised it.
+      ownerId: true, raisedById: true,
       company: { select: { name: true } },
       endClientCompany: { select: { name: true } },
     },
@@ -1076,7 +1080,7 @@ export async function POST(request: NextRequest) {
         await notify({
           personId,
           type: 'SUBMISSION',
-          title: `${vendorName} put you forward to ${clientName}`,
+          title: `${vendorName} put you forward for ${requirement.title} at ${clientName}`,
           body: tellAdoptedPerson({
             ourName: vendorName,
             supplierName: adopted.supplierName,
@@ -1090,7 +1094,7 @@ export async function POST(request: NextRequest) {
           where: {
             companyId: adopted.supplierId,
             revokedAt: null,
-            role: { permissions: { hasSome: ['submissions.read'] } },
+            role: { permissions: { hasSome: ['submissions.read', '*'] } },
           },
           select: { personId: true },
           take: 5,
@@ -1142,7 +1146,7 @@ export async function POST(request: NextRequest) {
         void notify({
           personId,
           type: 'SUBMISSION',
-          title: `${vendorName} put you forward to ${clientName}`,
+          title: `${vendorName} put you forward for ${requirement.title} at ${clientName}`,
           body: tellThem({
             vendorName,
             clientName,
@@ -1240,7 +1244,7 @@ export async function POST(request: NextRequest) {
           personId,
           companyId: fromCompanyId,
           type: 'SUBMISSION',
-          title: `${vendorName} put you forward to ${clientName}`,
+          title: `${vendorName} put you forward for ${requirement.title} at ${clientName}`,
           body: tellEmployee({
             employerName: vendorName,
             clientName,
@@ -1338,6 +1342,9 @@ export async function POST(request: NextRequest) {
       })
 
       item.status = 'created'
+      // Kept for the receiving firm's notice below, which names who came.
+      // Stripped from the response, which already carries the person id.
+      item.personName = person.name
       item.submissionId = submission.id
       item.kind = kind
       item.submittedAt = submission.submittedAt.toISOString()
@@ -1367,44 +1374,57 @@ export async function POST(request: NextRequest) {
   // Nothing was written for them; the same press with a reason goes on.
   const needsReason = results.filter((r) => r.status === 'needs_reason')
 
-  // Notify the requirement owner about new submissions
+  // ── The firm the candidates went to is told who came ────────────────
+  //
+  // "New submission for …" / "A candidate was submitted to your
+  // requirement" named nobody: the simulation of 2026-10-20 counted 1,340
+  // identical notices to 500 people. The title now says who, from which
+  // supplier, for which job (`putForwardNotice`). And an Owner holds `*`,
+  // which is every permission, so a client run by its Owner hears too.
   if (created.length > 0) {
-    // Find admins at the requirement's company who should see submissions
-    const recipientContexts = await prisma.context.findMany({
+    const jobPeople = [requirement.ownerId, requirement.raisedById].filter((x): x is string => !!x)
+    const seats = await prisma.context.findMany({
       where: {
         companyId: toCompanyId,
-        role: { permissions: { hasSome: ['submissions.read'] } },
+        revokedAt: null,
+        role: { permissions: { hasSome: ['submissions.read', '*'] } },
         ...NOT_THE_SAMPLE_SEAT,
       },
       select: { personId: true },
-      take: 5,
+      orderBy: { grantedAt: 'asc' },
     })
+    // The job's own people first, then the rest of the firm's desks, five
+    // in all and each person once.
+    const recipientContexts = [
+      ...new Map(
+        [...seats.filter((c) => jobPeople.includes(c.personId)), ...seats].map((c) => [c.personId, c])
+      ).values(),
+    ].slice(0, 5)
 
-    const notifications: NotifyParams[] = []
-    for (const ctx of recipientContexts) {
-      notifications.push({
-        personId: ctx.personId,
-        companyId: toCompanyId,
-        type: 'SUBMISSION',
-        title: created.length === 1
-          ? `New submission for "${requirement.title}"`
-          : `${created.length} new submissions for "${requirement.title}"`,
-        body: created.length === 1
-          ? `A candidate was submitted to your requirement "${requirement.title}"`
-          : `${created.length} candidates were submitted to your requirement "${requirement.title}"`,
-        entityId: requirementId,
-        data: {
-          requirementId,
-          count: created.length,
-          submissionIds: created.map((r: any) => r.submissionId),
-        },
-      })
-    }
+    const said = putForwardNotice({
+      supplierName: vendorName,
+      people: created.map((r: any) => r.personName as string),
+      roleTitle: requirement.title,
+    })
+    const notifications: NotifyParams[] = recipientContexts.map((ctx) => ({
+      personId: ctx.personId,
+      companyId: toCompanyId,
+      type: 'SUBMISSION',
+      title: said.title,
+      body: said.body,
+      entityId: requirementId,
+      data: {
+        requirementId,
+        count: created.length,
+        submissionIds: created.map((r: any) => r.submissionId),
+      },
+    }))
 
     if (notifications.length > 0) {
       notifyBulk(notifications)
     }
   }
+  for (const r of results) delete r.personName
 
   return NextResponse.json({
     data: {

@@ -8,16 +8,20 @@ import { chainTop, payerRung, viaPhrase } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { weekFlag, periodWord } from '@/lib/timesheet-flag'
 import { waitingSince, daysWaiting } from '@/lib/auto-approval'
-import { weekTurn } from '@/app/api/timesheets/ladder'
+import { weekTurns } from '@/app/api/timesheets/ladder'
 import type { LadderRung } from '@/app/api/timesheets/chain-turn'
 import { clientDecidedFor, clientDecidedSentence } from '@/app/api/timesheets/client-decided'
-import { desksFor } from '@/lib/supplier-desks'
+import { desksForMany } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
+import { receiptToPayDecision } from './receipt-to-pay'
+import { daysSays, hoursSays, agoSays, rollsOffTitle } from './words'
+import { invoiceBetween, partiesOf, directionFrom } from '@/lib/money/invoice-parties'
+import { decimalToCents } from '@/lib/three-way-match'
 import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptance'
 import { expensesWaitingOn } from '@/lib/money/expense-acceptance-read'
 import { ENDING_SOON_READERS, rateOnEndingSoon } from '@/lib/releasing-soon'
@@ -82,6 +86,10 @@ export async function GET(request: NextRequest) {
     const pendingTimesheets = await prisma.timesheet.findMany({
       where: {
         status: 'SUBMITTED',
+        // Nobody approves their own hours, so nobody is offered them: the
+        // owner of a one-person firm was put on her own week and refused
+        // when she pressed it (simulation, 2026-10-20).
+        personId: { not: caller.person.id },
         OR: [
           // The employer, accepting what it will pay for.
           { sellContract: { companyId }, employerAcceptedAt: null },
@@ -173,22 +181,39 @@ export async function GET(request: NextRequest) {
       (primeCompanyId: string) => mayNameSubVendors(terms, companyId, primeCompanyId)
     )
 
+    // The employer's turn comes last, once every firm above it has signed
+    // (`app/api/timesheets/chain-turn`). Every week's turn is read in one
+    // walk (`weekTurns`) rather than five queries a row, and what the
+    // client decided about each week's overtime in one read more.
+    const employerSide = pendingTimesheets.filter(
+      (ts) => ts.sellContract.companyId === companyId &&
+        ts.sellContract.companyId !== (ts.sellContract.endClientCompanyId ?? ts.sellContract.clientCompanyId)
+    )
+    const employerTurns = await weekTurns(employerSide, companyId)
+    const employerDecided = await clientDecidedMany(
+      employerSide.flatMap((ts) => {
+        const t = employerTurns.get(ts.id)
+        return t && t.turn.ok
+          ? [{ timesheetId: ts.id, personName: ts.person.name, ladder: t.ladder, pairLineId: ts.sellContract.id, pairMultiplierBps: ts.sellContract.overtimeMultiplierBps }]
+          : []
+      })
+    )
+
     for (const ts of pendingTimesheets) {
       // From the day the week was sent, not the day it ended: a week sent
       // three weeks late has waited on this desk since it arrived.
       const daysSinceSubmit = daysWaiting(ts, now)
       const sc = ts.sellContract
       const asClient = sc.companyId !== companyId
-      // The employer's turn comes last, once every firm above it has
-      // signed (`app/api/timesheets/chain-turn`). Offering it sooner put
-      // a week on its desk that the approve route now refuses.
+      // Offering the employer its turn sooner put a week on its desk that
+      // the approve route refuses.
       let clientDecided: string | null = null
       if (!asClient && sc.companyId !== (sc.endClientCompanyId ?? sc.clientCompanyId)) {
-        const { turn, ladder } = await weekTurn(ts, companyId)
-        if (!turn.ok) continue
+        const t = employerTurns.get(ts.id)
+        if (!t || !t.turn.ok) continue
         // Below the top: the client decided the overtime when it signed,
         // and the employer is told, never asked (founder, 2026-10-19).
-        clientDecided = await clientDecidedOn(ts.id, ts.person.name, ladder, sc.id, sc.overtimeMultiplierBps)
+        clientDecided = employerDecided.get(ts.id) ?? null
       }
       // Inside a sentence, so the phrase and not the cell: "through
       // Computer Systems" where the name is this reader's to read, and
@@ -236,8 +261,8 @@ export async function GET(request: NextRequest) {
         title: `Approve timesheet — ${ts.person.name}`,
         named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
         subtitle: asClient
-          ? `${ts.totalHours}h · through ${supplier} · ${period}`
-          : `${ts.totalHours}h · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}`,
+          ? `${hoursSays(ts.totalHours)} · through ${supplier} · ${period}`
+          : `${hoursSays(ts.totalHours)} · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : daysSinceSubmit >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'TIMESHEET',
         entityId: ts.id,
@@ -266,6 +291,7 @@ export async function GET(request: NextRequest) {
         employerAcceptedAt: null,
         sellContract: { companyId: { not: companyId } },
         person: { sellContracts: { some: { companyId } } },
+        personId: { not: caller.person.id },
         id: { notIn: pendingTimesheets.map((t) => t.id) },
       },
       include: {
@@ -280,19 +306,32 @@ export async function GET(request: NextRequest) {
       orderBy: { periodEnd: 'asc' },
       take: 20,
     })
-    for (const ts of reached) {
-      const { turn, ladder } = await weekTurn(ts, companyId)
-      if (!turn.ok || turn.signer.role !== 'PASS_THROUGH') continue
-      const paysOn = await prisma.sellContract.findUnique({
-        where: { id: turn.signer.rungId },
-        select: { billRate: true, overtimeMultiplierBps: true, company: { select: { name: true } } },
-      })
+    const reachedTurns = await weekTurns(reached, companyId)
+    const ours = reached.flatMap((ts) => {
+      const t = reachedTurns.get(ts.id)
+      return t && t.turn.ok && t.turn.signer.role === 'PASS_THROUGH' ? [{ ts, ladder: t.ladder, rungId: t.turn.signer.rungId }] : []
+    })
+    const paysOnRows = ours.length
+      ? await prisma.sellContract.findMany({
+          where: { id: { in: [...new Set(ours.map((o) => o.rungId))] } },
+          select: { id: true, billRate: true, overtimeMultiplierBps: true, company: { select: { name: true } } },
+        })
+      : []
+    const paysOnBy = new Map(paysOnRows.map((r) => [r.id, r]))
+    const reachedDecided = await clientDecidedMany(
+      ours.map((o) => ({
+        timesheetId: o.ts.id, personName: o.ts.person.name, ladder: o.ladder, pairLineId: o.rungId,
+        pairMultiplierBps: paysOnBy.get(o.rungId)?.overtimeMultiplierBps,
+      }))
+    )
+    for (const { ts, rungId } of ours) {
+      const paysOn = paysOnBy.get(rungId) ?? null
       const daysSinceSigned = Math.floor((now.getTime() - (ts.clientApprovedAt ?? ts.periodEnd).getTime()) / 86_400_000)
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
         title: `Accept timesheet — ${ts.person.name}`,
         named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
-        subtitle: `${ts.totalHours}h · from ${paysOn?.company.name ?? 'your supplier'} · ${periodWord(ts.periodStart, ts.periodEnd)} · signed above you`,
+        subtitle: `${hoursSays(ts.totalHours)} · from ${paysOn?.company.name ?? 'your supplier'} · ${periodWord(ts.periodStart, ts.periodEnd)} · signed above you`,
         urgency: daysSinceSigned >= 5 ? 'HIGH' : daysSinceSigned >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'TIMESHEET',
         entityId: ts.id,
@@ -303,7 +342,7 @@ export async function GET(request: NextRequest) {
         amount: paysOn ? Number(ts.totalHours) * (paysOn.billRate / 100) : null,
         // The client's overtime decision, on this firm's own line with the
         // firm it pays. It is told, never asked (founder, 2026-10-19).
-        clientDecided: await clientDecidedOn(ts.id, ts.person.name, ladder, turn.signer.rungId, paysOn?.overtimeMultiplierBps),
+        clientDecided: reachedDecided.get(ts.id) ?? null,
         flag: weekFlag({
           hours: Number(ts.totalHours), hoursPerWeek: ts.sellContract.requirement?.hoursPerWeek ?? null,
           periodEnd: ts.periodEnd, contractEnd: ts.sellContract.endDate,
@@ -449,11 +488,15 @@ export async function GET(request: NextRequest) {
       take: 20,
     })
     if (waiting.length > 0) {
-      const names = await prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } })
+      const [names, desksBy] = await Promise.all([
+        prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } }),
+        // Every recommender's desks in one read, not three queries a firm.
+        desksForMany(companyId, waiting.map((w) => w.recommendedById)),
+      ])
       const nameOf = new Map(names.map((n) => [n.id, n.name]))
       for (const w of waiting) {
         const stage = w.stage as Stage
-        const desks = await desksFor(companyId, w.recommendedById)
+        const desks = desksBy.get(w.recommendedById)!
         const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: w.recommendedById, decisions: (w.decisions as unknown as Decision[]) ?? [], desks, firmName: w.name })
         if (!verdict.ok) continue
         const items = ((w.checklist as any[]) ?? []).filter((i) => i.desk === stage)
@@ -657,15 +700,21 @@ export async function GET(request: NextRequest) {
       take: 10,
     })
 
+    // Which of them somebody has already started rolling off, in one read.
+    const started = new Set(
+      endingSoon.length
+        ? (await prisma.rolloffEvent.findMany({
+            where: { sellContractId: { in: endingSoon.map((sc) => sc.id) } },
+            select: { sellContractId: true },
+          })).map((e) => e.sellContractId)
+        : []
+    )
+
     for (const sc of endingSoon) {
       const daysLeft = Math.ceil(
         (sc.endDate!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
       )
-
-      // Check if a rolloff event already exists
-      const rolloffEvent = await prisma.rolloffEvent.findFirst({
-        where: { sellContractId: sc.id },
-      })
+      const rolloffEvent = started.has(sc.id)
 
       const endClientName = sc.endClientCompany?.name ?? sc.clientCompany?.name ?? 'Unknown'
       // Null where this seat may not read a bill rate; then no rate at all.
@@ -675,7 +724,7 @@ export async function GET(request: NextRequest) {
       )
       decisions.push({
         type: 'ROLLOFF_ACTION',
-        title: `Rolloff in ${daysLeft}d — ${sc.person.name}`,
+        title: rollsOffTitle(daysLeft, sc.person.name),
         named: { whose: sc.person.name, what: 'last day', whats: 'last days' },
         // What a person would say of the roll-off, never the row the
         // system wrote for it ("Event created" was machine talk).
@@ -693,14 +742,34 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 4. Submissions to review ──────────────────────
+  //
+  // The candidates put forward TO this firm, for it to read. This asked
+  // for the ones this firm had sent (`fromCompanyId`), which are waiting
+  // on somebody else — so a client's hiring manager never had a candidate
+  // on the queue, and a supplier had its own outbox there instead
+  // (simulation, 2026-10-20).
+  //
+  // At a client, the jobs this person owns or raised, and any job nobody
+  // owns: a hiring manager reviews their own candidates, not every other
+  // manager's. A firm further down the chain reads all of its own, because
+  // there the desk that reads submissions is the one that sends them on.
   if (hasAnyPermission(caller.permissions, ['submissions.read'])) {
+    const me = caller.person.id
     const pendingSubmissions = await prisma.submission.findMany({
       where: {
-        fromCompanyId: companyId,
+        toCompanyId: companyId,
         status: 'SUBMITTED',
+        ...(caller.company?.kind === 'CLIENT'
+          ? {
+              requirement: {
+                OR: [{ ownerId: me }, { raisedById: me }, { ownerId: null, raisedById: null }],
+              },
+            }
+          : {}),
       },
       include: {
         person: { select: { name: true } },
+        fromCompany: { select: { name: true } },
         requirement: { select: { title: true } },
       },
       orderBy: { submittedAt: 'asc' },
@@ -716,7 +785,9 @@ export async function GET(request: NextRequest) {
         type: 'SUBMISSION_REVIEW',
         title: `Review submission — ${sub.person.name}`,
         named: { whose: sub.person.name, what: 'submission', whats: 'submissions' },
-        subtitle: `${sub.requirement.title} · $${sub.rate / 100}/hr · ${daysSinceSubmit}d since submitted`,
+        // The firm named is the one that put them forward to this firm —
+        // the supplier it buys from, never a firm below that one.
+        subtitle: `${sub.requirement.title} · from ${sub.fromCompany.name} · ${rateSays(sub.rate)} · submitted ${agoSays(daysSinceSubmit)}`,
         urgency: daysSinceSubmit >= 7 ? 'HIGH' : daysSinceSubmit >= 3 ? 'MEDIUM' : 'LOW',
         entityType: 'SUBMISSION',
         entityId: sub.id,
@@ -788,7 +859,7 @@ export async function GET(request: NextRequest) {
         // "$76.00 outstanding", which is an amount nobody chases.
         subtitle:
           `${inv.engagement.msa?.client.name ?? inv.engagement.sellContracts[0]?.clientCompany?.name ?? 'Client'}` +
-          ` · $${outstanding.toFixed(2)} outstanding · ${daysOverdue}d overdue`,
+          ` · $${outstanding.toFixed(2)} outstanding · ${daysSays(daysOverdue)} overdue`,
         urgency: daysOverdue >= 60 ? 'HIGH' : daysOverdue >= 30 ? 'MEDIUM' : 'LOW',
         entityType: 'INVOICE',
         entityId: inv.id,
@@ -900,7 +971,7 @@ export async function GET(request: NextRequest) {
       type: 'TWIN_QUESTION',
       title: TWIN_ACTS[q.action]?.says ?? q.rationale,
       named: { whose: null, what: 'a question from Ask Etyme', whats: 'questions from Ask Etyme' },
-      subtitle: [q.label, q.rationale, waited <= 0 ? 'asked today' : `asked ${waited}d ago`]
+      subtitle: [q.label, q.rationale, `asked ${agoSays(waited)}`]
         .filter(Boolean).join(' · '),
       urgency: waited >= 7 ? 'HIGH' : waited >= 3 ? 'MEDIUM' : 'LOW',
       entityType: 'TWIN_APPROVAL',
@@ -910,6 +981,63 @@ export async function GET(request: NextRequest) {
       amount: null,
       createdAt: q.requestedAt.toISOString(),
     })
+  }
+
+  // ── 8. Invoice receipts waiting to be paid ──────────────────────────
+  //
+  // For the desk that records payments: every supplier's invoice this
+  // firm is asked to pay, submitted and not paid (`./receipt-to-pay`).
+  // A disputed receipt is already on the queue above, in the bill's own
+  // words, and a receipt the twin has put to this seat is its question's
+  // row; neither is listed twice.
+  if (hasAnyPermission(caller.permissions, ['payments.record'])) {
+    const askedOn = new Set(twinAsks.filter((q) => q.entityType === 'Invoice').map((q) => q.entityId))
+    const open = await prisma.invoice.findMany({
+      where: { AND: [invoiceBetween(companyId), { status: { notIn: RECEIPT_NOT_WAITING } }] },
+      select: {
+        id: true, number: true, currency: true, total: true, paid: true, dueAt: true, receivedAt: true, submittedAt: true,
+        engagement: {
+          select: {
+            msa: {
+              select: {
+                vendorId: true, clientId: true,
+                vendor: { select: { id: true, name: true } },
+                client: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+        workOrder: {
+          select: {
+            issuedById: true, issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { dueAt: 'asc' },
+      take: 20,
+    })
+    for (const inv of open) {
+      if (askedOn.has(inv.id)) continue
+      const parties = partiesOf({ agreement: inv.engagement.msa, order: inv.workOrder })
+      if (directionFrom(parties, companyId) !== 'PAYABLE') continue
+      // Settled to the cent is not waiting, whatever the status says.
+      const outstandingCents = decimalToCents(inv.total) - decimalToCents(inv.paid)
+      if (outstandingCents <= 1) continue
+      const vendorName = parties.vendor?.name ?? 'Your supplier'
+      decisions.push({
+        type: 'INVOICE_RECEIPT_TO_PAY',
+        named: { whose: vendorName, what: 'invoice receipt', whats: 'invoice receipts' },
+        ...receiptToPayDecision(
+          {
+            id: inv.id, number: inv.number, vendorName, outstandingCents, currency: inv.currency,
+            dueAt: inv.dueAt, receivedAt: inv.receivedAt ?? inv.submittedAt ?? null,
+          },
+          now
+        ),
+      })
+    }
   }
 
   // ── Sort by urgency, then by created date ─────────
@@ -991,8 +1119,16 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * What the client decided about a week's overtime, said to a firm below
- * the top of its chain — or null where the client decided nothing.
+ * Invoices not waiting on a payer: never sent (DRAFT, ISSUED), settled,
+ * or void. A disputed one is the dispute's row; a held one waits on its
+ * hold. What is left was submitted to the payer and is owed.
+ */
+const RECEIPT_NOT_WAITING = ['DRAFT', 'ISSUED', 'PAID', 'VOID', 'CANCELLED', 'HELD', 'DISPUTED']
+
+/**
+ * What the client decided about each week's overtime, said to a firm
+ * below the top of its chain — keyed by week, absent where the client
+ * decided nothing.
  *
  * The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): below
  * the top, which hours are overtime is the client's decision when it
@@ -1000,26 +1136,40 @@ export async function GET(request: NextRequest) {
  * it priced at the multiplier on its own line with the firm it pays —
  * the same reading its invoice will be matched on. Where the client's
  * answer cannot be read, the card says why in the rule's own sentence.
+ *
+ * Two reads for every week on the queue, where it was two a week.
  */
-async function clientDecidedOn(
-  timesheetId: string,
-  personName: string,
-  ladder: LadderRung[],
-  pairLineId: string,
-  pairMultiplierBps: number | null | undefined
-): Promise<string | null> {
-  const top = ladder[0]
-  if (!top) return null
-  const clientId = top.endClientCompanyId ?? top.clientCompanyId
-  const rows = await prisma.overtimeDecision.findMany({ where: { timesheetId } })
-  if (rows.length === 0) return null
-  const client = await prisma.company.findUnique({ where: { id: clientId }, select: { name: true } })
-  const carried = clientDecidedFor({
-    rows,
-    top: { sellContractId: top.sellContractId, clientCompanyId: clientId },
-    pairLineId,
-    pairMultiplierBps,
-    personName,
-  })
-  return clientDecidedSentence(client?.name ?? 'The client', carried)
+async function clientDecidedMany(
+  weeks: readonly {
+    timesheetId: string
+    personName: string
+    ladder: LadderRung[]
+    pairLineId: string
+    pairMultiplierBps: number | null | undefined
+  }[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const withTop = weeks.filter((w) => w.ladder[0])
+  if (withTop.length === 0) return out
+  const rows = await prisma.overtimeDecision.findMany({ where: { timesheetId: { in: withTop.map((w) => w.timesheetId) } } })
+  const decided = withTop.filter((w) => rows.some((r) => r.timesheetId === w.timesheetId))
+  if (decided.length === 0) return out
+  const clientIds = [...new Set(decided.map((w) => w.ladder[0].endClientCompanyId ?? w.ladder[0].clientCompanyId))]
+  const clients = new Map(
+    (await prisma.company.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })).map((c) => [c.id, c.name])
+  )
+  for (const w of decided) {
+    const top = w.ladder[0]
+    const clientId = top.endClientCompanyId ?? top.clientCompanyId
+    const carried = clientDecidedFor({
+      rows: rows.filter((r) => r.timesheetId === w.timesheetId),
+      top: { sellContractId: top.sellContractId, clientCompanyId: clientId },
+      pairLineId: w.pairLineId,
+      pairMultiplierBps: w.pairMultiplierBps,
+      personName: w.personName,
+    })
+    const said = clientDecidedSentence(clients.get(clientId) ?? 'The client', carried)
+    if (said) out.set(w.timesheetId, said)
+  }
+  return out
 }

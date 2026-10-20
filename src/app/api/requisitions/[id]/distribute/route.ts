@@ -8,6 +8,10 @@ import { mayDistribute } from '@/lib/requisition-approval'
 import { hasPermission } from '@/lib/permissions'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
 import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { reportError } from '@/lib/alerts'
+import type { Participant } from '@/lib/threads'
+import { jobSentNotice, jobSentThreadLine, toldPerFirm, SEATS_TOLD_PER_FIRM } from '../../words'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -276,7 +280,7 @@ export async function POST(
     data: {
       companyId: requisition.companyId,
       action: 'REQUISITION_DISTRIBUTED',
-      summary: `${requisition.title} sent to ${sent.length} vendor(s)`,
+      summary: `${requisition.title} sent to ${sent.length === 1 ? '1 supplier' : `${sent.length} suppliers`}`,
       reason: `Distributed by ${caller.person.name} to ${sent.map(s => s.name).join(', ') || 'nobody'}`,
       payload: {
         requirementId: id,
@@ -309,27 +313,89 @@ export async function POST(
     },
   })
 
-  // Notify each vendor's people who can act on a requirement.
+  // ── Each supplier is told, and the job opens a thread with it ────────
+  //
+  // The job goes to each firm's people who work a job, firm by firm:
+  // one cap across every firm let the first firm's seats crowd out the
+  // rest. A firm's Owner holds `*`, which is every permission, so the
+  // Owner of a small supplier with no account manager hears too — the
+  // simulation of 2026-10-20 found 80 sends of 206 told nobody, every
+  // one an Owner-run firm.
+  //
+  // And the send opens the thread across the deal, the same create-or-get
+  // the client's "write to the supplier" uses (`app/api/people/[id]/ask`),
+  // so the supplier answers on the job rather than starting an email.
   if (sent.length > 0) {
-    const recipients = await prisma.context.findMany({
+    const facts = {
+      clientName: requisition.company.name,
+      title: requisition.title,
+      headcount: requisition.headcount,
+      location: requisition.location,
+      closesAt: expiresAt,
+    }
+    const opener: Participant = {
+      personId: caller.person.id,
+      name: caller.person.name,
+      companyId: requisition.companyId,
+      joinedAt: new Date().toISOString(),
+    }
+    const threads = new Map<string, string>()
+    await Promise.all(
+      sent.map(async (s) => {
+        try {
+          const where = { companyId: requisition.companyId, withCompanyId: s.companyId, topic: 'REQUIREMENT', topicId: id }
+          let thread = await prisma.conversation.findFirst({ where, select: { id: true } })
+          if (!thread) {
+            thread = await prisma.conversation
+              .create({
+                data: { ...where, title: `${requisition.title} — ${s.name}`, participants: [opener] as unknown as object },
+                select: { id: true },
+              })
+              .catch(async (e: any) => {
+                // A second send racing this one made it first; read theirs.
+                if (e?.code !== 'P2002') throw e
+                return prisma.conversation.findFirstOrThrow({ where, select: { id: true } })
+              })
+          }
+          const note = vendors.find((v) => v.companyId === s.companyId)?.message ?? null
+          await prisma.message.create({
+            data: { conversationId: thread.id, authorId: caller.person.id, body: jobSentThreadLine({ ...facts, note }), type: 'TEXT' },
+          })
+          threads.set(s.companyId, thread.id)
+        } catch (err) {
+          // The invitation stands without its thread; the notice still goes.
+          reportError(`The thread for ${requisition.title} with ${s.name} could not be opened:`, err)
+        }
+      })
+    )
+
+    const seats = await prisma.context.findMany({
       where: {
-        companyId: { in: sent.map(s => s.companyId) },
+        companyId: { in: sent.map((s) => s.companyId) },
         revokedAt: null,
-        role: { permissions: { hasSome: ['requirements.read'] } },
+        role: { permissions: { hasSome: ['requirements.read', '*'] } },
+        ...NOT_THE_SAMPLE_SEAT,
       },
       select: { personId: true, companyId: true },
-      take: 40,
+      orderBy: { grantedAt: 'asc' },
     })
-
-    const notifications: NotifyParams[] = recipients.map(r => ({
-      personId: r.personId,
-      companyId: r.companyId ?? undefined,
-      type: 'SYSTEM',
-      title: `New requirement from ${requisition.company.name}`,
-      body: `${requisition.title} — ${requisition.headcount} position(s)${requisition.location ? ` in ${requisition.location}` : ''}. Responses close ${expiresAt.toISOString().slice(0, 10)}.`,
-      entityId: id,
-      data: { requirementId: id },
-    }))
+    const told = toldPerFirm(seats, SEATS_TOLD_PER_FIRM)
+    const said = jobSentNotice(facts)
+    const notifications: NotifyParams[] = told.map((r) => {
+      const conversationId = r.companyId ? threads.get(r.companyId) ?? null : null
+      return {
+        personId: r.personId,
+        companyId: r.companyId ?? undefined,
+        type: 'SYSTEM',
+        title: said.title,
+        body: said.body,
+        entityId: id,
+        data: {
+          requirementId: id,
+          ...(conversationId ? { conversationId, href: `/dashboard/conversations?open=${conversationId}` } : {}),
+        },
+      }
+    })
     if (notifications.length > 0) notifyBulk(notifications)
   }
 
@@ -345,7 +411,7 @@ export async function POST(
         errors: results.filter(r => r.status === 'error').length,
       },
       expiresAt: expiresAt.toISOString(),
-      message: `Sent to ${sent.length} vendor(s)`,
+      message: sent.length === 1 ? 'Sent to 1 supplier.' : `Sent to ${sent.length} suppliers.`,
     },
   })
 }

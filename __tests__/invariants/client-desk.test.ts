@@ -5,6 +5,8 @@ import { expenseAcceptanceDecision, kindWord, ACCEPTS_EXPENSES } from '@/app/api
 import { rolesFor } from '@/lib/company-defaults'
 import { hasAnyPermission } from '@/lib/permissions'
 import { chipsFor } from '@/app/dashboard/decisions/chips'
+import { daysSays, hoursSays, agoSays, rollsOffTitle } from '@/app/api/decisions/words'
+import { receiptToPayDecision, dueSays } from '@/app/api/decisions/receipt-to-pay'
 
 /**
  * The client dashboard, read from Northbend Athletic's program desk: five contractors
@@ -30,7 +32,7 @@ describe('what the client desk is told', () => {
   })
 
   it("a client sees the hours on a sheet, never the rate its supplier's supplier charges", () => {
-    expect(decisions).toContain('`${ts.totalHours}h · through ${supplier} · ${period}`')
+    expect(decisions).toContain('`${hoursSays(ts.totalHours)} · through ${supplier} · ${period}`')
   })
 
   it("and never the name of its supplier's supplier either, which is the same walk for the name", () => {
@@ -423,5 +425,103 @@ describe('an expense waiting on this firm to accept it', () => {
     // The card's Accept sends no figure: the route records the most this
     // firm may accept, which is the amount the card shows.
     expect(decisionsPage).not.toMatch(/decision: 'accept', amountCents/)
+  })
+})
+
+describe('the queue says its units in words, once, for every reader (simulation, 2026-10-20)', () => {
+  const decisions = read('src/app/api/decisions/route.ts')
+
+  it('a roll-off reads “Rolls off in 18 days — Felix Brenner”, never “Rolloff in 18d”, and the name stays after the dash', () => {
+    expect(rollsOffTitle(18, 'Felix Brenner')).toBe('Rolls off in 18 days — Felix Brenner')
+    expect(rollsOffTitle(1, 'Felix Brenner')).toBe('Rolls off tomorrow — Felix Brenner')
+    expect(rollsOffTitle(0, 'Felix Brenner')).toBe('Rolls off today — Felix Brenner')
+  })
+
+  it('hours and days are words: “40 hours”, “1 hour”, “3 days”, “submitted yesterday”', () => {
+    expect(hoursSays(40)).toBe('40 hours')
+    expect(hoursSays('37.5')).toBe('37.5 hours')
+    expect(hoursSays(1)).toBe('1 hour')
+    expect(daysSays(3)).toBe('3 days')
+    expect(daysSays(1)).toBe('1 day')
+    expect(agoSays(0)).toBe('today')
+    expect(agoSays(1)).toBe('yesterday')
+    expect(agoSays(5)).toBe('5 days ago')
+  })
+
+  it('no title or subtitle the queue writes ends a number in a bare d or h', () => {
+    expect(decisions).not.toMatch(/\$\{[^}]+\}d\b|\$\{[^}]+\}h\b/)
+    expect(decisions).not.toContain('Rolloff in')
+  })
+})
+
+describe('a candidate put forward to a client is on its hiring manager’s queue (simulation, 2026-10-20)', () => {
+  const decisions = read('src/app/api/decisions/route.ts')
+
+  it('the queue reads the submissions sent to this firm, not the ones it sent', () => {
+    const at = decisions.indexOf('// ── 4. Submissions to review')
+    const block = decisions.slice(at, decisions.indexOf('// ── 5. Overdue invoices'))
+    expect(block).toContain('toCompanyId: companyId,')
+    expect(block).not.toContain('fromCompanyId: companyId')
+  })
+
+  it('at a client, a hiring manager reads the candidates on the jobs they own or raised, and any job nobody owns', () => {
+    expect(decisions).toContain("OR: [{ ownerId: me }, { raisedById: me }, { ownerId: null, raisedById: null }]")
+  })
+
+  it('the row names the person, the job and the supplier that put them forward, in words', () => {
+    expect(decisions).toContain('`${sub.requirement.title} · from ${sub.fromCompany.name} · ${rateSays(sub.rate)} · submitted ${agoSays(daysSinceSubmit)}`')
+  })
+})
+
+describe('an invoice receipt waiting to be paid is on the AP clerk’s queue (simulation, 2026-10-20)', () => {
+  const decisions = read('src/app/api/decisions/route.ts')
+  const NOW = new Date('2026-10-20T15:00:00Z')
+  const receipt = {
+    id: 'inv1', number: 'BRT-1042', vendorName: 'Brightmoor Staffing', outstandingCents: 528_000, currency: 'USD',
+    dueAt: new Date('2026-10-23T00:00:00Z'), receivedAt: new Date('2026-10-18T00:00:00Z'),
+  }
+
+  it('it names the supplier, the invoice, what is owed and when it is due', () => {
+    const row = receiptToPayDecision(receipt, NOW)
+    expect(row.title).toBe('Pay invoice receipt — Brightmoor Staffing')
+    expect(row.subtitle).toBe('Invoice BRT-1042 · $5,280.00 · due in 3 days')
+    expect(row.urgency).toBe('MEDIUM')
+    expect(row.amount).toBe(5280)
+    expect(row.actionUrl).toBe('/dashboard/invoices/inv1')
+  })
+
+  it('past its due date it is urgent and says how late; in another currency it adds nothing to the dollar total', () => {
+    const late = receiptToPayDecision({ ...receipt, dueAt: new Date('2026-10-15T00:00:00Z') }, NOW)
+    expect(late.urgency).toBe('HIGH')
+    expect(late.subtitle).toContain('5 days past due')
+    expect(receiptToPayDecision({ ...receipt, currency: 'EUR' }, NOW).amount).toBeNull()
+    expect(dueSays(new Date('2026-10-20T00:00:00Z'), NOW)).toBe('due today')
+  })
+
+  it('the queue lists it for the desk that records payments, only where this firm is the one asked to pay, and never twice', () => {
+    expect(decisions).toContain("if (hasAnyPermission(caller.permissions, ['payments.record'])) {\n    const askedOn")
+    expect(decisions).toContain("if (directionFrom(parties, companyId) !== 'PAYABLE') continue")
+    expect(decisions).toContain('if (askedOn.has(inv.id)) continue')
+    expect(decisions).toMatch(/RECEIPT_NOT_WAITING = \[[^\]]*'DISPUTED'/)
+  })
+
+  it('the Needs attention page offers its chip only where one is waiting', () => {
+    const chips = chipsFor({ kind: 'CLIENT', isConsultant: false }, { INVOICE_RECEIPT_TO_PAY: 1 }, 1)
+    expect(chips.map((c) => c.label)).toContain('Invoice receipts')
+    expect(chipsFor({ kind: 'CLIENT', isConsultant: false }, {}, 0).map((c) => c.label)).not.toContain('Invoice receipts')
+  })
+})
+
+describe('the queue reads every row’s chain, roll-off and supplier desks in a fixed number of queries (simulation, 2026-10-20)', () => {
+  const decisions = read('src/app/api/decisions/route.ts')
+
+  it('no read inside a loop over the queue’s rows: the week turns, the roll-offs, the desks and the overtime decided above are each one read', () => {
+    expect(decisions).not.toMatch(/await weekTurn\(/)
+    expect(decisions).not.toContain('rolloffEvent.findFirst')
+    expect(decisions).not.toMatch(/await desksFor\(/)
+    expect(decisions).not.toMatch(/await clientDecidedOn\(/)
+    expect(decisions).toContain('await weekTurns(employerSide, companyId)')
+    expect(decisions).toContain('await weekTurns(reached, companyId)')
+    expect(decisions).toContain('prisma.rolloffEvent.findMany')
   })
 })

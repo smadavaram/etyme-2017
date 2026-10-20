@@ -307,7 +307,7 @@ export async function POST(
       where: {
         companyId: destination.id,
         revokedAt: null,
-        role: { permissions: { hasSome: ['submissions.read'] } },
+        role: { permissions: { hasSome: ['submissions.read', '*'] } },
       },
       select: { personId: true },
       take: 5,
@@ -371,7 +371,7 @@ export async function POST(
     where: {
       companyId: submission.fromCompanyId,
       revokedAt: null,
-      role: { permissions: { hasSome: ['submissions.read'] } },
+      role: { permissions: { hasSome: ['submissions.read', '*'] } },
     },
     select: { personId: true },
     take: 5,

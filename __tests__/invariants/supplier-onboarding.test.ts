@@ -136,7 +136,8 @@ describe('the routes and the pages', () => {
     expect(applyPage).toContain('Only the bank, the account name and the last four digits are kept here.')
   })
   it('the decision lands on the desk the firm is on, and only there', () => {
-    expect(decisions).toContain("const desks = await desksFor(companyId, w.recommendedById)")
+    expect(decisions).toContain("desksForMany(companyId, waiting.map((w) => w.recommendedById))")
+    expect(decisions).toContain("const desks = desksBy.get(w.recommendedById)!")
     expect(decisions).toContain("if (!verdict.ok) continue")
   })
   it('a pending firm shows on the suppliers list as Pending with the desk it is on, and each desk sees only its own items', () => {

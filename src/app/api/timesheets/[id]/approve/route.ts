@@ -25,7 +25,11 @@ import { compTimeLawful } from '@/lib/worker-classification'
 import { amount } from '@/lib/money-display'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
-import { topDown, signersOf, turnOf, tellNext, signedBy, type Signer } from '../../chain-turn'
+import {
+  topDown, signersOf, turnOf, tellNext, signedBy, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays,
+  workerToldSays,
+  type Signer,
+} from '../../chain-turn'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 /**
@@ -255,6 +259,33 @@ export async function POST(
     }
     asParty = turn.signer.role === 'CLIENT_APPROVAL' ? 'CLIENT' : turn.signer.role === 'EMPLOYER_ACCEPTANCE' ? 'EMPLOYER' : 'PASS'
     nextSigner = turn.next
+  }
+
+  // ── A one-person firm is never asked to accept its own worker's week ──
+  //
+  // Where the week goes next to the firm that employs the worker, and
+  // every seat there that may accept hours is the worker's own — Colleen
+  // Byrne at Byrne Critical Care LLC — she would be asked to accept her
+  // own week and then refused for it ("Nobody approves their own hours").
+  // So the signature this press makes stands as her firm's acceptance,
+  // written now, on the firm's behalf, marked automatic and said why
+  // (`acceptsOnlyForItself` in ../../chain-turn); and nobody is asked.
+  let standsFor: { companyId: string; name: string } | null = null
+  if (nextSigner?.role === 'EMPLOYER_ACCEPTANCE') {
+    const acceptors = await prisma.context.findMany({
+      where: {
+        companyId: nextSigner.companyId,
+        revokedAt: null,
+        role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+        ...NOT_THE_SAMPLE_SEAT,
+      },
+      select: { personId: true },
+    })
+    if (acceptsOnlyForItself(acceptors, timesheet.personId)) {
+      standsFor = { companyId: nextSigner.companyId, name: nameOf(nextSigner.companyId) }
+      // Nobody left to tell: the week is accepted all the way down.
+      nextSigner = null
+    }
   }
 
   // ── Below the top, the client has already decided the overtime ──────
@@ -616,6 +647,16 @@ export async function POST(
           employerAcceptedById: person.id, employerAcceptedAt: now,
           acceptedHours: accepted.hours, acceptedNote: body?.note ?? null,
         }
+  // The one-person firm's acceptance, on the signature above it.
+  const standsAs = standsFor
+    ? standsAsAcceptanceSays({ signedBy: nameOf(onBehalfOf), firmName: standsFor.name, personName: timesheet.person.name })
+    : null
+  if (standsFor) {
+    Object.assign(signatures, {
+      employerAcceptedById: person.id, employerAcceptedAt: now,
+      acceptedHours: accepted.hours, acceptedNote: standsAs,
+    })
+  }
 
   const after: Sheet = {
     ...sheet,
@@ -703,6 +744,37 @@ export async function POST(
     }).catch(() => null)
   }
 
+  // The one-person firm's own row on the ledger: its acceptance, made by
+  // the signature above it, marked automatic, with the reason on it. Its
+  // rate is what the firm pays the worker on its own pay line, where it
+  // has one; posted to the books only then, because a pay posting at a
+  // rate nobody set is a number nobody can stand behind.
+  let soleAcceptance: { id: string } | null = null
+  let solePayRateCents = 0
+  if (standsFor) {
+    solePayRateCents = await payRateOn(
+      standsFor.companyId,
+      timesheet.personId,
+      timesheet.sellContractId,
+      (timesheet.days as Record<string, number>) ?? {},
+      timesheet.periodStart
+    )
+    soleAcceptance = await prisma.workAssertion.create({
+      data: {
+        timesheetId: id,
+        companyId: standsFor.companyId,
+        role: 'EMPLOYER_ACCEPTANCE',
+        hours: accepted.hours ?? hours,
+        rateCents: solePayRateCents,
+        state: 'LIVE',
+        byId: person.id,
+        auto: true,
+        note: standsAs,
+      },
+      select: { id: true },
+    }).catch(() => null)
+  }
+
   // ── The signature, the decision and the bank, together or not at all ──
   //
   // One transaction. A decision written without the signature it was
@@ -780,6 +852,21 @@ export async function POST(
           reversible: true,
         },
       })
+
+      // Done unprompted, so it says so: the one-person firm's acceptance
+      // was not asked for, and here is why.
+      if (standsFor && standsAs) {
+        await tx.automationLog.create({
+          data: {
+            companyId: standsFor.companyId,
+            action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE',
+            summary: `${timesheet.person.name}’s week of ${weekSays(timesheet.periodStart, timesheet.periodEnd)} accepted for ${standsFor.name}`,
+            reason: standsAs,
+            payload: { timesheetId: id, signedById: person.id, signedByCompanyId: onBehalfOf, hours: accepted.hours ?? hours },
+            reversible: true,
+          },
+        })
+      }
 
       if (writing.length === 0 && !touchesBank) return
 
@@ -942,7 +1029,7 @@ export async function POST(
   // approval that happened into an error on the screen. It is reported to
   // staff, the response says so in one sentence, and the approval stands.
   let notPosted: string | null = null
-  for (const written of [assertion, directAcceptance]) {
+  for (const written of [assertion, directAcceptance, solePayRateCents > 0 ? soleAcceptance : null]) {
     if (!written) continue
     try {
       await postAssertion(written.id, person.id)
@@ -1005,20 +1092,33 @@ export async function POST(
     },
   })
 
-  // Notify the timesheet owner that their timesheet was approved
-  notify({
-    personId: timesheet.personId,
-    companyId: timesheet.sellContract.companyId,
-    type: 'TIMESHEET',
-    title: 'Timesheet approved',
-    // Hours, not the amount billed. What the client is charged is the
-    // vendor's number, and Addendum D makes disclosing it a per-requirement
-    // decision the vendor takes — not something a notification does for
-    // them.
-    body: `Your timesheet for ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)} (${hours}h) was approved`,
-    entityId: id,
-    data: { hours, approvedBy: person.name },
-  })
+  // ── The worker hears once, when the top signs ───────────────────────
+  //
+  // Not once per rung: the simulation of 2026-10-20 told Helena Marsh
+  // "Timesheet approved" three times for one week, once for each firm
+  // that accepted it on its way down. Each rung's own AP & Payroll is
+  // told when the week reaches it (below); the worker is told when the
+  // client signs, which is the signature their week waited on.
+  if (!belowTop) {
+    const told = workerToldSays({
+      week: weekSays(timesheet.periodStart, timesheet.periodEnd),
+      hours,
+      signedBy: direct ? nameOf(onBehalfOf) : clientName,
+    })
+    notify({
+      personId: timesheet.personId,
+      companyId: timesheet.sellContract.companyId,
+      type: 'TIMESHEET',
+      title: told.title,
+      // Hours, not the amount billed. What the client is charged is the
+      // vendor's number, and Addendum D makes disclosing it a per-requirement
+      // decision the vendor takes — not something a notification does for
+      // them.
+      body: told.body,
+      entityId: id,
+      data: { hours, approvedBy: person.name },
+    })
+  }
 
   // Hours going into the bank instead of onto the invoice are the
   // consultant's money changing shape, so they hear it in their own
@@ -1052,7 +1152,7 @@ export async function POST(
       : null
     const said = tellNext({
       personName: timesheet.person.name,
-      period: `${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)}`,
+      period: weekSays(timesheet.periodStart, timesheet.periodEnd),
       hours: accepted.hours ?? hours,
       signedBy: nameOf(onBehalfOf),
       signedRole: asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',

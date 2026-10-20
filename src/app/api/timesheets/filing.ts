@@ -33,7 +33,8 @@
  * Pure. The route reads the facts and this decides.
  */
 
-import { checkWeek, dayStanding, rungsToFile, type WorkRung, type FiledWeek } from '@/lib/consultant-portfolio'
+import { checkWeek, dayStanding, rungsToFile, FINAL_WEEK_GRACE_DAYS, type WorkRung, type FiledWeek } from '@/lib/consultant-portfolio'
+import { plainDate } from '@/lib/plain-date'
 
 const DAY_MS = 86_400_000
 
@@ -84,6 +85,13 @@ export type Filing =
 export function rungVerdict(rungs: WorkRung[], contractId: string, today: string): Filing | null {
   if (rungsToFile(rungs, today).some((r) => r.id === contractId)) return null
   const r = rungs.find((x) => x.id === contractId)
+  // The worker's own rung, ended longer ago than the grace for a last
+  // week. Refused as the wrong rung, it read "your hours go on the
+  // contract with the firm that employs you" — to somebody filing on
+  // exactly that contract (simulation, 2026-10-20). The truth is the date.
+  if (r && r.state === 'ENDED' && r.endDate && isOwnRung(rungs, r)) {
+    return { ok: false, code: 'NOT_TAKING_HOURS', says: endedSays(r.endDate) }
+  }
   const live = r && (r.state === 'IN_PROGRESS' || r.state === 'ENDED')
   return live
     ? {
@@ -92,6 +100,23 @@ export function rungVerdict(rungs: WorkRung[], contractId: string, today: string
         says: 'Your hours go on the contract with the firm that employs you, not this one. Choose that placement.',
       }
     : { ok: false, code: 'NOT_TAKING_HOURS', says: 'This placement is not taking hours. Ask the firm that employs you.' }
+}
+
+/** Whether nobody on the chain buys this rung's person from this rung's firm: the worker's employer's rung. */
+function isOwnRung(rungs: WorkRung[], r: WorkRung): boolean {
+  return !rungs.some((o) => o.id !== r.id && o.personId === r.personId && o.clientCompanyId === r.companyId)
+}
+
+/**
+ * What a worker reads when the placement they are filing on ended more
+ * than the grace before today: the day it ended, and who adds a week
+ * still owed. "Placement ended on Sep 30, 2026."
+ */
+export function endedSays(endDate: string): string {
+  return (
+    `This placement ended on ${plainDate(endDate.slice(0, 10))}, and its last weeks could be filed for ` +
+    `${FINAL_WEEK_GRACE_DAYS} days after that. Ask the firm that employs you to add any week still owed.`
+  )
 }
 
 /**

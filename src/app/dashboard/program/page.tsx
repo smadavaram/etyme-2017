@@ -196,6 +196,7 @@ const KIND_WORD: Record<string, string> = {
   INVOICE_OVERDUE: 'Bill',
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',
+  INVOICE_RECEIPT_TO_PAY: 'Invoice receipt',
   TWIN_QUESTION: 'Ask Etyme',
   START_HELD: 'Start held',
   NO_AGREEMENT: 'No agreement',

@@ -3,6 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { GET as decisions } from '@/app/api/decisions/route'
+import { weekSays } from '@/app/api/timesheets/chain-turn'
 
 /**
  * The signed week travels down the chain, on the seeded world.
@@ -22,6 +23,12 @@ const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
 const queue = async () => (await json(await decisions(req('GET', '/api/decisions')))).body?.data?.decisions ?? []
 const onQueue = async (id: string) => (await queue()).some((d: any) => d.entityType === 'TIMESHEET' && d.entityId === id)
+
+/** The title a rung reads when Helena's week reaches it: the person and the week, by name. */
+async function yoursToAccept(weekId: string): Promise<string> {
+  const w = await prisma.timesheet.findUniqueOrThrow({ where: { id: weekId }, select: { periodStart: true, periodEnd: true } })
+  return `Helena Marsh’s week of ${weekSays(w.periodStart, w.periodEnd)} is yours to accept`
+}
 
 async function toldAt(slug: string, title: string) {
   const company = await prisma.company.findUniqueOrThrow({ where: { slug } })
@@ -71,7 +78,7 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(row.clientApprovedAt).not.toBeNull()
     expect(row.status).toBe('SUBMITTED')
 
-    const told = await toldAt('world-computer-systems', 'Helena Marsh’s week is yours to accept')
+    const told = await toldAt('world-computer-systems', await yoursToAccept(it_.week))
     expect(told?.body).toMatch(/^Northbend Athletic signed .+ Accept what you pay Techpeple for it; nobody below you pays on this week until you do\.$/)
     expect(told?.channel).toBe('EMAIL')
     as(CS)
@@ -94,7 +101,7 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(passed.map((a) => a.company.name)).toEqual(['Computer Systems Inc'])
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week } })).status).toBe('SUBMITTED')
 
-    const told = await toldAt('world-techpeple', 'Helena Marsh’s week is yours to accept')
+    const told = await toldAt('world-techpeple', await yoursToAccept(it_.week))
     expect(told?.body).toMatch(/^Computer Systems Inc accepted .+ Accept what you pay Helena Marsh for it;/)
     as(TECHPEPLE)
     expect(await onQueue(it_.week)).toBe(true)
@@ -223,7 +230,7 @@ describe('below the top of a chain, the client decided the overtime', () => {
     const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
     let told = null
     for (let i = 0; i < 30 && !told; i++) {
-      told = await prisma.notification.findFirst({ where: { companyId: techpeple.id, entityId: ot.week, title: 'Helena Marsh’s week is yours to accept' } })
+      told = await prisma.notification.findFirst({ where: { companyId: techpeple.id, entityId: ot.week, title: await yoursToAccept(ot.week) } })
       if (!told) await new Promise((r) => setTimeout(r, 100))
     }
     expect(told?.body).toMatch(/ Northbend Athletic decided 5 hours at time and a half\.$/)

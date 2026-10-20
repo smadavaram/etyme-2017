@@ -199,30 +199,101 @@ export async function POST(
 
   const awardedRate: number = Number.isFinite(body.rate) ? body.rate : submission.rate
 
-  // Seats already taken by live placements against this requisition.
-  const alreadyAwarded = await prisma.sellContract.count({
-    where: { requirementId: req.id, state: { notIn: ['CANCELLED'] } },
-  })
-
-  // The band this vendor was actually given, for the rate note.
-  const invitation = await prisma.requirementInvitation.findUnique({
-    where: { requirementId_toCompanyId: { requirementId: req.id, toCompanyId: submission.fromCompanyId } },
-    select: { payMin: true, payMax: true },
-  })
-
   const endClientId = req.companyId
 
-  // Addendum E's legally grounded gates, delegated to the existing engine.
-  const governance = await evaluateGovernance({
-    personId: submission.personId,
-    endClientCompanyId: endClientId,
-    vendorCompanyId: submission.fromCompanyId,
-    triggerPoint: 'CONTRACT_START',
-    subjectType: 'PERSON',
-    subjectId: submission.personId,
-    billRate: awardedRate,
-    requirementId: req.id,
-  })
+  // The last day, from the start the door just settled: read by the time
+  // limit below, and computed here so that read can run beside the others.
+  const start = begins.start
+  const end = body.endDate
+    ? new Date(body.endDate)
+    : req.months
+      ? new Date(new Date(start).setMonth(start.getMonth() + req.months))
+      : null
+
+  // Whose insurance answers for this person (read below, with the rest).
+  //
+  // On corp-to-corp the cover belongs to the consultant's own company, not
+  // the staffing vendor. The existing INSURANCE_REQUIRED rule checks the
+  // vendor every time, which on a C2C placement is the wrong company —
+  // that is the gap this closes.
+  const workerType = (submission.contractType as WorkerType | null) ?? null
+  const responsible = insuranceRestsWith(workerType ?? 'W2')
+  const coverCompanyId = responsible === 'CONSULTANT_ENTITY'
+    ? submission.person.consultant?.ownCompanyId ?? null
+    : submission.fromCompanyId
+
+  // ── Every read the decision rests on, at once ───────────────────────
+  //
+  // None of these depends on another, and each was awaited in turn: the
+  // award was the heaviest press in the simulation of 2026-10-20 (p95
+  // 2.34s at a hundred placements), most of it round trips standing in a
+  // line. The decisions below read the answers in the same order as
+  // before, so nothing is refused for a different reason than it was.
+  const [alreadyAwarded, invitation, governance, classRule, certificates, past, vendorCompany, agreement] = await Promise.all([
+    // Seats already taken by live placements against this requisition.
+    prisma.sellContract.count({
+      where: { requirementId: req.id, state: { notIn: ['CANCELLED'] } },
+    }),
+    // The band this vendor was actually given, for the rate note.
+    prisma.requirementInvitation.findUnique({
+      where: { requirementId_toCompanyId: { requirementId: req.id, toCompanyId: submission.fromCompanyId } },
+      select: { payMin: true, payMax: true },
+    }),
+    // Addendum E's legally grounded gates, delegated to the existing engine.
+    evaluateGovernance({
+      personId: submission.personId,
+      endClientCompanyId: endClientId,
+      vendorCompanyId: submission.fromCompanyId,
+      triggerPoint: 'CONTRACT_START',
+      subjectType: 'PERSON',
+      subjectId: submission.personId,
+      billRate: awardedRate,
+      requirementId: req.id,
+    }),
+    // Which ways of engaging somebody this client accepts. Stored on the
+    // governance rule so it is the client's own policy, not ours.
+    prisma.governanceRule.findFirst({
+      where: {
+        ruleType: 'WORKER_CLASSIFICATION',
+        isActive: true,
+        policy: { companyId: req.companyId, isActive: true },
+      },
+      select: { parameters: true },
+    }),
+    coverCompanyId
+      ? prisma.verification.findMany({
+          where: {
+            companyId: coverCompanyId,
+            type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] },
+          },
+          select: { type: true, expiresAt: true, status: true },
+        })
+      : Promise.resolve([] as { type: string; expiresAt: Date | null; status: string }[]),
+    // A line booked past the end client's time limit is refused in a
+    // sentence naming the date, the same check money runs at POST
+    // /api/contracts and on an extension (`endsPastLimit`, 0595dfe72).
+    // The end client is the site — a reseller's copy names it; a client's
+    // own job is its own.
+    endsPastLimit({
+      personId: submission.personId,
+      clientId: req.endClientCompanyId ?? req.companyId,
+      startDate: start,
+      endDate: end,
+    }),
+    // Payment terms and currency, resolved down the cascade rather than
+    // defaulted. The schema said terms "cascade from the MSA, overridable"
+    // and nothing read the agreement — so every contract got net 30 and a
+    // client whose signed agreement said net 60 was invoiced on net 30
+    // forever. src/lib/billing-cascade.ts
+    prisma.company.findUnique({
+      where: { id: submission.fromCompanyId },
+      select: { name: true, currency: true, defaultPaymentTerms: true },
+    }),
+    prisma.masterAgreement.findFirst({
+      where: { vendorId: submission.fromCompanyId, clientId: submission.toCompanyId },
+      select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
+    }),
+  ])
 
   const facts: AwardFacts = {
     headcount: req.headcount,
@@ -240,16 +311,6 @@ export async function POST(
     },
   }
 
-  // Which ways of engaging somebody this client accepts. Stored on the
-  // governance rule so it is the client's own policy, not ours.
-  const classRule = await prisma.governanceRule.findFirst({
-    where: {
-      ruleType: 'WORKER_CLASSIFICATION',
-      isActive: true,
-      policy: { companyId: req.companyId, isActive: true },
-    },
-    select: { parameters: true },
-  })
   const allowedTypes = ((classRule?.parameters as any)?.allowed ?? []) as WorkerType[]
   const classification = checkClassification(
     (submission.contractType as WorkerType | null) ?? null,
@@ -266,28 +327,7 @@ export async function POST(
     facts.governance.warnings.push(classification.reason)
   }
 
-  // Whose insurance answers for this person, and is it current?
-  //
-  // On corp-to-corp the cover belongs to the consultant's own company, not
-  // the staffing vendor. The existing INSURANCE_REQUIRED rule checks the
-  // vendor every time, which on a C2C placement is the wrong company —
-  // that is the gap this closes.
-  const workerType = (submission.contractType as WorkerType | null) ?? null
-  const responsible = insuranceRestsWith(workerType ?? 'W2')
-  const coverCompanyId = responsible === 'CONSULTANT_ENTITY'
-    ? submission.person.consultant?.ownCompanyId ?? null
-    : submission.fromCompanyId
-
-  const certificates = coverCompanyId
-    ? await prisma.verification.findMany({
-        where: {
-          companyId: coverCompanyId,
-          type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] },
-        },
-        select: { type: true, expiresAt: true, status: true },
-      })
-    : []
-
+  // Whose insurance answers for this person, and is it current? Read above.
   const cover = checkCover(workerType, {
     certificates,
     consultantCorpName: submission.person.consultant?.ownCompany?.name ?? null,
@@ -327,25 +367,9 @@ export async function POST(
     )
   }
 
-  const start = begins.start
-  const end = body.endDate
-    ? new Date(body.endDate)
-    : req.months
-      ? new Date(new Date(start).setMonth(start.getMonth() + req.months))
-      : null
-
-  // A line booked past the end client's time limit is refused in a
-  // sentence naming the date, the same check money runs at POST
-  // /api/contracts and on an extension (`endsPastLimit`, 0595dfe72):
-  // BLOCK where the client's rule blocks; WARN takes a reason and goes
-  // ahead, the reason kept on the award's record. The end client is the
-  // site — a reseller's copy names it; a client's own job is its own.
-  const past = await endsPastLimit({
-    personId: submission.personId,
-    clientId: req.endClientCompanyId ?? req.companyId,
-    startDate: start,
-    endDate: end,
-  })
+  // The time limit, read above with the rest: BLOCK where the client's
+  // rule blocks; WARN takes a reason and goes ahead, the reason kept on
+  // the award's record.
   if (past?.outcome === 'BLOCK') {
     return NextResponse.json({ error: { code: 'TIME_LIMIT', message: past.says } }, { status: 422 })
   }
@@ -356,22 +380,6 @@ export async function POST(
       { status: 422 }
     )
   }
-
-  // Payment terms and currency, resolved down the cascade rather than
-  // defaulted. The schema said terms "cascade from the MSA, overridable"
-  // and nothing read the agreement — so every contract got net 30 and a
-  // client whose signed agreement said net 60 was invoiced on net 30
-  // forever. src/lib/billing-cascade.ts
-  const [vendorCompany, agreement] = await Promise.all([
-    prisma.company.findUnique({
-      where: { id: submission.fromCompanyId },
-      select: { name: true, currency: true, defaultPaymentTerms: true },
-    }),
-    prisma.masterAgreement.findFirst({
-      where: { vendorId: submission.fromCompanyId, clientId: submission.toCompanyId },
-      select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
-    }),
-  ])
 
   // Who gets the invoice.
   //
@@ -433,8 +441,12 @@ export async function POST(
   // agreement first. `SellContract.msaId` and `Engagement.msaId` are
   // both nullable, and a reader that needs the two firms reads them off
   // the order or the contracts below.
-  const engagement =
-    (await prisma.engagement.findFirst({
+  //
+  // Read beside the two other facts the lines need — the hop below, and
+  // the client's site — rather than after them: none of the three waits
+  // on another.
+  const [foundEngagement, suppliedBy, site] = await Promise.all([
+    prisma.engagement.findFirst({
       where: agreement
         ? { msaId: agreement.id, title: req.title }
         // No agreement, so no `msaId` to scope by, and a title on its
@@ -449,49 +461,81 @@ export async function POST(
             },
           },
       select: { id: true },
-    })) ??
+    }),
+    // The hop below, where there is one. A submission that was forwarded
+    // to us came from somebody, and that somebody is who this firm buys
+    // from — at what they asked for.
+    submission.parentSubmissionId
+      ? prisma.submission.findUnique({
+          where: { id: submission.parentSubmissionId },
+          select: { id: true, fromCompanyId: true, rate: true, requirementId: true },
+        })
+      : Promise.resolve(null),
+    // Where the work is: the client's primary site. A holiday marked for
+    // another country on either calendar does not move this site's dates.
+    prisma.companyLocation.findFirst({
+      where: { companyId: payerId },
+      orderBy: [{ isPrimary: 'desc' }],
+      select: { id: true, country: true },
+    }),
+  ])
+  const engagement =
+    foundEngagement ??
     (await prisma.engagement.create({
       data: { msaId: agreement?.id ?? null, title: req.title, invoiceCycle: 'BIWEEKLY' },
       select: { id: true },
     }))
 
-  // The hop below, where there is one. A submission that was forwarded
-  // to us came from somebody, and that somebody is who this firm buys
-  // from — at what they asked for.
-  const suppliedBy = submission.parentSubmissionId
-    ? await prisma.submission.findUnique({
-        where: { id: submission.parentSubmissionId },
-        select: { id: true, fromCompanyId: true, rate: true, requirementId: true },
-      })
-    : null
+  // Hop 0 — the firm pays the person — where nobody below sold them to it.
+  const isHopZero = !suppliedBy || suppliedBy.fromCompanyId === submission.fromCompanyId
 
   // Their contract, where the hop below has already been awarded. Either
   // order happens in practice — a client can award before its prime has
   // settled with the sub, or after — so the edge is written from
   // whichever end arrives second. See lib/work-chain.
-  const supplierContract = suppliedBy
-    ? await prisma.sellContract.findFirst({
-        where: {
-          companyId: suppliedBy.fromCompanyId,
-          personId: submission.personId,
-          requirementId: suppliedBy.requirementId,
-        },
-        select: { id: true },
-      })
-    : null
-
+  //
   // Both calendars, so a due date lands on nobody's holiday. Loaded
   // before the transaction: it is a read, and it needs the years.
-  // Where the work is: the client's primary site. A holiday marked for
-  // another country on either calendar does not move this site's dates.
-  const site = await prisma.companyLocation.findFirst({
-    where: { companyId: payerId },
-    orderBy: [{ isPrimary: 'desc' }],
-    select: { id: true, country: true },
-  })
-  const holidays = end
-    ? await loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear(), site?.country ?? null)
-    : new Set<string>()
+  //
+  // And at hop 0, whether this firm employs the person, and the terms it
+  // stated on its own live listing of them, where they agreed them there.
+  // Read only on the awarded firm's own listing: another firm's listing
+  // is another firm's terms. Stated and not agreed is her move, and the
+  // award writes nothing. All four at once.
+  const [supplierContract, holidays, employedCount, listing] = await Promise.all([
+    suppliedBy
+      ? prisma.sellContract.findFirst({
+          where: {
+            companyId: suppliedBy.fromCompanyId,
+            personId: submission.personId,
+            requirementId: suppliedBy.requirementId,
+          },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+    end
+      ? loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear(), site?.country ?? null)
+      : Promise.resolve(new Set<string>()),
+    isHopZero
+      ? prisma.context.count({
+          where: { personId: submission.personId, companyId: submission.fromCompanyId, type: 'EMPLOYEE', revokedAt: null },
+        })
+      : Promise.resolve(0),
+    isHopZero
+      ? prisma.benchListing.findFirst({
+          where: {
+            consultant: { personId: submission.personId },
+            companyId: submission.fromCompanyId,
+            state: 'GRANTED',
+            revokedAt: null,
+          },
+          select: {
+            termsEngagementType: true, termsPayRateCents: true,
+            termsStatedAt: true, termsStatedById: true, termsAgreedAt: true,
+          },
+        })
+      : Promise.resolve(null),
+  ])
 
   // ── The header this line goes on ────────────────────────────────────
   //
@@ -526,12 +570,7 @@ export async function POST(
   // award writes no pay line and the placement reads "Awarded, terms
   // pending" until the firm states the terms and the person agrees them
   // (`lib/award/hire-terms`, the terms page beside this route).
-  const isHopZero = !suppliedBy || suppliedBy.fromCompanyId === submission.fromCompanyId
-  const employedHere = isHopZero
-    ? (await prisma.context.count({
-        where: { personId: submission.personId, companyId: submission.fromCompanyId, type: 'EMPLOYEE', revokedAt: null },
-      })) > 0
-    : false
+  const employedHere = employedCount > 0
   const currentPay = employedHere
     ? await prisma.buyContractCandidate.findFirst({
         where: {
@@ -550,24 +589,6 @@ export async function POST(
       })
     : null
 
-  // Terms the firm stated on its bench listing of the person, where the
-  // person agreed them there. Read only at hop 0 and only on the awarded
-  // firm's own live listing: another firm's listing is another firm's
-  // terms. Stated and not agreed is her move, and the award writes nothing.
-  const listing = isHopZero
-    ? await prisma.benchListing.findFirst({
-        where: {
-          consultant: { personId: submission.personId },
-          companyId: submission.fromCompanyId,
-          state: 'GRANTED',
-          revokedAt: null,
-        },
-        select: {
-          termsEngagementType: true, termsPayRateCents: true,
-          termsStatedAt: true, termsStatedById: true, termsAgreedAt: true,
-        },
-      })
-    : null
   const onListing = listing
     ? listingTerms({
         engagementType: listing.termsEngagementType,
@@ -1006,7 +1027,53 @@ export async function POST(
   // first day. A requisition for six people is one piece of work with six
   // consultants on it — the case the old spreadsheet could not add up,
   // because the customer lived inside the consultant's name.
-  const orderId = await orderFor(result.contract.id)
+  //
+  // ── After the commit, every independent step at once ────────────────
+  //
+  // The cost object, the holds going back, the rounds held, the terms on
+  // record, the supplier's seats, whether this rung was sent on, the
+  // chain below and the site the person works at: none waits on another,
+  // and each was awaited in turn (simulation, 2026-10-20: the award was
+  // the heaviest press, p95 2.34s at a hundred placements).
+  const seatsAt = (companyId: string) =>
+    prisma.context.findMany({
+      where: { companyId, revokedAt: null, type: 'EMPLOYEE' },
+      select: {
+        personId: true,
+        person: { select: { name: true } },
+        role: { select: { name: true, permissions: true } },
+      },
+    })
+  const [orderId, , roundsHeld, termsByContract, seats, onward, below, personSite] = await Promise.all([
+    orderFor(result.contract.id),
+    // The hold has done its job. Ending it matters as much as taking it:
+    // a placed consultant who is still held cannot be put forward by
+    // anybody for a second role at the same client, including by the
+    // agency that placed them under a different listing.
+    //
+    // Everybody who was holding them here, not only the winner — the
+    // ones who lost have plainly stopped trying.
+    releaseAllAt({
+      personId: submission.personId,
+      clientCompanyId: clientOf(req),
+      reason: 'They were placed at this client, so every hold here went back.',
+    }),
+    // Whether anybody met the person before placing them. The founder has
+    // not decided whether placing without an interview is allowed with a
+    // record or refused (decision 4 of the 2026-10-05 audit), so nothing
+    // is refused here — but the record is kept on the award's own row,
+    // where the answer will be read from either way.
+    prisma.interview.count({ where: { submissionId: id, state: 'DONE' } }),
+    // The one status every screen reads, for the line just written.
+    termsOnRecordFor([result.contract.id]),
+    seatsAt(submission.fromCompanyId),
+    prisma.submission.count({ where: { parentSubmissionId: id } }),
+    chainBelow(submission.parentSubmissionId),
+    prisma.company.findUnique({
+      where: { id: req.endClientCompanyId ?? req.companyId },
+      select: { name: true },
+    }),
+  ])
   if (orderId && result.buyContract) {
     await prisma.buyContract.update({
       where: { id: result.buyContract.id },
@@ -1020,26 +1087,6 @@ export async function POST(
       data: { projectOrderId: orderId },
     })
   }
-
-  // The hold has done its job. Ending it matters as much as taking it:
-  // a placed consultant who is still held cannot be put forward by
-  // anybody for a second role at the same client, including by the agency
-  // that placed them under a different listing.
-  //
-  // Everybody who was holding them here, not only the winner — the ones
-  // who lost have plainly stopped trying.
-  await releaseAllAt({
-    personId: submission.personId,
-    clientCompanyId: clientOf(req),
-    reason: 'They were placed at this client, so every hold here went back.',
-  })
-
-  // Whether anybody met the person before placing them. The founder has
-  // not decided whether placing without an interview is allowed with a
-  // record or refused (decision 4 of the 2026-10-05 audit), so nothing is
-  // refused here — but the record is kept on the award's own row, where
-  // the answer will be read from either way.
-  const roundsHeld = await prisma.interview.count({ where: { submissionId: id, state: 'DONE' } })
 
   await prisma.automationLog.create({
     data: {
@@ -1223,39 +1270,18 @@ export async function POST(
 
   // ── The chain under this award ──────────────────────────────────────
   //
-  // Every submission below this one, nearest first: the firm that sent
-  // the person to the awarded firm, the firm that sent them to that one,
-  // and so on to the firm that holds the person. Read once and used three
-  // times — who is told the client chose, which firm the person hears
-  // from, and where the person's own terms are agreed.
-  const below: { id: string; fromCompanyId: string; fromName: string; toName: string; rate: number; title: string }[] = []
-  {
-    let down = submission.parentSubmissionId
-    for (let hop = 0; down && hop < 8; hop++) {
-      const s = await prisma.submission.findUnique({
-        where: { id: down },
-        select: {
-          id: true, parentSubmissionId: true, fromCompanyId: true, rate: true,
-          fromCompany: { select: { name: true } },
-          toCompany: { select: { name: true } },
-          requirement: { select: { title: true } },
-        },
-      })
-      if (!s) break
-      below.push({
-        id: s.id, fromCompanyId: s.fromCompanyId, fromName: s.fromCompany.name,
-        toName: s.toCompany.name, rate: s.rate, title: s.requirement.title,
-      })
-      down = s.parentSubmissionId
-    }
-  }
+  // Every submission below this one, nearest first (`chainBelow`, read
+  // above): the firm that sent the person to the awarded firm, the firm
+  // that sent them to that one, and so on to the firm that holds the
+  // person. Used three times — who is told the client chose, which firm
+  // the person hears from, and where the person's own terms are agreed.
   // The submission at the bottom: the firm that holds the person, and the
   // page their own terms are agreed on.
   const bottom = below.length > 0 ? below[below.length - 1] : { id, fromName: submission.fromCompany.name }
   const termsHref = `/dashboard/submissions/${bottom.id}/terms`
 
   // The one status every screen reads, for the line just written.
-  const termsNow = (await termsOnRecordFor([result.contract.id])).get(result.contract.id)
+  const termsNow = termsByContract.get(result.contract.id)
   const status = placementStatus(
     { state: result.contract.state, startDate: start, endDate: end, termsOnRecord: termsNow?.onRecord ?? false },
     new Date()
@@ -1278,17 +1304,7 @@ export async function POST(
   //
   // Told first, and awaited, because the notice travels down the chain
   // in order: the awarded firm, then each firm below it, then the person.
-  const seatsAt = (companyId: string) =>
-    prisma.context.findMany({
-      where: { companyId, revokedAt: null, type: 'EMPLOYEE' },
-      select: {
-        personId: true,
-        person: { select: { name: true } },
-        role: { select: { name: true, permissions: true } },
-      },
-    })
-  const seats = await seatsAt(submission.fromCompanyId)
-
+  // The supplier's seats were read above, with the rest.
   const handoff = awardHandoff(
     {
       personName: submission.person.name,
@@ -1309,10 +1325,12 @@ export async function POST(
     }))
   )
 
+  // Each group at once, the groups in order: the awarded firm, then each
+  // firm below it, then the person.
   for (const notice of [handoff.toPaper, handoff.toSell]) {
     if (!notice) continue
-    for (const personId of notice.personIds) {
-      await notify({
+    await Promise.all(notice.personIds.map((personId) =>
+      notify({
         personId,
         companyId: submission.fromCompanyId,
         type: 'CONTRACT',
@@ -1327,7 +1345,7 @@ export async function POST(
           href: buy.hopZero && !buy.write ? termsHref : '/dashboard/contracts',
         },
       })
-    }
+    ))
   }
 
   // ── Down the chain, one hop at a time ───────────────────────────────
@@ -1338,10 +1356,12 @@ export async function POST(
   // rate it asked; never the client's bill rate and never another rung's.
   // The selling and papering desks both hear: it is news to one and the
   // next thing to do for the other.
-  const sentOnward = (await prisma.submission.count({ where: { parentSubmissionId: id } })) > 0
+  const sentOnward = onward > 0
   const isTop = awardTellsThePerson({ sentOnward })
   if (isTop) {
-    for (const hop of below) {
+    // Every hop's seats in one go; the hops still told in order.
+    const hopSeats = await Promise.all(below.map((hop) => seatsAt(hop.fromCompanyId)))
+    for (const [n, hop] of below.entries()) {
       const told = tellSelected({
         personName: submission.person.name,
         roleTitle: hop.title,
@@ -1349,12 +1369,12 @@ export async function POST(
         rateCents: hop.rate,
         currency: terms.currency.value,
       })
-      const desks = (await seatsAt(hop.fromCompanyId)).filter((s) => {
+      const desks = hopSeats[n].filter((s) => {
         const held = s.role?.permissions ?? []
         return held.includes('*') || held.includes('submissions.create') || held.includes('assignments.write')
       })
-      for (const d of desks) {
-        await notify({
+      await Promise.all(desks.map((d) =>
+        notify({
           personId: d.personId,
           companyId: hop.fromCompanyId,
           type: 'SUBMISSION',
@@ -1364,7 +1384,7 @@ export async function POST(
           entityId: hop.id,
           data: { submissionId: hop.id, href: '/dashboard/submissions' },
         })
-      }
+      ))
     }
   }
 
@@ -1380,12 +1400,8 @@ export async function POST(
   // see `tellPlaced`. Where their own terms are not on record, they are
   // told nothing starts until they agree them.
   if (isTop) {
-    const site = await prisma.company.findUnique({
-      where: { id: req.endClientCompanyId ?? req.companyId },
-      select: { name: true },
-    })
     const placed = tellPlaced({
-      siteName: site?.name ?? submission.toCompany.name,
+      siteName: personSite?.name ?? submission.toCompany.name,
       supplierName: bottom.fromName,
       roleTitle: req.title,
       termsHref: termsNow?.onRecord ? null : termsHref,
@@ -1492,4 +1508,35 @@ export async function POST(
     },
     { status: 201 }
   )
+}
+
+/**
+ * Every submission below this one, nearest first: the firm that sent the
+ * person to the awarded firm, the firm that sent them to that one, and so
+ * on to the firm that holds the person. Eight hops at most — deeper is a
+ * data fault, not a chain.
+ */
+async function chainBelow(
+  parentSubmissionId: string | null
+): Promise<{ id: string; fromCompanyId: string; fromName: string; toName: string; rate: number; title: string }[]> {
+  const below: { id: string; fromCompanyId: string; fromName: string; toName: string; rate: number; title: string }[] = []
+  let down = parentSubmissionId
+  for (let hop = 0; down && hop < 8; hop++) {
+    const s = await prisma.submission.findUnique({
+      where: { id: down },
+      select: {
+        id: true, parentSubmissionId: true, fromCompanyId: true, rate: true,
+        fromCompany: { select: { name: true } },
+        toCompany: { select: { name: true } },
+        requirement: { select: { title: true } },
+      },
+    })
+    if (!s) break
+    below.push({
+      id: s.id, fromCompanyId: s.fromCompanyId, fromName: s.fromCompany.name,
+      toName: s.toCompany.name, rate: s.rate, title: s.requirement.title,
+    })
+    down = s.parentSubmissionId
+  }
+  return below
 }

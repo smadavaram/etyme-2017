@@ -78,3 +78,20 @@ describe('a match row says whether a model or arithmetic scored it', () => {
     expect(MATCHES).toContain('        decidedBy,\n        matches: result.matches.map(')
   })
 })
+
+describe('a delivery manager matches a job against the firm’s own employees, and nobody else', () => {
+  it('a supplier seat with assignments.write and not submissions.create runs and reads the match for the firm’s own people only', async () => {
+    const { ownPeopleOnly } = await import('@/app/api/requirements/[id]/matches/viewer')
+    expect(ownPeopleOnly({ raiser: false, permissions: ['assignments.write', 'requirements.read'] })).toBe(true)
+    expect(ownPeopleOnly({ raiser: false, permissions: ['submissions.create', 'assignments.write'] })).toBe(false)
+    expect(ownPeopleOnly({ raiser: false, permissions: ['*'] })).toBe(false)
+    expect(ownPeopleOnly({ raiser: true, permissions: ['assignments.write'] })).toBe(false)
+  })
+
+  it('the matches route lets that seat in and drops every row that is not the firm’s own employee, on both the run and the read', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/requirements/[id]/matches/route.ts'), 'utf8')
+    expect(route).toContain("!hasPermission(viewer.permissions, 'submissions.create') && !ownOnly")
+    expect(route).toContain('if (ownOnly && !entry.employee) return []')
+    expect(route).toContain('ran.matches.filter((m) => employed.has(m.personId))')
+  })
+})

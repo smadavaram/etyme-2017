@@ -139,8 +139,57 @@ export function turnOf(
  * name for the employer, the firm under it for anybody in the middle —
  * and never a rate: what each rung pays is on its own contract.
  */
+const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * A week the way a person names it: "Oct 11–17" inside one month,
+ * "Sep 27 – Oct 3" across two, and both years where the week crosses one
+ * ("Dec 27, 2026 – Jan 2, 2027"). Read in UTC, the zone every week is
+ * stored in, so a server elsewhere never moves a day.
+ */
+export function weekSays(start: Date | string, end: Date | string): string {
+  const a = typeof start === 'string' ? new Date(`${start.slice(0, 10)}T00:00:00Z`) : start
+  const b = typeof end === 'string' ? new Date(`${end.slice(0, 10)}T00:00:00Z`) : end
+  const [ay, am, ad] = [a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate()]
+  const [by, bm, bd] = [b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate()]
+  if (ay !== by) return `${MONTH[am]} ${ad}, ${ay} – ${MONTH[bm]} ${bd}, ${by}`
+  if (am !== bm) return `${MONTH[am]} ${ad} – ${MONTH[bm]} ${bd}`
+  if (ad === bd) return `${MONTH[am]} ${ad}`
+  return `${MONTH[am]} ${ad}–${bd}`
+}
+
+/**
+ * Whether the firm that employs the worker has nobody but the worker to
+ * accept the week: every seat there that may accept hours is the
+ * worker's own. A one-person firm — Colleen Byrne at Byrne Critical Care
+ * LLC — is the worker and the firm at once.
+ *
+ * Nobody accepts their own hours (`approvingOwnHours`), and the reason
+ * is that the person paid should not certify what they are paid on. At a
+ * one-person firm the acceptance would be her certifying her own week to
+ * herself, so the rule is said this way round: **the signature of the
+ * firm above her stands as her firm's acceptance, and she is never asked
+ * to accept her own week.** Where anybody else at the firm may accept
+ * hours, they do, as at any firm.
+ */
+export function acceptsOnlyForItself(
+  seats: readonly { personId: string }[],
+  workerId: string
+): boolean {
+  return seats.length > 0 && seats.every((s) => s.personId === workerId)
+}
+
+/** The note on an acceptance a one-person firm's own worker was never asked for. */
+export function standsAsAcceptanceSays(i: { signedBy: string; firmName: string; personName: string }): string {
+  return (
+    `${i.firmName} is ${i.personName}’s own firm, and nobody accepts their own week, ` +
+    `so ${i.signedBy}’s signature stands as ${i.firmName}’s acceptance.`
+  )
+}
+
 export function tellNext(i: {
   personName: string
+  /** The week, as `weekSays` names it: "Oct 11–17". */
   period: string
   hours: number
   signedBy: string
@@ -156,10 +205,14 @@ export function tellNext(i: {
   clientDecided?: string | null
 }): { title: string; body: string } {
   const verb = i.signedRole === 'CLIENT_APPROVAL' ? 'signed' : 'accepted'
+  // A caller that still passes the stored dates ("2026-10-11 – 2026-10-17")
+  // gets the week named the way a person names it.
+  const iso = i.period.match(/^(\d{4}-\d{2}-\d{2})\s*[–-]\s*(\d{4}-\d{2}-\d{2})$/)
+  const week = iso ? weekSays(iso[1], iso[2]) : i.period
   return {
-    title: `${i.personName}’s week is yours to accept`,
+    title: `${i.personName}’s week of ${week} is yours to accept`,
     body:
-      `${i.signedBy} ${verb} ${i.hours} hours for ${i.period}. Accept what you pay ${i.paysName} for it; ` +
+      `${i.signedBy} ${verb} ${i.hours} hours for the week of ${week}. Accept what you pay ${i.paysName} for it; ` +
       'nobody below you pays on this week until you do.' +
       (i.clientDecided ? ` ${i.clientDecided}` : ''),
   }
@@ -181,4 +234,16 @@ export function signedBy(
   if (s.role === 'CLIENT_APPROVAL') return week.clientApprovedAt !== null || onLedger
   if (s.role === 'EMPLOYER_ACCEPTANCE') return week.employerAcceptedAt !== null || onLedger
   return onLedger
+}
+
+/**
+ * What the worker reads, once, when the top of the chain signs their
+ * week: the week by name, the hours and who signed. Never the amount —
+ * what the client is charged is the supplier's number.
+ */
+export function workerToldSays(i: { week: string; hours: number; signedBy: string }): { title: string; body: string } {
+  return {
+    title: `Your week of ${i.week} is approved`,
+    body: `${i.signedBy} approved your ${i.hours} hours for the week of ${i.week}.`,
+  }
 }

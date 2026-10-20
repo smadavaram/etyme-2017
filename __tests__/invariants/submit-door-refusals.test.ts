@@ -17,7 +17,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { whyNotOpen } from '@/app/api/submissions/words'
+import { whyNotOpen, putForwardNotice } from '@/app/api/submissions/words'
 
 const ROLE = { title: 'Optical test technician', buyerName: 'Cavanaugh Glassworks' }
 
@@ -128,5 +128,53 @@ describe('The submit door says why a role is shut, in a sentence', () => {
     const code = route.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')
     expect(code).not.toContain('not OPEN')
     expect(code).toContain('whyNotOpen({')
+  })
+})
+
+describe('the firm a candidate goes to is told who came, from whom, for which job (simulation, 2026-10-20)', () => {
+  it('one candidate is named in the title with the supplier and the job, never “New submission for …”', () => {
+    const said = putForwardNotice({ supplierName: 'Brightmoor Staffing', people: ['Soren Sandoval'], roleTitle: 'Cybersecurity analyst' })
+    expect(said.title).toBe('Brightmoor Staffing put Soren Sandoval forward for Cybersecurity analyst')
+    expect(said.body).toBe('Brightmoor Staffing put Soren Sandoval forward for the Cybersecurity analyst job. Read the submission and decide whether to interview.')
+  })
+
+  it('two are named, more are counted in the title and every one is named in the body', () => {
+    expect(putForwardNotice({ supplierName: 'Pinnacle Resourcing', people: ['Ana Ruiz', 'Omar Haddad'], roleTitle: 'Data engineer' }).title)
+      .toBe('Pinnacle Resourcing put Ana Ruiz and Omar Haddad forward for Data engineer')
+    const many = putForwardNotice({ supplierName: 'Pinnacle Resourcing', people: ['Ana Ruiz', 'Omar Haddad', 'Mei Mbeki'], roleTitle: 'Data engineer' })
+    expect(many.title).toBe('Pinnacle Resourcing put Ana Ruiz and 2 others forward for Data engineer')
+    expect(many.body).toContain('3 candidates forward for the Data engineer job: Ana Ruiz, Omar Haddad and Mei Mbeki.')
+  })
+
+  it('the submit route writes that notice to the job’s own owner first, and an Owner holding every permission is told too', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/submissions/route.ts'), 'utf8')
+    expect(route).not.toContain('title: created.length === 1')
+    expect(route).not.toMatch(/body: .*A candidate was submitted to your requirement/)
+    expect(route).toContain('putForwardNotice({')
+    expect(route).toContain("ownerId: true, raisedById: true,")
+    expect(route).not.toMatch(/hasSome: \['submissions\.read'\] \}/)
+  })
+
+  it('the person put forward is told the job as well as the client, so two jobs at one client are two different lines', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/submissions/route.ts'), 'utf8')
+    expect(route).not.toContain('title: `${vendorName} put you forward to ${clientName}`')
+    expect(route.match(/title: `\$\{vendorName\} put you forward for \$\{requirement\.title\} at \$\{clientName\}`/g)?.length).toBe(3)
+  })
+})
+
+describe('an Owner holds every permission, so an Owner is told what a desk is told (simulation, 2026-10-20)', () => {
+  it('every seat filter that picks who hears in the submit, forward, contractor-invite and supplier-desk code counts `*` as holding the permission', () => {
+    for (const f of [
+      'src/app/api/submissions/route.ts',
+      'src/app/api/submissions/[id]/forward/route.ts',
+      'src/app/api/contractor-invites/[id]/route.ts',
+      'src/lib/supplier-desks.ts',
+      'src/app/api/requisitions/[id]/distribute/route.ts',
+    ]) {
+      const src = readFileSync(join(process.cwd(), f), 'utf8')
+      const filters = src.match(/permissions: \{ hasSome: \[[^\]]*\] \}|permissions: \{ has: [^}]+\}/g) ?? []
+      expect(filters.length, f).toBeGreaterThan(0)
+      for (const filter of filters) expect(filter, f).toContain("'*'")
+    }
   })
 })

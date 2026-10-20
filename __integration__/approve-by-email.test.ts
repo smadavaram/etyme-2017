@@ -8,6 +8,7 @@ import { GET as openLink, POST as answerLink } from '@/app/api/approve-week/[tok
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 import { readWeekChain, needsSigningInEtyme } from '@/lib/week-approval'
 import { dayOf } from '@/app/api/timesheets/approval-by-email'
+import { weekSays } from '@/app/api/timesheets/chain-turn'
 
 /** An address at the week's client: a person seated there (`approverIsKnownAtClient`). */
 async function seatedAt(clientId: string): Promise<string> {
@@ -264,7 +265,8 @@ describe('a client approves a week by email, and the proof travels down the chai
 
   it('then each lower rung accepts in turn: Techpeple must wait for Computer Systems, and nobody is accepted for', async () => {
     const csId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
-    const told = await prisma.notification.findFirst({ where: { title: 'Helena Marsh’s week is yours to accept', companyId: csId } })
+    const w = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week }, select: { periodStart: true, periodEnd: true } })
+    const told = await prisma.notification.findFirst({ where: { title: `Helena Marsh’s week of ${weekSays(w.periodStart, w.periodEnd)} is yours to accept`, companyId: csId } })
     expect(told?.body).toMatch(/^Northbend Athletic signed .+ Approved by email: Dana Whitfield/)
 
     as(TECHPEPLE)

@@ -147,7 +147,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   /** Tell the firm's own people, by email as well as in the app. */
   async function tellSupplier(supplierCompanyId: string, supplierName: string) {
     const seats = await prisma.context.findMany({
-      where: { companyId: supplierCompanyId, revokedAt: null, role: { permissions: { has: 'submissions.write' } } },
+      where: { companyId: supplierCompanyId, revokedAt: null, role: { permissions: { hasSome: ['submissions.write', '*'] } } },
       select: { personId: true },
     })
     for (const s of seats) {

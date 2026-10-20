@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { topDown, signersOf, turnOf, tellNext, signedBy, type LadderRung, type Signer } from '@/app/api/timesheets/chain-turn'
+import {
+  topDown, signersOf, turnOf, tellNext, signedBy, weekSays, workerToldSays, acceptsOnlyForItself, standsAsAcceptanceSays,
+  type LadderRung, type Signer,
+} from '@/app/api/timesheets/chain-turn'
 
 /**
  * The signed week travels down the chain, and each rung accepts it in
@@ -116,9 +119,9 @@ describe('each rung is told when the week reaches it', () => {
       personName: 'Helena Marsh', period: '2026-09-17 – 2026-09-23', hours: 40,
       signedBy: 'Northbend Athletic', signedRole: 'CLIENT_APPROVAL', paysName: 'Techpeple',
     })
-    expect(said.title).toBe('Helena Marsh’s week is yours to accept')
+    expect(said.title).toBe('Helena Marsh’s week of Sep 17–23 is yours to accept')
     expect(said.body).toBe(
-      'Northbend Athletic signed 40 hours for 2026-09-17 – 2026-09-23. Accept what you pay Techpeple for it; ' +
+      'Northbend Athletic signed 40 hours for the week of Sep 17–23. Accept what you pay Techpeple for it; ' +
       'nobody below you pays on this week until you do.'
     )
     expect(said.body).not.toMatch(/\$/)
@@ -137,7 +140,66 @@ describe('each rung is told when the week reaches it', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/timesheets/[id]/approve/route.ts'), 'utf8')
     expect(route).toMatch(/if \(nextSigner\) \{[\s\S]*?channel: 'EMAIL'/)
     const queue = readFileSync(join(process.cwd(), 'src/app/api/decisions/route.ts'), 'utf8')
-    expect(queue).toMatch(/weekTurn\(ts, companyId\)/)
-    expect(queue).toMatch(/turn\.signer\.role !== 'PASS_THROUGH'/)
+    expect(queue).toMatch(/weekTurns\(employerSide, companyId\)/)
+    expect(queue).toMatch(/t\.turn\.signer\.role === 'PASS_THROUGH'/)
+  })
+})
+
+describe('each notice about a week names the week and the person (simulation, 2026-10-20)', () => {
+  it('a week is named the way a person names it: “Oct 11–17” inside a month, “Sep 27 – Oct 3” across two, and both years across one', () => {
+    expect(weekSays('2026-10-11', '2026-10-17')).toBe('Oct 11–17')
+    expect(weekSays(new Date('2026-09-27T00:00:00Z'), new Date('2026-10-03T00:00:00Z'))).toBe('Sep 27 – Oct 3')
+    expect(weekSays('2026-12-27', '2027-01-02')).toBe('Dec 27, 2026 – Jan 2, 2027')
+  })
+
+  it('the next rung is told whose week and which week waits for it, never only “X’s week is yours to accept”', () => {
+    const said = tellNext({
+      personName: 'Tomasz Nowak', period: weekSays('2026-07-26', '2026-08-01'), hours: 40,
+      signedBy: 'Cavanaugh Glassworks', signedRole: 'CLIENT_APPROVAL', paysName: 'Tomasz Nowak',
+    })
+    expect(said.title).toBe('Tomasz Nowak’s week of Jul 26 – Aug 1 is yours to accept')
+    expect(said.body).toContain('for the week of Jul 26 – Aug 1')
+  })
+
+  it('the worker is told once, when the top of the chain signs, with the week named — never “Timesheet approved” once per rung', () => {
+    const told = workerToldSays({ week: 'Sep 20–26', hours: 40, signedBy: 'Northbend Athletic' })
+    expect(told.title).toBe('Your week of Sep 20–26 is approved')
+    expect(told.body).toBe('Northbend Athletic approved your 40 hours for the week of Sep 20–26.')
+    const route = readFileSync(join(process.cwd(), 'src/app/api/timesheets/[id]/approve/route.ts'), 'utf8')
+    expect(route).not.toContain("title: 'Timesheet approved'")
+    expect(route).toMatch(/if \(!belowTop\) \{\s*const told = workerToldSays/)
+  })
+})
+
+describe('a one-person firm is never asked to accept its own worker’s week', () => {
+  it('where every seat at the firm that may accept hours is the worker’s own, the firm accepts only for itself', () => {
+    expect(acceptsOnlyForItself([{ personId: 'colleen' }], 'colleen')).toBe(true)
+    expect(acceptsOnlyForItself([{ personId: 'colleen' }, { personId: 'colleen' }], 'colleen')).toBe(true)
+  })
+
+  it('where anybody else at the firm may accept hours, they are asked as at any firm, and a firm nobody can sign for is not treated as hers', () => {
+    expect(acceptsOnlyForItself([{ personId: 'colleen' }, { personId: 'bookkeeper' }], 'colleen')).toBe(false)
+    expect(acceptsOnlyForItself([{ personId: 'bookkeeper' }], 'colleen')).toBe(false)
+    expect(acceptsOnlyForItself([], 'colleen')).toBe(false)
+  })
+
+  it('the signature of the firm above stands as her firm’s acceptance, and the ledger says why in a sentence', () => {
+    expect(standsAsAcceptanceSays({ signedBy: 'Harlow Health', firmName: 'Byrne Critical Care LLC', personName: 'Colleen Byrne' })).toBe(
+      'Byrne Critical Care LLC is Colleen Byrne’s own firm, and nobody accepts their own week, ' +
+        'so Harlow Health’s signature stands as Byrne Critical Care LLC’s acceptance.'
+    )
+  })
+
+  it('the approve route writes that acceptance automatically, logs it as done unprompted and reversible, and tells nobody to accept', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/timesheets/[id]/approve/route.ts'), 'utf8')
+    expect(route).toMatch(/acceptsOnlyForItself\(acceptors, timesheet\.personId\)/)
+    expect(route).toMatch(/auto: true,\s*note: standsAs/)
+    expect(route).toMatch(/action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE'[\s\S]*?reversible: true/)
+    expect(route).toMatch(/nextSigner = null/)
+  })
+
+  it('the queue never offers a person their own week, so a one-person firm’s owner is never shown one to accept', () => {
+    const queue = readFileSync(join(process.cwd(), 'src/app/api/decisions/route.ts'), 'utf8')
+    expect(queue.match(/personId: \{ not: caller\.person\.id \}/g)?.length).toBe(2)
   })
 })

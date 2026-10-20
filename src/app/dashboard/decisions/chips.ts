@@ -24,6 +24,7 @@ export type DecisionType =
   | 'CONTRACT_PAPERING'
   | 'CONTRACT_START'
   | 'INVOICE_OVERDUE'
+  | 'INVOICE_RECEIPT_TO_PAY'
   | 'TWIN_QUESTION'
   | 'START_HELD'
   | 'NO_AGREEMENT'
@@ -54,6 +55,9 @@ export const CHIP_PAGES: Readonly<Record<DecisionType, readonly string[]>> = {
   CONTRACT_PAPERING: ['/dashboard/submissions'],
   CONTRACT_START: ['/dashboard/submissions'],
   INVOICE_OVERDUE: ['/dashboard/invoices', '/dashboard/ar'],
+  // An invoice receipt waiting to be paid: offered where one is waiting,
+  // so no reader's chips change on a day nothing is.
+  INVOICE_RECEIPT_TO_PAY: [],
   // Offered only where a question is waiting: the twin's questions are
   // answered in Ask Etyme, and an empty chip for them is a door to nothing.
   TWIN_QUESTION: [],
@@ -73,6 +77,7 @@ const LABELS: ReadonlyArray<[DecisionType, string]> = [
   ['CONTRACT_PAPERING', 'To paper'],
   ['CONTRACT_START', 'To start'],
   ['INVOICE_OVERDUE', 'Bills'],
+  ['INVOICE_RECEIPT_TO_PAY', 'Invoice receipts'],
   ['TWIN_QUESTION', 'Ask Etyme'],
   ['START_HELD', 'Starts held'],
   ['NO_AGREEMENT', 'No agreement'],

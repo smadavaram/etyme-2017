@@ -81,3 +81,81 @@ export function waitingOnSays(
   const list = who.length <= 1 ? who[0] : `${who.slice(0, -1).join(', ')} and ${who[who.length - 1]}`
   return `Waiting on ${list}`
 }
+
+// ── A job sent to a supplier ────────────────────────────────────────────
+//
+// The simulation of 2026-10-20 read 297 notices titled "New requirement
+// from Northbend Athletic" to nine people — one supplier's account
+// manager had 33 of them, each the same title for a different job — and
+// the body said "1 position(s)". The title names the job now, so a list
+// of them reads as a list of jobs, and the count is said the way a
+// person says it.
+
+/** "1 position", "4 positions". */
+export function positionsSays(headcount: number | null | undefined): string {
+  const n = headcount != null && Number.isFinite(headcount) && headcount > 0 ? Math.floor(headcount) : 1
+  return `${n} ${n === 1 ? 'position' : 'positions'}`
+}
+
+/** "Oct 30, 2026", read in UTC so the server's zone never moves the day. */
+function closesSays(at: Date): string {
+  return at.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
+export interface JobSentFacts {
+  /** The firm that sent it, as the supplier knows it. */
+  clientName: string
+  /** The job's own title. */
+  title: string
+  headcount: number | null | undefined
+  location: string | null | undefined
+  closesAt: Date
+}
+
+/**
+ * What a supplier's people read when a job is sent to them: the job and
+ * who sent it in the title, the size, the place and the day answers
+ * close in the body. Never a rate band — each supplier reads its own on
+ * the invitation, and a notice is not where a number belongs.
+ */
+export function jobSentNotice(f: JobSentFacts): { title: string; body: string } {
+  const where = f.location ? ` in ${f.location}` : ''
+  return {
+    title: `${f.clientName} sent you the ${f.title} job`,
+    body:
+      `${f.title}: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}. ` +
+      `Put somebody forward from the job, or write to ${f.clientName} on its thread.`,
+  }
+}
+
+/**
+ * The first line on the thread a sent job opens with one supplier: what
+ * was sent and by when, and the sender's own note to that supplier where
+ * there was one. The thread is this supplier's and the client's alone,
+ * so the note never reaches another supplier; the band is never said.
+ */
+export function jobSentThreadLine(f: JobSentFacts & { note?: string | null }): string {
+  const where = f.location ? ` in ${f.location}` : ''
+  const note = f.note && f.note.trim() ? ` ${f.note.trim()}` : ''
+  return `${f.clientName} sent you the ${f.title} job: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}.${note}`
+}
+
+/** How many people at one supplier hear that a job was sent to it. */
+export const SEATS_TOLD_PER_FIRM = 10
+
+/**
+ * The seats told, at most `perFirm` at each firm, in the order given.
+ * One cap across every firm let the first firm's seats crowd the others
+ * out; a cap per firm keeps every firm told.
+ */
+export function toldPerFirm<T extends { companyId: string | null }>(seats: readonly T[], perFirm: number): T[] {
+  const n = new Map<string | null, number>()
+  const out: T[] = []
+  for (const s of seats) {
+    const k = n.get(s.companyId) ?? 0
+    if (k >= perFirm) continue
+    n.set(s.companyId, k + 1)
+    out.push(s)
+  }
+  return out
+}

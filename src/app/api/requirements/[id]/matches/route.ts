@@ -7,7 +7,7 @@ import { runMatchEngine } from '@/lib/match-engine'
 import { poolFor, ranked, shownTo, actionFor, REACH_WORD, type Factor } from '@/lib/match-pool'
 import { mayRecommend } from '@/lib/supplier-onboarding'
 import { hasPermission } from '@/lib/permissions'
-import { matchViewer, NOT_HERE } from './viewer'
+import { matchViewer, ownPeopleOnly, NOT_HERE } from './viewer'
 import { askState } from './asked'
 import { lastAsks } from './asked-read'
 import { matchesFoundSays, matchesTitle } from './words'
@@ -50,6 +50,7 @@ export async function GET(
 
   const pool = await poolFor(requirement, viewer.companyId, { suggest: viewer.suggest })
   const byConsultant = new Map(pool.entries.map((e) => [e.consultantId, e]))
+  const ownOnly = ownPeopleOnly(viewer)
 
   const matches = byConsultant.size === 0 ? [] : await prisma.match.findMany({
     where: { requirementId, consultantId: { in: [...byConsultant.keys()] } },
@@ -96,6 +97,8 @@ export async function GET(
     matches.flatMap((m) => {
       const entry = byConsultant.get(m.consultantId)
       if (!entry) return []
+      // A delivery manager reads the firm's own employees and nobody else.
+      if (ownOnly && !entry.employee) return []
       return [{ m, entry, reach: entry.reach, score: m.score }]
     })
   )
@@ -223,8 +226,10 @@ export async function POST(
   }
 
   // A supplier the role was sent to matches its own pool against it —
-  // the recruiting desk's job, the same desk that submits.
-  if (!viewer.raiser && !hasPermission(viewer.permissions, 'submissions.create')) {
+  // the recruiting team's job, the same people who submit — or a delivery
+  // manager, for the firm's own employees only (`ownPeopleOnly`).
+  const ownOnly = ownPeopleOnly(viewer)
+  if (!viewer.raiser && !hasPermission(viewer.permissions, 'submissions.create') && !ownOnly) {
     return NextResponse.json(
       {
         error: {
@@ -263,11 +268,18 @@ export async function POST(
 
   try {
     const startedAt = new Date()
-    const result = await runMatchEngine(requirementId, {
+    const ran = await runMatchEngine(requirementId, {
       limit: limit ?? 20,
       forceRefresh: forceRefresh ?? false,
       viewerCompanyId: viewer.companyId,
     })
+    // A delivery manager is answered with the firm's own employees only:
+    // the pool is the firm's, and anybody it does not employ is the
+    // recruiting team's to put forward, never this seat's.
+    const employed = ownOnly
+      ? new Set((await poolFor(requirement, viewer.companyId, { suggest: false })).entries.filter((e) => e.employee).map((e) => e.personId))
+      : null
+    const result = employed ? { ...ran, matches: ran.matches.filter((m) => employed.has(m.personId)) } : ran
 
     // ── Was this a model or was it arithmetic ─────────────────────────
     //

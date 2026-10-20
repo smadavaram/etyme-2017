@@ -54,6 +54,19 @@ describe('only the worker files, and only on their own rung', () => {
     expect(rungVerdict(HELENA, 'techpeple-rung', TODAY)).toBeNull()
   })
 
+  it('a week filed on the worker’s own placement more than 14 days after it ended is refused with the day it ended, never as the wrong contract', () => {
+    const ended = HELENA.map((r) => ({ ...r, state: 'ENDED', endDate: '2026-09-01' }))
+    const v = rungVerdict(ended, 'techpeple-rung', TODAY)
+    expect(v && !v.ok && v.code).toBe('NOT_TAKING_HOURS')
+    expect(v && !v.ok && v.says).toBe(
+      'This placement ended on Sep 1, 2026, and its last weeks could be filed for 14 days after that. ' +
+        'Ask the firm that employs you to add any week still owed.'
+    )
+    // The rung above is still the wrong rung, ended or not.
+    const above = rungVerdict(ended, 'cs-rung', TODAY)
+    expect(above && !above.ok && above.code).toBe('NOT_THIS_RUNG')
+  })
+
   it('a placement that is not running takes no hours', () => {
     const paused = HELENA.map((r) => ({ ...r, state: 'SUSPENDED' }))
     const v = rungVerdict(paused, 'techpeple-rung', TODAY)

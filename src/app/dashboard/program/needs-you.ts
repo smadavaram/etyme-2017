@@ -118,6 +118,7 @@ const THING: Record<string, [string, string]> = {
   START_HELD: ['start', 'starts'],
   NO_AGREEMENT: ['missing agreement', 'missing agreements'],
   BILL_DISPUTED: ['invoice receipt', 'invoice receipts'],
+  INVOICE_RECEIPT_TO_PAY: ['invoice receipt', 'invoice receipts'],
   INVOICE_OVERDUE: ['overdue bill', 'overdue bills'],
   RATE_CONFIRMATION: ['rate', 'rates'],
 }

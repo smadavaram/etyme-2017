@@ -75,3 +75,17 @@ export async function matchViewer(caller: CallerContext, requirement: ViewerRequ
 
 /** Said to anybody who is not one of the three, and to a job request that does not exist. */
 export const NOT_HERE = { error: { code: 'NOT_FOUND', message: 'Requirement not found' } }
+
+/**
+ * Whether this viewer may match only its own firm's employees: a supplier
+ * seat that holds `assignments.write` and not `submissions.create` — a
+ * delivery manager. The founder, 2026-09-30: a delivery manager may put
+ * the firm's own employee forward, as INTERNAL, and nobody else; the same
+ * carve-out the submit route makes (`deliveryDeskOnly`). So such a seat
+ * runs the match and reads it, and sees only the firm's own people.
+ */
+export function ownPeopleOnly(v: Pick<MatchViewer, 'raiser' | 'permissions'>): boolean {
+  if (v.raiser) return false
+  const holds = (p: string) => v.permissions.includes('*') || v.permissions.includes(p)
+  return !holds('submissions.create') && holds('assignments.write')
+}

@@ -22,7 +22,7 @@ describe('a holiday belongs to a place', () => {
   })
   it('the award reads the client’s primary site and passes its country to the calendar', () => {
     const award = read('src/app/api/submissions/[id]/award/route.ts')
-    expect(award).toContain("prisma.companyLocation.findFirst({\n    where: { companyId: payerId }")
+    expect(award).toMatch(/prisma\.companyLocation\.findFirst\(\{\s*where: \{ companyId: payerId \}/)
     expect(award).toContain("site?.country ?? null)")
   })
 })
