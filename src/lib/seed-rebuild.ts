@@ -72,6 +72,7 @@ import { prisma } from '@/lib/db'
 import { WORLD_SLUGS } from '@/lib/seed-world'
 import { isDemoCompany } from '@/lib/demo-company'
 import { reservedAddress, RESERVED_SUFFIXES } from '@/lib/demo-session'
+import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
 import { describeCompanies, describePeople, maskEmail, ownerOf, type OwnerWords } from '@/lib/seed-owners'
 
 /** What the caller has to type. A sentence, so it cannot be sent by accident. */
@@ -560,13 +561,17 @@ async function rootCompanies(db: Db): Promise<Row[]> {
   const facts = (await db.$queryRawUnsafe(
     `SELECT c."id", c."slug", c."name", c."listedById", c."domain", c."domainVerified",
             count(x."id")::int AS seats,
-            count(x."id") FILTER (WHERE NOT (lower(p."primaryEmail") LIKE ANY($1::text[])))::int AS "realSeats"
+            count(x."id") FILTER (WHERE NOT (lower(p."primaryEmail") LIKE ANY($1::text[])) OR lower(p."primaryEmail") LIKE ('%' || $2::text))::int AS "realSeats"
        FROM "Company" c
        LEFT JOIN "Context" x ON x."companyId" = c."id"
        LEFT JOIN "Person" p ON p."id" = x."personId"
       WHERE c."isDemo" = false
       GROUP BY c."id"`,
-    RESERVED_SUFFIXES.map((s) => `%${s}`)
+    RESERVED_SUFFIXES.map((s) => `%${s}`),
+    // The generated world's seats count as its own firms' people, so no
+    // base clean-up or rebuild takes a generated firm for the demo's
+    // (lib/seed-scale; it is dropped with its own database).
+    SCALE_EMAIL_SUFFIX
   )) as (Row & { domainVerified: boolean; seats: number; realSeats: number })[]
   const roster = new Set(WORLD_SLUGS)
   return facts.filter(
@@ -587,7 +592,8 @@ async function reservedPeople(db: Db): Promise<Row[]> {
     `SELECT "id", "primaryEmail" FROM "Person" WHERE lower("primaryEmail") LIKE ANY($1::text[])`,
     RESERVED_SUFFIXES.map((s) => `%${s}`)
   )) as Row[]
-  return rows.filter((r) => reservedAddress(r.primaryEmail as string))
+  // Never the generated world's people: the base rebuild deletes the base world only.
+  return rows.filter((r) => reservedAddress(r.primaryEmail as string) && !String(r.primaryEmail).toLowerCase().endsWith(SCALE_EMAIL_SUFFIX))
 }
 
 /**

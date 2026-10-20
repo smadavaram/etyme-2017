@@ -75,6 +75,7 @@ import { prisma } from '@/lib/db'
 import { WORLD_SLUGS } from '@/lib/seed-world'
 import { isDemoCompany } from '@/lib/demo-company'
 import { reservedAddress, RESERVED_SUFFIXES } from '@/lib/demo-session'
+import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
 import { DEFAULT_ACCOUNTS } from '@/lib/gl'
 import { describeCompanies, describePeople, type OwnerWords } from '@/lib/seed-owners'
 
@@ -184,12 +185,16 @@ export async function demoOwners(db: Db = prisma): Promise<{ companies: Set<stri
   const facts = (await db.$queryRawUnsafe(
     `SELECT c."id", c."slug", c."isDemo", c."domain", c."domainVerified",
             count(x."id")::int AS seats,
-            count(x."id") FILTER (WHERE NOT (lower(p."primaryEmail") LIKE ANY($1::text[])))::int AS "realSeats"
+            count(x."id") FILTER (WHERE NOT (lower(p."primaryEmail") LIKE ANY($1::text[])) OR lower(p."primaryEmail") LIKE ('%' || $2::text))::int AS "realSeats"
        FROM "Company" c
        LEFT JOIN "Context" x ON x."companyId" = c."id"
        LEFT JOIN "Person" p ON p."id" = x."personId"
       GROUP BY c."id"`,
-    RESERVED_SUFFIXES.map((s) => `%${s}`)
+    RESERVED_SUFFIXES.map((s) => `%${s}`),
+    // The generated world's seats count as its own firms' people, so no
+    // base clean-up or rebuild takes a generated firm for the demo's
+    // (lib/seed-scale; it is dropped with its own database).
+    SCALE_EMAIL_SUFFIX
   )) as { id: string; slug: string; isDemo: boolean; domain: string | null; domainVerified: boolean; seats: number; realSeats: number }[]
   const roster = new Set(WORLD_SLUGS)
   const companies = new Set(
@@ -197,7 +202,8 @@ export async function demoOwners(db: Db = prisma): Promise<{ companies: Set<stri
       .filter((c) => roster.has(c.slug) || c.isDemo || isDemoCompany(c))
       .map((c) => c.id)
   )
-  return { companies, isDemoPerson: (email) => !!email && reservedAddress(email) }
+  // The generated world's people are never the base demo's.
+  return { companies, isDemoPerson: (email) => !!email && reservedAddress(email) && !email.toLowerCase().endsWith(SCALE_EMAIL_SUFFIX) }
 }
 
 const empty = (kind: CleanupKind): KindPlan => ({ says: SAYS[kind], ids: [], held: [] })

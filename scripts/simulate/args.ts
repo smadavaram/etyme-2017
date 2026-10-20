@@ -9,6 +9,8 @@
  *   --no-build        use the existing build even if it looks stale
  *   --rebuild         build again even if the build looks current
  *   --template NAME   copy this template database instead of today's world
+ *   --scale           copy today's generated world at the founder's scale
+ *                     (lib/seed-scale), building it on the base world first
  *   --timeout MS      per call (60000)
  */
 import { STAGE_ORDER, type Options } from './stage'
@@ -17,6 +19,8 @@ export interface Args extends Options {
   drop: boolean
   build: 'auto' | 'never' | 'always'
   template?: string
+  /** Run on the generated world at the founder's scale rather than the base world. */
+  scale: boolean
   timeoutMs: number
 }
 
@@ -27,7 +31,7 @@ function positiveInt(name: string, v: string | undefined): number {
 }
 
 export function parseArgs(argv: string[]): Args {
-  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', timeoutMs: 60_000 }
+  const a: Args = { placements: 50, weeks: 12, concurrency: 20, only: [], drop: false, build: 'auto', scale: false, timeoutMs: 60_000 }
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split('=', 2)
     const value = () => inline ?? argv[++i]
@@ -42,7 +46,8 @@ export function parseArgs(argv: string[]): Args {
       case '--no-build': a.build = 'never'; break
       case '--rebuild': a.build = 'always'; break
       case '--template': a.template = value(); break
-      default: throw new Error(`There is no flag ${flag}. The flags are --placements, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template and --timeout.`)
+      case '--scale': a.scale = true; break
+      default: throw new Error(`There is no flag ${flag}. The flags are --placements, --weeks, --concurrency, --only, --drop, --no-build, --rebuild, --template, --scale and --timeout.`)
     }
   }
   const unknown = a.only.filter((s) => !(STAGE_ORDER as readonly string[]).includes(s))

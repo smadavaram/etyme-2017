@@ -15,7 +15,7 @@
  * comment asking nobody to make one.
  */
 import { copyDatabase, databaseExists, dropDatabase, ensurePostgres, psql, urlFor, PG_HOST, PG_PORT } from '../../__integration__/postgres'
-import { buildEmptyTemplate, buildWorldTemplate, planTemplates } from '../../__integration__/templates'
+import { buildEmptyTemplate, buildScaleTemplate, buildWorldTemplate, planScaleTemplate, planTemplates } from '../../__integration__/templates'
 
 export const SIM_PREFIX = 'etyme_sim_'
 export const READER_ROLE = 'etyme_sim_reader'
@@ -49,6 +49,25 @@ async function seedInto(url: string): Promise<void> {
   }
 }
 
+/** The generated world on top of a copy of the base world (lib/seed-scale), the same environment as `seedInto`. */
+async function seedScaleInto(url: string): Promise<void> {
+  const saved = { DATABASE_URL: process.env.DATABASE_URL, NODE_ENV: process.env.NODE_ENV, PRISMA_QUIET: process.env.PRISMA_QUIET }
+  process.env.DATABASE_URL = url
+  ;(process.env as Record<string, string>).NODE_ENV = 'development'
+  process.env.PRISMA_QUIET = '1'
+  const { prisma } = await import('@/lib/db')
+  const { seedScaleWorld } = await import('@/lib/seed-scale')
+  try {
+    await seedScaleWorld()
+  } finally {
+    await prisma.$disconnect()
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete (process.env as Record<string, string | undefined>)[k]
+      else (process.env as Record<string, string>)[k] = v
+    }
+  }
+}
+
 function ensureReader(db: string): void {
   if (psql(`SELECT 1 FROM pg_roles WHERE rolname = '${READER_ROLE}'`).trim() !== '1') {
     try {
@@ -63,7 +82,12 @@ function ensureReader(db: string): void {
   ])
 }
 
-export async function prepareWorld(stamp: string, log: (line: string) => void, template?: string): Promise<SimDatabase> {
+export async function prepareWorld(
+  stamp: string,
+  log: (line: string) => void,
+  template?: string,
+  opts: { scale?: boolean } = {},
+): Promise<SimDatabase> {
   ensurePostgres()
   let world = template
   let builtTemplate = false
@@ -78,6 +102,18 @@ export async function prepareWorld(stamp: string, log: (line: string) => void, t
       }
       log(`seeding today's world template ${plan.world} (about a minute; reused by every later run today)`)
       await buildWorldTemplate(plan.world, plan.empty, seedInto)
+    }
+    // The generated world, built in the same call and on the same day as
+    // the base world it copies (CLAUDE.md, "Nine decisions for the
+    // generated world"), and copied instead of it.
+    if (opts.scale) {
+      const scale = planScaleTemplate(plan)
+      if (!databaseExists(scale.name)) {
+        builtTemplate = true
+        log(`seeding the generated world at the founder's scale into ${scale.name} (reused by every later --scale run today)`)
+        await buildScaleTemplate(scale.name, plan.world, seedScaleInto)
+      }
+      world = scale.name
     }
   } else if (!databaseExists(world)) {
     throw new Error(`There is no template database called ${world}.`)

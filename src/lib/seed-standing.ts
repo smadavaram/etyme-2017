@@ -37,6 +37,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { RESERVED_SUFFIXES } from '@/lib/demo-session'
+import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
 import { EVENT_FOR } from '@/lib/visa-petition'
 
 export interface SeedContext {
@@ -92,6 +93,10 @@ export type StandingPart = (typeof STANDING_PARTS)[number]
  */
 const seededPerson: Prisma.PersonWhereInput = {
   OR: RESERVED_SUFFIXES.map((suffix) => ({ primaryEmail: { endsWith: suffix, mode: 'insensitive' as const } })),
+  // Never the generated world's people (lib/seed-scale): it writes their
+  // papers itself, and a base step re-walked on a deploy must not sweep
+  // two thousand people into the hand-written world's stories.
+  NOT: { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX, mode: 'insensitive' as const } },
 }
 
 export async function seedStanding(ctx: SeedContext, parts: readonly StandingPart[] = STANDING_PARTS): Promise<Standing> {

@@ -80,6 +80,11 @@ const SURFACES: Record<string, string> = {
   // own firms and people, so the wall reads them too.
   'src/lib/seed-rate-change.ts': read('src/lib/seed-rate-change.ts'),
   'src/lib/seed-sector-suppliers.ts': read('src/lib/seed-sector-suppliers.ts'),
+  // The generated world at the founder's scale (lib/seed-scale): its
+  // firm stems, its people's names and its vocabulary.
+  'src/lib/seed-scale/frame.ts': read('src/lib/seed-scale/frame.ts'),
+  'src/lib/seed-scale/industries.ts': read('src/lib/seed-scale/industries.ts'),
+  'src/lib/seed-scale/kit.ts': read('src/lib/seed-scale/kit.ts'),
   'src/lib/demo-seed.ts': read('src/lib/demo-seed.ts'),
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),
@@ -243,6 +248,9 @@ const SEEDS = [
   'src/lib/demo-seed.ts',
   'src/lib/demo-seed-client.ts',
   'src/lib/demo-seed-consultant.ts',
+  'src/lib/seed-scale/frame.ts',
+  'src/lib/seed-scale/industries.ts',
+  'src/lib/seed-scale/kit.ts',
   // The two doors, which name each seeded program in a sentence.
   'src/app/demo/seats.ts',
   'src/app/demo/page.tsx',

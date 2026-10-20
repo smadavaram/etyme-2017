@@ -326,7 +326,12 @@ function orderToCashSteps(): OrderToCashStep[] {
 }
 
 /** The earliest company on the roster: the day this world was born. Null before it exists. */
-async function worldAnchor(): Promise<{ createdAt: Date } | null> {
+/**
+ * The day the base world was born: the earliest `createdAt` of a roster
+ * firm. Exported for the generated world (lib/seed-scale), which runs in
+ * the same database after this one and counts its dates from the same day.
+ */
+export async function worldAnchor(): Promise<{ createdAt: Date } | null> {
   // By the roster, never the prefix: a real firm with a `world-` slug
   // signed up before the world was seeded must not become its birthday.
   return db.company.findFirst({

@@ -27,6 +27,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { RESERVED_SUFFIXES } from '@/lib/demo-session'
+import { SCALE_EMAIL_SUFFIX } from '@/lib/seed-scale/types'
 import { day, at } from '@/lib/seed-days'
 import { runMatchEngine } from '@/lib/match-engine'
 
@@ -69,7 +70,13 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // the candidate demo, under their own address — a seed writing a CV for
   // a real person, and three queries a profile besides.
   const consultants = await db.consultantProfile.findMany({
-    where: { person: { OR: RESERVED_SUFFIXES.map((suffix) => ({ primaryEmail: { endsWith: suffix, mode: 'insensitive' as const } })) } },
+    where: {
+      person: {
+        OR: RESERVED_SUFFIXES.map((suffix) => ({ primaryEmail: { endsWith: suffix, mode: 'insensitive' as const } })),
+        // Never the generated world's people: lib/seed-scale writes their CVs.
+        NOT: { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX, mode: 'insensitive' as const } },
+      },
+    },
     select: {
       id: true, personId: true, skills: true, location: true, workAuth: true,
       person: { select: { name: true } },

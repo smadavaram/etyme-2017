@@ -34,8 +34,12 @@ import { prisma as db } from '@/lib/db'
 
 // ── Deterministic randomness ─────────────────────────────────────────
 
-/** mulberry32. Small, fast, and good enough to shuffle a demo. */
-function rng(seed: number): () => number {
+/**
+ * mulberry32. Small, fast, and good enough to shuffle a demo. Exported for
+ * the generated world (lib/seed-scale/kit), which keys every choice the
+ * same way.
+ */
+export function rng(seed: number): () => number {
   let a = seed >>> 0
   return () => {
     a = (a + 0x6d2b79f5) >>> 0
@@ -46,7 +50,8 @@ function rng(seed: number): () => number {
   }
 }
 
-function hash(s: string): number {
+/** FNV-1a, 32 bits: a stable number from a string, the seed `rng` takes. */
+export function hash(s: string): number {
   let h = 2166136261
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
   return h >>> 0
@@ -116,7 +121,8 @@ const ROLES: Role[] = [
     says: 'Internal tooling for the claims team. Nobody has ever asked them what they need. Start there.' },
 ]
 
-const PLACES = [
+/** Sixteen places, horizontal on purpose. Exported for the generated world. */
+export const PLACES = [
   'Dallas, TX', 'Charlotte, NC', 'Madison, WI', 'San Jose, CA', 'Columbus, OH',
   'Minneapolis, MN', 'Wichita, KS', 'Everett, WA', 'Jersey City, NJ', 'Atlanta, GA',
   'Chicago, IL', 'Phoenix, AZ', 'Denver, CO', 'Raleigh, NC', 'Austin, TX', 'Remote',
@@ -142,11 +148,11 @@ const LAST = [
 // looks like a program that has been running for a while: most roles
 // open, a fair number filled, a few in each of the awkward states.
 
-function pick<T>(r: () => number, xs: readonly T[]): T {
+export function pick<T>(r: () => number, xs: readonly T[]): T {
   return xs[Math.floor(r() * xs.length)]
 }
 
-function weighted<T extends string | number>(r: () => number, table: Array<[T, number]>): T {
+export function weighted<T extends string | number>(r: () => number, table: Array<[T, number]>): T {
   const total = table.reduce((n, [, w]) => n + w, 0)
   let x = r() * total
   for (const [v, w] of table) {

@@ -70,6 +70,21 @@ export interface CreateCompanyInput {
    * firm; false for a counterparty, which nobody there has seen yet.
    */
   startsSetup: boolean
+  /**
+   * The company's own id, where the caller derives it. Only the generated
+   * world passes one (lib/seed-scale), so a second seeding finds every firm
+   * by id and writes nothing; every door a person uses leaves it to the
+   * database.
+   */
+  id?: string
+  /**
+   * When the company and its owner's seat began, where that is not now.
+   * The generated world dates its firms from the day the seeded world was
+   * born (lib/seed-days); every other caller leaves it unset.
+   */
+  createdAt?: Date
+  /** The head office's own id, for the same reason as `id`. */
+  locationId?: string
 }
 
 export interface CreatedCompany {
@@ -102,7 +117,8 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
   const currency = knownCurrency(input.currency) ?? currencyFor(country)
   const templatePack = packFor(input.kind, country)
   const payRhythm = payRhythmForPack(templatePack)
-  const now = new Date()
+  // When it began: now, or the day the generated world dates it from.
+  const now = input.createdAt ?? new Date()
 
   // Words for the public page, written by rule so sign-up never waits on
   // a third party. Editable from settings once there is more to say.
@@ -124,6 +140,8 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
 
   const company = await db.company.create({
     data: {
+      ...(input.id ? { id: input.id } : {}),
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
       name,
       slug: input.slug,
       domain,
@@ -197,7 +215,10 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
   const ownerContextId = input.seatAsOwner
     ? (
         await db.context.create({
-          data: { personId: input.byPersonId, type: 'EMPLOYEE', companyId: company.id, roleId: ownerRoleId },
+          data: {
+            personId: input.byPersonId, type: 'EMPLOYEE', companyId: company.id, roleId: ownerRoleId,
+            ...(input.createdAt ? { grantedAt: input.createdAt } : {}),
+          },
           select: { id: true },
         })
       ).id
@@ -219,7 +240,7 @@ export async function createCompany(input: CreateCompanyInput, db: Db = prisma):
   // Somewhere to work. An assignment with no location cannot be reasoned
   // about for tenure or for tax.
   await db.companyLocation.create({
-    data: { companyId: company.id, name: primaryLocationName(name), country, isPrimary: true },
+    data: { ...(input.locationId ? { id: input.locationId } : {}), companyId: company.id, name: primaryLocationName(name), country, isPrimary: true },
   })
 
   // Public holidays, so business-day shifting has something real to

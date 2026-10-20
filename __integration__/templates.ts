@@ -107,6 +107,23 @@ export function planTemplates(now = new Date()): TemplatePlan {
   }
 }
 
+/**
+ * The generated world's template: the base world template with the world
+ * at the founder's scale seeded on top (lib/seed-scale), sealed under its
+ * own name. Never the base template that every integration file copies.
+ *
+ * Keyed to the same UTC day as the base world it copies, because both
+ * count their dates from the base world's birthday, and to a hash of the
+ * generator (the import closure of lib/seed-scale/index.ts) and the base
+ * template's own name, so a change to either builds a new one.
+ */
+export function planScaleTemplate(base: TemplatePlan = planTemplates()): { name: string; files: number } {
+  const files = closure([path.join(SRC, 'lib', 'seed-scale', 'index.ts')])
+  const hash = createHash('sha256').update(base.world).update(hashFiles(files)).digest('hex').slice(0, 12)
+  const day = base.world.slice(`${TEMPLATE_PREFIX}world_`.length, `${TEMPLATE_PREFIX}world_`.length + 8)
+  return { name: `${TEMPLATE_PREFIX}scale_${day}_${hash}`, files: files.length }
+}
+
 /** A template may not be connected to while it is copied; this makes a stray connection impossible. */
 function seal(name: string): void {
   psql(`ALTER DATABASE "${name}" WITH IS_TEMPLATE true ALLOW_CONNECTIONS false`)
@@ -177,6 +194,20 @@ export async function buildWorldTemplate(name: string, empty: string, seed: (url
 }
 
 /**
+ * Seed the generated world into a copy of the base world template and
+ * seal it. Built in the same call as the base template it copies, so the
+ * two are born on one day.
+ */
+export async function buildScaleTemplate(name: string, world: string, seed: (url: string) => Promise<void>): Promise<void> {
+  if (databaseExists(name)) return
+  const building = buildName(name)
+  copyDatabase(world, building)
+  await seed(urlFor(building))
+  psql(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${building}' AND pid <> pg_backend_pid()`)
+  promote(building, name)
+}
+
+/**
  * Templates nobody will copy again: a world born on an earlier day, a
  * schema that has since changed, and builds whose run died half way.
  * Best-effort — a drop that fails because somebody is still copying is
@@ -192,6 +223,9 @@ export function sweepTemplates(keep: TemplatePlan): string[] {
     if (build) {
       const pid = Number(build[1])
       try { process.kill(pid, 0) } catch { stale = true }
+    } else if (db.startsWith(`${TEMPLATE_PREFIX}scale_`)) {
+      // The generated world follows the base world's day.
+      stale = !db.startsWith(`${TEMPLATE_PREFIX}scale_${today}_`)
     } else if (db.startsWith(`${TEMPLATE_PREFIX}world_`)) {
       // Same-day worlds from a different seed may belong to a run still
       // going in another tree; only yesterday's are certainly dead.

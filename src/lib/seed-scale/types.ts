@@ -151,7 +151,16 @@ export interface ScaleFirm {
   industries: IndustryKey[]
   /** Bench firms only: the niche key. */
   niche: string | null
+  /** Where the firm is registered. Its sites may be elsewhere. */
   country: 'US'
+  /**
+   * Where its people work, the head office first: a client with a US head
+   * office and an India or UK site, an integrator with an offshore one.
+   * A site has a country and nothing else yet (CLAUDE.md, "A site has a
+   * country and a time zone", 2026-10-20); its holidays are the company's
+   * `Holiday` rows marked with that country.
+   */
+  sites: ScaleSite[]
   /** Owner first. */
   seats: ScaleSeat[]
   /** The first seat holding this demo role key, or null. */
@@ -165,14 +174,32 @@ export interface ScaleFirm {
   }
 }
 
-/** One tie on the register; `seedFrame` writes both rows. */
+/** One place a firm's people work: a `CompanyLocation`. */
+export interface ScaleSite {
+  /** Deterministic; the head office's is passed to `createCompany`. */
+  id: string
+  name: string
+  /** Two letters. */
+  country: 'US' | 'IN' | 'GB'
+  city: string
+  primary: boolean
+}
+
+/**
+ * One tie on the register; `seedFrame` writes both rows, the way the base
+ * world does:
+ *
+ *   CLIENT  a supplier sells to a client: its row says CLIENT, the client's SUPPLIER
+ *   PRIME   a supplier sells to a supplier: its row says PRIME, the buyer's SUPPLIER
+ *   MSP     a supplier sells into a client an MSP runs: its row says MSP, the MSP's SUPPLIER
+ *   RUNS    an MSP runs a client's program: its row says CLIENT, the client's MSP
+ */
 export interface Trade {
-  /** Firm id. */
+  /** Firm id: the supplier, or the MSP on a RUNS tie. */
   seller: string
-  /** Firm id. */
+  /** Firm id: the client, the prime, or the MSP on an MSP tie. */
   buyer: string
-  /** The seller's row; the buyer's row is SUPPLIER (CLIENT for an MSP). */
-  relationship: 'CLIENT' | 'PRIME' | 'MSP'
+  relationship: 'CLIENT' | 'PRIME' | 'MSP' | 'RUNS'
   tier: 'PROBATION' | 'APPROVED' | 'PREFERRED' | null
   agreementId: string | null
   /** False by default: a sub-vendor's name is the prime's to keep. */
@@ -256,6 +283,8 @@ export interface PersonFacts {
   role: RoleTemplate
   skills: string[]
   workAuth: WorkAuth
+  /** Where the person themselves sits: the US, India, the UK or Australia. */
+  country: 'US' | 'IN' | 'GB' | 'AU'
   /** The firm whose bench or payroll they are on; their own company for OWN_COMPANY. */
   firmId: string
   /** Where they are listed for marketing, and how. Null for a GSI's own staff. */
