@@ -226,29 +226,49 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(s.fromCompanyId).toBe(co['world-computer-systems'])
   })
 
-  it('a listing Techpeple shares with a partner is an invitation she answers, never born granted', async () => {
-    // Somebody seeded on Techpeple's bench who agreed to be marketed by it.
+  it('a listing Techpeple shares with its prime is an invitation she answers, never born granted', async () => {
+    // Somebody seeded on Techpeple's bench who agreed to be marketed by it,
+    // and whom Computer Systems has not listed itself.
+    const atPrime = await prisma.benchListing.findMany({
+      where: { companyId: co['world-computer-systems'] }, select: { consultantId: true },
+    })
+    const seeded = await prisma.benchListing.findFirstOrThrow({
+      where: {
+        companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING',
+        consultantId: { notIn: atPrime.map((l) => l.consultantId) },
+      },
+      select: { id: true, consultantId: true },
+    })
+    as(SUB)
+    const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [seeded.id], toCompanyId: co['world-computer-systems'] })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    expect(r.body.data.shared).toBe(1)
+    const at = await prisma.benchListing.findUniqueOrThrow({
+      where: { consultantId_companyId: { consultantId: seeded.consultantId, companyId: co['world-computer-systems'] } },
+    })
+    expect(at.state).toBe('INVITED')
+  })
+
+  it('Techpeple cannot share its bench with Vertex Global, a firm it does not trade with, and nobody is listed there', async () => {
     const seeded = await prisma.benchListing.findFirstOrThrow({
       where: { companyId: co['world-techpeple'], state: 'GRANTED', revokedAt: null, tier: 'MARKETING' },
       select: { id: true, consultantId: true },
     })
     as(SUB)
     const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [seeded.id], toCompanyId: co['world-vertex-global'] })))
-    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.shared).toBe(1)
-    const at = await prisma.benchListing.findUniqueOrThrow({
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toContain('only with firms you already work with')
+    expect(r.body.error.message).toContain('Vertex Global')
+    const there = await prisma.benchListing.findUnique({
       where: { consultantId_companyId: { consultantId: seeded.consultantId, companyId: co['world-vertex-global'] } },
     })
-    expect(at.state).toBe('INVITED')
+    expect(there).toBeNull()
   })
 
   it('Techpeple cannot pass on somebody who took its listing back', async () => {
     as(SUB)
-    const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [it_.listing], toCompanyId: co['world-vertex-global'] })))
+    const r = await json(await share(req('POST', '/api/bench/share', { listingIds: [it_.listing], toCompanyId: co['world-computer-systems'] })))
     expect(r.body.data.shared).toBe(0)
-    const passed = await prisma.benchListing.findUnique({
-      where: { consultantId_companyId: { consultantId: it_.consultantId, companyId: co['world-vertex-global'] } },
-    })
-    expect(passed).toBeNull()
+    expect(r.body.data.results[0].status).not.toBe('shared')
   })
 })

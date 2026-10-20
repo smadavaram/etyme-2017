@@ -6,7 +6,8 @@ import { prisma } from '@/lib/db'
 import { recordAccess } from '@/lib/access-log'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
-import { termsShown, notAtACompany } from '@/lib/bench-filter'
+import { termsShown, notAtACompany, mayShareBenchTo } from '@/lib/bench-filter'
+import { tiesOf } from '@/lib/match-pool'
 import { send } from '@/lib/messages'
 
 /**
@@ -85,6 +86,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Target company not found' } },
       { status: 404 }
+    )
+  }
+
+  // Only to a firm this one already trades with, one rung at a time
+  // (CLAUDE.md, "How bench reaches a job"). Checked before any person is
+  // read, so a refused share touches nobody's record.
+  const reach = mayShareBenchTo(await tiesOf(companyId), targetCompany)
+  if (!reach.ok) {
+    return NextResponse.json(
+      { error: { code: reach.code, message: reach.says, field: 'toCompanyId' } },
+      { status: 403 }
     )
   }
 

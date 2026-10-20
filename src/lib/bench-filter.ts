@@ -1241,3 +1241,72 @@ export function mayWriteWant(r: { companyKind: string | null; writesPeople: bool
   }
   return { ok: true }
 }
+
+// ── Who a bench may be shared with (2026-10-20) ────────────────────────
+//
+// CLAUDE.md, "How bench reaches a job": bench is shared only between firms
+// that already trade, one rung at a time. The share door checked the
+// person's consent and never the firm on the other end, so a firm could
+// pass its people to any company on the platform — found by the
+// simulation's bench station. A firm reaches a stranger through matching
+// (a suggestion, nameless), never through a share.
+
+/** The firms a sharer deals with, as `tiesOf` in lib/match-pool reads them. */
+export interface ShareTies {
+  self: string
+  panel: ReadonlySet<string>
+  trading: ReadonlySet<string>
+  blocked: ReadonlySet<string>
+}
+
+/**
+ * May this firm share its bench with that one?
+ *
+ * Yes to a firm it buys from or trades with, in either direction; no to
+ * itself, to a firm it blocked, and to anybody it has no deal with. The
+ * refusal says which, and what to do instead.
+ */
+export function mayShareBenchTo(
+  ties: ShareTies,
+  to: { id: string; name: string }
+): { ok: true } | { ok: false; code: 'SELF' | 'BLOCKED' | 'NOT_TRADING'; says: string } {
+  if (to.id === ties.self) return { ok: false, code: 'SELF', says: 'Your bench is already yours. Choose a partner firm to share it with.' }
+  if (ties.blocked.has(to.id)) {
+    return { ok: false, code: 'BLOCKED', says: `You blocked ${to.name}, so your bench is not shared with them.` }
+  }
+  if (ties.panel.has(to.id) || ties.trading.has(to.id)) return { ok: true }
+  return {
+    ok: false,
+    code: 'NOT_TRADING',
+    says:
+      `Your bench is shared only with firms you already work with, and ${to.name} is not one of them. ` +
+      `Add them to your companies first; until then they can find your people only through matching, without names.`,
+  }
+}
+
+// ── A person's own skills, from their own page (2026-10-20) ────────────
+//
+// Found by the simulation's match station: an integrator's own employees
+// between projects never reached matching, because the pool weighs only
+// people with skills on record and nothing let anybody put skills on an
+// employee's record. A firm listing somebody types them on the listing;
+// an employee is not listed. So the person says them, on their own page,
+// the same way they say their headline. Their own words about their own
+// work, never read off a CV and never filled in by the firm.
+
+/** The most skills one person lists. */
+export const OWN_SKILLS_MAX = 30
+
+/**
+ * Read the skills a person sent from their own page. Null where they sent
+ * none, so a save of something else leaves their skills alone. An empty
+ * list clears them.
+ */
+export function readOwnSkills(raw: unknown): { ok: true; skills: string[] } | { ok: false; says: string } | null {
+  if (raw === undefined || raw === null) return null
+  if (!Array.isArray(raw) && typeof raw !== 'string') return { ok: false, says: 'Send your skills as a list.' }
+  const typed = Array.isArray(raw) ? raw.map((s) => String(s).replace(/,/g, ' ')).join(',') : raw
+  const skills = addSkillTags([], typed).map((s) => s.slice(0, 60))
+  if (skills.length > OWN_SKILLS_MAX) return { ok: false, says: `Name ${OWN_SKILLS_MAX} skills at most.` }
+  return { ok: true, skills }
+}

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { whoSees, mayChangeTier, NETWORK_VISIBLE } from '@/lib/shared-consultant'
+import { mayShareBenchTo } from '@/lib/bench-filter'
 
 /**
  * How far a bench listing reaches, and who may move it.
@@ -137,5 +138,45 @@ describe('the doors that write a listing', () => {
     const page = read('app/dashboard/bench/page.tsx')
     expect(page).toContain("label: 'Who sees them'")
     expect(page).not.toContain('visibilityChip(')
+  })
+})
+
+describe('A bench is shared only with a firm the sharer already trades with (2026-10-20)', () => {
+  const ties = {
+    self: 'techpeple',
+    panel: new Set(['sub-below']),
+    trading: new Set(['computer-systems']),
+    blocked: new Set(['blocked-firm']),
+  }
+
+  it('a sub-vendor may share its bench with the prime it sells through', () => {
+    expect(mayShareBenchTo(ties, { id: 'computer-systems', name: 'Computer Systems Inc' }).ok).toBe(true)
+  })
+
+  it('a firm may share its bench with a supplier it buys from', () => {
+    expect(mayShareBenchTo(ties, { id: 'sub-below', name: 'Below Staffing' }).ok).toBe(true)
+  })
+
+  it('a share to a firm it has no deal with is refused in a sentence naming that firm', () => {
+    const v = mayShareBenchTo(ties, { id: 'vertex', name: 'Vertex Global' })
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.code).toBe('NOT_TRADING')
+      expect(v.says).toContain('Vertex Global')
+      expect(v.says).toContain('only with firms you already work with')
+    }
+  })
+
+  it('a share to a firm the sharer blocked is refused, even where they once traded', () => {
+    const v = mayShareBenchTo({ ...ties, trading: new Set(['computer-systems', 'blocked-firm']) }, { id: 'blocked-firm', name: 'Blocked Co' })
+    expect(v.ok).toBe(false)
+    if (!v.ok) expect(v.code).toBe('BLOCKED')
+  })
+
+  it('the share door asks this rule before it reads anybody', () => {
+    const route = read('app/api/bench/share/route.ts')
+    const rule = route.indexOf('mayShareBenchTo(await tiesOf(companyId), targetCompany)')
+    expect(rule).toBeGreaterThan(-1)
+    expect(rule).toBeLessThan(route.indexOf('prisma.benchListing.findMany'))
   })
 })

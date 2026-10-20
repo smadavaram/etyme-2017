@@ -3,6 +3,7 @@ import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { checkSlug, checkBioEdit, bioModelAvailable, buildPortfolio } from '@/lib/consultant-portfolio'
 import { factsFor, addressTaken, suggestAddress, ownPageFor, ensureOwnPage } from '@/lib/portfolio-data'
+import { readOwnSkills } from '@/lib/bench-filter'
 
 /**
  * GET   /api/me/portfolio — their page, and whether it is on
@@ -109,7 +110,7 @@ export async function GET(_request: NextRequest) {
 }
 
 /**
- * PATCH — their address, their words, whether the page is on at all.
+ * PATCH — their address, their words, their skills, whether the page is on at all.
  *
  * Everything is optional, so a change of one thing is not a rewrite of
  * everything.
@@ -200,6 +201,19 @@ export async function PATCH(request: NextRequest) {
     // named on the open internet.
     data.pageLiveAt = body.on ? new Date() : null
     said.push(body.on ? 'Your page is live.' : 'Your page is off. It answers to nobody now.')
+  }
+
+  // ── Their skills ───────────────────────────────────────────────────
+  // Said by the person, the way they say their headline (`readOwnSkills`).
+  // This is how an integrator's own employee between projects reaches
+  // matching: nobody lists an employee, so nobody else types them.
+  const skills = readOwnSkills(body.skills)
+  if (skills && !skills.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: skills.says, field: 'skills' } }, { status: 422 })
+  }
+  if (skills?.ok) {
+    data.skills = skills.skills
+    said.push(skills.skills.length ? `Your skills read: ${skills.skills.join(', ')}.` : 'Your skills are cleared.')
   }
 
   if (typeof body.availableFrom === 'string') {
