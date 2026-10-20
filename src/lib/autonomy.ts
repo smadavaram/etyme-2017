@@ -251,6 +251,18 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     says:
       'A supplier claimed the record a client had already written for it, so when its owner first opened setup the first step, the company, was marked done from that record and the steps opened at how the firm works. No money moved and nothing about the company was changed. The mark can be put back: the owner can return to that step and answer it again. What is not undone is the fact that setup began — that stays recorded, with the time.',
   },
+  OWN_SEAT_OPENED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'Somebody signed in whom no firm had seated, so they were given a seat of their own: it opens their own work and nothing else, at no company and with no permission. No money moved, and the seat can be taken back.',
+  },
+  TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'The worker is her own one-person firm, and nobody accepts their own week, so the signature of the firm above her was recorded as her firm\u2019s acceptance instead of asking her. Nobody was asked or told. It can be withdrawn on the ledger with the signature it rests on.',
+  },
   TIMESHEET_AUTO_APPROVED: {
     rung: 'L4',
     basis: 'RULE',
@@ -494,6 +506,9 @@ for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 // because the row says what the approver did, read back off the link or
 // the evidence, rather than anything this system decided.
 ATTRIBUTED.WEEK_APPROVAL_LINK_SENT = { basis: 'RECORDED' }
+// With no email set up, the link went back to the person who asked for it
+// (api/week-approvals/hand-back): the row records what that person asked.
+ATTRIBUTED.WEEK_APPROVAL_LINK_HANDED_BACK = { basis: 'RECORDED' }
 ATTRIBUTED.TIMESHEET_APPROVED_BY_EMAIL = { basis: 'RECORDED' }
 ATTRIBUTED.TIMESHEET_SENT_BACK_BY_EMAIL = { basis: 'RECORDED' }
 // Staff ran a one-off by hand with the CRON_SECRET

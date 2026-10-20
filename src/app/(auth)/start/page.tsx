@@ -11,6 +11,7 @@ import { deskHome } from '@/components/desk-home'
 import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, noPayrollLine, type SetupStep } from '@/lib/setup-steps'
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
+import { AnotherAccount } from '../another-account'
 
 /**
  * Getting in, and setting up. Five steps, then it stops.
@@ -181,6 +182,7 @@ export default function StartPage() {
           <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
             Go to your work
           </a>
+          <AnotherAccount className="mt-8" />
         </div>
       </div>
     )
@@ -199,6 +201,7 @@ export default function StartPage() {
           <a href={desk ?? '/dashboard'} className={`inline-block mt-6 ${primary}`}>
             Go to your work
           </a>
+          <AnotherAccount className="mt-8" />
         </div>
       </div>
     )
@@ -447,6 +450,9 @@ export default function StartPage() {
         )}
 
         {error && !state && <p className="mt-4 text-sm text-etyme-attention">{error}</p>}
+
+        {/* Who this is, and the way out, on the first screen after sign-in (founder, 2026-10-20). */}
+        <AnotherAccount className="mt-10" />
       </div>
     </div>
   )

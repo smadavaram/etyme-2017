@@ -40,6 +40,19 @@ export function isExcludedDomain(email: string): boolean {
 }
 
 /**
+ * Ask the provider for its account chooser on every sign-in.
+ *
+ * The founder, 2026-10-20, signing in to Tapin as sharath@etyme.com while
+ * a personal Gmail was signed in on the same browser: Google reused that
+ * account and gave no way to switch, so he was seated as a candidate (a
+ * consumer address is a person, by the domain rule). Microsoft does the
+ * same without it. `prompt=select_account` makes both show the list of
+ * accounts every time, so somebody signed in to a personal account can
+ * pick their work one.
+ */
+export const ACCOUNT_CHOOSER = { params: { prompt: 'select_account' } } as const
+
+/**
  * Only the ways in that actually work.
  *
  * Microsoft used to be commented out while the sign-in page still offered
@@ -62,6 +75,7 @@ export function configuredProviders(): Provider[] {
         // 'common' lets any Microsoft tenant in, which is what a platform
         // wants — Terumo BCT and Nike are different tenants.
         tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
+        authorization: { params: { ...ACCOUNT_CHOOSER.params } },
       })
     )
   }
@@ -71,6 +85,7 @@ export function configuredProviders(): Provider[] {
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: { params: { ...ACCOUNT_CHOOSER.params } },
       })
     )
   }

@@ -53,3 +53,28 @@ export function signInRefusal(code: string | null | undefined): string | null {
       return 'That sign-in did not go through. Try again, or sign in with your email and password.'
   }
 }
+
+// ── Another account ───────────────────────────────────────────────────
+
+/**
+ * What the Microsoft and Google buttons ask the provider for: the list of
+ * accounts, every time (founder, 2026-10-20). The providers carry the same
+ * prompt in lib/auth, so a sign-in started from anywhere shows it.
+ */
+export const CHOOSE_ACCOUNT = { prompt: 'select_account' } as const
+
+/** The link under "signed in as": it signs out and reopens the door. */
+export const ANOTHER_ACCOUNT = 'Not you? Use another account'
+
+/** Where signing out for another account lands: the sign-in page, saying why. */
+export const AFTER_ANOTHER_ACCOUNT = '/login?another=1'
+
+/** Who this browser is signed in as, said once over the door. */
+export function signedInAsSays(email: string | null | undefined): string | null {
+  const e = (email ?? '').trim()
+  return e ? `You are signed in as ${e}.` : null
+}
+
+/** The line on the sign-in page after signing out for another account. */
+export const PICK_ANOTHER_ACCOUNT =
+  'You are signed out. Sign in with the account you want. Microsoft and Google will ask which account to use.'

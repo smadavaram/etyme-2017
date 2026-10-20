@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { signIn, getProviders } from 'next-auth/react'
-import { offers, companyAccounts, type KnownDoors } from '@/lib/login-doors'
+import { offers, companyAccounts, CHOOSE_ACCOUNT, type KnownDoors } from '@/lib/login-doors'
 
 /**
  * Microsoft and Google, the alternative to the email and password form.
@@ -17,6 +17,10 @@ import { offers, companyAccounts, type KnownDoors } from '@/lib/login-doors'
  * only when the deployment holds that provider's keys (lib/auth). A
  * Microsoft button that lands on an error page is worse than none. While
  * the list is unknown nothing is drawn (lib/login-doors).
+ *
+ * Both ask the provider for its account chooser (`CHOOSE_ACCOUNT`, and
+ * `ACCOUNT_CHOOSER` on the providers in lib/auth), so a browser signed in
+ * to a personal Gmail still offers the work account (founder, 2026-10-20).
  *
  * Both land on /start, which seats a person who already has an account on
  * this email in it, joins a colleague to a company that owns the email's
@@ -51,7 +55,7 @@ export function AccountDoors({ available, callbackUrl = '/start' }: { available:
       </div>
       <div className="space-y-3">
         {offers(available, 'azure-ad') && (
-          <button type="button" onClick={() => signIn('azure-ad', { callbackUrl })} className={accountButton}>
+          <button type="button" onClick={() => signIn('azure-ad', { callbackUrl }, CHOOSE_ACCOUNT)} className={accountButton}>
             <svg width="20" height="20" viewBox="0 0 21 21" fill="none" aria-hidden="true">
               <path d="M10 0H0V10H10V0Z" fill="#F25022" />
               <path d="M21 0H11V10H21V0Z" fill="#7FBA00" />
@@ -62,7 +66,7 @@ export function AccountDoors({ available, callbackUrl = '/start' }: { available:
           </button>
         )}
         {offers(available, 'google') && (
-          <button type="button" onClick={() => signIn('google', { callbackUrl })} className={accountButton}>
+          <button type="button" onClick={() => signIn('google', { callbackUrl }, CHOOSE_ACCOUNT)} className={accountButton}>
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"

@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { DoorFrame, DoorLabel, doorField, doorButton } from '../door-frame'
 import { readJson } from '@/lib/read-response'
-import { offers, loginSubtitle, signInRefusal } from '@/lib/login-doors'
+import { offers, loginSubtitle, signInRefusal, PICK_ANOTHER_ACCOUNT } from '@/lib/login-doors'
 import { AccountDoors, useKnownDoors } from '../account-doors'
+import { AnotherAccount } from '../another-account'
 
 /**
  * Signing in.
@@ -57,6 +58,8 @@ export default function LoginPage() {
   const [refusal, setRefusal] = useState<string | null>(null)
   const [unconfirmed, setUnconfirmed] = useState(false)
   const [resent, setResent] = useState<string | null>(null)
+  // Back from "Not you? Use another account": signed out, and told so.
+  const [another, setAnother] = useState(false)
 
   async function signInWithPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -91,7 +94,9 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
-    setSentBack(signInRefusal(new URLSearchParams(window.location.search).get('error')))
+    const params = new URLSearchParams(window.location.search)
+    setSentBack(signInRefusal(params.get('error')))
+    setAnother(params.get('another') === '1')
 
     // The bypass already decides who the app thinks you are in development.
     // Saying so here is the difference between a preview somebody can open
@@ -134,6 +139,9 @@ export default function LoginPage() {
           )}
 
           {sentBack && <p role="alert" className="mb-6 text-sm text-etyme-attention">{sentBack}</p>}
+          {another && <p className="mb-6 text-sm text-etyme-ink">{PICK_ANOTHER_ACCOUNT}</p>}
+          {/* Already signed in as somebody: say who, and offer the way out (founder, 2026-10-20). */}
+          <AnotherAccount className="mb-6" />
 
           {/* Email and password — always offered */}
           <form className="space-y-4 mb-6" onSubmit={signInWithPassword}>

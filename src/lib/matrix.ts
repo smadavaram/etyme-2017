@@ -1165,7 +1165,8 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/payroll-cycles.test.ts', '__integration__/payroll-choice-reaches-the-dates.test.ts'] },
         // A password door, until the single sign-on keys exist (founder, 2026-10-08).
         { code: 'L3.2.2.14', name: 'Signing up with an email and a password', owner: 'Etyme', status: B,
-          tasks: [
+          tasks: ['FIXED 2026-10-20 by the architect, the founder kept out of Tapin: both Microsoft and Google ask for the account chooser on every sign-in (prompt=select_account on the providers in lib/auth and on the buttons), so a browser signed in to a personal Gmail still offers the work account; the sign-in page and /start say who is signed in and offer \u201cNot you? Use another account\u201d, which signs out and reopens the sign-in page (src/app/(auth)/another-account.tsx)',
+            
             'A company signs up with a work email, a password and an Etyme address; a candidate with an email and a password',
             'Nothing is created until the email is confirmed by a one-time link that works once for 24 hours; signing up again sends a new one',
             'The sign-up answers the same whether or not the email already has an account, and the mailbox owner is told instead',
@@ -1200,7 +1201,7 @@ export const MATRIX: L1[] = [
             'FIXED 2026-10-08, round three (item 14): System activity says what a new company is \u2014 \u201cKeel joined Etyme as a program office\u201d \u2014 never the picker\u2019s first-person label (joinedSentence in lib/setup-steps)',
             'FIXED 2026-10-20 by the architect, found by the simulation: a person on a placement, a submission or a bench listing who holds no seat anywhere is their own seat \u2014 the company-less consultant seat a candidate gets at sign-up, their own work only, no company and no permission \u2014 given on first sign-in and written on the automation log; never where a seat at a firm is paused or their own seat was taken away, and \u201cnobody has given you a seat yet\u201d is never said to them (lib/own-seat, getCallerContext)',
           ],
-          implementedBy: ['src/lib/own-seat.ts', 'src/lib/api-context.ts', 'src/lib/password.ts', 'src/lib/password-door.ts', 'src/lib/seat-member.ts', 'src/lib/auth.ts',
+          implementedBy: ['src/app/(auth)/another-account.tsx', 'src/lib/auth.ts', 'src/lib/login-doors.ts', 'src/lib/own-seat.ts', 'src/lib/api-context.ts', 'src/lib/password.ts', 'src/lib/password-door.ts', 'src/lib/seat-member.ts', 'src/lib/auth.ts',
             'src/lib/staff-bootstrap.ts', 'src/app/api/staff/bootstrap-company/route.ts',
             'src/lib/domains-owned.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts', 'src/lib/seed-rebuild.ts',
             'src/app/api/auth/password/signup/route.ts', 'src/app/api/auth/password/resend/route.ts',

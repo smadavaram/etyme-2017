@@ -173,8 +173,8 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
     expect(login.indexOf('onSubmit={signInWithPassword}')).toBeLessThan(login.indexOf('<AccountDoors'))
     expect(form.indexOf('</form>')).toBeLessThan(form.indexOf('<AccountDoors'))
     const doors = read('src/app/(auth)/account-doors.tsx')
-    expect(doors).toContain("signIn('azure-ad', { callbackUrl })")
-    expect(doors).toContain("signIn('google', { callbackUrl })")
+    expect(doors).toContain("signIn('azure-ad', { callbackUrl }, CHOOSE_ACCOUNT)")
+    expect(doors).toContain("signIn('google', { callbackUrl }, CHOOSE_ACCOUNT)")
     expect(doors).toContain('Continue with Microsoft')
     expect(doors).toContain('Continue with Google')
   })
@@ -212,5 +212,50 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
     const token = await authOptions.callbacks!.jwt!({ token: {}, user: { id: 'g-1', email: 'Sharath@Etyme.com' } } as any)
     expect(token.email).toBe('sharath@etyme.com')
     expect(read('src/lib/api-context.ts')).toContain('return session.user.email.trim().toLowerCase()')
+  })
+})
+
+describe('every sign-in door shows the account chooser (founder, 2026-10-20)', () => {
+  const chooserOn = async (id: string) => {
+    const mod = await import('@/lib/auth')
+    const p: any = mod.configuredProviders().find((x: any) => x.id === id)
+    return p?.options?.authorization?.params?.prompt
+  }
+
+  it('the Google door always shows the account chooser, so somebody signed in to a personal Gmail can pick their work account', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'g'
+    process.env.GOOGLE_CLIENT_SECRET = 'g'
+    expect(await chooserOn('google')).toBe('select_account')
+    // The button asks for it too, so a sign-in started anywhere shows it.
+    expect(read('src/app/(auth)/account-doors.tsx')).toContain("signIn('google', { callbackUrl }, CHOOSE_ACCOUNT)")
+    const { CHOOSE_ACCOUNT } = await import('@/lib/login-doors')
+    expect(CHOOSE_ACCOUNT.prompt).toBe('select_account')
+  })
+
+  it('the Microsoft door always shows the account chooser, so somebody signed in to a personal Microsoft account can pick their work account', async () => {
+    process.env.AZURE_AD_CLIENT_ID = 'm'
+    process.env.AZURE_AD_CLIENT_SECRET = 'm'
+    expect(await chooserOn('azure-ad')).toBe('select_account')
+    expect(read('src/app/(auth)/account-doors.tsx')).toContain("signIn('azure-ad', { callbackUrl }, CHOOSE_ACCOUNT)")
+  })
+
+  it('the first screen after sign-in says who you are signed in as and offers another account', async () => {
+    const { signedInAsSays, ANOTHER_ACCOUNT, AFTER_ANOTHER_ACCOUNT } = await import('@/lib/login-doors')
+    expect(signedInAsSays('sharath@gmail.com')).toBe('You are signed in as sharath@gmail.com.')
+    expect(signedInAsSays(null)).toBeNull()
+    expect(ANOTHER_ACCOUNT).toBe('Not you? Use another account')
+    const line = read('src/app/(auth)/another-account.tsx')
+    // It signs the person out and reopens the sign-in page, where the chooser shows.
+    expect(line).toContain('signOut({ callbackUrl: AFTER_ANOTHER_ACCOUNT })')
+    expect(AFTER_ANOTHER_ACCOUNT).toBe('/login?another=1')
+    expect(read('src/app/(auth)/start/page.tsx')).toMatch(/<AnotherAccount[ \/]/)
+  })
+
+  it('the sign-in page also says who is signed in and offers another account, and says so after signing out for one', async () => {
+    const page = read('src/app/(auth)/login/page.tsx')
+    expect(page).toMatch(/<AnotherAccount[ \/]/)
+    expect(page).toContain("params.get('another') === '1'")
+    const { PICK_ANOTHER_ACCOUNT } = await import('@/lib/login-doors')
+    expect(PICK_ANOTHER_ACCOUNT).toMatch(/^You are signed out\. Sign in with the account you want\./)
   })
 })

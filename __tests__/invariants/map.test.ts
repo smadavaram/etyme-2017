@@ -1,3 +1,4 @@
+import { CATEGORY } from '@/lib/public-site/skeleton-words'
 /**
  * The map of the memory: one picture of how the system hangs together.
  *
@@ -234,7 +235,8 @@ describe('The delivery matrix page and the login page say what is true now', () 
     const src = read('src/app/(auth)/login/page.tsx')
     const frame = read('src/app/(auth)/door-frame.tsx')
     expect(src).toContain('<DoorFrame>')
-    expect(frame).toContain('Enterprise contingent workforce management.')
+    // The home page's own category line, read from the one constant.
+    expect(frame).toContain(CATEGORY)
     // The steps are the home page's own words, read from the one list.
     expect(frame).toContain('STEPS.map((s) => s.home)')
     expect(STEPS.map((s) => s.home)).toContain('Each supplier bills, and you pay what matched')
@@ -245,7 +247,7 @@ describe('The delivery matrix page and the login page say what is true now', () 
       expect(f).not.toMatch(/AI agents/)
     }
 
-    const panel = 'Enterprise contingent workforce management. ' + STEPS.map((s) => s.home).join('. ')
+    const panel = `${CATEGORY}. ` + STEPS.map((s) => s.home).join('. ')
     expect(namedCompanies(panel)).toEqual([])
     expect(vendorManagementSystem(panel)).toEqual([])
     expect(unverifiableClaims(panel)).toEqual([])
