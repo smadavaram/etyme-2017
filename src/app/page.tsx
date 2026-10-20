@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
 import { CountedLink } from '@/lib/public-site/counted-link'
-import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
+import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from '@/lib/public-site/skeleton'
 import { OPEN_DEMO } from '@/lib/public-site/skeleton-words'
 import { SEE_IT } from '@/lib/public-site/funnel'
 
@@ -22,7 +22,9 @@ import { SEE_IT } from '@/lib/public-site/funnel'
  *               category sits above the headline as the hero's eyebrow
  *               (founder: "the category be on top over hero text"), set in
  *               sentence case with no period, 13px and muted, one line
- *               at 375 (founder, the same day, on the capitals)
+ *               at 375 (founder, the same day, on the capitals). Since
+ *               2026-10-20 it is `CategoryLine`, which every step page
+ *               and door draws too, from the one constant `CATEGORY`
  *   #demo       the product shown working, in one compact panel
  *               (`lib/public-site/story-panel`, since the founder's
  *               "Build it" later on 2026-10-14): Ask Etyme answers, a
@@ -88,9 +90,7 @@ export default function LandingPage() {
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── Hero: the category on top, then the question, word for word ── */}
         <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
-          <p className="mb-2 text-[13px] font-medium text-etyme-muted">
-            Enterprise contingent workforce management
-          </p>
+          <CategoryLine />
           <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.06] tracking-[-0.02em] text-etyme-ink md:text-[52px]">
             Know what every contractor costs, across every supplier.
           </h1>

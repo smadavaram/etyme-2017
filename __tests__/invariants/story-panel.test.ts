@@ -62,7 +62,7 @@ import { NORTHBEND_TWIN_RECEIPTS } from '@/lib/twin/seed-demo'
 import { TENURE_DEMO } from '@/lib/twin/seed-tenure-demo'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 import {
-  STORY, STORY_BAR, STEP_NAMES, STORIES, APTIVA_BAR, APTIVA_BOOK, APTIVA_WHO, NORTHBEND_PEOPLE, STORY_STEP_MS, WEEK_WORDS,
+  STORY, STORY_BAR, STEP_NAMES, STORIES, APTIVA_BAR, APTIVA_BOOK, APTIVA_WHO, APTIVA_PHONE, NORTHBEND_PEOPLE, STORY_STEP_MS, WEEK_WORDS,
   storyCopy, storyChromeCopy, storyIndex, startOf, weekLabel, cellText,
   type Cell, type StoryStep, type StoryKey,
 } from '@/lib/public-site/story'
@@ -126,13 +126,16 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
   it('the bar names the person in front of each step beside the company: Marcus Oyelaran for the job and the candidates, Helena Marsh for her week, Renata Kowal for the invoices', () => {
     expect(STORY.map((s) => s.who)).toEqual([
       'Marcus Oyelaran, hiring manager', 'Marcus Oyelaran, hiring manager',
-      'Helena Marsh, contractor through Computer Systems Inc', 'Renata Kowal, AP clerk',
+      'Helena Marsh, contractor', 'Renata Kowal, AP clerk',
     ])
     expect(nike.people.hiring).toBe('Marcus Oyelaran')
     expect(nike.people.ap).toBe('Renata Kowal')
-    // Helena is on site through Computer Systems Inc, the firm Northbend pays.
+    // Helena is on site through Computer Systems Inc, the firm Northbend
+    // pays. Since 2026-10-20 the bar says only her job, so it is one line at
+    // 375; her conversation names the firm, where there is room for it.
     const helena = nike.placements.find((p) => p.person === 'Helena Marsh' && p.state === 'IN_PROGRESS')!
-    expect(NORTHBEND_PEOPLE.worker).toBe(`Helena Marsh, contractor through ${firm(helena.via[1])}`)
+    expect(NORTHBEND_PEOPLE.worker).toBe('Helena Marsh, contractor')
+    expect(step('Timesheets').chat.map((m) => m.text).join(' ')).toContain(`${firm(helena.via[1])} accepts the same 40 hours next`)
     // Three people over four steps, a step every 5.2 seconds: a loop of about twenty-one seconds.
     expect(STORY_STEP_MS).toBe(5200)
     expect((STORY_STEP_MS * STORY.length) / 1000).toBeCloseTo(20.8)
@@ -689,7 +692,9 @@ describe('Each door plays its own party’s person, every name and figure the se
 
   it('a solopreneur is Colleen Byrne billing Halcyon Talent from her own company for 36 hours Harlow Health signed and Halcyon accepted, at the agreed $92', () => {
     const st = only('byrne')
-    expect(st.who).toBe('Colleen Byrne, ICU travel nurse and owner')
+    // The bar says her job at her own firm, one line at 375 (2026-10-20);
+    // the line under the panel says the rest: an ICU travel nurse and owner.
+    expect(st.who).toBe('Colleen Byrne, owner')
     expect(STORIES.byrne.bar.company).toBe('Byrne Critical Care LLC')
     expect(DOORS_SEED).toContain("name: 'Byrne Critical Care LLC',\n      kind: 'CONSULTANT_CORP'")
     // Her company sells her to Halcyon at $92; her week is three twelve-hour shifts.
@@ -777,6 +782,31 @@ describe('The panel plays the four steps and is never blank', () => {
     // The chips jump to a step.
     expect(src).toContain('onClick={() => playStep(i)}')
     expect(src).toContain('aria-pressed={i === cur}')
+  })
+
+  it('on a phone every bar is one line at 375 with no ellipsis: a name and a job, or, where even that runs past, the job alone after the company, with the person named in full from a tablet up and in the line under the panel', () => {
+    // The founder read the doors on a 390 phone on 2026-10-20. Helena's
+    // bar became "contractor" and Colleen's "owner"; measured at 375 with
+    // Playwright, "Brightmoor Staffing · Marisa Delacroix, account manager"
+    // was 10 pixels over, Aptiva's line 3 and Teleworld's 1, so those three
+    // show the job alone on a phone. Every other story's name and job fit.
+    const phone = Object.fromEntries(Object.entries(STORIES).map(([k, st]) => [k, [...new Set(st.steps.map((x) => x.phone ?? x.who))]]))
+    expect(phone).toEqual({
+      northbend: ['Marcus Oyelaran, hiring manager', 'Helena Marsh, contractor', 'Renata Kowal, AP clerk'],
+      aptiva: ['program manager'],
+      brightmoor: ['account manager'],
+      'techpeple-sub': ['Bhavesh Nair, owner'],
+      'techpeple-bench': ['Linnea Qadri, recruiter'],
+      teleworld: ['delivery manager'],
+      helena: ['Helena Marsh, contractor'],
+      byrne: ['Colleen Byrne, owner'],
+    })
+    // The job alone is the end of the full line, never different words.
+    for (const st of Object.values(STORIES)) for (const x of st.steps) if (x.phone) expect(x.who.endsWith(`, ${x.phone}`), x.who).toBe(true)
+    expect(APTIVA_PHONE).toBe('program manager')
+    const src = read('src/lib/public-site/story-panel.tsx')
+    expect(src).toContain('<span className="truncate md:hidden">{steps[cur].phone ?? steps[cur].who}</span>')
+    expect(src).toContain('<span className="hidden truncate md:block">{steps[cur].who}</span>')
   })
 
   it('names the person in front of the step on the bar, with a small dot, and on a door draws the four chips with its one step pressable', () => {

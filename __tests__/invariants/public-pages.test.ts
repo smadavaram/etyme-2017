@@ -30,7 +30,7 @@ import {
 import { modulePage } from '@/lib/public-site/module-page'
 import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, tabHref } from '@/lib/public-site/parties'
 import { storyChromeCopy } from '@/lib/public-site/story'
-import { BAND, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
+import { BAND, CATEGORY, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
 import { STEP_PAGES } from '@/lib/public-site/docs/process'
 import { companyPage } from '@/lib/public-site/company-page'
@@ -229,9 +229,48 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(STEPS.map((s) => s.route)).toEqual([...MODULE_ROUTES])
   })
 
-  it('every party door reads its tabs where it has them, the headline, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
+  it('every page that sells the product opens on the category line, and no reference page does', () => {
+    // The founder, 2026-10-20, reading every door on a phone: "Did you
+    // establish the category on all parties and doors?" Only the home page
+    // did. Now the home page, the four step pages and every door and tab
+    // draw one `CategoryLine`, from one constant, as the first line of the
+    // hero: above "Step 1 of 4 · Job" on a step page, above the tabs on a door.
+    expect(CATEGORY).toBe('Enterprise contingent workforce management')
+    expect(CATEGORY).not.toMatch(/vendor management system|\bAI\b|\.$/i)
+    const SKELETON_SRC = read('src/lib/public-site/skeleton.tsx')
+    const line = SKELETON_SRC.slice(SKELETON_SRC.indexOf('export function CategoryLine'), SKELETON_SRC.indexOf('export function LiveDemo'))
+    expect(line).toContain('{CATEGORY}')
+    expect(line).toContain('text-[13px] font-medium text-etyme-muted')
+    expect(line).not.toMatch(/uppercase|tracking-/)
+    // Drawn first in each selling view's hero.
+    const home = read('src/app/page.tsx')
+    const homeTop = home.slice(home.indexOf('id="top"'))
+    expect(homeTop.indexOf('<CategoryLine />')).toBeGreaterThan(0)
+    expect(homeTop.indexOf('<CategoryLine />')).toBeLessThan(homeTop.indexOf('<h1'))
+    const step = read('src/lib/public-site/module-page.tsx')
+    const stepTop = step.slice(step.indexOf('id="top"'))
+    expect(stepTop.indexOf('<CategoryLine')).toBeGreaterThan(0)
+    expect(stepTop.indexOf('<CategoryLine')).toBeLessThan(stepTop.indexOf('{m.eyebrow}'))
+    const doorTop = VIEW.slice(VIEW.indexOf('id="top"'))
+    expect(doorTop.indexOf('<CategoryLine')).toBeGreaterThan(0)
+    expect(doorTop.indexOf('<CategoryLine')).toBeLessThan(doorTop.indexOf('{tabs && ('))
+    // And first in the words the guards read, on every step page and every tab of every door.
+    for (const m of MODULES) expect(copyOfModule(m).hero[0], m.route).toBe(CATEGORY)
+    for (const v of everyDoorView()) expect(copyOfPartyPage(v, v.tab?.key).hero[0], v.href).toBe(CATEGORY)
+    // No reference page draws it: the documentation, security, About,
+    // Contact, the demo, the census, the legal pages and sign-in.
+    const reference = [
+      ...PUBLIC_PAGES.filter((p) => !['HOME', 'MODULE', 'PARTY'].includes(p.kind)).map((p) => p.routeFile),
+      'src/lib/public-site/docs-page.tsx', 'src/lib/public-site/company-page.tsx', 'src/app/(auth)/door-frame.tsx',
+    ].filter((f) => existsSync(join(ROOT, f)))
+    expect(reference.length).toBeGreaterThan(10)
+    for (const f of reference) expect(read(f), f).not.toMatch(/CategoryLine|\bCATEGORY\b/)
+    for (const c of COMPANY_PAGES) expect(copyOfCompanyPage(c).hero[0], c.route).not.toBe(CATEGORY)
+  })
+
+  it('every party door reads the category line, its tabs where it has them, the headline, the live frame, three lines, the sign-up band and the security line, in that order, and nothing else', () => {
     const body = VIEW.slice(VIEW.indexOf('export function SubPageView'))
-    const order = ['<SiteHeader />', 'id="top"', '{tabs && (', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
+    const order = ['<SiteHeader />', 'id="top"', '<CategoryLine', '{tabs && (', '<h1', '<LiveDemo', 'id="lines"', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
       .map((t) => body.indexOf(t))
     expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
@@ -242,12 +281,12 @@ describe('Every product page and party door is the home page’s shape, opened a
     expect(copyFrom(SKELETON.slice(SKELETON.indexOf('export function LiveDemo')))).toEqual([])
   })
 
-  it('every step page reads the step, the promise, Today and With Etyme, the live panel, three lines, Previous and Next, the sign-up band and the security line, in that order, and nothing else', () => {
+  it('every step page reads the category line, the step, the promise, Today and With Etyme, the live panel, three lines, Previous and Next, the sign-up band and the security line, in that order, and nothing else', () => {
     // The founder's drawing of 2026-10-15: the four pages tell one story
     // the same way. The panel and the band are the home page's own.
     const STEP_VIEW = read('src/lib/public-site/module-page.tsx')
     const body = STEP_VIEW.slice(STEP_VIEW.indexOf('export function ModulePageView'), STEP_VIEW.indexOf('export function modulePage'))
-    const order = ['<SiteHeader />', 'id="top"', '{m.eyebrow}', '<h1', 'id="pair"', '<LiveDemo', 'id="lines"', 'data-prev-next', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
+    const order = ['<SiteHeader />', 'id="top"', '<CategoryLine', '{m.eyebrow}', '<h1', 'id="pair"', '<LiveDemo', 'id="lines"', 'data-prev-next', '<SignUpBand', '<SecurityLine', '<SkeletonFooter']
       .map((t) => body.indexOf(t))
     expect(order.every((i) => i > 0), JSON.stringify(order)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
@@ -717,7 +756,9 @@ describe('Four doors for the parties who are not the client, reached by link and
     // said "your client's screen" is gone and the line names them.
     const lines = Object.fromEntries(everyDoorView().map((v) => [v.href, v.label]))
     expect(lines).toEqual({
-      '/for/suppliers': 'You are watching Marisa Delacroix, account manager at Brightmoor Staffing, a demo company, not a customer.',
+      // Her job is on the bar above; the line names her and her firm, so
+      // the tab stays at 165 words with the category line on top (2026-10-20).
+      '/for/suppliers': 'You are watching Marisa Delacroix at Brightmoor Staffing, a demo company, not a customer.',
       '/for/suppliers?tab=sub': 'You are watching Bhavesh Nair, owner of Techpeple, a demo company, not a customer.',
       '/for/suppliers?tab=bench': 'You are watching Linnea Qadri, recruiter at Techpeple, a demo company, not a customer.',
       '/for/program-offices': `You are watching Rashida Coleman, program manager at Aptiva Workforce, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
@@ -873,7 +914,7 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(read('src/app/(auth)/signup/page.tsx')).toContain('?type=solo')
   })
 
-  it('a tab changes the words, the person in the panel, and the button, which opens the demo as that same person', () => {
+  it('a tab changes the words, the person in the panel, and the seat the button opens, which is that same person; the button reads the home page’s one label on every door and tab', () => {
     // Until 2026-10-19 a tab never changed the panel. Since the founder's
     // drawing of that day each tab plays its own party's person, with the
     // line under the panel naming them, and the button under it seats the
@@ -882,20 +923,23 @@ describe('Four doors for the parties who are not the client, reached by link and
       const views = everyDoorView().filter((x) => x.slug === p.slug)
       if (views.length > 1) expect(new Set(views.map((v) => v.story)).size, p.route).toBe(views.length)
     }
-    expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.demoLabel, v.demo]]))).toEqual({
-      '/for/suppliers': ['Open as a supplier’s account manager, no account',
-        { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } }],
-      '/for/suppliers?tab=sub': ['Open as a sub-vendor, no account',
-        { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } }],
-      '/for/suppliers?tab=bench': ['Open as a bench vendor’s recruiter, no account',
-        { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } }],
-      '/for/program-offices': ['Open as the program manager, no account',
-        { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } }],
-      '/for/integrators': ['Open as an integrator’s delivery manager, no account',
-        { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } }],
-      '/for/contractors': ['Open Helena’s page, no account', { target: { person: 'helena-marsh', seat: 'Helena Marsh' } }],
-      '/for/contractors?tab=solo': ['Open as a one-person firm, no account', { target: { person: 'colleen-byrne', seat: 'Colleen Byrne' } }],
+    // The seat each button opens. Its words are the home page's one label
+    // since 2026-10-20 (founder, on a phone: the door labels wrapped to two
+    // lines); the bar and the line under the panel say who you open as.
+    expect(Object.fromEntries(everyDoorView().map((v) => [v.href, v.demo]))).toEqual({
+      '/for/suppliers': { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } },
+      '/for/suppliers?tab=sub': { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } },
+      '/for/suppliers?tab=bench': { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } },
+      '/for/program-offices': { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } },
+      '/for/integrators': { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
+      '/for/contractors': { target: { person: 'helena-marsh', seat: 'Helena Marsh' } },
+      '/for/contractors?tab=solo': { target: { person: 'colleen-byrne', seat: 'Colleen Byrne' } },
     })
+    const doorView = read('src/lib/public-site/party-page.tsx')
+    expect(doorView).toContain('{ label: OPEN_DEMO, target: p.demo.target }')
+    expect(doorView).toContain('{ label: OPEN_DEMO, candidate: true as const }')
+    expect(read('src/lib/public-site/parties.ts')).not.toMatch(/'Open (?:as|Helena|a contractor)/)
+    for (const v of everyDoorView()) expect(copyOfPartyPage(v, v.tab?.key).body, v.href).toContain(OPEN_DEMO)
     // Each seat is one the demo door gives: a seeded firm and a desk it knows, or a person on the demo page.
     const seats = read('src/app/demo/seats.ts')
     for (const slug of ['world-brightmoor', 'world-techpeple', 'world-aptiva', 'world-teleworld']) expect(seats, slug).toContain(`slug: '${slug}'`)

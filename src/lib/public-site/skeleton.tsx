@@ -3,7 +3,7 @@ import { StoryPanel } from './story-panel'
 import { storyIndex, type StoryKey } from './story'
 import { HomeFooter } from './frame'
 import {
-  ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
+  CATEGORY, ON_SCREEN, DOORS, FOOTER_LINKS, BAND, BAND_FOR_SELF, CLIENT_SIGN_UP, SECURITY,
   type BandKind,
 } from './skeleton-words'
 
@@ -32,6 +32,18 @@ export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visi
 export const PRIMARY_BUTTON =
   `whitespace-nowrap rounded-lg bg-etyme-action px-5 py-3 text-center text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90 ${FOCUS}`
 const TEXT_LINK = `text-etyme-action-press underline-offset-4 hover:underline ${FOCUS} rounded-sm`
+
+/**
+ * The category, as the very first line of the hero on every page that
+ * sells the product: the home page, the four step pages (above "Step 1 of
+ * 4 · Job") and every door and tab (above the tabs). Sentence case, no
+ * period, 13px and muted, one line at 375 (founder, 2026-10-19 on the home
+ * page, and 2026-10-20 on every other selling page). One component and one
+ * constant, so no page can say it differently.
+ */
+export function CategoryLine({ className = 'mb-2' }: { className?: string }) {
+  return <p data-category-line="" className={`${className} text-[13px] font-medium text-etyme-muted`}>{CATEGORY}</p>
+}
 
 /**
  * The product shown working, opened at a step: the one compact panel

@@ -43,7 +43,7 @@ import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget } from './flow'
 import { STEPS } from './steps'
-import { copyOfSkeleton, OPEN_DEMO, CLIENT_SIGN_UP, watching } from './skeleton-words'
+import { CATEGORY, copyOfSkeleton, OPEN_DEMO, CLIENT_SIGN_UP, watching } from './skeleton-words'
 
 /** A link to the page before or after a step, as drawn. */
 export interface StepLink {
@@ -256,7 +256,8 @@ export function moduleAt(route: string): ModulePage | null {
 
 /**
  * Every word a reader sees between the header and the footer, split at
- * the fold: the eyebrow, the headline and its line, and the pair, then
+ * the fold: the category line (2026-10-20), the eyebrow, the headline and
+ * its line, and the pair, then
  * the three lines with their labels, Previous and Next, and what the
  * shared skeleton draws around them (`./skeleton-words`).
  *
@@ -268,7 +269,7 @@ export function moduleAt(route: string): ModulePage | null {
  */
 export function copyOfModule(m: ModulePage): { hero: string[]; body: string[] } {
   return {
-    hero: [m.eyebrow, m.headline, m.lede, PAIR_LABELS.today, m.today, PAIR_LABELS.withEtyme, m.withEtyme],
+    hero: [CATEGORY, m.eyebrow, m.headline, m.lede, PAIR_LABELS.today, m.today, PAIR_LABELS.withEtyme, m.withEtyme],
     body: [
       ...LINE_LABELS.flatMap((label, i) => [label, m.lines[i]]),
       m.prev.t, m.next.t,

@@ -280,8 +280,13 @@ export function StoryPanel({
           hiring manager" on one line, the mark and the size of the program
           left for md up (Ask Etyme carries the mark just below), set a
           point smaller so the home page's line is whole at 375, and the
-          four chips in one row that scrolls sideways. A door's longer title
-          ends in an ellipsis; the line under the panel says it whole. */}
+          four chips in one row that scrolls sideways. Every story's line
+          fits at 375 with no ellipsis since 2026-10-20: Helena is
+          "contractor", Colleen "owner", and the three whose name and job
+          still run past it (Marisa Delacroix, Rashida Coleman, Sunil
+          Raghavan) show the job alone after the company on a phone. The
+          ellipsis is only a guard; the line under the panel names the
+          person in full. */}
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-etyme-rule bg-etyme-surface px-3 py-2.5 text-[13px] text-etyme-muted md:px-3.5">
         <p data-story-bar="" className="flex min-w-0 max-w-full items-center gap-x-1 text-[12px] md:gap-x-2.5 md:text-[13px]">
           <EtymeMark size={18} className="hidden shrink-0 md:block" />
@@ -291,7 +296,9 @@ export function StoryPanel({
           {/* The person in front of this step. */}
           <span data-story-who="" className="flex min-w-0 items-center gap-1.5 text-etyme-ink">
             <span aria-hidden="true" className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified md:block" />
-            <span className="truncate">{steps[cur].who}</span>
+            {/* On a phone, the job alone where the name and job do not fit (`phone`). */}
+            <span className="truncate md:hidden">{steps[cur].phone ?? steps[cur].who}</span>
+            <span className="hidden truncate md:block">{steps[cur].who}</span>
           </span>
         </p>
         <div

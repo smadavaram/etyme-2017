@@ -84,6 +84,13 @@ export interface StoryStep {
    * person and the step in front of them").
    */
   who: string
+  /**
+   * The bar on a phone, where the company and `who` do not fit one line at
+   * 375 even as a name and a job: the job alone after the company's name
+   * (2026-10-20). The line under the panel names the person in full, and
+   * from md up the bar does too. Absent where `who` fits.
+   */
+  phone?: string
   chat: Message[]
   /**
    * The table the answer changes. `added` is a row that appears when the
@@ -166,10 +173,15 @@ export function cellText(c: Cell, today: string | null = null): string {
 // and then by her employer, who pays her — Computer Systems Inc is not
 // her employer, and the client never learns the firm below it.
 
-/** The person in front of each Northbend step, as the bar names them. */
+/**
+ * The person in front of each Northbend step, as the bar names them. Short
+ * enough that "Northbend Athletic · Helena Marsh, contractor" is one line
+ * at 375 (founder, 2026-10-20, on a phone): the firm she is placed through
+ * is said in her conversation, where there is room for it.
+ */
 export const NORTHBEND_PEOPLE = {
   hiring: 'Marcus Oyelaran, hiring manager',
-  worker: 'Helena Marsh, contractor through Computer Systems Inc',
+  worker: 'Helena Marsh, contractor',
   ap: 'Renata Kowal, AP clerk',
 } as const
 
@@ -345,6 +357,8 @@ export const APTIVA_BOOK = 'Cavanaugh Glassworks'
 
 /** The person in Aptiva's seat: its program manager, the first seat the seed gives Aptiva. */
 export const APTIVA_WHO = 'Rashida Coleman, program manager'
+/** Her job alone, for the bar on a phone: "Aptiva Workforce · Rashida Coleman, program manager" is three pixels past 375. */
+export const APTIVA_PHONE = 'program manager'
 
 export const APTIVA_STORY_STEPS: StoryStep[] = [
   {
@@ -352,6 +366,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
     chip: 'Job',
     embed: 'source',
     who: APTIVA_WHO,
+    phone: APTIVA_PHONE,
     chat: [
       { who: 'me', text: 'Send the environmental health and safety lead job to Cavanaugh’s approved suppliers. Bill rate $90 to $110 an hour.' },
       {
@@ -380,6 +395,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
     chip: 'Candidates',
     embed: 'submit',
     who: APTIVA_WHO,
+    phone: APTIVA_PHONE,
     chat: [
       { who: 'me', text: 'Who applied for the environmental health and safety lead job?' },
       {
@@ -408,6 +424,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
     chip: 'Timesheets',
     embed: 'approve',
     who: APTIVA_WHO,
+    phone: APTIVA_PHONE,
     chat: [
       { who: 'me', text: 'Which timesheets are waiting at Cavanaugh?' },
       {
@@ -433,6 +450,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
     chip: 'Invoices',
     embed: 'pay',
     who: APTIVA_WHO,
+    phone: APTIVA_PHONE,
     chat: [
       { who: 'me', text: 'Which invoice receipt is ready to pay?' },
       {
@@ -480,6 +498,7 @@ export const BRIGHTMOOR_STORY: Story = {
       chip: 'Candidates',
       embed: 'submit',
       who: 'Marisa Delacroix, account manager',
+      phone: 'account manager',
       chat: [
         { who: 'me', text: 'Who applied for Northbend’s HCM integration lead job from us?' },
         { who: 'etyme', text: 'Rajesh Iyer, at $134 an hour. His interview with Marcus Oyelaran is booked.' },
@@ -593,6 +612,7 @@ export const TELEWORLD_STORY: Story = {
       chip: 'Candidates',
       embed: 'submit',
       who: 'Sunil Raghavan, delivery manager',
+      phone: 'delivery manager',
       chat: [
         { who: 'me', text: 'Who on our bench matches Corveldt Aerospace’s DO-178C verification engineer job?' },
         {
@@ -637,7 +657,7 @@ export const BYRNE_STORY: Story = {
       n: 4,
       chip: 'Invoices',
       embed: 'pay',
-      who: 'Colleen Byrne, ICU travel nurse and owner',
+      who: 'Colleen Byrne, owner',
       chat: [
         { who: 'me', text: 'Can I bill Halcyon Talent for last week?' },
         {
@@ -708,7 +728,7 @@ function copyOfStory(story: Story): string[] {
   return [
     story.bar.company, story.bar.rest, story.book,
     ...story.steps.flatMap((s) => [
-      s.who,
+      s.who, ...(s.phone ? [s.phone] : []),
       ...s.chat.flatMap((m) => [
         m.text,
         ...(m.card ? [m.card.t, m.card.s, m.card.yes] : []),

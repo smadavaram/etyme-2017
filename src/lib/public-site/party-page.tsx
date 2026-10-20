@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { SubPageView } from './sub-page'
-import { ON_SCREEN_DOOR } from './skeleton-words'
+import { ON_SCREEN_DOOR, OPEN_DEMO } from './skeleton-words'
 import { doorTab, partyAt, tabHref, type PartySlug } from './parties'
 
 /**
@@ -33,8 +33,8 @@ export function PartyPageView({ slug, params }: { slug: PartySlug; params?: Door
   const door = partyAt(slug)!
   const p = doorTab(door, tabOf(params))
   const demo = 'candidate' in p.demo
-    ? { label: p.demoLabel, candidate: true as const }
-    : { label: p.demoLabel, target: p.demo.target }
+    ? { label: OPEN_DEMO, candidate: true as const }
+    : { label: OPEN_DEMO, target: p.demo.target }
   const tabs = door.tabs?.map((t) => ({ t: t.label, href: tabHref(door, t.key), current: t.key === p.tab?.key }))
   return (
     <SubPageView

@@ -63,7 +63,7 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
-import { BAND, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
+import { BAND, CATEGORY, OPEN_DEMO, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
 import { HEADER, everyFrameLink } from '@/lib/public-site/nav'
@@ -86,6 +86,10 @@ import { TOPICS } from '@/lib/public-site/docs/topics'
  */
 const PAGE = ['src/app/page.tsx', 'src/lib/public-site/skeleton-words.ts', 'src/lib/public-site/skeleton.tsx']
   .map((f) => readFileSync(join(process.cwd(), f), 'utf8')).join('\n')
+  // The category line is the shared skeleton's since 2026-10-20, drawn by
+  // the home page, every step page and every door from one constant; the
+  // page is read as drawn, with the line in its place.
+  .replace('<CategoryLine />', `<p data-category-line="">${CATEGORY}</p>`)
 
 /**
  * The three-way check, defined in the founder's words on his go-to-market
@@ -681,10 +685,16 @@ describe('Below the hero, the page says what the business is', () => {
     // period, so it fits one line at 375 (founder, 2026-10-19, reading it
     // in capitals on his phone and desktop). The category guard still
     // finds the category in it without the period.
+    // Since 2026-10-20 the line is the skeleton's `CategoryLine`, which
+    // every step page and door draws too, reading one constant.
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<h1'))
-    expect(top).toContain('<p className="mb-2 text-[13px] font-medium text-etyme-muted">')
-    expect(top).not.toMatch(/uppercase|tracking-/)
+    expect(top).toContain('<p data-category-line="">')
     expect(copyFrom(top)).toEqual(['Enterprise contingent workforce management'])
+    const drawn = PAGE.slice(PAGE.indexOf('export function CategoryLine'), PAGE.indexOf('export function LiveDemo'))
+    expect(drawn).toContain("className = 'mb-2'")
+    expect(drawn).toContain('text-[13px] font-medium text-etyme-muted')
+    expect(drawn).not.toMatch(/uppercase|tracking-/)
+    expect(CATEGORY).toBe('Enterprise contingent workforce management')
     expect(check({ hero: ['Enterprise contingent workforce management'], body: [] }).map((f) => f.rule)).not.toContain('category-first')
   })
   it('carries no support line between the category and the question, because nothing in it could be checked by clicking', () => {
@@ -2092,7 +2102,7 @@ describe('Two words nobody uses (the founder, 2026-10-14)', () => {
       ...everyPublicPage().filter(([route]) => route !== '/census'),
       ['the census', [...Object.values(CENSUS_COPY.form), ...CENSUS_COPY.desks.map((d) => d.label)].join(' ')],
       ['the doors', JSON.stringify([...HOME_DOORS, ...SKELETON_FOOTER_LINKS].map((d) => d.t))],
-      ['the party doors and their tabs', everyDoorView().flatMap((p) => [p.demoLabel, p.signUp.t, p.caption ?? '', p.tab?.label ?? '']).join(' ')],
+      ['the party doors and their tabs', [OPEN_DEMO, ...everyDoorView().flatMap((p) => [p.signUp.t, p.caption ?? '', p.tab?.label ?? ''])].join(' ')],
       // The documentation drew pictures until 2026-10-15; its flow charts are words now, each box naming who.
       ['the documentation’s flow charts', STEP_PAGES.flatMap((p) => p.flow.flatMap((b) => [b.role ?? '', b.t])).join(' ')],
     ] as [string, string][]

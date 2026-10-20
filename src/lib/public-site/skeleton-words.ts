@@ -10,6 +10,18 @@ import type { EmbedStep } from '@/lib/sample-seat'
 import { storyChromeCopy, type StoryKey } from './story'
 
 /**
+ * The category: the first line of every page that sells the product, the
+ * home page, the four step pages and every door and tab, drawn once by
+ * `CategoryLine` in `./skeleton` so the words cannot drift (founder,
+ * 2026-10-20, reading every door on a phone: "Did you establish the
+ * category on all parties and doors?"). The category and nothing else:
+ * never "vendor management system", never AI. Reference pages (the
+ * documentation, security, About, Contact, the demo, the legal pages and
+ * sign-in) do not draw it.
+ */
+export const CATEGORY = 'Enterprise contingent workforce management'
+
+/**
  * The line under the home page's panel: who the reader is watching, and
  * that every firm on it is a demo company (founder's drawing, 2026-10-19).
  * The panel names each of the three on its bar as their step plays.

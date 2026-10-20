@@ -2,13 +2,16 @@ import { MODULES, PAIR_LABELS, LINE_LABELS, type ModulePage } from './modules'
 import { OPEN_DEMO } from './skeleton-words'
 import { SiteHeader } from './frame'
 import { DemoLink } from './demo-link'
-import { LiveDemo, PhoneButton, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON, FOCUS } from './skeleton'
+import { CategoryLine, LiveDemo, PhoneButton, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON, FOCUS } from './skeleton'
 
 /**
  * The four step pages, each telling the story the same way (founder,
  * 2026-10-15, "build it" on the menu told as a story):
  *
- *   #top       "Step n of 4 · Name", one promise, one line under it,
+ *   #top       the category line, the home page's own, then "Step n of
+ *              4 · Name" in sentence case, not capitals, so the step
+ *              pages and the home page read as one site (2026-10-20),
+ *              one promise, one line under it,
  *              and on a phone the button under that (2026-10-19)
  *   #pair      "Today" beside "With Etyme"
  *   #demo      the panel that shows the product working, opened at this
@@ -38,7 +41,8 @@ export function ModulePageView({ m }: { m: ModulePage }) {
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── Which step, the promise, and one line ── */}
         <section id="top" className="max-w-[760px] pb-2 pt-10 md:pt-14">
-          <p className="mb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-etyme-faint">{m.eyebrow}</p>
+          <CategoryLine className="mb-1" />
+          <p className="mb-2 text-[12px] font-medium text-etyme-faint">{m.eyebrow}</p>
           <h1 className="text-balance font-serif text-[34px] font-normal leading-[1.04] tracking-[-0.025em] text-etyme-ink md:text-[56px]">
             {m.headline}
           </h1>

@@ -5,14 +5,15 @@ import { DemoLink } from './demo-link'
 import type { DemoTarget, PersonTarget } from './flow'
 import type { BandKind } from './skeleton-words'
 import type { StoryKey } from './story'
-import { LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
+import { CategoryLine, LiveDemo, SignUpBand, SecurityLine, SkeletonFooter, PRIMARY_BUTTON } from './skeleton'
 
 /**
  * One product page or party door, drawn in the home page's shape
  * (founder, 2026-10-14: "make sure even the sub pages and doors follow
  * the same structure"):
  *
- *   #top       a door's tabs where it has them (links, one address each),
+ *   #top       the category line, the home page's own (2026-10-20), then
+ *              a door's tabs where it has them (links, one address each),
  *              then the headline, and one line under it saying what the page is for
  *   #demo      the same live frame, opened at this page's step, the four
  *              chips under it, and one button that seats the reader at
@@ -66,6 +67,8 @@ export function SubPageView({ tabs, question, purpose, step, caption, label, lin
       <main className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* ── The question, and what this page is for ── */}
         <section id="top" className="max-w-[760px] pb-6 pt-10 md:pt-14">
+          {/* The category first, above the tabs, as on the home page (2026-10-20). */}
+          <CategoryLine className={tabs ? 'mb-3' : 'mb-2'} />
           {tabs && (
             <nav aria-label={tabs.label} className="mb-6 flex flex-wrap gap-2">
               {tabs.list.map((t) => (

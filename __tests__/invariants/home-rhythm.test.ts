@@ -91,8 +91,12 @@ describe('The home page is three short sections in one column, at every width', 
     expect(bar).toContain('<span aria-hidden="true" className="md:hidden">·</span>')
     // The small dot beside the person is for md up; on a phone the middle dot does its job.
     expect(bar).toContain('className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-etyme-verified md:block"')
-    // A long title is cut with an ellipsis rather than pushing a second line.
-    expect(bar).toContain('<span className="truncate">{steps[cur].who}</span>')
+    // A long title is cut with an ellipsis rather than pushing a second
+    // line, as a guard only: since 2026-10-20 every story's phone line fits
+    // at 375, a story's job alone where its name and job do not
+    // (story-panel.test.ts measures which).
+    expect(bar).toContain('<span className="truncate md:hidden">{steps[cur].phone ?? steps[cur].who}</span>')
+    expect(bar).toContain('<span className="hidden truncate md:block">{steps[cur].who}</span>')
   })
 
   it('puts the chat over the table on a phone and beside it from md, so the table never scrolls sideways', () => {
