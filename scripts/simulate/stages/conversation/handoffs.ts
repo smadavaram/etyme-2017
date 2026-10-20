@@ -44,7 +44,7 @@ import { WORKER_CLOSE, WORKER_QUESTIONS } from '@/app/api/conversations/twin/wor
 import type { Actor, SeatSpec } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
 import {
-  SINCE, blocksOf, countSaid, holdReasonOf, machineTalk, names, outboundBy, pct, sinceLines, subjectOf, textOf,
+  SINCE, blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, pct, sinceLines, subjectOf, textOf,
   teamsToWorkers, toldTwice, type NoticeRow,
 } from './handoffs-read'
 
@@ -166,7 +166,9 @@ const TITLE_OWNERS: [RegExp, string][] = [
   [/“New requirement from/, 'demand — app/api/requisitions/[id]/distribute writes the title, and says “requirement”'],
   [/“New submission for/, 'demand — app/api/submissions writes the title, with no candidate named'],
   [/week is yours to accept”/, 'demand — app/api/timesheets/chain-turn writes the title, with no week named'],
-  [/“Timesheet approved”/, 'demand — app/api/timesheets/[id]/approve writes the title, with no week named'],
+  // A week approved by email says so in its body; that notice is written by lib/week-approval.
+  [/“Timesheet approved”.*Approved by email/, 'architect — lib/week-approval writes the title when a week is approved by email, with no week named'],
+  [/“Timesheet approved”/, 'demand or architect — the approve route or approve by email writes the title, with no week named'],
   [/“Contract (activated|.*may begin)/, 'money — app/api/contracts/[id]/activate writes the title, with no client named'],
   [/document\(s\) before you start/, 'regulatory — app/api/compliance/clearance/ask writes the title'],
   [/is asking you to decide”/, 'architect — lib/twin/ledger writes the title; conversation now leaves it out where its card is in the greeting'],
@@ -174,8 +176,8 @@ const TITLE_OWNERS: [RegExp, string][] = [
   [/put you forward to/, 'demand — app/api/submissions writes the title, with no job named'],
   [/An expense of yours was accepted/, 'money — app/api/expenses/[id]/accept writes it once per firm that accepts'],
 ]
-function ownerOfTitle(title: string): string {
-  return TITLE_OWNERS.find(([re]) => re.test(`“${title}”`))?.[1] ?? 'whoever writes that notice'
+function ownerOfTitle(title: string, body?: string | null): string {
+  return TITLE_OWNERS.find(([re]) => re.test(`“${title}” ${body ?? ''}`))?.[1] ?? 'whoever writes that notice'
 }
 function ownerOfFault(f: string): string {
   if (/nobody has given you a seat yet/.test(f)) return 'architect — lib/api-context refuses a placed worker with no seat before Ask Etyme’s own door for a candidate with no company'
@@ -505,7 +507,7 @@ export default defineStage({
         // and a question whose card is in the greeting is said by the card, not by its notice.
         // Only a notice the greeting actually said: one left out (its card is above, or it was answered) is not said without anything.
         const said = since.some((l) => names(l, n.title.replace(/[\s.!:;,]+$/u, '').replace(/!/g, '')))
-        if (what && said && !/^Your\b/.test(n.title) && !names(r.text, what) && !names(n.title, what)) {
+        if (what && said && !/^Your\b/.test(n.title) && !carries(r.text, what) && !carries(n.title, what)) {
           r.faults.push(`“${n.title}” is said without what it is about (${what}).`)
         }
       }
@@ -743,10 +745,10 @@ export default defineStage({
         return [...m.entries()].sort((a, b) => b[1].times - a[1].times)
       }
       for (const [k, e] of byTitle(same).slice(0, 10)) {
-        L(`- word for word: “${k}”, ${e.times} notices to ${e.people} people (e.g. ${e.example.personName}, ${e.example.party}, ${e.example.times} times). Owner: ${ownerOfTitle(e.example.title)}.`)
+        L(`- word for word: “${k}”, ${e.times} notices to ${e.people} people (e.g. ${e.example.personName}, ${e.example.party}, ${e.example.times} times). Owner: ${ownerOfTitle(e.example.title, e.example.body)}.`)
       }
       for (const [k, e] of byTitle(alike).slice(0, 10)) {
-        L(`- one title for different news: “${k}”, ${e.times} notices to ${e.people} people (e.g. ${e.example.personName}, ${e.example.party}, ${e.example.times} under “${e.example.title}”). Owner: ${ownerOfTitle(e.example.title)}.`)
+        L(`- one title for different news: “${k}”, ${e.times} notices to ${e.people} people (e.g. ${e.example.personName}, ${e.example.party}, ${e.example.times} under “${e.example.title}”). Owner: ${ownerOfTitle(e.example.title, e.example.body)}.`)
       }
       L()
     }

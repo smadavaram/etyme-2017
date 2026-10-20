@@ -65,6 +65,27 @@ export function names(text: string, name: string): boolean {
   return text.toLowerCase().includes(n.toLowerCase())
 }
 
+/**
+ * Whether a text carries the thing a notice is about, the way a person
+ * would say it. The thing is read off the notice's body ("the week of Aug
+ * 23–29"), and a title that names it in its own grammar — "Anjali Mehta's
+ * week of Aug 23–29 is yours to accept" — carries it, though it never says
+ * "the week of". So a leading article is not required, and for a week the
+ * dates alone are enough. An en dash and a hyphen between dates are one
+ * mark (full simulation run, 2026-10-20).
+ */
+export function carries(text: string, what: string): boolean {
+  const flat = (x: string) => x.replace(/\s*[–-]\s*/g, '–')
+  const t = flat(text)
+  const w = flat(what.trim())
+  if (!w) return false
+  if (names(t, w)) return true
+  const bare = w.replace(/^(the|a|an)\s+/i, '')
+  if (bare.length >= 3 && names(t, bare)) return true
+  const dates = /\bweek (?:of )?(.+)$/i.exec(bare)?.[1]?.trim()
+  return !!dates && /\d/.test(dates) && names(t, dates)
+}
+
 // ── The count the greeting leads with ──────────────────────────────────
 
 const WORD_NUMBERS: Record<string, number> = {
@@ -166,7 +187,7 @@ export interface NoticeRow {
  * under one title, so a reader's list shows the same line three times
  * ("New submission for Data engineer", three candidates, none named).
  */
-export function toldTwice(rows: readonly NoticeRow[]): { personName: string; party: string; title: string; times: number; alike: boolean }[] {
+export function toldTwice(rows: readonly NoticeRow[]): { personName: string; party: string; title: string; body: string; times: number; alike: boolean }[] {
   const group = (key: (r: NoticeRow) => string) => {
     const by = new Map<string, NoticeRow[]>()
     for (const r of rows) {
@@ -183,8 +204,8 @@ export function toldTwice(rows: readonly NoticeRow[]): { personName: string; par
     .map((l) => l.filter((r) => !sameIds.has(r.id)))
     .filter((l) => new Set(l.map((r) => r.body)).size > 1)
   return [
-    ...same.map((l) => ({ personName: l[0].personName, party: l[0].party, title: l[0].title, times: l.length, alike: false })),
-    ...alike.map((l) => ({ personName: l[0].personName, party: l[0].party, title: l[0].title, times: l.length, alike: true })),
+    ...same.map((l) => ({ personName: l[0].personName, party: l[0].party, title: l[0].title, body: l[0].body, times: l.length, alike: false })),
+    ...alike.map((l) => ({ personName: l[0].personName, party: l[0].party, title: l[0].title, body: l[0].body, times: l.length, alike: true })),
   ].sort((a, b) => Number(a.alike) - Number(b.alike) || b.times - a.times)
 }
 

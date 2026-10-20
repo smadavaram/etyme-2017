@@ -618,6 +618,20 @@ export function papersLine(cards: readonly WorkerCard[]): string {
 const cap1 = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x)
 
 /**
+ * Her latest week sent, where it stands, with its link: "Your week of Oct
+ * 11–17 is signed and accepted by every firm." Null where she has sent
+ * none. The worker's greeting says it, and so does a one-person firm's,
+ * because she is the firm and the worker at once (handoffs station,
+ * 2026-10-20: Colleen Byrne was the one worker of thirteen whose greeting
+ * never said her week was signed — her seat reads the firm's greeting).
+ */
+export function latestWeekLine(f: Pick<WorkerFacts, 'sent'>): RichLine | null {
+  const latest = newest(f.sent.filter((w) => w.stage !== 'NOT_SENT'))[0]
+  if (!latest) return null
+  return { says: weekStandsSays(latest), links: [{ text: `Your week of ${weekWords(latest.periodStart, latest.periodEnd)}`, href: `/dashboard/weeks/${latest.id}` }] }
+}
+
+/**
  * What needs her today, then where her weeks stand, the chain she works
  * through, and what Etyme does not do. With `greeting`, the first message
  * of the chat, in the founder's order (2026-10-19): her chain in one line;
@@ -639,8 +653,8 @@ export function workerToday(
   const unread = unreadSays(f.unread)
   if (unread) lines.push(unread)
 
-  const latest = newest(f.sent.filter((w) => w.stage !== 'NOT_SENT'))[0]
-  if (latest) lines.push({ says: weekStandsSays(latest), links: [{ text: `Your week of ${weekWords(latest.periodStart, latest.periodEnd)}`, href: `/dashboard/weeks/${latest.id}` }] })
+  const latest = latestWeekLine(f)
+  if (latest) lines.push(latest)
   const owed = owedSays(f)
   if (f.sent.some((w) => w.stage === 'OWED')) lines.push({ says: owed.says })
   // The rule, whenever a week waits: owed once her employer accepts it, not when the client signs it.

@@ -9,7 +9,7 @@ import { GET as programPicture } from '@/app/api/program/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk } from './worker'
+import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine } from './worker'
 import { seatFor } from '@/lib/program-seat'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
@@ -215,14 +215,19 @@ export async function GET(request: NextRequest) {
     const picture = pictureFor(request)
     const queue = queueFor(request)
     void queue()
-    const [notices, threads, modelSwitch, who] = await Promise.all([
-      unreadNotices(caller), unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller),
+    // A one-person firm is the firm and the worker: her own week is read
+    // from her own pages beside the rest, and said in her greeting.
+    const ownWeek = company.kind === 'CONSULTANT_CORP'
+      ? workerFacts(caller, request).then(latestWeekLine).catch(() => null)
+      : Promise.resolve(null)
+    const [notices, threads, modelSwitch, who, week] = await Promise.all([
+      unreadNotices(caller), unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller), ownWeek,
     ])
     // The boundary line reads the company's own switch, so it says what is
     // true for this company; it is the greeting's last line.
     const model = modelState(modelSwitch.on, process.env)
     const answer = await today(readersFor(caller, company.id, request), {
-      greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client,
+      greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client, ownWeek: week,
     })
     // Said, so read: the section empties itself on the next greeting.
     await Promise.all([

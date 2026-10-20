@@ -1726,8 +1726,10 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
     (near.length ? { says: planSays(near[0]), links: [{ text: near[0].name, href: near[0].href }] } : null) ??
     undefined
 
-  // Then the facts, each read at the moment of the question.
+  // Then the facts, each read at the moment of the question. A one-person
+  // firm's own week first: money and the week before anything else.
   const lines: RichLine[] = []
+  if (opts.greeting && party === 'SOLO' && opts.ownWeek) lines.push(opts.ownWeek)
   const toldLine = toldSays(told.told, told.stale)
   if (toldLine) lines.push(toldLine)
   lines.push(...othersSay(others))
@@ -1806,6 +1808,12 @@ export interface TodayOptions {
   needs?: () => Promise<number | QueueRead | null>
   /** Unread notices for the greeting's "Since you last looked", and how many older ones wait. */
   notices?: { shown: readonly NoticeLine[]; older: number }
+  /**
+   * A one-person firm's own latest week, where it stands (`latestWeekLine`
+   * in ./worker): she is the firm and the worker, so her greeting says her
+   * week as a worker's does. Read only for SOLO; ignored for every other party.
+   */
+  ownWeek?: RichLine | null
   /** Conversations another company or a candidate wrote on since the reader last looked. */
   threads?: { shown: readonly ThreadNote[]; more: number }
   /** Whether a model can be asked here; the greeting closes on what that means for this company's data. */

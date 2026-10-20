@@ -59,7 +59,7 @@ import { owedFrom } from '@/lib/owed-count'
 import { ONLY_THE_RECORD, NOT_ANOTHER_BOOK, offRecord, knownFirm, firmsByForm } from '@/app/api/conversations/twin/transaction'
 import {
   workerToday, respondWorker, isWorkerSeat, owedSays, chainSays, cardsFor, WORKER_QUESTIONS, WORKER_CLOSE, WORKER_BOUNDARY, NEVER_FILES, limitLine,
-  FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, type WorkerFacts, type WorkerAnswer, type SentWeek,
+  FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, latestWeekLine, type WorkerFacts, type WorkerAnswer, type SentWeek,
 } from '@/app/api/conversations/twin/worker'
 import {
   respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
@@ -1494,6 +1494,26 @@ describe('every first screen names a person and the step in front of them (found
     expect(card.title).toBe('Felix Brenner rolls off in 18 days.')
     expect(card.fact).toBe('Northbend Athletic, $132/hr, nobody has acted yet.')
     expect(voiceBreaks(card.title)).toEqual([])
+  })
+
+  it('a one-person firm’s greeting says her own latest week and that it is signed, as a worker’s does, because she is the firm and the worker; no other party’s greeting carries it', async () => {
+    const signed: SentWeek = {
+      id: 'ts-colleen', periodStart: '2026-10-11', periodEnd: '2026-10-17', hours: 36, stage: 'SIGNED', waitingOn: null,
+      client: 'Talvern Medical', employer: 'Byrne Critical Care LLC', approvedBy: null, stillOwedMinor: null, owedHours: null,
+      currency: null, dueOn: null, overdue: false, paidOn: null,
+    }
+    const older: SentWeek = { ...signed, id: 'ts-older', periodStart: '2026-10-04', periodEnd: '2026-10-10', stage: 'PAID' }
+    const week = latestWeekLine({ sent: [older, signed] })!
+    expect(week.says).toBe('Your week of Oct 11–17 is signed and accepted by every firm.')
+    expect(week.links).toEqual([{ text: 'Your week of Oct 11–17', href: '/dashboard/weeks/ts-colleen' }])
+    const hers = await today(readers(quiet), { now: NOW, greeting: true, party: 'SOLO', ownWeek: week })
+    if (hers.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect((hers.more ?? []).map((l) => l.says)).toContain(week.says)
+    const firm = await today(readers(quiet), { now: NOW, greeting: true, party: 'FIRM', ownWeek: week })
+    if (firm.kind !== 'NEEDS') throw new Error('not a greeting')
+    expect((firm.more ?? []).map((l) => l.says)).not.toContain(week.says)
+    // A week saved and never sent is no week to say.
+    expect(latestWeekLine({ sent: [{ ...signed, stage: 'NOT_SENT' }] })).toBeNull()
   })
 
   it('an invoice receipt waiting to be paid names the supplier and the invoice — “Brightmoor Staffing’s invoice receipt BRS-0412 waits for you to pay it” — with the amount and the due day as its fact', () => {

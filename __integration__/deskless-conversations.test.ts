@@ -668,3 +668,29 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(after.body.data.answer.kind).toBe('WORKER')
   })
 })
+
+describe('a one-person firm is the firm and the worker in one greeting', () => {
+  let email = ''
+  let seat = ''
+  beforeAll(async () => {
+    await freshWorld()
+    const byrne = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-byrne-critical-care' }, select: { id: true } })
+    const owner = await prisma.context.findFirstOrThrow({
+      where: { companyId: byrne.id, type: 'EMPLOYEE' },
+      select: { id: true, person: { select: { primaryEmail: true } } },
+    })
+    email = owner.person.primaryEmail
+    seat = owner.id
+  }, 600_000)
+
+  it('Colleen Byrne’s greeting at her own corporation says her latest week and that the client signed it, with a link to the week', async () => {
+    as(email)
+    const res = await json(await askGet(req('GET', '/api/conversations/twin', undefined, { 'x-context-id': seat })))
+    expect(res.status).toBe(200)
+    expect(res.body.data.party).toBe('SOLO')
+    const week = (res.body.data.answer.more as Array<{ says: string; links?: Array<{ text: string; href: string }> }>)
+      .find((l) => l.says.startsWith('Your week of '))
+    expect(week?.says).toMatch(/^Your week of [A-Z][a-z]{2} \d{1,2}–.+ is signed by /)
+    expect(week?.links?.[0].href).toMatch(/^\/dashboard\/weeks\//)
+  })
+})

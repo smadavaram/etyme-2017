@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  blocksOf, countSaid, holdReasonOf, machineTalk, names, outboundBy, sinceLines, subjectOf, teamsToWorkers, textOf, toldTwice,
+  blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, sinceLines, subjectOf, teamsToWorkers, textOf, toldTwice,
   SINCE, type NoticeRow,
 } from '../../scripts/simulate/stages/conversation/handoffs-read'
 import { SINCE_HEADING } from '@/app/api/conversations/twin/ask'
@@ -85,6 +85,17 @@ describe('A name in a greeting', () => {
     expect(names('Two things need you.', '')).toBe(false)
   })
 
+  it('a title that names the week by its dates carries “the week of” it is about, without saying “the week of”', () => {
+    expect(carries('Anjali Mehta’s week of Aug 23–29 is yours to accept', 'the week of Aug 23–29')).toBe(true)
+    expect(carries('Tomasz Nowak’s week of Jul 26 - Aug 1 is yours to accept', 'the week of Jul 26 – Aug 1')).toBe(true)
+    expect(carries('Week Aug 23–29 approved', 'the week of Aug 23–29')).toBe(true)
+    // A title with no dates in it still does not carry the week.
+    expect(carries('Timesheet approved', 'the week of Aug 23–29')).toBe(false)
+    expect(carries('Anjali Mehta’s week is yours to accept', 'the week of Aug 23–29')).toBe(false)
+    expect(carries('Data engineer was sent to you', 'Data engineer')).toBe(true)
+    expect(carries('Anything at all', '')).toBe(false)
+  })
+
   it('sits in one piece with its due day, so “whose week, and by when” is asked of the piece that names her', () => {
     const answer = {
       says: 'Two things need you: Helena Marsh’s week; Rosa Delgado’s expense. Open the list.',
@@ -105,7 +116,7 @@ describe('Who was told what, how many times', () => {
 
   it('different news under one title is counted apart, because the list reads the same line again', () => {
     const got = toldTwice([row({ body: 'Week of Oct 4.', entityId: 't1' }), row({ body: 'Week of Oct 11.', entityId: 't2' })])
-    expect(got).toEqual([{ personName: 'Renata Kowal', party: 'supplier', title: 'Helena Marsh’s week is yours to accept', times: 2, alike: true }])
+    expect(got).toEqual([{ personName: 'Renata Kowal', party: 'supplier', title: 'Helena Marsh’s week is yours to accept', body: 'Week of Oct 4.', times: 2, alike: true }])
   })
 
   it('one notice to each of two people is nobody told twice', () => {
