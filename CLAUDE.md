@@ -1690,61 +1690,47 @@ What follows, so nobody models a group as two companies:
   Two companies on the record for one group is the wrong workaround and is
   not used.
 
-## Every site has its own calendar, and a placement says whose calendar the worker reports to — decided 2026-10-20
+## A site has a country and a time zone, and a local holiday is a day on the week — decided 2026-10-20
 
 The founder: *"Can clients and businesses have tens of locations
 globally and have their own calendar of operations, a local HR
 calendar and a sales calendar that a worker has to report to? A
 contractor working from India has Diwali, but a client may agree to
-it or not."* Today a company has one calendar: holidays and days off
-sit on `Company` (`Holiday`, `Company.daysOff`), a holiday may name a
-country so it does not move another site's dates, and a `CompanyLocation`
-carries a name, an address and a country but no calendar of its own.
-The 2026-09-21 rule already said the calendar belongs to the site under
-the tenant and the entity; this is where it is built. Decided, each
-line reversible by the founder:
+it or not."* Then, on the first answer (three calendars, an agreed
+list per placement, a reminder from the twin): *"Is this over
+engineering?"* It was. The question is one worker, one day, one
+client: is this day a holiday for this placement, and who pays for
+it. What answers it with what already exists, and nothing more:
 
-- **A location is a site with a calendar**: time zone, days off, its
-  holidays (seeded from the country's public holidays, edited by the
-  site), and who runs it. A company may have tens of them, in any
-  country. Rules still live on the tenant and are overridden at the
-  entity, then the site.
-- **Three calendars touch one worker, and the placement names which
-  governs what.** The **client's site** where the work is done is the
-  calendar of operations: it says which days the client expects work,
-  which days are the client's holidays, and so which days a week is
-  checked against. The **employer's HR calendar** (the firm that pays
-  the worker) says which of those days are paid when not worked, and
-  how leave is counted. The **worker's own location** says what their
-  local holidays are and nothing more, because a holiday where the
-  worker sits binds nobody unless agreed. The "sales calendar" is the
-  billing rhythm between each pair, already read agreement first
-  (2026-10-18), and is not a third calendar on the worker.
-- **A local holiday is agreed per placement, or it is leave.** A
-  placement carries the list of the worker's local holidays the client
-  agreed to (Diwali, yes; Dussehra, no), recorded with who agreed and
-  when; the default is the client's site calendar and nothing else.
-  On an agreed day the week expects nothing, the client is not billed,
-  and the employer's HR calendar says whether the worker is paid. On a
-  day the client did not agree, the worker may still take it, and it
-  is leave under the employer's policy, never a silent holiday: the
-  week says "Diwali: leave, not a holiday on Northbend's calendar"
-  and the twin reminds the account manager to ask the client before
-  the next year's date, not after.
-- **A day off never decides what may be filed**: a Saturday at an
-  Indian site that works Saturdays is an ordinary day, and a worked
-  holiday is paid and billed as the agreement says (a premium only
-  where the agreement or the law sets one; regulatory confirms per
-  country).
-- **Sequence:** the site calendar and the placement's governing site
-  and agreed holidays are a schema request for the architect, after the
-  generated world's frame, and the generated world's firms carry sites
-  in several countries with their calendars from the start, so the
-  simulation files an Indian worker's Diwali week against a US client's
-  calendar. Then: the week check reads the governing site (demand),
-  pay and billing read the agreed list and the HR calendar (money),
-  leave and holiday premiums per country (regulatory), the reminder
-  (conversation).
+- **A site has a country and a time zone.** `CompanyLocation` already
+  carries the country; it gains a time zone. Its holidays are the
+  country's public holidays, which `Holiday.country` already keeps off
+  another site's dates. Nobody edits a site's calendar until a paying
+  client with sites in two countries asks for it.
+- **The placement's site decides which days are expected.** A
+  placement already names the site where the work is done; the week
+  is checked against that site's country and days off. An Indian
+  worker on a US client's site is expected on Diwali unless the day is
+  taken.
+- **A local holiday is a kind of day on the week, and the client's
+  signature is the agreement.** The worker marks the day "local
+  holiday — Diwali" the way they mark leave; the week shows it in
+  words; the client signs the week or sends it back, which is the
+  "agree or not" the founder named, through the signature that
+  already exists. No agreed list, no second table, no reminder.
+- **Pay and billing follow what is already there**: a holiday day is
+  not billed; whether the worker is paid for it is the employer's
+  existing holiday policy (the bench setting of 2026-10-03, off by
+  default, on for GSIs), applied to placements too.
+- **The generated world's firms still get sites in several
+  countries**, because it costs one column and proves "horizontal,
+  never vertical" in the simulation. Everything else above waits for
+  the first paying client who asks, per the sequencing rule.
+
+Cost: one column on the site, one value in the day kinds, one line
+in the week's words. The earlier design (three calendars, agreed
+holidays per placement, a twin reminder) is recorded here as what was
+cut, so it is not re-derived until a client needs it.
 
 ## Who pays — decided 2026-09-10
 
