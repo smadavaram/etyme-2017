@@ -838,6 +838,10 @@ export interface NoticeLine {
   body?: string | null
   cycleKind?: string | null
   dueOn?: string | null
+  /** The thing it is about; for the twin's own question, the approval its card answers. */
+  entityId?: string | null
+  /** Etyme's own question, already answered: marked read with the rest, never said. */
+  settled?: boolean
 }
 
 /** Notices said in one greeting, at most; the rest wait for the next one. */
@@ -1768,7 +1772,11 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // card said it.
   if (opts.greeting && (opts.notices || opts.threads)) {
     const said = heldNoticeTitles(held)
-    more.push(...sinceSays((opts.notices?.shown ?? []).filter((n) => !said.has(n.title)), opts.notices?.older ?? 0, {
+    // Nor is the twin's own question said again as the notice that told
+    // of it: its card is right above (handoffs station, 2026-10-20: "Ask
+    // Etyme is asking you to decide." under the bill card it asked about).
+    const carded = new Set(items.map((i) => i.approvalId))
+    more.push(...sinceSays((opts.notices?.shown ?? []).filter((n) => !n.settled && !said.has(n.title) && !(n.entityId && carded.has(n.entityId))), opts.notices?.older ?? 0, {
       now, threads: opts.threads?.shown, moreThreads: opts.threads?.more,
     }))
   }

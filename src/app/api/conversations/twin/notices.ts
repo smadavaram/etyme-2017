@@ -13,6 +13,7 @@
  * notice the greeting had no room for is never lost.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
 import { bellShows } from '@/lib/notify/account-mail'
@@ -27,15 +28,42 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
  * Where a notice applies. A notice written at another of this person's
  * companies waits for that seat, because its link opens that company's
  * book; a notice tied to no company is the person's own and shows at any.
+ *
+ * Except a notice written at a firm whose bench she is on (a CONSULTANT
+ * seat). That seat is no firm's book: it is her own work, and the notice
+ * is about her — her license running out, her week. Found by the
+ * simulation's handoffs station (2026-10-20): Colleen Byrne reads Ask
+ * Etyme at her own corporation, and Halcyon Talent's chase for her
+ * nursing license sat unread at a seat whose greeting she never opens.
+ * So those notices show at whichever seat she reads from.
  */
-function unreadWhere(caller: CallerContext) {
+async function unreadWhere(caller: CallerContext): Promise<Prisma.NotificationWhereInput> {
+  const own = caller.company
+    ? await prisma.context.findMany({
+        where: { personId: caller.person.id, type: 'CONSULTANT', revokedAt: null, companyId: { not: caller.company.id } },
+        select: { companyId: true },
+      }).catch(() => [] as { companyId: string | null }[])
+    : []
+  const benches = [...new Set((own ?? []).map((c) => c.companyId).filter((id): id is string => !!id))]
+  const at: Prisma.NotificationWhereInput[] = caller.company
+    ? [{ companyId: caller.company.id }, { companyId: null }, ...(benches.length ? [{ companyId: { in: benches } }] : [])]
+    : []
   return {
     personId: caller.person.id,
     status: 'UNREAD',
-    ...(caller.company ? { OR: [{ companyId: caller.company.id }, { companyId: null }] } : {}),
+    AND: [
+      ...(at.length ? [{ OR: at }] : []),
+      // The twin's Teams digest is the greeting's own list sent to Teams;
+      // said again here it would be "1 bill to send" under the card for
+      // that bill (found by the handoffs station, 2026-10-20).
+      { OR: [{ entityId: null }, { NOT: { entityId: { startsWith: DIGEST_PREFIX } } }] },
+    ],
     ...bellShows(),
   }
 }
+
+/** The marker the twin's Teams digest writes as its notice's entityId (`lib/teams/digest`). */
+export const DIGEST_PREFIX = 'twin-digest:'
 
 /**
  * The newest unread notices for this seat, at most NOTICES_SHOWN, and how
@@ -45,7 +73,7 @@ function unreadWhere(caller: CallerContext) {
  * day, so the greeting can say who and what rather than the title.
  */
 export async function unreadNotices(caller: CallerContext): Promise<{ shown: NoticeLine[]; older: number }> {
-  const where = { ...unreadWhere(caller), type: { not: 'CONVERSATION' } }
+  const where = { ...(await unreadWhere(caller)), type: { not: 'CONVERSATION' } }
   const [rows, total] = await Promise.all([
     prisma.notification.findMany({
       where,
@@ -55,14 +83,25 @@ export async function unreadNotices(caller: CallerContext): Promise<{ shown: Not
     }),
     prisma.notification.count({ where }),
   ])
+  // Etyme's own question, answered since it was asked: the notice is
+  // marked read with the rest and never said, because "Ask Etyme is asking
+  // you to decide" about a bill already sent is a question nobody can
+  // answer (handoffs station, 2026-10-20).
+  const asked = [...new Set(rows.map((n) => asRecord(n.data)?.twinApprovalId).filter((x): x is string => typeof x === 'string'))]
+  const settled = asked.length
+    ? new Set((await prisma.twinApproval.findMany({ where: { id: { in: asked }, decision: { not: 'PENDING' } }, select: { id: true } })).map((a) => a.id))
+    : new Set<string>()
   return {
     shown: rows.map((n) => {
       const data = asRecord(n.data)
+      const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
       return {
         id: n.id, title: n.title, href: pageOf(n.type, n.entityId, data),
         type: n.type, body: typeof n.body === 'string' ? n.body : null,
         cycleKind: typeof data?.kind === 'string' ? data.kind : null,
         dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
+        entityId: n.entityId,
+        ...(approval && settled.has(approval) ? { settled: true } : {}),
       }
     }),
     older: Math.max(0, total - rows.length),
@@ -94,7 +133,7 @@ async function aboutOf(t: { topic: string; topicId: string | null; title: string
  */
 export async function unreadThreads(caller: CallerContext): Promise<{ shown: ThreadNote[]; more: number; noticeIds: string[] }> {
   const notes = await prisma.notification.findMany({
-    where: { ...unreadWhere(caller), type: 'CONVERSATION' },
+    where: { ...(await unreadWhere(caller)), type: 'CONVERSATION' },
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: { id: true, entityId: true, data: true },

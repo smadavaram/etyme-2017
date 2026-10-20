@@ -116,12 +116,15 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
 
   switch (event) {
     case 'PROPOSED':
+      // The job is in the title: a supplier with three people in rounds at
+      // one client reads which job this is from the line alone (handoffs
+      // station, 2026-10-20: the greeting said the title and nothing else).
       toVendorStaff(
-        `${c.client.name} wants to interview ${c.consultant.name}`,
+        `${c.client.name} wants to interview ${c.consultant.name} for ${c.role}`,
         `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered — confirm one, or confirm for ${c.consultant.name.split(' ')[0]} if they have told you.`
       )
       toConsultant(
-        `${c.client.name} would like to interview you`,
+        `${c.client.name} would like to interview you for ${c.role}`,
         `${c.stage}, ${round}, for ${c.role}. ${c.slotCount === 1 ? 'One time' : `${c.slotCount} times`} offered${offered.length > 0 ? `: ${offered.join('; ')}` : ''} — pick one on your page, or tell ${c.vendor.name}.`
       )
       break
@@ -135,14 +138,14 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       // that stuck, in their own day.
       if (c.when && c.state === 'CONFIRMED') {
         toConsultant(
-          `Your ${round} with ${c.client.name} is booked`,
+          `Your ${round} with ${c.client.name} for ${c.role} is booked`,
           (at) => `${c.stage}, for ${c.role} — ${at}. ${c.vendor.name} confirmed it. If you cannot make it, say so on your page.`
         )
       }
       break
     case 'ANSWERED_YES':
-      toRequester(`${c.consultant.name} accepted ${round}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}.`)
-      toVendorStaff(`${c.consultant.name} accepted ${round} at ${c.client.name}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}. They answered it themselves.`)
+      toRequester(`${c.consultant.name} accepted ${round} for ${c.role}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}.`)
+      toVendorStaff(`${c.consultant.name} accepted ${round} at ${c.client.name} for ${c.role}`, (at) => `For ${c.role}${at ? ` — ${at}` : ''}. They answered it themselves.`)
       break
     case 'ANSWERED_NO':
       toRequester(`${c.consultant.name} cannot make ${round}`, `For ${c.role}.${c.reason ? ` They said: ${c.reason}` : ''} Offer other times, or ask ${c.vendor.name}.`)
@@ -159,8 +162,11 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
       break
     }
     case 'ADVANCED':
-      toVendorStaff(`${c.consultant.name} goes through to round ${c.round + 1} at ${c.client.name}`, `For ${c.role}. ${c.client.name} will propose times.`)
-      toConsultant(`You are through to round ${c.round + 1} with ${c.client.name}`, `For ${c.role}. They will propose times; ${c.vendor.name} will let you know.`)
+      // The job in the title as well as the body: a candidate in rounds for
+      // four jobs at one client read four letters under one subject line
+      // (handoffs station, 2026-10-20).
+      toVendorStaff(`${c.consultant.name} goes through to round ${c.round + 1} at ${c.client.name} for ${c.role}`, `For ${c.role}. ${c.client.name} will propose times.`)
+      toConsultant(`You are through to round ${c.round + 1} with ${c.client.name} for ${c.role}`, `For ${c.role}. They will propose times; ${c.vendor.name} will let you know.`)
       break
     case 'OFFERED': {
       // An offer is not a placement. The client places somebody by
@@ -192,6 +198,21 @@ export function noticesFor(event: InterviewEvent, c: NoticeContext): NotifyParam
     }
   }
   return out
+}
+
+/**
+ * A round's kind as a person says it: "Technical", never `TECHNICAL`.
+ * The column holds the machine's word; every letter and greeting read
+ * it raw until the handoffs station read "TECHNICAL, round 1" back.
+ */
+export function stageWords(stage: string | null | undefined): string {
+  const s = (stage ?? '').trim()
+  if (!s) return 'Interview'
+  const known: Record<string, string> = { SCREEN: 'Screening', SCREENING: 'Screening', TECHNICAL: 'Technical', FINAL: 'Final', CULTURE: 'Culture', BEHAVIORAL: 'Behavioral', MANAGER: 'Hiring manager', HIRING_MANAGER: 'Hiring manager', PANEL: 'Panel' }
+  if (known[s.toUpperCase()]) return known[s.toUpperCase()]
+  if (s !== s.toUpperCase()) return s
+  const words = s.toLowerCase().replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /** The context, read once from the round and its submission. */
@@ -233,7 +254,7 @@ export async function noticeContextFor(interviewId: string): Promise<NoticeConte
     interviewId: row.id,
     submissionId: row.submission.id,
     round: row.round,
-    stage: row.stage,
+    stage: stageWords(row.stage),
     role: row.submission.requirement.title,
     consultant: row.submission.person,
     client: row.company,

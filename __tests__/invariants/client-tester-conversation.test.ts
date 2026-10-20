@@ -105,7 +105,7 @@ describe('a candidate’s letter gives the time in their own day', () => {
   it('once all three have said yes, the candidate is told the booked time in their own zone, by email', () => {
     const letter = noticesFor('CONFIRMED', ctx).find((n) => n.personId === 'p-rajesh')!
     expect(letter.channel).toBe('EMAIL')
-    expect(letter.title).toBe('Your round 1 with Northbend Athletic is booked')
+    expect(letter.title).toBe('Your round 1 with Northbend Athletic for HCM integration lead is booked')
     expect(letter.body).toContain('Tue, Oct 6, 11:00 AM CDT')
   })
 

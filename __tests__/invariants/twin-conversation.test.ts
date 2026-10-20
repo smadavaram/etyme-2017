@@ -20,6 +20,8 @@ import { join } from 'node:path'
 const stored: Array<{ maskedPrompt: string; maskedAnswer: string; model: string; purpose: string }> = []
 const noticeCalls: Array<{ op: string; args: any }> = []
 const BILL_DB: { approvals: any[]; invoices: any[]; holds: any[]; otherSender: boolean } = { approvals: [], invoices: [], holds: [], otherSender: false }
+/** The firms whose bench the reader is on (CONSULTANT seats), for the notices that follow her to any seat. */
+const BENCHES: { companyId: string }[] = []
 const UNREAD = [
   { id: 'n-1', type: 'TIMESHEET', title: 'Helena Marsh filed her week', entityId: null, data: null },
   { id: 'n-2', type: 'SYSTEM', title: 'Priya joined Northbend Athletic', entityId: null, data: { href: '/dashboard/settings/users' } },
@@ -40,7 +42,10 @@ vi.mock('@/lib/db', () => ({
     // waitingQuestions: the shipped role contract, and whether anybody
     // else at the firm sends bills.
     roleContract: { findFirst: vi.fn(async () => null) },
-    context: { findFirst: vi.fn(async () => (BILL_DB.otherSender ? { id: 'ctx-ines' } : null)) },
+    context: {
+      findFirst: vi.fn(async () => (BILL_DB.otherSender ? { id: 'ctx-ines' } : null)),
+      findMany: vi.fn(async (args: any) => { noticeCalls.push({ op: 'context.findMany', args }); return BENCHES }),
+    },
     modelPrompt: { create: vi.fn(async ({ data }: { data: { maskedPrompt: string; maskedAnswer: string; model: string; purpose: string } }) => { stored.push(data); return { id: `mp-${stored.length}` } }) },
   },
 }))
@@ -716,6 +721,21 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     expect(lines(asked)).not.toContain(SINCE_HEADING)
   })
 
+  it('the notice that told of Etyme’s own question is not said again under “Since you last looked” when the question’s card is in the greeting', async () => {
+    const asked = { id: 'n-ask', title: 'Ask Etyme is asking you to decide', href: '/dashboard', entityId: WAITING[0].approvalId }
+    const hello = await today(readers({ waiting: async () => [WAITING[0]] }), { now: NOW, greeting: true, needs: async () => 1, notices: { shown: [asked, ...NOTICES.shown], older: 0 } })
+    const said = lines(hello)
+    expect(said).not.toContain('Ask Etyme is asking you to decide.')
+    expect(said).toContain('Helena Marsh filed her week.')
+    // Where the card is not there, the notice is said as before.
+    const without = await today(readers({ waiting: async () => [] }), { now: NOW, greeting: true, needs: async () => 1, notices: { shown: [asked], older: 0 } })
+    expect(lines(without)).toContain('Ask Etyme is asking you to decide.')
+    // And once the question is answered, its notice is never said: there is nothing left to decide.
+    const answered = await today(readers({ waiting: async () => [] }), { now: NOW, greeting: true, needs: async () => 1, notices: { shown: [{ ...asked, settled: true }], older: 0 } })
+    expect(lines(answered)).not.toContain('Ask Etyme is asking you to decide.')
+    expect(lines(answered)).not.toContain(SINCE_HEADING)
+  })
+
   it('with no unread notices the greeting draws no “Since you last looked” heading at all', async () => {
     const hello = await today(readers(), { now: NOW, greeting: true, notices: { shown: [], older: 0 } })
     expect(lines(hello)).not.toContain(SINCE_HEADING)
@@ -742,7 +762,10 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     // Seven unread, two shown: five wait for the next greeting.
     expect(got.older).toBe(5)
     const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
-    expect(where).toMatchObject({ personId: 'p-dana', status: 'UNREAD', OR: [{ companyId: 'c-northbend' }, { companyId: null }] })
+    expect(where).toMatchObject({ personId: 'p-dana', status: 'UNREAD' })
+    expect(where.AND[0]).toEqual({ OR: [{ companyId: 'c-northbend' }, { companyId: null }] })
+    // The twin's Teams digest is the greeting's own list; it is not said again under it.
+    expect(where.AND[1]).toEqual({ OR: [{ entityId: null }, { NOT: { entityId: { startsWith: 'twin-digest:' } } }] })
     // A note on a conversation is said as its conversation, not as a notice.
     expect(where.type).toEqual({ not: 'CONVERSATION' })
     // The account's own sign-up and reset mail stays out, as it did on the page.
@@ -756,6 +779,24 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     // And the one write is the notice's own read mark, nothing else.
     const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/notices.ts'), 'utf8')
     expect([...src.matchAll(/prisma\.(\w+)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/g)].map((m) => `${m[1]}.${m[2]}`)).toEqual(['notification.updateMany'])
+  })
+
+  it('a notice about a worker’s own work, written at the firm whose bench she is on, reaches her greeting at whichever seat she reads from', async () => {
+    // Colleen Byrne reads Ask Etyme at her own corporation; Halcyon Talent,
+    // whose bench she is on, chased her nursing license. Found by the
+    // simulation's handoffs station: the chase waited at a seat she never opens.
+    const { unreadNotices } = await import('@/app/api/conversations/twin/notices')
+    const caller = { person: { id: 'p-colleen' }, company: { id: 'c-byrne-llc' } } as any
+    BENCHES.splice(0, BENCHES.length, { companyId: 'c-halcyon' })
+    noticeCalls.length = 0
+    await unreadNotices(caller)
+    const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
+    expect(where.AND[0].OR).toEqual([{ companyId: 'c-byrne-llc' }, { companyId: null }, { companyId: { in: ['c-halcyon'] } }])
+    // Only her own bench seats, never a firm where she holds a desk: that seat's notices open that firm's book.
+    expect(noticeCalls.find((c) => c.op === 'context.findMany')!.args.where).toEqual({
+      personId: 'p-colleen', type: 'CONSULTANT', revokedAt: null, companyId: { not: 'c-byrne-llc' },
+    })
+    BENCHES.splice(0, BENCHES.length)
   })
 })
 

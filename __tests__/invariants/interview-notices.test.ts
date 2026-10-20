@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { noticesFor, type NoticeContext } from '@/lib/interview-notices'
+import { noticesFor, stageWords, type NoticeContext } from '@/lib/interview-notices'
 
 /**
  * Who hears about a round, and who does not.
@@ -41,9 +41,18 @@ describe('when a client proposes a round', () => {
 
   it('says which client, which round, what for, and how many times were offered', () => {
     const [vendor] = noticesFor('PROPOSED', ctx)
-    expect(vendor.title).toBe('Northbend Athletic wants to interview Priya Raman')
+    expect(vendor.title).toBe('Northbend Athletic wants to interview Priya Raman for Workday integrator')
     expect(vendor.body).toContain('Technical, round 2, for Workday integrator')
     expect(vendor.body).toContain('3 times offered')
+  })
+
+  it('a round\u2019s kind reads as a person says it, never as the column\u2019s machine word', () => {
+    expect(stageWords('TECHNICAL')).toBe('Technical')
+    expect(stageWords('SCREEN')).toBe('Screening')
+    expect(stageWords('HIRING_MANAGER')).toBe('Hiring manager')
+    expect(stageWords('SOME_NEW_KIND')).toBe('Some new kind')
+    expect(stageWords('Technical')).toBe('Technical')
+    expect(stageWords(null)).toBe('Interview')
   })
 
   it('does not tell the client — they asked', () => {

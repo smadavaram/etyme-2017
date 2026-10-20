@@ -125,7 +125,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     expect(toStaff.every((n) => n.channel === 'IN_APP')).toBe(true)
     expect(toHer).toHaveLength(1)
     expect(toHer[0].channel).toBe('EMAIL')
-    expect(toHer[0].title).toBe('Northbend Athletic would like to interview you')
+    expect(toHer[0].title).toMatch(/^Northbend Athletic would like to interview you for \S/)
     expect(rows.every((n) => n.type === 'INTERVIEW')).toBe(true)
   })
 
