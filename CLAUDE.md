@@ -1273,6 +1273,48 @@ flows". Decided:
   the founder out of Tapin today (architect); then the setup fields and
   the papers step (architect, with regulatory for the sets).
 
+**The admin's setup is a checklist, every item skippable, and it comes
+back until it is done. Decided by the founder, the same day**, after
+reading the 2017 code: *"I am glad it's easy, but shouldn't the admin
+account be more elaborate, even if it means giving a 'skip for now'
+option and asking them to complete onboarding in future?"* The 2017
+registration asked four things (type, domain, name, owner) and the
+admin then filled, over weeks and from six screens: the company's
+profile (legal name, DBA, entity type, established, website, logo,
+phone, time zone, currency), its locations with addresses, the people
+in charge (owner, HR manager, billing contact, the accounts email),
+bank details, company contacts, the firms it already traded with, four
+document sets (what it required from candidates, employees, vendors
+and customers), the payroll configuration, and domain verification.
+The rebuild asks four and stops. So, superseding "Setup asks five
+things, then stops" (2026-10-07) in its second half only:
+- **Sign-in and "Your company" stay a minute long**, and a company can
+  post its first job after them.
+- **After that, the Owner or Admin reads one checklist**, each item a
+  screen with its defaults filled and a **"Skip for now"**: your company
+  (the profile above); addresses (legal, billing, each site); the
+  people in charge (owner, HR, billing contact, accounts email, each an
+  invitation if they are not seated yet); how you work (week, days off,
+  holidays, payroll); papers you require (one set per party it deals
+  with: workers, employees, suppliers, customers, from the shipped
+  defaults); bank details (for a firm that gets paid, through the same
+  Finance verification a supplier walks); your companies (the clients
+  and suppliers it already trades with, by name and address, each an
+  invitation); your team; your domain (verify it, so colleagues join
+  by signing in); integrations (Teams, the accounting export). The
+  2017 six screens become these ten items, in the trade's words.
+- **A skipped item comes back**: the setup reminder already lists what
+  is outstanding (`lib/setup-steps`, `components/setup-reminder`); it
+  now carries every item, in the order above, with "complete setup" on
+  Today and in the Ask Etyme greeting until the list is empty. Nothing
+  nags daily; it is one line that stays.
+- **A skipped item refuses only the act that needs it, in a sentence
+  that names the step**: no bill without a billing address, no payment
+  to a firm without verified bank details, no colleague joining by
+  domain until the domain is verified, no I-9 chased for a party whose
+  set was never confirmed. Everything else works on the defaults.
+- **What is answered is recorded with who and when**, as before.
+
 ## Nine links, no flip, and every first screen names a person — decided by the founder, 2026-10-19
 
 "Build it", on the drawing of every party's first screen and every
