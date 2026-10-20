@@ -1457,6 +1457,53 @@ What a station author needs to know:
 - **Nothing leaves the machine.** The server is started without the
   email, model and Teams keys.
 
+**The first full run, 2026-10-20, after one fix wave.** A hundred
+jobs and twelve weeks, from an isolated copy of 10220d0a7, every one of
+the twenty stations: 87 of 100 jobs published themselves within plan
+and 13 were approved by the people they were routed to; 269 people put
+forward, 534 matches, 180 interview rounds booked with all three sides,
+80 awarded (the one refusal a time limit, correctly); 83 of 83 started,
+56 of them refused first and learning (an I-9 filed, a certificate
+sent); 168 weeks filed by the workers, 163 signed by the client (23 by
+email evidence, 5 left waiting on purpose), 161 accepted by every rung
+below; 9 expenses accepted up the chain; 66 bills landed as invoice
+receipts and passed the three-way check, 2 keyed-in ones held over the
+hours and one waived with a reason; 71 paid; 39 pay periods worked out
+before they were paid. No server error on any route; every route's
+95th percentile under a second except the nightly twin run at 8.8
+seconds (architect). The handoffs station read 260 seats: 659 of 757
+handoffs told by a notice, the mark matching the greeting on every
+seat, no notice sent twice word for word; what was still wrong was the
+approve-by-email path saying "Timesheet approved" without the week and
+the twin's question title saying nothing about what, both fixed in the
+wave after. What the fix wave itself changed, so it is not re-derived:
+a person on a placement, a submission or a bench listing with no seat
+anywhere gets their own company-less seat on first sign-in; the seeded
+plans let most jobs publish themselves; payroll cannot be processed
+before it is worked out; a worker files their own expense; every
+notice names who and what; the queue holds the invoice receipts a
+person owes a payment on; the award reads its facts at once.
+
+**The world is built to the founder's scale next. Set by the founder,
+2026-10-20:** *"10 clients, 10 system integrators, 5 MSPs, 100 prime
+vendors and sub vendors and bench vendors and at least 2000 candidates
+— freshers to very experienced, moving from bench to self-employed,
+some looking for a job while employed, some experienced in different
+industries and domains."* The hand-written world is 7 clients, 2
+integrators, 2 MSPs, 16 suppliers, one one-person firm and 145 people,
+so the simulation so far is a correctness run with timings, not a load
+test at the scale the founder means. Decided, on his "don't ask for my
+approvals": a generated world at that scale, in its own folder
+(`lib/seed-scale`), built one domain at a time — the firm frame, seats,
+agreements and who trades with whom (architect); two thousand people
+with careers and papers in every state (supply, regulatory); jobs and
+rate cards across industries (demand, money) — and the simulation run
+on it, locally for correctness and then against a preview deployment
+with its own database for the real numbers, because timings from a
+four-core container say nothing about the hosted platform. Nothing in
+the core may assume IT: the world carries healthcare, manufacturing
+and finance beside it, per "horizontal, never vertical".
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
