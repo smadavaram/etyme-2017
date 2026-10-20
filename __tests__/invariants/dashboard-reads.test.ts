@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { dashboardReads, NOT_YOURS } from '@/lib/dashboard-reads'
 import {
   todayReads, NOT_YOURS_TODAY, rollOffSays, lastDaySays, benchSays, pictureLine, byClient,
-  weeksByPerson, plainUnits, queueRowView, type QueueRowIn, type RollingOffIn,
+  weeksByPerson, queueRowView, type QueueRowIn, type RollingOffIn,
 } from '@/lib/today-page'
 import { rolesFor } from '@/lib/company-defaults'
 
@@ -132,7 +132,7 @@ describe('Yours to decide on a firm’s Today page names each row and offers its
     ['sc2', { contractId: 'sc2', client: 'Northbend Athletic', days: 25, lastDay: '2026-11-13', started: true }],
   ])
   const rolloff = (id: string): QueueRowIn => ({
-    type: 'ROLLOFF_ACTION', title: 'Rolloff in 14d — Felix Brenner', subtitle: 'Northbend Athletic · $132/hr · Nobody has acted yet',
+    type: 'ROLLOFF_ACTION', title: 'Rolls off in 14 days — Felix Brenner', subtitle: 'Northbend Athletic · $132/hr · Nobody has acted yet',
     entityId: id, actionUrl: '/dashboard/rolloff', named: { whose: 'Felix Brenner', what: 'last day' },
   })
 
@@ -150,7 +150,7 @@ describe('Yours to decide on a firm’s Today page names each row and offers its
 
   it('a week offers Approve or Accept only where nothing about it needs a reason or a decision first', () => {
     const week = (over: Partial<QueueRowIn>): QueueRowIn => ({
-      type: 'TIMESHEET_APPROVAL', title: 'Approve timesheet — Omar Haddad', subtitle: '40h · Northbend Athletic · Oct 4 – Oct 10',
+      type: 'TIMESHEET_APPROVAL', title: 'Approve timesheet — Omar Haddad', subtitle: '40 hours · Northbend Athletic · Oct 4 – Oct 10',
       entityId: 'ts1', actionUrl: '/dashboard/timesheets?id=ts1', named: { whose: 'Omar Haddad', what: 'week' }, ...over,
     })
     expect(queueRowView(week({}), rolling, { terminate: false }).act?.label).toBe('Approve')
@@ -159,9 +159,15 @@ describe('Yours to decide on a firm’s Today page names each row and offers its
     expect(queueRowView(week({}), rolling, { terminate: false }).says).toBe('week to approve · 40 hours · Northbend Athletic · Oct 4 – Oct 10')
   })
 
-  it('the machine’s shorthand reads as words: “3d since submitted” is “3 days since submitted”', () => {
-    expect(plainUnits('Java developer · $95/hr · 3d since submitted')).toBe('Java developer · $95/hr · 3 days since submitted')
-    expect(plainUnits('1d overdue · 1h')).toBe('1 day overdue · 1 hour')
+  it('the page prints the queue’s own words, which say days and hours in full, and rewords nothing', () => {
+    // The queue writes "3 days since submitted" itself (app/api/decisions/words);
+    // a second rewording on this page was a second text for one row.
+    const row: QueueRowIn = {
+      type: 'SUBMISSION_REVIEW', title: 'Review Java developer — Ana Lima', subtitle: 'Java developer · $95/hr · 3 days since submitted',
+      entityId: 's1', actionUrl: '/dashboard/submissions', named: { whose: 'Ana Lima', what: 'candidate' },
+    }
+    expect(queueRowView(row, rolling, { terminate: false }).says).toBe('Java developer · $95/hr · 3 days since submitted')
+    expect(readFileSync(join(process.cwd(), 'src/lib/today-page.ts'), 'utf8')).not.toContain('plainUnits')
   })
 
   it('no button on the page is drawn in the attention color', () => {

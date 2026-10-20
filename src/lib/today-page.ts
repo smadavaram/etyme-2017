@@ -151,18 +151,6 @@ export function weeksByPerson(weeks: readonly { personName: string }[]): string 
   return [...counts.entries()].map(([name, n]) => `${name}, ${plural(n, 'week')}`).join(' · ')
 }
 
-/**
- * The machine's shorthand in a queue row, said in words: "3d since
- * submitted" reads "3 days since submitted" and "40h" reads "40 hours".
- * The rows are written by the decision queue (app/api/decisions); this
- * only changes how the two units read on this page.
- */
-export function plainUnits(s: string): string {
-  return s
-    .replace(/\b(\d+(?:\.\d+)?)d\b/g, (_, n) => `${n} ${n === '1' ? 'day' : 'days'}`)
-    .replace(/\b(\d+(?:\.\d+)?)h\b/g, (_, n) => `${n} ${n === '1' ? 'hour' : 'hours'}`)
-}
-
 /** A row of `GET /api/decisions`, as far as this page reads it. */
 export interface QueueRowIn {
   type: string
@@ -245,7 +233,8 @@ export function queueRowView(
     return {
       key,
       who,
-      says: `${accept ? 'week to accept' : 'week to approve'} · ${plainUnits(row.subtitle)}`,
+      // The queue says its units in words (app/api/decisions/words), so the row prints what it wrote.
+      says: `${accept ? 'week to accept' : 'week to approve'} · ${row.subtitle}`,
       act: plain
         ? { label: accept ? 'Accept' : 'Approve', url: `/api/timesheets/${row.entityId}/approve`, busy: accept ? 'Accepting…' : 'Approving…' }
         : null,
@@ -253,5 +242,5 @@ export function queueRowView(
     }
   }
 
-  return { key, who, says: plainUnits(row.subtitle), act: null, href: row.actionUrl }
+  return { key, who, says: row.subtitle, act: null, href: row.actionUrl }
 }

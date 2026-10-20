@@ -551,6 +551,9 @@ const MSP_NAV: NavSection[] = [
 const MY_WORK_READS = [
   'me', 'me/work', 'me/pipeline', 'me/resumes', 'me/benches', 'me/interviews/*/respond',
   'me/papers', 'documents/*/sign', 'documents/*/upload', 'timesheets/*/submit',
+  // A worker files their own expense from Your work (2026-10-20). The route
+  // scopes a seat with no role at the firm to the caller's own lines.
+  'expenses',
 ] as const
 /**
  * The routes behind "Your terms", which has no fixed address to carry
