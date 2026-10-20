@@ -810,13 +810,22 @@ function forActivation(cover: CoverGate): CoverGate {
     (b) => b.standing === 'EXPIRED' || b.standing === 'NOT_YET_VALID'
   )
   const neverRecorded = cover.blocking.filter((b) => b.standing === 'MISSING')
-  if (lapsed.length > 0) return cover
+  // Said as a start, because this is the start. The cover gate's own
+  // sentence is written for the submit button — "Nobody can be submitted
+  // through …" — and read on an activation refusal it answered a question
+  // nobody had asked (the simulation, 2026-10-20).
+  if (lapsed.length > 0) return { ...cover, says: cover.says.replace(/Nobody can be submitted through/g, 'Nobody can start through') }
   return {
     ...cover,
     outcome: 'WARN',
     blocking: [],
     chasing: [...neverRecorded, ...cover.chasing],
-    says: cover.says.replace(/cannot start|is blocked/i, 'has no cover on file'),
+    says: cover.says
+      .replace(/cannot start|is blocked/i, 'has no cover on file')
+      // Never collected is not lapsed, and a start is not a submission:
+      // "until it is back in date" about a certificate nobody ever asked
+      // for read as a lapse on the simulation of 2026-10-20.
+      .replace(/Nobody can be submitted through (.+?) until it is back in date\./g, 'Ask $1 for a current one.'),
   }
 }
 
@@ -957,7 +966,16 @@ function sayIt(
   if (blocking.length > 0) parts.push(`${person} cannot start without ${names(blocking)}`)
   if (cover.outcome === 'BLOCK') parts.push(cover.says)
   if (outcome === 'BLOCK') {
-    const refusal = parts.join(' ').replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.')
+    // Joined as sentences, never butted together: "cannot start without
+    // an I-9" followed by the cover gate's own sentence read "…(I-9,
+    // checked with E-Verify) Halcyon Talent: certificate of good
+    // standing expired" on the simulation of 2026-10-20.
+    // Each part ends on its own full stop; nothing else about a part is
+    // changed, so a masked name keeps the casing every other reader of the
+    // same sentence sees.
+    const refusal = parts
+      .map((p) => p.replace(/\s+/g, ' ').trim().replace(/([^.])$/, '$1.'))
+      .join(' ')
     // Who asked travels with the refusal too. A start stopped by a
     // document nobody at the supplier has heard of is a refusal somebody
     // rings us about; one that names the client's own order is a refusal

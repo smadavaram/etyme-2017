@@ -44,6 +44,13 @@ export interface DocActor {
   personId: string
   /** Staff at the company that asked. */
   staffOfIssuer: boolean
+  /**
+   * A seat at the company the document is about, where it is a
+   * company's own paper — a supplier's certificate, asked of the
+   * supplier. That firm answers it as itself, the way a person answers
+   * her own I-9.
+   */
+  atSubjectCompany?: boolean
 }
 
 export type DocVerdict =
@@ -58,7 +65,13 @@ export function mayAct(
   actor: DocActor,
   extra: { fileUrl?: string | null; attests?: boolean } = {}
 ): DocVerdict {
-  const subject = actor.personId === doc.subjectPersonId
+  // The party a document is about answers it: the person, for her own
+  // paper, or the firm, for a paper about the firm. Until 2026-10-20 only
+  // the first was read, so a supplier asked for its own certificate of
+  // good standing reached the request (`standingOn` let it through) and
+  // was then told it "was not asked of you" — the one firm it was asked
+  // of. Found by the simulation's paperwork station.
+  const subject = actor.personId === doc.subjectPersonId || (doc.subjectPersonId === null && actor.atSubjectCompany === true)
   const name = doc.templateName
 
   if (ON_FILE.includes(doc.status)) {
@@ -1289,6 +1302,12 @@ export function myPapers(input: {
     // Where a request has already been opened for this item, the row is
     // that request's — it has an id, a status and somewhere to answer.
     const ask = input.asksByKey?.[o.key] ?? null
+    // Where the request already opened is a paper to sign — a client's
+    // own NDA template — the row says Sign. It said Upload on every
+    // outstanding row, and on the simulation of 2026-10-20 the worker
+    // pressed it and was told the paper "needs a signature".
+    const opened = ask ? input.documents.find((d) => d.id === ask) : undefined
+    const toSign = opened?.needsSignature === true
     papers.push({
       id: ask ?? `owed:${o.key}`,
       kind: 'OUTSTANDING',
@@ -1302,7 +1321,7 @@ export function myPapers(input: {
       // order's own words still follow it, so the row never loses who
       // asked for the check in the first place.
       why: o.waivedSays ?? (o.notHersBecause ? `${o.notHersBecause} ${capitalize(o.asked)}` : capitalize(o.asked)),
-      needsSignature: false,
+      needsSignature: toSign,
       status: o.state,
       word: o.word,
       askedAt: null,
@@ -1315,7 +1334,7 @@ export function myPapers(input: {
       // Nothing for her to send on a check somebody else orders. A row
       // offering an upload button for a background check is a row
       // asking her for a report the provider posted to somebody else.
-      todo: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : 'upload',
+      todo: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : toSign ? 'sign' : 'upload',
       link: null,
       stopsWork: o.stopsWork,
       waived: o.state === 'WAIVED',
@@ -1462,11 +1481,30 @@ export function heldFromDocInstances(
       key,
       validFrom: r.validFrom ?? signed ?? null,
       expiresAt: r.expiresAt ?? null,
-      accepted: true,
+      // Work authorization is never held as a paper somebody sent. Found
+      // by the simulation of 2026-10-20: a worker opened a request for
+      // her I-9 from her own page, attached a file, and the start went
+      // ahead — the upload read here as the employer's examination. It
+      // is not one. The employer of record looks at the documents and
+      // completes the form, and only that, recorded as a check
+      // (`POST /api/compliance/verifications`), stands behind a start.
+      // Her paper is with them; the worker's own page already says
+      // "sending it is not the same as it being checked".
+      accepted: !EXAMINED_NOT_SENT.includes(key),
     })
   }
   return out
 }
+
+/**
+ * The papers that count only as the employer's own recorded examination.
+ *
+ * An I-9 is completed by the employer from documents the person shows;
+ * a right-to-work check is the employer looking and recording what it
+ * saw. A copy arriving by upload is evidence for that examination, never
+ * the examination itself. Reversible in one line: take a key out.
+ */
+export const EXAMINED_NOT_SENT: readonly string[] = ['I9_EVERIFY', 'RIGHT_TO_WORK']
 
 // ── What is running out, and who owes it ──────────────────────────────
 //

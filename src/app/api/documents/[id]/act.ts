@@ -85,7 +85,16 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
     subjectPersonId,
     issuerName: issuer.name,
   }
-  const verdict = mayAct(action, facts, { personId: caller.person.id, staffOfIssuer }, { fileUrl, attests })
+  const verdict = mayAct(
+    action,
+    facts,
+    {
+      personId: caller.person.id,
+      staffOfIssuer,
+      atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId && caller.context.type !== 'CONSULTANT',
+    },
+    { fileUrl, attests }
+  )
   if (!verdict.ok) {
     return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: verdict.code === 'NOT_YOURS' ? 403 : 409 })
   }
@@ -160,8 +169,12 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
       })
       void notifyBulk(staff.map((s) => ({ personId: s.personId, companyId: doc.subjectId, type: 'SYSTEM' as const, title: notice.title, body: notice.body, entityId: doc.id })))
     }
-  } else if (subjectPersonId && caller.person.id === subjectPersonId) {
-    // The person answered; the company that asked hears it.
+  } else if (
+    (subjectPersonId && caller.person.id === subjectPersonId) ||
+    (doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId)
+  ) {
+    // The person answered, or the firm answered its own paper; the
+    // company that asked hears it either way.
     const staff = await prisma.context.findMany({
       where: { companyId: issuer.id, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
       select: { personId: true },
