@@ -1557,6 +1557,10 @@ model CompanyLocation {
   city      String?
   state     String? // US state or region
   country   String  @default("US")
+  /// The site's time zone, IANA ("America/Chicago", "Asia/Kolkata").
+  /// Null reads as the company's. Added 2026-10-20 ("A site has a country
+  /// and a time zone"); nothing reads it yet.
+  timeZone  String?
   isRemote  Boolean @default(false) // virtual location for remote-first work
   isPrimary Boolean @default(false) // the default location for this company
 
@@ -4129,6 +4133,17 @@ model Timesheet {
   /// counts toward the threshold manufactures fresh overtime, which
   /// banks more leave. That loop is the sharpest correctness risk here.
   leaveDays Json?
+
+  /// What kind of day a date on this sheet is, where it is not an
+  /// ordinary working day: ISO date → { kind, name }. One kind today,
+  /// LOCAL_HOLIDAY — the worker marks "local holiday — Diwali" the way
+  /// they mark leave, the week says it in words, and the client's
+  /// signature on the week is the agreement (CLAUDE.md, "A site has a
+  /// country and a time zone, and a local holiday is a day on the week",
+  /// 2026-10-20). A local holiday is not billed; whether it is paid is the
+  /// employer's holiday policy. Leave stays in `leaveDays`, as hours.
+  /// Added 2026-10-20; nothing reads or writes it yet.
+  dayKinds Json?
 
   /// What was decided about this sheet's overtime. One row per week per leg.
   overtimeDecisions OvertimeDecision[]
