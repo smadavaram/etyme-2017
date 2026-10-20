@@ -1597,6 +1597,31 @@ four-core container say nothing about the hosted platform. Nothing in
 the core may assume IT: the world carries healthcare, manufacturing
 and finance beside it, per "horizontal, never vertical".
 
+**Nine decisions for the generated world, made by the coordinator on
+the scout's brief, 2026-10-20, each reversible in a sentence:** it is
+a separate sealed template (`etyme_tpl_scale_<day>`), built in the same
+call and keyed to the same day as the base template, because 199
+integration files copy the base and assert its shape; a client's panel
+holds six to twelve suppliers and an MSP runs five of the ten clients;
+ended careers carry no cycles; the generated live placements get the
+order header through money's existing function and no ledger; every
+generated person's address ends `.scale.invalid` and the four base
+reads that sweep reserved suffixes exclude it, with generated ids
+sorting after the base world's; `demo-volume` and `seed-world` export
+their random and anchor helpers; `createCompany` takes an optional
+`createdAt`; the folder gets its matrix row and its domain entries in
+the first commit (`lib/seed-scale` platform, `/people` supply,
+`/papers` regulatory, `/jobs` demand, `/rates` money); and the
+generator may have one test file, because it is the simulation's own
+world and the 2026-10-20 decision admits the simulation's tests: every
+generated firm holds the roles the simulation looks for, a second
+seeding writes nothing, no two people at one firm share a name, no
+skill is under four letters, every job's skills come from its
+industry's list, every person opens as a seat. Prime, sub-vendor and
+bench are positions, not a kind: `supplierPosture` is written
+explicitly, which no seed has done before, so every screen that reads
+it meets a value for the first time.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
