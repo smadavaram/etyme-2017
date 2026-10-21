@@ -43,13 +43,18 @@
 import type {
   Band,
   ChainRates,
+  Industry,
   IndustryKey,
   PersonFacts,
   RatePair,
   RoleTemplate,
+  ScaleFirm,
   Seniority,
+  Trade,
 } from '@/lib/seed-scale/types'
 import { DEFAULT_BURDEN } from '@/lib/profitability'
+import { compact } from '@/lib/money-display'
+import type { AgreementTerms as DoorAgreementTerms } from '@/lib/money/order-terms'
 
 // ── Deterministic randomness ─────────────────────────────────────────
 //
@@ -222,7 +227,7 @@ export function chainFor(band: Band, rungs: number, key: string, options: ChainO
     if (next <= 0) {
       throw new RangeError(
         `A ${Math.round(floor * 100)}% floor at each of ${rungs} rungs leaves nothing to pay the worker on a ` +
-          `$${(top / 100).toFixed(0)} rate; the chain is refused rather than priced below its floor.`
+          `${compact(top, band.currency)} rate; the chain is refused rather than priced below its floor.`
       )
     }
     rates.push(next)
@@ -354,4 +359,186 @@ export function floorFor(person: PersonKey): number {
   let lowest = Number.POSITIVE_INFINITY
   for (let rungs = 1; rungs <= MAX_RUNGS; rungs++) lowest = Math.min(lowest, chainOf(person, rungs)[rungs])
   return lowest
+}
+
+// ── Agreement terms ───────────────────────────────────────────────────
+//
+// An agreement is the buyer's paper: a client issues one standard
+// agreement to every supplier on its panel, and a prime one standard
+// subcontract to every sub-vendor. So the terms are keyed on the buyer,
+// and two suppliers of one client read the same rhythm, the same net days
+// and the same expense rule. The margin floor is the seller's own (only
+// the seller reads it, `app/api/program/agreements`), so it is keyed on
+// the agreement.
+
+export type BillFrequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY'
+export type TermsFrom = 'RECEIPT_DATE' | 'INVOICE_DATE' | 'PERIOD_END' | 'APPROVAL_DATE'
+export type ExpenseKind = 'TRAVEL' | 'EQUIPMENT' | 'TRAINING' | 'RELOCATION' | 'MEALS' | 'OTHER'
+
+/** One condition record on a client's rate card: this role, at this level, at any site. */
+export interface RateCardRecord {
+  industry: IndustryKey
+  title: string
+  seniority: Seniority
+  skills: string[]
+  /** Null: every site of the client. */
+  location: string | null
+  minCents: number
+  maxCents: number
+  currency: 'USD'
+}
+
+/** The terms money writes on one `MasterAgreement`, in the line's vocabulary (`lib/periods`). */
+export interface AgreementTerms {
+  paymentTerms: number
+  paymentTermsFrom: TermsFrom
+  billFrequency: BillFrequency
+  billAnchor: 'CALENDAR' | 'CONTRACT'
+  billStraddle: 'SPLIT' | 'START' | 'END'
+  billableExpenseKinds: ExpenseKind[]
+  /** False: the agreement is silent on expenses and the list is ignored. */
+  billableExpenseKindsSaid: boolean
+  currency: 'USD'
+  minMarginPct: number
+  /** A client's card to its supplier; null between two suppliers. */
+  rateCard: RateCardRecord[] | null
+}
+
+/**
+ * The terms as the one door reads them back (`lib/money/order-terms`,
+ * agreement first). This file only writes the six fields; every reader,
+ * the order header this seed raises included, decides a period through
+ * the door.
+ */
+export function doorTerms(t: AgreementTerms, id: string | null = null): DoorAgreementTerms {
+  return {
+    id, billFrequency: t.billFrequency, billAnchor: t.billAnchor, billStraddle: t.billStraddle,
+    paymentTerms: t.paymentTerms, paymentTermsFrom: t.paymentTermsFrom, currency: t.currency,
+  }
+}
+
+function weighted<T>(key: string, table: readonly [T, number][]): T {
+  const total = table.reduce((n, [, w]) => n + w, 0)
+  let x = draw(key) * total
+  for (const [v, w] of table) {
+    x -= w
+    if (x < 0) return v
+  }
+  return table[table.length - 1][0]
+}
+
+/**
+ * The floor on an agreement, in whole percent. Never above
+ * `DEFAULT_FLOOR_PCT`, the least any generated chain keeps at any rung,
+ * so no generated line sits under its agreement's floor.
+ */
+export function agreementFloorPct(agreementKey: string): number {
+  return weighted(`floor/${agreementKey}`, [[5, 30], [6, 30], [DEFAULT_FLOOR_PCT, 40]])
+}
+
+/** A client's rate card: every role in its industries, at the band it pays. */
+export function rateCardFor(client: Pick<ScaleFirm, 'industries'>, industries: readonly Industry[]): RateCardRecord[] {
+  const out: RateCardRecord[] = []
+  for (const key of client.industries) {
+    const industry = industries.find((i) => i.key === key)
+    if (!industry) continue
+    for (const r of industry.roles) {
+      const b = bandFor(r, key)
+      out.push({
+        industry: key, title: r.title, seniority: r.seniority, skills: [...r.skills],
+        location: null, minCents: b.minCents, maxCents: b.maxCents, currency: 'USD',
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * The terms on the agreement behind one tie. Only a tie that carries
+ * paper has one: a supplier selling to a client, or to another supplier
+ * (`Trade.agreementId`).
+ */
+export function agreementTermsFor(
+  trade: Pick<Trade, 'agreementId' | 'relationship'>,
+  buyer: Pick<ScaleFirm, 'id' | 'position' | 'industries'>,
+  options: { runByMsp: boolean; industries: readonly Industry[] }
+): AgreementTerms {
+  if (!trade.agreementId) throw new RangeError('This tie carries no agreement, so it has no terms.')
+  const toClient = buyer.position === 'CLIENT'
+  const b = `terms/${buyer.id}`
+  const expenses = weighted<ExpenseKind[] | null>(`${b}/expenses`, toClient
+    ? [
+        [['TRAVEL'], 40], [['TRAVEL', 'MEALS'], 20], [['TRAVEL', 'RELOCATION'], 10],
+        [buyer.industries.includes('MANUFACTURING') ? ['TRAVEL', 'EQUIPMENT'] : ['TRAVEL'], 10],
+        [[], 12], [null, 8],
+      ]
+    : [[['TRAVEL'], 50], [['TRAVEL', 'MEALS'], 20], [[], 20], [null, 10]])
+  return {
+    paymentTerms: weighted(`${b}/net`, toClient ? [[30, 25], [45, 45], [60, 30]] : [[30, 55], [45, 35], [15, 10]]),
+    paymentTermsFrom: weighted<TermsFrom>(`${b}/from`, toClient
+      ? options.runByMsp
+        ? [['APPROVAL_DATE', 50], ['RECEIPT_DATE', 50]]
+        : [['PERIOD_END', 35], ['INVOICE_DATE', 35], ['RECEIPT_DATE', 30]]
+      : [['INVOICE_DATE', 60], ['PERIOD_END', 40]]),
+    billFrequency: weighted<BillFrequency>(`${b}/rhythm`, toClient
+      ? [['MONTHLY', 50], ['SEMIMONTHLY', 20], ['BIWEEKLY', 20], ['WEEKLY', 10]]
+      : [['WEEKLY', 25], ['BIWEEKLY', 40], ['MONTHLY', 35]]),
+    billAnchor: weighted(`${b}/anchor`, [['CALENDAR', 85], ['CONTRACT', 15]] as const),
+    billStraddle: weighted(`${b}/straddle`, [['SPLIT', 80], ['START', 10], ['END', 10]] as const),
+    billableExpenseKinds: expenses ?? [],
+    billableExpenseKindsSaid: expenses !== null,
+    currency: 'USD',
+    minMarginPct: agreementFloorPct(trade.agreementId),
+    rateCard: toClient ? rateCardFor(buyer, options.industries) : null,
+  }
+}
+
+// ── Bench pay ─────────────────────────────────────────────────────────
+
+export type BenchPolicyShape = 'NO_PAY' | 'FULL_PAY' | 'REDUCED_RATE' | 'RESERVE_FUNDED'
+
+/** The bench pay columns on `Company`, as `lib/bench-policy` reads them. */
+export interface BenchPolicyColumns {
+  benchPolicy: BenchPolicyShape
+  benchRateBps: number | null
+  benchCarryDays: number | null
+  reserveBps: number | null
+  reserveOnExit: 'PAY_OUT' | 'COMPANY_KEEPS' | 'DEPENDS_ON_REASON'
+}
+
+/**
+ * How a firm pays its bench, where the generated world sets it.
+ *
+ * Four shapes, all real, a company setting and never a rule: a bench
+ * firm is drawn from all four on its own key. An integrator's bench is
+ * its own salaried people between projects, so it keeps paying them.
+ * Every other firm keeps the column default (no pay), and is not
+ * written. Holiday pay is not a column: `holidayPayFor` reads it off on
+ * for an integrator and off for everybody else when no switch was
+ * turned, which is the founder's default, so nothing is written for it.
+ */
+export function benchPolicyFor(firm: Pick<ScaleFirm, 'id' | 'position'>): BenchPolicyColumns | null {
+  const none = { benchRateBps: null, benchCarryDays: null, reserveBps: null, reserveOnExit: 'PAY_OUT' as const }
+  if (firm.position === 'GSI') return { ...none, benchPolicy: 'FULL_PAY' }
+  if (firm.position !== 'BENCH') return null
+  const k = `bench/${firm.id}`
+  const shape = weighted<BenchPolicyShape>(`${k}/shape`, [['NO_PAY', 35], ['FULL_PAY', 20], ['REDUCED_RATE', 30], ['RESERVE_FUNDED', 15]])
+  switch (shape) {
+    case 'NO_PAY':
+      return { ...none, benchPolicy: 'NO_PAY' }
+    case 'FULL_PAY':
+      return { ...none, benchPolicy: 'FULL_PAY', benchCarryDays: weighted(`${k}/carry`, [[60, 50], [90, 50]]) }
+    case 'REDUCED_RATE':
+      return {
+        ...none, benchPolicy: 'REDUCED_RATE',
+        benchRateBps: weighted(`${k}/rate`, [[5000, 30], [6000, 40], [7000, 30]]),
+        benchCarryDays: weighted(`${k}/carry`, [[90, 50], [120, 50]]),
+      }
+    case 'RESERVE_FUNDED':
+      return {
+        ...none, benchPolicy: 'RESERVE_FUNDED',
+        reserveBps: weighted(`${k}/reserve`, [[500, 30], [800, 40], [1000, 30]]),
+        reserveOnExit: weighted(`${k}/exit`, [['PAY_OUT', 40], ['COMPANY_KEEPS', 20], ['DEPENDS_ON_REASON', 40]] as const),
+      }
+  }
 }

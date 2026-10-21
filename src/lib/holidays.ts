@@ -31,8 +31,24 @@ export async function loadCompanyHolidays(
     where: { companyId },
     select: { date: true, isRecurring: true, country: true },
   })
+  return holidayKeysFrom(holidays, startYear, endYear, siteCountry)
+}
 
-  const set = new Set<string>()
+/**
+ * `loadCompanyHolidays`'s arithmetic over rows already read: the
+ * YYYY-MM-DD keys a calendar contributes for a site, recurring holidays
+ * expanded into each year of the range. A caller holding many companies'
+ * rows (the generated world's seed) asks this once per line rather than
+ * a query per company.
+ */
+export function holidayKeysFrom(
+  holidays: readonly { date: Date; isRecurring: boolean; country: string | null }[],
+  startYear: number,
+  endYear: number,
+  siteCountry?: string | null,
+  into: Set<string> = new Set<string>()
+): Set<string> {
+  const set = into
 
   for (const h of holidays) {
     if (!appliesTo(h.country, siteCountry)) continue
