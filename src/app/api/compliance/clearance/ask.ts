@@ -207,6 +207,7 @@ export async function previewFor(contractId: string, now = new Date()): Promise<
     // Read on the first day where that is still ahead — a certificate
     // that lapses the week before the start does not clear the start.
     on: contract.startDate && contract.startDate > now ? contract.startDate : now,
+    today: now,
     through: contract.endDate,
     role: contract.requirement?.title ?? null,
     documentTypes: facts.documentTypes as any,

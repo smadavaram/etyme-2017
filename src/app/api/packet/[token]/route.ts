@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { progressOf } from '@/lib/packets'
+import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 
 /**
  * GET  /api/packet/:token — what the recipient is being asked for
@@ -163,10 +164,46 @@ export async function POST(
     )
   }
 
-  const body = await request.json().catch(() => ({}))
-  const itemId = String(body.itemId ?? '')
-  const fileUrl = String(body.fileUrl ?? '').trim()
-  const fileName = String(body.fileName ?? '').trim()
+  // ── A file, kept as the file ──
+  //
+  // Until 2026-10-21 the page sent `pending://<name>` and this stored it:
+  // a worker who answered her start papers through the link had sent a
+  // file name and nothing else, and the packet read RECEIVED. Found by the
+  // document-flow walk. Now the page sends the file itself, and it is
+  // kept the way every other paper's bytes are kept (`DocFile`), on a
+  // paper of the asking firm's that the item points at, so the firm's
+  // paperwork team opens it through the one file door and nobody else
+  // can. A link from a firm's own document system is still an answer; a
+  // name with nothing behind it is not.
+  const kind = request.headers.get('content-type') ?? ''
+  let itemId = ''
+  let fileUrl = ''
+  let fileName = ''
+  let file: { name: string; type: string; bytes: Buffer } | null = null
+  if (kind.toLowerCase().includes('multipart/form-data')) {
+    const form = await request.formData().catch(() => null)
+    const picked = form?.get('file')
+    itemId = String(form?.get('itemId') ?? '')
+    if (!(picked instanceof File)) {
+      return NextResponse.json({ error: { code: 'FILE_REQUIRED', message: 'That did not arrive. Pick the file again and send it.' } }, { status: 422 })
+    }
+    const verdict = checkDocumentUpload({ name: picked.name, type: picked.type, size: picked.size })
+    if (!verdict.ok) return NextResponse.json({ error: { code: 'FILE_REFUSED', message: verdict.says } }, { status: 422 })
+    const bytes = Buffer.from(await picked.arrayBuffer())
+    if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
+      return NextResponse.json(
+        { error: { code: 'FILE_REFUSED', message: `That arrived as ${sizeSaid(bytes.byteLength)} and ten megabytes is the limit. Send a smaller photograph.` } },
+        { status: 413 }
+      )
+    }
+    file = { name: picked.name.slice(0, 200), type: picked.type || 'application/octet-stream', bytes }
+    fileName = file.name
+  } else {
+    const body = await request.json().catch(() => ({}))
+    itemId = String(body.itemId ?? '')
+    fileUrl = String(body.fileUrl ?? '').trim()
+    fileName = String(body.fileName ?? '').trim()
+  }
 
   const item = packet.items.find((i) => i.id === itemId)
   if (!item) {
@@ -175,12 +212,13 @@ export async function POST(
       { status: 404 }
     )
   }
-  if (!fileUrl || !fileName) {
+  if (!file && (!fileUrl || !fileName || !/^https?:\/\//i.test(fileUrl))) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Attach a file', field: 'fileUrl' } },
+      { error: { code: 'FILE_REQUIRED', message: 'Attach the file itself. A file name with nothing behind it is not a document anybody can check.', field: 'file' } },
       { status: 422 }
     )
   }
+  if (file) fileUrl = await keepTheFile(packet.id, item.id, item.label, file)
 
   await prisma.packetItem.update({
     where: { id: itemId },
@@ -265,4 +303,41 @@ export async function POST(
         : `Got it. ${progress.summary}`,
     },
   })
+}
+
+/**
+ * The bytes, kept on a paper of the asking firm's that the item points at.
+ *
+ * A packet item has a link and no bytes of its own, and `DocFile` hangs
+ * off a paper. So the answer becomes a paper of the firm that asked,
+ * about this item (`subjectType` PACKET_ITEM), on file, with the file on
+ * it: the firm's paperwork team opens it through `/api/documents/:id/file`
+ * like every other paper, and the person or firm the packet is about is
+ * never shown somebody else's. One paper per item; a second answer
+ * replaces the bytes, as a sent-back item is answered again.
+ */
+async function keepTheFile(packetId: string, itemId: string, label: string, file: { name: string; type: string; bytes: Buffer }): Promise<string> {
+  const owner = await prisma.documentPacket.findUnique({ where: { id: packetId }, select: { companyId: true } })
+  const companyId = owner!.companyId
+  const name = label.slice(0, 200)
+  const template =
+    (await prisma.docTemplate.findFirst({ where: { companyId, name }, select: { id: true } })) ??
+    (await prisma.docTemplate.create({ data: { companyId, name, audience: 'GENERAL', needsSignature: false }, select: { id: true } }))
+  const now = new Date()
+  const id = await prisma.$transaction(async (tx) => {
+    const paper =
+      (await tx.docInstance.findFirst({ where: { subjectType: 'PACKET_ITEM', subjectId: itemId }, select: { id: true } })) ??
+      (await tx.docInstance.create({
+        data: { templateId: template.id, subjectType: 'PACKET_ITEM', subjectId: itemId, status: 'UPLOADED', sentAt: now },
+        select: { id: true },
+      }))
+    await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
+    await tx.docFile.upsert({
+      where: { docInstanceId: paper.id },
+      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes },
+      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedAt: now },
+    })
+    return paper.id
+  })
+  return `/api/documents/${id}/file`
 }

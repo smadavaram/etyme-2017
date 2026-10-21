@@ -67,6 +67,29 @@ export async function POST(
     )
   }
 
+  const { id } = await params
+  const body = await request.json().catch(() => ({}))
+  const itemId = String(body.itemId ?? '')
+  const action = String(body.action ?? '')
+  const note = String(body.note ?? '').trim()
+
+  // Whose packet first, then whose seat. Until 2026-10-21 the seat was
+  // checked first, so a seat at a firm that never sent this packet was told
+  // to ask its program manager, who then read "No such packet here" (found
+  // by the document-flow walk). A packet that is not this firm's is not
+  // here, for every seat; a refusal names a person only where that person
+  // can act.
+  const packet = await prisma.documentPacket.findFirst({
+    where: { id, companyId: caller.company.id },
+    select: { id: true, label: true, completedAt: true, recipientEmail: true, subjectPersonId: true },
+  })
+  if (!packet) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That document request was not sent by your company, so there is nothing here to review.' } },
+      { status: 404 }
+    )
+  }
+
   const mayReview =
     hasPermission(caller.permissions, 'vendors.manage') ||
     hasPermission(caller.permissions, 'consultants.write')
@@ -87,12 +110,6 @@ export async function POST(
     )
   }
 
-  const { id } = await params
-  const body = await request.json().catch(() => ({}))
-  const itemId = String(body.itemId ?? '')
-  const action = String(body.action ?? '')
-  const note = String(body.note ?? '').trim()
-
   if (action !== 'accept' && action !== 'reject') {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: "action is 'accept' or 'reject'", field: 'action' } },
@@ -106,17 +123,6 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'Say what was wrong with it, so they can send the right thing', field: 'note' } },
       { status: 422 }
-    )
-  }
-
-  const packet = await prisma.documentPacket.findFirst({
-    where: { id, companyId: caller.company.id },
-    select: { id: true, label: true, completedAt: true, recipientEmail: true, subjectPersonId: true },
-  })
-  if (!packet) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such packet here' } },
-      { status: 404 }
     )
   }
 

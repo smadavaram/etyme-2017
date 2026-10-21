@@ -20,6 +20,7 @@
  */
 
 import { plainDate } from '@/lib/plain-date'
+import { calendarDaysBetween } from '@/lib/document-stages'
 import { humanKey } from '@/lib/document-type'
 import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
 // The bench answer is read through one door — `lib/bench-filter` — so two
@@ -768,7 +769,7 @@ export function heldWord(expiresAt: Date | null, on: Date, stopsWork = false): s
     // claims something nobody checked.
     return stopsWork ? 'On file — no expiry recorded' : 'On file'
   }
-  const daysLeft = Math.ceil((expiresAt.getTime() - on.getTime()) / 86_400_000)
+  const daysLeft = calendarDaysBetween(expiresAt, on)
   if (daysLeft < 0) {
     const n = Math.abs(daysLeft)
     return `Ran out ${n === 1 ? 'yesterday' : `${n} days ago`}`
@@ -1602,7 +1603,7 @@ export interface DocumentWatch {
 }
 
 function daysBetween(a: Date, b: Date): number {
-  return Math.ceil((a.getTime() - b.getTime()) / 86_400_000)
+  return calendarDaysBetween(a, b)
 }
 
 function sentence(document: string, who: string | null, daysLeft: number): string {
@@ -1769,10 +1770,79 @@ export async function documentsToChase(
   now: Date = new Date(),
   opts: { windowDays?: number; db?: Db } = {}
 ): Promise<DocumentWatch> {
-  const [papers, checks] = await Promise.all([lookAtDocInstances(now, opts), checksToRedo(now, opts)])
+  const [papers, checks, standing] = await Promise.all([lookAtDocInstances(now, opts), checksToRedo(now, opts), standingToRenew(now, opts)])
   return assembleWatch(now, papers.windowDays, [
-    ...papers.lapsed, ...papers.lapsing, ...checks.lapsed, ...checks.lapsing,
+    ...papers.lapsed, ...papers.lapsing, ...checks.lapsed, ...checks.lapsing, ...standing.lapsed, ...standing.lapsing,
   ])
+}
+
+/**
+ * A supplier's certificate of good standing, running out on a firm that
+ * has people working through it.
+ *
+ * Good standing is required on every line bought from another firm and
+ * stops the work when it lapses, and until 2026-10-21 nothing watched it:
+ * the nightly check read insurance and the I-9 and nothing else, so the
+ * first anybody heard of a lapse was a refusal at the next start (found
+ * by the document-flow walk). Told to each firm that buys from it on a
+ * running line, because that firm recorded it and is the one it protects;
+ * owed by the supplier.
+ */
+export async function standingToRenew(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db } = {}
+): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
+  const windowDays = opts.windowDays ?? CHASE_WINDOW_DAYS
+  const horizon = new Date(now.getTime() + windowDays * 86_400_000)
+  const running = { in: ['IN_PROGRESS', 'PAUSED'] as never[] }
+  const rows = await db.verification.findMany({
+    where: {
+      type: 'GOOD_STANDING',
+      status: { in: ['CLEAR', 'CONDITIONAL'] },
+      expiresAt: { not: null, lte: horizon },
+      companyId: { not: null },
+      company: { sellContractsOut: { some: { state: running } } },
+    },
+    select: {
+      id: true, expiresAt: true, companyId: true,
+      company: {
+        select: {
+          name: true,
+          sellContractsOut: { where: { state: running }, select: { clientCompanyId: true }, distinct: ['clientCompanyId'], take: 20 },
+        },
+      },
+    },
+  })
+  // A renewal already on file answers the old one: only the newest per firm.
+  const newest = new Map<string, (typeof rows)[number]>()
+  for (const r of rows) {
+    const had = newest.get(r.companyId!)
+    if (!had || r.expiresAt!.getTime() > had.expiresAt!.getTime()) newest.set(r.companyId!, r)
+  }
+  const renewed = new Set(
+    (
+      await db.verification.findMany({
+        where: { type: 'GOOD_STANDING', status: { in: ['CLEAR', 'CONDITIONAL'] }, companyId: { in: [...newest.keys()] }, expiresAt: { gt: horizon } },
+        select: { companyId: true },
+      })
+    ).map((r) => r.companyId!)
+  )
+  const label = labelFor('GOOD_STANDING')
+  const found: LapsingDocument[] = []
+  for (const r of newest.values()) {
+    if (renewed.has(r.companyId!)) continue
+    const daysLeft = daysBetween(r.expiresAt!, now)
+    for (const line of r.company?.sellContractsOut ?? []) {
+      found.push({
+        kind: 'CHECK', id: r.id, key: 'GOOD_STANDING', document: label, line: null,
+        owedBy: 'SUPPLIER', owedByName: r.company?.name ?? null, personId: null, companyId: r.companyId,
+        tellCompanyId: line.clientCompanyId, expiresAt: r.expiresAt!, daysLeft, lapsed: daysLeft < 0,
+        stopsWork: true, says: sentence(label, r.company?.name ?? null, daysLeft),
+      })
+    }
+  }
+  return assembleWatch(now, windowDays, found)
 }
 
 function assembleWatch(on: Date, windowDays: number, found: LapsingDocument[]): DocumentWatch {

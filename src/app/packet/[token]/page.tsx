@@ -66,18 +66,12 @@ export default function PacketPage({ params }: { params: { token: string } }) {
     setBusy(item.id)
     setFlash(null)
     try {
-      const res = await fetch(`/api/packet/${token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId: item.id,
-          // Stored as a reference. The file itself goes to object storage
-          // in production; this keeps the flow honest end to end without
-          // pretending an upload pipeline exists.
-          fileUrl: `pending://${encodeURIComponent(file.name)}`,
-          fileName: file.name,
-        }),
-      })
+      // The file itself, as a form. Until 2026-10-21 this sent the file's
+      // name and nothing else, and the request read as answered.
+      const form = new FormData()
+      form.set('itemId', item.id)
+      form.set('file', file, file.name)
+      const res = await fetch(`/api/packet/${token}`, { method: 'POST', body: form })
       const body = await readJson(res)
       setFlash(body.data.message)
       await load()

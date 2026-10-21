@@ -76,7 +76,9 @@ export async function GET(request: NextRequest) {
     const personName = new Map(people.map((p) => [p.id, p.name]))
     const companyName = new Map(companies.map((c) => [c.id, c.name]))
     const subjectOf = (i: (typeof instances)[number]): string =>
-      i.subjectType === 'PERSON'
+      i.subjectType === 'PACKET_ITEM'
+        ? 'Sent through a document request'
+        : i.subjectType === 'PERSON'
         ? personName.get(i.subjectId) ?? 'Somebody'
         : i.subjectType === 'COMPANY'
           ? companyName.get(i.subjectId) ?? 'A company'

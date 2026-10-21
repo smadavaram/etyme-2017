@@ -442,6 +442,19 @@ export type Standing =
   | 'EXPIRED'
   | 'NO_EXPIRY_RECORDED'
 
+/**
+ * Whole calendar days from `on` to `to`, counted on the UTC day each falls
+ * on — never on the hours between them. A certificate that ran out on
+ * October 19 has run out two days on October 21, whatever the clock says.
+ * Until 2026-10-21 this file floored the hours and the nightly check
+ * ceiled them, so the client's page said "3 days ago" where the supplier's
+ * page and the nightly check said 2 (found by the document-flow walk).
+ */
+export function calendarDaysBetween(to: Date, on: Date): number {
+  const day = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  return Math.round((day(to) - day(on)) / 86_400_000)
+}
+
 /** Chase this far ahead. Long enough to renew an insurance certificate. */
 export const WARN_WITHIN_DAYS = 30
 
@@ -584,7 +597,7 @@ export function standingOf(
     }
   }
 
-  const days = Math.floor((expires.getTime() - on.getTime()) / 86_400_000)
+  const days = calendarDaysBetween(expires, on)
 
   if (days < 0) {
     return {
@@ -1428,7 +1441,7 @@ export function credentialsToChase(
       continue
     }
 
-    const days = Math.floor((best.expiresAt.getTime() - on.getTime()) / 86_400_000)
+    const days = calendarDaysBetween(best.expiresAt, on)
     if (days > withinDays) continue
 
     out.push({

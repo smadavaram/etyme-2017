@@ -248,7 +248,9 @@ describe('cover that has not begun refuses a start, and the preview of it says t
   })
 
   it('and the start the preview cleared is the start that goes through', async () => {
-    const r = await pressActivate()
+    // Cleared of the block; the NDA the worker owes on the line that
+    // employs her still warns (since 2026-10-21), so the reason is given.
+    const r = await pressActivate({ action: 'activate', overrideReason: 'The NDA is with Nora to sign; the start goes ahead and it is chased.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const live = await prisma.sellContract.findUniqueOrThrow({ where: { id: ctx.contractId } })
     expect(live.state).toBe('IN_PROGRESS')

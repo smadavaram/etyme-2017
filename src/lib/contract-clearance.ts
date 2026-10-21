@@ -315,7 +315,13 @@ export function credentialDetail(row: VerificationRow): { number: string | null;
  */
 export function heldFrom(rows: VerificationRow[]): HeldDocument[] {
   const out: HeldDocument[] = []
+  const newest = newestReports(rows)
   for (const r of rows) {
+    // A screening company's report is read as its newest one. An older
+    // clear report does not stand beside a newer flagged one: until
+    // 2026-10-21 it did, and a flagged re-check read as cleared (found by
+    // the document-flow walk).
+    if (orderedNotCollected(r.type) && REPORTED.includes(r.status) && newest.get(r.type) !== r) continue
     const accepted = r.status === 'CLEAR' || r.status === 'CONDITIONAL'
     const validFrom = r.validFrom ?? r.issuedAt ?? null
     out.push({ key: r.type, validFrom, expiresAt: r.expiresAt ?? null, accepted })
@@ -323,6 +329,89 @@ export function heldFrom(rows: VerificationRow[]): HeldDocument[] {
     for (const [alias, sources] of Object.entries(SATISFIED_BY)) {
       if (sources.includes(r.type)) out.push({ key: alias, validFrom, expiresAt: r.expiresAt ?? null, accepted })
     }
+  }
+  return out
+}
+
+/**
+ * The editions an issuer published, for every company that has not
+ * recorded its own. Rules live in data: a new edition is a new line.
+ *
+ * The I-9, from USCIS's edition notices: the 10/21/19 edition was
+ * accepted until October 31, 2023; the 08/01/23 edition until its printed
+ * expiry, July 31, 2026; the 01/20/25 edition is current.
+ */
+export const PUBLISHED_EDITIONS: Record<string, Edition[]> = {
+  I9_EVERIFY: [
+    { edition: '10/21/19', effectiveFrom: new Date('2019-10-21T00:00:00Z'), retiredAt: new Date('2023-11-01T00:00:00Z') },
+    { edition: '08/01/23', effectiveFrom: new Date('2023-08-01T00:00:00Z'), retiredAt: new Date('2026-08-01T00:00:00Z') },
+    { edition: '01/20/25', effectiveFrom: new Date('2025-01-20T00:00:00Z'), retiredAt: null },
+  ],
+}
+
+/**
+ * The published editions to judge one form against. Two editions are
+ * often accepted at once (USCIS let the 08/01/23 I-9 be used for months
+ * after the 01/20/25 one came out), so a form signed on an edition still
+ * accepted that day is judged against that edition alone and reads as
+ * current; anything else is judged against the whole list.
+ */
+export function publishedFor(type: string, recorded: string, completedOn: Date | null): Edition[] {
+  const list = PUBLISHED_EDITIONS[type] ?? []
+  const on = completedOn ?? new Date()
+  const same = list.find(
+    (e) => e.edition === recorded.trim() && e.effectiveFrom.getTime() <= on.getTime() && (!e.retiredAt || e.retiredAt.getTime() > on.getTime())
+  )
+  return same ? [same] : list
+}
+
+/** Agreements a worker signs from her own page, so their absence is a real gap. */
+const WORKER_AGREEMENTS = ['NDA', 'NCA', 'EMPLOYMENT_AGREEMENT']
+
+/** The statuses a screening company's answer can carry. ORDERED (IN_PROGRESS) is not an answer. */
+const REPORTED = ['CLEAR', 'CONDITIONAL', 'FLAGGED', 'FAILED']
+
+/** When a report was rendered, as recorded: the provider's date first. */
+function reportedOn(r: VerificationRow): number {
+  return (r.verifiedAt ?? r.issuedAt ?? r.validFrom ?? new Date(0)).getTime()
+}
+
+/**
+ * The newest report per kind of screening, among the answers a provider
+ * gave. The newest wins whatever it says: a flagged re-check is the
+ * provider's latest word and a clear one from last spring is not.
+ */
+export function newestReports(rows: VerificationRow[]): Map<string, VerificationRow> {
+  const out = new Map<string, VerificationRow>()
+  for (const r of rows) {
+    if (!orderedNotCollected(r.type) || !REPORTED.includes(r.status)) continue
+    const had = out.get(r.type)
+    if (!had || reportedOn(r) >= reportedOn(had)) out.set(r.type, r)
+  }
+  return out
+}
+
+/**
+ * What is said where the newest report is unfavorable. The verdict is the
+ * provider's; the steps after it are the firm's that ordered it, and the
+ * start warns until they are walked (never blocks: a check is contractual).
+ */
+export function adverseSays(rows: VerificationRow[], person: string): { key: string; says: string }[] {
+  const out: { key: string; says: string }[] = []
+  for (const [key, r] of newestReports(rows)) {
+    if (r.status !== 'FLAGGED' && r.status !== 'FAILED') continue
+    const provider = r.provider ?? 'The screening company'
+    const on = r.verifiedAt ?? r.issuedAt ?? null
+    const what = labelFor(key).toLowerCase()
+    const decided = ((r.result as { adverse?: { decision?: string } } | null)?.adverse?.decision) ?? null
+    if (decided === 'NOT_TAKEN') continue
+    out.push({
+      key,
+      says:
+        `${provider} ${r.status === 'FLAGGED' ? 'flagged' : 'did not clear'} the ${what}${on ? ` on ${plainDate(on.toISOString())}` : ''}` +
+        `${r.referenceId ? `, reference ${r.referenceId}` : ''}. Before anything is decided on it, the firm that ordered it gives ${person} ` +
+        `the pre-adverse action notice with a copy of the report, waits, and only then decides`,
+    })
   }
   return out
 }
@@ -562,9 +651,11 @@ export function contractClearance(input: {
   // Addendum E says WARN, capture a reason, proceed. What changes is
   // that nobody reads an unattributed green line as a provider's answer.
   const rendered = new Map<string, ReturnType<typeof readVerdict>>()
+  const newestOf = newestReports(input.personVerifications)
   for (const v of input.personVerifications) {
     if (!orderedNotCollected(v.type)) continue
     if (rendered.has(v.type)) continue
+    if (newestOf.size && newestOf.has(v.type) && newestOf.get(v.type) !== v) continue
     rendered.set(
       v.type,
       readVerdict({
@@ -635,6 +726,12 @@ export function contractClearance(input: {
     // this line. A person wrote it down, so its absence is a gap rather
     // than a shipped default with nowhere to be recorded.
     ...personSide.filter((r) => r.from !== 'DEFAULT').map((r) => r.key),
+    // An agreement the worker owes on the line that employs her — her NDA
+    // — is held the day she signs it on her own page, and her page chases
+    // her for it. So the start asks for it too. Until 2026-10-21 her page
+    // said she owed it, the clearance list said it was still needed, and
+    // the start never asked (found by the document-flow walk).
+    ...personSide.filter((r) => r.owedBy === 'WORKER' && WORKER_AGREEMENTS.includes(r.key)).map((r) => r.key),
   ])
   const chasing = items.filter(
     (i) =>
@@ -670,7 +767,17 @@ export function contractClearance(input: {
         type,
         row.formEdition ?? null,
         row.completedAt ?? row.issuedAt ?? null,
-        input.editions?.[row.type] ?? []
+        // The company's own list where it recorded one; otherwise the
+        // editions the issuer published, so an I-9 on an edition the
+        // government had retired is judged at every company and not only
+        // at the three seeded clients that recorded theirs (found by the
+        // document-flow walk, 2026-10-21). Only where the form says which
+        // edition it is: a form that names none was left unjudged before
+        // and still is, rather than every row in the book becoming a
+        // finding on the day this landed.
+        input.editions?.[row.type]?.length
+          ? input.editions[row.type]
+          : row.formEdition ? publishedFor(row.type, row.formEdition, row.completedAt ?? row.issuedAt ?? null) : []
       )
       if (finding.standing === 'SUPERSEDED' || finding.standing === 'UNRECORDED') {
         editions.push(finding)
@@ -743,9 +850,11 @@ export function contractClearance(input: {
   // an unanswered question — and on the day a company first records its
   // editions, every form filed before then is unanswered. Report it, give
   // the fix, and do not make a hundred percent of rows a warning.
+  const adverse = adverseSays(input.personVerifications, input.personName)
   const paperworkWarns =
     unsupported.some((u) => u.standing === 'BACKING_NOT_IN_FORCE') ||
-    editions.some((e) => e.standing === 'SUPERSEDED')
+    editions.some((e) => e.standing === 'SUPERSEDED') ||
+    adverse.length > 0
 
   const outcome: Outcome =
     blocking.length > 0 || cover.outcome === 'BLOCK' || license.outcome === 'BLOCK' ? 'BLOCK'
@@ -762,7 +871,7 @@ export function contractClearance(input: {
     license,
     unsupported,
     editions,
-    says: oneStop(sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived)),
+    says: oneStop(sayIt(input.personName, outcome, blocking, chasing, cover, license, unsupported, editions, waived, adverse)),
     fix: fixFor(blocking, chasing, cover, license, unsupported, editions),
   }
 }
@@ -976,7 +1085,8 @@ function sayIt(
   license: LicenseGate,
   unsupported: BackingFinding[] = [],
   editions: EditionFinding[] = [],
-  waived: ChecklistItem[] = []
+  waived: ChecklistItem[] = [],
+  adverse: { key: string; says: string }[] = []
 ): string {
   // What is reported and does not move the verdict still gets said. A
   // clearance that returns PASS and keeps a finding in an array nobody
@@ -1031,7 +1141,11 @@ function sayIt(
     return reported.length === 0 ? refusal : `${refusal} ${reported.join(' ')}`
   }
   if (license.outcome === 'WARN' && license.says) parts.push(license.says)
-  if (chasing.length > 0) parts.push(`still waiting on ${names(chasing)} for ${person}`)
+  // A report that came back flagged is not something being waited on; it
+  // is said as what it is, with the steps that follow it.
+  const waitingOn = chasing.filter((c) => !adverse.some((a) => a.key === c.key))
+  if (waitingOn.length > 0) parts.push(`still waiting on ${names(waitingOn)} for ${person}`)
+  for (const a of adverse) parts.push(a.says)
   if (cover.outcome === 'WARN') parts.push(cover.says)
   for (const u of unsupported) {
     if (u.standing === 'BACKING_NOT_IN_FORCE') parts.push(u.says)
@@ -1234,6 +1348,13 @@ export function startPreview(
     startDate?: Date | null
     /** The client the person is starting at, for the sentence HR reads. */
     clientName?: string | null
+    /**
+     * Today, for "due to start in a week". `on` is the day the papers are
+     * judged on, which is the first day where that is still ahead — so
+     * counting from `on` told HR "due to start today" a week early
+     * (found by the document-flow walk, 2026-10-21). Omitted: `on`.
+     */
+    today?: Date
   }
 ): StartPreview {
   const clearance = contractClearance(input)
@@ -1241,7 +1362,7 @@ export function startPreview(
 
   const daysUntilStart =
     input.startDate
-      ? Math.ceil((startOfDay(input.startDate).getTime() - startOfDay(input.on).getTime()) / 86_400_000)
+      ? Math.ceil((startOfDay(input.startDate).getTime() - startOfDay(input.today ?? input.on).getTime()) / 86_400_000)
       : null
 
   // Required and not in hand: not on file, run out, or not in force yet.
@@ -1494,9 +1615,25 @@ export async function lineExtras(
     })
   }
 
+  // The line that employs the person, for what she owes on it. The start
+  // is pressed on the sell line, whose own set is the customer's paper;
+  // the worker's NDA lives on the buy line that pays her, and her own page
+  // reads it there. Read here too, so the two cannot disagree.
+  let items = set.items as LineRequirement[]
+  if (isSell) {
+    const links = await db.contractLink.findMany({ where: { sellContractId: sellContractId! }, select: { buyContractId: true } })
+    for (const l of links) {
+      const buy = await requirementsFor({ buyContractId: l.buyContractId } as Parameters<typeof requirementsFor>[0], db as never)
+      const hers = ((buy?.items ?? []) as LineRequirement[]).filter((i) => i.owedBy === 'WORKER')
+      if (hers.length === 0) continue
+      const keys = new Set(hers.map((h) => h.key))
+      items = [...items.filter((i) => !keys.has(i.key)), ...hers]
+    }
+  }
+
   void now
   return {
-    requirements: set.items as LineRequirement[],
+    requirements: items,
     extraHeld,
     supplierCertificates: certificates as CoverCertificate[],
     documentTypes: types as DefinedType[],

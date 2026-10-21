@@ -482,6 +482,18 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Waiving it ──
+  //
+  // A waiver asked for with nothing in the reason is refused, never
+  // written as an ordinary change: until 2026-10-21 a blank reason fell
+  // through to the upsert below and recorded an override with no reason
+  // and no name (found by the document-flow walk). Never silently permit.
+  if (body.waivedReason !== undefined && body.waivedReason !== null && (typeof body.waivedReason !== 'string' || !body.waivedReason.trim())) {
+    return refuse(
+      `Say why ${target.says} does not need ${label}. A waiver goes on the record with the reason and your name, and one with no reason is not a waiver.`,
+      422,
+      'NO_REASON'
+    )
+  }
   const waiving = typeof body.waivedReason === 'string' && body.waivedReason.trim().length > 0
   if (waiving) {
     const verdict = mayWaive(key, body.waivedReason!, () => label)

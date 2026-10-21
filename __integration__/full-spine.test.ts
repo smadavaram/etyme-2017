@@ -806,8 +806,11 @@ describe('Step 13 — the contracts are activated, and the PO is attached', () =
   it('moves both sell contracts from draft to live', async () => {
     for (const [seat, id] of [[ADOBE_PM, it_.primeSell], [PRIME, it_.subSell]] as const) {
       as(seat)
+      // Since 2026-10-21 the start asks for the NDA Priya owes Techpeple on
+      // the line that employs her, as her own page does; it warns and the
+      // start goes ahead with the reason on the record.
       const r = await json(await activateContract(
-        req('POST', `/api/contracts/${id}/activate`, { action: 'activate' }),
+        req('POST', `/api/contracts/${id}/activate`, { action: 'activate', overrideReason: 'The NDA is with Priya to sign; the start goes ahead and it is chased.' }),
         { params: Promise.resolve({ id }) }
       ))
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
