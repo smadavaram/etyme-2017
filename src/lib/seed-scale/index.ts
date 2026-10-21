@@ -14,8 +14,8 @@
  * integration file copies.
  *
  * The frame's steps first, then the people (supply), the papers
- * (regulatory, a named slot until its folder lands), the jobs (demand)
- * and the rates (money).
+ * (regulatory), the jobs (demand), the rates (money), and the papers'
+ * asks on the orders the rates wrote (regulatory).
  *
  * This is the one file `planScaleTemplate` hashes; everything it imports
  * is in that hash.
@@ -28,6 +28,7 @@ import { worldAnchor } from '@/lib/seed-world'
 import { buildFrame, frameSteps, type FrameStep } from './frame'
 import { buildPeople, peopleAfterJobsSteps, peopleSteps } from './people'
 import { jobSteps } from './jobs'
+import { paperAfterRatesSteps, paperSteps } from './papers'
 import { seedRates } from './rates/rows'
 import { SCALE_VERSION, type PersonFacts, type ScaleFrame } from './types'
 
@@ -37,16 +38,13 @@ import { SCALE_VERSION, type PersonFacts, type ScaleFrame } from './types'
  */
 export const RATE_SHARES = 4
 
-/** The papers' steps (regulatory): a slot, empty until its folder lands. They read the people. */
-function paperSteps(_frame: ScaleFrame, _people: () => readonly PersonFacts[]): FrameStep[] {
-  return []
-}
-
 /**
  * Every step of the generated world, in order: the frame; the people
- * (supply); the papers (regulatory, a slot); the jobs (demand), which put
- * the people forward; the lines pointed at the jobs they filled (supply);
- * and the rates (money), which price the lines the people's careers wrote.
+ * (supply); the papers (regulatory): each person's and each supplier's;
+ * the jobs (demand), which put the people forward; the lines pointed at
+ * the jobs they filled (supply); the rates (money), which price the lines
+ * the people's careers wrote and write the orders; and what each order
+ * asks for on paper (regulatory), which needs those orders.
  */
 function allSteps(frame: ScaleFrame): FrameStep[] {
   let people: PersonFacts[] | null = null
@@ -62,6 +60,7 @@ function allSteps(frame: ScaleFrame): FrameStep[] {
     ...Array.from({ length: RATE_SHARES }, (_, index): FrameStep => ({
       name: `scale:rates:${index + 1}-of-${RATE_SHARES}`, run: (f) => seedRates(f, { index, of: RATE_SHARES }),
     })),
+    ...paperAfterRatesSteps(theirs),
   ]
 }
 
