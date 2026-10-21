@@ -8,7 +8,7 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
-import { partiesSay, siteSay } from './words'
+import { partiesSay, siteSay, startSays } from './words'
 
 /**
  * POST /api/contracts/:id/activate
@@ -126,6 +126,10 @@ export async function POST(
       { status: 404 }
     )
   }
+
+  // Started today or earlier, work may begin; started ahead of the day,
+  // the person is cleared to start on it, and every reader is told which.
+  const start = action === 'activate' ? startSays(contract.person.name, contract.startDate) : null
 
   // ── Who is asking ──
   //
@@ -460,7 +464,9 @@ export async function POST(
           : action === 'resume' ? 'CONTRACT_RESUMED'
           : action === 'complete' ? 'CONTRACT_COMPLETED'
           : 'CONTRACT_CANCELLED',
-        summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} ${ACTION_SUMMARIES[action as Action]}`,
+        summary: start
+          ? `${start.says}, at ${contract.endClientCompany?.name ?? contract.clientCompany.name}`
+          : `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} ${ACTION_SUMMARIES[action as Action]}`,
         reason: `State transition ${previousState} → ${newState} by ${caller.person.name}`,
         payload: {
           contractId: id,
@@ -499,7 +505,7 @@ export async function POST(
       personId: contract.person.id,
       companyId: contract.companyId,
       type: 'CONTRACT',
-      title: `Your placement at ${clientName} ${TOLD[action as Action]}`,
+      title: `Your placement at ${clientName} ${start ? start.told : TOLD[action as Action]}`,
       body:
         action === 'activate'
           ? `You start${role} at ${at}, working for ${clientName}${through}. ${caller.person.name} started the placement.`
@@ -516,7 +522,7 @@ export async function POST(
       state: newState,
       action,
       personName: contract.person.name,
-      message: `Contract ${ACTION_SUMMARIES[action as Action]}`,
+      message: start ? start.says : `Contract ${ACTION_SUMMARIES[action as Action]}`,
       governance: action === 'activate' ? 'checked' : undefined,
     },
   })

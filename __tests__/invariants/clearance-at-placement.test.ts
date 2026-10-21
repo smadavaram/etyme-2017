@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { contractClearance, startPreview, hrNotice, owedBy, whenWords } from '@/lib/contract-clearance'
 import { readFileSync } from 'node:fs'
-import { partiesSay, siteSay } from '@/app/api/contracts/[id]/activate/words'
+import { partiesSay, siteSay, startSays } from '@/app/api/contracts/[id]/activate/words'
 
 /**
  * The papers are asked for when somebody is placed.
@@ -229,8 +229,19 @@ describe('the start says who may change a placement, what the I-9 was completed 
   })
 
   it('the worker’s notice names the client in its title, never only "Contract activated"', () => {
-    expect(route).toContain('title: `Your placement at ${clientName} ${TOLD[action as Action]}`')
+    expect(route).toContain('title: `Your placement at ${clientName} ${start ? start.told : TOLD[action as Action]}`')
     expect(route).toContain("activate: 'has started — work may begin'")
     expect(route).not.toContain('title: `Contract ${')
+  })
+
+  it('a placement started a week before its day says who is cleared to start and when, and says work may begin only on or after the start day', () => {
+    const today = new Date('2026-10-20T15:00:00Z')
+    const ahead = startSays('Ingrid Sørensen', new Date('2026-10-27T00:00:00Z'), today)
+    expect(ahead.says).toBe('Ingrid Sørensen is cleared to start on Oct 27')
+    expect(ahead.says).not.toContain('work may begin')
+    expect(startSays('Ingrid Sørensen', new Date('2026-10-20T00:00:00Z'), today).says).toBe('Ingrid Sørensen has started — work may begin')
+    expect(startSays('Ingrid Sørensen', new Date('2026-10-13T00:00:00Z'), today).says).toBe('Ingrid Sørensen has started — work may begin')
+    expect(startSays('Ingrid Sørensen', new Date('2027-01-04T00:00:00Z'), today).says).toBe('Ingrid Sørensen is cleared to start on Jan 4, 2027')
+    expect(route).toContain('message: start ? start.says')
   })
 })

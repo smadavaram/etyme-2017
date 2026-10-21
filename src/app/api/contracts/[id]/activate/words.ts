@@ -4,6 +4,8 @@
  * a route file may export only its handlers.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 /**
  * The firms that may change a contract, each named once and joined the
  * way a person says a list: "A or B", "A, B or C". The client and the end
@@ -21,4 +23,24 @@ export function siteSay(clientName: string, site: { name?: string | null; city?:
   if (site.isRemote) return `${clientName}, working remotely`
   const place = [site.city, site.state].filter(Boolean).join(', ') || site.name || null
   return place ? `${clientName}’s site in ${place}` : clientName
+}
+
+/**
+ * What starting a placement means on the day it is pressed. Cleared
+ * ahead of the start day is not "work may begin": the worker would read
+ * that as come in tomorrow. So before the start day it says who is
+ * cleared and from which day, "Ingrid Sørensen is cleared to start on
+ * Oct 27"; on or after it, work may begin. Days are calendar days in UTC,
+ * as every stored start date is.
+ */
+export function startSays(
+  name: string,
+  startDate: Date,
+  now: Date = new Date()
+): { ahead: boolean; says: string; told: string } {
+  const day = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  const ahead = day(startDate) > day(now)
+  if (!ahead) return { ahead, says: `${name} has started — work may begin`, told: 'has started — work may begin' }
+  const on = formatDay(startDate, { year: startDate.getUTCFullYear() === now.getUTCFullYear() ? false : undefined })
+  return { ahead, says: `${name} is cleared to start on ${on}`, told: `is cleared — you start on ${on}` }
 }
