@@ -2,7 +2,7 @@
  * The generated world's jobs (etyme-demand), planned without the database:
  * docs/seed-scale-brief.md sections 3.1, 3.3 and 3.4; CLAUDE.md, "Nine
  * decisions for the generated world" (2026-10-20). Planned against
- * hand-built people (`jobs/stand-in`) until supply's people land.
+ * supply's two thousand (`lib/seed-scale/people`).
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
@@ -11,7 +11,7 @@ import { buildFrame } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, normalSkill, skillsOf } from '@/lib/seed-scale/industries'
 import { bandFor } from '@/lib/seed-scale/rates'
 import { planJobs, jobIdForLine, PER_CLIENT, type JobPlan } from '@/lib/seed-scale/jobs'
-import { standInPeople } from '@/lib/seed-scale/jobs/stand-in'
+import { buildPeople } from '@/lib/seed-scale/people'
 import type { PersonFacts, ScaleFrame } from '@/lib/seed-scale/types'
 
 let frame: ScaleFrame
@@ -21,7 +21,7 @@ let plan: JobPlan
 beforeAll(() => {
   anchorSeed(new Date('2026-10-20T00:00:00Z'))
   frame = buildFrame()
-  people = standInPeople(frame)
+  people = buildPeople(frame)
   plan = planJobs(frame, people)
 })
 
@@ -274,7 +274,7 @@ describe('the generated world’s jobs', () => {
   })
 
   it('the same world plans the same rows with the same ids, sorting after the base world’s', () => {
-    const again = planJobs(buildFrame(), standInPeople(frame))
+    const again = planJobs(buildFrame(), buildPeople(frame))
     expect(again.jobs.map((j) => j.id)).toEqual(plan.jobs.map((j) => j.id))
     expect(again.submissions.map((s) => [s.id, s.status, s.rate])).toEqual(plan.submissions.map((s) => [s.id, s.status, s.rate]))
     const ids = [...plan.jobs, ...plan.approvals, ...plan.invitations, ...plan.submissions, ...plan.interviews].map((r) => r.id)

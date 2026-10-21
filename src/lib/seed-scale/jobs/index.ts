@@ -62,10 +62,7 @@ function planOf(frame: ScaleFrame, people: readonly PersonFacts[]): JobPlan {
   return plan
 }
 
-/**
- * The job steps, given the people. `people` is supply's `buildPeople(frame)`
- * once it lands; until then a test passes `standInPeople(frame)`.
- */
+/** The job steps, given the people: supply's `buildPeople(frame)`. */
 export function jobSteps(people: () => readonly PersonFacts[]): JobStep[] {
   const steps: Record<(typeof JOB_STEP_NAMES)[number], (frame: ScaleFrame) => Promise<void>> = {
     // Client jobs before the firms' records of them, each record after the one it copies.

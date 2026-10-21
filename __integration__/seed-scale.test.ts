@@ -17,13 +17,12 @@ import { buildFrame, seedFrame, namedFirms } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, vocabularyFaults, skillsOf } from '@/lib/seed-scale/industries'
 import { sharedTails } from '@/lib/seed-scale/kit'
 import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, SCALE_SLUG_PREFIX, STEP_QUERY_BUDGET, type ScaleFrame } from '@/lib/seed-scale/types'
-import { peopleSteps, planPeople, careerCounts, soloIdOf } from '@/lib/seed-scale/people'
+import { peopleSteps, planPeople, careerCounts, soloIdOf, buildPeople } from '@/lib/seed-scale/people'
 import { STAY_CHOICES } from '@/lib/bench-stay'
 import { daysFor, daysOnSite } from '@/lib/tenure-days'
 import { day } from '@/lib/seed-days'
 import { readCatalog } from '../scripts/simulate/actors'
-import { seedJobs, planJobs, type JobPlan } from '@/lib/seed-scale/jobs'
-import { standInPeople } from '@/lib/seed-scale/jobs/stand-in'
+import { jobSteps, planJobs, type JobPlan } from '@/lib/seed-scale/jobs'
 import type { PersonFacts } from '@/lib/seed-scale/types'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
 
@@ -42,7 +41,7 @@ import { projectInvitationForVendor } from '@/lib/invitation-visibility'
 
 let frame: ScaleFrame
 const s: Record<string, any> = {}
-/** The people the jobs are planned against: demand's stand-ins until supply's `buildPeople` lands. */
+/** The people the jobs are planned against: supply's two thousand. */
 let people: PersonFacts[]
 let jobPlan: JobPlan
 
@@ -58,14 +57,6 @@ beforeAll(async () => {
   await freshWorld()
   s.first = await seedScaleWorld()
   frame = buildFrame()
-  // The jobs (etyme-demand). Until lib/seed-scale/index wires the job
-  // steps after supply's people, they run here on demand's stand-in
-  // people, whose Person rows the test writes itself; when the wiring
-  // lands this block goes and `seedScaleWorld` does it.
-  people = standInPeople(frame)
-  await prisma.person.createMany({ data: people.map((p) => ({ id: p.id, name: p.name, primaryEmail: p.email })), skipDuplicates: true })
-  jobPlan = planJobs(frame, people)
-  await seedJobs(frame, people)
   s.firms = await prisma.company.findMany({
     where: { slug: { startsWith: SCALE_SLUG_PREFIX } },
     select: { id: true, slug: true, kind: true, supplierPosture: true, claimedAt: true },
@@ -76,6 +67,17 @@ beforeAll(async () => {
     const before = counter.asked
     await step.run(frame)
     s.peopleSteps.push({ step: step.name, asked: counter.asked - before })
+  }
+  // The jobs (etyme-demand), on supply's people, each step's questions
+  // counted. Until lib/seed-scale/index wires the job steps after the
+  // people's, they run here; when the wiring lands `seedScaleWorld` does it.
+  people = buildPeople(frame)
+  jobPlan = planJobs(frame, people)
+  s.jobSteps = []
+  for (const step of jobSteps(() => people)) {
+    const before = counter.asked
+    await step.run(frame)
+    s.jobSteps.push({ step: step.name, asked: counter.asked - before })
   }
   s.seated = await prisma.context.findMany({
     where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } }, revokedAt: null },
@@ -275,13 +277,21 @@ describe('the generated world at the founder’s scale', () => {
     expect(placed.interviews).toEqual([{ round: 1, outcome: 'ADVANCE' }, { round: 2, outcome: 'OFFER' }])
   })
 
-  it('a second seeding of the jobs writes nothing', async () => {
+  it('a second seeding of the jobs writes nothing, and every job step fits one function call', async () => {
+    for (const x of s.jobSteps as { step: string; asked: number }[]) expect(x.asked, x.step).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
     const tables = ['requirement', 'requirementApproval', 'requirementInvitation', 'submission', 'interview'] as const
     const read = async () => Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await (prisma as any)[t].count()])))
     const before = await read()
-    await seedJobs(buildFrame(), standInPeople(frame))
+    const again = buildFrame()
+    const everyone = buildPeople(again)
+    for (const step of jobSteps(() => everyone)) {
+      const asked = counter.asked
+      await step.run(again)
+      expect(counter.asked - asked, `${step.name}, walked again`).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
+    }
     expect(await read()).toEqual(before)
   })
+
 })
 
 /**

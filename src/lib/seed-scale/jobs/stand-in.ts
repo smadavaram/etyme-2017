@@ -1,14 +1,10 @@
 /**
- * People to plan jobs against until supply's `buildPeople` lands
- * (etyme-demand). Hand-built in the shape `types.ts` signs, from the
- * same frame and the same vocabulary, so the jobs, the invitations and
- * the submissions can be built and tested before the 2,000 exist.
- *
- * Not the generated world's people and never written by the seed: the
- * integration test writes their Person rows itself, under keys of their
- * own (`sx/jobs-stand-in/...`), so they can never collide with supply's.
- * When `lib/seed-scale/people` lands, `index.ts` passes its people
- * instead and this file is used by the tests alone.
+ * Hand-built people in the shape `types.ts` signs (etyme-demand): what the
+ * jobs were planned and tested against before supply's `buildPeople`
+ * landed. The seed and its tests now plan against supply's two thousand;
+ * this stays as a small world a planning test can use, and is never
+ * written by the seed. Its keys (`sx/jobs-stand-in/...`) can never
+ * collide with supply's people.
  */
 
 import { industry } from '../industries'

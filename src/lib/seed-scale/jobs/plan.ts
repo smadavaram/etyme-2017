@@ -581,9 +581,11 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
     const decided = o.outcome === 'PLACED' || o.outcome === 'REJECTED'
     const decidedAt = decided ? new Date(o.at.getTime() + 9 * DAY) : null
     const contractType = (who: ScaleFirm) => (holds(who, p)?.employedByUs ? 'W2' : weighted(keyed(`ct/${p.id}`), [['W2', 5], ['C2C', 4]])) as 'W2' | 'C2C'
+    // The firm at the bottom puts forward somebody it holds, and its kind is
+    // computed from that hold; every firm above it buys them from the firm
+    // below, which is a network submission whatever it holds today.
     const kindFrom = (who: ScaleFirm) => {
-      const own = holds(who, p)
-      // A firm forwarding somebody another firm holds buys them: a network submission.
+      const own = who === reach.path[depth - 1] ? holds(who, p) : null
       return own ? submissionKind(own) : 'NETWORK'
     }
 
