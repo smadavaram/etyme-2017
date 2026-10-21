@@ -92,6 +92,19 @@ export function mayAct(
     return { ok: false, code: 'NOT_YOURS', message: `${name} was not asked of you, and it is not yours to put on file.` }
   }
 
+  // Asked first, then answered. A request the firm drafted and never sent
+  // is not a question anybody has put to them, and a paper filed against
+  // it is a paper nobody asked for: the firm's set was never asked of
+  // them. `NOT_SENT` sat in the type with nothing returning it until the
+  // simulation's documents station tried it, 2026-10-21. The firm itself
+  // may still record a copy it received some other way.
+  if (doc.status === 'PENDING' && subject && !actor.staffOfIssuer) {
+    return {
+      ok: false, code: 'NOT_SENT',
+      message: `${doc.issuerName} has not asked you for ${name} yet. Nothing goes on file until they ask; then send it here.`,
+    }
+  }
+
   if (action === 'upload') {
     if (doc.needsSignature) {
       return {
@@ -2057,4 +2070,170 @@ export async function requiredOfUsBy(input: {
   const lines: RequiredLine[] = rows.map((r) => ({ side: 'SELL' as const, id: r.id }))
   const sets = await Promise.all(rows.map((r) => requirementsFor({ sellContractId: r.id }, db as never)))
   return foldForParty(sets, ['SUPPLIER', 'US'], lines)
+}
+
+// ── Somebody looks at what arrived ────────────────────────────────────
+//
+// The founder, 2026-10-20: "Exchange 10000 documents like insurance, W-9,
+// NCA during submissions and screening and background checks." Walking
+// that through the simulation found that a paper could be asked for,
+// sent and uploaded, and then nothing: there was no move by which the
+// firm that asked said it had looked at it. A certificate that arrived
+// and a certificate somebody checked read the same, which is how an
+// expired one passes for a current one. Packets had the move (accept or
+// reject); a paper sent for a file or a signature did not.
+//
+// So a fourth move, decided here in words:
+//
+//   examine   the firm that asked looks at what arrived and either
+//             accepts it with the dates printed on it, or sends it back
+//             with a reason, and the person or firm that sent it is told
+//
+// Accepting records facts about an examination — the dates, the edition,
+// the countersignature where the paper needs both sides — and never a
+// judgment about the person or the firm. Nobody examines their own paper.
+
+/** What a paper's type declares, as far as examining it needs. */
+export interface ExaminedType {
+  key: string
+  label: string
+  validityShape: 'NONE' | 'END_ONLY' | 'START_AND_END'
+  signedBy: 'NOBODY' | 'ONE_PARTY' | 'BOTH_PARTIES'
+  reissued: boolean
+}
+
+export interface ExamineFacts {
+  status: DocStatus | string
+  templateName: string
+  needsSignature: boolean
+  issuerName: string
+  /** Who sent it, by name: the person or the firm it is about. */
+  senderName: string
+  /** The type the paper answers, where its name is one the dictionary knows. Null: no dates are asked for. */
+  type: ExaminedType | null
+}
+
+export interface ExamineAsk {
+  verdict: 'ACCEPT' | 'SEND_BACK' | string
+  reason?: string | null
+  validFrom?: Date | null
+  expiresAt?: Date | null
+  edition?: string | null
+}
+
+export type ExamineVerdict =
+  | {
+      ok: true
+      verdict: 'ACCEPT' | 'SEND_BACK'
+      /** The status after: unchanged on an accept, SENT again on a send-back. */
+      next: DocStatus
+      /** The firm's countersignature goes on with the acceptance. */
+      countersign: boolean
+      validFrom: Date | null
+      expiresAt: Date | null
+      edition: string | null
+      /** The line written on the paper, and the sentence said back. */
+      note: string
+      says: string
+    }
+  | {
+      ok: false
+      code: 'NOT_YOURS' | 'NOTHING_ARRIVED' | 'NO_REASON' | 'NO_START' | 'NO_EXPIRY' | 'ENDS_BEFORE_IT_STARTS' | 'NO_EDITION' | 'LAPSED' | 'VALIDATION'
+      field?: string
+      message: string
+    }
+
+/**
+ * Whether this seat may examine this paper, and what the examination says.
+ *
+ * Pure. `on` is the day of the examination, against which a lapsed
+ * paper is judged. The fourth state — on file, no expiry recorded, on a
+ * kind that expires — is refused here rather than accepted quietly,
+ * because accepting it is the 2017 bug that kept a certificate green for
+ * four months.
+ */
+export function mayExamine(
+  doc: ExamineFacts,
+  actor: { staffOfIssuer: boolean; isSender: boolean; examinerName: string },
+  ask: ExamineAsk,
+  on: Date
+): ExamineVerdict {
+  const name = doc.templateName
+  if (actor.isSender) {
+    return { ok: false, code: 'NOT_YOURS', message: `Nobody examines their own paper. ${doc.issuerName} looks at ${name} and says whether it answers what was asked.` }
+  }
+  if (!actor.staffOfIssuer) {
+    return { ok: false, code: 'NOT_YOURS', message: `Only ${doc.issuerName}, which asked for ${name}, says whether it answers what was asked.` }
+  }
+  if (!ON_FILE.includes(doc.status)) {
+    return {
+      ok: false, code: 'NOTHING_ARRIVED',
+      message: `${name} has not arrived yet, so there is nothing to look at. It is with ${doc.senderName} to send.`,
+    }
+  }
+  const day = (d: Date) => plainDate(d.toISOString())
+
+  if (ask.verdict === 'SEND_BACK') {
+    const reason = typeof ask.reason === 'string' ? ask.reason.trim() : ''
+    if (!reason) {
+      return { ok: false, code: 'NO_REASON', field: 'reason', message: `Say what is wrong with ${name}, so ${doc.senderName} can send the right one.` }
+    }
+    return {
+      ok: true, verdict: 'SEND_BACK', next: 'SENT', countersign: false,
+      validFrom: null, expiresAt: null, edition: null,
+      note: `Sent back by ${actor.examinerName} on ${day(on)}: ${reason}`,
+      says: `${name} sent back to ${doc.senderName}, who is told why and can send another.`,
+    }
+  }
+  if (ask.verdict !== 'ACCEPT') {
+    return { ok: false, code: 'VALIDATION', field: 'verdict', message: `Say whether ${name} is accepted or sent back.` }
+  }
+
+  const t = doc.type
+  const validFrom = ask.validFrom ?? null
+  const expiresAt = ask.expiresAt ?? null
+  const edition = typeof ask.edition === 'string' && ask.edition.trim() ? ask.edition.trim() : null
+  if (t?.validityShape === 'START_AND_END' && !validFrom) {
+    return {
+      ok: false, code: 'NO_START', field: 'validFrom',
+      message: `Give the day ${name} starts, as printed on it. A paper that begins after somebody starts covers nobody on their first day.`,
+    }
+  }
+  if (t && t.validityShape !== 'NONE' && !expiresAt) {
+    return {
+      ok: false, code: 'NO_EXPIRY', field: 'expiresAt',
+      message: `${name} runs out, so it cannot be accepted without the date printed on it. A paper with no end recorded looks current on every screen until somebody audits it.`,
+    }
+  }
+  if (validFrom && expiresAt && expiresAt.getTime() <= validFrom.getTime()) {
+    return { ok: false, code: 'ENDS_BEFORE_IT_STARTS', field: 'expiresAt', message: `${name} cannot end before it starts. Check the two dates on it.` }
+  }
+  if (expiresAt && expiresAt.getTime() < on.getTime()) {
+    return {
+      ok: false, code: 'LAPSED', field: 'expiresAt',
+      message: `${name} ran out on ${day(expiresAt)}. Send it back and ask ${doc.senderName} for the current one.`,
+    }
+  }
+  if (t?.reissued && !edition) {
+    return {
+      ok: false, code: 'NO_EDITION', field: 'edition',
+      message: `Say which edition of ${name} this is. The revision date is printed on the form, and an old edition is an audit finding.`,
+    }
+  }
+  const countersign = doc.needsSignature && t?.signedBy === 'BOTH_PARTIES'
+  const dates =
+    validFrom && expiresAt ? `, good ${day(validFrom)} to ${day(expiresAt)}`
+      : expiresAt ? `, good until ${day(expiresAt)}`
+        : ''
+  const notYet = validFrom && validFrom.getTime() > on.getTime() ? ` It covers nobody before ${day(validFrom)}.` : ''
+  return {
+    ok: true, verdict: 'ACCEPT', next: doc.status as DocStatus, countersign,
+    validFrom, expiresAt, edition,
+    note:
+      `Examined by ${actor.examinerName} on ${day(on)}${dates}${edition ? `, edition ${edition}` : ''}` +
+      (countersign ? `; countersigned for ${doc.issuerName}.` : '.'),
+    says:
+      `${name} from ${doc.senderName} examined by ${actor.examinerName}${dates}` +
+      (countersign ? `, and countersigned for ${doc.issuerName}.` : '.') + notYet,
+  }
 }

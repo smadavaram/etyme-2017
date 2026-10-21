@@ -41,6 +41,8 @@
  */
 import type { Actor, Res } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
+import { kb, papers, pdf, photo, sendFile } from './paper-files'
+import { standingLeftForTheStart } from './documents'
 
 const DAY = 86_400_000
 /** The I-9 edition USCIS published on January 20, 2025, printed at the foot of every page. */
@@ -122,16 +124,30 @@ export default defineStage({
 
     // A lapsed certificate blocks: on another supplier, before any of its
     // placements start.
+    // On a supplier whose current certificate is not already on file: the
+    // documents station may have received one at the first submission, and
+    // a current certificate rightly answers last year's (learned from the
+    // run of 2026-10-21, where it did and the rule read as not holding).
+    const current = new Set(
+      (
+        await ctx.read.verification.findMany({
+          where: { type: 'GOOD_STANDING', status: 'CLEAR', expiresAt: { gt: new Date() }, companyId: { in: [...new Set(placements.map((p) => p.supplier.id))] } },
+          select: { companyId: true },
+        })
+      ).map((v) => v.companyId)
+    )
     const lapsedAt =
-      placements.find((p) => seated(p) && p.supplier.id !== first.supplier.id) ??
-      placements.find((p) => p.id !== first.id) ??
-      first
-    const standing = await lapsedStanding(ctx, lapsedAt)
+      placements.find((p) => standingLeftForTheStart.has(p.supplier.id) && !current.has(p.supplier.id) && p.id !== first.id) ??
+      placements.find((p) => seated(p) && p.supplier.id !== first.supplier.id && !current.has(p.supplier.id)) ??
+      placements.find((p) => p.id !== first.id && !current.has(p.supplier.id)) ??
+      null
+    if (!lapsedAt) ctx.log('every supplier here already has a current certificate of good standing on file, so the lapsed one is not proved this run')
+    const standing = lapsedAt ? await lapsedStanding(ctx, lapsedAt) : false
 
     // ── Every placement, at most the run's width at once ────────────
     const results = await ctx.parallel(placements, async (p, i) => {
-      const walk = await walkOne(ctx, p, scenarioFor(i), consentTemplate)
-      if (p.id === lapsedAt.id && standing) walk.hit.unshift('a lapsed certificate of good standing')
+      const walk = await walkOne(ctx, p, scenarioFor(i), consentTemplate, i)
+      if (p.id === lapsedAt?.id && standing) walk.hit.unshift('a lapsed certificate of good standing')
       return walk
     })
     for (const r of results) {
@@ -152,7 +168,9 @@ export default defineStage({
         `${started.length} of ${placements.length} placements started. ` +
         `${learned.length} were refused first and learned (filed the I-9, sent a current certificate), ` +
         `${warned.length} started past a warning with the reason on the record.` +
-        (stuck.length ? ` ${stuck.length} did not start: ${stuckWhy.slice(0, 3).join('; ')}.` : ''),
+        (stuck.length ? ` ${stuck.length} did not start: ${stuckWhy.slice(0, 3).join('; ')}.` : '') +
+        ` Papers this run, both stations: ${papers.total.toLocaleString('en-US')} document moves, ${papers.files.toLocaleString('en-US')} files, ` +
+        `${kb(papers.bytes)} stored, ${papers.sentBack} sent back and answered again. By kind: ${papers.says()}.`,
     }
   },
 })
@@ -331,28 +349,31 @@ async function lapsedStanding(ctx: Ctx, p: Placement): Promise<boolean> {
   const issuer = 'Secretary of State'
   const lapsedFrom = plusDays(-400)
   const lapsedTo = plusDays(-35)
-  await askAndSend(clientSeat, supplierOwner, p, `good-standing-${iso(lapsedFrom)}.pdf`)
+  await askAndSend(ctx, clientSeat, supplierOwner, p, `good-standing-${iso(lapsedFrom)}.pdf`)
   const recorded = await clientSeat.post('/api/compliance/verifications', {
     contractId: p.id, about: 'FIRM', type: 'GOOD_STANDING', issuer,
     reference: `GS-${hashOf(p.supplier.id) % 100000}`, validFrom: iso(lapsedFrom), expiresAt: iso(lapsedTo),
   })
   if (!recorded.ok) return false
+  papers.count('Certificate of good standing', 'examined')
 
   await ctx.expectRefusal(starter, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), /good standing/i)
 
   // The supplier learns: it asks the state for a current one and sends it.
   const renewedFrom = plusDays(-3)
   const renewedTo = plusDays(362)
-  await askAndSend(clientSeat, supplierOwner, p, `good-standing-${iso(renewedFrom)}.pdf`)
-  await clientSeat.post('/api/compliance/verifications', {
+  await askAndSend(ctx, clientSeat, supplierOwner, p, `good-standing-${iso(renewedFrom)}.pdf`)
+  const renewed = await clientSeat.post('/api/compliance/verifications', {
     contractId: p.id, about: 'FIRM', type: 'GOOD_STANDING', issuer,
     reference: `GS-${hashOf(p.supplier.id) % 100000}-R`, validFrom: iso(renewedFrom), expiresAt: iso(renewedTo),
   })
+  if (renewed.ok) papers.count('Certificate of good standing', 'examined')
   return true
 }
 
 /** The client asks the supplier for its certificate; the supplier sends it as itself. */
 async function askAndSend(
+  ctx: Ctx,
   clientSeat: Actor,
   supplierOwner: Actor,
   p: Placement,
@@ -369,10 +390,14 @@ async function askAndSend(
   const ask = await clientSeat.post('/api/documents', { type: 'instance', templateId, subjectType: 'COMPANY', subjectId: p.supplier.id })
   const id = ask.json?.data?.instance?.id as string | undefined
   if (!id) return
-  await clientSeat.post(`/api/documents/${id}/send`, {})
-  await supplierOwner.post(`/api/documents/${id}/upload`, {
-    fileUrl: `https://files.example/${p.supplier.slug}/${fileName}`, fileName,
-  })
+  const sent = await clientSeat.post(`/api/documents/${id}/send`, {})
+  if (sent.ok) papers.count(name, 'sent')
+  const file = pdf(fileName, name, [`Holder: ${p.supplier.name}`, `Requested by: ${p.client.name}`, `Date: ${iso(new Date())}`])
+  const up = await sendFile(ctx, supplierOwner, `/api/documents/${id}/upload`, file)
+  if (up.ok) {
+    papers.count(name, 'received')
+    papers.stored(file)
+  }
 }
 
 // ── One placement, award to first day ───────────────────────────────────
@@ -381,7 +406,8 @@ async function walkOne(
   ctx: Ctx,
   p: Placement,
   scenario: Scenario,
-  consentTemplate: Map<string, Promise<string | null>>
+  consentTemplate: Map<string, Promise<string | null>>,
+  index = 0
 ): Promise<Walk> {
   const walk: Walk = { id: p.id, started: false, hit: [], warnedThrough: false }
   const hr = paperworkSeat(ctx, p.supplier.slug)
@@ -440,10 +466,10 @@ async function walkOne(
   }
 
   // The worker sends what is hers to send, from her own page.
-  if (worker) await workerSendsHerPapers(ctx, worker, p)
+  if (worker) await workerSendsHerPapers(ctx, worker, p, hr)
 
   // HR examines what she showed and completes the I-9.
-  if (!hasI9) await recordI9(hr, p, held)
+  if (!hasI9 && (await recordI9(hr, p, held)).ok) papers.count('I-9 and E-Verify', 'examined')
   // A license, where the line asks for one and none is in date.
   if (askedOfPerson.some((l) => /license/i.test(l)) && !holds('PROFESSIONAL_LICENSE')) {
     await hr.post('/api/compliance/verifications', {
@@ -454,21 +480,37 @@ async function walkOne(
   }
 
   // The background check: authorization from her, the order out, the verdict back.
+  let backgroundReviewed: string | null = null
   if (!hasBackground) {
     const consentId = worker ? await consentSigned(ctx, hr, worker, p, consentTemplate) : null
-    const reference = `STR-${hashOf(p.id) % 1_000_000}`
-    if (scenario === 'BACKGROUND_NOT_BACK') {
-      await compliance.post('/api/compliance/verifications', {
-        contractId: p.id, about: 'PERSON', type: 'BACKGROUND_CHECK', provider: 'Sterling', reference,
-        renderedOn: iso(plusDays(-1)), outcome: 'ORDERED', consentDocumentId: consentId ?? undefined,
-      })
-    } else {
-      await compliance.post('/api/compliance/verifications', {
-        contractId: p.id, about: 'PERSON', type: 'BACKGROUND_CHECK', provider: 'Sterling', reference,
-        renderedOn: iso(plusDays(-1)), outcome: 'CLEAR',
-        providerSays: 'County criminal, federal criminal and national sex offender registry searches complete. No records found.',
+    // The details it is run against, on a form she fills, and the package
+    // out to the screening company: recorded as ordered, with the day.
+    if (worker) await identifiersSent(ctx, hr, worker, p)
+    const provider = PROVIDERS[hashOf(p.id) % PROVIDERS.length]
+    const reference = `${provider.slice(0, 3).toUpperCase()}-${hashOf(p.id) % 1_000_000}`
+    const ordered = await compliance.post('/api/compliance/verifications', {
+      contractId: p.id, about: 'PERSON', type: 'BACKGROUND_CHECK', provider, reference,
+      renderedOn: iso(plusDays(-3)), outcome: 'ORDERED', consentDocumentId: consentId ?? undefined,
+    })
+    if (ordered.ok) papers.count('Background check package', 'sent')
+    if (scenario !== 'BACKGROUND_NOT_BACK') {
+      const outcome = index % 10 === 3 ? 'FLAGGED' : index % 20 === 9 ? 'CONDITIONAL' : 'CLEAR'
+      const verdict = await compliance.post('/api/compliance/verifications', {
+        contractId: p.id, about: 'PERSON', type: 'BACKGROUND_CHECK', provider, reference,
+        renderedOn: iso(plusDays(-1)), outcome, providerSays: PROVIDER_SAYS[outcome],
         consentDocumentId: consentId ?? undefined,
       })
+      if (verdict.ok) papers.count('Background check verdict', 'verdict')
+      const verificationId = verdict.json?.data?.id as string | undefined
+      if (outcome === 'FLAGGED' && verificationId) {
+        const after = await adverseSteps(ctx, compliance, p, verificationId, provider, index)
+        walk.hit.push(`${provider} flagged the background check`)
+        if (after === 'HELD') {
+          walk.stoppedBecause = `on hold: ${provider} flagged the background check, ${p.personName} has the pre-adverse action notice and the wait is not over`
+          return walk
+        }
+        backgroundReviewed = `${provider} flagged the background check; ${p.personName} answered within the wait and ${p.supplier.name} decided it does not change the decision. The report and the reason are on file.`
+      }
     }
   }
 
@@ -480,7 +522,7 @@ async function walkOne(
   const activate = (a: Actor) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' })
   // Every press made while the background check is still out is expected
   // to warn about it, the first and any after something else was learned.
-  const backgroundOut = scenario === 'BACKGROUND_NOT_BACK' && !hasBackground
+  const backgroundOut = (scenario === 'BACKGROUND_NOT_BACK' && !hasBackground) || backgroundReviewed !== null
   const press = (): Promise<Res> => (backgroundOut ? ctx.expectRefusal(starter, activate, /background check/i) : activate(starter))
   let res: Res = await press()
   const standingAsked = new Set<string>()
@@ -499,7 +541,9 @@ async function walkOne(
       const reason =
         code === 'GOVERNANCE_WARN'
           ? `Reviewed the client's warning with the hiring manager; the placement goes ahead and the warning stays on the record.`
-          : background
+          : background && backgroundReviewed
+            ? backgroundReviewed
+            : background
             ? `The background check is not back and in date today. The client agreed the start; it is chased until the report is on file.`
             : `Still outstanding: ${chasing.join(', ') || 'papers listed on the placement'}. The start goes ahead and they are chased.`
       res = await starter.post(`/api/contracts/${p.id}/activate`, { action: 'activate', overrideReason: reason })
@@ -560,38 +604,190 @@ async function walkOne(
  * button — Sign where it needs her signature, Upload where it needs a
  * file — and she presses that one.
  */
-async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement): Promise<void> {
+async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement, hr: Actor): Promise<void> {
   type Row = { id?: string; kind?: string; documentTypeKey?: string; openAskAt?: string | null; todo?: string | null; name?: string; received?: boolean; needsSignature?: boolean }
   const page = await worker.get('/api/me/papers')
-  const papers = (page.json?.data?.papers ?? []) as Row[]
-  const owed = papers.filter((x) => x.kind === 'OUTSTANDING' && x.documentTypeKey && x.openAskAt && !x.received)
+  const papersOnPage = (page.json?.data?.papers ?? []) as Row[]
+  const owed = papersOnPage.filter((x) => x.kind === 'OUTSTANDING' && x.documentTypeKey && x.openAskAt && !x.received)
   const opened: { askId: string; key: string; name: string }[] = []
   for (const item of owed) {
     const res = await worker.post('/api/me/papers', { documentTypeKey: item.documentTypeKey })
     const askId = res.json?.data?.askId as string | undefined
-    if (res.ok && askId) opened.push({ askId, key: String(item.documentTypeKey), name: item.name ?? String(item.documentTypeKey) })
+    if (res.ok && askId) {
+      opened.push({ askId, key: String(item.documentTypeKey), name: item.name ?? String(item.documentTypeKey) })
+      // The line asked; opening the request is the ask reaching her.
+      papers.count(KIND_OF[String(item.documentTypeKey)] ?? item.name ?? String(item.documentTypeKey), 'sent')
+    }
   }
   if (opened.length === 0) return
 
   const again = await worker.get('/api/me/papers')
   const rows = (again.json?.data?.papers ?? []) as Row[]
+  const passportRunsOut = plusDays(900 + (hashOf(p.personId) % 2400))
   for (const o of opened) {
+    const kind = KIND_OF[o.key] ?? o.name
     const row = rows.find((r) => r.id === o.askId && r.kind === 'DOCUMENT') ?? rows.find((r) => r.id === o.askId)
     if (row && (row.todo === null || row.todo === undefined) && row.kind !== 'OUTSTANDING') continue
-    if (row?.needsSignature || row?.todo === 'sign') {
-      await worker.post(`/api/documents/${o.askId}/sign`, { attests: true })
-      continue
-    }
-    const sent = await worker.post(`/api/documents/${o.askId}/upload`, {
-      fileUrl: `https://files.example/${p.personId}/${o.key.toLowerCase()}.pdf`,
-      fileName: `${o.name}.pdf`,
-      note: o.key === 'I9_EVERIFY' ? 'Section 1 completed and signed; passport shown for Section 2.' : undefined,
+    const slug = p.personName.replace(/\s+/g, '-').toLowerCase()
+    // What she sends is what the paper is: a photograph of the identity
+    // document she chose, the I-9 with her Section 1, a signed agreement.
+    const file =
+      o.key === 'RIGHT_TO_WORK'
+        ? photo(`${slug}-${hashOf(p.personId) % 3 === 0 ? 'permanent-resident-card' : 'passport'}.png`)
+        : pdf(`${slug}-${o.key.toLowerCase()}.pdf`, o.name, [
+            `Name: ${p.personName}`,
+            o.key === 'I9_EVERIFY' ? `Section 1 completed and signed on ${iso(new Date())}. Document shown for Section 2: passport.` : `Signed by ${p.personName} on ${iso(new Date())}.`,
+            `For: ${p.supplier.name}`,
+          ])
+    const sign = !!(row?.needsSignature || row?.todo === 'sign')
+    let sent = await sendFile(ctx, worker, `/api/documents/${o.askId}/${sign ? 'sign' : 'upload'}`, file, {
+      ...(sign ? { attests: 'true' } : {}),
+      ...(o.key === 'I9_EVERIFY' ? { note: 'Section 1 completed and signed; passport shown for Section 2.' } : {}),
     })
     // Learn: told the paper needs her signature, she signs it.
     if (sent.json?.error?.code === 'NEEDS_SIGNATURE') {
-      await worker.post(`/api/documents/${o.askId}/sign`, { attests: true })
+      sent = await sendFile(ctx, worker, `/api/documents/${o.askId}/sign`, file, { attests: 'true' })
     }
+    if (!sent.ok) continue
+    papers.count(kind, 'received')
+    papers.stored(file)
+    // HR looks at what she sent. The I-9 is examined where it is completed
+    // (recorded with its edition and the document behind it), not here.
+    if (o.key === 'I9_EVERIFY') continue
+    // Learned from the first run: a paper of a kind that runs out is
+    // accepted with the date printed on it, a license as much as an ID.
+    const body: Record<string, unknown> =
+      o.key === 'RIGHT_TO_WORK'
+        ? { verdict: 'ACCEPT', expiresAt: iso(passportRunsOut) }
+        : o.key === 'PROFESSIONAL_LICENSE'
+          ? { verdict: 'ACCEPT', expiresAt: iso(plusDays(530)) }
+        : o.key === 'NDA'
+          ? { verdict: 'ACCEPT', validFrom: iso(new Date()), expiresAt: iso(plusDays(3 * 365)) }
+          : { verdict: 'ACCEPT' }
+    await hr.get(`/api/documents/${o.askId}/file`)
+    const looked = await hr.post(`/api/documents/${o.askId}/examine`, body)
+    if (looked.ok) papers.count(kind, 'examined')
   }
+}
+
+/** The kind each owed paper is counted under. */
+const KIND_OF: Record<string, string> = {
+  RIGHT_TO_WORK: 'ID (passport or permanent resident card)',
+  I9_EVERIFY: 'I-9 and E-Verify',
+  NDA: 'Non-disclosure agreement (worker)',
+}
+
+/** The screening companies the firms order from. */
+const PROVIDERS = ['Sterling', 'HireRight', 'First Advantage', 'Checkr']
+
+/** What a provider writes, copied as written. */
+const PROVIDER_SAYS: Record<string, string> = {
+  CLEAR: 'County criminal, federal criminal and national sex offender registry searches complete. No records found.',
+  CONDITIONAL: 'Searches complete. Employment verification for one prior employer could not be completed; all other components clear.',
+  FLAGGED: 'County criminal search returned one record requiring review. A copy of the record is included with this report.',
+}
+
+/**
+ * The details a background check is run against, on a form she fills
+ * from her own seat after the offer: her date of birth and her Social
+ * Security number. Asked here and not at screening, because the rule
+ * table puts them after the offer. HR looks at the form and accepts it.
+ */
+async function identifiersSent(ctx: Ctx, hr: Actor, worker: Actor, p: Placement): Promise<void> {
+  const name = 'Background check details'
+  let tpl = detailsTemplate.get(p.supplier.slug)
+  if (!tpl) {
+    tpl = (async () => {
+      const list = await hr.get('/api/documents?view=templates')
+      const found = ((list.json?.data?.templates ?? []) as { id: string; name: string; needsSignature?: boolean }[]).find((t) => t.name === name && !t.needsSignature)
+      if (found) return found.id
+      const made = await hr.post('/api/documents', { name, audience: 'CANDIDATE', needsSignature: false })
+      return (made.json?.data?.template?.id as string | undefined) ?? null
+    })()
+    detailsTemplate.set(p.supplier.slug, tpl)
+  }
+  const templateId = await tpl
+  if (!templateId) return
+  const made = await hr.post('/api/documents', { type: 'instance', templateId, subjectType: 'PERSON', subjectId: p.personId })
+  const id = made.json?.data?.instance?.id as string | undefined
+  if (!id) return
+  if (!(await hr.post(`/api/documents/${id}/send`, {})).ok) return
+  papers.count(name, 'sent')
+  const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-background-details.pdf`, name, [
+    `Name: ${p.personName}`,
+    'Date of birth and Social Security number: given on the form, shown here only by their last four digits.',
+    `SSN ending ${String(1000 + (hashOf(p.personId) % 9000))}`,
+    'Addresses for the last seven years: listed.',
+  ])
+  const up = await sendFile(ctx, worker, `/api/documents/${id}/upload`, file)
+  if (!up.ok) return
+  papers.count(name, 'received')
+  papers.stored(file)
+  const looked = await hr.post(`/api/documents/${id}/examine`, { verdict: 'ACCEPT' })
+  if (looked.ok) papers.count(name, 'examined')
+}
+
+const detailsTemplate = new Map<string, Promise<string | null>>()
+const noticeTemplate = new Map<string, Promise<string | null>>()
+
+/**
+ * After a flagged report: the steps that stay with the firm that ordered
+ * it. The pre-adverse action notice goes to the person with a copy of the
+ * report and the summary of rights attached; the final notice is refused
+ * until the wait is over (the run has no clock, so it always is refused);
+ * and for half of them the person answers within the wait and the firm
+ * decides the report does not change the decision. The other half stay
+ * on hold, which is the honest state on the day the notice went.
+ */
+async function adverseSteps(ctx: Ctx, seat: Actor, p: Placement, verificationId: string, provider: string, index: number): Promise<'NOT_TAKEN' | 'HELD'> {
+  const name = 'Pre-adverse action notice'
+  let tpl = noticeTemplate.get(p.supplier.slug)
+  if (!tpl) {
+    tpl = (async () => {
+      const list = await seat.get('/api/documents?view=templates')
+      const found = ((list.json?.data?.templates ?? []) as { id: string; name: string }[]).find((t) => t.name === name)
+      if (found) return found.id
+      const made = await seat.post('/api/documents', { name, audience: 'CANDIDATE', needsSignature: false })
+      return (made.json?.data?.template?.id as string | undefined) ?? null
+    })()
+    noticeTemplate.set(p.supplier.slug, tpl)
+  }
+  const templateId = await tpl
+  if (!templateId) return 'HELD'
+  const made = await seat.post('/api/documents', { type: 'instance', templateId, subjectType: 'PERSON', subjectId: p.personId })
+  const noticeId = made.json?.data?.instance?.id as string | undefined
+  if (!noticeId) return 'HELD'
+  if (!(await seat.post(`/api/documents/${noticeId}/send`, {})).ok) return 'HELD'
+  // The copy of the report and the summary of rights, attached by the firm.
+  const copy = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-report-copy.pdf`, `${name} — copy of the ${provider} report`, [
+    `To: ${p.personName}`,
+    `${provider} reported on the background check you authorized. A copy of the report is attached.`,
+    'A Summary of Your Rights Under the Fair Credit Reporting Act is attached.',
+    `You may dispute the report with ${provider} directly. Nothing has been decided.`,
+  ])
+  const attached = await sendFile(ctx, seat, `/api/documents/${noticeId}/upload`, copy)
+  if (!attached.ok) return 'HELD'
+  papers.count(name, 'sent')
+  papers.stored(copy)
+  const pre = await seat.post('/api/compliance/adverse-action', { verificationId, contractId: p.id, step: 'PRE_NOTICE', noticeDocumentId: noticeId })
+  if (!pre.ok) {
+    ctx.log(`${p.personName}: the pre-adverse action notice was refused: ${pre.sentence}`)
+    return 'HELD'
+  }
+  // The final notice before the wait is over is refused: the rule held on purpose.
+  await ctx.expectRefusal(
+    seat,
+    (a) => a.post('/api/compliance/adverse-action', { verificationId, contractId: p.id, step: 'FINAL', reason: 'The record is relevant to the job.' }),
+    'has until'
+  )
+  // Every other flagged report stays on hold (the tenth, thirtieth… placement).
+  if (Math.floor(index / 10) % 2 === 0) return 'HELD'
+  const decided = await seat.post('/api/compliance/adverse-action', {
+    verificationId, contractId: p.id, step: 'NOT_TAKEN',
+    reason: `${p.personName} answered within the wait with the court's record showing the charge was dismissed. It does not bear on this job.`,
+  })
+  if (decided.ok) papers.count('Background check verdict', 'examined')
+  return decided.ok ? 'NOT_TAKEN' : 'HELD'
 }
 
 /** HR records the I-9 it completed, from the passport the worker showed. */
@@ -637,9 +833,19 @@ async function consentSigned(
   const made = await hr.post('/api/documents', { type: 'instance', templateId, subjectType: 'PERSON', subjectId: p.personId })
   const id = made.json?.data?.instance?.id as string | undefined
   if (!id) return null
-  await hr.post(`/api/documents/${id}/send`, {})
-  const signed = await worker.post(`/api/documents/${id}/sign`, { attests: true })
+  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) papers.count('Background check authorization', 'sent')
+  // Her signature, with the signed disclosure and authorization attached:
+  // a standalone form, as the law asks for it.
+  const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-background-authorization.pdf`, 'Disclosure and authorization', [
+    `${p.supplier.name} may order a consumer report about ${p.personName} for employment purposes.`,
+    `Signed by ${p.personName} on ${iso(new Date())}.`,
+  ])
+  const signed = await sendFile(ctx, worker, `/api/documents/${id}/sign`, file, { attests: 'true' })
   if (!signed.ok) ctx.log(`${p.personName} could not sign the background check authorization: ${signed.sentence}`)
+  else {
+    papers.count('Background check authorization', 'received')
+    papers.stored(file)
+  }
   return signed.ok ? id : null
 }
 
@@ -748,13 +954,14 @@ function certificateOnce(ctx: Ctx, p: Placement, type: string): Promise<boolean>
       if (!supplierOwner || !clientSeat) return false
       const from = plusDays(-20)
       const to = plusDays(345)
-      await askAndSend(clientSeat, supplierOwner, p, `${type.toLowerCase()}-${iso(from)}.pdf`, CERTIFICATE_NAME[type])
+      await askAndSend(ctx, clientSeat, supplierOwner, p, `${type.toLowerCase()}-${iso(from)}.pdf`, CERTIFICATE_NAME[type])
       const recorded = await clientSeat.post('/api/compliance/verifications', {
         contractId: p.id, about: 'FIRM', type,
         issuer: type === 'GOOD_STANDING' ? 'Secretary of State' : 'The Hartford',
         reference: `${type === 'GOOD_STANDING' ? 'GS' : 'POL'}-${hashOf(p.supplier.id + type) % 1_000_000}`,
         validFrom: iso(from), expiresAt: iso(to),
       })
+      if (recorded.ok) papers.count(CERTIFICATE_NAME[type], 'examined')
       return recorded.ok
     })()
     certificateAsks.set(key, pending)
@@ -801,8 +1008,16 @@ async function ndaSigned(
   const made = await hr.post('/api/documents', { type: 'instance', templateId, subjectType: 'SELL_CONTRACT', subjectId: p.id })
   const id = made.json?.data?.instance?.id as string | undefined
   if (!id) return false
-  await hr.post(`/api/documents/${id}/send`, {})
-  const signed = await worker.post(`/api/documents/${id}/sign`, { attests: true })
+  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) papers.count('Non-disclosure agreement (worker)', 'sent')
+  const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-nda-signed.pdf`, 'Non-disclosure agreement', [
+    `Between ${p.supplier.name} and ${p.personName}.`,
+    `Signed by ${p.personName} on ${iso(new Date())}.`,
+  ])
+  const signed = await sendFile(ctx, worker, `/api/documents/${id}/sign`, file, { attests: 'true' })
   if (!signed.ok) ctx.log(`${p.personName} could not sign the non-disclosure agreement: ${signed.sentence}`)
+  else {
+    papers.count('Non-disclosure agreement (worker)', 'received')
+    papers.stored(file)
+  }
   return signed.ok
 }

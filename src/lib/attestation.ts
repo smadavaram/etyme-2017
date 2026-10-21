@@ -1311,3 +1311,208 @@ export function checkToRecord(input: CheckToRecord, on: Date): CheckRecordVerdic
 function possessiveOf(name: string): string {
   return /s$/i.test(name) ? `${name}’` : `${name}’s`
 }
+
+// ── After an unfavorable report: the steps that stay with the firm ────
+//
+// The founder, 2026-09-22: the screening company renders the verdict and
+// carries the risk of it. What does not transfer is the process around
+// it. Under the Fair Credit Reporting Act the firm that ordered a
+// background check, before it acts on an unfavorable report, gives the
+// person a pre-adverse action notice with a copy of the report and the
+// summary of their rights, waits long enough for them to answer or
+// dispute it with the screening company, and only then gives the final
+// notice (15 U.S.C. §1681b(b)(3), §1681m(a)). The matrix row for checks
+// said, until 2026-10-21, "nothing in the app knows FCRA exists". This
+// is the knowing, as data and a rule.
+//
+// BLOCK, because it is legally grounded: a final notice before the wait
+// is over is refused in a sentence that names the day it may be given.
+// Deciding NOT to act on the report needs no wait — it is the outcome
+// the wait protects — and is recorded with its reason.
+
+/** How long the person has to answer, per place. Rules live in data: a change of law is a change of a line. */
+export const ADVERSE_ACTION_WAIT: Record<string, { businessDays: number; says: string }> = {
+  US: {
+    businessDays: 5,
+    says: 'Federal law sets no number of days; five business days is the period the regulators have accepted as reasonable.',
+  },
+  'US-CA': {
+    businessDays: 5,
+    says: 'California’s Fair Chance Act gives at least five business days to answer, and five more where the person says they are disputing the record (Gov. Code §12952).',
+  },
+  'US-NY-NEW YORK': {
+    businessDays: 5,
+    says: 'New York City’s Fair Chance Act gives at least five business days after the notice and a copy of the analysis.',
+  },
+  'US-PA-PHILADELPHIA': {
+    businessDays: 10,
+    says: 'Philadelphia’s fair criminal record screening law gives ten business days to answer.',
+  },
+  'US-CA-LOS ANGELES': {
+    businessDays: 5,
+    says: 'Los Angeles’ Fair Chance Initiative gives at least five business days to answer.',
+  },
+}
+
+/** The row that applies to a work site: the city's, then the state's, then the country's. Null outside the US: this table carries only US law. */
+export function adverseWaitFor(site: { country?: string | null; state?: string | null; city?: string | null }): { key: string; businessDays: number; says: string } | null {
+  const country = (site.country ?? 'US').trim().toUpperCase()
+  if (country !== 'US' && country !== 'USA') return null
+  const state = (site.state ?? '').trim().toUpperCase()
+  const city = (site.city ?? '').trim().toUpperCase()
+  for (const k of [state && city ? `US-${state}-${city}` : null, state ? `US-${state}` : null, 'US']) {
+    if (k && ADVERSE_ACTION_WAIT[k]) return { key: k, ...ADVERSE_ACTION_WAIT[k] }
+  }
+  return null
+}
+
+/** `n` business days after `from`, Monday to Friday, counted from the next day. */
+export function addBusinessDays(from: Date, n: number): Date {
+  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()))
+  let left = n
+  while (left > 0) {
+    d.setUTCDate(d.getUTCDate() + 1)
+    const wd = d.getUTCDay()
+    if (wd !== 0 && wd !== 6) left--
+  }
+  return d
+}
+
+export type AdverseStepKind = 'PRE_NOTICE' | 'FINAL' | 'NOT_TAKEN'
+
+/** What has already happened on this report, as written beside it. */
+export interface AdverseRecord {
+  preNoticeAt?: string | null
+  preNoticeDocumentId?: string | null
+  waitUntil?: string | null
+  waitSays?: string | null
+  finalAt?: string | null
+  finalDocumentId?: string | null
+  decision?: 'ADVERSE' | 'NOT_TAKEN' | null
+  decisionReason?: string | null
+  decidedBy?: string | null
+}
+
+export interface AdverseInput {
+  step: string
+  /** The report, as recorded. */
+  check: { type: string; status: string; provider: string | null; reference: string | null; orderedByFirm: string | null }
+  callerFirm: string
+  /** The caller's firm ordered the report. */
+  callerOrdered: boolean
+  subjectName: string
+  record: AdverseRecord
+  /** The notice paper named, where one is: about this person, from this firm, with the file on it. */
+  notice: { aboutThisPerson: boolean; fromThisFirm: boolean; hasFile: boolean; sent: boolean } | null
+  reason?: string | null
+  wait: { key: string; businessDays: number; says: string } | null
+  by: string
+}
+
+export type AdverseVerdict =
+  | { ok: true; record: AdverseRecord; says: string }
+  | { ok: false; status: 403 | 409 | 422; code: string; message: string; field?: string }
+
+const UNFAVORABLE = ['FLAGGED', 'FAILED', 'CONDITIONAL']
+
+/**
+ * One step after an unfavorable report. Pure: `on` is the day the step is
+ * taken, and the wait is counted from the day the first notice was given.
+ */
+export function adverseStep(input: AdverseInput, on: Date): AdverseVerdict {
+  const { check, subjectName } = input
+  const provider = check.provider ?? 'the screening company'
+  const what = recordLabel(check.type)
+  if (!orderedNotCollected(check.type)) {
+    return { ok: false, status: 422, code: 'NOT_A_REPORT', message: `The ${what} is not a screening company’s report, so there are no notices to give on it.` }
+  }
+  if (!input.callerOrdered) {
+    return {
+      ok: false, status: 403, code: 'NOT_YOURS_TO_ACT',
+      message: `The notices on ${possessiveOf(subjectName)} ${what} are given by the firm that ordered it${check.orderedByFirm ? `, ${check.orderedByFirm}` : ''}. ${input.callerFirm} did not order it.`,
+    }
+  }
+  if (!UNFAVORABLE.includes(check.status)) {
+    return {
+      ok: false, status: 409, code: 'NOTHING_ADVERSE',
+      message: `${provider} did not report anything unfavorable on the ${what}, so there is nothing to act on and no notice to give.`,
+    }
+  }
+  if (input.record.decision) {
+    return {
+      ok: false, status: 409, code: 'ALREADY_DECIDED',
+      message: input.record.decision === 'NOT_TAKEN'
+        ? `${input.record.decidedBy ?? 'The firm'} already decided not to act on the ${what}. It stays on file as ${provider} wrote it.`
+        : `The final notice on the ${what} was already given.`,
+    }
+  }
+  const day = (iso: string) => plainDate(iso)
+  const step = String(input.step ?? '').toUpperCase()
+
+  if (step === 'NOT_TAKEN') {
+    const reason = input.reason?.trim()
+    if (!reason) {
+      return { ok: false, status: 422, code: 'NO_REASON', field: 'reason', message: `Say why the ${what} does not change the decision. The reason is kept beside ${provider}’s report.` }
+    }
+    return {
+      ok: true,
+      record: { ...input.record, decision: 'NOT_TAKEN', decisionReason: reason, decidedBy: input.by },
+      says: `${subjectName} goes ahead. ${input.by} decided the ${what} does not change the decision, and why is on file beside ${provider}’s report, which stays as they wrote it.`,
+    }
+  }
+
+  const noticeOk = (n: AdverseInput['notice'], which: string): AdverseVerdict | null => {
+    if (!n) return { ok: false, status: 422, code: 'NO_NOTICE', field: 'noticeDocumentId', message: `Name the ${which} sent to ${subjectName}. It is a paper from your firm, with the copy of the report and the summary of rights attached.` }
+    if (!n.aboutThisPerson || !n.fromThisFirm) return { ok: false, status: 422, code: 'NOT_THEIR_NOTICE', field: 'noticeDocumentId', message: `That paper is not a notice from ${input.callerFirm} to ${subjectName}.` }
+    if (!n.hasFile) return { ok: false, status: 422, code: 'NO_COPY', field: 'noticeDocumentId', message: `Attach the copy of ${possessiveOf(provider)} report and the summary of rights to the ${which}. It is not given until ${subjectName} has both.` }
+    if (!n.sent) return { ok: false, status: 422, code: 'NOT_SENT', field: 'noticeDocumentId', message: `Send the ${which} to ${subjectName} first. A notice nobody received was not given.` }
+    return null
+  }
+
+  if (step === 'PRE_NOTICE') {
+    if (input.record.preNoticeAt) {
+      return { ok: false, status: 409, code: 'ALREADY_GIVEN', message: `The pre-adverse action notice was given on ${day(input.record.preNoticeAt)}. ${subjectName} has until ${day(input.record.waitUntil ?? input.record.preNoticeAt)} to answer.` }
+    }
+    if (!input.wait) {
+      return {
+        ok: false, status: 422, code: 'NOT_CARRIED',
+        message: `The steps after an unfavorable report at a site outside the United States are set by that country’s law, and this table carries only the US rules. Ask counsel; nothing here decides it.`,
+      }
+    }
+    const bad = noticeOk(input.notice, 'pre-adverse action notice')
+    if (bad) return bad
+    const waitUntil = addBusinessDays(on, input.wait.businessDays).toISOString()
+    return {
+      ok: true,
+      record: { ...input.record, preNoticeAt: on.toISOString(), waitUntil, waitSays: input.wait.says },
+      says:
+        `${subjectName} has the pre-adverse action notice, a copy of ${possessiveOf(provider)} report and the summary of rights. ` +
+        `Nothing is decided on it before ${day(waitUntil)}: ${subjectName} may answer or dispute it with ${provider} until then. ${input.wait.says}`,
+    }
+  }
+
+  if (step === 'FINAL') {
+    if (!input.record.preNoticeAt || !input.record.waitUntil) {
+      return { ok: false, status: 409, code: 'NO_PRE_NOTICE', message: `Give ${subjectName} the pre-adverse action notice with a copy of the report first. The final notice is the step after the wait, and the wait has not started.` }
+    }
+    if (on.getTime() < new Date(input.record.waitUntil).getTime()) {
+      return {
+        ok: false, status: 409, code: 'WAITING',
+        message: `${subjectName} has until ${day(input.record.waitUntil)} to answer the ${what} or dispute it with ${provider}. A final decision before then is the step the law puts after the wait.`,
+      }
+    }
+    const reason = input.reason?.trim()
+    if (!reason) {
+      return { ok: false, status: 422, code: 'NO_REASON', field: 'reason', message: `Say what was weighed, the job and the time since, before the final notice. The reason is kept with it.` }
+    }
+    const bad = noticeOk(input.notice, 'final adverse action notice')
+    if (bad) return bad
+    return {
+      ok: true,
+      record: { ...input.record, finalAt: on.toISOString(), decision: 'ADVERSE', decisionReason: reason, decidedBy: input.by },
+      says: `The final adverse action notice was given to ${subjectName}, naming ${provider} and saying ${provider} did not make the decision. The reason is on file.`,
+    }
+  }
+
+  return { ok: false, status: 422, code: 'VALIDATION', field: 'step', message: 'Say which step this is: the pre-adverse action notice, the final notice, or a decision not to act on the report.' }
+}

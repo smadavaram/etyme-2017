@@ -52,6 +52,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       subjectType: true,
       subjectId: true,
       signedFileUrl: true,
+      status: true,
+      note: true,
       template: { select: { name: true, company: { select: { id: true, name: true } } } },
       sellContract: { select: { personId: true } },
       buyContract: { select: { candidates: { where: { state: 'ACTIVE' }, select: { personId: true }, take: 1 } } },
@@ -138,13 +140,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   if (!doc.file) {
+    // Signed as an attestation, with no file: answered, and there is
+    // nothing to open. Until 2026-10-21 this said "whoever owes it has not
+    // answered" about a question the person had answered and signed (found
+    // by the simulation's documents station).
+    const answered = doc.status === 'SIGNED' || doc.status === 'UPLOADED'
     return NextResponse.json(
       {
         error: {
           code: 'NO_FILE',
-          message:
-            `Nothing has been sent for ${doc.template.name} yet. It has been asked for, and whoever ` +
-            `owes it has not answered.`,
+          message: answered
+            ? `${doc.template.name} was answered and signed without a file, so there is nothing to open.` +
+              (doc.note ? ` What was said is on the paper: ${doc.note}` : '')
+            : `Nothing has been sent for ${doc.template.name} yet. It has been asked for, and whoever ` +
+              `owes it has not answered.`,
         },
       },
       { status: 410 }
