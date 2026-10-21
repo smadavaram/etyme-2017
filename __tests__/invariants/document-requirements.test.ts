@@ -255,6 +255,16 @@ describe('what a line requires, and where the answer came from', () => {
     expect(owedByFor(builtInType('NDA')!, 'W2')).toBe('WORKER')
   })
 
+  it('a line bought from the worker’s own one-person corporation is corp-to-corp, not a sub-vendor, and gets the corp-to-corp set', () => {
+    const line = { side: 'BUY' as const, contractType: 'C2C', vendorCompanyId: 'corp1', vendorKind: 'CONSULTANT_CORP' }
+    expect(shapeOf(line)).toBe('CORP_TO_CORP')
+    // A staffing firm below us is still a sub-vendor, whatever the contract type says.
+    expect(shapeOf({ ...line, vendorKind: 'VENDOR' })).toBe('SUB_VENDOR')
+    const keys = seedDefaultsFor(line).map((i) => i.key)
+    expect(keys).toEqual(expect.arrayContaining(['W9', 'INSURANCE_GL', 'INSURANCE_WC']))
+    expect(keys).not.toContain('I9')
+  })
+
   it('a line paid corp-to-corp asks the person’s own corporation for its cover, and the supplier has their name', () => {
     expect(shapeOf({ side: 'BUY', contractType: 'C2C' })).toBe('CORP_TO_CORP')
     expect(shapeOf({ side: 'BUY', contractType: 'C2C', vendorCompanyId: 'v1' })).toBe('SUB_VENDOR')

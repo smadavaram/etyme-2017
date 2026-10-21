@@ -232,12 +232,23 @@ export interface LineFacts {
   contractType?: string | null
   /** The firm we buy from, where there is one. Buy lines only. */
   vendorCompanyId?: string | null
+  /**
+   * What kind of firm the vendor is, where there is one. A one-person
+   * corporation (CONSULTANT_CORP) is the person's own company: the line
+   * pays her corporation, so it is corp-to-corp, not a sub-vendor.
+   */
+  vendorKind?: string | null
   /** The role, as a person would say it. Picks the start packet. */
   role?: string | null
 }
 
 export function shapeOf(line: LineFacts): LineShape {
   if (line.side === 'SELL') return 'CUSTOMER'
+  // The firm below is the worker's own one-person corporation: we pay her
+  // company, not a staffing firm with people of its own. Checked before
+  // the sub-vendor test, or such a line never reaches its own set (found
+  // by the document-flow walk, 2026-10-21).
+  if (line.vendorCompanyId && line.vendorKind === 'CONSULTANT_CORP') return 'CORP_TO_CORP'
   if (line.vendorCompanyId) return 'SUB_VENDOR'
   // No firm below us and a corp-to-corp or 1099 arrangement: we pay the
   // person's own corporation, not the person. Everything else on the buy
@@ -590,7 +601,7 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       contractType: true,
       vendorCompanyId: true,
       company: { select: { name: true } },
-      vendorCompany: { select: { name: true } },
+      vendorCompany: { select: { name: true, kind: true } },
       candidates: { select: { person: { select: { name: true } } }, take: 1 },
       workOrder: { select: { id: true, number: true, issuedBy: { select: { name: true } } } },
       sellLinks: {
@@ -606,6 +617,7 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
     side: 'BUY',
     contractType: line.contractType,
     vendorCompanyId: line.vendorCompanyId,
+    vendorKind: line.vendorCompany?.kind ?? null,
   })
   const { orderRows, orderSays } = await orderSet(line.workOrder, db)
   const sell = line.sellLinks[0]?.sellContract ?? null
