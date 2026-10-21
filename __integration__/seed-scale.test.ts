@@ -72,17 +72,9 @@ beforeAll(async () => {
     await step.run(frame)
     s.peopleSteps.push({ step: step.name, asked: counter.asked - before })
   }
-  // The jobs (etyme-demand), on supply's people, each step's questions
-  // counted. Until lib/seed-scale/index wires the job steps after the
-  // people's, they run here; when the wiring lands `seedScaleWorld` does it.
+  // The jobs (etyme-demand) were written by `seedScaleWorld`, on supply's people; this is what it planned.
   people = buildPeople(frame)
   jobPlan = planJobs(frame, people)
-  s.jobSteps = []
-  for (const step of jobSteps(() => people)) {
-    const before = counter.asked
-    await step.run(frame)
-    s.jobSteps.push({ step: step.name, asked: counter.asked - before })
-  }
   s.seated = await prisma.context.findMany({
     where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } }, revokedAt: null },
     select: { companyId: true, grantedAt: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } } },
@@ -282,8 +274,7 @@ describe('the generated world at the founder’s scale', () => {
     expect(placed.interviews).toEqual([{ round: 1, outcome: 'ADVANCE' }, { round: 2, outcome: 'OFFER' }])
   })
 
-  it('a second seeding of the jobs writes nothing, and every job step fits one function call', async () => {
-    for (const x of s.jobSteps as { step: string; asked: number }[]) expect(x.asked, x.step).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
+  it('a second seeding of the jobs writes nothing, and every job step walked again fits one function call', async () => {
     const tables = ['requirement', 'requirementApproval', 'requirementInvitation', 'submission', 'interview'] as const
     const read = async () => Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await (prisma as any)[t].count()])))
     const before = await read()

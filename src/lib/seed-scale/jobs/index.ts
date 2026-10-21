@@ -21,7 +21,7 @@ import { existing, writeMissing } from '../kit'
 import type { PersonFacts, ScaleFrame, Share } from '../types'
 import { planJobs, type JobPlan } from './plan'
 
-export { planJobs, jobIdForLine, supplierBand, PER_CLIENT } from './plan'
+export { planJobs, jobIdForLine, supplierBand, PER_CLIENT, HISTORY_SENT } from './plan'
 export type { JobPlan, JobRow, ApprovalRow, InvitationRow, SubmissionRow, InterviewRow } from './plan'
 
 export interface JobStep {

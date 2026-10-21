@@ -3,7 +3,7 @@
  *
  * Each client's year of job requests, in the trade's words: the ones it
  * filled (one for every line the people's careers say somebody worked
- * there, grouped by role and month), the ones it closed or called off,
+ * there, grouped by role and quarter), the ones it closed or called off,
  * the ones published and being worked today, and a few waiting on a
  * named person. Behind each: the approval chain one row per step, the
  * invitation to each supplier on the client's panel with that supplier's
@@ -272,6 +272,25 @@ function reachOf(frame: ScaleFrame, panelIds: Set<string>, p: PersonFacts, past:
 
 const overlap = (a: readonly string[], b: readonly string[]) => a.filter((s) => b.includes(s)).length
 
+/**
+ * Who a job in the past went to: three to six firms on the panel, as a
+ * real client sends a job to the few it thinks fit, never all twelve.
+ * The firms whose people it placed are always among them.
+ */
+export const HISTORY_SENT = { min: 3, max: 6 } as const
+
+function sentTo(panel: ScaleFirm[], key: string, must: ScaleFirm[]): ScaleFirm[] {
+  const r = keyed(`sent/${key}`)
+  const out = [...new Map(must.map((f) => [f.id, f])).values()]
+  const want = Math.min(panel.length, Math.max(out.length, between(r, HISTORY_SENT.min, HISTORY_SENT.max)))
+  const from = panel.length ? Math.floor(r() * panel.length) : 0
+  for (let i = 0; i < panel.length && out.length < want; i++) {
+    const f = panel[(from + i) % panel.length]
+    if (!out.some((x) => x.id === f.id)) out.push(f)
+  }
+  return out
+}
+
 // ── The plan ──────────────────────────────────────────────────────────
 
 export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): JobPlan {
@@ -360,12 +379,12 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
       return job
     }
 
-    // ── The jobs the careers say were filled here ──
+    // ── The jobs the careers say were filled here: one per role and quarter ──
     const groups = new Map<string, { role: RoleTemplate; industry: IndustryKey; start: Date; lines: { p: PersonFacts; line: LineEnd }[] }>()
     for (const p of people) {
       for (const line of p.lineEnds) {
         if (line.clientId !== client.id) continue
-        const k = `${p.role.title}|${line.start.toISOString().slice(0, 7)}`
+        const k = `${p.role.title}|${quarterOf(line.start)}`
         const g = groups.get(k) ?? { role: p.role, industry: p.industry, start: line.start, lines: [] }
         if (line.start < g.start) g.start = line.start
         g.lines.push({ p, line })
@@ -381,11 +400,12 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
         start: g.start, created: new Date(g.start.getTime() - 35 * DAY), months, headcount: g.lines.length,
       }, g.industry)
       const winners = g.lines.map(({ p }) => p)
-      const sent = sendTo(job, key, client, panel, 'history')
+      // Put forward then by the firm that employed them on that line, not whoever holds them today.
+      const reaches = g.lines.map(({ p, line }) => reachOf(frame, panelIds, p, line.employerId))
+      const sent = sendTo(job, key, client, sentTo(panel, key, reaches.flatMap((x) => (x ? [x.path[0]] : []))), 'history')
       let placed = 0
-      for (const { p, line } of g.lines) {
-        // Put forward then by the firm that employed them on that line, not whoever holds them today.
-        const reach = reachOf(frame, panelIds, p, line.employerId)
+      for (const [n, { p }] of g.lines.entries()) {
+        const reach = reaches[n]
         if (!reach) {
           plan.notes.push(`${p.name} worked at ${client.name} as a ${g.role.title} through a firm with no chain to its panel on the register; the job is filled with no submission for them.`)
           continue
@@ -395,7 +415,8 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
       }
       // Those who were put forward and not chosen: stood down with a reason.
       if (placed > 0) {
-        const others = pickCandidates(reachable, job, key, 3, winners.map((w) => w.id), false)
+        // One or two who were not chosen, beside the people placed: a short list, not a crowd.
+        const others = pickCandidates(reachable, job, key, 2, winners.map((w) => w.id), false, sent)
         others.forEach(({ p, reach }, i) => {
           const why = weighted(keyed(`why/${key}/${p.id}`), [['INTERVIEW', 3], ['RATE', 3], ['AVAILABILITY', 2], ['TIMING', 1]]) as RejectReason
           put(job, key, p, reach, sent, { outcome: 'REJECTED', reason: why, at: new Date(job.createdAt.getTime() + (3 + i) * DAY) })
@@ -413,8 +434,8 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
         status: 'CLOSED', approvalState: 'AUTO_APPROVED', start: new Date(created.getTime() + 30 * DAY), created,
         months: monthsFor(roleAt(i), ind, keyed(`job/${key}/m`)), headcount: 1,
       })
-      const sent = sendTo(job, key, client, panel, 'history')
-      for (const { p, reach } of pickCandidates(reachable, job, key, 3, [], false)) {
+      const sent = sendTo(job, key, client, sentTo(panel, key, []), 'history')
+      for (const { p, reach } of pickCandidates(reachable, job, key, 3, [], false, sent)) {
         const why = weighted(keyed(`why/${key}/${p.id}`), [['RATE', 3], ['SKILLS', 2], ['TIMING', 2]]) as RejectReason
         put(job, key, p, reach, sent, { outcome: 'REJECTED', reason: why, at: new Date(created.getTime() + 6 * DAY) })
       }
@@ -427,8 +448,8 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
         months: monthsFor(roleAt(PER_CLIENT.closed + i), ind, keyed(`job/${key}/m`)), headcount: 1,
         cancelReason: i % 2 === 0 ? 'The project was moved to next year’s budget.' : 'Filled by an internal transfer before any supplier submitted.',
       })
-      const sent = sendTo(job, key, client, panel, 'history')
-      for (const { p, reach } of pickCandidates(reachable, job, key, 1, [], false)) {
+      const sent = sendTo(job, key, client, sentTo(panel, key, []), 'history')
+      for (const { p, reach } of pickCandidates(reachable, job, key, 1, [], false, sent)) {
         put(job, key, p, reach, sent, { outcome: 'REJECTED', reason: 'TIMING', at: new Date(created.getTime() + 9 * DAY) })
       }
     }
@@ -441,7 +462,7 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
         start: day(14 + (i % 4) * 7), created, months: monthsFor(role, ind, keyed(`job/${key}/m`)), headcount: i % 7 === 3 ? 2 : 1,
       })
       const sent = sendTo(job, key, client, invited, 'open')
-      const free = pickCandidates(reachable, job, key, 5, [], true)
+      const free = pickCandidates(reachable, job, key, 5, [], true, sent)
       free.forEach(({ p, reach }, n) => {
         const outcome = weighted(keyed(`stage/${key}/${p.id}`), [['SUBMITTED', 4], ['SHORTLISTED', 3], ['INTERVIEW', 2], ['REJECTED', 1]]) as SubmissionRow['status']
         put(job, key, p, reach, sent, {
@@ -542,9 +563,12 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
   /** The most `n` people a job may still take: fit on its skills, free where it is open, never one already on it. */
   function pickCandidates(
     pool: { p: PersonFacts; reach: Reach }[], job: JobRow, key: string, n: number, skip: string[], open: boolean,
+    sent: Map<string, InvitationRow>,
   ): { p: PersonFacts; reach: Reach }[] {
     const r = keyed(`pick/${key}`)
-    const fit = pool.filter(({ p }) =>
+    // Only from a firm the job went to and that did not turn it down.
+    const fit = pool.filter(({ p, reach }) =>
+      sent.get(reach.path[0].id)?.status !== undefined && sent.get(reach.path[0].id)?.status !== 'DECLINED' &&
       !skip.includes(p.id) &&
       !taken.has(`${job.id}|${p.id}`) &&
       overlap(job.skills, p.skills) >= Math.min(2, job.skills.length) &&
@@ -721,5 +745,14 @@ export function supplierBand(ceiling: Band, nth: number, r: () => number): { pay
 
 /** The id of the client job a career line was filled through, so a line written elsewhere can point at it. */
 export function jobIdForLine(person: Pick<PersonFacts, 'role'>, line: Pick<LineEnd, 'clientId' | 'start'>): string {
-  return idFor(`job/${line.clientId}/filled/${person.role.title}|${line.start.toISOString().slice(0, 7)}`)
+  return idFor(`job/${line.clientId}/filled/${person.role.title}|${quarterOf(line.start)}`)
+}
+
+/**
+ * The quarter a line started in, "2025-Q3": the people one client took
+ * on for one role in one quarter came through one job request with that
+ * many heads, the way a client asks for "three of these this quarter".
+ */
+function quarterOf(d: Date): string {
+  return `${d.getUTCFullYear()}-Q${Math.floor(d.getUTCMonth() / 3) + 1}`
 }

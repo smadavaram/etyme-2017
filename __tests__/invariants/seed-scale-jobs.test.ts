@@ -10,7 +10,7 @@ import { anchorSeed } from '@/lib/seed-days'
 import { buildFrame } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, normalSkill, skillsOf } from '@/lib/seed-scale/industries'
 import { bandFor } from '@/lib/seed-scale/rates'
-import { planJobs, jobIdForLine, PER_CLIENT, type JobPlan } from '@/lib/seed-scale/jobs'
+import { planJobs, jobIdForLine, PER_CLIENT, HISTORY_SENT, type JobPlan } from '@/lib/seed-scale/jobs'
 import { buildPeople } from '@/lib/seed-scale/people'
 import type { PersonFacts, ScaleFrame } from '@/lib/seed-scale/types'
 
@@ -191,6 +191,22 @@ describe('the generated world’s jobs', () => {
       const tie = frame.trades.find((t) => t.seller === i.toCompanyId && t.buyer === i.fromCompanyId && t.relationship === 'CLIENT')
       expect(tie?.tier).not.toBe('PROBATION')
     }
+  })
+
+  it('a job in the past went to three to six firms on the panel, always the ones whose people it placed', () => {
+    const jobs = new Map(plan.jobs.map((j) => [j.id, j]))
+    const sentFor = new Map<string, string[]>()
+    for (const i of plan.invitations) sentFor.set(i.requirementId, [...(sentFor.get(i.requirementId) ?? []), i.toCompanyId])
+    for (const j of clientJobs().filter((x) => ['FILLED', 'CLOSED', 'CANCELLED'].includes(x.status))) {
+      const sent = sentFor.get(j.id) ?? []
+      const placedBy = new Set(plan.submissions.filter((s) => s.requirementId === j.id && s.status === 'PLACED').map((s) => s.fromCompanyId))
+      for (const f of placedBy) expect(sent, j.title).toContain(f)
+      expect(sent.length, j.title).toBeLessThanOrEqual(Math.max(HISTORY_SENT.max, placedBy.size))
+      expect(sent.length, j.title).toBeGreaterThanOrEqual(Math.min(HISTORY_SENT.min, frame.panelOf(j.companyId).length))
+    }
+    // Nobody is put forward by a firm the job did not go to.
+    const pairs = new Set(plan.invitations.map((i) => `${i.requirementId}|${i.toCompanyId}`))
+    for (const s of plan.submissions.filter((x) => !jobs.get(x.requirementId)!.mirroredFromId)) expect(pairs.has(`${s.requirementId}|${s.fromCompanyId}`)).toBe(true)
   })
 
   it('everybody turned down carries a reason code, and an award stands the others down', () => {
