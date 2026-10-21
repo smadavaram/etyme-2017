@@ -1273,6 +1273,26 @@ flows". Decided:
   the founder out of Tapin today (architect); then the setup fields and
   the papers step (architect, with regulatory for the sets).
 
+**Shipped to production 2026-10-21 (4d7ac5d4f on the deploy branch,
+source 23b545d89):** both sign-in doors ask for the account chooser
+and the first screen says "Not you? Use another account"; every notice
+names who and what; the queue holds the invoice receipts a person owes
+a payment on; a worker files their own expense, billable only where
+the agreement says; a placed worker reads their own pay line's rate
+history from their own seat; the twin's question says who and what; a
+week approved by email tells the worker once and never asks a
+one-person firm to accept its own; a site has a time zone and a day on
+the week can be a local holiday (two nullable columns, pushed on that
+deploy). Release pass green on a quiet copy: type check, 11,411 unit,
+2,312 of 2,313 integration with the one red (the census page's access
+log count) green alone and judged a timing flake of the fire-and-forget
+bulk log, build. **Open for the founder:** `DB_PUSH_ON_BUILD` on the
+production project was set to 1 for that deploy and could not be set
+back to 0 afterwards (the Vercel connection dropped); until it is
+flipped, every production deploy reconciles the database to the schema,
+which is harmless for additions and must be off before any deploy that
+removes a column.
+
 **The admin's setup is a checklist, every item skippable, and it comes
 back until it is done. Decided by the founder, the same day**, after
 reading the 2017 code: *"I am glad it's easy, but shouldn't the admin
