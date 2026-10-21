@@ -38,6 +38,19 @@ export const JOB_STEP_NAMES = [
   'scale:jobs:interviews',
 ] as const
 
+/** Rows by how many hops sit below them (a submission) or above them (a firm's record): what they point at first. */
+function byHop<T extends { id: string; parentSubmissionId: string | null }>(rows: T[]): T[][] {
+  const parentOf = new Map(rows.map((r) => [r.id, r.parentSubmissionId]))
+  const hop = (id: string): number => {
+    let n = 0
+    for (let p = parentOf.get(id); p; p = parentOf.get(p)) n++
+    return n
+  }
+  const levels: T[][] = []
+  for (const r of rows) (levels[hop(r.id)] ??= []).push(r)
+  return levels.filter(Boolean)
+}
+
 const cache = new WeakMap<readonly PersonFacts[], WeakMap<ScaleFrame, JobPlan>>()
 
 /** The plan for this frame and these people, made once per pair. */
@@ -55,11 +68,12 @@ function planOf(frame: ScaleFrame, people: readonly PersonFacts[]): JobPlan {
  */
 export function jobSteps(people: () => readonly PersonFacts[]): JobStep[] {
   const steps: Record<(typeof JOB_STEP_NAMES)[number], (frame: ScaleFrame) => Promise<void>> = {
-    // Client jobs before the primes' records of them, which point back.
+    // Client jobs before the firms' records of them, each record after the one it copies.
     'scale:jobs:requests': async (frame) => {
       const plan = planOf(frame, people())
-      await writeMissing(db.requirement, plan.jobs.filter((j) => !j.mirroredFromId))
-      await writeMissing(db.requirement, plan.jobs.filter((j) => j.mirroredFromId))
+      for (const level of byHop(plan.jobs.map((j) => ({ ...j, parentSubmissionId: j.mirroredFromId })))) {
+        await writeMissing(db.requirement, level.map(({ parentSubmissionId: _p, ...j }) => j))
+      }
     },
     'scale:jobs:approvals': async (frame) => {
       await writeMissing(db.requirementApproval, planOf(frame, people()).approvals)
@@ -67,13 +81,11 @@ export function jobSteps(people: () => readonly PersonFacts[]): JobStep[] {
     'scale:jobs:invitations': async (frame) => {
       await writeMissing(db.requirementInvitation, planOf(frame, people()).invitations)
     },
-    // Only for people who exist; the hop to a prime before the hop onward that points at it.
+    // Only for people who exist; each hop before the hop onward that points at it.
     'scale:jobs:submissions': async (frame) => {
       const plan = planOf(frame, people())
       const here = await existing(db.person, [...new Set(plan.submissions.map((s) => s.personId))])
-      const rows = plan.submissions.filter((s) => here.has(s.personId))
-      await writeMissing(db.submission, rows.filter((s) => !s.parentSubmissionId))
-      await writeMissing(db.submission, rows.filter((s) => s.parentSubmissionId))
+      for (const level of byHop(plan.submissions.filter((s) => here.has(s.personId)))) await writeMissing(db.submission, level)
     },
     'scale:jobs:interviews': async (frame) => {
       const plan = planOf(frame, people())

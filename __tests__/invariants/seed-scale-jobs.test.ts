@@ -25,6 +25,9 @@ beforeAll(() => {
   plan = planJobs(frame, people)
 })
 
+/** The firm that employed a person on the career line a filled job stands for, if it stands for one. */
+const employedThenOf = (p: PersonFacts, jobId: string) => p.lineEnds.find((l) => jobIdForLine(p, l) === jobId)?.employerId
+
 const clientJobs = () => plan.jobs.filter((j) => !j.mirroredFromId)
 
 describe('the generated world’s jobs', () => {
@@ -127,28 +130,46 @@ describe('the generated world’s jobs', () => {
     expect(plan.submissions.length).toBeGreaterThan(100)
   })
 
-  it('a submission comes from a firm that holds the person, or from the prime above it, and its kind is computed from that', () => {
+  it('a submission comes from a firm that holds the person, or up the chain from it, and its kind is computed from that', () => {
     const who = new Map(people.map((p) => [p.id, p]))
     const subs = new Map(plan.submissions.map((s) => [s.id, s]))
     const jobs = new Map(plan.jobs.map((j) => [j.id, j]))
-    for (const s of plan.submissions) {
-      const p = who.get(s.personId)!
+    let chained = 0
+    for (const top of plan.submissions.filter((x) => !jobs.get(x.requirementId)!.mirroredFromId)) {
+      const p = who.get(top.personId)!
       const holder = p.listing ? p.listing.firmId : p.firmId
-      if (s.parentSubmissionId) {
-        const below = subs.get(s.parentSubmissionId)!
-        expect(below.fromCompanyId).toBe(holder)
-        expect(below.toCompanyId).toBe(s.fromCompanyId)
-        expect(frame.primesOf(holder).map((f) => f.id)).toContain(s.fromCompanyId)
-        expect(jobs.get(below.requirementId)!.mirroredFromId).toBe(s.requirementId)
-        expect(s.kind).toBe('NETWORK')
-        expect(below.rate).toBeLessThanOrEqual(s.rate)
-        expect(p.listing?.tier, 'a retained person never goes up a chain').not.toBe('RETAINED')
-      } else if (!jobs.get(s.requirementId)!.mirroredFromId) {
-        expect(s.fromCompanyId, p.name).toBe(holder)
+      // Walk down the hops to the firm that holds the person.
+      let hop = top
+      let hops = 1
+      while (hop.parentSubmissionId) {
+        const below = subs.get(hop.parentSubmissionId)!
+        expect(below.toCompanyId).toBe(hop.fromCompanyId)
+        expect(below.personId).toBe(hop.personId)
+        expect(frame.primesOf(below.fromCompanyId).map((f) => f.id), 'each hop is a firm selling to the one above').toContain(hop.fromCompanyId)
+        // The record below copies the record above it, one hop up.
+        expect(jobs.get(below.requirementId)!.mirroredFromId).toBe(hop.requirementId)
+        // It is the receiving firm's own record, worked through the firm it submits to.
+        expect(jobs.get(below.requirementId)!.companyId).toBe(hop.fromCompanyId)
+        expect(jobs.get(below.requirementId)!.payerCompanyId).toBe(hop.toCompanyId)
+        expect(below.rate, 'each firm keeps a margin').toBeLessThanOrEqual(hop.rate)
+        expect(hop.kind, 'a firm forwarding somebody it does not hold buys them').toBe('NETWORK')
+        hop = below
+        hops++
+      }
+      expect(hops).toBeLessThanOrEqual(3)
+      if (hops > 1) {
+        chained++
+        if (!employedThenOf(p, top.requirementId)) expect(p.listing?.tier, 'a retained person never goes up a chain').not.toBe('RETAINED')
+      }
+      // A line in the past was put forward by the firm that employed them on it; anything else by who holds them now.
+      const employedThen = employedThenOf(p, top.requirementId)
+      expect([holder, employedThen], p.name).toContain(hop.fromCompanyId)
+      if (hop.fromCompanyId === holder) {
         const expected = !p.listing ? 'INTERNAL' : p.listing.tier === 'RETAINED' ? 'BENCH' : 'NETWORK'
-        expect(s.kind, p.name).toBe(expected)
+        expect(hop.kind, p.name).toBe(expected)
       }
     }
+    expect(chained).toBeGreaterThan(0)
     // The client never sees a firm it does not buy from.
     for (const s of plan.submissions.filter((x) => !jobs.get(x.requirementId)!.mirroredFromId)) {
       expect(frame.panelOf(s.toCompanyId).map((f) => f.id)).toContain(s.fromCompanyId)
@@ -237,15 +258,17 @@ describe('the generated world’s jobs', () => {
     }
   })
 
-  it('the prime’s working record of a job points back to it and names the client as the payer', () => {
+  it('a firm’s working record of a job points one hop up, names the firm above as who it is worked through, and keeps the client as the end client', () => {
     const mirrors = plan.jobs.filter((j) => j.mirroredFromId)
     expect(mirrors.length).toBeGreaterThan(0)
     const jobs = new Map(plan.jobs.map((j) => [j.id, j]))
     for (const m of mirrors) {
       const parent = jobs.get(m.mirroredFromId!)!
       expect(m.payerCompanyId).toBe(parent.companyId)
-      expect(m.endClientCompanyId).toBe(parent.companyId)
-      expect(m.billMax, 'the prime pays below what it is paid').toBeLessThanOrEqual(parent.billMax)
+      let top = parent
+      while (top.mirroredFromId) top = jobs.get(top.mirroredFromId)!
+      expect(m.endClientCompanyId).toBe(top.companyId)
+      expect(m.billMax, 'a firm pays below what it is paid').toBeLessThanOrEqual(parent.billMax)
       expect(m.skills).toEqual(parent.skills)
     }
   })

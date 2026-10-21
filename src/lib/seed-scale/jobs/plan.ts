@@ -219,11 +219,16 @@ function words(role: RoleTemplate, ind: IndustryKey, unit: string, months: numbe
 // ── Who can put whom forward ──────────────────────────────────────────
 
 interface Reach {
-  /** The firm on the client's panel that submits to the client. */
-  top: ScaleFirm
-  /** The firm under it that holds the person, where the top does not. */
-  below: ScaleFirm | null
+  /**
+   * The firms between the person and the client, top first: the panel
+   * firm that submits to the client, then each firm below it down to the
+   * one that holds the person. One firm where the holder is on the panel.
+   */
+  path: ScaleFirm[]
 }
+
+/** The most firms between a person and a client: a bench firm, a sub-vendor and a prime. */
+const MAX_PATH = 3
 
 /** Whether a firm holds this person, and how: its own employee, or a listing the person granted it. */
 function holds(firm: ScaleFirm, p: PersonFacts): { employedByUs: boolean; listingTier: string | null } | null {
@@ -239,18 +244,30 @@ function holderOf(p: PersonFacts): string {
 
 /**
  * How a person reaches a client: straight from a panel firm that holds
- * them, or through a panel firm the holder sells to. A retained person is
- * the holder's alone and never goes up a chain; a sub-vendor's person
- * reaches the client only through the prime above it.
+ * them (or, for a line in their past, the firm that employed them on it), or up the register through the firms the holder sells to, at most
+ * three firms deep, the top one on the client's panel. A retained person
+ * is the holder's alone and never goes up a chain, and a bench firm sells
+ * its own people and forwards nobody else's.
  */
-function reachOf(frame: ScaleFrame, panelIds: Set<string>, p: PersonFacts): Reach | null {
-  const holder = frame.byId.get(holderOf(p))
+function reachOf(frame: ScaleFrame, panelIds: Set<string>, p: PersonFacts, past: string | null = null): Reach | null {
+  const holder = frame.byId.get(past ?? holderOf(p))
   if (!holder) return null
-  if (panelIds.has(holder.id)) return { top: holder, below: null }
-  if (p.listing?.tier === 'RETAINED') return null
-  const above = frame.primesOf(holder.id).filter((x) => panelIds.has(x.id) && x.position !== 'BENCH')
-  if (above.length === 0) return null
-  return { top: above[Math.floor(keyed(`reach/${p.id}/${holder.id}`)() * above.length)], below: holder }
+  if (panelIds.has(holder.id)) return { path: [holder] }
+  // Retained today keeps a person off every chain from today on; a line in their past already happened.
+  if (!past && p.listing?.tier === 'RETAINED') return null
+  // Breadth first, so the shortest chain wins; the draw only breaks ties.
+  let level: ScaleFirm[][] = [[holder]]
+  for (let depth = 2; depth <= MAX_PATH; depth++) {
+    const next: ScaleFirm[][] = []
+    for (const chain of level) {
+      const above = frame.primesOf(chain[0].id).filter((x) => x.position !== 'BENCH' && !chain.includes(x))
+      for (const x of above) next.push([x, ...chain])
+    }
+    const done = next.filter((c) => panelIds.has(c[0].id))
+    if (done.length) return { path: done[Math.floor(keyed(`reach/${p.id}/${holder.id}`)() * done.length)] }
+    level = next
+  }
+  return null
 }
 
 const overlap = (a: readonly string[], b: readonly string[]) => a.filter((s) => b.includes(s)).length
@@ -262,7 +279,6 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
   const peopleOf = new Map<string, PersonFacts>(people.map((p) => [p.id, p]))
   const tieOf = new Map<string, Trade>(frame.trades.map((t) => [`${t.seller}|${t.buyer}|${t.relationship}`, t]))
   const mirrors = new Map<string, JobRow>()
-  const mirrorInvites = new Set<string>()
   const taken = new Set<string>()
 
   for (const client of frame.byPosition('CLIENT')) {
@@ -287,7 +303,6 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
     const reachable = people
       .map((p) => ({ p, reach: reachOf(frame, panelIds, p) }))
       .filter((x): x is { p: PersonFacts; reach: Reach } => x.reach !== null)
-    const reachById = new Map(reachable.map((x) => [x.p.id, x.reach]))
 
     const jobFor = (key: string, role: RoleTemplate, shape: {
       status: JobRow['status']; approvalState: JobRow['approvalState']; start: Date; created: Date; months: number; headcount: number;
@@ -368,10 +383,11 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
       const winners = g.lines.map(({ p }) => p)
       const sent = sendTo(job, key, client, panel, 'history')
       let placed = 0
-      for (const { p } of g.lines) {
-        const reach = reachById.get(p.id) ?? reachOf(frame, panelIds, p)
+      for (const { p, line } of g.lines) {
+        // Put forward then by the firm that employed them on that line, not whoever holds them today.
+        const reach = reachOf(frame, panelIds, p, line.employerId)
         if (!reach) {
-          plan.notes.push(`${p.name} worked at ${client.name} as ${g.role.title.toLowerCase()} through a firm with no tie to its panel; the job is filled with no submission for them.`)
+          plan.notes.push(`${p.name} worked at ${client.name} as a ${g.role.title} through a firm with no chain to its panel on the register; the job is filled with no submission for them.`)
           continue
         }
         put(job, key, p, reach, sent, { outcome: 'PLACED', at: job.createdAt })
@@ -542,9 +558,9 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
 
   /**
    * A person put forward to a client job: from the panel firm that holds
-   * them, or through the prime above the firm that does, as two hops (the
-   * holder to the prime's working record of the job, then the prime to the
-   * client), each with its own rate. The interviews follow the outcome.
+   * them, or up the chain from the firm that does, one hop per firm, each
+   * hop to the next firm's working record of the job and the last to the
+   * client, each with its own rate. The interviews follow the outcome.
    */
   function put(
     job: JobRow, key: string, p: PersonFacts, reach: Reach, sent: Map<string, InvitationRow>,
@@ -552,81 +568,102 @@ export function planJobs(frame: ScaleFrame, people: readonly PersonFacts[]): Job
   ): void {
     const k = `${job.id}|${p.id}`
     if (taken.has(k)) return // first submission wins
+    const top = reach.path[0]
     // A supplier submits only to a job it was sent and did not turn down.
-    const inv = sent.get(reach.top.id)
+    const inv = sent.get(top.id)
     if (!inv || inv.status === 'DECLINED') return
     taken.add(k)
     inv.status = 'ACCEPTED'
     const band: Band = { minCents: inv.payMin, maxCents: inv.payMax, currency: 'USD' }
-    const chain = chainFor(band, reach.below ? 2 : 1, `submit/${job.id}/${p.id}`, { marginClass: job.marginClass })
+    const depth = reach.path.length
+    const chain = chainFor(band, depth, `submit/${job.id}/${p.id}`, { marginClass: job.marginClass })
     const topRate = Math.max(band.minCents, Math.min(band.maxCents, chain[0]))
     const decided = o.outcome === 'PLACED' || o.outcome === 'REJECTED'
     const decidedAt = decided ? new Date(o.at.getTime() + 9 * DAY) : null
     const contractType = (who: ScaleFirm) => (holds(who, p)?.employedByUs ? 'W2' : weighted(keyed(`ct/${p.id}`), [['W2', 5], ['C2C', 4]])) as 'W2' | 'C2C'
+    const kindFrom = (who: ScaleFirm) => {
+      const own = holds(who, p)
+      // A firm forwarding somebody another firm holds buys them: a network submission.
+      return own ? submissionKind(own) : 'NETWORK'
+    }
 
+    // Each firm in the middle keeps a working record of the job, copied
+    // from the record of the firm it submits to: the client's job at the top.
+    const records: JobRow[] = [job]
+    for (let i = 1; i < depth; i++) records.push(mirrorOf(job, key, reach.path[i - 1], records[i - 1]))
+
+    // From the holder up, each hop to the firm above's working record of the job.
     let parent: string | null = null
-    if (reach.below) {
-      const mirror = mirrorOf(job, key, reach.top)
-      const own = holds(reach.below, p)!
-      parent = idFor(`submission/${mirror.id}/${p.id}`)
+    for (let i = depth - 1; i >= 1; i--) {
+      const from = reach.path[i]
+      const to = reach.path[i - 1]
+      const mirror = records[i]
+      const id = idFor(`submission/${mirror.id}/${p.id}`)
+      const at = new Date(o.at.getTime() - i * DAY)
       plan.submissions.push({
-        id: parent, requirementId: mirror.id, personId: p.id, fromCompanyId: reach.below.id, toCompanyId: reach.top.id,
-        kind: submissionKind(own), rate: Math.min(chain[1], topRate), contractType: contractType(reach.below),
+        id, requirementId: mirror.id, personId: p.id, fromCompanyId: from.id, toCompanyId: to.id,
+        kind: kindFrom(from), rate: Math.min(chain[i], topRate), contractType: contractType(from),
         status: o.outcome === 'REJECTED' ? 'REJECTED' : o.outcome === 'PLACED' ? 'PLACED' : 'SHORTLISTED',
         checkState: 'SENT', screenState: 'READY',
-        submittedAt: new Date(o.at.getTime() - DAY), decidedAt, rejectReason: o.outcome === 'REJECTED' ? o.reason ?? 'TIMING' : null,
-        rejectedAt: o.outcome === 'REJECTED' ? decidedAt : null, parentSubmissionId: null, forwardedAt: o.at, forwardedVia: 'ONWARD',
+        submittedAt: at, decidedAt, rejectReason: o.outcome === 'REJECTED' ? o.reason ?? 'TIMING' : null,
+        rejectedAt: o.outcome === 'REJECTED' ? decidedAt : null, parentSubmissionId: parent,
+        forwardedAt: new Date(at.getTime() + DAY), forwardedVia: 'ONWARD',
       })
+      parent = id
     }
-    const own = holds(reach.top, p)
-    // Through a prime, the prime buys the person from the firm below: a network submission.
-    const kind = own ? submissionKind(own) : 'NETWORK'
     const id = idFor(`submission/${job.id}/${p.id}`)
     plan.submissions.push({
-      id, requirementId: job.id, personId: p.id, fromCompanyId: reach.top.id, toCompanyId: job.companyId,
-      kind, rate: topRate, contractType: contractType(reach.top), status: o.outcome,
+      id, requirementId: job.id, personId: p.id, fromCompanyId: top.id, toCompanyId: job.companyId,
+      kind: kindFrom(top), rate: topRate, contractType: contractType(top), status: o.outcome,
       checkState: 'SENT', screenState: 'READY', submittedAt: o.at, decidedAt,
       rejectReason: o.outcome === 'REJECTED' ? o.reason ?? 'TIMING' : null, rejectedAt: o.outcome === 'REJECTED' ? decidedAt : null,
       parentSubmissionId: parent, forwardedAt: null, forwardedVia: null,
     })
-    interviewsFor(job, id, reach.top.id, o)
+    interviewsFor(job, id, top.id, o)
   }
 
-  /** The prime's working record of a client job, made once, and the prime's invitation to the firm below. */
-  function mirrorOf(job: JobRow, key: string, prime: ScaleFirm): JobRow {
-    const mk = `${job.id}|${prime.id}`
+  /**
+   * A firm's working record of a client job, made once per firm and per
+   * firm it submits to: what a firm in the middle of a chain submits
+   * against. It points one hop up, to the record it copies, and names the
+   * firm above as who it is worked through; the client stays the end
+   * client, and is not named to the firm below (`endClientVisible` off).
+   */
+  function mirrorOf(job: JobRow, key: string, firm: ScaleFirm, above: JobRow): JobRow {
+    const mk = `${job.id}|${firm.id}|${above.companyId}`
     let m = mirrors.get(mk)
     if (!m) {
-      const account = prime.seats.find((s) => s.role === 'Account Manager') ?? prime.seats[0]
-      const recruiter = prime.seats.find((s) => s.role === 'Recruiter') ?? prime.seats[1] ?? prime.seats[0]
-      const chain = chainFor({ minCents: job.billMin, maxCents: job.billMax, currency: 'USD' }, 2, `mirror/${job.id}/${prime.id}`, { marginClass: job.marginClass })
+      const account = firm.seats.find((s) => s.role === 'Account Manager') ?? firm.seats[0]
+      const recruiter = firm.seats.find((s) => s.role === 'Recruiter' && s.personId !== account.personId)
+        ?? firm.seats.find((s) => s.personId !== account.personId) ?? firm.seats[0]
+      const chain = chainFor({ minCents: above.billMin, maxCents: above.billMax, currency: 'USD' }, 2, `mirror/${job.id}/${firm.id}`, { marginClass: job.marginClass })
+      const tie = above.companyId === job.companyId ? 'CLIENT' : 'PRIME'
       m = {
         ...job,
-        id: idFor(`mirror/${key}/${prime.id}`),
-        companyId: prime.id,
-        // The prime's ceiling is what it will pay below, not what the client pays it.
-        billMin: Math.min(job.billMin, chain[1]),
-        billMax: Math.min(job.billMax, chain[1] + 1500),
+        id: idFor(`mirror/${key}/${firm.id}/${above.companyId}`),
+        companyId: firm.id,
+        // A firm's ceiling is what it will pay below, not what it is paid.
+        billMin: Math.min(above.billMin, chain[1]),
+        billMax: Math.min(above.billMax, chain[1] + 1500),
         approvalState: 'AUTO_APPROVED',
         status: job.status === 'DRAFT' ? 'OPEN' : job.status,
         source: 'NETWORK',
-        cancelReason: job.cancelReason,
         raisedById: account.personId,
         ownerId: recruiter.personId,
         reportsToId: recruiter.personId,
         interviewers: [],
         orgUnitId: null,
         costCenterId: null,
-        msaId: tieOf.get(`${prime.id}|${job.companyId}|CLIENT`)?.agreementId ?? null,
+        msaId: tieOf.get(`${firm.id}|${above.companyId}|${tie}`)?.agreementId ?? null,
         endClientCompanyId: job.companyId,
-        payerCompanyId: job.companyId,
-        mirroredFromId: job.id,
-        createdAt: new Date(job.createdAt.getTime() + DAY),
+        payerCompanyId: above.companyId,
+        mirroredFromId: above.id,
+        createdAt: new Date(above.createdAt.getTime() + DAY),
       }
       mirrors.set(mk, m)
       plan.jobs.push(m)
       plan.approvals.push({
-        id: idFor(`approval/mirror/${key}/${prime.id}`), requirementId: m.id, approverId: null, rank: 0, stage: 'FINAL',
+        id: idFor(`approval/mirror/${key}/${firm.id}/${above.companyId}`), requirementId: m.id, approverId: null, rank: 0, stage: 'FINAL',
         outcome: 'AUTO_CLEARED', reason: 'A working record of a client’s job request: nothing to approve here.', decidedAt: m.createdAt, createdAt: m.createdAt,
       })
     }
