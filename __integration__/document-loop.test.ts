@@ -399,6 +399,41 @@ describe('the loop of documents, between the parties', () => {
     // over a screening that needs redoing.
     expect(found!.stopsWork).toBe(false)
   })
+
+  it('a background check due again is owed by the firm that ordered it, never by the worker', async () => {
+    const live = await prisma.sellContract.findFirstOrThrow({
+      where: { state: 'IN_PROGRESS' },
+      select: { personId: true, companyId: true, company: { select: { name: true } } },
+      orderBy: { id: 'desc' },
+    })
+    const staff = await prisma.context.findFirstOrThrow({
+      where: { companyId: live.companyId, revokedAt: null },
+      select: { personId: true },
+    })
+    const row = await prisma.verification.create({
+      data: {
+        personId: live.personId!,
+        type: 'BACKGROUND_CHECK',
+        status: 'CLEAR',
+        provider: 'Checkr',
+        referenceId: 'CHK-4471',
+        orderedByCompanyId: live.companyId,
+        issuedAt: new Date(Date.now() - 358 * 86_400_000),
+        validFrom: new Date(Date.now() - 358 * 86_400_000),
+        expiresAt: new Date(Date.now() + 7 * 86_400_000),
+        uploadedById: staff.personId,
+        verifiedById: staff.personId,
+        verifiedAt: new Date(Date.now() - 358 * 86_400_000),
+        result: { outcome: 'CLEAR', providerSays: 'No records found.' },
+      },
+    })
+    const watch = await checksToRedo(new Date())
+    const found = watch.lapsing.find((l) => l.id === row.id)
+    expect(found).toBeTruthy()
+    expect(found!.owedBy).toBe('US')
+    expect(found!.owedByName).toBe(live.company.name)
+    expect(found!.tellCompanyId).toBe(live.companyId)
+  })
 })
 
 describe('who renders the verdict, walked on the seeded world', () => {

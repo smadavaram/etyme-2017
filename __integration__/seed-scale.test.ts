@@ -28,6 +28,8 @@ import { readCatalog } from '../scripts/simulate/actors'
 import { jobSteps, planJobs, type JobPlan } from '@/lib/seed-scale/jobs'
 import type { PersonFacts } from '@/lib/seed-scale/types'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
+import { paperSteps, paperAfterRatesSteps, planPapers } from '@/lib/seed-scale/papers'
+import { standingToRenew } from '@/lib/document-request'
 
 /**
  * The generated world at the founder's scale (lib/seed-scale), seeded on
@@ -523,5 +525,97 @@ describe('the generated world’s people', () => {
     for (const e of a.entries.filter((x) => x.reach === 'SUGGESTION')) {
       expect(skillsOfPerson.get(e.personId)!.some((k) => job.skills.includes(k)), e.personId).toBe(true)
     }
+  })
+})
+
+describe('the generated world’s papers (regulatory)', () => {
+  const p: Record<string, any> = {}
+  const TABLES = ['verification', 'documentBacking', 'visaPetition', 'visaEvent', 'visaDocument', 'exemptAssertion', 'documentRequirement'] as const
+  const count = async () => Object.fromEntries(await Promise.all(TABLES.map(async (t) => [t, await (prisma as any)[t].count()])))
+
+  beforeAll(async () => {
+    // The papers after the people, and the asks after the rates, as lib/seed-scale/index runs them once they are wired.
+    p.steps = []
+    for (const step of [...paperSteps(frame, () => people), ...paperAfterRatesSteps(() => people)]) {
+      const before = counter.asked
+      await step.run(frame)
+      p.steps.push({ step: step.name, asked: counter.asked - before })
+    }
+    p.plan = planPapers(frame, people)
+  }, 600_000)
+
+  it('every placed person holds an I-9 backed by a named document', async () => {
+    const placed: string[] = p.plan.placedUs
+    expect(placed.length).toBeGreaterThan(200)
+    const forms = await prisma.verification.findMany({
+      where: { personId: { in: placed }, type: 'I9_EVERIFY' },
+      select: { personId: true, formEdition: true, backedBy: { select: { satisfiedKey: true, evidence: { select: { type: true, provider: true, expiresAt: true } } } } },
+    })
+    const backed = new Set(forms.filter((f) => f.formEdition && f.backedBy.some((b) => b.evidence.provider && b.evidence.expiresAt && b.satisfiedKey === b.evidence.type)).map((f) => f.personId))
+    expect(placed.filter((id) => !backed.has(id))).toEqual([])
+  })
+
+  it('a handful of lapsed covers exist and name their supplier', async () => {
+    const lapsed = await prisma.verification.findMany({
+      where: { type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'GOOD_STANDING'] }, expiresAt: { lt: day(0) }, company: { slug: { startsWith: SCALE_SLUG_PREFIX } } },
+      select: { type: true, provider: true, company: { select: { name: true, sellContractsOut: { where: { state: 'IN_PROGRESS' }, select: { id: true }, take: 1 } } } },
+    })
+    expect(lapsed.length).toBeGreaterThanOrEqual(3)
+    expect(lapsed.length).toBeLessThanOrEqual(10)
+    for (const v of lapsed) {
+      expect(v.company?.name, v.type).toBeTruthy()
+      expect(v.provider).toBeTruthy()
+      // Each has people working through it, so the next start refuses and the nightly check chases it.
+      expect(v.company!.sellContractsOut.length, v.company!.name).toBe(1)
+    }
+    const watch = await standingToRenew(day(0))
+    const named = new Set(lapsed.filter((v) => v.type === 'GOOD_STANDING').map((v) => v.company!.name))
+    expect(named.size).toBeGreaterThan(0)
+    for (const n of named) expect(watch.lapsed.some((l) => l.owedByName === n && l.owedBy === 'SUPPLIER'), n).toBe(true)
+  })
+
+  it('every background verdict names its provider, reference and date', async () => {
+    const checks = await prisma.verification.findMany({
+      where: { type: 'BACKGROUND_CHECK', person: { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX } } },
+      select: { status: true, provider: true, referenceId: true, verifiedAt: true, orderedByCompanyId: true, result: true },
+    })
+    expect(checks.length).toBeGreaterThan(800)
+    for (const c of checks) {
+      expect(c.provider).toBeTruthy()
+      expect(c.referenceId).toBeTruthy()
+      expect(c.verifiedAt).toBeTruthy()
+      expect(c.orderedByCompanyId).toBeTruthy()
+      if (c.status !== 'IN_PROGRESS') expect((c.result as any)?.providerSays).toBeTruthy()
+    }
+    expect(checks.some((c) => c.status === 'FLAGGED' && (c.result as any)?.adverse?.decision === 'NOT_TAKEN')).toBe(true)
+  })
+
+  it('nobody’s work authorization is waived', async () => {
+    const waivedAuth = await prisma.documentRequirement.count({ where: { documentTypeKey: { in: ['I9_EVERIFY', 'RIGHT_TO_WORK'] }, waivedReason: { not: null } } })
+    expect(waivedAuth).toBe(0)
+    const asks = await prisma.documentRequirement.count({ where: { workOrder: { issuedBy: { slug: { startsWith: SCALE_SLUG_PREFIX } } } } })
+    expect(asks).toBeGreaterThan(0)
+    const waived = await prisma.documentRequirement.findMany({
+      where: { sellContract: { companyId: { in: frame.firms.map((f) => f.id) } }, waivedReason: { not: null } },
+      select: { documentTypeKey: true, waivedById: true, inheritedFromId: true },
+    })
+    expect(waived.length).toBeGreaterThan(0)
+    for (const w of waived) {
+      expect(w.documentTypeKey).toBe('BACKGROUND_CHECK')
+      expect(w.waivedById).toBeTruthy()
+      expect(w.inheritedFromId).toBeTruthy()
+    }
+  })
+
+  it('every papers step fits one function call, and a second run of the papers writes nothing', async () => {
+    const over = (p.steps as { step: string; asked: number }[]).filter((x) => x.asked > STEP_QUERY_BUDGET)
+    expect(over, 'These steps would not finish in one call against production. Cut them into shares.').toEqual([])
+    const before = await count()
+    for (const step of [...paperSteps(frame, () => people), ...paperAfterRatesSteps(() => people)]) {
+      const asked = counter.asked
+      await step.run(frame)
+      expect(counter.asked - asked, `${step.name}, walked again`).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
+    }
+    expect(await count()).toEqual(before)
   })
 })

@@ -1718,12 +1718,13 @@ export async function checksToRedo(
     },
     select: {
       id: true, type: true, expiresAt: true, personId: true,
+      orderedByCompanyId: true, orderedByCompany: { select: { name: true } },
       person: {
         select: {
           name: true,
           sellContracts: {
             where: { state: { in: ['IN_PROGRESS', 'PAUSED'] } },
-            select: { companyId: true },
+            select: { companyId: true, company: { select: { name: true } } },
             take: 1,
           },
         },
@@ -1742,13 +1743,17 @@ export async function checksToRedo(
         key: r.type,
         document: label,
         line: null,
-        owedBy: 'WORKER' as OwedBy,
-        owedByName: r.person?.name ?? null,
+        // Owed by the firm that orders it, never by the worker: the
+        // screening company posts its report to whoever ordered it, and
+        // a worker cannot buy her own background check (the founder,
+        // 2026-09-22). The firm that ordered the last one runs it again;
+        // where nobody recorded who ordered it, the firm she is placed
+        // through, which is the one that would order it now.
+        owedBy: 'US' as OwedBy,
+        owedByName: r.orderedByCompany?.name ?? r.person?.sellContracts[0]?.company.name ?? null,
         personId: r.personId,
         companyId: null,
-        // The firm they are placed through does the chasing: a screening
-        // is the employer's to re-run, not the worker's to go and buy.
-        tellCompanyId: r.person?.sellContracts[0]?.companyId ?? null,
+        tellCompanyId: r.orderedByCompanyId ?? r.person?.sellContracts[0]?.companyId ?? null,
         expiresAt: r.expiresAt!,
         daysLeft,
         lapsed: daysLeft < 0,
