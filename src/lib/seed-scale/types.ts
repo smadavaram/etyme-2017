@@ -339,7 +339,8 @@ export type SeedPeople = (frame: ScaleFrame, share?: Share) => Promise<void>
 /** `lib/seed-scale/papers` (regulatory). */
 export type SeedPapers = (frame: ScaleFrame, people: PersonFacts[], share?: Share) => Promise<void>
 /** `lib/seed-scale/jobs` (demand). */
-export type SeedJobs = (frame: ScaleFrame, share?: Share) => Promise<void>
+/** The jobs are planned on the people (`buildPeople(frame)`), so they are handed in. */
+export type SeedJobs = (frame: ScaleFrame, people: readonly PersonFacts[], share?: Share) => Promise<void>
 /** `lib/seed-scale/rates` (money). */
 export type SeedRates = (frame: ScaleFrame, share?: Share) => Promise<void>
 
