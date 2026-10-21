@@ -29,11 +29,12 @@ import { holidaysFor } from '@/lib/holidays'
 import { DESKS, DESK_ROLES } from '@/lib/demo-desks'
 import { namedCompanies } from '@/lib/positioning'
 import { INDUSTRIES, SUPPLIER_STEMS, industry } from './industries'
+import { agreementTermsFor } from './rates/pure'
 import {
-  NameBook, STAFF_NUMBER_FROM, between, emailFor, idFor, keyed, minutesAfter, pick, slugFor, weighted, writeMissing, batch,
+  NameBook, STAFF_NUMBER_FROM, between, emailFor, fold, idFor, keyed, minutesAfter, pick, slugFor, weighted, writeMissing, batch,
 } from './kit'
 import {
-  INDUSTRY_KEYS, SCALE, type CompanyKind, type IndustryKey, type Position, type ScaleFirm, type ScaleFrame,
+  INDUSTRY_KEYS, SCALE, SCALE_SLUG_PREFIX, type CompanyKind, type IndustryKey, type Position, type ScaleFirm, type ScaleFrame,
   type ScaleSeat, type ScaleSite, type Share, type Trade,
 } from './types'
 
@@ -101,6 +102,19 @@ const PROGRAM_TREE: Record<IndustryKey, { unit: string; departments: { code: str
   MANUFACTURING: { unit: 'Operations', departments: [{ code: 'PLNT', name: 'Plants' }, { code: 'ENGR', name: 'Engineering' }, { code: 'QUAL', name: 'Quality' }] },
   FINANCE: { unit: 'Finance and risk', departments: [{ code: 'TRAD', name: 'Trading' }, { code: 'RISK', name: 'Risk' }, { code: 'FSYS', name: 'Finance systems' }] },
 }
+
+/**
+ * A client's time limit, in months: the TENURE_CAP rule its policy
+ * carries. Every other client 18, the rest 24. One writer (the policy
+ * below) and one reader for everybody else (supply's careers keep a
+ * minority near it).
+ */
+export function timeLimitMonths(client: Pick<ScaleFirm, 'index'>): number {
+  return client.index % 2 === 0 ? 18 : 24
+}
+
+/** The earliest day, counted from the base world's birthday, any generated history starts on. */
+export const EARLIEST_DAY = -700
 
 /** The band a client's rate rule warns outside, cents an hour. Money's bands for its roles sit inside it. */
 const RATE_RULE_BAND: Record<IndustryKey, [number, number]> = {
@@ -516,7 +530,7 @@ async function seedPrograms(frame: ScaleFrame): Promise<void> {
     )
     const policyId = idFor(`${c.id}/policy`)
     policies.push({ id: policyId, companyId: c.id, name: 'Contingent workforce policy', description: 'Co-employment, cover and rate controls for contract staff.' })
-    const cap = c.index % 2 === 0 ? 18 : 24
+    const cap = timeLimitMonths(c)
     const band = RATE_RULE_BAND[c.industries[0]]
     governance.push(
       { id: idFor(`${c.id}/policy/tenure`), policyId, ruleType: 'TENURE_CAP', enforcementMode: 'BLOCK', parameters: { maxMonths: cap }, description: `Nobody works here more than ${cap} months, across every supplier, without converting.`, ownerTeam: 'HR' },
@@ -574,12 +588,17 @@ async function seedTrades(frame: ScaleFrame): Promise<void> {
       { id: idFor(`tie/${t.buyer}/${t.seller}/${buyerSays}`), companyId: t.buyer, otherCompanyId: t.seller, relationship: buyerSays, since, tier: t.tier },
     )
     if (t.agreementId) {
-      const toClient = t.relationship === 'CLIENT'
+      const seller = frame.byId.get(t.seller)!, buyer = frame.byId.get(t.buyer)!
+      // The terms are money's (rates/pure `agreementTermsFor`), written once, here, with the row.
+      const terms = agreementTermsFor(t, buyer, { runByMsp: frame.mspOf(t.buyer) !== null, industries: frame.industries })
       agreements.push({
-        id: t.agreementId, vendorId: t.seller, clientId: t.buyer, paymentTerms: toClient ? 45 : 30, currency: 'USD',
+        id: t.agreementId, vendorId: t.seller, clientId: t.buyer,
+        paymentTerms: terms.paymentTerms, paymentTermsFrom: terms.paymentTermsFrom, billFrequency: terms.billFrequency,
+        billAnchor: terms.billAnchor, billStraddle: terms.billStraddle, billableExpenseKinds: terms.billableExpenseKinds,
+        billableExpenseKindsSaid: terms.billableExpenseKindsSaid, currency: terms.currency, minMarginPct: terms.minMarginPct,
+        rateCard: (terms.rateCard ?? undefined) as Prisma.InputJsonValue | undefined,
         signedAt: since, effectiveDate: since, disclosesSubVendors: t.disclosesSubVendors,
       })
-      const seller = frame.byId.get(t.seller)!, buyer = frame.byId.get(t.buyer)!
       engagements.push({ id: idFor(`engagement/${t.seller}/${t.buyer}`), msaId: t.agreementId, title: `${seller.name} for ${buyer.name}`, invoiceCycle: 'MONTHLY' })
     }
   }
@@ -616,16 +635,19 @@ async function seedProgramSeats(frame: ScaleFrame): Promise<void> {
  * with them as Owner. Idempotent: the same person always gets the same
  * company.
  */
-export async function ensureSolo(frame: ScaleFrame, personId: string, name: string): Promise<ScaleFirm> {
+export async function ensureSolo(frame: ScaleFrame, personId: string, name: string, email?: string): Promise<ScaleFirm> {
   const firmKey = `firm/solo/${personId}`
   const id = idFor(firmKey)
-  const companyName = `${name.split(' ').slice(-1)[0]} Consulting LLC`
-  const n = frame.byPosition('SOLO').length + 1
+  // From the full name, which is unique in the generated world, so no two
+  // one-person companies share a name (160 of them over 120 last names did).
+  const companyName = `${name} Consulting LLC`
   const site: ScaleSite = { id: idFor(`${firmKey}/site/0`), name: `${companyName} — head office`, country: 'US', city: 'Remote', primary: true }
+  const address = email ?? (await db.person.findUnique({ where: { id: personId }, select: { primaryEmail: true } }))?.primaryEmail ?? ''
   const firm: ScaleFirm = {
     index: frame.firms.length,
     id,
-    slug: slugFor('SOLO', n, `${name} ${personId.slice(-4)}`),
+    // The person's own id closes the slug, so it is unique whatever the name.
+    slug: `${SCALE_SLUG_PREFIX}solo-${fold(name).replace(/\./g, '-')}-${personId.slice(-6)}`,
     name: companyName,
     kind: 'CONSULTANT_CORP',
     position: 'SOLO',
@@ -634,7 +656,7 @@ export async function ensureSolo(frame: ScaleFrame, personId: string, name: stri
     niche: null,
     country: 'US',
     sites: [site],
-    seats: [{ personId, email: '', name, role: 'Owner', roleKey: 'owner', companyId: id, grantedAt: day(-200) }],
+    seats: [{ personId, email: address, name, role: 'Owner', roleKey: 'owner', companyId: id, grantedAt: day(-200) }],
     seat(roleKey: string) { return this.seats.find((x) => x.roleKey === roleKey) ?? null },
   }
   const have = await db.company.findUnique({ where: { id }, select: { id: true, slug: true } })

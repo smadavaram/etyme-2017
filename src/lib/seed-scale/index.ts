@@ -13,10 +13,9 @@
  * __integration__/templates.ts), never into the base template that every
  * integration file copies.
  *
- * The frame's steps are here today. The four domains' steps join after
- * them as each folder lands: people (supply), papers (regulatory), jobs
- * (demand) and rates (money), in that order, because papers read the
- * people and the jobs read the rates' bands.
+ * The frame's steps first, then the people (supply), the papers
+ * (regulatory, a named slot until its folder lands), the jobs (demand)
+ * and the rates (money).
  *
  * This is the one file `planScaleTemplate` hashes; everything it imports
  * is in that hash.
@@ -27,16 +26,45 @@ import { primeCalendar } from '@/lib/seed-calendar'
 import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
 import { worldAnchor } from '@/lib/seed-world'
 import { buildFrame, frameSteps, type FrameStep } from './frame'
-import { SCALE_VERSION, type ScaleFrame } from './types'
+import { buildPeople, peopleSteps } from './people'
+import { jobSteps } from './jobs'
+import { seedRates } from './rates/rows'
+import { SCALE_VERSION, type PersonFacts, type ScaleFrame } from './types'
 
-/** Every step of the generated world, in order. */
-function allSteps(): FrameStep[] {
-  return [...frameSteps()]
+/**
+ * Money's rows in shares: its first full run is about 215 queries, so four
+ * keep every step well under the 350 a step may ask.
+ */
+export const RATE_SHARES = 4
+
+/** The papers' steps (regulatory): a slot, empty until its folder lands. They read the people. */
+function paperSteps(_frame: ScaleFrame, _people: () => readonly PersonFacts[]): FrameStep[] {
+  return []
 }
 
-/** The names of every step, in the order they run. */
-export function scaleStepNames(): string[] {
-  return allSteps().map((s) => s.name)
+/**
+ * Every step of the generated world, in order: the frame; the people
+ * (supply); the papers (regulatory, a slot); the jobs (demand), which put
+ * the people forward; and the rates (money), which price the lines the
+ * people's careers wrote.
+ */
+function allSteps(frame: ScaleFrame): FrameStep[] {
+  let people: PersonFacts[] | null = null
+  const theirs = () => (people ??= buildPeople(frame))
+  return [
+    ...frameSteps(),
+    ...peopleSteps(frame),
+    ...paperSteps(frame, theirs),
+    ...jobSteps(theirs),
+    ...Array.from({ length: RATE_SHARES }, (_, index): FrameStep => ({
+      name: `scale:rates:${index + 1}-of-${RATE_SHARES}`, run: (f) => seedRates(f, { index, of: RATE_SHARES }),
+    })),
+  ]
+}
+
+/** The names of every step, in the order they run. Reads the base world's birthday, as the steps do. */
+export async function scaleStepNames(): Promise<string[]> {
+  return allSteps(await frameNow()).map((s) => s.name)
 }
 
 /** The version a generated step's marker carries: the deploy's, and this world's own. */
@@ -73,7 +101,7 @@ export async function seedScaleInSteps(opts: { budgetMs?: number } = {}): Promis
   const world = frame.firms[0].id
   const version = scaleVersion()
   const skip = await finishedSteps(world, version)
-  const steps = allSteps()
+  const steps = allSteps(frame)
   const ran: string[] = []
   let skipped = 0
   for (const s of steps) {

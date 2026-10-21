@@ -14,6 +14,8 @@
  * transaction read-only, and the database refuses a write rather than a
  * comment asking nobody to make one.
  */
+import { execFileSync } from 'node:child_process'
+import path from 'node:path'
 import { copyDatabase, databaseExists, dropDatabase, ensurePostgres, psql, urlFor, PG_HOST, PG_PORT } from '../../__integration__/postgres'
 import { buildEmptyTemplate, buildScaleTemplate, buildWorldTemplate, planScaleTemplate, planTemplates } from '../../__integration__/templates'
 
@@ -49,23 +51,18 @@ async function seedInto(url: string): Promise<void> {
   }
 }
 
-/** The generated world on top of a copy of the base world (lib/seed-scale), the same environment as `seedInto`. */
+/**
+ * The generated world on top of a copy of the base world (lib/seed-scale),
+ * in a process of its own: the database client is made once per process
+ * with the first URL it is given, and this run may already have seeded
+ * the base world through it.
+ */
 async function seedScaleInto(url: string): Promise<void> {
-  const saved = { DATABASE_URL: process.env.DATABASE_URL, NODE_ENV: process.env.NODE_ENV, PRISMA_QUIET: process.env.PRISMA_QUIET }
-  process.env.DATABASE_URL = url
-  ;(process.env as Record<string, string>).NODE_ENV = 'development'
-  process.env.PRISMA_QUIET = '1'
-  const { prisma } = await import('@/lib/db')
-  const { seedScaleWorld } = await import('@/lib/seed-scale')
-  try {
-    await seedScaleWorld()
-  } finally {
-    await prisma.$disconnect()
-    for (const [k, v] of Object.entries(saved)) {
-      if (v === undefined) delete (process.env as Record<string, string | undefined>)[k]
-      else (process.env as Record<string, string>)[k] = v
-    }
-  }
+  execFileSync('npx', ['vite-node', '--config', 'vitest.config.ts', 'scripts/simulate/seed-scale-into.ts'], {
+    cwd: path.resolve(__dirname, '..', '..'),
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: url, NODE_ENV: 'development', PRISMA_QUIET: '1' },
+  })
 }
 
 function ensureReader(db: string): void {

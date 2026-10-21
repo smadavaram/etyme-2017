@@ -89,7 +89,8 @@ beforeAll(async () => {
 describe('the generated world at the founder’s scale', () => {
   it('every generated firm holds the roles the simulation looks for', async () => {
     expect(s.first.done, JSON.stringify(s.first)).toBe(true)
-    expect(s.firms).toHaveLength(SCALE.clients + SCALE.gsis + SCALE.msps + SCALE.suppliers)
+    // The frame's firms; the people's one-person companies are counted in their own sentences.
+    expect(s.firms.filter((f: any) => f.kind !== 'CONSULTANT_CORP')).toHaveLength(SCALE.clients + SCALE.gsis + SCALE.msps + SCALE.suppliers)
     const rolesAt = new Map<string, string[]>()
     for (const c of s.seated as any[]) rolesAt.set(c.companyId, [...(rolesAt.get(c.companyId) ?? []), c.role?.name])
     const needs: Record<string, string[]> = {
