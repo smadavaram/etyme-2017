@@ -20,6 +20,9 @@ import {
   WORKER_PAPERWORK_PATH,
   employerLetter,
   oneLetterPerPartyPerFact,
+  oneLetterPerPerson,
+  isPersonsPaper,
+  isVerdict,
   lettersFor,
   milestoneFor,
   docSaidKeyFor,
@@ -192,7 +195,10 @@ describe('a document running out is told to every party it costs, and to nobody 
   })
 
   it('a lapse the line says warns is never told as a block', () => {
-    const d = doc({ key: 'BACKGROUND_CHECK', document: 'Background check', stopsWork: false })
+    // A license a line marks as a warning rather than a block. (A
+    // background check is not asked of the worker at all: see the
+    // verdict sentences below.)
+    const d = doc({ stopsWork: false })
     const ask = chaseLetter(d, cast())!
     const told = noticeLetter(d, cast(), null)
 
@@ -481,5 +487,197 @@ describe('a document running out is told to every party it costs, and to nobody 
 
   it('a document that is not inside the window is told to nobody at all', () => {
     expect(lettersFor(doc({ daysLeft: 90 }), cast())).toEqual([])
+  })
+})
+
+describe('one letter per person per night, about the papers that are theirs to act on', () => {
+  const CLIENT_DESKS = cast({
+    chase: [],
+    employs: null,
+    exposed: [
+      {
+        companyId: 'northbend',
+        people: ['officer', 'program-manager'],
+        sees: { companyId: 'pinnacle', name: 'Pinnacle Resourcing', masked: false, through: null, phrase: 'Pinnacle Resourcing', says: 'Pinnacle Resourcing' },
+      },
+    ],
+  })
+
+  /** Twenty papers across four firms and five people, some stopping work. */
+  function twentyLapses() {
+    const out = []
+    for (let i = 0; i < 20; i++) {
+      const firm = ['Pinnacle Resourcing', 'Teleworld Solutions', 'Brightmoor Staffing', 'Vertex Global'][i % 4]
+      const name = ['Tobias Lindqvist', 'Felix Brenner', 'Omar Haddad', 'Amara Nwosu', 'Rosa Delgado'][i % 5]
+      const d = doc({
+        id: `doc${i}`,
+        key: i % 3 === 0 ? 'I9_EVERIFY' : 'NDA',
+        document: i % 3 === 0 ? 'I-9 and E-Verify' : 'Signed non-disclosure agreement',
+        line: { side: 'SELL', id: `line${i}` },
+        owedBy: i % 3 === 0 ? 'SUPPLIER' : 'SUPPLIER',
+        owedByName: firm,
+        neverFiled: true,
+        expiresAt: null,
+        daysLeft: null,
+        stopsWork: i % 3 === 0,
+      })
+      const c = cast({
+        personName: name,
+        clientName: 'Northbend Athletic',
+        owedByName: firm,
+        aboutFirmName: firm,
+        chase: [{ personId: `desk-at-${firm}`, companyId: firm, audience: 'business' }],
+        employs: null,
+        exposed: [
+          {
+            companyId: 'northbend',
+            people: ['officer', 'program-manager'],
+            sees: { companyId: firm, name: firm, masked: false, through: null, phrase: firm, says: firm },
+          },
+        ],
+      })
+      out.push(...lettersFor(d, c))
+    }
+    return out
+  }
+
+  it('a night with twenty lapses writes one letter to each person who can act and none to anyone else', () => {
+    const facts = oneLetterPerPartyPerFact(twentyLapses())
+    const night = oneLetterPerPerson(facts)
+
+    const readers = night.map((n) => n.personId)
+    expect(new Set(readers).size, 'nobody reads two letters').toBe(readers.length)
+    // The client's two desks and one desk at each of the four firms; the
+    // owner, the AP clerk and the hiring manager were never in the cast.
+    expect(new Set(readers)).toEqual(
+      new Set(['officer', 'program-manager', ...['Pinnacle Resourcing', 'Teleworld Solutions', 'Brightmoor Staffing', 'Vertex Global'].map((f) => `desk-at-${f}`)])
+    )
+    // Every fact made it into exactly the letter of the person it was for.
+    expect(night.reduce((n, l) => n + l.facts.length, 0)).toBe(facts.length)
+  })
+
+  it('a night’s letter lists the papers under the firm they concern, the one that stops work first', () => {
+    const night = oneLetterPerPerson(oneLetterPerPartyPerFact(twentyLapses()))
+    const officer = night.find((n) => n.personId === 'officer')!
+    // The title names the worst paper, never a bare count.
+    expect(officer.title).toMatch(/^Tobias Lindqvist's I-9 and E-Verify is not on file, and \d+ more papers$/)
+    // The first firm is the one with a start stopped; each firm's ask is said once.
+    const first = officer.body.split('\n\n')[0]
+    expect(first.split('\n')[0]).toBe('Pinnacle Resourcing')
+    expect(first.split('\n')[1]).toContain('cannot be on site')
+    for (const section of officer.body.split('\n\n')) {
+      const asks = section.split('\n').filter((l) => l.startsWith('Ask '))
+      expect(asks.length).toBe(1)
+    }
+    expect(officer.body).not.toMatch(/undefined|null/)
+  })
+
+  it('a person with one paper reads exactly the letter that paper would have been on its own', () => {
+    const one = lettersFor(doc(), cast())
+    const night = oneLetterPerPerson(one)
+    for (const n of night) {
+      const alone = one.find((l) => l.personId === n.personId)!
+      expect(n.title).toBe(alone.title)
+      expect(n.body).toBe(alone.body)
+    }
+  })
+
+  it('a background check is never asked of the worker, because she never holds the report', () => {
+    expect(isVerdict({ key: 'BACKGROUND_CHECK' })).toBe(true)
+    expect(isVerdict({ key: 'DRUG_SCREENING' })).toBe(true)
+    expect(isVerdict({ key: 'PROFESSIONAL_LICENSE' })).toBe(false)
+
+    const check = doc({ key: 'BACKGROUND_CHECK', document: 'Background check', stopsWork: false, lapsed: true, daysLeft: -16, expiresAt: SEP_30, provider: 'HireRight' })
+    expect(chaseLetter(check, cast())).toBe(null)
+    const letters = lettersFor(check, cast({ employs: EMPLOYER }))
+    expect(letters.some((l) => l.side === 'OWES')).toBe(false)
+    for (const l of letters) {
+      expect(l.body).not.toMatch(/upload/i)
+      expect(l.body).not.toContain('your own paperwork page')
+    }
+  })
+
+  it('the firm that ordered a background check is told to order a new one from the provider, and that the person is asked for consent first', () => {
+    const check = doc({
+      key: 'BACKGROUND_CHECK', document: 'Background check', owedByName: 'Beatriz Oyelaran',
+      stopsWork: false, lapsed: true, daysLeft: -16, expiresAt: SEP_30, provider: 'HireRight',
+    })
+    const letter = employerLetter(check, cast({ personName: 'Beatriz Oyelaran', employs: EMPLOYER }))!
+    expect(letter.title).toBe("Beatriz Oyelaran's background check from HireRight is past its date (September 30, 2026); order a new one")
+    expect(letter.body).toContain('Order a new one from your screening provider; Beatriz Oyelaran is asked for consent first.')
+    expect(letter.body).not.toContain('ask Beatriz Oyelaran for the renewal')
+
+    // The client reads the same fact and asks the firm it pays to order it.
+    const told = noticeLetter(check, cast({ personName: 'Beatriz Oyelaran' }), null)
+    expect(told.body).toContain("Beatriz Oyelaran's background check from HireRight")
+    expect(told.body).toContain('Ask Byrne Critical Care to order a new one.')
+    expect(told.body).not.toMatch(/upload/i)
+  })
+
+  it('a background check nobody ordered is asked of the firm that orders it, never filed as a paper', () => {
+    const none = doc({
+      key: 'BACKGROUND_CHECK', document: 'Background check', owedBy: 'US', owedByName: 'Pinnacle Resourcing',
+      neverFiled: true, expiresAt: null, daysLeft: null, stopsWork: false,
+    })
+    const ask = chaseLetter(none, cast({ personName: 'Tobias Lindqvist', clientName: 'Northbend Athletic', owedByName: 'Pinnacle Resourcing' }))!
+    expect(ask.title).toBe('No background check on file for Tobias Lindqvist')
+    expect(ask.body).toContain('Northbend Athletic requires a background check on Tobias Lindqvist')
+    expect(ask.body).toContain('Order one from your screening provider; Tobias Lindqvist is asked for consent first.')
+    expect(ask.body).not.toContain('It is ours to produce')
+  })
+
+  it('a person’s missing paper is said about the person, and a firm’s about the firm', () => {
+    const rightToWork = doc({
+      key: 'RIGHT_TO_WORK', document: 'Proof of right to work', owedBy: 'SUPPLIER', owedByName: 'Pinnacle Resourcing',
+      neverFiled: true, expiresAt: null, daysLeft: null, stopsWork: true,
+    })
+    expect(isPersonsPaper(rightToWork)).toBe(true)
+    const c = cast({ personName: 'Tobias Lindqvist', owedByName: 'Pinnacle Resourcing', aboutFirmName: 'Pinnacle Resourcing' })
+
+    const told = noticeLetter(rightToWork, c, null)
+    expect(told.body).toContain('Tobias Lindqvist cannot be on site until it is on file.')
+    expect(told.body).not.toContain('Nobody can start through that firm')
+
+    const ask = chaseLetter(rightToWork, c)!
+    expect(ask.body).toContain("Tobias Lindqvist's proof of right to work")
+    expect(ask.body).toContain('Tobias Lindqvist cannot start until it is.')
+    expect(ask.body).not.toContain('Nobody can start through')
+
+    // The firm's own certificate stays the firm's.
+    const cover = doc({ key: 'INSURANCE_GL', document: 'Certificate of general liability insurance', owedBy: 'SUPPLIER', owedByName: 'Pinnacle Resourcing', lapsed: true, daysLeft: -2, expiresAt: SEP_30 })
+    expect(isPersonsPaper(cover)).toBe(false)
+    expect(noticeLetter(cover, c, null).body).toContain('Nobody can start through that firm')
+  })
+
+  it('a client is told its supplier’s cover lapsed, with the people on its site through that supplier named', () => {
+    const cover = doc({
+      key: 'INSURANCE_GL', document: 'Certificate of general liability insurance', owedBy: 'SUPPLIER',
+      owedByName: 'Pinnacle Resourcing', personId: null, companyId: 'pinnacle', line: null,
+      lapsed: true, daysLeft: -2, expiresAt: SEP_30, cover: true,
+    })
+    const c = cast({ ...CLIENT_DESKS, personName: null, owedByName: 'Pinnacle Resourcing', aboutFirmName: 'Pinnacle Resourcing' })
+    c.exposed[0].onSite = ['Tobias Lindqvist', 'Lucía Fernández']
+    const letters = lettersFor(cover, c)
+    expect(letters.map((l) => l.personId).sort()).toEqual(['officer', 'program-manager'])
+    for (const l of letters) {
+      expect(l.side).toBe('EXPOSED')
+      expect(l.body).toContain('a certificate of general liability insurance, owed by Pinnacle Resourcing')
+      expect(l.body).toContain('Nobody can start through that firm until it is on file.')
+      expect(l.body).toContain('On your site through it: Tobias Lindqvist and Lucía Fernández.')
+      expect(l.body).toContain('Ask Pinnacle Resourcing for it.')
+    }
+  })
+
+  it('a client two rungs above a supplier reads its lapsed cover through the prime it pays, and never the supplier’s name', () => {
+    const sees = nameForClient(CHAIN[1], CHAIN, 'cavanaugh', () => false)
+    const cover = doc({
+      key: 'INSURANCE_WC', document: 'Certificate of workers’ compensation', owedBy: 'SUPPLIER',
+      owedByName: 'Byrne Critical Care', personId: null, companyId: 'byrne', line: null,
+      lapsed: false, daysLeft: 12, cover: true,
+    })
+    const told = noticeLetter(cover, cast({ personName: null }), sees, ['Ingrid Sørensen'])
+    expect(told.body).not.toContain('Byrne Critical Care')
+    expect(told.body).toContain('Ask Computer Systems Inc for it.')
+    expect(told.body).toContain('Ingrid Sørensen')
   })
 })

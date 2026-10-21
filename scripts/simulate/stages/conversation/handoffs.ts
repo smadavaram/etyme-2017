@@ -171,7 +171,6 @@ const TITLE_OWNERS: [RegExp, string][] = [
   [/“Timesheet approved”/, 'demand or architect — the approve route or approve by email writes the title, with no week named'],
   [/“Contract (activated|.*may begin)/, 'money — app/api/contracts/[id]/activate writes the title, with no client named'],
   [/document\(s\) before you start/, 'regulatory — app/api/compliance/clearance/ask writes the title'],
-  [/is asking you to decide”/, 'architect — lib/twin/ledger writes the title; conversation now leaves it out where its card is in the greeting'],
   [/interview|round \d+ .*is booked|through to round/, 'conversation — lib/interview-notices'],
   [/put you forward to/, 'demand — app/api/submissions writes the title, with no job named'],
   [/An expense of yours was accepted/, 'money — app/api/expenses/[id]/accept writes it once per firm that accepts'],

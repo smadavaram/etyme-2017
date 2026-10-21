@@ -80,6 +80,21 @@ describe('insurance and work authorization', () => {
     expect(watchVerifications([{ ...base, type: 'BUSINESS_PARTNER', expiresAt: null }], NOW)).toHaveLength(0)
   })
 
+  it('a person\u2019s lapsed work authorization is said about the person, never as a stop on every placement through a firm', () => {
+    const f = watchVerifications(
+      [{ ...base, companyId: null, personId: 'p1', subjectName: 'Tobias Lindqvist', type: 'I9_EVERIFY', expiresAt: inDays(-2) }],
+      NOW
+    )
+    expect(f[0].detail).toBe('Tobias Lindqvist cannot be on site until this is renewed. It is already stopping work.')
+    expect(f[0].detail).not.toContain('placed through')
+
+    const soon = watchVerifications(
+      [{ ...base, companyId: null, personId: 'p1', subjectName: 'Tobias Lindqvist', type: 'I9_EVERIFY', expiresAt: inDays(10) }],
+      NOW
+    )
+    expect(soon[0].detail).toContain('Tobias Lindqvist cannot be on site without a renewal')
+  })
+
   it('names the thing in words a person would use', () => {
     const f = watchVerifications([{ ...base, type: 'INSURANCE_WC', expiresAt: inDays(-1) }], NOW)
     expect(f[0].headline).toContain("workers' compensation")

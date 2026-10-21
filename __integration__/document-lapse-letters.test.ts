@@ -7,8 +7,13 @@ import {
   tellAbout,
   documentsNeverFiled,
   sendDocumentLapses,
+  everyDocumentLetter,
+  supplierCoverLapses,
+  CHASE_DESK,
+  EXPOSED_DESK,
   type LapseLetter,
 } from '@/lib/notify/documents'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * The last crack in the loop, closed on the seeded world.
@@ -103,7 +108,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     expect(to(told.letters, hiring.id)).toEqual([])
   })
 
-  it('a check running out inside the window reaches the contractor on email and the desks above them on their own channel', async () => {
+  it('a background check running out inside the window reaches the firm that ordered it and the firms above, and never asks the contractor for a report she never holds', async () => {
     // Two hundred days on, the background checks seeded at two hundred
     // and fifty days are fifty days from running out — inside the watch's
     // own sixty-day window.
@@ -114,22 +119,24 @@ describe('when a document a line depends on runs out, every party it costs is to
     const told = await tellDocumentLapses(watch, now)
     expect(told.letters.length).toBeGreaterThan(0)
 
-    const chases = told.letters.filter((l) => l.side === 'OWES')
+    const checks = told.letters.filter((l) => l.data.documentKey === 'BACKGROUND_CHECK')
+    const employers = checks.filter((l) => l.side === 'EMPLOYS')
     const notices = told.letters.filter((l) => l.side === 'EXPOSED')
-    expect(chases.length, 'somebody is asked').toBeGreaterThan(0)
+    expect(employers.length, 'the firm that orders the check is told').toBeGreaterThan(0)
     expect(notices.length, 'somebody is told').toBeGreaterThan(0)
 
-    // A worker is a candidate: email only, because a consultant is in
-    // nobody's Teams tenant.
-    for (const c of chases.filter((l) => l.data.owedBy === 'WORKER')) {
-      expect(c.audience).toBe('candidate')
-      expect(c.channel).toBe('EMAIL')
-      expect(c.body).toContain('your own paperwork page')
+    // "Who renders the verdict": the provider posts the report to the
+    // firm that ordered it, so the worker is never asked to upload it.
+    expect(checks.filter((l) => l.side === 'OWES' && l.data.owedBy === 'WORKER'), 'no worker is asked for a report').toEqual([])
+    for (const e of employers) {
+      expect(e.body).toContain('Order a new one from your screening provider')
+      expect(e.body).toContain('is asked for consent first')
+      expect(e.body).not.toMatch(/upload/i)
     }
     for (const n of notices) {
       expect(n.audience).toBe('business')
       expect(n.body).toContain('A document one of your')
-      expect(n.body).toMatch(/Ask .+ for it\./)
+      expect(n.body).toMatch(/Ask .+ (for it|to order a new one)\./)
     }
 
     // A background check warns and has never blocked, so no letter about
@@ -171,7 +178,7 @@ describe('when a document a line depends on runs out, every party it costs is to
       expect(l.body, 'the sub-vendor below the prime is never named to the client').not.toContain(sub.name)
       expect(l.body).toContain('at the firm supplied through Computer Systems Inc')
       // The standing is never withheld, and neither is who to call.
-      expect(l.body).toContain('Ask Computer Systems Inc for it.')
+      expect(l.body).toMatch(/Ask Computer Systems Inc (for it|to order a new one)\./)
       expect(l.logSummary).not.toContain(sub.name)
       expect(l.logSummary).toContain('supplied through Computer Systems Inc')
     }
@@ -237,5 +244,104 @@ describe('when a document a line depends on runs out, every party it costs is to
     const told = await tellAbout([dated], now)
     expect(told.letters).toEqual([])
     expect(told.leftToDemand).toBe(1)
+  })
+
+  it('a supplier\u2019s lapsed cover is told to the client whose site its people stand on, by its compliance officer and program manager', async () => {
+    const now = new Date()
+    const pinnacle = await firm('world-pinnacle')
+    const northbend = await firm('world-nike')
+    // The walk's finding, on this copy of the world: Pinnacle's liability
+    // cover ran out two days ago while its people stood on Northbend's site.
+    await prisma.verification.updateMany({
+      where: { companyId: pinnacle.id, type: 'INSURANCE_GL' },
+      data: { expiresAt: new Date(now.getTime() - 2 * 86_400_000) },
+    })
+    const cover = (await supplierCoverLapses(now)).filter((d) => d.companyId === pinnacle.id)
+    expect(cover.length, 'Pinnacle Resourcing has a certificate running out or gone').toBeGreaterThan(0)
+
+    const told = await tellAbout(cover, now)
+    const officer = await person(`world-nike-compliance${D}`)
+    const manager = await person(`world-nike-programme${D}`)
+    const owner = await person(`world-nike${D}`)
+    const ap = await person(`world-nike-ap${D}`)
+
+    for (const p of [officer, manager]) {
+      const theirs = to(told.letters, p.id)
+      expect(theirs.length, `${p.name} is told`).toBeGreaterThan(0)
+      for (const l of theirs) {
+        expect(l.companyId).toBe(northbend.id)
+        expect(l.side).toBe('EXPOSED')
+        expect(l.data.lapsed).toBe(true)
+        expect(l.body).toContain('Nobody can start through that firm until it is on file.')
+        expect(l.body).toContain('owed by Pinnacle Resourcing')
+        expect(l.body).toContain('On your site through it:')
+        expect(l.body).toContain('Ask Pinnacle Resourcing for it.')
+      }
+    }
+    // The owner holds every desk by wildcard and is not the desk here;
+    // the AP clerk cannot renew anybody's cover.
+    expect(to(told.letters, owner.id)).toEqual([])
+    expect(to(told.letters, ap.id)).toEqual([])
+    // Pinnacle hears about its own cover from the nightly finding, not twice.
+    expect(told.letters.filter((l) => l.companyId === pinnacle.id)).toEqual([])
+    expect(told.unaddressed).toEqual([])
+  })
+
+  it('a night with twenty lapses writes one letter to each person who can act and none to anyone else', async () => {
+    const now = new Date()
+    const before = new Date(Date.now() - 1000)
+    const night = await everyDocumentLetter(now)
+    expect(night.letters.length, 'the seeded world has at least twenty papers to tell tonight').toBeGreaterThanOrEqual(20)
+
+    const sent = await sendDocumentLapses(night.letters, now)
+    // Tonight's letters, read back by the keys they carry, so nothing else
+    // the night wrote is counted as one of them.
+    const keys = new Set(sent.letters.map((l) => l.saidKey))
+    const rows = (
+      await prisma.notification.findMany({
+        where: { type: 'SYSTEM', createdAt: { gte: before } },
+        select: { personId: true, companyId: true, title: true, body: true, data: true },
+      })
+    ).filter((r) => keys.has((r.data as { saidKey?: string } | null)?.saidKey ?? ''))
+    expect(rows.length).toBe(sent.people)
+    const refused = await prisma.notification.findMany({
+      where: { type: 'SYSTEM', createdAt: { gte: before }, deliveryState: 'FAILED' },
+      select: { title: true, deliveryNote: true },
+    })
+    expect(refused, 'no letter was refused by the database').toEqual([])
+
+    const perPerson = new Map<string, number>()
+    for (const r of rows) perPerson.set(r.personId, (perPerson.get(r.personId) ?? 0) + 1)
+    for (const [, n] of perPerson) expect(n, 'nobody reads two letters in one night').toBe(1)
+
+    // Everybody written to either owes a paper themselves or holds a desk
+    // that can act on one at the firm the letter is written in.
+    const workers = new Set(sent.letters.filter((l) => l.audience === 'candidate').map((l) => l.personId))
+    for (const r of rows) {
+      if (workers.has(r.personId)) continue
+      const seat = await prisma.context.findFirst({
+        where: { personId: r.personId, companyId: r.companyId, revokedAt: null },
+        select: { role: { select: { permissions: true } } },
+      })
+      const held = (seat?.role?.permissions ?? []) as string[]
+      expect([...CHASE_DESK, ...EXPOSED_DESK].some((p) => hasPermission(held, p)), `${r.title} went to somebody with no desk`).toBe(true)
+    }
+
+    // The client's owner, its AP clerk and its hiring manager are not the
+    // desk for papers, and the first night wrote to the owner twenty-one times.
+    for (const email of [`world-nike${D}`, `world-nike-ap${D}`, `world-nike-hiring${D}`]) {
+      const p = await person(email)
+      expect(perPerson.get(p.id) ?? 0, `${email} is not written to`).toBe(0)
+    }
+
+    // A person's paper is said about the person in every letter.
+    for (const r of rows) {
+      expect(r.body).not.toMatch(/proof of right to work[^\n]*\. Nobody can start through/)
+      expect(r.body).not.toMatch(/background check[^\n]*Upload/i)
+    }
+
+    // And the next night, with nothing new, writes to nobody.
+    const again = await everyDocumentLetter(now)
+    expect(again.letters, 'every fact folded into tonight\u2019s letters is remembered').toEqual([])
   })
 })

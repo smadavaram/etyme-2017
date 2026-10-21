@@ -25,7 +25,7 @@
  *                chase, because that firm cannot renew somebody else's
  *                paper.
  *
- * ── Four rules this file exists to keep ──────────────────────────────
+ * ── Six rules this file exists to keep ───────────────────────────────
  *
  * 1. **The wall.** A client reading about a firm two rungs down reads
  *    standing without a name, unless its own agreement with the prime
@@ -37,10 +37,21 @@
  * 3. **A nudge has a cost.** Each party hears once per milestone — sixty
  *    days, thirty, the day itself, and once more when it has gone. Four
  *    letters over two months, not sixty.
+ *    And a person reads one letter a night, whatever the number of
+ *    papers: every paper that concerns them is a line in it, grouped by
+ *    firm, the one that stops work first (`oneLetterPerPerson`). The
+ *    first real night wrote one compliance officer twenty-one letters.
  * 4. **Never invent a name.** `owedByName` is null for a line that
  *    resolves nobody, and the sentence is written without one: "the firm
  *    that owes it", "the person this line is about". A plausible wrong
  *    name in a compliance letter is worse than a blank.
+ * 5. **A verdict is ordered, never uploaded.** A background check or a
+ *    drug screen is a report the provider posts to the firm that ordered
+ *    it. The worker is never asked for it; the firm is told to order a
+ *    new one, and the worker is asked for consent when it does.
+ * 6. **A person's paper is said about the person.** A right-to-work proof
+ *    a supplier owes on a line stops the person, not every start through
+ *    the firm; a firm's certificate stops the firm.
  *
  * ── What this file does not write ────────────────────────────────────
  *
@@ -65,6 +76,7 @@ import { documentsToChase, type DocumentWatch, type LapsingDocument } from '@/li
 import { baseUrl } from '@/lib/signed-link'
 import { contractClearance, lineExtras } from '@/lib/contract-clearance'
 import type { OwedBy } from '@/lib/document-requirements'
+import { typeByKey } from '@/lib/document-type'
 
 type Db = typeof prisma
 
@@ -159,6 +171,17 @@ export interface OwedDocument {
   neverFiled: boolean
   /** True where the line's own set says a lapse stops the work. */
   stopsWork: boolean
+  /**
+   * Who rendered it, for a verdict: "HireRight", "Sterling". Read off the
+   * verification where there is one; never guessed where there is not.
+   */
+  provider?: string | null
+  /**
+   * A supplier's own cover or standing, read off the firm rather than a
+   * line. The firm itself is told by the nightly watch's own finding, so
+   * only the firms buying from it are told here.
+   */
+  cover?: boolean
 }
 
 /** The watch's rows, in the shape the letters read. */
@@ -246,7 +269,17 @@ export interface Cast {
   /** The party that owes it: who to write the chase to. */
   chase: { personId: string; companyId: string | null; audience: Audience }[]
   /** Each firm the lapse costs, with what it may call the firm that owes it. */
-  exposed: { companyId: string; people: string[]; sees: SeenName }[]
+  exposed: {
+    companyId: string
+    people: string[]
+    sees: SeenName
+    /**
+     * Who stands on this reader's site through the firm, for a firm's own
+     * paper read off no line: the client reads its supplier's lapsed cover
+     * as the names it puts at risk, which it already knows.
+     */
+    onSite?: string[]
+  }[]
   /**
    * The firm that employs the worker, where a worker owes the document.
    *
@@ -351,69 +384,219 @@ const NO_FIRM = 'the firm that owes it'
  */
 const WARNS = 'It stops nothing on its own: a start proceeds with the reason on the record, and it is still owed.'
 
+// ── Whose paper, and who renders it ───────────────────────────────────
+
+/**
+ * The parties that make a document a person's rather than a firm's.
+ *
+ * A right-to-work proof a supplier owes on a line is still Tobias
+ * Lindqvist's proof: it stops Tobias, not every placement through the
+ * firm. The first nightly run said "Nobody can start through that firm"
+ * about it while the I-9 beside it said "Tobias Lindqvist cannot be on
+ * site", so one client read two contradicting lines about one man. Who
+ * owes the paper decides who is asked; whose paper it is decides what
+ * the sentence is about.
+ */
+const A_PERSONS_PAPER = new Set(['CANDIDATE', 'EMPLOYEE', 'GOVERNMENT', 'PROVIDER'])
+
+/** True where the document is about a person, whoever owes it on the line. */
+export function isPersonsPaper(d: Pick<OwedDocument, 'key' | 'owedBy'>): boolean {
+  if (d.owedBy === 'WORKER') return true
+  const t = d.key ? typeByKey(d.key) : null
+  return !!t?.suppliedBy && A_PERSONS_PAPER.has(t.suppliedBy)
+}
+
+/**
+ * True where a third party renders the verdict: a background check, a
+ * drug screen.
+ *
+ * "Who renders the verdict" (CLAUDE.md, 2026-09-22): the screening
+ * company says clear or not clear and posts the report to the firm that
+ * ordered it. The worker never holds it, so she is never asked to upload
+ * it; the firm is told to order a new one, and the worker gives consent
+ * when that firm asks. The dictionary says which kinds these are
+ * (`suppliedBy: 'PROVIDER'`), so a client-defined screening inherits the
+ * rule by declaring it, not by being named here.
+ */
+export function isVerdict(d: Pick<OwedDocument, 'key'>): boolean {
+  const t = d.key ? typeByKey(d.key) : null
+  return t?.suppliedBy === 'PROVIDER'
+}
+
+/** "Tobias Lindqvist's". The record stores no pronouns, so a name it is. */
+function whose(name: string): string {
+  return `${name}'s`
+}
+
+/** " from HireRight", where the record names the provider. */
+function fromProvider(d: OwedDocument): string {
+  return d.provider ? ` from ${d.provider}` : ''
+}
+
+/**
+ * One letter's words, in the pieces a night's letter is built from.
+ *
+ *   title  what a letter about this one fact alone is called
+ *   body   the letter about this one fact alone
+ *   short  the fact in a few words, for the title of a night's letter
+ *   line   the fact and what it costs, without the ask
+ *   group  the firm this line sits under in a night's letter
+ *   ask    the one thing to do, for this fact alone
+ *   askMany the same thing to do, said once for several facts
+ */
+export interface Said {
+  title: string
+  body: string
+  short: string
+  line: string
+  group: string
+  ask: string
+  askMany: string
+}
+
+function said(p: Omit<Said, 'body'> & { body?: string }): Said {
+  return { ...p, body: p.body ?? `${p.line} ${p.ask}` }
+}
+
+/** The firm heading a line sits under, where nothing better is known. */
+const NO_GROUP = 'This placement'
+
 /**
  * The letter to the party that owes it.
  *
  * Null where there is nothing to say to them — a document owed by a
  * party this line cannot name is still told to the firms it costs, and
- * inventing a recipient for the chase would be worse than the gap.
+ * inventing a recipient for the chase would be worse than the gap. Null
+ * too for a worker asked about a verdict somebody else renders: she
+ * cannot upload a report she was never sent, and a letter she cannot act
+ * on is one she learns to ignore. Her employer is told to order it, and
+ * she is asked for her consent when it does.
  */
-export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body: string } | null {
+export function chaseLetter(d: OwedDocument, cast: Cast): Said | null {
   const doc = lower(d.document)
   const when = whenSays(d)
   const on = theDay(d)
+  const site = cast.clientName
 
   if (d.owedBy === 'WORKER') {
-    const site = cast.clientName
-    const title = d.neverFiled
-      ? `${d.document} is not on file`
-      : `Your ${doc} ${when}`
+    if (isVerdict(d)) return null
+    const group = site ?? 'Your paperwork'
+    const askMany = `Upload each one from ${ownPaperworkPage()}.`
+    const title = d.neverFiled ? `${d.document} is not on file` : `Your ${doc} ${when}`
 
     if (d.neverFiled) {
-      return {
+      return said({
         title,
-        body:
-          `${site ? `${site} requires` : 'This placement requires'} your ${doc} and there is none on file. ` +
-          (d.stopsWork
-            ? `Nobody can be on site without it. `
-            : `${WARNS} `) +
-          `Upload it from ${ownPaperworkPage()}.`,
-      }
+        short: `your ${doc} is not on file`,
+        group,
+        line:
+          `${site ? `${site} requires` : 'This placement requires'} your ${doc} and there is none on file.` +
+          (d.stopsWork ? ` Nobody can be on site without it.` : ` ${WARNS}`),
+        ask: `Upload it from ${ownPaperworkPage()}.`,
+        askMany,
+      })
     }
     if (d.lapsed) {
-      return {
+      return said({
         title,
-        body:
-          `Your ${doc} ran out on ${on}. ` +
-          (d.stopsWork
-            ? `You cannot be on site ${site ? `at ${site} ` : ''}until a current one is on file. `
-            : `${WARNS} `) +
-          `Upload the renewal from ${ownPaperworkPage()}.`,
-      }
+        short: `your ${doc} ran out on ${on}`,
+        group,
+        line:
+          `Your ${doc} ran out on ${on}.` +
+          (d.stopsWork ? ` You cannot be on site ${site ? `at ${site} ` : ''}until a current one is on file.` : ` ${WARNS}`),
+        ask: `Upload the renewal from ${ownPaperworkPage()}.`,
+        askMany,
+      })
     }
-    return {
+    return said({
       title,
-      body:
-        `Your ${doc} ${when}. ` +
-        (d.stopsWork
-          ? `${site ?? 'Nobody'} cannot keep you on site past that day without a current one. `
-          : `${WARNS} `) +
-        `Upload the renewal from ${ownPaperworkPage()}.`,
+      short: `your ${doc} ${when}`,
+      group,
+      line:
+        `Your ${doc} ${when}.` +
+        (d.stopsWork ? ` ${site ?? 'Nobody'} cannot keep you on site past that day without a current one.` : ` ${WARNS}`),
+      ask: `Upload the renewal from ${ownPaperworkPage()}.`,
+      askMany,
+    })
+  }
+
+  const named = cast.owedByName ?? 'this firm'
+  const who = cast.personName
+  const asker = site
+
+  // A person's paper a firm owes on the line: said about the person.
+  if (who && isPersonsPaper(d)) {
+    const group = asker ?? named
+    if (isVerdict(d)) {
+      // The firm orders it; the provider renders it; the person consents.
+      const askOrder = `Order ${d.neverFiled ? 'one' : 'a new one'} from your screening provider; ${who} is asked for consent first. Record the result it sends back on your Compliance page.`
+      if (d.neverFiled) {
+        return said({
+          title: `No ${doc} on file for ${who}`,
+          short: `no ${doc} on file for ${who}`,
+          group,
+          line:
+            `${asker ? `${asker} requires` : 'This placement requires'} ${article(d.document)} ${doc} on ${who}, and none is on file.` +
+            (d.stopsWork ? ` ${who} cannot start until one is recorded.` : ` ${WARNS}`),
+          ask: askOrder,
+          askMany: `Order each one from your screening provider; each person is asked for consent first. Record each result on your Compliance page.`,
+        })
+      }
+      const past = d.lapsed ? `is past its date (${on})` : when
+      return said({
+        title: `${whose(who)} ${doc}${fromProvider(d)} ${past}`,
+        short: `${whose(who)} ${doc} ${past}`,
+        group,
+        line:
+          `${whose(who)} ${doc}${fromProvider(d)} ${past}.` +
+          (d.stopsWork
+            ? d.lapsed
+              ? ` ${who} cannot be on site until a new one is recorded.`
+              : ` ${who} cannot be on site after that day without a new one.`
+            : ` ${WARNS}`),
+        ask: askOrder,
+        askMany: `Order each new one from your screening provider; each person is asked for consent first. Record each result on your Compliance page.`,
+      })
     }
+    if (d.neverFiled) {
+      return said({
+        title: `${whose(who)} ${doc} is not on file`,
+        short: `${whose(who)} ${doc} is not on file`,
+        group,
+        line:
+          `${asker ? `${asker} requires` : 'This placement requires'} ${whose(who)} ${doc}, and there is none on file.` +
+          (d.stopsWork ? ` ${who} cannot start until it is.` : ` ${WARNS}`),
+        ask: `File it on your Compliance page.`,
+        askMany: `File each one on your Compliance page.`,
+      })
+    }
+    return said({
+      title: `${whose(who)} ${doc} ${when}`,
+      short: `${whose(who)} ${doc} ${when}`,
+      group,
+      line:
+        `${whose(who)} ${doc} ${when}.` +
+        (d.stopsWork
+          ? d.lapsed
+            ? ` ${who} cannot be on site until a current one is on file.`
+            : ` ${who} cannot be on site after that day without a current one.`
+          : ` ${WARNS}`),
+      ask: `File the renewal on your Compliance page.`,
+      askMany: `File each renewal on your Compliance page.`,
+    })
   }
 
   // A firm owes it. Which firm decides what the second sentence says: a
   // supplier's lapse stops anybody starting through it, and a customer's
   // or our own stops this line and nothing else.
-  const named = cast.owedByName ?? 'this firm'
   const title = d.neverFiled ? `${d.document} is not on file` : `Your ${doc} ${when}`
+  const group = asker ?? named
 
   if (d.neverFiled) {
     // Who is asking, and of whom. A customer's own paper is asked of
     // the customer, and writing "Cavanaugh Glassworks requires an NDA
     // from Cavanaugh Glassworks" is a sentence that tells the reader
     // nothing except that nobody read it.
-    const asker = cast.clientName
     const asked =
       d.owedBy === 'CUSTOMER'
         ? `This placement requires ${article(d.document)} ${doc} from you, and there is none on file.`
@@ -421,32 +604,39 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
           ? `This placement requires ${article(d.document)} ${doc}. It is ours to produce and there is none on file.`
           : `${asker ? `${asker} requires` : 'This placement requires'} ${article(d.document)} ${doc} ` +
             `from ${named}, and there is none on file.`
-    return {
+    return said({
       title,
-      body:
-        `${asked} ` +
+      short: `${article(d.document)} ${doc} is not on file`,
+      group,
+      line:
+        `${asked}` +
         (d.stopsWork
           ? d.owedBy === 'SUPPLIER'
-            ? `Nobody can start through ${named} until it is. `
-            : `Nobody can start on this placement until it is. `
-          : `${WARNS} `) +
-        `File it on your Compliance page.`,
-    }
+            ? ` Nobody can start through ${named} until it is.`
+            : ` Nobody can start on this placement until it is.`
+          : ` ${WARNS}`),
+      ask: `File it on your Compliance page.`,
+      askMany: `File each one on your Compliance page.`,
+    })
   }
 
   const consequence =
     d.owedBy === 'SUPPLIER'
       ? d.lapsed
-        ? `Nobody can start through ${named} until it is renewed and on file. `
-        : `Nobody can start through ${named} after that day until it is renewed and on file. `
+        ? ` Nobody can start through ${named} until it is renewed and on file.`
+        : ` Nobody can start through ${named} after that day until it is renewed and on file.`
       : d.lapsed
-        ? `This placement is running with a document that has run out. `
-        : `This placement runs past that day, so it needs a current one. `
+        ? ` This placement is running with a document that has run out.`
+        : ` This placement runs past that day, so it needs a current one.`
 
-  return {
+  return said({
     title,
-    body: `Your ${doc} ${when}. ` + (d.stopsWork ? consequence : `${WARNS} `) + `File the renewal on your Compliance page.`,
-  }
+    short: `your ${doc} ${when}`,
+    group,
+    line: `Your ${doc} ${when}.` + (d.stopsWork ? consequence : ` ${WARNS}`),
+    ask: `File the renewal on your Compliance page.`,
+    askMany: `File each renewal on your Compliance page.`,
+  })
 }
 
 /**
@@ -457,18 +647,19 @@ export function chaseLetter(d: OwedDocument, cast: Cast): { title: string; body:
  * discloses sub-vendors, and a sentence naming the prime where it does
  * not. Nothing in here decides that; it is handed in already decided.
  */
-export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null): { title: string; body: string } {
+export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null, onSite: string[] = []): Said {
   const doc = lower(d.document)
   const who = cast.personName
   const firm = sees ? (sees.masked ? sees.phrase : sees.name) : (cast.aboutFirmName ?? NO_FIRM)
   const on = theDay(d)
 
-  // Whether the sentence is about a person or about a firm is the
-  // party that owes it, not whether a person happens to be on the line.
-  // An agreement between two firms is not "held by" the contractor
-  // standing under it, and saying so made a master service agreement
-  // read as a document a named individual had lost.
-  const aboutAPerson = d.owedBy === 'WORKER' && !!who
+  // Whether the sentence is about a person or about a firm is whose
+  // paper it is, not who owes it on the line and not whether a person
+  // happens to be on the line. An agreement between two firms is not
+  // "held by" the contractor standing under it; a right-to-work proof a
+  // supplier owes is still the person's, and stops the person.
+  const aboutAPerson = isPersonsPaper(d) && !!who
+  const verdict = isVerdict(d)
   const subject = who ? 'one of your contractors' : 'one of your suppliers'
   const title = d.neverFiled
     ? `A document ${subject} depends on is not on file`
@@ -480,8 +671,11 @@ export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null)
   // "at the firm supplied through Computer Systems Inc" where it may
   // not — because chain-names' phrase already carries a "through" and
   // two of them in one clause reads as a mistake.
+  const via = `${sees?.masked ? 'at' : 'through'} ${firm}`
   const held = aboutAPerson
-    ? `${article(d.document)} ${doc}, held by ${who} ${sees?.masked ? 'at' : 'through'} ${firm}`
+    ? verdict
+      ? `${whose(who!)} ${doc}${fromProvider(d)}, ${via}`
+      : `${article(d.document)} ${doc}, held by ${who} ${via}`
     : `${article(d.document)} ${doc}, owed by ${firm}`
 
   const opening = d.neverFiled
@@ -497,18 +691,61 @@ export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null)
         ? `After that day ${who} cannot be on site.`
         : `After that day nobody can start through that firm.`
     : WARNS
+  // The people a firm's lapse puts at risk on this reader's site, by name:
+  // a client already knows who works there, and "one of your suppliers"
+  // alone does not say whose start is about to stop.
+  const theirs = onSite.length ? ` On your site through it: ${listed(onSite)}.` : ''
 
   // Who this reader can actually call: the firm it pays, where the one
   // that owes the document sits below a wall, and the firm itself where
   // it does not. Never the contractor — a client asking a person for
   // their own paperwork has gone round the supplier it buys from.
-  const ask = sees?.through && sees.masked
-    ? `Ask ${sees.through} for it.`
-    : cast.aboutFirmName
-      ? `Ask ${cast.aboutFirmName} for it.`
+  const callee = sees?.through && sees.masked ? sees.through : (cast.aboutFirmName ?? null)
+  const ask = verdict
+    ? callee
+      ? `Ask ${callee} to order ${d.neverFiled ? 'one' : 'a new one'}.`
+      : `Ask the firm you buy this placement from to order ${d.neverFiled ? 'one' : 'a new one'}.`
+    : callee
+      ? `Ask ${callee} for it.`
       : `Ask the firm you buy this placement from for it.`
+  const askMany = verdict
+    ? callee
+      ? `Ask ${callee} to order them.`
+      : `Ask the firm you buy this placement from to order them.`
+    : callee
+      ? `Ask ${callee} for them.`
+      : `Ask the firm you buy this placement from for them.`
 
-  return { title, body: `${opening} ${cost} ${ask}` }
+  // The line in a night's letter drops the opening every notice shares:
+  // read twenty times in one letter it is the part nobody reads.
+  const fact = aboutAPerson
+    ? verdict
+      ? `${whose(who!)} ${doc}${fromProvider(d)} ${d.neverFiled ? 'is not on file' : d.lapsed ? `is past its date (${on})` : whenSays(d)}`
+      : `${whose(who!)} ${doc} ${d.neverFiled ? 'is not on file' : whenSays(d)}`
+    : `${article(d.document)} ${doc} owed by ${firm} ${d.neverFiled ? 'is not on file' : whenSays(d)}`
+
+  return {
+    title,
+    body: `${opening} ${cost}${theirs} ${ask}`,
+    short: fact,
+    line: `${upperFirst(fact)}. ${cost}${theirs}`,
+    group: callee ?? firm,
+    ask,
+    askMany,
+  }
+}
+
+/** "Ana", "Ana and Ben", "Ana, Ben and 3 others". */
+function listed(names: string[]): string {
+  const shown = names.slice(0, 3)
+  const more = names.length - shown.length
+  if (more > 0) return `${shown.join(', ')} and ${more} ${more === 1 ? 'other' : 'others'}`
+  if (shown.length <= 1) return shown.join('')
+  return `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`
+}
+
+function upperFirst(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1) : s
 }
 
 /**
@@ -520,30 +757,22 @@ export function noticeLetter(d: OwedDocument, cast: Cast, sees: SeenName | null)
  * tell a firm to ask itself, or describe its own employee as somebody
  * standing at a firm below one of its suppliers.
  *
+ * A verdict is the exception to "ask the person": the firm orders a new
+ * check from its provider and asks the person only for consent.
+ *
  * Null where nothing on the line names the person, because a letter
  * telling a firm to chase "the person this line is about" is a letter
  * nobody can act on.
  */
-export function employerLetter(d: OwedDocument, cast: Cast): { title: string; body: string } | null {
+export function employerLetter(d: OwedDocument, cast: Cast): Said | null {
   if (d.owedBy !== 'WORKER') return null
   const who = cast.personName
   if (!who) return null
   const doc = lower(d.document)
   const on = theDay(d)
   const site = cast.clientName
-
-  const title = d.neverFiled
-    ? `${who}'s ${doc} is not on file`
-    : d.lapsed
-      ? `${who}'s ${doc} ran out on ${on}`
-      : `${who}'s ${doc} ${whenSays(d)}`
-
   const at = site ? ` at ${site}` : ''
-  const opening = d.neverFiled
-    ? `${who} works for you${at}, and the ${doc} this placement requires is not on file.`
-    : d.lapsed
-      ? `${who} works for you${at}, and their ${doc} ran out on ${on}.`
-      : `${who} works for you${at}, and their ${doc} ${whenSays(d)}.`
+  const group = site ?? 'Your people'
 
   const cost = d.stopsWork
     ? d.lapsed || d.neverFiled
@@ -551,11 +780,46 @@ export function employerLetter(d: OwedDocument, cast: Cast): { title: string; bo
       : `After that day ${who} cannot be on site.`
     : WARNS
 
+  if (isVerdict(d)) {
+    const past = d.neverFiled ? 'is not on file' : d.lapsed ? `is past its date (${on})` : whenSays(d)
+    const fact = `${whose(who)} ${doc}${fromProvider(d)} ${past}`
+    const ask = `Order ${d.neverFiled ? 'one' : 'a new one'} from your screening provider; ${who} is asked for consent first. Record the result it sends back against this placement.`
+    return {
+      title: `${fact}; order ${d.neverFiled ? 'one' : 'a new one'}`,
+      body: `${who} works for you${at}. ${upperFirst(fact)}. ${cost} ${ask}`,
+      short: fact,
+      line: `${upperFirst(fact)}. ${cost}`,
+      group,
+      ask,
+      askMany: `Order each new one from your screening provider; each person is asked for consent first. Record each result against the placement.`,
+    }
+  }
+
+  const title = d.neverFiled
+    ? `${whose(who)} ${doc} is not on file`
+    : d.lapsed
+      ? `${whose(who)} ${doc} ran out on ${on}`
+      : `${whose(who)} ${doc} ${whenSays(d)}`
+
+  const opening = d.neverFiled
+    ? `${who} works for you${at}, and the ${doc} this placement requires is not on file.`
+    : d.lapsed
+      ? `${who} works for you${at}, and their ${doc} ran out on ${on}.`
+      : `${who} works for you${at}, and their ${doc} ${whenSays(d)}.`
+
   const ask = d.neverFiled
     ? `Chasing it is yours: ask ${who} for it, then file it against this placement.`
     : `Chasing it is yours: ask ${who} for the renewal, then file it against this placement.`
 
-  return { title, body: `${opening} ${cost} ${ask}` }
+  return {
+    title,
+    body: `${opening} ${cost} ${ask}`,
+    short: title,
+    line: `${title}. ${cost}`,
+    group,
+    ask,
+    askMany: `Chasing them is yours: ask each person, then file each one against the placement.`,
+  }
 }
 
 // ── One document, every letter it produces ────────────────────────────
@@ -573,6 +837,12 @@ export interface LapseLetter {
   type: 'SYSTEM'
   title: string
   body: string
+  /** The pieces a night's letter is built from; see `Said`. */
+  short: string
+  line: string
+  group: string
+  ask: string
+  askMany: string
   entityId: string
   saidKey: string
   /** What the automation log says, already masked for this reader. */
@@ -664,6 +934,11 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
           type: 'SYSTEM',
           title: chase.title,
           body: chase.body,
+          short: chase.short,
+          line: chase.line,
+          group: chase.group,
+          ask: chase.ask,
+          askMany: chase.askMany,
           entityId: d.id,
           saidKey: key,
           logSummary:
@@ -691,10 +966,16 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
           type: 'SYSTEM',
           title: employer.title,
           body: employer.body,
+          short: employer.short,
+          line: employer.line,
+          group: employer.group,
+          ask: employer.ask,
+          askMany: employer.askMany,
           entityId: d.id,
           saidKey: key,
-          logSummary:
-            `Told ${DESK_WORDS.EMPLOYS} to chase their own worker for the ${lower(d.document)}, which ${saysWhen}.`,
+          logSummary: isVerdict(d)
+            ? `Told ${DESK_WORDS.EMPLOYS} to order a new ${lower(d.document)} for their own worker; the last one ${saysWhen}.`
+            : `Told ${DESK_WORDS.EMPLOYS} to chase their own worker for the ${lower(d.document)}, which ${saysWhen}.`,
           logReason: reason,
           data: { ...base, side: 'EMPLOYS', saidKey: key },
         })
@@ -705,7 +986,7 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
   for (const e of cast.exposed) {
     const key = docSaidKeyFor(d.id, milestone, e.companyId)
     if (alreadySaid.has(key)) continue
-    const letter = noticeLetter(d, cast, e.sees)
+    const letter = noticeLetter(d, cast, e.sees, e.onSite)
     // The log row is written in this reader's books, so it says what
     // this reader may read: a masked firm is masked here too, or the
     // audit trail leaks what the letter withheld.
@@ -720,6 +1001,11 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
         type: 'SYSTEM',
         title: letter.title,
         body: letter.body,
+        short: letter.short,
+        line: letter.line,
+        group: letter.group,
+        ask: letter.ask,
+        askMany: letter.askMany,
         entityId: d.id,
         saidKey: key,
         logSummary: `Told ${DESK_WORDS.EXPOSED} that the ${lower(d.document)} owed by ${firmWords} ${saysWhen}.`,
@@ -753,15 +1039,29 @@ async function desksAt(
     where: { companyId: { in: ids }, revokedAt: null },
     select: SEAT_SELECT,
   })
+  // Named first, everything-holders only where nobody is named. An
+  // owner's role is the wildcard, so it "holds" every desk at every firm;
+  // at a client with a compliance officer and a program manager the
+  // owner was a third reader of every paper, and the first night wrote
+  // the same twenty-one papers to all three. The desk that acts is the
+  // desk that hears; the owner hears where the owner is the desk, which
+  // at a one-person firm is always.
+  const named = new Map<string, string[]>()
+  const everything = new Map<string, string[]>()
   for (const s of seats) {
     // A context with no company is a consultant's own seat, which is
     // nobody's desk. It cannot be asked for a firm's paperwork.
     if (!s.companyId) continue
     const held = (s.role?.permissions ?? []) as string[]
     if (!permissions.some((p) => hasPermission(held, p))) continue
-    const at = out.get(s.companyId) ?? []
+    const into = permissions.some((p) => held.includes(p)) ? named : everything
+    const at = into.get(s.companyId) ?? []
     if (!at.includes(s.personId)) at.push(s.personId)
-    out.set(s.companyId, at)
+    into.set(s.companyId, at)
+  }
+  for (const id of ids) {
+    const people = named.get(id) ?? everything.get(id)
+    if (people && people.length > 0) out.set(id, people)
   }
   return out
 }
@@ -889,6 +1189,7 @@ function seenBy(
  * of them may read.
  */
 async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
+  if (d.cover) return castForCover(db, d)
   const line = await factsOfLine(db, d.line)
   const personId = d.personId ?? line.personId
   const rungs = await rungsFor(db, personId)
@@ -1006,6 +1307,142 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
   }
 }
 
+/**
+ * The cast for a supplier's own cover: every firm buying from it, up
+ * each chain a person of theirs stands on, through the name wall.
+ *
+ * Pinnacle's liability cover lapsed and Pinnacle's owner was told; the
+ * client whose site its people stood on was told nothing, because the
+ * nightly finding goes to the firm it is about and nobody at the client
+ * holds the supplier's chase. The client's exposure is the standing of
+ * whoever employs the person on its site, and no NDA changes that. So
+ * every firm above the supplier on a live chain hears, in the name it
+ * may read: the prime that pays the supplier by name, the client above
+ * the prime as "the firm supplied through" the prime unless its
+ * agreement discloses sub-vendors.
+ */
+async function castForCover(db: Db, d: OwedDocument): Promise<Cast> {
+  const supplierId = d.companyId
+  const none: Cast = {
+    personName: null, clientName: null, owedByName: d.owedByName, aboutFirmName: d.owedByName,
+    chase: [], exposed: [], employs: null,
+  }
+  if (!supplierId) return none
+
+  const lines = await db.sellContract.findMany({
+    where: { companyId: supplierId, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+    select: { personId: true, person: { select: { name: true } } },
+    orderBy: { id: 'asc' },
+  })
+  const nameOfPerson = new Map(lines.map((l) => [l.personId, l.person?.name ?? null]))
+
+  // Reader → the people on its site through this supplier, and one chain
+  // to read the supplier's name through.
+  const readers = new Map<string, { names: string[]; rungs: Rung[] }>()
+  for (const personId of nameOfPerson.keys()) {
+    const rungs = await rungsFor(db, personId)
+    const seen = new Set<string>([supplierId])
+    let at = supplierId
+    for (;;) {
+      const up = rungs.find((r) => r.companyId === at)
+      if (!up || seen.has(up.clientCompanyId)) break
+      seen.add(up.clientCompanyId)
+      const entry = readers.get(up.clientCompanyId) ?? { names: [], rungs }
+      const name = nameOfPerson.get(personId)
+      if (name && !entry.names.includes(name)) entry.names.push(name)
+      readers.set(up.clientCompanyId, entry)
+      at = up.clientCompanyId
+    }
+  }
+  const readerIds = [...readers.keys()]
+  if (readerIds.length === 0) return none
+
+  const [desks, terms] = await Promise.all([
+    desksAt(db, readerIds, EXPOSED_DESK),
+    db.masterAgreement.findMany({
+      where: { clientId: { in: readerIds } },
+      select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+    }),
+  ])
+  const supplierName = d.owedByName ?? (await companyName(db, supplierId))
+
+  const exposed: Cast['exposed'] = []
+  for (const [companyId, r] of readers) {
+    const people = desks.get(companyId) ?? []
+    if (people.length === 0) continue
+    exposed.push({
+      companyId,
+      people,
+      sees: seenBy(r.rungs, supplierId, supplierName, companyId, terms),
+      onSite: r.names,
+    })
+  }
+  return { ...none, owedByName: supplierName, aboutFirmName: supplierName, exposed }
+}
+
+/** The supplier papers whose lapse stops work, read off the dictionary. */
+const COVER_TYPES = ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER', 'GOOD_STANDING'].filter(
+  (k) => typeByKey(k)?.blocks
+)
+
+/**
+ * A supplier's cover or standing running out under somebody on a site.
+ *
+ * Only the latest row of each kind per firm counts, so a renewal on file
+ * silences the old certificate rather than being told as a lapse; only a
+ * firm with somebody on a live line is read, because a firm with nobody
+ * anywhere costs no client anything tonight.
+ */
+export async function supplierCoverLapses(
+  now: Date = new Date(),
+  opts: { db?: Db; windowDays?: number } = {}
+): Promise<OwedDocument[]> {
+  const db = opts.db ?? prisma
+  const horizon = new Date(now.getTime() + (opts.windowDays ?? LAPSE_MILESTONES[0]) * 86_400_000)
+  const rows = await db.verification.findMany({
+    where: {
+      companyId: { not: null },
+      type: { in: COVER_TYPES as never[] },
+      status: { in: ['CLEAR', 'CONDITIONAL'] },
+      expiresAt: { not: null },
+      company: { sellContractsOut: { some: { state: { in: ['IN_PROGRESS', 'PAUSED'] } } } },
+    },
+    select: { id: true, type: true, companyId: true, expiresAt: true, company: { select: { name: true } } },
+    orderBy: [{ expiresAt: 'desc' }, { id: 'asc' }],
+  })
+
+  const latest = new Map<string, (typeof rows)[number]>()
+  for (const r of rows) {
+    const k = `${r.companyId}:${r.type}`
+    if (!latest.has(k)) latest.set(k, r)
+  }
+
+  const out: OwedDocument[] = []
+  for (const r of latest.values()) {
+    if (!r.expiresAt || r.expiresAt > horizon) continue
+    const daysLeft = Math.ceil((r.expiresAt.getTime() - now.getTime()) / 86_400_000)
+    const t = typeByKey(r.type)
+    out.push({
+      id: r.id,
+      key: r.type,
+      document: t?.label ?? lower(r.type.replace(/_/g, ' ')),
+      line: null,
+      owedBy: 'SUPPLIER',
+      owedByName: r.company?.name ?? null,
+      personId: null,
+      companyId: r.companyId,
+      tellCompanyId: null,
+      expiresAt: r.expiresAt,
+      daysLeft,
+      lapsed: daysLeft < 0,
+      neverFiled: false,
+      stopsWork: !!t?.blocks,
+      cover: true,
+    })
+  }
+  return out
+}
+
 async function companyName(db: Db, id: string): Promise<string | null> {
   const c = await db.company.findUnique({ where: { id }, select: { name: true } })
   return c?.name ?? null
@@ -1061,10 +1498,26 @@ export async function tellAbout(
 
   const said = await alreadySaid(db, mine.map((d) => d.id))
 
+  // Who rendered each verdict, off the verification it was recorded on,
+  // so the letter can say "from HireRight" and never invents a provider.
+  const verdictIds = mine.filter((d) => isVerdict(d) && !d.neverFiled && d.provider === undefined).map((d) => d.id)
+  if (verdictIds.length > 0) {
+    const rows = await db.verification.findMany({
+      where: { id: { in: verdictIds } },
+      select: { id: true, provider: true },
+    })
+    const by = new Map(rows.map((r) => [r.id, r.provider]))
+    for (const d of mine) if (by.has(d.id)) d.provider = by.get(d.id) ?? null
+  }
+
   for (const d of mine) {
     const cast = await castFor(db, d)
     const letters = lettersFor(d, cast, said)
-    if (cast.chase.length === 0) {
+    // Nobody to chase is a gap, except where nobody is meant to be: a
+    // verdict is ordered by the employer, never chased from the worker,
+    // and a supplier's own cover is told to the supplier by the watch.
+    const meantForNobody = d.cover || (isVerdict(d) && d.owedBy === 'WORKER' && !!cast.employs)
+    if (cast.chase.length === 0 && !meantForNobody) {
       out.unaddressed.push({
         document: d.document,
         because:
@@ -1126,6 +1579,107 @@ export function oneLetterPerPartyPerFact(letters: LapseLetter[]): LapseLetter[] 
     words.set(sameWords, l)
     facts.set(sameFact, l)
     out.push(l)
+  }
+  return out
+}
+
+// ── One letter per person per night ───────────────────────────────────
+
+/**
+ * A night's letter to one person: every paper that concerns them, as
+ * lines, grouped by firm, the one that stops work first.
+ *
+ * The first real night on the seeded world sent 266 emails, and the
+ * compliance officer, the program manager and the shared seat at one
+ * client read twenty-one each, one per paper. A person who gets
+ * twenty-one letters from one sender in one night builds a mail rule,
+ * and the twenty-second, the one that stops a start, goes to the folder
+ * with the rest. So a night writes each person once. Every fact is still
+ * logged on its own, in its own firm's books, and remembered on its own
+ * key, so tomorrow says only what is new.
+ */
+export interface NightLetter {
+  personId: string
+  /** Whose books the letter sits in: the firm of the line that stops work first. */
+  companyId: string | null
+  audience: Audience
+  channel: 'EMAIL'
+  type: 'SYSTEM'
+  title: string
+  body: string
+  /** The document the first line is about, for linking. */
+  entityId: string
+  /** Every fact inside it, worst first. */
+  facts: LapseLetter[]
+}
+
+/** Worst first: what stops work and has already gone, then what stops work, then the rest. */
+function rankOf(l: LapseLetter): number {
+  const gone = l.data.lapsed || l.data.neverFiled
+  if (l.data.stopsWork && gone) return 0
+  if (l.data.stopsWork) return 1
+  if (gone) return 2
+  return 3
+}
+
+function worstFirst(a: LapseLetter, b: LapseLetter): number {
+  const r = rankOf(a) - rankOf(b)
+  if (r !== 0) return r
+  return (a.data.daysLeft ?? -1) - (b.data.daysLeft ?? -1)
+}
+
+function papers(n: number): string {
+  return n === 1 ? 'one more paper' : `${n} more papers`
+}
+
+/**
+ * Fold one night's letters into one per person, pure.
+ *
+ * A person with one fact reads exactly the letter that fact would have
+ * been on its own. A person with several reads one letter: the worst
+ * fact as its title, then a heading per firm, a line per paper, and the
+ * one thing to do about that firm said once.
+ */
+export function oneLetterPerPerson(letters: LapseLetter[]): NightLetter[] {
+  const byPerson = new Map<string, LapseLetter[]>()
+  for (const l of letters) byPerson.set(l.personId, [...(byPerson.get(l.personId) ?? []), l])
+
+  const out: NightLetter[] = []
+  for (const [personId, theirs] of byPerson) {
+    const facts = [...theirs].sort(worstFirst)
+    const worst = facts[0]
+    const audience: Audience = facts.every((f) => f.audience === 'candidate') ? 'candidate' : 'business'
+
+    if (facts.length === 1) {
+      out.push({
+        personId, companyId: worst.companyId, audience, channel: 'EMAIL', type: 'SYSTEM',
+        title: worst.title, body: worst.body, entityId: worst.entityId, facts,
+      })
+      continue
+    }
+
+    // Groups in the order their worst line comes, lines unique within one.
+    const groups = new Map<string, LapseLetter[]>()
+    for (const f of facts) groups.set(f.group, [...(groups.get(f.group) ?? []), f])
+
+    const sections: string[] = []
+    for (const [group, inGroup] of groups) {
+      const lines = [...new Set(inGroup.map((f) => f.line))]
+      const asks = lines.length === 1 ? [inGroup[0].ask] : [...new Set(inGroup.map((f) => f.askMany))]
+      sections.push([group, ...lines.map((l) => `- ${l}`), ...asks].join('\n'))
+    }
+
+    out.push({
+      personId,
+      companyId: worst.companyId,
+      audience,
+      channel: 'EMAIL',
+      type: 'SYSTEM',
+      title: `${upperFirst(worst.short)}, and ${papers(facts.length - 1)}`,
+      body: sections.join('\n\n'),
+      entityId: worst.entityId,
+      facts,
+    })
   }
   return out
 }
@@ -1243,13 +1797,14 @@ export async function everyDocumentLetter(
   const db = opts.db ?? prisma
   const watch = await documentsToChase(now, { db, windowDays: opts.windowDays })
   const missing = await documentsNeverFiled(now, { db, limit: opts.limit })
+  const cover = await supplierCoverLapses(now, { db, windowDays: opts.windowDays })
   // One pass over both halves rather than two, because the dedupe and
   // what-was-already-said are the same question: a document that is
   // both lapsing and never filed is one fact, and two passes each read
   // back only their own half's record of having told somebody. The
   // dated half comes first, so the letter that survives is the one that
   // can name a day.
-  return tellAbout([...fromWatch(watch), ...missing], now, db)
+  return tellAbout([...fromWatch(watch), ...missing, ...cover], now, db)
 }
 
 /**
@@ -1262,8 +1817,16 @@ export async function everyDocumentLetter(
  */
 async function alreadySaid(db: Db, documentIds: string[]): Promise<Set<string>> {
   if (documentIds.length === 0) return new Set()
+  // A night's letter names one document as its entity and carries the
+  // rest in its keys, so it is read back by its mark as well as by id.
   const rows = await db.notification.findMany({
-    where: { type: 'SYSTEM', entityId: { in: [...new Set(documentIds)] } },
+    where: {
+      type: 'SYSTEM',
+      OR: [
+        { entityId: { in: [...new Set(documentIds)] } },
+        { data: { path: ['letter'], equals: NIGHT_LETTER } },
+      ],
+    },
     select: { data: true },
   })
   const out = new Set<string>()
@@ -1280,13 +1843,20 @@ async function alreadySaid(db: Db, documentIds: string[]): Promise<Set<string>> 
 // ── Sending them ──────────────────────────────────────────────────────
 
 export interface Sent {
+  /** Every fact somebody was told, one per reader per fact. */
   letters: LapseLetter[]
-  /** One row per letter, in the books of whoever read it. */
+  /** The letters that actually left: one per person. */
+  people: number
+  /** One row per fact, in the books of whoever read it. */
   logged: number
 }
 
+/** The mark a night's letter carries, so tomorrow can read it back. */
+export const NIGHT_LETTER = 'DOCUMENTS_NIGHT'
+
 /**
- * Send the letters and write the record of having sent them.
+ * Send tonight's letters, one per person, and write the record of each
+ * fact having been told.
  *
  * Awaited, unlike most callers of `notify`: this job's whole output is
  * that somebody was told, and a count returned while the writes are
@@ -1298,43 +1868,63 @@ export async function sendDocumentLapses(
   db: Db = prisma
 ): Promise<Sent> {
   const sent: LapseLetter[] = []
+  let people = 0
   let logged = 0
 
-  for (const l of letters) {
+  for (const night of oneLetterPerPerson(letters)) {
+    const [first, ...rest] = night.facts
+    const keys = night.facts.flatMap((f) => [f.saidKey, ...(f.data.alsoSaid ?? [])])
     const written = await notify({
-      personId: l.personId,
-      companyId: l.companyId ?? undefined,
-      type: l.type,
-      title: l.title,
-      body: l.body,
-      entityId: l.entityId,
-      channel: l.channel,
-      data: l.data,
+      personId: night.personId,
+      companyId: night.companyId ?? undefined,
+      type: night.type,
+      title: night.title,
+      body: night.body,
+      entityId: night.entityId,
+      channel: night.channel,
+      data:
+        rest.length === 0
+          ? first.data
+          : {
+              letter: NIGHT_LETTER,
+              saidKey: first.saidKey,
+              // Every fact folded into this letter, so none of them is
+              // sent on its own tomorrow for want of a record.
+              alsoSaid: [...new Set(keys.filter((k) => k !== first.saidKey))],
+              documentIds: [...new Set(night.facts.map((f) => f.data.documentId))],
+              count: night.facts.length,
+              stopsWork: night.facts.filter((f) => f.data.stopsWork).length,
+            },
     })
     if (!written) continue
-    sent.push(l)
+    people++
 
-    await db.automationLog.create({
-      data: {
-        companyId: l.companyId,
-        action: 'DOCUMENT_LAPSE_TOLD',
-        summary: l.logSummary,
-        reason: l.logReason,
-        payload: {
-          documentId: l.data.documentId,
-          documentKey: l.data.documentKey,
-          milestone: l.data.milestone,
-          daysLeft: l.data.daysLeft,
-          side: l.side,
-          stopsWork: l.data.stopsWork,
-          told: DESK_WORDS[l.side],
-          at: now.toISOString(),
+    for (const l of night.facts) {
+      sent.push(l)
+      await db.automationLog.create({
+        data: {
+          companyId: l.companyId,
+          action: 'DOCUMENT_LAPSE_TOLD',
+          summary: l.logSummary,
+          reason: l.logReason,
+          payload: {
+            documentId: l.data.documentId,
+            documentKey: l.data.documentKey,
+            milestone: l.data.milestone,
+            daysLeft: l.data.daysLeft,
+            side: l.side,
+            stopsWork: l.data.stopsWork,
+            told: DESK_WORDS[l.side],
+            // How many papers shared the one letter it went out in.
+            inOneLetterWith: night.facts.length,
+            at: now.toISOString(),
+          },
+          reversible: false,
         },
-        reversible: false,
-      },
-    })
-    logged++
+      })
+      logged++
+    }
   }
 
-  return { letters: sent, logged }
+  return { letters: sent, people, logged }
 }

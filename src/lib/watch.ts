@@ -93,6 +93,10 @@ export function watchVerifications(rows: WatchedVerification[], now: Date): Find
     const days = daysBetween(v.expiresAt, now)
     const blocks = BLOCKS_WORK.has(v.type)
     const what = readable(v.type)
+    // A person's paper stops the person; a firm's stops every start
+    // through the firm. "Nobody can be placed through Tobias Lindqvist"
+    // is a sentence about a firm that does not exist.
+    const aPerson = !!v.personId && !v.companyId
 
     if (days < 0) {
       out.push({
@@ -103,7 +107,9 @@ export function watchVerifications(rows: WatchedVerification[], now: Date): Find
         subjectId: v.id,
         headline: `${v.subjectName}: ${what} expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`,
         detail: blocks
-          ? `Nobody can be placed through ${v.subjectName} until this is renewed. It is already stopping work.`
+          ? aPerson
+            ? `${v.subjectName} cannot be on site until this is renewed. It is already stopping work.`
+            : `Nobody can be placed through ${v.subjectName} until this is renewed. It is already stopping work.`
           : `${what} for ${v.subjectName} is out of date and is being asked for again.`,
         action: 'REOPEN_PACKET',
         daysUntil: days,
@@ -122,7 +128,9 @@ export function watchVerifications(rows: WatchedVerification[], now: Date): Find
         subjectId: v.id,
         headline: `${v.subjectName}: ${what} expires in ${days} day${days === 1 ? '' : 's'}`,
         detail: blocks
-          ? `On ${v.expiresAt.toISOString().slice(0, 10)} you will not be able to place anybody through ${v.subjectName}. Asking now costs one email.`
+          ? aPerson
+            ? `After ${v.expiresAt.toISOString().slice(0, 10)} ${v.subjectName} cannot be on site without a renewal. Asking now costs one email.`
+            : `On ${v.expiresAt.toISOString().slice(0, 10)} you will not be able to place anybody through ${v.subjectName}. Asking now costs one email.`
           : `Worth renewing before ${v.expiresAt.toISOString().slice(0, 10)}.`,
         // Reopened rather than only announced, so the request is already
         // waiting when somebody looks.
