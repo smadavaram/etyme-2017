@@ -1,10 +1,26 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+
+// Every question the seed asks the database, counted, so the people's
+// steps can be held under the line a step may ask (seed-step-size.test.ts
+// does the same for the base world's steps).
+const counter = vi.hoisted(() => ({ asked: 0 }))
+vi.mock('@/lib/db', async () => {
+  const { PrismaClient } = await import('@prisma/client')
+  const prisma = new PrismaClient({ log: [{ emit: 'event', level: 'query' }] })
+  prisma.$on('query', () => { counter.asked++ })
+  return { prisma }
+})
+
 import { prisma, freshWorld } from './harness'
 import { seedScaleWorld } from '@/lib/seed-scale'
 import { buildFrame, seedFrame, namedFirms } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, vocabularyFaults, skillsOf } from '@/lib/seed-scale/industries'
 import { sharedTails } from '@/lib/seed-scale/kit'
-import { SCALE, SCALE_EMAIL_SUFFIX, SCALE_SLUG_PREFIX, type ScaleFrame } from '@/lib/seed-scale/types'
+import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, SCALE_SLUG_PREFIX, STEP_QUERY_BUDGET, type ScaleFrame } from '@/lib/seed-scale/types'
+import { peopleSteps, planPeople, careerCounts, soloIdOf } from '@/lib/seed-scale/people'
+import { STAY_CHOICES } from '@/lib/bench-stay'
+import { daysFor, daysOnSite } from '@/lib/tenure-days'
+import { day } from '@/lib/seed-days'
 import { readCatalog } from '../scripts/simulate/actors'
 import { seedJobs, planJobs, type JobPlan } from '@/lib/seed-scale/jobs'
 import { standInPeople } from '@/lib/seed-scale/jobs/stand-in'
@@ -54,6 +70,13 @@ beforeAll(async () => {
     where: { slug: { startsWith: SCALE_SLUG_PREFIX } },
     select: { id: true, slug: true, kind: true, supplierPosture: true, claimedAt: true },
   })
+  // The people (supply), step by step, each step's questions counted.
+  s.peopleSteps = []
+  for (const step of peopleSteps(frame)) {
+    const before = counter.asked
+    await step.run(frame)
+    s.peopleSteps.push({ step: step.name, asked: counter.asked - before })
+  }
   s.seated = await prisma.context.findMany({
     where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } }, revokedAt: null },
     select: { companyId: true, grantedAt: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } } },
@@ -260,3 +283,173 @@ describe('the generated world at the founder’s scale', () => {
     expect(await read()).toEqual(before)
   })
 })
+
+/**
+ * The people (lib/seed-scale/people, supply): two thousand, freshers to
+ * very experienced, in four industries, every bench by their own yes.
+ */
+describe('the generated world’s people', () => {
+  const scalePeople = { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX } }
+
+  it('the career mix holds: two thousand people, each career its share, four hundred of them an integrator’s own staff', async () => {
+    const plan = planPeople(frame)
+    const want = careerCounts()
+    expect(plan).toHaveLength(SCALE.people)
+    for (const [career, share] of Object.entries(CAREER_MIX)) {
+      expect(plan.filter((p) => p.facts.career === career).length, career).toBe(want[career as keyof typeof want])
+      expect(Math.abs(want[career as keyof typeof want] - share * SCALE.people), career).toBeLessThanOrEqual(1)
+    }
+    // On the record, the way each career shows itself.
+    expect(await prisma.consultantProfile.count({ where: { person: scalePeople } })).toBe(SCALE.people)
+    expect(await prisma.enrollment.count({ where: { status: 'COMPLETED', person: scalePeople } })).toBe(want.FRESHER)
+    expect(await prisma.consultantProfile.count({ where: { person: scalePeople, ownCompany: { kind: 'CONSULTANT_CORP' } } })).toBe(want.OWN_COMPANY)
+    const gsiStaff = await prisma.context.count({
+      where: { type: 'EMPLOYEE', revokedAt: null, company: { kind: 'GSI', slug: { startsWith: SCALE_SLUG_PREFIX } }, person: { ...scalePeople, consultant: { listings: { none: {} } } } },
+    })
+    expect(gsiStaff).toBe(GSI_STAFF)
+    const looking = await prisma.person.count({
+      where: { ...scalePeople, contexts: { some: { type: 'EMPLOYEE', revokedAt: null } }, consultant: { listings: { some: { state: 'GRANTED', askFirst: true, revokedAt: null } } } },
+    })
+    expect(looking).toBe(want.LOOKING_WHILE_EMPLOYED)
+    const onALine = await prisma.sellContract.findMany({ where: { state: 'IN_PROGRESS', person: scalePeople }, select: { personId: true }, distinct: ['personId'] })
+    const ownLive = plan.filter((p) => p.facts.career === 'OWN_COMPANY' && p.lines.some((l) => l.live)).length
+    expect(onALine.length).toBe(want.PLACED + ownLive)
+    // Horizontal, never vertical: healthcare, manufacturing and finance beside IT, each a real share.
+    for (const ind of ['IT', 'HEALTHCARE', 'MANUFACTURING', 'FINANCE']) {
+      expect(plan.filter((p) => p.facts.industry === ind).length, ind).toBeGreaterThan(SCALE.people * 0.1)
+    }
+  })
+
+  it('every skill a person holds comes from the closed vocabulary', async () => {
+    const vocabulary = new Set(INDUSTRIES.flatMap((i) => skillsOf(i.key)))
+    const profiles = await prisma.consultantProfile.findMany({ where: { person: scalePeople }, select: { skills: true, person: { select: { name: true } } } })
+    for (const p of profiles) {
+      expect(p.skills.length, p.person.name).toBeGreaterThanOrEqual(3)
+      expect(p.skills.length, p.person.name).toBeLessThanOrEqual(7)
+      for (const k of p.skills) expect(vocabulary.has(k), `${p.person.name}: ${k}`).toBe(true)
+    }
+  })
+
+  it('no person is on a bench they did not consent to', async () => {
+    const plan = new Map(planPeople(frame).map((p) => [p.facts.id, p]))
+    const listings = await prisma.benchListing.findMany({
+      where: { consultant: { person: scalePeople } },
+      select: { companyId: true, state: true, invitedAt: true, respondedAt: true, grantedAt: true, revokedAt: true, stayDays: true, staysUntil: true, consultant: { select: { personId: true } } },
+    })
+    const ties = await prisma.counterparty.findMany({ where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } }, select: { companyId: true, otherCompanyId: true } })
+    const trades = new Set(ties.map((t) => `${t.companyId}|${t.otherCompanyId}`))
+    let live = 0
+    for (const l of listings) {
+      const p = plan.get(l.consultant.personId)!
+      expect(p, l.consultant.personId).toBeTruthy()
+      // An integrator's own staff are on its payroll, not on anybody's bench.
+      expect(p.gsiStaff, p.facts.name).toBe(false)
+      if (l.state !== 'GRANTED' || l.revokedAt) continue
+      live++
+      // Their yes, after they were asked, for a stay they chose or until they cancel.
+      expect(l.respondedAt, p.facts.name).not.toBeNull()
+      expect(l.grantedAt.getTime(), p.facts.name).toBeGreaterThanOrEqual(l.invitedAt!.getTime())
+      if (l.stayDays != null) expect(STAY_CHOICES as readonly number[], p.facts.name).toContain(l.stayDays)
+      if (l.staysUntil) expect(l.staysUntil.getTime(), p.facts.name).toBeGreaterThan(day(0).getTime())
+      // At their own firm, or a firm their firm already trades with.
+      const home = p.facts.listing?.firmId ?? p.facts.firmId
+      const ok = l.companyId === home || l.companyId === p.facts.firmId || trades.has(`${home}|${l.companyId}`)
+      expect(ok, `${p.facts.name} is listed at a firm their own firm does not trade with`).toBe(true)
+    }
+    expect(live).toBeGreaterThan(SCALE.people / 2)
+    // "Until cancelled" is the default, so most never chose a number.
+    const live2 = listings.filter((l) => l.state === 'GRANTED' && !l.revokedAt)
+    expect(live2.filter((l) => l.stayDays == null).length).toBeGreaterThan(live2.length / 2)
+  })
+
+  it('every placed person has a pay pair at or under the bill', async () => {
+    const links = await prisma.contractLink.findMany({
+      where: { sellContract: { person: scalePeople } },
+      select: { sellContract: { select: { billRate: true, personId: true } }, buyContract: { select: { candidates: { select: { personId: true, payRate: true } } } } },
+    })
+    expect(links.length).toBeGreaterThan(SCALE.people)
+    for (const l of links) {
+      const pay = l.buyContract.candidates.find((c) => c.personId === l.sellContract.personId)
+      expect(pay, l.sellContract.personId).toBeTruthy()
+      expect(pay!.payRate).toBeGreaterThan(0)
+      expect(pay!.payRate).toBeLessThanOrEqual(l.sellContract.billRate)
+    }
+    // A live line with no pay line under it is a one-person company's own: the prime above pays it corp-to-corp.
+    const unpaid = await prisma.sellContract.findMany({
+      where: { state: 'IN_PROGRESS', person: scalePeople, buyLinks: { none: {} } }, select: { company: { select: { kind: true } } },
+    })
+    for (const u of unpaid) expect(u.company.kind).toBe('CONSULTANT_CORP')
+    expect(unpaid.length).toBeGreaterThan(0)
+  })
+
+  it('tenure near a time limit is a minority, and nobody is past one', async () => {
+    const lines = await prisma.sellContract.findMany({
+      where: { person: scalePeople, state: { in: ['ENDED', 'IN_PROGRESS'] } },
+      select: { personId: true, endClientCompanyId: true, clientCompanyId: true, startDate: true, endDate: true },
+    })
+    const rules = await prisma.governanceRule.findMany({
+      where: { ruleType: 'TENURE_CAP', policy: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } },
+      select: { parameters: true, policy: { select: { companyId: true } } },
+    })
+    const cap = new Map(rules.map((r) => [r.policy.companyId, Number((r.parameters as any).maxMonths)]))
+    const at = new Map<string, { startDate: Date; endDate: Date | null }[]>()
+    for (const l of lines) {
+      const k = `${l.personId}|${l.endClientCompanyId ?? l.clientCompanyId}`
+      at.set(k, [...(at.get(k) ?? []), { startDate: l.startDate, endDate: l.endDate }])
+    }
+    const near = new Set<string>()
+    for (const [k, periods] of at) {
+      const months = cap.get(k.split('|')[1])!
+      expect(months, k).toBeGreaterThan(0)
+      const days = daysOnSite(periods, day(0))
+      expect(days, `${k} is past the client's limit`).toBeLessThan(daysFor(months))
+      if (days >= daysFor(months) - 61) near.add(k.split('|')[0])
+    }
+    expect(near.size).toBeGreaterThan(0)
+    expect(near.size).toBeLessThanOrEqual(NEAR_TIME_LIMIT_SHARE * SCALE.people)
+  })
+
+  it('somebody who left a bench for their own company owns it, and the prime above pays it corp-to-corp', async () => {
+    const solos = planPeople(frame).filter((p) => p.facts.career === 'OWN_COMPANY')
+    const owners = await prisma.context.findMany({
+      where: { companyId: { in: solos.map((p) => soloIdOf(p.facts.id)) }, role: { name: 'Owner' }, revokedAt: null },
+      select: { personId: true, companyId: true },
+    })
+    expect(owners).toHaveLength(solos.length)
+    for (const o of owners) expect(o.companyId).toBe(soloIdOf(o.personId))
+    const buys = await prisma.buyContract.findMany({ where: { vendorCompanyId: { in: solos.map((p) => soloIdOf(p.facts.id)) } }, select: { contractType: true } })
+    expect(buys.length).toBeGreaterThan(0)
+    for (const b of buys) expect(b.contractType).toBe('C2C')
+    // The bench they left still shows their yes, taken back.
+    const left = await prisma.benchListing.count({ where: { consultant: { person: { id: { in: solos.map((p) => p.facts.id) } } }, revokedAt: { not: null }, lapsedAt: null } })
+    expect(left).toBe(solos.length)
+  })
+
+  it('every step of the people fits one function call, and a second seeding writes nothing', async () => {
+    const over = (s.peopleSteps as { step: string; asked: number }[]).filter((x) => x.asked > STEP_QUERY_BUDGET)
+    expect(over, 'These steps would not finish in one call against production. Cut them into shares.').toEqual([])
+    const TABLES = ['person', 'consultantProfile', 'resume', 'context', 'role', 'company', 'course', 'enrollment', 'benchListing', 'doNotSubmit',
+      'sellContract', 'buyContract', 'buyContractCandidate', 'contractLink', 'counterparty', 'masterAgreement', 'engagement', 'projectRelease'] as const
+    const count = async () => Object.fromEntries(await Promise.all(TABLES.map(async (t) => [t, await (prisma as any)[t].count()])))
+    const before = await count()
+    for (const step of peopleSteps(frame)) {
+      const asked = counter.asked
+      await step.run(frame)
+      expect(counter.asked - asked, `${step.name}, walked again`).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
+    }
+    expect(await count()).toEqual(before)
+  })
+
+  it('no two contracts share the tail an invoice number is cut from', async () => {
+    const ids = (await prisma.sellContract.findMany({ select: { id: true } })).map((x) => x.id)
+    expect(sharedTails(ids)).toEqual([])
+  })
+
+  it('every one of the two thousand opens as a seat', async () => {
+    const catalog = await readCatalog(prisma as any)
+    const open = new Set(catalog.seats.map((x) => x.email))
+    const missing = planPeople(frame).filter((p) => !open.has(p.facts.email)).map((p) => p.facts.email)
+    expect(missing).toEqual([])
+  })
+})
+

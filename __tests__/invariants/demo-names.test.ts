@@ -85,6 +85,9 @@ const SURFACES: Record<string, string> = {
   'src/lib/seed-scale/frame.ts': read('src/lib/seed-scale/frame.ts'),
   'src/lib/seed-scale/industries.ts': read('src/lib/seed-scale/industries.ts'),
   'src/lib/seed-scale/kit.ts': read('src/lib/seed-scale/kit.ts'),
+  // Its people (supply): their résumés, headlines and the notes they leave.
+  'src/lib/seed-scale/people/plan.ts': read('src/lib/seed-scale/people/plan.ts'),
+  'src/lib/seed-scale/people/seed.ts': read('src/lib/seed-scale/people/seed.ts'),
   'src/lib/demo-seed.ts': read('src/lib/demo-seed.ts'),
   'src/lib/demo-seed-client.ts': read('src/lib/demo-seed-client.ts'),
   'src/lib/demo-seed-consultant.ts': read('src/lib/demo-seed-consultant.ts'),
@@ -251,6 +254,8 @@ const SEEDS = [
   'src/lib/seed-scale/frame.ts',
   'src/lib/seed-scale/industries.ts',
   'src/lib/seed-scale/kit.ts',
+  'src/lib/seed-scale/people/plan.ts',
+  'src/lib/seed-scale/people/seed.ts',
   // The two doors, which name each seeded program in a sentence.
   'src/app/demo/seats.ts',
   'src/app/demo/page.tsx',
