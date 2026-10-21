@@ -50,6 +50,8 @@
  * in the route. No database import here.
  */
 
+import { calendarDaysBetween } from '@/lib/document-stages'
+
 const DAY = 86_400_000
 
 /** Whole days between two instants, floored, the way aging counts them. */
@@ -144,7 +146,7 @@ function coverLine(c: Cover, now: Date): CoverLine {
   const label = readable(c.type, c.label)
 
   if (c.status === 'EXPIRED' || c.status === 'FAILED') {
-    const days = c.expiresAt ? daysBetween(c.expiresAt, now) : null
+    const days = c.expiresAt ? calendarDaysBetween(now, c.expiresAt) : null
     return {
       type: c.type,
       label,
@@ -162,7 +164,7 @@ function coverLine(c: Cover, now: Date): CoverLine {
       type: c.type,
       label,
       state: 'UNVERIFIED',
-      daysToExpiry: c.expiresAt ? -daysBetween(c.expiresAt, now) : null,
+      daysToExpiry: c.expiresAt ? calendarDaysBetween(c.expiresAt, now) : null,
       says:
         `${label} is on file and nobody has confirmed it. A certificate somebody ` +
         `uploaded is not cover until it has been checked.`,
@@ -182,7 +184,10 @@ function coverLine(c: Cover, now: Date): CoverLine {
     }
   }
 
-  const days = -daysBetween(c.expiresAt, now)
+  // Calendar days, through the same helper the supplier's own page and the
+  // nightly check read, so every page says the same number for one lapse.
+  // Flooring the hours here said "3 days ago" where they said 2.
+  const days = calendarDaysBetween(c.expiresAt, now)
 
   if (days < 0) {
     return {

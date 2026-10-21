@@ -24,6 +24,7 @@ import {
   type CounterpartyRegister,
   type RiskInput,
 } from '@/lib/supplier-risk'
+import { calendarDaysBetween } from '@/lib/document-stages'
 
 const NOW = new Date('2026-08-29T00:00:00.000Z')
 const DAY = 86_400_000
@@ -75,6 +76,37 @@ describe('What is on file about a supplier, and what is missing from it', () => 
     expect(standing.state).toBe('LAPSED')
     expect(standing.worst?.daysToExpiry).toBe(-7)
     expect(standing.says).toContain('expired 7 days ago')
+  })
+
+  it('a lapse is counted in calendar days on the client\'s supplier page, the same number the supplier and the nightly check read', () => {
+    // Ran out late on October 18; read early on October 21. The hours
+    // between are just over two days, the calendar says three, and the
+    // supplier's own page and the nightly check say three.
+    const on = new Date('2026-10-21T01:00:00.000Z')
+    const ranOut = new Date('2026-10-18T23:00:00.000Z')
+    const lapsed = insuranceStanding(
+      [{ type: 'INSURANCE_GL', label: 'general liability', status: 'CLEAR', expiresAt: ranOut }],
+      on,
+    )
+    expect(calendarDaysBetween(ranOut, on)).toBe(-3)
+    expect(lapsed.worst?.daysToExpiry).toBe(calendarDaysBetween(ranOut, on))
+    expect(lapsed.says).toContain('expired 3 days ago')
+
+    const recordedLapsed = insuranceStanding(
+      [{ type: 'INSURANCE_GL', label: 'general liability', status: 'EXPIRED', expiresAt: ranOut }],
+      on,
+    )
+    expect(recordedLapsed.says).toContain('lapsed 3 days ago')
+
+    // And ahead of the date: runs out late on October 23, read early on
+    // the 21st, is two days, not the three the hours round to.
+    const runsOut = new Date('2026-10-23T20:00:00.000Z')
+    const soon = insuranceStanding(
+      [{ type: 'INSURANCE_GL', label: 'general liability', status: 'CLEAR', expiresAt: runsOut }],
+      new Date('2026-10-21T06:00:00.000Z'),
+    )
+    expect(soon.worst?.daysToExpiry).toBe(2)
+    expect(soon.says).toContain('runs out in 2 days')
   })
 
   it('cover expiring inside the renewal window is flagged before it stops work', () => {
