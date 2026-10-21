@@ -168,7 +168,7 @@ export function stub(name: string, domain: DomainKey): Stage {
 
 /** The order of the trade, from a job to a paid week. */
 export const STAGE_ORDER = [
-  'post-jobs', 'approve-jobs', 'send-to-suppliers', 'bench-and-consent', 'submit', 'match',
+  'post-jobs', 'approve-jobs', 'send-to-suppliers', 'bench-and-consent', 'submit', 'documents', 'match',
   'interview', 'award', 'contracts', 'paperwork-and-start', 'file-weeks', 'sign-weeks',
   'accept-down-the-chain', 'expenses', 'bills', 'invoice-receipts', 'three-way-check', 'pay',
   'payroll',

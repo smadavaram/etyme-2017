@@ -8,6 +8,7 @@ import approveJobs from './demand/approve-jobs'
 import sendToSuppliers from './demand/send-to-suppliers'
 import benchAndConsent from './supply/bench-and-consent'
 import submit from './demand/submit'
+import documents from './regulatory/documents'
 import match from './supply/match'
 import interview from './demand/interview'
 import award from './demand/award'
@@ -25,7 +26,7 @@ import payroll from './money/payroll'
 import handoffs from './conversation/handoffs'
 
 export const STAGES: Stage[] = [
-  postJobs, approveJobs, sendToSuppliers, benchAndConsent, submit, match, interview, award,
+  postJobs, approveJobs, sendToSuppliers, benchAndConsent, submit, documents, match, interview, award,
   contracts, paperworkAndStart, fileWeeks, signWeeks, acceptDownTheChain, expenses, bills,
   invoiceReceipts, threeWayCheck, pay, payroll, handoffs,
 ]
