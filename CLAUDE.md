@@ -1639,6 +1639,37 @@ every refusal is a lesson, and the report counts documents by kind and
 bytes stored, with the paper routes' timings under that load. The
 station runs unchanged on the generated world.
 
+**The document flow was walked as every person, 2026-10-21, on the
+founder's "Can you test the docflow."** The rules hold: nobody starts
+without an I-9; an I-9 is refused unless the document it was completed
+from is named; lapsed cover blocks; work authorization cannot be
+waived; a supplier cannot change what its client's order asks for; the
+AP clerk can neither start anybody nor read people's papers; the
+sub-vendor's name stays hidden from the client while the client sees
+that firm's insurance standing; a provider's verdict is recorded
+verbatim with name, reference and date. Five things broke trust, and
+the verdict was "do not ship the document flow as a finished trust
+layer" until they are fixed, each with an owner: the no-sign-in link
+that asks a worker for her start papers stores the file's name and
+not the file (regulatory); a newer "flagged" background report is
+ignored when an older "clear" one exists (regulatory); an I-9 on an
+old edition starts a person without a word, because the start never
+reads the edition list (regulatory); the first nightly check sent 266
+emails, 21 to one compliance officer, and told workers to "upload the
+renewal" of a background check they never hold (conversation); HR is
+told a person is "due to start today" a week early (regulatory). Also
+found: a corp-to-corp line never reaches its own default set; a blank
+waiver writes an override instead of refusing; the client's page and
+the nightly check disagree by a day on a lapse; good standing is
+required on running lines and nothing watches it; the supplier's
+onboarding link keeps no file (demand); "work may begin" on a start a
+week early (money). The note above that four readers "still carry
+their own list" is out of date: they merge the line's set over their
+own floor since 2026-09-22, and disagree in three named places. This
+fix wave goes ahead of other work, per "the two trust flows get the
+first seat at every release"; it does not hold the account chooser,
+which touches no paper.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
