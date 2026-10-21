@@ -26,7 +26,7 @@ import { primeCalendar } from '@/lib/seed-calendar'
 import { finishedSteps, recordStep, seedVersion } from '@/lib/seed-steps'
 import { worldAnchor } from '@/lib/seed-world'
 import { buildFrame, frameSteps, type FrameStep } from './frame'
-import { buildPeople, peopleSteps } from './people'
+import { buildPeople, peopleAfterJobsSteps, peopleSteps } from './people'
 import { jobSteps } from './jobs'
 import { seedRates } from './rates/rows'
 import { SCALE_VERSION, type PersonFacts, type ScaleFrame } from './types'
@@ -45,8 +45,8 @@ function paperSteps(_frame: ScaleFrame, _people: () => readonly PersonFacts[]): 
 /**
  * Every step of the generated world, in order: the frame; the people
  * (supply); the papers (regulatory, a slot); the jobs (demand), which put
- * the people forward; and the rates (money), which price the lines the
- * people's careers wrote.
+ * the people forward; the lines pointed at the jobs they filled (supply);
+ * and the rates (money), which price the lines the people's careers wrote.
  */
 function allSteps(frame: ScaleFrame): FrameStep[] {
   let people: PersonFacts[] | null = null
@@ -56,6 +56,9 @@ function allSteps(frame: ScaleFrame): FrameStep[] {
     ...peopleSteps(frame),
     ...paperSteps(frame, theirs),
     ...jobSteps(theirs),
+    // Every career line points at the filled job it came from (supply):
+    // after the jobs exist, before the rates price the lines.
+    ...peopleAfterJobsSteps(),
     ...Array.from({ length: RATE_SHARES }, (_, index): FrameStep => ({
       name: `scale:rates:${index + 1}-of-${RATE_SHARES}`, run: (f) => seedRates(f, { index, of: RATE_SHARES }),
     })),
