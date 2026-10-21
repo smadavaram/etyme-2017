@@ -1659,6 +1659,37 @@ every refusal is a lesson, and the report counts documents by kind and
 bytes stored, with the paper routes' timings under that load. The
 station runs unchanged on the generated world.
 
+**Ten thousand documents moved, 2026-10-21 (regulatory, 9ea70513d).**
+One run at 520 placements and two weeks moved 10,990 documents through
+the real routes as the real seats and stored 2,792 real files (8.8
+MB): at a supplier's first submission to a client the compliance
+officer asks for the W-9, three certificates of insurance, good
+standing, the signed NDA and non-compete, and the MSA where none
+stands, the supplier answers each with a file and the client examines
+it (82 papers from 12 suppliers); at screening 1,600 papers from 400
+candidates; 29 sent back with a reason and answered again; 359 of 372
+placements started, 246 refused first and learning, 13 on hold after a
+flagged background report with the pre-adverse notice given and the
+wait not over. No server error; every paper route's 95th percentile
+under half a second. Two moves that did not exist were built:
+`POST /api/documents/:id/examine` (accepted with the dates and edition
+printed on it, an agreement countersigned, a certificate recorded on
+the supplier's standing, or sent back with a reason) and
+`POST /api/compliance/adverse-action` (the FCRA steps, the waiting
+periods kept as data per place, refused outside the US rather than
+guessed). **The founder's screening list was corrected by the rule
+table, not dropped:** asking for the ID, the I-9 and the background
+check before an offer is unlawful in most of the US (document abuse;
+criminal checks before a conditional offer), so those move to the
+award and the two questions that stand in for them are asked at
+screening. Every expected refusal held: a worker cannot send a
+background report, a paper nobody asked for cannot go on file, nobody
+examines their own paper, the AP clerk examines nothing, a supplier
+cannot open another supplier's paper, the final adverse notice is
+refused during the wait. The walk's fixes landed in 81ec7ab50 with a
+sentence each; the I-9 edition retirement dates are from research and
+are to be checked before anybody relies on them.
+
 **The document flow was walked as every person, 2026-10-21, on the
 founder's "Can you test the docflow."** The rules hold: nobody starts
 without an I-9; an I-9 is refused unless the document it was completed
