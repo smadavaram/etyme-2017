@@ -275,7 +275,6 @@ function handBuiltFrame(): ScaleFrame {
   const trades: Trade[] = [
     paper('prime', 'client-a', 'CLIENT'), paper('gsi', 'client-a', 'CLIENT'), paper('bench', 'client-a', 'CLIENT'),
     paper('prime', 'client-b', 'CLIENT'), paper('sub', 'prime', 'PRIME'), paper('bench', 'sub', 'PRIME'),
-    paper('solo', 'prime', 'PRIME'),
     { seller: 'msp', buyer: 'client-b', relationship: 'RUNS' as Trade['relationship'], tier: null, agreementId: null, disclosesSubVendors: false },
   ]
   const byId = new Map(firms.map((f) => [f.id, f]))
@@ -311,13 +310,18 @@ function memoryWorld(frame: ScaleFrame) {
     payPeriod: 'BIWEEKLY', payCalcOffsetDays: 4, payDayOffsetDays: 6, payDaysOfMonth: [28], payCalcDaysBefore: 3,
     paySettingsSetAt: null, paySettingsSetById: null,
   }))
-  // As the frame writes them: net 45 to a client and 30 otherwise, nothing else said.
-  const agreements: AgreementRow[] = frame.trades.filter((t) => t.agreementId).map((t) => ({
-    id: t.agreementId!, vendorId: t.seller, clientId: t.buyer,
-    paymentTerms: t.relationship === 'CLIENT' ? 45 : 30, paymentTermsFrom: 'PERIOD_END',
+  // As the frame writes them: each with its buyer's terms, at creation.
+  const planned = planAgreementTerms(frame)
+  const agreements: AgreementRow[] = frame.trades.filter((t) => t.agreementId).map((t) => {
+    const { terms } = planned.get(t.agreementId!)!
+    return { id: t.agreementId!, vendorId: t.seller, clientId: t.buyer, ...JSON.parse(JSON.stringify(terms)) }
+  })
+  // As the people step writes a one-person company's: net days and nothing else said.
+  agreements.push({
+    id: 'agreement-solo-prime', vendorId: 'solo', clientId: 'prime', paymentTerms: 30, paymentTermsFrom: 'PERIOD_END',
     billFrequency: null, billAnchor: null, billStraddle: null, billableExpenseKinds: [], billableExpenseKindsSaid: false,
     currency: 'USD', minMarginPct: null, rateCard: null,
-  }))
+  })
   const sell: SellRow[] = [
     // Ada: client-a ← prime ← sub, the sub employs her on W2. Live.
     sellLine('s-ada-prime', 'prime', 'client-a', 'ada', 10500, -120, 240),
@@ -333,6 +337,7 @@ function memoryWorld(frame: ScaleFrame) {
     sellLine('s-ed-prime', 'prime', 'client-a', 'ed', 9900, -10, 170),
   ]
   // Ed's line recorded why it differs from the agreement, so it is left as it is.
+  sell[4] = { ...sell[4], msaId: 'agreement-solo-prime' }
   sell[6] = { ...sell[6], billFrequency: 'WEEKLY', termsDifferReason: 'The client asked for weekly bills on this one placement.' }
   const buy: BuyRow[] = [
     buyLine('b-ada-prime', 'prime', 'sub', 'C2C', 'ada', 9200, -120, 240),
@@ -397,10 +402,16 @@ function memoryWorld(frame: ScaleFrame) {
 }
 
 describe('the generated world’s rates: the rows, against a hand-built frame', () => {
-  it('every agreement carries its buyer’s own terms: one rhythm, one net days and one expense rule for every supplier of one buyer', async () => {
+  it('every agreement carries its buyer’s own terms: one rhythm, one net days and one expense rule for every supplier of one buyer, a one-person company’s included', async () => {
     const frame = handBuiltFrame()
     const w = memoryWorld(frame)
-    await seedRatesWith(frame, w.io)
+    const out = await seedRatesWith(frame, w.io)
+    expect(out.agreements).toBe(1)
+    const ofPrime = w.agreements.filter((a) => a.clientId === 'prime')
+    expect(ofPrime.map((a) => a.vendorId).sort()).toEqual(['solo', 'sub'])
+    for (const field of ['paymentTerms', 'paymentTermsFrom', 'billFrequency', 'billAnchor', 'billStraddle', 'billableExpenseKinds'] as const) {
+      expect(new Set(ofPrime.map((a) => JSON.stringify(a[field]))).size).toBe(1)
+    }
     const ofClientA = w.agreements.filter((a) => a.clientId === 'client-a')
     expect(ofClientA).toHaveLength(3)
     for (const field of ['paymentTerms', 'paymentTermsFrom', 'billFrequency', 'billAnchor', 'billStraddle', 'billableExpenseKindsSaid'] as const) {
@@ -552,13 +563,13 @@ describe('the generated world’s rates: the rows, against a hand-built frame', 
     expect(split.sell).toEqual(whole.sell)
   })
 
-  it('an agreement the frame names and the database lacks is counted, never invented', async () => {
+  it('an agreement a line points at and the database lacks is counted, never invented', async () => {
     const frame = handBuiltFrame()
     const w = memoryWorld(frame)
-    w.agreements.splice(0, 1)
+    w.agreements.splice(w.agreements.findIndex((a) => a.id === 'agreement-solo-prime'), 1)
     const out = await seedRatesWith(frame, w.io)
     expect(out.agreementsMissing).toBe(1)
-    expect(w.agreements).toHaveLength(frame.trades.filter((t) => t.agreementId).length - 1)
+    expect(w.agreements.some((a) => a.id === 'agreement-solo-prime')).toBe(false)
     expect(rateId('x')).toMatch(/^cz[0-9a-z]{23}$/)
   })
 })

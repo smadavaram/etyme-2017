@@ -4,7 +4,8 @@
  * Given a frame, and the lines supply has written, this writes what money
  * owns on them, and nothing else:
  *
- *   1. the terms on every agreement the frame wrote: the buyer's own
+ *   1. the terms on every agreement (the frame writes its own at
+ *      creation; this brings a one-person company's to the same): the buyer's own
  *      rhythm, net days and what they run from, the billable expense
  *      kinds, the seller's margin floor, and a client's rate card
  *   2. the bench pay columns on bench firms and integrators
@@ -324,32 +325,14 @@ export async function seedRatesWith(frame: ScaleFrame, io: RatesIo, share?: Shar
   const birthday = frame.clock.birthday
 
   // ── 1. Agreement terms ──────────────────────────────────────────────
+  //
+  // The frame writes every agreement it names with these terms at creation
+  // (`agreementTermsFor`), so they are planned here and not written: the
+  // lines below take them. What the frame does not name, a one-person
+  // company's agreement with the prime it sells to, is written by the
+  // people step with net days alone and brought to the prime's standard
+  // paper below.
   const agreements = planAgreementTerms(frame)
-  const agreementIds = shareOf([...agreements.keys()].sort(), share)
-  const onFile = agreementIds.length ? await io.readAgreements(agreementIds) : []
-  out.agreementsMissing = agreementIds.length - onFile.length
-  // One standard agreement per buyer, so one write per buyer whose paper differs.
-  const byBuyer = new Map<string, string[]>()
-  const byFloor = new Map<number, string[]>()
-  for (const row of onFile) {
-    const plan = agreements.get(row.id)!
-    if (buyerTermsDiffer(row, buyerTermsOf(plan.terms))) {
-      byBuyer.set(plan.buyerId, [...(byBuyer.get(plan.buyerId) ?? []), row.id])
-    }
-    if (row.minMarginPct !== plan.terms.minMarginPct) {
-      byFloor.set(plan.terms.minMarginPct, [...(byFloor.get(plan.terms.minMarginPct) ?? []), row.id])
-    }
-  }
-  const touched = new Set<string>()
-  for (const ids of byBuyer.values()) {
-    await io.updateAgreements(ids, buyerTermsOf(agreements.get(ids[0])!.terms))
-    ids.forEach((id) => touched.add(id))
-  }
-  for (const [floor, ids] of byFloor) {
-    await io.updateAgreements(ids, { minMarginPct: floor })
-    ids.forEach((id) => touched.add(id))
-  }
-  out.agreements = touched.size
 
   // ── 2. Bench pay ────────────────────────────────────────────────────
   const companies = await io.readCompanies()
@@ -381,6 +364,40 @@ export async function seedRatesWith(frame: ScaleFrame, io: RatesIo, share?: Shar
   const solo = (companyId: string | null) =>
     !!companyId && (companyById.get(companyId)?.kind === 'CONSULTANT_CORP' || firmOf(companyId)?.position === 'SOLO')
   const nameOf = (id: string) => companyById.get(id)?.name ?? firmOf(id)?.name ?? 'Supplier'
+
+  // A one-person company sells on its buyer's standard subcontract, the
+  // same paper the buyer gives every sub-vendor.
+  for (const l of sell) {
+    if (!solo(l.companyId) || !l.msaId || agreements.has(l.msaId)) continue
+    const buyer = firmOf(l.clientCompanyId)
+    if (!buyer) continue
+    const t = { agreementId: l.msaId, relationship: 'PRIME' as const }
+    agreements.set(l.msaId, {
+      buyerId: buyer.id, sellerId: l.companyId,
+      terms: agreementTermsFor(t, buyer, { runByMsp: frame.mspOf(buyer.id) !== null, industries: frame.industries }),
+    })
+  }
+  const soloIds = shareOf([...agreements.keys()].filter((id) => !frame.trades.some((t) => t.agreementId === id)).sort(), share)
+  const onFile = soloIds.length ? await io.readAgreements(soloIds) : []
+  out.agreementsMissing = soloIds.length - onFile.length
+  // One standard agreement per buyer, so one write per buyer whose paper differs.
+  const byBuyer = new Map<string, string[]>()
+  const byFloor = new Map<number, string[]>()
+  for (const row of onFile) {
+    const plan = agreements.get(row.id)!
+    if (buyerTermsDiffer(row, buyerTermsOf(plan.terms))) byBuyer.set(plan.buyerId, [...(byBuyer.get(plan.buyerId) ?? []), row.id])
+    if (row.minMarginPct !== plan.terms.minMarginPct) byFloor.set(plan.terms.minMarginPct, [...(byFloor.get(plan.terms.minMarginPct) ?? []), row.id])
+  }
+  const touched = new Set<string>()
+  for (const ids of byBuyer.values()) {
+    await io.updateAgreements(ids, buyerTermsOf(agreements.get(ids[0])!.terms))
+    ids.forEach((id) => touched.add(id))
+  }
+  for (const [floor, ids] of byFloor) {
+    await io.updateAgreements(ids, { minMarginPct: floor })
+    ids.forEach((id) => touched.add(id))
+  }
+  out.agreements = touched.size
 
   // The agreement between a seller and its buyer, by the line's own pointer first.
   const agreementByPair = new Map<string, string>()

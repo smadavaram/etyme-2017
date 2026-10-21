@@ -80,6 +80,12 @@ const LINE_COLUMNS = [
 const MAY_COPY_THE_COLUMNS = [
   /^src\/app\/api\/submissions\//,
   /^src\/lib\/award\.ts$/,
+  // The generated world writes money's own answer for an agreement's
+  // terms (`agreementTermsFor` in lib/seed-scale/rates) onto the agreement
+  // and the lines under it as it creates them, the way the award writes a
+  // placement's. One writer of the terms, copied once, at creation.
+  /^src\/lib\/seed-scale\/frame\.ts$/,
+  /^src\/lib\/seed-scale\/people\//,
 ]
 
 /** Copying one of the four from one row onto another. */
