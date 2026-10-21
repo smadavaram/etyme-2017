@@ -56,7 +56,8 @@ export default function ApplyPage() {
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState({ legalName: '', address: '', duns: '', website: '', experience: '', skills: '', bankName: '', accountName: '', last4: '' })
   const [refs, setRefs] = useState([{ name: '', company: '', email: '', phone: '' }, { name: '', company: '', email: '', phone: '' }])
-  const [files, setFiles] = useState<Record<string, { fileName: string; size: number }>>({})
+  /** The file itself, read in the browser, so the client's team has something to examine. */
+  const [files, setFiles] = useState<Record<string, { fileName: string; size: number; type: string; content: string }>>({})
   /**
    * The two dates printed on a certificate, typed by the firm that holds
    * it. They are not a verdict: a desk still verifies the document, and
@@ -92,7 +93,7 @@ export default function ApplyPage() {
           bank: { bankName: form.bankName, accountName: form.accountName, last4: form.last4 },
           references: refs.filter((r) => r.name || r.company),
           docs: Object.entries(files).map(([key, f]) => ({
-            key, fileName: f.fileName, size: f.size,
+            key, fileName: f.fileName, size: f.size, type: f.type, content: f.content,
             validFrom: dates[key]?.validFrom || null,
             validUntil: dates[key]?.validUntil || null,
           })),
@@ -109,9 +110,14 @@ export default function ApplyPage() {
     }
   }
 
-  const pick = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const pick = (key: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) setFiles((cur) => ({ ...cur, [key]: { fileName: f.name, size: f.size } }))
+    if (!f) return
+    // The bytes go with the name, as base64: the route keeps the file, not just what it was called.
+    const buf = new Uint8Array(await f.arrayBuffer())
+    let bin = ''
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+    setFiles((cur) => ({ ...cur, [key]: { fileName: f.name, size: f.size, type: f.type || 'application/octet-stream', content: btoa(bin) } }))
   }
 
   return (

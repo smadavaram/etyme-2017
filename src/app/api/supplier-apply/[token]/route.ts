@@ -4,15 +4,20 @@ import { notify } from '@/lib/notify'
 import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { approvedSays, claimUrl, sentSays } from '@/lib/supplier-link'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
+import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
 
 /**
  * GET  /api/supplier-apply/[token]  — what the client asks for, and what is already in
  * POST /api/supplier-apply/[token]  — the firm supplies its side
  *
  * No sign-in. The link is the firm's, sent to the contact the client
- * named; it stops working once the client has decided. Files are
- * recorded by name and size against the item they answer — the firm's
- * side goes to PROVIDED, and only Procurement's own verifying makes it
+ * named; it stops working once the client has decided. A file arrives
+ * whole and is kept the way every other paper's bytes are kept
+ * (`DocFile`), on a paper of the client's that the item points at, so
+ * the client's paperwork team opens it through the one file door and
+ * nobody else can. Until 2026-10-21 only the name and size were kept,
+ * and HR had nothing to examine (the document-flow walk). The firm's
+ * side goes to PROVIDED, and only the desk's own verifying makes it
  * HELD. In time this page is the supplier's door into the client
  * portal; today it is one page that asks for exactly what the trade
  * asks for.
@@ -86,22 +91,42 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // certificate the firm is uploading, and asking for them here saves
   // the desk retyping them off a PDF later — the desk still verifies,
   // and corrects them where the firm typed them wrong.
-  const docs: { key: string; fileName: string; size: number; validFrom: string | null; validUntil: string | null }[] = Array.isArray(body?.docs)
+  //
+  // The file rides in with them, as `content` in base64: a name with
+  // nothing behind it is not an answer, and is refused in a sentence.
+  const docs: { key: string; fileName: string; size: number; type: string; bytes: Buffer | null; validFrom: string | null; validUntil: string | null }[] = Array.isArray(body?.docs)
     ? body.docs.filter((d: any) => typeof d?.key === 'string' && typeof d?.fileName === 'string').map((d: any) => ({
         key: d.key,
-        fileName: d.fileName,
+        fileName: String(d.fileName).slice(0, 200),
         size: Number(d.size ?? 0),
+        type: typeof d?.type === 'string' && d.type ? d.type : 'application/octet-stream',
+        bytes: typeof d?.content === 'string' && d.content ? Buffer.from(d.content, 'base64') : null,
         validFrom: typeof d?.validFrom === 'string' && d.validFrom.trim() ? d.validFrom.trim() : null,
         validUntil: typeof d?.validUntil === 'string' && d.validUntil.trim() ? d.validUntil.trim() : null,
       }))
     : []
+  for (const d of docs) {
+    if (!d.bytes || d.bytes.byteLength === 0) {
+      return NextResponse.json({ error: { code: 'FILE_REQUIRED', message: `${d.fileName} did not arrive with the file itself. Pick it again and send it.` } }, { status: 422 })
+    }
+    const verdict = checkDocumentUpload({ name: d.fileName, type: d.type, size: d.bytes.byteLength })
+    if (!verdict.ok) return NextResponse.json({ error: { code: 'FILE_REFUSED', message: verdict.says } }, { status: 422 })
+    if (d.bytes.byteLength > MAX_DOCUMENT_BYTES) {
+      return NextResponse.json({ error: { code: 'FILE_REFUSED', message: `${d.fileName} arrived as ${sizeSaid(d.bytes.byteLength)} and ten megabytes is the limit. Send a smaller copy.` } }, { status: 413 })
+    }
+  }
   const bank = body?.bank && typeof body.bank === 'object'
     ? { bankName: String(body.bank.bankName ?? '').trim(), accountName: String(body.bank.accountName ?? '').trim(), last4: String(body.bank.last4 ?? '').replace(/\D/g, '').slice(-4) }
     : null
   const skills: string[] = typeof body?.skills === 'string' ? body.skills.split(/[,;]/).map((x: string) => x.trim()).filter(Boolean) : Array.isArray(body?.skills) ? body.skills : []
 
-  const provided: { key: string; fileName?: string | null; validFrom?: string | null; validUntil?: string | null }[] =
-    docs.map((d) => ({ key: d.key, fileName: d.fileName, validFrom: d.validFrom, validUntil: d.validUntil }))
+  const ordered = withOrderedItems(row.checklist as unknown as ChecklistItem[], await orderedOfSuppliers(row.companyId), row.company.name)
+  const labelOf = new Map(ordered.map((i) => [i.key, i.label]))
+  const provided: { key: string; fileName?: string | null; fileUrl?: string | null; validFrom?: string | null; validUntil?: string | null }[] = []
+  for (const d of docs) {
+    const fileUrl = await keepTheFile(row.companyId, row.id, d.key, labelOf.get(d.key) ?? d.key, { name: d.fileName, type: d.type, bytes: d.bytes! })
+    provided.push({ key: d.key, fileName: d.fileName, fileUrl, validFrom: d.validFrom, validUntil: d.validUntil })
+  }
   if (bank?.bankName && bank.accountName && bank.last4.length === 4) provided.push({ key: 'BANK', fileName: `${bank.bankName} ····${bank.last4}` })
   if (str('experience')) provided.push({ key: 'EXPERIENCE', fileName: null })
   if (references.length >= 2) provided.push({ key: 'REFERENCES', fileName: `${references.length} references` })
@@ -117,14 +142,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     references: references.length ? references : (prior.references ?? []),
     bank: bank?.last4 ? bank : (prior.bank ?? null),
     skills: skills.length ? skills : (prior.skills ?? []),
-    docs: [...((prior.docs as any[]) ?? []).filter((d) => !docs.some((n) => n.key === d.key)), ...docs.map((d) => ({ ...d, at: now.toISOString() }))],
+    docs: [
+      ...((prior.docs as any[]) ?? []).filter((d) => !docs.some((n) => n.key === d.key)),
+      // What was sent, never the bytes: those are kept on the paper the item points at.
+      ...docs.map(({ bytes: _b, ...d }) => ({ ...d, fileUrl: provided.find((p) => p.key === d.key)?.fileUrl ?? null, at: now.toISOString() })),
+    ],
     submittedAt: now.toISOString(),
   }
-  const checklist = provideItems(
-    withOrderedItems(row.checklist as unknown as ChecklistItem[], await orderedOfSuppliers(row.companyId), row.company.name),
-    provided,
-    now
-  )
+  const checklist = provideItems(ordered, provided, now)
   await prisma.supplierRequest.update({
     where: { id: row.id },
     data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },
@@ -156,4 +181,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         : sentSays(row.company.name),
     },
   }, { status: 201 })
+}
+
+/**
+ * Keep one file the firm sent: a paper of the client's for that item,
+ * the bytes on it (`DocFile`), and the address of the one file door.
+ * One paper per item of one request; a second answer replaces the bytes,
+ * the way a sent-back paper is answered again. The paper is the
+ * client's, because the client asked for it: its paperwork team opens
+ * it, and nobody at another company can.
+ */
+async function keepTheFile(clientId: string, requestId: string, key: string, label: string, file: { name: string; type: string; bytes: Buffer }): Promise<string> {
+  const name = label.slice(0, 200)
+  const template =
+    (await prisma.docTemplate.findFirst({ where: { companyId: clientId, name }, select: { id: true } })) ??
+    (await prisma.docTemplate.create({ data: { companyId: clientId, name, audience: 'VENDOR', needsSignature: false }, select: { id: true } }))
+  const now = new Date()
+  const subjectId = `${requestId}:${key}`
+  const id = await prisma.$transaction(async (tx) => {
+    const paper =
+      (await tx.docInstance.findFirst({ where: { subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId }, select: { id: true } })) ??
+      (await tx.docInstance.create({
+        data: { templateId: template.id, subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId, status: 'UPLOADED', sentAt: now },
+        select: { id: true },
+      }))
+    await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
+    await tx.docFile.upsert({
+      where: { docInstanceId: paper.id },
+      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes },
+      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedAt: now },
+    })
+    return paper.id
+  })
+  return `/api/documents/${id}/file`
 }

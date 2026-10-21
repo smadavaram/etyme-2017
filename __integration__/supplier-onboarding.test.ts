@@ -7,6 +7,7 @@ import { GET as applyGet, POST as applyPost } from '@/app/api/supplier-apply/[to
 import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
 import { GET as complianceView } from '@/app/api/compliance/route'
+import { GET as openFile } from '@/app/api/documents/[id]/file/route'
 
 /**
  * Northbend Athletic's hiring manager met a firm at a conference. It walks four desks
@@ -28,6 +29,11 @@ const viaToken = async (fn: any, method: string, token: string, body?: unknown) 
   json(await fn(req(method, `/api/supplier-apply/${token}`, body), { params: Promise.resolve({ token }) }))
 const it_: Record<string, any> = {}
 const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+/** A small real file, the way the page sends one: its bytes in base64 beside its name. */
+const pdf = (words: string) => {
+  const bytes = Buffer.from(`%PDF-1.4\n% ${words}\n%%EOF\n`)
+  return { size: bytes.byteLength, type: 'application/pdf', content: bytes.toString('base64') }
+}
 
 describe('a supplier walks four desks', () => {
   beforeAll(async () => {
@@ -115,10 +121,10 @@ describe('a supplier walks four desks', () => {
       bank: { bankName: 'US Bank', accountName: 'Harbor Staffing LLC', last4: '9921' },
       references: [{ name: 'A', company: 'Acme' }, { name: 'B', company: 'Beta' }],
       docs: [
-        { key: 'TAX_FORM', fileName: 'Harbor-W9.pdf', size: 100 },
+        { key: 'TAX_FORM', fileName: 'Harbor-W9.pdf', ...pdf('Harbor Staffing W-9') },
         // The two dates printed on the certificate, typed by the firm
         // that holds it. Received, never verified — HR still decides.
-        { key: 'INSURANCE', fileName: 'Harbor-COI.pdf', size: 100, validFrom: iso(-30), validUntil: iso(335) },
+        { key: 'INSURANCE', fileName: 'Harbor-COI.pdf', ...pdf('Harbor Staffing certificate of insurance'), validFrom: iso(-30), validUntil: iso(335) },
       ],
     })
     expect(sent.status, JSON.stringify(sent.body)).toBe(201)
@@ -127,9 +133,28 @@ describe('a supplier walks four desks', () => {
     expect(sent.body.data.says).toContain('Sent to Northbend Athletic. They will be in touch.')
     expect(sent.body.data.says).toContain('still needs: Certificate of good standing')
     const again = await viaToken(applyPost, 'POST', it_.token, {
-      docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', size: 100, validFrom: iso(-60), validUntil: iso(305) }],
+      docs: [{ key: 'GOOD_STANDING', fileName: 'Harbor-good-standing-2026.pdf', ...pdf('Harbor Staffing good standing'), validFrom: iso(-60), validUntil: iso(305) }],
     })
     expect(again.body.data.says).toBe('Sent to Northbend Athletic. They will be in touch.')
+  })
+
+  it('a file the firm sends through its link is kept whole, HR opens it through the one file door, and a name with no file is refused', async () => {
+    const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: it_.id } })
+    const cover = (row.checklist as any[]).find((i) => i.key === 'INSURANCE')
+    expect(cover.fileUrl, 'the item points at the kept file').toMatch(/^\/api\/documents\/[^/]+\/file$/)
+    const id = cover.fileUrl.split('/')[3]
+    const kept = await prisma.docFile.findUniqueOrThrow({ where: { docInstanceId: id } })
+    expect(kept.fileName).toBe('Harbor-COI.pdf')
+    expect(kept.bytes.toString()).toContain('Harbor Staffing certificate of insurance')
+    // The client's paperwork team reads it; the paper is the client's.
+    as(HR)
+    const opened = await openFile(req('GET', cover.fileUrl), { params: Promise.resolve({ id }) })
+    expect(opened.status).toBe(200)
+    expect(Buffer.from(await opened.arrayBuffer()).toString()).toContain('Harbor Staffing certificate of insurance')
+    // A file's name with nothing behind it is not an answer.
+    const bare = await viaToken(applyPost, 'POST', it_.token, { docs: [{ key: 'PROPOSAL', fileName: 'Harbor-proposal.pdf', size: 100 }] })
+    expect(bare.status).toBe(422)
+    expect(bare.body.error.message).toBe('Harbor-proposal.pdf did not arrive with the file itself. Pick it again and send it.')
   })
 
   it('Procurement is refused until its own items are verified, verifies what the firm sent, waives the D&B report with a reason, and qualifies the firm', async () => {

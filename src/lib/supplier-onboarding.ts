@@ -107,6 +107,15 @@ export interface ChecklistItem {
   validFrom?: string | null
   /** The day it runs out, as printed on it. ISO. */
   validUntil?: string | null
+  /**
+   * Where the file the firm sent is kept: the one file door,
+   * `/api/documents/<id>/file`, which the client's paperwork team opens
+   * and nobody else can. Null where nothing was sent, or the item is
+   * answered in words (references, bank details). A file's name with no
+   * bytes behind it gave HR nothing to examine (the document-flow walk,
+   * 2026-10-21).
+   */
+  fileUrl?: string | null
 }
 
 /** What the desks ask for, in the words they use, and who verifies each. */
@@ -723,7 +732,7 @@ export function markItem(
  */
 export function provideItems(
   checklist: ChecklistItem[],
-  provided: { key: string; fileName?: string | null; validFrom?: string | null; validUntil?: string | null }[],
+  provided: { key: string; fileName?: string | null; fileUrl?: string | null; validFrom?: string | null; validUntil?: string | null }[],
   at: Date
 ): ChecklistItem[] {
   const byKey = new Map(provided.map((p) => [p.key, p]))
@@ -736,6 +745,7 @@ export function provideItems(
       state: 'PROVIDED',
       at: at.toISOString(),
       fileName: p.fileName ?? i.fileName ?? null,
+      fileUrl: p.fileUrl ?? i.fileUrl ?? null,
       validFrom: p.validFrom ?? i.validFrom ?? null,
       validUntil: p.validUntil ?? i.validUntil ?? null,
     }

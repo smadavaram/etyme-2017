@@ -612,7 +612,9 @@ export default function SuppliersPage() {
                           {item.label}
                           {optionalWord(item) && <span className="text-etyme-faint"> · {optionalWord(item)}</span>}
                           <span className="text-etyme-faint"> · {suppliedByWords(item)}</span>
-                          {item.fileName && <span className="text-etyme-faint"> — {item.fileName}</span>}
+                          {item.fileName && (item.fileUrl
+                            ? <> — <a href={item.fileUrl} target="_blank" rel="noreferrer" className="text-etyme-action underline">{item.fileName}</a></>
+                            : <span className="text-etyme-faint"> — {item.fileName}</span>)}
                           {item.state === 'PROVIDED' && <span className="text-etyme-action"> · received, verify</span>}
                           {item.note && <span className="text-etyme-faint"> — {item.note}</span>}
                           {/* Whose order asked for it, where it is not
