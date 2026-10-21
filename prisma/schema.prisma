@@ -233,13 +233,14 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash    String?
+  passwordHash        String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt DateTime?
-  emailTokens     EmailToken[]
-  signInFailures  SignInFailure[]
+  emailVerifiedAt     DateTime?
+  emailTokens         EmailToken[]
+  signInFailures      SignInFailure[]
+  adverseActionsGiven AdverseAction[]
 
   @@index([name])
   @@index([createdAt])
@@ -955,7 +956,8 @@ model Company {
   /// The census this company was created to hold, where that is what it
   /// is. One row at most: a sandbox is made for one client's census and
   /// is never reused for a second.
-  censusSandboxFor CensusRequest? @relation("censusSandbox")
+  censusSandboxFor CensusRequest?  @relation("censusSandbox")
+  adverseActions   AdverseAction[]
 
   @@index([listedById])
 }
@@ -3547,9 +3549,10 @@ model SellContract {
   termsDifferReason String?
   /// Who gave the reason.
   termsDifferById   String?
-  termsDifferBy     Person?   @relation("sellTermsDifferBy", fields: [termsDifferById], references: [id])
+  termsDifferBy     Person?         @relation("sellTermsDifferBy", fields: [termsDifferById], references: [id])
   /// When the reason was given.
   termsDifferAt     DateTime?
+  adverseActions    AdverseAction[]
 
   @@index([companyId, state])
   @@index([clientCompanyId])
@@ -6122,14 +6125,17 @@ model Verification {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  documents VerificationDoc[]
+  documents      VerificationDoc[]
   /// The evidence this one was completed from. An I-9 is a form, not proof
   /// — it is completed FROM a passport, a green card or a license — so an
   /// I-9 on file with nothing here is a form nobody can stand behind.
-  backedBy  DocumentBacking[] @relation("documentBacked")
+  backedBy       DocumentBacking[] @relation("documentBacked")
   /// The forms this document is evidence for. One passport can back an
   /// I-9 and an E-Verify case at once.
-  backs     DocumentBacking[] @relation("documentEvidence")
+  backs          DocumentBacking[] @relation("documentEvidence")
+  /// The steps the ordering firm took after this report (FCRA): each its
+  /// own row, never written into the provider's `result`.
+  adverseActions AdverseAction[]
 
   @@index([personId, type, status])
   @@index([companyId, type, status])
@@ -6648,7 +6654,16 @@ model DocInstance {
 
   /// The file itself, where somebody sent one rather than a link. A
   /// separate row on purpose — see the docblock on `DocFile`.
-  file DocFile?
+  file         DocFile?
+  /// Who looked at it and when (POST /api/documents/:id/examine). Added
+  /// 2026-10-21: an examination lived only as a sentence in `note`, so
+  /// "examined by Dana Whitfield on Oct 2" could not be read without
+  /// parsing prose. Null = nobody has examined it, which is the truth for
+  /// every row written before this day. A person id, like `signedById`.
+  examinedById String?
+  examinedAt   DateTime?
+
+  adverseActions AdverseAction[]
 
   @@index([subjectType, subjectId, status])
   @@index([templateId])
@@ -9004,4 +9019,67 @@ model RuleSet {
 
   @@unique([companyId, version])
   @@index([setByPersonId])
+}
+
+/// A step the ordering firm takes after a screening company reports
+/// something unfavorable about a person (the FCRA steps).
+///
+/// Added 2026-10-21. Until today the steps lived inside the provider's
+/// recorded `Verification.result`, as `result.adverse`, beside the
+/// provider's own words. A report is the provider's and is kept as they
+/// wrote it; what the firm did about it is the firm's, with its own
+/// dates, its own person and its own reason. Two authors in one JSON
+/// column is a record nobody can audit.
+///
+/// The rule is `adverseStep` in lib/attestation (regulatory): the
+/// pre-adverse notice with a copy of the report, a wait counted in
+/// business days under the site's own law, then the final notice with a
+/// reason — or a decision not to act, with its reason. This table is
+/// where those steps are kept, one row per step, never updated.
+///
+/// The step names are the route's own (PRE_NOTICE, FINAL, NOT_TAKEN), so
+/// the API and the table say one vocabulary.
+model AdverseAction {
+  id             String        @id @default(cuid())
+  verificationId String
+  verification   Verification  @relation(fields: [verificationId], references: [id])
+  /// The firm that ordered the report and gives the notices. Every read
+  /// is scoped to it.
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id])
+  /// The placement the decision is about, where there is one.
+  sellContractId String?
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id])
+
+  step             AdverseStep
+  /// When the notice went to the person (or the decision was made).
+  sentAt           DateTime
+  /// PRE_NOTICE only: the first day a final decision may be made.
+  waitEndsAt       DateTime?
+  /// The law the wait was counted under, as it read that day.
+  waitSays         String?
+  byId             String
+  by               Person       @relation(fields: [byId], references: [id])
+  /// FINAL and NOT_TAKEN: what was weighed. Refused blank by the route.
+  reason           String?
+  /// PRE_NOTICE: a copy of the report went with the notice.
+  reportCopySent   Boolean      @default(false)
+  /// The notice itself, a paper sent like any other.
+  noticeDocumentId String?
+  noticeDocument   DocInstance? @relation(fields: [noticeDocumentId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  /// One of each step per report: a notice is given once.
+  @@unique([verificationId, step])
+  @@index([companyId, sentAt])
+  @@index([sellContractId])
+  @@index([byId])
+  @@index([noticeDocumentId])
+}
+
+enum AdverseStep {
+  PRE_NOTICE
+  FINAL
+  NOT_TAKEN
 }
