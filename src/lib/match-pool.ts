@@ -483,7 +483,16 @@ export interface PoolRequirement {
   endClientCompanyId: string | null
   /** When the job starts. Somebody placed past it is not offered. Null reads as a month from today. */
   startDate?: Date | null
+  /** The job's skills, which narrow the suggestions. Read from the job where not given. */
+  skills?: string[]
 }
+
+/**
+ * The most suggestions one pool reads: people beyond the viewer's own
+ * register who hold one of the job's skills, in a fixed order. Bounded
+ * because this circle is the one that reaches past the register.
+ */
+export const SUGGESTIONS_READ = 200
 
 /**
  * Whether somebody on a live placement can take this job, and from when.
@@ -579,6 +588,15 @@ export async function poolFor(
   // with, and — for a client on its own request — every marketed one
   // whose person said yes to being shown in matches. Always filtered by
   // company or by that yes; never the whole platform.
+  //
+  // Two reads, decided 2026-10-21 on the generated world's 1,020
+  // marketed listings: one cut at 400 rows with no order over all three
+  // circles let an arbitrary 400 through, different on every run, so whom
+  // a client saw was chance. The circles the viewer deals with are read
+  // whole — they are bounded by its own register. Suggestions, the one
+  // circle that reaches past it, are narrowed to people holding one of
+  // the job's skills and read in a fixed order before any cut.
+  const stillStaying = { OR: [{ staysUntil: null }, { staysUntil: { gt: now } }] }
   const listingWhere = {
     revokedAt: null,
     state: 'GRANTED',
@@ -588,23 +606,40 @@ export async function poolFor(
         OR: [
           { companyId: viewerCompanyId },
           ...(outside.length > 0 ? [{ companyId: { in: outside }, tier: 'MARKETING' as const }] : []),
-          ...(opts.suggest ? [{ tier: 'MARKETING' as const, showInMatches: true }] : []),
         ],
       },
       // A stay the person chose, still running — or none chosen.
-      { OR: [{ staysUntil: null }, { staysUntil: { gt: now } }] },
+      stillStaying,
     ],
   }
-  const listings = await prisma.benchListing.findMany({
-    where: listingWhere,
-    select: {
-      companyId: true, tier: true, state: true, revokedAt: true, showInMatches: true, staysUntil: true,
-      rateMin: true, rateMax: true, grantedAt: true, consultantId: true,
-      company: { select: { name: true } },
-      consultant: { select: consultantSelect },
-    },
-    take: 400,
-  })
+  const jobSkills = opts.suggest ? requirement.skills ?? (await prisma.requirement.findUnique({ where: { id: requirement.id }, select: { skills: true } }))?.skills ?? [] : []
+  const suggestWhere = {
+    revokedAt: null,
+    state: 'GRANTED',
+    ...{ tier: 'MARKETING' as const, showInMatches: true },
+    // Never a firm already read above, and never one the viewer blocked or only reaches through a prime.
+    companyId: { notIn: [viewerCompanyId, ...outside, ...reachTies.blocked, ...reachTies.belowPrimes] },
+    consultant: { personId: { notIn: [...excluded] }, skills: { hasSome: jobSkills } },
+    AND: [stillStaying],
+  }
+  const listingSelect = {
+    companyId: true, tier: true, state: true, revokedAt: true, showInMatches: true, staysUntil: true,
+    rateMin: true, rateMax: true, grantedAt: true, consultantId: true,
+    company: { select: { name: true } },
+    consultant: { select: consultantSelect },
+  } as const
+  const [direct, suggested] = await Promise.all([
+    prisma.benchListing.findMany({ where: listingWhere, select: listingSelect, orderBy: [{ grantedAt: 'desc' }, { id: 'asc' }] }),
+    opts.suggest && jobSkills.length > 0
+      ? prisma.benchListing.findMany({
+          where: suggestWhere, select: listingSelect,
+          // The most recently confirmed first, then a fixed tie-break, so the same job sees the same people.
+          orderBy: [{ consultant: { confirmedAt: { sort: 'desc', nulls: 'last' } } }, { grantedAt: 'desc' }, { id: 'asc' }],
+          take: SUGGESTIONS_READ,
+        })
+      : Promise.resolve([]),
+  ])
+  const listings = [...direct, ...suggested]
 
   const entries: PoolEntry[] = []
   for (const l of listings) {

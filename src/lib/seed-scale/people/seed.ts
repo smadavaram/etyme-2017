@@ -22,13 +22,15 @@
  * (demand), an order header, a cycle or a rate card (money).
  */
 
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { day } from '@/lib/seed-days'
 import { stayFields } from '@/lib/bench-stay'
 import { ownSeatGrantReason } from '@/lib/own-seat'
 import { ensureSolo, roleKeyOf, type FrameStep } from '../frame'
-import { idFor, minutesAfter, writeMissing } from '../kit'
+import { agreementTermsFor, type AgreementTerms } from '../rates/pure'
+import { jobIdForLine } from '../jobs/plan'
+import { batch, idFor, minutesAfter, writeMissing } from '../kit'
 import type { ScaleFrame, Share } from '../types'
 import { planPeople, profileAuth, soloIdOf, type LinePlan, type PersonPlan } from './plan'
 
@@ -56,6 +58,15 @@ export function peopleSteps(frame?: ScaleFrame): FrameStep[] {
     { name: 'scale:people:careers', run: (f) => seedLines(f, false) },
     { name: 'scale:people:placements', run: (f) => seedLines(f, true) },
   ]
+}
+
+/**
+ * The step that runs after the jobs (demand): every line points at the
+ * filled job it came from (`jobIdForLine`). It cannot ride on the lines'
+ * own insert, because the jobs are written after the people.
+ */
+export function peopleAfterJobsSteps(): FrameStep[] {
+  return [{ name: 'scale:people:lines-to-jobs', run: seedLinesToJobs }]
 }
 
 /** The names of the people's steps, for `index.ts` to run after the frame's. */
@@ -296,7 +307,16 @@ async function seedLines(frame: ScaleFrame, live: boolean): Promise<void> {
             { id: idFor(`tie/${seller}/${buyer}/PRIME`), companyId: seller, otherCompanyId: buyer, relationship: 'PRIME', since },
             { id: idFor(`tie/${buyer}/${seller}/SUPPLIER`), companyId: buyer, otherCompanyId: seller, relationship: 'SUPPLIER', since, tier: 'APPROVED' },
           )
-          agreements.push({ id: msaId, vendorId: seller, clientId: buyer, paymentTerms: 30, currency: 'USD', signedAt: since, effectiveDate: since })
+          // The prime's own subcontract terms, from money's one writer of terms (rates/pure `agreementTermsFor`).
+          const terms = soloTerms(frame, msaId, buyer)
+          agreements.push({
+            id: msaId, vendorId: seller, clientId: buyer,
+            paymentTerms: terms.paymentTerms, paymentTermsFrom: terms.paymentTermsFrom, billFrequency: terms.billFrequency,
+            billAnchor: terms.billAnchor, billStraddle: terms.billStraddle, billableExpenseKinds: terms.billableExpenseKinds,
+            billableExpenseKindsSaid: terms.billableExpenseKindsSaid, currency: terms.currency, minMarginPct: terms.minMarginPct,
+            rateCard: (terms.rateCard ?? undefined) as Prisma.InputJsonValue | undefined,
+            signedAt: since, effectiveDate: since,
+          })
           engagements.push({ id: engagementId, msaId, title: `${p.facts.name} for ${frame.byId.get(buyer)?.name ?? 'the prime'}`, invoiceCycle: 'MONTHLY' })
         } else {
           const t = paper.get(`${seller}|${buyer}`)
@@ -309,6 +329,7 @@ async function seedLines(frame: ScaleFrame, live: boolean): Promise<void> {
           engagementId, msaId, workLocationId: l.workLocationId,
           hiringManagerId: r === 0 ? client.program?.hiringManagerId ?? null : null,
           billRate: l.rates[r].billCents, billCurrency: 'USD', paymentTerms: r === 0 ? 45 : 30, state,
+          ...(ownCompany ? lineTerms(soloTerms(frame, msaId!, buyer)) : {}),
           startDate: l.start, endDate: l.end, createdAt: plus(l.start, -10),
         })
         if (ownCompany) continue
@@ -343,7 +364,47 @@ async function seedLines(frame: ScaleFrame, live: boolean): Promise<void> {
   await writeMissing(db.projectRelease, releases)
 }
 
+/** The terms on a one-person company's agreement with the prime above it: the prime's standard subcontract. */
+function soloTerms(frame: ScaleFrame, agreementId: string, primeId: string): AgreementTerms {
+  const prime = frame.byId.get(primeId)
+  if (!prime) throw new Error(`No prime ${primeId} in the frame.`)
+  return agreementTermsFor({ agreementId, relationship: 'PRIME' }, prime, { runByMsp: false, industries: frame.industries })
+}
+
+/** What a line under that agreement reads from it, the same as money sets every other line. */
+function lineTerms(t: AgreementTerms) {
+  return {
+    paymentTerms: t.paymentTerms, paymentTermsFrom: t.paymentTermsFrom,
+    billFrequency: t.billFrequency, billAnchor: t.billAnchor, billStraddle: t.billStraddle,
+  }
+}
+
 function dedupe<T extends { id: string }>(rows: T[]): T[] {
   const seen = new Set<string>()
   return rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+}
+
+// ── Lines to the jobs they filled ─────────────────────────────────────
+
+/**
+ * Every line, every rung, carries the filled job it came from, as the
+ * base world's placements do. Only where that job exists and the line does
+ * not already say so: a second run changes nothing.
+ */
+async function seedLinesToJobs(frame: ScaleFrame): Promise<void> {
+  const rows: { id: string; requirementId: string }[] = []
+  for (const p of planPeople(frame)) {
+    for (const l of p.lines) {
+      const job = jobIdForLine(p.facts, { clientId: l.clientId, start: l.start })
+      for (let r = 0; r < l.chain.length; r++) rows.push({ id: rungIds(p, l, r).sell, requirementId: job })
+    }
+  }
+  for (const b of batch(rows)) {
+    const values = Prisma.join(b.map((x) => Prisma.sql`(${x.id}, ${x.requirementId})`))
+    await db.$executeRaw`
+      UPDATE "SellContract" s SET "requirementId" = v.r
+      FROM (VALUES ${values}) AS v(id, r)
+      WHERE s.id = v.id AND s."requirementId" IS DISTINCT FROM v.r
+        AND EXISTS (SELECT 1 FROM "Requirement" q WHERE q.id = v.r)`
+  }
 }

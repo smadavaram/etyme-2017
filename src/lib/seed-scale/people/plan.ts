@@ -31,6 +31,7 @@
 import { day } from '@/lib/seed-days'
 import { daysFor } from '@/lib/tenure-days'
 import { STAY_CHOICES } from '@/lib/bench-stay'
+import { EARLIEST_DAY, timeLimitMonths } from '../frame'
 import { industry, skillsOf } from '../industries'
 import { NameBook, between, emailFor, idFor, keyed, pick, weighted } from '../kit'
 import { floorFor, listingRate, pairFor } from '../rates/pure'
@@ -136,18 +137,9 @@ const NEAR_CAP_EVERY = 6
 /** Room every other person keeps under a client's limit, in days. */
 const CAP_ROOM = 120
 
-/**
- * The first day a generated line or seat may start: after every firm in
- * the frame was made (two years before the birthday) and its seats
- * granted, so no person is on a firm's record before the firm is, and the
- * door that opens `<slug>/owner` (the first grant) still finds the Owner.
- */
-const EARLIEST_DAY = -700
-
-/** A client's time limit in months, as `seedPrograms` in the frame writes it. */
-export function capMonthsOf(client: ScaleFirm): number {
-  return client.index % 2 === 0 ? 18 : 24
-}
+// The first day a generated line or seat may start, and a client's time
+// limit, are the frame's (`EARLIEST_DAY`, `timeLimitMonths`): one
+// writer for each, so the people and the governance rule cannot disagree.
 
 // ── Where people sit ──────────────────────────────────────────────────
 
@@ -351,7 +343,7 @@ class Planner {
         client = pick(r, options)
         chain = pick(r, this.chainsFor(client, ind, opts.bottom))
       }
-      const room = daysFor(capMonthsOf(client)) - CAP_ROOM - (used.get(client.id) ?? 0)
+      const room = daysFor(timeLimitMonths(client)) - CAP_ROOM - (used.get(client.id) ?? 0)
       let dur = between(r, 90, 270)
       if (dur > room) dur = room
       if (dur < 60) {
@@ -476,7 +468,7 @@ class Planner {
       // A third are coming off their project within six weeks, flagged by their delivery manager.
       const rolling = i % 3 === 0
       const end = rolling ? day(between(r, 7, 42)) : day(between(r, 60, 300))
-      const room = daysFor(capMonthsOf(client)) - CAP_ROOM
+      const room = daysFor(timeLimitMonths(client)) - CAP_ROOM
       const start = plus(day(0), -Math.min(between(r, 30, 300), room - spanDays(day(0), end)))
       lines = [this.line('live', client, [gsi.id], start, end, true, who, country, {
         release: rolling ? { releasedById: dm.personId, rollsOffOn: end, confirmed: i % 2 === 0 } : null,
@@ -503,7 +495,7 @@ class Planner {
     const { n, id, name, r } = this.next('BETWEEN_PROJECTS', null)
     const near = i % NEAR_CAP_EVERY === 0
     // Somebody near a limit is built at a client whose limit fits inside the firms' two years on the record.
-    const client = pick(r, this.clients.filter((c) => this.chainsFor(c, c.industries[0], this.notGsi).length > 0 && (!near || capMonthsOf(c) === 18)))
+    const client = pick(r, this.clients.filter((c) => this.chainsFor(c, c.industries[0], this.notGsi).length > 0 && (!near || timeLimitMonths(c) === 18)))
     const ind = client.industries[0]
     const role = this.roleIn(r, ind, ['MID', 'SENIOR'])
     const country = this.countryAt(r, null)
@@ -518,7 +510,7 @@ class Planner {
       // of the client's limit: the time limit has somebody to stop.
       const others = options.filter((c) => c[c.length - 1] !== firstChain[firstChain.length - 1])
       const earlierChain = others.length ? pick(r, others) : firstChain
-      const total = daysFor(capMonthsOf(client)) - between(r, 10, 50)
+      const total = daysFor(timeLimitMonths(client)) - between(r, 10, 50)
       const d2 = between(r, 150, 250)
       const d1 = total - d2
       const end2 = day(-between(r, 0, 30))
@@ -590,7 +582,7 @@ class Planner {
       const primes = this.frame.panelOf(client.id).filter((f) => f.position === 'PRIME' && f.industries.includes(ind))
       const prime = primes.length ? pick(r, primes) : null
       if (prime) {
-        const room = daysFor(capMonthsOf(client)) - CAP_ROOM - (used.get(client.id) ?? 0)
+        const room = daysFor(timeLimitMonths(client)) - CAP_ROOM - (used.get(client.id) ?? 0)
         const start = day(-between(r, 20, 180))
         const end = plus(start, Math.min(between(r, 120, 360), room) - 1)
         if (end > day(14)) {
@@ -643,7 +635,7 @@ class Planner {
     const options = this.chainsFor(client, ind, this.notGsi)
     if (!options.length) throw new Error(`Nobody but an integrator reaches ${client.name}.`)
     const chain = pick(r, options)
-    const room = daysFor(capMonthsOf(client)) - CAP_ROOM
+    const room = daysFor(timeLimitMonths(client)) - CAP_ROOM
     const booked = between(r, 120, Math.min(420, room))
     const served = between(r, 20, Math.min(300, booked - 30))
     const start = day(-served)

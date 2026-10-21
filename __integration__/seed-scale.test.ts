@@ -17,7 +17,10 @@ import { buildFrame, seedFrame, namedFirms } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, vocabularyFaults, skillsOf } from '@/lib/seed-scale/industries'
 import { sharedTails } from '@/lib/seed-scale/kit'
 import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, SCALE_SLUG_PREFIX, STEP_QUERY_BUDGET, type ScaleFrame } from '@/lib/seed-scale/types'
-import { peopleSteps, planPeople, careerCounts, soloIdOf, buildPeople } from '@/lib/seed-scale/people'
+import { peopleSteps, peopleAfterJobsSteps, planPeople, careerCounts, soloIdOf, buildPeople, rungIds } from '@/lib/seed-scale/people'
+import { jobIdForLine } from '@/lib/seed-scale/jobs'
+import { agreementTermsFor } from '@/lib/seed-scale/rates/pure'
+import { poolFor } from '@/lib/match-pool'
 import { STAY_CHOICES } from '@/lib/bench-stay'
 import { daysFor, daysOnSite } from '@/lib/tenure-days'
 import { day } from '@/lib/seed-days'
@@ -63,7 +66,8 @@ beforeAll(async () => {
   })
   // The people (supply), step by step, each step's questions counted.
   s.peopleSteps = []
-  for (const step of peopleSteps(frame)) {
+  // The lines are pointed at their filled jobs after the jobs are written (`peopleAfterJobsSteps`).
+  for (const step of [...peopleSteps(frame), ...peopleAfterJobsSteps()]) {
     const before = counter.asked
     await step.run(frame)
     s.peopleSteps.push({ step: step.name, asked: counter.asked - before })
@@ -443,7 +447,7 @@ describe('the generated world’s people', () => {
       'sellContract', 'buyContract', 'buyContractCandidate', 'contractLink', 'counterparty', 'masterAgreement', 'engagement', 'projectRelease'] as const
     const count = async () => Object.fromEntries(await Promise.all(TABLES.map(async (t) => [t, await (prisma as any)[t].count()])))
     const before = await count()
-    for (const step of peopleSteps(frame)) {
+    for (const step of [...peopleSteps(frame), ...peopleAfterJobsSteps()]) {
       const asked = counter.asked
       await step.run(frame)
       expect(counter.asked - asked, `${step.name}, walked again`).toBeLessThanOrEqual(STEP_QUERY_BUDGET)
@@ -462,5 +466,71 @@ describe('the generated world’s people', () => {
     const missing = planPeople(frame).filter((p) => !open.has(p.facts.email)).map((p) => p.facts.email)
     expect(missing).toEqual([])
   })
-})
 
+  it('every line points at the filled job it came from, at the same client', async () => {
+    const want = new Map<string, string>()
+    for (const p of planPeople(frame)) for (const l of p.lines) {
+      const job = jobIdForLine(p.facts, { clientId: l.clientId, start: l.start })
+      for (let r = 0; r < l.chain.length; r++) want.set(rungIds(p, l, r).sell, job)
+    }
+    const lines = await prisma.sellContract.findMany({
+      where: { id: { in: [...want.keys()] } },
+      select: { id: true, requirementId: true, endClientCompanyId: true, requirement: { select: { companyId: true, status: true } } },
+    })
+    expect(lines.length).toBe(want.size)
+    for (const l of lines) {
+      expect(l.requirementId, l.id).toBe(want.get(l.id))
+      expect(l.requirement?.companyId, l.id).toBe(l.endClientCompanyId)
+      expect(l.requirement?.status, l.id).toBe('FILLED')
+    }
+  })
+
+  it('a one-person company’s agreement with its prime carries the prime’s own subcontract terms, and its line reads them', async () => {
+    const rows = await prisma.masterAgreement.findMany({
+      where: { vendor: { kind: 'CONSULTANT_CORP', slug: { startsWith: SCALE_SLUG_PREFIX } } },
+      select: { id: true, clientId: true, paymentTerms: true, paymentTermsFrom: true, billFrequency: true, minMarginPct: true },
+    })
+    expect(rows.length).toBeGreaterThan(0)
+    for (const a of rows) {
+      const t = agreementTermsFor({ agreementId: a.id, relationship: 'PRIME' }, frame.byId.get(a.clientId)!, { runByMsp: false, industries: frame.industries })
+      expect({ net: a.paymentTerms, from: a.paymentTermsFrom, rhythm: a.billFrequency, floor: a.minMarginPct }, a.id)
+        .toEqual({ net: t.paymentTerms, from: t.paymentTermsFrom, rhythm: t.billFrequency, floor: t.minMarginPct })
+      const line = await prisma.sellContract.findFirst({ where: { msaId: a.id }, select: { paymentTerms: true, billFrequency: true } })
+      expect(line, a.id).toEqual({ paymentTerms: t.paymentTerms, billFrequency: t.billFrequency })
+    }
+  })
+
+  it('a client is matched against every free marketed person of its own suppliers, the same people on every read, and suggestions hold one of the job’s skills', async () => {
+    const job = await prisma.requirement.findFirstOrThrow({
+      where: { status: 'OPEN', company: { slug: { startsWith: SCALE_SLUG_PREFIX }, kind: 'CLIENT' } },
+      orderBy: { id: 'asc' },
+      select: { id: true, companyId: true, payerCompanyId: true, endClientCompanyId: true, startDate: true, skills: true },
+    })
+    const a = await poolFor(job, job.companyId, { suggest: true, now: day(0) })
+    const b = await poolFor(job, job.companyId, { suggest: true, now: day(0) })
+    expect(a.entries.map((e) => `${e.personId}|${e.firmId}`)).toEqual(b.entries.map((e) => `${e.personId}|${e.firmId}`))
+    // Nobody free on a supplier's bench is left out by a cut: everybody marketed at the panel with no line at all is in.
+    const panel = frame.panelOf(job.companyId).map((f) => f.id)
+    const [listed, submitted, barred] = await Promise.all([
+      prisma.benchListing.findMany({
+        where: {
+          companyId: { in: panel }, tier: 'MARKETING', state: 'GRANTED', revokedAt: null,
+          OR: [{ staysUntil: null }, { staysUntil: { gt: day(0) } }],
+          consultant: { person: { sellContracts: { none: {} } } },
+        },
+        select: { consultant: { select: { personId: true } } },
+      }),
+      prisma.submission.findMany({ where: { requirementId: job.id }, select: { personId: true } }),
+      prisma.doNotSubmit.findMany({ where: { companyId: job.companyId }, select: { personId: true } }),
+    ])
+    const out = new Set([...submitted, ...barred].map((x) => x.personId))
+    const seen = new Set(a.entries.filter((e) => e.reach !== 'SUGGESTION').map((e) => e.personId))
+    const free = [...new Set(listed.map((l) => l.consultant.personId))].filter((id) => !out.has(id))
+    expect(free.length).toBeGreaterThan(0)
+    for (const id of free) expect(seen.has(id), id).toBe(true)
+    const skillsOfPerson = new Map(a.entries.map((e) => [e.personId, e.consultant.skills]))
+    for (const e of a.entries.filter((x) => x.reach === 'SUGGESTION')) {
+      expect(skillsOfPerson.get(e.personId)!.some((k) => job.skills.includes(k)), e.personId).toBe(true)
+    }
+  })
+})

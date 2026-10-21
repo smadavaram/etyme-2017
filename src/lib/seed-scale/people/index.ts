@@ -4,6 +4,6 @@
  * `planPeople` decides; the steps write. See `plan.ts` and `seed.ts`.
  */
 
-export { buildPeople, peopleFacts, planPeople, personIdOf, soloIdOf, careerCounts, capMonthsOf, tally } from './plan'
+export { buildPeople, peopleFacts, planPeople, personIdOf, soloIdOf, careerCounts, tally } from './plan'
 export type { LinePlan, ListingPlan, PersonPlan } from './plan'
-export { peopleSteps, peopleStepNames, seedPeople, rungIds, SOLOS_PER_STEP } from './seed'
+export { peopleSteps, peopleAfterJobsSteps, peopleStepNames, seedPeople, rungIds, SOLOS_PER_STEP } from './seed'

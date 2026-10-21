@@ -29,7 +29,7 @@ describe('the match engine never searches the whole platform', () => {
 
   it('reads only listings of the viewer, of a firm it deals with, or of a person who said yes to being shown', () => {
     const start = POOL.indexOf('const listingWhere = {')
-    const end = POOL.indexOf('const listings = await prisma.benchListing.findMany', start)
+    const end = POOL.indexOf('const listingSelect = {', start)
     expect(start).toBeGreaterThan(-1)
     const where = POOL.slice(start, end)
     expect(where).toContain("revokedAt: null")
@@ -37,6 +37,22 @@ describe('the match engine never searches the whole platform', () => {
     expect(where).toContain('{ companyId: viewerCompanyId }')
     expect(where).toContain("{ companyId: { in: outside }, tier: 'MARKETING' as const }")
     expect(where).toContain("{ tier: 'MARKETING' as const, showInMatches: true }")
+  })
+
+  it('reads the firms a viewer deals with whole, in a fixed order, and cuts only the suggestions beyond its register, narrowed to the job’s skills', () => {
+    const start = POOL.indexOf('const listingWhere = {')
+    const end = POOL.indexOf('const entries: PoolEntry[] = []', start)
+    const read = POOL.slice(start, end)
+    // The register's circles: no cut, so nobody on a supplier's bench is dropped by chance.
+    const direct = read.slice(read.indexOf('prisma.benchListing.findMany({ where: listingWhere'), read.indexOf('opts.suggest && jobSkills.length'))
+    expect(direct).not.toContain('take:')
+    expect(direct).toContain("orderBy: [{ grantedAt: 'desc' }, { id: 'asc' }]")
+    // Suggestions: only people holding one of the job's skills, ordered before the cut.
+    expect(read).toContain('skills: { hasSome: jobSkills }')
+    const suggest = read.slice(read.indexOf('where: suggestWhere'))
+    expect(suggest.indexOf('orderBy:')).toBeGreaterThan(-1)
+    expect(suggest.indexOf('orderBy:')).toBeLessThan(suggest.indexOf('take: SUGGESTIONS_READ'))
+    expect(POOL).not.toContain('take: 400')
   })
 
   it('says an empty pool as the circles it looked in, never as the whole platform', () => {

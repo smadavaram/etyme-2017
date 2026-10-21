@@ -13,8 +13,8 @@ import { buildFrame } from '@/lib/seed-scale/frame'
 import { INDUSTRIES, skillsOf } from '@/lib/seed-scale/industries'
 import { sharedTails } from '@/lib/seed-scale/kit'
 import { CAREER_MIX, GSI_STAFF, NEAR_TIME_LIMIT_SHARE, SCALE, SCALE_EMAIL_SUFFIX, type ScaleFrame } from '@/lib/seed-scale/types'
-import { buildPeople, capMonthsOf, careerCounts, peopleStepNames, planPeople, rungIds, tally, type PersonPlan } from '@/lib/seed-scale/people'
-import { roleKeyOf } from '@/lib/seed-scale/frame'
+import { buildPeople, careerCounts, peopleStepNames, planPeople, rungIds, tally, type PersonPlan } from '@/lib/seed-scale/people'
+import { roleKeyOf, timeLimitMonths } from '@/lib/seed-scale/frame'
 
 let frame: ScaleFrame
 let people: PersonPlan[]
@@ -144,7 +144,7 @@ describe('the generated world’s two thousand people, before anything is writte
       for (const l of p.lines) at.set(l.clientId, [...(at.get(l.clientId) ?? []), { startDate: l.start, endDate: l.end }])
       let isNear = false
       for (const [client, periods] of at) {
-        const cap = daysFor(capMonthsOf(frame.byId.get(client)!))
+        const cap = daysFor(timeLimitMonths(frame.byId.get(client)!))
         const days = daysOnSite(periods, day(0))
         expect(days, p.facts.name).toBeLessThan(cap)
         if (days >= cap - 61) isNear = true
