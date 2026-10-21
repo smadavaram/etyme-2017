@@ -47,7 +47,7 @@
  * A warning captures a reason and proceeds. Never silently.
  */
 
-import { orderedNotCollected, readVerdict, withArticle } from '@/lib/attestation'
+import { adverseRecordFrom, orderedNotCollected, readVerdict, recordLabel, withArticle, type AdverseActionRow } from '@/lib/attestation'
 import {
   packetByKey,
   resolveItems,
@@ -292,7 +292,19 @@ export interface VerificationRow {
    * check against a register and "RN 154-882, WI expired" is.
    */
   result?: unknown
+  /**
+   * The firm's steps after an unfavorable report, from the `AdverseAction`
+   * table (select `ADVERSE_STEPS`). A reader that does not select them is
+   * read off the report's own `result`, where steps taken before
+   * 2026-10-21 were written.
+   */
+  adverseActions?: AdverseActionRow[]
 }
+
+/** What a reader of person checks selects so a decision after a flagged report is read: `{ ...yourSelect, ...ADVERSE_STEPS }`. */
+export const ADVERSE_STEPS = {
+  adverseActions: { select: { step: true, sentAt: true, waitEndsAt: true, waitSays: true, reason: true, noticeDocumentId: true, by: { select: { name: true } } } },
+} as const
 
 /** The number and the state off a verification's own result, where recorded. */
 export function credentialDetail(row: VerificationRow): { number: string | null; state: string | null } {
@@ -403,7 +415,7 @@ export function adverseSays(rows: VerificationRow[], person: string): { key: str
     const provider = r.provider ?? 'The screening company'
     const on = r.verifiedAt ?? r.issuedAt ?? null
     const what = labelFor(key).toLowerCase()
-    const decided = ((r.result as { adverse?: { decision?: string } } | null)?.adverse?.decision) ?? null
+    const decided = adverseRecordFrom(r.adverseActions ?? [], r.result).decision ?? null
     if (decided === 'NOT_TAKEN') continue
     out.push({
       key,
@@ -1638,4 +1650,118 @@ export async function lineExtras(
     supplierCertificates: certificates as CoverCertificate[],
     documentTypes: types as DefinedType[],
   }
+}
+
+// ── Papers that end before an extension's new end date ────────────────
+//
+// The founder's documents question, 2026-10-21: an extension checks the
+// order and the time limit, and nothing about papers, so a visa, an I-94,
+// a work permit or an insurance certificate ending before the new end date
+// passed in silence. The same split as every gate here, and the same reason:
+// work authorization BLOCKS, because a person cannot be put on a site past
+// the day the law lets them work; everything else WARNS and the extension
+// goes ahead only with a reason recorded. Never silently permit.
+//
+// Rules live in data: which papers are read, and which of them block, is
+// this table. A new paper is a new line.
+
+/** The papers an extension reads, and whether one ending first stops it. */
+export const EXTENSION_PAPERS: Record<string, { about: 'PERSON' | 'FIRM'; blocks: boolean }> = {
+  // Work authorization. The I-9's own date is the day it must be completed
+  // again, which is the date of the visa or work permit behind it.
+  I9_EVERIFY: { about: 'PERSON', blocks: true },
+  VISA: { about: 'PERSON', blocks: true },
+  I94: { about: 'PERSON', blocks: true },
+  WORK_PERMIT: { about: 'PERSON', blocks: true },
+  RIGHT_TO_WORK: { about: 'PERSON', blocks: true },
+  // Everything else a line leans on, which warns.
+  PROFESSIONAL_LICENSE: { about: 'PERSON', blocks: false },
+  INSURANCE_GL: { about: 'FIRM', blocks: false },
+  INSURANCE_WC: { about: 'FIRM', blocks: false },
+  INSURANCE_EO: { about: 'FIRM', blocks: false },
+  INSURANCE_CYBER: { about: 'FIRM', blocks: false },
+  GOOD_STANDING: { about: 'FIRM', blocks: false },
+}
+
+/** Statuses a paper is held in. A flagged or failed one is not something an extension can lean on. */
+const HELD_STATUSES = ['CLEAR', 'CONDITIONAL']
+
+export interface ExtensionPaper {
+  key: string
+  endsOn: Date
+  blocks: boolean
+  says: string
+}
+
+export interface ExtensionPapers {
+  outcome: Outcome
+  items: ExtensionPaper[]
+  /** One sentence per paper, joined. Empty where nothing ends first. */
+  says: string
+}
+
+/**
+ * Which papers end before the new end date. Of each kind, the one that
+ * runs latest is read, so a renewal already on file answers the old one.
+ * A kind the person or the firm holds none of is not this check's
+ * business — a citizen has no visa — and a paper with no end date ends
+ * nothing.
+ */
+export function extensionPapers(input: {
+  personName: string
+  supplierName: string
+  newEnd: Date
+  person: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[]
+  supplier: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[]
+}): ExtensionPapers {
+  const latest = (rows: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[], key: string): Date | null | 'NONE' => {
+    const held = rows.filter((r) => r.type === key && HELD_STATUSES.includes(r.status))
+    if (held.length === 0) return 'NONE'
+    if (held.some((r) => !r.expiresAt)) return null
+    return new Date(Math.max(...held.map((r) => r.expiresAt!.getTime())))
+  }
+  const newEnd = plainDate(input.newEnd.toISOString())
+  const items: ExtensionPaper[] = []
+  for (const [key, rule] of Object.entries(EXTENSION_PAPERS)) {
+    const ends = latest(rule.about === 'PERSON' ? input.person : input.supplier, key)
+    if (ends === 'NONE' || ends === null || ends.getTime() >= input.newEnd.getTime()) continue
+    const whose = rule.about === 'PERSON' ? input.personName : input.supplierName
+    const what = recordLabel(key)
+    const on = plainDate(ends.toISOString())
+    items.push({
+      key,
+      endsOn: ends,
+      blocks: rule.blocks,
+      says: rule.blocks
+        ? `${possessive(whose)} ${what} runs out on ${on}, before the new end date of ${newEnd}. Nobody works past the day their authorization ends: get the new one on file, then extend.`
+        : `${possessive(whose)} ${what} runs out on ${on}, before the new end date of ${newEnd}. Get the renewal on file, or say why the extension goes ahead without it.`,
+    })
+  }
+  items.sort((a, b) => Number(b.blocks) - Number(a.blocks) || a.endsOn.getTime() - b.endsOn.getTime())
+  const outcome: Outcome = items.some((i) => i.blocks) ? 'BLOCK' : items.length ? 'WARN' : 'PASS'
+  return { outcome, items, says: items.map((i) => i.says).join(' ') }
+}
+
+/**
+ * Whether the extension may go ahead on its papers, given the reason the
+ * person extending gave. BLOCK refuses whatever the reason; WARN needs a
+ * reason, kept beside the extension; PASS needs nothing.
+ */
+export function mayExtendOnPapers(
+  papers: ExtensionPapers,
+  reason: string | null | undefined,
+): { ok: true; reason: string | null } | { ok: false; code: 'PAPERS_BLOCK' | 'PAPERS_NEED_A_REASON'; message: string } {
+  if (papers.outcome === 'BLOCK') {
+    return { ok: false, code: 'PAPERS_BLOCK', message: papers.items.filter((i) => i.blocks).map((i) => i.says).join(' ') }
+  }
+  if (papers.outcome === 'WARN') {
+    const r = reason?.trim()
+    if (!r) return { ok: false, code: 'PAPERS_NEED_A_REASON', message: papers.says }
+    return { ok: true, reason: r }
+  }
+  return { ok: true, reason: null }
+}
+
+function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}’` : `${name}’s`
 }

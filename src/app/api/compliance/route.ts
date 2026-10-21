@@ -9,7 +9,7 @@ import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/
 import { hasPermission } from '@/lib/permissions'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
-import { credentialKeys, credentialDetail, contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, lineExtras } from '@/lib/contract-clearance'
 import { chainTop } from '@/lib/chain-top'
 import { checkHealth } from './health'
 import { orderedNotCollected, readVerdict } from '@/lib/attestation'
@@ -561,7 +561,7 @@ export async function GET(request: NextRequest) {
   const starts = await Promise.all(
     notStarted.slice(0, 25).map(async (c) => {
       const [personRows, firmRows] = await Promise.all([
-        prisma.verification.findMany({ where: { personId: c.personId }, select: verificationShape }),
+        prisma.verification.findMany({ where: { personId: c.personId }, select: { ...verificationShape, ...ADVERSE_STEPS } }),
         prisma.verification.findMany({ where: { companyId: c.companyId, personId: null }, select: verificationShape }),
       ])
       const firmName = shown(c.companyId, c.company.name)

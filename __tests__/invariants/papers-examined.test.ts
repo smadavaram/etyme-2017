@@ -11,10 +11,12 @@
  */
 import { describe, it, expect } from 'vitest'
 import { mayAct, mayExamine, type ExamineFacts } from '@/lib/document-request'
-import { adverseStep, adverseWaitFor, addBusinessDays, type AdverseInput } from '@/lib/attestation'
+import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
+import { adverseSays } from '@/lib/contract-clearance'
 import { compile } from '@/lib/document-stages'
 import { SCREENING_WISHES } from '../../scripts/simulate/stages/regulatory/documents'
-import { pdf, photo } from '../../scripts/simulate/stages/regulatory/paper-files'
+import { pdf, photo, sendFile } from '../../scripts/simulate/stages/regulatory/paper-files'
+import { readFileSync } from 'node:fs'
 
 const ON = new Date('2026-10-21T12:00:00Z')
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
@@ -140,6 +142,26 @@ describe('after an unfavorable background report, the firm that ordered it walks
     expect(adverseWaitFor({ country: 'IN', state: 'KA' })).toBeNull()
     expect(adverseStep({ ...base, wait: null }, ON)).toMatchObject({ ok: false, code: 'NOT_CARRIED' })
   })
+  it('each step is one row of its own beside the report, and the steps on file are read back as the record the next step is judged against', () => {
+    const pre = adverseStep(base, ON)
+    if (!pre.ok) throw new Error(pre.message)
+    const row = adverseActionFor('PRE_NOTICE', pre.record, { verificationId: 'v1', companyId: 'c1', sellContractId: 's1', byId: 'p-dana', noticeDocumentId: 'n1', on: ON })
+    expect(row).toMatchObject({ step: 'PRE_NOTICE', reportCopySent: true, noticeDocumentId: 'n1', reason: null, sellContractId: 's1' })
+    expect(row.waitEndsAt?.toISOString().slice(0, 10)).toBe('2026-10-28')
+    const record = adverseRecordFrom([{ ...row, by: { name: 'Dana Whitfield' } }])
+    // A second pre-adverse notice is refused off the row, and the final notice waits for the day on it.
+    expect(adverseStep({ ...base, record }, ON)).toMatchObject({ ok: false, code: 'ALREADY_GIVEN' })
+    expect(adverseStep({ ...base, step: 'FINAL', reason: 'Relevant to the job.', record }, d('2026-10-23'))).toMatchObject({ ok: false, code: 'WAITING' })
+  })
+  it('a decision not to act, read from its row, stops the start from warning about the report, and a report decided before the table existed still reads decided', () => {
+    const flagged = { type: 'BACKGROUND_CHECK', status: 'FLAGGED', provider: 'Sterling', referenceId: 'STE-4471', verifiedAt: d('2026-10-01'), result: { outcome: 'FLAGGED' } }
+    expect(adverseSays([flagged], 'Helena Marsh')).toHaveLength(1)
+    const decided = { ...flagged, adverseActions: [{ step: 'NOT_TAKEN', sentAt: d('2026-10-03'), reason: 'The charge was dismissed.', by: { name: 'Dana Whitfield' } }] }
+    expect(adverseSays([decided], 'Helena Marsh')).toHaveLength(0)
+    expect(adverseRecordFrom(decided.adverseActions)).toMatchObject({ decision: 'NOT_TAKEN', decisionReason: 'The charge was dismissed.', decidedBy: 'Dana Whitfield' })
+    const older = { ...flagged, result: { outcome: 'FLAGGED', adverse: { decision: 'NOT_TAKEN', decisionReason: 'Dismissed.' } } }
+    expect(adverseSays([older], 'Helena Marsh')).toHaveLength(0)
+  })
   it('business days skip the weekend', () => {
     expect(addBusinessDays(d('2026-10-23'), 1).toISOString().slice(0, 10)).toBe('2026-10-26')
   })
@@ -162,5 +184,21 @@ describe('the documents station', () => {
     expect(a.bytes.equals(b.bytes)).toBe(false)
     for (const f of [a, p]) expect(f.bytes.length).toBeGreaterThan(1500)
     for (const f of [a, p]) expect(f.bytes.length).toBeLessThan(20_000)
+  })
+})
+
+describe('a simulated seat sends a file in its own session', () => {
+  it('a file goes through the seat’s own upload, with its fields, and the station never reads the session cookie', async () => {
+    const sent: { path: string; form: FormData }[] = []
+    const actor = { upload: async (path: string, form: FormData) => { sent.push({ path, form }); return { status: 201, json: {}, ms: 1, ok: true, sentence: null } } }
+    const file = pdf('passport.pdf', 'Passport', ['A line'])
+    const res = await sendFile({} as never, actor as never, '/api/me/papers', file, { documentId: 'd1' })
+    expect(res.ok).toBe(true)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].path).toBe('/api/me/papers')
+    expect(sent[0].form.get('documentId')).toBe('d1')
+    expect((sent[0].form.get('file') as File).name).toBe('passport.pdf')
+    const source = readFileSync('scripts/simulate/stages/regulatory/paper-files.ts', 'utf8')
+    expect(source).not.toMatch(/cookie/i)
   })
 })

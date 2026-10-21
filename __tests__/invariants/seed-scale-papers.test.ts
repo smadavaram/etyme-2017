@@ -95,15 +95,21 @@ describe('the generated world’s papers, before anything is written', () => {
       const r = v.result as any
       expect(r.outcome).toBe('FLAGGED')
       expect(r.providerSays).toBeTruthy()
-      if (r.adverse) {
-        expect(r.adverse.decision).toBe('NOT_TAKEN')
-        expect(r.adverse.decisionReason.length).toBeGreaterThan(20)
-        expect(r.adverse.decidedBy).toBeTruthy()
-        // No notice is claimed as given without the paper behind it.
-        expect(r.adverse.preNoticeAt).toBeUndefined()
-      }
+      // The provider's words are left as they wrote them: the firm's steps are rows of their own.
+      expect(r.adverse).toBeUndefined()
     }
-    expect(flagged.some((v) => working.has(v.personId!) && (v.result as any).adverse)).toBe(true)
+    for (const a of plan.adverse) {
+      const report = flagged.find((v) => v.id === a.verificationId)
+      expect(report, 'a step is only ever taken on a flagged report').toBeTruthy()
+      expect(a.step).toBe('NOT_TAKEN')
+      expect((a.reason ?? '').length).toBeGreaterThan(20)
+      expect(a.companyId, 'by the firm that ordered it').toBe(report!.orderedByCompanyId)
+      expect(frame.byId.get(a.companyId)!.seats.some((s) => s.personId === a.byId)).toBe(true)
+      expect(a.sellContractId).toBeTruthy()
+      // No notice is claimed as given without the paper behind it.
+      expect(a.noticeDocumentId ?? null).toBeNull()
+    }
+    expect(plan.adverse.some((a) => working.has(flagged.find((v) => v.id === a.verificationId)!.personId!))).toBe(true)
   })
 
   it('a handful of supplier covers have lapsed, each naming its supplier, and every supplier has cover in date or a gap the start refuses', () => {

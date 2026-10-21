@@ -4,7 +4,7 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { packetByKey, startPacketFor } from '@/lib/packets'
-import { startPreview, hrNotice, lineExtras, papersAsked, countWord, type StartPreview } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, startPreview, hrNotice, lineExtras, papersAsked, countWord, type StartPreview } from '@/lib/contract-clearance'
 import { possessive } from '@/lib/requisition-approval'
 
 /**
@@ -167,7 +167,7 @@ async function factsFor(contractId: string) {
   if (!contract) return null
 
   const [personVerifications, supplierCertificates, documentTypes] = await Promise.all([
-    prisma.verification.findMany({ where: { personId: contract.personId }, select: FLOOR_AND_CEILING }),
+    prisma.verification.findMany({ where: { personId: contract.personId }, select: { ...FLOOR_AND_CEILING, ...ADVERSE_STEPS } }),
     prisma.verification.findMany({
       where: { companyId: contract.companyId, type: { in: [...CERTS] } },
       select: FLOOR_AND_CEILING,

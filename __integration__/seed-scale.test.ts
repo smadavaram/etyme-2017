@@ -530,7 +530,7 @@ describe('the generated world’s people', () => {
 
 describe('the generated world’s papers (regulatory)', () => {
   const p: Record<string, any> = {}
-  const TABLES = ['verification', 'documentBacking', 'visaPetition', 'visaEvent', 'visaDocument', 'exemptAssertion', 'documentRequirement'] as const
+  const TABLES = ['verification', 'documentBacking', 'adverseAction', 'visaPetition', 'visaEvent', 'visaDocument', 'exemptAssertion', 'documentRequirement'] as const
   const count = async () => Object.fromEntries(await Promise.all(TABLES.map(async (t) => [t, await (prisma as any)[t].count()])))
 
   beforeAll(async () => {
@@ -587,7 +587,19 @@ describe('the generated world’s papers (regulatory)', () => {
       expect(c.orderedByCompanyId).toBeTruthy()
       if (c.status !== 'IN_PROGRESS') expect((c.result as any)?.providerSays).toBeTruthy()
     }
-    expect(checks.some((c) => c.status === 'FLAGGED' && (c.result as any)?.adverse?.decision === 'NOT_TAKEN')).toBe(true)
+    // The firm's decision after a flagged report is a row beside it, by the firm that ordered it, never written into the provider's words.
+    const steps = await prisma.adverseAction.findMany({
+      where: { verification: { person: { primaryEmail: { endsWith: SCALE_EMAIL_SUFFIX } } } },
+      select: { step: true, reason: true, companyId: true, verification: { select: { status: true, orderedByCompanyId: true, result: true } } },
+    })
+    expect(steps.length).toBeGreaterThan(0)
+    for (const a of steps) {
+      expect(a.step).toBe('NOT_TAKEN')
+      expect(a.reason).toBeTruthy()
+      expect(a.verification.status).toBe('FLAGGED')
+      expect(a.companyId).toBe(a.verification.orderedByCompanyId)
+      expect((a.verification.result as any)?.adverse).toBeUndefined()
+    }
   })
 
   it('nobody’s work authorization is waived', async () => {

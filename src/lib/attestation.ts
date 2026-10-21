@@ -837,7 +837,7 @@ export type ProviderOutcome = (typeof PROVIDER_OUTCOMES)[number]
 
 const RECORD_LABEL: Record<string, string> = {
   I9_EVERIFY: 'I-9', RIGHT_TO_WORK: 'right-to-work check', PASSPORT: 'passport', GREEN_CARD: 'green card',
-  VISA: 'visa', DRIVERS_LICENSE: 'driver’s license', WORK_PERMIT: 'work permit',
+  VISA: 'visa', DRIVERS_LICENSE: 'driver’s license', WORK_PERMIT: 'work permit (EAD)', I94: 'I-94 record',
   PROFESSIONAL_LICENSE: 'professional license', BACKGROUND_CHECK: 'background check',
   DRUG_SCREENING: 'drug screen', EDUCATION_EVALUATION: 'education evaluation', REFERENCE_CHECK: 'reference check',
   INSURANCE_GL: 'general liability certificate', INSURANCE_WC: 'workers’ compensation certificate',
@@ -1391,6 +1391,86 @@ export interface AdverseRecord {
   decision?: 'ADVERSE' | 'NOT_TAKEN' | null
   decisionReason?: string | null
   decidedBy?: string | null
+}
+
+/**
+ * One step after an unfavorable report, as the `AdverseAction` table
+ * holds it: one row per report and step, written beside the report and
+ * never over it. Until 2026-10-21 the steps lived inside the report's own
+ * `result` column, which is the screening company's words; a table of
+ * their own keeps the firm's acts out of the provider's verdict.
+ */
+export interface AdverseActionRow {
+  step: AdverseStepKind | string
+  sentAt: Date
+  waitEndsAt?: Date | null
+  waitSays?: string | null
+  reason?: string | null
+  noticeDocumentId?: string | null
+  /** Whoever took the step, by name. */
+  by?: { name: string } | null
+}
+
+/**
+ * The record `adverseStep` reads, from the rows on file. Where a report
+ * has no rows at all and carries the steps the way they were written
+ * before the table existed (`result.adverse`), those are read instead, so
+ * a report decided before the move does not read as undecided after it.
+ */
+export function adverseRecordFrom(rows: readonly AdverseActionRow[], legacy?: unknown): AdverseRecord {
+  if (rows.length === 0) {
+    const old = (legacy as { adverse?: AdverseRecord } | null | undefined)?.adverse
+    return old && typeof old === 'object' ? { ...old } : {}
+  }
+  const out: AdverseRecord = {}
+  for (const r of rows) {
+    const step = String(r.step).toUpperCase()
+    if (step === 'PRE_NOTICE') {
+      out.preNoticeAt = r.sentAt.toISOString()
+      out.preNoticeDocumentId = r.noticeDocumentId ?? null
+      out.waitUntil = r.waitEndsAt ? r.waitEndsAt.toISOString() : null
+      out.waitSays = r.waitSays ?? null
+    } else if (step === 'FINAL') {
+      out.finalAt = r.sentAt.toISOString()
+      out.finalDocumentId = r.noticeDocumentId ?? null
+      out.decision = 'ADVERSE'
+      out.decisionReason = r.reason ?? null
+      out.decidedBy = r.by?.name ?? null
+    } else if (step === 'NOT_TAKEN') {
+      out.decision = 'NOT_TAKEN'
+      out.decisionReason = r.reason ?? null
+      out.decidedBy = r.by?.name ?? null
+    }
+  }
+  return out
+}
+
+/**
+ * The one row a step writes, from the verdict `adverseStep` returned.
+ * The firm and the seat are the caller's; the placement the one named.
+ */
+export function adverseActionFor(
+  step: AdverseStepKind,
+  record: AdverseRecord,
+  input: { verificationId: string; companyId: string; sellContractId: string | null; byId: string; noticeDocumentId: string | null; on: Date },
+): {
+  verificationId: string; companyId: string; sellContractId: string | null; step: AdverseStepKind; sentAt: Date
+  waitEndsAt: Date | null; waitSays: string | null; byId: string; reason: string | null; reportCopySent: boolean; noticeDocumentId: string | null
+} {
+  return {
+    verificationId: input.verificationId,
+    companyId: input.companyId,
+    sellContractId: input.sellContractId,
+    step,
+    sentAt: input.on,
+    waitEndsAt: step === 'PRE_NOTICE' && record.waitUntil ? new Date(record.waitUntil) : null,
+    waitSays: step === 'PRE_NOTICE' ? record.waitSays ?? null : null,
+    byId: input.byId,
+    reason: step === 'PRE_NOTICE' ? null : record.decisionReason ?? null,
+    // A pre-adverse notice is refused by `adverseStep` unless the copy of the report is attached, so a written one carried it.
+    reportCopySent: step === 'PRE_NOTICE',
+    noticeDocumentId: step === 'NOT_TAKEN' ? null : input.noticeDocumentId,
+  }
 }
 
 export interface AdverseInput {

@@ -102,6 +102,7 @@ export type PetitionRow = WithId<Prisma.VisaPetitionCreateManyInput>
 export type VisaEventRow = WithId<Prisma.VisaEventCreateManyInput>
 export type VisaDocumentRow = WithId<Prisma.VisaDocumentCreateManyInput>
 export type ExemptRow = WithId<Prisma.ExemptAssertionCreateManyInput>
+export type AdverseRow = WithId<Prisma.AdverseActionCreateManyInput>
 
 /** A state a paper is in, as the counts and the sentences name it. */
 export type PaperState =
@@ -115,6 +116,8 @@ export interface PaperPlan {
   /** The documents the I-9s were completed from; written before the backings. */
   evidence: VerificationRow[]
   backings: BackingRow[]
+  /** The firm's steps after a flagged report, one row per report and step. */
+  adverse: AdverseRow[]
   petitions: PetitionRow[]
   visaEvents: VisaEventRow[]
   visaDocuments: VisaDocumentRow[]
@@ -238,7 +241,7 @@ function bottomOf(l: LinePlan): { employerId: string; rung: number; w2: boolean 
 
 class Planner {
   private out: PaperPlan = {
-    person: [], evidence: [], backings: [], petitions: [], visaEvents: [], visaDocuments: [], exempt: [], cover: [],
+    person: [], evidence: [], backings: [], adverse: [], petitions: [], visaEvents: [], visaDocuments: [], exempt: [], cover: [],
     waived: [], states: new Map(), missingBackground: [], missingCover: [], placedUs: [],
   }
   private today = day(0)
@@ -494,12 +497,12 @@ class Planner {
         ? roll < 0.03 ? 'FLAGGED' : roll < 0.08 ? 'CONDITIONAL' : 'CLEAR'
         : roll < 0.025 ? 'FLAGGED' : 'CLEAR'
       const rendered = earliest(plus(line.start, -between(r, 4, 14)), day(-2))
-      this.verdict(p, 'BACKGROUND_CHECK', 'first', orderer, seat, provider, outcome, rendered, r, live !== null)
+      this.verdict(p, 'BACKGROUND_CHECK', 'first', orderer, seat, provider, outcome, rendered, r, placementOf(p, live))
       // A twelve-month report on somebody still on site is run again, mostly; a few have aged out and are chased.
       if (live && addMonths(rendered, 12).getTime() < plus(this.today, 30).getTime() && r() < 0.85) {
         const again = day(-between(r, 10, 300))
         if (again.getTime() > rendered.getTime()) {
-          this.verdict(p, 'BACKGROUND_CHECK', 'again', orderer, seat, pick(r, PROVIDERS), 'CLEAR', again, r, true)
+          this.verdict(p, 'BACKGROUND_CHECK', 'again', orderer, seat, pick(r, PROVIDERS), 'CLEAR', again, r, placementOf(p, live))
         }
       }
     }
@@ -508,7 +511,7 @@ class Planner {
       const seat = papersSeat(orderer)
       const rendered = earliest(plus(live.start, -between(r, 3, 10)), day(-2))
       const fresh = addMonths(rendered, 12).getTime() < this.today.getTime() ? day(-between(r, 20, 200)) : rendered
-      this.verdict(p, 'DRUG_SCREENING', 'first', orderer, seat, 'Quest', 'CLEAR', fresh, r, true, 'Ten-panel screen negative.')
+      this.verdict(p, 'DRUG_SCREENING', 'first', orderer, seat, 'Quest', 'CLEAR', fresh, r, placementOf(p, live), 'Ten-panel screen negative.')
     }
     if (p.facts.workAuth === 'H1B' || p.facts.country === 'IN') {
       // An evaluation a credential service issued about a degree, examined by the firm: a document, not a verdict, and it never runs out.
@@ -539,40 +542,35 @@ class Planner {
 
   private verdict(
     p: PersonPlan, type: string, which: string, orderer: ScaleFirm, seat: { personId: string; name: string },
-    provider: string, outcome: 'CLEAR' | 'CONDITIONAL' | 'FLAGGED', rendered: Date, r: () => number, working: boolean, says?: string,
+    provider: string, outcome: 'CLEAR' | 'CONDITIONAL' | 'FLAGGED', rendered: Date, r: () => number, placement: string | null, says?: string,
   ): void {
     const row = record({
       about: 'PERSON', type, subjectName: p.facts.name, recordedBy: seat.name,
       provider, reference: refFor(provider, r), renderedOn: rendered, outcome,
       providerSays: says ?? PROVIDER_SAYS[outcome], consentOn: plus(rendered, -between(r, 2, 6)),
     }, plus(rendered, 1))
-    if (outcome === 'FLAGGED') {
-      // The steps after an unfavorable report are the firm's, and they are
-      // written beside the report, never over it. Somebody on site today was
-      // gone ahead with: the firm decided the record does not change the
-      // decision, and why. Nobody here is shown a pre-adverse notice, because
-      // a notice is a paper with the copy of the report on it, and the
-      // generated world writes no files; the simulation walks that step
-      // through the route.
-      row.result = {
-        ...(row.result ?? {}),
-        ...(working
-          ? {
-              adverse: {
-                decision: 'NOT_TAKEN',
-                decisionReason: pick(r, [
-                  'The record is more than seven years old and unrelated to the duties of the job.',
-                  'The record was dismissed; the court disposition was provided and matches.',
-                  'A minor traffic matter with no bearing on the work.',
-                ]),
-                decidedBy: seat.name,
-              },
-            }
-          : {}),
-      }
-    }
     const id = idFor(pkey(p, `${type}/${which}/${orderer.id}`))
     this.out.person.push(rowFrom(id, row, { personId: p.facts.id }, seat.personId, orderer.id))
+    if (outcome === 'FLAGGED' && placement) {
+      // The steps after an unfavorable report are the firm's, written as a
+      // row of their own beside the report, never into it. Somebody on site
+      // today was gone ahead with: the firm decided the record does not
+      // change the decision, and why. Nobody here is shown a pre-adverse
+      // notice, because a notice is a paper with the copy of the report on
+      // it, and the generated world writes no files; the simulation walks
+      // that step through the route.
+      this.out.adverse.push({
+        id: idFor(`${pkey(p, `${type}/${which}/${orderer.id}`)}/adverse/NOT_TAKEN`),
+        verificationId: id, companyId: orderer.id, sellContractId: placement, step: 'NOT_TAKEN',
+        sentAt: plus(rendered, between(r, 2, 6)), byId: seat.personId,
+        reason: pick(r, [
+          'The record is more than seven years old and unrelated to the duties of the job.',
+          'The record was dismissed; the court disposition was provided and matches.',
+          'A minor traffic matter with no bearing on the work.',
+        ]),
+        reportCopySent: false, createdAt: plus(rendered, between(r, 2, 6)),
+      })
+    }
     this.note(id, type, outcome === 'FLAGGED' ? 'FLAGGED' : outcome === 'CONDITIONAL' ? 'CONDITIONAL' : stateOf2(row.expiresAt, null, this.today))
   }
 
@@ -719,6 +717,11 @@ class Planner {
     this.note(id, kind, stateOf2(row.expiresAt, row.validFrom, this.today))
     void buyer
   }
+}
+
+/** The line the firm that ordered a person's check holds for them: the employer's rung, or the placing firm's on their own company's line. */
+function placementOf(p: PersonPlan, live: LinePlan | null): string | null {
+  return live ? rungIds(p, live, live.ownCompany ? 0 : live.chain.length - 1).sell : null
 }
 
 function refFor(provider: string, r: () => number): string {

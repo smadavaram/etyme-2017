@@ -167,6 +167,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         where: { id },
         data: {
           note,
+          // Who looked at it and when: the paper reads as examined from this, not from a note.
+          examinedById: caller.person.id, examinedAt: now,
           ...(verdict.validFrom ? { validFrom: verdict.validFrom } : {}),
           ...(verdict.expiresAt ? { expiresAt: verdict.expiresAt } : {}),
           ...(verdict.edition ? { edition: verdict.edition } : {}),
@@ -182,6 +184,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           status: 'SENT', sentAt: now, note,
           signedAt: null, signedById: null, signedFileUrl: null, fileName: null,
           countersignedAt: null, countersignedById: null,
+          examinedById: null, examinedAt: null,
         },
       })
       if (doc.file) await tx.docFile.delete({ where: { docInstanceId: id } })

@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 import { emit } from '@/lib/events'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
-import { adverseStep, adverseWaitFor, type AdverseRecord } from '@/lib/attestation'
+import { adverseActionFor, adverseRecordFrom, adverseStep, adverseWaitFor, type AdverseStepKind } from '@/lib/attestation'
 
 /**
  * POST /api/compliance/adverse-action
@@ -17,9 +17,10 @@ import { adverseStep, adverseWaitFor, type AdverseRecord } from '@/lib/attestati
  * The steps that stay with the firm after a screening company reports
  * something unfavorable. The rule and the waiting periods are
  * `adverseStep` and `ADVERSE_ACTION_WAIT` in lib/attestation; this loads
- * the report, the placement's site and the notice paper, and writes each
- * step beside the report — never over it, so the provider's words stay
- * as they wrote them.
+ * the report, the steps already on file, the placement's site and the
+ * notice paper, and writes each step as one `AdverseAction` row beside
+ * the report — never into it, so the provider's words stay as they wrote
+ * them. One row per report and step: a notice is given once.
  *
  * The notices themselves are papers like any other: raised by HR from
  * the firm's own template, the copy of the report attached as a file,
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
         id: true, personId: true, type: true, status: true, provider: true, referenceId: true, result: true,
         orderedByCompanyId: true, orderedByCompany: { select: { name: true } },
         person: { select: { name: true } },
+        adverseActions: { select: { step: true, sentAt: true, waitEndsAt: true, waitSays: true, reason: true, noticeDocumentId: true, by: { select: { name: true } } } },
       },
     }),
     prisma.sellContract.findUnique({
@@ -69,8 +71,7 @@ export async function POST(request: NextRequest) {
       })
     : null
 
-  const result = (check.result ?? {}) as Record<string, unknown>
-  const record = (result.adverse ?? {}) as AdverseRecord
+  const record = adverseRecordFrom(check.adverseActions, check.result)
   const now = new Date()
   const verdict = adverseStep(
     {
@@ -104,13 +105,22 @@ export async function POST(request: NextRequest) {
     return refuse(verdict.status, verdict.code, verdict.message, verdict.field)
   }
 
-  const step = String(body.step).toUpperCase()
-  const next: AdverseRecord = {
-    ...verdict.record,
-    ...(step === 'PRE_NOTICE' ? { preNoticeDocumentId: noticeId } : {}),
-    ...(step === 'FINAL' ? { finalDocumentId: noticeId } : {}),
+  const step = String(body.step).toUpperCase() as AdverseStepKind
+  const next = verdict.record
+  try {
+    await prisma.adverseAction.create({
+      data: adverseActionFor(step, next, {
+        verificationId: check.id, companyId: caller.company.id, sellContractId: line.id, byId: caller.person.id,
+        noticeDocumentId: noticeId || null, on: now,
+      }),
+    })
+  } catch (e) {
+    // Two presses at once: the unique row per report and step is the guard, and the second hears what the first did.
+    if ((e as { code?: string }).code === 'P2002') {
+      return refuse(409, 'ALREADY_GIVEN', 'That step was already taken on this report a moment ago. Open the report to read it.')
+    }
+    throw e
   }
-  await prisma.verification.update({ where: { id: check.id }, data: { result: { ...result, adverse: next } as never } })
 
   logAccess({
     subjectId: personId,

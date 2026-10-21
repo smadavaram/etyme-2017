@@ -15,10 +15,9 @@
  * with the same session, and lands on the same ledger with its timing —
  * an upload is a call like any other in the report.
  */
-import { performance } from 'node:perf_hooks'
 import { deflateSync } from 'node:zlib'
 import { randomBytes } from 'node:crypto'
-import { expecting, type Actor, type Res } from '../../actors'
+import type { Actor, Res } from '../../actors'
 import type { Ctx } from '../../stage'
 
 // ── The files ────────────────────────────────────────────────────────
@@ -134,57 +133,15 @@ export function photo(name: string): PaperFile {
 // ── Sending one ──────────────────────────────────────────────────────
 
 /**
- * POST a file as a multipart form, as this seat. Recorded on the run's
- * ledger exactly as an actor's call is, the expected flag included.
+ * POST a file as a multipart form, as this seat, through the seat's own
+ * `upload`: the same session, the same call and the same ledger line as
+ * every other request it makes. The station never reads the session.
  */
-export async function sendFile(ctx: Ctx, actor: Actor, path: string, file: PaperFile, fields: Record<string, string> = {}): Promise<Res> {
-  const native = (actor as unknown as { upload?: (p: string, f: FormData) => Promise<Res> }).upload
+export async function sendFile(_ctx: Ctx, actor: Actor, path: string, file: PaperFile, fields: Record<string, string> = {}): Promise<Res> {
   const form = new FormData()
   for (const [k, v] of Object.entries(fields)) form.set(k, v)
   form.set('file', new Blob([new Uint8Array(file.bytes)], { type: file.type }), file.name)
-  if (typeof native === 'function') return native.call(actor, path, form)
-
-  await actor.open()
-  // The session the actor already holds. Read rather than reopened, so the
-  // file goes as the same person in the same session as every other call.
-  const cookie = (actor as unknown as { cookie: string | null }).cookie
-  const started = new Date()
-  const t0 = performance.now()
-  let status = 0
-  let json: any = null
-  let sentence: string | null = null
-  let code: string | undefined
-  try {
-    const res = await fetch(ctx.base + path, {
-      method: 'POST',
-      headers: { accept: 'application/json', ...(cookie ? { cookie } : {}) },
-      body: form,
-      redirect: 'manual',
-      signal: AbortSignal.timeout(60_000),
-    })
-    status = res.status
-    const text = await res.text()
-    try {
-      json = text ? JSON.parse(text) : null
-    } catch {
-      json = { raw: text.slice(0, 500) }
-    }
-  } catch (e: any) {
-    sentence = `The server did not answer: ${String(e?.message ?? e)}`
-  }
-  const ms = Math.round(performance.now() - t0)
-  const ok = status >= 200 && status < 300
-  if (!ok && !sentence) {
-    const err = json?.error
-    sentence = typeof err === 'string' ? err : typeof err?.message === 'string' ? err.message : null
-    code = typeof err?.code === 'string' ? err.code : undefined
-  }
-  ctx.ledger.record({
-    at: started.toISOString(), seat: actor.key, method: 'POST', path, status, ms,
-    ...(sentence ? { sentence } : {}), ...(code ? { code } : {}),
-    ...(expecting.getStore() ? { expected: true } : {}),
-  })
-  return { status, json, ms, ok, sentence }
+  return actor.upload(path, form)
 }
 
 // ── The count ────────────────────────────────────────────────────────

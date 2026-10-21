@@ -10,7 +10,8 @@
  *
  *   after the people (supply), before the jobs (`paperSteps`):
  *     scale:papers:people     each person's I-9 and the document behind it, right-to-work,
- *                             the screening companies' verdicts, licenses
+ *                             the screening companies' verdicts and the firm's steps after
+ *                             a flagged one, licenses
  *     scale:papers:visas      each H-1B person's petition, its trail and its papers
  *     scale:papers:overtime   the employer's position on overtime, per live W2 line
  *     scale:papers:cover      every supplier's cover and good standing
@@ -62,6 +63,7 @@ async function seedPersonPapers(_frame: ScaleFrame, plan: Plan): Promise<void> {
   // The documents an I-9 was completed from first, then the forms, then the backing between them.
   await writeMissing(db.verification, [...plan.evidence, ...plan.person])
   await writeMissing(db.documentBacking, plan.backings)
+  await writeMissing(db.adverseAction, plan.adverse)
 }
 
 async function seedVisas(plan: Plan): Promise<void> {
