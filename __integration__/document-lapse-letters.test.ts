@@ -120,18 +120,19 @@ describe('when a document a line depends on runs out, every party it costs is to
     expect(told.letters.length).toBeGreaterThan(0)
 
     const checks = told.letters.filter((l) => l.data.documentKey === 'BACKGROUND_CHECK')
-    const employers = checks.filter((l) => l.side === 'EMPLOYS')
+    const orderers = checks.filter((l) => l.side === 'OWES')
     const notices = told.letters.filter((l) => l.side === 'EXPOSED')
-    expect(employers.length, 'the firm that orders the check is told').toBeGreaterThan(0)
+    expect(orderers.length, 'the firm that orders the check is told').toBeGreaterThan(0)
     expect(notices.length, 'somebody is told').toBeGreaterThan(0)
 
     // "Who renders the verdict": the provider posts the report to the
     // firm that ordered it, so the worker is never asked to upload it.
-    expect(checks.filter((l) => l.side === 'OWES' && l.data.owedBy === 'WORKER'), 'no worker is asked for a report').toEqual([])
-    for (const e of employers) {
-      expect(e.body).toContain('Order a new one from your screening provider')
-      expect(e.body).toContain('is asked for consent first')
-      expect(e.body).not.toMatch(/upload/i)
+    for (const o of orderers) {
+      expect(o.audience, 'the firm, never the contractor').toBe('business')
+      expect(o.data.owedBy).toBe('US')
+      expect(o.body).toContain('Order a new one from your screening provider')
+      expect(o.body).toContain('is asked for consent first')
+      expect(o.body).not.toMatch(/upload/i)
     }
     for (const n of notices) {
       expect(n.audience).toBe('business')
@@ -343,5 +344,47 @@ describe('when a document a line depends on runs out, every party it costs is to
     // And the next night, with nothing new, writes to nobody.
     const again = await everyDocumentLetter(now)
     expect(again.letters, 'every fact folded into tonight\u2019s letters is remembered').toEqual([])
+  })
+
+  it('the firm\u2019s own findings ride in the same one letter as a person\u2019s papers, and a person with only findings reads them as worded', async () => {
+    const now = day(200)
+    const before = new Date(Date.now() - 1000)
+    const night = await tellDocumentLapses(await documentsToChase(now), now)
+    const withPapers = night.letters[0]
+    expect(withPapers, 'somebody is owed a paper on this day').toBeTruthy()
+    const ap = await person(`world-nike-ap${D}`)
+    const finding = (personId: string, key: string) => ({
+      personId, companyId: withPapers.companyId ?? undefined, type: 'SYSTEM' as const,
+      title: 'Order PO-1001 is nearly spent', body: '92% of the ceiling is billed.', entityId: `po-${key}`,
+      channel: 'IN_APP' as const, data: { kinds: ['PO_NEARLY_SPENT'], saidKey: key },
+      blocking: false, keys: [key],
+    })
+    const sent = await sendDocumentLapses(night.letters, now, prisma, {
+      findings: [finding(withPapers.personId, 'PO_NEARLY_SPENT:a'), finding(ap.id, 'PO_NEARLY_SPENT:b')],
+    })
+    expect(sent.findingsTold).toBe(2)
+
+    const rows = await prisma.notification.findMany({
+      where: { type: 'SYSTEM', createdAt: { gte: before }, personId: { in: [withPapers.personId, ap.id] } },
+      select: { personId: true, title: true, body: true, data: true },
+    })
+    const mine = rows.filter((r) => r.personId === withPapers.personId)
+    expect(mine.length, 'one message, not two').toBe(1)
+    expect(mine[0].body).toContain('Order PO-1001 is nearly spent')
+    const keys = (mine[0].data as { saidKey: string; alsoSaid: string[] })
+    expect([keys.saidKey, ...keys.alsoSaid]).toContain('PO_NEARLY_SPENT:a')
+
+    const apRows = rows.filter((r) => r.personId === ap.id)
+    expect(apRows.map((r) => r.title)).toEqual(['Order PO-1001 is nearly spent'])
+
+    // Every paper in the one letter left its own log row.
+    for (const l of sent.letters.filter((x) => x.personId === withPapers.personId)) {
+      const row = await prisma.automationLog.findFirst({
+        where: { action: 'DOCUMENT_LAPSE_TOLD', payload: { path: ['documentId'], equals: l.data.documentId } },
+        orderBy: { at: 'desc' },
+        select: { payload: true },
+      })
+      expect(row).toBeTruthy()
+    }
   })
 })

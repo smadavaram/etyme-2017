@@ -21,6 +21,8 @@ import {
   employerLetter,
   oneLetterPerPartyPerFact,
   oneLetterPerPerson,
+  papersWithFindings,
+  NIGHT_LETTER,
   isPersonsPaper,
   isVerdict,
   lettersFor,
@@ -598,17 +600,24 @@ describe('one letter per person per night, about the papers that are theirs to a
   })
 
   it('the firm that ordered a background check is told to order a new one from the provider, and that the person is asked for consent first', () => {
+    // Owed by the firm that ordered it (checksToRedo, owedBy US), never by the worker.
     const check = doc({
-      key: 'BACKGROUND_CHECK', document: 'Background check', owedByName: 'Beatriz Oyelaran',
+      key: 'BACKGROUND_CHECK', document: 'Background check', owedBy: 'US', owedByName: 'Byrne Critical Care',
       stopsWork: false, lapsed: true, daysLeft: -16, expiresAt: SEP_30, provider: 'HireRight',
     })
-    const letter = employerLetter(check, cast({ personName: 'Beatriz Oyelaran', employs: EMPLOYER }))!
-    expect(letter.title).toBe("Beatriz Oyelaran's background check from HireRight is past its date (September 30, 2026); order a new one")
+    const c = cast({
+      personName: 'Beatriz Oyelaran', owedByName: 'Byrne Critical Care',
+      chase: [{ personId: 'byrne-officer', companyId: 'byrne', audience: 'business' }],
+    })
+    const letter = chaseLetter(check, c)!
+    expect(letter.title).toBe("Beatriz Oyelaran's background check from HireRight is past its date (September 30, 2026)")
     expect(letter.body).toContain('Order a new one from your screening provider; Beatriz Oyelaran is asked for consent first.')
-    expect(letter.body).not.toContain('ask Beatriz Oyelaran for the renewal')
+    expect(letter.body).not.toMatch(/upload/i)
+    const letters = lettersFor(check, c)
+    expect(letters.filter((l) => l.side === 'OWES').map((l) => l.personId)).toEqual(['byrne-officer'])
 
     // The client reads the same fact and asks the firm it pays to order it.
-    const told = noticeLetter(check, cast({ personName: 'Beatriz Oyelaran' }), null)
+    const told = noticeLetter(check, c, null)
     expect(told.body).toContain("Beatriz Oyelaran's background check from HireRight")
     expect(told.body).toContain('Ask Byrne Critical Care to order a new one.')
     expect(told.body).not.toMatch(/upload/i)
@@ -679,5 +688,24 @@ describe('one letter per person per night, about the papers that are theirs to a
     expect(told.body).not.toContain('Byrne Critical Care')
     expect(told.body).toContain('Ask Computer Systems Inc for it.')
     expect(told.body).toContain('Ingrid Sørensen')
+  })
+
+  it('a person owed papers and the firm\u2019s own findings the same night reads one message, the half that stops work first, every key on it', () => {
+    const facts = oneLetterPerPartyPerFact(twentyLapses()).filter((l) => l.personId === 'officer')
+    const [night] = oneLetterPerPerson(facts)
+    const note = {
+      personId: 'officer', companyId: 'northbend', type: 'SYSTEM' as const,
+      title: 'Order PO-1001 is nearly spent', body: '92% of the ceiling is billed.', entityId: 'po1', channel: 'IN_APP' as const,
+      data: { kinds: ['PO_NEARLY_SPENT'] }, blocking: false, keys: ['PO_NEARLY_SPENT:po1:IN_14:officer'],
+    }
+    const message = papersWithFindings(night, note)
+    expect(message.channel).toBe('EMAIL')
+    expect(message.title).toMatch(/^Tobias Lindqvist's I-9 and E-Verify is not on file, and \d+ more papers, and one more thing to look at$/)
+    expect(message.body.endsWith('Order PO-1001 is nearly spent\n92% of the ceiling is billed.')).toBe(true)
+    const data = message.data as { letter: string; saidKey: string; alsoSaid: string[] }
+    expect(data.letter).toBe(NIGHT_LETTER)
+    const keys = new Set([data.saidKey, ...data.alsoSaid])
+    for (const f of night.facts) expect(keys.has(f.saidKey)).toBe(true)
+    expect(keys.has('PO_NEARLY_SPENT:po1:IN_14:officer')).toBe(true)
   })
 })

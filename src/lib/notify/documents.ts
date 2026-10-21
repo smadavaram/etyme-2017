@@ -68,7 +68,7 @@
  */
 
 import { prisma } from '@/lib/db'
-import { notify } from '@/lib/notify'
+import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { day, type Audience } from '@/lib/notify/letters'
 import { hasPermission, type Permission } from '@/lib/permissions'
 import { mayNameSubVendors, nameForClient, type ChainRung, type SeenName } from '@/lib/chain-names'
@@ -757,9 +757,6 @@ function upperFirst(s: string): string {
  * tell a firm to ask itself, or describe its own employee as somebody
  * standing at a firm below one of its suppliers.
  *
- * A verdict is the exception to "ask the person": the firm orders a new
- * check from its provider and asks the person only for consent.
- *
  * Null where nothing on the line names the person, because a letter
  * telling a firm to chase "the person this line is about" is a letter
  * nobody can act on.
@@ -779,21 +776,6 @@ export function employerLetter(d: OwedDocument, cast: Cast): Said | null {
       ? `${who} cannot be on site until it is on file.`
       : `After that day ${who} cannot be on site.`
     : WARNS
-
-  if (isVerdict(d)) {
-    const past = d.neverFiled ? 'is not on file' : d.lapsed ? `is past its date (${on})` : whenSays(d)
-    const fact = `${whose(who)} ${doc}${fromProvider(d)} ${past}`
-    const ask = `Order ${d.neverFiled ? 'one' : 'a new one'} from your screening provider; ${who} is asked for consent first. Record the result it sends back against this placement.`
-    return {
-      title: `${fact}; order ${d.neverFiled ? 'one' : 'a new one'}`,
-      body: `${who} works for you${at}. ${upperFirst(fact)}. ${cost} ${ask}`,
-      short: fact,
-      line: `${upperFirst(fact)}. ${cost}`,
-      group,
-      ask,
-      askMany: `Order each new one from your screening provider; each person is asked for consent first. Record each result against the placement.`,
-    }
-  }
 
   const title = d.neverFiled
     ? `${whose(who)} ${doc} is not on file`
@@ -973,9 +955,8 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
           askMany: employer.askMany,
           entityId: d.id,
           saidKey: key,
-          logSummary: isVerdict(d)
-            ? `Told ${DESK_WORDS.EMPLOYS} to order a new ${lower(d.document)} for their own worker; the last one ${saysWhen}.`
-            : `Told ${DESK_WORDS.EMPLOYS} to chase their own worker for the ${lower(d.document)}, which ${saysWhen}.`,
+          logSummary:
+            `Told ${DESK_WORDS.EMPLOYS} to chase their own worker for the ${lower(d.document)}, which ${saysWhen}.`,
           logReason: reason,
           data: { ...base, side: 'EMPLOYS', saidKey: key },
         })
@@ -1218,7 +1199,11 @@ async function castFor(db: Db, d: OwedDocument): Promise<Cast> {
 
   const buyers = new Set<string>()
   for (const r of rungs) {
-    if (r.companyId === aboutCompanyId || d.owedBy === 'WORKER') buyers.add(r.clientCompanyId)
+    // A person's paper costs every firm above the person, whoever owes it
+    // on the line: a background check the sub-vendor orders is still the
+    // client's exposure on its own site. A firm's paper costs the firms
+    // that buy from that firm.
+    if (r.companyId === aboutCompanyId || isPersonsPaper(d)) buyers.add(r.clientCompanyId)
   }
   if (rungs.length === 0 && line.customerCompanyId) buyers.add(line.customerCompanyId)
   if (line.holderCompanyId && line.holderCompanyId !== owingCompanyId) buyers.add(line.holderCompanyId)
@@ -1513,11 +1498,9 @@ export async function tellAbout(
   for (const d of mine) {
     const cast = await castFor(db, d)
     const letters = lettersFor(d, cast, said)
-    // Nobody to chase is a gap, except where nobody is meant to be: a
-    // verdict is ordered by the employer, never chased from the worker,
-    // and a supplier's own cover is told to the supplier by the watch.
-    const meantForNobody = d.cover || (isVerdict(d) && d.owedBy === 'WORKER' && !!cast.employs)
-    if (cast.chase.length === 0 && !meantForNobody) {
+    // Nobody to chase is a gap, except a supplier's own cover, which the
+    // nightly finding tells the supplier itself.
+    if (cast.chase.length === 0 && !d.cover) {
       out.unaddressed.push({
         document: d.document,
         because:
@@ -1843,20 +1826,117 @@ async function alreadySaid(db: Db, documentIds: string[]): Promise<Set<string>> 
 // ── Sending them ──────────────────────────────────────────────────────
 
 export interface Sent {
-  /** Every fact somebody was told, one per reader per fact. */
+  /** Every paper fact somebody was told, one per reader per fact. */
   letters: LapseLetter[]
-  /** The letters that actually left: one per person. */
+  /** Messages that actually left: one per person, papers and findings together. */
   people: number
-  /** One row per fact, in the books of whoever read it. */
+  /** One row per paper fact, in the books of whoever read it. */
   logged: number
+  /** People told the firm's own findings, alone or inside their paper letter. */
+  findingsTold: number
 }
 
 /** The mark a night's letter carries, so tomorrow can read it back. */
 export const NIGHT_LETTER = 'DOCUMENTS_NIGHT'
 
 /**
+ * The firm's own findings for one person tonight, as the nightly check
+ * built them: one message already worded, whether its worst finding
+ * stops work today, and the key of every finding inside it.
+ */
+export type NightFindings = NotifyParams & {
+  /** The worst finding inside it stops work today. */
+  blocking: boolean
+  /** The said-key of every finding inside it, so tomorrow reads them back. */
+  keys: string[]
+}
+
+function moreOf(n: number, what: string): string {
+  return n === 1 ? `one more ${what}` : `${n} more ${what}s`
+}
+
+/**
+ * One message carrying a person's papers and their findings.
+ *
+ * The half that stops work leads. A paper that stops work, or a finding
+ * that does, comes first; on a tie the papers lead, because they carry a
+ * date somebody can act before. Every key in it is written on it, so
+ * neither half says any of it again tomorrow.
+ */
+export function papersWithFindings(night: NightLetter, note: NightFindings): NotifyParams {
+  const paperStops = night.facts.some((f) => f.data.stopsWork)
+  const findingFirst = note.blocking && !paperStops
+  const papers = night.facts.length
+  const findings = note.keys.length
+
+  const findingSection = `${note.title}\n${note.body}`
+  const paperSection = papers === 1 ? `${night.title}\n${night.body}` : night.body
+  const title = findingFirst
+    ? `${note.title}, and ${moreOf(papers, 'paper')}`
+    : `${night.title}, and ${moreOf(findings, 'thing to look at')}`
+
+  const paperKeys = night.facts.flatMap((f) => [f.saidKey, ...(f.data.alsoSaid ?? [])])
+  const first = findingFirst ? note.keys[0] : night.facts[0].saidKey
+  const every = [...new Set([...paperKeys, ...note.keys])]
+
+  return {
+    personId: night.personId,
+    companyId: night.companyId ?? note.companyId,
+    type: 'SYSTEM',
+    title,
+    body: findingFirst ? `${findingSection}\n\n${paperSection}` : `${paperSection}\n\n${findingSection}`,
+    entityId: findingFirst ? note.entityId : night.entityId,
+    // A paper letter is always an email; a finding folded into it rides along.
+    channel: 'EMAIL',
+    data: {
+      letter: NIGHT_LETTER,
+      saidKey: first,
+      alsoSaid: every.filter((k) => k !== first),
+      documentIds: [...new Set(night.facts.map((f) => f.data.documentId))],
+      count: papers + findings,
+      stopsWork: night.facts.filter((f) => f.data.stopsWork).length + (note.blocking ? 1 : 0),
+      kinds: (note.data as { kinds?: unknown } | undefined)?.kinds ?? [],
+    },
+  }
+}
+
+/** The message one person's papers alone make. */
+function papersAlone(night: NightLetter): NotifyParams {
+  const [first, ...rest] = night.facts
+  const keys = night.facts.flatMap((f) => [f.saidKey, ...(f.data.alsoSaid ?? [])])
+  return {
+    personId: night.personId,
+    companyId: night.companyId ?? undefined,
+    type: night.type,
+    title: night.title,
+    body: night.body,
+    entityId: night.entityId,
+    channel: night.channel,
+    data:
+      rest.length === 0
+        ? first.data
+        : {
+            letter: NIGHT_LETTER,
+            saidKey: first.saidKey,
+            // Every fact folded into this letter, so none of them is
+            // sent on its own tomorrow for want of a record.
+            alsoSaid: [...new Set(keys.filter((k) => k !== first.saidKey))],
+            documentIds: [...new Set(night.facts.map((f) => f.data.documentId))],
+            count: night.facts.length,
+            stopsWork: night.facts.filter((f) => f.data.stopsWork).length,
+          },
+  }
+}
+
+/**
  * Send tonight's letters, one per person, and write the record of each
- * fact having been told.
+ * paper having been told.
+ *
+ * `findings` are the firm's own findings from the same night, one
+ * message per person already worded. A person owed both reads one
+ * message carrying both (`papersWithFindings`); a person owed only
+ * findings reads them exactly as worded; a person owed only papers reads
+ * the paper letter. Every paper in any of them leaves its own log row.
  *
  * Awaited, unlike most callers of `notify`: this job's whole output is
  * that somebody was told, and a count returned while the writes are
@@ -1865,39 +1945,35 @@ export const NIGHT_LETTER = 'DOCUMENTS_NIGHT'
 export async function sendDocumentLapses(
   letters: LapseLetter[],
   now: Date = new Date(),
-  db: Db = prisma
+  db: Db = prisma,
+  opts: { findings?: NightFindings[] } = {}
 ): Promise<Sent> {
   const sent: LapseLetter[] = []
   let people = 0
   let logged = 0
+  let findingsTold = 0
 
-  for (const night of oneLetterPerPerson(letters)) {
-    const [first, ...rest] = night.facts
-    const keys = night.facts.flatMap((f) => [f.saidKey, ...(f.data.alsoSaid ?? [])])
-    const written = await notify({
-      personId: night.personId,
-      companyId: night.companyId ?? undefined,
-      type: night.type,
-      title: night.title,
-      body: night.body,
-      entityId: night.entityId,
-      channel: night.channel,
-      data:
-        rest.length === 0
-          ? first.data
-          : {
-              letter: NIGHT_LETTER,
-              saidKey: first.saidKey,
-              // Every fact folded into this letter, so none of them is
-              // sent on its own tomorrow for want of a record.
-              alsoSaid: [...new Set(keys.filter((k) => k !== first.saidKey))],
-              documentIds: [...new Set(night.facts.map((f) => f.data.documentId))],
-              count: night.facts.length,
-              stopsWork: night.facts.filter((f) => f.data.stopsWork).length,
-            },
-    })
+  const noteOf = new Map<string, NightFindings>()
+  for (const n of opts.findings ?? []) noteOf.set(n.personId, n)
+  const nights = oneLetterPerPerson(letters)
+  const withPapers = new Set(nights.map((n) => n.personId))
+
+  // Findings for people with no paper tonight go as they were worded.
+  const alone: NotifyParams[] = [...noteOf.values()]
+    .filter((n) => !withPapers.has(n.personId))
+    .map(({ blocking: _b, keys: _k, ...n }) => n)
+  if (alone.length > 0) {
+    await notifyBulk(alone)
+    people += alone.length
+    findingsTold += alone.length
+  }
+
+  for (const night of nights) {
+    const note = noteOf.get(night.personId)
+    const written = await notify(note ? papersWithFindings(night, note) : papersAlone(night))
     if (!written) continue
     people++
+    if (note) findingsTold++
 
     for (const l of night.facts) {
       sent.push(l)
@@ -1917,6 +1993,7 @@ export async function sendDocumentLapses(
             told: DESK_WORDS[l.side],
             // How many papers shared the one letter it went out in.
             inOneLetterWith: night.facts.length,
+            ...(note ? { withFindings: true } : {}),
             at: now.toISOString(),
           },
           reversible: false,
@@ -1926,5 +2003,5 @@ export async function sendDocumentLapses(
     }
   }
 
-  return { letters: sent, people, logged }
+  return { letters: sent, people, logged, findingsTold }
 }
