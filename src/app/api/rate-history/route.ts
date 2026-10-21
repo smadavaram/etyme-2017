@@ -85,8 +85,12 @@ export async function GET(request: NextRequest) {
 
   // ── Dashboard mode: all rate history for the company ──────────
   if (!contractId) {
+    // A worker's own seat holds no company (every placed worker has one,
+    // since the simulation's fix wave) and reads by their own person id
+    // below, so the company is asked of every other seat only.
+    const own = isConsultantSeat(caller)
     const companyId = caller.company?.id
-    if (!companyId) {
+    if (!companyId && !own) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: notAtACompany('Rate history') } },
         { status: 403 }
@@ -109,13 +113,12 @@ export async function GET(request: NextRequest) {
     // on the line that names them and pays them directly — never a line
     // between two firms above them in a chain, which is a price between
     // those firms and not their rate.
-    const own = isConsultantSeat(caller)
     const canSeeBuy = own || hasPermission(caller.permissions, 'consultants.cost')
     const [sellContracts, buyContracts] = await Promise.all([
       own
         ? Promise.resolve([] as Array<{ id: string; person: { name: string }; clientCompany: { name: string } | null }>)
         : prisma.sellContract.findMany({
-            where: { companyId },
+            where: { companyId: companyId! },
             select: {
               id: true,
               person: { select: { name: true } },
@@ -126,7 +129,7 @@ export async function GET(request: NextRequest) {
         ? prisma.buyContract.findMany({
             where: own
               ? { candidates: { some: { personId: caller.person.id } }, supplierSellContractId: null }
-              : { companyId },
+              : { companyId: companyId! },
             select: {
               id: true,
               // One agreement can cover several people, so the label lists
@@ -242,6 +245,14 @@ export async function GET(request: NextRequest) {
   // sell contract names them as its subject; the price on it is the
   // client's and was never theirs to read.
   const ownSeat = isConsultantSeat(caller)
+  // Every other seat reads its own company's lines, so it needs one: a
+  // missing company must never reach the query below as no filter at all.
+  if (!ownSeat && !caller.company?.id) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notAtACompany('Rate history') } },
+      { status: 403 }
+    )
+  }
   if (ownSeat && contractType === 'SELL') {
     return NextResponse.json(
       {

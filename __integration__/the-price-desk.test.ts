@@ -267,4 +267,33 @@ describe('what a placement is priced at is the price desk\'s to read', () => {
       expect(l.candidates.map((c) => c.personId)).toContain(me.id)
     }
   })
+
+  it('lets a placed worker read the movements on the line that pays them from their own seat, which belongs to no company', async () => {
+    // Since 2026-10-20 every placed worker holds their own seat at no
+    // company (lib/own-seat). That seat read nothing here: the whole-book
+    // read asked for a company before it reached the branch that reads a
+    // worker's own lines by their person, so Helena Marsh was refused her
+    // own pay.
+    const me = await prisma.person.findFirstOrThrow({ where: { primaryEmail: consultantEmail } })
+    const own =
+      (await prisma.context.findFirst({ where: { personId: me.id, type: 'CONSULTANT', companyId: null, revokedAt: null } })) ??
+      (await prisma.context.create({
+        data: { personId: me.id, type: 'CONSULTANT', grantReason: 'Price desk test — the worker\u2019s own seat' },
+      }))
+    as(consultantEmail)
+    const seated = { 'x-context-id': own.id }
+    const all = await json(await rateHistory(req('GET', '/api/rate-history', undefined, seated)))
+    expect(all.status).toBe(200)
+    expect(all.body.data.rateHistory.map((r: any) => r.contractId)).toContain(payLineId)
+    for (const r of all.body.data.rateHistory) expect(r.contractType).toBe('BUY')
+    const one = await json(
+      await rateHistory(req('GET', `/api/rate-history?contractId=${payLineId}&contractType=BUY`, undefined, seated))
+    )
+    expect(one.status).toBe(200)
+    expect(one.body.data.rateHistory.length).toBeGreaterThan(0)
+    const sold = await json(
+      await rateHistory(req('GET', `/api/rate-history?contractId=${sellId}&contractType=SELL`, undefined, seated))
+    )
+    expect(sold.status).toBe(404)
+  })
 })
