@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
-import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { emit } from '@/lib/events'
 import { hasPermission } from '@/lib/permissions'
 import {
@@ -18,8 +17,7 @@ import { packetByKey, resolveItems, itemsToAsk, withRequirements, type HeldDocum
 import { coverGaps } from '@/lib/cover-gap'
 import { papersAsked } from '@/lib/contract-clearance'
 import { documentFindings, requiredOfSupplier } from '@/lib/document-request'
-import { everyDocumentLetter, sendDocumentLapses, NIGHT_LETTER, type LapseLetter } from '@/lib/notify/documents'
-import { oneMessageTonight, type FindingNote } from '@/lib/night-message'
+import { everyDocumentLetter, sendDocumentLapses, NIGHT_LETTER, type NightFindings } from '@/lib/notify/documents'
 import {
   lookAtCredentials,
   askForRenewal,
@@ -124,9 +122,12 @@ export async function GET(request: NextRequest) {
   let told = 0
   let lapseLetters = 0
   if (!dry) {
-    const sent = await tellTonight(letters, await findingNotes(findings), now)
-    told = sent.told
-    lapseLetters = sent.lapseLetters
+    // One message per person: the paper door folds the firm's own findings
+    // into a person's paper letter where they have both, and sends the
+    // rest as they are (the `findings` option of sendDocumentLapses).
+    const sent = await sendDocumentLapses(letters, now, prisma, { findings: await findingNotes(findings) })
+    told = sent.findingsTold
+    lapseLetters = sent.letters.length
   }
 
   return NextResponse.json({
@@ -672,7 +673,7 @@ async function alreadySaid(subjectIds: string[]): Promise<Set<string>> {
  * reader was told about something else yesterday: the keys are per fact,
  * so nothing is suppressed for having a noisy neighbour.
  */
-async function findingNotes(findings: Finding[]): Promise<FindingNote[]> {
+async function findingNotes(findings: Finding[]): Promise<NightFindings[]> {
   const NEEDS: Record<string, string> = {
     VERIFICATION_EXPIRED: 'vendors.manage',
     VERIFICATION_EXPIRING: 'vendors.manage',
@@ -703,7 +704,7 @@ async function findingNotes(findings: Finding[]): Promise<FindingNote[]> {
     byCompany.set(f.companyId, [...(byCompany.get(f.companyId) ?? []), f])
   }
 
-  const notifications: FindingNote[] = []
+  const notifications: NightFindings[] = []
   const said = await alreadySaid(findings.map((f) => f.subjectId))
 
   for (const [companyId, theirs] of byCompany) {
@@ -759,61 +760,3 @@ async function findingNotes(findings: Finding[]): Promise<FindingNote[]> {
   return notifications
 }
 
-/**
- * Send tonight's two halves, one message per person.
- *
- * A person owed only papers gets conversation's letter through its own
- * door; a person owed only findings gets the finding message; a person
- * owed both gets one message carrying both (`lib/night-message`), and
- * each paper in it is recorded the way the paper door records it.
- */
-async function tellTonight(letters: LapseLetter[], notes: FindingNote[], now: Date): Promise<{ told: number; lapseLetters: number }> {
-  const plan = oneMessageTonight(letters, notes)
-  const sentLetters = (await sendDocumentLapses(plan.lettersAlone, now)).letters.length
-
-  const alone: NotifyParams[] = plan.notesAlone.map(({ blocking: _b, keys: _k, ...n }) => n)
-  if (alone.length > 0) await notifyBulk(alone)
-
-  let folded = 0
-  let foldedFacts = 0
-  for (const { message, facts } of plan.together) {
-    const written = await notify(message)
-    if (!written) continue
-    folded++
-    for (const l of facts) {
-      // The same record the paper door writes for each fact it tells
-      // (sendDocumentLapses in lib/notify/documents); kept in step with it.
-      await prisma.automationLog.create({
-        data: {
-          companyId: l.companyId,
-          action: 'DOCUMENT_LAPSE_TOLD',
-          summary: l.logSummary,
-          reason: l.logReason,
-          payload: {
-            documentId: l.data.documentId,
-            documentKey: l.data.documentKey,
-            milestone: l.data.milestone,
-            daysLeft: l.data.daysLeft,
-            side: l.side,
-            stopsWork: l.data.stopsWork,
-            told: LAPSE_TOLD[l.side],
-            inOneLetterWith: facts.length,
-            withFindings: true,
-            at: now.toISOString(),
-          },
-          reversible: false,
-        },
-      })
-      foldedFacts++
-    }
-  }
-
-  return { told: alone.length + folded, lapseLetters: sentLetters + foldedFacts }
-}
-
-/** Who a paper fact was told to, as a role; the paper door's own words. */
-const LAPSE_TOLD: Record<LapseLetter['side'], string> = {
-  OWES: 'the firm that owes it',
-  EXPOSED: 'the program manager and compliance officer',
-  EMPLOYS: 'the employer',
-}

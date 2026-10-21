@@ -639,9 +639,6 @@ export const DOMAINS: Domain[] = [
       // than beside the cron because only a route.ts belongs under
       // app/api — see the cron check in __tests__/invariants/alerts.
       'lib/due-cycle-desks',
-      // The nightly check's two halves folded into one message per person.
-      // Pure, and here for the same reason as the line above.
-      'lib/night-message',
       'app/api/cron', 'app/api/import',
       // Generated from lib/matrix by the regeneration script; edited only by regenerating it.
       'docs/delivery-matrix.html',
