@@ -238,14 +238,17 @@ async function call(wire: Wire, seat: string, method: Method, path: string, body
   let sentence: string | null = null
   let code: string | undefined
   try {
+    // A form carries a file: fetch writes its own multipart boundary, so
+    // no content type is set here, and a file is given a minute at least.
+    const form = body instanceof FormData
     const headers: Record<string, string> = { accept: 'application/json' }
     if (cookie) headers.cookie = cookie
-    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (body !== undefined && !form) headers['content-type'] = 'application/json'
     if (seat === 'cron') headers.authorization = `Bearer ${wire.cronSecret}`
     const res = await fetch(wire.base + path, {
       method, headers, redirect: 'manual',
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(wire.timeoutMs),
+      body: body === undefined ? undefined : form ? body : JSON.stringify(body),
+      signal: AbortSignal.timeout(form ? Math.max(wire.timeoutMs, 60_000) : wire.timeoutMs),
     })
     status = res.status
     const text = await res.text()
@@ -318,6 +321,13 @@ export class Actor {
   patch<T = any>(path: string, body?: unknown) { return this.request<T>('PATCH', path, body ?? {}) }
   put<T = any>(path: string, body?: unknown) { return this.request<T>('PUT', path, body ?? {}) }
   delete<T = any>(path: string, body?: unknown) { return this.request<T>('DELETE', path, body) }
+
+  /**
+   * POST a multipart form — a file and its fields — as this seat, in the
+   * session every other call of this seat uses, recorded on the run's
+   * ledger like any call. A station never reads the session itself.
+   */
+  upload<T = any>(path: string, form: FormData) { return this.request<T>('POST', path, form) }
 }
 
 /**

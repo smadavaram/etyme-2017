@@ -17,7 +17,8 @@ import { parseArgs } from '../../scripts/simulate/args'
 import { STAGE_ORDER, emptyWorld, parallel, batchRefusal } from '../../scripts/simulate/stage'
 import { STAGES } from '../../scripts/simulate/stages'
 import { reportMarkdown, benchLine } from '../../scripts/simulate/report'
-import { newSeats, type SeatSpec } from '../../scripts/simulate/actors'
+import { Actor, newSeats, type SeatSpec } from '../../scripts/simulate/actors'
+import { createServer } from 'node:http'
 import { pruneable, withoutAddedInclude } from '../../scripts/simulate/server'
 
 let n = 0
@@ -258,5 +259,48 @@ describe('A build never takes away the build another run is serving from', () =>
     const other = JSON.stringify({ compilerOptions: { strict: false }, include: ['**/*.ts', '.next-sim/builds/x/types/**/*.ts'] })
     expect(withoutAddedInclude(before, other, '.next-sim/builds/x')).toBeNull()
     expect(withoutAddedInclude(before, before, '.next-sim/builds/x')).toBeNull()
+  })
+})
+
+describe('a seat sends a file the way a person does', () => {
+  it('an upload goes as the same seat in the same session, as a multipart form, and lands on the run\u2019s ledger', async () => {
+    process.env.DEMO_SECRET ??= 'simulation-harness-test'
+    const seen: { cookie?: string; type?: string; body: string }[] = []
+    const server = createServer((req, res) => {
+      let body = ''
+      req.on('data', (c) => (body += c))
+      req.on('end', () => {
+        seen.push({ cookie: req.headers.cookie, type: req.headers['content-type'], body })
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: { ok: true } }))
+      })
+    })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    const port = (server.address() as { port: number }).port
+    try {
+      const ledger = new Ledger()
+      const spec: SeatSpec = {
+        key: 'worker/ana@scale.invalid', door: { email: 'ana@scale.invalid' }, personName: 'Ana', email: 'ana@scale.invalid',
+        personId: 'p1', role: 'Worker', company: null,
+      }
+      const actor = new Actor(spec, { base: `http://127.0.0.1:${port}`, ledger, secret: 'x', cronSecret: 'y', timeoutMs: 5_000 })
+      await actor.get('/api/me')
+      const form = new FormData()
+      form.set('note', 'front page')
+      form.set('file', new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), 'i9.png')
+      const res = await actor.upload('/api/documents/d1/upload', form)
+
+      expect(res.ok).toBe(true)
+      expect(seen[1].cookie).toBe(seen[0].cookie)
+      expect(seen[1].cookie).toBeTruthy()
+      expect(seen[1].type).toMatch(/^multipart\/form-data; boundary=/)
+      expect(seen[1].body).toContain('filename="i9.png"')
+      expect(ledger.calls.map((c) => [c.seat, c.method, c.path])).toEqual([
+        ['worker/ana@scale.invalid', 'GET', '/api/me'],
+        ['worker/ana@scale.invalid', 'POST', '/api/documents/d1/upload'],
+      ])
+    } finally {
+      server.close()
+    }
   })
 })
