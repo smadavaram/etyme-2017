@@ -6,6 +6,10 @@ import { INDUSTRIES, vocabularyFaults, skillsOf } from '@/lib/seed-scale/industr
 import { sharedTails } from '@/lib/seed-scale/kit'
 import { SCALE, SCALE_EMAIL_SUFFIX, SCALE_SLUG_PREFIX, type ScaleFrame } from '@/lib/seed-scale/types'
 import { readCatalog } from '../scripts/simulate/actors'
+import { seedJobs, planJobs, type JobPlan } from '@/lib/seed-scale/jobs'
+import { standInPeople } from '@/lib/seed-scale/jobs/stand-in'
+import type { PersonFacts } from '@/lib/seed-scale/types'
+import { projectInvitationForVendor } from '@/lib/invitation-visibility'
 
 /**
  * The generated world at the founder's scale (lib/seed-scale), seeded on
@@ -22,6 +26,9 @@ import { readCatalog } from '../scripts/simulate/actors'
 
 let frame: ScaleFrame
 const s: Record<string, any> = {}
+/** The people the jobs are planned against: demand's stand-ins until supply's `buildPeople` lands. */
+let people: PersonFacts[]
+let jobPlan: JobPlan
 
 const COUNTED = ['company', 'person', 'context', 'role', 'companyLocation', 'holiday', 'orgUnit', 'costCenter', 'headcountPlan',
   'approvalRule', 'governancePolicy', 'governanceRule', 'counterparty', 'masterAgreement', 'engagement', 'programSeat'] as const
@@ -35,6 +42,14 @@ beforeAll(async () => {
   await freshWorld()
   s.first = await seedScaleWorld()
   frame = buildFrame()
+  // The jobs (etyme-demand). Until lib/seed-scale/index wires the job
+  // steps after supply's people, they run here on demand's stand-in
+  // people, whose Person rows the test writes itself; when the wiring
+  // lands this block goes and `seedScaleWorld` does it.
+  people = standInPeople(frame)
+  await prisma.person.createMany({ data: people.map((p) => ({ id: p.id, name: p.name, primaryEmail: p.email })), skipDuplicates: true })
+  jobPlan = planJobs(frame, people)
+  await seedJobs(frame, people)
   s.firms = await prisma.company.findMany({
     where: { slug: { startsWith: SCALE_SLUG_PREFIX } },
     select: { id: true, slug: true, kind: true, supplierPosture: true, claimedAt: true },
@@ -131,6 +146,7 @@ describe('the generated world at the founder’s scale', () => {
     const jobs = await prisma.requirement.findMany({
       where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } }, select: { title: true, skills: true },
     })
+    expect(jobs.length).toBeGreaterThan(frame.byPosition('CLIENT').length * 10)
     for (const j of jobs) for (const k of j.skills) expect(vocabulary.has(k), `${j.title}: ${k}`).toBe(true)
     // Before the jobs land, the vocabulary they will draw from is each industry's own and non-empty.
     for (const i of INDUSTRIES) expect(skillsOf(i.key).length, i.key).toBeGreaterThan(10)
@@ -148,5 +164,99 @@ describe('the generated world at the founder’s scale', () => {
     // Every firm opens at `<slug>/owner`.
     const keys = new Set(catalog.seats.map((x) => x.key))
     for (const f of frame.firms) expect(keys.has(`${f.slug}/owner`), f.slug).toBe(true)
+  })
+
+  // ── The jobs (etyme-demand) ─────────────────────────────────────────
+
+  it('the band is on the invitation and never on the job', async () => {
+    const invitations = await prisma.requirementInvitation.findMany({
+      where: { requirement: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } },
+      select: { requirementId: true, toCompanyId: true, payMin: true, payMax: true, requirement: { select: { title: true, billMin: true, billMax: true } } },
+    })
+    expect(invitations.length).toBeGreaterThan(1000)
+    const bands = new Map<string, Set<number>>()
+    for (const i of invitations) {
+      // Every supplier reads a band of its own, under the client's ceiling, and never the ceiling itself.
+      expect(i.payMin, i.requirement.title).not.toBeNull()
+      expect(i.payMax!, i.requirement.title).toBeLessThanOrEqual(i.requirement.billMax!)
+      expect([i.payMin, i.payMax]).not.toEqual([i.requirement.billMin, i.requirement.billMax])
+      bands.set(i.requirementId, (bands.get(i.requirementId) ?? new Set()).add(i.payMax!))
+    }
+    const shared = [...bands.values()].filter((b) => b.size > 1).length
+    expect(shared / bands.size).toBeGreaterThan(0.9)
+    // What a supplier is shown of one is its band, and not the job's ceiling.
+    const one = await prisma.requirementInvitation.findFirstOrThrow({
+      where: { requirement: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } },
+      include: { fromCompany: { select: { id: true, name: true, slug: true } }, requirement: { include: { _count: { select: { invitations: true } } } } },
+    })
+    const view = projectInvitationForVendor({ ...one, requirement: { ...one.requirement, invitationCount: one.requirement._count.invitations } }, 0, new Date())
+    expect(view.band).toEqual({ payMin: one.payMin, payMax: one.payMax })
+    expect(JSON.stringify(view)).not.toContain('billMax')
+  })
+
+  it('most jobs publish themselves, and the rest wait on a named person', async () => {
+    const jobs = await prisma.requirement.findMany({
+      where: { company: { kind: 'CLIENT', slug: { startsWith: SCALE_SLUG_PREFIX } } },
+      select: { id: true, title: true, companyId: true, status: true, approvalState: true },
+    })
+    const auto = jobs.filter((j) => j.approvalState === 'AUTO_APPROVED').length
+    expect(auto / jobs.length).toBeGreaterThan(0.7)
+    const waiting = jobs.filter((j) => j.approvalState === 'PENDING_APPROVAL')
+    expect(waiting.length).toBeGreaterThanOrEqual(frame.byPosition('CLIENT').length)
+    for (const j of waiting) {
+      expect(j.status, j.title).toBe('DRAFT')
+      const held = await prisma.requirementApproval.findMany({
+        where: { requirementId: j.id, outcome: 'PENDING' },
+        select: { approver: { select: { name: true, contexts: { where: { companyId: j.companyId }, select: { role: { select: { name: true } } } } } } },
+      })
+      expect(held, j.title).toHaveLength(1)
+      expect(held[0].approver?.name, j.title).toBeTruthy()
+      expect(['HR Partner', 'Procurement Lead', 'Approver']).toContain(held[0].approver!.contexts[0]?.role?.name)
+    }
+  })
+
+  it('no job’s owner raised it', async () => {
+    const jobs = await prisma.requirement.findMany({
+      where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } },
+      select: { title: true, ownerId: true, raisedById: true },
+    })
+    for (const j of jobs) {
+      expect(j.ownerId, j.title).not.toBeNull()
+      expect(j.ownerId, j.title).not.toBe(j.raisedById)
+    }
+    // And nobody approves a job they own or raised.
+    const decided = await prisma.requirementApproval.findMany({
+      where: { approverId: { not: null }, requirement: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } },
+      select: { approverId: true, requirement: { select: { ownerId: true, raisedById: true } } },
+    })
+    for (const a of decided) expect([a.requirement.ownerId, a.requirement.raisedById]).not.toContain(a.approverId)
+  })
+
+  it('the people put forward, and the interviews they sat, are a year of work', async () => {
+    const counted = {
+      requirement: await prisma.requirement.count({ where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } }),
+      submission: await prisma.submission.count({ where: { toCompany: { slug: { startsWith: SCALE_SLUG_PREFIX } } } }),
+      interview: await prisma.interview.count({ where: { company: { slug: { startsWith: SCALE_SLUG_PREFIX } } } }),
+    }
+    expect(counted.requirement).toBe(jobPlan.jobs.length)
+    expect(counted.submission).toBe(jobPlan.submissions.length)
+    expect(counted.interview).toBe(jobPlan.interviews.length)
+    // Filled, closed, called off and open, across the year; a placed person sat two rounds.
+    const statuses = new Set((await prisma.requirement.findMany({
+      where: { company: { kind: 'CLIENT', slug: { startsWith: SCALE_SLUG_PREFIX } } }, select: { status: true }, distinct: ['status'],
+    })).map((r) => r.status))
+    expect([...statuses].sort()).toEqual(['CANCELLED', 'CLOSED', 'DRAFT', 'FILLED', 'OPEN'])
+    const placed = await prisma.submission.findFirstOrThrow({
+      where: { status: 'PLACED', toCompany: { kind: 'CLIENT', slug: { startsWith: SCALE_SLUG_PREFIX } } }, select: { interviews: { select: { round: true, outcome: true }, orderBy: { round: 'asc' } } },
+    })
+    expect(placed.interviews).toEqual([{ round: 1, outcome: 'ADVANCE' }, { round: 2, outcome: 'OFFER' }])
+  })
+
+  it('a second seeding of the jobs writes nothing', async () => {
+    const tables = ['requirement', 'requirementApproval', 'requirementInvitation', 'submission', 'interview'] as const
+    const read = async () => Object.fromEntries(await Promise.all(tables.map(async (t) => [t, await (prisma as any)[t].count()])))
+    const before = await read()
+    await seedJobs(buildFrame(), standInPeople(frame))
+    expect(await read()).toEqual(before)
   })
 })
