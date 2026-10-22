@@ -139,7 +139,7 @@ export interface SameTitleJob {
 
 /** "Nov 3": the day a job starts, said the way a recruiter says it. */
 export function startSays(d: Date): string {
-  return d.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })
+  return formatDay(d, { year: false })
 }
 
 /** The job's number as a person reads it off the job's page: the last six of its id. */
