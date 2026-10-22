@@ -161,11 +161,14 @@ export async function POST(
   // I-9 reverification) ending before the new end refuses the extension in
   // a sentence; any other paper ending first asks for a reason, kept with
   // the extension. Regulatory's rule (`extensionPapers`), money's door.
-  const paperRows = { type: true, status: true, expiresAt: true } as const
-  const [personPapers, supplierPapers] = await Promise.all([
+  // The start too: a paper that only begins after the new end lasts to
+  // none of it, so it cannot answer for the months the extension adds.
+  const paperRows = { type: true, status: true, validFrom: true, expiresAt: true } as const
+  const startsInTime = (r: { validFrom: Date | null }) => !r.validFrom || r.validFrom.getTime() <= newEnd.getTime()
+  const [personPapers, supplierPapers] = (await Promise.all([
     prisma.verification.findMany({ where: { personId: contract.personId }, select: paperRows }),
     prisma.verification.findMany({ where: { companyId: contract.companyId, personId: null }, select: paperRows }),
-  ])
+  ])).map((rows) => rows.filter(startsInTime))
   const papers = extensionPapers({
     personName: contract.person.name,
     supplierName: contract.company.name,

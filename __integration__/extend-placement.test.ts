@@ -227,3 +227,25 @@ describe('an extension reads the papers that must last to its new end', () => {
     expect(log).not.toBeNull()
   })
 })
+
+describe('a paper that only starts after the new end does not answer for it', () => {
+  it('a certificate that begins after the new end does not stand in for the one running out before it', async () => {
+    await freshWorld()
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const s = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } }, orderBy: { id: 'asc' } })
+    const uploader = await prisma.person.findFirstOrThrow({ where: { primaryEmail: 'world-techpeple@demo.etyme.local' } })
+    const newEnd = new Date(s.endDate!)
+    newEnd.setMonth(newEnd.getMonth() + 3)
+    // A renewal on file, but one that starts only after the new end and runs long after it.
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      await prisma.verification.create({
+        data: { companyId: co.id, type, status: 'CLEAR', validFrom: new Date(newEnd.getTime() + 10 * 86_400_000), expiresAt: new Date(newEnd.getTime() + 400 * 86_400_000), uploadedById: uploader.id },
+      })
+    }
+    as('world-techpeple@demo.etyme.local')
+    const r = await json(await extend(req('POST', `/api/contracts/${s.id}/extend`, { months: 3 }), { params: Promise.resolve({ id: s.id }) }))
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('PAPERS_NEED_A_REASON')
+    expect(r.body.error.message).toMatch(/general liability certificate runs out/)
+  }, 180_000)
+})
