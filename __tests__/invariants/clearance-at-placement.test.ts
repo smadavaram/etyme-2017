@@ -244,4 +244,9 @@ describe('the start says who may change a placement, what the I-9 was completed 
     expect(startSays('Ingrid Sørensen', new Date('2027-01-04T00:00:00Z'), today).says).toBe('Ingrid Sørensen is cleared to start on Jan 4, 2027')
     expect(route).toContain('message: start ? start.says')
   })
+
+  it('the start reads the firm’s steps after a flagged report on the person’s own checks, so a decision not to act on one stops the start warning', () => {
+    expect(route).toContain("import { contractClearance, lineExtras, ADVERSE_STEPS } from '@/lib/contract-clearance'")
+    expect(route).toMatch(/where: \{ personId: contract\.personId \},\s*select: \{\s*\.\.\.FLOOR_AND_CEILING,[\s\S]{0,200}\.\.\.ADVERSE_STEPS,/)
+  })
 })

@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
-import { contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { contractClearance, lineExtras, ADVERSE_STEPS } from '@/lib/contract-clearance'
 import { contractSide } from '@/lib/resolve-client-company'
 import { hasPermission, type Permission, askTheDesk } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
@@ -247,6 +247,9 @@ export async function POST(
         where: { personId: contract.personId },
         select: {
           ...FLOOR_AND_CEILING,
+          // The firm's steps after a flagged report, rows of their own since
+          // 2026-10-21: a decision not to act on one stops the start warning.
+          ...ADVERSE_STEPS,
           formEdition: true,
           backedBy: {
             select: {

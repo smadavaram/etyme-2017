@@ -50,7 +50,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
 
     as(supplier)
     await json(
-      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3 }), {
+      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Techpeple’s renewed certificates are on their way; the client needs the work to go on.' }), {
         params: Promise.resolve({ id: sellId }),
       })
     )
@@ -100,7 +100,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
 
     as(supplier)
     await json(
-      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3 }), {
+      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Techpeple’s renewed certificates are on their way; the client needs the work to go on.' }), {
         params: Promise.resolve({ id: sellId }),
       })
     )
@@ -134,5 +134,96 @@ describe('a placement that is extended is billed for the months it gains', () =>
     expect(outsider.status).toBe(403)
     expect(outsider.body.error.message).toMatch(/not a party/i)
     void r
+  })
+})
+
+/**
+ * An extension reads the papers that must last to its new end.
+ *
+ * A placement extended past the day the person may work, or past the
+ * firm's cover, used to go through on the date alone. Now a paper that
+ * lets the person work at all ending first refuses it in a sentence, and
+ * any other paper ending first asks for a reason that is kept with it.
+ */
+describe('an extension reads the papers that must last to its new end', () => {
+  let sellId: string
+  let personId: string
+  let companyId: string
+  let uploaderId: string
+  let endBefore: Date
+  const supplier = 'world-techpeple@demo.etyme.local'
+  const ask = async (body: Record<string, unknown>) =>
+    json(await extend(req('POST', `/api/contracts/${sellId}/extend`, body), { params: Promise.resolve({ id: sellId }) }))
+
+  beforeAll(async () => {
+    await freshWorld()
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    companyId = co.id
+    const s = await prisma.sellContract.findFirstOrThrow({ where: { companyId, state: 'IN_PROGRESS', endDate: { not: null } }, orderBy: { id: 'asc' } })
+    sellId = s.id
+    personId = s.personId
+    endBefore = s.endDate!
+    uploaderId = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: supplier } })).id
+    as(supplier)
+  }, 180_000)
+
+  const inAMonth = () => new Date(endBefore.getTime() + 30 * 86_400_000)
+
+  it('a placement is not extended past the day the person’s visa ends, and the refusal names whose paper and the day', async () => {
+    const visa = await prisma.verification.create({
+      data: { personId, type: 'VISA', status: 'CLEAR', expiresAt: inAMonth(), uploadedById: uploaderId },
+    })
+    try {
+      const { status, body } = await ask({ months: 3 })
+      expect(status).toBe(422)
+      expect(body.error.code).toBe('PAPERS_BLOCK')
+      expect(body.error.message.length).toBeGreaterThan(20)
+      const after = await prisma.sellContract.findUniqueOrThrow({ where: { id: sellId } })
+      expect(after.endDate!.toISOString()).toBe(endBefore.toISOString())
+    } finally {
+      await prisma.verification.delete({ where: { id: visa.id } })
+    }
+  })
+
+  it('a reason does not carry an extension past the end of the person’s right to work', async () => {
+    const visa = await prisma.verification.create({
+      data: { personId, type: 'VISA', status: 'CLEAR', expiresAt: inAMonth(), uploadedById: uploaderId },
+    })
+    try {
+      const { status, body } = await ask({ months: 3, reason: 'The client needs them through the release.' })
+      expect(status).toBe(422)
+      expect(body.error.code).toBe('PAPERS_BLOCK')
+    } finally {
+      await prisma.verification.delete({ where: { id: visa.id } })
+    }
+  })
+
+  it('the firm’s cover ending before the new end asks for a reason, and goes ahead on one, which is kept with the extension', async () => {
+    // Techpeple's general liability and workers' compensation certificates
+    // run out on May 10, 2027, in the seeded world; three more months take
+    // Priya Raman's placement past them.
+    const newEnd = new Date(endBefore)
+    newEnd.setMonth(newEnd.getMonth() + 3)
+    const lapsing = await prisma.verification.count({
+      where: { companyId, personId: null, type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: { lt: newEnd } },
+    })
+    expect(lapsing, 'the seeded world has a certificate ending before the new end').toBeGreaterThan(0)
+
+    const refused = await ask({ months: 3 })
+    expect(refused.status).toBe(422)
+    expect(refused.body.error.code).toBe('PAPERS_NEED_A_REASON')
+    expect(refused.body.error.field).toBe('reason')
+    expect(refused.body.error.message).toMatch(/general liability certificate runs out/)
+    expect(refused.body.error.message).toMatch(/Give a reason to go ahead\.$/)
+
+    const reason = 'Renewal is bound; the certificate arrives next week.'
+    const done = await ask({ months: 3, reason })
+    expect(done.status).toBe(200)
+    expect(done.body.data.papers.reason).toBe(reason)
+    const log = await prisma.automationLog.findFirst({
+      where: { action: 'CONTRACT_EXTENDED', payload: { path: ['papers', 'reason'], equals: reason } },
+      select: { id: true },
+    })
+    expect(log).not.toBeNull()
   })
 })

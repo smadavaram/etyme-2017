@@ -10,6 +10,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
+import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 
 /**
  * POST /api/contracts/:id/extend
@@ -152,6 +153,40 @@ export async function POST(
     )
   }
 
+  // ── The papers that must last to the new end ───────────────────────
+  //
+  // Read the way the start reads them: the person's own checks and the
+  // selling firm's. A paper that lets the person work at all (work
+  // authorization, the I-94, a visa or work permit, the right to work, an
+  // I-9 reverification) ending before the new end refuses the extension in
+  // a sentence; any other paper ending first asks for a reason, kept with
+  // the extension. Regulatory's rule (`extensionPapers`), money's door.
+  const paperRows = { type: true, status: true, expiresAt: true } as const
+  const [personPapers, supplierPapers] = await Promise.all([
+    prisma.verification.findMany({ where: { personId: contract.personId }, select: paperRows }),
+    prisma.verification.findMany({ where: { companyId: contract.companyId, personId: null }, select: paperRows }),
+  ])
+  const papers = extensionPapers({
+    personName: contract.person.name,
+    supplierName: contract.company.name,
+    newEnd,
+    person: personPapers,
+    supplier: supplierPapers,
+  })
+  const onPapers = mayExtendOnPapers(papers, typeof body.reason === 'string' ? body.reason : null)
+  if (!onPapers.ok) {
+    return NextResponse.json(
+      {
+        error: {
+          code: onPapers.code,
+          message: onPapers.code === 'PAPERS_NEED_A_REASON' ? `${onPapers.message} Give a reason to go ahead.` : onPapers.message,
+          ...(onPapers.code === 'PAPERS_NEED_A_REASON' ? { field: 'reason' } : {}),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
   // ── The months added need their due dates ──────────────────────────
   //
   // This route moved `endDate`, wrote a log line saying it had extended
@@ -240,6 +275,7 @@ export async function POST(
           months,
           cyclesAdded: { sell: cycles.sell, buy: cycles.buy },
           ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
+          ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),
         },
         reversible: true,
       },
@@ -289,6 +325,8 @@ export async function POST(
       newEndDate: newEnd.toISOString(),
       message: `Contract extended by ${months} month${months !== 1 ? 's' : ''}`,
       ...(pastTheOrder ? { pastTheOrder } : {}),
+      // A paper ending before the new end, gone ahead on the reason given.
+      ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),
       ...(warnings.length > 0 && {
         governanceWarnings: warnings.map((w) => ({
           ruleType: w.ruleType,
