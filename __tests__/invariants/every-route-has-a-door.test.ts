@@ -61,6 +61,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'market/events': 'POST counts a public-site click under a random visit id, nothing personal; GET is staff only (mayReadTheList over ETYME_STAFF_EMAILS).',
   'requirements/parse': 'Turns the text it is sent into fields; reads and writes nothing on the record.',
   'texts/inbound': 'The email provider posting a reply; nothing is read until its signature over the raw body checks (verifyInbound in lib/texts).',
+  'email/inbound': 'The mail provider posting a message forwarded to a company’s address; nothing is read until its signature over the raw body checks (verifyDelivery in lib/email-intake), and the message is then kept only for the one company the address belongs to, from a person seated there.',
   'teams/messages': 'Microsoft Teams posting to the Etyme bot; the Bot Framework’s signed token is checked against our app id before anything is read (lib/teams/auth), and the account is then bound to a live seat whose permissions are the only ones used (lib/teams/binding).',
 }
 

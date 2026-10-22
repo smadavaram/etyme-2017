@@ -39,6 +39,7 @@ const JOBS = [
   // the day employment ended, so a contract ended tonight moves the date
   // this sweep measures against.
   { path: 'retention', does: 'answers the clocks on data requests, finishes the erasures that are due, and says when a breach deadline is close' },
+  { path: 'email-intake', does: 'deletes the text of forwarded email once its card is decided, or after thirty days undecided' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
   { path: 'agreement-terms', does: 'finds agreements running out, and rolls the ones that renew themselves' },

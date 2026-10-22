@@ -761,3 +761,32 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   caught by the ledger's unique key: an act done alone then reads as
   already done, and an act that asks a person fails and staff are told.
   The window was one act long before; it is one run long now.
+
+## Forwarded business email — etyme-architect (2026-10-22)
+
+- **A mail rule that keeps the original sender in From is dropped.** The
+  intake accepts only mail whose From is a person seated at the company and
+  which passed SPF and DKIM aligned for that person's domain. A manual
+  forward, and an Outlook rule's "Forward" action, send a new message from
+  the person and pass. A Gmail filter's forwarding, a Workspace routing rule
+  and an Outlook "Redirect" keep the original sender in From and are
+  dropped with "holds no seat". Accepting them would need trusting ARC
+  headers from the forwarding server; not done, because security wins.
+- **Unsigned deliveries each write a row.** Every refused request is
+  logged as the rules ask, so a flood of unsigned posts writes a flood of
+  small rows. Nothing from their bodies is kept. The hosting firewall's rate
+  limit is the answer, and it is not set up.
+- **A PDF carrying scripts is kept and marked** (`activeContent` on the
+  attachment log), because a filled-in government form carries scripts
+  too. The server never opens it; whoever serves it to a person must send
+  it as a download, never inline. The check reads the raw bytes and misses
+  scripts hidden inside compressed object streams.
+- **Sorting is by words and numbers only.** No model; the typed slot
+  (`ModelStep`, `MODEL_STEP = null`) waits for the masking at the edge.
+  Numbers are matched only when exactly one of the company's own.
+- **Nobody reads a forwarded body on a screen yet**, so the access-log
+  action for that read does not exist; regulatory adds it to
+  `lib/access-log` and the card owners log every read of a body.
+- **Resend has no read-only key.** `RESEND_RECEIVING_KEY` must be a
+  full-access key, which could also change Resend's domains; it is kept
+  apart from the sending key so the sending key stays sending-only.

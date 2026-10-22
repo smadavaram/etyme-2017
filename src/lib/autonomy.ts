@@ -167,6 +167,18 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready for somebody to work. That person decides what happens to the worker.',
   },
+  EMAIL_INTAKE_SORTED: {
+    rung: 'L2',
+    basis: 'RULE',
+    says:
+      'An email a person seated at the company forwarded to its own address passed the checks, and was sorted by rules into a draft for a person to say yes or no to. Nothing in it became a record, and nothing it said was done.',
+  },
+  EMAIL_INTAKE_BODY_DELETED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A forwarded email\u2019s text, and any file not filed as evidence, was deleted because its card was decided or nobody decided it in thirty days. The row saying it came in stays. It cannot be put back.',
+  },
   DEMO_SANDBOX_EXPIRY_WARNED: {
     rung: 'L0',
     basis: 'RULE',
@@ -356,6 +368,11 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
 // ── The things that are governance, not autonomy ─────────
 
 const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string }> = {
+  EMAIL_INTAKE_DROPPED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'A message sent to a company\u2019s forwarding address was dropped and never shown: the intake was off, the sender was not proven or not seated there, or a file was not what it claimed. A refusal, not something the system chose to do.',
+  },
   AWARD_BLOCKED: {
     outcome: 'BLOCK',
     basis: 'RULE',
@@ -547,6 +564,9 @@ ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 // (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
 // A person's act, reversible by the same switch; nothing turns it alone.
 ATTRIBUTED.ASK_ETYME_MODEL_SET = { basis: 'RULE' }
+// An Owner or Admin turned forwarded email on or off, or replaced its
+// address (src/lib/email-intake/settings, 2026-10-22). A person's act.
+ATTRIBUTED.EMAIL_INTAKE_SET = { basis: 'RULE' }
 // Staff made a real company, seated its first people and issued each a
 // one-time sign-in link, on a deployment with no email key
 // (src/lib/staff-bootstrap, 2026-10-14). `RECORDED`: the row says what
@@ -1090,6 +1110,16 @@ export const JOBS: Record<string, Job> = {
     // on the ladder.
     // The check reads a job's own route file, so claiming them here
     // would be claiming names this file cannot see written.
+    writes: [],
+  },
+  'email-intake': {
+    job: 'email-intake',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Deletes the text of a forwarded email once its card is decided, and after thirty days if nobody decides it, with any file not filed as evidence. A date comparison, and the deletion cannot be put back.',
+    // Empty on purpose, as for retention: the route names nothing, and
+    // EMAIL_INTAKE_BODY_DELETED is written in lib/email-intake/retention.
     writes: [],
   },
   'reap-demos': {
