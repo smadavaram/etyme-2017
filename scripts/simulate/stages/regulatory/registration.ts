@@ -107,10 +107,11 @@ export async function askOf(
 }
 
 /** The answer: a file uploaded, or a paper signed with the signed copy attached. */
-export async function answerWith(ctx: Ctx, stage: DocStage, who: Actor, id: string, file: PaperFile, sign: boolean, note?: string): Promise<Res> {
+export async function answerWith(ctx: Ctx, stage: DocStage, who: Actor, id: string, file: PaperFile, sign: boolean, note?: string, fields: Record<string, string> = {}): Promise<Res> {
   const res = await sendFile(ctx, who, `/api/documents/${id}/${sign ? 'sign' : 'upload'}`, file, {
     ...(sign ? { attests: 'true' } : {}),
     ...(note ? { note } : {}),
+    ...fields,
   })
   if (res.ok) tally.answered(stage)
   return res
@@ -135,16 +136,18 @@ export async function walkPaper(
     subjectType: 'COMPANY' | 'PERSON' | 'SELL_CONTRACT'; subjectId: string
     file: (n: number) => PaperFile; accept: Record<string, unknown>
     sendBack?: string | null; note?: string
+    /** Fields sent with the file: a license's number, issuer and expiry. */
+    fields?: Record<string, string>
   }
 ): Promise<{ ok: boolean; id: string | null; why?: string }> {
   const id = await askOf(stage, o.asker, o.name, o.audience, o.sign, o.subjectType, o.subjectId)
   if (!id) return { ok: false, id: null, why: `${o.asker.company?.name ?? 'the firm'} could not ask for the ${o.name.toLowerCase()}` }
-  let res = await answerWith(ctx, stage, o.answerer, id, o.file(0), o.sign, o.note)
+  let res = await answerWith(ctx, stage, o.answerer, id, o.file(0), o.sign, o.note, o.fields)
   if (!res.ok) return { ok: false, id, why: res.sentence ?? `the answer came back ${res.status}` }
   if (o.sendBack) {
     const back = await examineAt(stage, o.asker, id, { verdict: 'SEND_BACK', reason: o.sendBack })
     if (back.ok) {
-      res = await answerWith(ctx, stage, o.answerer, id, o.file(1), o.sign, o.note)
+      res = await answerWith(ctx, stage, o.answerer, id, o.file(1), o.sign, o.note, o.fields)
       if (!res.ok) return { ok: false, id, why: res.sentence ?? 'the second answer did not arrive' }
     }
   }
@@ -515,6 +518,7 @@ export async function shortlist(ctx: Ctx, subs: SubmissionFact[]): Promise<{ clo
       asker: hr, answerer: worker, name: 'Professional license', audience: 'CANDIDATE', sign: false,
       subjectType: 'PERSON', subjectId: p.id,
       file: (n) => pdf(`${slugOf(p.name)}-license${n ? `-${n}` : ''}.pdf`, 'Professional license', [`Licensee: ${p.name}`, `License ${number}`, 'State Board of Nursing']),
+      fields: { licenseNumber: number, issuer: 'State Board of Nursing', expiresAt: iso(plusDays(400 + (hashOf(p.id) % 300))) },
       accept: { verdict: 'ACCEPT', expiresAt: iso(plusDays(400 + (hashOf(p.id) % 300))) },
       sendBack: i % 9 === 4 ? 'The license shown is the old card. Send the one with the current renewal date.' : null,
     })

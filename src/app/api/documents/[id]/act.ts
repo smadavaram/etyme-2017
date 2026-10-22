@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { BUILT_IN } from '@/lib/document-type'
 import { prisma } from '@/lib/db'
 import { notify, notifyBulk } from '@/lib/notify'
 import {
   mayAct,
+  isProfessionalLicense,
+  licenseRenewal,
+  typeKeyForTemplate,
   standingOn,
   askNotice, answeredNotice,
   checkDocumentUpload,
@@ -37,7 +41,8 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
   // deprecated — and a file sent as a file is kept as the file.
   const sent = await whatArrived(request)
   if (sent.refusal) return sent.refusal
-  const { fileUrl, fileName, note, attests, file } = sent
+  const { fileUrl, fileName, attests, file } = sent
+  let note = sent.note
 
   const doc = await prisma.docInstance.findUnique({
     where: { id },
@@ -93,10 +98,32 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
       staffOfIssuer,
       atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId && caller.context.type !== 'CONSULTANT',
     },
-    { fileUrl, attests }
+    { fileUrl, attests, note }
   )
   if (!verdict.ok) {
-    return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: verdict.code === 'NOT_YOURS' ? 403 : 409 })
+    return NextResponse.json(
+      { error: { code: verdict.code, message: verdict.message } },
+      { status: verdict.code === 'NOT_YOURS' ? 403 : verdict.code === 'NO_ANSWER' ? 422 : 409 }
+    )
+  }
+
+  // ── A license is sent with its three facts ─────────────────────────
+  // The number, who issued it and the day it runs out, as fields; refused
+  // in a sentence where one is missing or the day has passed. The expiry
+  // goes on the paper's own column; the number and the issuer on its
+  // note, in the one form `licenseFactsFrom` reads back for the examine
+  // step (two columns for them are a schema request).
+  let licenseExpires: Date | null = null
+  if (action === 'upload') {
+    const typeKey = typeKeyForTemplate(doc.template.name, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
+    if (isProfessionalLicense(doc.template.name, typeKey)) {
+      const facts = licenseRenewal({ licenseNumber: sent.licenseNumber, issuer: sent.issuer, expiresAt: sent.expiresAt }, new Date())
+      if (!facts.ok) {
+        return NextResponse.json({ error: { code: facts.code, message: facts.message, field: facts.field } }, { status: 422 })
+      }
+      licenseExpires = facts.facts.expiresAt
+      note = [facts.note, note].filter(Boolean).join(' ').slice(0, 500)
+    }
   }
 
   const now = new Date()
@@ -111,7 +138,7 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
         status: verdict.next,
         ...(action === 'send' ? { sentAt: now } : {}),
         ...(action !== 'send'
-          ? { signedAt: now, signedById: caller.person.id, signedFileUrl: fileUrl ?? doc.signedFileUrl, fileName: fileName ?? doc.fileName, note: note ?? doc.note }
+          ? { signedAt: now, signedById: caller.person.id, signedFileUrl: fileUrl ?? doc.signedFileUrl, fileName: fileName ?? doc.fileName, note: note ?? doc.note, ...(licenseExpires ? { expiresAt: licenseExpires } : {}) }
           : {}),
       },
     })
@@ -217,6 +244,10 @@ interface Arrived {
   fileName: string | null
   note: string | null
   attests: boolean
+  /** A license's three facts, where the paper is one (`licenseRenewal`). */
+  licenseNumber?: string | null
+  issuer?: string | null
+  expiresAt?: string | null
   file: { name: string; type: string; bytes: Buffer; says: string } | null
   refusal?: NextResponse
 }
@@ -242,6 +273,9 @@ async function whatArrived(request: NextRequest): Promise<Arrived> {
       fileName: typeof body.fileName === 'string' ? body.fileName.trim().slice(0, 200) : null,
       note: typeof body.note === 'string' ? body.note.trim().slice(0, 500) : null,
       attests: body.attests === true,
+      licenseNumber: typeof body.licenseNumber === 'string' ? body.licenseNumber.trim().slice(0, 80) : null,
+      issuer: typeof body.issuer === 'string' ? body.issuer.trim().slice(0, 200) : null,
+      expiresAt: typeof body.expiresAt === 'string' ? body.expiresAt.trim().slice(0, 40) : null,
     }
   }
 
@@ -265,6 +299,9 @@ async function whatArrived(request: NextRequest): Promise<Arrived> {
     fileName: said('fileName', 200),
     note: said('note', 500),
     attests: form.get('attests') === 'true',
+    licenseNumber: said('licenseNumber', 80),
+    issuer: said('issuer', 200),
+    expiresAt: said('expiresAt', 40),
   }
 
   const picked = form.get('file')

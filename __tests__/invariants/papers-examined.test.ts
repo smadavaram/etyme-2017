@@ -10,7 +10,7 @@
  * nothing in the app knew what comes after a flagged report.
  */
 import { describe, it, expect } from 'vitest'
-import { mayAct, mayExamine, mayAskOnTies, providersVerdict, type ExamineFacts } from '@/lib/document-request'
+import { mayAct, mayExamine, mayAskOnTies, providersVerdict, licenseRenewal, licenseFactsFrom, isProfessionalLicense, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
 import { adverseSays } from '@/lib/contract-clearance'
 import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete } from '@/lib/document-stages'
@@ -361,5 +361,41 @@ describe('a non-compete is not asked where the state voids it for workers', () =
     expect(withoutVoidNonCompete([nca], { country: 'US', state: 'TX' })[0]).toEqual(nca)
     expect(withoutVoidNonCompete([nca], { country: 'IN', state: 'CA' })[0]).toEqual(nca)
     expect(withoutVoidNonCompete([nca], null)[0]).toEqual(nca)
+  })
+})
+
+describe('the routes refuse what only the screen used to (found by supply, 2026-10-22)', () => {
+  const question = { status: 'SENT', templateName: 'Work authorization — the question', needsSignature: true, subjectPersonId: 'p1', issuerName: 'Brightmoor Staffing' }
+  const her = { personId: 'p1', staffOfIssuer: false }
+  it('a stand-in screening question signed with no answer is refused, and the sentence repeats the question', () => {
+    const v = mayAct('sign', question, her, { attests: true, note: '   ' })
+    expect(v).toMatchObject({ ok: false, code: 'NO_ANSWER' })
+    if (!v.ok) expect(v.message).toBe('Answer the question before you send it: “Are you authorized to work in the US, and will you need sponsorship now or in the future?”')
+  })
+  it('the same question with an answer goes on file', () => {
+    expect(mayAct('sign', question, her, { attests: true, note: 'Authorized; no sponsorship needed.' }).ok).toBe(true)
+  })
+  it('a license renewal is sent with its number, who issued it and the new expiry, and the three come back for the examine step', () => {
+    const v = licenseRenewal({ licenseNumber: 'RN-482113', issuer: 'Oregon State Board of Nursing', expiresAt: '2028-03-31' }, ON)
+    expect(v.ok).toBe(true)
+    if (v.ok) {
+      expect(v.note).toBe('License RN-482113, issued by Oregon State Board of Nursing, runs out 2028-03-31.')
+      expect(licenseFactsFrom(v.note)).toEqual({ licenseNumber: 'RN-482113', issuer: 'Oregon State Board of Nursing', expiresAt: '2028-03-31' })
+    }
+  })
+  it('a license with no number, no issuer or no expiry is refused, naming the missing field', () => {
+    expect(licenseRenewal({ issuer: 'Board', expiresAt: '2028-01-01' }, ON)).toMatchObject({ ok: false, field: 'licenseNumber' })
+    expect(licenseRenewal({ licenseNumber: 'RN-1', expiresAt: '2028-01-01' }, ON)).toMatchObject({ ok: false, field: 'issuer' })
+    expect(licenseRenewal({ licenseNumber: 'RN-1', issuer: 'Board' }, ON)).toMatchObject({ ok: false, field: 'expiresAt' })
+  })
+  it('a license whose expiry has already passed is refused, and told to send the renewed one', () => {
+    const v = licenseRenewal({ licenseNumber: 'RN-1', issuer: 'Board', expiresAt: '2026-09-30' }, ON)
+    expect(v).toMatchObject({ ok: false, field: 'expiresAt' })
+    if (!v.ok) expect(v.message).toContain('Send the renewed one, with its new expiry date.')
+  })
+  it('a professional license is a license; a driver’s license is not', () => {
+    expect(isProfessionalLicense('Professional license', 'PROFESSIONAL_LICENSE')).toBe(true)
+    expect(isProfessionalLicense('RN license renewal', null)).toBe(true)
+    expect(isProfessionalLicense('Driver’s license', 'DRIVERS_LICENSE')).toBe(false)
   })
 })

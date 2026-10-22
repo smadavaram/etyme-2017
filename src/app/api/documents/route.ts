@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { BUILT_IN, builtInType } from '@/lib/document-type'
-import { mayAskOnTies, typeKeyForTemplate } from '@/lib/document-request'
+import { licenseFactsFrom, mayAskOnTies, typeKeyForTemplate } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 
 /**
@@ -114,6 +114,9 @@ export async function GET(request: NextRequest) {
           edition: i.edition ?? null,
           countersignedAt: i.countersignedAt?.toISOString() ?? null,
           examineNeeds: examineNeedsFor(i.template.name),
+          // A license's number, issuer and expiry as the sender gave them,
+          // so the examine step opens with them filled in.
+          licenseFacts: licenseFactsFrom(i.note),
         })),
         total: instances.length,
       },

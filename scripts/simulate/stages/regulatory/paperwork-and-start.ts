@@ -661,6 +661,10 @@ async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement, hr: A
     let sent = await sendFile(ctx, worker, `/api/documents/${o.askId}/${sign ? 'sign' : 'upload'}`, file, {
       ...(sign ? { attests: 'true' } : {}),
       ...(o.key === 'I9_EVERIFY' ? { note: 'Section 1 completed and signed; passport shown for Section 2.' } : {}),
+      // A license goes with its three facts, as fields.
+      ...(o.key === 'PROFESSIONAL_LICENSE'
+        ? { licenseNumber: `RN-${100000 + (hashOf(p.personId) % 900000)}`, issuer: 'State Board of Nursing', expiresAt: iso(plusDays(530)) }
+        : {}),
     })
     // Learn: told the paper needs her signature, she signs it.
     if (sent.json?.error?.code === 'NEEDS_SIGNATURE') {

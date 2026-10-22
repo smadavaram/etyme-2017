@@ -53,6 +53,7 @@ interface Request_ {
   examinedAt?: string | null
   expiresAt?: string | null
   examineNeeds?: { start: boolean; end: boolean; edition: boolean }
+  licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
 }
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
 

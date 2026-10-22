@@ -56,7 +56,7 @@ export interface DocActor {
 
 export type DocVerdict =
   | { ok: true; next: DocStatus; says: string }
-  | { ok: false; code: 'NOT_YOURS' | 'ALREADY_ON_FILE' | 'NEEDS_SIGNATURE' | 'NO_SIGNATURE_NEEDED' | 'NOT_SENT' | 'FILE_REQUIRED'; message: string }
+  | { ok: false; code: 'NOT_YOURS' | 'ALREADY_ON_FILE' | 'NEEDS_SIGNATURE' | 'NO_SIGNATURE_NEEDED' | 'NOT_SENT' | 'FILE_REQUIRED' | 'NO_ANSWER'; message: string }
 
 const ON_FILE = ['SIGNED', 'UPLOADED']
 
@@ -64,7 +64,7 @@ export function mayAct(
   action: DocAction,
   doc: DocFacts,
   actor: DocActor,
-  extra: { fileUrl?: string | null; attests?: boolean } = {}
+  extra: { fileUrl?: string | null; attests?: boolean; note?: string | null } = {}
 ): DocVerdict {
   // The party a document is about answers it: the person, for her own
   // paper, or the firm, for a paper about the firm. Until 2026-10-20 only
@@ -103,6 +103,17 @@ export function mayAct(
     return {
       ok: false, code: 'NOT_SENT',
       message: `${doc.issuerName} has not asked you for ${name} yet. Nothing goes on file until they ask; then send it here.`,
+    }
+  }
+
+  // A stand-in question is answered in words. Signing or sending one with
+  // no answer put a blank on file that read as answered; only the screen
+  // stopped it (found by supply, 2026-10-22). Refused here, for everybody.
+  const question = questionOf(name)
+  if (question && !(extra.note ?? '').trim()) {
+    return {
+      ok: false, code: 'NO_ANSWER',
+      message: `Answer the question before you send it: “${question.question}”`,
     }
   }
 
@@ -2417,4 +2428,59 @@ const EXACT_VERDICT_NAMES: Record<string, string> = {
   'background check': 'BACKGROUND_CHECK',
   'drug screening': 'DRUG_SCREENING',
   'drug screen': 'DRUG_SCREENING',
+}
+
+// ── A license renewal, as facts ────────────────────────────────────────
+//
+// Supply's renewal screen sent the license number, who issued it and the
+// new expiry as one note line, and nothing read them back (found
+// 2026-10-22). A license on file is three facts somebody can check on a
+// board's register, so the upload takes them as fields and refuses
+// without them.
+
+/** Whether a paper of this name is a professional license (never a driver's license). */
+export function isProfessionalLicense(templateName: string, typeKey: string | null): boolean {
+  if (typeKey) return typeKey === 'PROFESSIONAL_LICENSE'
+  return /\blicen[sc]e\b/i.test(templateName)
+}
+
+export interface LicenseFacts {
+  licenseNumber: string
+  issuer: string
+  expiresAt: Date
+}
+
+/** The three facts, checked. Pure: `on` is the day it is sent. */
+export function licenseRenewal(
+  input: { licenseNumber?: string | null; issuer?: string | null; expiresAt?: string | null },
+  on: Date
+): { ok: true; facts: LicenseFacts; note: string } | { ok: false; code: 'LICENSE_FACTS'; field: string; message: string } {
+  const number = (input.licenseNumber ?? '').trim()
+  const issuer = (input.issuer ?? '').trim()
+  const raw = (input.expiresAt ?? '').trim()
+  if (!number) return { ok: false, code: 'LICENSE_FACTS', field: 'licenseNumber', message: 'Give the license number, as printed on it. A number on a board’s register is what anybody can check.' }
+  if (!issuer) return { ok: false, code: 'LICENSE_FACTS', field: 'issuer', message: 'Say who issued the license — the board or the state — so anybody can look it up.' }
+  if (!raw) return { ok: false, code: 'LICENSE_FACTS', field: 'expiresAt', message: 'Give the day the license runs out, as printed on it.' }
+  const expiresAt = new Date(raw.length === 10 ? `${raw}T00:00:00Z` : raw)
+  if (Number.isNaN(expiresAt.getTime())) {
+    return { ok: false, code: 'LICENSE_FACTS', field: 'expiresAt', message: 'Give the day it runs out as a date, like 2028-03-31.' }
+  }
+  const today = Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate())
+  if (expiresAt.getTime() < today) {
+    return {
+      ok: false, code: 'LICENSE_FACTS', field: 'expiresAt',
+      message: `That license ran out on ${plainDate(expiresAt.toISOString())}. Send the renewed one, with its new expiry date.`,
+    }
+  }
+  return {
+    ok: true,
+    facts: { licenseNumber: number, issuer, expiresAt },
+    note: `License ${number}, issued by ${issuer}, runs out ${expiresAt.toISOString().slice(0, 10)}.`,
+  }
+}
+
+/** The facts read back from the note the upload wrote, for the examine step to pre-fill. Null where the note is not one. */
+export function licenseFactsFrom(note: string | null | undefined): { licenseNumber: string; issuer: string; expiresAt: string } | null {
+  const m = /License (.+?), issued by (.+?), runs out (\d{4}-\d{2}-\d{2})\./.exec(note ?? '')
+  return m ? { licenseNumber: m[1], issuer: m[2], expiresAt: m[3] } : null
 }

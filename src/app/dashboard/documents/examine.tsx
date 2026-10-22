@@ -23,13 +23,15 @@ export interface ExamineRow {
   subjectType: string
   fileName: string | null
   examineNeeds?: { start: boolean; end: boolean; edition: boolean }
+  /** A license's facts as sent, to fill the form in. */
+  licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
 }
 
 export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone: (says: string) => void; onClose: () => void }) {
   const needs = row.examineNeeds ?? { start: false, end: false, edition: false }
   const [verdict, setVerdict] = useState<'ACCEPT' | 'SEND_BACK'>('ACCEPT')
   const [validFrom, setValidFrom] = useState('')
-  const [expiresAt, setExpiresAt] = useState('')
+  const [expiresAt, setExpiresAt] = useState(row.licenseFacts?.expiresAt ?? '')
   const [edition, setEdition] = useState('')
   const [issuer, setIssuer] = useState('')
   const [reason, setReason] = useState('')
@@ -74,6 +76,11 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
           <a href={`/api/documents/${row.id}/file`} target="_blank" rel="noreferrer" className="text-sm text-etyme-action hover:underline">
             Open {row.fileName}
           </a>
+        )}
+        {row.licenseFacts && (
+          <p className="text-sm text-etyme-muted">
+            License {row.licenseFacts.licenseNumber}, issued by {row.licenseFacts.issuer}. Check the number on their register.
+          </p>
         )}
         <div className="flex gap-4 text-sm text-etyme-ink">
           <label className="flex items-center gap-2">
