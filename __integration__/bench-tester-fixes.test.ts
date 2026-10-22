@@ -37,6 +37,19 @@ describe('a bench invitation nobody has answered', () => {
     expect(r.body.data.totals.waiting).toBeGreaterThanOrEqual(1)
   })
 
+  it('is listed as asked and never on the bench, so the bench total counts only the people who said yes', async () => {
+    // The screen walk of 2026-10-22: somebody only invited read as on the
+    // bench, with a tier and a free date, before she had said a word.
+    as(TECHPEPLE)
+    const r = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const onBench = [...r.body.data.tiers.MARKETING, ...r.body.data.tiers.RETAINED]
+    expect(onBench.map((l: any) => l.consultant.person.name)).not.toContain('Lucia Ferreira')
+    expect(onBench.every((l: any) => l.consent === 'GRANTED')).toBe(true)
+    expect(r.body.data.totals.total).toBe(onBench.length)
+    const asked = r.body.data.asked.find((l: any) => l.consultant.person.name === 'Lucia Ferreira')
+    expect(asked?.consent).toBe('INVITED')
+  })
+
   it('can be sent again, or its link copied, and somebody who said yes is sent nothing', async () => {
     const asked = await prisma.benchListing.findFirstOrThrow({ where: { companyId: cloud.id, state: 'INVITED', consultant: { person: { name: 'Lucia Ferreira' } } } })
     as(TECHPEPLE)

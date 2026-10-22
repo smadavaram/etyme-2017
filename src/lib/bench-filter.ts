@@ -406,15 +406,64 @@ export interface BenchRow {
 }
 
 export type BenchReading =
-  | { ok: true; rows: BenchRow[]; retained: number; marketing: number; why: null }
+  | {
+      ok: true
+      /** Everybody on the bench: a live listing they said yes to. */
+      rows: BenchRow[]
+      retained: number
+      marketing: number
+      /**
+       * Asked and not on the bench: invited and not answered, or said no.
+       * Never counted with `rows` and never offered to anything that sells
+       * or asks for papers (`onTheBench`).
+       */
+      asked: BenchRow[]
+      why: null
+    }
   /**
    * The shape was not understood. `rows` is empty and must not be read as
    * a count of anything — `why` is what goes on the screen instead.
    */
-  | { ok: false; rows: []; retained: null; marketing: null; why: string }
+  | { ok: false; rows: []; retained: null; marketing: null; asked: []; why: string }
 
 function unreadable(why: string): BenchReading {
-  return { ok: false, rows: [], retained: null, marketing: null, why }
+  return { ok: false, rows: [], retained: null, marketing: null, asked: [], why }
+}
+
+/**
+ * Whether a listing puts somebody on the bench.
+ *
+ * Only a live yes does. The screen walk of 2026-10-22 found a person who
+ * had only been invited reading as on the bench, with a free date and a
+ * tier, and a firm could ask her for papers before she had said a word.
+ * An invitation is the firm's question; the listing is hers only once she
+ * answers it, and only while it is neither taken back nor run out.
+ *
+ * A firm's own employees are not listings and do not pass through here:
+ * the employment is the consent, and they are read from the payroll
+ * (`rosterFor` in app/api/bench).
+ */
+export function onTheBench(listing: {
+  state: string
+  revokedAt: Date | string | null
+  lapsedAt?: Date | string | null
+}): boolean {
+  return listing.state === 'GRANTED' && !listing.revokedAt && !listing.lapsedAt
+}
+
+/** The heading over the people a firm asked who are not on its bench. */
+export const ASKED_HEADING = 'Asked, not on your bench'
+
+/**
+ * One line for somebody a firm asked onto its bench who is not on it.
+ *
+ * Said apart from the bench, because a name in the bench list reads as
+ * somebody the firm may market, match or ask for papers, and only her
+ * yes makes that true.
+ */
+export function askedSays(consent: string | null): string {
+  if (consent === 'DECLINED') return 'Said no. Not on your bench, and not asked for anything.'
+  return 'Not answered yet. Not on your bench until they say yes.'
 }
 
 /** Every value we accept for a tier, so a new tier fails loudly rather than vanishing. */
@@ -440,6 +489,7 @@ export function readBench(payload: unknown): BenchReading {
   }
 
   const rows: BenchRow[] = []
+  const asked: BenchRow[] = []
   let unreadableRows = 0
 
   for (const tier of Object.keys(tiers)) {
@@ -456,39 +506,32 @@ export function readBench(payload: unknown): BenchReading {
     }
 
     for (const l of listings) {
-      const person = l?.consultant?.person
-      if (!l?.id || !l?.consultant?.id || !person?.id || typeof person?.name !== 'string') {
+      const row = benchRowOf(l, tier as 'RETAINED' | 'MARKETING')
+      if (!row) {
         unreadableRows++
         continue
       }
-      rows.push({
-        listingId: String(l.id),
-        tier: tier as 'RETAINED' | 'MARKETING',
-        consent: typeof l.consent === 'string' ? l.consent : null,
-        reach: typeof l.reach === 'string' ? l.reach : null,
-        reachSays: typeof l.reachSays === 'string' ? l.reachSays : null,
-        consultantId: String(l.consultant.id),
-        personId: String(person.id),
-        name: person.name,
-        email: typeof person.email === 'string' ? person.email : null,
-        headline: l.consultant.headline ?? null,
-        skills: Array.isArray(l.consultant.skills) ? l.consultant.skills.filter((s: unknown) => typeof s === 'string') : [],
-        location: l.consultant.location ?? null,
-        workAuth: l.consultant.workAuth ?? null,
-        rateMin: typeof l.rateMin === 'number' ? l.rateMin : null,
-        rateMax: typeof l.rateMax === 'number' ? l.rateMax : null,
-        availableFrom: l.consultant.availableFrom ?? null,
-        free:
-          l.free && typeof l.free === 'object' && typeof l.free.state === 'string' && typeof l.free.says === 'string'
-            ? { state: l.free.state, on: typeof l.free.on === 'string' ? l.free.on : null, says: l.free.says }
-            : null,
-        stay: typeof l.stay === 'string' ? l.stay : null,
-        visibility: typeof l.consultant.visibility === 'string' ? l.consultant.visibility : 'INTERNAL',
-        grantedAt: typeof l.grantedAt === 'string' ? l.grantedAt : '',
-        companyId: String(l.company?.id ?? ''),
-        companyName: String(l.company?.name ?? ''),
-        oursSays: typeof l.oursSays === 'string' ? l.oursSays : null,
-      })
+      // A route that still files an unanswered invitation under a tier is
+      // read as asking, never as somebody on the bench.
+      if (row.consent === 'INVITED' || row.consent === 'DECLINED') asked.push(row)
+      else rows.push(row)
+    }
+  }
+
+  // Asked and not answered, or said no. Read with the same rule as the
+  // bench itself, and kept apart from it, so nobody counts them as on it.
+  if (data.asked != null) {
+    if (!Array.isArray(data.asked)) {
+      return unreadable('The bench answered with a list of people asked that is not a list, so nothing is counted.')
+    }
+    for (const l of data.asked) {
+      const tier = l?.tier === 'RETAINED' ? 'RETAINED' : 'MARKETING'
+      const row = benchRowOf(l, tier)
+      if (!row) {
+        unreadableRows++
+        continue
+      }
+      asked.push(row)
     }
   }
 
@@ -509,7 +552,43 @@ export function readBench(payload: unknown): BenchReading {
     rows,
     retained: rows.filter((r) => r.tier === 'RETAINED').length,
     marketing: rows.filter((r) => r.tier === 'MARKETING').length,
+    asked,
     why: null,
+  }
+}
+
+/** One listing as a row, or null where it cannot be read. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function benchRowOf(l: any, tier: 'RETAINED' | 'MARKETING'): BenchRow | null {
+  const person = l?.consultant?.person
+  if (!l?.id || !l?.consultant?.id || !person?.id || typeof person?.name !== 'string') return null
+  return {
+    listingId: String(l.id),
+    tier,
+    consent: typeof l.consent === 'string' ? l.consent : null,
+    reach: typeof l.reach === 'string' ? l.reach : null,
+    reachSays: typeof l.reachSays === 'string' ? l.reachSays : null,
+    consultantId: String(l.consultant.id),
+    personId: String(person.id),
+    name: person.name,
+    email: typeof person.email === 'string' ? person.email : null,
+    headline: l.consultant.headline ?? null,
+    skills: Array.isArray(l.consultant.skills) ? l.consultant.skills.filter((s: unknown) => typeof s === 'string') : [],
+    location: l.consultant.location ?? null,
+    workAuth: l.consultant.workAuth ?? null,
+    rateMin: typeof l.rateMin === 'number' ? l.rateMin : null,
+    rateMax: typeof l.rateMax === 'number' ? l.rateMax : null,
+    availableFrom: l.consultant.availableFrom ?? null,
+    free:
+      l.free && typeof l.free === 'object' && typeof l.free.state === 'string' && typeof l.free.says === 'string'
+        ? { state: l.free.state, on: typeof l.free.on === 'string' ? l.free.on : null, says: l.free.says }
+        : null,
+    stay: typeof l.stay === 'string' ? l.stay : null,
+    visibility: typeof l.consultant.visibility === 'string' ? l.consultant.visibility : 'INTERNAL',
+    grantedAt: typeof l.grantedAt === 'string' ? l.grantedAt : '',
+    companyId: String(l.company?.id ?? ''),
+    companyName: String(l.company?.name ?? ''),
+    oursSays: typeof l.oursSays === 'string' ? l.oursSays : null,
   }
 }
 

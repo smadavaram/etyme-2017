@@ -282,10 +282,106 @@ export interface ClientEndingChoice {
 
 export function clientEndingChoices(line: { sellContractId: string; endsOn: string }): ClientEndingChoice[] {
   return [
-    { key: 'EXTEND', label: 'Extend 3 months', href: null },
+    { key: 'EXTEND', label: 'Extend', href: null },
     { key: 'BACKFILL', label: 'Backfill — raise a job request', href: '/dashboard/requirements?new=1' },
     { key: 'LET_END', label: `Or let it end on ${line.endsOn}. Nothing to do.`, href: null },
   ]
+}
+
+// ── Extending from Ending soon ───────────────────────────────────────────
+//
+// The screen walk of 2026-10-22: the Extend button offered three months
+// and nothing else, asked for no reason, and when papers ending before the
+// new day stopped the extension the route's sentence never reached the
+// screen. The client picks the day, says why, and reads the route's own
+// refusal; where the route asks for a reason to go ahead, a box for it
+// appears under that sentence, and only then is the reason sent.
+
+/** A calendar day, "YYYY-MM-DD", read in UTC. Null where it is not one. */
+function utcDay(iso: string): { y: number; m: number; d: number } | null {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return null
+  const at = new Date(t)
+  return { y: at.getUTCFullYear(), m: at.getUTCMonth(), d: at.getUTCDate() }
+}
+
+const key = (y: number, m: number, d: number) =>
+  `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+/**
+ * The day the date box opens on: three months after the last day, held to
+ * the end of a shorter month (Nov 30 → Feb 28, never Mar 2). Only where
+ * the box opens; the client picks any day after the last one.
+ */
+export function suggestedExtensionEnd(endIso: string): string | null {
+  const at = utcDay(endIso)
+  if (!at) return null
+  const m = at.m + 3
+  const y = at.y + Math.floor(m / 12)
+  const mm = m % 12
+  const last = new Date(Date.UTC(y, mm + 1, 0)).getUTCDate()
+  return key(y, mm, Math.min(at.d, last))
+}
+
+/** The first day the box allows: the day after the contract's last day. */
+export function firstExtensionDay(endIso: string): string | null {
+  const at = utcDay(endIso)
+  if (!at) return null
+  const next = new Date(Date.UTC(at.y, at.m, at.d + 1))
+  return key(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate())
+}
+
+/** Which reason the extend route asked for, by the field it named. */
+export type ExtendAsks = 'reason' | 'limitReason'
+
+export interface ExtendForm {
+  /** "YYYY-MM-DD", from the date box. */
+  newEndDate: string
+  /** Why it is extended, kept with the extension. */
+  why: string
+  /** A reason the route asked for, keyed by the field it named. */
+  answers?: Partial<Record<ExtendAsks, string>>
+}
+
+/**
+ * What the screen says before anything is sent, or null when it may go.
+ * The route still decides everything else, in its own sentences.
+ */
+export function extendFormSays(form: ExtendForm, asked: ExtendAsks[] = []): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.newEndDate.trim())) return 'Pick the new last day.'
+  if (!form.why.trim()) return 'Say why it is extended.'
+  if (asked.some((k) => !(form.answers?.[k] ?? '').trim())) return 'Give a reason to go ahead.'
+  return null
+}
+
+/**
+ * The body sent to `POST /api/contracts/:id/extend`. A reason the route
+ * asks for is sent only once its sentence was shown, so a reason given
+ * for one thing is never recorded as the answer to another.
+ */
+export function extendBody(form: ExtendForm): Record<string, string> {
+  const body: Record<string, string> = { newEndDate: form.newEndDate.trim(), note: form.why.trim() }
+  for (const k of ['reason', 'limitReason'] as const) {
+    const said = (form.answers?.[k] ?? '').trim()
+    if (said) body[k] = said
+  }
+  return body
+}
+
+/**
+ * The route's refusal, as the screen shows it: its own sentence, and
+ * whether it asks for a reason to go ahead. A refusal with no field — a
+ * paper that cannot be waived, the time limit where the client blocks —
+ * is a sentence and no box, because no reason opens it.
+ */
+export function readExtendRefusal(body: unknown): { says: string; asks: ExtendAsks | null } {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const err = (body as any)?.error
+  const says = typeof err?.message === 'string' && err.message.trim()
+    ? err.message.trim()
+    : 'The contract was not extended.'
+  const asks = err?.field === 'reason' || err?.field === 'limitReason' ? (err.field as ExtendAsks) : null
+  return { says, asks }
 }
 
 /**

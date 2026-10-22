@@ -18,7 +18,7 @@ import {
 } from '@/lib/consultant-portfolio'
 import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 import { stayEndedRow, stayRow } from '@/lib/bench-stay'
-import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany } from '@/lib/bench-filter'
+import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany, onTheBench } from '@/lib/bench-filter'
 
 /**
  * GET /api/bench
@@ -299,6 +299,8 @@ export async function GET(request: NextRequest) {
 
   // Group by tier
   const grouped: Record<string, any[]> = { RETAINED: [], MARKETING: [] }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const asked: any[] = []
 
   for (const l of listings) {
     const isSubject = l.consultant.personId === caller.person.id
@@ -388,6 +390,16 @@ export async function GET(request: NextRequest) {
       })(),
     }
 
+    // On the bench only on a live yes (`onTheBench`). Somebody invited
+    // and not answered, or who said no, is the firm's question and not
+    // its bench: listed apart under `asked`, never under a tier, so no
+    // screen counts them, matches them or asks them for papers (the
+    // screen walk, 2026-10-22). A stay that ran out is under `ended`.
+    // A person's own listings are all theirs to read, answered or not.
+    if (scope !== 'mine' && !onTheBench(l)) {
+      if (l.state === 'INVITED' || l.state === 'DECLINED') asked.push(item)
+      continue
+    }
     const tier = l.tier as string
     if (!grouped[tier]) grouped[tier] = []
     grouped[tier].push(item)
@@ -447,9 +459,10 @@ export async function GET(request: NextRequest) {
       totals: {
         RETAINED: grouped.RETAINED?.length ?? 0,
         MARKETING: grouped.MARKETING?.length ?? 0,
-        total: listings.length,
+        total: (grouped.RETAINED?.length ?? 0) + (grouped.MARKETING?.length ?? 0),
         waiting,
       },
+      asked,
       ended,
     },
   })

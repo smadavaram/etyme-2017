@@ -35,6 +35,7 @@
  */
 
 import { formatDay } from '@/lib/format-date'
+import { questionOf } from '@/lib/document-request'
 
 export type PaperRowKind = 'OWED' | 'REQUEST' | 'DOCUMENT' | 'HELD'
 
@@ -57,18 +58,32 @@ const OUTSTANDING_KINDS = ['OWED', 'OUTSTANDING']
  * already acted on. A heading is where a person looks before they read
  * the row, so the heading says what the row says.
  */
-export type PaperSection = 'OWED' | 'SENT' | 'DOCUMENT' | 'REQUEST' | 'HELD'
+export type PaperSection = 'OWED' | 'QUESTION' | 'ASKED' | 'DOCUMENT' | 'REQUEST' | 'SENT' | 'DONE' | 'HELD'
 
-/** In reading order: what she must do, what is with them, then the file. */
+/**
+ * In reading order: what she must do, what is with them, then the file.
+ *
+ * Each heading says what the rows under it ask of her (the screen walk,
+ * 2026-10-22). "Sent to you to sign" sat over a résumé she was asked to
+ * send and over the two questions a firm asks before any offer, so she
+ * read "sign" over things nobody wanted signed, and a paper she had
+ * already answered stayed under a heading asking her to act.
+ */
 export const SECTIONS: { key: PaperSection; title: string; blurb: string }[] = [
   { key: 'OWED', title: 'Still needed from you',
     blurb: 'Your placements need these, and they are not on your file yet. Send one in and whoever asked is told. They decide if it is accepted.' },
+  { key: 'QUESTION', title: 'Questions to answer',
+    blurb: 'A firm asks these before any offer. Type your answer here. No document is asked for yet.' },
+  { key: 'ASKED', title: 'Asked of you',
+    blurb: 'A firm asked you to send these. Send each one here, and they are told.' },
+  { key: 'DOCUMENT', title: 'Sent to you to sign',
+    blurb: 'A firm sent you these papers to sign. Sign them here.' },
+  { key: 'REQUEST', title: 'Asked for, with a link',
+    blurb: 'A firm sent you a link for these. Answer each one at its link.' },
   { key: 'SENT', title: 'Sent, waiting to be checked',
     blurb: 'You sent these. Nothing more is needed from you until somebody checks them. They go on your file once checked.' },
-  { key: 'DOCUMENT', title: 'Sent to you to sign',
-    blurb: 'A firm sent you these papers. Answer them here.' },
-  { key: 'REQUEST', title: 'Asked for',
-    blurb: 'A firm asked you for these. Answer each one at the link it came with.' },
+  { key: 'DONE', title: 'Answered',
+    blurb: 'You answered, signed or sent these. Whoever asked has them.' },
   { key: 'HELD', title: 'On your file',
     blurb: 'What is on your file now, and the day each one runs out.' },
 ]
@@ -90,8 +105,14 @@ export interface PaperRow {
    * nothing happens — something already on file is not a consequence.
    */
   consequence: string | null
-  /** What is hers to do. Null means nothing is. */
-  todo: 'sign' | 'upload' | 'open' | null
+  /**
+   * What is hers to do. Null means nothing is. `answer` is a question a
+   * firm asks before any offer, in place of a document it may not ask
+   * for yet: she types the answer, and it is sent as her signed answer.
+   */
+  todo: 'sign' | 'upload' | 'open' | 'answer' | null
+  /** The question, in full, where the row is one. Null on a document. */
+  question: string | null
   /** Where she answers it, where that is somewhere else. */
   link: string | null
   /** The id the answer is posted against, where a request exists. */
@@ -315,6 +336,7 @@ function rowFromOwed(item: OwedItem): PaperRow {
     waived: !!item.waived,
     waivedSays: item.waivedSays ?? null,
     runsOutOn: null,
+    question: null,
   }
 }
 
@@ -352,18 +374,24 @@ function rowFromPaper(p: LoosePaper): PaperRow {
     return { ...row, word: (p.word ?? '').trim() || row.word, runsOutOn: p.runsOutOn ?? null }
   }
   const kind = (p.kind === 'REQUEST' || p.kind === 'HELD') ? p.kind : 'DOCUMENT'
+  // One of the two questions that stand in for a document a firm may not
+  // ask for before an offer (lib/document-stages `insteadAsk`). She
+  // answers it in words; signing it blank would answer nothing.
+  const q = kind === 'DOCUMENT' ? questionOf(p.name ?? '') : null
+  const todo = q && p.todo === 'sign' ? 'answer' : (p.todo ?? null)
   return {
     id: p.id ?? '',
     kind,
     name: p.name ?? readable({ label: p.label, key: p.key }),
     askedBy: p.askedBy ?? '',
     from: (p.why ?? '')?.trim() || null,
-    word: p.word ?? '',
+    word: q ? (todo ? 'Not answered yet' : 'Answered') : (p.word ?? ''),
     // Something already on file has no consequence attached to it, and a
     // sentence about what would happen if it were missing, printed under
     // a document that is not missing, reads as a threat about nothing.
     consequence: null,
-    todo: p.todo ?? null,
+    todo,
+    question: q?.question ?? null,
     link: p.link ?? null,
     askId: null,
     documentTypeKey: null,
@@ -436,6 +464,13 @@ export function paperRows(payload: { papers?: unknown; owed?: unknown } | null |
  */
 export function sectionOf(row: PaperRow): PaperSection {
   if (row.kind === 'OWED') return row.awaiting ? 'SENT' : 'OWED'
+  if (row.kind === 'DOCUMENT') {
+    // Read by what it asks of her, never by the table it came from.
+    if (!row.todo) return 'DONE'
+    if (row.todo === 'answer') return 'QUESTION'
+    if (row.todo === 'upload') return 'ASKED'
+    return 'DOCUMENT'
+  }
   return row.kind
 }
 
@@ -506,7 +541,15 @@ export function paperworkHeadline(rows: PaperRow[]): string {
     return 'Nothing is being asked of you. Everything below is on file.'
   }
   const blocking = todo.filter((r) => r.stopsWork).length
-  const n = `${todo.length} ${todo.length === 1 ? 'document is' : 'documents are'} still needed from you`
+  // A question is counted as a question: "2 documents are still needed"
+  // over two questions asks her for papers nobody wants yet.
+  const questions = todo.filter((r) => r.todo === 'answer').length
+  const papers = todo.length - questions
+  const n = questions === 0
+    ? `${papers} ${papers === 1 ? 'document is' : 'documents are'} still needed from you`
+    : papers === 0
+      ? `${questions === 1 ? 'One question is' : `${questions} questions are`} waiting for your answer`
+      : `${papers} ${papers === 1 ? 'document' : 'documents'} and ${questions} ${questions === 1 ? 'question' : 'questions'} are still needed from you`
   if (blocking === 0) return `${n}.${withThem}`
   if (blocking === todo.length) {
     return `${n}, and ${todo.length === 1 ? 'it stops' : 'they stop'} you working until ${todo.length === 1 ? 'it arrives' : 'they arrive'}.${withThem}`
@@ -743,4 +786,47 @@ export function workStops(input: { rows: PaperRow[]; runningOut?: RunningOut[] }
     }
   }
   return [...new Set(out)]
+}
+
+// ── A license, renewed ────────────────────────────────────────────────
+//
+// The rule table (lib/attestation, regulatory) puts a license on file only
+// with the board that issued it, its number on that board's register, and
+// the day printed on it that it runs out. "Licensed" is not something
+// anybody can check; a number on a register is. So the worker who sends a
+// renewal is asked those three things beside the file, and the examiner
+// reads them against it. Any license: a state nursing registration, a
+// pharmacist's, an electrician's, a driver's. Nothing here is software.
+
+/** Whether a row asks for a license, read off its type key or its name. */
+export function isLicenseRow(row: Pick<PaperRow, 'documentTypeKey' | 'name'>): boolean {
+  return /licen[cs]e/i.test(row.documentTypeKey ?? '') || /licen[cs]e/i.test(row.name)
+}
+
+export interface LicenseFields {
+  number: string
+  /** The state, board or body that issued it. */
+  issuedBy: string
+  /** "YYYY-MM-DD", the new day it runs out, as printed. */
+  expiresOn: string
+}
+
+/**
+ * What is missing from a renewal, in a sentence, or null when it may go.
+ * `today` is "YYYY-MM-DD"; a renewal that has already run out is not one.
+ */
+export function licenseFieldsSay(f: LicenseFields, today: string): string | null {
+  if (!f.number.trim()) return 'Give the license number, as it is on the register.'
+  if (!f.issuedBy.trim()) return 'Say which state or board issued it.'
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.expiresOn.trim())) return 'Give the new expiry date printed on it.'
+  if (f.expiresOn.trim() <= today) return 'That date has passed. Give the new expiry date printed on the renewed license.'
+  return null
+}
+
+/**
+ * The line sent with the file, for whoever examines it. A note and not
+ * the record: the examiner checks it against the file and records it.
+ */
+export function licenseNote(f: LicenseFields): string {
+  return `License number ${f.number.trim()} · issued by ${f.issuedBy.trim()} · runs out ${formatDay(f.expiresOn.trim())}`
 }

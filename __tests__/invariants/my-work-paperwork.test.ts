@@ -247,9 +247,11 @@ describe('A worker sees what is being asked of her', () => {
     // Its own heading, saying what the row says, read after what she
     // still has to do and before what is on file.
     const titles = SECTIONS.map((s) => s.title)
+    // Since the screen walk of 2026-10-22, every heading says what the
+    // rows under it ask of her, and what she must do reads first.
     expect(titles).toEqual([
-      'Still needed from you', 'Sent, waiting to be checked',
-      'Sent to you to sign', 'Asked for', 'On your file',
+      'Still needed from you', 'Questions to answer', 'Asked of you', 'Sent to you to sign',
+      'Asked for, with a link', 'Sent, waiting to be checked', 'Answered', 'On your file',
     ])
     expect(SECTIONS.find((s) => s.key === 'SENT')!.blurb)
       .toContain('Nothing more is needed from you')

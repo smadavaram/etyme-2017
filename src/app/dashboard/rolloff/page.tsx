@@ -6,7 +6,10 @@ import { compact } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
-import { clientEndingChoices } from '@/lib/releasing-soon'
+import {
+  clientEndingChoices, suggestedExtensionEnd, firstExtensionDay,
+  extendFormSays, extendBody, readExtendRefusal, type ExtendAsks,
+} from '@/lib/releasing-soon'
 import { RefusedState, LoadingState, EmptyState, Chip } from '@/components/ui'
 
 // ── Types — match API response shape ─────────────────────
@@ -140,25 +143,57 @@ function ClientChoices({
 }) {
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)
+  // The day she picks and why, then whatever the route asks back.
+  const [newEndDate, setNewEndDate] = useState(() => suggestedExtensionEnd(endDate) ?? '')
+  const [why, setWhy] = useState('')
+  const [answers, setAnswers] = useState<Partial<Record<ExtendAsks, string>>>({})
+  // Every reason the route has asked for so far, each under its sentence.
+  const [askedFor, setAskedFor] = useState<{ field: ExtendAsks; says: string }[]>([])
+  // The route's own refusal, where it is a sentence and not a question.
+  const [refused, setRefused] = useState<string | null>(null)
+  const [unready, setUnready] = useState<string | null>(null)
   const choices = clientEndingChoices({ sellContractId, endsOn: endDay(endDate) })
   const extend = choices.find((c) => c.key === 'EXTEND')!
   const backfill = choices.find((c) => c.key === 'BACKFILL')!
   const letEnd = choices.find((c) => c.key === 'LET_END')!
 
+  function close() {
+    setAsking(false)
+    setRefused(null)
+    setUnready(null)
+  }
+
   async function doExtend() {
+    const form = { newEndDate, why, answers }
+    const says = extendFormSays(form, askedFor.map((a) => a.field))
+    if (says) { setUnready(says); return }
+    setUnready(null)
+    setRefused(null)
     setBusy(true)
     try {
       const res = await fetch(`/api/contracts/${sellContractId}/extend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ months: 3 }),
+        body: JSON.stringify(extendBody(form)),
       })
       const body = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(body.error?.message ?? 'The contract was not extended.')
-      onDone('Extended by 3 months. The supplier is told.', 'success')
-      setAsking(false)
+      if (!res.ok) {
+        // The route's own sentence, beside the form. Where it asks for a
+        // reason to go ahead, a box for it opens under the sentence.
+        const r = readExtendRefusal(body)
+        if (r.asks) {
+          const field = r.asks
+          setAskedFor((was) => [...was.filter((a) => a.field !== field), { field, says: r.says }])
+        } else {
+          setRefused(r.says)
+        }
+        return
+      }
+      const said = [body.data?.message, body.data?.pastTheOrder].filter(Boolean).join(' ')
+      onDone(said || 'Extended.', 'success')
+      close()
     } catch (e: any) {
-      onDone(e.message, 'error')
+      setRefused(e?.message || 'The contract was not extended.')
     } finally {
       setBusy(false)
     }
@@ -167,14 +202,51 @@ function ClientChoices({
   return (
     <div className="flex flex-col items-end gap-1.5">
       {asking ? (
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-etyme-muted">Extend by 3 months?</span>
-          <button onClick={doExtend} disabled={busy} className="text-[11px] px-2.5 py-1 rounded bg-etyme-action text-white disabled:opacity-50">
-            {busy ? 'Extending…' : 'Yes, extend'}
-          </button>
-          <button onClick={() => setAsking(false)} className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule text-etyme-muted">
-            No
-          </button>
+        <div className="flex flex-col gap-2 w-full max-w-[320px] text-left">
+          <label className="text-[11px] text-etyme-muted">
+            New last day
+            <input
+              type="date"
+              value={newEndDate}
+              min={firstExtensionDay(endDate) ?? undefined}
+              onChange={(e) => setNewEndDate(e.target.value)}
+              className="mt-1 block w-full border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised text-etyme-ink"
+            />
+          </label>
+          <label className="text-[11px] text-etyme-muted">
+            Why extend
+            <textarea
+              value={why}
+              onChange={(e) => setWhy(e.target.value)}
+              rows={2}
+              maxLength={1000}
+              placeholder="The project runs to the end of the quarter."
+              className="mt-1 block w-full border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised text-etyme-ink"
+            />
+          </label>
+          {askedFor.map((a) => (
+            <label key={a.field} className="text-[11px] text-etyme-attention">
+              {a.says}
+              <textarea
+                value={answers[a.field] ?? ''}
+                onChange={(e) => setAnswers({ ...answers, [a.field]: e.target.value })}
+                rows={2}
+                maxLength={1000}
+                placeholder="Your reason to go ahead"
+                className="mt-1 block w-full border border-etyme-attention/40 rounded px-2 py-1 text-[12px] bg-etyme-raised text-etyme-ink"
+              />
+            </label>
+          ))}
+          {refused && <p role="alert" className="text-[11px] text-etyme-attention">{refused}</p>}
+          {unready && <p className="text-[11px] text-etyme-attention">{unready}</p>}
+          <div className="flex items-center gap-1.5 justify-end">
+            <button onClick={doExtend} disabled={busy} className="text-[11px] px-2.5 py-1 rounded bg-etyme-action text-white disabled:opacity-50">
+              {busy ? 'Extending…' : 'Extend'}
+            </button>
+            <button onClick={close} className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule text-etyme-muted">
+              Cancel
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-1.5">

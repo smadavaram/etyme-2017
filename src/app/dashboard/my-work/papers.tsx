@@ -5,7 +5,8 @@ import { readJson } from '@/lib/read-response'
 import { Chip } from '@/components/ui'
 import {
   paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS,
-  type PaperRow,
+  isLicenseRow, licenseFieldsSay, licenseNote,
+  type PaperRow, type LicenseFields,
 } from './paperwork-rows'
 
 /**
@@ -76,6 +77,11 @@ export function YourPapers({ standalone = false, onRows }: {
   // 2026-10-19): an asked-for paper is one row with one button, not two
   // open forms with a file chooser and a paste box each.
   const [opened, setOpened] = useState<Record<string, boolean>>({})
+  // What she typed in answer to a question asked before any offer.
+  const [typed, setTyped] = useState<Record<string, string>>({})
+  // A renewed license: its number, who issued it and the new expiry date.
+  const [license, setLicense] = useState<Record<string, LicenseFields>>({})
+  const licenseOf = (id: string): LicenseFields => license[id] ?? { number: '', issuedBy: '', expiresOn: '' }
 
   const load = useCallback(async () => {
     setFailed(null)
@@ -121,7 +127,32 @@ export function YourPapers({ standalone = false, onRows }: {
       }
       if (!id) throw new Error('There is nowhere to send this one yet.')
 
+      // A question asked before any offer, in place of a document nobody
+      // may ask for yet. Her words are the answer, sent as her signed
+      // answer, so whoever asked reads what she said and not a tick.
+      if (r.todo === 'answer') {
+        const words = (typed[r.id] ?? '').trim()
+        if (!words) throw new Error('Type your answer first.')
+        const j = await readJson(await post(`/api/documents/${id}/sign`, { attests: true, note: words }))
+        setSaid(j?.data?.says ?? 'Sent. They will be told you answered.')
+        setTyped({ ...typed, [r.id]: '' })
+        await load()
+        return
+      }
+
       const to = `/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`
+
+      // A license goes on file only with its number, the board that issued
+      // it and the day it runs out (the rule table in lib/attestation).
+      // Checked here before anything is sent, and sent with the file as one
+      // line for the examiner, who records it against the file.
+      let note: string | undefined
+      if (r.todo === 'upload' && isLicenseRow(r)) {
+        const fields = licenseOf(r.id)
+        const missing = licenseFieldsSay(fields, new Date().toISOString().slice(0, 10))
+        if (missing) throw new Error(missing)
+        note = licenseNote(fields)
+      }
 
       // She chose a file. It goes as the file — a photograph of a
       // certificate is what somebody standing in a corridor actually
@@ -138,6 +169,7 @@ export function YourPapers({ standalone = false, onRows }: {
       if (file && r.todo !== 'sign') {
         const form = new FormData()
         form.append('file', file)
+        if (note) form.append('note', note)
         const sent = await readJson(await fetch(to, { method: 'POST', body: form }))
         setSaid(sent?.data?.says ?? 'Sent. They will be told it has arrived.')
         setPicked(Object.fromEntries(Object.entries(picked).filter(([k]) => k !== r.id)))
@@ -147,7 +179,7 @@ export function YourPapers({ standalone = false, onRows }: {
 
       const body = r.todo === 'sign'
         ? { attests: true }
-        : { fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined }
+        : { fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined, ...(note ? { note } : {}) }
       const j = await readJson(await post(to, body))
       setSaid(j?.data?.says ?? 'Sent. They will be told it has arrived.')
       setFileUrl({ ...fileUrl, [r.id]: '' })
@@ -238,6 +270,8 @@ export function YourPapers({ standalone = false, onRows }: {
                     {/* Who asked for it, in their own words. A worker who
                         does not know who wants a document cannot send it
                         to anybody. */}
+                    {/* The question itself, in full: she cannot answer a form's name. */}
+                    {r.question && <div className="text-sm text-etyme-ink mt-1">{r.question}</div>}
                     {r.from && <div className="text-xs text-etyme-muted mt-1">{r.from}</div>}
                     {!r.from && r.askedBy && <div className="text-xs text-etyme-muted mt-1">{r.askedBy}</div>}
                     {/* What happens if it does not arrive, in a sentence. */}
@@ -281,6 +315,37 @@ export function YourPapers({ standalone = false, onRows }: {
                           className="mt-1 block w-full text-sm text-etyme-ink file:mr-3 file:px-3 file:py-2 file:rounded file:border-0 file:text-sm file:font-medium file:bg-etyme-action file:text-white"
                         />
                       </label>
+                      {/* A license: the three things that make it checkable. */}
+                      {isLicenseRow(r) && (
+                        <>
+                          <label className="text-xs text-etyme-muted">
+                            License number
+                            <input
+                              value={licenseOf(r.id).number}
+                              onChange={(e) => setLicense({ ...license, [r.id]: { ...licenseOf(r.id), number: e.target.value } })}
+                              className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+                            />
+                          </label>
+                          <label className="text-xs text-etyme-muted">
+                            Issued by (state or board)
+                            <input
+                              value={licenseOf(r.id).issuedBy}
+                              onChange={(e) => setLicense({ ...license, [r.id]: { ...licenseOf(r.id), issuedBy: e.target.value } })}
+                              placeholder="Wisconsin Board of Nursing"
+                              className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+                            />
+                          </label>
+                          <label className="text-xs text-etyme-muted">
+                            New expiry date
+                            <input
+                              type="date"
+                              value={licenseOf(r.id).expiresOn}
+                              onChange={(e) => setLicense({ ...license, [r.id]: { ...licenseOf(r.id), expiresOn: e.target.value } })}
+                              className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
+                            />
+                          </label>
+                        </>
+                      )}
                       {/* The second way, and the one that works today. */}
                       <label className="text-xs text-etyme-muted">
                         Or paste a link to it
@@ -298,6 +363,25 @@ export function YourPapers({ standalone = false, onRows }: {
                       </button>
                     </div>
                   ))}
+                  {r.todo === 'answer' && (
+                    <div className="flex flex-col gap-2 min-w-[260px] w-full sm:w-auto">
+                      <label className="text-xs text-etyme-muted">
+                        Your answer
+                        <textarea
+                          value={typed[r.id] ?? ''}
+                          onChange={(e) => setTyped({ ...typed, [r.id]: e.target.value })}
+                          rows={3}
+                          maxLength={500}
+                          className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised text-etyme-ink"
+                        />
+                      </label>
+                      <button onClick={() => answer(r)}
+                        disabled={busy === r.id || !(typed[r.id] ?? '').trim()}
+                        className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+                        {busy === r.id ? 'Sending…' : 'Send my answer'}
+                      </button>
+                    </div>
+                  )}
                   {r.todo === 'sign' && (
                     <button onClick={() => answer(r)} disabled={busy === r.id}
                       className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">

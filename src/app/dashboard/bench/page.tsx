@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import type { Route } from 'next'
 import { range, compact } from '@/lib/money-display'
-import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, type Free } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, type Free } from '@/lib/bench-filter'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
@@ -578,6 +578,9 @@ export default function BenchPage() {
   const [ownListed, setOwnListed] = useState<Map<string, { listingId: string; consent: string | null }>>(new Map())
   // Whose chosen stay ran out: shown, not vanished (bench tester, 2026-09-30).
   const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
+  // Whom the firm asked and who has not said yes: listed apart from the
+  // bench, never in it (`onTheBench`, the screen walk of 2026-10-22).
+  const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; name: string; consent: string | null }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
@@ -683,14 +686,22 @@ export default function BenchPage() {
       setRoster([])
       setRosterSays(null)
       setEntries(flat)
+      const askedRows = forScope === 'company'
+        ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, name: r.name, consent: r.consent }))
+        : []
+      setAskedPeople(askedRows)
       if (forScope === 'company') {
-        setOwnListed(new Map(flat.map((e) => [e.consultantId, { listingId: e.id, consent: e.consent ?? null }])))
+        setOwnListed(new Map([
+          ...flat.map((e) => [e.consultantId, { listingId: e.id, consent: e.consent ?? null }] as const),
+          ...askedRows.map((a) => [a.consultantId, { listingId: a.listingId, consent: a.consent }] as const),
+        ]))
       }
       setEnded(Array.isArray(body.data?.ended) ? body.data.ended : [])
     } catch (err: any) {
       if (thisRequest !== requestId.current) return
       setError(err.message)
       setEntries([])
+      setAskedPeople([])
       setRoster([])
     } finally {
       if (thisRequest === requestId.current) setLoading(false)
@@ -752,11 +763,13 @@ export default function BenchPage() {
     const agreed = (e: BenchEntry) => !e.consent || e.consent === 'GRANTED'
     const retained = entries.filter((e) => agreed(e) && e.tier === 'RETAINED').length
     const marketing = entries.filter((e) => agreed(e) && e.tier === 'MARKETING').length
-    const waiting = entries.filter((e) => e.consent === 'INVITED').length
+    // Asked and not answered: counted from the list beside the bench,
+    // never from the bench, which holds only a live yes.
+    const waiting = askedPeople.filter((a) => a.consent === 'INVITED').length
     const availNow = entries.filter((e) => availabilityStatus(e.free).group === 'now').length
     const availSoon = entries.filter((e) => availabilityStatus(e.free).group === 'soon').length
     return { total: entries.length, retained, marketing, waiting, availNow, availSoon }
-  }, [entries])
+  }, [entries, askedPeople])
 
   // ── Columns ────────────────────────────────────────
 
@@ -1147,7 +1160,7 @@ export default function BenchPage() {
       <div className={showProfit || !asksBench ? 'hidden' : undefined}>
 
       {/* Stats row */}
-      {scope !== 'payroll' && !loading && entries.length > 0 && (
+      {scope !== 'payroll' && !loading && (entries.length > 0 || askedPeople.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
           <Stat label="Total" value={stats.total} />
           <Stat label={TIER_WORD.RETAINED} value={stats.retained} tone="verified" />
@@ -1197,6 +1210,25 @@ export default function BenchPage() {
                 <button onClick={() => nudge(e.listingId, true)} disabled={busyRow === e.listingId}
                   className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
               </span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {scope === 'company' && askedPeople.length > 0 && (
+        <section className="mb-6 bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          <p className="px-4 py-2 text-[11px] uppercase tracking-wide text-etyme-muted">{ASKED_HEADING}</p>
+          {askedPeople.map((a) => (
+            <div key={a.listingId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13px] text-etyme-ink"><span className="font-medium">{a.name}</span> · {askedSays(a.consent)}</span>
+              {a.consent === 'INVITED' && (
+                <span className="flex gap-3">
+                  <button onClick={() => nudge(a.listingId, false)} disabled={busyRow === a.listingId}
+                    className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Resend</button>
+                  <button onClick={() => nudge(a.listingId, true)} disabled={busyRow === a.listingId}
+                    className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
+                </span>
+              )}
             </div>
           ))}
         </section>
