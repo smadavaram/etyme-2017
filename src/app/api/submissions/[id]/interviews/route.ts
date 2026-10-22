@@ -8,6 +8,8 @@ import {
 } from '@/lib/interviews'
 import { tell } from '@/lib/interview-notices'
 import { actingDesk } from '@/lib/program-seat'
+import { reportError } from '@/lib/alerts'
+import { askForNdaAtInterview } from './nda'
 
 /**
  * GET  /api/submissions/:id/interviews — the rounds so far
@@ -125,7 +127,7 @@ export async function POST(
   const submission = await prisma.submission.findFirst({
     where: { id, toCompanyId: companyId },
     select: {
-      id: true, fromCompanyId: true, toCompanyId: true, screenState: true, status: true,
+      id: true, fromCompanyId: true, toCompanyId: true, screenState: true, status: true, personId: true,
       person: { select: { name: true } },
       interviews: { select: { round: true, state: true, outcome: true } },
     },
@@ -237,12 +239,33 @@ export async function POST(
   // booking that rang it.
   void tell('PROPOSED', created.id)
 
+  // ── The client's NDA, where its orders ask for one ─────────────────
+  //
+  // Asked when the round is booked, because the interview is where the
+  // candidate first hears the client's business (`./nda`). The round
+  // stands whatever happens to the paper; a failure is reported and said.
+  let nda: string | null = null
+  try {
+    nda = await askForNdaAtInterview({
+      clientCompanyId: companyId,
+      clientName: desk!.companyName,
+      supplierCompanyId: submission.fromCompanyId,
+      personId: submission.personId,
+      personName: submission.person.name,
+    })
+  } catch (err) {
+    void reportError('Asking for the NDA at interview failed', err)
+    nda = `The non-disclosure agreement ${desk!.companyName}'s orders require could not be sent to ${submission.person.name}. Ask for it from Paperwork.`
+  }
+
   return NextResponse.json({
     data: {
       ...shape(created),
+      nda,
       says:
         `Round ${round} proposed for ${submission.person.name}. ` +
-        `Waiting on the supplier and the consultant.`,
+        `Waiting on the supplier and the consultant.` +
+        (nda ? ` ${nda}` : ''),
     },
   })
 }
