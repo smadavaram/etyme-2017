@@ -339,13 +339,71 @@ export function sizeSaid(bytes: number): string {
   return `${Math.max(1, Math.round(bytes / 1024))}KB`
 }
 
+/**
+ * The questions that stand in for a document asked too early
+ * (lib/document-stages `insteadAsk`), as the asking sentence says them.
+ * A notice that reads "asks for Work authorization — the question" names
+ * a form, not the question; the person has to open it to learn what is
+ * being asked. Keyed by the document the question stands in for.
+ */
+export const QUESTION_SAID: Record<string, { asks: string; question: string }> = {
+  RIGHT_TO_WORK: {
+    asks: 'whether you are authorized to work in the US, and whether you will need sponsorship',
+    question: 'Are you authorized to work in the US, and will you need sponsorship now or in the future?',
+  },
+  BACKGROUND_CHECK: {
+    asks: 'whether anything would stop you passing a background check for this kind of work',
+    question: 'Is there anything that would prevent you passing a background check for this kind of work?',
+  },
+}
+
+/** The suffix `lib/document-stages` gives a stand-in question's label. */
+const QUESTION_SUFFIX = ' — the question'
+
+/** Which stand-in question a paper's name is, or null where it is a document. */
+export function questionOf(templateName: string): (typeof QUESTION_SAID)[string] | null {
+  if (!templateName.endsWith(QUESTION_SUFFIX)) return null
+  const about = templateName.slice(0, -QUESTION_SUFFIX.length).toLowerCase()
+  if (/work authori[sz]ation|right to work/.test(about)) return QUESTION_SAID.RIGHT_TO_WORK
+  if (/background/.test(about)) return QUESTION_SAID.BACKGROUND_CHECK
+  return null
+}
+
 /** What the person is told when it is asked for. */
 export function askNotice(doc: DocFacts): { title: string; body: string } {
+  const q = questionOf(doc.templateName)
+  if (q) {
+    return {
+      title: `${doc.issuerName} asks ${q.asks}`,
+      body: `${q.question} Answer it from your page. It takes a minute, and no document is asked for yet.`,
+    }
+  }
   return {
     title: `${doc.issuerName} asks for ${doc.templateName}`,
     body: doc.needsSignature
       ? `Sign ${doc.templateName} from your page. It takes a minute.`
       : `Upload ${doc.templateName} from your page. A photo is fine.`,
+  }
+}
+
+/**
+ * What the asking firm is told when a paper comes back. The first answer
+ * says it arrived; an answer after a send-back says it came again, so a
+ * seat that was told once does not read the same line twice.
+ */
+export function answeredNotice(o: {
+  who: string
+  paper: string
+  signed: boolean
+  /** How many times this paper was answered before this one. */
+  before: number
+  note: string | null
+}): { title: string; body: string } {
+  const verb = o.signed ? 'signed' : 'uploaded'
+  if (o.before === 0) return { title: `${o.who} ${verb} ${o.paper}`, body: o.note ?? 'It is on file.' }
+  return {
+    title: `${o.who} ${verb} ${o.paper} again${o.before > 1 ? ` (${o.before + 1} times now)` : ''}`,
+    body: o.note ?? 'This is the one sent after it was sent back. It is on file.',
   }
 }
 

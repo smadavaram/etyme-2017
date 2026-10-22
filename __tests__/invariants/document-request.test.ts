@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { mayAct, askNotice, statusWord, standingOn, holdsPaperworkDesk, type DocFacts, type PaperworkSeat } from '@/lib/document-request'
+import { mayAct, askNotice, answeredNotice, statusWord, standingOn, holdsPaperworkDesk, type DocFacts, type PaperworkSeat } from '@/lib/document-request'
 import { MEMBER_ROLE, rolesFor } from '@/lib/company-defaults'
 import { getNavForKind } from '@/components/shell/sidebar'
 
@@ -174,6 +174,24 @@ describe('what people read', () => {
   it('the note says who asks and what to do, in a sentence', () => {
     expect(askNotice(nda)).toEqual({ title: 'Pinnacle asks for Mutual NDA', body: 'Sign Mutual NDA from your page. It takes a minute.' })
     expect(askNotice(w9).body).toBe('Upload W-9 from your page. A photo is fine.')
+  })
+  it('a question asked in place of a document is said as the question itself, never as the name of a form', () => {
+    const work = { ...nda, templateName: 'Work authorization — the question', issuerName: 'Northbend Athletic' }
+    expect(askNotice(work).title).toBe('Northbend Athletic asks whether you are authorized to work in the US, and whether you will need sponsorship')
+    expect(askNotice(work).body).toContain('Are you authorized to work in the US, and will you need sponsorship now or in the future?')
+    expect(askNotice(work).body).toContain('no document is asked for yet')
+    const check = { ...nda, templateName: 'Background check — the question', issuerName: 'Deepwell Staffing' }
+    expect(askNotice(check).title).toBe('Deepwell Staffing asks whether anything would stop you passing a background check for this kind of work')
+    for (const n of [askNotice(work), askNotice(check)]) expect(n.title).not.toMatch(/the question|asks for/)
+  })
+  it('a paper sent back and answered again is told as the second answer, so nobody reads the same line twice', () => {
+    const first = answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: false, before: 0, note: null })
+    const again = answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: false, before: 1, note: null })
+    expect(first).toEqual({ title: 'Fenna Underhill uploaded W-9', body: 'It is on file.' })
+    expect(again.title).toBe('Fenna Underhill uploaded W-9 again')
+    expect(again.title).not.toBe(first.title)
+    expect(again.body).toBe('This is the one sent after it was sent back. It is on file.')
+    expect(answeredNotice({ who: 'Fenna Underhill', paper: 'W-9', signed: true, before: 2, note: null }).title).toBe('Fenna Underhill signed W-9 again (3 times now)')
   })
   it('a row says what is true, never the enum', () => {
     expect(['PENDING', 'SENT', 'SIGNED', 'UPLOADED'].map(statusWord)).toEqual(['Not asked yet', 'Asked for', 'Signed', 'On file'])

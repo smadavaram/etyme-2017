@@ -5,7 +5,7 @@ import { notify, notifyBulk } from '@/lib/notify'
 import {
   mayAct,
   standingOn,
-  askNotice,
+  askNotice, answeredNotice,
   checkDocumentUpload,
   MAX_DOCUMENT_BYTES,
   sizeSaid,
@@ -178,12 +178,22 @@ export async function actOn(request: NextRequest, id: string, action: DocAction)
     const staff = await prisma.context.findMany({
       where: { companyId: issuer.id, revokedAt: null, NOT: { roleId: null }, type: { not: 'CONSULTANT' } },
       select: { personId: true },
+      orderBy: { id: 'asc' },
       take: 10,
     })
+    // A paper sent back and answered again is told as the second answer,
+    // never as the first one word for word: each seat read the first line
+    // already. Counted off what the firm was told about this paper before.
+    const before = staff.length
+      ? await prisma.notification.count({
+          where: { entityId: doc.id, personId: staff[0].personId, title: { startsWith: `${caller.person.name} ` } },
+        })
+      : 0
+    const told = answeredNotice({ who: caller.person.name, paper: doc.template.name, signed: verdict.next === 'SIGNED', before, note })
     void notifyBulk(staff.map((s) => ({
       personId: s.personId, companyId: issuer.id, type: 'SYSTEM' as const,
-      title: `${caller.person.name} ${verdict.next === 'SIGNED' ? 'signed' : 'uploaded'} ${doc.template.name}`,
-      body: note ?? 'It is on file.',
+      title: told.title,
+      body: told.body,
       entityId: doc.id,
     })))
   }

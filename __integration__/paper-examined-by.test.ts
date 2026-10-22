@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { POST as examinePOST } from '@/app/api/documents/[id]/examine/route'
+import { POST as uploadPOST } from '@/app/api/documents/[id]/upload/route'
 
 /**
  * Who looked at a paper, and when, is a fact on the paper.
@@ -51,5 +52,25 @@ describe('a paper examined', () => {
     expect(doc.status).toBe('SENT')
     expect(doc.examinedById).toBeNull()
     expect(doc.examinedAt).toBeNull()
+  })
+
+  it('a paper sent back and sent again reaches each seat at the asking firm once per answer, never the same line twice', async () => {
+    // Sent back by the last sentence, so it is asked for again: he answers, it is sent back, he answers again.
+    as(HIM)
+    const one = await json(await uploadPOST(req('POST', `/api/documents/${docId}/upload`, { fileUrl: 'https://files.example/resume-1.pdf', fileName: 'resume-1.pdf' }), { params: Promise.resolve({ id: docId }) }))
+    expect(one.status, JSON.stringify(one.body)).toBe(200)
+    as(HR_AT_HALCYON)
+    const back = await json(await examinePOST(req('POST', `/api/documents/${docId}/examine`, { verdict: 'SEND_BACK', reason: 'The wrong year again' }), { params: Promise.resolve({ id: docId }) }))
+    expect(back.status, JSON.stringify(back.body)).toBe(200)
+    as(HIM)
+    const two = await json(await uploadPOST(req('POST', `/api/documents/${docId}/upload`, { fileUrl: 'https://files.example/resume-2.pdf', fileName: 'resume-2.pdf' }), { params: Promise.resolve({ id: docId }) }))
+    expect(two.status, JSON.stringify(two.body)).toBe(200)
+    // The notices are written without waiting; give them a moment to land.
+    await new Promise((r) => setTimeout(r, 500))
+    const told = await prisma.notification.findMany({ where: { entityId: docId, personId: hrId }, select: { title: true } })
+    const titles = told.map((t) => t.title).filter((t) => t.includes('uploaded'))
+    expect(titles.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(titles).size, titles.join(' | ')).toBe(titles.length)
+    expect(titles.some((t) => t.endsWith('uploaded Resume again'))).toBe(true)
   })
 })
