@@ -708,4 +708,24 @@ describe('one letter per person per night, about the papers that are theirs to a
     for (const f of night.facts) expect(keys.has(f.saidKey)).toBe(true)
     expect(keys.has('PO_NEARLY_SPENT:po1:IN_14:officer')).toBe(true)
   })
+
+  it('a flagged background check nobody has decided on is told to the firm that ordered it as a decision owed, never as a paper missing, and to nobody else', () => {
+    const check = doc({
+      key: 'BACKGROUND_CHECK', document: 'Background check', owedBy: 'US', owedByName: 'Pinnacle Resourcing',
+      neverFiled: true, expiresAt: null, daysLeft: null, stopsWork: false,
+      flagged: { provider: 'HireRight', on: SEP_30, status: 'FLAGGED' },
+    })
+    const c = cast({
+      personName: 'Tobias Lindqvist', owedByName: 'Pinnacle Resourcing',
+      chase: [{ personId: 'pinnacle-officer', companyId: 'pinnacle', audience: 'business' }],
+      employs: EMPLOYER,
+    })
+    const letters = lettersFor(check, c)
+    expect(letters.map((l) => [l.side, l.personId])).toEqual([['OWES', 'pinnacle-officer']])
+    const [ask] = letters
+    expect(ask.title).toBe("HireRight flagged Tobias Lindqvist's background check; the decision is yours")
+    expect(ask.body).toContain('give Tobias Lindqvist the pre-adverse action notice with a copy of the report')
+    expect(ask.body).not.toContain('not on file')
+    expect(ask.body).not.toMatch(/Order one/)
+  })
 })

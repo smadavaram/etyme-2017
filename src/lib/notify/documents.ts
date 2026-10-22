@@ -74,7 +74,8 @@ import { hasPermission, type Permission } from '@/lib/permissions'
 import { mayNameSubVendors, nameForClient, type ChainRung, type SeenName } from '@/lib/chain-names'
 import { documentsToChase, type DocumentWatch, type LapsingDocument } from '@/lib/document-request'
 import { baseUrl } from '@/lib/signed-link'
-import { contractClearance, lineExtras } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, contractClearance, lineExtras, newestReports } from '@/lib/contract-clearance'
+import { adverseRecordFrom } from '@/lib/attestation'
 import type { OwedBy } from '@/lib/document-requirements'
 import { typeByKey } from '@/lib/document-type'
 
@@ -182,6 +183,14 @@ export interface OwedDocument {
    * only the firms buying from it are told here.
    */
   cover?: boolean
+  /**
+   * The screening company's newest report on this check came back
+   * flagged or not clear, and the firm that ordered it has not decided
+   * yet. It is on file, so it is never told as missing; what is owed is
+   * the firm's decision, and only the firm hears it, because a flagged
+   * report is not another firm's to read before the steps after it.
+   */
+  flagged?: { provider: string | null; on: Date | null; status: 'FLAGGED' | 'FAILED' }
 }
 
 /** The watch's rows, in the shape the letters read. */
@@ -527,6 +536,19 @@ export function chaseLetter(d: OwedDocument, cast: Cast): Said | null {
   // A person's paper a firm owes on the line: said about the person.
   if (who && isPersonsPaper(d)) {
     const group = asker ?? named
+    if (isVerdict(d) && d.flagged) {
+      const by = d.flagged.provider ?? 'The screening company'
+      const said_ = d.flagged.status === 'FLAGGED' ? 'flagged' : 'did not clear'
+      const when_ = d.flagged.on ? ` on ${day(d.flagged.on)}` : ''
+      return said({
+        title: `${by} ${said_} ${whose(who)} ${doc}; the decision is yours`,
+        short: `${whose(who)} ${doc} came back ${d.flagged.status === 'FLAGGED' ? 'flagged' : 'not clear'}`,
+        group,
+        line: `${by} ${said_} ${whose(who)} ${doc}${when_}, and nothing has been decided on it. ${WARNS}`,
+        ask: `Before deciding, give ${who} the pre-adverse action notice with a copy of the report and wait; or record that you will not act on it, with the reason, on your Compliance page.`,
+        askMany: `For each one, give the pre-adverse action notice with a copy of the report and wait, or record that you will not act on it, with the reason, on your Compliance page.`,
+      })
+    }
     if (isVerdict(d)) {
       // The firm orders it; the provider renders it; the person consents.
       const askOrder = `Order ${d.neverFiled ? 'one' : 'a new one'} from your screening provider; ${who} is asked for consent first. Record the result it sends back on your Compliance page.`
@@ -933,7 +955,8 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
     }
   }
 
-  const employs = cast.employs
+  // A flagged report is the ordering firm's alone until it has decided.
+  const employs = d.flagged ? null : cast.employs
   const employer = employs ? employerLetter(d, cast) : null
   if (employs && employer) {
     const key = docSaidKeyFor(d.id, milestone, employs.companyId, 'EMPLOYS')
@@ -964,7 +987,7 @@ export function lettersFor(d: OwedDocument, cast: Cast, alreadySaid: ReadonlySet
     }
   }
 
-  for (const e of cast.exposed) {
+  for (const e of d.flagged ? [] : cast.exposed) {
     const key = docSaidKeyFor(d.id, milestone, e.companyId)
     if (alreadySaid.has(key)) continue
     const letter = noticeLetter(d, cast, e.sees, e.onSite)
@@ -1721,9 +1744,13 @@ export async function documentsNeverFiled(
           select: {
             type: true, status: true, issuedAt: true, validFrom: true,
             expiresAt: true, verifiedAt: true, provider: true, result: true,
+            // The firm's steps after a flagged report, so one it decided
+            // not to act on is not chased as undecided.
+            ...ADVERSE_STEPS,
           },
         })
       : []
+    const newest = newestReports(personVerifications as never)
 
     const verdict = contractClearance({
       personName: line.person?.name ?? NO_PERSON,
@@ -1739,12 +1766,27 @@ export async function documentsNeverFiled(
 
     for (const item of verdict.items) {
       if (!item.required || item.waived || item.state !== 'NEEDED') continue
+      // A report that came back flagged or not clear is on file, so it is
+      // never told as missing. Decided (acted on, or not with a reason):
+      // nothing to say. Undecided: the decision is owed, to the firm.
+      const report = newest.get(item.key)
+      let flagged: OwedDocument['flagged']
+      if (report && (report.status === 'FLAGGED' || report.status === 'FAILED')) {
+        const decided = adverseRecordFrom(
+          ((report as { adverseActions?: unknown[] }).adverseActions ?? []) as never,
+          report.result
+        ).decision
+        if (decided) continue
+        flagged = { provider: report.provider ?? null, on: report.verifiedAt ?? report.issuedAt ?? null, status: report.status }
+      }
       out.push({
         // The requirement on the line, not a row in a table: nothing was
         // ever filed, so there is no document id to name. The line and
         // the type together are what the letter is about, and what the
         // dedupe key is built from.
-        id: `${line.id}:${item.key}`,
+        // A flagged report is a new fact, not the missing paper told
+        // again, so it carries a key of its own and is told once.
+        id: flagged ? `${line.id}:${item.key}:flagged` : `${line.id}:${item.key}`,
         key: item.key,
         document: item.label,
         line: { side: 'SELL', id: line.id },
@@ -1758,6 +1800,7 @@ export async function documentsNeverFiled(
         lapsed: false,
         neverFiled: true,
         stopsWork: item.blocks,
+        ...(flagged ? { flagged } : {}),
       })
     }
   }

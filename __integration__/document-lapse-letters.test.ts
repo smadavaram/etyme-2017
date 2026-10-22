@@ -387,4 +387,43 @@ describe('when a document a line depends on runs out, every party it costs is to
       expect(row).toBeTruthy()
     }
   })
+
+  it('a flagged background check the ordering firm decided not to act on is not chased; one it has not decided on is told to that firm alone', async () => {
+    const now = new Date()
+    // Any running line that asks for a background check and has none.
+    const missing = (await documentsNeverFiled(now, { limit: 500 })).find((d) => d.key === 'BACKGROUND_CHECK' && d.personId)
+    expect(missing, 'a running line asks for a background check and none is on file').toBeTruthy()
+    const line = { id: missing!.line!.id, personId: missing!.personId! }
+    const orderer = await prisma.company.findUniqueOrThrow({ where: { id: missing!.tellCompanyId! }, select: { id: true } })
+    const seat = await prisma.context.findFirstOrThrow({ where: { companyId: orderer.id, revokedAt: null }, select: { personId: true } })
+    const owner = { id: seat.personId }
+    const report = await prisma.verification.create({
+      data: {
+        personId: line.personId, type: 'BACKGROUND_CHECK', status: 'FLAGGED', provider: 'HireRight',
+        referenceId: 'HR-5531', issuedAt: now, verifiedAt: now, expiresAt: new Date(now.getTime() + 365 * 86_400_000),
+        orderedByCompanyId: orderer.id, uploadedById: owner.id,
+      },
+      select: { id: true },
+    })
+
+    const undecided = (await documentsNeverFiled(now, { sellContractIds: [line.id] })).find((d) => d.key === 'BACKGROUND_CHECK')
+    expect(undecided?.flagged?.provider).toBe('HireRight')
+    const told = await tellAbout([undecided!], now)
+    expect(told.letters.length, 'somebody at the ordering firm is told').toBeGreaterThan(0)
+    for (const l of told.letters) {
+      expect(l.companyId, 'only the firm that ordered it hears').toBe(orderer.id)
+      expect(l.side).toBe('OWES')
+      expect(l.title).toContain('HireRight flagged')
+      expect(l.body).not.toContain('not on file')
+    }
+
+    await prisma.adverseAction.create({
+      data: {
+        verificationId: report.id, companyId: orderer.id, sellContractId: line.id, step: 'NOT_TAKEN',
+        sentAt: now, byId: owner.id, reason: 'A ten-year-old record unrelated to the work.',
+      },
+    })
+    const decided = await documentsNeverFiled(now, { sellContractIds: [line.id] })
+    expect(decided.find((d) => d.key === 'BACKGROUND_CHECK'), 'a decided report is not chased').toBeUndefined()
+  })
 })
