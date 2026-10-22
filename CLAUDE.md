@@ -1293,6 +1293,23 @@ flipped, every production deploy reconciles the database to the schema,
 which is harmless for additions and must be off before any deploy that
 removes a column.
 
+**Shipped to production 2026-10-22 (0c4b50536 on the deploy branch,
+source 3a758ca9e):** the document-flow fixes from the walk; the steps
+after a flagged background report as rows of their own; who examined a
+paper; the I-94 and work-permit papers; an extension that checks every
+added day against the person's and the supplier's papers; bills that
+stay correct under load and tell the payer in the same save; the
+nightly agent run and its approvals under load; one nightly letter per
+person; a worker's greeting that says the notices other firms wrote;
+jobs with one title told apart and a minute's batch sent as one
+notice; and the forwarded-email intake, **closed**: the inbound
+address answers 404 and writes nothing until `EMAIL_INTAKE_LIVE=1`,
+which waits for the founder's attack walk and his yes on the privacy
+and DPA draft (`src/lib/legal/drafts/forwarded-email.md`). Release
+pass on a quiet copy: type check clean, unit and integration green
+after one test list was brought up to the nightly jobs, build clean;
+every "removed" schema line was re-aligned whitespace, nothing dropped.
+
 **The admin's setup is a checklist, every item skippable, and it comes
 back until it is done. Decided by the founder, the same day**, after
 reading the 2017 code: *"I am glad it's easy, but shouldn't the admin
