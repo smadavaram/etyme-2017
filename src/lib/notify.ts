@@ -202,6 +202,33 @@ async function recordFailed(n: NotifyParams, err: unknown): Promise<boolean> {
 }
 
 /**
+ * Send a notice that was written inside somebody's transaction.
+ *
+ * A notice that must exist whenever its fact does (a bill moved to sent
+ * means its payer was told) is written in the same transaction as the
+ * fact, through `notificationRowFor`, PENDING. A letter cannot be called
+ * back, so the email or Teams message goes after the commit, here, read
+ * off the row itself so it says exactly what the app shows. Awaited, and
+ * never throws: what happened is written on the row.
+ */
+export async function deliverWritten(notificationId: string): Promise<void> {
+  const row = await prisma.notification
+    .findUnique({
+      where: { id: notificationId },
+      select: { personId: true, companyId: true, title: true, body: true, type: true, entityId: true, data: true, deliveryState: true },
+    })
+    .catch(() => null)
+  if (!row || row.deliveryState !== 'PENDING') return
+  const data = row.data && typeof row.data === 'object' && !Array.isArray(row.data) ? (row.data as Record<string, unknown>) : undefined
+  await deliver(notificationId, row.personId, row.companyId, row.title, row.body, pageOf(row.type, row.entityId, data))
+}
+
+/** The row `notify` would write, for a caller writing it through its own transaction. */
+export function notificationRowFor(n: NotifyParams) {
+  return rowFor(n)
+}
+
+/**
  * Send one already-written notification and record what happened.
  *
  * Whether somebody is a consultant is decided by their contexts, not by

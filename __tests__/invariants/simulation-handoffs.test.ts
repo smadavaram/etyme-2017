@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, sinceLines, subjectOf, teamsToWorkers, textOf, toldTwice,
-  SINCE, type NoticeRow, IN_CHUNK, inChunks, sampleOf, stoppedBecause, expectedParty, aboutEach,
+  SINCE, type NoticeRow, IN_CHUNK, inChunks, sampleOf, stoppedBecause, expectedParty, aboutEach, billSent, billWaitsOnPayer,
 } from '../../scripts/simulate/stages/conversation/handoffs-read'
 import { SINCE_HEADING } from '@/app/api/conversations/twin/ask'
 import { DIGEST_PREFIX } from '@/app/api/conversations/twin/notices'
@@ -184,5 +184,17 @@ describe('a batch of jobs sent in one minute', () => {
     expect(rows.every((r) => r.personId === 'p-am')).toBe(true)
     // A notice about one thing is still one row.
     expect(aboutEach([{ personId: 'p', entityId: 'x', title: 't', body: '' }])).toHaveLength(1)
+  })
+})
+
+describe('a bill sent', () => {
+  it('a bill raised and not yet sent is nobody\u2019s handoff; a bill is sent once it is submitted to the firm that pays it', () => {
+    expect(billSent('ISSUED')).toBe(false)
+    expect(billSent('DRAFT')).toBe(false)
+    expect(billSent('CANCELLED')).toBe(false)
+    for (const s of ['SUBMITTED', 'PARTIALLY_PAID', 'PAID', 'HELD']) expect(billSent(s)).toBe(true)
+    expect(billWaitsOnPayer('SUBMITTED')).toBe(true)
+    expect(billWaitsOnPayer('ISSUED')).toBe(false)
+    expect(billWaitsOnPayer('PAID')).toBe(false)
   })
 })

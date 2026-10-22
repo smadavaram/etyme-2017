@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as listClient, PATCH as recordContact } from '@/app/api/clients/route'
 import { GET as openBill } from '@/app/api/answer/bill/[token]/route'
-import { sendBillToCustomer, resendBillToCustomer, billDeliverySays, openBillLink, RESEND_NOT_WITHIN_MS } from '@/lib/notify/bill-delivery'
+import { sendBillToCustomer, resendBillToCustomer, billDeliverySays, openBillLink, RESEND_NOT_WITHIN_MS, writePayerNoticesIn } from '@/lib/notify/bill-delivery'
 import { billLinkToken } from '@/lib/notify/bill-letter'
 import { formatDay } from '@/lib/format-date'
 
@@ -239,5 +239,49 @@ describe('a bill reaches the firm that pays it', () => {
     const resent = await resendBillToCustomer({ invoiceId: bill.invoiceId, byPersonId: it_.owner, companyId: it_.brightmoor, now: later })
     expect(resent).toMatchObject({ ok: true, sent: true, to: ['ap@quill-street.test'] })
     expect(mail[mail.length - 1].text.split('\n\n')[0]).toBe('Mo,')
+  })
+
+  it('a bill sent to a client on Etyme tells its payer inside the sending itself, so a sent bill always has somebody told and a rolled-back one told nobody', async () => {
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const bills = await prisma.invoice.findMany({
+      where: { status: { not: 'SUBMITTED' }, invoiceLines: { some: { sellContract: { companyId: it_.brightmoor, clientCompanyId: northbend.id } } } },
+      select: { id: true, number: true },
+      orderBy: { id: 'asc' },
+      take: 1,
+    })
+    expect(bills.length, 'a bill of Brightmoor’s to Northbend not yet sent').toBe(1)
+    // The same bill, sent twice: the first sending rolls back, the second commits.
+    const [kept] = bills
+    const rolled = kept
+    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-nike-ap@demo.etyme.local' }, select: { id: true } })
+
+    // Rolled back: the bill is not sent, and nobody was told.
+    await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({ where: { id: rolled.id }, data: { status: 'SUBMITTED' } })
+      expect((await writePayerNoticesIn(tx, { invoiceId: rolled.id })).written).toBe(1)
+      throw new Error('the sending failed')
+    }).catch(() => {})
+    expect(await prisma.notification.count({ where: { entityId: rolled.id, type: 'INVOICE' } })).toBe(0)
+
+    // Committed: the notice exists the moment the bill is sent, before any email.
+    const wrote = await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({ where: { id: kept.id }, data: { status: 'SUBMITTED' } })
+      const first = await writePayerNoticesIn(tx, { invoiceId: kept.id })
+      const again = await writePayerNoticesIn(tx, { invoiceId: kept.id })
+      return { first, again }
+    })
+    expect(wrote.first).toMatchObject({ written: 1, payerId: northbend.id, why: null })
+    expect(wrote.again.written, 'written once in a bill’s life').toBe(0)
+    const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: kept.id } })
+    expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s bill ${kept.number}: \\$`))
+    expect(notice.deliveryState).toBe('PENDING')
+
+    // After the commit, the sending delivers that notice by email or Teams and writes no second one.
+    const r = await sendBillToCustomer({ invoiceId: kept.id, byPersonId: it_.owner })
+    expect(r.to).toEqual(['world-nike-ap@demo.etyme.local'])
+    expect(r.says).toBe(`Sent on Etyme to Northbend Athletic’s AP Clerk on ${today()}`)
+    const rows = await prisma.notification.findMany({ where: { entityId: kept.id, type: 'INVOICE' }, select: { deliveryState: true } })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].deliveryState).not.toBe('PENDING')
   })
 })

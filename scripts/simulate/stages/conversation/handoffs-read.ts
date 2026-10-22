@@ -315,3 +315,20 @@ export function aboutEach(rows: readonly ToldRow[]): ToldRow[] {
   }
   return out
 }
+
+/**
+ * Whether a bill has been sent to the firm that pays it.
+ *
+ * Only `markSent` sends a bill, and it moves it to SUBMITTED; everything
+ * after that (part paid, paid, on hold) was sent too. ISSUED is raised
+ * and not yet sent, so it reached nobody, and the station read it as a
+ * sent bill its payer was never told of.
+ */
+export function billSent(status: string): boolean {
+  return !['DRAFT', 'ISSUED', 'VOID', 'CANCELLED'].includes(status)
+}
+
+/** A sent bill still waiting on its payer to pay it. */
+export function billWaitsOnPayer(status: string): boolean {
+  return status === 'SUBMITTED' || status === 'PARTIALLY_PAID'
+}

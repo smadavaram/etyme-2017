@@ -44,7 +44,7 @@ import { WORKER_CLOSE, WORKER_QUESTIONS } from '@/app/api/conversations/twin/wor
 import type { Actor, SeatSpec } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
 import {
-  aboutEach, expectedParty, inChunks, sampleOf, stoppedBecause,
+  aboutEach, billSent, billWaitsOnPayer, expectedParty, inChunks, sampleOf, stoppedBecause,
   SINCE, blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, pct, sinceLines, subjectOf, textOf,
   teamsToWorkers, toldTwice, type NoticeRow,
 } from './handoffs-read'
@@ -134,7 +134,7 @@ const KIND_SAYS: Record<Handoff['kind'], string> = {
   PUT_FORWARD: 'A candidate put forward: the hiring manager’s greeting names them',
   WEEK_WAITS: 'A week filed: the signer’s greeting says whose week waits and by when',
   WEEK_SIGNED: 'A week signed by the client: the next firm’s AP & Payroll is told',
-  BILL_SENT: 'A bill sent: the payer’s AP clerk reads it',
+  BILL_SENT: 'A bill sent (submitted to the firm that pays it, not only raised): the payer’s AP clerk reads it',
   ON_HOLD: 'An invoice receipt on hold: the supplier’s owner reads “on hold” and why',
 }
 
@@ -342,9 +342,10 @@ async function readHandoffs(ctx: Ctx, at: (phase: string) => void) {
         ) line on true
         left join "Company" payer on payer.id = coalesce(i."payerId", m."clientId", line."clientCompanyId")
         left join "Company" vendor on vendor.id = coalesce(m."vendorId", line."companyId")
-        where i.status not in ('DRAFT', 'VOID', 'CANCELLED') and payer.slug like 'world-%'
+        where i.status not in ('DRAFT', 'ISSUED', 'VOID', 'CANCELLED') and payer.slug like 'world-%'
         order by coalesce(i."submittedAt", i."issuedAt") desc nulls last`)
-      const sent = pick(rows.filter((r) => r.status !== 'HELD').map((r) => ({ ...r, waiting: ['SUBMITTED', 'SENT', 'ISSUED', 'PARTIALLY_PAID'].includes(r.status) })))
+      // Raised is not sent: an ISSUED bill has reached nobody yet, so it is nobody's handoff.
+      const sent = pick(rows.filter((r) => billSent(r.status) && r.status !== 'HELD').map((r) => ({ ...r, waiting: billWaitsOnPayer(r.status) })))
       for (const r of some(sent.rows)) {
         const ap = r.payerSlug ? deskAt(r.payerSlug, 'ap', 'finance', 'owner') : null
         if (!ap) continue
