@@ -140,6 +140,18 @@ export type AccessAction =
   // "who tried to read somebody's conversation with Ask Etyme" is a
   // question a person asks about themselves, and it should be one query.
   | 'ASK_ETYME_THREAD_VIEW'     // asked for, or tried to write on, another person's Ask Etyme conversation, and was refused
+  // ── The body of an email somebody forwarded to the company ─────────
+  //
+  // `lib/email-intake` (etyme-architect, 2026-10-22): a company's own
+  // people forward chosen business email to its one address, and each
+  // email becomes a card in Ask Etyme. The draft a card is drawn from
+  // carries no body on purpose; a card that shows the body reads it from
+  // the row, and that read is somebody's mail, often naming other people
+  // and other firms. So every showing of a body is a row of its own,
+  // written before the text is handed over (`recordForwardedEmailRead`),
+  // and a refusal is written before the refusal goes out. Its subject is
+  // the person who forwarded it, the one person the row can always name.
+  | 'FORWARDED_EMAIL_READ'      // read the body of an email forwarded to the company, or was refused it
 
 interface LogAccessBase {
   /** The person whose data was accessed */
@@ -445,4 +457,38 @@ export async function recordRefusal(
     ).catch(() => undefined)
     return 0
   }
+}
+
+/**
+ * A person reading the body of an email forwarded to their company, or
+ * being refused it. Written before the text is handed over: a row that
+ * cannot be written throws, and the caller does not show the body. A
+ * refusal never throws (`recordRefusal`). The reason names the email, so
+ * "who read what came in" is one query by the email's id.
+ */
+export async function recordForwardedEmailRead(
+  read: {
+    inboundEmailId: string
+    /** The person who forwarded it: the subject of the row. */
+    forwarderPersonId: string
+    /** Where it was shown, in words: "the invoice receipt card", "Ask Etyme". */
+    shownOn?: string
+    /** Set where the read was refused, with the sentence the caller was told. */
+    refused?: string
+  },
+  actor: { actorPersonId?: string; actorCompanyId?: string } & ActorFields,
+  db: AccessLogWriter = prisma
+): Promise<void> {
+  const reason = forwardedEmailReadReason(read)
+  if (read.refused) {
+    await recordRefusal([read.forwarderPersonId], { ...actor, action: 'FORWARDED_EMAIL_READ', reason })
+    return
+  }
+  await recordAccess([read.forwarderPersonId], { ...actor, action: 'FORWARDED_EMAIL_READ', reason }, db)
+}
+
+/** The reason on a forwarded-email read, in words, naming the email. Pure. */
+export function forwardedEmailReadReason(read: { inboundEmailId: string; shownOn?: string; refused?: string }): string {
+  if (read.refused) return `Refused the body of forwarded email ${read.inboundEmailId}: ${read.refused}`
+  return `Read the body of forwarded email ${read.inboundEmailId}${read.shownOn ? ` on ${read.shownOn}` : ''}`
 }

@@ -305,7 +305,7 @@ systems drop and the half an investigation needs.
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
 **Coverage, stated honestly.** 51 route files write an access-log row
-through `src/lib/access-log.ts`, out of 321 API route files. They are the routes that
+through `src/lib/access-log.ts`, out of 324 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -378,6 +378,13 @@ cannot be written the bill is not shown. A link that ran out, or a bill
 that was cancelled, is refused and the refusal is written first. These
 rows have a name of their own, `BILL_LINK_VIEW`, so "who opened our bills
 from outside Etyme" is one query.
+
+**The body of an email forwarded to the company.** A card drawn from a
+forwarded email carries no body; a screen that shows the body reads it
+from the row and writes `FORWARDED_EMAIL_READ` first, naming the email
+and the person who forwarded it. If the row cannot be written the body is
+not shown. A refused read is written before the refusal goes out
+(`recordForwardedEmailRead` in `src/lib/access-log.ts`).
 
 ---
 
@@ -471,20 +478,20 @@ Named on the common autonomy ladder, because that is the vocabulary every
 enterprise buyer is currently asking in, and recorded per action in
 `src/lib/autonomy.ts`.
 
-Recomputed from the module on 2026-10-20:
+Recomputed from the module on 2026-10-22:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **211** |
-| Unprompted — the system did it and nobody asked | **36** |
-| Enforcement — the system decided what a person was allowed to do | **11** |
-| Attributed — a person did it and the row is the record | **164** |
+| Actions named in the automation log | **215** |
+| Unprompted — the system did it and nobody asked | **38** |
+| Enforcement — the system decided what a person was allowed to do | **12** |
+| Attributed — a person did it and the row is the record | **165** |
 
 **The finding is the last row.** Most of what sits in an automation log
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the thirty-six unprompted actions, **thirty-three are plain rules** — a date
+Of the thirty-eight unprompted actions, **thirty-five are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. Three are not asserted as rules. Proactive matching's basis is
@@ -548,6 +555,11 @@ Stated plainly because it is the disclosure most easily buried.
 
 Provider: **Anthropic**, via `@anthropic-ai/sdk`. Models are configurable
 (`MATCH_MODEL`, `CHECK_MODEL`).
+
+**No model reads forwarded email.** The model step in the email intake is
+an empty slot in this build (`MODEL_STEP` in
+`src/lib/email-intake/intake.ts`); forwarded email is sorted by rules
+only.
 
 **No model output awards, rejects or bars anybody by itself.** Every path
 above is advisory and every score carries its reasoning.
@@ -616,6 +628,48 @@ from the person's own page, recorded with who attested and when.
 **Not there:** virus scanning on upload, content-type enforcement beyond
 what the browser reports, a signed-URL scheme, or a size cap enforced
 server-side across every path.
+
+### Forwarded business email
+
+Etyme never reads a mailbox and asks for no mail permission. A company
+forwards the email it chooses to one address of its own
+(`src/lib/email-intake/`, `src/app/api/email/inbound/route.ts`).
+
+- **Off by default, per company.** Only an Owner or Admin turns it on,
+  off, or replaces the address (`INTAKE_ROLES`,
+  `src/app/api/settings/email-intake/route.ts`). Each change is logged
+  with who and when.
+- **The address is random, shown once, and held only as a hash.** The
+  table keeps the SHA-256 of its secret part and four characters to
+  recognize it by (`src/lib/email-intake/address.ts`). Replacing the
+  address overwrites the only copy of the old hash, so the old address
+  stops at once.
+- **Every delivery's signature is checked before anything is read.** The
+  mail provider signs each delivery; an unsigned delivery, a wrong
+  signature, or one signed more than five minutes away from now is
+  refused, and the refusal is recorded before the answer goes back
+  (`src/lib/email-intake/signature.ts`).
+- **Kept only from the company's own people.** The message must pass SPF
+  and DKIM, aligned with the sender's own domain, and the sender must be a
+  seated person at that company (`src/lib/email-intake/sender.ts`). Any
+  other message is dropped, logged with the reason, and never shown. An
+  address reaches exactly one company.
+- **Email is data, never an instruction.** The body is kept as plain
+  text; HTML is never rendered and links are never followed
+  (`src/lib/email-intake/plain-text.ts`). Nothing in an email triggers an
+  act: the most an email becomes is a draft card a person says yes or no
+  to.
+- **Attachments are typed by their bytes.** PDF, PNG, JPEG, Word (.docx),
+  Excel (.xlsx) and CSV only. A file may weigh 10 MB, a message 25 MB in
+  all. A file whose bytes and name disagree, such as a program named
+  .pdf, drops the whole message. Nothing is opened on the server beyond
+  reading the first bytes and the names inside a Word or Excel package
+  (`src/lib/email-intake/attachments.ts`).
+- **The text is deleted.** An email's subject and body are deleted once
+  its card is decided, and after 30 days if nobody decides it; an
+  attachment not filed as evidence goes with them
+  (`src/lib/email-intake/retention.ts`).
+- **No model reads it** (section 8).
 
 ---
 
@@ -759,6 +813,17 @@ Stated in one place so a reviewer does not have to assemble it.
 - No security headers configured — no CSP, and no HSTS beyond the
   platform default (`next.config.mjs` sets no `headers()`).
 
+**Forwarded business email**
+- **Switched off on production.** It stays off until the founder's own
+  attack walk has tried a forged sender, a stranger, an email that tells
+  Etyme to act, oversized and wrong-typed files, and an address aimed at
+  another company. Until `EMAIL_INTAKE_LIVE` is set, the inbound door
+  answers 404, writes nothing, and no company can turn it on
+  (`src/lib/email-intake/live.ts`).
+- **No rate limit on the inbound endpoint** at the host. A flood of
+  signed deliveries would each be checked and recorded.
+- The privacy notice and the DPA do not yet name forwarded email.
+
 **Organization**
 - No named security officer. No formal access review of Etyme staff
   access to production. No background checks on Etyme's own staff. No
@@ -814,7 +879,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 51 route files of 321 (section 4).
+- Access logging covers 51 route files of 324 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their
