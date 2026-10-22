@@ -12,6 +12,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { Stat, RefusedState, LoadingState, ErrorState } from '@/components/ui'
 import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named } from './needs-you'
 import { formatDay } from '@/lib/format-date'
+import { ExtendForm } from './extend-form'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
 /**
@@ -400,16 +401,11 @@ export default function ProgramPage() {
     }
   }
 
-  async function handleExtend(contractId: string) {
-    try {
-      const body = await readJson(await fetch(`/api/contracts/${contractId}/extend`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ months: 3 }),
-      }))
-      say(body.data.message)
-      loadData()
-    } catch (err: any) {
-      say(err.message, 'error')
-    }
+  // Extend asks for the new last day and why, and says the route's own
+  // refusal under the box (`./extend-form`); this hears only the yes.
+  function handleExtend(message: string) {
+    say(message)
+    loadData()
   }
 
   async function handleRolloff(contractId: string) {
@@ -600,10 +596,12 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
   tenureSays: string | null
   busy: string | null
   onApprove: (d: Decision, note?: string) => void
-  onExtend: (contractId: string) => void
+  /** Said once an extension is made, with the route's own sentence. */
+  onExtend: (message: string) => void
   onRolloff: (contractId: string) => void
 }) {
   const s = data.summary
+  const [extending, setExtending] = useState<string | null>(null)
   const [reasonFor, setReasonFor] = useState<string | null>(null)
   const [reason, setReason] = useState('')
   const watchList = (tenure?.people ?? [])
@@ -862,11 +860,20 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
                       {c.daysRemaining != null ? `${c.daysRemaining} days` : '—'}
                     </p>
                     <div className="flex gap-2">
-                      <button onClick={() => onExtend(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Extend</button>
+                      <button onClick={() => setExtending(extending === c.contractId ? null : c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Extend</button>
                       {/* A plain button like Extend: ending a contract on its date is
                           an ordinary choice, not an alarm. */}
                       <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Roll off</button>
                     </div>
+                    {extending === c.contractId && (
+                      <ExtendForm
+                        contractId={c.contractId}
+                        personName={c.person.name}
+                        currentEnd={c.endDate ?? null}
+                        onDone={(message) => { setExtending(null); onExtend(message) }}
+                        onCancel={() => setExtending(null)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
