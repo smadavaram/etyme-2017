@@ -1688,8 +1688,11 @@ const HELD_STATUSES = ['CLEAR', 'CONDITIONAL']
 
 export interface ExtensionPaper {
   key: string
+  /** The first day not covered: the day after the last day covered. */
   endsOn: Date
   blocks: boolean
+  /** Where a later paper picks it up again before the new end: the days nobody is covered. */
+  gap: { from: Date; to: Date } | null
   says: string
 }
 
@@ -1700,41 +1703,104 @@ export interface ExtensionPapers {
   says: string
 }
 
+type PaperDates = Pick<VerificationRow, 'type' | 'status' | 'expiresAt' | 'validFrom' | 'issuedAt'>
+
+const DAY_MS = 86_400_000
+const dayOf = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+
 /**
- * Which papers end before the new end date. Of each kind, the one that
- * runs latest is read, so a renewal already on file answers the old one.
- * A kind the person or the firm holds none of is not this check's
- * business — a citizen has no visa — and a paper with no end date ends
- * nothing.
+ * The first stretch of days between `from` and `to` (both counted) that
+ * no held paper of this kind covers, or null where every day is covered.
+ * A paper covers from the day it starts (`validFrom`, else the day it
+ * was issued, else always) through the day printed as its end, that day
+ * included; one with no end covers every day after its start. Several
+ * papers of one kind are read together, so a renewal that starts the day
+ * after the old one ends leaves no gap, and one that starts a month later
+ * leaves a month.
+ */
+export function firstGap(rows: readonly PaperDates[], from: Date, to: Date): { from: Date; to: Date; resumes: Date | null; lastCovered: Date | null } | null {
+  const spans = rows
+    .map((r) => {
+      const start = r.validFrom ?? r.issuedAt ?? null
+      return { start: start ? dayOf(start) : Number.NEGATIVE_INFINITY, end: r.expiresAt ? dayOf(r.expiresAt) : Number.POSITIVE_INFINITY }
+    })
+    .filter((x) => x.end >= x.start)
+  const last = dayOf(to)
+  let cursor = dayOf(from)
+  // A paper that ran out before the first day still says when it ran out.
+  const before = spans.filter((x) => x.end < cursor).map((x) => x.end)
+  let lastCovered: number | null = before.length ? Math.max(...before) : null
+  while (cursor <= last) {
+    const covering = spans.filter((x) => x.start <= cursor && x.end >= cursor)
+    if (covering.length) {
+      const reach = Math.max(...covering.map((x) => x.end))
+      if (reach === Number.POSITIVE_INFINITY) return null
+      lastCovered = reach
+      cursor = reach + DAY_MS
+      continue
+    }
+    const next = spans.filter((x) => x.start > cursor && x.start <= last).map((x) => x.start).sort((a, b) => a - b)[0]
+    return {
+      from: new Date(cursor),
+      to: new Date(next !== undefined ? next - DAY_MS : last),
+      resumes: next !== undefined ? new Date(next) : null,
+      lastCovered: lastCovered !== null ? new Date(lastCovered) : null,
+    }
+  }
+  return null
+}
+
+/**
+ * Which papers do not cover every day from `from` (today, unless the
+ * caller names the first added day) to the new end date. Work
+ * authorization must be continuous: a day uncovered refuses the
+ * extension, naming the days. A supplier's cover, its good standing or a
+ * license with a gap warns with the dates and needs a reason. A kind the
+ * person or the firm holds none of is not this check's business — a
+ * citizen has no visa.
  */
 export function extensionPapers(input: {
   personName: string
   supplierName: string
   newEnd: Date
-  person: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[]
-  supplier: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[]
+  /** The first day that has to be covered. Today where not given. */
+  from?: Date
+  person: PaperDates[]
+  supplier: PaperDates[]
 }): ExtensionPapers {
-  const latest = (rows: Pick<VerificationRow, 'type' | 'status' | 'expiresAt'>[], key: string): Date | null | 'NONE' => {
-    const held = rows.filter((r) => r.type === key && HELD_STATUSES.includes(r.status))
-    if (held.length === 0) return 'NONE'
-    if (held.some((r) => !r.expiresAt)) return null
-    return new Date(Math.max(...held.map((r) => r.expiresAt!.getTime())))
-  }
   const newEnd = plainDate(input.newEnd.toISOString())
+  const from = input.from ?? new Date()
   const items: ExtensionPaper[] = []
   for (const [key, rule] of Object.entries(EXTENSION_PAPERS)) {
-    const ends = latest(rule.about === 'PERSON' ? input.person : input.supplier, key)
-    if (ends === 'NONE' || ends === null || ends.getTime() >= input.newEnd.getTime()) continue
+    const held = (rule.about === 'PERSON' ? input.person : input.supplier).filter((r) => r.type === key && HELD_STATUSES.includes(r.status))
+    if (held.length === 0) continue
+    const gap = firstGap(held, from, input.newEnd)
+    if (!gap) continue
     const whose = rule.about === 'PERSON' ? input.personName : input.supplierName
     const what = recordLabel(key)
-    const on = plainDate(ends.toISOString())
+    const d = (x: Date) => plainDate(x.toISOString())
+    const span = gap.from.getTime() === gap.to.getTime() ? d(gap.from) : `${d(gap.from)} to ${d(gap.to)}`
+    const plural = gap.from.getTime() === gap.to.getTime() ? 'is' : 'are'
+    let fact: string
+    if (gap.resumes) {
+      fact = gap.lastCovered
+        ? `${possessive(whose)} ${what} runs out on ${d(gap.lastCovered)} and the next one on file starts on ${d(gap.resumes)}, so ${span} ${plural} not covered, before the new end date of ${newEnd}.`
+        : `${possessive(whose)} ${what} on file starts on ${d(gap.resumes)}, so ${span} ${plural} not covered, before the new end date of ${newEnd}.`
+    } else {
+      fact = gap.lastCovered
+        ? `${possessive(whose)} ${what} runs out on ${d(gap.lastCovered)}, before the new end date of ${newEnd}.`
+        : `${possessive(whose)} ${what} on file does not cover ${span}, before the new end date of ${newEnd}.`
+    }
     items.push({
       key,
-      endsOn: ends,
+      endsOn: gap.from,
       blocks: rule.blocks,
+      gap: gap.resumes ? { from: gap.from, to: gap.to } : null,
       says: rule.blocks
-        ? `${possessive(whose)} ${what} runs out on ${on}, before the new end date of ${newEnd}. Nobody works past the day their authorization ends: get the new one on file, then extend.`
-        : `${possessive(whose)} ${what} runs out on ${on}, before the new end date of ${newEnd}. Get the renewal on file, or say why the extension goes ahead without it.`,
+        ? gap.resumes
+          ? `${fact} Nobody works on a day their authorization does not cover: get one on file that covers those days, then extend.`
+          : `${fact} Nobody works past the day their authorization ends: get the new one on file, then extend.`
+        : `${fact} Get ${gap.resumes ? 'cover for those days' : 'the renewal'} on file, or say why the extension goes ahead without it.`,
     })
   }
   items.sort((a, b) => Number(b.blocks) - Number(a.blocks) || a.endsOn.getTime() - b.endsOn.getTime())
