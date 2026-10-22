@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, wantsDates, datesHelp, suppliedByWords, optionalWord, needsSignedCopy, needsEdition, editionHelp, type ChecklistItem, type EvidenceNote, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { usePageSection } from '@/components/page-section'
@@ -181,6 +181,12 @@ export default function SuppliersPage() {
    */
   const [datesFor, setDatesFor] = useState<string | null>(null)
   const [dateForm, setDateForm] = useState({ validFrom: '', validUntil: '' })
+  /**
+   * The edition of a reissued form, asked at the moment the desk verifies
+   * it — the W-9's revision date is printed on the form in front of them.
+   */
+  const [editionFor, setEditionFor] = useState<string | null>(null)
+  const [editionText, setEditionText] = useState('')
   const [view, setView] = useState<View>('feed')
   const [filter, setFilter] = useState<NetworkFilter>('ALL')
   const [place, setPlace] = useState<string | null>(null)
@@ -304,8 +310,26 @@ export default function SuppliersPage() {
       }
       setNoteFor(null); setNoteText('')
       setDatesFor(null); setDateForm({ validFrom: '', validUntil: '' })
+      setEditionFor(null); setEditionText('')
       await loadRequests()
       if (payload.action === 'approve') load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** The desk attaches the signed copy of an agreement it papers itself. */
+  async function attach(id: string, key: string, file: File) {
+    setBusy(true); setError(null); setDone(null); setTold(null)
+    try {
+      const form = new FormData()
+      form.append('key', key)
+      form.append('file', file)
+      const body = await readJson(await fetch(`/api/supplier-requests/${id}/file`, { method: 'POST', body: form }))
+      setTold(body.data.says)
+      await loadRequests()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -616,6 +640,7 @@ export default function SuppliersPage() {
                             ? <> — <a href={item.fileUrl} target="_blank" rel="noreferrer" className="text-etyme-action underline">{item.fileName}</a></>
                             : <span className="text-etyme-faint"> — {item.fileName}</span>)}
                           {item.state === 'PROVIDED' && <span className="text-etyme-action"> · received, verify</span>}
+                          {item.edition && <span className="text-etyme-faint"> · edition {item.edition}</span>}
                           {item.note && <span className="text-etyme-faint"> — {item.note}</span>}
                           {/* Whose order asked for it, where it is not
                               one of the eleven every firm is asked for. */}
@@ -635,6 +660,21 @@ export default function SuppliersPage() {
                         </span>
                         {r.mayAct && (item.state === 'MISSING' || item.state === 'PROVIDED') && (
                           <span className="flex gap-1">
+                            {/* An agreement is on file only with the copy
+                                both firms signed. Until one is attached the
+                                desk is offered the file, not the tick. */}
+                            {needsSignedCopy(item) && !item.fileUrl ? (
+                              <label className="cursor-pointer rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">
+                                Attach signed copy
+                                <input
+                                  type="file"
+                                  className="sr-only"
+                                  aria-label={`Signed copy of ${item.label}`}
+                                  disabled={busy}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) attach(r.id, item.key, f); e.target.value = '' }}
+                                />
+                              </label>
+                            ) : (
                             <button
                               onClick={() =>
                                 wantsDates(item)
@@ -643,10 +683,13 @@ export default function SuppliersPage() {
                                        validFrom: item.validFrom ? item.validFrom.slice(0, 10) : '',
                                        validUntil: item.validUntil ? item.validUntil.slice(0, 10) : '',
                                      }))
-                                  : act(r.id, { action: 'mark', key: item.key, state: 'HELD' })
+                                  : needsEdition(item)
+                                    ? (setEditionFor(`${r.id}:${item.key}`), setEditionText(item.edition ?? ''))
+                                    : act(r.id, { action: 'mark', key: item.key, state: 'HELD' })
                               }
                               disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">{item.state === 'PROVIDED' ? 'Verified' : 'On file'}</button>
+                            )}
                             <button onClick={() => { setNoteFor(`${r.id}:${item.key}`); setNoteText('') }} disabled={busy}
                               className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-muted hover:border-etyme-action">Waive…</button>
                           </span>
@@ -689,6 +732,23 @@ export default function SuppliersPage() {
                             <button type="submit" disabled={!dateForm.validFrom || !dateForm.validUntil || busy}
                               className="rounded bg-etyme-action px-2 py-1 text-[11px] text-white disabled:opacity-40">Verified</button>
                             <button type="button" onClick={() => setDatesFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
+                          </form>
+                        )}
+                        {/* The edition printed on a reissued form, read off
+                            the copy in front of the desk. An old edition is
+                            the finding in an audit. */}
+                        {editionFor === `${r.id}:${item.key}` && (
+                          <form
+                            className="flex w-full flex-wrap items-center gap-2 pl-7"
+                            onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'mark', key: item.key, state: 'HELD', edition: editionText }) }}
+                          >
+                            <span className="w-full text-[11px] text-etyme-faint">{editionHelp(item)}</span>
+                            <input autoFocus value={editionText} onChange={(e) => setEditionText(e.target.value)}
+                              placeholder="Rev. March 2024" aria-label={`Edition of ${item.label}`}
+                              className="min-w-[180px] rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                            <button type="submit" disabled={!editionText.trim() || busy}
+                              className="rounded bg-etyme-action px-2 py-1 text-[11px] text-white disabled:opacity-40">Verified</button>
+                            <button type="button" onClick={() => setEditionFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
                           </form>
                         )}
                         {noteFor === `${r.id}:${item.key}` && (

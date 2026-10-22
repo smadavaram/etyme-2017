@@ -3,6 +3,8 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { seedWorld } from '@/lib/seed-world'
 import { GET as listRequests, POST as recommend } from '@/app/api/supplier-requests/route'
 import { PATCH as review } from '@/app/api/supplier-requests/[id]/route'
+import { POST as attachFile } from '@/app/api/supplier-requests/[id]/file/route'
+import { NextRequest } from 'next/server'
 import { GET as applyGet, POST as applyPost } from '@/app/api/supplier-apply/[token]/route'
 import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as suppliers } from '@/app/api/suppliers/route'
@@ -28,6 +30,14 @@ const call = async (fn: any, method: string, url: string, id: string, body?: unk
 const viaToken = async (fn: any, method: string, token: string, body?: unknown) =>
   json(await fn(req(method, `/api/supplier-apply/${token}`, body), { params: Promise.resolve({ token }) }))
 const it_: Record<string, any> = {}
+/** A desk attaching a file, the way the page sends it: multipart, the key and the file. */
+const attach = async (id: string, key: string, name: string, words: string) => {
+  const form = new FormData()
+  form.append('key', key)
+  form.append('file', new File([`%PDF-1.4\n% ${words}\n%%EOF\n`], name, { type: 'application/pdf' }))
+  const r = new NextRequest(`http://localhost:3000/api/supplier-requests/${id}/file`, { method: 'POST', body: form })
+  return json(await attachFile(r, { params: Promise.resolve({ id }) }))
+}
 const iso = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
 /** A small real file, the way the page sends one: its bytes in base64 beside its name. */
 const pdf = (words: string) => {
@@ -242,6 +252,30 @@ describe('a supplier walks four desks', () => {
     expect(harbor.checklist.find((i: any) => i.key === 'NDA')).toMatchObject({ desk: 'HR', by: 'DESK', required: false })
   })
 
+  it('an agreement cannot be marked on file without the signed copy; HR attaches the copy both firms signed and then marks it', async () => {
+    as(HR)
+    for (const key of ['AGREEMENT', 'NDA']) {
+      const bare = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key, state: 'HELD' })
+      expect(bare.status).toBe(422)
+      expect(bare.body.error.code).toBe('NEEDS_SIGNED_COPY')
+      expect(bare.body.error.message).toContain('is on file only with the copy both firms signed. Attach the signed copy, then mark it on file.')
+    }
+    const attached = await attach(it_.id, 'NDA', 'Harbor-NDA-signed.pdf', 'NDA between Northbend Athletic and Harbor Staffing, signed by both')
+    expect(attached.status, JSON.stringify(attached.body)).toBe(201)
+    const nda = attached.body.data.request.checklist.find((i: any) => i.key === 'NDA')
+    expect(nda).toMatchObject({ state: 'PROVIDED', fileName: 'Harbor-NDA-signed.pdf' })
+    expect(nda.fileUrl).toMatch(/^\/api\/documents\/[^/]+\/file$/)
+    const held = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'NDA', state: 'HELD' })
+    expect(held.status, JSON.stringify(held.body)).toBe(200)
+    expect(held.body.data.request.checklist.find((i: any) => i.key === 'NDA')).toMatchObject({ state: 'HELD', fileName: 'Harbor-NDA-signed.pdf' })
+  })
+
+  it('only the step the firm is on may attach a file to its items; Finance cannot attach to HR’s agreement', async () => {
+    as(AP)
+    const r = await attach(it_.id, 'AGREEMENT', 'Harbor-MSA.pdf', 'MSA')
+    expect(r.status).toBe(403)
+  })
+
   it('HR verifies the insurance and the good standing, runs the screening, and clears compliance; the lead who decided before cannot decide again', async () => {
     as(LEAD)
     const twice = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
@@ -261,10 +295,16 @@ describe('a supplier walks four desks', () => {
     as(AP)
     const early = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve' })
     expect(early.status).toBe(409)
-    for (const key of ['TAX_FORM', 'BANK']) {
-      const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key, state: 'HELD' })
-      expect(r.status, JSON.stringify(r.body)).toBe(200)
-    }
+    // The W-9 is a reissued form: verified with the edition printed on it.
+    const noEdition = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'TAX_FORM', state: 'HELD' })
+    expect(noEdition.status).toBe(422)
+    expect(noEdition.body.error).toMatchObject({ code: 'NEEDS_EDITION', field: 'edition' })
+    expect(noEdition.body.error.message).toContain('Say which edition of the tax form was signed before you verify it.')
+    const w9 = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'TAX_FORM', state: 'HELD', edition: 'Rev. March 2024' })
+    expect(w9.status, JSON.stringify(w9.body)).toBe(200)
+    expect(w9.body.data.request.checklist.find((i: any) => i.key === 'TAX_FORM')).toMatchObject({ state: 'HELD', edition: 'Rev. March 2024' })
+    const bank = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'mark', key: 'BANK', state: 'HELD' })
+    expect(bank.status, JSON.stringify(bank.body)).toBe(200)
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'Bank details match the W-9 legal name.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toContain('is a supplier now')
@@ -500,7 +540,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
 
     as(AP)
     for (const key of ['TAX_FORM', 'BANK']) {
-      expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD' })).status).toBe(200)
+      expect((await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'mark', key, state: 'HELD', edition: 'Rev. March 2024' })).status).toBe(200)
     }
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve', note: 'Bank details match the W-9.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)

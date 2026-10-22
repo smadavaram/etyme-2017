@@ -302,3 +302,40 @@ export async function suppliersOwing(
   }
   return out
 }
+
+// ── A file on a supplier's onboarding item ────────────────────────────
+
+/**
+ * Keep one file for a supplier's onboarding item — sent by the firm
+ * through its link, or the signed copy a desk attaches: a paper of the
+ * client's for that item,
+ * the bytes on it (`DocFile`), and the address of the one file door.
+ * One paper per item of one request; a second answer replaces the bytes,
+ * the way a sent-back paper is answered again. The paper is the
+ * client's, because the client asked for it: its paperwork team opens
+ * it, and nobody at another company can.
+ */
+export async function keepSupplierPaper(clientId: string, requestId: string, key: string, label: string, file: { name: string; type: string; bytes: Buffer }): Promise<string> {
+  const name = label.slice(0, 200)
+  const template =
+    (await prisma.docTemplate.findFirst({ where: { companyId: clientId, name }, select: { id: true } })) ??
+    (await prisma.docTemplate.create({ data: { companyId: clientId, name, audience: 'VENDOR', needsSignature: false }, select: { id: true } }))
+  const now = new Date()
+  const subjectId = `${requestId}:${key}`
+  const id = await prisma.$transaction(async (tx) => {
+    const paper =
+      (await tx.docInstance.findFirst({ where: { subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId }, select: { id: true } })) ??
+      (await tx.docInstance.create({
+        data: { templateId: template.id, subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId, status: 'UPLOADED', sentAt: now },
+        select: { id: true },
+      }))
+    await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
+    await tx.docFile.upsert({
+      where: { docInstanceId: paper.id },
+      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes },
+      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedAt: now },
+    })
+    return paper.id
+  })
+  return `/api/documents/${id}/file`
+}

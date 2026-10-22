@@ -9,7 +9,7 @@ import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
 import { verificationFromChecklistItem, verificationsFromChecklist, type VerificationToWrite } from '@/lib/onboarding-evidence'
 import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
 import {
-  mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, STAGE_WORD,
+  mayActAt, markItem, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, signedOnFile, STAGE_WORD,
   type ChecklistItem, type ItemState, type Decision, type Stage,
 } from '@/lib/supplier-onboarding'
 import { actingDesk } from '@/lib/program-seat'
@@ -18,7 +18,9 @@ import { actingDesk } from '@/lib/program-seat'
  * PATCH /api/supplier-requests/[id]
  *   { action: 'approve', note? }     — the desk it is on says yes; it moves to the next desk, or becomes a supplier
  *   { action: 'decline', note }      — with a reason the recommender reads
- *   { action: 'mark', key, state, note? }   — Procurement verifies (HELD), waives with a reason, or unmarks
+ *   { action: 'mark', key, state, note?, edition? }   — the desk verifies (HELD), waives with a reason, or unmarks;
+ *                                    an agreement needs its signed copy attached first (POST ./file),
+ *                                    and a reissued form (the W-9) the edition printed on it
  *   { action: 'resend' }             — send the firm its link again
  *
  * The department lead, then Procurement, then HR, then Finance, in that
@@ -146,8 +148,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       validFrom: typeof body?.validFrom === 'string' && body.validFrom.trim() ? body.validFrom.trim() : null,
       validUntil: typeof body?.validUntil === 'string' && body.validUntil.trim() ? body.validUntil.trim() : null,
     }
-    const marked = markItem(checklist, key, state, note || null, now, dates)
-    if (!marked.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: marked.message } }, { status: 422 })
+    const edition = typeof body?.edition === 'string' && body.edition.trim() ? body.edition.trim().slice(0, 80) : null
+    const marked = markItem(checklist, key, state, note || null, now, dates, edition)
+    if (!marked.ok) {
+      return NextResponse.json(
+        { error: { code: marked.code ?? 'VALIDATION', message: marked.message, ...(marked.code === 'NEEDS_EDITION' ? { field: 'edition' } : marked.code === 'NEEDS_SIGNED_COPY' ? { field: 'file' } : {}) } },
+        { status: 422 }
+      )
+    }
 
     // ── What a desk verified becomes cover the product can read ───────
     //
@@ -225,7 +233,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         action: 'SUPPLIER_ITEM_MARKED',
         summary: `${caller.person.name} (${STAGE_WORD[stage]}) ${WORD[state] ?? String(state).toLowerCase()} ${item.label} for ${row.name}`,
         reason: note || (state === 'HELD' ? 'Verified against what the firm supplied.' : 'No reason given.'),
-        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id },
+        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id, ...(markedItem.edition ? { edition: markedItem.edition } : {}), ...(markedItem.fileUrl ? { fileUrl: markedItem.fileUrl } : {}) },
         // An item can be marked again; a waiver can be taken back.
         reversible: true,
       },
@@ -314,7 +322,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
       select: { id: true, name: true, claimedAt: true },
     }))
-    const agreementHeld = checklist.find((i) => i.key === 'AGREEMENT')?.state === 'HELD'
+    // Signed only where the copy both firms signed is on file. A row
+    // marked on file before the copy was required reads as unsigned, so
+    // the agreement stub is written without a signature rather than with
+    // one nobody can show (screen walk, 2026-10-22).
+    const agreementHeld = signedOnFile(checklist.find((i) => i.key === 'AGREEMENT'))
     // A sub-vendor under a prime holds its paper with the prime, not with
     // the client: no agreement is written between them here. The client's
     // register still carries the firm, approved, so its people match as a

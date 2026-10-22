@@ -415,7 +415,9 @@ describe('a desk is never told nothing when its click recorded nothing', () => {
 
   const heldItem = (key: string, label: string, note: string | null = null, fileName: string | null = null) => {
     const c = withCheck(key, label).map((i) => (i.key === key ? { ...i, fileName } : i))
-    const marked = markItem(c, key, 'HELD', note, now) as { ok: true; checklist: ChecklistItem[] }
+    // An I-9 is a reissued form, so verifying it names the edition
+    // printed on it (screen walk, 2026-10-22); the rest ignore it.
+    const marked = markItem(c, key, 'HELD', note, now, undefined, 'Edition 01/20/25') as { ok: true; checklist: ChecklistItem[] }
     return marked.checklist.find((i) => i.key === key)!
   }
 

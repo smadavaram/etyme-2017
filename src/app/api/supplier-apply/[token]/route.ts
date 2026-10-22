@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
-import { desksFor, deskPeople, orderedOfSuppliers } from '@/lib/supplier-desks'
+import { desksFor, deskPeople, orderedOfSuppliers, keepSupplierPaper } from '@/lib/supplier-desks'
 import { approvedSays, claimUrl, sentSays } from '@/lib/supplier-link'
 import { provideItems, vendorItems, wantsDates, withOrderedItems, type ChecklistItem } from '@/lib/supplier-onboarding'
 import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const labelOf = new Map(ordered.map((i) => [i.key, i.label]))
   const provided: { key: string; fileName?: string | null; fileUrl?: string | null; validFrom?: string | null; validUntil?: string | null }[] = []
   for (const d of docs) {
-    const fileUrl = await keepTheFile(row.companyId, row.id, d.key, labelOf.get(d.key) ?? d.key, { name: d.fileName, type: d.type, bytes: d.bytes! })
+    const fileUrl = await keepSupplierPaper(row.companyId, row.id, d.key, labelOf.get(d.key) ?? d.key, { name: d.fileName, type: d.type, bytes: d.bytes! })
     provided.push({ key: d.key, fileName: d.fileName, fileUrl, validFrom: d.validFrom, validUntil: d.validUntil })
   }
   if (bank?.bankName && bank.accountName && bank.last4.length === 4) provided.push({ key: 'BANK', fileName: `${bank.bankName} ····${bank.last4}` })
@@ -181,37 +181,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         : sentSays(row.company.name),
     },
   }, { status: 201 })
-}
-
-/**
- * Keep one file the firm sent: a paper of the client's for that item,
- * the bytes on it (`DocFile`), and the address of the one file door.
- * One paper per item of one request; a second answer replaces the bytes,
- * the way a sent-back paper is answered again. The paper is the
- * client's, because the client asked for it: its paperwork team opens
- * it, and nobody at another company can.
- */
-async function keepTheFile(clientId: string, requestId: string, key: string, label: string, file: { name: string; type: string; bytes: Buffer }): Promise<string> {
-  const name = label.slice(0, 200)
-  const template =
-    (await prisma.docTemplate.findFirst({ where: { companyId: clientId, name }, select: { id: true } })) ??
-    (await prisma.docTemplate.create({ data: { companyId: clientId, name, audience: 'VENDOR', needsSignature: false }, select: { id: true } }))
-  const now = new Date()
-  const subjectId = `${requestId}:${key}`
-  const id = await prisma.$transaction(async (tx) => {
-    const paper =
-      (await tx.docInstance.findFirst({ where: { subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId }, select: { id: true } })) ??
-      (await tx.docInstance.create({
-        data: { templateId: template.id, subjectType: 'SUPPLIER_REQUEST_ITEM', subjectId, status: 'UPLOADED', sentAt: now },
-        select: { id: true },
-      }))
-    await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
-    await tx.docFile.upsert({
-      where: { docInstanceId: paper.id },
-      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes },
-      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, uploadedAt: now },
-    })
-    return paper.id
-  })
-  return `/api/documents/${id}/file`
 }

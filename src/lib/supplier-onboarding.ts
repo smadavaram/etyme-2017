@@ -23,6 +23,7 @@
 import { hasPermission } from '@/lib/permissions'
 import { verificationFromChecklistItem } from '@/lib/onboarding-evidence'
 import { checkKindOf, whoRendersCheck } from '@/lib/attestation'
+import { builtInType } from '@/lib/document-type'
 
 export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
 export type Stage = (typeof STAGES)[number]
@@ -116,6 +117,19 @@ export interface ChecklistItem {
    * 2026-10-21).
    */
   fileUrl?: string | null
+  /**
+   * Which edition of a reissued form the firm signed, as printed on it —
+   * "Rev. March 2024" on a W-9. Recorded by the desk that verifies it,
+   * because an old edition is the finding in an audit and the form itself
+   * is the only place it is written (screen walk, 2026-10-22).
+   */
+  edition?: string | null
+  /**
+   * The purpose of the type an order asked for, where it is not one of
+   * the shipped items — so a client's own agreement is treated as an
+   * agreement without a case added here.
+   */
+  purpose?: string | null
 }
 
 /** What the desks ask for, in the words they use, and who verifies each. */
@@ -461,6 +475,7 @@ export function withOrderedItems(
       fileName: null,
       answers: [item.key],
       says: item.purpose === 'AGREEMENT' ? agreementSays : says,
+      purpose: item.purpose,
     })
   }
   return out
@@ -675,9 +690,46 @@ export function shortLabel(key: string, label?: string | null): string {
   }
 }
 
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
 function list(xs: string[]): string {
   if (xs.length <= 1) return xs[0] ?? ''
   return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
+}
+
+// ── A signed copy, and an edition ─────────────────────────────────────
+//
+// Found by the screen walk of 2026-10-22: a desk could mark the MSA and
+// the NDA on file with no signed copy anywhere, and Finance's yes then
+// wrote the agreement as signed. An agreement on file is a paper both
+// firms signed, and the copy is the only proof of it. And the W-9 was
+// verified with no word of which edition was signed, though the form is
+// reissued and an old one is the finding in an audit.
+
+/** True where this item is an agreement: on file means a signed copy is. */
+export function needsSignedCopy(item: Pick<ChecklistItem, 'key' | 'answers' | 'purpose'>): boolean {
+  if (item.key === 'AGREEMENT' || item.purpose === 'AGREEMENT') return true
+  return (item.answers ?? []).some((k) => builtInType(k)?.purpose === 'AGREEMENT')
+}
+
+/** True where this item answers a form the issuer reissues, so its edition is a fact. */
+export function needsEdition(item: Pick<ChecklistItem, 'answers'>): boolean {
+  return (item.answers ?? []).some((k) => builtInType(k)?.reissued === true)
+}
+
+/** What the desk is asked for the edition, in the form's own terms. */
+export function editionHelp(item: Pick<ChecklistItem, 'answers' | 'label'>): string {
+  if ((item.answers ?? []).includes('W9')) {
+    return 'The revision date printed at the top left of the W-9, such as “Rev. March 2024”.'
+  }
+  return `The edition printed on the ${item.label.toLowerCase()}.`
+}
+
+/** True where an agreement item may be read as signed: on file, with the copy behind it. */
+export function signedOnFile(item: Pick<ChecklistItem, 'state' | 'fileUrl'> | undefined): boolean {
+  return !!item && item.state === 'HELD' && !!item.fileUrl
 }
 
 /**
@@ -698,11 +750,28 @@ export function markItem(
   state: ItemState,
   note: string | null,
   at: Date,
-  dates?: { validFrom?: string | null; validUntil?: string | null }
-): { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string } {
+  dates?: { validFrom?: string | null; validUntil?: string | null },
+  /** The edition printed on a reissued form, where the desk read it. */
+  edition?: string | null
+): { ok: true; checklist: ChecklistItem[] } | { ok: false; message: string; code?: 'NEEDS_SIGNED_COPY' | 'NEEDS_EDITION' } {
   const item = checklist.find((i) => i.key === key)
   if (!item) return { ok: false, message: 'That is not on the checklist.' }
   if (state === 'WAIVED' && !note?.trim()) return { ok: false, message: `Waiving ${shortLabel(key, item.label)} needs a reason written down.` }
+  const editionSaid = edition?.trim() || item.edition || null
+  if (state === 'HELD' && needsSignedCopy(item) && !item.fileUrl) {
+    return {
+      ok: false,
+      code: 'NEEDS_SIGNED_COPY',
+      message: `${capitalize(shortLabel(key, item.label))} is on file only with the copy both firms signed. Attach the signed copy, then mark it on file.`,
+    }
+  }
+  if (state === 'HELD' && needsEdition(item) && !editionSaid) {
+    return {
+      ok: false,
+      code: 'NEEDS_EDITION',
+      message: `Say which edition of ${shortLabel(key, item.label)} was signed before you verify it. ${editionHelp(item)}`,
+    }
+  }
   return {
     ok: true,
     checklist: checklist.map((i) =>
@@ -714,6 +783,7 @@ export function markItem(
             at: state === 'MISSING' ? null : at.toISOString(),
             validFrom: state === 'MISSING' ? null : dates?.validFrom ?? i.validFrom ?? null,
             validUntil: state === 'MISSING' ? null : dates?.validUntil ?? i.validUntil ?? null,
+            edition: state === 'MISSING' ? null : needsEdition(i) ? editionSaid : (i.edition ?? null),
           }
         : i
     ),
@@ -750,6 +820,31 @@ export function provideItems(
       validUntil: p.validUntil ?? i.validUntil ?? null,
     }
   })
+}
+
+/**
+ * A desk attaches a file to one of its own items — the signed copy of an
+ * agreement it papers itself. The file is kept; the item is not verified
+ * by it. A desk item with nothing before reads as received, so the same
+ * desk then says it is on file.
+ */
+export function attachToItem(
+  checklist: ChecklistItem[],
+  key: string,
+  file: { fileName: string; fileUrl: string },
+  at: Date
+): ChecklistItem[] {
+  return checklist.map((i) =>
+    i.key === key
+      ? {
+          ...i,
+          fileName: file.fileName,
+          fileUrl: file.fileUrl,
+          state: i.state === 'MISSING' ? 'PROVIDED' : i.state,
+          at: i.state === 'MISSING' ? at.toISOString() : i.at,
+        }
+      : i
+  )
 }
 
 /** What the vendor is asked for, in the order it is asked. */
