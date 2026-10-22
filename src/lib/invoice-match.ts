@@ -5,7 +5,7 @@ import { liveWaivers } from '@/lib/money/keyed-lines'
 import { rateInForce } from '@/lib/contract-rate'
 import { bandsOf, billableInPeriod, periodFor, type AcceptedCut, type Band, type Period } from '@/lib/periods'
 import { lineFor, type Decision } from '@/lib/overtime'
-import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, periodTermsFor, type OrderHeader, type AgreementTerms } from '@/lib/money/order-terms'
+import { ORDER_HEADER_PERIOD_SELECT, SELL_LINE_PERIOD_TERMS_SELECT, periodTermsFor, type OrderHeader, type AgreementTerms } from '@/lib/money/order-terms'
 import { receiptFor } from '@/lib/money/rung-billing'
 import type { Carried } from '@/lib/money/client-overtime'
 import { carriedForLines } from '@/lib/money/client-overtime-read'
@@ -246,9 +246,9 @@ const MATCH_INCLUDE = {
               clientCompanyId: true,
               overtimeAfterHours: true, overtimeMultiplierBps: true,
               billFrequency: true, billAnchor: true, billStraddle: true,
-              workOrder: { select: ORDER_HEADER_SELECT },
+              workOrder: { select: ORDER_HEADER_PERIOD_SELECT },
               // The agreement first, as the bill was priced (2026-10-18).
-              ...SELL_LINE_TERMS_SELECT,
+              ...SELL_LINE_PERIOD_TERMS_SELECT,
             },
           },
           expense: { select: { id: true, status: true, total: true } },
@@ -279,8 +279,8 @@ const MATCH_INCLUDE = {
                   companyId: true, clientCompanyId: true, endClientCompanyId: true,
                   overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
-                  workOrder: { select: ORDER_HEADER_SELECT },
-                  ...SELL_LINE_TERMS_SELECT,
+                  workOrder: { select: ORDER_HEADER_PERIOD_SELECT },
+                  ...SELL_LINE_PERIOD_TERMS_SELECT,
                 },
               },
             },

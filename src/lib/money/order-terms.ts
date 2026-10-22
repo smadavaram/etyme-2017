@@ -314,6 +314,36 @@ export const SELL_LINE_TERMS_SELECT = {
   msa: { select: AGREEMENT_TERMS_SELECT },
 } as const
 
+/**
+ * The same three selects without the two firms' names, for a reader that
+ * decides a period and never says where a term came from (the three-way
+ * check, `lib/invoice-match`). Each name is a query of its own, and the
+ * check reads four agreements per bill: eight round trips of the forty a
+ * bill's check made, each one queued for a connection under load (the
+ * 2,000-person simulation, 2026-10-21). The terms read are identical; a
+ * set-aside sentence built from these says "your agreement" rather than
+ * naming the firm, which is why a screen keeps the full selects.
+ */
+export const AGREEMENT_PERIOD_SELECT = {
+  id: true,
+  billFrequency: true,
+  billAnchor: true,
+  billStraddle: true,
+  paymentTerms: true,
+  paymentTermsFrom: true,
+  currency: true,
+} as const
+
+export const ORDER_HEADER_PERIOD_SELECT = {
+  ...ORDER_HEADER_SELECT,
+  msa: { select: AGREEMENT_PERIOD_SELECT },
+} as const
+
+export const SELL_LINE_PERIOD_TERMS_SELECT = {
+  termsDifferReason: true,
+  msa: { select: AGREEMENT_PERIOD_SELECT },
+} as const
+
 /** The shipped answers, which are the schema defaults, so nothing moves. */
 export const SHIPPED = {
   frequency: 'MONTHLY' as Frequency,
