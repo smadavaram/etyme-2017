@@ -66,6 +66,7 @@ import {
   type SuppliedBy,
 } from '@/lib/document-type'
 import { formatDayLong } from '@/lib/format-date'
+import { withoutVoidNonCompete } from '@/lib/document-stages'
 
 // ── The words ─────────────────────────────────────────────────────────
 
@@ -560,6 +561,7 @@ async function sellRequirements(id: string, db: Db): Promise<LineRequirements | 
       clientCompany: { select: { id: true, name: true } },
       person: { select: { name: true } },
       requirement: { select: { title: true } },
+      workLocation: { select: { country: true, state: true } },
       workOrder: { select: { id: true, number: true, issuedBy: { select: { name: true } } } },
       documentRequirements: { select: ROW_SELECT },
     },
@@ -588,6 +590,7 @@ async function sellRequirements(id: string, db: Db): Promise<LineRequirements | 
       US: line.company?.name ?? null,
     },
     dictionaryFor: [line.companyId, line.clientCompany?.id ?? null],
+    site: line.workLocation ?? null,
     db,
   })
 }
@@ -605,7 +608,15 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       candidates: { select: { person: { select: { name: true } } }, take: 1 },
       workOrder: { select: { id: true, number: true, issuedBy: { select: { name: true } } } },
       sellLinks: {
-        select: { sellContract: { select: { clientCompany: { select: { name: true } }, requirement: { select: { title: true } } } } },
+        select: {
+          sellContract: {
+            select: {
+              clientCompany: { select: { name: true } },
+              requirement: { select: { title: true } },
+              workLocation: { select: { country: true, state: true } },
+            },
+          },
+        },
         take: 1,
       },
       documentRequirements: { select: ROW_SELECT },
@@ -646,6 +657,9 @@ async function buyRequirements(id: string, db: Db): Promise<LineRequirements | n
       US: line.company?.name ?? null,
     },
     dictionaryFor: [line.companyId, line.vendorCompanyId],
+    // A buy line has no site of its own; the work is done where the sell
+    // line it funds says.
+    site: sell?.workLocation ?? null,
     db,
   })
 }
@@ -676,6 +690,8 @@ async function assemble(input: {
   names: Names
   /** Whose dictionaries name these types: the line's company, and the firm across from it. */
   dictionaryFor: (string | null)[]
+  /** Where the work is done, for the state law that voids a non-compete. */
+  site: { country: string | null; state: string | null } | null
   db: Db
 }): Promise<LineRequirements> {
   const companyIds = input.dictionaryFor.filter((v): v is string => !!v)
@@ -702,7 +718,11 @@ async function assemble(input: {
     for (const p of people) waiverNames[p.id] = p.name
   }
 
-  const items = effectiveRequirements({
+  // A non-compete is not asked where the site's state voids it for
+  // workers (`NON_COMPETE_VOID` in lib/document-stages): kept on the
+  // list, marked not asked with the law beside it, so the set screens,
+  // the worker's own page and clearance all read the same answer.
+  const items = withoutVoidNonCompete(effectiveRequirements({
     shape: input.shape,
     role: input.role,
     lineRows: input.lineRows,
@@ -711,7 +731,7 @@ async function assemble(input: {
     names: input.names,
     waiverNames,
     documentTypes: defined,
-  })
+  }), input.site)
 
   return { side: input.side, shape: input.shape, order: input.order, items, says: summarize(items, input.orderSays) }
 }

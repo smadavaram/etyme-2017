@@ -143,6 +143,39 @@ describe('what every order asks for on paper', () => {
     expect(cover.owedByName).toBeTruthy()
   })
 
+  it('a worker at a California site is not asked for a non-compete, and the set says the law that voids it', async () => {
+    // The seed asks nobody for a non-compete, so this line is given one
+    // on its own buy line and a site in California, then put back.
+    const link = await prisma.contractLink.findFirst({
+      where: { buyContract: { contractType: 'W2', vendorCompanyId: null, company: { slug: { startsWith: 'world-' } } } },
+      select: { buyContractId: true, sellContract: { select: { id: true, clientCompanyId: true, workLocationId: true } } },
+    })
+    const sell = link!.sellContract
+    const site = await prisma.companyLocation.create({
+      data: { companyId: sell.clientCompanyId!, name: 'San Jose site', city: 'San Jose', state: 'CA', country: 'US' },
+    })
+    const nca = await prisma.documentRequirement.create({
+      data: { buyContractId: link!.buyContractId, documentTypeKey: 'NCA', required: true, owedBy: 'WORKER' },
+    })
+    try {
+      await prisma.sellContract.update({ where: { id: sell.id }, data: { workLocationId: site.id } })
+      const inCalifornia = await requirementsFor({ buyContractId: link!.buyContractId })
+      const item = inCalifornia!.items.find((i) => i.key === 'NCA')!
+      expect(item, 'the item stays on the list so the reader sees why it is gone').toBeTruthy()
+      expect(item.required).toBe(false)
+      expect(item.blocks).toBe(false)
+      expect(item.waivedSays).toContain('California')
+
+      await prisma.companyLocation.update({ where: { id: site.id }, data: { state: 'TX', name: 'Austin site' } })
+      const inTexas = await requirementsFor({ buyContractId: link!.buyContractId })
+      expect(inTexas!.items.find((i) => i.key === 'NCA')!.required, 'Texas voids no non-compete by statute').toBe(true)
+    } finally {
+      await prisma.sellContract.update({ where: { id: sell.id }, data: { workLocationId: sell.workLocationId } })
+      await prisma.documentRequirement.delete({ where: { id: nca.id } })
+      await prisma.companyLocation.delete({ where: { id: site.id } })
+    }
+  })
+
   it('a second seeding writes no second set', async () => {
     const before = await prisma.documentRequirement.count()
     expect(before).toBeGreaterThan(50)
