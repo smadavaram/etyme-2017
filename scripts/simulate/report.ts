@@ -76,6 +76,15 @@ export function benchLine(bench: readonly { kind: string; state: string }[]): st
   )
 }
 
+/**
+ * A station's table, as the lines to print. Blank lines are dropped,
+ * because one inside a markdown table ends it, and a station that sent
+ * no rows prints nothing at all rather than an empty heading.
+ */
+export function stationTable(result: StageResult | undefined): string[] {
+  return (result?.table ?? []).map((l) => l.replace(/\n/g, ' ').trimEnd()).filter((l) => l.trim() !== '')
+}
+
 export function reportMarkdown(r: RunRecord): string {
   const calls = r.ledger.calls
   const stats = routeStats(calls)
@@ -114,6 +123,16 @@ export function reportMarkdown(r: RunRecord): string {
     )
   }
   L.push('')
+
+  // A station's own table, under its name, in the order the stations ran.
+  for (const s of r.stages) {
+    const rows = stationTable(s.result)
+    if (rows.length === 0) continue
+    L.push(`### ${s.name}`)
+    L.push('')
+    for (const row of rows) L.push(row)
+    L.push('')
+  }
 
   L.push('## What the world holds that this run made')
   L.push('')

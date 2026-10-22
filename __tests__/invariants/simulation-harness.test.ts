@@ -184,6 +184,25 @@ describe('The report is read by the founder', () => {
     expect(md).not.toMatch(/program office/i)
     expect(md).toContain('"Raising a job request is for whoever is hiring."')
   })
+
+  it('a station that hands back a table has it printed inside the report under its own name, and a station with none prints no heading', () => {
+    const run = (stages: { name: string; table?: string[] }[]) => reportMarkdown({
+      stamp: 'x', startedAt: new Date(0), finishedAt: new Date(1000),
+      options: { placements: 1, weeks: 1, concurrency: 1, only: [] },
+      database: { name: 'etyme_sim_x', template: 't', kept: true }, base: 'http://localhost:1', build: 'reused',
+      stages: stages.map((s) => ({ name: s.name, domain: 'REGULATORY' as const, built: true, ms: 0, result: { closed: 1, table: s.table } })),
+      world: emptyWorld(), ledger: new Ledger(),
+      catalog: { seats: [], unreachable: [] }, opened: 0,
+    })
+    const md = run([
+      { name: 'documents', table: ['| Paper | Moved |', '|---|---|', '', '| W-9 | 12 |'] },
+      { name: 'submit' },
+    ])
+    expect(md).toContain('### documents\n\n| Paper | Moved |\n|---|---|\n| W-9 | 12 |\n')
+    expect(md).not.toContain('### submit')
+    // Printed inside the report, before the world's own counts.
+    expect(md.indexOf('### documents')).toBeLessThan(md.indexOf('## What the world holds that this run made'))
+  })
 })
 
 // ── What two runs at once and the first stations found (2026-10-20) ────

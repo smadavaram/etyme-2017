@@ -141,6 +141,13 @@ export interface StageResult {
   of?: number
   /** One plain sentence for the report. */
   says?: string
+  /**
+   * A table of the station's own, as markdown lines: the header row, the
+   * divider, then one line per row. Printed in the report under the
+   * station's name, so a station that counts things (papers by kind,
+   * bytes stored) puts them in the one report rather than a file beside it.
+   */
+  table?: string[]
 }
 
 export interface Stage {
