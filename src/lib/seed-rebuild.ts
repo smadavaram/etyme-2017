@@ -108,6 +108,12 @@ export const DELETE_ORDER = [
   'TwinAction', 'TwinApproval', 'RoleContract', 'RuleSet', 'TeamsConversation',
   // The log of what left for a model (lib/model-boundary): a person's and a company's.
   'ModelPrompt',
+  // An adverse action's steps (2026-10-21) go before the report, the line,
+  // the notice paper and the person who gave them.
+  'AdverseAction',
+  // Forwarded email (2026-10-22): a file before its email, both before the
+  // company, and the company's switch beside them.
+  'InboundEmailAttachment', 'InboundEmail', 'EmailIntake',
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation', 'Enrollment',
   'DocumentShareItem', 'DocumentShareAccess', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
@@ -279,6 +285,19 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'DocumentShare.revokedById': { as: 'RECORD' },
   'DocInstance.signedById': { as: 'RECORD' },
   'DocInstance.countersignedById': { as: 'RECORD' },
+  // Who examined a paper, kept as history (2026-10-21).
+  'DocInstance.examinedById': { as: 'RECORD' },
+  // Forwarded email (2026-10-22): who turned the switch, who forwarded,
+  // who decided the card, who filed a file, and the provider's own id.
+  // History, kept as it was.
+  'EmailIntake.enabledById': { as: 'RECORD' },
+  'EmailIntake.disabledById': { as: 'RECORD' },
+  'EmailIntake.replacedById': { as: 'RECORD' },
+  'InboundEmail.providerEmailId': { as: 'RECORD' },
+  'InboundEmail.forwarderPersonId': { as: 'RECORD' },
+  'InboundEmail.forwarderContextId': { as: 'RECORD' },
+  'InboundEmail.decidedById': { as: 'RECORD' },
+  'InboundEmailAttachment.filedById': { as: 'RECORD' },
   'DocFile.uploadedById': { as: 'RECORD' },
   'ServiceAccount.revokedById': { as: 'RECORD' },
   'CompanyDomain.addedById': { as: 'RECORD' },
