@@ -354,6 +354,63 @@ export const STANDS_ON_RULE: Record<string, string> = {
   WORK_PERMIT: 'RIGHT_TO_WORK',
 }
 
+// ── Where a non-compete is void ───────────────────────────────────────
+//
+// A non-compete a state voids for workers is not a paper a firm may ask
+// for there: in California it is unlawful even to include one. One row per
+// state, each with the statute it stands on, so a change of law is a
+// change of a line. Only states whose rule is a near-total ban for
+// workers are named; a state that limits non-competes by pay or role
+// (Washington, Illinois, Colorado and others) is not a row, because
+// whether the limit bites depends on the person's pay, which this table
+// does not read. Read 2026-10-22; check before a client relies on it.
+export const NON_COMPETE_VOID: Record<string, { state: string; source: string }> = {
+  CA: { state: 'California', source: 'Cal. Bus. & Prof. Code §16600 and §16600.5' },
+  MN: { state: 'Minnesota', source: 'Minn. Stat. §181.988, for agreements made on or after July 1, 2023' },
+  ND: { state: 'North Dakota', source: 'N.D. Cent. Code §9-08-06' },
+  OK: { state: 'Oklahoma', source: 'Okla. Stat. tit. 15, §219A' },
+}
+
+/** The site's state as a two-letter code, from a code or a full name. Null where it cannot be read. */
+function stateCode(state: string | null | undefined): string | null {
+  const s = (state ?? '').trim()
+  if (!s) return null
+  if (s.length === 2) return s.toUpperCase()
+  const hit = Object.entries(NON_COMPETE_VOID).find(([, v]) => v.state.toLowerCase() === s.toLowerCase())
+  return hit ? hit[0] : null
+}
+
+/**
+ * Whether a non-compete is void for a worker at this site, with the
+ * sentence that says so. Null where the table names no ban there, which
+ * is not a finding that one is lawful.
+ */
+export function nonCompeteVoidAt(site: { country?: string | null; state?: string | null } | null | undefined): { state: string; source: string; says: string } | null {
+  if (!site || (site.country ?? 'US').toUpperCase() !== 'US') return null
+  const code = stateCode(site.state)
+  const row = code ? NON_COMPETE_VOID[code] : undefined
+  if (!row) return null
+  return {
+    ...row,
+    says: `Not asked: a non-compete is void for workers in ${row.state} (${row.source}), so it is not a paper anybody may ask for there.`,
+  }
+}
+
+/**
+ * A line's set with the non-compete taken off where the site's state
+ * voids it. The item stays on the list, marked not asked with the law
+ * beside it, so a reader sees why it is gone; nothing is asked in its
+ * place. It neither blocks nor is chased. Pure.
+ */
+export function withoutVoidNonCompete<T extends { key: string; required: boolean; blocks: boolean; waived: boolean; waivedSays?: string | null }>(
+  items: T[],
+  site: { country?: string | null; state?: string | null } | null | undefined
+): T[] {
+  const voided = nonCompeteVoidAt(site)
+  if (!voided) return items
+  return items.map((i) => (i.key === 'NCA' ? { ...i, required: false, blocks: false, waived: true, waivedSays: voided.says } : i))
+}
+
 /** The table's jurisdiction for a company's country (ISO alpha-2). DEFAULT where the table has no row of its own. */
 export function jurisdictionOf(country: string | null | undefined): Jurisdiction {
   const c = (country ?? '').trim().toUpperCase()

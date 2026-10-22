@@ -23,6 +23,7 @@ import type { Ctx } from '../../stage'
 import { pdf, photo } from './paper-files'
 import { askOf, answerWith, walkPaper } from './registration'
 import { tally } from './stage-tally'
+import { nonCompeteVoidAt } from '@/lib/document-stages'
 
 const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -131,7 +132,10 @@ export async function drugScreen(ctx: Ctx, hr: Actor, compliance: Actor, worker:
 export async function agreements(ctx: Ctx, hr: Actor, contracts: Actor, worker: Actor | null, p: HirePlacement, index: number): Promise<number> {
   const line = await ctx.read.sellContract.findUnique({
     where: { id: p.id },
-    select: { buyLinks: { select: { buyContract: { select: { contractType: true, vendorCompanyId: true, vendorCompany: { select: { slug: true, name: true } } } } } } },
+    select: {
+      workLocation: { select: { country: true, state: true } },
+      buyLinks: { select: { buyContract: { select: { contractType: true, vendorCompanyId: true, vendorCompany: { select: { slug: true, name: true } } } } } },
+    },
   })
   const buy = line?.buyLinks[0]?.buyContract ?? null
   const until = iso(p.endDate ?? plusDays(365))
@@ -159,6 +163,8 @@ export async function agreements(ctx: Ctx, hr: Actor, contracts: Actor, worker: 
       sendBack: index % 13 === 6 ? 'The start date on page one is not the agreed one. Sign the corrected copy.' : null,
     })
     if (emp.ok) closed++
+    // Not asked where the site's state voids a non-compete for workers.
+    if (nonCompeteVoidAt(line?.workLocation ?? null)) return closed
     const nca = await walkPaper(ctx, 'hiring', {
       asker: hr, answerer: worker, name: 'Non-compete agreement', audience: 'CANDIDATE', sign: true,
       subjectType: 'PERSON', subjectId: p.personId,

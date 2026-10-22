@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest'
 import { mayAct, mayExamine, mayAskOnTies, providersVerdict, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
 import { adverseSays } from '@/lib/contract-clearance'
-import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE } from '@/lib/document-stages'
+import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete } from '@/lib/document-stages'
 import { checkToRecord } from '@/lib/attestation'
 import { StageTally, stageTable, notHeldLines } from '../../scripts/simulate/stages/regulatory/stage-tally'
 import { permitEnds, statusOf } from '../../scripts/simulate/stages/regulatory/hiring-papers'
@@ -340,5 +340,26 @@ describe('the screens reach the rules (the walk on screens, 2026-10-22)', () => 
     expect(providersVerdict('Background check')).toBe(true)
     expect(providersVerdict('Drug screening authorization')).toBe(false)
     expect(providersVerdict('Resume')).toBe(false)
+  })
+})
+
+describe('a non-compete is not asked where the state voids it for workers', () => {
+  const nca = { key: 'NCA', label: 'Non-compete agreement', required: true, blocks: false, waived: false, waivedSays: null as string | null }
+  const nda = { key: 'NDA', label: 'Non-disclosure agreement', required: true, blocks: false, waived: false, waivedSays: null as string | null }
+  it('a worker on a California site is not asked for a non-compete, the row says why with the statute, and nothing is asked in its place', () => {
+    const set = withoutVoidNonCompete([nca, nda], { country: 'US', state: 'CA' })
+    expect(set).toHaveLength(2)
+    expect(set[0]).toMatchObject({ key: 'NCA', required: false, blocks: false, waived: true })
+    expect(set[0].waivedSays).toBe('Not asked: a non-compete is void for workers in California (Cal. Bus. & Prof. Code §16600 and §16600.5), so it is not a paper anybody may ask for there.')
+    expect(set[1]).toEqual(nda)
+  })
+  it('Minnesota, North Dakota and Oklahoma are named with their own statutes, and a full state name reads the same as its code', () => {
+    for (const s of ['MN', 'ND', 'OK', 'Minnesota']) expect(nonCompeteVoidAt({ country: 'US', state: s }), s).not.toBeNull()
+    expect(NON_COMPETE_VOID.MN.source).toContain('181.988')
+  })
+  it('a site in a state the table does not name, or outside the US, still asks for the non-compete', () => {
+    expect(withoutVoidNonCompete([nca], { country: 'US', state: 'TX' })[0]).toEqual(nca)
+    expect(withoutVoidNonCompete([nca], { country: 'IN', state: 'CA' })[0]).toEqual(nca)
+    expect(withoutVoidNonCompete([nca], null)[0]).toEqual(nca)
   })
 })

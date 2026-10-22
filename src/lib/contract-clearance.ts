@@ -63,6 +63,7 @@ import {
   licenseGate,
   COVER_THAT_STOPS_WORK,
   inSentence,
+  withoutVoidNonCompete,
   type CoverCertificate,
   type CoverGate,
   type DocStanding,
@@ -1642,6 +1643,17 @@ export async function lineExtras(
       items = [...items.filter((i) => !keys.has(i.key)), ...hers]
     }
   }
+
+  // A non-compete is not asked where the site's state voids it
+  // (`NON_COMPETE_VOID` in lib/document-stages): marked, with the law,
+  // and nothing in its place.
+  const siteOf = sellContractId
+    ? await db.sellContract.findUnique({ where: { id: sellContractId }, select: { workLocation: { select: { country: true, state: true } } } })
+    : ((await db.buyContract.findUnique({
+        where: { id: buyContractId! },
+        select: { sellLinks: { select: { sellContract: { select: { workLocation: { select: { country: true, state: true } } } } }, take: 1 } },
+      }))?.sellLinks[0]?.sellContract ?? null)
+  items = withoutVoidNonCompete(items, siteOf?.workLocation ?? null)
 
   void now
   return {

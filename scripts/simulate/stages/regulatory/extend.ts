@@ -205,7 +205,7 @@ export default defineStage({
     const page = stagePage(tally, [
       ...done,
       'Onboarding has no screen: a company cannot yet say what it requires. Its set is read as the shipped floor plus what its own orders add.',
-      'A non-compete is asked of every W2 here. The rule table carries no row for the states that void one for workers (California among them); that is the next row to add before any client relies on it.',
+      'A non-compete is asked of a W2 only where the site’s state does not void one for workers (California, Minnesota, North Dakota and Oklahoma do; NON_COMPETE_VOID in lib/document-stages).',
     ])
     const path = writeBesideTheReport(page)
     for (const line of stageTable(tally).split('\n')) ctx.log(line)
