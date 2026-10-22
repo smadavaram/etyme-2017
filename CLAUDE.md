@@ -1792,6 +1792,28 @@ fix wave goes ahead of other work, per "the two trust flows get the
 first seat at every release"; it does not hold the account chooser,
 which touches no paper.
 
+**Papers at every stage, walked on screens, 2026-10-22, on the
+founder's "simulate request of documents at every stage and give me a
+test script."** The script is published for him
+(https://claude.ai/artifact/Az8wBZ9ELQmB7d6r7TBK5e): 41 steps across
+the seven stages, each walked in a browser on a fresh seeded world.
+The lesson, written down because the simulation hid it: **the rules
+hold through the routes, and the screens do not reach them.** A paper
+that arrives has no button to accept it or send it back; recording an
+I-9 with its named document, a provider's verdict and the adverse-action
+steps are API only; so a person whose I-9 is missing can never be
+started from the screens alone. A simulation that drives routes proves
+the rules; only a walk on screens proves a person can do the job. Also
+found: a firm can ask a candidate for a passport before any offer from
+the Paperwork screen; a person only invited reads as on the bench and
+can be asked for papers before her yes; every Extend button asks for a
+reason and gives no box; a licensed job is checked only at the start;
+supplier onboarding marks the MSA and NDA on file with no signed copy.
+Each has an owner; the screen fixes go ahead of new work, because the
+document flow is a trust layer and the verdict was "do not ship it as
+finished". From now on **every wave that changes a trust flow ends
+with a walk on screens, not only a simulation.**
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
