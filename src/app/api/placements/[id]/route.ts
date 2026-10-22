@@ -9,7 +9,7 @@ import { noDeskYet } from '@/lib/no-desk'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
-import { contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { endsPastLimit } from '@/lib/governance'
@@ -688,6 +688,9 @@ export async function GET(
             evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } },
           },
         },
+        // The firm's steps after a flagged report, from their own table,
+        // so a decision not to act made through the route is read here.
+        ...ADVERSE_STEPS,
       },
     }),
     ourBuy?.vendorCompany

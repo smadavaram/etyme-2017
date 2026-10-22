@@ -215,6 +215,26 @@ export const BUILT_IN: DocumentTypeSpec[] = [
     suppliedBy: 'CANDIDATE',
   }),
   spec({
+    key: 'I94',
+    label: 'I-94 record',
+    hint: 'The arrival record, downloaded from the CBP website. Its admit-until date, not the visa stamp, is how long the person may stay.',
+    purpose: 'COMPLIANCE',
+    validityShape: 'END_ONLY',
+    suppliedBy: 'GOVERNMENT',
+    blocks: true,
+    // Not I-9 evidence on its own: it backs an I-9 only beside a foreign
+    // passport, and the passport is already on the I-9's list.
+  }),
+  spec({
+    key: 'WORK_PERMIT',
+    label: 'Work permit (EAD)',
+    hint: 'The employment authorization card. Its end date is when the person must stop work unless a renewal is filed.',
+    purpose: 'COMPLIANCE',
+    validityShape: 'END_ONLY',
+    suppliedBy: 'GOVERNMENT',
+    blocks: true,
+  }),
+  spec({
     key: 'BACKGROUND_CHECK',
     label: 'Background check',
     hint: 'Ordered from a screening company by the firm paying for the work. What the person gives is consent and the details it is run against — the report goes to whoever ordered it.',
