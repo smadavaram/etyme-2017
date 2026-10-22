@@ -61,6 +61,8 @@ import type { Actor, Res } from '../../actors'
 import { defineStage, type Ctx, type SubmissionFact } from '../../stage'
 import { compile, type Wish } from '@/lib/document-stages'
 import { kb, papers, pdf, photo, sendFile, type PaperFile } from './paper-files'
+import { interviewNda, readOnboarding, registerFirms, registerWorkers, shortlist } from './registration'
+import { expectAt, tally, type DocStage } from './stage-tally'
 
 const DAY = 86_400_000
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -156,6 +158,16 @@ export default defineStage({
   name: 'documents',
   domain: 'REGULATORY',
   async run(ctx) {
+    // ── 1. Onboarding: each company's set, read (the setting is not built) ──
+    const onboarding = await readOnboarding(ctx)
+    for (const l of onboarding) ctx.log(l)
+    // ── 2. Company registration through the firm's own link ─────────────
+    const firms = await registerFirms(ctx)
+    ctx.log(`${firms.closed} of ${firms.of} firms registered through their own link and four approvals`)
+    // ── 3. Worker registration from her own page ───────────────────────
+    const workers = await registerWorkers(ctx, Math.max(12, Math.ceil(ctx.options.placements / 3)))
+    ctx.log(`${workers.closed} of ${workers.of} workers registered from their own page`)
+
     const subs = ctx.world.submissions
     if (subs.length === 0) return { closed: 0, of: 0, says: 'Nobody was put forward this run, so no papers changed hands at submission.' }
     const before = papers.total
@@ -177,6 +189,13 @@ export default defineStage({
     // ── 2. Screening ────────────────────────────────────────────────
     const screenWalks = await ctx.parallel(screenings, (s, i) => screen(ctx, s, i))
 
+    // ── 4. Shortlisting: a license for a licensed job ──────────────────
+    const licensed = await shortlist(ctx, subs)
+    // ── 5. Before the interview: the client's non-disclosure agreement ──
+    const ndas = await interviewNda(ctx, subs)
+    ctx.log(`${licensed.closed} of ${licensed.of} licenses; ${ndas.closed} of ${ndas.of} client NDAs (${ndas.clients.join(', ') || 'no client requires one'})`)
+    tally.note('interview', ndas.clients.length ? `Required by ${ndas.clients.join(', ')}` : 'No client’s orders require one this run')
+
     const flat = (xs: typeof pairWalks) => xs.flatMap((r) => (r.ok ? r.value : [{ ok: false, sentBack: false, why: r.error }]))
     const supplierDone = flat(pairWalks)
     const screenDone = flat(screenWalks)
@@ -197,10 +216,20 @@ export default defineStage({
         `${kb(papers.bytes - bytesBefore)} of files stored by this station. ` +
         `Moved to the award by the rule table, not dropped: ${moved}.` +
         (why.length ? ` Not closed: ${why.join('; ')}.` : '') +
+        ` Registration: ${firms.closed} of ${firms.of} firms through their own link and four approvals; ${workers.closed} of ${workers.of} workers from their own page. ` +
+        `Shortlisting: ${licensed.closed} of ${licensed.of} professional licenses. Interview: ${ndas.closed} of ${ndas.of} client non-disclosure agreements signed and countersigned.` +
+        (firms.why.length ? ` Firms not registered: ${firms.why.join('; ')}.` : '') +
         ` By kind: ${papers.says()}.`,
     }
   },
 })
+
+/** Which stage of the trade a paper of this station belongs to. */
+export function stageOfKind(kind: string): DocStage {
+  if (SCREENING_FILES.some((f) => f.name === kind)) return 'worker registration'
+  if (QUESTIONS.some((q) => q.name === kind)) return 'shortlisting'
+  return 'company registration'
+}
 
 // ── Who owes what ───────────────────────────────────────────────────────
 
@@ -304,6 +333,7 @@ async function ask(asker: Actor, templateId: string, subjectType: 'COMPANY' | 'P
   const sent = await asker.post(`/api/documents/${id}/send`, {})
   if (!sent.ok) return null
   papers.count(kind, 'sent')
+  tally.asked(stageOfKind(kind))
   return id
 }
 
@@ -316,6 +346,7 @@ async function answer(ctx: Ctx, who: Actor, id: string, file: PaperFile, sign: b
   if (res.ok) {
     papers.count(kind, 'received')
     papers.stored(file)
+    tally.answered(stageOfKind(kind))
   }
   return res
 }
@@ -324,7 +355,11 @@ async function answer(ctx: Ctx, who: Actor, id: string, file: PaperFile, sign: b
 async function examine(examiner: Actor, id: string, body: Record<string, unknown>, kind: string, hasFile = true): Promise<Res> {
   if (hasFile) await examiner.get(`/api/documents/${id}/file`)
   const res = await examiner.post(`/api/documents/${id}/examine`, body)
-  if (res.ok) papers.count(kind, 'examined')
+  if (res.ok && body.verdict === 'SEND_BACK') tally.sentBack(stageOfKind(kind))
+  else if (res.ok) {
+    papers.count(kind, 'examined')
+    tally.examined(stageOfKind(kind))
+  }
   return res
 }
 
@@ -444,6 +479,7 @@ async function screen(ctx: Ctx, s: Screening, i: number): Promise<Walked[]> {
     const signed = await worker.post(`/api/documents/${id}/sign`, { attests: true, note: q.answer(hashOf(s.person.id)) })
     if (!signed.ok) { walked.why = signed.sentence ?? `the answer came back ${signed.status}`; continue }
     papers.count(q.name, 'received')
+    tally.answered('shortlisting')
     // An answer signed with no file: read on the paper, nothing to open.
     const ok = await examine(hr, id, { verdict: 'ACCEPT' }, q.name, false)
     walked.ok = ok.ok
@@ -460,14 +496,14 @@ async function proveTheRules(ctx: Ctx, pairs: Pair[], screenings: Screening[]): 
     const hr = supplierHrSeat(ctx, s.supplier.slug)!
     const worker = workerOf(ctx, s.person.email)!
     // A worker cannot send a background check report: it is not hers to have.
-    await ctx.expectRefusal(worker, (a) => a.post('/api/me/papers', { documentTypeKey: 'BACKGROUND_CHECK' }), 'is not a document you hold')
+    await expectAt(ctx, 'shortlisting', worker, (a) => a.post('/api/me/papers', { documentTypeKey: 'BACKGROUND_CHECK' }), 'is not a document you hold', { rule: 'a worker cannot send a background report' })
     // A paper nobody asked for cannot be put on file.
     const t = await templateAt(hr, 'Resume', 'CANDIDATE', false)
     if (t) {
       const draft = await hr.post('/api/documents', { type: 'instance', templateId: t, subjectType: 'PERSON', subjectId: s.person.id })
       const id = draft.json?.data?.instance?.id as string | undefined
       if (id) {
-        await ctx.expectRefusal(worker, (a) => sendFile(ctx, a, `/api/documents/${id}/upload`, pdf('unasked.pdf', 'Resume', [s.person.name])), 'has not asked you')
+        await expectAt(ctx, 'worker registration', worker, (a) => sendFile(ctx, a, `/api/documents/${id}/upload`, pdf('unasked.pdf', 'Resume', [s.person.name])), 'has not asked you', { rule: 'a paper nobody asked for cannot go on file' })
       }
     }
   }
@@ -486,17 +522,17 @@ async function proveTheRules(ctx: Ctx, pairs: Pair[], screenings: Screening[]): 
   await answer(ctx, answerer, w9, pdf(`${p.supplier.slug}-w9-rules.pdf`, 'W-9', [p.supplier.name]), false, 'W-9')
 
   // Nobody examines their own paper.
-  await ctx.expectRefusal(answerer, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT' }), /Nobody examines their own paper|not here/)
+  await expectAt(ctx, 'company registration', answerer, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT' }), /Nobody examines their own paper|not here/, { rule: 'nobody examines their own paper' })
   // A certificate is not accepted without the day it runs out; a W-9 not without its edition.
-  await ctx.expectRefusal(asker, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT', validFrom: iso(plusDays(-10)) }), 'runs out')
-  await ctx.expectRefusal(asker, (a) => a.post(`/api/documents/${w9}/examine`, { verdict: 'ACCEPT' }), 'edition')
+  await expectAt(ctx, 'company registration', asker, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT', validFrom: iso(plusDays(-10)) }), 'runs out', { best: true, rule: 'a certificate needs the day it runs out' })
+  await expectAt(ctx, 'company registration', asker, (a) => a.post(`/api/documents/${w9}/examine`, { verdict: 'ACCEPT' }), 'edition', { rule: 'a W-9 needs its edition' })
   // The AP clerk examines nothing.
   const clerk = ctx.cast.at(p.client.slug, 'ap')
-  if (clerk) await ctx.expectRefusal(clerk, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT', validFrom: iso(plusDays(-10)), expiresAt: iso(plusDays(300)), issuer: 'Chubb' }), 'is not part of your seat')
+  if (clerk) await expectAt(ctx, 'company registration', clerk, (a) => a.post(`/api/documents/${cert}/examine`, { verdict: 'ACCEPT', validFrom: iso(plusDays(-10)), expiresAt: iso(plusDays(300)), issuer: 'Chubb' }), 'is not part of your seat', { rule: 'the AP clerk examines nothing' })
   // A supplier cannot open another supplier's paper.
   const other = pairs.find((x) => x.supplier.slug !== p.supplier.slug)
   const stranger = other ? supplierAnswerSeat(ctx, other.supplier.slug) : null
-  if (stranger) await ctx.expectRefusal(stranger, (a) => a.get(`/api/documents/${cert}/file`), 'not here')
+  if (stranger) await expectAt(ctx, 'company registration', stranger, (a) => a.get(`/api/documents/${cert}/file`), 'not here', { rule: 'a supplier cannot open another supplier’s paper' })
 
   // Then the real examination, as it should have been done.
   const seed = hashOf(p.client.id + p.supplier.id)

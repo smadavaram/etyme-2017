@@ -14,6 +14,7 @@ import interview from './demand/interview'
 import award from './demand/award'
 import contracts from './money/contracts'
 import paperworkAndStart from './regulatory/paperwork-and-start'
+import extend from './regulatory/extend'
 import fileWeeks from './money/file-weeks'
 import signWeeks from './money/sign-weeks'
 import acceptDownTheChain from './money/accept-down-the-chain'
@@ -27,6 +28,6 @@ import handoffs from './conversation/handoffs'
 
 export const STAGES: Stage[] = [
   postJobs, approveJobs, sendToSuppliers, benchAndConsent, submit, documents, match, interview, award,
-  contracts, paperworkAndStart, fileWeeks, signWeeks, acceptDownTheChain, expenses, bills,
+  contracts, paperworkAndStart, extend, fileWeeks, signWeeks, acceptDownTheChain, expenses, bills,
   invoiceReceipts, threeWayCheck, pay, payroll, handoffs,
 ]

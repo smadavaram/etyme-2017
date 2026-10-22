@@ -339,6 +339,78 @@ export function stageFor(
   return { stage, because, insteadAsk: rule.insteadAsk }
 }
 
+/**
+ * The papers that stand on another row of the table. A passport, a green
+ * card, a visa, a driver's license, an I-94 record and a work permit are
+ * each a document of identity or status, so each is asked when the right
+ * to work is asked: after an offer. Data, so a change is a line.
+ */
+export const STANDS_ON_RULE: Record<string, string> = {
+  PASSPORT: 'RIGHT_TO_WORK',
+  GREEN_CARD: 'RIGHT_TO_WORK',
+  VISA: 'RIGHT_TO_WORK',
+  DRIVERS_LICENSE: 'RIGHT_TO_WORK',
+  I94: 'RIGHT_TO_WORK',
+  WORK_PERMIT: 'RIGHT_TO_WORK',
+}
+
+/** The table's jurisdiction for a company's country (ISO alpha-2). DEFAULT where the table has no row of its own. */
+export function jurisdictionOf(country: string | null | undefined): Jurisdiction {
+  const c = (country ?? '').trim().toUpperCase()
+  if (c === 'US') return 'US'
+  if (c === 'GB' || c === 'UK') return 'UK'
+  if (c === 'CA') return 'CA'
+  if (c === 'AU') return 'AU'
+  if (c === 'IN') return 'IN'
+  const EU = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE']
+  return EU.includes(c) ? 'EU' : 'DEFAULT'
+}
+
+export type AskOfACandidate =
+  | { ok: true }
+  | { ok: false; code: 'TOO_EARLY'; message: string; insteadAsk: string | null }
+
+/**
+ * Whether a firm may ask a person for this paper today.
+ *
+ * Questions at application, documents at award. A firm that has not
+ * offered the person work may not ask for a document the table puts
+ * after the offer: an ID, a visa, the I-9, a background check, a drug
+ * screen, a date of birth. It is refused in a sentence that says why, in
+ * the firm's own country's terms, and gives the question that may be
+ * asked now, so the firm still learns what it needed to know. Nothing is
+ * dropped: once the work is offered the same ask goes through.
+ *
+ * `typeKey` is the paper's type, read from its exact name (never a
+ * guess). A paper whose type is not known is not refused: the table
+ * carries no rule for it, and refusing what it does not recognize would
+ * stop the first client who names a paper nobody here has heard of.
+ */
+export function mayAskOfACandidate(input: {
+  typeKey: string | null
+  label: string
+  personName: string
+  /** The firm has offered this person work: a line, or employment, ties them. */
+  offered: boolean
+  jurisdiction?: Jurisdiction
+}): AskOfACandidate {
+  if (input.offered || !input.typeKey) return { ok: true }
+  const ruleKey = STANDS_ON_RULE[input.typeKey] ?? input.typeKey
+  const { stage, because, insteadAsk } = stageFor(ruleKey, input.jurisdiction ?? 'DEFAULT')
+  if (stage === 'APPLICATION') return { ok: true }
+  const label = input.label.charAt(0).toUpperCase() + input.label.slice(1)
+  return {
+    ok: false,
+    code: 'TOO_EARLY',
+    insteadAsk: insteadAsk ?? null,
+    message:
+      `${label} is asked for after an offer, and ${input.personName} has not been offered work here. ` +
+      (because ? `${because} ` : '') +
+      (insteadAsk ? `Ask this instead: “${insteadAsk}” ` : '') +
+      `Once ${input.personName} is offered the work, ask for it then.`,
+  }
+}
+
 export interface Wish {
   key: string
   label: string

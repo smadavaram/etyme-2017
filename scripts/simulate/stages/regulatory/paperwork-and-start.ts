@@ -41,10 +41,20 @@
  */
 import type { Actor, Res } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
-import { kb, papers, pdf, photo, sendFile } from './paper-files'
+import { kb, papers, pdf, photo, sendFile, type Move } from './paper-files'
+import { agreements, drugScreen, statusPapers, type I9Evidence } from './hiring-papers'
+import { expectAt, tally } from './stage-tally'
 import { standingLeftForTheStart } from './documents'
 
 const DAY = 86_400_000
+
+/** A paper's move, counted for the run and for the hiring stage. */
+function count(kind: string, move: Move): void {
+  papers.count(kind, move)
+  if (move === 'sent') tally.asked('hiring')
+  else if (move === 'received') tally.answered('hiring')
+  else tally.examined('hiring')
+}
 /** The I-9 edition USCIS published on January 20, 2025, printed at the foot of every page. */
 const I9_EDITION = '01/20/25'
 const NOT_STARTED = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] as const
@@ -98,6 +108,7 @@ export default defineStage({
   name: 'paperwork-and-start',
   domain: 'REGULATORY',
   async run(ctx) {
+    tally.names('hiring', 'I-9 completed from a named document; background-check disclosure and consent; the provider’s verdict; NDA; license where the line asks', 'the worker; the verdict from the screening company')
     const placements = await findPlacements(ctx)
     if (placements.length === 0) {
       return { closed: 0, of: 0, says: 'No awarded placement in this world is waiting to start.' }
@@ -276,7 +287,7 @@ async function proveTheRulesOnce(ctx: Ctx, p: Placement): Promise<void> {
     // The line's set, read where the activation reads it.
     await clientSeat.get(`/api/documents/requirements?sellContractId=${p.id}`)
     // Work authorization cannot be waived, however urgent the start.
-    await ctx.expectRefusal(
+    await expectAt(ctx, 'hiring', 
       clientSeat,
       (a) =>
         a.post('/api/documents/requirements', {
@@ -287,7 +298,7 @@ async function proveTheRulesOnce(ctx: Ctx, p: Placement): Promise<void> {
       'cannot be waived'
     )
     // The client does not complete the employer's I-9.
-    await ctx.expectRefusal(
+    await expectAt(ctx, 'hiring', 
       clientSeat,
       (a) =>
         a.post('/api/compliance/verifications', {
@@ -301,9 +312,9 @@ async function proveTheRulesOnce(ctx: Ctx, p: Placement): Promise<void> {
   // The AP clerk cannot start anybody: paying for the work is not running it.
   const clerk = firstSeat(ctx, p.supplier.slug, ['ap', 'payroll', 'ar', 'finance']) ?? firstSeat(ctx, p.client.slug, ['ap'])
   if (clerk) {
-    await ctx.expectRefusal(clerk, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), /is done by|is not part of your role/)
+    await expectAt(ctx, 'hiring', clerk, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), /is done by|is not part of your role/)
     // Nor record a check on anybody's papers.
-    await ctx.expectRefusal(
+    await expectAt(ctx, 'hiring', 
       clerk,
       (a) =>
         a.post('/api/compliance/verifications', {
@@ -319,13 +330,13 @@ async function proveTheRulesOnce(ctx: Ctx, p: Placement): Promise<void> {
     (s) => s.company?.kind === 'VENDOR' && s.key.endsWith('/owner') && s.company.slug !== p.supplier.slug && s.company.slug !== p.client.slug
   )[0]
   if (stranger) {
-    await ctx.expectRefusal(stranger, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), 'is not a party to this contract')
+    await expectAt(ctx, 'hiring', stranger, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), 'is not a party to this contract')
   }
 
   // The worker cannot send a background check report: it is not hers to have.
   const worker = workerOf(ctx, p)
   if (worker) {
-    await ctx.expectRefusal(worker, (a) => a.post('/api/me/papers', { documentTypeKey: 'BACKGROUND_CHECK' }), 'is not a document you hold')
+    await expectAt(ctx, 'hiring', worker, (a) => a.post('/api/me/papers', { documentTypeKey: 'BACKGROUND_CHECK' }), 'is not a document you hold')
   }
 }
 
@@ -355,9 +366,9 @@ async function lapsedStanding(ctx: Ctx, p: Placement): Promise<boolean> {
     reference: `GS-${hashOf(p.supplier.id) % 100000}`, validFrom: iso(lapsedFrom), expiresAt: iso(lapsedTo),
   })
   if (!recorded.ok) return false
-  papers.count('Certificate of good standing', 'examined')
+  count('Certificate of good standing', 'examined')
 
-  await ctx.expectRefusal(starter, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), /good standing/i)
+  await expectAt(ctx, 'hiring', starter, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), /good standing/i)
 
   // The supplier learns: it asks the state for a current one and sends it.
   const renewedFrom = plusDays(-3)
@@ -367,7 +378,7 @@ async function lapsedStanding(ctx: Ctx, p: Placement): Promise<boolean> {
     contractId: p.id, about: 'FIRM', type: 'GOOD_STANDING', issuer,
     reference: `GS-${hashOf(p.supplier.id) % 100000}-R`, validFrom: iso(renewedFrom), expiresAt: iso(renewedTo),
   })
-  if (renewed.ok) papers.count('Certificate of good standing', 'examined')
+  if (renewed.ok) count('Certificate of good standing', 'examined')
   return true
 }
 
@@ -391,11 +402,11 @@ async function askAndSend(
   const id = ask.json?.data?.instance?.id as string | undefined
   if (!id) return
   const sent = await clientSeat.post(`/api/documents/${id}/send`, {})
-  if (sent.ok) papers.count(name, 'sent')
+  if (sent.ok) count(name, 'sent')
   const file = pdf(fileName, name, [`Holder: ${p.supplier.name}`, `Requested by: ${p.client.name}`, `Date: ${iso(new Date())}`])
   const up = await sendFile(ctx, supplierOwner, `/api/documents/${id}/upload`, file)
   if (up.ok) {
-    papers.count(name, 'received')
+    count(name, 'received')
     papers.stored(file)
   }
 }
@@ -461,15 +472,22 @@ async function walkOne(
 
   // EAGER: the start is pressed before the I-9 is in, and refused.
   if (scenario === 'EAGER' && !hasI9) {
-    const res = await ctx.expectRefusal(starter, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), 'I-9')
+    const res = await expectAt(ctx, 'hiring', starter, (a) => a.post(`/api/contracts/${p.id}/activate`, { action: 'activate' }), 'I-9', { best: true, rule: 'nobody starts without an I-9' })
     if (res.status === 403) walk.hit.push('no I-9 on file')
   }
 
   // The worker sends what is hers to send, from her own page.
   if (worker) await workerSendsHerPapers(ctx, worker, p, hr)
 
+  // The visa, the I-94 and the work permit, where they apply; the I-9 is
+  // completed from what she showed.
+  const shown = await statusPapers(ctx, hr, worker, p)
   // HR examines what she showed and completes the I-9.
-  if (!hasI9 && (await recordI9(hr, p, held)).ok) papers.count('I-9 and E-Verify', 'examined')
+  if (!hasI9 && (await recordI9(hr, p, held, shown)).ok) count('I-9 and E-Verify', 'examined')
+  // The drug screen where the client is a hospital or a clinic, and on one placement in four elsewhere.
+  if (/medical|health|hospital|clinic/i.test(p.client.name) || index % 4 === 0) await drugScreen(ctx, hr, compliance, worker, p)
+  // The employment agreement and non-compete for a W2; the agreement with the sub-vendor below where there is one.
+  await agreements(ctx, hr, starter, worker, p, index)
   // A license, where the line asks for one and none is in date.
   if (askedOfPerson.some((l) => /license/i.test(l)) && !holds('PROFESSIONAL_LICENSE')) {
     await hr.post('/api/compliance/verifications', {
@@ -492,7 +510,7 @@ async function walkOne(
       contractId: p.id, about: 'PERSON', type: 'BACKGROUND_CHECK', provider, reference,
       renderedOn: iso(plusDays(-3)), outcome: 'ORDERED', consentDocumentId: consentId ?? undefined,
     })
-    if (ordered.ok) papers.count('Background check package', 'sent')
+    if (ordered.ok) count('Background check package', 'sent')
     if (scenario !== 'BACKGROUND_NOT_BACK') {
       const outcome = index % 10 === 3 ? 'FLAGGED' : index % 20 === 9 ? 'CONDITIONAL' : 'CLEAR'
       const verdict = await compliance.post('/api/compliance/verifications', {
@@ -500,7 +518,7 @@ async function walkOne(
         renderedOn: iso(plusDays(-1)), outcome, providerSays: PROVIDER_SAYS[outcome],
         consentDocumentId: consentId ?? undefined,
       })
-      if (verdict.ok) papers.count('Background check verdict', 'verdict')
+      if (verdict.ok) count('Background check verdict', 'verdict')
       const verificationId = verdict.json?.data?.id as string | undefined
       if (outcome === 'FLAGGED' && verificationId) {
         const after = await adverseSteps(ctx, compliance, p, verificationId, provider, index)
@@ -523,7 +541,7 @@ async function walkOne(
   // Every press made while the background check is still out is expected
   // to warn about it, the first and any after something else was learned.
   const backgroundOut = (scenario === 'BACKGROUND_NOT_BACK' && !hasBackground) || backgroundReviewed !== null
-  const press = (): Promise<Res> => (backgroundOut ? ctx.expectRefusal(starter, activate, /background check/i) : activate(starter))
+  const press = (): Promise<Res> => (backgroundOut ? expectAt(ctx, 'hiring', starter, activate, /background check/i) : activate(starter))
   let res: Res = await press()
   const standingAsked = new Set<string>()
   const ndaAsked = new Set<string>()
@@ -579,7 +597,7 @@ async function walkOne(
     if (code === 'DOCUMENTS_BLOCK' && /I-9|work authori/i.test(res.sentence ?? '')) {
       // Learn: the I-9 again, from the worker's documents.
       walk.hit.push('no I-9 on file')
-      await recordI9(hr, p, held)
+      await recordI9(hr, p, held, shown)
       res = await press()
       continue
     }
@@ -616,7 +634,7 @@ async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement, hr: A
     if (res.ok && askId) {
       opened.push({ askId, key: String(item.documentTypeKey), name: item.name ?? String(item.documentTypeKey) })
       // The line asked; opening the request is the ask reaching her.
-      papers.count(KIND_OF[String(item.documentTypeKey)] ?? item.name ?? String(item.documentTypeKey), 'sent')
+      count(KIND_OF[String(item.documentTypeKey)] ?? item.name ?? String(item.documentTypeKey), 'sent')
     }
   }
   if (opened.length === 0) return
@@ -649,7 +667,7 @@ async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement, hr: A
       sent = await sendFile(ctx, worker, `/api/documents/${o.askId}/sign`, file, { attests: 'true' })
     }
     if (!sent.ok) continue
-    papers.count(kind, 'received')
+    count(kind, 'received')
     papers.stored(file)
     // HR looks at what she sent. The I-9 is examined where it is completed
     // (recorded with its edition and the document behind it), not here.
@@ -666,7 +684,7 @@ async function workerSendsHerPapers(ctx: Ctx, worker: Actor, p: Placement, hr: A
           : { verdict: 'ACCEPT' }
     await hr.get(`/api/documents/${o.askId}/file`)
     const looked = await hr.post(`/api/documents/${o.askId}/examine`, body)
-    if (looked.ok) papers.count(kind, 'examined')
+    if (looked.ok) count(kind, 'examined')
   }
 }
 
@@ -712,7 +730,7 @@ async function identifiersSent(ctx: Ctx, hr: Actor, worker: Actor, p: Placement)
   const id = made.json?.data?.instance?.id as string | undefined
   if (!id) return
   if (!(await hr.post(`/api/documents/${id}/send`, {})).ok) return
-  papers.count(name, 'sent')
+  count(name, 'sent')
   const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-background-details.pdf`, name, [
     `Name: ${p.personName}`,
     'Date of birth and Social Security number: given on the form, shown here only by their last four digits.',
@@ -721,10 +739,10 @@ async function identifiersSent(ctx: Ctx, hr: Actor, worker: Actor, p: Placement)
   ])
   const up = await sendFile(ctx, worker, `/api/documents/${id}/upload`, file)
   if (!up.ok) return
-  papers.count(name, 'received')
+  count(name, 'received')
   papers.stored(file)
   const looked = await hr.post(`/api/documents/${id}/examine`, { verdict: 'ACCEPT' })
-  if (looked.ok) papers.count(name, 'examined')
+  if (looked.ok) count(name, 'examined')
 }
 
 const detailsTemplate = new Map<string, Promise<string | null>>()
@@ -767,7 +785,7 @@ async function adverseSteps(ctx: Ctx, seat: Actor, p: Placement, verificationId:
   ])
   const attached = await sendFile(ctx, seat, `/api/documents/${noticeId}/upload`, copy)
   if (!attached.ok) return 'HELD'
-  papers.count(name, 'sent')
+  count(name, 'sent')
   papers.stored(copy)
   const pre = await seat.post('/api/compliance/adverse-action', { verificationId, contractId: p.id, step: 'PRE_NOTICE', noticeDocumentId: noticeId })
   if (!pre.ok) {
@@ -775,7 +793,7 @@ async function adverseSteps(ctx: Ctx, seat: Actor, p: Placement, verificationId:
     return 'HELD'
   }
   // The final notice before the wait is over is refused: the rule held on purpose.
-  await ctx.expectRefusal(
+  await expectAt(ctx, 'hiring', 
     seat,
     (a) => a.post('/api/compliance/adverse-action', { verificationId, contractId: p.id, step: 'FINAL', reason: 'The record is relevant to the job.' }),
     'has until'
@@ -786,12 +804,20 @@ async function adverseSteps(ctx: Ctx, seat: Actor, p: Placement, verificationId:
     verificationId, contractId: p.id, step: 'NOT_TAKEN',
     reason: `${p.personName} answered within the wait with the court's record showing the charge was dismissed. It does not bear on this job.`,
   })
-  if (decided.ok) papers.count('Background check verdict', 'examined')
+  if (decided.ok) count('Background check verdict', 'examined')
   return decided.ok ? 'NOT_TAKEN' : 'HELD'
 }
 
 /** HR records the I-9 it completed, from the passport the worker showed. */
-async function recordI9(hr: Actor, p: Placement, held: { type: string; expiresAt: Date | null }[]): Promise<Res> {
+async function recordI9(hr: Actor, p: Placement, held: { type: string; expiresAt: Date | null }[], shown?: I9Evidence): Promise<Res> {
+  if (shown && shown.type !== 'PASSPORT') {
+    // Completed from the work permit or the visa she showed: the form is
+    // completed again the day that document runs out.
+    return hr.post('/api/compliance/verifications', {
+      contractId: p.id, about: 'PERSON', type: 'I9_EVERIFY', formEdition: I9_EDITION,
+      evidence: [{ type: shown.type, issuer: shown.issuer, expiresAt: iso(shown.expiresAt) }],
+    })
+  }
   // The passport on her file where there is one, else the one in front of
   // HR: a date printed on it, stable for this person across runs.
   const onFile = held.find((v) => v.type === 'PASSPORT' && v.expiresAt && v.expiresAt.getTime() > Date.now())
@@ -833,7 +859,7 @@ async function consentSigned(
   const made = await hr.post('/api/documents', { type: 'instance', templateId, subjectType: 'PERSON', subjectId: p.personId })
   const id = made.json?.data?.instance?.id as string | undefined
   if (!id) return null
-  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) papers.count('Background check authorization', 'sent')
+  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) count('Background check authorization', 'sent')
   // Her signature, with the signed disclosure and authorization attached:
   // a standalone form, as the law asks for it.
   const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-background-authorization.pdf`, 'Disclosure and authorization', [
@@ -843,7 +869,7 @@ async function consentSigned(
   const signed = await sendFile(ctx, worker, `/api/documents/${id}/sign`, file, { attests: 'true' })
   if (!signed.ok) ctx.log(`${p.personName} could not sign the background check authorization: ${signed.sentence}`)
   else {
-    papers.count('Background check authorization', 'received')
+    count('Background check authorization', 'received')
     papers.stored(file)
   }
   return signed.ok ? id : null
@@ -961,7 +987,7 @@ function certificateOnce(ctx: Ctx, p: Placement, type: string): Promise<boolean>
         reference: `${type === 'GOOD_STANDING' ? 'GS' : 'POL'}-${hashOf(p.supplier.id + type) % 1_000_000}`,
         validFrom: iso(from), expiresAt: iso(to),
       })
-      if (recorded.ok) papers.count(CERTIFICATE_NAME[type], 'examined')
+      if (recorded.ok) count(CERTIFICATE_NAME[type], 'examined')
       return recorded.ok
     })()
     certificateAsks.set(key, pending)
@@ -1008,7 +1034,7 @@ async function ndaSigned(
   const made = await hr.post('/api/documents', { type: 'instance', templateId, subjectType: 'SELL_CONTRACT', subjectId: p.id })
   const id = made.json?.data?.instance?.id as string | undefined
   if (!id) return false
-  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) papers.count('Non-disclosure agreement (worker)', 'sent')
+  if ((await hr.post(`/api/documents/${id}/send`, {})).ok) count('Non-disclosure agreement (worker)', 'sent')
   const file = pdf(`${p.personName.replace(/\s+/g, '-').toLowerCase()}-nda-signed.pdf`, 'Non-disclosure agreement', [
     `Between ${p.supplier.name} and ${p.personName}.`,
     `Signed by ${p.personName} on ${iso(new Date())}.`,
@@ -1016,7 +1042,7 @@ async function ndaSigned(
   const signed = await sendFile(ctx, worker, `/api/documents/${id}/sign`, file, { attests: 'true' })
   if (!signed.ok) ctx.log(`${p.personName} could not sign the non-disclosure agreement: ${signed.sentence}`)
   else {
-    papers.count('Non-disclosure agreement (worker)', 'received')
+    count('Non-disclosure agreement (worker)', 'received')
     papers.stored(file)
   }
   return signed.ok

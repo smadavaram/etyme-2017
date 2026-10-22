@@ -13,13 +13,18 @@ import { describe, it, expect } from 'vitest'
 import { mayAct, mayExamine, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
 import { adverseSays } from '@/lib/contract-clearance'
-import { compile } from '@/lib/document-stages'
+import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE } from '@/lib/document-stages'
+import { checkToRecord } from '@/lib/attestation'
+import { StageTally, stageTable, notHeldLines } from '../../scripts/simulate/stages/regulatory/stage-tally'
+import { permitEnds, statusOf } from '../../scripts/simulate/stages/regulatory/hiring-papers'
+import { newEndOf } from '../../scripts/simulate/stages/regulatory/extend'
 import { SCREENING_WISHES } from '../../scripts/simulate/stages/regulatory/documents'
 import { pdf, photo, sendFile } from '../../scripts/simulate/stages/regulatory/paper-files'
 import { readFileSync } from 'node:fs'
 
 const ON = new Date('2026-10-21T12:00:00Z')
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
+const iso = (x: Date) => x.toISOString().slice(0, 10)
 
 const gl: ExamineFacts = {
   status: 'UPLOADED', templateName: 'Certificate of general liability insurance', needsSignature: false,
@@ -200,5 +205,117 @@ describe('a simulated seat sends a file in its own session', () => {
     expect((sent[0].form.get('file') as File).name).toBe('passport.pdf')
     const source = readFileSync('scripts/simulate/stages/regulatory/paper-files.ts', 'utf8')
     expect(source).not.toMatch(/cookie/i)
+  })
+})
+
+/**
+ * Documents at every stage (the founder, 2026-10-22: "Can you simulate
+ * request of documents at every stage and give me a test script").
+ * Questions at application, documents at award, at the one door a
+ * request about a person is made through; and the table the run writes.
+ */
+describe('a firm asks a person for a paper only at the stage the law allows', () => {
+  const ask = (typeKey: string | null, label: string, offered = false, jurisdiction: 'US' | 'UK' | 'DEFAULT' = 'US') =>
+    mayAskOfACandidate({ typeKey, label, personName: 'Linnea Qadri', offered, jurisdiction })
+
+  it('a passport asked of somebody nobody has offered work is refused, says why in the firm’s own country’s terms, and offers the question instead', () => {
+    const v = ask('PASSPORT', 'Passport')
+    expect(v).toMatchObject({ ok: false, code: 'TOO_EARLY' })
+    if (!v.ok) {
+      expect(v.message).toContain('Passport is asked for after an offer, and Linnea Qadri has not been offered work here.')
+      expect(v.message).toContain('document abuse')
+      expect(v.message).toContain('Ask this instead: “Are you authorized to work in this country')
+      expect(v.message).toContain('Once Linnea Qadri is offered the work, ask for it then.')
+    }
+  })
+  it('the same refusal in the UK says the UK’s reason, not the US one', () => {
+    const v = ask('PASSPORT', 'Passport', false, 'UK')
+    expect(!v.ok && v.message).toContain('discrimination itself')
+    expect(!v.ok && v.message).not.toContain('document abuse')
+  })
+  it('a background check asked before an offer is refused, and the background question is offered in its place', () => {
+    const v = ask('BACKGROUND_CHECK', 'Background check')
+    expect(v.ok).toBe(false)
+    if (!v.ok) {
+      expect(v.message).toContain('before a conditional offer')
+      expect(v.insteadAsk).toContain('Is there anything that would prevent you passing a background check')
+    }
+  })
+  it('a visa, an I-94 record and a work permit stand on the right-to-work row and are refused before an offer', () => {
+    for (const k of ['VISA', 'I94', 'WORK_PERMIT', 'GREEN_CARD', 'DRIVERS_LICENSE']) expect(ask(k, k).ok, k).toBe(false)
+    expect(STANDS_ON_RULE.I94).toBe('RIGHT_TO_WORK')
+  })
+  it('an I-9 and a drug screen are refused before an offer too', () => {
+    expect(ask('I9_EVERIFY', 'I-9 and E-Verify').ok).toBe(false)
+    expect(ask('DRUG_SCREENING', 'Drug screening').ok).toBe(false)
+  })
+  it('the same papers asked once the work is offered go through', () => {
+    for (const k of ['PASSPORT', 'BACKGROUND_CHECK', 'I94', 'I9_EVERIFY']) expect(ask(k, k, true).ok, k).toBe(true)
+  })
+  it('a résumé, a license and a non-disclosure agreement may be asked at application', () => {
+    for (const k of ['RESUME', 'PROFESSIONAL_LICENSE', 'NDA']) expect(ask(k, k).ok, k).toBe(true)
+  })
+  it('a paper whose type is not known is not refused, because the table carries no rule for it', () => {
+    expect(ask(null, 'Hot floor induction').ok).toBe(true)
+  })
+  it('a company’s country picks the table’s jurisdiction, and a country with no row of its own reads the default', () => {
+    expect(jurisdictionOf('US')).toBe('US')
+    expect(jurisdictionOf('GB')).toBe('UK')
+    expect(jurisdictionOf('de')).toBe('EU')
+    expect(jurisdictionOf('AE')).toBe('DEFAULT')
+    expect(jurisdictionOf(null)).toBe('DEFAULT')
+  })
+})
+
+describe('an I-94 record goes on a person’s file', () => {
+  const i94 = { about: 'PERSON' as const, type: 'I94', subjectName: 'Sunil Raghavan', recordedBy: 'Tom Adeyemi', issuer: 'U.S. Customs and Border Protection' }
+  it('an I-94 is recorded with the admit-until date printed on it', () => {
+    expect(checkToRecord({ ...i94, expiresAt: d('2028-03-01') }, ON).ok).toBe(true)
+  })
+  it('an I-94 with no admit-until date is refused, because a paper that runs out needs its date', () => {
+    expect(checkToRecord(i94, ON)).toMatchObject({ ok: false, code: 'NO_EXPIRY' })
+  })
+})
+
+describe('the run’s table of documents at every stage', () => {
+  it('has one row per stage, in the founder’s order, with the counts and the sentence that shows the rule', () => {
+    const t = new StageTally()
+    t.names('company registration', 'W-9', 'a supplier joining a client')
+    t.asked('company registration', 3)
+    t.answered('company registration', 3)
+    t.examined('company registration', 2)
+    t.sentBack('company registration')
+    t.refusal('company registration', { status: 422, sentence: 'A certificate runs out, so it cannot go on file without the date printed on it.' }, 'runs out', { best: true })
+    const table = stageTable(t)
+    const rows = table.split('\n').slice(2)
+    expect(rows.map((r) => r.split(' | ')[0].replace('| ', ''))).toEqual([
+      'Onboarding', 'Company registration', 'Worker registration', 'Shortlisting', 'Interview', 'Hiring', 'Contract and extension',
+    ])
+    expect(rows[1]).toBe('| Company registration | W-9 | a supplier joining a client | 3 | 3 | 2 | 1 | 1 | “A certificate runs out, so it cannot go on file without the date printed on it.” |')
+  })
+  it('a refusal that did not come is listed as a rule that did not hold, and never counted as refused', () => {
+    const t = new StageTally()
+    expect(t.refusal('hiring', { status: 201, sentence: null }, 'I-9', { rule: 'nobody starts without an I-9' })).toBe(false)
+    expect(t.rows.get('hiring')!.refused).toBe(0)
+    expect(notHeldLines(t)).toEqual(['- hiring: nobody starts without an I-9 (answered 201)'])
+  })
+  it('a refusal with the wrong words is not counted as the rule holding', () => {
+    const t = new StageTally()
+    expect(t.refusal('interview', { status: 403, sentence: 'Something else entirely.' }, 'is not part of your seat')).toBe(false)
+  })
+})
+
+describe('the dates the hiring and extension steps work from', () => {
+  it('a work permit runs out six weeks after the placement’s last day, never sooner than ten weeks from today', () => {
+    expect(iso(permitEnds(d('2027-03-01'), ON))).toBe('2027-04-12')
+    expect(iso(permitEnds(d('2026-11-01'), ON))).toBe('2026-12-30')
+  })
+  it('the same person shows the same papers every run', () => {
+    expect(statusOf('person-123')).toBe(statusOf('person-123'))
+    expect(['PASSPORT', 'WORK_PERMIT', 'VISA']).toContain(statusOf('anyone'))
+  })
+  it('the extension’s new end date is the old end plus whole months, the way the route counts it', () => {
+    expect(iso(newEndOf(d('2027-01-15'), 3, ON))).toBe('2027-04-15')
+    expect(iso(newEndOf(null, 1, ON))).toBe('2026-11-21')
   })
 })

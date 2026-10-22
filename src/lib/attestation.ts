@@ -800,7 +800,7 @@ function labelOf(key: string): string {
 
 /** What a person's file can hold, recorded by the firm that employs or places them. */
 export const RECORDABLE_ABOUT_A_PERSON = [
-  'I9_EVERIFY', 'RIGHT_TO_WORK', 'PASSPORT', 'GREEN_CARD', 'VISA', 'DRIVERS_LICENSE', 'WORK_PERMIT',
+  'I9_EVERIFY', 'RIGHT_TO_WORK', 'PASSPORT', 'GREEN_CARD', 'VISA', 'DRIVERS_LICENSE', 'WORK_PERMIT', 'I94',
   'PROFESSIONAL_LICENSE', 'BACKGROUND_CHECK', 'DRUG_SCREENING', 'EDUCATION_EVALUATION', 'REFERENCE_CHECK',
 ] as const
 
@@ -823,7 +823,7 @@ export const I9_EVIDENCE = ['PASSPORT', 'GREEN_CARD', 'VISA', 'DRIVERS_LICENSE',
 const REVERIFY_ON = ['VISA', 'WORK_PERMIT'] as const
 
 /** The documents whose ceiling is printed on them rather than counted in months. */
-const PRINTED_END = ['PASSPORT', 'GREEN_CARD', 'VISA', 'DRIVERS_LICENSE', 'WORK_PERMIT', 'PROFESSIONAL_LICENSE', 'RIGHT_TO_WORK'] as const
+const PRINTED_END = ['PASSPORT', 'GREEN_CARD', 'VISA', 'DRIVERS_LICENSE', 'WORK_PERMIT', 'I94', 'PROFESSIONAL_LICENSE', 'RIGHT_TO_WORK'] as const
 
 /** How many months a check of this kind is good for, where it is counted rather than printed. */
 const COUNTED_MONTHS: Record<string, number> = {

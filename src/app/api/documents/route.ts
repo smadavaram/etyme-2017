@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
+import { BUILT_IN } from '@/lib/document-type'
+import { typeKeyForTemplate } from '@/lib/document-request'
+import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 
 /**
  * GET /api/documents
@@ -187,6 +190,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── Questions at application, documents at award ──────────────────
+    //
+    // A firm that has not offered somebody work may not ask them for a
+    // paper the rule table puts after the offer: an ID, a visa, the I-9,
+    // a background check, a drug screen. Refused here, at the one door a
+    // request about a person is made through, in a sentence that names
+    // the question to ask instead (`mayAskOfACandidate`, lib/document-stages).
+    if (subjectType === 'PERSON') {
+      const typeKey = typeKeyForTemplate(template.name, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
+      if (typeKey) {
+        const [person, firm, offered] = await Promise.all([
+          prisma.person.findUnique({ where: { id: subjectId }, select: { name: true } }),
+          prisma.company.findUnique({ where: { id: companyId }, select: { country: true } }),
+          offeredWork(subjectId, companyId),
+        ])
+        const may = mayAskOfACandidate({
+          typeKey,
+          label: template.name,
+          personName: person?.name ?? 'this person',
+          offered,
+          jurisdiction: jurisdictionOf(firm?.country ?? 'US'),
+        })
+        if (!may.ok) {
+          return NextResponse.json(
+            { error: { code: may.code, message: may.message, insteadAsk: may.insteadAsk } },
+            { status: 409 }
+          )
+        }
+      }
+    }
+
     const instance = await prisma.docInstance.create({
       data: {
         templateId,
@@ -249,4 +283,36 @@ export async function POST(request: NextRequest) {
       },
     },
   }, { status: 201 })
+}
+
+/**
+ * Whether this firm has offered the person work: a line between them (as
+ * the firm that places, the client, or the firm that pays), or the person
+ * is the firm's own employee. An award writes the lines, so a line is the
+ * offer on the record.
+ */
+async function offeredWork(personId: string, companyId: string): Promise<boolean> {
+  const [sell, buy, employed] = await Promise.all([
+    prisma.sellContract.findFirst({
+      where: {
+        personId,
+        state: { not: 'CANCELLED' },
+        OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }],
+      },
+      select: { id: true },
+    }),
+    prisma.buyContract.findFirst({
+      where: {
+        state: { not: 'CANCELLED' },
+        candidates: { some: { personId } },
+        OR: [{ companyId }, { vendorCompanyId: companyId }],
+      },
+      select: { id: true },
+    }),
+    prisma.context.findFirst({
+      where: { personId, companyId, type: 'EMPLOYEE', revokedAt: null },
+      select: { id: true },
+    }),
+  ])
+  return !!(sell || buy || employed)
 }
