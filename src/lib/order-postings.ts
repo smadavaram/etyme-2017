@@ -86,8 +86,13 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       ? `${sell.requirement.title} — ${sell.clientCompany.name}`
       : `Placement at ${sell.clientCompany.name}`
 
+  // Two weeks on one engagement posted in the same moment both find no
+  // order and both open one; the second loses on the unique code and
+  // reads the order the first opened, which is the one it would have
+  // joined a moment later (the 2,000-person simulation, 2026-10-21).
+  const key = { companyId_code: { companyId: sell.companyId, code } }
   const order = await prisma.projectOrder.upsert({
-    where: { companyId_code: { companyId: sell.companyId, code } },
+    where: key,
     update: {},
     create: {
       companyId: sell.companyId,
@@ -109,6 +114,9 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       closesAt: sell.endDate,
     },
     select: { id: true },
+  }).catch(async (err: { code?: string }) => {
+    if (err?.code !== 'P2002') throw err
+    return prisma.projectOrder.findUniqueOrThrow({ where: key, select: { id: true } })
   })
 
   await prisma.sellContract.update({

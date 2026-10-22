@@ -200,6 +200,17 @@ export function billDue(a: {
  * Never throws outside a caller's transaction; inside one, a failure is
  * thrown so the caller's own writes roll back with it.
  */
+/** Lines written per statement: well under the bind limit at ten columns a line. */
+const LINES_PER_WRITE = 500
+/**
+ * How long a bill may wait for a connection, and how long its write may
+ * take, in milliseconds. Prisma's defaults (2 and 5 seconds) closed the
+ * transaction halfway under load; a bill is one document and is written
+ * whole or not at all.
+ */
+const TX_MAX_WAIT_MS = 10_000
+const TX_TIMEOUT_MS = 20_000
+
 export async function generateBill(caller: BillCaller, body: Record<string, any>, opts: BillOptions = {}): Promise<BillOutcome> {
   const { engagementId } = body
   const draft = opts.status === 'DRAFT'
@@ -1419,9 +1430,16 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       // single billing per timesheet *on this contract* — a prime
       // billing the same week its sub billed is two facts, not a
       // duplicate.
+      //
+      // Written in one statement per batch, not one per week: a bill for
+      // an engagement of forty people is hundreds of weeks, and a write
+      // per week held the transaction open past its limit under load
+      // (the 2,000-person simulation, 2026-10-21: 19 of 1,053 bills).
+      const billingById = new Map(billing.map((t) => [t.id, t]))
+      const weekLines: Prisma.InvoiceLineCreateManyInput[] = []
       for (const group of lines) {
         for (const tsId of group.timesheetIds) {
-          const ts = billing.find((t) => t.id === tsId)
+          const ts = billingById.get(tsId)
           const worth = priced.get(tsId)
           if (!ts || !worth) continue
           // The same figures the header was added up from, not a second
@@ -1429,21 +1447,22 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
           // timesheet at the plain rate whatever the header said, so an
           // invoice with a premium on it — or one billing half a
           // straddling week — could never pass its own addition.
-          await tx.invoiceLine.create({
-            data: {
-              invoiceId: invoice.id,
-              timesheetId: ts.id,
-              sellContractId: ts.sellContractId,
-              personId: ts.person.id,
-              hours: worth.hours,
-              rateCents: ts.sellContract.billRate,
-              amountCents: worth.cents,
-              description:
-                `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}` +
-                (worth.working ? ` · ${worth.working}` : ''),
-            },
+          weekLines.push({
+            invoiceId: invoice.id,
+            timesheetId: ts.id,
+            sellContractId: ts.sellContractId,
+            personId: ts.person.id,
+            hours: worth.hours,
+            rateCents: ts.sellContract.billRate,
+            amountCents: worth.cents,
+            description:
+              `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}` +
+              (worth.working ? ` · ${worth.working}` : ''),
           })
         }
+      }
+      for (let i = 0; i < weekLines.length; i += LINES_PER_WRITE) {
+        await tx.invoiceLine.createMany({ data: weekLines.slice(i, i + LINES_PER_WRITE) })
       }
 
       // ── A decision that has reached an invoice is history ────────────
@@ -1471,9 +1490,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
       // The milestones: a line each, the acceptance behind it, the
       // milestone marked INVOICED.
-      for (const m of milestones) {
-        await tx.invoiceLine.create({
-          data: {
+      if (milestones.length > 0) {
+        await tx.invoiceLine.createMany({
+          data: milestones.map((m) => ({
             invoiceId: invoice.id,
             milestoneId: m.id,
             timesheetId: null,
@@ -1483,9 +1502,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
             rateCents: 0,
             amountCents: m.amountCents,
             description: `${m.order.number} — milestone: ${m.name}`,
-          },
+          })),
         })
-        await tx.orderMilestone.update({ where: { id: m.id }, data: { status: 'INVOICED' } })
+        await tx.orderMilestone.updateMany({ where: { id: { in: milestones.map((m) => m.id) } }, data: { status: 'INVOICED' } })
       }
 
       // The expenses, each a line of its own with the expense behind it,
@@ -1495,9 +1514,9 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       // that column is the employer's rung, and each rung above reads
       // billed and paid from its own lines (coordinator's decision,
       // 2026-10-19).
-      for (const l of expLines) {
-        await tx.invoiceLine.create({
-          data: {
+      if (expLines.length > 0) {
+        await tx.invoiceLine.createMany({
+          data: expLines.map((l) => ({
             invoiceId: invoice.id,
             expenseId: l.expenseId,
             timesheetId: null,
@@ -1507,10 +1526,11 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
             rateCents: 0,
             amountCents: l.amountCents,
             description: l.description,
-          },
+          })),
         })
-        if (employersRung.has(l.expenseId)) {
-          await tx.expense.update({ where: { id: l.expenseId }, data: { status: 'INVOICED', invoiceId: invoice.id } })
+        const employers = expLines.filter((l) => employersRung.has(l.expenseId)).map((l) => l.expenseId)
+        if (employers.length > 0) {
+          await tx.expense.updateMany({ where: { id: { in: employers } }, data: { status: 'INVOICED', invoiceId: invoice.id } })
         }
       }
 
@@ -1520,12 +1540,11 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       const allTimesheetIds = lines.flatMap((l) => l.timesheetIds)
 
       // The "invoice to raise" cycle on each contract billed here is done
-      // — when it is raised. A draft closes it when it is sent.
-      if (!draft) {
-        for (const l of lines) {
-          await completeCycle(tx, { sellContractId: l.sellContractId, kind: 'INVOICE_GENERATE', periodEnd: l.periodEnd })
-        }
-      }
+      // — when it is raised. A draft closes it when it is sent. Closed
+      // after the commit, below, not in here: `completeCycle` swallows its
+      // own failures, so the reminder was never bound to the bill, and its
+      // reads (the line, its whole series) were the slowest thing this
+      // transaction did.
 
       // AutomationLog
       await tx.automationLog.create({
@@ -1564,7 +1583,17 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   }
 
   try {
-    const result = opts.tx ? await write(opts.tx) : await prisma.$transaction(write)
+    const result = opts.tx
+      ? await write(opts.tx)
+      : await prisma.$transaction(write, { maxWait: TX_MAX_WAIT_MS, timeout: TX_TIMEOUT_MS })
+
+    // The reminders the bill answers, now that it exists. Inside a caller's
+    // own transaction they stay in it, as before.
+    if (!draft) {
+      for (const l of lines) {
+        await completeCycle(opts.tx ?? prisma, { sellContractId: l.sellContractId, kind: 'INVOICE_GENERATE', periodEnd: l.periodEnd })
+      }
+    }
 
     // After the transaction. An invoice event for an invoice that rolled
     // back would have an AP team chasing a number that does not exist.

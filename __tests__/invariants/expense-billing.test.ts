@@ -99,7 +99,8 @@ describe('the routes carry it through', () => {
   it('a firm in the middle reads whether it already billed an expense from its own lines, and marks the employer’s column only on the employer’s own bill', () => {
     // Once per contract, the same question a week is asked.
     expect(GENERATE).toContain('invoiceLines: { none: { sellContractId: { in: ownIds } } }')
-    expect(GENERATE).toMatch(/if \(employersRung\.has\(l\.expenseId\)\) \{\s*await tx\.expense\.update\(\{ where: \{ id: l\.expenseId \}, data: \{ status: 'INVOICED', invoiceId: invoice\.id \} \}\)/)
+    expect(GENERATE).toContain('const employers = expLines.filter((l) => employersRung.has(l.expenseId)).map((l) => l.expenseId)')
+    expect(GENERATE).toContain("await tx.expense.updateMany({ where: { id: { in: employers } }, data: { status: 'INVOICED', invoiceId: invoice.id } })")
   })
 
   it('an expense line has the expense behind it and no timesheet', () => {
