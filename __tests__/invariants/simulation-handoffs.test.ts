@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, sinceLines, subjectOf, teamsToWorkers, textOf, toldTwice,
-  SINCE, type NoticeRow,
+  SINCE, type NoticeRow, IN_CHUNK, inChunks, sampleOf, stoppedBecause,
 } from '../../scripts/simulate/stages/conversation/handoffs-read'
 import { SINCE_HEADING } from '@/app/api/conversations/twin/ask'
 import { DIGEST_PREFIX } from '@/app/api/conversations/twin/notices'
@@ -132,5 +132,36 @@ describe('Who was told what, how many times', () => {
   it('a Teams message to a worker is flagged, because a candidate is reachable by email only', () => {
     const w = row({ channel: 'TEAMS', party: 'worker', personName: 'Helena Marsh' })
     expect(teamsToWorkers([w, row({ channel: 'EMAIL', party: 'worker' }), row({ channel: 'TEAMS' })])).toEqual([w])
+  })
+})
+
+describe('the handoffs station on a world of two thousand people', () => {
+  it('a database error stops the station with what it was doing and the cause, never an empty reason', () => {
+    const e = new Error('\nInvalid `ctx.read.notification.findMany()` invocation in handoffs.ts:458:55\n\n  455 // Read after every greeting\nAssertion violation on the database: `too many bind variables in prepared statement, expected maximum of 32767, received 32768`')
+    const said = stoppedBecause('judging the greetings', e)
+    expect(said).toBe('The handoffs station stopped while judging the greetings: Assertion violation on the database: `too many bind variables in prepared statement, expected maximum of 32767, received 32768`')
+    expect(stoppedBecause('reading 400 seats', new Error(''))).toBe('The handoffs station stopped while reading 400 seats: Error')
+    expect(stoppedBecause('starting', undefined)).toBe('The handoffs station stopped while starting: no message was given')
+  })
+
+  it('a list of thirty-three thousand ids is read in chunks no query can refuse', async () => {
+    const ids = Array.from({ length: 33_000 }, (_, i) => `n${i}`)
+    const sizes: number[] = []
+    const out = await inChunks(ids, async (chunk) => {
+      sizes.push(chunk.length)
+      return chunk
+    })
+    expect(out.length).toBe(33_000)
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(IN_CHUNK)
+    expect(IN_CHUNK * 2).toBeLessThan(32_767)
+  })
+
+  it('a sample of seats is the same on every run and never larger than asked', () => {
+    const seats = Array.from({ length: 2900 }, (_, i) => `s${i}`)
+    const a = sampleOf(seats, 400)
+    expect(a.length).toBe(400)
+    expect(new Set(a).size).toBe(400)
+    expect(sampleOf(seats, 400)).toEqual(a)
+    expect(sampleOf(seats.slice(0, 10), 400).length).toBe(10)
   })
 })

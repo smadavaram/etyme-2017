@@ -237,3 +237,35 @@ export function pct(ms: readonly number[], p: number): number | null {
   const rank = Math.ceil((p / 100) * s.length)
   return s[Math.min(s.length, Math.max(1, rank)) - 1]
 }
+
+/** Ids in one `in (...)` list, well under Postgres's 32,767 bind variables. */
+export const IN_CHUNK = 5000
+
+/** A query over a long id list, in chunks, so no list passes the bind limit. */
+export async function inChunks<T>(ids: readonly string[], read: (chunk: string[]) => Promise<T[]>): Promise<T[]> {
+  const out: T[] = []
+  const all = [...new Set(ids)]
+  for (let i = 0; i < all.length; i += IN_CHUNK) out.push(...(await read(all.slice(i, i + IN_CHUNK))))
+  return out
+}
+
+/**
+ * Why the station stopped, in one line a person can read.
+ *
+ * A database error's message opens on a newline and the call site, so the
+ * report read "The stage stopped: " and nothing a reader could act on. The
+ * cause is the last line; the phase says what the station was doing.
+ */
+export function stoppedBecause(phase: string, e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e ?? '')
+  const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
+  const cause = lines.length ? lines[lines.length - 1] : e instanceof Error ? e.name : 'no message was given'
+  return `The handoffs station stopped while ${phase}: ${cause.slice(0, 300)}`
+}
+
+/** Every n-th of a list, the first n kept, so a sample is the same on every run. */
+export function sampleOf<T>(rows: readonly T[], keep: number): T[] {
+  if (keep <= 0 || rows.length <= keep) return [...rows]
+  const step = rows.length / keep
+  return Array.from({ length: keep }, (_, i) => rows[Math.floor(i * step)])
+}

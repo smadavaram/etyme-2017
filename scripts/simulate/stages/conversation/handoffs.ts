@@ -44,6 +44,7 @@ import { WORKER_CLOSE, WORKER_QUESTIONS } from '@/app/api/conversations/twin/wor
 import type { Actor, SeatSpec } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
 import {
+  inChunks, sampleOf, stoppedBecause,
   SINCE, blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, pct, sinceLines, subjectOf, textOf,
   teamsToWorkers, toldTwice, type NoticeRow,
 } from './handoffs-read'
@@ -54,7 +55,15 @@ const SLOW_MS = 2000
 const PER_KIND = 60
 /** Workers asked "What am I owed?" at most. */
 const OWED_ASKED = 25
-
+/**
+ * Seats read at most. On the two-thousand-person world every seat's
+ * greeting is about 2,900 greetings read twice, and the unread notices
+ * behind them passed Postgres's 32,767 bind variables in one query, which
+ * stopped the station after 143 seconds with nothing said. Past this the
+ * station reads every seat a handoff names and a fixed sample of the rest,
+ * and says so; HANDOFFS_SEATS sets another number, 0 for every seat.
+ */
+const MAX_SEATS = Number(process.env.HANDOFFS_SEATS ?? 400)
 type Mode = 'RUN' | 'SEED'
 
 interface Notice { id: string; type: string; title: string; body: string; entityId: string | null; status: string; channel: string }
@@ -193,6 +202,17 @@ export default defineStage({
   name: 'handoffs',
   domain: 'CONVERSATION',
   async run(ctx) {
+    let phase = 'starting'
+    try {
+      return await readHandoffs(ctx, (p) => (phase = p))
+    } catch (e) {
+      throw new Error(stoppedBecause(phase, e))
+    }
+  },
+})
+
+async function readHandoffs(ctx: Ctx, at: (phase: string) => void) {
+    at('finding what happened')
     const t0 = Date.now()
     // What this run made is what happened after the first call of a station
     // before this one; the seed is older. A world copied from an earlier
@@ -368,6 +388,7 @@ export default defineStage({
     }
 
     // ── 2. Which seats to read ──────────────────────────────────────────
+    at('choosing which seats to read')
     const keys = new Set<string>([...touched, ...handoffs.flatMap((h) => h.seats)])
     // Nothing else ran: every seat the world holds, so the seeded greetings are read too.
     if (touched.size === 0) for (const s of ctx.cast.seats) keys.add(s.key)
@@ -388,7 +409,18 @@ export default defineStage({
 
     // ── 3. Read every seat: its notices first, then the mark, then the greeting ──
     const specs = new Map(ctx.cast.seats.map((s) => [s.key, s]))
-    const order = [...keys].filter((k) => specs.has(k) || k.startsWith('worker/'))
+    const every = [...keys].filter((k) => specs.has(k) || k.startsWith('worker/'))
+    // On a large world: every seat a handoff names, then a fixed sample of the rest.
+    const handoffSeats = new Set(handoffs.flatMap((h) => h.seats))
+    const theirs = every.filter((k) => handoffSeats.has(k))
+    const order = MAX_SEATS > 0 && every.length > MAX_SEATS
+      ? theirs.length >= MAX_SEATS
+        ? sampleOf(theirs, MAX_SEATS)
+        : [...theirs, ...sampleOf(every.filter((k) => !handoffSeats.has(k)), MAX_SEATS - theirs.length)]
+      : every
+    const sampled = order.length < every.length ? { read: order.length, of: every.length } : null
+    if (sampled) ctx.log(`${every.length} seats in the world; reading ${order.length}: every seat a handoff names and a fixed sample of the rest`)
+    at(`reading ${order.length} seats`)
     const reads = new Map<string, SeatRead>()
     // One person at two seats (Colleen Byrne at her corporation and by name) is read one seat
     // after the other: a greeting marks her notices read, and the other seat must see that.
@@ -444,18 +476,19 @@ export default defineStage({
     }
 
     // ── 4. Judge every greeting ─────────────────────────────────────────
+    at('judging the greetings')
     // Where each unread notice was written, and where its reader holds a desk: a notice
     // written at another firm where she holds a desk waits for that seat, on purpose.
     const unreadIds = [...reads.values()].flatMap((r) => r.unread.map((n) => n.id))
     const writtenAt = new Map(
-      (unreadIds.length ? await ctx.read.notification.findMany({ where: { id: { in: unreadIds } }, select: { id: true, companyId: true } }) : []).map((n) => [n.id, n.companyId])
+      (await inChunks(unreadIds, (ids) => ctx.read.notification.findMany({ where: { id: { in: ids } }, select: { id: true, companyId: true } }))).map((n) => [n.id, n.companyId])
     )
     const deskSeats = await ctx.read.context.findMany({ where: { revokedAt: null, type: { not: 'CONSULTANT' } }, select: { personId: true, companyId: true } })
     const holdsDesk = new Set(deskSeats.map((c) => `${c.personId}\u0000${c.companyId}`))
     // Read after every greeting: a notice the greeting handled is READ, whether it said it or
     // left it out on purpose (its card is above it, or Etyme's question was already answered).
     const stillUnread = new Set(
-      (unreadIds.length ? await ctx.read.notification.findMany({ where: { id: { in: unreadIds }, status: 'UNREAD' }, select: { id: true } }) : []).map((n) => n.id)
+      (await inChunks(unreadIds, (ids) => ctx.read.notification.findMany({ where: { id: { in: ids }, status: 'UNREAD' }, select: { id: true } }))).map((n) => n.id)
     )
     let countsAgree = 0
     let countsCompared = 0
@@ -513,6 +546,7 @@ export default defineStage({
     }
 
     // ── 5. Each handoff: told, threaded, named ───────────────────────────
+    at('checking each handoff was told')
     const threadChecks = handoffs.filter((h) => h.kind === 'JOB_SENT' && h.mode === 'RUN').slice(0, PER_KIND * 2)
     await ctx.parallel(threadChecks, async (h) => {
       const a = seatOf(h.seats[0])
@@ -524,8 +558,11 @@ export default defineStage({
     // (read above, the newest hundred) is what it sees; the record says whether an older one exists.
     const people = [...new Set(handoffs.flatMap((h) => h.seats.map((k) => specs.get(k)?.personId)).filter((x): x is string => !!x))]
     const about = [...new Set(handoffs.flatMap((h) => [h.entityId, ...(h.alsoAbout ?? [])]))]
+    // Chunked on both lists together, so neither passes the bind limit.
     const told = people.length && about.length
-      ? await ctx.read.notification.findMany({ where: { personId: { in: people }, entityId: { in: about } }, select: { personId: true, entityId: true, title: true, body: true } })
+      ? (await inChunks(about, (ids) => inChunks(people, (who) => ctx.read.notification.findMany({
+          where: { personId: { in: who }, entityId: { in: ids } }, select: { personId: true, entityId: true, title: true, body: true },
+        }))))
       : []
     for (const h of handoffs) {
       if (h.mode === 'RUN') {
@@ -537,7 +574,8 @@ export default defineStage({
         if (h.kind === 'PUT_FORWARD') h.toldWho = hits.some((n) => n.entityId === h.entityId || h.name.some((x) => names(`${n.title}\n${n.body}`, x)))
       }
       // Named, for the kinds the greeting must name, while they still wait on the seat.
-      if (h.kind !== 'JOB_SENT' && h.waiting) {
+      // A handoff none of whose seats was read (a sample on a large world) is not judged.
+      if (h.kind !== 'JOB_SENT' && h.waiting && h.seats.some((k) => reads.has(k))) {
         const texts = h.seats.map((k) => reads.get(k)?.text ?? '')
         h.named = texts.some((t) => h.name.some((x) => names(t, x)))
         if (h.named && h.must) {
@@ -578,6 +616,7 @@ export default defineStage({
     })
 
     // ── 6. The greeting under load ──────────────────────────────────────
+    at('reading the greetings again under load')
     // A second pass over the same seats at the run's width: the greeting
     // as a reader meets it while every other seat is opening theirs.
     const timed = [...reads.values()].filter((r) => r.answer)
@@ -611,6 +650,7 @@ export default defineStage({
     }).sort((a, b) => (b.p95 ?? 0) - (a.p95 ?? 0))
 
     // ── 7. Who was told what, how many times ─────────────────────────────
+    at('counting who was told what')
     const rowsOf = async (since: Date | null): Promise<NoticeRow[]> => {
       const raw = await ctx.read.$queryRawUnsafe<{ id: string; personId: string; personName: string; type: string; title: string; body: string; entityId: string | null; channel: string; deliveryState: string; companyKind: string | null; workerOnly: boolean; createdAt: Date }[]>(`
         select n.id, n."personId", p.name as "personName", n.type, n.title, n.body, n."entityId", n.channel, n."deliveryState",
@@ -629,12 +669,14 @@ export default defineStage({
     const missing = handoffs.filter((h) => h.mode === 'RUN' && h.told === false && (NEEDS_NOTICE[h.kind] === 'NOTICE' || (NEEDS_NOTICE[h.kind] === 'EITHER' && h.waiting && h.named === false)))
 
     // ── 8. Say it ───────────────────────────────────────────────────────
+    at('writing the report')
     const kinds = Object.keys(KIND_SAYS) as Handoff['kind'][]
     const seatFaults = [...reads.values()].filter((r) => r.faults.length)
     const lines: string[] = []
     const L = (s = '') => lines.push(s)
     L(`# Handoffs — what each seat was told, and what Ask Etyme said to it`)
     L()
+    if (sampled) L(`The world holds ${sampled.of} seats; ${sampled.read} were read: every seat a handoff names, and a fixed sample of the rest (HANDOFFS_SEATS sets the number, 0 for all).`)
     L(`Read ${reads.size} seats at ${ctx.base}, ${new Date().toISOString()}. Handoffs this run made: ${handoffs.filter((h) => h.mode === 'RUN').length}; already in the seeded world: ${handoffs.filter((h) => h.mode === 'SEED').length}. ` +
       `A seeded handoff is held to the greeting only, because the seed writes rows and sends nobody anything.`)
     L()
@@ -775,7 +817,7 @@ export default defineStage({
       closed,
       of: handoffs.length,
       says:
-        `Read ${reads.size} seats in ${((Date.now() - t0) / 1000).toFixed(0)}s. ` +
+        `Read ${reads.size} seats${sampled ? ` of ${sampled.of} (a sample)` : ''} in ${((Date.now() - t0) / 1000).toFixed(0)}s. ` +
         (madeChecked.length ? `${madeChecked.filter((h) => h.told).length} of ${madeChecked.length} handoffs this run made were told by a notice. ` : 'No earlier station made a handoff this run; the seeded ones were read from the greeting. ') +
         `${named.filter((h) => h.named).length} of ${named.length} were named in the greeting. ` +
         `The mark matched the greeting on ${countsAgree} of ${countsCompared} seats. ` +
@@ -784,5 +826,4 @@ export default defineStage({
         `${outbound.length} messages would have left by email or Teams; ${twice.filter((t) => !t.alike).length} told the same thing twice, word for word; ${twice.filter((t) => t.alike).length} read one title for different news; ${missing.length} handoffs told nobody. ` +
         `Detail: reports/${file.split('/reports/')[1]}.`,
     }
-  },
-})
+}
