@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'
 import { heldStartSays } from '@/app/dashboard/program/needs-you'
 
 /**
@@ -22,10 +22,14 @@ import { heldStartSays } from '@/app/dashboard/program/needs-you'
  * worse than no preview; `provider` and `result` because a refusal has to
  * name who issued a license and its number. Shared by both queries in
  * `startPaperwork`, which is why adding a column to one would have missed.
+ * `ADVERSE_STEPS` because a decision not to act on a flagged background
+ * report is a row of its own, and a page that does not read it still
+ * holds a start the decision already cleared.
  */
 export const VERIFICATION_SHAPE = {
   type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true,
   verifiedAt: true, provider: true, result: true,
+  ...ADVERSE_STEPS,
 } as const
 
 /** One line not started yet, in the shape the clearance needs. */

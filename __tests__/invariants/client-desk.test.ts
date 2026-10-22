@@ -151,13 +151,21 @@ describe('what the client desk is told', () => {
     // packet for the role and saw nothing until the start date.
     // The verdict is read in one place, by the page and the queue alike.
     expect(program).toContain("import { startPaperwork, agreementsOnFile } from './desk-findings'")
-    expect(findings).toContain("import { contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'")
+    expect(findings).toContain("import { ADVERSE_STEPS, contractClearance, lineExtras, sentencePhrases } from '@/lib/contract-clearance'")
     expect(findings).toContain('...(await lineExtras({ sellContractId: c.id })),')
     // Last inside the call, not first: the order's answer must not be
     // overwritten by the shape it was merged into.
     const call = findings.slice(findings.indexOf('const papers = contractClearance({'))
     expect(call.indexOf('lineExtras')).toBeLessThan(call.indexOf('})'))
     expect(call.indexOf('through: c.endDate')).toBeLessThan(call.indexOf('lineExtras'))
+  })
+
+  it('the client\u2019s page reads the steps taken after a flagged background report, so a decision not to act on it is seen there', () => {
+    // Since 69e3dcb27 that decision is a row of its own
+    // (Verification.adverseActions). A reader that does not select it sees
+    // only the flag and holds a start the activation would let through.
+    const shape = findings.slice(findings.indexOf('export const VERIFICATION_SHAPE'), findings.indexOf('} as const'))
+    expect(shape).toContain('...ADVERSE_STEPS')
   })
 
   it('the standing read under that verdict asks for the firm\u2019s whole file, never four insurance kinds by name', () => {
