@@ -112,6 +112,68 @@ export interface JobSentFacts {
   headcount: number | null | undefined
   location: string | null | undefined
   closesAt: Date
+  /**
+   * What tells this job apart from the client's other jobs of the same
+   * title, from `jobApart`: " in Tualatin, starting Nov 3". Empty where
+   * the title alone says which job it is.
+   */
+  apart?: string
+}
+
+// ── Telling jobs of one title apart ───────────────────────────────────
+//
+// The handoffs rerun on the generated world (2026-10-22) read 1,124
+// notices titled "Tessaract Software sent you the Scrum master job" that
+// were about different jobs: a client hires the same role in several
+// places and quarters, and one title for different news is a list nobody
+// can read. So a title names what differs from the client's other jobs
+// of that title, in the order a recruiter says it: the place, then the
+// start, and the job number only where nothing else does.
+
+/** One job of a title, as `jobApart` compares it. */
+export interface SameTitleJob {
+  id: string
+  location: string | null | undefined
+  startDate: Date | null | undefined
+}
+
+/** "Nov 3": the day a job starts, said the way a recruiter says it. */
+export function startSays(d: Date): string {
+  return d.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })
+}
+
+/** The job's number as a person reads it off the job's page: the last six of its id. */
+export function jobNumber(id: string): string {
+  return id.slice(-6).toUpperCase()
+}
+
+const sameDay = (a: Date | null | undefined, b: Date | null | undefined) =>
+  !!a && !!b && a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
+const samePlace = (a: string | null | undefined, b: string | null | undefined) =>
+  (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase()
+
+/**
+ * What tells `job` apart from `others` (the client's other jobs of the
+ * same title): nothing where there are none; the place where that
+ * settles it; the start as well where two share a place; the job number
+ * only where neither does. Each part is added only if it removes at
+ * least one job from the set still sharing the words so far.
+ */
+export function jobApart(job: SameTitleJob, others: readonly SameTitleJob[]): string {
+  let left = others.filter((o) => o.id !== job.id)
+  if (left.length === 0) return ''
+  let place = ''
+  let start = ''
+  if (job.location && left.some((o) => !samePlace(o.location, job.location))) {
+    place = ` in ${job.location}`
+    left = left.filter((o) => samePlace(o.location, job.location))
+  }
+  if (left.length > 0 && job.startDate && left.some((o) => !sameDay(o.startDate, job.startDate))) {
+    start = `${place ? ',' : ''} starting ${startSays(job.startDate)}`
+    left = left.filter((o) => sameDay(o.startDate, job.startDate))
+  }
+  const number = left.length > 0 ? ` (job ${jobNumber(job.id)})` : ''
+  return `${place}${start}${number}`
 }
 
 /**
@@ -121,12 +183,42 @@ export interface JobSentFacts {
  * the invitation, and a notice is not where a number belongs.
  */
 export function jobSentNotice(f: JobSentFacts): { title: string; body: string } {
-  const where = f.location ? ` in ${f.location}` : ''
   return {
-    title: `${f.clientName} sent you the ${f.title} job`,
-    body:
-      `${f.title}: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}. ` +
-      `Put somebody forward from the job, or write to ${f.clientName} on its thread.`,
+    title: `${f.clientName} sent you the ${f.title} job${f.apart ?? ''}`,
+    body: `${jobLine(f)} ${tail(f)}`,
+  }
+}
+
+/** "Java developer: 1 position in Tualatin. Answers close Nov 3, 2026." */
+function jobLine(f: Pick<JobSentFacts, 'title' | 'headcount' | 'location' | 'closesAt' | 'apart'>): string {
+  const where = f.location ? ` in ${f.location}` : ''
+  const which = (f.apart ?? '').match(/\(job [A-Z0-9]+\)$/)?.[0]
+  return `${f.title}${which ? ` ${which}` : ''}: ${positionsSays(f.headcount)}${where}. Answers close ${closesSays(f.closesAt)}.`
+}
+
+function tail(f: Pick<JobSentFacts, 'clientName'>): string {
+  return `Put somebody forward from the job, or write to ${f.clientName} on its thread.`
+}
+
+/** How long after one job is sent another from the same client joins its notice rather than writing a new one. */
+export const JOB_BATCH_MS = 60_000
+
+/**
+ * One notice for several jobs one client sent in the same minute: "Northbend
+ * Athletic sent you 3 jobs: Java developer in Tualatin, Data engineer and
+ * Scrum master", each job a line of the body. Three jobs are named in the
+ * title and the rest counted, so the title stays a title. One job reads
+ * exactly as `jobSentNotice` does.
+ */
+export function jobsSentNotice(jobs: readonly JobSentFacts[]): { title: string; body: string } {
+  if (jobs.length === 1) return jobSentNotice(jobs[0])
+  const client = jobs[0].clientName
+  const named = jobs.map((j) => `${j.title}${j.apart ?? ''}`)
+  const shown = named.length > 3 ? [...named.slice(0, 3), `${named.length - 3} more`] : named
+  const list = `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}`
+  return {
+    title: `${client} sent you ${countInWords(jobs.length)} jobs: ${list}`,
+    body: `${jobs.map((j) => jobLine(j)).join('\n')}\n${tail({ clientName: client })}`,
   }
 }
 

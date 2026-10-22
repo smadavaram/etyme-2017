@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { approvalsToGo, countInWords, upperFirst, positionsSays, jobSentNotice, jobSentThreadLine, toldPerFirm } from '@/app/api/requisitions/words'
+import { approvalsToGo, countInWords, upperFirst, positionsSays, jobSentNotice, jobSentThreadLine, toldPerFirm, jobApart, jobsSentNotice, jobNumber } from '@/app/api/requisitions/words'
 
 const APPROVE_ROUTE = readFileSync(
   join(process.cwd(), 'src/app/api/requisitions/[id]/approve/route.ts'), 'utf8'
@@ -105,5 +105,67 @@ describe('a job sent to a supplier is told by name, and opens a thread with it (
     const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/[id]/distribute/route.ts'), 'utf8')
     expect(route).toMatch(/const notCleared = vendorIds\.filter\(v => !cleared\.includes\(v\)\)/)
     expect(route).toContain("code: 'NOT_CLEARED'")
+  })
+})
+
+describe('jobs of one title are told apart, and a batch is one notice (handoffs on the generated world, 2026-10-22)', () => {
+  const day = (iso: string) => new Date(`${iso}T00:00:00Z`)
+  const base = { clientName: 'Northbend Athletic', title: 'Java developer', headcount: 1, location: 'Tualatin', closesAt: new Date('2026-11-03T12:00:00Z') }
+
+  it('a job whose title no other job of the client has is named by its title alone', () => {
+    expect(jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, [])).toBe('')
+    expect(jobSentNotice({ ...base, apart: '' }).title).toBe('Northbend Athletic sent you the Java developer job')
+  })
+
+  it('two jobs of one title in different places are told apart by the place', () => {
+    const apart = jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, [{ id: 'b', location: 'Dallas, TX', startDate: day('2026-11-03') }])
+    expect(apart).toBe(' in Tualatin')
+    expect(jobSentNotice({ ...base, apart }).title).toBe('Northbend Athletic sent you the Java developer job in Tualatin')
+  })
+
+  it('two jobs of one title in one place are told apart by the day each starts: “in Tualatin, starting Nov 3”', () => {
+    const others = [{ id: 'b', location: 'Tualatin', startDate: day('2026-12-01') }, { id: 'c', location: 'Dallas, TX', startDate: day('2026-11-03') }]
+    const apart = jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, others)
+    expect(apart).toBe(' in Tualatin, starting Nov 3')
+    expect(jobSentNotice({ ...base, apart }).title).toBe('Northbend Athletic sent you the Java developer job in Tualatin, starting Nov 3')
+    // With no other place to tell it from, the start alone.
+    expect(jobApart({ id: 'a', location: 'Tualatin', startDate: day('2026-11-03') }, [others[0]])).toBe(' starting Nov 3')
+  })
+
+  it('only where the place and the start are both the same does the title carry the job number', () => {
+    const job = { id: 'czabc123def456', location: 'Tualatin', startDate: day('2026-11-03') }
+    const apart = jobApart(job, [{ id: 'czother9xyz789', location: 'Tualatin', startDate: day('2026-11-03') }])
+    expect(apart).toBe(` (job ${jobNumber(job.id)})`)
+    expect(jobNumber(job.id)).toBe('DEF456')
+    const said = jobSentNotice({ ...base, apart })
+    expect(said.title).toBe('Northbend Athletic sent you the Java developer job (job DEF456)')
+    expect(said.body.startsWith('Java developer (job DEF456): 1 position in Tualatin.')).toBe(true)
+  })
+
+  it('jobs one client sends in the same minute reach a person as one notice that names each: “sent you 3 jobs: …”', () => {
+    const said = jobsSentNotice([
+      { ...base, apart: ' in Tualatin' },
+      { ...base, title: 'Data engineer', location: 'Dallas, TX', apart: '' },
+      { ...base, title: 'Scrum master', headcount: 2, apart: '' },
+    ])
+    expect(said.title).toBe('Northbend Athletic sent you three jobs: Java developer in Tualatin, Data engineer and Scrum master')
+    expect(said.body.split('\n')).toEqual([
+      'Java developer: 1 position in Tualatin. Answers close Nov 3, 2026.',
+      'Data engineer: 1 position in Dallas, TX. Answers close Nov 3, 2026.',
+      'Scrum master: 2 positions in Tualatin. Answers close Nov 3, 2026.',
+      'Put somebody forward from the job, or write to Northbend Athletic on its thread.',
+    ])
+    // One job reads as one job, and a long batch names three and counts the rest.
+    expect(jobsSentNotice([base]).title).toBe('Northbend Athletic sent you the Java developer job')
+    const five = jobsSentNotice(['A', 'B', 'C', 'D', 'E'].map((t) => ({ ...base, title: `${t} analyst`, apart: '' })))
+    expect(five.title).toBe('Northbend Athletic sent you five jobs: A analyst, B analyst, C analyst and 2 more')
+  })
+
+  it('the send route asks for the client’s other jobs of the title and folds a send into an unread notice from the same minute', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/requisitions/[id]/distribute/route.ts'), 'utf8')
+    expect(route).toContain('apart: jobApart({ id, location: requisition.location, startDate: requisition.startDate }, sameTitle)')
+    expect(route).toContain("createdAt: { gte: new Date(Date.now() - JOB_BATCH_MS) }")
+    expect(route).toContain("data: { path: ['kind'], equals: 'JOB_SENT' }")
+    expect(route).toContain('requirementIds: jobs.map((j) => j.requirementId)')
   })
 })

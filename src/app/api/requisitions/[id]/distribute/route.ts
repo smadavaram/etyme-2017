@@ -11,7 +11,7 @@ import { reachedOnlyThrough } from '@/app/api/suppliers/direct'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { reportError } from '@/lib/alerts'
 import type { Participant } from '@/lib/threads'
-import { jobSentNotice, jobSentThreadLine, toldPerFirm, SEATS_TOLD_PER_FIRM } from '../../words'
+import { jobApart, jobsSentNotice, jobSentThreadLine, toldPerFirm, SEATS_TOLD_PER_FIRM, JOB_BATCH_MS, type JobSentFacts } from '../../words'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -326,12 +326,22 @@ export async function POST(
   // the client's "write to the supplier" uses (`app/api/people/[id]/ask`),
   // so the supplier answers on the job rather than starting an email.
   if (sent.length > 0) {
-    const facts = {
+    // The client's other live jobs of this title, so the notice says which
+    // one this is: the place, the start, or the job number (`jobApart`).
+    const sameTitle = await prisma.requirement.findMany({
+      where: {
+        companyId: requisition.companyId, title: requisition.title, id: { not: id },
+        status: { in: ['OPEN', 'DRAFT'] }, archivedAt: null, mirroredFromId: null,
+      },
+      select: { id: true, location: true, startDate: true },
+    })
+    const facts: JobSentFacts = {
       clientName: requisition.company.name,
       title: requisition.title,
       headcount: requisition.headcount,
       location: requisition.location,
       closesAt: expiresAt,
+      apart: jobApart({ id, location: requisition.location, startDate: requisition.startDate }, sameTitle),
     }
     const opener: Participant = {
       personId: caller.person.id,
@@ -380,8 +390,47 @@ export async function POST(
       orderBy: { grantedAt: 'asc' },
     })
     const told = toldPerFirm(seats, SEATS_TOLD_PER_FIRM)
-    const said = jobSentNotice(facts)
-    const notifications: NotifyParams[] = told.map((r) => {
+
+    // A client sending several jobs in one sitting writes one notice per
+    // person, not one per job: an unread notice of this client's sent jobs
+    // from the last minute takes this job as another line. Its entity stays
+    // the first job's; every job it carries is listed under `requirementIds`.
+    const job = { requirementId: id, ...facts, closesAt: facts.closesAt.toISOString() }
+    const recent = told.length
+      ? await prisma.notification.findMany({
+          where: {
+            personId: { in: told.map((t) => t.personId) }, status: 'UNREAD', type: 'SYSTEM',
+            createdAt: { gte: new Date(Date.now() - JOB_BATCH_MS) },
+            data: { path: ['kind'], equals: 'JOB_SENT' },
+          },
+          select: { id: true, personId: true, data: true },
+          orderBy: { createdAt: 'desc' },
+        })
+      : []
+    const batchOf = new Map<string, { id: string; jobs: (typeof job)[] }>()
+    for (const n of recent) {
+      const d = (n.data ?? {}) as { clientCompanyId?: string; jobs?: (typeof job)[] }
+      if (d.clientCompanyId !== requisition.companyId || !Array.isArray(d.jobs) || batchOf.has(n.personId)) continue
+      if (d.jobs.some((j) => j.requirementId === id)) continue
+      batchOf.set(n.personId, { id: n.id, jobs: d.jobs })
+    }
+    const folded = told.filter((t) => batchOf.has(t.personId))
+    const fresh = told.filter((t) => !batchOf.has(t.personId))
+    for (const t of folded) {
+      const b = batchOf.get(t.personId)!
+      const jobs = [...b.jobs, job]
+      const said = jobsSentNotice(jobs.map((j) => ({ ...j, closesAt: new Date(j.closesAt) })))
+      const before = (recent.find((n) => n.id === b.id)?.data ?? {}) as Record<string, unknown>
+      await prisma.notification
+        .update({
+          where: { id: b.id },
+          data: { title: said.title, body: said.body, data: { ...before, jobs, requirementIds: jobs.map((j) => j.requirementId) } as object },
+        })
+        .catch((err) => reportError(`The notice for ${requisition.title} could not join the batch it was sent with:`, err))
+    }
+
+    const said = jobsSentNotice([facts])
+    const notifications: NotifyParams[] = fresh.map((r) => {
       const conversationId = r.companyId ? threads.get(r.companyId) ?? null : null
       return {
         personId: r.personId,
@@ -391,6 +440,10 @@ export async function POST(
         body: said.body,
         entityId: id,
         data: {
+          kind: 'JOB_SENT',
+          clientCompanyId: requisition.companyId,
+          jobs: [job],
+          requirementIds: [id],
           requirementId: id,
           ...(conversationId ? { conversationId, href: `/dashboard/conversations?open=${conversationId}` } : {}),
         },

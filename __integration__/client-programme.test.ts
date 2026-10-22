@@ -598,3 +598,37 @@ describe('the week-early verdict reads the client\u2019s own order', () => {
     }
   })
 })
+
+describe('jobs of one title, sent one after another (handoffs on the generated world, 2026-10-22)', () => {
+  it('a supplier told of two jobs of one title in one minute reads one notice that tells them apart by place', async () => {
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
+    const ids: string[] = []
+    for (const location of ['Tualatin, OR', 'Beaverton, OR']) {
+      as(NIKE.hiring)
+      const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
+        title: 'Retail analytics engineer', skills: ['Retail analytics', 'Forecasting'],
+        location, billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
+        costCenterId: cc.id, neededBy: day(21).toISOString(),
+      })))
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+      ids.push(r.body.data.requisition.id)
+    }
+    for (const id of ids) {
+      if ((await prisma.requirement.findUniqueOrThrow({ where: { id } })).status !== 'OPEN') {
+        await prisma.requirement.update({ where: { id }, data: { status: 'OPEN', approvalState: 'AUTO_APPROVED' } })
+      }
+      as(NIKE.programme)
+      const r = await call(distribute, 'POST', `/api/requisitions/${id}/distribute`, id, {
+        vendors: [{ companyId: co['world-brightmoor'], payMin: 3200, payMax: 3800 }],
+      })
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    }
+    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: BRIGHTMOOR }, select: { id: true } })
+    const notices = await prisma.notification.findMany({
+      where: { personId: owner.id, title: { contains: 'Retail analytics engineer' } }, select: { title: true, body: true, data: true },
+    })
+    expect(notices, JSON.stringify(notices.map((n) => n.title))).toHaveLength(1)
+    expect(notices[0].title).toBe('Northbend Athletic sent you two jobs: Retail analytics engineer in Tualatin, OR and Retail analytics engineer in Beaverton, OR')
+    expect((notices[0].data as any).requirementIds).toEqual(ids)
+  })
+})
