@@ -79,6 +79,10 @@ const RUNTIME: Record<string, string> = {
   // a demo seat every visitor shares, and lib/ask-etyme-thread keeps no
   // thread for those, so the seed writing one would be the leak the door
   // refuses. Written once etyme-conversation's route calls appendTurn.
+  adverseAction: 'written when a firm gives a pre-adverse or final notice on a flagged background report, by POST /api/compliance/adverse-action',
+  emailIntake: 'written when an Owner or Admin turns forwarded email on or replaces its address, by PATCH /api/settings/email-intake; off by default, so the seed writes none',
+  inboundEmail: 'written when the mail provider posts a message to a company forwarding address, by POST /api/email/inbound, kept or dropped',
+  inboundEmailAttachment: 'written when an accepted forwarded email carries a file that passes the checks, by POST /api/email/inbound',
   askEtymeThread: 'written the first time a person at their own seat says something to Ask Etyme; a shared demo seat keeps none',
   askEtymeTurn: 'written for each line a person and Ask Etyme say at the person’s own seat, through appendTurn',
   accessLog: 'written by a real read of somebody else’s data, including refusals',
