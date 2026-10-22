@@ -755,6 +755,9 @@ model Company {
   teamsConversations    TeamsConversation[]
   modelPrompts          ModelPrompt[]
   askEtymeThreads       AskEtymeThread[]
+  /// Forwarded business email: the switch and its address, and every message in (2026-10-22).
+  emailIntake           EmailIntake?
+  inboundEmails         InboundEmail[]
   counterparties        Counterparty[]          @relation("counterpartyOwner")
   counterpartyOf        Counterparty[]          @relation("counterpartyOther")
   contacts              CompanyContact[]        @relation("contactOwner")
@@ -9086,4 +9089,170 @@ enum AdverseStep {
   PRE_NOTICE
   FINAL
   NOT_TAKEN
+}
+
+// ─────────────────────────────────────────────
+// FORWARDED BUSINESS EMAIL (founder, 2026-10-22: "security beats everything")
+//
+// Etyme never reads a mailbox. A company turns one forwarding address on,
+// its own mail rule forwards only what it chooses, and every message that
+// arrives — kept or dropped — leaves a row before the provider is answered.
+// One door: lib/email-intake.
+// ─────────────────────────────────────────────
+
+/// A company's switch for forwarded email and its one address.
+///
+/// Off by default. The address is `<label>-<token>@in.etyme.com`; the
+/// token is random, shown once to the Owner or Admin who made it, and
+/// stored only as a hash, so this table cannot give an address back.
+/// Replacing it overwrites the hash, which is what kills the old address
+/// at once: there is no list of old tokens for a message to match.
+model EmailIntake {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Whether forwarded email is accepted at all. Off until an Owner or Admin turns it on.
+  enabled Boolean @default(false)
+
+  /// The readable half of the address, from the company's slug. It names
+  /// the company to the person setting up the mail rule; it decides nothing.
+  addressLabel String?
+  /// SHA-256 of the random half. The address itself is never stored.
+  tokenHash    String? @unique
+  /// The last four characters of the random half, so a person can tell
+  /// which address is the live one without the table holding it.
+  tokenHint    String?
+
+  /// Who turned it on, and when.
+  enabledById  String?
+  enabledAt    DateTime?
+  /// Who turned it off, and when.
+  disabledById String?
+  disabledAt   DateTime?
+  /// Who last replaced the address, and when. The old one stopped then.
+  replacedById String?
+  replacedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One message that reached the intake, accepted or dropped.
+///
+/// Written before the provider is answered, kept or not (the
+/// refusal-logged-first rule). The row stays after the body is deleted:
+/// "what came in and what was kept" is a query on this table.
+model InboundEmail {
+  id String @id @default(cuid())
+
+  /// The company the address belongs to. Null where the address reached
+  /// no company, or where the request was refused before it was read.
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The provider's id for the email, so a second delivery of one email
+  /// is recognized and never kept twice. Null where nothing was read.
+  providerEmailId String? @unique
+
+  receivedAt DateTime @default(now())
+
+  /// The address it was sent to, with the random half cut to its last
+  /// four characters: a live address is never written down whole.
+  recipientHint String?
+
+  /// Who forwarded it: the From address as the receiving server checked it.
+  forwarderAddress   String?
+  /// The forwarder's person and seat at the company, where they hold one.
+  forwarderPersonId  String?
+  forwarderContextId String?
+  /// Who wrote it first, as the forwarded text says. Not verified, and
+  /// read only as a hint for sorting.
+  originalSender     String?
+
+  /// ACCEPTED or DROPPED, with the reason in a sentence and a short code.
+  verdict    InboundEmailVerdict
+  reasonCode String
+  reason     String
+
+  /// What the receiving server found: pass · fail · gray · processing_failed · unknown.
+  spf   String?
+  dkim  String?
+  dmarc String?
+
+  /// The subject and the body as plain text, until deleted. Never HTML.
+  subject   String?
+  body      String?   @db.Text
+  /// When the subject, body, fields and unfiled attachments were deleted.
+  deletedAt DateTime?
+
+  /// What the rules sorted it to, why, and the fields they found. Never a model's guess.
+  kind        InboundEmailKind?
+  sortReasons String[]
+  fields      Json?
+
+  /// The card it became in Ask Etyme, written by whoever draws the card.
+  cardRef     String?
+  /// When a person decided that card, and who. The body goes after this.
+  decidedAt   DateTime?
+  decidedById String?
+
+  /// Every attachment that arrived: name, the type its bytes are, size,
+  /// and whether it was kept or refused and why. Kept after deletion.
+  attachmentLog Json?
+
+  attachments InboundEmailAttachment[]
+
+  @@index([companyId, receivedAt])
+  @@index([verdict, receivedAt])
+  @@index([forwarderPersonId])
+  @@index([deletedAt, decidedAt])
+}
+
+/// A file that came with a forwarded email and passed the checks.
+///
+/// The same shape as every paper's file (name, type, size, bytes). Held,
+/// never trusted: its type is read from its bytes, never from its name,
+/// and nothing opens it on the server. Linked to its email until it is
+/// filed as evidence somewhere; one that is never filed goes with the body.
+model InboundEmailAttachment {
+  id String @id @default(cuid())
+
+  inboundEmailId String
+  inboundEmail   InboundEmail @relation(fields: [inboundEmailId], references: [id], onDelete: Cascade)
+
+  /// The sender's own name for it, as sent.
+  fileName    String
+  /// The type its bytes are, not the type it claimed.
+  contentType String
+  sizeBytes   Int
+  bytes       Bytes
+  sha256      String
+
+  /// Where it was filed as evidence ("DocFile:<id>" and the like), by whom
+  /// and when. Kept past the body's deletion only once this is set.
+  filedAt   DateTime?
+  filedAs   String?
+  filedById String?
+
+  createdAt DateTime @default(now())
+
+  @@index([inboundEmailId])
+}
+
+enum InboundEmailVerdict {
+  ACCEPTED
+  DROPPED
+}
+
+/// What a forwarded email was sorted to, by rules only.
+enum InboundEmailKind {
+  JOB
+  SUBMISSION
+  AGREEMENT
+  TIMESHEET_APPROVAL
+  INVOICE_RECEIPT
+  REMITTANCE
+  PAYROLL_CONFIRMATION
+  UNSORTED
 }
