@@ -325,9 +325,11 @@ export async function POST(
       let sellCyclesCreated = 0
       if (submission.fromCompany.templatePack && end) {
         // Both calendars, unioned. A pay day on the client's holiday is
-        // as wrong as one on ours.
+        // as wrong as one on ours. Read through the transaction: the
+        // global client would ask the pool for a second connection while
+        // this one is held, the fault that stalled bills under load.
         const holidays = await loadContractHolidays(
-          submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+          submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear(), null, tx
         )
 
         const written = await writeCyclesFor(tx, {

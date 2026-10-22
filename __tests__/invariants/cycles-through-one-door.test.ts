@@ -136,6 +136,10 @@ describe('a placement is generated on the company’s own calendar, whichever do
     expect(convert).toContain('loadContractHolidays(')
     expect(convert).toMatch(/holidays,?\s*\n?\s*\}\)/)
   })
+
+  it('converting a submission reads those holidays through its own transaction, never asking the pool for a second connection', () => {
+    expect(convert).toMatch(/loadContractHolidays\([^()]*(?:\([^()]*\)[^()]*)*,\s*tx\s*\)/)
+  })
 })
 
 describe('no cycle date is generated without an answer about weekends and holidays', () => {
