@@ -36,6 +36,7 @@ import { billDue } from '@/lib/money/bill-generate'
 import { fromUnits } from '@/lib/money-display'
 import { emit } from '@/lib/events'
 import { closeOvertaken } from '@/lib/twin/ledger'
+import { writePayerNoticesIn } from '@/lib/notify/bill-delivery'
 
 type Tx = Prisma.TransactionClient
 
@@ -97,6 +98,8 @@ export interface Sent {
   submittedAt: Date
   /** It was a draft, and sending raised it. */
   raised: boolean
+  /** The payer's people told in the sending; `why` where nobody there could be. */
+  payerNotice: { written: number; why: string | null }
 }
 
 /**
@@ -181,6 +184,11 @@ export async function markSent(
     },
   })
   if (moved.count !== 1) throw new Error('ALREADY_MOVED')
+  // The payer's people who record payments are told in this transaction,
+  // so a sent bill cannot exist without its notice (the handoffs run,
+  // 2026-10-22). The letter or Teams message still goes after the commit
+  // (`sendBillToCustomer`), because a message cannot be called back.
+  const told = await writePayerNoticesIn(tx, { invoiceId: inv.id })
   const toClose: Parameters<typeof completeCycles>[1] = []
   // Ask Etyme's open question about sending this bill is overtaken: it is
   // sent. Closed unanswered, so the card goes and a late yes is told why.
@@ -272,6 +280,7 @@ export async function markSent(
   return {
     invoiceId: inv.id, number: inv.number, total: Number(inv.total), currency: inv.currency,
     dueAt, submittedAt: now, raised,
+    payerNotice: { written: told.written, why: told.why },
   }
 }
 

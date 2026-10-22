@@ -93,6 +93,8 @@ export async function POST(
         // dana@acme.com on Oct 19", or why it was not. Null where the
         // delivery itself failed and staff were told.
         delivery: delivered?.says ?? null,
+        // Where nobody at the payer can record a payment yet, the sender reads it.
+        ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
       },
     })
   } catch (err: any) {

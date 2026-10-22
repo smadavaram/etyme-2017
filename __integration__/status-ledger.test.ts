@@ -372,6 +372,23 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('SUBMITTED')
   })
 
+  it('a sent bill tells the people at the payer who record payments in the sending itself, once, and sending it again tells nobody twice', async () => {
+    const told = await prisma.notification.findMany({
+      where: { entityId: it_.invoice, type: 'INVOICE', data: { path: ['writtenInTheSending'], equals: true } },
+      select: { personId: true, companyId: true },
+    })
+    expect(told.length).toBeGreaterThan(0)
+    for (const n of told) expect(n.companyId).toBe(co['world-nike'])
+    expect(new Set(told.map((n) => n.personId)).size).toBe(told.length)
+
+    as(PINNACLE)
+    const again = await call(submitInvoice, 'POST', `/api/invoices/${it_.invoice}/submit`, it_.invoice, {})
+    expect(again.status).toBe(409)
+    expect(await prisma.notification.count({
+      where: { entityId: it_.invoice, type: 'INVOICE', data: { path: ['writtenInTheSending'], equals: true } },
+    })).toBe(told.length)
+  })
+
   it('the payment: invoice PAID with its expense, and a payment row saying who paid whom', async () => {
     as(NIKE.ap)
     const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1932.5, method: 'ACH', reference: 'NIKE-AP-1001' })

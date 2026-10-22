@@ -371,6 +371,7 @@ export const billSend: Performer = {
     return {
       invoiceId: sent.invoiceId, number: sent.number, total: sent.total, currency: sent.currency,
       dueAt: sent.dueAt.toISOString(), submittedAt: sent.submittedAt.toISOString(),
+      ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}),
     }
   },
   async after(c) {

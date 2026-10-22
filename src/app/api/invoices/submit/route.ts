@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         return null
       })
       submitted++
-      results.push({ invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null })
+      results.push({ invoiceId, number: sent.number, status: 'submitted', delivery: delivered?.says ?? null, ...(sent.payerNotice.why ? { payerNotice: sent.payerNotice.why } : {}) })
     } catch (err: any) {
       if (err instanceof Error && err.message.startsWith('ALREADY_MOVED')) {
         skipped++
