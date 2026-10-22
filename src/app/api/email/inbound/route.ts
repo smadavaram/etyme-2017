@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { receiveDelivery } from '@/lib/email-intake'
+import { intakeLive, receiveDelivery } from '@/lib/email-intake'
 
 /**
  * POST /api/email/inbound
@@ -14,6 +14,10 @@ import { receiveDelivery } from '@/lib/email-intake'
  * file must be what its bytes say. Every message writes its row, kept or
  * dropped, before this answers.
  *
+ * Closed until the deployment opens it (`EMAIL_INTAKE_LIVE` exactly "1"):
+ * until then it answers 404 at once, reads nothing and writes no row, so
+ * a flood of posts costs nothing.
+ *
  * Nothing a message says is acted on. An accepted one becomes a draft a
  * person says yes or no to.
  */
@@ -21,6 +25,9 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  if (!intakeLive()) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Not found.' } }, { status: 404, headers: { 'cache-control': 'no-store' } })
+  }
   const raw = await request.text().catch(() => '')
   const header = (svix: string, standard: string) => request.headers.get(svix) ?? request.headers.get(standard)
   const out = await receiveDelivery({

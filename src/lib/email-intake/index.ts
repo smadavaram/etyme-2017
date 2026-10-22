@@ -2,6 +2,7 @@
  * Forwarded business email, received securely (founder, 2026-10-22:
  * "security beats everything"). The one door.
  *
+ *   live        the deployment's switch; off unless EMAIL_INTAKE_LIVE is "1"
  *   address     the company's one address, minted, hashed, parsed
  *   signature   the provider's signature over the raw delivery
  *   sender      SPF and DKIM passed and aligned
@@ -13,6 +14,7 @@
  *   drafts      what the card owners read and write
  *   retention   the nightly deletion
  */
+export * from './live'
 export * from './address'
 export * from './signature'
 export * from './sender'

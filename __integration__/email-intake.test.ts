@@ -3,7 +3,7 @@ import { prisma, as, req, json, freshWorld } from './harness'
 import { PATCH as settingsPATCH, GET as settingsGET } from '@/app/api/settings/email-intake/route'
 import { POST as inboundPOST } from '@/app/api/email/inbound/route'
 import { GET as cronGET } from '@/app/api/cron/email-intake/route'
-import { signDelivery, INTAKE_SECRET_ENV, RECEIVING_KEY_ENV, markIntakeDecided, intakeDraft } from '@/lib/email-intake'
+import { signDelivery, INTAKE_SECRET_ENV, INTAKE_LIVE_ENV, RECEIVING_KEY_ENV, markIntakeDecided, intakeDraft } from '@/lib/email-intake'
 import { NextRequest } from 'next/server'
 
 /**
@@ -88,6 +88,7 @@ describe('forwarded business email', () => {
     await freshWorld()
     process.env[INTAKE_SECRET_ENV] = SECRET
     process.env[RECEIVING_KEY_ENV] = 're_integration_test_key'
+    process.env[INTAKE_LIVE_ENV] = '1'
     const companies = await prisma.company.findMany({
       where: { isDemo: false, contexts: { some: { revokedAt: null, role: { name: 'Owner' } } } },
       select: { id: true },
@@ -105,6 +106,21 @@ describe('forwarded business email', () => {
     vi.stubGlobal('fetch', vi.fn(fakeFetch))
   })
   afterEach(() => undefined)
+
+  it('while the deployment has not opened forwarded email, no Owner can turn it on', async () => {
+    delete process.env[INTAKE_LIVE_ENV]
+    try {
+      as(ownerA)
+      const refused = await json(await settingsPATCH(req('PATCH', '/api/settings/email-intake', { on: true })))
+      expect(refused.status).toBe(409)
+      expect(refused.body.error.message).toBe('Forwarded email is not open on this deployment yet.')
+      expect(await prisma.emailIntake.findUnique({ where: { companyId: companyA } })).toBeNull()
+      const read = await json(await settingsGET(req('GET', '/api/settings/email-intake')))
+      expect(read.body.data.open).toBe(false)
+    } finally {
+      process.env[INTAKE_LIVE_ENV] = '1'
+    }
+  })
 
   it('the intake is off until an Owner or Admin turns it on, and nobody else may', async () => {
     as(ownerA)
@@ -275,10 +291,12 @@ describe('forwarded business email', () => {
     expect(await prisma.inboundEmail.findUniqueOrThrow({ where: { providerEmailId: id } })).toMatchObject({ reasonCode: 'INTAKE_OFF', body: null })
   })
 
-  it('a body is gone after its card is decided, and its unfiled files with it', async () => {
+  it('a body is gone after its card is decided, and its unfiled files with it, even on a deployment that has closed the intake', async () => {
     const row = await prisma.inboundEmail.findFirstOrThrow({ where: { companyId: companyA, verdict: 'ACCEPTED', kind: 'INVOICE_RECEIPT' }, include: { attachments: true } })
     const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ownerA }, select: { id: true } })
     expect(await markIntakeDecided(row.id, companyA, owner.id)).toBe(true)
+    // The nightly deletion runs whether or not the deployment has opened the intake.
+    delete process.env[INTAKE_LIVE_ENV]
     const res = await cronGET(new NextRequest('http://localhost:3000/api/cron/email-intake', { headers: { authorization: `Bearer ${process.env.CRON_SECRET ?? ''}` } }))
     if (res.status === 401) {
       process.env.CRON_SECRET = 'integration-cron-secret'

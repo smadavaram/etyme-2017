@@ -40,7 +40,7 @@ import {
   judgeAttachment, judgeDeclared, FILE_CAP_BYTES, sniff,
   plainBody, htmlToText,
   sortEmail, readsAsInstruction, applyModelFill, splitForward, originalSenderIn, MODEL_STEP,
-  dueForDeletion,
+  dueForDeletion, intakeLive, INTAKE_LIVE_ENV,
   type IntakeFields, type SortInput,
 } from '@/lib/email-intake'
 import { POST } from '@/app/api/email/inbound/route'
@@ -230,13 +230,34 @@ describe('the door', () => {
     rows.length = 0
     automation.length = 0
     process.env[INTAKE_SECRET_ENV] = SECRET
+    process.env[INTAKE_LIVE_ENV] = '1'
     vi.stubGlobal('fetch', fetchSpy)
     fetchSpy.mockReset()
     fake.emailIntake.findMany.mockClear()
+    fake.inboundEmail.create.mockClear()
   })
   afterEach(() => {
     vi.unstubAllGlobals()
     delete process.env[INTAKE_SECRET_ENV]
+    delete process.env[INTAKE_LIVE_ENV]
+  })
+
+  it('forwarded email is open on a deployment only when EMAIL_INTAKE_LIVE is exactly 1', () => {
+    expect(intakeLive({})).toBe(false)
+    for (const v of ['0', 'true', 'yes', ' 1', '1 ', 'on']) expect(intakeLive({ [INTAKE_LIVE_ENV]: v }), v).toBe(false)
+    expect(intakeLive({ [INTAKE_LIVE_ENV]: '1' })).toBe(true)
+  })
+
+  it('while the deployment has not opened forwarded email, the door answers 404 at once and writes no row, signed or not', async () => {
+    delete process.env[INTAKE_LIVE_ENV]
+    const body = JSON.stringify({ type: 'email.received', data: { email_id: 'abcdef12-3456', to: ['acme-' + mintToken() + '@in.etyme.com'] } })
+    const ts = String(Math.floor(Date.now() / 1000))
+    for (let i = 0; i < 25; i++) expect((await post('{"flood":' + i + '}', {})).status).toBe(404)
+    expect((await post(body, { 'svix-id': 'msg_9', 'svix-timestamp': ts, 'svix-signature': signDelivery(SECRET, 'msg_9', ts, body) })).status).toBe(404)
+    expect(rows).toHaveLength(0)
+    expect(fake.inboundEmail.create).not.toHaveBeenCalled()
+    expect(fake.emailIntake.findMany).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   const post = (body: string, headers: Record<string, string>) =>

@@ -772,7 +772,13 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   and an Outlook "Redirect" keep the original sender in From and are
   dropped with "holds no seat". Accepting them would need trusting ARC
   headers from the forwarding server; not done, because security wins.
-- **Unsigned deliveries each write a row.** Every refused request is
+- **Closed until the deployment opens it.** Until `EMAIL_INTAKE_LIVE` is
+  exactly "1", `POST /api/email/inbound` answers 404 and writes nothing, and
+  no company can turn the intake on; the nightly deletion still runs. It is
+  opened after the founder's walk has attacked it and the privacy notice
+  and DPA name forwarded email. The flood line below applies only once it
+  is open.
+- **Unsigned deliveries each write a row (once open).** Every refused request is
   logged as the rules ask, so a flood of unsigned posts writes a flood of
   small rows. Nothing from their bodies is kept. The hosting firewall's rate
   limit is the answer, and it is not set up.

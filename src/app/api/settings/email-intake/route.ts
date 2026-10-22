@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
-import { changeIntake, intakeStateFor, INTAKE_ROLES, INTAKE_DOMAIN } from '@/lib/email-intake'
+import { changeIntake, intakeLive, intakeStateFor, INTAKE_ROLES, INTAKE_DOMAIN, NOT_OPEN_YET } from '@/lib/email-intake'
 
 /**
  * GET   /api/settings/email-intake — whether forwarded email is on for the
@@ -10,6 +10,9 @@ import { changeIntake, intakeStateFor, INTAKE_ROLES, INTAKE_DOMAIN } from '@/lib
  * PATCH /api/settings/email-intake { on?: boolean, replace?: true } — turn
  *       it on or off, and/or replace the address. The whole address is in
  *       this response only when this call made it, and nowhere else, ever.
+ *
+ * Nothing turns it on while the deployment has not opened it
+ * (`EMAIL_INTAKE_LIVE` exactly "1"); turning it off is always allowed.
  *
  * Owner or Admin only (founder, 2026-10-22). A demo company cannot
  * receive email, and a machine key cannot turn it on.
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (!caller.company) return refuse('NO_COMPANY', 'Forwarded email is set for a company, and you are not signed in at one.', 403)
   if (!(await ownerOrAdmin(caller))) return refuse('FORBIDDEN', ONLY, 403)
   const state = await intakeStateFor(caller.company.id)
-  return NextResponse.json({ data: { ...state, domain: INTAKE_DOMAIN } }, { headers: NO_STORE })
+  return NextResponse.json({ data: { ...state, domain: INTAKE_DOMAIN, open: intakeLive() } }, { headers: NO_STORE })
 }
 
 export async function PATCH(request: NextRequest) {
@@ -51,6 +54,7 @@ export async function PATCH(request: NextRequest) {
   if (on === undefined && !replace) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say on or off, or ask to replace the address.', field: 'on' } }, { status: 422, headers: NO_STORE })
   }
+  if (on === true && !intakeLive()) return refuse('NOT_OPEN', NOT_OPEN_YET, 409)
   const out = await changeIntake(caller.company.id, caller.person.id, { on, replace })
   if (!out.ok) return refuse('VALIDATION', out.says, 422)
   return NextResponse.json({ data: { ...out.state, address: out.address, message: out.says } }, { headers: NO_STORE })
