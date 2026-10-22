@@ -33,6 +33,8 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 import type { MoneyKind } from '@/lib/cycle-kinds'
 import { planCyclesFor } from '@/lib/contract-cycles'
 import { loadContractHolidays } from '@/lib/holidays'
+import { prisma } from '@/lib/db'
+import { reportError } from '@/lib/alerts'
 import { termsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 
 export interface CycleRow {
@@ -137,69 +139,108 @@ export function pickCycle(
 type Db = PrismaClient | Prisma.TransactionClient
 
 /**
- * Mark the matching cycle done. Returns its id, or null when there was
- * nothing to mark — a contract raised before cycles were generated, or a
- * period already accounted for. Never throws: a timeline that is behind
- * is a lesser fault than a submission that fails because of it.
+ * A failure the database gave, as opposed to a line with nothing to mark.
+ * Prisma's own errors carry a P-code or a PrismaClient name.
  */
-export async function completeCycle(
-  db: Db,
-  args: {
-    sellContractId?: string | null
-    buyContractId?: string | null
-    kind: MoneyKind
-    periodEnd: Date
-    at?: Date
-  }
-): Promise<string | null> {
+function fromTheDatabase(err: unknown): boolean {
+  const e = err as { name?: unknown; code?: unknown } | null
+  return (typeof e?.name === 'string' && e.name.startsWith('PrismaClient')) ||
+    (typeof e?.code === 'string' && /^P\d{4}$/.test(e.code))
+}
+
+/**
+ * What a database failure means here depends on where it happened.
+ *
+ * Inside a transaction it is thrown: Postgres has already aborted that
+ * transaction, so swallowing it only hid that the bill or the week was
+ * about to roll back, and left the reminder silently open (found on the
+ * 2,000-person world, 2026-10-22). Outside one, the act it follows has
+ * already stood, so the failure is reported to staff and the reminder
+ * stays open: never silent, never a refusal of something that was done.
+ */
+async function onDatabaseFailure(db: Db, err: unknown): Promise<null> {
+  if (db !== prisma) throw err
+  await reportError('A due date could not be marked done', err).catch(() => {})
+  return null
+}
+
+interface CompleteArgs {
+  sellContractId?: string | null
+  buyContractId?: string | null
+  kind: MoneyKind
+  periodEnd: Date
+  at?: Date
+}
+
+/** Which cycle one event closes, read and not written. Null where there is nothing to mark. */
+async function cycleToComplete(db: Db, args: CompleteArgs): Promise<string | null> {
   const where = args.sellContractId
     ? { sellContractId: args.sellContractId }
     : args.buyContractId
       ? { buyContractId: args.buyContractId }
       : null
   if (!where) return null
+  const rows = await db.cycle.findMany({
+    // Every row of the kind, done or not: the guard in `pickCycle`
+    // needs the earliest one ever written, not the earliest still open.
+    where: { ...where, kind: args.kind },
+    select: { id: true, kind: true, dueOn: true, completedAt: true },
+  })
+  // The line's whole series is read only where it can change the answer:
+  // the period would claim the earliest date ever written, which is the
+  // one an award's floor may have stood in front of.
+  const floor = args.periodEnd.getTime() - DAY
+  const first = rows.reduce<CycleRow | null>((a, c) => (!a || c.dueOn < a.dueOn ? c : a), null)
+  const series =
+    first && first.completedAt === null && first.dueOn.getTime() >= floor
+      ? await ownSeries(db, { sellContractId: args.sellContractId, buyContractId: args.buyContractId, kind: args.kind })
+      : null
+  return pickCycle(rows, args.kind, args.periodEnd, series)?.id ?? null
+}
+
+/**
+ * Mark the matching cycle done. Returns its id, or null when there was
+ * nothing to mark — a contract raised before cycles were generated, or a
+ * period already accounted for. A database failure is thrown inside a
+ * transaction and reported outside one (`onDatabaseFailure`).
+ */
+export async function completeCycle(db: Db, args: CompleteArgs): Promise<string | null> {
   try {
-    const rows = await db.cycle.findMany({
-      // Every row of the kind, done or not: the guard in `pickCycle`
-      // needs the earliest one ever written, not the earliest still open.
-      where: { ...where, kind: args.kind },
-      select: { id: true, kind: true, dueOn: true, completedAt: true },
-    })
-    // The line's whole series is read only where it can change the answer:
-    // the period would claim the earliest date ever written, which is the
-    // one an award's floor may have stood in front of.
-    const floor = args.periodEnd.getTime() - DAY
-    const first = rows.reduce<CycleRow | null>((a, c) => (!a || c.dueOn < a.dueOn ? c : a), null)
-    const series =
-      first && first.completedAt === null && first.dueOn.getTime() >= floor
-        ? await ownSeries(db, { sellContractId: args.sellContractId, buyContractId: args.buyContractId, kind: args.kind })
-        : null
-    const hit = pickCycle(rows, args.kind, args.periodEnd, series)
-    if (!hit) return null
-    await db.cycle.update({ where: { id: hit.id }, data: { completedAt: args.at ?? new Date() } })
-    return hit.id
-  } catch {
+    const id = await cycleToComplete(db, args)
+    if (!id) return null
+    await db.cycle.update({ where: { id }, data: { completedAt: args.at ?? new Date() } })
+    return id
+  } catch (err) {
+    if (fromTheDatabase(err)) return onDatabaseFailure(db, err)
     return null
   }
 }
 
 /**
- * Every date of `kind` the line has, the ones an award's floor did not
- * write included, or null where it cannot be said.
- *
- * Asked of the same door, with the same answers, the award asked: the
- * sell line's own dates through `lib/money/order-terms`, the pack of the
- * firm that holds it, both companies' calendars at the client's primary
- * site, and the weekend rule and payroll of the firm that holds the pair
- * (`planCyclesFor` reads those itself). Nothing is written. A buy line's
- * dates are generated over the sell line it funds, as they were written.
- *
- * Two things it cannot know, and neither moves a kind this file closes:
- * the demo's monthly pay override, which replaces only the two salary
- * kinds that the pay run marks itself; and a calendar or weekend rule
- * changed since the award, which is why `pickCycle` reads the series
- * only where the earliest written date is found in it.
+ * Several events at once — a bill closing the reminders of every line on
+ * it. Every cycle is found first, then marked in id order: two bills that
+ * close overlapping cycles take the rows in the same order, so neither
+ * waits on a row the other holds while holding one it wants.
  */
+export async function completeCycles(db: Db, list: CompleteArgs[]): Promise<string[]> {
+  try {
+    const found: { id: string; at: Date }[] = []
+    for (const args of list) {
+      const id = await cycleToComplete(db, args)
+      if (id && !found.some((f) => f.id === id)) found.push({ id, at: args.at ?? new Date() })
+    }
+    found.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    for (const f of found) await db.cycle.update({ where: { id: f.id }, data: { completedAt: f.at } })
+    return found.map((f) => f.id)
+  } catch (err) {
+    if (fromTheDatabase(err)) {
+      await onDatabaseFailure(db, err)
+      return []
+    }
+    return []
+  }
+}
+
 export async function ownSeries(
   db: Db,
   args: { sellContractId?: string | null; buyContractId?: string | null; kind: string }
@@ -245,7 +286,9 @@ export async function ownSeries(
       sell.clientCompanyId,
       dates.startDate.getFullYear(),
       dates.endDate.getFullYear(),
-      site?.country ?? null
+      site?.country ?? null,
+      // The caller's own client: inside a transaction, the transaction.
+      db
     )
     const planned = await planCyclesFor(db, {
       sell: { id: sell.id, startDate: sell.startDate, endDate: sell.endDate, workOrder: sell.workOrder },
@@ -257,7 +300,10 @@ export async function ownSeries(
       args.buyContractId ? 'buyContractId' in r && r.buyContractId === args.buyContractId : 'sellContractId' in r
     const due = planned.rows.filter((r) => r.kind === args.kind && onLine(r)).map((r) => r.dueOn)
     return due.length > 0 ? due : null
-  } catch {
+  } catch (err) {
+    // A line whose dates cannot be generated has no series; a database
+    // failure is not that, and is the caller's to hear.
+    if (fromTheDatabase(err)) throw err
     return null
   }
 }

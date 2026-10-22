@@ -31,7 +31,7 @@
 import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
-import { completeCycle } from '@/lib/cycle-complete'
+import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
 import { billsOnLeg, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
 import { legsOverMany, acceptancesOn } from '@/lib/money/expense-acceptance-read'
@@ -1540,11 +1540,13 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       const allTimesheetIds = lines.flatMap((l) => l.timesheetIds)
 
       // The "invoice to raise" cycle on each contract billed here is done
-      // — when it is raised. A draft closes it when it is sent. Closed
-      // after the commit, below, not in here: `completeCycle` swallows its
-      // own failures, so the reminder was never bound to the bill, and its
-      // reads (the line, its whole series) were the slowest thing this
-      // transaction did.
+      // — when it is raised. A draft closes it when it is sent. In this
+      // transaction, on its own connection, all at once and in id order
+      // (`completeCycles`): the bill and its reminders stand or fall
+      // together, and two bills closing the same lines cannot deadlock.
+      if (!draft) {
+        await completeCycles(tx, lines.map((l) => ({ sellContractId: l.sellContractId, kind: 'INVOICE_GENERATE' as const, periodEnd: l.periodEnd })))
+      }
 
       // AutomationLog
       await tx.automationLog.create({
@@ -1587,13 +1589,6 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       ? await write(opts.tx)
       : await prisma.$transaction(write, { maxWait: TX_MAX_WAIT_MS, timeout: TX_TIMEOUT_MS })
 
-    // The reminders the bill answers, now that it exists. Inside a caller's
-    // own transaction they stay in it, as before.
-    if (!draft) {
-      for (const l of lines) {
-        await completeCycle(opts.tx ?? prisma, { sellContractId: l.sellContractId, kind: 'INVOICE_GENERATE', periodEnd: l.periodEnd })
-      }
-    }
 
     // After the transaction. An invoice event for an invoice that rolled
     // back would have an AP team chasing a number that does not exist.

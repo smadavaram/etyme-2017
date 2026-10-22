@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
 /**
@@ -21,13 +22,23 @@ export function appliesTo(holidayCountry: string | null, siteCountry: string | n
   return holidayCountry.toUpperCase() === siteCountry.toUpperCase()
 }
 
+/**
+ * The client to read through. A caller inside a transaction passes it:
+ * the global client asks the pool for a second connection, and with the
+ * pool's nine connections each held by a transaction waiting on its own
+ * holiday read, nothing moves until the five-second limit closes them
+ * all (found on the 2,000-person world, 2026-10-22).
+ */
+type HolidayReader = Pick<Prisma.TransactionClient, 'holiday'>
+
 export async function loadCompanyHolidays(
   companyId: string,
   startYear: number,
   endYear: number,
-  siteCountry?: string | null
+  siteCountry?: string | null,
+  db: HolidayReader = prisma
 ): Promise<Set<string>> {
-  const holidays = await prisma.holiday.findMany({
+  const holidays = await db.holiday.findMany({
     where: { companyId },
     select: { date: true, isRecurring: true, country: true },
   })
@@ -79,12 +90,12 @@ export async function loadContractHolidays(
   clientCompanyId: string,
   startYear: number,
   endYear: number,
-  siteCountry?: string | null
+  siteCountry?: string | null,
+  db: HolidayReader = prisma
 ): Promise<Set<string>> {
-  const [vendorHolidays, clientHolidays] = await Promise.all([
-    loadCompanyHolidays(vendorCompanyId, startYear, endYear, siteCountry),
-    loadCompanyHolidays(clientCompanyId, startYear, endYear, siteCountry),
-  ])
+  // One after the other: inside a transaction there is one connection.
+  const vendorHolidays = await loadCompanyHolidays(vendorCompanyId, startYear, endYear, siteCountry, db)
+  const clientHolidays = await loadCompanyHolidays(clientCompanyId, startYear, endYear, siteCountry, db)
 
   // Union both sets
   for (const d of clientHolidays) {

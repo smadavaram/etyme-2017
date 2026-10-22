@@ -29,7 +29,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
-import { completeCycle } from '@/lib/cycle-complete'
+import { completeCycles } from '@/lib/cycle-complete'
 import { invoicesRaisedBy, partiesOf } from '@/lib/money/invoice-parties'
 import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT } from '@/lib/money/order-terms'
 import { billDue } from '@/lib/money/bill-generate'
@@ -181,6 +181,7 @@ export async function markSent(
     },
   })
   if (moved.count !== 1) throw new Error('ALREADY_MOVED')
+  const toClose: Parameters<typeof completeCycles>[1] = []
   // Ask Etyme's open question about sending this bill is overtaken: it is
   // sent. Closed unanswered, so the card goes and a late yes is told why.
   // A yes sending it now already moved its own question, so finds none.
@@ -198,8 +199,9 @@ export async function markSent(
       const was = latest.get(l.sellContractId)
       if (!was || l.timesheet.periodEnd > was) latest.set(l.sellContractId, l.timesheet.periodEnd)
     }
+    // Marked with the payer's dates below, in one id-ordered call.
     for (const [sellContractId, periodEnd] of latest) {
-      await completeCycle(tx, { sellContractId, kind: 'INVOICE_GENERATE', periodEnd })
+      toClose.push({ sellContractId, kind: 'INVOICE_GENERATE', periodEnd })
     }
     // The overtime answers this bill was priced on become history now,
     // when it is sent — not when it was drafted. A draft is the firm's
@@ -241,9 +243,12 @@ export async function markSent(
       select: { id: true },
     })
     for (const b of payersLines) {
-      await completeCycle(tx, { buyContractId: b.id, kind: 'VENDOR_BILL_GENERATE', periodEnd })
+      toClose.push({ buyContractId: b.id, kind: 'VENDOR_BILL_GENERATE', periodEnd })
     }
   }
+  // Every reminder this bill answers, in this transaction and in id order,
+  // so two bills sent at once cannot each hold a row the other wants.
+  await completeCycles(tx, toClose)
 
   await tx.automationLog.create({
     data: {

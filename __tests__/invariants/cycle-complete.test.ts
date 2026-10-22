@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { pickCycle, type CycleRow } from '@/lib/cycle-complete'
+import { pickCycle, completeCycle, completeCycles, ownSeries, type CycleRow } from '@/lib/cycle-complete'
+import { loadContractHolidays } from '@/lib/holidays'
+import { prisma } from '@/lib/db'
+import { reportError } from '@/lib/alerts'
+
+vi.mock('@/lib/alerts', () => ({ reportError: vi.fn(async () => {}) }))
 
 /**
  * A cycle is marked done when the thing it was waiting for happens.
@@ -225,5 +230,104 @@ describe('nothing completes a cycle that is no longer generated', () => {
   it('raising the invoice and raising the vendor bill still close theirs', () => {
     expect(read('src/lib/money/bill-generate.ts')).toContain("kind: 'INVOICE_GENERATE'")
     expect(read('src/app/api/ap/bills/route.ts')).toContain("kind: 'VENDOR_BILL_GENERATE'")
+  })
+})
+
+// ── Inside a transaction, on its own connection (2026-10-22) ──────────
+//
+// Found on the 2,000-person world: closing a cycle read the holidays
+// through the global client, so every bill and approval holding a
+// transaction asked the pool for a second connection. With the pool's
+// nine connections each held by a transaction waiting on its own holiday
+// read, nothing moved until the five-second limit closed them all, and
+// the failure was swallowed, leaving the bill's reminder silently open.
+
+const dbError = () => Object.assign(new Error('Transaction already closed'), { name: 'PrismaClientKnownRequestError', code: 'P2028' })
+
+/** A transaction client with only what the cycle reads, every call recorded. */
+function fakeTx(cycles: Record<string, CycleRow[]> = {}) {
+  const updates: string[] = []
+  const holidayReads: string[] = []
+  const tx = {
+    cycle: {
+      findMany: vi.fn(async ({ where }: any) => cycles[where.sellContractId ?? where.buyContractId] ?? []),
+      update: vi.fn(async ({ where }: any) => { updates.push(where.id); return {} }),
+    },
+    contractLink: { findFirst: vi.fn(async () => null) },
+    sellContract: {
+      findUnique: vi.fn(async () => ({
+        id: 'line', startDate: d('2026-09-06'), endDate: d('2026-12-26'), companyId: 'firm', clientCompanyId: 'client',
+        company: { templatePack: 'US_IT' }, workOrder: null,
+      })),
+    },
+    buyContract: { findUnique: vi.fn(async () => null) },
+    companyLocation: { findFirst: vi.fn(async () => ({ country: 'US' })) },
+    holiday: { findMany: vi.fn(async ({ where }: any) => { holidayReads.push(where.companyId); return [] }) },
+  }
+  return { tx: tx as any, updates, holidayReads }
+}
+
+describe('a cycle closed inside a transaction stays on that transaction', () => {
+  it('the two companies\u2019 holidays are read through the client a caller passes, never the global one', async () => {
+    const { tx, holidayReads } = fakeTx()
+    const keys = await loadContractHolidays('firm', 'client', 2026, 2026, 'US', tx)
+    expect(keys.size).toBe(0)
+    expect(holidayReads).toEqual(['firm', 'client'])
+    expect((prisma as any).holiday).toBeUndefined()
+  })
+
+  it('a line\u2019s whole series is generated with its holidays read through the transaction it was asked in', async () => {
+    const { tx, holidayReads } = fakeTx()
+    const series = await ownSeries(tx, { sellContractId: 'line', kind: 'INVOICE_GENERATE' })
+    expect(series?.length).toBeGreaterThan(0)
+    expect(holidayReads).toEqual(['firm', 'client'])
+  })
+
+  it('a database failure while closing a cycle inside a transaction is thrown, so the bill rolls back rather than leaving its reminder silently open', async () => {
+    const { tx } = fakeTx()
+    tx.cycle.findMany = vi.fn(async () => { throw dbError() })
+    await expect(completeCycle(tx, { sellContractId: 'line', kind: 'INVOICE_GENERATE', periodEnd: d('2026-10-03') })).rejects.toThrow(/Transaction already closed/)
+    await expect(completeCycles(tx, [{ sellContractId: 'line', kind: 'INVOICE_GENERATE', periodEnd: d('2026-10-03') }])).rejects.toThrow(/Transaction already closed/)
+  })
+
+  it('a database failure while closing a cycle after the act already stood is reported to staff, and the act is not refused', async () => {
+    vi.mocked(reportError).mockClear()
+    ;(prisma as any).cycle = { findMany: vi.fn(async () => { throw dbError() }), update: vi.fn() }
+    try {
+      await expect(completeCycle(prisma as any, { sellContractId: 'line', kind: 'TIMESHEET_APPROVE', periodEnd: d('2026-10-03') })).resolves.toBeNull()
+      expect(reportError).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(reportError).mock.calls[0][0]).toBe('A due date could not be marked done')
+    } finally {
+      delete (prisma as any).cycle
+    }
+  })
+
+  it('a line with nothing to mark is still answered with nothing, and nobody is alerted', async () => {
+    vi.mocked(reportError).mockClear()
+    const { tx, updates } = fakeTx()
+    await expect(completeCycle(tx, { sellContractId: 'line', kind: 'INVOICE_GENERATE', periodEnd: d('2026-10-03') })).resolves.toBeNull()
+    expect(updates).toEqual([])
+    expect(reportError).not.toHaveBeenCalled()
+  })
+
+  it('a bill closes all its reminders in id order, whatever order its lines came in, so two bills closing the same lines cannot deadlock', async () => {
+    const { tx, updates } = fakeTx({
+      'line-b': [c('cz9', 'INVOICE_GENERATE', '2026-10-06')],
+      'line-a': [c('cz1', 'INVOICE_GENERATE', '2026-10-06')],
+    })
+    tx.sellContract.findUnique = vi.fn(async () => null)
+    const done = await completeCycles(tx, [
+      { sellContractId: 'line-b', kind: 'INVOICE_GENERATE', periodEnd: d('2026-10-03') },
+      { sellContractId: 'line-a', kind: 'INVOICE_GENERATE', periodEnd: d('2026-10-03') },
+    ])
+    expect(done).toEqual(['cz1', 'cz9'])
+    expect(updates).toEqual(['cz1', 'cz9'])
+  })
+
+  it('raising a bill and sending one close their reminders through the one ordered call, inside their own transaction', () => {
+    expect(read('src/lib/money/bill-generate.ts')).toContain('await completeCycles(tx, lines.map(')
+    expect(read('src/lib/money/bill-send.ts')).toContain('await completeCycles(tx, toClose)')
+    expect(read('src/lib/money/bill-generate.ts')).not.toMatch(/completeCycle\(/)
+    expect(read('src/lib/money/bill-send.ts')).not.toMatch(/completeCycle\(/)
   })
 })
