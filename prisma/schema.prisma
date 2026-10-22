@@ -6328,6 +6328,10 @@ enum VerificationType {
   VISA // the stamp or the approval notice, as distinct from a VisaPetition
   DRIVERS_LICENSE
   WORK_PERMIT
+  // The arrival record. Added 2026-10-21: the I-94's admit-until date, not
+  // the visa stamp, is how long a person may stay, so an extension past
+  // it is checked against it (regulatory). Not I-9 evidence on its own.
+  I94
 
   // A supplier-level document the founder named: it has a start and an
   // end, like cover, and nothing here could hold one.
