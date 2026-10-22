@@ -25,7 +25,7 @@ const JOBS = [
   'auto-approve', 'due-cycles', 'end-contracts', 'retention', 'rolloff-scan',
   'visa-watch', 'agreement-terms', 'loose-ends', 'expire-invitations',
   'cold-openings', 'bench-stays', 'proactive-match', 'freshness-ping', 'deliver-webhooks',
-  'watch', 'reap-demos', 'twin',
+  'watch', 'reap-demos', 'twin', 'email-intake',
 ] as const
 
 const outcome: Record<string, { status: number; body: unknown; threw?: string }> = {}
