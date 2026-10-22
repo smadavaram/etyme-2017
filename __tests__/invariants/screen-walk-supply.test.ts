@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   paperRows, outstanding, paperworkHeadline, sectionOf, rowsInSection, SECTIONS,
-  isLicenseRow, licenseFieldsSay, licenseNote,
+  isLicenseRow, licenseFieldsFor,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { readBench, onTheBench, askedSays, ASKED_HEADING } from '@/lib/bench-filter'
 import {
@@ -237,8 +237,6 @@ describe('A client extends a placement to a day they choose, and says why', () =
 })
 
 describe('A worker who renews a license says what makes it checkable', () => {
-  const renewal = { number: 'RN-482113', issuedBy: 'Wisconsin Board of Nursing', expiresOn: '2028-10-31' }
-
   it('a license of any trade is asked for as a license: a nursing registration, an electrician’s, a driver’s', () => {
     expect(isLicenseRow({ documentTypeKey: 'RN_LICENSE', name: 'State registered nurse license (WI)' })).toBe(true)
     expect(isLicenseRow({ documentTypeKey: 'PROFESSIONAL_LICENSE', name: 'Professional license' })).toBe(true)
@@ -246,24 +244,23 @@ describe('A worker who renews a license says what makes it checkable', () => {
     expect(isLicenseRow({ documentTypeKey: 'COI', name: 'Certificate of insurance' })).toBe(false)
   })
 
-  it('a renewed license is not sent without its number, the state or board that issued it, and the new expiry date', () => {
-    expect(licenseFieldsSay(renewal, '2026-10-22')).toBeNull()
-    expect(licenseFieldsSay({ ...renewal, number: ' ' }, '2026-10-22')).toBe('Give the license number, as it is on the register.')
-    expect(licenseFieldsSay({ ...renewal, issuedBy: '' }, '2026-10-22')).toBe('Say which state or board issued it.')
-    expect(licenseFieldsSay({ ...renewal, expiresOn: '' }, '2026-10-22')).toBe('Give the new expiry date printed on it.')
-  })
-
-  it('a renewal whose expiry date has already passed is refused in a sentence, because it renews nothing', () => {
-    expect(licenseFieldsSay({ ...renewal, expiresOn: '2026-10-22' }, '2026-10-22'))
-      .toBe('That date has passed. Give the new expiry date printed on the renewed license.')
-  })
-
-  it('the three facts travel with the file as one line the examiner reads against it', () => {
-    expect(licenseNote(renewal)).toBe('License number RN-482113 · issued by Wisconsin Board of Nursing · runs out Oct 31, 2028')
-    expect(PAPERS).toContain("if (r.todo === 'upload' && isLicenseRow(r)) {")
-    expect(PAPERS).toContain("if (note) form.append('note', note)")
+  it('a renewed license is sent with its number, the state or board that issued it, and the new expiry date, as fields the upload route reads', () => {
+    expect(licenseFieldsFor({ number: ' RN-482113 ', issuedBy: 'Wisconsin Board of Nursing ', expiresOn: '2028-10-31' }))
+      .toEqual({ licenseNumber: 'RN-482113', issuer: 'Wisconsin Board of Nursing', expiresAt: '2028-10-31' })
+    expect(PAPERS).toContain("const facts = r.todo === 'upload' && isLicenseRow(r) ? licenseFieldsFor(licenseOf(r.id)) : null")
+    // As a file, each fact is a form field beside it; as a link, in the body.
+    expect(PAPERS).toContain('if (facts) for (const [k, v] of Object.entries(facts)) form.append(k, v)')
+    expect(PAPERS).toContain('...(facts ?? {})')
     expect(PAPERS).toContain('License number')
     expect(PAPERS).toContain('Issued by (state or board)')
     expect(PAPERS).toContain('New expiry date')
+  })
+
+  it('a renewal the route refuses is said in the route’s own sentence, beside the license it is about', () => {
+    // One rule, the route's: the screen keeps no second copy that could
+    // disagree with it about what a license needs.
+    expect(PAPERS).not.toContain('licenseFieldsSay')
+    expect(PAPERS).toContain("setRefused({ id: r.id, says: e?.message || 'That did not go through.' })")
+    expect(PAPERS).toContain('{refused?.id === r.id && (')
   })
 })

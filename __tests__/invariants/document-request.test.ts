@@ -218,12 +218,15 @@ describe('the screens', () => {
     // the page a chase letter names can be opened on its own.
     const work = read('src/app/dashboard/my-work/papers.tsx')
     expect(work).toContain("fetch('/api/me/papers')")
-    // A file she picked goes as the file; a link goes as a link; a
-    // signature is her word. The body says which.
+    // A file she picked goes as the file; a link goes as a link, with a
+    // license's three facts beside it where the row is a license; a
+    // signature is her word; a question asked before an offer is answered
+    // in her own words (the screen walk, 2026-10-22). The body says which.
     expect(work).toContain("form.append('file', file)")
     expect(work).toContain("{ attests: true }")
-    expect(work).toContain("{ fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined }")
+    expect(work).toContain("{ fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined, ...(facts ?? {}) }")
     expect(work).toContain('Sign as myself')
+    expect(work).toContain("{ attests: true, note: words }")
   })
   it('a candidate is asked by email; somebody with a seat, in the app', () => {
     const act = read('src/app/api/documents/[id]/act.ts')

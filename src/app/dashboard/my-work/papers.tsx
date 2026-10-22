@@ -5,7 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { Chip } from '@/components/ui'
 import {
   paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS,
-  isLicenseRow, licenseFieldsSay, licenseNote,
+  isLicenseRow, licenseFieldsFor,
   type PaperRow, type LicenseFields,
 } from './paperwork-rows'
 
@@ -143,16 +143,10 @@ export function YourPapers({ standalone = false, onRows }: {
       const to = `/api/documents/${id}/${r.todo === 'sign' ? 'sign' : 'upload'}`
 
       // A license goes on file only with its number, the board that issued
-      // it and the day it runs out (the rule table in lib/attestation).
-      // Checked here before anything is sent, and sent with the file as one
-      // line for the examiner, who records it against the file.
-      let note: string | undefined
-      if (r.todo === 'upload' && isLicenseRow(r)) {
-        const fields = licenseOf(r.id)
-        const missing = licenseFieldsSay(fields, new Date().toISOString().slice(0, 10))
-        if (missing) throw new Error(missing)
-        note = licenseNote(fields)
-      }
+      // it and the day it runs out. They go as fields; where one is missing
+      // or the day has passed, the route refuses in its own sentence, which
+      // lands beside this row like any other refusal.
+      const facts = r.todo === 'upload' && isLicenseRow(r) ? licenseFieldsFor(licenseOf(r.id)) : null
 
       // She chose a file. It goes as the file — a photograph of a
       // certificate is what somebody standing in a corridor actually
@@ -169,7 +163,7 @@ export function YourPapers({ standalone = false, onRows }: {
       if (file && r.todo !== 'sign') {
         const form = new FormData()
         form.append('file', file)
-        if (note) form.append('note', note)
+        if (facts) for (const [k, v] of Object.entries(facts)) form.append(k, v)
         const sent = await readJson(await fetch(to, { method: 'POST', body: form }))
         setSaid(sent?.data?.says ?? 'Sent. They will be told it has arrived.')
         setPicked(Object.fromEntries(Object.entries(picked).filter(([k]) => k !== r.id)))
@@ -177,9 +171,11 @@ export function YourPapers({ standalone = false, onRows }: {
         return
       }
 
+      // A signature is her word; a link goes as a link, with a license's
+      // three facts beside it where the row is a license.
       const body = r.todo === 'sign'
         ? { attests: true }
-        : { fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined, ...(note ? { note } : {}) }
+        : { fileUrl: fileUrl[r.id] ?? '', fileName: file?.name ?? undefined, ...(facts ?? {}) }
       const j = await readJson(await post(to, body))
       setSaid(j?.data?.says ?? 'Sent. They will be told it has arrived.')
       setFileUrl({ ...fileUrl, [r.id]: '' })

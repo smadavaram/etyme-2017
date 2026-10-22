@@ -794,8 +794,8 @@ export function workStops(input: { rows: PaperRow[]; runningOut?: RunningOut[] }
 // with the board that issued it, its number on that board's register, and
 // the day printed on it that it runs out. "Licensed" is not something
 // anybody can check; a number on a register is. So the worker who sends a
-// renewal is asked those three things beside the file, and the examiner
-// reads them against it. Any license: a state nursing registration, a
+// renewal is asked those three things beside the file, sent as fields to
+// the upload route, which refuses a renewal without them. Any license: a state nursing registration, a
 // pharmacist's, an electrician's, a driver's. Nothing here is software.
 
 /** Whether a row asks for a license, read off its type key or its name. */
@@ -812,21 +812,11 @@ export interface LicenseFields {
 }
 
 /**
- * What is missing from a renewal, in a sentence, or null when it may go.
- * `today` is "YYYY-MM-DD"; a renewal that has already run out is not one.
+ * The three facts as the upload route takes them, as fields. The route
+ * (`licenseRenewal` in lib/document-request, regulatory) decides whether
+ * they are enough and says so in its own sentence; this screen shows that
+ * sentence rather than a second rule of its own.
  */
-export function licenseFieldsSay(f: LicenseFields, today: string): string | null {
-  if (!f.number.trim()) return 'Give the license number, as it is on the register.'
-  if (!f.issuedBy.trim()) return 'Say which state or board issued it.'
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.expiresOn.trim())) return 'Give the new expiry date printed on it.'
-  if (f.expiresOn.trim() <= today) return 'That date has passed. Give the new expiry date printed on the renewed license.'
-  return null
-}
-
-/**
- * The line sent with the file, for whoever examines it. A note and not
- * the record: the examiner checks it against the file and records it.
- */
-export function licenseNote(f: LicenseFields): string {
-  return `License number ${f.number.trim()} · issued by ${f.issuedBy.trim()} · runs out ${formatDay(f.expiresOn.trim())}`
+export function licenseFieldsFor(f: LicenseFields): { licenseNumber: string; issuer: string; expiresAt: string } {
+  return { licenseNumber: f.number.trim(), issuer: f.issuedBy.trim(), expiresAt: f.expiresOn.trim() }
 }
