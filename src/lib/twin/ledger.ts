@@ -121,6 +121,58 @@ function writeEntry(db: Db, e: LedgerEntry) {
   })
 }
 
+/**
+ * At most a few of the twin's acts hold a transaction open at once, per
+ * server process.
+ *
+ * Found by the simulation on the 2,000-person world (2026-10-21): 120
+ * people saying yes to the twin's bills at once failed 8 times with
+ * "Nothing was done, because it could not be recorded", at a 95th
+ * percentile of 6.2s. The transaction that sends a bill holds one
+ * connection and, deep in money's code, asks the pool for a second one
+ * (a holiday read outside the transaction). Nine connections, nine open
+ * transactions each waiting for a tenth: nothing moves until the
+ * five-second limit closes them. Capping the transactions open at once
+ * below half the pool means a second connection is always there. The
+ * read outside the transaction is money's to move inside it; this stays
+ * as the floor under any act that does the same again.
+ */
+const PERFORMING_AT_ONCE = 3
+let performing = 0
+const waitingToPerform: (() => void)[] = []
+
+export async function onePerformerSlot<T>(work: () => Promise<T>): Promise<T> {
+  if (performing >= PERFORMING_AT_ONCE) await new Promise<void>((go) => waitingToPerform.push(go))
+  else performing++
+  try {
+    // A transaction Postgres chose as a deadlock's victim rolled back
+    // whole, so trying it again is safe: every act's writes are
+    // conditional on the state it read (a question still PENDING, a bill
+    // still a DRAFT). Two bills closing cycles on shared lines in
+    // different orders is how the same simulation met one.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await work()
+      } catch (err) {
+        if (attempt >= 3 || !rolledBackForAnother(err)) throw err
+        await new Promise((r) => setTimeout(r, 25 * attempt + Math.floor(Math.random() * 50)))
+      }
+    }
+  } finally {
+    const next = waitingToPerform.shift()
+    if (next) next()
+    else performing--
+  }
+}
+
+/** Postgres rolled this transaction back because of another one: a deadlock or a serialization failure. */
+export function rolledBackForAnother(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code
+  if (code === 'P2034') return true
+  const msg = err instanceof Error ? err.message : String(err)
+  return /deadlock detected|40P01|40001|could not serialize access|current transaction is aborted/i.test(msg)
+}
+
 async function report(what: string, err: unknown, companyId: string, personId: string | null): Promise<void> {
   await reportError(
     'twin-ledger',
@@ -494,7 +546,7 @@ async function actOnce(input: ActInput): Promise<ActResult> {
   // ACTS_ALONE: the record's writes, the entry and the automation-log row, together.
   const alone = what.alone ?? 'TOLD'
   try {
-    const done = await prisma.$transaction(async (tx) => {
+    const done = await onePerformerSlot(() => prisma.$transaction(async (tx) => {
       const result = performer.inTx ? await performer.inTx(tx, ctx) : {}
       const row = await writeEntry(tx, { ...base, outcome: 'PERFORMED', payload: { ...base.payload, result } })
       await tx.automationLog.create({
@@ -512,7 +564,7 @@ async function actOnce(input: ActInput): Promise<ActResult> {
         },
       })
       return { id: row.id, result }
-    })
+    }))
     if (performer.after) {
       await performer.after(ctx).catch((err) =>
         report(`The twin did ${input.action} and the notice that follows it did not go.`, err, input.companyId, input.authority.personId)
@@ -834,7 +886,7 @@ export async function decideApproval(args: {
   if (recordSays) return refused(422, recordSays, 'The record says no')
 
   try {
-    const done = await prisma.$transaction(async (tx) => {
+    const done = await onePerformerSlot(() => prisma.$transaction(async (tx) => {
       const moved = await tx.twinApproval.updateMany({
         where: { id: approval.id, decision: 'PENDING' },
         data: { decision: 'APPROVED', approverPersonId: args.decider.personId, decidedAt: new Date(), surface: args.surface, reasonFromApprover: reason },
@@ -856,7 +908,7 @@ export async function decideApproval(args: {
         },
       })
       return { id: row.id, result }
-    })
+    }))
     if (performer.after) {
       await performer.after(ctx).catch((err) =>
         report(`Approval ${approval.id} was done and the notice that follows it did not go.`, err, approval.companyId, args.decider.personId)

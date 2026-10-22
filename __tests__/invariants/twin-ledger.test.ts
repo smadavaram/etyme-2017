@@ -438,3 +438,38 @@ describe('the twin’s question says who and what', () => {
     for (const n of sent) expect(n.title).toBe('Pay Techpeple’s invoice INV-1042?')
   })
 })
+
+describe('the twin’s acts under load', () => {
+  it('no more than three of the twin’s acts hold a transaction open at once, so a second connection is always free', async () => {
+    const { onePerformerSlot } = await import('@/lib/twin/ledger')
+    let open = 0
+    let most = 0
+    const act = () => onePerformerSlot(async () => {
+      open++
+      most = Math.max(most, open)
+      await new Promise((r) => setTimeout(r, 5))
+      open--
+      return 'done'
+    })
+    const out = await Promise.all(Array.from({ length: 20 }, act))
+    expect(out.every((o) => o === 'done')).toBe(true)
+    expect(most).toBe(3)
+  })
+
+  it('an act Postgres rolled back as a deadlock’s victim is tried again, and an act refused for its own reason is not', async () => {
+    const { onePerformerSlot, rolledBackForAnother } = await import('@/lib/twin/ledger')
+    let tries = 0
+    const ok = await onePerformerSlot(async () => {
+      tries++
+      if (tries === 1) throw new Error('deadlock detected')
+      return 'sent'
+    })
+    expect(ok).toBe('sent')
+    expect(tries).toBe(2)
+
+    let refusedTries = 0
+    await expect(onePerformerSlot(async () => { refusedTries++; throw new Error('ALREADY_DECIDED') })).rejects.toThrow('ALREADY_DECIDED')
+    expect(refusedTries).toBe(1)
+    expect(rolledBackForAnother(new Error('current transaction is aborted, commands ignored until end of transaction block'))).toBe(true)
+  })
+})

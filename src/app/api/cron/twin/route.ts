@@ -27,16 +27,24 @@ export async function GET(request: NextRequest) {
   }
   const ran: RunSummary[] = []
   const broke: { companyId: string; why: string }[] = []
-  for (const companyId of await programsToRun()) {
+  // Firms are read a few at a time, against a deadline. One at a time
+  // took past the 60-second limit on the 2,000-person world (simulation,
+  // 2026-10-21): 17 programs and 289 suppliers, most with nothing to
+  // draft, each a round of reads. A firm the deadline cuts off is not
+  // read tonight and is counted in the answer; the order turns daily so
+  // the same firms are not always the ones left.
+  const deadline = Date.now() + BUDGET_MS
+  const left: string[] = []
+  await inTurns(turnedDaily(await programsToRun()), deadline, left, async (companyId) => {
     try {
       ran.push(await runTwin(companyId, { surface: 'CRON' }))
     } catch (err) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin', err, { companyId }).catch(() => undefined)
     }
-  }
+  })
   const suppliers: (SupplierBillRun & { teamsDigest: RunSummary['teamsDigest'] })[] = []
-  for (const companyId of await suppliersToRun()) {
+  await inTurns(turnedDaily(await suppliersToRun()), deadline, left, async (companyId) => {
     try {
       const run = await runSupplierBills(companyId, { surface: 'CRON' })
       suppliers.push({ ...run, teamsDigest: await tellOnTeams(companyId) })
@@ -44,7 +52,7 @@ export async function GET(request: NextRequest) {
       broke.push({ companyId, why: err instanceof Error ? err.message.slice(0, 200) : String(err) })
       await reportError('cron/twin/supplier', err, { companyId }).catch(() => undefined)
     }
-  }
+  })
   const asked = ran.reduce((n, r) => n + r.outcomes.AWAITING_APPROVAL, 0)
   const done = ran.reduce((n, r) => n + r.outcomes.PERFORMED, 0)
   const drafted = suppliers.reduce((n, r) => n + r.drafted, 0)
@@ -52,6 +60,35 @@ export async function GET(request: NextRequest) {
   const says =
     `The twin read ${ran.length} program${ran.length === 1 ? '' : 's'}: ${done} done on its own, ${asked} put to a person.` +
     ` Ask Etyme, for suppliers, read ${suppliers.length} firm${suppliers.length === 1 ? '' : 's'}: ${drafted} bill${drafted === 1 ? '' : 's'} drafted, ${sendAsked} put to a person to send.` +
-    (broke.length ? ` ${broke.length} could not be read.` : '')
-  return NextResponse.json({ data: { ran, suppliers, broke, says } })
+    (broke.length ? ` ${broke.length} could not be read.` : '') +
+    (left.length ? ` ${left.length} firm${left.length === 1 ? ' was' : 's were'} not reached before the time limit and will be read on the next run.` : '')
+  return NextResponse.json({ data: { ran, suppliers, broke, left, says } })
+}
+
+/** Firms read at once. Each act inside holds one transaction, and the ledger caps those (onePerformerSlot). */
+const AT_ONCE = 4
+/** Stop starting firms after this, well inside the host's 60-second limit. */
+const BUDGET_MS = 45_000
+
+async function inTurns(ids: string[], deadline: number, left: string[], each: (id: string) => Promise<void>): Promise<void> {
+  let next = 0
+  const worker = async () => {
+    while (next < ids.length) {
+      if (Date.now() >= deadline) {
+        left.push(...ids.slice(next))
+        next = ids.length
+        return
+      }
+      await each(ids[next++])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(AT_ONCE, ids.length) }, worker))
+}
+
+/** The same list, started at a different firm each day. */
+function turnedDaily(ids: string[]): string[] {
+  if (ids.length === 0) return ids
+  const day = Math.floor(Date.now() / 86_400_000)
+  const at = (day * 37) % ids.length
+  return [...ids.slice(at), ...ids.slice(0, at)]
 }
