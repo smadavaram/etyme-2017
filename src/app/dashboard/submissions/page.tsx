@@ -440,9 +440,9 @@ function SubmitToRequirementModal({
         setError(firstResult.error)
         return
       }
-      // The client's time limit warned: nothing was written, and the same
-      // press with a reason goes on (Addendum E: warn, capture a reason,
-      // proceed).
+      // The client's time limit or the job's license warned: nothing was
+      // written, and the same press with a reason goes on (Addendum E:
+      // warn, capture a reason, proceed).
       if (firstResult?.status === 'needs_reason') {
         setNeedsReason(firstResult.error)
         if (form.reason.trim()) setError('Give a reason of at least a sentence.')
@@ -452,7 +452,7 @@ function SubmitToRequirementModal({
       // Submitted, with a warning the submitter should read before the
       // form shuts: a work authorization that is missing or runs out, a
       // time limit gone past with a reason, a job with no length.
-      const said = [firstResult?.workAuthWarning, firstResult?.tenureWarning, firstResult?.tenureNote, body.data?.coverWarning]
+      const said = [firstResult?.licenseWarning, firstResult?.licenseNote, firstResult?.workAuthWarning, firstResult?.tenureWarning, firstResult?.tenureNote, body.data?.coverWarning]
         .filter((x: unknown): x is string => typeof x === 'string' && x.length > 0)
       onCreated()
       if (said.length > 0) {

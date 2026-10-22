@@ -25,6 +25,9 @@ import { stayOver, refusedSays as stayRefusedSays } from '@/lib/bench-stay'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { timeLimitAtSubmission, reasonGiven, type Mode } from './time-limit'
 import { workAuthAtSubmission } from './work-authorization'
+import { licenseAtSubmission } from './license'
+import { licenseAsksFor } from './license-asks'
+import { credentialDetail } from '@/lib/contract-clearance'
 import { actingDesk } from '@/lib/program-seat'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { submissionReach, othersSubmissionsRefused, ownSubmissionsSays, clientSubmissionsRefused } from './own-only'
@@ -486,6 +489,26 @@ export async function POST(request: NextRequest) {
     breakMode: modeOf(breakRule?.enforcementMode),
   }
 
+  // ── The licenses this job asks for, once for the batch ───────────
+  //
+  // Read from the job's title and the client's own orders, the two places
+  // the start reads them (`./license-asks`), so this door and the start
+  // name the same paper. Asked per person below (`./license`).
+  const licenses = await licenseAsksFor({
+    clientCompanyId,
+    clientName,
+    supplierCompanyId: fromCompanyId,
+    title: requirement.title,
+  })
+  const jobEnds =
+    requirement.startDate && requirement.months
+      ? new Date(Date.UTC(
+          requirement.startDate.getUTCFullYear(),
+          requirement.startDate.getUTCMonth() + requirement.months,
+          requirement.startDate.getUTCDate()
+        ))
+      : null
+
   const results: any[] = []
 
   for (const personId of personIds) {
@@ -883,30 +906,75 @@ export async function POST(request: NextRequest) {
         results.push(item)
         continue
       }
+
+      // The person's own verifications, read once: the license below and
+      // work authorization after it both answer from them.
+      const authRows = await prisma.verification.findMany({
+        where: { personId },
+        select: {
+          type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
+          result: true, provider: true,
+        },
+      })
+
+      // 3c. A license the job asks for. Refused here only where the
+      // client's own order insists; otherwise warned, with a reason.
+      const licensed = licenseAtSubmission({
+        personName: person.name,
+        asks: licenses.asks,
+        credentials: authRows.map((v) => {
+          const detail = credentialDetail(v)
+          return {
+            type: v.type, status: v.status, issuedAt: v.issuedAt, validFrom: v.validFrom,
+            expiresAt: v.expiresAt, verifiedAt: v.verifiedAt, number: detail.number, state: detail.state,
+          }
+        }),
+        startsOn: requirement.startDate,
+        through: jobEnds,
+        now: new Date(),
+      })
+      if (licensed.outcome === 'BLOCK') {
+        item.status = 'error'
+        item.code = licensed.code
+        item.error = licensed.says
+        await refused(`${licensed.code}: ${licensed.says}`)
+        results.push(item)
+        continue
+      }
+
+      // One reason answers whatever warned: the time limit, the license,
+      // or both. Warned, and nothing written until it is given — the
+      // submitter is asked, and the next press carries it.
+      const warned = [
+        limit.outcome === 'WARN' ? limit.says : null,
+        licensed.outcome === 'WARN' ? licensed.says : null,
+      ].filter((x): x is string => !!x)
+      const reason = warned.length > 0 ? reasonGiven(body, personId) : null
+      if (warned.length > 0 && !reason) {
+        item.status = 'needs_reason'
+        item.code = limit.outcome === 'WARN' ? limit.code : licensed.outcome === 'WARN' ? licensed.code : undefined
+        item.error = warned.join(' ')
+        if (licensed.outcome === 'WARN') item.licenseCode = licensed.code
+        if (limit.outcome === 'WARN' && limit.reachedOn) item.limitReachedOn = limit.reachedOn.toISOString().slice(0, 10)
+        if (limit.outcome === 'WARN' && limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
+        results.push(item)
+        continue
+      }
       if (limit.outcome === 'WARN') {
-        tenureReason = reasonGiven(body, personId)
-        if (!tenureReason) {
-          // Warned, and nothing written: the submitter is asked for a
-          // reason, and the next press carries it.
-          item.status = 'needs_reason'
-          item.code = limit.code
-          item.error = limit.says
-          if (limit.reachedOn) item.limitReachedOn = limit.reachedOn.toISOString().slice(0, 10)
-          if (limit.eligibleOn) item.eligibleOn = limit.eligibleOn.toISOString().slice(0, 10)
-          results.push(item)
-          continue
-        }
+        tenureReason = reason
         item.tenureWarning = limit.says
         item.tenureReason = tenureReason
       } else if (limit.outcome === 'PASS' && limit.unknown) {
         item.tenureNote = limit.unknown
       }
+      if (licensed.outcome === 'WARN') {
+        item.licenseWarning = licensed.says
+        item.licenseCode = licensed.code
+        item.licenseReason = reason
+      }
+      if (licensed.note) item.licenseNote = licensed.note
 
-      // 3c. Work authorization: warned here, refused at activation.
-      const authRows = await prisma.verification.findMany({
-        where: { personId },
-        select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
-      })
+      // 3d. Work authorization: warned here, refused at activation.
       const auth = workAuthAtSubmission({
         personName: person.name,
         rows: authRows,
@@ -1338,6 +1406,11 @@ export async function POST(request: NextRequest) {
           `Submitted to "${requirement.title}"`,
           item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
           item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
+          // The license warned and went ahead, with its reason code and
+          // the reason given. Here, on the person's own access row, until
+          // the automation ladder has a rung for it (asked of the
+          // architect, beside SUBMISSION_WORK_AUTH_WARNED).
+          item.licenseWarning ? `License warned (${item.licenseCode}): ${item.licenseWarning} Reason given: ${item.licenseReason}` : null,
         ].filter(Boolean).join(' — '),
       })
 
