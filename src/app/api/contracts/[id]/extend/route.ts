@@ -11,12 +11,23 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
+import { extensionEnd } from '@/lib/money/extension-end'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * POST /api/contracts/:id/extend
  *
- * Extends a sell contract's end date by 3 months (default) or a specified number of months.
- * Body: { months?: number } — defaults to 3
+ * Extends a sell contract to a new last day.
+ * Body: { newEndDate?: 'YYYY-MM-DD', months?: number, note?: string,
+ *         reason?: string, limitReason?: string }
+ *
+ * `newEndDate` is the day the person picked (the contracts drawer, since
+ * 2026-10-22). Without it, `months` — three by default — as the older
+ * buttons ask. `note` is why it is extended, kept with the extension
+ * whatever else is said. `reason` answers a paper ending before the new
+ * end and `limitReason` answers the client's time limit; each is asked
+ * for by this route, in a sentence, only when it applies, and a screen
+ * sends it only once it has shown that sentence.
  *
  * Only IN_PROGRESS or PAUSED contracts can be extended.
  *
@@ -38,14 +49,7 @@ export async function POST(
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
-  const months = body.months ?? 3
-
-  if (typeof months !== 'number' || months < 1 || months > 24) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'months must be between 1 and 24' } },
-      { status: 422 }
-    )
-  }
+  const note = typeof body.note === 'string' ? body.note.trim().slice(0, 1000) : ''
 
   const contract = await prisma.sellContract.findUnique({
     where: { id },
@@ -104,6 +108,20 @@ export async function POST(
     )
   }
 
+  const oldEnd = contract.endDate
+  const baseDate = oldEnd ?? new Date()
+  // The day it now ends: the one somebody picked, or so many months on.
+  const asked = extensionEnd({ oldEnd, today: new Date(), months: body.months, newEndDate: body.newEndDate })
+  if (!asked.ok) {
+    return NextResponse.json(
+      { error: { code: asked.code, message: asked.message, field: asked.field } },
+      { status: 422 }
+    )
+  }
+  const newEnd = asked.newEnd
+  const months = asked.months
+  const newEndSays = formatDay(newEnd)
+
   // ── Governance check on extension ──
   const endClientId = resolvedEndClientId(contract)
 
@@ -132,11 +150,6 @@ export async function POST(
 
   // Warnings: proceed but include in response
   // (contract extensions are critical for compliance — tenure warnings here are especially important)
-
-  const oldEnd = contract.endDate
-  const baseDate = oldEnd ?? new Date()
-  const newEnd = new Date(baseDate)
-  newEnd.setMonth(newEnd.getMonth() + months)
 
   // A line moved past the client's time limit is refused (founder's
   // decision, 2026-10-06). Where the client only warns, a reason is asked
@@ -262,11 +275,14 @@ export async function POST(
       data: {
         companyId: contract.clientCompany.id,
         action: 'CONTRACT_EXTENDED',
-        summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        summary: months != null
+          ? `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEndSays}`
+          : `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended to ${newEndSays}`,
         reason:
-          cycles.sell + cycles.buy > 0
+          (cycles.sell + cycles.buy > 0
             ? `Extended by ${caller.person.name}. ${cycles.sell + cycles.buy} new due dates written — hours, pay and bills for the added months.`
-            : `Extended by ${caller.person.name}. No new due dates: the contract has no start date, or every date in the new period was already on the books.`,
+            : `Extended by ${caller.person.name}. No new due dates: the contract has no start date, or every date in the new period was already on the books.`) +
+          (note ? ` Why: ${note}` : ''),
         payload: {
           contractId: id,
           buyContractId: buyId,
@@ -276,6 +292,7 @@ export async function POST(
           oldEndDate: oldEnd?.toISOString() ?? null,
           newEndDate: newEnd.toISOString(),
           months,
+          ...(note ? { note } : {}),
           cyclesAdded: { sell: cycles.sell, buy: cycles.buy },
           ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
           ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),
@@ -318,7 +335,7 @@ export async function POST(
   const order = termsFor('SELL', { startDate: contract.startDate, endDate: newEnd, workOrder: contract.workOrder })
   const pastTheOrder =
     order.outsideOrderWindow && order.orderWindow?.end
-      ? `This now runs to ${newEnd.toISOString().slice(0, 10)}, past ${order.orderNumber ?? 'the order'}, which ends ${order.orderWindow.end.toISOString().slice(0, 10)}. Raise a new order or extend that one, or the months after it cannot be billed.`
+      ? `This now runs to ${newEndSays}, past ${order.orderNumber ?? 'the order'}, which ends ${formatDay(order.orderWindow.end)}. Raise a new order or extend that one, or the months after it cannot be billed.`
       : null
 
   return NextResponse.json({
@@ -326,7 +343,10 @@ export async function POST(
       id,
       personName: contract.person.name,
       newEndDate: newEnd.toISOString(),
-      message: `Contract extended by ${months} month${months !== 1 ? 's' : ''}`,
+      message: months != null
+        ? `Contract extended by ${months} month${months !== 1 ? 's' : ''}, to ${newEndSays}`
+        : asked.says,
+      ...(note ? { note } : {}),
       ...(pastTheOrder ? { pastTheOrder } : {}),
       // A paper ending before the new end, gone ahead on the reason given.
       ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),

@@ -38,7 +38,6 @@ const DOORS = ['src/lib/format-date.ts', 'src/lib/when.ts']
 const NOT_YET_MOVED: string[] = [
   'src/app/answer/[token]/page.tsx',
   'src/app/api/alumni/route.ts',
-  'src/app/api/contracts/[id]/extend/route.ts',
   'src/app/api/contracts/[id]/rolloff/route.ts',
   'src/app/api/me/route.ts',
   'src/app/api/program/agreements/[id]/history/route.ts',

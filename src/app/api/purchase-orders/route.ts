@@ -195,6 +195,8 @@ export async function GET(request: NextRequest) {
       short: noun.short,
       reference: referenceFor(po, companyId).reference,
       direction: po.issuedById === companyId ? 'issued' : 'received',
+      /** The firm whose rules the order's paper set holds — the buyer. */
+      issuedById: po.issuedById,
       counterparty,
       /** Said out loud where the other end of it has not joined. */
       offSystem: shellNotice(counterparty),

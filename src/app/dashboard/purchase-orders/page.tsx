@@ -13,6 +13,7 @@ import { useSession } from '@/components/session-provider'
 import { usePageSection } from '@/components/page-section'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ordersStance, ordersWords } from '@/lib/money/po-words'
+import { PaperSet } from './paper-set'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -59,6 +60,8 @@ interface PO {
   /** Said out loud where the other end has not joined. */
   offSystem: string | null
   direction: 'issued' | 'received'
+  /** The buyer: whose rules the order's paper set holds. */
+  issuedById: string
   counterparty: { id: string; name: string }
   currency: string
   amount: number
@@ -443,6 +446,14 @@ function Row({ po }: { po: PO }) {
       </p>
 
       <Lines po={po} />
+
+      {/* What this order asks for on paper, read-only here; the change is
+          offered only to a desk the document-set route would let make it. */}
+      <PaperSet
+        target={{ workOrderId: po.id }}
+        buyerCompanyId={po.issuedById}
+        title={`Papers this ${po.noun} asks for`}
+      />
     </Panel>
   )
 }

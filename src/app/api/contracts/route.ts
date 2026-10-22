@@ -946,6 +946,9 @@ export async function GET(request: NextRequest) {
           return {
             id: c.id,
             side: 'buy' as const,
+            // The firm paying on this line — the buyer whose paper rules
+            // the line's document set holds.
+            companyId: c.companyId,
             // A one-person agreement keeps the familiar shape; a shared one
             // reports headcount and a rate range instead of pretending to a
             // single person or a single rate.

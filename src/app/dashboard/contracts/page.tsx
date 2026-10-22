@@ -11,6 +11,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
 import { useSession } from '@/components/session-provider'
+import { ExtendDialog } from './extend-dialog'
+import { PaperSet } from '../purchase-orders/paper-set'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { hasPermission } from '@/lib/permissions'
@@ -96,6 +98,8 @@ interface Contract {
   pairedWith: { id: string; counterpartName: string | null } | null
   /** The roll-up the company tagged it to. Null is a complete line. */
   masterContract: { id: string; code: string; name: string; status: string } | null
+  /** The buyer on this line — the client on a sell line, this firm on a buy line. Whose paper rules they are. */
+  lineBuyerId: string | null
 }
 
 /** One master contract, for the picker. */
@@ -683,7 +687,6 @@ function ContractDetailDrawer({
   const [tagging, setTagging] = useState(false)
   const [showExtendConfirm, setShowExtendConfirm] = useState(false)
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
-  const [extending, setExtending] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
   const [activating, setActivating] = useState(false)
   const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[] } | null>(null)
@@ -745,37 +748,6 @@ function ContractDetailDrawer({
     && contract.endClientName !== contract.counterpartyName
 
   const dateOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
-
-  async function handleExtend() {
-    setExtending(true)
-    try {
-      const extensionMonths = 3
-      const currentEnd = contract.endDate ? new Date(contract.endDate) : new Date()
-      const newEnd = new Date(currentEnd)
-      newEnd.setMonth(newEnd.getMonth() + extensionMonths)
-
-      const res = await fetch(`/api/contracts/${contract.id}/extend`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extensionMonths, newEndDate: newEnd.toISOString() }),
-      })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        onToast(body.error?.message ?? 'Failed to extend contract', 'error')
-        return
-      }
-
-      onToast('Contract extended by 3 months', 'success')
-      setShowExtendConfirm(false)
-      onRefresh()
-      onClose()
-    } catch {
-      onToast('Network error. Please try again.', 'error')
-    } finally {
-      setExtending(false)
-    }
-  }
 
   async function handleRolloff() {
     setInitiatingRolloff(true)
@@ -976,6 +948,27 @@ function ContractDetailDrawer({
             </div>
           </div>
 
+          {/* What this line and its order ask for on paper. Read-only here;
+              the change is offered only to a desk that may make it. */}
+          <div>
+            <p className="eyebrow mb-2">Papers</p>
+            <PaperSet
+              key={`line-${contract.id}`}
+              target={contract.side === 'sell' ? { sellContractId: contract.id } : { buyContractId: contract.id }}
+              buyerCompanyId={contract.lineBuyerId}
+              title="Papers this line asks for"
+              startOpen
+            />
+            {contract.document && (
+              <PaperSet
+                key={`order-${contract.document.id}`}
+                target={{ workOrderId: contract.document.id }}
+                buyerCompanyId={contract.document.issuedById}
+                title={`Papers the ${orderNoun(sideOf(contract.document, viewerId)).noun} asks for`}
+              />
+            )}
+          </div>
+
           {/* The master contract — the company's own tag, never the system's */}
           <div>
             <p className="eyebrow mb-2">{MASTER_CONTRACT_WORD.Noun}</p>
@@ -1125,38 +1118,20 @@ function ContractDetailDrawer({
         </div>
       </div>
 
-      {/* Extend confirmation dialog */}
+      {/* Extend: any new last day, a reason, and the route's own sentences */}
       {showExtendConfirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
-          onClick={() => setShowExtendConfirm(false)}
-        >
-          <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold mb-2">Extend contract</h3>
-            <p className="text-sm text-etyme-muted mb-4">
-              Extend <strong>{contract.personName}</strong>&apos;s contract by 3 months?
-              {contract.endDate && (
-                <span className="block mt-1 text-[12px] tabular-nums">
-                  Current end: {new Date(contract.endDate).toLocaleDateString('en-US', dateOpts)}
-                  {' → '}
-                  New end: {(() => {
-                    const d = new Date(contract.endDate!)
-                    d.setMonth(d.getMonth() + 3)
-                    return d.toLocaleDateString('en-US', dateOpts)
-                  })()}
-                </span>
-              )}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowExtendConfirm(false)} className="btn-secondary">
-                Cancel
-              </button>
-              <button onClick={handleExtend} disabled={extending} className="btn-primary disabled:opacity-50">
-                {extending ? 'Extending…' : 'Confirm extend'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ExtendDialog
+          contractId={contract.id}
+          personName={contract.personName}
+          endDate={contract.endDate}
+          onClose={() => setShowExtendConfirm(false)}
+          onDone={(says) => {
+            onToast(says, 'success')
+            setShowExtendConfirm(false)
+            onRefresh()
+            onClose()
+          }}
+        />
       )}
 
       {/* Rolloff confirmation dialog */}
@@ -1368,6 +1343,7 @@ export default function ContractsPage() {
           document: c.workOrder ?? null,
           pairedWith: c.pairedWith ?? null,
           masterContract: c.masterContract ?? null,
+          lineBuyerId: tab === 'sell' ? (c.clientCompany?.id ?? null) : (c.companyId ?? null),
           counterpartyName: tab === 'sell'
             ? (endClientName ?? c.clientCompany?.name ?? null)
             : c.vendorCompany?.name ?? null,
