@@ -56,6 +56,8 @@ interface Answer {
   order: { id: string; number: string; issuedBy: string } | null
   items: Item[]
   says: string
+  /** Whether this reader may change the set — the route's own standing. */
+  mayChange?: boolean
 }
 
 /** The party that owes it, as a person would say it. */
@@ -298,7 +300,7 @@ function Inner() {
               </p>
             )}
           </div>
-        ) : (
+        ) : answer?.mayChange === false ? null : (
           <div className="flex gap-2 justify-end">
             {!r.waived && (
               <button
@@ -359,8 +361,8 @@ function Inner() {
         emptyDetail="Every line still carries the floor for its own shape. Add a document below to ask for more."
       />
 
-      {/* ── Asking for one more ── */}
-      <Panel
+      {/* ── Asking for one more ── only for whoever may change the set. */}
+      {answer?.mayChange !== false && <Panel
         title="Ask for another document"
         subtitle="Name the type. A type nobody here has defined is still asked for, by its own words, and the reply says so — nothing watches an undefined type for expiry until somebody defines it under Settings → Documents."
       >
@@ -394,7 +396,7 @@ function Inner() {
             Ask for it
           </SubmitButton>
         </div>
-      </Panel>
+      </Panel>}
 
     </div>
   )

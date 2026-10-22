@@ -249,7 +249,11 @@ export async function GET(request: NextRequest) {
     : await requirementsFor(sellContractId ? { sellContractId } : { buyContractId: buyContractId! })
   if (!set) return refuse('There is nothing with that id.', 404, 'NOT_FOUND')
 
-  return NextResponse.json({ data: { ...set, items: await inWords(set.items, target.buyerCompanyId) } })
+  // Whether this reader may change the set: the same standing POST
+  // checks, read here so the screen never offers Waive or Stop asking to
+  // a supplier the route will refuse (the walk on screens, 2026-10-22).
+  const mayChange = (await standingOn(caller, target, true)).ok
+  return NextResponse.json({ data: { ...set, items: await inWords(set.items, target.buyerCompanyId), mayChange } })
 }
 
 /**

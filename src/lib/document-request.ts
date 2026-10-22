@@ -546,6 +546,9 @@ export function peopleOnBooks(
   // listing is one person to pick, not two.
   const byPerson = new Map<string, PersonOnBooks>()
   for (const r of bench.rows) {
+    // Somebody only invited, or who said no, is not on this firm's books:
+    // her yes is what puts her there (the walk on screens, 2026-10-22).
+    if (r.consent === 'INVITED' || r.consent === 'DECLINED') continue
     byPerson.set(r.personId, { personId: r.personId, name: r.name, because: ON_BENCH })
   }
   for (const r of roster.ok ? roster.rows : []) {
@@ -1272,14 +1275,20 @@ export function myPapers(input: {
       name: d.templateName,
       partOf: null,
       askedBy: d.issuerName,
-      why: null,
+      why: providersVerdict(d.templateName)
+        ? `${d.issuerName} orders this from a screening company and the result goes to them. There is nothing for you to send.`
+        : null,
       needsSignature: d.needsSignature,
       status: d.status,
       word: statusWord(d.status),
       askedAt: d.sentAt?.toISOString() ?? null,
       doneAt: d.signedAt?.toISOString() ?? null,
       dueOn: null,
-      todo: d.status === 'SENT' ? (d.needsSignature ? 'sign' : 'upload') : null,
+      // A drug screen or a background check asked as a paper is still a
+      // verdict a provider renders and posts to the firm: nothing for her
+      // to attach (the walk on screens, 2026-10-22). Her consent is the
+      // paper she signs; the result is not hers to send.
+      todo: d.status === 'SENT' && !providersVerdict(d.templateName) ? (d.needsSignature ? 'sign' : 'upload') : null,
       // Answered on the page itself, through /api/documents/:id.
       link: null,
     })
@@ -2369,4 +2378,43 @@ export function mayExamine(
       `${name} from ${doc.senderName} examined by ${actor.examinerName}${dates}` +
       (countersign ? `, and countersigned for ${doc.issuerName}.` : '.') + notYet,
   }
+}
+
+/**
+ * Whether a firm may ask somebody for a paper, given what ties them.
+ *
+ * Found by the walk on screens, 2026-10-22: a person a firm had only
+ * invited to its bench read as on its bench and could be asked for
+ * papers before she said yes. An invitation is a question to her, not a
+ * tie; her yes, her employment, a submission or a line is. Pure.
+ */
+export function mayAskOnTies(input: {
+  personName: string
+  firmName: string
+  /** The firm's listing for her, where there is one: INVITED, GRANTED or DECLINED. */
+  listing: string | null
+  /** Any other tie: employment, a submission either way, or a line. */
+  otherTie: boolean
+}): { ok: true } | { ok: false; code: 'NOT_YET_HERS'; message: string } {
+  if (input.otherTie || input.listing === null || input.listing === 'GRANTED') return { ok: true }
+  return {
+    ok: false,
+    code: 'NOT_YET_HERS',
+    message:
+      input.listing === 'DECLINED'
+        ? `${input.personName} said no to ${input.firmName}, so ${input.firmName} cannot ask them for papers.`
+        : `${input.personName} has not said yes to ${input.firmName} yet. Papers are asked once they agree to be on your bench.`,
+  }
+}
+
+/** Whether a paper of this exact name is a verdict a provider renders (a drug screen, a background check). */
+export function providersVerdict(templateName: string): boolean {
+  const key = typeKeyForTemplate(templateName, [], { guess: false }) ?? EXACT_VERDICT_NAMES[templateName.trim().toLowerCase()] ?? null
+  return key != null && orderedNotCollected(key)
+}
+
+const EXACT_VERDICT_NAMES: Record<string, string> = {
+  'background check': 'BACKGROUND_CHECK',
+  'drug screening': 'DRUG_SCREENING',
+  'drug screen': 'DRUG_SCREENING',
 }

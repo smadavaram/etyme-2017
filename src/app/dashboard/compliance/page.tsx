@@ -7,6 +7,7 @@ import { askTheBooks, booksSays, type BooksReading } from '@/lib/document-reques
 import { complianceSubtitle, complianceView, owedSentence, sayCheckType, sayEnforcement, sayRule, sayRuleParameters, twoPopulations } from './says'
 import { plainDate } from '@/lib/plain-date'
 import { ComplianceRefused } from './refused'
+import { RecordCheck, type RecordFor, type RecordKind } from './record-check'
 import { usePageSection } from '@/components/page-section'
 import { EmptyState, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
@@ -188,6 +189,7 @@ interface VerificationSubject {
 }
 
 interface VerificationCheck {
+  id?: string
   type: string
   status: string
   provider: string | null
@@ -369,6 +371,7 @@ export default function CompliancePage() {
   const [callsError, setCallsError] = useState<string | null>(null)
   const [tab, setTab] = useState<ComplianceTab>('policies')
 
+  const [readAt, setReadAt] = useState(0)
   useEffect(() => {
     fetch('/api/compliance')
       .then(r => r.json())
@@ -378,7 +381,7 @@ export default function CompliancePage() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [readAt])
 
   useEffect(() => {
     fetch('/api/compliance/classification')
@@ -690,7 +693,7 @@ export default function CompliancePage() {
           exportName={`evaluations-${data?.client.name ?? 'export'}`}
         />
       )}
-      {tab === 'verifications' && <VerificationsTab data={data} loading={loading} error={error} />}
+      {tab === 'verifications' && <VerificationsTab data={data} loading={loading} error={error} onChanged={() => setReadAt(n => n + 1)} />}
       {tab === 'visas' && <VisasTab />}
       {tab === 'classification' && (
         <ClassificationTab calls={calls} stale={needsReview} error={callsError} />
@@ -935,11 +938,17 @@ function VerificationsTab({
   data,
   loading,
   error,
+  onChanged,
 }: {
   data: ComplianceData | null
   loading: boolean
   error: string | null
+  onChanged?: () => void
 }) {
+  // Recording a check from the screen (the walk on screens, 2026-10-22).
+  const [recording, setRecording] = useState<{ kind: RecordKind; who: RecordFor } | null>(null)
+  const [recorded, setRecorded] = useState<string | null>(null)
+
   if (loading) {
     return (
       <LoadingState says="Opening this tab…" />
@@ -966,6 +975,20 @@ function VerificationsTab({
 
   return (
     <div className="space-y-6">
+      {recorded && (
+        <div className="px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between">
+          <span>{recorded}</span>
+          <button onClick={() => setRecorded(null)} className="text-etyme-verified/70">Close</button>
+        </div>
+      )}
+      {recording && (
+        <RecordCheck
+          kind={recording.kind}
+          who={recording.who}
+          onClose={() => setRecording(null)}
+          onDone={(says) => { setRecording(null); setRecorded(says); onChanged?.() }}
+        />
+      )}
       {/* Person verifications */}
       {persons.length > 0 && (
         <div>
@@ -1046,6 +1069,25 @@ function VerificationsTab({
                             {startOf.get(person.personId ?? "")!.says}
                           </p>
                         )}
+                        {startOf.has(person.personId ?? "") && (() => {
+                          const start = startOf.get(person.personId ?? "")!
+                          const who: RecordFor = { contractId: start.contractId, personId: start.personId, name: start.name }
+                          const flagged = person.checks.find(c => (c.status === 'FLAGGED' || c.status === 'FAILED') && c.id)
+                          return (
+                            <div className="mt-2 flex flex-wrap gap-3 text-[12px]">
+                              <button className="text-etyme-action hover:underline" onClick={() => setRecording({ kind: 'I9', who })}>Record the I-9</button>
+                              <button className="text-etyme-action hover:underline" onClick={() => setRecording({ kind: 'VERDICT', who })}>Record a screening company’s report</button>
+                              {flagged && (
+                                <button
+                                  className="text-etyme-action hover:underline"
+                                  onClick={() => setRecording({ kind: 'ADVERSE', who: { ...who, verificationId: flagged.id!, provider: flagged.provider } })}
+                                >
+                                  Next step after {flagged.provider ?? 'the'} report
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })()}
                         {/*
                           A license is the one check on this row whose
                           lapse stops the work, so it gets a sentence

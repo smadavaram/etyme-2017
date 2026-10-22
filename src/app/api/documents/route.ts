@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
-import { BUILT_IN } from '@/lib/document-type'
-import { typeKeyForTemplate } from '@/lib/document-request'
+import { BUILT_IN, builtInType } from '@/lib/document-type'
+import { mayAskOnTies, typeKeyForTemplate } from '@/lib/document-request'
 import { jurisdictionOf, mayAskOfACandidate } from '@/lib/document-stages'
 
 /**
@@ -104,6 +104,16 @@ export async function GET(request: NextRequest) {
           hasSignedFile: !!i.signedFileUrl,
           fileName: i.fileName,
           note: i.note,
+          // Whether the firm that asked has looked at it, and what the
+          // look needs: the two dates printed on a certificate, the day a
+          // passport runs out, the edition of a W-9. The examine screen
+          // asks for exactly these and no more.
+          examinedAt: i.examinedAt?.toISOString() ?? null,
+          validFrom: i.validFrom?.toISOString().slice(0, 10) ?? null,
+          expiresAt: i.expiresAt?.toISOString().slice(0, 10) ?? null,
+          edition: i.edition ?? null,
+          countersignedAt: i.countersignedAt?.toISOString() ?? null,
+          examineNeeds: examineNeedsFor(i.template.name),
         })),
         total: instances.length,
       },
@@ -197,6 +207,18 @@ export async function POST(request: NextRequest) {
     // a background check, a drug screen. Refused here, at the one door a
     // request about a person is made through, in a sentence that names
     // the question to ask instead (`mayAskOfACandidate`, lib/document-stages).
+    if (subjectType === 'PERSON') {
+      // Somebody only invited to the bench has not said yes: no papers yet.
+      const ties = await tiesTo(subjectId, companyId)
+      if (ties.listing !== null && ties.listing !== 'GRANTED') {
+        const [who, firm] = await Promise.all([
+          prisma.person.findUnique({ where: { id: subjectId }, select: { name: true } }),
+          prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }),
+        ])
+        const may = mayAskOnTies({ personName: who?.name ?? 'This person', firmName: firm?.name ?? 'Your company', listing: ties.listing, otherTie: ties.other })
+        if (!may.ok) return NextResponse.json({ error: { code: may.code, message: may.message } }, { status: 409 })
+      }
+    }
     if (subjectType === 'PERSON') {
       const typeKey = typeKeyForTemplate(template.name, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
       if (typeKey) {
@@ -315,4 +337,37 @@ async function offeredWork(personId: string, companyId: string): Promise<boolean
     }),
   ])
   return !!(sell || buy || employed)
+}
+
+/**
+ * What accepting a paper of this name asks for, read from its type: a
+ * start and an end where the paper prints both, an end where it prints
+ * one, an edition where the form is reissued. Nothing for a paper whose
+ * type is not known, because nothing is required of it.
+ */
+function examineNeedsFor(templateName: string): { start: boolean; end: boolean; edition: boolean } {
+  const key = typeKeyForTemplate(templateName, BUILT_IN.map((t) => ({ key: t.key, label: t.label })), { guess: false })
+  const spec = key ? builtInType(key) : null
+  return {
+    start: spec?.validityShape === 'START_AND_END',
+    end: spec?.validityShape === 'START_AND_END' || spec?.validityShape === 'END_ONLY',
+    edition: spec?.reissued === true,
+  }
+}
+
+/** This firm's listing for the person, and whether anything else ties them. */
+async function tiesTo(personId: string, companyId: string): Promise<{ listing: string | null; other: boolean }> {
+  const [listing, submission, offered] = await Promise.all([
+    prisma.benchListing.findMany({
+      where: { companyId, revokedAt: null, consultant: { personId } },
+      select: { state: true },
+    }),
+    prisma.submission.findFirst({ where: { personId, OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }] }, select: { id: true } }),
+    offeredWork(personId, companyId),
+  ])
+  const states = listing.map((l) => l.state)
+  return {
+    listing: states.length === 0 ? null : states.includes('GRANTED') ? 'GRANTED' : states[0],
+    other: !!submission || offered,
+  }
 }

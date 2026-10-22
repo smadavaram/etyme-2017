@@ -170,7 +170,12 @@ export async function GET(request: NextRequest) {
 
   // Only where a set about a person is on offer and this seat may send
   // one; every name read is logged, because it is a read of a person.
-  const people: { id: string; name: string; email: string | null }[] = []
+  // `onLine`: somebody on an open line, whom a start's papers may be
+  // asked of. The rest are candidates this firm may put forward — its
+  // bench (a yes given, never an invitation) and its own employees —
+  // whom only the submission set may be asked of. Found by the walk on
+  // screens, 2026-10-22: the submission set offered nobody at submission.
+  const people: { id: string; name: string; email: string | null; onLine: boolean }[] = []
   if (canAsk && offer.offered.some((p) => p.subject === 'PERSON')) {
     const lines = await prisma.sellContract.findMany({
       where: { companyId: caller.company.id, state: { notIn: ['ENDED', 'CANCELLED'] } },
@@ -181,7 +186,24 @@ export async function GET(request: NextRequest) {
     for (const l of lines) {
       if (!l.person || seen.has(l.person.id)) continue
       seen.add(l.person.id)
-      people.push({ id: l.person.id, name: l.person.name, email: l.person.primaryEmail ?? null })
+      people.push({ id: l.person.id, name: l.person.name, email: l.person.primaryEmail ?? null, onLine: true })
+    }
+    const [listed, employed] = await Promise.all([
+      prisma.benchListing.findMany({
+        where: { companyId: caller.company.id, revokedAt: null, state: 'GRANTED' },
+        select: { consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } } },
+        take: 500,
+      }),
+      prisma.context.findMany({
+        where: { companyId: caller.company.id, type: 'EMPLOYEE', revokedAt: null },
+        select: { person: { select: { id: true, name: true, primaryEmail: true } } },
+        take: 500,
+      }),
+    ])
+    for (const p of [...listed.map((l) => l.consultant.person), ...employed.map((e) => e.person)]) {
+      if (!p || seen.has(p.id)) continue
+      seen.add(p.id)
+      people.push({ id: p.id, name: p.name, email: p.primaryEmail ?? null, onLine: false })
     }
     people.sort((a, b) => a.name.localeCompare(b.name))
     if (people.length > 0) {

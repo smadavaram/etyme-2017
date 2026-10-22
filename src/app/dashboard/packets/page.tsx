@@ -65,7 +65,7 @@ export default function PacketsPage() {
   const [companies, setCompanies] = useState<{ id: string; name: string; kind: string }[]>([])
   const [subjectCompanyId, setSubjectCompanyId] = useState('')
   const [subjectPersonId, setSubjectPersonId] = useState('')
-  const [people, setPeople] = useState<{ id: string; name: string; email: string | null }[]>([])
+  const [people, setPeople] = useState<{ id: string; name: string; email: string | null; onLine?: boolean }[]>([])
   const [notOffered, setNotOffered] = useState<{ label: string; why: string }[]>([])
 
   const load = useCallback(async () => {
@@ -109,6 +109,9 @@ export default function PacketsPage() {
   }, [asking])
 
   const spec = available.find((a) => a.key === packetKey)
+  // A start's papers are asked of somebody on an open line; the submission
+  // set of anybody this firm may put forward (the walk on screens, 2026-10-22).
+  const askable = spec?.purpose === 'SUBMISSION' ? people : people.filter((p) => p.onLine !== false)
 
   async function ask() {
     setBusy(true); setError(null); setFlash(null); setLink(null); setAsked([])
@@ -208,17 +211,19 @@ export default function PacketsPage() {
             </Field>
             {spec?.subject === 'PERSON' && (
               <Field label="About which person" className="sm:col-span-2"
-                help={people.length === 0
-                  ? 'Nobody is on an open contract with your firm yet, so there is nobody to ask about.'
+                help={askable.length === 0
+                  ? spec?.purpose === 'SUBMISSION'
+                    ? 'Nobody is on your bench or your payroll yet, so there is nobody to put forward.'
+                    : 'Nobody is on an open contract with your firm yet, so there is nobody to ask about.'
                   : undefined}>
                 <Select value={subjectPersonId}
                   onChange={(e) => {
                     setSubjectPersonId(e.target.value)
-                    const who = people.find((p) => p.id === e.target.value)
+                    const who = askable.find((p) => p.id === e.target.value)
                     if (who?.email && !email.trim()) setEmail(who.email)
                   }}>
                   <option value="">Choose…</option>
-                  {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {askable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </Select>
               </Field>
             )}

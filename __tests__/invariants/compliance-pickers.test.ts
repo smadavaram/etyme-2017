@@ -198,3 +198,12 @@ describe('who a compliance desk may pick', () => {
     }
   })
 })
+
+describe('somebody only invited is not on the books', () => {
+  it('a person invited to the bench who has not said yes, or who said no, is not offered to be asked for papers', () => {
+    const invited = { ...listing('l2', 'p2', 'Tobias Wren'), consent: 'INVITED' }
+    const declined = { ...listing('l3', 'p3', 'Chidi Okafor'), consent: 'DECLINED' }
+    const reading = peopleOnBooks(readBench(benchAnswer([listing('l1', 'p1', 'Helena Marsh'), invited, declined])), payrollAnswer([]))
+    expect(reading.people.map((p) => p.name)).toEqual(['Helena Marsh'])
+  })
+})

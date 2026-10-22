@@ -5,6 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
 import { statusWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
+import { ExaminePaper, type ExamineRow } from './examine'
 
 /**
  * Paperwork — what the company asks people and firms for, and where
@@ -49,6 +50,9 @@ interface Request_ {
   hasSignedFile: boolean
   fileName: string | null
   note: string | null
+  examinedAt?: string | null
+  expiresAt?: string | null
+  examineNeeds?: { start: boolean; end: boolean; edition: boolean }
 }
 const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
 
@@ -71,6 +75,7 @@ export default function DocumentsPage() {
 
   const [newTemplate, setNewTemplate] = useState({ name: '', audience: 'CANDIDATE', needsSignature: false })
   const [ask, setAsk] = useState({ templateId: '', personId: '' })
+  const [examining, setExamining] = useState<ExamineRow | null>(null)
   const [record, setRecord] = useState<{ id: string; kind: 'upload' | 'sign'; fileUrl: string; note: string } | null>(null)
 
   const load = useCallback(async () => {
@@ -229,6 +234,16 @@ export default function DocumentsPage() {
                   {r.status === 'PENDING' ? 'Ask for it' : 'Ask again'}
                 </button>
               )}
+              {(r.status === 'UPLOADED' || r.status === 'SIGNED') && !r.examinedAt && (
+                <button onClick={() => setExamining(r)} className="text-xs text-etyme-action hover:underline">
+                  Look at it
+                </button>
+              )}
+              {r.examinedAt && (
+                <span className="text-xs text-etyme-verified">
+                  Accepted {new Date(r.examinedAt).toLocaleDateString()}{r.expiresAt ? ` · runs out ${r.expiresAt}` : ''}
+                </span>
+              )}
               {r.status === 'SENT' && (
                 <button
                   onClick={() => setRecord({ id: r.id, kind: r.template.needsSignature ? 'sign' : 'upload', fileUrl: '', note: '' })}
@@ -241,6 +256,14 @@ export default function DocumentsPage() {
           ))}
         </div>
       </section>
+
+      {examining && (
+        <ExaminePaper
+          row={examining}
+          onClose={() => setExamining(null)}
+          onDone={async (says) => { setExamining(null); setSaid(says); await load() }}
+        />
+      )}
 
       {record && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setRecord(null)} role="dialog" aria-modal="true" aria-label="Record a document">

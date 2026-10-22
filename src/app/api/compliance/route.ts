@@ -363,6 +363,9 @@ export async function GET(request: NextRequest) {
         )
       : null
     const check = {
+      // The row's own id, so a flagged report can be acted on from the
+      // screen (the adverse-action steps), not only through the API.
+      id: v.id,
       type: v.type,
       status: v.status,
       provider: v.provider,

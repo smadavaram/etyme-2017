@@ -10,7 +10,7 @@
  * nothing in the app knew what comes after a flagged report.
  */
 import { describe, it, expect } from 'vitest'
-import { mayAct, mayExamine, type ExamineFacts } from '@/lib/document-request'
+import { mayAct, mayExamine, mayAskOnTies, providersVerdict, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
 import { adverseSays } from '@/lib/contract-clearance'
 import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE } from '@/lib/document-stages'
@@ -317,5 +317,28 @@ describe('the dates the hiring and extension steps work from', () => {
   it('the extension’s new end date is the old end plus whole months, the way the route counts it', () => {
     expect(iso(newEndOf(d('2027-01-15'), 3, ON))).toBe('2027-04-15')
     expect(iso(newEndOf(null, 1, ON))).toBe('2026-11-21')
+  })
+})
+
+describe('the screens reach the rules (the walk on screens, 2026-10-22)', () => {
+  it('a firm cannot ask somebody it has only invited for a paper, and is told she has not said yes yet', () => {
+    const v = mayAskOnTies({ personName: 'Tobias Wren', firmName: 'Veritan Talent', listing: 'INVITED', otherTie: false })
+    expect(v).toMatchObject({ ok: false, code: 'NOT_YET_HERS' })
+    if (!v.ok) expect(v.message).toBe('Tobias Wren has not said yes to Veritan Talent yet. Papers are asked once they agree to be on your bench.')
+  })
+  it('somebody who said no is not asked either, and the sentence says so', () => {
+    const v = mayAskOnTies({ personName: 'Chidi Okafor', firmName: 'Veritan Talent', listing: 'DECLINED', otherTie: false })
+    expect(!v.ok && v.message).toBe('Chidi Okafor said no to Veritan Talent, so Veritan Talent cannot ask them for papers.')
+  })
+  it('a yes, an employment, a submission or a line is a tie, and the paper may be asked', () => {
+    expect(mayAskOnTies({ personName: 'A', firmName: 'B', listing: 'GRANTED', otherTie: false }).ok).toBe(true)
+    expect(mayAskOnTies({ personName: 'A', firmName: 'B', listing: 'INVITED', otherTie: true }).ok).toBe(true)
+    expect(mayAskOnTies({ personName: 'A', firmName: 'B', listing: null, otherTie: false }).ok).toBe(true)
+  })
+  it('a drug screen or a background check asked as a paper is a provider’s verdict, so the worker is offered nothing to attach', () => {
+    expect(providersVerdict('Drug screening')).toBe(true)
+    expect(providersVerdict('Background check')).toBe(true)
+    expect(providersVerdict('Drug screening authorization')).toBe(false)
+    expect(providersVerdict('Resume')).toBe(false)
   })
 })
