@@ -7,6 +7,9 @@
  * Owned by conversation, beside the station that uses it.
  */
 
+import type { Party } from '@/app/api/conversations/twin/ask'
+import type { SeatSpec } from '../../actors'
+
 // ── The greeting as text ───────────────────────────────────────────────
 
 /** Keys whose strings are addresses or ids, never words a person reads. */
@@ -268,4 +271,47 @@ export function sampleOf<T>(rows: readonly T[], keep: number): T[] {
   if (keep <= 0 || rows.length <= keep) return [...rows]
   const step = rows.length / keep
   return Array.from({ length: keep }, (_, i) => rows[Math.floor(i * step)])
+}
+
+/** The party a seat should read Ask Etyme as. */
+export function expectedParty(s: Pick<SeatSpec, 'key' | 'company'>): Party | 'WORKER' | null {
+  // A one-person firm's owner is the firm and the worker at once, and reads her firm's Ask Etyme,
+  // whichever door opened her seat: the demo page's by name, or a signed worker session. The
+  // generated world's workers who moved from a bench to their own corporation read as their
+  // firm, correctly, and the station expected a worker (handoffs station, 2026-10-22).
+  if ((s.key.startsWith('person/') || s.key.startsWith('worker/')) && s.company?.kind === 'CONSULTANT_CORP') return 'SOLO'
+  if (s.key.startsWith('person/') || s.key.startsWith('worker/')) return 'WORKER'
+  if (s.key.startsWith('staff/')) return null
+  switch (s.company?.kind) {
+    case 'CLIENT': return 'CLIENT'
+    case 'MSP': return 'MSP'
+    case 'CONSULTANT_CORP': return 'SOLO'
+    case 'VENDOR':
+    case 'GSI': return 'FIRM'
+    default: return null
+  }
+}
+
+/** A notice as the "told" check reads it: who, what it is about, and its words. */
+export interface ToldRow { personId: string; entityId: string | null; title: string; body: string; data?: unknown }
+
+/**
+ * One row per thing a notice is about.
+ *
+ * A client sending several jobs within a minute writes one notice per
+ * person (demand, 6622103d4): its entity is the first job, and every job
+ * it carries is listed under `data.requirementIds`. Read by entity alone,
+ * the second and later jobs of a batch were told and read as told to
+ * nobody. So a notice counts once for its entity and once for each job it
+ * lists.
+ */
+export function aboutEach(rows: readonly ToldRow[]): ToldRow[] {
+  const out: ToldRow[] = []
+  for (const r of rows) {
+    out.push(r)
+    const ids = (r.data as { requirementIds?: unknown } | null | undefined)?.requirementIds
+    if (!Array.isArray(ids)) continue
+    for (const id of ids) if (typeof id === 'string' && id !== r.entityId) out.push({ ...r, entityId: id })
+  }
+  return out
 }

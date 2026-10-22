@@ -25,29 +25,33 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * Where a notice applies. A notice written at another of this person's
- * companies waits for that seat, because its link opens that company's
- * book; a notice tied to no company is the person's own and shows at any.
+ * Where a notice applies. A notice written at another company where this
+ * person holds a desk waits for that seat, because its link opens that
+ * company's book. Every other notice shows here: one tied to no company,
+ * one written at this seat's company, and one written at a firm where she
+ * holds no desk at all.
  *
- * Except a notice written at a firm whose bench she is on (a CONSULTANT
- * seat). That seat is no firm's book: it is her own work, and the notice
- * is about her — her license running out, her week. Found by the
- * simulation's handoffs station (2026-10-20): Colleen Byrne reads Ask
- * Etyme at her own corporation, and Halcyon Talent's chase for her
- * nursing license sat unread at a seat whose greeting she never opens.
- * So those notices show at whichever seat she reads from.
+ * That last kind is most of a worker's mail. A supplier puts her forward
+ * and the client books her rounds, so the notice is written at the
+ * supplier or the client, firms where she holds no seat. The rule used to
+ * say where a notice may show rather than where it may not, so those sat
+ * unread at no seat she could ever open: Wendell Chowdhury, on
+ * Glenhaven's bench, held eleven (his papers asked for by Dalebrook
+ * Partners, his rounds with Quillon Software), found by the simulation's
+ * handoffs station on the generated world (2026-10-22). Her own bench's
+ * chase for her license follows her for the same reason (Colleen Byrne,
+ * 2026-10-20): a bench seat is no firm's book.
  */
 async function unreadWhere(caller: CallerContext): Promise<Prisma.NotificationWhereInput> {
-  const own = caller.company
+  const desks = caller.company
     ? await prisma.context.findMany({
-        where: { personId: caller.person.id, type: 'CONSULTANT', revokedAt: null, companyId: { not: caller.company.id } },
+        where: { personId: caller.person.id, type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: caller.company.id } },
         select: { companyId: true },
       }).catch(() => [] as { companyId: string | null }[])
     : []
-  const benches = [...new Set((own ?? []).map((c) => c.companyId).filter((id): id is string => !!id))]
-  const at: Prisma.NotificationWhereInput[] = caller.company
-    ? [{ companyId: caller.company.id }, { companyId: null }, ...(benches.length ? [{ companyId: { in: benches } }] : [])]
-    : []
+  const elsewhere = [...new Set((desks ?? []).map((c) => c.companyId).filter((id): id is string => !!id))]
+  // `notIn` passes no null, so a notice tied to no company is named on its own.
+  const at: Prisma.NotificationWhereInput[] = elsewhere.length ? [{ companyId: null }, { companyId: { notIn: elsewhere } }] : []
   return {
     personId: caller.person.id,
     status: 'UNREAD',

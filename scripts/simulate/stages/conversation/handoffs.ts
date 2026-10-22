@@ -44,7 +44,7 @@ import { WORKER_CLOSE, WORKER_QUESTIONS } from '@/app/api/conversations/twin/wor
 import type { Actor, SeatSpec } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
 import {
-  inChunks, sampleOf, stoppedBecause,
+  aboutEach, expectedParty, inChunks, sampleOf, stoppedBecause,
   SINCE, blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, pct, sinceLines, subjectOf, textOf,
   teamsToWorkers, toldTwice, type NoticeRow,
 } from './handoffs-read'
@@ -151,21 +151,6 @@ function partyLabel(kind: string | null, worker: boolean): string {
 }
 
 /** The party a seat should read Ask Etyme as, from the seat alone. Null where the seat decides (a firm's staff with no desk reads as a worker). */
-function expectedParty(s: SeatSpec): Party | 'WORKER' | null {
-  // A one-person firm's owner is the firm and the worker at once, and reads her firm's Ask Etyme.
-  if (s.key.startsWith('person/') && s.company?.kind === 'CONSULTANT_CORP') return 'SOLO'
-  if (s.key.startsWith('person/') || s.key.startsWith('worker/')) return 'WORKER'
-  if (s.key.startsWith('staff/')) return null
-  switch (s.company?.kind) {
-    case 'CLIENT': return 'CLIENT'
-    case 'MSP': return 'MSP'
-    case 'CONSULTANT_CORP': return 'SOLO'
-    case 'VENDOR':
-    case 'GSI': return 'FIRM'
-    default: return null
-  }
-}
-
 /**
  * Whose a seat's fault is, from what it says. A notice said without what
  * it is about is the title its writer gave it; the greeting says the
@@ -558,11 +543,17 @@ async function readHandoffs(ctx: Ctx, at: (phase: string) => void) {
     // (read above, the newest hundred) is what it sees; the record says whether an older one exists.
     const people = [...new Set(handoffs.flatMap((h) => h.seats.map((k) => specs.get(k)?.personId)).filter((x): x is string => !!x))]
     const about = [...new Set(handoffs.flatMap((h) => [h.entityId, ...(h.alsoAbout ?? [])]))]
-    // Chunked on both lists together, so neither passes the bind limit.
+    // Chunked on both lists together, so neither passes the bind limit. A batch of jobs sent
+    // in one minute is one notice whose entity is the first job; the others are in its data.
     const told = people.length && about.length
-      ? (await inChunks(about, (ids) => inChunks(people, (who) => ctx.read.notification.findMany({
-          where: { personId: { in: who }, entityId: { in: ids } }, select: { personId: true, entityId: true, title: true, body: true },
-        }))))
+      ? aboutEach([
+          ...(await inChunks(about, (ids) => inChunks(people, (who) => ctx.read.notification.findMany({
+            where: { personId: { in: who }, entityId: { in: ids } }, select: { personId: true, entityId: true, title: true, body: true, data: true },
+          })))),
+          ...(await inChunks(people, (who) => ctx.read.notification.findMany({
+            where: { personId: { in: who }, data: { path: ['kind'], equals: 'JOB_SENT' } }, select: { personId: true, entityId: true, title: true, body: true, data: true },
+          }))),
+        ])
       : []
     for (const h of handoffs) {
       if (h.mode === 'RUN') {

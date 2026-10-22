@@ -763,9 +763,10 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     expect(got.older).toBe(5)
     const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
     expect(where).toMatchObject({ personId: 'p-dana', status: 'UNREAD' })
-    expect(where.AND[0]).toEqual({ OR: [{ companyId: 'c-northbend' }, { companyId: null }] })
+    // Dana holds no desk at another firm, so nothing she was sent waits elsewhere.
+    expect(where.AND).toHaveLength(1)
     // The twin's Teams digest is the greeting's own list; it is not said again under it.
-    expect(where.AND[1]).toEqual({ OR: [{ entityId: null }, { NOT: { entityId: { startsWith: 'twin-digest:' } } }] })
+    expect(where.AND[0]).toEqual({ OR: [{ entityId: null }, { NOT: { entityId: { startsWith: 'twin-digest:' } } }] })
     // A note on a conversation is said as its conversation, not as a notice.
     expect(where.type).toEqual({ not: 'CONVERSATION' })
     // The account's own sign-up and reset mail stays out, as it did on the page.
@@ -781,20 +782,29 @@ describe('Ask Etyme carries the number, and the notices the notifications page u
     expect([...src.matchAll(/prisma\.(\w+)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/g)].map((m) => `${m[1]}.${m[2]}`)).toEqual(['notification.updateMany'])
   })
 
-  it('a notice about a worker’s own work, written at the firm whose bench she is on, reaches her greeting at whichever seat she reads from', async () => {
-    // Colleen Byrne reads Ask Etyme at her own corporation; Halcyon Talent,
-    // whose bench she is on, chased her nursing license. Found by the
-    // simulation's handoffs station: the chase waited at a seat she never opens.
+  it('a notice written at a firm where the reader holds no desk reaches her greeting, and one written at another firm where she holds a desk waits for that seat', async () => {
+    // Wendell Chowdhury is on Glenhaven's bench; Dalebrook Partners asked for
+    // his papers and Quillon Software booked his rounds, firms where he holds
+    // no seat. Eleven such notices sat unread at no seat he could open
+    // (the handoffs station, 2026-10-22).
     const { unreadNotices } = await import('@/app/api/conversations/twin/notices')
-    const caller = { person: { id: 'p-colleen' }, company: { id: 'c-byrne-llc' } } as any
+    const wendell = { person: { id: 'p-wendell' }, company: { id: 'c-glenhaven' } } as any
+    BENCHES.splice(0, BENCHES.length)
+    noticeCalls.length = 0
+    await unreadNotices(wendell)
+    expect(noticeCalls.find((c) => c.op === 'findMany')!.args.where.AND).toHaveLength(1)
+
+    // Colleen Byrne reads at her own corporation and also holds a desk at Halcyon Talent:
+    // Halcyon's notices open Halcyon's book and wait for that seat; everything else shows here.
+    const colleen = { person: { id: 'p-colleen' }, company: { id: 'c-byrne-llc' } } as any
     BENCHES.splice(0, BENCHES.length, { companyId: 'c-halcyon' })
     noticeCalls.length = 0
-    await unreadNotices(caller)
+    await unreadNotices(colleen)
     const where = noticeCalls.find((c) => c.op === 'findMany')!.args.where
-    expect(where.AND[0].OR).toEqual([{ companyId: 'c-byrne-llc' }, { companyId: null }, { companyId: { in: ['c-halcyon'] } }])
-    // Only her own bench seats, never a firm where she holds a desk: that seat's notices open that firm's book.
+    expect(where.AND[0].OR).toEqual([{ companyId: null }, { companyId: { notIn: ['c-halcyon'] } }])
+    // Only a desk elsewhere holds a notice back: a bench seat is no firm's book.
     expect(noticeCalls.find((c) => c.op === 'context.findMany')!.args.where).toEqual({
-      personId: 'p-colleen', type: 'CONSULTANT', revokedAt: null, companyId: { not: 'c-byrne-llc' },
+      personId: 'p-colleen', type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: 'c-byrne-llc' },
     })
     BENCHES.splice(0, BENCHES.length)
   })

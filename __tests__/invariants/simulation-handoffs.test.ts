@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   blocksOf, carries, countSaid, holdReasonOf, machineTalk, names, outboundBy, sinceLines, subjectOf, teamsToWorkers, textOf, toldTwice,
-  SINCE, type NoticeRow, IN_CHUNK, inChunks, sampleOf, stoppedBecause,
+  SINCE, type NoticeRow, IN_CHUNK, inChunks, sampleOf, stoppedBecause, expectedParty, aboutEach,
 } from '../../scripts/simulate/stages/conversation/handoffs-read'
 import { SINCE_HEADING } from '@/app/api/conversations/twin/ask'
 import { DIGEST_PREFIX } from '@/app/api/conversations/twin/notices'
@@ -163,5 +163,26 @@ describe('the handoffs station on a world of two thousand people', () => {
     expect(new Set(a).size).toBe(400)
     expect(sampleOf(seats, 400)).toEqual(a)
     expect(sampleOf(seats.slice(0, 10), 400).length).toBe(10)
+  })
+})
+
+describe('which party a seat reads Ask Etyme as', () => {
+  it('a worker who owns a one-person firm reads her firm\u2019s Ask Etyme, whichever door opened her seat', () => {
+    const corp = { id: 'c', name: 'Adrian Kilbride Consulting LLC', kind: 'CONSULTANT_CORP' } as never
+    expect(expectedParty({ key: 'worker/adrian.kilbride.1018@people.scale.invalid', company: corp })).toBe('SOLO')
+    expect(expectedParty({ key: 'person/colleen', company: corp })).toBe('SOLO')
+    expect(expectedParty({ key: 'worker/wendell@bench.invalid', company: { id: 'g', name: 'Glenhaven Resourcing', kind: 'VENDOR' } as never })).toBe('WORKER')
+    expect(expectedParty({ key: 'worker/someone@x.invalid', company: null })).toBe('WORKER')
+  })
+})
+
+describe('a batch of jobs sent in one minute', () => {
+  it('one notice carrying several jobs tells the reader of every job in it, not only the first', () => {
+    const batch = { personId: 'p-am', entityId: 'req-1', title: 'Tessaract Software sent you 3 jobs', body: '', data: { kind: 'JOB_SENT', requirementIds: ['req-1', 'req-2', 'req-3'] } }
+    const rows = aboutEach([batch])
+    expect(rows.map((r) => r.entityId)).toEqual(['req-1', 'req-2', 'req-3'])
+    expect(rows.every((r) => r.personId === 'p-am')).toBe(true)
+    // A notice about one thing is still one row.
+    expect(aboutEach([{ personId: 'p', entityId: 'x', title: 't', body: '' }])).toHaveLength(1)
   })
 })
