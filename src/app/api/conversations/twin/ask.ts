@@ -702,6 +702,12 @@ export interface WaitingItem {
   /** For `bill.send`: the drafted bill, as the card shows it. */
   bill?: BillCardPayload
   /**
+   * For `invoice_receipt.pay`: whose invoice and its number, as the card
+   * asks it ("Pay Pinnacle Resourcing’s invoice PR-2026-0451?"). A yes
+   * carries the bank reference the person types on the card.
+   */
+  pay?: { supplier: string | null; number: string | null }
+  /**
    * Why this seat is asked, where it would otherwise not be: the owner Ask
    * Etyme acts for, asked to send its bill because nobody else at the firm
    * sends bills (founder, 2026-10-19). Said under the card's title, so the
@@ -1385,18 +1391,64 @@ export function confirmSays(decision: 'APPROVED' | 'REJECTED', item: WaitingItem
  * The request the chat sends for a yes or a no. The one approval route
  * the web and Teams share, with the surface named; nothing else writes.
  */
-export function decisionRequest(approvalId: string, decision: 'APPROVED' | 'REJECTED', reason: string | null): {
+export function decisionRequest(
+  approvalId: string,
+  decision: 'APPROVED' | 'REJECTED',
+  reason: string | null,
+  /** What the person filled in on the card before a yes: the bank reference and method on a payment. */
+  answer?: PayAnswer | null,
+): {
   url: string
   init: { method: 'POST'; headers: Record<string, string>; body: string }
 } {
+  const filled = answer && (answer.reference?.trim() || answer.method?.trim())
+    ? { reference: answer.reference?.trim() || undefined, method: answer.method?.trim() || undefined }
+    : null
   return {
     url: `/api/twin/approvals/${encodeURIComponent(approvalId)}`,
     init: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision, reason: reason ?? undefined, surface: 'WEB' }),
+      body: JSON.stringify({ decision, reason: reason ?? undefined, surface: 'WEB', ...(filled && decision === 'APPROVED' ? { answer: filled } : {}) }),
     },
   }
+}
+
+// ── Paying an invoice receipt (2026-10-26) ───────────────────────────
+//
+// The twin asks to pay a supplier's invoice that passed the three-way
+// check (`invoice_receipt.pay`, NEEDS_APPROVAL, the desk holding
+// payments.record). The card asks one thing, the bank reference, so the
+// AP clerk can reconcile the payment, and optionally the method. A yes
+// goes through the one approval route, which pays through the payment
+// route's own gate. `approve` stays for typed-in receipts.
+
+export const RECEIPT_APPROVE = 'invoice_receipt.approve'
+export const RECEIPT_PAY = 'invoice_receipt.pay'
+
+/** What the person fills in on a pay card. */
+export interface PayAnswer { reference?: string | null; method?: string | null }
+
+/**
+ * Said beside the box when the bank reference is blank: the approval
+ * route's own refusal, word for word (NEEDS_BANK_REFERENCE in
+ * lib/twin/performers; a test holds the two equal).
+ */
+export const NEEDS_BANK_REFERENCE = 'Enter the bank reference so the AP clerk can reconcile it.'
+
+/** The ways a payment goes out, offered beside the reference; none chosen means none said. */
+export const PAY_METHODS: readonly string[] = ['ACH', 'Wire', 'Check']
+
+/** "Pay Pinnacle Resourcing’s invoice PR-2026-0451?" */
+export function payQuestion(p: { supplier: string | null; number: string | null }): string {
+  const whose = p.supplier ? `${possessive(p.supplier)} invoice` : 'the invoice'
+  return `Pay ${whose}${p.number ? ` ${p.number}` : ''}?`
+}
+
+/** What the chat says after the yes: paid, and the reference it was paid under. */
+export function paidSays(p: { supplier: string | null; number: string | null }, reference: string): string {
+  const whose = p.supplier ? `${possessive(p.supplier)} invoice` : 'the invoice'
+  return `Paid ${whose}${p.number ? ` ${p.number}` : ''}, bank reference ${reference}. Recorded under your name.`
 }
 
 // ── Answering ────────────────────────────────────────────────────────
@@ -1605,7 +1657,13 @@ export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
       ? { says: `Send ${b.invoiceNumber ? 'bill ' : ''}${items[0].title}; it is built from weeks ${b.customerName} signed.`, links: [{ text: items[0].title, href: items[0].href }] }
       : { says: `Send the ${counted(items.length, 'bill').toLowerCase()} below; each is built from weeks the customer signed.` }
   }
-  const receipts = items.every((i) => i.action === 'invoice_receipt.approve')
+  // Paying first: a receipt the twin asks to pay is one card, with the bank reference.
+  if (items.every((i) => i.action === RECEIPT_PAY)) {
+    return items.length === 1
+      ? { says: `Pay ${items[0].title}; it passes the three-way check.`, links: [{ text: items[0].title, href: items[0].href }] }
+      : { says: `Pay the ${counted(items.length, 'invoice receipt').toLowerCase()} below; each passes the three-way check.` }
+  }
+  const receipts = items.every((i) => i.action === RECEIPT_APPROVE || i.action === RECEIPT_PAY)
   if (items.length === 1) {
     return receipts
       ? { says: `Approve ${items[0].title}; it matches the approved hours and the contract rate.`, links: [{ text: items[0].title, href: items[0].href }] }

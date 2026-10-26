@@ -51,7 +51,7 @@ import { teamsBotConfig } from '@/lib/teams/config'
 import { conversationFor, rememberConversation } from '@/lib/teams/store'
 import { openPersonalChat, sendToConversation } from '@/lib/teams/connector'
 import { asMessage, digestCard, digestHeading, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
-import { INVOICE_APPROVE, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
+import { INVOICE_APPROVE, INVOICE_PAY, RECEIPT_ACTS, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
 import { waitingQuestions } from '@/lib/twin/ledger'
 import { BILL_SEND } from '@/app/api/conversations/twin/ask'
 
@@ -159,12 +159,16 @@ export async function digestFor(personId: string, companyId: string, opts: { all
   const me: Recipient = { personId, permissions: (seat.role?.permissions as string[] | undefined) ?? [] }
   const owner = await programManagerAt(companyId)
 
-  const pending = await prisma.twinApproval.findMany({
-    where: { companyId, decision: 'PENDING', twinAction: { action: INVOICE_APPROVE } },
-    select: { id: true, needsPermission: true, twinAction: { select: { authorityPersonId: true, payload: true } } },
+  const asked = await prisma.twinApproval.findMany({
+    where: { companyId, decision: 'PENDING', twinAction: { action: { in: [...RECEIPT_ACTS] } } },
+    select: { id: true, needsPermission: true, twinAction: { select: { action: true, entityId: true, authorityPersonId: true, payload: true } } },
     orderBy: { requestedAt: 'asc' },
     take: 50,
   })
+  // One card per receipt: where the twin asks to pay it, an approve
+  // question still open on the same receipt is not sent beside it.
+  const toPay = new Set(asked.filter((a) => a.twinAction.action === INVOICE_PAY).map((a) => a.twinAction.entityId))
+  const pending = asked.filter((a) => !(a.twinAction.action === INVOICE_APPROVE && toPay.has(a.twinAction.entityId)))
   const mine = pending.filter((a) =>
     mayDecide(me, a.needsPermission, a.twinAction.authorityPersonId, ((a.twinAction.payload ?? {}) as { requestedByPersonId?: string }).requestedByPersonId ?? null))
   const invoices: (InvoiceApprovalFacts & { keys: DigestItemKey })[] = []
@@ -279,7 +283,7 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
   try {
     const owner = await programManagerAt(companyId)
     const needs = await prisma.twinApproval.findMany({
-      where: { companyId, decision: 'PENDING', twinAction: { action: { in: [INVOICE_APPROVE, BILL_SEND] } } },
+      where: { companyId, decision: 'PENDING', twinAction: { action: { in: [...RECEIPT_ACTS, BILL_SEND] } } },
       select: { needsPermission: true },
       distinct: ['needsPermission'],
     })

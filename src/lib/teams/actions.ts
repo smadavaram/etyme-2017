@@ -62,8 +62,22 @@ export async function answerCardAction(action: CardAction, bound: BoundPerson, d
       reason,
       surface: 'TEAMS',
       decider: deciderFrom(bound),
+      // What the person typed on a pay card, the same answer the chat card sends.
+      ...(action.answer ? { answer: action.answer } : {}),
     })
     if (!out.ok) return { says: out.says }
+    // A payment is answered in the words its card used: paid, with the reference, or not now.
+    if (action.as === 'pay') {
+      return out.outcome === 'PERFORMED'
+        ? {
+            says: `Paid, bank reference ${action.answer?.reference ?? ''}. It is recorded under your name, from Teams.`,
+            answered: { title: `Paid by ${bound.personName} in Teams`, sentence: `Bank reference ${action.answer?.reference ?? ''}. Recorded under their name.` },
+          }
+        : {
+            says: 'Not paid. The invoice receipt stays on its page, and your answer is recorded under your name.',
+            answered: { title: `Not now, said by ${bound.personName} in Teams`, sentence: 'Nothing was paid.' },
+          }
+    }
     // A bill is answered in the words its buttons used: sent, or kept as a draft.
     if (action.as === 'bill') {
       const number = typeof out.result?.number === 'string' ? out.result.number : null

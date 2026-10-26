@@ -302,3 +302,116 @@ describe('a job’s name is never cut', () => {
     expect(cards[0].title).toBe('The Planning transformation — four supply-planning consultants job request waits for your approval.')
   })
 })
+
+// ── Pay an invoice receipt (2026-10-26) ───────────────────────────────
+
+import { payQuestion, paidSays, decisionRequest, itemsAskSays, NEEDS_BANK_REFERENCE as CHAT_NEEDS_REF, RECEIPT_PAY, type WaitingItem } from '@/app/api/conversations/twin/ask'
+import { NEEDS_BANK_REFERENCE } from '@/lib/twin/performers'
+import { invoiceTitle, approvalActions, readCardAction, PAY_REFERENCE_NEEDED } from '@/lib/teams/cards'
+import { answerCardAction } from '@/lib/teams/actions'
+
+const PAY_ITEM: WaitingItem = {
+  n: 1, approvalId: 'appr-pay-1', entryId: 'e1', says: 'Pay an invoice receipt that passed the three-way check.',
+  title: 'PR-2026-0451 from Pinnacle Resourcing', ruleCited: 'Three-way check', rationale: 'Hours and rate match.',
+  href: '/dashboard/invoices/inv-451', action: RECEIPT_PAY, pay: { supplier: 'Pinnacle Resourcing', number: 'PR-2026-0451' },
+}
+
+describe('Ask Etyme pays an invoice receipt on a yes with the bank reference', () => {
+  it('the card asks “Pay Pinnacle Resourcing’s invoice PR-2026-0451?”', () => {
+    expect(payQuestion(PAY_ITEM.pay!)).toBe('Pay Pinnacle Resourcing’s invoice PR-2026-0451?')
+  })
+
+  it('a yes posts to the one approval route with the bank reference and the method as the answer', () => {
+    const { url, init } = decisionRequest('appr-pay-1', 'APPROVED', null, { reference: ' ACH-0451 ', method: 'ACH' })
+    expect(url).toBe('/api/twin/approvals/appr-pay-1')
+    expect(JSON.parse(init.body)).toEqual({ decision: 'APPROVED', surface: 'WEB', answer: { reference: 'ACH-0451', method: 'ACH' } })
+  })
+
+  it('Not now sends no answer, and a question with nothing typed sends none either', () => {
+    expect(JSON.parse(decisionRequest('a', 'REJECTED', 'Not now', { reference: 'X' }).init.body).answer).toBeUndefined()
+    expect(JSON.parse(decisionRequest('a', 'APPROVED', null).init.body).answer).toBeUndefined()
+  })
+
+  it('the sentence beside a blank box is the route’s own refusal, word for word, in the chat and in Teams', () => {
+    expect(CHAT_NEEDS_REF).toBe(NEEDS_BANK_REFERENCE)
+    expect(PAY_REFERENCE_NEEDED).toBe(NEEDS_BANK_REFERENCE)
+    expect(NEEDS_BANK_REFERENCE).toBe('Enter the bank reference so the AP clerk can reconcile it.')
+  })
+
+  it('the screen draws a Bank reference box, an optional method, Yes and Not now on the pay card, and refuses a blank box before sending', () => {
+    const tsx = src('src/app/dashboard/conversations/ask-etyme.tsx')
+    const card = tsx.slice(tsx.indexOf('function PayCard('), tsx.indexOf('function PayCard(') + 4000)
+    expect(card).toContain('>Bank reference</label>')
+    expect(card).toContain('Method (optional)')
+    expect(card).toContain("'Yes, pay it'")
+    expect(card).toContain('>Not now</button>')
+    expect(card).toContain('{NEEDS_BANK_REFERENCE}')
+    expect(card).toContain("onDecide(item, 'APPROVED', null, { reference: reference.trim(), method: method || null })")
+  })
+
+  it('after the yes the chat says it was paid, with the reference', () => {
+    expect(paidSays(PAY_ITEM.pay!, 'ACH-0451')).toBe('Paid Pinnacle Resourcing’s invoice PR-2026-0451, bank reference ACH-0451. Recorded under your name.')
+  })
+
+  it('the recommendation for a receipt to pay says pay, not approve', () => {
+    expect(itemsAskSays([PAY_ITEM])?.says).toBe('Pay PR-2026-0451 from Pinnacle Resourcing; it passes the three-way check.')
+  })
+
+  it('a receipt holding both a pay and an approve question is one card: the approve question is not drawn beside it', () => {
+    const read = src('src/app/api/conversations/twin/read.ts')
+    expect(read).toContain('if (r.twinAction.action === RECEIPT_APPROVE && toPay.has(r.twinAction.entityId)) return false')
+    const digest = src('src/lib/teams/digest.ts')
+    expect(digest).toContain("asked.filter((a) => !(a.twinAction.action === INVOICE_APPROVE && toPay.has(a.twinAction.entityId)))")
+  })
+})
+
+describe('in Teams, the same question is a card with a box for the bank reference', () => {
+  const f = {
+    approvalId: 'appr-pay-1', number: 'PR-2026-0451', supplierName: 'Pinnacle Resourcing', contractors: ['Helena Marsh'],
+    periodStart: null, periodEnd: null, amountMinor: 480000, currency: 'USD', dueAt: null, variances: [],
+    ruleCited: 'Three-way check', rationale: 'Hours and rate match.', pay: true,
+  }
+
+  it('the card asks the same question as the chat', () => {
+    expect(invoiceTitle(f)).toBe('Pay Pinnacle Resourcing’s invoice PR-2026-0451?')
+  })
+
+  it('Pay opens a required bank reference box and an optional method, and its yes is marked as a payment', () => {
+    const actions = approvalActions(f) as any[]
+    expect(actions.map((a) => a.title)).toEqual(['Pay', 'Not now', 'Why?'])
+    const body = actions[0].card.body
+    expect(body[0]).toMatchObject({ type: 'Input.Text', id: 'reference', isRequired: true, errorMessage: NEEDS_BANK_REFERENCE })
+    expect(body[1]).toMatchObject({ type: 'Input.Text', id: 'method' })
+    expect(actions[0].card.actions[0].data).toEqual({ etyme: 'twin.approval', approvalId: 'appr-pay-1', decision: 'APPROVED', as: 'pay' })
+  })
+
+  it('an approve question on a typed-in receipt keeps Approve and Reject', () => {
+    expect((approvalActions({ ...f, pay: false }) as any[]).map((a) => a.title)).toEqual(['Approve', 'Reject', 'Why?'])
+  })
+
+  it('the typed reference and method come back from the card as the same answer the chat sends', () => {
+    expect(readCardAction({ etyme: 'twin.approval', approvalId: 'appr-pay-1', decision: 'APPROVED', as: 'pay', reference: ' ACH-0451 ', method: '' })).toEqual({
+      etyme: 'twin.approval', approvalId: 'appr-pay-1', decision: 'APPROVED', as: 'pay', answer: { reference: 'ACH-0451', method: null },
+    })
+  })
+
+  it('Yes in Teams goes to the one approval door with the answer, and the reply says it was paid with the reference', async () => {
+    const seen: any[] = []
+    const out = await answerCardAction(
+      { etyme: 'twin.approval', approvalId: 'appr-pay-1', decision: 'APPROVED', as: 'pay', answer: { reference: 'ACH-0451', method: 'ACH' } },
+      { personId: 'p', personName: 'Renata Kowal', companyId: 'c', companyKind: 'CLIENT', companyName: 'Northbend Athletic', permissions: ['payments.record'] } as any,
+      { decide: async (args) => { seen.push(args); return { ok: true, outcome: 'PERFORMED', entryId: 'e' } }, why: async () => null },
+    )
+    expect(seen[0]).toMatchObject({ approvalId: 'appr-pay-1', decision: 'APPROVED', surface: 'TEAMS', answer: { reference: 'ACH-0451', method: 'ACH' } })
+    expect(out.says).toBe('Paid, bank reference ACH-0451. It is recorded under your name, from Teams.')
+  })
+
+  it('a blank reference in Teams is refused by the door in its own sentence, and nothing is paid', async () => {
+    const out = await answerCardAction(
+      { etyme: 'twin.approval', approvalId: 'appr-pay-1', decision: 'APPROVED', as: 'pay', answer: { reference: null, method: null } },
+      { personId: 'p', personName: 'Renata Kowal', companyId: 'c', companyKind: 'CLIENT', companyName: 'Northbend Athletic', permissions: ['payments.record'] } as any,
+      { decide: async () => ({ ok: false, status: 422, says: NEEDS_BANK_REFERENCE }), why: async () => null },
+    )
+    expect(out.says).toBe(NEEDS_BANK_REFERENCE)
+  })
+})

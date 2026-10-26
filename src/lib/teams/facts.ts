@@ -15,6 +15,10 @@ import type { BillSendFacts, InvoiceApprovalFacts, TenureAlertFacts } from '@/li
 import { BILL_SEND, billFromPayload, billRows, billCardTitle, billItemTitle, hrefFor } from '@/app/api/conversations/twin/ask'
 
 export const INVOICE_APPROVE = 'invoice_receipt.approve'
+/** The twin asks to pay a receipt that passed the check (2026-10-26); the card asks for the bank reference. */
+export const INVOICE_PAY = 'invoice_receipt.pay'
+/** Both questions a receipt card is drawn for. */
+export const RECEIPT_ACTS: readonly string[] = [INVOICE_APPROVE, INVOICE_PAY]
 export const TENURE_TOLD = 'tenure.warning.notify_program_owner'
 export const TENURE_TO_SUPPLIER = 'tenure.warning.notify_supplier'
 
@@ -51,7 +55,7 @@ export async function invoiceApprovalFacts(approvalId: string, companyId: string
     where: { id: approvalId, companyId, decision: 'PENDING' },
     select: { id: true, twinAction: { select: { action: true, entityType: true, entityId: true, ruleCited: true, rationale: true, payload: true } } },
   })
-  if (!a || a.twinAction.action !== INVOICE_APPROVE || a.twinAction.entityType !== 'Invoice') return null
+  if (!a || !RECEIPT_ACTS.includes(a.twinAction.action) || a.twinAction.entityType !== 'Invoice') return null
   const payload = (a.twinAction.payload ?? {}) as { number?: string | null; supplierName?: string | null }
   const head = await prisma.invoice.findUnique({
     where: { id: a.twinAction.entityId },
@@ -75,6 +79,7 @@ export async function invoiceApprovalFacts(approvalId: string, companyId: string
     variances: varianceLines(lines, currency),
     ruleCited: a.twinAction.ruleCited,
     rationale: a.twinAction.rationale,
+    ...(a.twinAction.action === INVOICE_PAY ? { pay: true } : {}),
   }
 }
 

@@ -38,7 +38,9 @@ const VERSION = '1.5'
 /** What a button sends back. `etyme` names the act so nothing else is mistaken for one. */
 export type CardAction =
   /** `as: 'bill'` where the button sends a bill, so the answer is said in the words the button used. */
-  | { etyme: 'twin.approval'; approvalId: string; decision: 'APPROVED' | 'REJECTED'; reason?: string; as?: 'bill' }
+  | { etyme: 'twin.approval'; approvalId: string; decision: 'APPROVED' | 'REJECTED'; reason?: string; as?: 'bill' | 'pay'
+      /** What the person typed on a pay card: the bank reference and, optionally, the method. */
+      answer?: { reference: string | null; method: string | null } }
   | { etyme: 'twin.why'; approvalId: string }
   | { etyme: 'tenure.ack'; twinActionId: string; personName?: string; tier?: string }
 
@@ -58,6 +60,12 @@ export interface InvoiceApprovalFacts {
   /** The ledger entry's own words. */
   ruleCited: string
   rationale: string
+  /**
+   * True where the twin asks to pay the receipt (`invoice_receipt.pay`),
+   * not only to approve it: the card asks for the bank reference and a yes
+   * records the payment through the one approval route.
+   */
+  pay?: boolean
 }
 
 export interface TenureAlertFacts {
@@ -159,8 +167,40 @@ function whyCard(ruleCited: string, rationale: string): Element {
   return adaptive([text('The rule', { weight: 'Bolder' }), text(ruleCited), text('Why', { weight: 'Bolder' }), text(rationale)])
 }
 
-/** Approve · Reject · Why? for one question the twin asked. */
-export function approvalActions(f: Pick<InvoiceApprovalFacts, 'approvalId' | 'ruleCited' | 'rationale'>): Element[] {
+/** Said under the reference box, and by the route to a yes with none: the same sentence. */
+export const PAY_REFERENCE_NEEDED = 'Enter the bank reference so the AP clerk can reconcile it.'
+
+/**
+ * Pay · Not now · Why? for a receipt the twin asks to pay: Pay opens one
+ * box for the bank reference (required) and one for the method
+ * (optional), and its submit carries both as the answer the chat card
+ * sends. Not now is a recorded no with its plain reason.
+ */
+export function payActions(f: Pick<InvoiceApprovalFacts, 'approvalId' | 'ruleCited' | 'rationale'>): Element[] {
+  const pay: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'APPROVED', as: 'pay' }
+  const later: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'REJECTED', as: 'pay', reason: PAY_NOT_NOW_REASON }
+  return [
+    {
+      type: 'Action.ShowCard', title: 'Pay',
+      card: adaptive(
+        [
+          { type: 'Input.Text', id: 'reference', label: 'Bank reference', isRequired: true, errorMessage: PAY_REFERENCE_NEEDED, maxLength: 200, placeholder: 'For example: ACH 20261026-0451' },
+          { type: 'Input.Text', id: 'method', label: 'Method (optional)', maxLength: 60, placeholder: 'ACH, wire or check' },
+        ],
+        [{ type: 'Action.Submit', title: 'Yes, pay it', style: 'positive', data: pay }],
+      ),
+    },
+    { type: 'Action.Submit', title: 'Not now', data: later },
+    { type: 'Action.ShowCard', title: 'Why?', card: whyCard(f.ruleCited, f.rationale) },
+  ]
+}
+
+/** What a Not now on a pay card records when the person gives no reason. */
+export const PAY_NOT_NOW_REASON = 'Not now, said in Teams with no reason given. The invoice receipt stays unpaid on its page.'
+
+/** Approve · Reject · Why? for one question the twin asked; a pay question draws `payActions`. */
+export function approvalActions(f: Pick<InvoiceApprovalFacts, 'approvalId' | 'ruleCited' | 'rationale'> & { pay?: boolean }): Element[] {
+  if (f.pay) return payActions(f)
   const approve: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'APPROVED' }
   const reject: CardAction = { etyme: 'twin.approval', approvalId: f.approvalId, decision: 'REJECTED' }
   return [
@@ -198,7 +238,11 @@ function invoiceFacts(f: InvoiceApprovalFacts): Element[] {
   ]
 }
 
-export function invoiceTitle(f: Pick<InvoiceApprovalFacts, 'number' | 'supplierName'>): string {
+export function invoiceTitle(f: Pick<InvoiceApprovalFacts, 'number' | 'supplierName'> & { pay?: boolean }): string {
+  if (f.pay) {
+    const whose = f.supplierName ? `${/s$/i.test(f.supplierName) ? `${f.supplierName}\u2019` : `${f.supplierName}\u2019s`} invoice` : 'the invoice'
+    return `Pay ${whose}${f.number ? ` ${f.number}` : ''}?`
+  }
   const which = f.number ? `Invoice receipt ${f.number}` : 'An invoice receipt'
   return `${which}${f.supplierName ? ` from ${f.supplierName}` : ''} needs your approval`
 }
@@ -339,10 +383,14 @@ export function readCardAction(value: unknown): CardAction | null {
     // "Not now" on a bill: what the person typed, else the sentence the button carries.
     const note = typeof v.note === 'string' && v.note.trim() ? v.note : null
     const reason = note ?? (typeof v.reason === 'string' ? v.reason : null)
+    // A pay card's boxes: what the person typed, trimmed; a blank box is absent.
+    const field = (k: string, max: number) => (typeof v[k] === 'string' && (v[k] as string).trim() ? (v[k] as string).trim().slice(0, max) : null)
+    const answer = v.as === 'pay' && decision === 'APPROVED' ? { reference: field('reference', 200), method: field('method', 60) } : null
     return {
       etyme: 'twin.approval', approvalId, decision,
       ...(reason != null ? { reason: reason.slice(0, 2000) } : {}),
-      ...(v.as === 'bill' ? { as: 'bill' as const } : {}),
+      ...(v.as === 'bill' ? { as: 'bill' as const } : v.as === 'pay' ? { as: 'pay' as const } : {}),
+      ...(answer ? { answer } : {}),
     }
   }
   if (v.etyme === 'twin.why') {

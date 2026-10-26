@@ -4,6 +4,8 @@ import { GET as greet, POST as ask } from '@/app/api/conversations/twin/route'
 import { GET as programPage } from '@/app/api/program/route'
 import { firmTuesday } from '@/lib/money/firm-today'
 import { benchAt } from '@/app/api/today/reads'
+import { runTwin } from '@/lib/twin/run'
+import { POST as decideRoute } from '@/app/api/twin/approvals/[id]/route'
 
 /**
  * Ask Etyme runs beside the dashboard, on the seeded world (the founder's
@@ -178,5 +180,31 @@ describe('Ask Etyme says what the dashboard says', () => {
         expect(r.body.data.answer.says, `${email}: ${q}`).not.toMatch(/; ask them\.$|needs the model|I answer only about|could not be read/)
       }
     }
+  })
+  it('Northbend’s AP clerk is asked to pay a clean invoice receipt, cannot say yes without the bank reference, and pays it with one', async () => {
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    await runTwin(northbend.id)
+    as(`world-nike-ap${D}`)
+    const g = await json(await greet(req('GET', '/api/conversations/twin')))
+    expect(g.status, JSON.stringify(g.body)).toBe(200)
+    const items: any[] = g.body.data.answer.items ?? []
+    const pay = items.find((i) => i.action === 'invoice_receipt.pay')
+    expect(pay, `a pay question for the AP clerk: ${JSON.stringify(items.map((i) => i.action))}`).toBeTruthy()
+    expect(pay.pay.number).toBeTruthy()
+    // One card per receipt.
+    const receipts = items.filter((i) => i.href === pay.href)
+    expect(receipts).toHaveLength(1)
+
+    const call = (body: unknown) => decideRoute(req('POST', `/api/twin/approvals/${pay.approvalId}`, body), { params: Promise.resolve({ id: pay.approvalId }) } as any)
+    const blank = await json(await call({ decision: 'APPROVED', surface: 'WEB' }))
+    expect(blank.status).not.toBe(200)
+    expect(blank.body.error.message).toBe('Enter the bank reference so the AP clerk can reconcile it.')
+
+    const invoiceId = pay.href.split('/').pop()
+    const before = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { paid: true, total: true } })
+    const yes = await json(await call({ decision: 'APPROVED', surface: 'WEB', answer: { reference: 'ACH-TEST-0451', method: 'ACH' } }))
+    expect(yes.status, JSON.stringify(yes.body)).toBe(200)
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { paid: true, total: true } })
+    expect(Number(after.paid)).toBeGreaterThan(Number(before.paid))
   })
 })

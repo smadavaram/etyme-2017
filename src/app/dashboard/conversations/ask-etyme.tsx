@@ -5,13 +5,14 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { useSession } from '@/components/session-provider'
 import { EtymeMark } from '@/components/logo'
-import { RefusedState, Textarea, FormMessage } from '@/components/ui'
+import { RefusedState, Textarea, FormMessage, Input, Select } from '@/components/ui'
 import { statusMeans } from '@/lib/read-response'
 import { formatDay, formatRange } from '@/lib/format-date'
 import { deskOf } from '@/components/shell/sidebar-props'
 import {
   FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays, partyOf, questionsFor, placeholderFor,
   billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
+  payQuestion, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
   type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
@@ -92,7 +93,7 @@ type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K>
 type CardState = { state: 'APPROVED' | 'REJECTED' | 'LATER' | 'OVERTAKEN'; number?: string } | { state: 'ERROR'; text: string }
 type Cards = Record<string, CardState>
 
-type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null) => void
+type Decide = (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, answer?: PayAnswer | null) => void
 
 /** The twin's numbers, the hours tolerance among them: the architect's rules page. */
 const RULES_HREF = '/dashboard/twin/rules'
@@ -265,9 +266,9 @@ export function AskEtyme() {
   }
 
   /** A yes or a no, through the one approval route; then the line that drew the card records it. */
-  const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string) => {
+  const decide = async (item: WaitingItem, decision: 'APPROVED' | 'REJECTED', reason: string | null, turnId?: string, answer?: PayAnswer | null) => {
     setDeciding(item.approvalId)
-    const { url, init } = decisionRequest(item.approvalId, decision, reason)
+    const { url, init } = decisionRequest(item.approvalId, decision, reason, answer)
     try {
       const res = await fetch(url, init)
       const body = await res.json().catch(() => null)
@@ -283,6 +284,8 @@ export function AskEtyme() {
         kind: 'TEXT',
         says: item.bill
           ? `${decision === 'APPROVED' ? billSentSays(item.bill, number) : billKeptSays(item.bill)} Recorded under your name.`
+          : item.pay && decision === 'APPROVED' && answer?.reference
+          ? paidSays(item.pay, answer.reference.trim())
           : `${decision === 'APPROVED' ? 'Approved' : 'Rejected'} ${item.title}. ${body?.data?.note ?? ''}`.trim(),
         links: [
           { label: `Open ${item.title}`, href: item.href },
@@ -419,7 +422,7 @@ export function AskEtyme() {
                         seat={seat}
                         cards={{ ...(t.saved ?? {}), ...cards }}
                         deciding={deciding}
-                        onDecide={(item, d, r) => void decide(item, d, r, t.savedId)}
+                        onDecide={(item, d, r, ans) => void decide(item, d, r, t.savedId, ans)}
                         onLater={(item) => later(item, t.savedId)}
                         renewed={renewed}
                         onRenew={(card) => void renew(card)}
@@ -714,6 +717,7 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
   const [reason, setReason] = useState('')
 
   if (item.bill) return <BillCard item={item} card={card} busy={busy} onDecide={onDecide} />
+  if (item.pay) return <PayCard item={item} card={card} busy={busy} onDecide={onDecide} onLater={onLater} />
 
   const done = card && card.state !== 'ERROR'
   return (
@@ -760,6 +764,76 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
           )}
           <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(item)}>Not now</button>
         </div>
+      )}
+      {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
+    </li>
+  )
+}
+
+/**
+ * The twin asks to pay a supplier's invoice that passed the three-way
+ * check (2026-10-26): "Pay Pinnacle Resourcing’s invoice PR-2026-0451?",
+ * one box for the bank reference so the AP clerk can reconcile it, the
+ * method if the person wants to say it, then Yes or Not now. Yes goes to
+ * the one approval route with the reference; a blank one is refused there
+ * in the sentence shown here beside the box, before anything is sent.
+ */
+function PayCard({ item, card, busy, onDecide, onLater }: {
+  item: WaitingItem
+  card?: CardState
+  busy: boolean
+  onDecide: Decide
+  onLater: (item: WaitingItem) => void
+}) {
+  const [reference, setReference] = useState('')
+  const [method, setMethod] = useState('')
+  const [blank, setBlank] = useState(false)
+  const done = card && card.state !== 'ERROR'
+  const id = `ref-${item.approvalId}`
+  return (
+    <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
+      <p className="font-medium">{payQuestion(item.pay!)}</p>
+      {item.askedYouBecause && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.askedYouBecause}</p>}
+      <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.rationale}</p>
+      <Links links={[{ label: `Open ${item.title}`, href: item.href }]} />
+      {done ? (
+        <p className="mt-2">
+          <span className={`chip ${card.state === 'APPROVED' ? 'chip--verified' : 'chip--passive'}`}>
+            {card.state === 'APPROVED' ? 'Paid' : card.state === 'OVERTAKEN' ? 'Closed' : 'Kept waiting'}
+          </span>
+          {card.state === 'LATER' && <span className="ml-2 text-[12.5px] text-etyme-muted">Nothing was paid. Ask “What needs me today?” to see it again.</span>}
+          {card.state === 'OVERTAKEN' && <span className="ml-2 text-[12.5px] text-etyme-muted">The record moved on before anybody answered, so there is nothing to pay.</span>}
+        </p>
+      ) : (
+        <form
+          className="mt-3 flex flex-col gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (!reference.trim()) { setBlank(true); return }
+            onDecide(item, 'APPROVED', null, { reference: reference.trim(), method: method || null })
+          }}
+        >
+          <label htmlFor={id} className="text-[12.5px] text-etyme-muted">Bank reference</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id={id}
+              className="max-w-[16rem] text-[13px]"
+              value={reference}
+              maxLength={200}
+              onChange={(e) => { setReference(e.target.value); if (e.target.value.trim()) setBlank(false) }}
+              aria-describedby={blank ? `${id}-blank` : undefined}
+            />
+            <Select aria-label="Method, optional" className="w-auto text-[13px]" value={method} onChange={(e) => setMethod(e.target.value)}>
+              <option value="">Method (optional)</option>
+              {PAY_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </Select>
+            {blank && <span id={`${id}-blank`} className="text-[12.5px] text-etyme-danger">{NEEDS_BANK_REFERENCE}</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="btn-primary text-[13px]" disabled={busy}>{busy ? 'Recording…' : 'Yes, pay it'}</button>
+            <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(item)}>Not now</button>
+          </div>
+        </form>
       )}
       {card?.state === 'ERROR' && <div className="mt-2"><FormMessage tone="error">{card.text}</FormMessage></div>}
     </li>

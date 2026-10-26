@@ -43,7 +43,7 @@ import { labelFor } from '@/lib/document-type'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
-  matchPerson, billFromPayload, billItemTitle, BILL_SEND,
+  matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
   type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
@@ -212,8 +212,12 @@ export function readersFor(
       // except the one bill the ledger says is the owner's to send.
       // The approval route checks all of it again; this keeps the list to
       // things the reader can act on.
+      // One card per receipt: where the twin asked to pay a receipt, an
+      // `approve` question still open on it is not drawn beside it.
+      const toPay = new Set(rows.filter((r) => r.twinAction.action === RECEIPT_PAY).map((r) => r.twinAction.entityId))
       const mine = rows.filter((r) => {
         const p = asRecord(r.twinAction.payload)
+        if (r.twinAction.action === RECEIPT_APPROVE && toPay.has(r.twinAction.entityId)) return false
         if (!hasPermission(caller.permissions, r.needsPermission as Permission)) return false
         if (askedYou.has(r.id)) return true
         return r.twinAction.authorityPersonId !== caller.person.id &&
@@ -246,6 +250,9 @@ export function readersFor(
           href: hrefFor(a.entityType, a.entityId, a.id),
           action: a.action,
           ...(bill ? { bill } : {}),
+          ...(a.action === RECEIPT_PAY && a.entityType === 'Invoice'
+            ? { pay: { supplier: typeof p.supplierName === 'string' ? p.supplierName : null, number: typeof p.number === 'string' ? p.number : null } }
+            : {}),
           ...(askedYou.has(r.id) ? { askedYouBecause: askedYou.get(r.id)! } : {}),
         }
       })

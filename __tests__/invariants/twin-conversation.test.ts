@@ -230,7 +230,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       expect(src, f).not.toMatch(/\$transaction|\bdecideApproval\b|\brequestApproval\b|from '@\/lib\/twin\/ledger'.*\bact\b/)
     }
     const chat = readFileSync(join(root, 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
-    expect(chat).toContain('decisionRequest(item.approvalId, decision, reason)')
+    expect(chat).toContain('decisionRequest(item.approvalId, decision, reason, answer)')
     // The chat reaches four places only: its own route (the greeting and the
     // saved lines, Show earlier, Clear, a card's mark, each question), the
     // one approval route, a decision card's own act on the one route that
