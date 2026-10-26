@@ -796,3 +796,17 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
 - **Resend has no read-only key.** `RESEND_RECEIVING_KEY` must be a
   full-access key, which could also change Resend's domains; it is kept
   apart from the sending key so the sending key stays sending-only.
+
+## Supplier onboarding's signed copy and the agreement — etyme-architect (2026-10-22)
+
+- **The agreement written at Finance's yes does not point at the signed
+  copy.** Since 6fb83af7f an MSA or NDA item is on file only with its
+  signed copy attached (`POST /api/supplier-requests/:id/file`), and the
+  file's name and address sit on the checklist item. When Finance says
+  the last yes, `PATCH /api/supplier-requests/:id` creates the
+  `MasterAgreement` with `signedAt` and nothing else. Its
+  `executedFileName` and `executedFileUrl` stay empty, so the
+  Agreements page shows a signed agreement with no document behind it.
+  The copy can still be found on the onboarding request. The fix is to
+  carry the item's file onto those two columns at the same yes. That is
+  demand's route; no schema is needed. Not built yet.
