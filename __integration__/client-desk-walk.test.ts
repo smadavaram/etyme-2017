@@ -14,6 +14,7 @@ import { GET as supplierRegister } from '@/app/api/suppliers/route'
 import { POST as recordRole } from '@/app/api/requirements/route'
 import { GET as sharedWithMe } from '@/app/api/invitations/route'
 import { POST as acceptExpense } from '@/app/api/expenses/[id]/accept/route'
+import { runTwin } from '@/lib/twin/run'
 
 /**
  * Northbend Athletic, walked as its desks — the client tester's walk of
@@ -33,6 +34,7 @@ const PROGRAMME = `world-nike-programme${D}`
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-techpeple${D}`
 const AP = `world-nike-ap${D}`
+const BRIGHTMOOR = `world-brightmoor${D}`
 const COMPLIANCE = `world-nike-compliance${D}`
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s: Record<string, any> = {}
@@ -499,7 +501,7 @@ describe('time off is never taken in place of overtime pay, and the approval say
     expect(await prisma.overtimeDecision.count({ where: { timesheetId: week.id } })).toBe(0)
   })
 
-  it('the client’s signature says what it is billed through the one money formatter', async () => {
+  it('the client’s signature says who bills it and what, through the one money formatter, and never calls the week billable', async () => {
     as(HIRING)
     const r = await json(await signWeek(
       req('POST', `/api/timesheets/${s.omar}/approve`, {
@@ -509,7 +511,23 @@ describe('time off is never taken in place of overtime pay, and the approval say
       withId(s.omar)
     ))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.message).toMatch(/^Approved 45h — \$[\d,]+\.\d{2} billable\. /)
+    expect(r.body.data.message).toMatch(/^Approved Omar Haddad’s 45 hours for [^.]+\. .+ bills you \$[\d,]+\.\d{2} for them\. /)
+    expect(r.body.data.message).not.toContain('billable')
+  })
+
+  it('the employer below the client is offered the signed week to accept, not to approve, and is not asked again for the reason the client gave', async () => {
+    as(BRIGHTMOOR)
+    const q = await json(await readDecisions(req('GET', '/api/decisions')))
+    expect(q.status, JSON.stringify(q.body)).toBe(200)
+    const row = q.body.data.decisions.find((d: any) => d.entityId === s.omar)
+    expect(row, JSON.stringify(q.body.data.decisions.map((d: any) => d.title))).toBeTruthy()
+    expect(row.title).toBe('Accept the signed week — Omar Haddad')
+    expect(row.flag).toBeNull()
+
+    as(BRIGHTMOOR)
+    const r = await json(await signWeek(req('POST', `/api/timesheets/${s.omar}/approve`, {}), withId(s.omar)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.message).toMatch(/^Accepted 45h/)
   })
 })
 
@@ -652,5 +670,39 @@ describe('the Today headline is one sentence with the names in it, and says the 
     for (const row of program.programQueue) expect(['START_HELD', 'NO_AGREEMENT']).toContain(row.type)
     console.log(`Aptiva's own queue mentions Ruben Ortega: ${own.includes('Ruben Ortega')}`)
     console.log(`${APTIVA} on Cavanaugh's page: ${deskHeadline(program.programQueue).says}`)
+  })
+})
+
+describe('the AP clerk’s queue lists as Pay only what the payment route would pay', () => {
+  it('a receipt that bills more hours than were signed is held, with the hours and the way forward, and is never "Pay"', async () => {
+    as(AP)
+    const r = await json(await readDecisions(req('GET', '/api/decisions')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const rows = r.body.data.decisions.filter((d: any) => /PR-2026-0442/.test(d.subtitle ?? ''))
+    expect(rows, JSON.stringify(r.body.data.decisions.map((d: any) => [d.type, d.title, d.subtitle]))).toHaveLength(1)
+    expect(rows[0].type).toBe('INVOICE_RECEIPT_HELD')
+    expect(rows[0].title).toBe('Held: hours don’t match — Pinnacle Resourcing')
+    expect(rows[0].subtitle).toContain('41.5 hours billed, 40 signed')
+    expect(rows[0].subtitle).toContain('record an exception with a reason')
+    expect(rows[0].amount).toBeNull()
+  })
+
+  it('one invoice receipt is one row on the queue, whatever the twin asked about it', async () => {
+    // The nightly run puts the clean receipt to the AP clerk as a question.
+    await runTwin(s.northbend)
+    as(AP)
+    const r = await json(await readDecisions(req('GET', '/api/decisions')))
+    const receipts = r.body.data.decisions.filter((d: any) => d.type === 'INVOICE_RECEIPT_TO_PAY' || d.type === 'INVOICE_RECEIPT_HELD')
+    expect(new Set(receipts.map((d: any) => d.entityId)).size).toBe(receipts.length)
+    const asked = await prisma.twinApproval.findMany({
+      where: { decision: 'PENDING', twinAction: { action: 'invoice_receipt.approve', entityType: 'Invoice', entityId: { in: receipts.map((d: any) => d.entityId) } } },
+      select: { id: true },
+    })
+    const questions = new Set(r.body.data.decisions.filter((d: any) => d.type === 'TWIN_QUESTION').map((d: any) => d.entityId))
+    expect(asked.length).toBeGreaterThan(0)
+    for (const q of asked) expect(questions.has(q.id)).toBe(false)
+    const folded = receipts.filter((d: any) => d.twinApprovalId)
+    expect(folded.map((d: any) => d.twinApprovalId).sort()).toEqual(asked.map((q) => q.id).sort())
+    expect(r.body.data.total).toBe(r.body.data.decisions.length)
   })
 })

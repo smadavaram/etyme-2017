@@ -42,7 +42,6 @@ const NOT_YET_MOVED: string[] = [
   'src/app/api/me/route.ts',
   'src/app/api/program/agreements/[id]/history/route.ts',
   'src/app/api/program/agreements/verdict.ts',
-  'src/app/api/program/route.ts',
   'src/app/api/requirements/[id]/matches/asked.ts',
   'src/app/api/timesheets/filing.ts',
   'src/app/dashboard/alumni/page.tsx',

@@ -84,7 +84,7 @@ describe('The headline and the box under it read one list', () => {
   })
 
   it('every start paperwork will refuse is counted, not only the five nearest the panel shows, and the queue and the panel read one verdict', () => {
-    const route = src('src/app/api/program/route.ts')
+    const route = src('src/app/api/program/view.ts')
     expect(route).not.toContain(".filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
     expect(route).toContain('startingSoon: cleared.slice(0, 5)')
     expect(route).toContain('const papers = await startPaperwork(c, {')
@@ -93,7 +93,7 @@ describe('The headline and the box under it read one list', () => {
   })
 
   it('the panel shows the nearest starts first, by the day they start', () => {
-    expect(src('src/app/api/program/route.ts')).toContain('.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())')
+    expect(src('src/app/api/program/view.ts')).toContain('.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())')
   })
 })
 

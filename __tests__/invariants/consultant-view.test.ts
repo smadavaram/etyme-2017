@@ -96,7 +96,7 @@ describe('asking for a person', () => {
     expect(ask).toContain('await prisma.conversation.update({ where: { id: thread.id }, data: { updatedAt: now } })')
     expect(api).toContain("where: { type: 'ASK', conversation: { companyId }, metadata: { path: ['personId'], equals: id } }")
     expect(page).toContain('asked {a.supplier} for {person.name.split(\' \')[0]} on {a.role}.')
-    expect(read('src/app/api/program/route.ts')).toContain("what: 'Asked for'")
+    expect(read('src/app/api/program/view.ts')).toContain("what: 'Asked for'")
   })
   it('a client seat reaches its conversations from the menu, inside Ask Etyme', () => {
     expect(read('src/lib/nav-table.ts')).toContain("const CONVERSATIONS: NavItem = { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' }")

@@ -19,7 +19,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 describe('what the client desk is told', () => {
   const decisions = read('src/app/api/decisions/route.ts')
-  const program = read('src/app/api/program/route.ts')
+  const program = read('src/app/api/program/view.ts')
   const page = read('src/app/dashboard/program/page.tsx')
   const needsYou = read('src/app/dashboard/program/needs-you.ts')
   const volume = read('src/lib/demo-volume.ts')
@@ -508,8 +508,10 @@ describe('an invoice receipt waiting to be paid is on the AP clerk’s queue (si
 
   it('the queue lists it for the desk that records payments, only where this firm is the one asked to pay, and never twice', () => {
     expect(decisions).toContain("if (hasAnyPermission(caller.permissions, ['payments.record'])) {\n    const askedOn")
-    expect(decisions).toContain("if (directionFrom(parties, companyId) !== 'PAYABLE') continue")
-    expect(decisions).toContain('if (askedOn.has(inv.id)) continue')
+    expect(decisions).toContain("if (directionFrom(parties, companyId) !== 'PAYABLE') return []")
+    // Never twice: a receipt the twin asked about is that receipt's one
+    // row, carrying the question, and the question is not counted beside it.
+    expect(decisions).toContain('if (twinApprovalId) foldedQuestions.add(twinApprovalId)')
     expect(decisions).toMatch(/RECEIPT_NOT_WAITING = \[[^\]]*'DISPUTED'/)
   })
 

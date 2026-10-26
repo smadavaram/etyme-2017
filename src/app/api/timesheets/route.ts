@@ -17,7 +17,7 @@ import { reportError } from '@/lib/alerts'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
-import { weekFlag, flaggedFirst } from '@/lib/timesheet-flag'
+import { weekFlag, flaggedFirst, flagAsksReason } from '@/lib/timesheet-flag'
 import { weekTurn, ladderAbove } from './ladder'
 import { topDown } from './chain-turn'
 import { approvalWordsReadLog } from './approval-by-email'
@@ -470,6 +470,11 @@ export async function GET(request: NextRequest) {
           // What is wrong with the week, in a sentence, or null. The
           // reason it is listed first.
           flag: flagOf.get(t.id) ?? null,
+          // Whether pressing approve on a flagged week asks this reader
+          // for the reason. Only the client is asked; a firm below it
+          // accepts a week the client already signed with its reason
+          // (`flagAsksReason`, the approve route's own rule).
+          flagAsksReason: flagAsksReason({ belowTop: !isClientSide && !sheet.direct, clientSignedAt: t.clientApprovedAt }),
           approvedAt: t.approvedAt?.toISOString() ?? null,
           // "Approved by email: <name>, <day>", with "— evidence attached"
           // where it was. Null where the client signed in Etyme, or where

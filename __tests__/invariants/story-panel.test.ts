@@ -148,7 +148,7 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(new Set(onSite.map((o) => o.person)).size).toBe(7)
     expect(new Set(onSite.map((o) => o.firm)).size).toBe(4)
     // The dashboard's own arithmetic: each bill rate at a 160-hour month.
-    expect(read('src/app/api/program/route.ts')).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
+    expect(read('src/app/api/program/view.ts')).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
     const month = programMonthlySpend(onSite.map((o) => ({ rateMinorPerHour: o.bill }))).totalMinor
     expect(money(month)).toBe('$135,200')
     expect(s.chat[1].text.startsWith(`${money(month)} a month: 7 contractors through 4 suppliers, at current rates.`)).toBe(true)

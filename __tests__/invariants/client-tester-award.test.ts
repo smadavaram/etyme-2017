@@ -313,7 +313,7 @@ describe('The client’s dashboard agrees with itself and every tile opens what 
     expect(stageWordFor({ status: 'DRAFT', approvalState: 'PENDING_APPROVAL', archivedAt: null })).toBe('Awaiting approval')
     const page = src('src/app/dashboard/program/page.tsx')
     expect(page).not.toContain("r.status === 'OPEN' ? 'Published' : 'Draft'")
-    expect(src('src/app/api/program/route.ts')).toContain('approvalState: r.approvalState')
+    expect(src('src/app/api/program/view.ts')).toContain('approvalState: r.approvalState')
   })
 
   it('the On site tile opens the people on site, and the page honors the filter it was sent', () => {

@@ -73,6 +73,8 @@ interface Timesheet {
   anomalyScore: number | null
   /** What is wrong with the week against its contract, or its filing anomaly; null when plain. Listed first. */
   flag: string | null
+  /** False where the client already signed this flagged week with its reason, so this reader is not asked again. */
+  flagAsksReason?: boolean
   anomalyReason: string | null
   approvedAt: string | null
   /**
@@ -769,7 +771,8 @@ export default function TimesheetsPage() {
   async function handleApproveTimesheet(id: string, note?: string) {
     const flagged = timesheets.find((t) => t.id === id)
     // A flagged week asks for the reason first — before anything is sent.
-    if (flagged?.flag && !note) {
+    // Never of a firm below the client: the client gave it when it signed.
+    if (flagged?.flag && flagged.flagAsksReason !== false && !note) {
       setReasonFor({ row: flagged, says: flagged.flag })
       setReason('')
       return

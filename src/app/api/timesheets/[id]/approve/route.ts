@@ -19,10 +19,11 @@ import {
 } from '@/lib/overtime'
 import type { Carried } from '@/lib/money/client-overtime'
 import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'
-import { weekFlag, flaggedWeekSays } from '@/lib/timesheet-flag'
+import { weekFlag, flaggedWeekSays, flagAsksReason } from '@/lib/timesheet-flag'
 import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
 import { compTimeLawful } from '@/lib/worker-classification'
 import { amount } from '@/lib/money-display'
+import { clientSignedSays } from '../../client-signed-says'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 import { ladderAbove, type LegContract } from '../../ladder'
 import {
@@ -339,8 +340,11 @@ export async function POST(
     anomalyScore: timesheet.anomalyScore,
     anomalyReason: timesheet.anomalyReason,
   })
+  // Asked once, of the client: a firm below the top accepts a week the
+  // client already signed with its reason, and is not asked again
+  // (`flagAsksReason`).
   const reasonGiven = typeof body?.note === 'string' ? body.note.trim() : ''
-  if (flag && !reasonGiven) {
+  if (flag && !reasonGiven && flagAsksReason({ belowTop, clientSignedAt: timesheet.clientApprovedAt })) {
     return NextResponse.json(
       {
         error: {
@@ -798,6 +802,18 @@ export async function POST(
   const leaveAsked = hoursIn(leaveDays)
   const touchesBank = leaveAsked > 0 || banking.some((w) => w.treatment === 'TIME_OFF' || w.priorWas?.treatment === 'TIME_OFF')
 
+  // What the client reads of its own signature, on the response and on
+  // its own log: who bills it, and what. Null for every other press.
+  const clientSays = asParty === 'CLIENT' && !direct
+    ? clientSignedSays({
+        personName: timesheet.person.name,
+        hours,
+        week: weekSays(timesheet.periodStart, timesheet.periodEnd),
+        billedBy: deciding.companyName ?? null,
+        worthCents: worth == null ? null : Math.round(worth * 100),
+      })
+    : null
+
   /** A refusal raised inside the transaction, so nothing half-lands. */
   class Refusal extends Error {
     constructor(public says: string) { super(says) }
@@ -829,7 +845,14 @@ export async function POST(
           // Says what is billable, which is no longer hours × rate: an
           // hour over the line is worth what somebody decided it was
           // worth, and an undecided hour is worth nothing yet.
-          summary:
+          // On the client's own log, its own words; a row filed under the
+          // supplier keeps the supplier's.
+          summary: clientSays && moneyCompanyId === onBehalfOf
+            ? `${clientSays} ${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h ` +
+              `at $${(deciding.billRate / 100).toFixed(2)}/hr` +
+              (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
+              (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') + '.'
+            :
             `Timesheet approved: ${hours}h filed, ` +
             `${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h billable ` +
             `at $${(deciding.billRate / 100).toFixed(2)}/hr = ` +
@@ -1203,6 +1226,11 @@ export async function POST(
   const worthWord = asParty === 'CLIENT' ? 'billable' : 'to pay for the week'
 
   const worthSays = worth == null ? '' : ` — ${amount(Math.round(worth * 100))} ${worthWord}`
+  // The client pays for the week, so it is told what happened and who
+  // bills it, never that the week is "billable" (`clientSignedSays`).
+  const overSays = writing.length > 0
+    ? ' ' + writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
+    : ''
   return NextResponse.json({
     data: {
       id,
@@ -1223,6 +1251,8 @@ export async function POST(
       message:
         belowTop
           ? `Accepted ${hours}h${worthSays}.` + (clientDecided ? ` ${clientDecided}` : '')
+          : clientSays
+            ? clientSays + overSays
           : writing.length > 0
             ? `Approved ${hours}h${worthSays}. ` +
               writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'

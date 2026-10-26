@@ -97,7 +97,7 @@ describe('the firm’s own page says plain things', () => {
 
 describe('the client’s screens use the client’s words', () => {
   const program = read('src/app/dashboard/program/page.tsx')
-  const programRoute = read('src/app/api/program/route.ts')
+  const programRoute = read('src/app/api/program/view.ts')
   const list = read('src/app/dashboard/requirements/page.tsx')
   const sheets = read('src/app/dashboard/timesheets/page.tsx')
 

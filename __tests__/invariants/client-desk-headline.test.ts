@@ -212,7 +212,7 @@ describe('what the submit door can tell apart', () => {
 describe('a seat in another company’s program sees only that program', () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
   const page = read('src/app/dashboard/program/page.tsx')
-  const route = read('src/app/api/program/route.ts')
+  const route = read('src/app/api/program/view.ts')
 
   it('under a seat the page reads the program’s own queue and never fetches the reader’s firm’s', () => {
     expect(page).toContain('if (body.data?.seated) {')

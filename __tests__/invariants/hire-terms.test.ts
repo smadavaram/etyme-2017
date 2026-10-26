@@ -173,7 +173,7 @@ describe('one placement, one word', () => {
 
   it('the contractor register and the program page both read the one function', () => {
     expect(src('src/app/api/people/route.ts')).toMatch(/placementStatus\(/)
-    expect(src('src/app/api/program/route.ts')).toMatch(/placementStatus\(/)
+    expect(src('src/app/api/program/view.ts')).toMatch(/placementStatus\(/)
     expect(src('src/app/api/submissions/[id]/award/route.ts')).toMatch(/placementStatus\(/)
   })
 })

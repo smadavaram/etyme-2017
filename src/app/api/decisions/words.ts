@@ -42,3 +42,13 @@ export function rollsOffTitle(daysLeft: number, personName: string): string {
   const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${daysSays(d)}`
   return `Rolls off ${when} — ${personName}`
 }
+
+/**
+ * "Accept the signed week — Omar Haddad": a week the client already
+ * signed, on the desk of a firm below it. It accepts what it pays; it
+ * does not approve the work a second time. Begins with "Accept", which
+ * is what every reader of the queue keys the button's word on.
+ */
+export function signedWeekTitle(personName: string): string {
+  return `Accept the signed week — ${personName}`
+}

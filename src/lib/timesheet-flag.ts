@@ -75,3 +75,17 @@ export function flaggedFirst<T extends { id: string; periodStart: Date; flag: st
     return d !== 0 ? d : a.id.localeCompare(b.id)
   })
 }
+
+/**
+ * Whether a flagged week asks this signature for a reason.
+ *
+ * The client signs first, and a flagged week is signed with a reason or
+ * not at all (WARN, capture a reason, proceed). Below the top of a chain
+ * the client has already given that reason; asking each firm below for
+ * it again asked for a reason the client already gave (the walk,
+ * 2026-10-22, on Omar Haddad's 45 hours). So only the top signature — the
+ * client's, or the one press of a direct placement — is asked.
+ */
+export function flagAsksReason(p: { belowTop: boolean; clientSignedAt: Date | null }): boolean {
+  return !(p.belowTop && p.clientSignedAt != null)
+}

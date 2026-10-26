@@ -62,7 +62,7 @@ describe('a flagged week is signed with a reason', () => {
 
   it('the tick on a flagged row on the Timesheets page opens the reason, and a bulk press never signs a flagged week', () => {
     const page = read('src/app/dashboard/timesheets/page.tsx')
-    expect(page).toContain('if (flagged?.flag && !note) {')
+    expect(page).toContain('if (flagged?.flag && flagged.flagAsksReason !== false && !note) {')
     expect(page).toContain("body.error?.code === 'FLAG_NEEDS_REASON'")
     expect(page).toContain('ts.mayApprove && !ts.flag')
   })

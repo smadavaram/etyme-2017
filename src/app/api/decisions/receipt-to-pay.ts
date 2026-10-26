@@ -11,11 +11,12 @@ import { daysSays } from './words'
  * the AP clerk read "Nothing needs you" over money owed (simulation,
  * 2026-10-20). Now the desk that records payments hears it.
  *
- * Whether it may be paid is the payment route's question, through
- * `mayPayInvoiceReceipt` in `lib/invoice-match`; the row only says it is
- * waiting, and opens the receipt where the check is shown. A receipt the
- * twin has already put to this seat as a question is that question's
- * row, never a second one.
+ * Only a receipt that passes the payment route's own gate,
+ * `mayPayInvoiceReceipt` in `lib/invoice-match`, is a "Pay" row; one that
+ * fails is held (`heldReceiptDecision` below). A receipt the twin asked
+ * this seat to approve is still this one row, carrying the question's id:
+ * the twin's yes pays nothing, so counting the question and then the
+ * payment counted one receipt twice.
  *
  * Pure: no database.
  */
@@ -72,4 +73,101 @@ export function receiptToPayDecision(r: ReceiptToPay, now: Date): ReceiptToPayDe
     amount: currency === 'USD' ? r.outstandingCents / 100 : null,
     createdAt: (r.receivedAt ?? r.dueAt).toISOString(),
   }
+}
+
+// ── A receipt that does not pass the check is held, not waiting ──────
+//
+// The walk, 2026-10-22: PR-2026-0442 bills 41.5 hours against 40 signed,
+// and the queue read "waits for you to pay it" over a receipt the payment
+// route refuses. Only a receipt that passes `mayPayInvoiceReceipt` is a
+// "Pay" row; one that fails is a row of its own that says what is wrong
+// and the way forward: an exception with a reason where the check may be
+// waived (Addendum E: warn, capture a reason, proceed), the supplier's
+// correction where it may not. Never both rows for one receipt.
+
+/** One failing check, as the three-way check returns it. */
+export interface FailingCheck {
+  code: string
+  overridable?: boolean
+}
+
+/** The order a person reads them in: the first one found names the row. */
+const HELD_FOR: ReadonlyArray<[string, string]> = [
+  ['RECEIPT', 'a week nobody signed'],
+  ['DUPLICATE', 'billed before'],
+  ['QUANTITY', 'hours don’t match'],
+  ['PRICE', 'rate doesn’t match'],
+  ['AMOUNT', 'amount doesn’t match'],
+  ['PO_REQUIRED', 'no purchase order'],
+  ['PO_STATUS', 'the order doesn’t cover it'],
+  ['PO_BALANCE', 'over the order’s ceiling'],
+  ['PERIOD', 'dates don’t match'],
+  ['CONTRACT_PERIOD', 'dates don’t match'],
+  ['EXTENSION', 'totals don’t add up'],
+  ['HEADER_TOTAL', 'totals don’t add up'],
+]
+
+/** "hours don't match": what holds it, in the AP clerk's words. */
+export function heldFor(failing: readonly FailingCheck[]): string {
+  for (const [code, says] of HELD_FOR) {
+    if (failing.some((f) => f.code === code)) return says
+  }
+  return 'the check failed'
+}
+
+export interface HeldReceiptDecision {
+  title: string
+  subtitle: string
+  urgency: 'HIGH' | 'MEDIUM'
+  entityType: 'INVOICE'
+  entityId: string
+  dueDate: string
+  actionUrl: string
+  /** Null: a held receipt is not money this desk may pay today, so it is never added to what waits to be paid. */
+  amount: null
+  createdAt: string
+}
+
+export function heldReceiptDecision(
+  r: ReceiptToPay,
+  failing: readonly FailingCheck[],
+  hours: { billed: number; signed: number | null } | null,
+  now: Date
+): HeldReceiptDecision {
+  const currency = (r.currency || 'USD').toUpperCase()
+  const daysToDue = Math.floor((r.dueAt.getTime() - now.getTime()) / DAY)
+  const said = heldFor(failing)
+  const hoursLine =
+    hours && failing.some((f) => f.code === 'QUANTITY')
+      ? hours.signed == null
+        ? `${num(hours.billed)} hours billed, none signed`
+        : `${num(hours.billed)} hours billed, ${num(hours.signed)} signed`
+      : null
+  // Every failing check may be waived, or one may not: the way forward is
+  // the AP clerk's exception or the supplier's correction, never a button
+  // the payment route would refuse.
+  const waivable = failing.length > 0 && failing.every((f) => f.overridable === true)
+  const way = failing.some((f) => f.code === 'RECEIPT')
+    ? 'it can be paid once every week on it is signed and accepted'
+    : waivable
+      ? `record an exception with a reason, or ask ${r.vendorName} to correct it`
+      : `it can be paid once ${r.vendorName} corrects it`
+  return {
+    title: `Held: ${said} — ${r.vendorName}`,
+    subtitle: [`Invoice ${r.number}`, amount(r.outstandingCents, currency), hoursLine, way]
+      .filter(Boolean).join(' · '),
+    urgency: daysToDue <= 7 ? 'HIGH' : 'MEDIUM',
+    entityType: 'INVOICE',
+    entityId: r.id,
+    dueDate: r.dueAt.toISOString(),
+    // The receipt's own page, where the check is shown and the exception
+    // is recorded (POST /api/invoices/:id/match/override).
+    actionUrl: `/dashboard/invoices/${r.id}`,
+    amount: null,
+    createdAt: (r.receivedAt ?? r.dueAt).toISOString(),
+  }
+}
+
+function num(h: number): string {
+  return Number.isInteger(h) ? String(h) : String(Math.round(h * 100) / 100)
 }

@@ -18,8 +18,9 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
-import { receiptToPayDecision } from './receipt-to-pay'
-import { daysSays, hoursSays, agoSays, rollsOffTitle } from './words'
+import { receiptToPayDecision, heldReceiptDecision } from './receipt-to-pay'
+import { matchInvoices, payGate } from '@/lib/invoice-match'
+import { daysSays, hoursSays, agoSays, rollsOffTitle, signedWeekTitle } from './words'
 import { invoiceBetween, partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { decimalToCents } from '@/lib/three-way-match'
 import { ACCEPTS_EXPENSES, expenseAcceptanceDecision } from './expense-acceptance'
@@ -208,7 +209,11 @@ export async function GET(request: NextRequest) {
       // Offering the employer its turn sooner put a week on its desk that
       // the approve route refuses.
       let clientDecided: string | null = null
-      if (!asClient && sc.companyId !== (sc.endClientCompanyId ?? sc.clientCompanyId)) {
+      // Below the top of a chain the client has already signed this week
+      // — its turn comes first (`weekTurns`) — so this firm accepts the
+      // signed week; it does not approve it again.
+      const signedAbove = !asClient && sc.companyId !== (sc.endClientCompanyId ?? sc.clientCompanyId)
+      if (signedAbove) {
         const t = employerTurns.get(ts.id)
         if (!t || !t.turn.ok) continue
         // Below the top: the client decided the overtime when it signed,
@@ -250,19 +255,26 @@ export async function GET(request: NextRequest) {
       // notice: more hours than the role runs, or a week past its end.
       // The approval route's own flag (`weekFlag`), so the queue offers
       // "Approve anyway" on exactly the weeks the route asks a reason for.
-      const flag = weekFlag({
-        hours: Number(ts.totalHours), hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
-        periodEnd: ts.periodEnd, contractEnd: sc.endDate,
-        anomalyScore: ts.anomalyScore, anomalyReason: ts.anomalyReason,
-      })
+      //
+      // Never on a week the client already signed: the client gave the
+      // reason when it signed, and the walk (2026-10-22) found Omar
+      // Haddad's 45 hours asking his employer for that reason a second
+      // time. The approve route reads the same rule (`flagAsksReason`).
+      const flag = signedAbove
+        ? null
+        : weekFlag({
+            hours: Number(ts.totalHours), hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
+            periodEnd: ts.periodEnd, contractEnd: sc.endDate,
+            anomalyScore: ts.anomalyScore, anomalyReason: ts.anomalyReason,
+          })
 
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
-        title: `Approve timesheet — ${ts.person.name}`,
+        title: signedAbove ? signedWeekTitle(ts.person.name) : `Approve timesheet — ${ts.person.name}`,
         named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
         subtitle: asClient
           ? `${hoursSays(ts.totalHours)} · through ${supplier} · ${period}`
-          : `${hoursSays(ts.totalHours)} · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}`,
+          : `${hoursSays(ts.totalHours)} · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}${signedAbove ? ' · signed above you' : ''}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : daysSinceSubmit >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'TIMESHEET',
         entityId: ts.id,
@@ -329,7 +341,7 @@ export async function GET(request: NextRequest) {
       const daysSinceSigned = Math.floor((now.getTime() - (ts.clientApprovedAt ?? ts.periodEnd).getTime()) / 86_400_000)
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
-        title: `Accept timesheet — ${ts.person.name}`,
+        title: signedWeekTitle(ts.person.name),
         named: { whose: ts.person.name, what: 'week', whats: 'weeks' },
         subtitle: `${hoursSays(ts.totalHours)} · from ${paysOn?.company.name ?? 'your supplier'} · ${periodWord(ts.periodStart, ts.periodEnd)} · signed above you`,
         urgency: daysSinceSigned >= 5 ? 'HIGH' : daysSinceSigned >= 2 ? 'MEDIUM' : 'LOW',
@@ -343,11 +355,9 @@ export async function GET(request: NextRequest) {
         // The client's overtime decision, on this firm's own line with the
         // firm it pays. It is told, never asked (founder, 2026-10-19).
         clientDecided: reachedDecided.get(ts.id) ?? null,
-        flag: weekFlag({
-          hours: Number(ts.totalHours), hoursPerWeek: ts.sellContract.requirement?.hoursPerWeek ?? null,
-          periodEnd: ts.periodEnd, contractEnd: ts.sellContract.endDate,
-          anomalyScore: ts.anomalyScore, anomalyReason: ts.anomalyReason,
-        }),
+        // The client signed it, with its reason where it was flagged; the
+        // firm in the middle is not asked for that reason again.
+        flag: null,
         createdAt: ts.periodEnd.toISOString(),
       })
     }
@@ -988,14 +998,29 @@ export async function GET(request: NextRequest) {
   // For the desk that records payments: every supplier's invoice this
   // firm is asked to pay, submitted and not paid (`./receipt-to-pay`).
   // A disputed receipt is already on the queue above, in the bill's own
-  // words, and a receipt the twin has put to this seat is its question's
-  // row; neither is listed twice.
+  // words.
+  //
+  // Only a receipt the payment route would pay is "Pay": the same gate,
+  // `payGate` over the three-way check, read for every receipt in one
+  // pass (`matchInvoices`). One that fails is "Held", with what holds it
+  // and the way forward (the walk, 2026-10-22: PR-2026-0442, 41.5 hours
+  // billed on 40 signed, read "waits for you to pay it").
+  //
+  // One receipt is one row. Where the twin asked this seat to approve a
+  // receipt, its question is folded into the receipt's row rather than
+  // counted beside it: the twin's yes pays nothing, so the mark counted
+  // the question, and then counted the same receipt again as "Pay".
+  const foldedQuestions = new Set<string>()
   if (hasAnyPermission(caller.permissions, ['payments.record'])) {
-    const askedOn = new Set(twinAsks.filter((q) => q.entityType === 'Invoice').map((q) => q.entityId))
+    const askedOn = new Map(
+      twinAsks
+        .filter((q) => q.entityType === 'Invoice' && q.action === RECEIPT_APPROVE)
+        .map((q) => [q.entityId, q.id])
+    )
     const open = await prisma.invoice.findMany({
       where: { AND: [invoiceBetween(companyId), { status: { notIn: RECEIPT_NOT_WAITING } }] },
       select: {
-        id: true, number: true, currency: true, total: true, paid: true, dueAt: true, receivedAt: true, submittedAt: true,
+        id: true, number: true, status: true, currency: true, total: true, paid: true, dueAt: true, receivedAt: true, submittedAt: true,
         engagement: {
           select: {
             msa: {
@@ -1018,25 +1043,56 @@ export async function GET(request: NextRequest) {
       orderBy: { dueAt: 'asc' },
       take: 20,
     })
-    for (const inv of open) {
-      if (askedOn.has(inv.id)) continue
+    const payable = open.flatMap((inv) => {
       const parties = partiesOf({ agreement: inv.engagement.msa, order: inv.workOrder })
-      if (directionFrom(parties, companyId) !== 'PAYABLE') continue
+      if (directionFrom(parties, companyId) !== 'PAYABLE') return []
       // Settled to the cent is not waiting, whatever the status says.
       const outstandingCents = decimalToCents(inv.total) - decimalToCents(inv.paid)
-      if (outstandingCents <= 1) continue
-      const vendorName = parties.vendor?.name ?? 'Your supplier'
+      if (outstandingCents <= 1) return []
+      return [{ inv, outstandingCents, vendorName: parties.vendor?.name ?? 'Your supplier' }]
+    })
+    const checked = await matchInvoices(payable.map((p) => p.inv.id))
+    for (const { inv, outstandingCents, vendorName } of payable) {
+      const receipt = {
+        id: inv.id, number: inv.number, vendorName, outstandingCents, currency: inv.currency,
+        dueAt: inv.dueAt, receivedAt: inv.receivedAt ?? inv.submittedAt ?? null,
+      }
+      const match = checked.get(inv.id) ?? null
+      const twinApprovalId = askedOn.get(inv.id) ?? null
+      if (twinApprovalId) foldedQuestions.add(twinApprovalId)
+      if (payGate(inv, match).ok) {
+        decisions.push({
+          type: 'INVOICE_RECEIPT_TO_PAY',
+          named: { whose: vendorName, what: 'invoice receipt', whats: 'invoice receipts' },
+          ...receiptToPayDecision(receipt, now),
+          twinApprovalId,
+        })
+        continue
+      }
+      const failing = (match?.checks ?? []).filter((c) => c.outcome === 'FAIL')
+      const hourLines = (match?.lines ?? []).filter((l) => l.kind === 'HOURS')
+      const signedLines = hourLines.filter((l) => l.hoursSigned != null)
       decisions.push({
-        type: 'INVOICE_RECEIPT_TO_PAY',
-        named: { whose: vendorName, what: 'invoice receipt', whats: 'invoice receipts' },
-        ...receiptToPayDecision(
-          {
-            id: inv.id, number: inv.number, vendorName, outstandingCents, currency: inv.currency,
-            dueAt: inv.dueAt, receivedAt: inv.receivedAt ?? inv.submittedAt ?? null,
-          },
+        type: 'INVOICE_RECEIPT_HELD',
+        named: { whose: vendorName, what: 'held invoice receipt', whats: 'held invoice receipts' },
+        ...heldReceiptDecision(
+          receipt,
+          match ? failing : [{ code: 'UNCHECKED', overridable: false }],
+          hourLines.length > 0
+            ? {
+                billed: hourLines.reduce((s, l) => s + l.hoursBilled, 0),
+                signed: signedLines.length > 0 ? signedLines.reduce((s, l) => s + (l.hoursSigned ?? 0), 0) : null,
+              }
+            : null,
           now
         ),
+        twinApprovalId,
       })
+    }
+  }
+  if (foldedQuestions.size > 0) {
+    for (let i = decisions.length - 1; i >= 0; i--) {
+      if (decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)) decisions.splice(i, 1)
     }
   }
 
@@ -1123,6 +1179,9 @@ export async function GET(request: NextRequest) {
  * or void. A disputed one is the dispute's row; a held one waits on its
  * hold. What is left was submitted to the payer and is owed.
  */
+/** The twin's question on a receipt, folded into that receipt's row (`TWIN_ACTS`). */
+const RECEIPT_APPROVE = 'invoice_receipt.approve'
+
 const RECEIPT_NOT_WAITING = ['DRAFT', 'ISSUED', 'PAID', 'VOID', 'CANCELLED', 'HELD', 'DISPUTED']
 
 /**

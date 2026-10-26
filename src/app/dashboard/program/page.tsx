@@ -198,13 +198,14 @@ const KIND_WORD: Record<string, string> = {
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',
   INVOICE_RECEIPT_TO_PAY: 'Invoice receipt',
+  INVOICE_RECEIPT_HELD: 'Receipt held',
   TWIN_QUESTION: 'Ask Etyme',
   START_HELD: 'Start held',
   NO_AGREEMENT: 'No agreement',
 }
 
 /** Rows that say what is wrong and what to do, drawn in the attention color. */
-const HELD = new Set(['START_HELD', 'NO_AGREEMENT'])
+const HELD = new Set(['START_HELD', 'NO_AGREEMENT', 'INVOICE_RECEIPT_HELD'])
 
 function ago(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
