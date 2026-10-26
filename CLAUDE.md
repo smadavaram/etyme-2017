@@ -1929,6 +1929,15 @@ the simulation report prints each station's own table. Release pass on
 a quiet copy of 7ccfc89ff: type check clean, 11,807 unit (the one red
 the generated matrix page, regenerated), 2,401 integration, build clean.
 
+**Shipped to production 2026-10-26 (fd050ca52 on the deploy branch,
+source 7ccfc89ff, decisions c0e6c7903):** everything in the two
+paragraphs above. Gates on the replay: no source difference, no Ruby,
+brand kit present, no schema line removed; the one schema change is the
+additive `W9` verification type. Smoke: every public page and the chat
+200; the inbound email door still answers 404 to a POST, closed until
+`EMAIL_INTAKE_LIVE=1`. The walk on production as fifteen seats runs
+after this line is written, and its verdict is recorded under it.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
