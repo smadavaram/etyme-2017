@@ -4,6 +4,9 @@ import { GET as readMatches, POST as runMatches } from '@/app/api/requirements/[
 import { POST as askForThem } from '@/app/api/requirements/[id]/matches/ask/route'
 import { GET as addFirmChoices, POST as addFirm } from '@/app/api/requirements/[id]/matches/add-firm/route'
 import { PATCH as review } from '@/app/api/supplier-requests/[id]/route'
+import { POST as attachFile } from '@/app/api/supplier-requests/[id]/file/route'
+import { needsSignedCopy } from '@/lib/supplier-onboarding'
+import { NextRequest } from 'next/server'
 import { POST as submit } from '@/app/api/submissions/route'
 import { GET as myBenches, PATCH as changeMyBench } from '@/app/api/me/benches/route'
 import { GET as inviteGet, POST as invitePost } from '@/app/api/bench-invite/[token]/route'
@@ -334,7 +337,17 @@ describe('asking to add the firm behind a suggestion', () => {
       const row = await prisma.supplierRequest.findUniqueOrThrow({ where: { id: s.request } })
       for (const item of row.checklist as any[]) {
         if (item.state === 'HELD' || item.state === 'WAIVED') continue
-        const m = await call({ action: 'mark', key: item.key, state: 'HELD', validFrom: iso(-30), validUntil: iso(300) })
+        // An agreement is on file only with the copy both firms signed,
+        // attached by the step it belongs to before it is marked; anything
+        // else's step refuses the attachment and the mark below says so.
+        if (needsSignedCopy(item) && !item.fileUrl) {
+          const form = new FormData()
+          form.append('key', item.key)
+          form.append('file', new File([`%PDF-1.4\n% ${item.label}, signed by both firms\n%%EOF\n`], `${item.key.toLowerCase()}-signed.pdf`, { type: 'application/pdf' }))
+          await attachFile(new NextRequest(`http://localhost:3000/api/supplier-requests/${s.request}/file`, { method: 'POST', body: form }), withId(s.request))
+        }
+        // The W-9 is a reissued form, verified with the edition printed on it.
+        const m = await call({ action: 'mark', key: item.key, state: 'HELD', validFrom: iso(-30), validUntil: iso(300), edition: 'Rev. March 2024' })
         expect([200, 403, 409, 422], JSON.stringify(m.body)).toContain(m.status)
       }
       const r = await call({ action: 'approve' })
