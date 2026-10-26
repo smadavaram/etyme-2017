@@ -2002,6 +2002,19 @@ a seated MSP's own queue though no screen reads it (demand). Wording:
 "need approval" over items that say "Pay"; the AP clerk is called "the
 AP clerk" to her face.
 
+**All of those leftovers shipped to production 2026-10-26, night
+(7f1bb5f31 on the deploy branch, source 76f1fefc6):** a one-person
+firm's Timesheets row reads "Signed · waiting on Halcyon Talent"; a
+seated firm's bare queue answers its program; a drafted bill's card
+reads its past-due line on the day it is drawn, in the chat and in
+Teams; "past the time limit" is said as past; the Teams digest titles
+payments as paying; every sentence addressed to the person paying says
+"you"; a renewal request names the firm asking on every screen and in
+the stored row. Release pass fully green on a quiet copy: type check,
+11,876 unit, 2,425 integration, build. Gates clean, smoke clean, the
+inbound email door still 404. Still to look at once: the pay card on
+production after the twin's nightly run (06:00 UTC, 2026-10-27).
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
