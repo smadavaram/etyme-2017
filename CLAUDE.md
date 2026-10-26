@@ -1938,6 +1938,46 @@ additive `W9` verification type. Smoke: every public page and the chat
 `EMAIL_INTAKE_LIVE=1`. The walk on production as fifteen seats runs
 after this line is written, and its verdict is recorded under it.
 
+**The second walk, on production fd050ca52, said no again, and the
+reasons narrowed.** Fixed and confirmed: the chat's weeks-to-bill equal
+Today's for every supplier; the seated MSP's chat reads its client's
+program; held receipts read held on both doors; most trade questions
+are answered. What stopped the yes, and what was decided fixing it,
+each reversible by the founder in a sentence:
+- **The pay card is created by the twin's nightly job**, which had not
+  run since the deploy; locally, after the job, paying from the chat
+  worked end to end. The job runs on its own schedule; the coordinator
+  holds no cron secret and does not run it by hand.
+- **The 2026-10-19 decision #2 covers the bill, not the button.** A bill
+  the twin drafted is sent by the seat holding `invoices.issue`; the
+  Owner sends it only where nobody else at the firm does, whether the
+  press is in Ask Etyme or on Today, and the refusal names who may
+  ("Imelda Santoro or Rosalind Tay sends this bill"). One function,
+  `maySendBill` in `lib/money/bill-send`, is read by the send route,
+  Today's Send button and the chat. A bill a person drafted is unchanged.
+- **A seat in a client's program is in that program for the whole
+  session.** Today, Needs attention, the mark and the chat all read the
+  program's queue; the firm's own book is read only at home. One person
+  never sees two numbers. Open for the founder: a seated MSP is never
+  offered the client's weeks to sign, even where its seat may sign them.
+- **A screen never offers an act the route will refuse**: the held
+  receipt's page draws no Pay (`receiptPayPanel`, the same gate as the
+  queue and the payment route).
+- **A one-person firm is spoken to as herself and never accepts her own
+  week.** Her own acceptance leaves the queue, her page, the seed and the
+  chat; the automatic stand-in the routes write stays, because payroll
+  reads it; once the client signs, her week waits on the firm above her,
+  never on herself. A count stored in a sentence on the night a request
+  was raised ("runs out in 24 days") is rebuilt on the day it is read.
+- **The notice title names the receipt and the supplier at the source**,
+  so email and Teams carry it; a clean receipt's reason says "Pay it".
+
+Release pass on a quiet copy of adb269b56, fully green: type check,
+11,866 unit, 2,418 integration, build. Two reds on the way were the
+harness, not the product: an import path tripping a guard, and the
+seeded stand-in acceptance stamped at the same second as the signature
+it stands behind.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
