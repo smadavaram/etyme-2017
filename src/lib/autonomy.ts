@@ -396,6 +396,11 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
     basis: 'RULE',
     says: 'Somebody put a person forward whose work authorization is not on file or runs out during the job. The submission went through with the warning recorded; nobody starts without it, which is where the block is.',
   },
+  SUBMISSION_LICENSE_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward for a job that needs a license, and no current license is on file for them. The submission went through with the reason they gave recorded beside the warning.',
+  },
   HOLIDAY_ADD_REFUSED: {
     outcome: 'BLOCK',
     basis: 'RULE',
