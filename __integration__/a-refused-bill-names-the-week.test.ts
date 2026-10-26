@@ -684,7 +684,9 @@ describe('where only the owner sends bills, the owner’s yes in Ask Etyme sends
         where: { companyId: f.id, revokedAt: null, personId: { not: authority.personId }, role: { permissions: { hasSome: ['invoices.issue', '*'] } } },
       })
       if (others > 0) continue
-      await runSupplierBills(f.id, { surface: 'CRON' })
+      // On the first day this firm's agreements make a bill due, never on
+      // the real today, so the story holds in the last days of a month.
+      await runSupplierBills(f.id, { surface: 'CRON', now: await firstBillingDay(f.id) })
       const asked = await prisma.twinAction.findFirst({
         where: { companyId: f.id, action: 'bill.send', outcome: 'AWAITING_APPROVAL', approvalRequested: { decision: 'PENDING', selfApprovalReason: { not: null } } },
         include: { approvalRequested: true },
