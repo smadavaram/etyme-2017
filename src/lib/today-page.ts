@@ -41,10 +41,26 @@ export interface TodayReads {
   people: boolean
   /** The bench, read by whoever reads consultants, as the bench page is. */
   bench: boolean
+  /**
+   * Send on a drafted bill: the one permission the send route asks for
+   * (`POST /api/invoices/:id/submit` gates on `invoices.issue`), so the
+   * button is drawn only for a seat the route would let send it. Computed
+   * by the route from the caller's own seat, never by the screen from its
+   * session, so the two cannot disagree (second production walk,
+   * 2026-10-26: Brightmoor's Owner holds it, so the Owner may send). What
+   * the route still asks after the permission — a bill this firm raised,
+   * matching its order and signed weeks — is answered by the route in a
+   * sentence when Send is pressed, because the match writes and a read
+   * may not.
+   */
+  send: boolean
 }
 
+/** The permission the bill-send route asks for. One name, read by Today and checked against the route by a test. */
+export const SEND_BILL_PERMISSION = 'invoices.issue' as const
+
 export function todayReads(permissions: readonly string[] | null | undefined, kind?: string | null): TodayReads {
-  if (permissions == null) return { billing: false, bills: false, people: false, bench: false }
+  if (permissions == null) return { billing: false, bills: false, people: false, bench: false, send: false }
   return {
     billing: hasPermission(permissions, 'margin.read'),
     bills: hasPermission(permissions, 'invoices.read'),
@@ -52,6 +68,7 @@ export function todayReads(permissions: readonly string[] | null | undefined, ki
     // A program office places nobody and runs no bench, whatever its seat
     // holds (lib/dashboard-reads, sign-up walk round three, item 15).
     bench: kind !== 'MSP' && hasPermission(permissions, 'consultants.read'),
+    send: hasPermission(permissions, SEND_BILL_PERMISSION),
   }
 }
 

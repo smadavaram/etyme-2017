@@ -247,7 +247,8 @@ export default function DashboardPage() {
   const t = today
   const rolling = new Map((t.rollingOff ?? []).map((r) => [r.contractId, { ...r }]))
   const rows = queue.rows.map((r) => queueRowView(r, rolling, { terminate: hasPermission(permissions ?? [], 'assignments.terminate') }))
-  const mayIssue = hasPermission(permissions ?? [], 'invoices.issue')
+  // Send is the route's answer for this seat, read off /api/today, not the session's.
+  const mayIssue = t.reads.send === true
   const ledger = mayOpen('/dashboard/twin', permissions)
 
   // A program office places nobody, so with no book of its own it reads

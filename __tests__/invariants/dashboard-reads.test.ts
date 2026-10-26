@@ -55,11 +55,11 @@ const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/today/route.ts'), 'u
 
 describe('a firm’s Today page reads each part only for the roles that read it', () => {
   it('the owner reads billing, bills, who is where and the bench', () => {
-    expect(todayReads(['*'], 'VENDOR')).toEqual({ billing: true, bills: true, people: true, bench: true })
+    expect(todayReads(['*'], 'VENDOR')).toEqual({ billing: true, bills: true, people: true, bench: true, send: true })
   })
 
   it('a recruiter reads who is where, who rolls off and the bench, and no money', () => {
-    expect(todayReads(role('VENDOR', 'Recruiter'), 'VENDOR')).toEqual({ billing: false, bills: false, people: true, bench: true })
+    expect(todayReads(role('VENDOR', 'Recruiter'), 'VENDOR')).toEqual({ billing: false, bills: false, people: true, bench: true, send: false })
   })
 
   it('accounts receivable reads the bills and no bill rates, so no monthly billing figure', () => {
@@ -73,7 +73,7 @@ describe('a firm’s Today page reads each part only for the roles that read it'
   })
 
   it('before the seat is known nothing is read', () => {
-    expect(todayReads(null)).toEqual({ billing: false, bills: false, people: false, bench: false })
+    expect(todayReads(null)).toEqual({ billing: false, bills: false, people: false, bench: false, send: false })
   })
 
   it('a part the seat may not read says so in a sentence, never a zero', () => {

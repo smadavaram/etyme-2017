@@ -1395,9 +1395,10 @@ export const MATRIX: L1[] = [
             'BUILT 2026-10-20 by etyme-money: Billing this month carries, where it is true, the weeks the firm billed overtime its own employee was paid straight time for because nobody recorded whether they are exempt, with the amount (billingThisMonth.overtimeNotPaid in firmTuesday). OPEN for the architect: GET /api/today and the Today page do not print it yet — one line each, beside the unpriced sentences',
             'FIXED 2026-10-20 by etyme-money: a week signed on a placement that has since ended is priced like any other on Signed, not yet billed, because the Bills page bills it (5ee828da0); only a paused, cancelled or unstarted placement is counted with no amount',
             'OPEN for etyme-regulatory: docs/security-posture.md section 4 and its summary still count 46 of 317 route files logging a read; GET /api/today makes it 47 of 318, and legal-pages.test.ts holds the two numbers',
+            'FIXED 2026-10-26 by etyme-architect (second production walk): Send on a drafted bill is drawn from GET /api/today\u2019s reads.send, the send route\u2019s own permission (invoices.issue) checked against the caller\u2019s seat, never from the page\u2019s session; a test reads the route\u2019s gate and fails if the two drift. What the route asks after the permission (a bill this firm raised, matching its order and signed weeks) is answered when Send is pressed, because the match writes',
           ],
           implementedBy: ['src/app/dashboard/page.tsx', 'src/app/api/today/route.ts', 'src/app/api/today/reads.ts', 'src/lib/today-page.ts', 'src/lib/money/firm-today.ts'],
-          testedBy: ['__tests__/invariants/dashboard-reads.test.ts', '__integration__/a-refused-bill-names-the-week.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts'] },
+          testedBy: ['__tests__/invariants/dashboard-reads.test.ts', '__tests__/invariants/today-send.test.ts', '__integration__/a-refused-bill-names-the-week.test.ts', '__tests__/invariants/signup-round-3-platform.test.ts'] },
       ]},
       { code: 'L2.2.3', name: 'Compliance clearance', domain: 'REGULATORY', processes: [
         { code: 'L3.2.3.1', name: 'Work authorization', owner: 'Compliance', status: B,
