@@ -2319,9 +2319,15 @@ export interface QueueCard {
   act: QueueAct | null
 }
 
-/** The name after the dash: "Approve timesheet — Helena Marsh" reads "Helena Marsh". */
+/**
+ * The name after the dash: "Approve timesheet — Helena Marsh" reads
+ * "Helena Marsh". After the first dash, so a name with a dash of its own
+ * stays whole: "Approve job request — Planning transformation — four
+ * supply-planning consultants" is the whole job's name (the walk of
+ * 2026-10-22 read "The four supply-planning consultants job request").
+ */
 function afterDash(title: string): string {
-  const at = title.lastIndexOf(' — ')
+  const at = title.indexOf(' — ')
   return (at >= 0 ? title.slice(at + 3) : title).trim()
 }
 

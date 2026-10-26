@@ -295,3 +295,10 @@ describe('the chips are the desk’s own, so no chip refuses the seat it is show
     expect(questionsFor('FIRM')).toEqual(['Who rolls off in the next 30 days?', 'Who is on the bench?', 'Which weeks are signed and not billed?', 'Which bills are unpaid?'])
   })
 })
+
+describe('a job’s name is never cut', () => {
+  it('a job request whose own name has a dash is named whole on its card', () => {
+    const cards = queueCards({ total: 1, items: [{ type: 'REQUISITION_APPROVAL', title: 'Approve job request — Planning transformation — four supply-planning consultants', entityId: 'r1' }] })
+    expect(cards[0].title).toBe('The Planning transformation — four supply-planning consultants job request waits for your approval.')
+  })
+})
