@@ -167,6 +167,22 @@ describe('Colleen Byrne’s Your work, as the owner of the firm that holds her r
     expect(p.rateLink).toBe(`/dashboard/placements/${p.id}`)
   })
 
+  it('a one-person firm is never told to accept her own week', async () => {
+    // The second production walk, 2026-10-26: her page read "Then Halcyon
+    // Talent and Byrne Critical Care LLC accept them", a signature the
+    // approve route never asks of her (lib/money/own-firm-acceptance).
+    const d = await hers()
+    const card = d.filing.find((f: any) => /Harlow Health/.test(f.signs ?? ''))
+    expect(card, JSON.stringify(d.filing.map((f: any) => f.signs))).toBeTruthy()
+    expect(card.signs).toBe('After you send, Harlow Health approves them first. Then Halcyon Talent accepts them.')
+    for (const f of d.filing) expect(f.signs ?? '').not.toContain('Byrne Critical Care LLC')
+    // A firm with somebody else to accept still names itself: Helena's
+    // employer, Techpeple, accepts last.
+    as(HELENA)
+    const helena = await json(await myWork(req('GET', '/api/me/work')))
+    expect(helena.body.data.filing[0].signs).toContain('Techpeple')
+  })
+
   it('Helena Marsh, whose rate another firm pays, keeps her rate and is offered no contract link', async () => {
     as(HELENA)
     const r = await json(await myWork(req('GET', '/api/me/work')))

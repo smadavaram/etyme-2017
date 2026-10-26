@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { workingLifeOf } from '@/lib/portfolio-data'
+import { withoutOwnFirmAcceptance, firmsAcceptingOnlyFor } from '@/lib/money/own-firm-acceptance'
 import {
   rungsToFile, openWeeks, checkWeek, placementLines, tieOf, returnedWeek, owedByWeek, waitingWeek,
   weekSigners, signedAtOf, paidDatesFrom, shortDay, placementSpan, signedWeeksCard, daySpan, plainDate, weekDoor,
@@ -528,6 +529,13 @@ export async function GET(request: NextRequest) {
   // "and any one-person corporation she holds the owner's seat at").
   if (ownFirm && !ownCompanyIds.includes(ownFirm.id)) ownCompanyIds.push(ownFirm.id)
 
+  // Her own firm, where she is the only one there who may accept hours,
+  // never accepts her week: the signature above stands in for it, and the
+  // approve route never asks her (lib/money/own-firm-acceptance). Read
+  // once for every rung of every line, so her page names only the
+  // signatures the route will actually ask for.
+  const acceptsOnlyForHer = await firmsAcceptingOnlyFor(personId, lines.flatMap((l) => l.rungs.map((r) => r.companyId)))
+
   const owed = (() => {
     const sellOf = new Map(contracts.map((c) => [c.id, c]))
 
@@ -536,10 +544,10 @@ export async function GET(request: NextRequest) {
     for (const l of lines) {
       const top = byId.get(l.rungs[l.rungs.length - 1].id)!
       const client = top.endClientCompany ?? top.clientCompany ?? top.company
-      signersOf.set(l.own.id, weekSigners(
+      signersOf.set(l.own.id, withoutOwnFirmAcceptance(weekSigners(
         { rungs: l.rungs.map((r) => ({ companyId: r.companyId, companyName: r.companyName })) },
         { id: client.id, name: client.name }
-      ))
+      ), acceptsOnlyForHer))
     }
 
     // Accepted by her employer, or not yet.
