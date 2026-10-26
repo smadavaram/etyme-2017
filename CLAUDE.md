@@ -1986,6 +1986,22 @@ The pay card appears on production after the twin's nightly job next
 runs (06:00 UTC); the third walk on production records its verdict
 under this line.
 
+**The third walk, on production 4279c3a7f, said yes.** On all fifteen
+seats and Brightmoor's Finance seat, the mark, the greeting and Today
+carry one number; every item is on both screens; an act on one shows on
+the other; all nine faults of the second walk are closed, paying from
+the chat proven on a local copy of the same source after the nightly
+job. Three small disagreements remain, each with an owner: a one-person
+firm's Timesheets list says "Submitted" where every other screen says
+signed and waiting on Halcyon (demand); a bill card drafted before the
+past-due sentence existed never gets it, and a stored "sent <day>" count
+goes stale, the same rule as the renewal count, to be rebuilt on the day
+it is read (money, conversation); the raw decisions route still answers
+a seated MSP's own queue though no screen reads it (demand). Wording:
+"near the time limit" for a person past it; the digest title says
+"need approval" over items that say "Pay"; the AP clerk is called "the
+AP clerk" to her face.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
