@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 
-import { POST as submitCandidate } from '@/app/api/submissions/route'
+import { POST as submitCandidate, GET as listSubmissions } from '@/app/api/submissions/route'
 import { POST as proposeRound } from '@/app/api/submissions/[id]/interviews/route'
 
 /**
@@ -144,6 +144,23 @@ describe('a licensed job asks for the license when the person is put forward', (
     const row = await prisma.accessLog.findFirst({ where: { action: 'SUBMIT', subjectId: who.dana }, orderBy: { at: 'desc' } })
     expect(row?.reason).toContain('License warned (LICENSE_NONE_ON_FILE)')
     expect(row?.reason).toContain(`Reason given: ${reason}`)
+    const warned = await prisma.automationLog.findFirstOrThrow({ where: { action: 'SUBMISSION_LICENSE_WARNED', companyId: co.bright } })
+    expect(warned.reason).toContain('Dana has no state nursing license on file')
+    expect(warned.reason).toContain(`Reason given: ${reason}`)
+    expect(warned.payload).toMatchObject({ code: 'LICENSE_NONE_ON_FILE', personId: who.dana, reasonGiven: reason })
+    expect(warned.reversible).toBe(true)
+  })
+
+  it('a list of submissions asked for with no company reads the caller\u2019s own, never a database error', async () => {
+    as(BRIGHT)
+    const r = await json(await listSubmissions(req('GET', `/api/submissions?requirementId=${nurseJob}`)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const people = r.body.data.submissions.map((x: any) => x.person.name).sort()
+    expect(people).toEqual(['Colleen', 'Dana'])
+    as(CLIENT)
+    const received = await json(await listSubmissions(req('GET', '/api/submissions?direction=received')))
+    expect(received.status, JSON.stringify(received.body)).toBe(200)
+    expect(received.body.data.submissions.length).toBe(2)
   })
 
   it('a nurse whose license ran out before the job starts is warned with the day it ran out', async () => {

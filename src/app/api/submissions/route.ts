@@ -1377,6 +1377,20 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+      // The license warned and went ahead: its reason code and the reason
+      // given, beside work authorization's row (`./license`).
+      if (item.licenseWarning) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_LICENSE_WARNED',
+            summary: `${person.name} submitted to "${requirement.title}" without a current license on file`,
+            reason: `${item.licenseWarning} Reason given: ${item.licenseReason}`,
+            payload: { submissionId: submission.id, requirementId, personId, code: item.licenseCode, reasonGiven: item.licenseReason },
+            reversible: true,
+          },
+        })
+      }
 
       // 6. Write AccessLog — submission is a read of person's data
       void emit({
@@ -1407,9 +1421,8 @@ export async function POST(request: NextRequest) {
           item.tenureWarning ? `Time limit warned: ${item.tenureWarning} Reason given: ${item.tenureReason}` : null,
           item.workAuthWarning ? `Work authorization warned: ${item.workAuthWarning}` : null,
           // The license warned and went ahead, with its reason code and
-          // the reason given. Here, on the person's own access row, until
-          // the automation ladder has a rung for it (asked of the
-          // architect, beside SUBMISSION_WORK_AUTH_WARNED).
+          // the reason given — on the person's own access row as well as
+          // the SUBMISSION_LICENSE_WARNED row above.
           item.licenseWarning ? `License warned (${item.licenseCode}): ${item.licenseWarning} Reason given: ${item.licenseReason}` : null,
         ].filter(Boolean).join(' — '),
       })
@@ -1553,7 +1566,9 @@ export async function GET(request: NextRequest) {
   // Under a seat the desk decides, not the query string. The page asks
   // for the caller's own company because that is what `/api/me` told it,
   // and the seat is the later fact.
-  const companyId = desk?.seat ? deskId : url.searchParams.get('companyId')
+  // With no company asked for, the caller's own: a call with only a
+  // job request named built `toCompanyId: null` and the database threw.
+  const companyId = desk?.seat ? deskId : (url.searchParams.get('companyId') || deskId)
   const filterPersonId = url.searchParams.get('personId')
   const filterRequirementId = url.searchParams.get('requirementId')
   const status = url.searchParams.get('status')
@@ -1643,9 +1658,9 @@ export async function GET(request: NextRequest) {
     where.personId = caller.person.id
   } else if (filterPersonId) {
     where.personId = filterPersonId
-  } else if (direction === 'sent') {
+  } else if (companyId && direction === 'sent') {
     where.fromCompanyId = companyId
-  } else {
+  } else if (companyId) {
     where.toCompanyId = companyId
   }
 
