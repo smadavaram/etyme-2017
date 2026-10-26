@@ -13,6 +13,8 @@ import {
 } from '@/lib/document-request'
 import { requirementsFor } from '@/lib/document-requirements'
 import { orderedNotCollected } from '@/lib/attestation'
+import { credentialChaseNow } from '@/lib/contract-clearance'
+import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { humanKey, labelFor, typeByKey } from '@/lib/document-type'
 
 /**
@@ -87,6 +89,8 @@ export async function GET(request: NextRequest) {
         // writes it yet; the row says so when it does not.
         referenceId: true,
         issuedAt: true, validFrom: true, expiresAt: true,
+        // For the renewal chase, re-said today (`credentialChaseNow`).
+        verifiedAt: true, result: true,
       },
       orderBy: { type: 'asc' },
     }),
@@ -114,7 +118,9 @@ export async function GET(request: NextRequest) {
     // The sentence the person was given. `reopenedReason` is the chase's
     // own words, written to them in the second person — "your license
     // runs out in 24 days" — which is why it may be shown here.
-    reason: p.reopenedReason,
+    // A renewal request's sentence is said again today rather than as it
+    // was stored, so its count of days matches the line above it.
+    reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date()) ?? p.reopenedReason) : p.reopenedReason,
     items: p.items.map((i) => ({
       id: i.id,
       label: i.label,

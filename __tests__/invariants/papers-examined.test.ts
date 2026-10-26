@@ -10,9 +10,9 @@
  * nothing in the app knew what comes after a flagged report.
  */
 import { describe, it, expect } from 'vitest'
-import { mayAct, mayExamine, mayAskOnTies, providersVerdict, licenseRenewal, licenseFactsFrom, isProfessionalLicense, type ExamineFacts } from '@/lib/document-request'
+import { heldWord, mayAct, mayExamine, mayAskOnTies, providersVerdict, licenseRenewal, licenseFactsFrom, isProfessionalLicense, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
-import { adverseSays, canonicalEdition, publishedFor } from '@/lib/contract-clearance'
+import { adverseSays, canonicalEdition, publishedFor, credentialChaseNow } from '@/lib/contract-clearance'
 import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete, renewalDueOn, RENEWAL_LEAD_DAYS } from '@/lib/document-stages'
 import { checkToRecord } from '@/lib/attestation'
 import { StageTally, stageTable, notHeldLines } from '../../scripts/simulate/stages/regulatory/stage-tally'
@@ -424,5 +424,25 @@ describe('an I-9 edition is read the way the issuer prints it', () => {
   })
   it('an edition that is not a date is left as it was typed', () => {
     expect(canonicalEdition('Rev. March 2024')).toBe('Rev. March 2024')
+  })
+})
+
+describe('one count of days on one page', () => {
+  it('a paper’s days left are the same number everywhere on one page', () => {
+    // Colleen Byrne's license, read on the 26th: the request for its
+    // renewal was raised days earlier and stored "runs out in 24 days".
+    const license = {
+      type: 'PROFESSIONAL_LICENSE', status: 'CLEAR', issuedAt: d('2024-11-10'), validFrom: d('2024-11-10'),
+      expiresAt: d('2026-11-08'), verifiedAt: d('2026-08-20'), provider: 'Wisconsin Board of Nursing',
+      result: { license: 'RN 154-882', state: 'WI' },
+    }
+    const on = new Date('2026-10-26T15:00:00Z')
+    const top = heldWord(license.expiresAt, on)
+    const below = credentialChaseNow([license], on)
+    const count = (s: string) => Number(/in (\d+) days?/.exec(s)?.[1])
+    expect(count(top)).toBe(13)
+    expect(below).not.toBeNull()
+    expect(count(below!)).toBe(count(top))
+    expect(below).not.toContain('24 days')
   })
 })

@@ -64,6 +64,7 @@ import {
   COVER_THAT_STOPS_WORK,
   inSentence,
   withoutVoidNonCompete,
+  credentialsToChase,
   type CoverCertificate,
   type CoverGate,
   type DocStanding,
@@ -317,6 +318,37 @@ export function credentialDetail(row: VerificationRow): { number: string | null;
     number: str(bag.license) ?? str(bag.licenseNumber) ?? str(bag.number) ?? null,
     state: str(bag.state) ?? str(bag.jurisdiction) ?? null,
   }
+}
+
+/**
+ * The renewal chase as it reads today: the same sentence the nightly
+ * chase wrote, worked out again from her credentials on the day it is
+ * read. A request stores the sentence it was raised with ("runs out in
+ * 24 days"), and shown a week later that count is a second, wrong
+ * number on a page whose top line counts from today (found by the second
+ * production walk, 2026-10-26: Colleen Byrne's page said 13 days at the
+ * top and 24 further down). Every count on a page comes from
+ * `calendarDaysBetween` on the day it is read, so they agree. Null where
+ * nothing is to be chased today. Pure.
+ */
+export function credentialChaseNow(
+  rows: (Pick<VerificationRow, 'type' | 'status' | 'issuedAt' | 'validFrom' | 'expiresAt'> & { verifiedAt?: Date | null; provider?: string | null; result?: unknown })[],
+  on: Date,
+): string | null {
+  const keys = credentialKeys()
+  const held = rows
+    .filter((r) => keys.includes(r.type))
+    .map((r) => {
+      const detail = credentialDetail(r as VerificationRow)
+      return {
+        type: r.type, label: labelFor(r.type), status: r.status,
+        issuedAt: r.issuedAt ?? null, validFrom: r.validFrom ?? null, expiresAt: r.expiresAt ?? null,
+        verifiedAt: r.verifiedAt ?? null, number: detail.number, state: detail.state, issuer: r.provider ?? null,
+      }
+    })
+  if (held.length === 0) return null
+  const chases = credentialsToChase(held, [...new Set(held.map((h) => h.type))], on)
+  return chases[0]?.says ?? null
 }
 
 /**

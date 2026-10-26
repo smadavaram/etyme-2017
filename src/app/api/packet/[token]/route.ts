@@ -1,6 +1,8 @@
 import { plainDate } from '@/lib/plain-date'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { credentialChaseNow } from '@/lib/contract-clearance'
+import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { progressOf } from '@/lib/packets'
@@ -31,7 +33,7 @@ async function loadByToken(token: string) {
     select: {
       id: true, label: true, purpose: true, direction: true,
       expiresAt: true, completedAt: true, cancelledAt: true, reopenedReason: true,
-      recipientName: true,
+      recipientName: true, packetKey: true, subjectPersonId: true,
       company: { select: { name: true } },
       subjectCompany: { select: { name: true } },
       subjectPerson: { select: { name: true } },
@@ -95,7 +97,18 @@ export async function GET(
       from: packet.company.name,
       about: packet.subjectCompany?.name ?? packet.subjectPerson?.name ?? null,
       greeting: packet.recipientName ? `Hello ${packet.recipientName}` : null,
-      reopenedReason: packet.reopenedReason,
+      // A renewal request says its count of days as of today, never the
+      // count stored the day it was raised.
+      reopenedReason:
+        packet.packetKey === CREDENTIAL_PACKET_KEY && packet.subjectPersonId
+          ? (credentialChaseNow(
+              await prisma.verification.findMany({
+                where: { personId: packet.subjectPersonId },
+                select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true },
+              }),
+              new Date(),
+            ) ?? packet.reopenedReason)
+          : packet.reopenedReason,
       expiresAt: packet.expiresAt.toISOString().slice(0, 10),
       complete: Boolean(packet.completedAt),
       progress,
