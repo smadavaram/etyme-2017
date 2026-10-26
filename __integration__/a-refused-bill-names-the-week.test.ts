@@ -391,6 +391,21 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
   })
 })
 
+/** Halcyon's night: shared by the two stories below, set by the first. */
+let halcyonNow = new Date()
+
+/**
+ * The first day any of a firm's agreements makes a bill due: the
+ * earliest billing date among the bills a look ten weeks ahead finds.
+ * Today where one is already due.
+ */
+async function firstBillingDay(companyId: string): Promise<Date> {
+  const ahead = await billsDueAt(companyId, new Date(Date.now() + 70 * 86_400_000))
+  if (ahead.length === 0) return new Date()
+  const first = Math.min(...ahead.map((d) => d.billingDate.getTime()))
+  return new Date(Math.max(first, Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())))
+}
+
 describe('a draft only the owner may send is asked once, not every night', () => {
   // Halcyon Talent, as seeded: one seat, the Owner, who is also the
   // person the supplier's twin acts for. Nobody else may send its bills,
@@ -399,14 +414,23 @@ describe('a draft only the owner may send is asked once, not every night', () =>
 
   beforeAll(async () => {
     h.halcyon = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-halcyon' } })).id
+    // The nights below run on the first day Halcyon's agreements make a
+    // bill due, never on the real today. The seeded world is anchored to
+    // the day it was built, so in the last days of a month every signed
+    // and unbilled week sits in a monthly period that has not ended, and
+    // on the real today nothing is due: the story went red on the 26th
+    // and green on the 22nd for the same code.
+    halcyonNow = await firstBillingDay(h.halcyon)
+    h.due = (await billsDueAt(h.halcyon, halcyonNow)).length
   })
 
   const questions = () => prisma.twinAction.count({ where: { companyId: h.halcyon, action: 'bill.send' } })
 
   it('a one-person firm’s drafted bill is checked against its weeks and passes, and Ask Etyme asks the owner it acts for, because only they send bills', async () => {
-    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
-    expect(run.drafted).toBe(1)
-    expect(run.asked).toBe(1)
+    expect(h.due).toBeGreaterThan(0)
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON', now: halcyonNow })
+    expect(run.drafted).toBe(h.due)
+    expect(run.asked).toBe(h.due)
     expect(run.outcomes.REFUSED).toBe(0)
     const asked = await prisma.twinAction.findFirstOrThrow({
       where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL' },
@@ -422,7 +446,7 @@ describe('a draft only the owner may send is asked once, not every night', () =>
   it('the next night, with nothing changed, the twin neither drafts again nor asks again', async () => {
     const drafts = await prisma.invoice.count({ where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } } })
     const before = await questions()
-    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON', now: halcyonNow })
     expect(run.drafted).toBe(0)
     expect(run.asked).toBe(0)
     expect(run.outcomes.REFUSED).toBe(0)
@@ -435,7 +459,7 @@ describe('a draft only the owner may send is asked once, not every night', () =>
     const person = await prisma.person.create({ data: { name: 'Ines Halloran', primaryEmail: 'ines.halloran@halcyon.example' } })
     await prisma.context.create({ data: { personId: person.id, companyId: h.halcyon, type: 'EMPLOYEE', roleId: role.id } })
     const rows = await questions()
-    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON', now: halcyonNow })
     expect(run.asked).toBe(0)
     expect(await questions()).toBe(rows)
     const asked = await prisma.twinAction.findFirstOrThrow({
@@ -552,11 +576,16 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
       where: { companyId: h.halcyon, action: 'INVOICE_DRAFT_WITHDRAWN', payload: { path: ['invoiceId'], equals: h.draft.id } },
     })).toBe(1)
 
-    // The next run drafts the same weeks again, as a new draft.
-    const run = await runSupplierBills(h.halcyon, { surface: 'CRON' })
+    // The next run drafts the same weeks again, as a new draft. Any other
+    // placement's draft is still waiting, so only the withdrawn one is new.
+    const waiting = (await prisma.invoice.findMany({
+      where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } },
+      select: { id: true },
+    })).map((d) => d.id)
+    const run = await runSupplierBills(h.halcyon, { surface: 'CRON', now: halcyonNow })
     expect(run.drafted).toBe(1)
     h.redraft = await prisma.invoice.findFirstOrThrow({
-      where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } },
+      where: { id: { notIn: waiting }, status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: h.halcyon } } } },
       include: { invoiceLines: { select: { timesheetId: true } } },
     })
     expect(h.redraft.id).not.toBe(h.draft.id)
