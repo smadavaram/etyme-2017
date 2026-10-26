@@ -20,6 +20,7 @@ import { programView } from '@/app/api/program/view'
 import type { CallerContext } from '@/lib/api-context'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
+import { firmsAcceptingOnlyFor } from '@/lib/money/own-firm-acceptance'
 import { disputedBillDecision } from './disputed-bill'
 import { receiptToPayDecision, heldReceiptDecision } from './receipt-to-pay'
 import { matchInvoices, payGate } from '@/lib/invoice-match'
@@ -207,10 +208,26 @@ export async function GET(request: NextRequest) {
     // (`app/api/timesheets/chain-turn`). Every week's turn is read in one
     // walk (`weekTurns`) rather than five queries a row, and what the
     // client decided about each week's overtime in one read more.
-    const employerSide = pendingTimesheets.filter(
+    const employerWeeks = pendingTimesheets.filter(
       (ts) => ts.sellContract.companyId === companyId &&
         ts.sellContract.companyId !== (ts.sellContract.endClientCompanyId ?? ts.sellContract.clientCompanyId)
     )
+    // A one-person firm is never asked to accept its own week (the second
+    // production walk, 2026-10-26: "Accept … — Colleen Byrne" sat on Byrne
+    // Critical Care's queue). Where every seat at this firm that may
+    // accept hours is the worker's own, the approve route stands the
+    // signature above in for the firm's acceptance, so the queue offers no
+    // row for it — the same rule, read once per worker on the page
+    // (`firmsAcceptingOnlyFor` in lib/money/own-firm-acceptance).
+    const ownFirmWeeks = new Set<string>()
+    const employerWorkers = [...new Set(employerWeeks.map((ts) => ts.personId))]
+    const onlyForThemselves = new Set(
+      (await Promise.all(
+        employerWorkers.map(async (w) => ((await firmsAcceptingOnlyFor(w, [companyId])).has(companyId) ? w : null))
+      )).filter((w): w is string => w != null)
+    )
+    for (const ts of employerWeeks) if (onlyForThemselves.has(ts.personId)) ownFirmWeeks.add(ts.id)
+    const employerSide = employerWeeks.filter((ts) => !ownFirmWeeks.has(ts.id))
     const employerTurns = await weekTurns(employerSide, companyId)
     const employerDecided = await clientDecidedMany(
       employerSide.flatMap((ts) => {
@@ -222,6 +239,7 @@ export async function GET(request: NextRequest) {
     )
 
     for (const ts of pendingTimesheets) {
+      if (ownFirmWeeks.has(ts.id)) continue
       // From the day the week was sent, not the day it ended: a week sent
       // three weeks late has waited on this desk since it arrived.
       const daysSinceSubmit = daysWaiting(ts, now)
