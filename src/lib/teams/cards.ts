@@ -293,6 +293,7 @@ export function billSendCard(f: BillSendFacts): Element {
 // ── The time limit ────────────────────────────────────────────────────
 
 export function tenureTitle(f: Pick<TenureAlertFacts, 'personName' | 'daysToLimit' | 'tier'>): string {
+  if (f.daysToLimit < 0) return `${f.personName} is past the time limit`
   if (f.tier === 'BREACH' || f.daysToLimit <= 0) return `${f.personName} is at the time limit`
   return `${f.personName} is ${f.daysToLimit} day${f.daysToLimit === 1 ? '' : 's'} from the time limit`
 }
@@ -329,12 +330,29 @@ export function tenureAlertCard(f: TenureAlertFacts): Element {
 // ── The digest ────────────────────────────────────────────────────────
 
 /** "1 bill to send · 3 invoice receipts need approval · 1 contractor near the time limit", or null when there is nothing. */
-export function digestHeading(invoices: number, risks: number, bills = 0): string | null {
+export function digestHeading(invoices: number, risks: number, bills = 0, of: { paying?: number; past?: number } = {}): string | null {
   const parts: string[] = []
+  // A receipt the twin asks to pay is titled as paying, never as an approval
+  // (walk four, 2026-10-26: "3 invoice receipts need approval" over "Pay …?").
+  const paying = Math.min(invoices, Math.max(0, of.paying ?? 0))
+  const approving = invoices - paying
+  // Past the limit is said as past, never as near (walk four: Anders Lund).
+  const past = Math.min(risks, Math.max(0, of.past ?? 0))
+  const near = risks - past
   if (bills > 0) parts.push(`${bills} bill${bills === 1 ? '' : 's'} to send`)
-  if (invoices > 0) parts.push(`${invoices} invoice receipt${invoices === 1 ? ' needs' : 's need'} approval`)
-  if (risks > 0) parts.push(`${risks} contractor${risks === 1 ? '' : 's'} near the time limit`)
+  if (paying > 0) parts.push(`${paying} invoice receipt${paying === 1 ? '' : 's'} to pay`)
+  if (approving > 0) parts.push(`${approving} invoice receipt${approving === 1 ? ' needs' : 's need'} approval`)
+  if (past > 0) parts.push(`${past} contractor${past === 1 ? '' : 's'} past the time limit`)
+  if (near > 0) parts.push(`${near} contractor${near === 1 ? '' : 's'} near the time limit`)
   return parts.length ? parts.join(' · ') : null
+}
+
+/** The digest's heading from its own items: paying and approving told apart, past and near told apart. */
+export function digestHeadingOf(invoices: readonly Pick<InvoiceApprovalFacts, 'pay'>[], risks: readonly Pick<TenureAlertFacts, 'daysToLimit'>[], bills: readonly unknown[] = []): string | null {
+  return digestHeading(invoices.length, risks.length, bills.length, {
+    paying: invoices.filter((i) => i.pay).length,
+    past: risks.filter((r) => r.daysToLimit < 0).length,
+  })
 }
 
 /**
@@ -342,7 +360,7 @@ export function digestHeading(invoices: number, risks: number, bills = 0): strin
  * when there is nothing to say — an empty digest is never sent.
  */
 export function digestCard(invoices: readonly InvoiceApprovalFacts[], risks: readonly TenureAlertFacts[], bills: readonly BillSendFacts[] = []): Element | null {
-  const heading = digestHeading(invoices.length, risks.length, bills.length)
+  const heading = digestHeadingOf(invoices, risks, bills)
   if (!heading) return null
   const body: Element[] = [text(heading, { weight: 'Bolder', size: 'Medium' })]
   for (const f of bills) {

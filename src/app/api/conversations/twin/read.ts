@@ -42,6 +42,7 @@ import { GET as submissionsRoute } from '@/app/api/submissions/route'
 import { GET as complianceRoute } from '@/app/api/compliance/route'
 import { labelFor } from '@/lib/document-type'
 import { maySendBills } from '@/lib/money/bill-send'
+import { billsDueToday } from './bill-due'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
@@ -231,12 +232,19 @@ export function readersFor(
         : new Map<string, string>()
       if (personIds.length) logPeople(personIds, 'Read in the twin’s conversation: what needs me')
 
-      return mine.map((r, i) => {
+      // A drafted bill's due line is today's, from money, never the day it was drafted.
+      // One read for every bill card; a bill already sent closes its card.
+      const liveBills = await billsDueToday(mine.flatMap((r) => {
+        if (r.twinAction.action !== BILL_SEND || r.twinAction.entityType !== 'Invoice') return []
+        const stored = billFromPayload(asRecord(r.twinAction.payload))
+        return stored ? [{ key: r.id, bill: stored, invoiceId: r.twinAction.entityId }] : []
+      }))
+      return mine.filter((r) => liveBills.get(r.id) !== null).map((r, i) => {
         const a = r.twinAction
         const p = asRecord(a.payload)
         // A drafted bill to send is this firm's own bill, never an invoice
         // receipt: the card reads it from the question's own payload.
-        const bill = a.action === BILL_SEND ? billFromPayload(p) : null
+        const bill = a.action === BILL_SEND ? liveBills.get(r.id) ?? billFromPayload(p) : null
         const title = bill ? billItemTitle(bill)
           : a.entityType === 'Invoice'
           ? `${typeof p.number === 'string' ? p.number : 'Invoice receipt'}${typeof p.supplierName === 'string' ? ` from ${p.supplierName}` : ''}`

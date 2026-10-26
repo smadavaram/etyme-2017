@@ -50,7 +50,7 @@ import { programManagerAt } from '@/lib/twin/run'
 import { teamsBotConfig } from '@/lib/teams/config'
 import { conversationFor, rememberConversation } from '@/lib/teams/store'
 import { openPersonalChat, sendToConversation } from '@/lib/teams/connector'
-import { asMessage, digestCard, digestHeading, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
+import { asMessage, digestCard, digestHeadingOf, invoiceTitle, tenureTitle, type BillSendFacts, type InvoiceApprovalFacts, type TenureAlertFacts } from '@/lib/teams/cards'
 import { INVOICE_APPROVE, INVOICE_PAY, RECEIPT_ACTS, TENURE_TOLD, billSendFacts, invoiceApprovalFacts, tenureAlertFacts } from '@/lib/teams/facts'
 import { waitingQuestions } from '@/lib/twin/ledger'
 import { BILL_SEND } from '@/app/api/conversations/twin/ask'
@@ -234,7 +234,7 @@ export interface TeamsDigestResult {
 /** Send one person their digest, by the bot where it can, else the existing notice. */
 async function sendDigest(personId: string, companyId: string, now: Date): Promise<TeamsDigestResult> {
   const d = await digestFor(personId, companyId, { now })
-  const heading = digestHeading(d.invoices.length, d.risks.length, d.bills.length)
+  const heading = digestHeadingOf(d.invoices, d.risks, d.bills)
   const card = digestCard(d.invoices, d.risks, d.bills)
   if (!heading || !card) return { personId, via: 'NOTHING', items: 0 }
   const items = d.invoices.length + d.risks.length + d.bills.length
@@ -318,7 +318,7 @@ export async function tellProgramOwnerOnTeams(companyId: string, opts: { now?: D
 export async function cardForAsker(personId: string, companyId: string): Promise<Record<string, unknown> | null> {
   const d = await digestFor(personId, companyId, { all: true })
   const card = digestCard(d.invoices, d.risks, d.bills)
-  const heading = digestHeading(d.invoices.length, d.risks.length, d.bills.length)
+  const heading = digestHeadingOf(d.invoices, d.risks, d.bills)
   return card && heading ? asMessage(card, heading) : null
 }
 

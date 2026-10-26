@@ -1276,9 +1276,32 @@ export function limitsSay(rows: readonly LimitRow[], day: (iso: string) => strin
   if (rows.length === 0) return `No contractor on your sites is near the time limit. Checked just now.${staleLine}`
   return (
     `${planSays(rows[0])} ` +
-    `${counted(rows.length, 'contractor')} ${rows.length === 1 ? 'is' : 'are'} near the time limit, counted across every supplier. ` +
+    `${limitCountSays(rows)}, counted across every supplier. ` +
     `${limitSays(rows[0], day)} Checked just now.${staleLine}`
   )
+}
+
+/**
+ * "One contractor is past the time limit and two are near it": a person
+ * whose day has gone is past it, never "near" (walk four, 2026-10-26:
+ * Kestrel read Anders Lund as near the limit he reached in May). A person
+ * reaching it today is near it. No full stop, so a clause can follow.
+ */
+export function limitCountSays(rows: readonly Pick<LimitRow, 'daysToLimit'>[]): string {
+  const past = rows.filter((r) => r.daysToLimit < 0).length
+  const near = rows.length - past
+  if (past === 0) return `${counted(near, 'contractor')} ${near === 1 ? 'is' : 'are'} near the time limit`
+  if (near === 0) return `${counted(past, 'contractor')} ${past === 1 ? 'is' : 'are'} past the time limit`
+  return `${counted(past, 'contractor')} ${past === 1 ? 'is' : 'are'} past the time limit and ${lowerNumber(near)} ${near === 1 ? 'is' : 'are'} near it`
+}
+
+/** "Two more contractors are near the time limit." · "One more contractor is past it." Past said as past. */
+function moreLimitSays(rest: readonly Pick<LimitRow, 'daysToLimit'>[]): string {
+  const past = rest.filter((r) => r.daysToLimit < 0).length
+  const near = rest.length - past
+  const part = (n: number, where: string) => `${counted(n, 'more contractor')} ${n === 1 ? 'is' : 'are'} ${where}`
+  if (past && near) return `${part(past, 'past the time limit')}, and ${lowerNumber(near)} more ${near === 1 ? 'is' : 'are'} near it.`
+  return `${past ? part(past, 'past the time limit') : part(near, 'near the time limit')}.`
 }
 
 /** The time limit is a client's count: what a supplier, an MSP or a worker is told instead. */
@@ -1505,7 +1528,9 @@ export interface PayAnswer { reference?: string | null; method?: string | null }
 /**
  * Said beside the box when the bank reference is blank: the approval
  * route's own refusal, word for word (NEEDS_BANK_REFERENCE in
- * lib/twin/performers; a test holds the two equal).
+ * lib/twin/performers; a test holds the two equal). Walk four asked that
+ * it say "you" to the AP clerk; the route's sentence is the architect's,
+ * and this copy moves with it, never ahead of it.
  */
 export const NEEDS_BANK_REFERENCE = 'Enter the bank reference so the AP clerk can reconcile it.'
 
@@ -1824,6 +1849,16 @@ export function billFromPayload(p: unknown): BillCardPayload | null {
   }
 }
 
+/**
+ * The card's due line from money's answer for the day it is read, where
+ * there is one; the stored payload's otherwise. Pure: `live` is
+ * money's `pastDueOnSendingNow` answer, already read (./bill-due).
+ */
+export function billWithDue(bill: BillCardPayload, live: { dueSays: string; pastDue: { daysPast: number; says: string } | null }): BillCardPayload {
+  if (!live.dueSays) return bill
+  return { ...bill, dueSays: live.dueSays, pastDue: live.pastDue }
+}
+
 /** "INV-0042 to Northbend Athletic": the bill as a waiting item names it, number first so "approve INV-0042" finds it. */
 export function billItemTitle(b: Pick<BillCardPayload, 'customerName' | 'invoiceNumber' | 'period'>): string {
   return b.invoiceNumber ? `${b.invoiceNumber} to ${b.customerName}` : `the bill to ${b.customerName} for ${b.period.label}`
@@ -2009,7 +2044,7 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   if (near.length) {
     lines.push({
       says: limitSays(near[0], day) +
-        (near.length > 1 ? ` ${counted(near.length - 1, 'more contractor')} ${near.length === 2 ? 'is' : 'are'} near the time limit.` : ''),
+        (near.length > 1 ? ` ${moreLimitSays(near.slice(1))}` : ''),
       links: [{ text: near[0].name, href: near[0].href }],
     })
   }

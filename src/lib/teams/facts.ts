@@ -12,6 +12,7 @@ import { rate } from '@/lib/money-display'
 import { appLink } from '@/lib/notify'
 import { logBulkAccess } from '@/lib/access-log'
 import type { BillSendFacts, InvoiceApprovalFacts, TenureAlertFacts } from '@/lib/teams/cards'
+import { billDueToday } from '@/app/api/conversations/twin/bill-due'
 import { BILL_SEND, billFromPayload, billRows, billCardTitle, billItemTitle, hrefFor } from '@/app/api/conversations/twin/ask'
 
 export const INVOICE_APPROVE = 'invoice_receipt.approve'
@@ -155,7 +156,11 @@ export async function billSendFacts(approvalId: string, companyId: string, asked
     select: { id: true, twinAction: { select: { action: true, entityType: true, entityId: true, ruleCited: true, rationale: true, payload: true } } },
   })
   if (!a || a.twinAction.action !== BILL_SEND) return null
-  const bill = billFromPayload(a.twinAction.payload)
+  const stored = billFromPayload(a.twinAction.payload)
+  if (!stored) return null
+  // The due line as of today, from money, as Ask Etyme's card reads it (walk four).
+  const bill = a.twinAction.entityType === 'Invoice' ? await billDueToday(stored, a.twinAction.entityId) : stored
+  // Already sent: the card closes.
   if (!bill) return null
   return {
     approvalId: a.id,

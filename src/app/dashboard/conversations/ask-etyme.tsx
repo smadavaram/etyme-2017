@@ -1045,7 +1045,7 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
 function LimitTable({ rows }: { rows: LimitRow[] }) {
   return (
     <ReplyTable
-      caption="Contractors near the time limit"
+      caption={rows.some((r) => r.daysToLimit < 0) ? 'Contractors near or past the time limit' : 'Contractors near the time limit'}
       head={[{ label: 'Contractor' }, { label: 'Days left', n: true }, { label: 'Limit reached' }, { label: 'Suppliers' }]}
     >
       {rows.map((r) => (
@@ -1053,7 +1053,7 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
           <th scope="row" className={`${td} font-medium`}>
             <Link href={r.href as Route} className="text-etyme-action-press underline-offset-2 hover:underline">{r.name}</Link>
           </th>
-          <td className={`${tdN} ${r.daysToLimit <= 30 ? 'font-semibold text-etyme-attention' : ''}`}>{r.daysToLimit > 0 ? r.daysToLimit : 'At the limit'}</td>
+          <td className={`${tdN} ${r.daysToLimit <= 30 ? 'font-semibold text-etyme-attention' : ''}`}>{r.daysToLimit > 0 ? r.daysToLimit : r.daysToLimit < 0 ? 'Past the limit' : 'At the limit'}</td>
           <td className={td}>{formatDay(r.limitOn)}</td>
           <td className={td}>{r.suppliers.length ? r.suppliers.join(', ') : '—'}</td>
         </tr>
