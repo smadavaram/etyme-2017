@@ -1814,6 +1814,121 @@ document flow is a trust layer and the verdict was "do not ship it as
 finished". From now on **every wave that changes a trust flow ends
 with a walk on screens, not only a simulation.**
 
+## Ask Etyme runs parallel to the dashboard, and the CFO gets exceptions, not a page — decided 2026-10-22 to 2026-10-26
+
+**The question, from the founder, 2026-10-22:** *"Verify if Ask Etyme
+conversation also works parallel to Dashboard."* Walked as fifteen seats
+in a browser on a fresh copy of the seeded world. The verdict was no:
+the mark, the greeting and Today agreed on thirteen seats and a week or
+an expense decided on either side showed on the other, but the chat told
+Techpeple to bill four weeks Computer Systems already held its invoices
+for (a double-billing prompt), a receipt could not be paid from the
+chat and the twin's yes paid nothing, the MSP seated at Cavanaugh read a
+different queue from the program page, and plain trade questions ("Who
+applied?", "Which invoice receipts can I pay?", "Who is missing an
+I-9?") fell through to "needs the model". Fixed across six domains and
+shipped in this wave; every fault had an owner and a test sentence. What
+stands now, so it is not re-derived:
+- **One list, read by both doors.** The chat's weeks-to-bill, bench,
+  and program queue are the same reads Today and the program page use
+  (`firmTuesday`, `benchAt`, `programQueue`). A second computation of a
+  figure the dashboard already computes is the bug, whichever door it is
+  in.
+- **Another company's book is refused by rule, before the model**, in one
+  sentence. "Needs the model" is never the answer to a cross-tenant
+  question.
+- **Plain trade questions are answered from the record, rules first**,
+  through the same routes the pages read, and the chips are chosen by the
+  seat's permissions so no chip refuses the person it is shown to.
+- **Every decision in the count is a card with Yes and Not now**, and
+  one receipt is one item: the twin's question rides on the receipt's row
+  (`twinApprovalId`), never beside it. A receipt that fails the three-way
+  check is never offered Pay; it reads held, with the hours and the way
+  forward.
+- **Paying an invoice receipt from the chat.** Three coordinator's calls,
+  each reversible by the founder in a sentence: a yes pays the balance
+  owed; the card asks for the bank reference before the yes, and a yes
+  with none is refused ("Enter the bank reference so the AP clerk can
+  reconcile it"); `invoice_receipt.pay` replaces `invoice_receipt.approve`
+  for `Invoice` receipts (one card per receipt; `approve` stays for
+  typed-in receipts). The payment is written by one function,
+  `recordInvoicePayment` in `lib/money/invoice-payment`, which the
+  receipt's page and the twin's performer both call, behind the same
+  gate; the `invoice.paid` event goes out after the commit, never inside
+  the transaction.
+- **The mark re-reads after any act** on either screen, not on the
+  minute.
+- **A bill is dated by its agreement on the day it is sent**, and where
+  the agreement's date has already passed the card says so before the
+  yes ("38 days past due the day it arrives"). Where nobody said what the
+  net days run from, they run from the day the bill is sent; that needs
+  `paymentTermsFrom` to be nullable (four columns, five readers in other
+  domains, ~30 seed writes), sequenced after this wave in the order that
+  keeps every commit green.
+
+**The CFO page is not built. Decided on the founder's question,
+2026-10-22:** *"Are we still the simple system that's connecting people
+like a well-oiled engine, or bothering higher-ups with another overflow
+of information tool that they won't need?"* He asked for a thousand
+indirect VPs' feedback. A thousand invented executives (not real
+people; roles, industries, regions, contractor counts, current tool,
+pain and worry drawn from the buyer profile) were each shown three
+things and judged one at a time, eight batches, four of them caught
+using a formula and redone by hand (https://claude.ai/artifact/JMgRNXaiJ15GeEBfmJQhkm).
+Read for who and why, never for how many: 228 of 1,000 would take a
+call, which real cold outreach never does. What it said, and what
+follows:
+- **The engine is wanted; the CFO page is the overflow tool.**
+  Operations and procurement wanted the plant-level engine; CFOs wanted
+  exceptions only (64 of 158 would use it, 17 ignored it) and ignored the
+  engine; the five-number, four-flow CFO page drawn on 2026-10-22
+  (https://claude.ai/artifact/52bAUEWcdtehZHJw2r8kmo) sat in the middle
+  for every role, the mark of a tool nobody asked for. **So: no CFO page.
+  The CFO gets one sentence a week naming only exceptions, and Ask
+  Etyme's answer when asked.** Regional managers keep a filtered list of
+  their region, which is the drawing's only surviving new screen, built
+  when a client with sites in two regions asks.
+- **Papers sell before money.** "Nobody starts without papers, audit
+  ready" was the value named most, ahead of total spend and matched
+  invoices. Public pages and first messages lead with the two things a
+  buyer can check: nobody starts without papers, nothing is paid on hours
+  nobody signed.
+- **Nobody wants to hear about the assistant.** Ask Etyme and the chat
+  were named as clutter more than anything else (287 times). It is met in
+  use, never sold; this is the "never lead with AI" rule measured.
+- **Aim at 200 to 5,000 contractors on spreadsheets or one-agency-per-
+  plant, after a pain signal.** Under fifty contractors took 7 calls in
+  173; low pain took 2 in 261. Say "sites", not "plants", outside
+  manufacturing. The fixable blocker is security (SOC 2, data location,
+  the DPA on one downloadable page); lock-in to a VMS, an ERP module or
+  an MSP contract is not.
+- **The region drawing stands as a drawing**, not a build: the hiring
+  manager's own list exists; a region on a site, a regional manager's
+  seat and the rollup wait for a paying client with sites in two
+  regions. The rules per country shown on it are research, confirmed by
+  regulatory before any is built.
+
+**Also in this wave, each with its owner and test sentences:** the
+screen fixes from the 2026-10-22 papers walk (a firm accepts or sends
+back a paper that arrived; the I-9, a provider's verdict and the
+adverse-action steps recorded on screen; a passport refused before an
+offer; only a yes puts somebody on the bench; every Extend takes a
+chosen day and a reason and shows the route's refusal; a licensed job
+checked at submission; the client's NDA asked at interview; supplier
+onboarding requires the signed copy and the W-9's edition; a client
+reads its order's paper set; the worker answers the screening questions
+in words; a license renewal sends its number, issuer and expiry as
+fields); a non-compete is not asked where the state voids it for workers
+(CA, MN, ND, OK, each with its statute); a renewal request falls due
+fourteen days before the paper lapses and a lapsed paper is asked for
+once; an I-9 edition is read the way the issuer prints it; Marta
+Kowalczyk at Talvern Medical works on a work permit ending six weeks
+after her line, so extending her is refused on papers in the demo; a
+license warning at submission has its rung on the automation ladder;
+the simulation report prints each station's own table. Release pass on
+a quiet copy of 7ccfc89ff: type check clean, 11,807 unit (the one red
+the generated matrix page, regenerated), 2,401 integration, build clean.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
