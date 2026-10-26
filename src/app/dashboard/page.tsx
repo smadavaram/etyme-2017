@@ -12,9 +12,10 @@ import { hasPermission } from '@/lib/permissions'
 import { formatDay, formatDayLong } from '@/lib/format-date'
 import { amount, compact } from '@/lib/money-display'
 import {
-  NOT_YOURS_TODAY, queueRowView, benchSays, lastDaySays, weeksByPerson,
+  NOT_YOURS_TODAY, queueRowView, benchSays, lastDaySays, weeksByPerson, seatedTodayLines,
   type QueueRowIn, type QueueRowView, type TodayReads,
 } from '@/lib/today-page'
+import { decisionsAddress } from './decisions/chips'
 
 /**
  * A selling firm's Today — a supplier's, an integrator's, an MSP's own
@@ -54,6 +55,8 @@ interface CurrencyTotal {
 interface TodayData {
   asOf: string
   company: { name: string; kind: string }
+  /** The client whose program this seat is in, or null for a seat at home. */
+  seated: { clientName: string } | null
   reads: TodayReads
   picture: string
   billing: { totals: CurrencyTotal[]; people: number; names: string[]; basis: string; unpriced: string[] } | null
@@ -67,7 +70,8 @@ interface TodayData {
       weeks: number
       totals: CurrencyTotal[]
       people: { personName: string }[]
-      drafts: { invoiceId: string; number: string }[]
+      /** Send is drawn where the send route would send it for this seat; otherwise its sentence. */
+      drafts: { invoiceId: string; number: string; send: boolean; refused: string | null }[]
     }[]
   } | null
   rollingOff: { contractId: string; personId: string; name: string; client: string | null; days: number; lastDay: string; started: boolean }[] | null
@@ -182,9 +186,14 @@ export default function DashboardPage() {
   const fetchDashboard = useCallback(async () => {
     setError(null)
     try {
+      // A seat in a client's program reads that program's queue, the rows
+      // the mark and the chat read, and Today reads none of the firm's own
+      // book (decided 2026-10-26); a seat at home reads its own, as before.
+      const search = window.location.search
+      const client = new URLSearchParams(search).get('clientCompanyId')
       const [q, t] = await Promise.all([
-        fetch('/api/decisions').then(readJson),
-        fetch('/api/today').then(readJson),
+        fetch(decisionsAddress(search)).then(readJson),
+        fetch(client ? `/api/today?clientCompanyId=${encodeURIComponent(client)}` : '/api/today').then(readJson),
       ])
       setQueue({
         says: typeof q?.data?.says === 'string' ? q.data.says : 'Nothing needs you today.',
@@ -247,14 +256,13 @@ export default function DashboardPage() {
   const t = today
   const rolling = new Map((t.rollingOff ?? []).map((r) => [r.contractId, { ...r }]))
   const rows = queue.rows.map((r) => queueRowView(r, rolling, { terminate: hasPermission(permissions ?? [], 'assignments.terminate') }))
-  // Send is the route's answer for this seat, read off /api/today, not the session's.
-  const mayIssue = t.reads.send === true
   const ledger = mayOpen('/dashboard/twin', permissions)
 
   // A program office places nobody, so with no book of its own it reads
   // that it has no program yet (sign-up walk, round three, item 15).
   const hasBook =
     (t.whoIsWhere?.length ?? 0) > 0 || (t.signed?.count ?? 0) > 0 || (t.rollingOff?.length ?? 0) > 0 || (t.unpaid?.length ?? 0) > 0
+  if (t.seated) return <SeatedInProgram t={t} queue={queue} rows={rows} officeName={session.company?.name ?? 'Your firm'} clientName={t.seated.clientName} ledger={ledger} />
   if (kind === 'MSP' && !hasBook) return <ProgramOfficeWithoutProgram t={t} queue={queue} rows={rows} officeName={session.company?.name ?? 'Your firm'} ledger={ledger} />
 
   return (
@@ -321,7 +329,7 @@ export default function DashboardPage() {
 
         <div className="lg:col-span-2 space-y-6">
           <WhoIsWhere t={t} />
-          <Bills t={t} mayIssue={mayIssue} busy={busy} said={said} onAct={act} />
+          <Bills t={t} busy={busy} said={said} onAct={act} />
         </div>
       </div>
 
@@ -423,9 +431,8 @@ function WhoIsWhere({ t }: { t: TodayData }) {
 }
 
 /** "Bills": the weeks signed and not yet billed by client, Send where a draft holds them, then what was sent and is unpaid. */
-function Bills({ t, mayIssue, busy, said, onAct }: {
+function Bills({ t, busy, said, onAct }: {
   t: TodayData
-  mayIssue: boolean
   busy: string | null
   said: { key: string; text: string } | null
   onAct: (key: string, url: string) => void
@@ -462,7 +469,7 @@ function Bills({ t, mayIssue, busy, said, onAct }: {
                     <div key={d.invoiceId} className="mt-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[12px] text-etyme-muted">Bill {d.number} is drafted.</span>
-                        {mayIssue ? (
+                        {d.send ? (
                           <button className="btn-primary" disabled={busy === key} onClick={() => onAct(key, `/api/invoices/${d.invoiceId}/submit`)}>
                             {busy === key ? 'Sending…' : 'Send'}
                           </button>
@@ -470,6 +477,7 @@ function Bills({ t, mayIssue, busy, said, onAct }: {
                           <Link href="/dashboard/invoices" className="btn-secondary">Look</Link>
                         )}
                       </div>
+                      {!d.send && d.refused && <p className="mt-1 text-[12px] text-etyme-muted">{d.refused}</p>}
                       {said?.key === key && <p className="mt-1 text-[12px] text-etyme-ink">{said.text}</p>}
                     </div>
                   )
@@ -553,6 +561,64 @@ function Figure({ label, values, lines, note = null, empty = null, denied = null
  * nothing to count, and the page says that in sentences rather than
  * drawing zeros. Nothing here is money.
  */
+/**
+ * Today for a firm seated in a client's program: the program's headline
+ * and queue, the same rows the mark and the chat count, and none of the
+ * firm's own book (decided 2026-10-26). The program itself is one link away.
+ */
+function SeatedInProgram({ t, queue, rows, officeName, clientName, ledger }: {
+  t: TodayData
+  queue: Queue
+  rows: QueueRowView[]
+  officeName: string
+  clientName: string
+  ledger: boolean
+}) {
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8">
+        <div className="eyebrow mb-2">Today · {formatDayLong(t.asOf, { weekday: true, year: false })}</div>
+        <h1 className="headline-serif text-heading text-etyme-ink mb-2">{queue.says}</h1>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 space-y-6">
+          <div className="panel">
+            <h2 className="headline-serif text-[18px] text-etyme-ink mb-3">{clientName}</h2>
+            <ul className="space-y-2 text-[13px] text-etyme-ink">
+              {seatedTodayLines(officeName, clientName).map((line) => <li key={line}>{line}</li>)}
+            </ul>
+            <p className="mt-4 text-[13px]">
+              <Link href="/dashboard/program" className="text-etyme-action hover:underline">Open {clientName}&rsquo;s program</Link>
+            </p>
+          </div>
+        </div>
+        <div className="lg:col-span-2">
+          {rows.length > 0 && (
+            <div className="panel">
+              <h2 className="headline-serif text-[18px] text-etyme-ink mb-4">Yours to decide</h2>
+              {rows.map((r) => (
+                <Link key={r.key} href={r.href as any} className="block py-3 border-b border-etyme-rule last:border-b-0">
+                  <div className="text-[13px] font-medium text-etyme-ink">{r.who}</div>
+                  <div className="text-[12px] text-etyme-muted mt-0.5">{r.says}</div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {ledger && (
+        <p className="mt-8 text-[13px]">
+          <Link href="/dashboard/twin" className="text-etyme-action hover:underline">
+            Everything Etyme did, in the ledger
+          </Link>
+        </p>
+      )}
+    </div>
+  )
+}
+
 function ProgramOfficeWithoutProgram({ t, queue, rows, officeName, ledger }: {
   t: TodayData
   queue: Queue

@@ -1,43 +1,50 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { todayReads, SEND_BILL_PERMISSION } from '@/lib/today-page'
-import { rolesFor } from '@/lib/company-defaults'
+import { draftSend } from '@/lib/today-page'
+import { sendVerdict, otherSenderSays } from '@/lib/money/bill-send'
 
 /**
- * Today's Send on a drafted bill reads the send route's own permission.
+ * Today's Send on a drafted bill is the send route's own verdict.
  *
  * Found by the second production walk (2026-10-26): Brightmoor's Owner saw
- * Send on Today and it sent, while Ask Etyme said the bill was not theirs
- * to send. The route is the authority: it asks for `invoices.issue`, the
- * Owner holds it, so the Owner may send. The screen now reads that answer
- * from `/api/today`, computed from the caller's seat, and this file fails
- * if the route ever asks for something else.
+ * Send on Today while Ask Etyme said the bill was not theirs to send. The
+ * route now reads `maySendBill` (lib/money/bill-send) before anything
+ * else, and Today reads `maySendBills` over every draft on the page, so
+ * the two answer from one function.
  */
 
-const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/invoices/[id]/submit/route.ts'), 'utf8')
-const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/page.tsx'), 'utf8')
-const role = (name: string) => rolesFor('VENDOR').find((r) => r.name === name)!.permissions
+const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+const ROUTE = read('src/app/api/invoices/[id]/submit/route.ts')
+const TODAY = read('src/app/api/today/route.ts')
+const PAGE = read('src/app/dashboard/page.tsx')
 
 describe('Send on Today', () => {
   it('Today offers Send on a bill only to a seat the send route would let send it', () => {
-    // The route's gate, read off its source: the one permission it refuses on.
-    const gates = [...ROUTE.matchAll(/hasPermission\(caller\.permissions, '([a-z.]+)'\)/g)].map((m) => m[1])
-    expect(gates).toEqual([SEND_BILL_PERMISSION])
+    // One function behind both doors.
+    expect(ROUTE).toMatch(/await maySendBill\(/)
+    expect(TODAY).toMatch(/await maySendBills\(/)
+    expect(TODAY).toContain('draftSend(verdicts.get(d.invoiceId))')
 
-    // Every supplier desk: Send is drawn exactly where the route's gate lets it through.
-    for (const r of rolesFor('VENDOR')) {
-      expect({ role: r.name, send: todayReads(r.permissions, 'VENDOR').send })
-        .toEqual({ role: r.name, send: r.permissions.includes(SEND_BILL_PERMISSION) })
-    }
-    expect(todayReads(role('Owner'), 'VENDOR').send).toBe(true)
-    expect(todayReads(role('Accounts Receivable'), 'VENDOR').send).toBe(true)
-    expect(todayReads(role('Account Manager'), 'VENDOR').send).toBe(false)
-    expect(todayReads(role('AP & Payroll'), 'VENDOR').send).toBe(false)
-    expect(todayReads(null).send).toBe(false)
-
-    // The page draws Send from the route's answer, not from its own session.
-    expect(PAGE).toContain('t.reads.send')
+    // The page draws Send from that verdict and from nothing of its own.
+    expect(PAGE).toContain('d.send ? (')
     expect(PAGE).not.toMatch(/hasPermission\([^)]*'invoices\.issue'\)/)
+    expect(PAGE).not.toContain('mayIssue')
+
+    // What the verdict means on the page, over the rule's own cases.
+    const owner = 'owner', finance = 'finance'
+    const others = [{ personId: finance, name: 'Rosalind Tay' }]
+    // A bill Ask Etyme drafted for the Owner, where somebody else sends bills: no Send, the route's sentence instead.
+    expect(draftSend(sendVerdict({ callerId: owner, permitted: true, draftedFor: owner, otherSenders: others })))
+      .toEqual({ send: false, refused: otherSenderSays(['Rosalind Tay']) })
+    // The same bill, for the seat that sends bills: Send.
+    expect(draftSend(sendVerdict({ callerId: finance, permitted: true, draftedFor: owner, otherSenders: [] })))
+      .toEqual({ send: true, refused: null })
+    // Where nobody else sends bills, the Owner sends it.
+    expect(draftSend(sendVerdict({ callerId: owner, permitted: true, draftedFor: owner, otherSenders: [] })).send).toBe(true)
+    // A seat that does not send bills never gets Send.
+    expect(draftSend(sendVerdict({ callerId: 'am', permitted: false, draftedFor: null, otherSenders: [] })).send).toBe(false)
+    // No verdict read is no Send, never a guess.
+    expect(draftSend(undefined)).toEqual({ send: false, refused: null })
   })
 })

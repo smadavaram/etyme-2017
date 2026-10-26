@@ -41,26 +41,11 @@ export interface TodayReads {
   people: boolean
   /** The bench, read by whoever reads consultants, as the bench page is. */
   bench: boolean
-  /**
-   * Send on a drafted bill: the one permission the send route asks for
-   * (`POST /api/invoices/:id/submit` gates on `invoices.issue`), so the
-   * button is drawn only for a seat the route would let send it. Computed
-   * by the route from the caller's own seat, never by the screen from its
-   * session, so the two cannot disagree (second production walk,
-   * 2026-10-26: Brightmoor's Owner holds it, so the Owner may send). What
-   * the route still asks after the permission — a bill this firm raised,
-   * matching its order and signed weeks — is answered by the route in a
-   * sentence when Send is pressed, because the match writes and a read
-   * may not.
-   */
-  send: boolean
 }
 
-/** The permission the bill-send route asks for. One name, read by Today and checked against the route by a test. */
-export const SEND_BILL_PERMISSION = 'invoices.issue' as const
 
 export function todayReads(permissions: readonly string[] | null | undefined, kind?: string | null): TodayReads {
-  if (permissions == null) return { billing: false, bills: false, people: false, bench: false, send: false }
+  if (permissions == null) return { billing: false, bills: false, people: false, bench: false }
   return {
     billing: hasPermission(permissions, 'margin.read'),
     bills: hasPermission(permissions, 'invoices.read'),
@@ -68,8 +53,42 @@ export function todayReads(permissions: readonly string[] | null | undefined, ki
     // A program office places nobody and runs no bench, whatever its seat
     // holds (lib/dashboard-reads, sign-up walk round three, item 15).
     bench: kind !== 'MSP' && hasPermission(permissions, 'consultants.read'),
-    send: hasPermission(permissions, SEND_BILL_PERMISSION),
   }
+}
+
+/**
+ * Send on one drafted bill, as Today draws it: the send route's own
+ * verdict for this seat (`maySendBills` in lib/money/bill-send, read once
+ * for every draft on the page), so Send is drawn only where the route
+ * would send it, and a refusal is drawn as the route's own sentence.
+ * What the route asks after that (the bill's state and the three-way
+ * check) is answered when Send is pressed, because the check writes.
+ */
+export function draftSend(verdict: { ok: true } | { ok: false; says: string } | undefined): { send: boolean; refused: string | null } {
+  if (!verdict) return { send: false, refused: null }
+  return verdict.ok ? { send: true, refused: null } : { send: false, refused: verdict.says }
+}
+
+/** A seat that reads nothing of its own firm's book. */
+export const NO_READS: TodayReads = { billing: false, bills: false, people: false, bench: false }
+
+/**
+ * Today for a firm seated in a client's program (decided 2026-10-26, on
+ * the second production walk; reversible by the founder in a sentence):
+ * the whole session is in that program. Today, Needs attention, the Ask
+ * Etyme mark and the chat all read the program's queue, so a seat sees
+ * one number in four places; the firm's own book is read only by a seat
+ * at home, one that holds no live seat in a client's program. These are
+ * the lines Today draws under the program's headline in place of the
+ * firm's own figures, which are neither read nor logged for a seated
+ * reader.
+ */
+export function seatedTodayLines(office: string, client: string): string[] {
+  return [
+    `${office} is seated in ${client}\u2019s program, so this page reads that program\u2019s queue.`,
+    `You act under ${client}\u2019s rules, and every read is logged.`,
+    `${office}\u2019s own book is read only when it holds no seat in a client\u2019s program.`,
+  ]
 }
 
 /** Said where a part of the page is not this seat's to read, in place of a zero. */

@@ -3,7 +3,9 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { logBulkAccess } from '@/lib/access-log'
 import { firmTuesday, totalsByCurrency, SELLING_KINDS, type CurrencyTotal } from '@/lib/money/firm-today'
-import { todayReads, pictureLine, byClient } from '@/lib/today-page'
+import { todayReads, pictureLine, byClient, NO_READS, draftSend } from '@/lib/today-page'
+import { maySendBills } from '@/lib/money/bill-send'
+import { seatFor } from '@/lib/program-seat'
 import { rollingOffAt, benchAt, unpaidBills } from './reads'
 
 /**
@@ -53,8 +55,32 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const reads = todayReads(caller.permissions, company.kind)
   const now = new Date()
+
+  // ── A seat in a client's program reads that program, not its book ──
+  //
+  // Decided 2026-10-26 (the second production walk): a firm seated in a
+  // client's program is in that program for the whole session. Today's
+  // headline and queue are the program's (`GET /api/decisions?in=program`,
+  // the rows the program page, the mark and the chat read), so nothing of
+  // the firm's own book is read here, and nobody in it is logged as read.
+  // The seat is found the way the decisions route and the chat find it:
+  // the live seat this firm holds, `clientCompanyId` choosing among several.
+  const seat = await seatFor(caller, request.nextUrl.searchParams.get('clientCompanyId')).catch(() => null)
+  if (seat) {
+    return NextResponse.json({
+      data: {
+        asOf: now.toISOString().slice(0, 10),
+        company: { name: company.name, kind: company.kind },
+        seated: { clientName: seat.clientCompany.name },
+        reads: NO_READS,
+        picture: '',
+        billing: null, signed: null, rollingOff: null, bench: null, whoIsWhere: null, unpaid: null,
+      },
+    })
+  }
+
+  const reads = todayReads(caller.permissions, company.kind)
 
   const [tuesday, rolling, bench, unpaid] = await Promise.all([
     reads.billing || reads.bills || reads.people ? firmTuesday(company.id, now) : Promise.resolve(null),
@@ -79,6 +105,18 @@ export async function GET(request: NextRequest) {
       }
     : null
 
+  // ── Send on a draft: the send route's own verdict, one read for all ─
+  //
+  // Today draws Send only where POST /api/invoices/:id/submit would send
+  // the bill for this seat (`maySendBills`, the rule the route reads
+  // first): a bill Ask Etyme drafted on the Owner's authority is sent by
+  // another seat that sends bills wherever one exists (second production
+  // walk, 2026-10-26: Brightmoor's Owner was offered Send the route refuses).
+  const draftIds = reads.bills ? [...new Set(weeks.filter((w) => w.draft).map((w) => w.draft!.invoiceId))] : []
+  const verdicts = draftIds.length > 0
+    ? await maySendBills({ personId: caller.person.id, companyId: company.id, permissions: caller.permissions }, draftIds)
+    : new Map()
+
   // ── Signed, not yet billed, by the firm that pays the bill ─────────
   const signed = reads.bills && tuesday
     ? {
@@ -92,7 +130,8 @@ export async function GET(request: NextRequest) {
           totals: totalsByCurrency(g.rows),
           people: g.rows.map((w) => ({ personName: w.personName })),
           // One Send per draft bill, however many weeks it holds.
-          drafts: [...new Map(g.rows.filter((w) => w.draft).map((w) => [w.draft!.invoiceId, w.draft!])).values()],
+          drafts: [...new Map(g.rows.filter((w) => w.draft).map((w) => [w.draft!.invoiceId, w.draft!])).values()]
+            .map((d) => ({ ...d, ...draftSend(verdicts.get(d.invoiceId)) })),
         })),
       }
     : null
@@ -148,6 +187,7 @@ export async function GET(request: NextRequest) {
     data: {
       asOf,
       company: { name: company.name, kind: company.kind },
+      seated: null,
       reads,
       picture,
       billing,

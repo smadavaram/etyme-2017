@@ -55,11 +55,11 @@ const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/today/route.ts'), 'u
 
 describe('a firm’s Today page reads each part only for the roles that read it', () => {
   it('the owner reads billing, bills, who is where and the bench', () => {
-    expect(todayReads(['*'], 'VENDOR')).toEqual({ billing: true, bills: true, people: true, bench: true, send: true })
+    expect(todayReads(['*'], 'VENDOR')).toEqual({ billing: true, bills: true, people: true, bench: true })
   })
 
   it('a recruiter reads who is where, who rolls off and the bench, and no money', () => {
-    expect(todayReads(role('VENDOR', 'Recruiter'), 'VENDOR')).toEqual({ billing: false, bills: false, people: true, bench: true, send: false })
+    expect(todayReads(role('VENDOR', 'Recruiter'), 'VENDOR')).toEqual({ billing: false, bills: false, people: true, bench: true })
   })
 
   it('accounts receivable reads the bills and no bill rates, so no monthly billing figure', () => {
@@ -73,7 +73,7 @@ describe('a firm’s Today page reads each part only for the roles that read it'
   })
 
   it('before the seat is known nothing is read', () => {
-    expect(todayReads(null)).toEqual({ billing: false, bills: false, people: false, bench: false, send: false })
+    expect(todayReads(null)).toEqual({ billing: false, bills: false, people: false, bench: false })
   })
 
   it('a part the seat may not read says so in a sentence, never a zero', () => {
@@ -177,14 +177,20 @@ describe('Yours to decide on a firm’s Today page names each row and offers its
 
 describe('a firm’s Today page shows the firm’s people and money, not the machine’s numbers', () => {
   it('the headline is the decision queue’s own sentence, word for word', () => {
-    expect(PAGE).toContain("fetch('/api/decisions')")
+    // Through Needs attention's own address, so a seat in a client's
+    // program reads that program's sentence and a seat at home its own.
+    expect(PAGE).toContain('fetch(decisionsAddress(search))')
     expect(PAGE).toMatch(/q\?\.data\?\.says/)
     expect(PAGE).toContain('{queue.says}')
   })
 
   it('the page asks two routes, the queue and the Today read, and nothing else', () => {
-    const asked = [...PAGE.matchAll(/fetch\('([^']+)'\)/g)].map((m) => m[1])
-    expect(asked).toEqual(['/api/decisions', '/api/today'])
+    // The two reads, then the one act a row's button sends (`fetch(url, …)`).
+    const asked = [...PAGE.matchAll(/fetch\(([^,)]+(?:\)[^,)]*)?)[,)]/g)].map((m) => m[1].trim())
+    expect(asked.filter((a) => a !== 'url')).toEqual([
+      'decisionsAddress(search)',
+      "client ? `/api/today?clientCompanyId=${encodeURIComponent(client)}` : '/api/today'",
+    ])
   })
 
   it('the Number, cost per submission, the pipeline and its bars, the revenue estimate and the system activity log are gone, and the ledger is one link', () => {
