@@ -110,10 +110,11 @@ describe('the job twin reads an invoice receipt', () => {
     expect(close.rationale).toMatch(/AP clerk still records the difference before it is paid/)
   })
 
-  it('a receipt that matches is one decision, to approve it for payment, and never reads as nothing to decide', () => {
+  it('a receipt that matches is one decision, to pay it, and never reads as nothing to decide or as approving it for payment', () => {
     const exact = judge('R-4b', [{ hoursBilled: 40, hoursAccepted: 40 }])
     expect(exact.payable).toBe(true)
-    expect(exact.rationale).toBe('Approve it for payment: it matches the signed hours and the contract rate.')
+    expect(exact.rationale).toBe('Pay it: it matches the signed hours and the contract rate.')
+    expect(exact.rationale).not.toMatch(/Approve it for payment/)
     for (const v of [exact, judge('R-4c', [{ hoursBilled: 40.2, hoursAccepted: 40 }]), judge('R-4d', [{ hoursBilled: 41.5, hoursAccepted: 40 }])]) {
       expect(v.rationale).not.toMatch(/Nothing to decide|Not raised to you/)
     }

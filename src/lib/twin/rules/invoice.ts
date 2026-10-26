@@ -360,7 +360,7 @@ export function verdictFrom(
     // decision to pay it; a difference inside the tolerance is held on the
     // exception path, where the AP clerk records why it stands.
     rationale: match.matched
-      ? 'Approve it for payment: it matches the signed hours and the contract rate.'
+      ? 'Pay it: it matches the signed hours and the contract rate.'
       : `Held for the AP clerk: the difference is inside ${allowed}, and the AP clerk still records the difference before it is paid, because the three-way check pays only the hours accepted.`,
   }
 }
