@@ -79,6 +79,10 @@ const PHRASES: Record<string, { past: (e: string) => string; inf: (e: string) =>
     past: (e) => `approved ${e}`,
     inf: (e) => `approve ${e}`,
   },
+  'invoice_receipt.pay': {
+    past: (e) => `paid ${e}`,
+    inf: (e) => `pay ${e}`,
+  },
   'reminder.send': {
     past: (e) => `sent a reminder about ${e}`,
     inf: (e) => `send a reminder about ${e}`,
@@ -143,6 +147,7 @@ export function questionTitle(action: string, entityType: string, f: QuestionFac
   const person = text(f.personName)
   switch (action) {
     case 'invoice_receipt.approve':
+    case 'invoice_receipt.pay':
       if (supplier && number) return `Pay ${possessive(supplier)} invoice ${number}?`
       if (number) return `Pay invoice ${number}?`
       if (supplier) return `Pay ${possessive(supplier)} invoice?`

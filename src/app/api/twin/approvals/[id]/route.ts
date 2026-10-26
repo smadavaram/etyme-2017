@@ -3,7 +3,12 @@ import { getCallerContext } from '@/lib/api-context'
 import { decideApproval, type Surface } from '@/lib/twin/ledger'
 
 /**
- * POST /api/twin/approvals/:id   { decision: 'APPROVED' | 'REJECTED', reason?, surface? }
+ * POST /api/twin/approvals/:id   { decision: 'APPROVED' | 'REJECTED', reason?, surface?, answer? }
+ *
+ * `answer` is what the person filled in on the card before a yes:
+ * `{ reference, method? }` on a payment (`invoice_receipt.pay`), where a
+ * yes with no bank reference is refused in a sentence. The same field
+ * from the chat card and the Teams card.
  *
  * A person answering what the program manager's twin asked. The one
  * route the web and Teams both call: Teams never writes state itself
@@ -48,6 +53,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     decision,
     reason: typeof body.reason === 'string' ? body.reason : null,
     surface,
+    answer: body.answer && typeof body.answer === 'object' ? body.answer : null,
     decider: {
       personId: caller.person.id,
       personName: caller.person.name,

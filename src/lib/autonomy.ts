@@ -851,6 +851,18 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
     approverNeeds: 'payments.record',
   },
+  // A supplier's invoice that passed the three-way check, paid on a
+  // person's yes (2026-10-26). `approve` above records a yes and pays
+  // nothing on an `Invoice`; this one records the payment, through the
+  // payment route's own gate (`mayPayInvoiceReceipt`) and money's one
+  // payment write (`recordInvoicePayment` in lib/money/invoice-payment).
+  // The yes carries the bank reference, so the AP clerk can reconcile it.
+  'invoice_receipt.pay': {
+    says: 'Pay an invoice receipt that passed the three-way check.',
+    money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
+    approverNeeds: 'payments.record',
+    byHand: 'Pay it from the invoice receipt\u2019s page.',
+  },
   'tenure.warning.notify_supplier': {
     kinds: ['PROGRAM_MANAGER'],
     says: 'Write to the supplier whose person is nearing or past the client\u2019s time limit.',

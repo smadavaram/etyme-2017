@@ -32,7 +32,8 @@ import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
 import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
 import { ruleSetFor } from '@/lib/twin/rule-set'
-import { act, runMemo, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
+import { act, closeOvertaken, runMemo, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
+import { tierIn } from '@/lib/twin/role-contract'
 import { invoiceSupplierIds } from '@/lib/twin/performers'
 
 /** The role the twin acts in, by its name on a client's roles. */
@@ -138,8 +139,35 @@ export async function tellOnTeams(companyId: string): Promise<RunSummary['teamsD
 /** Every act a program run takes, so the run reads their recorded keys once. */
 const RUN_ACTS = [
   'tenure.warning.record', 'tenure.warning.notify_program_owner',
-  'invoice_receipt.record', 'invoice_receipt.flag_mismatch', 'invoice_receipt.approve',
+  'invoice_receipt.record', 'invoice_receipt.flag_mismatch', 'invoice_receipt.approve', 'invoice_receipt.pay',
 ] as const
+
+const RECEIPT_APPROVE = 'invoice_receipt.approve'
+const RECEIPT_PAY = 'invoice_receipt.pay'
+
+/** What closes an open `approve` question when the twin asks to pay the receipt instead. */
+export const APPROVE_SUPERSEDED =
+  'Asked again as a question to pay it: a yes now records the payment, with the bank reference.'
+
+/**
+ * Which receipts already hold an `approve` question, by its state: open
+ * ones are closed when `pay` is asked (2026-10-26); one a person said no
+ * to is not asked again as `pay`, because a no to paying is a no.
+ */
+async function approveQuestions(companyId: string, invoiceIds: readonly string[]): Promise<{ open: Set<string>; declined: Set<string> }> {
+  const open = new Set<string>()
+  const declined = new Set<string>()
+  if (invoiceIds.length === 0) return { open, declined }
+  const rows = await prisma.twinApproval.findMany({
+    where: {
+      companyId, decision: { in: ['PENDING', 'REJECTED'] },
+      twinAction: { companyId, action: RECEIPT_APPROVE, entityType: 'Invoice', entityId: { in: [...invoiceIds] } },
+    },
+    select: { decision: true, twinAction: { select: { entityId: true } } },
+  })
+  for (const r of rows) (r.decision === 'PENDING' ? open : declined).add(r.twinAction.entityId)
+  return { open, declined }
+}
 
 export async function runTwin(companyId: string, opts: { surface?: Surface; now?: Date } = {}): Promise<RunSummary> {
   const surface = opts.surface ?? 'CRON'
@@ -174,6 +202,13 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
   // ── Invoice receipts ──
   const verdicts = await pendingReceiptsFor(companyId, { hoursTolerancePct: rules.hoursTolerancePct, source: rules.source })
   const suppliers = await invoiceSupplierIds(verdicts.map((v) => v.invoiceId))
+  // The twin asks to PAY a clean receipt (2026-10-26) wherever this
+  // company's role contract places the act; a contract saved before the
+  // act existed never placed it, so that company keeps the old question
+  // until its contract is edited, rather than getting none.
+  const asksPay = tierIn(memo.contract, RECEIPT_PAY) !== 'NEVER'
+  const toPay = verdicts.filter((v) => v.verdict === 'CLEAN' && v.payable).map((v) => v.invoiceId)
+  const approves = asksPay ? await approveQuestions(companyId, toPay) : { open: new Set<string>(), declined: new Set<string>() }
   for (const v of verdicts) {
     const supplier = suppliers.get(v.invoiceId) ?? null
     const entity = { type: 'Invoice', id: v.invoiceId, partyCompanyIds: supplier ? [companyId, supplier] : [companyId] }
@@ -183,6 +218,26 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
       companyId, action: 'invoice_receipt.record', entity, rule: v.ruleCited, rationale: v.rationale,
       surface, authority, payload, dedupKey: key, memo,
     }))
+    // A receipt checked on an earlier night is still asked to be paid:
+    // the question is keyed by the receipt and by the act, so a receipt
+    // that already holds an `approve` question gets its `pay` question once.
+    if (asksPay && v.verdict === 'CLEAN' && v.payable && (recorded.outcome === 'PERFORMED' || recorded.outcome === 'ALREADY')) {
+      if (approves.declined.has(v.invoiceId)) continue
+      const asked = tally(await act({
+        companyId, action: RECEIPT_PAY, entity, rule: v.ruleCited, rationale: v.rationale,
+        surface, authority, payload, dedupKey: v.invoiceId, memo,
+      }))
+      if ((asked.outcome === 'AWAITING_APPROVAL' || asked.outcome === 'ALREADY') && approves.open.has(v.invoiceId)) {
+        // One card per receipt: the old question closes, unanswered, in the
+        // ledger. Retried on the next night if this fails, because the pay
+        // question then reads ALREADY and the approve one is still open.
+        await prisma.$transaction((tx) => closeOvertaken(tx, {
+          companyId, entity: { type: 'Invoice', id: v.invoiceId }, action: RECEIPT_APPROVE,
+          what: APPROVE_SUPERSEDED, by: { personId: null, name: 'the twin' }, surface,
+        })).catch((err) => reportError(`twin/approve-superseded ${v.invoiceId}`, err, { companyId }).catch(() => undefined))
+      }
+      continue
+    }
     if (recorded.outcome !== 'PERFORMED') continue
     if (v.verdict !== 'CLEAN') {
       tally(await act({
@@ -191,7 +246,7 @@ export async function runTwin(companyId: string, opts: { surface?: Surface; now?
       }))
     } else if (v.payable) {
       tally(await act({
-        companyId, action: 'invoice_receipt.approve', entity, rule: v.ruleCited, rationale: v.rationale,
+        companyId, action: RECEIPT_APPROVE, entity, rule: v.ruleCited, rationale: v.rationale,
         surface, authority, payload, dedupKey: v.invoiceId, memo,
       }))
     } else {

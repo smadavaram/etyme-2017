@@ -712,6 +712,19 @@ export interface Decider {
   permissions: readonly string[]
 }
 
+/** What a person fills in on a card before a yes. Every field optional; the performer says which it needs. */
+export interface DecisionAnswer {
+  reference?: string | null
+  method?: string | null
+}
+
+/** An answer's fields, trimmed and capped; a blank field is absent. Pure. */
+export function cleanAnswer(a: unknown): { reference: string | null; method: string | null } {
+  const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>
+  const field = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null)
+  return { reference: field(o.reference, 200), method: field(o.method, 60) }
+}
+
 export type DecideResult =
   | { ok: true; outcome: 'PERFORMED' | 'REJECTED'; entryId: string; result?: Record<string, unknown> }
   | { ok: false; status: 403 | 404 | 409 | 422 | 500; says: string }
@@ -733,6 +746,13 @@ export async function decideApproval(args: {
   decision: 'APPROVED' | 'REJECTED'
   reason?: string | null
   surface: Surface
+  /**
+   * What the person filled in on the card before saying yes, where the
+   * act asks for something: the bank reference and, optionally, the
+   * method on a payment (`invoice_receipt.pay`). Passed to the performer
+   * as `payload.answer` and kept on the person's entry. Ignored on a no.
+   */
+  answer?: DecisionAnswer | null
 }): Promise<DecideResult> {
   const approval = await prisma.twinApproval.findUnique({
     where: { id: args.approvalId },
@@ -765,7 +785,11 @@ export async function decideApproval(args: {
   }
 
   const asked = approval.twinAction
-  const payload = (asked.payload ?? {}) as Record<string, unknown>
+  const answer = cleanAnswer(args.answer)
+  const answered = !!(answer.reference || answer.method)
+  // The person's answer rides with the twin's own note, under its own
+  // key, so a performer reads what was asked and what was filled in apart.
+  const payload: Record<string, unknown> = { ...((asked.payload ?? {}) as Record<string, unknown>), ...(answered ? { answer } : {}) }
   // The owner-only exception (founder, 2026-10-19): this question was put
   // to the person the twin acts for because nobody else at the firm may
   // answer it. Only for the act it was written for, and never for whoever
@@ -798,6 +822,7 @@ export async function decideApproval(args: {
     // read why the person said it.
     payload: {
       askedIn: asked.id, decision: args.decision, reason: args.reason ?? null, twinRationale: asked.rationale,
+      ...(answered && args.decision === 'APPROVED' ? { answer } : {}),
       ...(ownerOnly ? { ownerOnlyException: approval.selfApprovalReason } : {}),
     },
   }

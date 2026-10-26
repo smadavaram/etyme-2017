@@ -29,6 +29,7 @@ import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
+import { recordInvoicePayment } from '@/lib/money/invoice-payment'
 
 export interface PerformContext {
   companyId: string
@@ -174,6 +175,87 @@ const approveInvoiceReceipt: Performer = {
   },
 }
 
+// ── Paying an invoice receipt ─────────────────────────────────────────
+
+/** Said to a yes with no bank reference on it (coordinator, 2026-10-26). */
+export const NEEDS_BANK_REFERENCE = 'Enter the bank reference so the AP clerk can reconcile it.'
+
+function answerOf(c: PerformContext): { reference: string | null; method: string | null } {
+  const a = (c.payload.answer && typeof c.payload.answer === 'object' ? c.payload.answer : {}) as Record<string, unknown>
+  const field = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  return { reference: field(a.reference), method: field(a.method) }
+}
+
+/**
+ * Pay a supplier's invoice that passed the three-way check, on a
+ * person's yes. Two halves, each the payment route's own
+ * (POST /api/invoices/:id/payments), and nothing of this file's:
+ *
+ *   check   the gate the route asks before it pays — this company is the
+ *           one being asked to pay it, and `mayPayInvoiceReceipt`
+ *           (submitted, not held, not paid, through the match, run again
+ *           now). The desk is `decideApproval`'s: the person holds
+ *           `payments.record` at this company, and is not the person the
+ *           twin acts for. Then, on a yes, the bank reference.
+ *   inTx    money's one payment write, `recordInvoicePayment`, for the
+ *           balance owed, inside the ledger's own transaction, so the
+ *           payment and the entry that says who said yes stand or fall
+ *           together.
+ *
+ * Asked, never alone: the check runs once when the twin asks (no person
+ * yet, so no reference is wanted) and again on the yes.
+ */
+const payInvoiceReceipt: Performer = {
+  async check(c) {
+    if (c.entity.type !== 'Invoice') return 'Only a supplier\u2019s invoice on the record can be paid this way. A typed-in receipt is approved, then paid from its page.'
+    const inv = await prisma.invoice.findUnique({ where: { id: c.entity.id }, select: INVOICE_PARTIES_SELECT })
+    if (!inv) return 'That invoice receipt is not on the record.'
+    const parties = partiesOf({ agreement: inv.engagement?.msa ?? null, order: inv.workOrder })
+    if (directionFrom(parties, c.companyId) !== 'PAYABLE') {
+      return 'That invoice is not one this company is being asked to pay.'
+    }
+    const g = await mayPayInvoiceReceipt(c.entity.id)
+    if (!g) return 'That invoice receipt is not on the record.'
+    if (!g.ok) return g.says
+    if (c.approverPersonId && !answerOf(c).reference) return NEEDS_BANK_REFERENCE
+    return null
+  },
+  async inTx(tx, c) {
+    if (!c.approverPersonId) throw new Error('A payment is made only on a person\u2019s yes.')
+    const { reference, method } = answerOf(c)
+    if (!reference) throw new Error(NEEDS_BANK_REFERENCE)
+    const [company, person] = await Promise.all([
+      tx.company.findUnique({ where: { id: c.companyId }, select: { name: true } }),
+      tx.person.findUnique({ where: { id: c.approverPersonId }, select: { name: true } }),
+    ])
+    const personName = person?.name ?? 'A person'
+    const companyName = company?.name ?? 'this company'
+    const paid = await recordInvoicePayment(tx, {
+      invoiceId: c.entity.id,
+      amountCents: null,
+      reference,
+      method,
+      appliedById: c.approverPersonId,
+      onBooksOf: c.companyId,
+      seatId: null,
+      recordedBy: { companyId: c.companyId, companyName, personName },
+      reason: `Paid by ${personName} at ${companyName}, saying yes to the twin\u2019s question to pay it. ${c.ruleCited}`.trim().slice(0, 1000),
+    })
+    // Refused on a fact that moved since the check (paid by hand a moment
+    // ago, cancelled): nothing is written, the entry with it.
+    if (!paid.ok) throw new Error(paid.says)
+    return {
+      paymentId: paid.payment.id,
+      invoiceStatus: paid.status,
+      amountCents: paid.amountCents,
+      currency: paid.invoice.currency,
+      outstandingCents: paid.invoice.outstandingCents,
+      reference,
+      method,
+    }
+  },
+}
+
 // ── Telling people ────────────────────────────────────────────────────
 
 const flagMismatch: Performer = {
@@ -243,6 +325,7 @@ export const PERFORMERS: Readonly<Record<string, Performer>> = {
   'invoice_receipt.flag_mismatch': flagMismatch,
   'reminder.send': sendReminder,
   'invoice_receipt.approve': approveInvoiceReceipt,
+  'invoice_receipt.pay': payInvoiceReceipt,
   'tenure.warning.notify_supplier': tellSupplier,
 }
 
