@@ -12,6 +12,7 @@ import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
 import { fromPrismaDecimal } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
+import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
 
 /**
@@ -264,8 +265,20 @@ export async function GET(
   // Etyme never sent anywhere, where the page says nothing rather than guess.
   const deliverySays = direction === 'RECEIVABLE' ? await billDeliverySays(invoice.id) : null
 
+  // Whether the payer may pay it now, by the gate the payment route asks
+  // (`payGate`, the core of `mayPayInvoiceReceipt`), over the match just
+  // run. The page draws Pay only on a yes; a held receipt reads what holds
+  // it, the hours and the way forward instead (lib/money/receipt-pay-panel).
+  const payPanel = receiptPayPanel({
+    direction,
+    invoice: { number: invoice.number, status: invoice.status },
+    match,
+    supplierName: parties.vendor?.name ?? 'the supplier',
+  })
+
   return NextResponse.json({
     data: {
+      payPanel,
       invoice: {
         id: invoice.id,
         number: invoice.number,

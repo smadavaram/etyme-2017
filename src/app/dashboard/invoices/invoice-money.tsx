@@ -6,6 +6,7 @@ import { minorPerUnit } from '@/lib/money'
 import { plainDate } from '@/lib/plain-date'
 import { PAYMENT_METHODS, payMethodFor } from '@/lib/money/pay-method'
 import type { PayDeskVerdict } from '@/lib/money/pay-desk'
+import type { ReceiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { withBooks, type Books } from '@/lib/money/books-view'
 
 /**
@@ -97,6 +98,7 @@ function paymentSays(p: PaymentRow): string {
 export function InvoiceMoney({
   invoice,
   desk,
+  payPanel,
   books = 'seat',
   onPaid,
   onToast,
@@ -109,6 +111,14 @@ export function InvoiceMoney({
    * stands where the form would be.
    */
   desk: PayDeskVerdict
+  /**
+   * Whether the payment route would pay it now, by its own gate
+   * (`receiptPayPanel` over `payGate`, read by GET /api/invoices/:id).
+   * The Pay form is drawn only on PAY; a held receipt reads what holds it,
+   * the hours and the way forward instead, because a screen never offers
+   * an act the route will refuse.
+   */
+  payPanel: ReceiptPayPanel
   /** Which book the page is reading, so the payment lands in that one. */
   books?: Books
   /** Called after a payment is recorded, so the page can read itself again. */
@@ -217,7 +227,10 @@ export function InvoiceMoney({
   }
 
   const payer = invoice.direction === 'PAYABLE'
-  const notSubmitted = payer && status === 'ISSUED'
+  const notSubmitted = payer && (status === 'ISSUED' || payPanel.kind === 'NOT_SUBMITTED')
+  // The gate's answer, not the desk's: only a receipt the route would pay
+  // is offered to anybody to pay.
+  const gateSaysPay = payPanel.kind === 'PAY'
 
   return (
     <section className="space-y-6">
@@ -359,7 +372,38 @@ export function InvoiceMoney({
         </div>
       )}
 
-      {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && !desk.mayPay && desk.says && (
+      {/* Held by the check (or by a hold): what holds it, the hours, the
+          way forward — and no Pay, because the route would refuse it. */}
+      {outstanding > 0 && !notSubmitted && payPanel.kind === 'HELD' && (
+        <div id="pay" className="border-t border-etyme-rule pt-6">
+          <p className="eyebrow mb-2">{payPanel.headline}</p>
+          <p className="text-sm text-etyme-ink">
+            {fmtMinorExact(outstanding, invoice.currency)} is not payable yet, due {plainDate(invoice.dueAt)}.
+          </p>
+          {payPanel.hours.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {payPanel.hours.map((h, n) => (
+                <li key={n} className={`text-sm tabular-nums ${h.signed === h.billed ? 'text-etyme-muted' : 'text-etyme-attention'}`}>
+                  {h.says}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-2 space-y-1">
+            {payPanel.wayForward.map((w, n) => (
+              <p key={n} className="text-sm text-etyme-muted">{w}</p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {outstanding > 0 && !notSubmitted && payPanel.kind === 'CLOSED' && (
+        <div id="pay" className="border-t border-etyme-rule pt-6">
+          <p className="text-sm text-etyme-muted">{payPanel.says}</p>
+        </div>
+      )}
+
+      {outstanding > 0 && !notSubmitted && gateSaysPay && invoice.direction !== 'NEITHER' && !desk.mayPay && desk.says && (
         <div id="pay" className="border-t border-etyme-rule pt-6">
           <p className="eyebrow mb-2">{payer ? 'Who pays this' : 'Who records the payment'}</p>
           <p className="text-sm text-etyme-ink">
@@ -369,7 +413,7 @@ export function InvoiceMoney({
         </div>
       )}
 
-      {outstanding > 0 && !notSubmitted && invoice.direction !== 'NEITHER' && desk.mayPay && (
+      {outstanding > 0 && !notSubmitted && gateSaysPay && invoice.direction !== 'NEITHER' && desk.mayPay && (
         <div id="pay" className="border-t border-etyme-rule pt-6">
           <p className="eyebrow mb-3">{payer ? 'Pay this invoice' : 'Record a payment received'}</p>
           <form onSubmit={pay} className="space-y-3">

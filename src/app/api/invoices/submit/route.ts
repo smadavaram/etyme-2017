@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, maySendBills, markSent } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
@@ -76,8 +76,20 @@ export async function POST(request: NextRequest) {
   // through the three-way check. A bill that fails is skipped with its own
   // sentence and never sent; the others go. Each in its own transaction,
   // so one bill's failure does not hold the rest back.
-  for (const invoiceId of [...new Set(invoiceIds.filter((x: unknown): x is string => typeof x === 'string'))]) {
+  //
+  // Who sends first, before the check writes anything: a bill Ask Etyme
+  // drafted on the caller's authority is sent by another seat that sends
+  // bills, wherever one exists (`maySendBills`).
+  const asked = [...new Set(invoiceIds.filter((x: unknown): x is string => typeof x === 'string'))]
+  const senders = await maySendBills({ personId: caller.person.id, companyId, permissions: caller.permissions }, asked)
+  for (const invoiceId of asked) {
     try {
+      const who = senders.get(invoiceId)
+      if (who && !who.ok) {
+        skipped++
+        results.push({ invoiceId, number: null, status: 'skipped', reason: who.says })
+        continue
+      }
       const check = await mayBeSent(invoiceId, companyId, ['ISSUED', 'DRAFT'])
       if (!check.ok) {
         if (check.status === 404) errors++

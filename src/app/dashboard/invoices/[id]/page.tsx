@@ -573,6 +573,7 @@ export default function InvoiceDetail() {
               seat: readingInASeat ? session.seat : null,
               side: inv.direction === 'RECEIVABLE' ? 'RECEIVABLE' : 'PAYABLE',
             })}
+            payPanel={data.payPanel}
             books={books}
             onPaid={load}
             onToast={showToast}

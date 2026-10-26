@@ -5,10 +5,9 @@
  * /api/invoices/:id/submit`), for the Bills page's bulk Submit (`POST
  * /api/invoices/submit`) and for the supplier's twin's `bill.send`
  * (2026-10-18). A person holding `invoices.issue` at the firm that raised
- * a draft may send it from the Bills page themselves — the Owner the twin
- * acts for included, because a person sending is not the twin approving
- * its own work (release walk, 2026-10-18: at a firm where only the Owner
- * sends bills, nobody could otherwise ever send the twin's draft). The twin acts on the Owner's authority, else the Admin's;
+ * a draft may send it from the Bills page themselves — except the Owner
+ * the twin drafted it for, who sends it only where nobody else at the firm
+ * sends bills (`maySendBill`, 2026-10-26). The twin acts on the Owner's authority, else the Admin's;
  * whoever else issues bills — Accounts Receivable, Finance, Admin — says
  * the yes, and the person it acts for never does. The twin drafts; a
  * person's yes sends; and what "send" does is this file, so a bill the
@@ -37,6 +36,8 @@ import { fromUnits } from '@/lib/money-display'
 import { emit } from '@/lib/events'
 import { closeOvertaken } from '@/lib/twin/ledger'
 import { writePayerNoticesIn } from '@/lib/notify/bill-delivery'
+import { hasPermission } from '@/lib/permissions'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 
 type Tx = Prisma.TransactionClient
 
@@ -360,4 +361,126 @@ export async function announceRaised(
       total: Number(inv.total), currency: inv.currency, dueAt: inv.dueAt.toISOString(), fromDraft: true,
     },
   })
+}
+
+// ── Who may send a bill the twin drafted ─────────────────────────────
+//
+// The founder's decision of 2026-10-19 (#2) let the Owner say yes to the
+// twin's bill where nobody else at the firm sends bills. Coordinator's
+// reading, 2026-10-26, reversible by the founder in a sentence: it covers
+// the document, not the door. A bill the twin drafted on the Owner's
+// authority is the Owner's machine's work, so wherever another seat holds
+// `invoices.issue`, that seat sends it and the Owner cannot, whether the
+// press is in Ask Etyme, on Today or on the Bills page. Where nobody else
+// holds it, the Owner sends, and the answer says the exception applied so
+// the ledger can record it. A bill a person drafted by hand is unchanged:
+// any seat holding `invoices.issue` sends it.
+//
+// "The Owner" is the person the twin drafted it for: the draft's
+// `bill.draft` ledger entry names them (`authorityPersonId`). A draft with
+// no such entry was drafted by a person.
+
+export interface BillSender {
+  personId: string
+  companyId: string
+  /** The caller's permissions at the firm that raised the bill. */
+  permissions: readonly string[]
+}
+
+export type MaySendBill =
+  | {
+      ok: true
+      /** The owner-only exception's reason where it applied (record it on the ledger), else null. */
+      ownerException: string | null
+    }
+  | { ok: false; code: 'FORBIDDEN'; says: string }
+
+const OWNER_SENDS_SAYS =
+  'Nobody else at the firm sends bills, so the owner Ask Etyme acts for may send its drafted bill (founder, 2026-10-19).'
+
+/** "A", "A or B", "A, B or C". */
+function orList(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+}
+
+/** The sentence an Owner reads where somebody else sends the twin's bill. */
+export function otherSenderSays(names: string[]): string {
+  return (
+    `${orList(names)} sends this bill. Ask Etyme drafted it on your authority, ` +
+    'so you send it only where nobody else at the firm sends bills.'
+  )
+}
+
+/**
+ * The pure rule, over facts already read.
+ *
+ *   permitted     the caller holds `invoices.issue` at the raising firm
+ *   draftedFor    the person the twin drafted it for, or null where a person drafted it
+ *   otherSenders  every other seat at the firm holding `invoices.issue`, by name,
+ *                 the person it was drafted for excluded
+ */
+export function sendVerdict(i: {
+  callerId: string
+  permitted: boolean
+  draftedFor: string | null
+  otherSenders: readonly { personId: string; name: string }[]
+}): MaySendBill {
+  if (!i.permitted) {
+    return { ok: false, code: 'FORBIDDEN', says: 'Sending a bill needs a seat that sends bills: Accounts Receivable, Finance or Admin.' }
+  }
+  if (i.draftedFor === null || i.draftedFor !== i.callerId) return { ok: true, ownerException: null }
+  const others = i.otherSenders.filter((o) => o.personId !== i.callerId)
+  if (others.length === 0) return { ok: true, ownerException: OWNER_SENDS_SAYS }
+  const names = [...new Set(others.map((o) => o.name))].sort((a, b) => a.localeCompare(b))
+  return { ok: false, code: 'FORBIDDEN', says: otherSenderSays(names) }
+}
+
+/**
+ * May this caller send these bills — one answer per bill, in a fixed
+ * number of reads however many. For a list (Today) that draws Send per row.
+ * Asks nothing about the bill's state or the three-way check: those are
+ * `mayBeSent`'s, asked when Send is pressed.
+ */
+export async function maySendBills(caller: BillSender, invoiceIds: readonly string[]): Promise<Map<string, MaySendBill>> {
+  const ids = [...new Set(invoiceIds)]
+  const out = new Map<string, MaySendBill>()
+  if (ids.length === 0) return out
+  const permitted = hasPermission(caller.permissions, 'invoices.issue')
+  const drafts = permitted
+    ? await prisma.twinAction.findMany({
+        where: {
+          companyId: caller.companyId, action: 'bill.draft', outcome: 'PERFORMED',
+          OR: ids.map((id) => ({ payload: { path: ['result', 'invoiceId'], equals: id } })),
+        },
+        select: { authorityPersonId: true, payload: true },
+      })
+    : []
+  const draftedFor = new Map<string, string | null>()
+  for (const d of drafts) {
+    const id = ((d.payload as Record<string, unknown>)?.result as Record<string, unknown> | undefined)?.invoiceId
+    if (typeof id === 'string') draftedFor.set(id, d.authorityPersonId ?? null)
+  }
+  const ownDrafts = [...draftedFor.values()].some((p) => p === caller.personId)
+  const senders = ownDrafts
+    ? await prisma.context.findMany({
+        where: {
+          companyId: caller.companyId, revokedAt: null, type: { not: 'CONSULTANT' },
+          role: { permissions: { hasSome: ['invoices.issue', '*'] } },
+          personId: { not: caller.personId },
+          ...NOT_THE_SAMPLE_SEAT,
+        },
+        select: { personId: true, person: { select: { name: true } } },
+      })
+    : []
+  const otherSenders = senders.map((s) => ({ personId: s.personId, name: s.person.name }))
+  for (const id of ids) {
+    out.set(id, sendVerdict({ callerId: caller.personId, permitted, draftedFor: draftedFor.get(id) ?? null, otherSenders }))
+  }
+  return out
+}
+
+/** May this caller send this bill: `maySendBills` for one. */
+export async function maySendBill(caller: BillSender, invoice: { id: string }): Promise<MaySendBill> {
+  return (await maySendBills(caller, [invoice.id])).get(invoice.id)!
 }

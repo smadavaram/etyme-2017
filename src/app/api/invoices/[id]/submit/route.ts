@@ -3,7 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { announceRaised, mayBeSent, markSent } from '@/lib/money/bill-send'
+import { announceRaised, mayBeSent, maySendBill, markSent } from '@/lib/money/bill-send'
 import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
 
 /**
@@ -15,11 +15,10 @@ import { sendBillToCustomer } from '@/lib/notify/bill-delivery'
  * LEGACY_RULES.md §4: Invoice states: DRAFT → ISSUED → SUBMITTED → PAID / PARTIALLY_PAID / CANCELLED
  *
  * A draft is the supplier's twin's (lib/money/supplier-bills). Whoever
- * sends bills at the firm that raised it may send it here, the Owner the
- * twin acts for included: a person pressing Send is not the twin
- * approving its own work, and at a firm where only the Owner sends bills
- * this button is the only way the draft ever goes (release walk,
- * 2026-10-18). The same check and the same writes as a yes in Ask Etyme
+ * else sends bills at the firm that raised it sends it here; the Owner
+ * the twin drafted it for sends it only where nobody else at the firm
+ * sends bills (`maySendBill`, 2026-10-26: decision #2 of 2026-10-19
+ * covers the document, not the door). The same check and the same writes as a yes in Ask Etyme
  * (`lib/money/bill-send`), with the sender recorded.
  */
 export async function POST(
@@ -53,6 +52,15 @@ export async function POST(
       { error: { code: 'NOT_FOUND', message: 'A bill is between two companies, and your seat is not at one.' } },
       { status: 404 }
     )
+  }
+  // Who sends it, before the check writes anything. A bill Ask Etyme
+  // drafted on this person's authority is sent by another seat that sends
+  // bills wherever one exists, and by them only where nobody else does
+  // (`maySendBill`; coordinator, 2026-10-26, on the founder's decision #2
+  // of 2026-10-19). A bill a person drafted is sent by any seat that sends bills.
+  const who = await maySendBill({ personId: caller.person.id, companyId, permissions: caller.permissions }, { id })
+  if (!who.ok) {
+    return NextResponse.json({ error: { code: who.code, message: who.says } }, { status: 403 })
   }
   const check = await mayBeSent(id, companyId, ['ISSUED', 'DRAFT'])
   if (!check.ok) {

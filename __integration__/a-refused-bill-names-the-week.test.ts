@@ -596,7 +596,7 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     const line = await prisma.invoiceLine.findFirstOrThrow({ where: { invoiceId: h.redraft.id, timesheetId: { not: null } } })
     await prisma.invoiceLine.update({ where: { id: line.id }, data: { amountCents: line.amountCents + 10_000 } })
     try {
-      as(h.ownerEmail)
+      as('ines.halloran@halcyon.example')
       const out = await json(await sendBills(req('POST', '/api/invoices/submit', { invoiceIds: [h.redraft.id, 'no-such-bill'] })))
       expect(out.status, JSON.stringify(out.body)).toBe(200)
       expect(out.body.data.submitted).toBe(0)
@@ -610,13 +610,28 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     }
   })
 
-  it('the owner Ask Etyme acts for sends its draft from the Bills page through the same check, and the sender is recorded', async () => {
+  it('a bill the twin drafted is sent by the seat holding invoices.issue, and the Owner cannot where that seat exists', async () => {
     h.redraftQuestion = await prisma.twinAction.findFirstOrThrow({
       where: { companyId: h.halcyon, action: 'bill.send', outcome: 'AWAITING_APPROVAL', entityId: h.redraft.id },
       include: { approvalRequested: true },
     })
     expect(h.redraftQuestion.approvalRequested?.decision).toBe('PENDING')
+    // The Owner Ask Etyme drafted it for is refused, naming who sends it,
+    // and nothing moves (coordinator, 2026-10-26: decision #2 covers the
+    // document, not the door).
     as(h.ownerEmail)
+    const refused = await json(await sendBill(req('POST', `/api/invoices/${h.redraft.id}/submit`, {}), params(h.redraft.id)))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.message).toBe(
+      'Ines Halloran sends this bill. Ask Etyme drafted it on your authority, so you send it only where nobody else at the firm sends bills.'
+    )
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: h.redraft.id } })).status).toBe('DRAFT')
+    const bulk = await json(await sendBills(req('POST', '/api/invoices/submit', { invoiceIds: [h.redraft.id] })))
+    expect(bulk.body.data.submitted).toBe(0)
+    expect(bulk.body.data.results[0].reason).toContain('Ines Halloran sends this bill')
+    // Ines Halloran, who holds Accounts Receivable, sends it.
+    const ines = await prisma.person.findFirstOrThrow({ where: { primaryEmail: 'ines.halloran@halcyon.example' } })
+    as('ines.halloran@halcyon.example')
     const out = await json(await sendBill(req('POST', `/api/invoices/${h.redraft.id}/submit`, {}), params(h.redraft.id)))
     expect(out.status, JSON.stringify(out.body)).toBe(200)
     const sent = await prisma.invoice.findUniqueOrThrow({ where: { id: h.redraft.id } })
@@ -625,14 +640,14 @@ describe('a draft bill never locks billing: a person sends it or withdraws it', 
     const logged = await prisma.automationLog.findFirstOrThrow({
       where: { companyId: h.halcyon, action: 'INVOICE_SUBMITTED', payload: { path: ['invoiceId'], equals: sent.id } },
     })
-    expect((logged.payload as Record<string, unknown>).submittedBy).toBe(h.ownerId)
+    expect((logged.payload as Record<string, unknown>).submittedBy).toBe(ines.id)
 
     // And a sent bill is not withdrawn.
     const late = await json(await withdrawBill(req('POST', `/api/invoices/${sent.id}/withdraw`, { reason: 'Too late.' }), params(sent.id)))
     expect(late.status).toBe(409)
     expect(late.body.error.message).toContain('has been sent, so it cannot be withdrawn')
   })
-  it('a bill sent from the Bills page by the owner closes Ask Etyme’s question about sending it as overtaken, not as the owner’s own yes', async () => {
+  it('a bill sent from the Bills page closes Ask Etyme’s question about sending it as overtaken, not as anybody’s yes', async () => {
     const approval = await prisma.twinApproval.findUniqueOrThrow({ where: { id: h.redraftQuestion.approvalRequested.id } })
     expect(approval.decision).toBe('OVERTAKEN')
     expect(approval.approverPersonId).toBeNull()
