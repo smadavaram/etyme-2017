@@ -198,7 +198,7 @@ describe('Ask Etyme says what the dashboard says', () => {
     const call = (body: unknown) => decideRoute(req('POST', `/api/twin/approvals/${pay.approvalId}`, body), { params: Promise.resolve({ id: pay.approvalId }) } as any)
     const blank = await json(await call({ decision: 'APPROVED', surface: 'WEB' }))
     expect(blank.status).not.toBe(200)
-    expect(blank.body.error.message).toBe('Enter the bank reference so the AP clerk can reconcile it.')
+    expect(blank.body.error.message).toBe('Enter the bank reference, so you can reconcile this payment later.')
 
     const invoiceId = pay.href.split('/').pop()
     const before = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId }, select: { paid: true, total: true } })

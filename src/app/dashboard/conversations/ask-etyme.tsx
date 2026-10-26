@@ -773,7 +773,7 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
 /**
  * The twin asks to pay a supplier's invoice that passed the three-way
  * check (2026-10-26): "Pay Pinnacle Resourcing’s invoice PR-2026-0451?",
- * one box for the bank reference so the AP clerk can reconcile it, the
+ * one box for the bank reference, so you can reconcile this payment later, the
  * method if the person wants to say it, then Yes or Not now. Yes goes to
  * the one approval route with the reference; a blank one is refused there
  * in the sentence shown here beside the box, before anything is sent.

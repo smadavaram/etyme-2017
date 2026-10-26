@@ -856,7 +856,7 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
   // nothing on an `Invoice`; this one records the payment, through the
   // payment route's own gate (`mayPayInvoiceReceipt`) and money's one
   // payment write (`recordInvoicePayment` in lib/money/invoice-payment).
-  // The yes carries the bank reference, so the AP clerk can reconcile it.
+  // The yes carries the bank reference, so you can reconcile this payment later.
   'invoice_receipt.pay': {
     says: 'Pay an invoice receipt that passed the three-way check.',
     money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,

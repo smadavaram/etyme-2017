@@ -335,7 +335,7 @@ describe('Ask Etyme pays an invoice receipt on a yes with the bank reference', (
   it('the sentence beside a blank box is the route’s own refusal, word for word, in the chat and in Teams', () => {
     expect(CHAT_NEEDS_REF).toBe(NEEDS_BANK_REFERENCE)
     expect(PAY_REFERENCE_NEEDED).toBe(NEEDS_BANK_REFERENCE)
-    expect(NEEDS_BANK_REFERENCE).toBe('Enter the bank reference so the AP clerk can reconcile it.')
+    expect(NEEDS_BANK_REFERENCE).toBe('Enter the bank reference, so you can reconcile this payment later.')
   })
 
   it('the screen draws a Bank reference box, an optional method, Yes and Not now on the pay card, and refuses a blank box before sending', () => {

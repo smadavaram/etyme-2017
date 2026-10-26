@@ -151,7 +151,7 @@ const approveInvoiceReceipt: Performer = {
       })
       if (!bill || bill.companyId !== c.companyId) return 'That invoice receipt is not on this company’s books.'
       if (bill.status === 'DISPUTED') {
-        return 'A check failed on this invoice receipt. The AP clerk records an exception with a reason before it can be approved.'
+        return 'A check failed on this invoice receipt. You record an exception with a reason before it can be approved.'
       }
       if (bill.status !== 'RECEIVED') return 'This invoice receipt has already been approved, paid or cancelled.'
       // The one check a typed-in receipt is paid on (money,
@@ -188,7 +188,7 @@ const approveInvoiceReceipt: Performer = {
 // ── Paying an invoice receipt ─────────────────────────────────────────
 
 /** Said to a yes with no bank reference on it (coordinator, 2026-10-26). */
-export const NEEDS_BANK_REFERENCE = 'Enter the bank reference so the AP clerk can reconcile it.'
+export const NEEDS_BANK_REFERENCE = 'Enter the bank reference, so you can reconcile this payment later.'
 
 function answerOf(c: PerformContext): { reference: string | null; method: string | null } {
   const a = (c.payload.answer && typeof c.payload.answer === 'object' ? c.payload.answer : {}) as Record<string, unknown>

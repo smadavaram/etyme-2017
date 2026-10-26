@@ -233,7 +233,7 @@ describe('paying an invoice receipt from Ask Etyme', () => {
       const out = await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'TEAMS', decider: AP_CLERK, answer })
       expect(out).toEqual({ ok: false, status: 422, says: NEEDS_BANK_REFERENCE })
     }
-    expect(NEEDS_BANK_REFERENCE).toBe('Enter the bank reference so the AP clerk can reconcile it.')
+    expect(NEEDS_BANK_REFERENCE).toBe('Enter the bank reference, so you can reconcile this payment later.')
     expect(h.payCalls).toEqual([])
     expect(T().payment).toEqual([])
     expect(T().twinApproval.find((r) => r.id === q.id)!.decision).toBe('PENDING')

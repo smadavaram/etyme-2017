@@ -1532,7 +1532,7 @@ export interface PayAnswer { reference?: string | null; method?: string | null }
  * it say "you" to the AP clerk; the route's sentence is the architect's,
  * and this copy moves with it, never ahead of it.
  */
-export const NEEDS_BANK_REFERENCE = 'Enter the bank reference so the AP clerk can reconcile it.'
+export const NEEDS_BANK_REFERENCE = 'Enter the bank reference, so you can reconcile this payment later.'
 
 /** The ways a payment goes out, offered beside the reference; none chosen means none said. */
 export const PAY_METHODS: readonly string[] = ['ACH', 'Wire', 'Check']

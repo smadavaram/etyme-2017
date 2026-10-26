@@ -168,7 +168,7 @@ function whyCard(ruleCited: string, rationale: string): Element {
 }
 
 /** Said under the reference box, and by the route to a yes with none: the same sentence. */
-export const PAY_REFERENCE_NEEDED = 'Enter the bank reference so the AP clerk can reconcile it.'
+export const PAY_REFERENCE_NEEDED = 'Enter the bank reference, so you can reconcile this payment later.'
 
 /**
  * Pay · Not now · Why? for a receipt the twin asks to pay: Pay opens one
