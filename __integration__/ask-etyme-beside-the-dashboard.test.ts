@@ -3,6 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as greet, POST as ask } from '@/app/api/conversations/twin/route'
 import { GET as programPage } from '@/app/api/program/route'
 import { firmTuesday } from '@/lib/money/firm-today'
+import { benchAt } from '@/app/api/today/reads'
 
 /**
  * Ask Etyme runs beside the dashboard, on the seeded world (the founder's
@@ -82,5 +83,28 @@ describe('Ask Etyme says what the dashboard says', () => {
     expect(a.says).not.toMatch(/Your client approves those timesheets/)
     expect(a.kind).toBe('WEEKS')
     expect(a.says).toContain(s.cavanaugh.name)
+  })
+  it('who is on the bench in Ask Etyme is who the Today page counts on the bench, so a person on a placement is never read as on the bench', async () => {
+    // A firm where somebody who agreed to be on its bench is on a placement today: the walk's case.
+    const placed = await prisma.benchListing.findMany({
+      where: {
+        revokedAt: null, state: 'GRANTED',
+        company: { slug: { startsWith: 'world-' } },
+        consultant: { person: { sellContracts: { some: { state: 'IN_PROGRESS' } } } },
+      },
+      select: { companyId: true, company: { select: { slug: true } } },
+    })
+    let firm: { id: string; email: string } | null = null
+    for (const p of placed) {
+      const email = `${p.company.slug}${D}`
+      if (await prisma.person.findFirst({ where: { primaryEmail: email } })) { firm = { id: p.companyId, email }; break }
+    }
+    expect(firm, 'a seeded firm with somebody on its bench who is placed today').not.toBeNull()
+    as(firm!.email)
+    const r = await asked('Who is on the bench?')
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const chat = (r.body.data.answer.table?.rows ?? []).map((row: any) => row.cells[0]).sort()
+    const today = (await benchAt(firm!.id, new Date())).map((b) => b.name).sort()
+    expect(chat).toEqual(today)
   })
 })

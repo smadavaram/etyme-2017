@@ -33,6 +33,7 @@ import { NextRequest } from 'next/server'
 import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
 import { firmBilling } from './billing'
 import { firmTuesday } from '@/lib/money/firm-today'
+import { benchAt } from '@/app/api/today/reads'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import {
@@ -782,32 +783,51 @@ export function readersFor(
       if (company.kind === 'CLIENT') {
         return { ok: false as const, says: 'A supplier’s bench reaches you through matching on a job request, never as a list.' }
       }
-      // The page's own reads, in-process, under this seat: an integrator's
-      // bench is its own people between projects (Our bench); any other
-      // firm's is the people who agreed to be on it.
-      if (company.kind === 'GSI') {
-        const res = await ourBenchRoute(request)
-        const body = await res.json().catch(() => null)
-        if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'Our bench could not be read just now.' }
-        const rows: BenchRow[] = (body?.data?.rows ?? []).map((r: any) => ({
-          personId: r.personId, person: r.name, free: r.freeOnSays ?? '—', skills: Array.isArray(r.skills) ? r.skills : [],
-        }))
-        return { ok: true as const, rows }
+      // Who is on the bench is the Today page's own answer (`benchAt`,
+      // app/api/today/reads): somebody whose bench spell is running today,
+      // never somebody on a placement. The chat counted every granted
+      // listing, placed or not (the walk of 2026-10-22). The bench page's
+      // own read, in-process under this seat, only fills in each person's
+      // skills and free date: an integrator's is its own people between
+      // projects (Our bench), any other firm's the people who agreed.
+      const now = new Date()
+      const [on, detail] = await Promise.all([
+        benchAt(company.id, now),
+        (async (): Promise<Map<string, { free: string; skills: string[] }>> => {
+          const out = new Map<string, { free: string; skills: string[] }>()
+          if (company.kind === 'GSI') {
+            const res = await ourBenchRoute(request)
+            const body = await res.json().catch(() => null)
+            if (!res.ok) return out
+            for (const r of body?.data?.rows ?? []) {
+              if (r?.personId) out.set(r.personId, { free: r.freeOnSays ?? '—', skills: Array.isArray(r.skills) ? r.skills : [] })
+            }
+            return out
+          }
+          const url = new URL(request.url)
+          url.search = '?scope=company'
+          const res = await benchRoute(new NextRequest(url, { headers: request.headers }))
+          const body = await res.json().catch(() => null)
+          if (!res.ok) return out
+          const tiers = body?.data?.tiers ?? {}
+          for (const l of [...(tiers.MARKETING ?? []), ...(tiers.RETAINED ?? [])]) {
+            const id = l?.consultant?.personId
+            if (id && !out.has(id)) out.set(id, { free: l.free?.says ?? '—', skills: Array.isArray(l.consultant?.skills) ? l.consultant.skills : [] })
+          }
+          return out
+        })(),
+      ])
+      const rows: BenchRow[] = on.map((b) => ({
+        personId: b.personId, person: b.name,
+        free: detail.get(b.personId)?.free ?? 'Free now',
+        skills: detail.get(b.personId)?.skills ?? [],
+      }))
+      if (rows.length) {
+        logBulkAccess(rows.map((r) => r.personId), {
+          actorPersonId: caller.person.id, actorCompanyId: company.id, action: 'PROFILE_VIEW',
+          reason: 'Read in Ask Etyme: who is on the bench',
+        })
       }
-      const url = new URL(request.url)
-      url.search = '?scope=company'
-      const res = await benchRoute(new NextRequest(url, { headers: request.headers }))
-      const body = await res.json().catch(() => null)
-      if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'The bench could not be read just now.' }
-      const tiers = body?.data?.tiers ?? {}
-      const listed: any[] = [...(tiers.MARKETING ?? []), ...(tiers.RETAINED ?? [])]
-      const rows: BenchRow[] = listed
-        .filter((l) => l.consent === 'GRANTED')
-        .map((l) => ({
-          personId: l.consultant?.personId, person: l.consultant?.person?.name ?? 'A person on your bench',
-          free: l.free?.says ?? '—', skills: Array.isArray(l.consultant?.skills) ? l.consultant.skills : [],
-        }))
-        .sort((a, b) => a.person.localeCompare(b.person))
       return { ok: true as const, rows }
     },
 
