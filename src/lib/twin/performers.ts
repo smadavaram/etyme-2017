@@ -278,10 +278,27 @@ const payInvoiceReceipt: Performer = {
 
 // ── Telling people ────────────────────────────────────────────────────
 
+/**
+ * The title of the notice the paying team gets about a receipt that does
+ * not match: the receipt's number and the supplier that sent it, said at
+ * the source so the app, the email and Teams all carry it (second
+ * production walk, 2026-10-26: "An invoice receipt does not match" named
+ * neither). A part the payload lacks is left out, never invented.
+ */
+export function mismatchTitle(payload: Record<string, unknown>): string {
+  const number = typeof payload.number === 'string' && payload.number.trim() ? payload.number.trim() : null
+  const supplier = typeof payload.supplierName === 'string' && payload.supplierName.trim() ? payload.supplierName.trim() : null
+  const what = number && supplier ? `${number} from ${supplier}`
+    : number ? `Invoice receipt ${number}`
+    : supplier ? `An invoice receipt from ${supplier}`
+    : 'An invoice receipt'
+  return `${what} does not match what was accepted`
+}
+
 const flagMismatch: Performer = {
   async after(c) {
     const desk = await deskAt(c.companyId, 'payments.record')
-    await tell(desk, c.companyId, c, 'An invoice receipt does not match what was accepted', 'INVOICE')
+    await tell(desk, c.companyId, c, mismatchTitle(c.payload), 'INVOICE')
   },
 }
 
