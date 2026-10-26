@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, freshWorld } from './harness'
 import { chaseCredentials, lookAtCredentials } from '@/lib/credential-chase'
+import { formatDayLong } from '@/lib/format-date'
 
 /**
  * The renewal Colleen Byrne is asked for, and who asks her.
@@ -141,4 +142,51 @@ describe('the nightly chase asking a nurse for her renewal', () => {
     expect(named.some((h) => h.includes('Karthik Menon'))).toBe(false)
     expect(named.some((h) => h.includes('Helena Marsh'))).toBe(false)
   })
+  it('says the day her answer is due, fourteen days before her license lapses, while the link stays open longer', async () => {
+    const packet = await herPacket()
+    const license = await prisma.verification.findFirstOrThrow({
+      where: { personId: it_.her, type: 'PROFESSIONAL_LICENSE' },
+      orderBy: { expiresAt: 'desc' },
+      select: { expiresAt: true },
+    })
+    const due = new Date(license.expiresAt!.getTime() - 14 * 86_400_000).toISOString().slice(0, 10)
+    expect(packet!.reopenedReason).toContain(`Please send it by ${formatDayLong(due)}.`)
+    const log = await prisma.automationLog.findFirstOrThrow({
+      where: { action: 'PACKET_REOPENED', payload: { path: ['packetId'], equals: packet!.id } },
+    })
+    expect((log.payload as any).dueOn).toBe(due)
+    // The link outlives the due day, so a late answer can still be sent.
+    expect(packet!.expiresAt.getTime()).toBeGreaterThan(new Date(`${due}T23:59:59Z`).getTime())
+  })
+
+  it('a paper already lapsed is asked for once, due today, and not again the next night', async () => {
+    const open = await herPacket()
+    await prisma.documentPacket.update({ where: { id: open!.id }, data: { cancelledAt: new Date() } })
+    const license = await prisma.verification.findFirstOrThrow({
+      where: { personId: it_.her, type: 'PROFESSIONAL_LICENSE' },
+      orderBy: { expiresAt: 'desc' },
+      select: { id: true, expiresAt: true },
+    })
+    const lapsed = new Date(Date.now() - 3 * 86_400_000)
+    await prisma.verification.update({ where: { id: license.id }, data: { expiresAt: lapsed } })
+    try {
+      const now = new Date()
+      await chaseCredentials(now)
+      const asked = await herPacket()
+      expect(asked, 'a lapsed license is asked for').toBeTruthy()
+      expect(asked!.id).not.toBe(open!.id)
+      expect(asked!.reopenedReason).toContain(`Please send it by ${formatDayLong(now.toISOString().slice(0, 10))}.`)
+
+      const count = () => prisma.documentPacket.count({
+        where: { packetKey: 'CREDENTIAL_RENEWAL', subjectPerson: { primaryEmail: HER }, cancelledAt: null },
+      })
+      const before = await count()
+      const tomorrow = new Date(now.getTime() + 86_400_000)
+      const again = await chaseCredentials(tomorrow)
+      expect(await count(), 'the request fell due yesterday and its link is still alive, so nobody is asked twice').toBe(before)
+      expect(again.asked).toEqual([])
+    } finally {
+      await prisma.verification.update({ where: { id: license.id }, data: { expiresAt: license.expiresAt } })
+    }
+  }, 60_000)
 })

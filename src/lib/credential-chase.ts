@@ -33,16 +33,27 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { demoEmail } from '@/lib/password'
-import { credentialsToChase, whoAsksTheWorker, type CredentialChase, type HeldCredential, type LineCarryingPerson } from '@/lib/document-stages'
+import { credentialsToChase, renewalDueOn, whoAsksTheWorker, type CredentialChase, type HeldCredential, type LineCarryingPerson } from '@/lib/document-stages'
 import { credentialKeys, credentialDetail } from '@/lib/contract-clearance'
 import { labelFor } from '@/lib/document-type'
 import { packetByKey } from '@/lib/packets'
+import { formatDayLong } from '@/lib/format-date'
 import type { Finding } from '@/lib/watch'
 
 /** The packet the ask is made with. Regulation wrote it; this raises it. */
 export const CREDENTIAL_PACKET_KEY = 'CREDENTIAL_RENEWAL'
 
-/** How long the link stays alive. A board takes weeks; so does this. */
+/**
+ * How long the link stays alive. A board takes weeks; so does this.
+ *
+ * The link's life is not the day the paper is due. The request falls due
+ * `RENEWAL_LEAD_DAYS` before the paper lapses, or today where that day
+ * has passed (`renewalDueOn` in lib/document-stages), and that day is said
+ * in the request's own sentence. The link stays open past it so a late
+ * answer can still be sent, and "already asked" reads the link's life:
+ * keying it on the due date would ask again every night once a lapsed
+ * paper's request fell due today. Decided by the coordinator, 2026-10-26.
+ */
 const LINK_DAYS = 45
 
 /**
@@ -439,6 +450,11 @@ export async function askForRenewal(
 
   const template = spec.items[0]
   const worst = chases[0]
+  // When the answer is due: fourteen days before the paper lapses, or
+  // today. Said in the request, the notice and the log; never the link.
+  const dueOn = renewalDueOn(worst.daysLeft, now)
+  const dueDay = dueOn.toISOString().slice(0, 10)
+  const asked = `${worst.says} Please send it by ${formatDayLong(dueDay)}.`
 
   const packet = await prisma.documentPacket.create({
     data: {
@@ -454,8 +470,9 @@ export async function askForRenewal(
       expiresAt: new Date(now.getTime() + LINK_DAYS * 86_400_000),
       createdById: creator.personId,
       // The chase's own sentence, which is already written to the person
-      // holding the license and already names the board and the state.
-      reopenedReason: worst.says,
+      // holding the license and already names the board and the state,
+      // with the day it is due.
+      reopenedReason: asked,
       items: {
         create: chases.map((chase, position) => ({
           key: chase.key,
@@ -482,6 +499,7 @@ export async function askForRenewal(
         asked: chases.map((c) => c.key),
         daysLeft: worst.daysLeft,
         state: worst.state,
+        dueOn: dueDay,
       },
       // Cancelling the request undoes this entirely.
       reversible: true,
@@ -515,7 +533,7 @@ export async function askForRenewal(
       worst.daysLeft !== null && worst.daysLeft < 0
         ? `Your ${worst.named} has lapsed`
         : `${company.name} needs your ${worst.named}`,
-    body: `${worst.says}\n\nSend it here: /packet/${packet.token}`,
+    body: `${asked}\n\nSend it here: /packet/${packet.token}`,
     entityId: packet.id,
     // A reserved demo address is never mailed: the seeded world raises
     // this ask while seeding, and a real send to colleen.byrne@….invalid

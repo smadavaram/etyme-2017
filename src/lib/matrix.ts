@@ -1499,7 +1499,7 @@ export const MATRIX: L1[] = [
             'Which types count as a license is the company’s own dictionary: compliance purpose, blocks on lapse, supplied by the candidate',
             'The nightly chase asks the person sixty days ahead, through the firm that places them, with the board named and the link theirs',
             'A license already renewed is not asked for twice, and the ask on a seeded seat is one the chase raised rather than one the seed typed',
-          ],
+            'FIXED 2026-10-26 by etyme-architect: a renewal request says the day it is due, fourteen days before the paper lapses or today (renewalDueOn), while its link stays open forty-five days; a lapsed paper is asked for once and not again the next night'],
           implementedBy: ['src/lib/document-stages.ts', 'src/lib/contract-clearance.ts', 'src/lib/packets.ts',
             'src/lib/credential-chase.ts', 'src/app/api/cron/watch/route.ts',
             'src/app/api/contracts/[id]/activate/route.ts', 'src/app/api/placements/[id]/route.ts',
