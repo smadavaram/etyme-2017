@@ -66,6 +66,7 @@ import { invitation } from '@/lib/bench-consent'
 import { periodFor, iso } from '@/lib/periods'
 import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
+import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
 
 /** "Colleen Byrne" → colleen.byrne@… — accents folded, never dropped into a dot. */
 const emailOf = (name: string) =>
@@ -727,8 +728,16 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
 
   // Her weeks, on her company's line, signed down the chain: Harlow
   // Health approves at what it is billed, Halcyon accepts at what it pays
-  // Byrne, and Byrne — she, as its owner — accepts last. The newest week
-  // is signed by Harlow Health only and waits on Halcyon.
+  // Byrne, and Halcyon's signature stands as Byrne's acceptance, because
+  // Byrne is hers and nobody accepts their own week. The newest week is
+  // signed by Harlow Health only and waits on Halcyon.
+  //
+  // Byrne's acceptance is written the way the approve route writes it
+  // (2026-10-26): automatic, by whoever signed above, at the same moment,
+  // with the stand-in note (`standsAsAcceptanceSays`), never as her own
+  // signature. The row stays because payroll reads `employerAcceptedAt`.
+  const halcyonName = (await db.company.findUniqueOrThrow({ where: { id: co('halcyon').id }, select: { name: true } })).name
+  const standsAs = standsAsAcceptanceSays({ signedBy: halcyonName, firmName: nurseCorp.name, personName: nurse.name })
   const signedWeeks: { id: string; start: Date; end: Date; hours: number }[] = []
   for (const [week, standing] of [
     [nurseWeek(4), 'SIGNED'],
@@ -737,11 +746,10 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     [nurseWeek(1), 'CLIENT_ONLY'],
   ] as const) {
     // On the Monday the hours are due, by Harlow Health's own week
-    // settings: Harlow Health, then Halcyon an hour later, then Byrne.
+    // settings: Harlow Health, then Halcyon an hour later, its signature standing as Byrne's.
     const sign = signingDays(week.start, await weekDueOf(co('harlow-health').id))
     const clientAt = sign.signedAt(0)
     const middleAt = sign.signedAt(1)
-    const ownerAt = sign.signedAt(2)
     // A world seeded before this has the week on Halcyon's line; it moves
     // to Byrne's, the same sheet, never a second one.
     const onHalcyon = await db.timesheet.findFirst({
@@ -760,7 +768,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
           status: standing === 'SIGNED' ? 'APPROVED' : 'SUBMITTED', submittedAt: week.end,
           clientApprovedAt: clientAt, clientApprovedById: seat('harlow-health'),
           ...(standing === 'SIGNED'
-            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: ownerAt, employerAcceptedById: nurse.id }
+            ? { approvedAt: clientAt, approvedById: seat('harlow-health'), employerAcceptedAt: middleAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs }
             : {}),
         },
         select: { id: true, sellContractId: true },
@@ -768,7 +776,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     if (onHalcyon && onHalcyon.sellContractId !== byrneLine.id) {
       await db.timesheet.update({
         where: { id: sheet.id },
-        data: { sellContractId: byrneLine.id, ...(standing === 'SIGNED' ? { employerAcceptedById: nurse.id } : {}) },
+        data: { sellContractId: byrneLine.id },
       })
       // Halcyon's acceptance was written as the employer's; it is the
       // middle rung's now, and a row is never edited in place.
@@ -777,9 +785,23 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         data: { state: 'WITHDRAWN' },
       })
     }
-    const live = onHalcyon
-      ? await db.workAssertion.findMany({ where: { timesheetId: sheet.id, state: 'LIVE' }, select: { companyId: true, role: true } })
+    let live = onHalcyon
+      ? await db.workAssertion.findMany({ where: { timesheetId: sheet.id, state: 'LIVE' }, select: { id: true, companyId: true, role: true, auto: true } })
       : []
+    // A world seeded before 2026-10-26 has Byrne's acceptance as her own
+    // signature. A row is never edited in place: it is withdrawn, and the
+    // stand-in is written below in its place.
+    const ownSigned = live.filter((x) => x.companyId === nurseCorp.id && x.role === 'EMPLOYER_ACCEPTANCE' && !x.auto)
+    if (ownSigned.length) {
+      await db.workAssertion.updateMany({ where: { id: { in: ownSigned.map((x) => x.id) } }, data: { state: 'WITHDRAWN' } })
+      live = live.filter((x) => !ownSigned.includes(x))
+    }
+    if (standing === 'SIGNED' && onHalcyon) {
+      await db.timesheet.update({
+        where: { id: sheet.id },
+        data: { employerAcceptedAt: middleAt, employerAcceptedById: seat('halcyon'), acceptedNote: standsAs },
+      })
+    }
     const has = (companyId: string, role: string) => live.some((x) => x.companyId === companyId && x.role === role)
     const rows: Prisma.WorkAssertionCreateManyInput[] = []
     if (!has(co('harlow-health').id, 'CLIENT_APPROVAL')) {
@@ -791,19 +813,20 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         rows.push({ timesheetId: sheet.id, companyId: co('halcyon').id, role: 'PASS_THROUGH', hours: week.hours,
           rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), at: middleAt })
       }
-      // Her own corporation accepts last. `rateCents` is the rate on the
-      // rung the signing firm pays on (lib/money/hop-ledger); a one-person
-      // corporation pays nobody below it, so what it saw is its own rung,
-      // the $92 Halcyon pays it. No posting reads the column.
+      // Her own corporation's acceptance is the stand-in on Halcyon's
+      // signature: automatic, by Halcyon's signer, with the note. `rateCents`
+      // is the rate on the rung the accepting firm is paid on
+      // (lib/money/hop-ledger), the $92 Halcyon pays Byrne. No posting
+      // reads the column.
       if (!has(nurseCorp.id, 'EMPLOYER_ACCEPTANCE')) {
         rows.push({ timesheetId: sheet.id, companyId: nurseCorp.id, role: 'EMPLOYER_ACCEPTANCE', hours: week.hours,
-          rateCents: 9_200, state: 'LIVE', byId: nurse.id, at: ownerAt })
+          rateCents: 9_200, state: 'LIVE', byId: seat('halcyon'), auto: true, note: standsAs, at: middleAt })
       }
     }
     if (rows.length) await db.workAssertion.createMany({ data: rows })
     if (standing === 'SIGNED') {
       if (!onHalcyon) {
-        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: ownerAt })
+        await completeCycle(db, { sellContractId: byrneLine.id, kind: 'TIMESHEET_APPROVE', periodEnd: week.end, at: middleAt })
       }
       signedWeeks.push({ id: sheet.id, start: week.start, end: week.end, hours: week.hours })
     }

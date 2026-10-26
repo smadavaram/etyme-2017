@@ -3,6 +3,7 @@ import { prisma, freshWorld } from './harness'
 import { partiesOf } from '@/lib/money/invoice-parties'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 import { EAD_ENDS_AFTER_LINE_DAYS } from '@/lib/seed-programmes'
+import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
 
 /**
  * Every level of the delivery matrix has something to look at.
@@ -397,6 +398,38 @@ describe('the seeded world has something at every level of the matrix', () => {
     if (!verdict.ok) {
       expect(verdict.code).toBe('PAPERS_BLOCK')
       expect(verdict.message).toContain('Marta Kowalczyk')
+    }
+  })
+  it('a one-person firm’s seeded acceptance is the stand-in the routes write, never her own signature', async () => {
+    const byrne = await prisma.company.findFirstOrThrow({ where: { slug: { endsWith: 'byrne-critical-care' } }, select: { id: true, name: true } })
+    const halcyon = await prisma.company.findFirstOrThrow({ where: { slug: { endsWith: 'halcyon' }, kind: { not: 'CONSULTANT_CORP' } }, select: { id: true, name: true } })
+    const colleen = await prisma.person.findFirstOrThrow({ where: { name: 'Colleen Byrne' }, select: { id: true, name: true } })
+    const accepted = await prisma.workAssertion.findMany({
+      where: { companyId: byrne.id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE', timesheet: { personId: colleen.id } },
+      select: { timesheetId: true, byId: true, auto: true, note: true, at: true },
+    })
+    expect(accepted.length, 'Colleen Byrne has signed weeks her firm stands as accepting').toBeGreaterThan(0)
+    const says = standsAsAcceptanceSays({ signedBy: halcyon.name, firmName: byrne.name, personName: colleen.name })
+    for (const a of accepted) {
+      expect(a.byId).not.toBe(colleen.id)
+      expect(a).toMatchObject({ auto: true, note: says })
+      // At the moment of the signature it stands on: Halcyon's, above it.
+      const above = await prisma.workAssertion.findFirstOrThrow({
+        where: { timesheetId: a.timesheetId, companyId: halcyon.id, role: 'PASS_THROUGH', state: 'LIVE' },
+        select: { byId: true, at: true },
+      })
+      expect(a.byId).toBe(above.byId)
+      expect(a.at.getTime()).toBe(above.at.getTime())
+    }
+    // And the week's own column, which payroll reads, says the same.
+    const sheets = await prisma.timesheet.findMany({
+      where: { id: { in: accepted.map((a) => a.timesheetId) } },
+      select: { employerAcceptedAt: true, employerAcceptedById: true, acceptedNote: true },
+    })
+    for (const t of sheets) {
+      expect(t.employerAcceptedAt).not.toBeNull()
+      expect(t.employerAcceptedById).not.toBe(colleen.id)
+      expect(t.acceptedNote).toBe(says)
     }
   })
 })
