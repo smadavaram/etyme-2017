@@ -104,7 +104,13 @@ interface Placement {
   /** The client marked this person, and the firm that supplied them, as ones to take again. */
   takeAgain?: boolean
   person: string
-  workAuth: 'USC' | 'GC' | 'H1B'
+  /**
+   * EAD: the person works on an employment authorization document (a
+   * work permit), and their I-9 was completed from it. Both end
+   * `EAD_ENDS_AFTER_LINE_DAYS` after the line does, so extending the line
+   * past that day is refused on papers.
+   */
+  workAuth: 'USC' | 'GC' | 'H1B' | 'EAD'
   startedDaysAgo: number
   /** Negative: it ended that many days ago. */
   endsInDays: number
@@ -224,6 +230,9 @@ export function openShape(justification: string, hiringManagerId: string) {
     reportsToId: hiringManagerId,
   }
 }
+
+/** How long after a work-permit line ends its permit and I-9 run out: six weeks. */
+export const EAD_ENDS_AFTER_LINE_DAYS = 42
 
 export const PROGRAMMES: Program[] = [
   {
@@ -388,7 +397,10 @@ export const PROGRAMMES: Program[] = [
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, invoice: 'PAID' },
       { role: 'Data platform engineer', skills: ['Databricks', 'Azure', 'Python'], loc: 'Westminster, CO',
         via: ['terumo-bct', 'vertex-global'], rates: [13000, 9800],
-        person: 'Marta Kowalczyk', workAuth: 'USC', startedDaysAgo: 15, endsInDays: 350, state: 'IN_PROGRESS',
+        // On a work permit (EAD), with her I-9 completed from it. Both run
+        // out six weeks after her line does, so an extension of three
+        // months is refused on papers: the extension demo's refusal.
+        person: 'Marta Kowalczyk', workAuth: 'EAD', startedDaysAgo: 15, endsInDays: 350, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', weeks: { approved: 1, awaiting: 1 }, invoice: null },
       // Forty days out of a ninety-day break. Eligible in fifty.
       { role: 'Quality systems analyst', skills: ['QMS', 'TrackWise', 'CAPA'], loc: 'Westminster, CO',
@@ -944,7 +956,10 @@ export async function seedProgrammes(
       // simulation on 2026-10-20). A report is never dated in the future.
       const onFile = paperDay(pl.startedDaysAgo)
       const papers: { type: 'I9_EVERIFY' | 'BACKGROUND_CHECK'; expiresAt: Date | null }[] = []
-      if (pl.papers !== 'NO_I9') papers.push({ type: 'I9_EVERIFY', expiresAt: null })
+      // An I-9 completed from a work permit is completed again when the
+      // permit runs out, so it carries the permit's date.
+      const permitEnds = pl.workAuth === 'EAD' ? day(pl.endsInDays + EAD_ENDS_AFTER_LINE_DAYS) : null
+      if (pl.papers !== 'NO_I9') papers.push({ type: 'I9_EVERIFY', expiresAt: permitEnds })
       if (pl.papers === 'CLEAR' || pl.papers === 'NO_I9') papers.push({ type: 'BACKGROUND_CHECK', expiresAt: day(250) })
       if (pl.papers === 'BGC_EXPIRED') papers.push({ type: 'BACKGROUND_CHECK', expiresAt: day(-15) })
       for (const v of papers) {
@@ -965,6 +980,32 @@ export async function seedProgrammes(
             result: { outcome: 'CLEAR' },
           },
         })
+      }
+
+      // ── The work permit behind the I-9 ──────────────────────────
+      // A form is not evidence: the I-9 is completed FROM the permit, and
+      // the backing row says so. Written before lib/seed-standing, which
+      // puts a passport behind any I-9 that has nothing behind it and
+      // skips one that has.
+      if (permitEnds && pl.papers !== 'NO_I9') {
+        const i9 = await db.verification.findFirst({ where: { personId: who.id, type: 'I9_EVERIFY' }, select: { id: true } })
+        const permit =
+          (await db.verification.findFirst({ where: { personId: who.id, type: 'WORK_PERMIT' }, select: { id: true } })) ??
+          (await db.verification.create({
+            data: {
+              personId: who.id, type: 'WORK_PERMIT', status: 'CLEAR', provider: 'USCIS',
+              // A two-year card, issued so that it ends on permitEnds.
+              issuedAt: new Date(permitEnds.getTime() - 730 * 86_400_000), expiresAt: permitEnds,
+              uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-onFile - 7),
+              result: { outcome: 'CLEAR' },
+            },
+            select: { id: true },
+          }))
+        if (i9 && !(await db.documentBacking.findFirst({ where: { formId: i9.id } }))) {
+          await db.documentBacking.create({
+            data: { formId: i9.id, evidenceId: permit.id, satisfiedKey: 'WORK_PERMIT', recordedById: desk.compliance.personId, recordedAt: day(-onFile - 7) },
+          })
+        }
       }
 
       // ── Would take again ─────────────────────────────────────────

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, freshWorld } from './harness'
 import { partiesOf } from '@/lib/money/invoice-parties'
+import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
+import { EAD_ENDS_AFTER_LINE_DAYS } from '@/lib/seed-programmes'
 
 /**
  * Every level of the delivery matrix has something to look at.
@@ -365,5 +367,36 @@ describe('the seeded world has something at every level of the matrix', () => {
     expect(ownLines).toBeGreaterThan(0)
     expect(counts.buyContract).toBe(counts.sellContract - ownLines)
     expect(counts.contractLink).toBe(counts.sellContract - ownLines)
+  })
+  it('a Talvern Medical worker on a work permit has her I-9 completed from it, both ending six weeks after her line, so extending her three months is refused on papers', async () => {
+    const marta = await prisma.person.findFirst({ where: { name: 'Marta Kowalczyk' }, select: { id: true, name: true } })
+    const line = await prisma.sellContract.findFirst({
+      where: { personId: marta!.id, clientCompany: { name: 'Talvern Medical' }, endDate: { gt: new Date() } },
+      select: { endDate: true },
+    })
+    expect(line, 'her running line at Talvern Medical').toBeTruthy()
+    const papers = await prisma.verification.findMany({
+      where: { personId: marta!.id, type: { in: ['I9_EVERIFY', 'WORK_PERMIT'] } },
+      select: { id: true, type: true, status: true, expiresAt: true, validFrom: true, issuedAt: true },
+    })
+    const permit = papers.find((p) => p.type === 'WORK_PERMIT')!
+    const i9 = papers.find((p) => p.type === 'I9_EVERIFY')!
+    const sixWeeksAfter = line!.endDate!.getTime() + EAD_ENDS_AFTER_LINE_DAYS * 86_400_000
+    expect(Math.abs(permit.expiresAt!.getTime() - sixWeeksAfter)).toBeLessThanOrEqual(86_400_000)
+    expect(i9.expiresAt!.getTime()).toBe(permit.expiresAt!.getTime())
+    const backing = await prisma.documentBacking.findMany({ where: { formId: i9.id }, select: { evidenceId: true, satisfiedKey: true } })
+    expect(backing, 'the I-9 was completed from the permit, and from nothing else').toEqual([{ evidenceId: permit.id, satisfiedKey: 'WORK_PERMIT' }])
+    expect((await prisma.consultantProfile.findFirst({ where: { personId: marta!.id }, select: { workAuth: true } }))!.workAuth).toBe('EAD')
+
+    const threeMonths = new Date(line!.endDate!.getTime() + 91 * 86_400_000)
+    const verdict = mayExtendOnPapers(
+      extensionPapers({ personName: marta!.name, supplierName: 'Vertex Global', newEnd: threeMonths, from: line!.endDate!, person: papers, supplier: [] }),
+      'The client asked for three more months.'
+    )
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) {
+      expect(verdict.code).toBe('PAPERS_BLOCK')
+      expect(verdict.message).toContain('Marta Kowalczyk')
+    }
   })
 })
