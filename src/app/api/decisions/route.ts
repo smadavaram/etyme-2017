@@ -85,14 +85,15 @@ export async function GET(request: NextRequest) {
   // week at Harlow Health — Aptiva's own book — while the chat and the
   // program page beside it showed Cavanaugh's queue (Samuel Adeyinka's
   // I-9, Wrenfield's agreement). So Needs attention asks for the program
-  // (`?in=program`, and `clientCompanyId` where the seat holds several),
-  // and a seated reader is answered with `programQueue` — the very rows
+  // (`clientCompanyId` picks one where the seat holds several), and a
+  // seated reader is answered with `programQueue` — the very rows
   // the program page draws and Ask Etyme greets with, read through the
   // one function both read (`programView`), every person logged under
   // the seat. Nothing from the reader's own firm is added.
   //
-  // Asked for, not assumed: a selling firm's Today page reads this route
-  // for its own book on purpose, and an MSP's own work stays there.
+  // Default, not asked for: a reader with a live seat gets the program
+  // unless it asks for its own book by name (`?in=own`). A reader with no
+  // seat reads its own queue either way.
   const program = await seatedProgramQueue(request, caller)
   if (program) return program
 
@@ -1277,10 +1278,10 @@ async function clientDecidedMany(
 }
 
 /**
- * Needs attention for a reader seated in a client's program: that
- * program's queue in this route's own shape, or null where the reader
- * did not ask for the program or holds no live seat (it then reads its
- * own firm's queue, as before). A client's own seats and a one-person
+ * The queue for a reader seated in a client's program: that program's
+ * queue in this route's own shape, or null where the reader asked for its
+ * own book (`?in=own`) or holds no live seat (it then reads its own
+ * firm's queue, as before). A client's own seats and a one-person
  * firm never hold a seat in somebody else's program.
  */
 async function seatedProgramQueue(
@@ -1288,7 +1289,12 @@ async function seatedProgramQueue(
   caller: CallerContext
 ): Promise<NextResponse | null> {
   const params = request.nextUrl.searchParams
-  if (params.get('in') !== 'program') return null
+  // The program is the default for a seated reader, not an option it has
+  // to ask for (the third walk, 2026-10-26): the bare route still
+  // answered Aptiva's own book, a second number waiting for the next
+  // screen to read it. A firm's own work is read only when asked by name,
+  // `?in=own`, which is what its own Today asks for.
+  if (params.get('in') === 'own') return null
   const kind = caller.company?.kind ?? null
   if (!kind || kind === 'CLIENT' || kind === 'CONSULTANT_CORP') return null
   const seat = await seatFor(caller, params.get('clientCompanyId'))

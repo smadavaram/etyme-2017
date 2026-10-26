@@ -34,7 +34,7 @@ describe('Needs attention, for a seat in a client’s program', () => {
     as(APTIVA)
     // The walk's case must be on the seed, or this sentence proves nothing:
     // Aptiva's own book has Ruben Ortega's week at Harlow Health in it.
-    const own = await read('/api/decisions')
+    const own = await read('/api/decisions?in=own')
     expect(own.status, JSON.stringify(own.body)).toBe(200)
     expect(own.body.data.decisions.some((r: any) => says(r).includes('Ruben Ortega')), 'Ruben Ortega on Aptiva’s own book').toBe(true)
 
@@ -55,6 +55,16 @@ describe('Needs attention, for a seat in a client’s program', () => {
     expect(needs.body.data.reading).toMatchObject({ seated: true, clientName: page.body.data.client.name })
     const counted = Object.values(needs.body.data.counts as Record<string, number>).reduce((a, b) => a + b, 0)
     expect(counted).toBe(got.length)
+  })
+
+  it('a seated MSP that asks for its queue without saying which reads the program\u2019s queue, never its own book', async () => {
+    as(APTIVA)
+    const bare = await read('/api/decisions')
+    expect(bare.status, JSON.stringify(bare.body)).toBe(200)
+    const program = await read('/api/decisions?in=program')
+    expect(bare.body.data.decisions.map(keyOf).sort()).toEqual(program.body.data.decisions.map(keyOf).sort())
+    expect(bare.body.data.reading.seated).toBe(true)
+    for (const r of bare.body.data.decisions) expect(says(r)).not.toContain('Ruben Ortega')
   })
 
   it('Needs attention, the program page and the Ask Etyme mark give a seated MSP one number', async () => {
