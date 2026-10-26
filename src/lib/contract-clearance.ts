@@ -351,6 +351,25 @@ export function credentialChaseNow(
   return chases[0]?.says ?? null
 }
 
+/** The packet key the nightly license chase raises its renewal requests under. */
+export const RENEWAL_PACKET_KEY = 'CREDENTIAL_RENEWAL'
+
+/**
+ * A request's sentence as it reads today: a renewal request's chase said
+ * again from the person's credentials on the day it is read, and any
+ * other request's own words as stored. One rule for every screen that
+ * lists requests, so the firm's list and the person's page cannot carry
+ * two counts of days for one paper. Pure.
+ */
+export function requestReasonNow(
+  packet: { packetKey: string | null; reopenedReason: string | null; subjectPersonId: string | null },
+  credentialsOf: (personId: string) => Parameters<typeof credentialChaseNow>[0],
+  on: Date,
+): string | null {
+  if (packet.packetKey !== RENEWAL_PACKET_KEY || !packet.subjectPersonId) return packet.reopenedReason
+  return credentialChaseNow(credentialsOf(packet.subjectPersonId), on) ?? packet.reopenedReason
+}
+
 /**
  * What a person's verifications amount to, as documents held.
  *

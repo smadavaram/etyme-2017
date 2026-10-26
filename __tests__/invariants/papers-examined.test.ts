@@ -12,7 +12,8 @@
 import { describe, it, expect } from 'vitest'
 import { heldWord, mayAct, mayExamine, mayAskOnTies, providersVerdict, licenseRenewal, licenseFactsFrom, isProfessionalLicense, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
-import { adverseSays, canonicalEdition, publishedFor, credentialChaseNow } from '@/lib/contract-clearance'
+import { adverseSays, canonicalEdition, publishedFor, credentialChaseNow, requestReasonNow, RENEWAL_PACKET_KEY } from '@/lib/contract-clearance'
+import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
 import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete, renewalDueOn, RENEWAL_LEAD_DAYS } from '@/lib/document-stages'
 import { checkToRecord } from '@/lib/attestation'
 import { StageTally, stageTable, notHeldLines } from '../../scripts/simulate/stages/regulatory/stage-tally'
@@ -444,5 +445,28 @@ describe('one count of days on one page', () => {
     expect(below).not.toBeNull()
     expect(count(below!)).toBe(count(top))
     expect(below).not.toContain('24 days')
+  })
+})
+
+describe('the firm’s list of requests counts days the way the person’s page does', () => {
+  const license = {
+    type: 'PROFESSIONAL_LICENSE', status: 'CLEAR', issuedAt: d('2024-11-10'), validFrom: d('2024-11-10'),
+    expiresAt: d('2026-11-08'), verifiedAt: d('2026-08-20'), provider: 'Wisconsin Board of Nursing',
+    result: { license: 'RN 154-882', state: 'WI' },
+  }
+  const on = new Date('2026-10-26T15:00:00Z')
+  const count = (s: string | null) => Number(/in (\d+) days?/.exec(s ?? '')?.[1])
+  it('a renewal request on the firm’s list says the same days left as the person’s own page, not the count stored when it was raised', () => {
+    const stored = { packetKey: RENEWAL_PACKET_KEY, reopenedReason: 'Your professional license runs out in 24 days.', subjectPersonId: 'p-colleen' }
+    const listed = requestReasonNow(stored, () => [license], on)
+    expect(count(listed)).toBe(count(heldWord(license.expiresAt, on)))
+    expect(count(listed)).toBe(13)
+  })
+  it('any other request keeps the words it was raised with', () => {
+    const other = { packetKey: 'CONTRACT_START_W2', reopenedReason: 'The start is on the 3rd.', subjectPersonId: 'p-colleen' }
+    expect(requestReasonNow(other, () => [license], on)).toBe('The start is on the 3rd.')
+  })
+  it('the renewal key is the one the nightly chase raises its requests under', () => {
+    expect(RENEWAL_PACKET_KEY).toBe(CREDENTIAL_PACKET_KEY)
   })
 })

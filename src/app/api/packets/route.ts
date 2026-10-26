@@ -23,7 +23,7 @@ import {
   type RequiredLine,
 } from '@/lib/document-request'
 import type { EffectiveRequirement } from '@/lib/document-requirements'
-import { papersAsked, papersCounted, countWord } from '@/lib/contract-clearance'
+import { papersAsked, papersCounted, countWord, requestReasonNow, RENEWAL_PACKET_KEY } from '@/lib/contract-clearance'
 
 const upperFirst = (t: string) => t.charAt(0).toUpperCase() + t.slice(1)
 import {
@@ -134,6 +134,18 @@ export async function GET(request: NextRequest) {
     },
   })
 
+  // A renewal request's sentence is said again today, from the person's
+  // credentials, so its count of days is the one their own page shows
+  // (one read for every person a renewal request is about).
+  const renewalPeople = [...new Set(packets.filter((p) => p.packetKey === RENEWAL_PACKET_KEY && p.subjectPerson).map((p) => p.subjectPerson!.id))]
+  const credentials = renewalPeople.length
+    ? await prisma.verification.findMany({
+        where: { personId: { in: renewalPeople } },
+        select: { personId: true, type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true },
+      })
+    : []
+  const now = new Date()
+
   const rows = packets.map((p) => {
     const progress = progressOf(
       p.items.map((i) => ({
@@ -156,7 +168,11 @@ export async function GET(request: NextRequest) {
       askedAt: p.createdAt.toISOString().slice(0, 10),
       progress,
       completedAt: p.completedAt?.toISOString().slice(0, 10) ?? null,
-      reopenedReason: p.reopenedReason,
+      reopenedReason: requestReasonNow(
+        { packetKey: p.packetKey, reopenedReason: p.reopenedReason, subjectPersonId: p.subjectPerson?.id ?? null },
+        (personId) => credentials.filter((c) => c.personId === personId),
+        now,
+      ),
       expiresInDays: daysLeft,
       // A request whose link has expired is one the recipient can no longer
       // act on, which looks identical to them ignoring it.
