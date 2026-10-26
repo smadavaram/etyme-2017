@@ -1496,6 +1496,27 @@ export function licenseGate(input: {
 /** Chase a license this far ahead. A board takes weeks, not days. */
 export const CHASE_CREDENTIAL_WITHIN_DAYS = 60
 
+/** How many days before a paper lapses its renewal request falls due. Data, so a change is a line. */
+export const RENEWAL_LEAD_DAYS = 14
+
+/**
+ * The day a renewal request falls due: before the paper lapses, never
+ * after it. Fourteen days before the day it runs out, or today where that
+ * day has passed, the paper has lapsed already, or no end is recorded.
+ * Given as the end of that day (UTC), so a request due today can still be
+ * answered today.
+ *
+ * Found by the Ask Etyme walk, 2026-10-22: Colleen Byrne's license lapses
+ * Nov 15, and the request asking for its renewal was due Dec 6, three
+ * weeks after it stopped her working. The request's life had been a fixed
+ * forty-five days from the ask, whatever the paper said. Pure.
+ */
+export function renewalDueOn(daysLeft: number | null, now: Date, leadDays: number = RENEWAL_LEAD_DAYS): Date {
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const offset = daysLeft === null ? 0 : Math.max(0, daysLeft - leadDays)
+  return new Date(today + offset * 86_400_000 + 86_400_000 - 1)
+}
+
 export interface CredentialChase {
   /** The document type to ask for. */
   key: string

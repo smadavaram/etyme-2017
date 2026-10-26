@@ -378,6 +378,19 @@ export function publishedFor(type: string, recorded: string, completedOn: Date |
   return same ? [same] : list
 }
 
+/**
+ * An edition as the issuer prints it: "MM/DD/YY". A form recorded as
+ * "08/01/2023" or "8/1/23" is the same edition as "08/01/23", and reading
+ * it as a different one put an audit finding on a current I-9 (found by
+ * the simulation, 2026-10-26). Anything that is not a date is left as typed.
+ */
+export function canonicalEdition(edition: string): string {
+  const t = edition.trim()
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})$/.exec(t)
+  if (!m) return t
+  return `${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3].slice(-2)}`
+}
+
 /** Agreements a worker signs from her own page, so their absence is a real gap. */
 const WORKER_AGREEMENTS = ['NDA', 'NCA', 'EMPLOYMENT_AGREEMENT']
 
@@ -776,9 +789,19 @@ export function contractClearance(input: {
 
 
     if (type.reissued) {
+      // "08/01/2023" and "08/01/23" are one edition; read in the issuer's
+      // own form so a four-digit year is not an audit finding.
+      // Matched to the list it is judged against: the company's own entry
+      // where it recorded one (in its own spelling), else the issuer's.
+      const ownList = input.editions?.[row.type]
+      const recordedEdition = !row.formEdition
+        ? null
+        : ownList?.length
+          ? (ownList.find((e) => canonicalEdition(e.edition) === canonicalEdition(row.formEdition!))?.edition ?? row.formEdition)
+          : canonicalEdition(row.formEdition)
       const finding = editionFinding(
         type,
-        row.formEdition ?? null,
+        recordedEdition,
         row.completedAt ?? row.issuedAt ?? null,
         // The company's own list where it recorded one; otherwise the
         // editions the issuer published, so an I-9 on an edition the
@@ -790,7 +813,7 @@ export function contractClearance(input: {
         // finding on the day this landed.
         input.editions?.[row.type]?.length
           ? input.editions[row.type]
-          : row.formEdition ? publishedFor(row.type, row.formEdition, row.completedAt ?? row.issuedAt ?? null) : []
+          : recordedEdition ? publishedFor(row.type, recordedEdition, row.completedAt ?? row.issuedAt ?? null) : []
       )
       if (finding.standing === 'SUPERSEDED' || finding.standing === 'UNRECORDED') {
         editions.push(finding)

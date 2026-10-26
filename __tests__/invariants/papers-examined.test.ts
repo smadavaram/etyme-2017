@@ -12,8 +12,8 @@
 import { describe, it, expect } from 'vitest'
 import { mayAct, mayExamine, mayAskOnTies, providersVerdict, licenseRenewal, licenseFactsFrom, isProfessionalLicense, type ExamineFacts } from '@/lib/document-request'
 import { adverseStep, adverseWaitFor, addBusinessDays, adverseRecordFrom, adverseActionFor, type AdverseInput } from '@/lib/attestation'
-import { adverseSays } from '@/lib/contract-clearance'
-import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete } from '@/lib/document-stages'
+import { adverseSays, canonicalEdition, publishedFor } from '@/lib/contract-clearance'
+import { compile, jurisdictionOf, mayAskOfACandidate, STANDS_ON_RULE, NON_COMPETE_VOID, nonCompeteVoidAt, withoutVoidNonCompete, renewalDueOn, RENEWAL_LEAD_DAYS } from '@/lib/document-stages'
 import { checkToRecord } from '@/lib/attestation'
 import { StageTally, stageTable, notHeldLines } from '../../scripts/simulate/stages/regulatory/stage-tally'
 import { permitEnds, statusOf } from '../../scripts/simulate/stages/regulatory/hiring-papers'
@@ -397,5 +397,32 @@ describe('the routes refuse what only the screen used to (found by supply, 2026-
     expect(isProfessionalLicense('Professional license', 'PROFESSIONAL_LICENSE')).toBe(true)
     expect(isProfessionalLicense('RN license renewal', null)).toBe(true)
     expect(isProfessionalLicense('Driver’s license', 'DRIVERS_LICENSE')).toBe(false)
+  })
+})
+
+describe('a renewal request falls due before the paper lapses', () => {
+  const OCT22 = new Date('2026-10-22T15:00:00Z')
+  it('Colleen Byrne’s license lapses Nov 15, so the request for its renewal is due Nov 1, fourteen days before, not Dec 6', () => {
+    expect(iso(renewalDueOn(24, OCT22))).toBe('2026-11-01')
+    expect(RENEWAL_LEAD_DAYS).toBe(14)
+  })
+  it('a paper lapsing within fourteen days, already lapsed, or with no end recorded is due today, and can still be answered today', () => {
+    for (const left of [10, 0, -5, null]) {
+      const due = renewalDueOn(left, OCT22)
+      expect(iso(due), String(left)).toBe('2026-10-22')
+      expect(due.getTime()).toBeGreaterThan(OCT22.getTime())
+    }
+  })
+})
+
+describe('an I-9 edition is read the way the issuer prints it', () => {
+  it('an I-9 recorded as edition 08/01/2023 is the 08/01/23 edition, not an out-of-date one', () => {
+    expect(canonicalEdition('08/01/2023')).toBe('08/01/23')
+    expect(canonicalEdition('8/1/23')).toBe('08/01/23')
+    expect(canonicalEdition('01/20/25')).toBe('01/20/25')
+    expect(publishedFor('I9_EVERIFY', canonicalEdition('08/01/2023'), new Date('2025-03-01T00:00:00Z')).map((e) => e.edition)).toEqual(['08/01/23'])
+  })
+  it('an edition that is not a date is left as it was typed', () => {
+    expect(canonicalEdition('Rev. March 2024')).toBe('Rev. March 2024')
   })
 })
