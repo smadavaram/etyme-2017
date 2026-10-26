@@ -1014,7 +1014,7 @@ export async function GET(request: NextRequest) {
   if (hasAnyPermission(caller.permissions, ['payments.record'])) {
     const askedOn = new Map(
       twinAsks
-        .filter((q) => q.entityType === 'Invoice' && q.action === RECEIPT_APPROVE)
+        .filter((q) => q.entityType === 'Invoice' && RECEIPT_QUESTIONS.has(q.action))
         .map((q) => [q.entityId, q.id])
     )
     const open = await prisma.invoice.findMany({
@@ -1179,8 +1179,12 @@ export async function GET(request: NextRequest) {
  * or void. A disputed one is the dispute's row; a held one waits on its
  * hold. What is left was submitted to the payer and is owed.
  */
-/** The twin's question on a receipt, folded into that receipt's row (`TWIN_ACTS`). */
-const RECEIPT_APPROVE = 'invoice_receipt.approve'
+/**
+ * The twin's questions on a receipt, folded into that receipt's row
+ * (`TWIN_ACTS`): approve it, and since 70a6eabdb pay it. Either one is
+ * the receipt, so it is never counted beside the receipt's own row.
+ */
+const RECEIPT_QUESTIONS: ReadonlySet<string> = new Set(['invoice_receipt.approve', 'invoice_receipt.pay'])
 
 const RECEIPT_NOT_WAITING = ['DRAFT', 'ISSUED', 'PAID', 'VOID', 'CANCELLED', 'HELD', 'DISPUTED']
 

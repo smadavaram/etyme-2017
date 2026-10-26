@@ -695,7 +695,7 @@ describe('the AP clerk’s queue lists as Pay only what the payment route would 
     const receipts = r.body.data.decisions.filter((d: any) => d.type === 'INVOICE_RECEIPT_TO_PAY' || d.type === 'INVOICE_RECEIPT_HELD')
     expect(new Set(receipts.map((d: any) => d.entityId)).size).toBe(receipts.length)
     const asked = await prisma.twinApproval.findMany({
-      where: { decision: 'PENDING', twinAction: { action: 'invoice_receipt.approve', entityType: 'Invoice', entityId: { in: receipts.map((d: any) => d.entityId) } } },
+      where: { decision: 'PENDING', twinAction: { action: { in: ['invoice_receipt.approve', 'invoice_receipt.pay'] }, entityType: 'Invoice', entityId: { in: receipts.map((d: any) => d.entityId) } } },
       select: { id: true },
     })
     const questions = new Set(r.body.data.decisions.filter((d: any) => d.type === 'TWIN_QUESTION').map((d: any) => d.entityId))

@@ -71,11 +71,18 @@ describe('an invoice receipt that does not pass the three-way check is held, nev
 describe('one invoice receipt is one item in the count', () => {
   it('the twin’s question to approve a receipt rides on that receipt’s row and is not counted beside it', () => {
     const route = read('src/app/api/decisions/route.ts')
-    expect(route).toContain("q.entityType === 'Invoice' && q.action === RECEIPT_APPROVE")
+    expect(route).toContain("q.entityType === 'Invoice' && RECEIPT_QUESTIONS.has(q.action)")
     expect(route).toContain("decisions[i].type === 'TWIN_QUESTION' && foldedQuestions.has(decisions[i].entityId)")
     // Both receipt rows carry the question's id, so Ask Etyme can still
     // draw the twin's card on the one row.
     expect(route.match(/twinApprovalId,\n/g)?.length).toBe(2)
+  })
+})
+
+describe('one invoice receipt is one item in the count, whichever question the twin asked', () => {
+  it('the twin’s question to pay a receipt rides on that receipt’s row the same way as its question to approve it', () => {
+    const route = read('src/app/api/decisions/route.ts')
+    expect(route).toContain("new Set(['invoice_receipt.approve', 'invoice_receipt.pay'])")
   })
 })
 
