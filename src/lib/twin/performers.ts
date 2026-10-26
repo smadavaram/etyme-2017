@@ -29,7 +29,8 @@ import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { SUPPLIER_BILL_PERFORMERS } from '@/lib/money/supplier-bills'
-import { recordInvoicePayment } from '@/lib/money/invoice-payment'
+import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
+import type { TwinKindName } from '@/lib/autonomy'
 
 export interface PerformContext {
   companyId: string
@@ -47,6 +48,15 @@ export interface PerformContext {
   ruleCited: string
   rationale: string
   payload: Record<string, unknown>
+  /** Which twin is acting, for whatever leaves the database under its name. */
+  twinKind?: TwinKindName
+  /**
+   * What `inTx` hands to `after`, and never written anywhere: a fresh
+   * object per act. Something that may only leave once the transaction
+   * has committed — an event — is put here inside it and sent from `after`,
+   * which runs only on a commit.
+   */
+  carry?: Record<string, unknown>
 }
 
 type Tx = Prisma.TransactionClient
@@ -244,6 +254,8 @@ const payInvoiceReceipt: Performer = {
     // Refused on a fact that moved since the check (paid by hand a moment
     // ago, cancelled): nothing is written, the entry with it.
     if (!paid.ok) throw new Error(paid.says)
+    // The `invoice.paid` event leaves only after the commit (`after`).
+    if (c.carry) c.carry.payment = paid
     return {
       paymentId: paid.payment.id,
       invoiceStatus: paid.status,
@@ -253,6 +265,14 @@ const payInvoiceReceipt: Performer = {
       reference,
       method,
     }
+  },
+  // Committed: tell the record once, as the twin under the person it acts
+  // for. `after` never runs on a rollback, so no event for a payment that
+  // does not exist.
+  async after(c) {
+    const paid = c.carry?.payment as InvoicePaymentResult | undefined
+    if (!paid) return
+    await emitInvoicePaid(paid, { actorKind: 'TWIN', actorTwinKind: c.twinKind ?? 'PROGRAM_MANAGER' })
   },
 }
 

@@ -491,6 +491,8 @@ async function actOnce(input: ActInput): Promise<ActResult> {
     ruleCited: base.ruleCited,
     rationale: base.rationale,
     payload: base.payload,
+    twinKind: input.twin ?? 'PROGRAM_MANAGER',
+    carry: {},
   }
 
   // The record is asked before a person is: a question the record already
@@ -906,6 +908,8 @@ export async function decideApproval(args: {
     ruleCited: asked.ruleCited,
     rationale: asked.rationale,
     payload,
+    twinKind: asked.twinKind as TwinKindName,
+    carry: {},
   }
   const recordSays = performer.check ? await performer.check(ctx) : null
   if (recordSays) return refused(422, recordSays, 'The record says no')

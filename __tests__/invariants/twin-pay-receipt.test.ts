@@ -28,6 +28,8 @@ const h = vi.hoisted(() => ({
   gateCalls: [] as string[],
   direction: 'PAYABLE' as string,
   payCalls: [] as { inTx: boolean; input: Record<string, unknown> }[],
+  failNext: null as string | null,
+  emitted: [] as { event: Record<string, unknown>; actor: unknown; committed: boolean; afterPay: number }[],
 }))
 
 function isPlain(v: unknown): v is Row {
@@ -55,6 +57,7 @@ function table(name: string, t: () => Tables) {
     name === 'twinApproval' ? { ...r, twinAction: { ...t().twinAction.find((a) => a.id === r.twinActionId), authorityPerson: { name: 'Dana Whitfield' } } } : r
   return {
     create: async ({ data }: { data: Row }) => {
+      if (h.failNext === `${name}.create`) { h.failNext = null; throw new Error(`${name} could not be written`) }
       const row: Row = { id: `${name}-${++h.db.seq}`, ts: new Date(), ...(name === 'twinApproval' ? { decision: 'PENDING' } : {}), ...data }
       if (name === 'twinAction' && row.dedupKey && rows().some((r) => r.companyId === row.companyId && r.action === row.action && r.dedupKey === row.dedupKey)) {
         throw Object.assign(new Error('unique'), { code: 'P2002' })
@@ -116,8 +119,17 @@ vi.mock('@/lib/money/invoice-payment', () => ({
     const payment = await tx.payment.create({ data: { invoiceId: input.invoiceId, reference: input.reference, method: input.method, appliedById: input.appliedById } })
     return {
       ok: true, payment, status: 'PAID', side: 'PAYER', doc: 'invoice', amountCents: 520_000,
+      event: { type: 'invoice.paid', subjectType: 'Invoice', subjectId: input.invoiceId, actorPersonId: input.appliedById, payload: { paymentId: payment.id } },
       invoice: { id: input.invoiceId, number: 'PR-2026-0451', currency: 'USD', totalCents: 520_000, paidCents: 520_000, outstandingCents: 0 },
     }
+  },
+  // Money's sender for the event its write returns. Records whether the
+  // payment it names is already in the committed tables when it is called.
+  emitInvoicePaid: async (result: any, actor?: unknown) => {
+    if (!result?.ok) return null
+    const committed = (h.db.tables.payment ?? []).some((p) => p.id === result.payment.id)
+    h.emitted.push({ event: result.event, actor, committed, afterPay: h.payCalls.length })
+    return { id: 'event-1' }
   },
 }))
 
@@ -158,6 +170,8 @@ function fresh() {
   h.gateCalls = []
   h.direction = 'PAYABLE'
   h.payCalls = []
+  h.emitted = []
+  h.failNext = null
   h.reportError.mockClear()
 }
 beforeEach(fresh)
@@ -252,6 +266,40 @@ describe('paying an invoice receipt from Ask Etyme', () => {
     })
     expect(out).toMatchObject({ ok: false, status: 403 })
     expect(h.payCalls).toEqual([])
+  })
+})
+
+describe('what a payment from the chat tells the record', () => {
+  it('a payment the chat records tells the record once, after it is committed, as the twin', async () => {
+    await runTwin(CLIENT)
+    const [q] = asked('invoice_receipt.pay')
+    // Refused yeses tell nothing.
+    await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'WEB', decider: AP_CLERK })
+    expect(h.emitted).toEqual([])
+
+    const out = await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'WEB', decider: AP_CLERK, answer: { reference: 'ACH 7781' } })
+    expect(out).toMatchObject({ ok: true, outcome: 'PERFORMED' })
+    expect(h.emitted).toHaveLength(1)
+    const [sent] = h.emitted
+    expect(sent.committed).toBe(true)
+    expect(sent.event).toMatchObject({ type: 'invoice.paid', subjectId: RECEIPT, actorPersonId: 'pat' })
+    expect(sent.actor).toEqual({ actorKind: 'TWIN', actorTwinKind: 'PROGRAM_MANAGER' })
+    // Nothing of the event is kept in the ledger's own line.
+    const line = T().twinAction.find((e) => e.actorType === 'PERSON' && e.outcome === 'PERFORMED')
+    expect(JSON.stringify(line!.payload)).not.toContain('invoice.paid')
+  })
+
+  it('a payment that rolls back tells the record nothing', async () => {
+    await runTwin(CLIENT)
+    const [q] = asked('invoice_receipt.pay')
+    // The ledger's line after the payment cannot be written: the whole
+    // transaction rolls back, the payment with it.
+    h.failNext = 'automationLog.create'
+    const out = await decideApproval({ approvalId: q.id, decision: 'APPROVED', surface: 'WEB', decider: AP_CLERK, answer: { reference: 'ACH 7781' } })
+    expect(out).toMatchObject({ ok: false, status: 500 })
+    expect(h.payCalls).toHaveLength(1)
+    expect(T().payment).toEqual([])
+    expect(h.emitted).toEqual([])
   })
 })
 
