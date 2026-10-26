@@ -155,8 +155,17 @@ export async function laddersAbove(
 export async function weekTurn(
   week: TurnWeek,
   companyId: string
-): Promise<{ turn: Turn; ladder: LadderRung[]; signers: Signer[] }> {
+): Promise<WeekTurnRead> {
   return (await weekTurns([week], companyId)).get(week.id)!
+}
+
+/** What `weekTurn` answers for one week. */
+export interface WeekTurnRead {
+  turn: Turn
+  ladder: LadderRung[]
+  signers: Signer[]
+  /** The signatures still missing, in order, each firm by name (null where it could not be read). */
+  unsigned: (Signer & { name: string | null })[]
 }
 
 /** One week as `weekTurn` reads it. */
@@ -177,8 +186,8 @@ export interface TurnWeek {
 export async function weekTurns(
   weeks: readonly TurnWeek[],
   companyId: string
-): Promise<Map<string, { turn: Turn; ladder: LadderRung[]; signers: Signer[] }>> {
-  const out = new Map<string, { turn: Turn; ladder: LadderRung[]; signers: Signer[] }>()
+): Promise<Map<string, WeekTurnRead>> {
+  const out = new Map<string, WeekTurnRead>()
   if (weeks.length === 0) return out
   const ladders = await laddersAbove(
     weeks.map((w) => ({
@@ -210,7 +219,13 @@ export async function weekTurns(
   for (const { w, ladder, signers } of shaped) {
     const mine = live.filter((a) => a.timesheetId === w.id)
     const turn = turnOf(signers, companyId, (s) => signedBy(s, w, mine), (id) => names.get(id) ?? 'The firm above you')
-    out.set(w.id, { turn, ladder, signers })
+    // The signatures still missing, in the order they come, each firm by
+    // name: what a reader who signs nothing on the week (the worker, or
+    // a one-person firm reading its own) is told it is waiting on.
+    const unsigned = signers
+      .filter((s) => !signedBy(s, w, mine))
+      .map((s) => ({ ...s, name: names.get(s.companyId) ?? null }))
+    out.set(w.id, { turn, ladder, signers, unsigned })
   }
   return out
 }

@@ -18,7 +18,8 @@ import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { mayFile, rungVerdict } from './filing'
 import { weekFlag, flaggedFirst, flagAsksReason } from '@/lib/timesheet-flag'
-import { weekTurn, ladderAbove } from './ladder'
+import { weekTurn, weekTurns, ladderAbove } from './ladder'
+import { firmsAcceptingOnlyFor, withoutOwnFirmAcceptance } from '@/lib/money/own-firm-acceptance'
 import { topDown } from './chain-turn'
 import { approvalWordsReadLog } from './approval-by-email'
 import { approvalWordsFor } from '@/lib/week-approval'
@@ -296,6 +297,38 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // ── Where the reader's own week stands ───────────────────────────────
+  //
+  // The third walk, 2026-10-26: Colleen Byrne, a one-person firm, read her
+  // week of Oct 4–10 as "SUBMITTED · Nobody approves their own hours." and
+  // nothing else, while the week's own page said Harlow Health had signed
+  // and Ask Etyme said it waited on Halcyon Talent. The reader signs
+  // nothing on her own week, so the row tells her what the week is
+  // waiting on, the way a client's row does: who signed at the top, and
+  // the next firm by name. A firm that accepts only for the worker herself
+  // is never the one waited on — the signature above stands in for it
+  // (`firmsAcceptingOnlyFor`, the approve route's own rule).
+  const ownWeeks = timesheets.filter(
+    (t) => t.status === 'SUBMITTED' && t.sellContract.personId === caller.person.id
+  )
+  const ownState = new Map<string, { topSigned: boolean; waitingOn: string | null }>()
+  if (ownWeeks.length > 0) {
+    const reads = await weekTurns(ownWeeks, ownWeeks[0].sellContract.companyId)
+    const soleFirms = await firmsAcceptingOnlyFor(
+      caller.person.id,
+      [...new Set(ownWeeks.map((t) => t.sellContract.companyId))]
+    )
+    for (const t of ownWeeks) {
+      const read = reads.get(t.id)
+      if (!read) continue
+      const unsigned = withoutOwnFirmAcceptance(read.unsigned, soleFirms)
+      ownState.set(t.id, {
+        topSigned: !read.unsigned.some((u) => u.role === 'CLIENT_APPROVAL'),
+        waitingOn: unsigned[0]?.name ?? null,
+      })
+    }
+  }
+
   // ── Below the top of a chain, the client decided the overtime ───────
   //
   // The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): which
@@ -428,11 +461,15 @@ export async function GET(request: NextRequest) {
             : entitled.ok && !signable.ok && mine
               ? { ok: false, reason: waitingSentence(isClientSide, otherParty) }
               : entitled
+        const ownWeek = ownState.get(t.id) ?? null
         const signature = {
           youSigned: mine != null,
           youSignedAt: mine?.at.toISOString() ?? null,
           waitingOnYou: entitled.ok && signable.ok && t.status === 'SUBMITTED',
-          waitingOn: mine != null && t.status === 'SUBMITTED' ? otherParty : null,
+          waitingOn: mine != null && t.status === 'SUBMITTED' ? otherParty : ownWeek?.waitingOn ?? null,
+          // On the reader's own week: whether the top of the chain has
+          // signed it, so the row reads "Signed · waiting on Halcyon Talent".
+          signedAtTop: ownWeek?.topSigned ?? false,
           says:
             mine == null
               ? null

@@ -12,6 +12,7 @@ import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { DecideOvertime, type PendingWeek } from './decide-overtime'
+import { statusWords } from './status-words'
 import { listTotals, totalsRowOf } from './totals'
 import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
@@ -100,6 +101,8 @@ interface Timesheet {
     youSignedAt: string | null
     waitingOnYou: boolean
     waitingOn: string | null
+    /** On the reader's own week: whether the top of the chain signed it. */
+    signedAtTop?: boolean
     says: string | null
   }
   overtime?: OvertimeState | null
@@ -984,12 +987,12 @@ export default function TimesheetsPage() {
         <div className="flex items-center gap-2">
           {/* A week this side has signed reads as signed, whatever the
               row's status says — the status waits on both firms. */}
-          <span className={`chip ${row.signature?.youSigned && row.status === 'SUBMITTED' ? 'chip--verified' : statusChipClass(row.status)}`}>
-            {row.signature?.youSigned && row.status === 'SUBMITTED' ? 'SIGNED' : row.status}
+          <span className={`chip ${statusWords(row).signed ? 'chip--verified' : statusChipClass(row.status)}`}>
+            {statusWords(row).chip}
           </span>
-          {row.signature?.youSigned && row.status === 'SUBMITTED' && row.signature.waitingOn && (
-            <span className="text-[11px] text-etyme-muted" title={row.signature.says ?? ''}>
-              waiting on {row.signature.waitingOn}
+          {statusWords(row).waiting && (
+            <span className="text-[11px] text-etyme-muted" title={row.signature?.says ?? ''}>
+              {statusWords(row).waiting}
             </span>
           )}
           {/* Who approved, where the client approved by email — said the
@@ -1028,7 +1031,7 @@ export default function TimesheetsPage() {
           {/* A button the server would refuse is not a button. The
               commonest case is the person whose week it is: their hours,
               somebody else's signature. */}
-          {row.status === 'SUBMITTED' && !row.mayApprove && !row.signature?.youSigned && row.mayApproveWhyNot && (
+          {row.status === 'SUBMITTED' && !row.mayApprove && !row.signature?.youSigned && !row.signature?.waitingOn && row.mayApproveWhyNot && (
             <span className="text-[11px] text-etyme-faint">{row.mayApproveWhyNot}</span>
           )}
           {row.status === 'SUBMITTED' && row.mayApprove && (
