@@ -485,6 +485,9 @@ describe('Sade, owner of Halcyon Talent, where nobody else sends bills', () => {
       builtFrom: { timesheetIds: ['ts-a', 'ts-b'], weeks: 2, expenses: 0, milestones: 0 },
       dueSays: 'Due May 1, 2026: net 30 from the bill date.',
       heldBack: null, setAside: [], invoiceId: 'inv-0042', invoiceNumber: 'INV-0042',
+      // Money's due-on-sending number (lib/money/supplier-bills), spread so the
+      // literal reads the same before and after that field lands.
+      ...{ pastDue: null },
     },
     askedYouBecause: 'Only you send bills here, so Ask Etyme asks you.',
   }

@@ -36,7 +36,7 @@ import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
-import { offRecord } from './transaction'
+import { offRecord, asksAboutFirmMoney, anotherFirmsMoney, NOT_ANOTHER_BOOK } from './transaction'
 import type { WorkerAnswer } from './worker'
 
 // ── What was asked ───────────────────────────────────────────────────
@@ -1572,7 +1572,14 @@ export function billFromPayload(p: unknown): BillCardPayload | null {
     isRecord(x) && typeof x.personName === 'string' && isHours(x.hours) && isMinor(x.amountMinor))
   if (people.length !== p.people.length) return null
   const ids = builtFrom.timesheetIds.filter((x): x is string => typeof x === 'string')
+  // Money's due-on-sending line, kept apart from its sentence (which is
+  // already in `dueSays`); null where the bill is not yet due when sent.
+  const late = isRecord(p.pastDue) && isMinor(p.pastDue.daysPast) && typeof p.pastDue.says === 'string'
+    ? { daysPast: p.pastDue.daysPast, says: p.pastDue.says }
+    : null
+  const pastDue = { pastDue: late }
   return {
+    ...pastDue,
     customerName: p.customerName,
     period: { start: period.start, end: period.end, label: period.label },
     hours: p.hours,
@@ -1845,9 +1852,21 @@ export function boundarySays(state: ModelState): string {
 export async function respond(
   text: string,
   read: Readers,
-  opts: { env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[]; needs?: () => Promise<number | QueueRead | null>; party?: Party }
+  opts: {
+    env: Record<string, string | undefined>; now?: Date; companyKind?: string | null; permissions?: readonly string[]; needs?: () => Promise<number | QueueRead | null>; party?: Party
+    /** The reader's own company, by name: what it pays or is paid is its own book. */
+    ownCompany?: string | null
+  }
 ): Promise<Answer> {
   let intent = readAsk(text)
+  // Never beyond the transaction (founder, 2026-10-18): what another firm
+  // pays, bills or charges, where the reader is not the other party, is
+  // refused by rule before any intent and before the model is considered.
+  // Found by the walk of 2026-10-22: "What does Brightmoor Staffing pay
+  // Helena Marsh?" was answered "needs the model".
+  if (!['HELP', 'WHY', 'DECIDE', 'NEEDS'].includes(intent.kind) && asksAboutFirmMoney(text, opts.ownCompany)) {
+    if (anotherFirmsMoney(text, opts.ownCompany ?? null, await read.vocabulary())) return { kind: 'TEXT', says: NOT_ANOTHER_BOOK }
+  }
   // A firm's own book is answered only where this seat has the read; a
   // reader that is not there leaves the question to the rest of the rules.
   const book = { ROLLOFF: read.rollingOff, BENCH: read.bench, UNBILLED: read.unbilledWeeks, UNPAID: read.unpaidBills } as const
@@ -2380,7 +2399,15 @@ export const ROLLOFF_DAYS = 30
 
 export interface RollRow { personId: string; person: string; site: string | null; endsOn: string; daysLeft: number; href: string }
 export interface BenchRow { personId: string; person: string; free: string; skills: string[]; href?: string }
-export interface UnbilledRow { timesheetId: string; person: string; customer: string | null; periodStart: string; periodEnd: string; hours: number; signedOn: string | null; href: string }
+export interface UnbilledRow {
+  timesheetId: string; person: string; customer: string | null; periodStart: string; periodEnd: string; hours: number; signedOn: string | null; href: string
+  /** What the week bills, in minor units, as Today prices it; null where it cannot be priced. */
+  amountMinor?: number | null
+  currency?: string
+  /** The number of a draft bill that already holds the week, not yet sent. */
+  draft?: string | null
+  personId?: string
+}
 export interface UnpaidRow { invoiceId: string; number: string; customer: string | null; dueMinor: number; currency: string; dueOn: string | null; held: boolean; href: string }
 
 /** "One person rolls", "Three people roll". */
@@ -2430,16 +2457,28 @@ export function unbilledSays(rows: readonly UnbilledRow[], now: Date): string {
   if (rows.length === 0) return 'Every signed week is on a bill. Checked just now.'
   const r = rows[0]
   const waited = r.signedOn ? Math.max(0, Math.round((utcMidnight(now) - Date.parse(`${r.signedOn}T00:00:00Z`)) / DAY_MS)) : null
-  return `Bill ${r.customer ?? 'the customer'} for ${possessive(r.person)} week of ${weekSpan(r.periodStart, r.periodEnd)} first` +
-    `${waited != null && waited > 0 ? `; it was signed ${waited} day${waited === 1 ? '' : 's'} ago` : ''}. ` +
-    `${counted(rows.length, 'signed week')} ${rows.length === 1 ? 'is' : 'are'} on no bill yet. Checked just now.`
+  const ago = waited != null && waited > 0 ? `; it was signed ${waited} day${waited === 1 ? '' : 's'} ago` : ''
+  const first = r.draft
+    ? `Send draft bill ${r.draft} to ${r.customer ?? 'the customer'} for ${possessive(r.person)} week of ${weekSpan(r.periodStart, r.periodEnd)} first${ago}.`
+    : `Bill ${r.customer ?? 'the customer'} for ${possessive(r.person)} week of ${weekSpan(r.periodStart, r.periodEnd)} first${ago}.`
+  const drafts = rows.filter((x) => x.draft).length
+  const onDrafts = drafts === 0 ? ''
+    : drafts === rows.length ? (rows.length === 1 ? ' It is on a draft bill nobody has sent.' : ' All of them are on draft bills nobody has sent.')
+    : ` ${numberWord(drafts)} of them ${drafts === 1 ? 'is' : 'are'} on a draft bill nobody has sent.`
+  return `${first} ${counted(rows.length, 'signed week')} ${rows.length === 1 ? 'is' : 'are'} on no sent bill yet.${onDrafts} Checked just now.`
 }
 
 export function unbilledTable(rows: readonly UnbilledRow[]): ListTable {
   return {
     caption: 'Signed weeks on no bill yet',
-    head: ['Person', 'Week', 'Hours', 'Customer'],
-    rows: rows.map((r) => ({ cells: [r.person, weekSpan(r.periodStart, r.periodEnd), hrs(r.hours), r.customer ?? '—'], href: r.href })),
+    head: ['Person', 'Week', 'Hours', 'Customer', 'Bills'],
+    rows: rows.map((r) => ({
+      cells: [
+        r.person, weekSpan(r.periodStart, r.periodEnd), hrs(r.hours), r.customer ?? '—',
+        `${r.amountMinor != null && r.currency ? money(r.amountMinor, r.currency) : '—'}${r.draft ? ` · draft ${r.draft}` : ''}`,
+      ],
+      href: r.href,
+    })),
   }
 }
 

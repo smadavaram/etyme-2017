@@ -23,6 +23,7 @@ import { modelOnFor, recordModelPrompt } from '@/lib/model-boundary'
 import type { MaskVocabulary } from './mask'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
+import { actingInSeat, seatTrail, type LiveSeat } from '@/lib/program-seat'
 import { andAll } from '@/lib/walls'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysWaiting } from '@/lib/auto-approval'
@@ -30,9 +31,8 @@ import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-pa
 import { fromPrismaDecimal } from '@/lib/money'
 import { NextRequest } from 'next/server'
 import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
-import { ladderFor } from '@/lib/work-chain-read'
-import { whereHoursLive } from '@/lib/work-chain'
 import { firmBilling } from './billing'
+import { firmTuesday } from '@/lib/money/firm-today'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import {
@@ -154,8 +154,15 @@ const isoDay = (d: Date) => d.toISOString().slice(0, 10)
  * two answers read through another route in-process (the bench), so the
  * chat and the page cannot disagree about who is on it.
  */
-export function readersFor(caller: CallerContext, companyId: string, request?: NextRequest): Readers {
+export function readersFor(
+  caller: CallerContext,
+  companyId: string,
+  request?: NextRequest,
+  /** The seat the caller's firm holds in a client's program, where it holds one (lib/program-seat). */
+  opts: { seat?: LiveSeat | null } = {},
+): Readers {
   const ownCompany = caller.company?.id === companyId
+  const seat = opts.seat ?? null
   const logPeople = (ids: string[], reason: string) =>
     logBulkAccess([...new Set(ids)], {
       actorPersonId: caller.person.id,
@@ -365,23 +372,29 @@ export function readersFor(caller: CallerContext, companyId: string, request?: N
       if (!ownCompany || !company) {
         return { ok: false as const, says: 'Timesheets are read at your own company; switch to it first.' }
       }
-      if (company.kind !== 'CLIENT') {
+      // A firm seated in a client's program reads that program's weeks,
+      // under the seat's permissions and never its own firm's (the
+      // founder's walk, 2026-10-22: the chip said "Your client approves
+      // those timesheets" above a card asking the seat to approve one).
+      const client = company.kind === 'CLIENT' ? { id: company.id, name: company.name } : seat ? seat.clientCompany : null
+      const acting = company.kind !== 'CLIENT' && seat ? actingInSeat(caller, seat) : caller
+      if (!client) {
         return {
           ok: false as const,
           says: 'Your client approves those timesheets; the ones you accept are on Timesheets.',
           links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
         }
       }
-      if (!hasAnyPermission(caller.permissions, ['timesheets.read', 'timesheets.approve'])) {
-        return { ok: false as const, says: deskRefusal('reads the timesheets waiting for approval', 'timesheets.approve', company.kind) }
+      if (!hasAnyPermission(acting.permissions, ['timesheets.read', 'timesheets.approve'])) {
+        return { ok: false as const, says: deskRefusal('reads the timesheets waiting for approval', 'timesheets.approve', 'CLIENT') }
       }
       // The same weeks the program dashboard lists to sign: filed, not yet
       // signed by the client, on a line at this client's sites, inside the
       // accounts this reader belongs to. No supplier is named, because in a
       // chain the week sits on a rung the client may not know by name.
-      const wall = await accountFilterFor(caller)
+      const wall = await accountFilterFor(acting)
       const where = {
-        sellContract: andAll(endClientFilter(company.id), wall.where),
+        sellContract: andAll(endClientFilter(client.id), wall.where),
         status: 'SUBMITTED',
         clientApprovedAt: null,
       }
@@ -414,10 +427,10 @@ export function readersFor(caller: CallerContext, companyId: string, request?: N
           actorPersonId: caller.person.id,
           actorCompanyId: company.id,
           action: 'TIMESHEET_VIEW',
-          reason: 'Read in Ask Etyme: which weeks are unsigned',
+          reason: seat && company.kind !== 'CLIENT' ? seatTrail(seat, 'Read in Ask Etyme: which weeks are unsigned') : 'Read in Ask Etyme: which weeks are unsigned',
         })
       }
-      return { ok: true as const, rows, total, company: company.name, maySign: hasPermission(caller.permissions, 'timesheets.approve') }
+      return { ok: true as const, rows, total, company: client.name, maySign: hasPermission(acting.permissions, 'timesheets.approve') }
     },
 
     async spendIn(from, to) {
@@ -807,49 +820,43 @@ export function readersFor(caller: CallerContext, companyId: string, request?: N
       if (!hasAnyPermission(caller.permissions, ['invoices.issue', 'invoices.read'])) {
         return { ok: false as const, says: deskRefusal('reads which signed weeks are not billed', 'invoices.issue', company.kind) }
       }
+      // Today's own list (lib/money/firm-today), read whole, so the chat and
+      // the Today figure "Signed and not yet billed" can never disagree: a
+      // week already on an invoice the payer recorded from this firm is
+      // left off by money's rule (lib/money/billed-elsewhere), and a week a
+      // draft holds is still counted and named as on that draft. Found by
+      // the walk of 2026-10-22: the chat told Techpeple to bill Helena
+      // Marsh's Sep 20–26 week that Computer Systems already held as
+      // INV-NTB82Y.
+      const tuesday = await firmTuesday(company.id)
+      let weeks = tuesday?.signedNotBilled.weeks ?? []
+      // An account wall narrows what one seat reads; it never adds a week.
       const wall = await accountFilterFor(caller)
-      const lines = await prisma.sellContract.findMany({
-        where: andAll({ companyId: company.id, state: { in: ['IN_PROGRESS', 'ENDED'] } }, wall.where),
-        take: 500,
-        select: { id: true, clientCompany: { select: { name: true } }, person: { select: { id: true, name: true } } },
-      })
-      if (lines.length === 0) return { ok: true as const, rows: [] }
-      // Where each line's hours are filed: its own contract on a direct
-      // placement, the bottom rung's where the firm sells somebody it buys
-      // (the generator's own reading, lib/work-chain).
-      const rungs = await ladderFor(lines.map((l) => l.id))
-      const hoursOn = new Map(lines.map((l) => [l.id, whereHoursLive(l.id, rungs)]))
-      const weeks = await prisma.timesheet.findMany({
-        where: {
-          sellContractId: { in: [...new Set(hoursOn.values())] },
-          // Signed at the top: a firm bills upward on the client's signature.
-          assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } },
-        },
-        orderBy: { periodStart: 'asc' },
-        take: 2000,
-        select: {
-          id: true, sellContractId: true, periodStart: true, periodEnd: true, totalHours: true, clientApprovedAt: true,
-          invoiceLines: { select: { sellContractId: true, invoice: { select: { status: true } } } },
-        },
-      })
-      const rows: UnbilledRow[] = []
-      for (const l of lines) {
-        const on = hoursOn.get(l.id)
-        for (const w of weeks) {
-          if (w.sellContractId !== on) continue
-          // On a bill of this line that was sent, or is being drafted, is billed.
-          const billed = w.invoiceLines.some((x) => x.sellContractId === l.id && !['CANCELLED', 'VOID'].includes(x.invoice?.status ?? ''))
-          if (billed) continue
-          rows.push({
-            timesheetId: w.id, person: l.person.name, customer: l.clientCompany?.name ?? null,
-            periodStart: isoDay(w.periodStart), periodEnd: isoDay(w.periodEnd), hours: Number(w.totalHours),
-            signedOn: w.clientApprovedAt ? isoDay(w.clientApprovedAt) : null,
-            href: `/dashboard/weeks/${w.id}`,
-          })
-        }
+      if (Object.keys(wall.where).length > 0 && weeks.length > 0) {
+        const mine = await prisma.sellContract.findMany({
+          where: andAll({ id: { in: [...new Set(weeks.map((w) => w.sellContractId))] } }, wall.where),
+          select: { id: true },
+        })
+        const ids = new Set(mine.map((m) => m.id))
+        weeks = weeks.filter((w) => ids.has(w.sellContractId))
       }
+      const signed = weeks.length
+        ? await prisma.timesheet.findMany({ where: { id: { in: weeks.map((w) => w.timesheetId) } }, select: { id: true, clientApprovedAt: true } })
+        : []
+      const signedOn = new Map(signed.map((t) => [t.id, t.clientApprovedAt]))
+      const rows: UnbilledRow[] = weeks.map((w) => {
+        const at = signedOn.get(w.timesheetId)
+        return {
+          timesheetId: w.timesheetId, person: w.personName, customer: w.billedToName,
+          periodStart: w.week.start, periodEnd: w.week.end, hours: w.signedHours,
+          signedOn: at ? isoDay(at) : null,
+          href: `/dashboard/weeks/${w.timesheetId}`,
+          amountMinor: w.amountMinor, currency: w.currency, draft: w.draft?.number ?? null,
+          personId: w.personId,
+        }
+      })
       rows.sort((a, b) => a.periodStart.localeCompare(b.periodStart) || a.person.localeCompare(b.person))
-      const people = [...new Set(lines.filter((l) => rows.some((r) => r.person === l.person.name)).map((l) => l.person.id))]
+      const people = [...new Set(rows.map((r) => r.personId!))]
       if (people.length) {
         logBulkAccess(people, {
           actorPersonId: caller.person.id, actorCompanyId: company.id, action: 'TIMESHEET_VIEW',

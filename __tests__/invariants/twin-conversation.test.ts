@@ -823,6 +823,8 @@ describe('Ask Etyme at a supplier: the bill it drafted, and a bill the customer 
     people: [{ personName: 'Rosa Delgado', hours: 80, amountMinor: 896000 }],
     builtFrom: { timesheetIds: ['ts-a', 'ts-b'], weeks: 2, expenses: 0, milestones: 0 },
     dueSays: 'Due May 1, 2026: net 30 from the bill date, as your agreement with Northbend Athletic says.',
+    // Money's due-on-sending number (lib/money/supplier-bills); its sentence is inside dueSays.
+    pastDue: null,
     heldBack: null,
     setAside: [],
     invoiceId: 'inv-rosa',
@@ -1661,7 +1663,7 @@ describe('every first screen names a person and the step in front of them (found
     }
     expect(await said('Who rolls off in the next 30 days?')).toBe('Plan Felix Brenner’s next job now; Felix Brenner rolls off at Northbend Athletic on Nov 6, 2026. One person rolls off in the next 30 days. Checked just now.')
     expect(await said('Who is on the bench?')).toBe('One person is on your bench: Karthik Menon. Checked just now.')
-    expect(await said('Which weeks are signed and not billed?')).toBe('Bill Computer Systems Inc for Helena Marsh’s week of Sep 20–26 first; it was signed 14 days ago. One signed week is on no bill yet. Checked just now.')
+    expect(await said('Which weeks are signed and not billed?')).toBe('Bill Computer Systems Inc for Helena Marsh’s week of Sep 20–26 first; it was signed 14 days ago. One signed week is on no sent bill yet. Checked just now.')
     expect(await said('Which bills are unpaid?')).toBe('Chase bill IN-1 first; Corveldt Aerospace is 4 days past the due date. One bill is unpaid: $95,000.00 in all. Checked just now.')
     // With nothing on the record, each says so.
     expect(rolloffSays([])).toBe('Nobody on your contracts rolls off in the next 30 days. Checked just now.')

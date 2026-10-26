@@ -139,6 +139,90 @@ export function namesSomebody(text: string, names: ReaderNames): boolean {
   return false
 }
 
+// ── Money between two other firms ────────────────────────────────────
+
+/**
+ * Words that mean the reader's own side of a deal: "what does Computer
+ * Systems owe us" is the reader's own book, whoever is named first.
+ */
+const OURS = /^(we|i|us|me|our|my|you|your|ourselves)\b/i
+
+/** "What does X pay …", "How much did X bill …": the payer, the verb and the rest. */
+const WHO_PAYS = /^(?:what|how much)\s+(?:does|did|do|will|would|is|was)\s+(.+?)\s+(?:pay(?:ing)?|bill(?:ing)?|charg(?:e|es|ing)|earn(?:ing)?|make|get paid|owe|spend)\b(.*)$/i
+/** "… paid by X", "… billed to X", "… charged by X". */
+const PAID_BY = /\b(?:paid|billed|charged|invoiced)\s+(?:by|to)\s+(.+?)\s*[?.]?$/i
+/** "X's rates", "X’s bill rate", "X's margin". */
+const FIRMS_RATE = /\b((?:[A-Z][\p{L}&.'-]*\s+){0,4}[A-Z][\p{L}&.'-]*)['’]s?\s+(?:bill |pay |hourly |day )?(?:rates?|margins?|mark-?ups?|prices?|fees?|pay)\b/u
+
+const plainOf = (s: string) => s.replace(/^(the|a|an)\s+/i, '').replace(/[?.!,;:]+$/, '').trim()
+
+/** Whether a name is the reader's own company, by its name or a pronoun for it. */
+function isOurs(name: string, own: string | null | undefined): boolean {
+  const n = plainOf(name)
+  if (!n || OURS.test(n)) return true
+  if (!own) return false
+  const a = bare(n)
+  const b = bare(own)
+  return a.length > 0 && (a === b || b.startsWith(`${a} `) || a.startsWith(`${b} `))
+}
+
+/** Whether the words name a firm that is not the reader: a firm on its record, a withheld one, or a name written as a firm is. */
+function aFirm(name: string, names: ReaderNames): boolean {
+  const n = plainOf(name)
+  if (!n) return false
+  const lower = squash(n)
+  // A person on the record is a person, not a firm: what she earns is a question for another rule.
+  if (names.people.some((p) => squash(p) === lower)) return false
+  if (knownFirm(n, names)) return true
+  if (firmsByForm(n).length > 0) return true
+  // Written with capitals, and not a person on the record: read as a firm the reader does not trade with.
+  return /^\p{Lu}/u.test(n) && n.split(/\s+/).every((w) => /^\p{Lu}/u.test(w) || ['of', 'and', '&'].includes(w))
+}
+
+/** Words that name no firm in particular; "other companies" is the rule above's, not this one's. */
+const NO_FIRM = /^(other|another|any|every|all|each|some|most|their|they|he|she|it|this|that|these|those|who|which|people|suppliers?|clients?|customers?|vendors?|firms?|companies)\b/i
+
+/**
+ * The payer a question asks about, by the words alone and with no read:
+ * null where the question has no firm's money in it, where the payer or
+ * the other party is the reader itself, or where the words name no firm
+ * in particular. Only a payer left standing costs a read of the names.
+ */
+export function firmMoneyAsk(text: string, own: string | null | undefined): { payer: string } | null {
+  const t = text.trim().replace(/\s+/g, ' ')
+  const standing = (payer: string) => (isOurs(payer, own) || NO_FIRM.test(plainOf(payer)) ? null : { payer })
+  const who = t.match(WHO_PAYS)
+  if (who) {
+    const rest = plainOf(who[2] ?? '')
+    // The reader is the other party: its own transaction.
+    if (rest && (isOurs(rest.split(/\s+(?:for|on|in|this|last|per|an?)\b/i)[0], own) || (own && squash(rest).includes(squash(own))))) return null
+    return standing(who[1])
+  }
+  const by = t.match(PAID_BY)
+  if (by) return standing(by[1])
+  const rate = t.match(FIRMS_RATE)
+  if (rate) return standing(rate[1])
+  return null
+}
+
+/** The cheap test, no read: whether the names need reading at all. */
+export function asksAboutFirmMoney(text: string, own?: string | null): boolean {
+  return firmMoneyAsk(text, own) != null
+}
+
+/**
+ * Whether a question asks what a firm other than the reader pays, bills,
+ * charges or earns, or what its rates are, where the reader is not the
+ * other party (founder, 2026-10-18: it never goes beyond the
+ * transaction). "What does Brightmoor Staffing pay Helena Marsh?" asked
+ * at Techpeple is Brightmoor's book; "What does Computer Systems owe
+ * us?" is Techpeple's own.
+ */
+export function anotherFirmsMoney(text: string, own: string | null | undefined, names: ReaderNames): boolean {
+  const ask = firmMoneyAsk(text, own)
+  return ask != null && aFirm(ask.payer, names)
+}
+
 export type OffRecord = typeof ONLY_THE_RECORD | typeof NOT_ANOTHER_BOOK
 
 /**

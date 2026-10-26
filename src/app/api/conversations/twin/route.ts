@@ -10,7 +10,8 @@ import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
 import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine } from './worker'
-import { seatFor } from '@/lib/program-seat'
+import { seatFor, type LiveSeat } from '@/lib/program-seat'
+import { programQueue } from '@/app/api/program/queue'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
 
@@ -75,7 +76,7 @@ import { owedTotal } from './owed'
 async function pictureFor(request: NextRequest): Promise<Picture | null> {
   try {
     const res = await programPicture(request)
-    if (!res.ok) return null
+    if (!res?.ok) return null
     const body = await res.json()
     const summary = body?.data?.summary
     if (typeof summary?.activeContractors !== 'number') return null
@@ -99,18 +100,51 @@ async function pictureFor(request: NextRequest): Promise<Picture | null> {
 }
 
 /**
- * What needs this seat, as one number: GET /api/decisions' own `total`
- * for this caller, the figure the Ask Etyme mark carries as its badge, so
- * the headline and the badge cannot disagree. Null where the queue
- * refuses the seat or cannot be read; the headline then says what the
- * twin's own questions say.
+ * The seat this caller's firm holds in a client's program, read once per
+ * request (the greeting, the mark and the party all ask). Null for a
+ * client, a one-person firm, a worker, or a firm with no seat.
  */
-function queueFor(request: NextRequest): () => Promise<QueueRead | null> {
+const seats = new WeakMap<object, Promise<LiveSeat | null>>()
+function seatOf(caller: Caller): Promise<LiveSeat | null> {
+  let got = seats.get(caller)
+  if (!got) {
+    const kind = caller.company?.kind ?? null
+    got = !asWorker(caller) && kind && kind !== 'CLIENT' && kind !== 'CONSULTANT_CORP'
+      ? seatFor(caller, null).catch(() => null)
+      : Promise.resolve(null)
+    seats.set(caller, got)
+  }
+  return got
+}
+
+/**
+ * What needs this seat, as one number and its rows: the figure the Ask
+ * Etyme mark carries as its badge, so the headline and the badge cannot
+ * disagree. Null where the queue refuses the seat or cannot be read; the
+ * headline then says what the twin's own questions say.
+ *
+ * Which queue is the program page's own answer (the founder's walk,
+ * 2026-10-22): a firm seated in a client's program reads that program's
+ * queue, `programQueue` (app/api/program/queue), the very rows the
+ * program page draws under "needs you"; every other seat reads
+ * GET /api/decisions for its own firm. An MSP's greeting read its own
+ * firm's decisions while its page read the client's, and the two said
+ * different things about one program.
+ */
+function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead | null> {
   let read: Promise<QueueRead | null> | null = null
   // Read once per request however often it is asked: the headline, the
   // names in it and the cards are one read of one queue.
   return () => (read ??= (async () => {
     try {
+      const seat = await seatOf(caller)
+      if (seat) {
+        const program = await programQueue(caller, seat.clientCompany.id, { trail: 'Ask Etyme' })
+        if (!program) return null
+        // The page's rows, read through the same door as the decisions
+        // queue's, so a card and a name are drawn one way.
+        return queueFrom({ data: { total: program.rows.length, decisions: program.rows } })
+      }
       const res = await decisionQueue(request)
       if (!res.ok) return null
       // The same field the mark reads (`owedFrom` in lib/owed-count): one
@@ -122,8 +156,8 @@ function queueFor(request: NextRequest): () => Promise<QueueRead | null> {
   })())
 }
 
-function needsFor(request: NextRequest): () => Promise<number | null> {
-  const queue = queueFor(request)
+function needsFor(request: NextRequest, caller: Caller): () => Promise<number | null> {
+  const queue = queueFor(request, caller)
   return async () => (await queue())?.total ?? null
 }
 
@@ -134,7 +168,7 @@ function needsFor(request: NextRequest): () => Promise<number | null> {
 async function partyFor(caller: Caller): Promise<{ party: Party; client: string | null }> {
   if (asWorker(caller)) return { party: 'WORKER', client: null }
   const kind = caller.company?.kind ?? null
-  const seat = kind && kind !== 'CLIENT' && kind !== 'CONSULTANT_CORP' ? await seatFor(caller, null).catch(() => null) : null
+  const seat = await seatOf(caller)
   const client = seat?.clientCompany?.name ?? null
   return { party: partyOf({ companyKind: kind, seatedAt: client }), client }
 }
@@ -213,7 +247,7 @@ export async function GET(request: NextRequest) {
     const company = caller.company
     const thread = threadFor(caller, take)
     const picture = pictureFor(request)
-    const queue = queueFor(request)
+    const queue = queueFor(request, caller)
     void queue()
     // A one-person firm is the firm and the worker: her own week is read
     // from her own pages beside the rest, and said in her greeting.
@@ -226,7 +260,7 @@ export async function GET(request: NextRequest) {
     // The boundary line reads the company's own switch, so it says what is
     // true for this company; it is the greeting's last line.
     const model = modelState(modelSwitch.on, process.env)
-    const answer = await today(readersFor(caller, company.id, request), {
+    const answer = await today(readersFor(caller, company.id, request, { seat: await seatOf(caller) }), {
       greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client, ownWeek: week,
     })
     // Said, so read: the section empties itself on the next greeting.
@@ -251,7 +285,7 @@ async function owedCount(caller: Caller, request: NextRequest) {
     return NextResponse.json({ error: { code: 'NO_COMPANY', message: NO_COMPANY } }, { status: 403 })
   }
   try {
-    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request), needs: needsFor(request) })
+    const total = await owedTotal({ worker, facts: () => workerFacts(caller, request), needs: needsFor(request, caller) })
     return NextResponse.json({ data: { total } })
   } catch (err) {
     await reportError('Ask Etyme could not count what a seat owes', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
@@ -337,8 +371,9 @@ export async function POST(request: NextRequest) {
       ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK'].includes(readWorkerAsk(text))
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request) })
-      : await respond(text, readersFor(caller, companyId, request), {
-        env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: queueFor(request), party: who.party,
+      : await respond(text, readersFor(caller, companyId, request, { seat: await seatOf(caller) }), {
+        env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: queueFor(request, caller), party: who.party,
+        ownCompany: caller.company.name,
       })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
