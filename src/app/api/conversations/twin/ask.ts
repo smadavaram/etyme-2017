@@ -1491,11 +1491,17 @@ export interface ToldReceipt {
  */
 export function toldSays(told: readonly ToldReceipt[], stale: readonly string[] = []): RichLine | null {
   if (told.length === 0 && stale.length === 0) return null
+  // Pay is never offered on a receipt that fails the check. What the
+  // paying desk may do instead is said: an hours difference is the one a
+  // person may pass, as an exception recorded with a reason on the
+  // receipt's page (the payment gate's own words, lib/invoice-match);
+  // any other difference waits for the supplier's correction.
   const one = (t: ToldReceipt) => {
-    const what = t.hoursBilled != null && t.hoursAccepted != null && t.hoursBilled !== t.hoursAccepted
-      ? `${t.number} bills ${hrs(t.hoursBilled)} hours against ${hrs(t.hoursAccepted)} approved`
-      : `${t.number} does not match the approved hours or the contract rate`
-    return `${what}; it cannot be paid until ${t.supplier ?? 'the supplier'} corrects it.`
+    if (t.hoursBilled != null && t.hoursAccepted != null && t.hoursBilled !== t.hoursAccepted) {
+      return `${t.number} bills ${hrs(t.hoursBilled)} hours against ${hrs(t.hoursAccepted)} approved. ` +
+        `Ask ${t.supplier ?? 'the supplier'} to correct it, or record an exception with a reason on its page.`
+    }
+    return `${t.number} does not match the approved hours or the contract rate; it cannot be paid until ${t.supplier ?? 'the supplier'} corrects it.`
   }
   const lines = told.map(one)
   if (stale.length) lines.push(`${listed([...stale])}, flagged last night, ${stale.length === 1 ? 'matches' : 'match'} now.`)

@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { respond, unbilledSays, unbilledTable, type Readers, type UnbilledRow } from '@/app/api/conversations/twin/ask'
+import { respond, unbilledSays, unbilledTable, toldSays, type Readers, type UnbilledRow } from '@/app/api/conversations/twin/ask'
 import { anotherFirmsMoney, asksAboutFirmMoney, NOT_ANOTHER_BOOK } from '@/app/api/conversations/twin/transaction'
 
 const NOW = new Date('2026-10-12T15:00:00Z')
@@ -103,5 +103,24 @@ describe('another company’s book is refused in one sentence, before any model'
     expect(asksAboutFirmMoney('What did we spend by supplier this month?', 'Northbend Athletic')).toBe(false)
     expect(asksAboutFirmMoney('What do other companies pay for a data engineer?', 'Northbend Athletic')).toBe(false)
     expect(asksAboutFirmMoney('What is our average bill rate for data engineers?', 'Northbend Athletic')).toBe(false)
+  })
+})
+
+describe('every decision in the count is a card, and none offers to pay what fails the check', () => {
+  it('a card no single route can say yes to — a held start, a missing agreement, a roll-off — still has Not now beside Open', () => {
+    const tsx = src('src/app/dashboard/conversations/ask-etyme.tsx')
+    const view = tsx.slice(tsx.indexOf('function QueueCardView('), tsx.indexOf('function QueueCardView(') + 4000)
+    const open = view.slice(view.indexOf('className="btn-primary text-[13px]">Open</Link>'))
+    expect(open.slice(0, 400)).toContain('onClick={() => onLater(card)}>Not now</button>')
+  })
+
+  it('an invoice receipt that bills more hours than were approved is never put up to pay; the paying desk reads who corrects it, and the exception it may record with a reason', () => {
+    const line = toldSays([{ invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }])
+    expect(line?.says).toBe('PR-2026-0442 bills 41.5 hours against 40 approved. Ask Pinnacle Resourcing to correct it, or record an exception with a reason on its page.')
+  })
+
+  it('a receipt off the contract rate is not offered an exception, because a rate is changed on the contract and never waived on a receipt', () => {
+    const line = toldSays([{ invoiceId: 'inv-9', number: 'PR-9', supplier: 'Pinnacle Resourcing', hoursBilled: null, hoursAccepted: null }])
+    expect(line?.says).toBe('PR-9 does not match the approved hours or the contract rate; it cannot be paid until Pinnacle Resourcing corrects it.')
   })
 })

@@ -444,7 +444,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     // Told, not asked: the paying desk reads the receipt the twin told it about, first, with its link.
     const ap = await today(readers({ told: async () => ({ told: [{ invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }], stale: [] }) }), { now: NOW, greeting: true })
     expect(ap.kind === 'NEEDS' && ap.more![0]).toEqual({
-      says: 'PR-2026-0442 bills 41.5 hours against 40 approved; it cannot be paid until Pinnacle Resourcing corrects it.',
+      says: 'PR-2026-0442 bills 41.5 hours against 40 approved. Ask Pinnacle Resourcing to correct it, or record an exception with a reason on its page.',
       links: [{ text: 'PR-2026-0442', href: '/dashboard/invoices/inv-442' }],
     })
     // At most six lines before the closing sentence, however much is waiting.

@@ -287,7 +287,7 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 describe('Renata, AP clerk at Northbend Athletic', () => {
   it('the AP clerk asks “What needs me today?” and the rules answer it', async () => {
     await check('AP', 'What needs me today?', 'ANSWERED',
-      'Approve PR-2026-0441 from Pinnacle Resourcing; it matches the approved hours and the contract rate. Etyme is asking you one thing; approve it below, or reject it with a reason. Checked just now. PR-2026-0442 bills 41.5 hours against 40 approved; it cannot be paid until Pinnacle Resourcing corrects it.')
+      'Approve PR-2026-0441 from Pinnacle Resourcing; it matches the approved hours and the contract rate. Etyme is asking you one thing; approve it below, or reject it with a reason. Checked just now. PR-2026-0442 bills 41.5 hours against 40 approved. Ask Pinnacle Resourcing to correct it, or record an exception with a reason on its page.')
   })
 
   it('the AP clerk asks “Approve 1” and the rules answer it', async () => {

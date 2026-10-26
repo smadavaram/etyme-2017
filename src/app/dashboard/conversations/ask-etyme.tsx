@@ -765,8 +765,9 @@ function ActCard({ item, card, busy, onDecide, onLater, only, reason: given }: {
  * A decision from the count, as a card (founder, 2026-10-19: every
  * decision in the count is a card). Its title names the person and the
  * step, one line of fact under it, then the act where one existing route
- * performs it and Not now — or Open, to the decision's own page, where no
- * single route does. Not now changes nothing on the record.
+ * performs it — or Open, to the decision's own page, where no single
+ * route does — and Not now on every card. Not now changes nothing on the
+ * record: the decision stays in the count until somebody acts on it.
  */
 function QueueCardView({ card, done, busy, onAct, onLater }: {
   card: QueueCard
@@ -795,7 +796,14 @@ function QueueCardView({ card, done, busy, onAct, onLater }: {
               <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(card)}>Not now</button>
             </>
           ) : (
-            <Link href={card.href as Route} className="btn-primary text-[13px]">Open</Link>
+            // No single route says yes to it (a held start, a missing
+            // agreement, a roll-off, a candidate to review): Open goes to
+            // where it is decided, and Not now sets it aside for now, as on
+            // every card in the count (founder, 2026-10-19).
+            <>
+              <Link href={card.href as Route} className="btn-primary text-[13px]">Open</Link>
+              <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => onLater(card)}>Not now</button>
+            </>
           )}
         </div>
       )}
