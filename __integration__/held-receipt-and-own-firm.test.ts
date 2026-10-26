@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as readInvoice } from '@/app/api/invoices/[id]/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
 import { firmsAcceptingOnlyFor } from '@/lib/money/own-firm-acceptance'
-import { maySendBill } from '@/lib/money/bill-send'
+import { maySendBill, pastDueOnSendingNow, dueIfSentOn } from '@/lib/money/bill-send'
 import { billsDueAt } from '@/lib/money/supplier-bills'
 import { runSupplierBills } from '@/lib/money/supplier-bills-run'
 import { supplierAuthorityAt } from '@/lib/twin/run'
@@ -102,5 +102,35 @@ describe('who sends a bill Ask Etyme drafted, on the seeded world', () => {
     for (const s of seats) {
       expect((await maySendBill({ personId: s.personId, companyId, permissions: ['invoices.issue'] }, { id: bill.id })).ok).toBe(true)
     }
+  })
+})
+
+describe('a drafted bill’s card is read on the day it is drawn', () => {
+  it('a bill card says how far past due it is on the day it is read, not the night it was drafted', async () => {
+    const halcyon = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-halcyon' } })).id
+    const draft = await prisma.invoice.findFirstOrThrow({
+      where: { status: 'DRAFT', invoiceLines: { some: { sellContract: { companyId: halcyon } } } },
+      select: { id: true, periodEnd: true },
+    })
+    const stale = { dueSays: 'the night it was drafted', pastDue: { daysPast: 1, says: '1 day past due the day it arrives' } }
+    const day = (n: number) => new Date(draft.periodEnd.getTime() + n * 86_400_000)
+    const first = await pastDueOnSendingNow(draft.id, day(120), stale)
+    const later = await pastDueOnSendingNow(draft.id, day(130), stale)
+    expect(first?.read).toBe('TODAY')
+    expect(first?.dueSays).not.toBe(stale.dueSays)
+    const expected = await dueIfSentOn(draft.id, day(120))
+    expect(first?.dueSays).toBe(expected!.says)
+    expect(first?.pastDue).toEqual(expected!.pastDue)
+    // Ten days later the same card is ten days further past due, or still
+    // not past due where the agreement counts from the day it is sent.
+    if (first?.pastDue) expect(later?.pastDue?.daysPast).toBe(first.pastDue.daysPast + 10)
+    else expect(later?.pastDue).toBeNull()
+    console.log(`Halcyon draft read on two days: ${first?.pastDue?.says ?? first?.dueSays} | ${later?.pastDue?.says ?? later?.dueSays}`)
+  })
+
+  it('the stored words stand only where the bill can no longer be read', async () => {
+    const stale = { dueSays: 'Due Nov 30', pastDue: { daysPast: 3, says: '3 days past due the day it arrives' } }
+    const r = await pastDueOnSendingNow('no-such-bill', new Date(), stale)
+    expect(r).toEqual({ dueSays: 'Due Nov 30', pastDue: { daysPast: 3, says: '3 days past due the day it arrives' }, read: 'STORED' })
   })
 })

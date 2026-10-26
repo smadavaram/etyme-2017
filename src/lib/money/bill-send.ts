@@ -484,3 +484,73 @@ export async function maySendBills(caller: BillSender, invoiceIds: readonly stri
 export async function maySendBill(caller: BillSender, invoice: { id: string }): Promise<MaySendBill> {
   return (await maySendBills(caller, [invoice.id])).get(invoice.id)!
 }
+
+// ── How far past due a drafted bill is, on the day the card is read ───
+//
+// The third walk, 2026-10-26: the twin's question about sending a drafted
+// bill stored "sent <day>, N days past due" in its payload the night it
+// asked, so the card went stale the next morning, and a question asked
+// before the field existed never said it at all. The same rule as the
+// renewal count: rebuild on the day it is read. The chat and the Teams
+// card call this when they draw the card; the stored payload field is a
+// fallback only, for a bill that can no longer be read.
+
+export interface PastDueNow {
+  /** "Due Nov 30, 45 days from the day it is sent" — the agreement's rule, sent today. */
+  dueSays: string
+  /** Where the due date has already gone if it were sent today, the days and the sentence; else null. */
+  pastDue: { daysPast: number; says: string } | null
+  /** TODAY where read from the bill now; STORED where the bill could not be read and the payload's words stand. */
+  read: 'TODAY' | 'STORED'
+}
+
+/** What a stored question payload carried, read defensively. */
+function storedPastDue(stored: unknown): PastDueNow | null {
+  if (!stored || typeof stored !== 'object') return null
+  const p = stored as Record<string, unknown>
+  const pd = p.pastDue as Record<string, unknown> | null | undefined
+  const pastDue = pd && typeof pd === 'object' && typeof pd.daysPast === 'number' && typeof pd.says === 'string'
+    ? { daysPast: pd.daysPast, says: pd.says }
+    : null
+  if (typeof p.dueSays !== 'string' && !pastDue) return null
+  return { dueSays: typeof p.dueSays === 'string' ? p.dueSays : '', pastDue, read: 'STORED' }
+}
+
+/**
+ * For each bill still unsent (DRAFT or ISSUED), when it would fall due if
+ * it were sent on `today`, and how far past that it already is. One read
+ * however many cards. A bill already sent maps to null: its due date was
+ * fixed when it went, and the card about sending it is over. A bill that
+ * cannot be read is absent, and the caller falls back to what it stored.
+ */
+export async function pastDueOnSendingNowMany(
+  invoiceIds: readonly string[],
+  today: Date = new Date()
+): Promise<Map<string, PastDueNow | null>> {
+  const ids = [...new Set(invoiceIds)]
+  const out = new Map<string, PastDueNow | null>()
+  if (ids.length === 0) return out
+  const rows = await prisma.invoice.findMany({ where: { id: { in: ids } }, select: { id: true, status: true, ...DUE_SELECT } })
+  for (const r of rows) {
+    if (r.status !== 'DRAFT' && r.status !== 'ISSUED') { out.set(r.id, null); continue }
+    const { due, pastDue } = dueWhenSent(r, today)
+    out.set(r.id, { dueSays: due.says, pastDue, read: 'TODAY' })
+  }
+  return out
+}
+
+/**
+ * One bill's card, read today: `pastDueOnSendingNowMany` for one, with the
+ * question's stored payload (`{ dueSays, pastDue }`) as the fallback where
+ * the bill cannot be read. Null where the bill is already sent, or where
+ * neither today's reading nor the payload has anything to say.
+ */
+export async function pastDueOnSendingNow(
+  invoiceId: string,
+  today: Date = new Date(),
+  stored?: unknown
+): Promise<PastDueNow | null> {
+  const now = await pastDueOnSendingNowMany([invoiceId], today)
+  if (now.has(invoiceId)) return now.get(invoiceId)!
+  return storedPastDue(stored)
+}

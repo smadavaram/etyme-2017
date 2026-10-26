@@ -195,6 +195,8 @@ export async function runSupplierBills(
         dueSays: due?.says ?? '',
       }),
       surface, authority,
+      // The night's reading, kept as a fallback only: a card reads it again
+      // on the day it is drawn (`pastDueOnSendingNow` in lib/money/bill-send).
       payload: { ...p, ...(due ? { dueSays: due.says, pastDue: due.pastDue } : {}), invoiceId, invoiceNumber: inv.number, askedOn },
       dedupKey: invoiceId,
       byHand: `Send it from the Bills page: open ${inv.number} and press Send.`,
