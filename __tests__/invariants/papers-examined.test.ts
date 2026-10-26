@@ -470,3 +470,31 @@ describe('the firm’s list of requests counts days the way the person’s page 
     expect(RENEWAL_PACKET_KEY).toBe(CREDENTIAL_PACKET_KEY)
   })
 })
+
+describe('the worker is told who is asking', () => {
+  it('a request on the worker’s page names the firm asking, never ‘us’ or ‘a firm’', () => {
+    const on = new Date('2026-10-26T15:00:00Z')
+    const base = {
+      type: 'PROFESSIONAL_LICENSE', status: 'CLEAR', issuedAt: d('2024-11-10'), validFrom: d('2024-11-10'),
+      verifiedAt: d('2026-08-20'), provider: 'Wisconsin Board of Nursing', result: { license: 'RN 154-882', state: 'WI' },
+    }
+    const sentences = [
+      credentialChaseNow([{ ...base, expiresAt: d('2026-11-08') }], on, 'Halcyon Talent'),
+      credentialChaseNow([{ ...base, expiresAt: d('2026-10-20') }], on, 'Halcyon Talent'),
+      credentialChaseNow([{ ...base, expiresAt: null }], on, 'Halcyon Talent'),
+      requestReasonNow({ packetKey: RENEWAL_PACKET_KEY, reopenedReason: 'send us the renewal', subjectPersonId: 'p1', askerName: 'Halcyon Talent' }, () => [{ ...base, expiresAt: d('2026-11-08') }], on),
+    ]
+    for (const s of sentences) {
+      expect(s).toContain('Halcyon Talent')
+      expect(s).not.toMatch(/\bus\b|\ba firm\b|anybody here/i)
+    }
+  })
+  it('where the firm asking is not known, the sentence still says whose move it is rather than ‘us’', () => {
+    const s = credentialChaseNow([{
+      type: 'PROFESSIONAL_LICENSE', status: 'CLEAR', issuedAt: d('2024-11-10'), validFrom: d('2024-11-10'), expiresAt: d('2026-11-08'),
+      verifiedAt: d('2026-08-20'), provider: 'Wisconsin Board of Nursing', result: {},
+    }], new Date('2026-10-26T15:00:00Z'))
+    expect(s).toContain('the firm placing you')
+    expect(s).not.toMatch(/\bus\b/)
+  })
+})

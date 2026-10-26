@@ -1551,9 +1551,16 @@ export function credentialsToChase(
   credentials: HeldCredential[],
   keys: string[],
   on: Date,
-  withinDays = CHASE_CREDENTIAL_WITHIN_DAYS
+  withinDays = CHASE_CREDENTIAL_WITHIN_DAYS,
+  /**
+   * The firm asking, by name, so the sentence never says "us" to a
+   * worker who cannot tell which firm that is (the third walk,
+   * 2026-10-26). Where it is not known, "the firm placing you".
+   */
+  askerName?: string | null
 ): CredentialChase[] {
   const out: CredentialChase[] = []
+  const asker = askerName?.trim() || 'the firm placing you'
 
   for (const kind of [...new Set(credentials.map((c) => c.type).filter((t) => keys.includes(t)))]) {
     const produced = credentials.filter((c) => c.type === kind && A_CREDENTIAL.includes(c.status))
@@ -1585,7 +1592,7 @@ export function credentialsToChase(
           key: kind, named, state: where, daysLeft: null,
           says:
             `Your ${named} is on file with no expiry date against it, and a license expires. ` +
-            `Tell us the day it runs out — until then nobody can tell whether you are licensed today.`,
+            `Tell ${asker} the day it runs out — until then nobody can tell whether you are licensed today.`,
         })
       }
       continue
@@ -1602,10 +1609,10 @@ export function credentialsToChase(
       says:
         days < 0
           ? `Your ${named} lapsed ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago. ` +
-            `Working on a lapsed license is not something anybody here can waive, so the work stops until ` +
-            `${issuedBy} renews it. Send the renewal and it starts again.`
+            `Working on a lapsed license is not something ${asker} can waive, so the work stops until ` +
+            `${issuedBy} renews it. Send the renewal to ${asker} and it starts again.`
           : `Your ${named} runs out in ${days} day${days === 1 ? '' : 's'}. ` +
-            `${issuedBy} usually takes a few weeks, so this is worth filing now — send us the renewal and ` +
+            `${issuedBy} usually takes a few weeks, so this is worth filing now — send the renewal to ${asker} and ` +
             `nothing has to stop.`,
     })
   }

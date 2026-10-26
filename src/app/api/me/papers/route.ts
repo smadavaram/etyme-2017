@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
     // runs out in 24 days" — which is why it may be shown here.
     // A renewal request's sentence is said again today rather than as it
     // was stored, so its count of days matches the line above it.
-    reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date()) ?? p.reopenedReason) : p.reopenedReason,
+    reason: p.packetKey === CREDENTIAL_PACKET_KEY ? (credentialChaseNow(held, new Date(), p.company.name) ?? p.reopenedReason) : p.reopenedReason,
     items: p.items.map((i) => ({
       id: i.id,
       label: i.label,

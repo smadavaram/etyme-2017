@@ -309,7 +309,7 @@ describe('the renewal is asked for before the license runs out', () => {
   it('a license nobody has dated is chased for the date, not passed as permanent', () => {
     const [chase] = credentialsToChase([rnLicense({ expiresAt: null })], ['PROFESSIONAL_LICENSE'], on)
     expect(chase.daysLeft).toBeNull()
-    expect(chase.says).toContain('Tell us the day it runs out')
+    expect(chase.says).toContain('Tell the firm placing you the day it runs out')
   })
 
   it('a license with nine months left is left alone, because a chase that always fires is a click', () => {

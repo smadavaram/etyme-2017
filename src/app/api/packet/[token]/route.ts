@@ -107,6 +107,7 @@ export async function GET(
                 select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true },
               }),
               new Date(),
+              packet.company.name,
             ) ?? packet.reopenedReason)
           : packet.reopenedReason,
       expiresAt: packet.expiresAt.toISOString().slice(0, 10),

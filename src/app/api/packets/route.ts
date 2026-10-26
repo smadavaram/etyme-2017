@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
       progress,
       completedAt: p.completedAt?.toISOString().slice(0, 10) ?? null,
       reopenedReason: requestReasonNow(
-        { packetKey: p.packetKey, reopenedReason: p.reopenedReason, subjectPersonId: p.subjectPerson?.id ?? null },
+        { packetKey: p.packetKey, reopenedReason: p.reopenedReason, subjectPersonId: p.subjectPerson?.id ?? null, askerName: caller.company!.name },
         (personId) => credentials.filter((c) => c.personId === personId),
         now,
       ),

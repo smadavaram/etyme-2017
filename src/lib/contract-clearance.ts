@@ -334,6 +334,8 @@ export function credentialDetail(row: VerificationRow): { number: string | null;
 export function credentialChaseNow(
   rows: (Pick<VerificationRow, 'type' | 'status' | 'issuedAt' | 'validFrom' | 'expiresAt'> & { verifiedAt?: Date | null; provider?: string | null; result?: unknown })[],
   on: Date,
+  /** The firm asking, named in the sentence. */
+  askerName?: string | null,
 ): string | null {
   const keys = credentialKeys()
   const held = rows
@@ -347,7 +349,7 @@ export function credentialChaseNow(
       }
     })
   if (held.length === 0) return null
-  const chases = credentialsToChase(held, [...new Set(held.map((h) => h.type))], on)
+  const chases = credentialsToChase(held, [...new Set(held.map((h) => h.type))], on, undefined, askerName)
   return chases[0]?.says ?? null
 }
 
@@ -362,12 +364,12 @@ export const RENEWAL_PACKET_KEY = 'CREDENTIAL_RENEWAL'
  * two counts of days for one paper. Pure.
  */
 export function requestReasonNow(
-  packet: { packetKey: string | null; reopenedReason: string | null; subjectPersonId: string | null },
+  packet: { packetKey: string | null; reopenedReason: string | null; subjectPersonId: string | null; askerName?: string | null },
   credentialsOf: (personId: string) => Parameters<typeof credentialChaseNow>[0],
   on: Date,
 ): string | null {
   if (packet.packetKey !== RENEWAL_PACKET_KEY || !packet.subjectPersonId) return packet.reopenedReason
-  return credentialChaseNow(credentialsOf(packet.subjectPersonId), on) ?? packet.reopenedReason
+  return credentialChaseNow(credentialsOf(packet.subjectPersonId), on, packet.askerName) ?? packet.reopenedReason
 }
 
 /**
