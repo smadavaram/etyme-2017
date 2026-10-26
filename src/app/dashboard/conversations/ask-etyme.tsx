@@ -126,6 +126,8 @@ export function AskEtyme() {
   const desk = deskOf(session)
   // Whose Ask Etyme this is: the route says, and until it has, the session.
   const [party, setParty] = useState<Party>(() => partyOf({ companyKind: desk.companyKind, worker: desk.isConsultant || desk.worker, seatedAt: desk.seatedAtClient }))
+  // Null until the greeting says which questions this desk gets an answer to.
+  const [chips, setChips] = useState<readonly string[] | null>(null)
   const seat = seatSays({
     role: desk.isConsultant ? 'Consultant' : desk.roleName, company: session.company?.name ?? null, sample: session.isDemo,
     party, seatedAt: desk.seatedAtClient,
@@ -156,6 +158,9 @@ export function AskEtyme() {
       if (body?.data?.worker === true) setWorker(true)
       const said = body?.data?.party
       if (said === 'CLIENT' || said === 'MSP' || said === 'FIRM' || said === 'SOLO' || said === 'WORKER') setParty(said)
+      // The desk's own chips, judged by the route on the seat's permissions.
+      const chipsSaid = body?.data?.chips
+      if (Array.isArray(chipsSaid) && chipsSaid.every((c: unknown) => typeof c === 'string')) setChips(chipsSaid)
       const first: Turn[] = aside ? [{ id: next.current++, from: 'aside', text: aside }] : []
       if (!res.ok || !body?.data?.answer) { setTurns([...first, { id: next.current++, from: 'note', text: body?.error?.message ?? statusMeans(res.status) }]); return }
       setTurns([...first, { id: next.current++, from: 'etyme', answer: body.data.answer as Answer }])
@@ -438,7 +443,7 @@ export function AskEtyme() {
           <div className="border-t border-etyme-rule/60 bg-etyme-canvas px-3 pb-3 pt-2.5 sm:px-6 sm:pb-4">
             <div className="mx-auto max-w-[760px]">
               <div className="-mx-1 mb-2.5 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
-                {(worker || party === 'WORKER' ? WORKER_QUESTIONS : questionsFor(party)).map((q) => (
+                {(worker || party === 'WORKER' ? WORKER_QUESTIONS : chips ?? questionsFor(party)).map((q) => (
                   <button
                     key={q}
                     type="button"

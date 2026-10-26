@@ -1337,7 +1337,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
   it('a worker’s chips are her five questions, the box and the line under it are about her work, and her greeting closes on what Etyme never does for her', () => {
     expect(WORKER_QUESTIONS).toEqual(['What needs me today?', 'Is my week signed?', 'What am I owed?', 'What papers are due?', 'Who has my consent?'])
     const chat = readFileSync(join(process.cwd(), 'src', 'app/dashboard/conversations/ask-etyme.tsx'), 'utf8')
-    expect(chat).toContain("{(worker || party === 'WORKER' ? WORKER_QUESTIONS : questionsFor(party)).map((q) => (")
+    expect(chat).toContain("{(worker || party === 'WORKER' ? WORKER_QUESTIONS : chips ?? questionsFor(party)).map((q) => (")
     expect(chat).toContain('if (body?.data?.worker === true) setWorker(true)')
     expect(WORKER_CLOSE).toBe('Ask me about your weeks, your pay, your papers and your consent. I never file or sign anything for you.')
     expect(WORKER_BOUNDARY).toBe('Your record stays yours. Every read is logged. Nothing you type leaves to a model.')

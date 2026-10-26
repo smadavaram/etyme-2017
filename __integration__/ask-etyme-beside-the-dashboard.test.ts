@@ -132,4 +132,51 @@ describe('Ask Etyme says what the dashboard says', () => {
       expect(says).toContain(`runs out on ${lapse}`)
     }
   })
+  it('Northbend’s hiring manager is offered neither the time limit nor spend, and asks who applied for the HCM integration lead job and reads the names', async () => {
+    as(`world-nike-hiring${D}`)
+    const g = await json(await greet(req('GET', '/api/conversations/twin')))
+    expect(g.status, JSON.stringify(g.body)).toBe(200)
+    const chips: string[] = g.body.data.chips
+    expect(chips).not.toContain('Who is near the time limit?')
+    expect(chips).not.toContain('What did we spend by supplier this month?')
+    // Every chip she is shown is answered for her, never refused.
+    for (const q of chips) {
+      const r = await asked(q)
+      expect(r.status, q).toBe(200)
+      expect(r.body.data.answer.says, q).not.toMatch(/; ask them\.$|needs the model|I answer only about/)
+    }
+    const r = await asked('Who applied for the HCM integration lead job?')
+    const a = r.body.data.answer
+    expect(a.kind, JSON.stringify(a)).toBe('LIST')
+    expect(a.says).toMatch(/applied for the HCM integration lead job|Nobody has applied for the HCM integration lead job/)
+  })
+
+  it('Teleworld’s delivery manager asks who is available and reads Teleworld’s bench, never "not your company’s record"', async () => {
+    const tele = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })
+    const dm = await prisma.context.findFirst({
+      where: { companyId: tele.id, type: 'EMPLOYEE', revokedAt: null, role: { name: 'Delivery Manager' } },
+      select: { person: { select: { primaryEmail: true } } },
+    })
+    expect(dm, 'a delivery manager at Teleworld').not.toBeNull()
+    as(dm!.person.primaryEmail!)
+    const r = await asked('Who is available?')
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const a = r.body.data.answer
+    expect(a.says).not.toMatch(/I answer only about/)
+    expect(a.kind, JSON.stringify(a)).toBe('LIST')
+  })
+  it('no chip refuses the seat it is shown to: Northbend’s program manager and AP clerk, Techpeple, and Aptiva in Cavanaugh’s program', async () => {
+    for (const email of [`world-nike-programme${D}`, `world-nike-ap${D}`, TECHPEPLE, APTIVA]) {
+      as(email)
+      const g = await json(await greet(req('GET', '/api/conversations/twin')))
+      expect(g.status, `${email} ${JSON.stringify(g.body)}`).toBe(200)
+      const chips: string[] = g.body.data.chips
+      expect(chips.length, email).toBeGreaterThan(0)
+      for (const q of chips) {
+        const r = await asked(q)
+        expect(r.status, `${email}: ${q}`).toBe(200)
+        expect(r.body.data.answer.says, `${email}: ${q}`).not.toMatch(/; ask them\.$|needs the model|I answer only about|could not be read/)
+      }
+    }
+  })
 })

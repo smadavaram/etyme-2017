@@ -209,3 +209,89 @@ describe('a one-person firm’s own paper is in her one queue', () => {
     expect(withOwnPapers(null, card())).toBeNull()
   })
 })
+
+// ── The trade's plain questions, by rules, and chips that never refuse ──
+
+import { readAsk, questionsFor, payableSays, acceptSays, i9Rows, i9Says, runsOutThisMonth, expiringSays, appliedSays } from '@/app/api/conversations/twin/ask'
+
+describe('plain trade questions are read by rules, never sent to the model', () => {
+  it('each question is read as the record question it is', () => {
+    expect(readAsk('Who applied for the HCM integration lead job?')).toEqual({ kind: 'APPLIED', job: 'HCM integration lead' })
+    expect(readAsk('Who applied for my jobs?')).toEqual({ kind: 'APPLIED', job: null })
+    expect(readAsk('Which invoice receipts can I pay?')).toEqual({ kind: 'PAYABLE' })
+    expect(readAsk('Which weeks do I need to accept?')).toEqual({ kind: 'ACCEPT' })
+    expect(readAsk('Who is missing an I-9?')).toEqual({ kind: 'I9' })
+    expect(readAsk('Whose papers run out this month?')).toEqual({ kind: 'EXPIRING' })
+    expect(readAsk('Who is available?')).toEqual({ kind: 'BENCH' })
+  })
+
+  it('the questions that were answered before keep their meaning', () => {
+    expect(readAsk('Which timesheets are waiting?').kind).toBe('WEEKS')
+    expect(readAsk('Which weeks are signed and not billed?').kind).toBe('UNBILLED')
+    expect(readAsk('Which bills are unpaid?').kind).toBe('UNPAID')
+    expect(readAsk('Who is on the bench?').kind).toBe('BENCH')
+  })
+
+  it('who applied is said with the job and the names', () => {
+    const rows = [
+      { person: 'Ana Ruiz', job: 'HCM integration lead', from: 'Brightmoor Staffing', status: 'SUBMITTED', sentOn: '2026-10-20', href: '/x' },
+      { person: 'Ben Ode', job: 'HCM integration lead', from: 'Veritan Talent', status: 'SHORTLISTED', sentOn: '2026-10-21', href: '/x' },
+    ]
+    expect(appliedSays('HCM integration lead', rows, 2)).toBe('Two candidates applied for the HCM integration lead job: Ana Ruiz and Ben Ode. Checked just now.')
+    expect(appliedSays('HCM integration lead', [], 0)).toBe('Nobody has applied for the HCM integration lead job yet. Checked just now.')
+  })
+
+  it('what may be paid is the queue’s own Pay rows, and a seat that does not pay is told who does', async () => {
+    const q = { total: 1, items: [{ type: 'INVOICE_RECEIPT_TO_PAY', title: 'Pay — Veritan Talent', subtitle: 'Invoice VT-12 · $4,800.00', entityId: 'inv-1', dueDate: '2026-10-30' }] }
+    expect(payableSays(q.items)).toBe('Pay Veritan Talent’s invoice receipt first; it passes the check. One invoice receipt is ready to pay. Checked just now.')
+    const hm = await respond('Which invoice receipts can I pay?', readers(), { env: NO_KEY, now: NOW, companyKind: 'CLIENT', permissions: ['requirements.write'], needs: async () => q })
+    expect(hm.kind).toBe('TEXT')
+    expect(hm.says).toMatch(/pays invoice receipts; ask them\.$/)
+  })
+
+  it('which weeks to accept is the queue’s own Accept rows', () => {
+    const rows = [{ type: 'TIMESHEET_APPROVAL', title: 'Accept timesheet — Helena Marsh', whose: 'Helena Marsh', entityId: 'ts-1' }]
+    expect(acceptSays(rows)).toBe('Accept Helena Marsh’s timesheet first. One timesheet waits for you to accept it. Checked just now.')
+  })
+
+  it('who is missing an I-9 is who cannot start without one, said with the day', () => {
+    const rows = i9Rows([
+      { personId: 'p1', name: 'Ingrid Sørensen', startsOn: '2026-10-28', missing: ['I-9 and E-Verify'], href: '/x' },
+      { personId: 'p2', name: 'Felix Brenner', startsOn: '2026-11-02', missing: ['Background check'], href: '/y' },
+    ])
+    expect(rows.map((r) => r.name)).toEqual(['Ingrid Sørensen'])
+    expect(i9Says(rows)).toBe('Ingrid Sørensen cannot start on Oct 28 without an I-9. One start is held for one. Checked just now.')
+  })
+
+  it('whose papers run out this month counts from today to the month’s end only', () => {
+    const rows = runsOutThisMonth([
+      { whose: 'Veritan Talent', paper: 'Certificate of insurance', runsOutOn: '2026-10-05', href: '/a' },
+      { whose: 'Helena Marsh', paper: 'Professional license', runsOutOn: '2026-10-25', href: '/b' },
+      { whose: 'Linnea Qadri', paper: 'Visa', runsOutOn: '2026-11-03', href: '/c' },
+    ], NOW)
+    expect(rows.map((r) => r.whose)).toEqual(['Helena Marsh'])
+    expect(expiringSays(rows)).toBe('Renew Helena Marsh’s Professional license first; it runs out on Oct 25. One paper runs out this month. Checked just now.')
+  })
+})
+
+describe('the chips are the desk’s own, so no chip refuses the seat it is shown to', () => {
+  it('a hiring manager is offered neither the time limit nor spend', () => {
+    const hm = questionsFor('CLIENT', ['requirements.write', 'requirements.read', 'timesheets.approve'], 'CLIENT')
+    expect(hm).not.toContain('Who is near the time limit?')
+    expect(hm).not.toContain('What did we spend by supplier this month?')
+    expect(hm).toEqual(['What needs me today?', 'Who applied for my jobs?', 'Which timesheets are waiting?'])
+  })
+
+  it('an AP clerk is offered what she can pay', () => {
+    expect(questionsFor('CLIENT', ['payments.record', 'invoices.read'], 'CLIENT')).toContain('Which invoice receipts can I pay?')
+  })
+
+  it('an integrator’s delivery manager is offered who is on the bench, and a firm’s account manager is not offered payroll’s questions', () => {
+    expect(questionsFor('FIRM', ['assignments.write'], 'GSI')).toContain('Who is on the bench?')
+    expect(questionsFor('FIRM', ['requirements.read', 'submissions.create'], 'VENDOR')).not.toContain('Which weeks do I need to accept?')
+  })
+
+  it('without the seat’s permissions, the party’s own four are drawn as before', () => {
+    expect(questionsFor('FIRM')).toEqual(['Who rolls off in the next 30 days?', 'Who is on the bench?', 'Which weeks are signed and not billed?', 'Which bills are unpaid?'])
+  })
+})

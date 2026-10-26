@@ -32,7 +32,7 @@
 
 import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
 import { format, fromMinor } from '@/lib/money'
-import { desksHolding, type Permission, hasPermission } from '@/lib/permissions'
+import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
 import type { BillCardPayload } from '@/lib/money/supplier-bills'
 import { supplierToldSays } from '@/lib/money/invoice-hold'
@@ -57,6 +57,12 @@ export type Intent =
   | { kind: 'BENCH' }
   | { kind: 'UNBILLED' }
   | { kind: 'UNPAID' }
+  /** The trade's plain questions, answered from the record (the walk of 2026-10-22). */
+  | { kind: 'APPLIED'; job: string | null }
+  | { kind: 'PAYABLE' }
+  | { kind: 'ACCEPT' }
+  | { kind: 'I9' }
+  | { kind: 'EXPIRING' }
   | { kind: 'ASK'; text: string }
 
 /** "#3", "INV-1003.", "'abc'" — a reference as somebody types it, cleaned. */
@@ -125,6 +131,17 @@ export function readAsk(raw: string): Intent {
   // A firm's own book, each answered from the record (founder, 2026-10-19:
   // a supplier asks which weeks are signed and not billed, which bills are
   // unpaid, who is on the bench, who rolls off).
+  // The trade's plain questions (the walk of 2026-10-22): who applied,
+  // what can be paid, which weeks to accept, who is missing an I-9, whose
+  // papers run out, who is available. Each is answered from the record.
+  const applied = readApplied(text)
+  if (applied) return applied
+  if (/\b(invoice receipts?|invoices?|receipts?)\b/.test(lower) && /\b(can (i|we) pay|to pay|ready to pay|payable|may (i|we) pay|should (i|we) pay|waiting (for|on) payment)\b/.test(lower)) return { kind: 'PAYABLE' }
+  if (/\b(weeks?|timesheets?|hours)\b/.test(lower) && /\b(accept|to accept|accepting)\b/.test(lower)) return { kind: 'ACCEPT' }
+  if (/\bi-?9s?\b/.test(lower) && /\b(missing|without|no|needs?|owes?|lacks?|lacking|held)\b/.test(lower)) return { kind: 'I9' }
+  if (/\b(papers?|paperwork|documents?|certificates?|insurance|licen[cs]es?|visas?|permits?)\b/.test(lower) && /\b(run(s|ning)? out|expir\w*|laps\w*|due to renew)\b/.test(lower)) return { kind: 'EXPIRING' }
+  if (/\b(who|anyone|anybody|somebody|someone)\b.*\b(available|free now|between projects)\b|\bavailable (people|consultants|engineers|workers|now)\b/.test(lower)) return { kind: 'BENCH' }
+
   if (/\broll(s|ing|ed)?[- ]?off\b|\bending soon\b/.test(lower)) return { kind: 'ROLLOFF' }
   if (/\bbench\b/.test(lower) && !/\bbench (pay|burn|profit|cost)/.test(lower)) return { kind: 'BENCH' }
   if (/\bunbilled\b|\bnot (yet )?(been )?billed\b|\bnot on a bill\b/.test(lower)) return { kind: 'UNBILLED' }
@@ -141,6 +158,26 @@ export function readAsk(raw: string): Intent {
   ) return { kind: 'WEEKS' }
 
   return { kind: 'ASK', text }
+}
+
+/** Words that name no one job: "my jobs", "our job requests". */
+const ANY_JOB = /^(my|our|the|any|all|open|these|those)?\s*(jobs?|job requests?|roles?|positions?|openings?|requisitions?)$/i
+
+/**
+ * "Who applied for the HCM integration lead job?", "Candidates for the
+ * data engineer role", "Who applied?": the job named, or null for all of
+ * the reader's jobs. Null where the question is not about who applied.
+ */
+export function readApplied(raw: string): Intent | null {
+  const t = raw.trim().replace(/\s+/g, ' ').replace(/[?.!]+$/, '')
+  const asked =
+    /^(who|which (people|candidates|consultants))\b.*\b(applied|apply|applying|submitted|were put forward)\b/i.test(t) ||
+    /^(show )?(the )?(candidates|applicants|submissions)\b.*\b(for|on|to)\b/i.test(t) ||
+    /^who applied$/i.test(t)
+  if (!asked) return null
+  const m = t.match(/\b(?:for|to|on)\s+(?:the\s+|my\s+|our\s+|a\s+)?(.+?)(?:\s+(?:job requests?|jobs?|roles?|positions?|openings?|requisitions?))?$/i)
+  const job = m?.[1]?.trim() ?? null
+  return { kind: 'APPLIED', job: job && !ANY_JOB.test(job) && !ANY_JOB.test(`${job} jobs`) ? job : null }
 }
 
 // ── The never floor ──────────────────────────────────────────────────
@@ -386,9 +423,42 @@ export const SOLO_QUESTIONS: readonly string[] = [
   'When does my contract end?',
 ]
 
-/** The chips for a party; a worker's are her own five (./worker), drawn by the screen. */
-export function questionsFor(party: Party): readonly string[] {
-  return party === 'FIRM' ? FIRM_QUESTIONS : party === 'SOLO' ? SOLO_QUESTIONS : SUGGESTED_QUESTIONS
+/**
+ * Every question a chip may carry, with the desk that gets an answer to
+ * it rather than a refusal: the permission its read asks for, never a
+ * guess. A chip is a promise that this seat gets an answer (the walk of
+ * 2026-10-22: a hiring manager was offered the time limit and spend, and
+ * both refused her).
+ */
+const CHIPS: ReadonlyArray<{ q: string; parties: readonly Party[]; may: (p: readonly string[], kind: string | null | undefined) => boolean }> = [
+  { q: 'What needs me today?', parties: ['CLIENT', 'MSP', 'FIRM'], may: () => true },
+  { q: 'Who applied for my jobs?', parties: ['CLIENT', 'MSP', 'FIRM'], may: (p) => hasAnyPermission(p, ['requirements.write', 'requirements.read', 'submissions.create']) },
+  { q: 'Which timesheets are waiting?', parties: ['CLIENT', 'MSP'], may: (p) => hasAnyPermission(p, ['timesheets.read', 'timesheets.approve']) },
+  { q: 'Which invoice receipts can I pay?', parties: ['CLIENT', 'MSP', 'FIRM'], may: (p, k) => paysOut(p, k) },
+  { q: 'Which weeks do I need to accept?', parties: ['FIRM'], may: (p) => hasPermission(p, 'timesheets.approve') },
+  { q: 'Which weeks are signed and not billed?', parties: ['FIRM'], may: (p) => hasAnyPermission(p, ['invoices.issue', 'invoices.read']) },
+  { q: 'Which bills are unpaid?', parties: ['FIRM'], may: (p) => hasPermission(p, 'invoices.read') },
+  { q: 'Who is near the time limit?', parties: ['CLIENT', 'MSP'], may: (p) => hasAnyPermission(p, ['governance.read', 'settings.manage']) },
+  { q: 'What did we spend by supplier this month?', parties: ['CLIENT', 'MSP'], may: (p) => hasPermission(p, 'invoices.read') },
+  { q: 'Who is missing an I-9?', parties: ['CLIENT', 'MSP'], may: (p) => hasPermission(p, 'governance.read') },
+  { q: 'Whose papers run out this month?', parties: ['CLIENT', 'MSP'], may: (p) => hasPermission(p, 'governance.read') },
+  { q: 'Who rolls off in the next 30 days?', parties: ['FIRM'], may: (p) => hasAnyPermission(p, ['consultants.read', 'assignments.write', 'requirements.read', 'utilization.read', 'invoices.read']) },
+  { q: 'Who is on the bench?', parties: ['FIRM'], may: (p, k) => (k !== 'MSP' && hasPermission(p, 'consultants.read')) || (k === 'GSI' && hasPermission(p, 'assignments.write')) },
+]
+
+/** The most chips drawn over the box. */
+export const CHIPS_SHOWN = 4
+
+/**
+ * The chips for a seat; a worker's are her own five (./worker), drawn by
+ * the screen. With the seat's permissions, only questions its desk gets an
+ * answer to, in the order above, four at most; without them, the party's
+ * own four, as before.
+ */
+export function questionsFor(party: Party, permissions?: readonly string[] | null, companyKind?: string | null): readonly string[] {
+  if (party === 'SOLO') return SOLO_QUESTIONS
+  if (!permissions) return party === 'FIRM' ? FIRM_QUESTIONS : SUGGESTED_QUESTIONS
+  return CHIPS.filter((c) => c.parties.includes(party) && c.may(permissions, companyKind)).slice(0, CHIPS_SHOWN).map((c) => c.q)
 }
 
 /** "Northbend Athletic’s", "Cavanaugh Glassworks’". */
@@ -1382,6 +1452,10 @@ export interface Readers {
   unbilledWeeks?(): Promise<Refusable<{ rows: UnbilledRow[] }>>
   /** Bills this firm sent that are not paid in full, the latest first. */
   unpaidBills?(): Promise<Refusable<{ rows: UnpaidRow[] }>>
+  /** Who applied for one of this company's jobs, or for any of them, through the Candidates page's own route. */
+  applied?(job: string | null): Promise<Refusable<{ job: string | null; rows: AppliedRow[]; total: number }>>
+  /** The compliance page's own read: who cannot start for want of a paper, and what runs out when. */
+  compliance?(): Promise<Refusable<{ client: string; held: PaperHeld[]; runs: PaperRun[] }>>
 }
 
 /**
@@ -1855,6 +1929,13 @@ export function boundarySays(state: ModelState): string {
         : 'Nothing leaves to a model; your company has not turned it on.')
 }
 
+/** The decisions queue as `respond` was handed it, read once; null where it was not read. */
+async function queueOf(needs?: () => Promise<number | QueueRead | null>): Promise<QueueRead | null> {
+  if (!needs) return null
+  const got = await needs().catch(() => null)
+  return got == null || typeof got === 'number' ? null : got
+}
+
 export async function respond(
   text: string,
   read: Readers,
@@ -1875,7 +1956,10 @@ export async function respond(
   }
   // A firm's own book is answered only where this seat has the read; a
   // reader that is not there leaves the question to the rest of the rules.
-  const book = { ROLLOFF: read.rollingOff, BENCH: read.bench, UNBILLED: read.unbilledWeeks, UNPAID: read.unpaidBills } as const
+  const book = {
+    ROLLOFF: read.rollingOff, BENCH: read.bench, UNBILLED: read.unbilledWeeks, UNPAID: read.unpaidBills,
+    APPLIED: read.applied, I9: read.compliance, EXPIRING: read.compliance,
+  } as const
   if (intent.kind in book && !book[intent.kind as keyof typeof book]) intent = { kind: 'ASK', text: text.trim().replace(/\s+/g, ' ') }
   const now = opts.now ?? new Date()
 
@@ -1908,6 +1992,100 @@ export async function respond(
       const got = await read.unpaidBills!()
       if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
       return { kind: 'LIST', says: unpaidSays(got.rows, now), ...(got.rows.length ? { table: unpaidTable(got.rows) } : {}), links: [{ label: 'Open Bills', href: '/dashboard/invoices' }] }
+    }
+
+    case 'APPLIED': {
+      const got = await read.applied!(intent.job)
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      return {
+        kind: 'LIST', says: appliedSays(got.job, got.rows, got.total),
+        ...(got.rows.length ? { table: appliedTable(got.rows) } : {}),
+        links: [{ label: 'Open Candidates', href: '/dashboard/submissions' }],
+      }
+    }
+
+    case 'PAYABLE': {
+      // The queue's own "Pay" rows: only a receipt that passes the payment
+      // gate (mayPayInvoiceReceipt) is one, so the chat and the page agree.
+      const perms = opts.permissions ?? []
+      if (!paysOut(perms, opts.companyKind)) {
+        return { kind: 'TEXT', says: `Your ${twoDesks(payingDesks(opts.companyKind))} pays invoice receipts; ask them.` }
+      }
+      const q = await queueOf(opts.needs)
+      if (!q) return { kind: 'TEXT', says: 'Your invoice receipts could not be read just now. Open Invoice receipts to see them.', links: [{ label: 'Open Invoice receipts', href: RECEIPTS_HREF }] }
+      const rows = q.items.filter((d) => d.type === 'INVOICE_RECEIPT_TO_PAY')
+      // A receipt that fails the check is never offered; what the paying desk may do about it is said.
+      const told = toldSays((await read.told()).told)
+      return {
+        kind: 'LIST',
+        says: payableSays(rows) + (told ? ` ${told.says}` : ''),
+        ...(rows.length ? {
+          table: {
+            caption: 'Invoice receipts ready to pay',
+            head: ['Supplier', 'Invoice receipt', 'Due'],
+            rows: rows.map((d) => ({ cells: [afterDash(d.title), factOf(d.subtitle) || '—', d.dueDate ? DAY_UTC(d.dueDate) : '—'], href: d.actionUrl ?? RECEIPTS_HREF })),
+          },
+        } : {}),
+        links: [{ label: 'Open Invoice receipts', href: RECEIPTS_HREF }],
+      }
+    }
+
+    case 'ACCEPT': {
+      const perms = opts.permissions ?? []
+      if (!hasPermission(perms, 'timesheets.approve')) {
+        return { kind: 'TEXT', says: deskRefusal('accepts timesheets', 'timesheets.approve', opts.companyKind) }
+      }
+      const q = await queueOf(opts.needs)
+      if (!q) return { kind: 'TEXT', says: 'Your timesheets could not be read just now. Open Timesheets to see them.', links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }] }
+      const rows = q.items.filter((d) => d.type === 'TIMESHEET_APPROVAL' && /^Accept\b/.test(d.title))
+      return {
+        kind: 'LIST', says: acceptSays(rows),
+        ...(rows.length ? {
+          table: {
+            caption: 'Timesheets to accept',
+            head: ['Person', 'Week'],
+            rows: rows.map((d) => ({ cells: [d.whose?.trim() || afterDash(d.title), factOf(d.subtitle) || '—'], href: d.actionUrl ?? '/dashboard/timesheets' })),
+          },
+        } : {}),
+        links: [{ label: 'Open Timesheets', href: '/dashboard/timesheets' }],
+      }
+    }
+
+    case 'I9': {
+      const got = await read.compliance!()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      const rows = i9Rows(got.held)
+      return {
+        kind: 'LIST', says: i9Says(rows),
+        ...(rows.length ? {
+          table: {
+            caption: 'Held for an I-9',
+            head: ['Person', 'Starts', 'Also missing'],
+            rows: rows.map((r) => ({
+              cells: [r.name, r.startsOn ? DAY_UTC(r.startsOn) : '—', r.missing.filter((m) => !/\bI-?9\b/i.test(m)).join(', ') || '—'],
+              href: r.href,
+            })),
+          },
+        } : {}),
+        links: [{ label: 'Open Compliance', href: '/dashboard/compliance' }],
+      }
+    }
+
+    case 'EXPIRING': {
+      const got = await read.compliance!()
+      if (!got.ok) return { kind: 'TEXT', says: got.says, links: got.links }
+      const rows = runsOutThisMonth(got.runs, now)
+      return {
+        kind: 'LIST', says: expiringSays(rows),
+        ...(rows.length ? {
+          table: {
+            caption: 'Papers that run out this month',
+            head: ['Whose', 'Paper', 'Runs out'],
+            rows: rows.slice(0, 20).map((r) => ({ cells: [r.whose, r.paper, DAY_UTC(r.runsOutOn)], href: r.href })),
+          },
+        } : {}),
+        links: [{ label: 'Open Compliance', href: '/dashboard/compliance' }],
+      }
     }
 
     case 'NEVER':
@@ -2442,6 +2620,87 @@ export interface UnbilledRow {
   personId?: string
 }
 export interface UnpaidRow { invoiceId: string; number: string; customer: string | null; dueMinor: number; currency: string; dueOn: string | null; held: boolean; href: string }
+/** One candidate on a job, as the Candidates page lists them. */
+export interface AppliedRow { person: string; job: string; from: string | null; status: string; sentOn: string | null; href: string }
+/** A start held by paperwork, as the compliance page lists it. */
+export interface PaperHeld { personId: string; name: string; startsOn: string | null; missing: string[]; href: string }
+/** A paper on file and the day it runs out. */
+export interface PaperRun { whose: string; paper: string; runsOutOn: string; href: string }
+
+/** A submission's stage in the words a recruiter says. */
+export function stageWords(status: string): string {
+  const s = status.toUpperCase()
+  const words: Record<string, string> = {
+    SUBMITTED: 'Sent', PENDING: 'Sent', SHORTLISTED: 'Shortlisted', SCREENING: 'In screening', INTERVIEWING: 'Interviewing',
+    INTERVIEW: 'Interviewing', OFFERED: 'Offered', AWARDED: 'Selected', PLACED: 'Selected', HIRED: 'Selected',
+    REJECTED: 'Not selected', WITHDRAWN: 'Withdrawn', CLOSED: 'Closed',
+  }
+  return words[s] ?? (s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ') : '—')
+}
+
+/** "Ana Ruiz, Ben Ode and Chen Li", or the first three "and n more". */
+function namesUpTo(names: readonly string[], n = 3): string {
+  const uniq = [...new Set(names)]
+  return uniq.length <= n ? listed(uniq) : `${uniq.slice(0, n).join(', ')} and ${lowerNumber(uniq.length - n)} more`
+}
+
+export function appliedSays(job: string | null, rows: readonly AppliedRow[], total: number): string {
+  if (job) {
+    if (total === 0) return `Nobody has applied for the ${job} job yet. Checked just now.`
+    return `${total === 1 ? 'One candidate' : `${numberWord(total)} candidates`} applied for the ${job} job: ${namesUpTo(rows.map((r) => r.person))}. Checked just now.`
+  }
+  if (total === 0) return 'Nobody has applied for your jobs yet. Checked just now.'
+  const r = rows[0]
+  return `The newest is ${r.person}, for the ${r.job} job${r.from ? `, from ${r.from}` : ''}. ` +
+    `${counted(total, 'candidate')} ${total === 1 ? 'is' : 'are'} on your jobs. Checked just now.`
+}
+
+export function appliedTable(rows: readonly AppliedRow[]): ListTable {
+  return {
+    caption: 'Who applied',
+    head: ['Candidate', 'Job', 'From', 'Where it is'],
+    rows: rows.slice(0, 20).map((r) => ({ cells: [r.person, r.job, r.from ?? '—', stageWords(r.status)], href: r.href })),
+  }
+}
+
+/** The receipts this seat may pay now: the queue's own "Pay" rows, each through the payment gate. */
+export function payableSays(rows: readonly QueueItem[]): string {
+  if (rows.length === 0) return 'No invoice receipt is ready for you to pay. Checked just now.'
+  return `Pay ${afterDash(rows[0].title)}’s invoice receipt first; it passes the check. ` +
+    `${counted(rows.length, 'invoice receipt')} ${rows.length === 1 ? 'is' : 'are'} ready to pay. Checked just now.`
+}
+
+export function acceptSays(rows: readonly QueueItem[]): string {
+  if (rows.length === 0) return 'No timesheet waits for you to accept it. Checked just now.'
+  const who = rows[0].whose?.trim() || afterDash(rows[0].title)
+  return `Accept ${possessive(who)} timesheet first. ${counted(rows.length, 'timesheet')} ${rows.length === 1 ? 'waits' : 'wait'} for you to accept ${rows.length === 1 ? 'it' : 'them'}. Checked just now.`
+}
+
+/** People who cannot start without an I-9, from the compliance page's held starts. */
+export function i9Rows(held: readonly PaperHeld[]): PaperHeld[] {
+  return held.filter((h) => h.missing.some((m) => /\bI-?9\b/i.test(m)))
+}
+
+export function i9Says(rows: readonly PaperHeld[]): string {
+  if (rows.length === 0) return 'Nobody about to start is held for an I-9. Checked just now.'
+  const r = rows[0]
+  return `${r.name} cannot start${r.startsOn ? ` on ${formatDay(r.startsOn, { year: false })}` : ''} without an I-9. ` +
+    `${counted(rows.length, 'start')} ${rows.length === 1 ? 'is' : 'are'} held for one. Checked just now.`
+}
+
+/** Papers that run out from today to the month's end, soonest first. */
+export function runsOutThisMonth(runs: readonly PaperRun[], now: Date): PaperRun[] {
+  const today = now.toISOString().slice(0, 10)
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10)
+  return runs.filter((r) => r.runsOutOn >= today && r.runsOutOn <= end).sort((a, b) => a.runsOutOn.localeCompare(b.runsOutOn) || a.whose.localeCompare(b.whose))
+}
+
+export function expiringSays(rows: readonly PaperRun[]): string {
+  if (rows.length === 0) return 'No paper on file runs out this month. Checked just now.'
+  const r = rows[0]
+  return `Renew ${possessive(r.whose)} ${r.paper} first; it runs out on ${formatDay(r.runsOutOn, { year: false })}. ` +
+    `${counted(rows.length, 'paper')} ${rows.length === 1 ? 'runs' : 'run'} out this month. Checked just now.`
+}
 
 /** "One person rolls", "Three people roll". */
 function peopleDo(n: number, verb: string): string {

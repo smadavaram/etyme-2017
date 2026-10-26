@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor } from '@/lib/model-boundary'
@@ -10,7 +10,7 @@ import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
 import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, cardsFor, type WorkerFacts } from './worker'
-import { seatFor, type LiveSeat } from '@/lib/program-seat'
+import { seatFor, permissionsToJudgeBy, type LiveSeat } from '@/lib/program-seat'
 import { programQueue } from '@/app/api/program/queue'
 import { workerFacts } from './worker-read'
 import { owedTotal } from './owed'
@@ -192,6 +192,11 @@ async function partyFor(caller: Caller): Promise<{ party: Party; client: string 
   return { party: partyOf({ companyKind: kind, seatedAt: client }), client }
 }
 
+/** The permissions a seat's chips and acts are judged by: the seat's role in a client's program, else its own (lib/program-seat). */
+async function judgedBy(caller: Caller): Promise<readonly string[]> {
+  return permissionsToJudgeBy(caller, await seatOf(caller))
+}
+
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
 
 /** Whether this caller reads Ask Etyme as a worker. */
@@ -285,7 +290,9 @@ export async function GET(request: NextRequest) {
       markNoticesSeen(caller, notices.shown.map((n) => n.id)),
       markNoticesSeen(caller, threads.noticeIds),
     ])
-    return NextResponse.json({ data: { answer, model, party: who.party, client: who.client, thread: await thread } })
+    // The chips are the desk's own: only questions this seat gets an answer to.
+    const chips = questionsFor(who.party, await judgedBy(caller), company.kind)
+    return NextResponse.json({ data: { answer, model, party: who.party, client: who.client, chips, thread: await thread } })
   } catch (err) {
     await reportError('Ask Etyme could not greet', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })
     return NextResponse.json({ error: { code: 'NOT_ANSWERED', message: NOT_ANSWERED } }, { status: 500 })
@@ -389,7 +396,7 @@ export async function POST(request: NextRequest) {
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request) })
       : await respond(text, readersFor(caller, companyId, request, { seat: await seatOf(caller) }), {
-        env: process.env, companyKind: caller.company.kind, permissions: caller.permissions, needs: queueFor(request, caller), party: who.party,
+        env: process.env, companyKind: caller.company.kind, permissions: await judgedBy(caller), needs: queueFor(request, caller), party: who.party,
         ownCompany: caller.company.name,
       })
   } catch (err) {

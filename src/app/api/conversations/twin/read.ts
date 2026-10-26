@@ -37,11 +37,14 @@ import { benchAt } from '@/app/api/today/reads'
 import { todayReads } from '@/lib/today-page'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
+import { GET as submissionsRoute } from '@/app/api/submissions/route'
+import { GET as complianceRoute } from '@/app/api/compliance/route'
+import { labelFor } from '@/lib/document-type'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND,
-  type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow,
+  type HeldBill, type Billing, type RollRow, type BenchRow, type UnbilledRow, type UnpaidRow, type AppliedRow, type PaperHeld, type PaperRun,
   type OtherWaiting, type LimitEntry, type SpendReceipt, type WeekRow, type ToldReceipt, type Named, type Verdict,
 } from './ask'
 
@@ -936,6 +939,88 @@ export function readersFor(
         })
       }
       return { ok: true as const, rows }
+    },
+
+    async applied(job: string | null) {
+      // Who applied, read through the Candidates page's own route, in
+      // process and under this seat: the firm that owns a job reads what
+      // it received, a supplier what it put forward. The job is found by
+      // its title among the jobs this company owns, sent to, or was sent.
+      const company = caller.company
+      if (!ownCompany || !company || !request) return { ok: false as const, says: 'Candidates are read at your own company; switch to it first.' }
+      const desk = seat && company.kind !== 'CLIENT' ? seat.clientCompany.id : company.id
+      let found: { id: string; title: string; companyId: string } | null = null
+      if (job) {
+        const wanted = job.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+        const jobs = await prisma.requirement.findMany({
+          where: {
+            OR: [
+              { companyId: desk },
+              { endClientCompanyId: desk },
+              { submissions: { some: { OR: [{ fromCompanyId: desk }, { toCompanyId: desk }] } } },
+              { invitations: { some: { toCompanyId: desk } } },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+          select: { id: true, title: true, companyId: true, status: true },
+        })
+        const flat = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+        const hits = jobs.filter((r) => { const t = flat(r.title); return t.length > 2 && (t === wanted || wanted.includes(t) || t.includes(wanted)) })
+        // An open job before a closed one of the same name, then the newest.
+        found = hits.find((r) => r.status === 'OPEN') ?? hits[0] ?? null
+        if (!found) {
+          return { ok: false as const, says: `No job called “${job}” is on your jobs. Open Jobs to find it.`, links: [{ label: 'Open Jobs', href: '/dashboard/requisitions' }] }
+        }
+      }
+      const url = new URL(request.url)
+      const direction = found ? (found.companyId === desk ? 'received' : 'sent') : (company.kind === 'CLIENT' || seat ? 'received' : 'sent')
+      url.pathname = '/api/submissions'
+      // The page names its own company, as `/api/me` told it; under a seat the route uses the seat's.
+      url.search = `?direction=${direction}&companyId=${encodeURIComponent(company.id)}&limit=50${found ? `&requirementId=${encodeURIComponent(found.id)}` : ''}`
+      const res = await submissionsRoute(new NextRequest(url, { headers: request.headers }))
+      const body = await res.json().catch(() => null)
+      if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'Candidates could not be read just now.' }
+      const rows: AppliedRow[] = (body?.data?.submissions ?? []).map((x: any) => ({
+        person: x.person?.name ?? 'A candidate',
+        job: x.requirement?.title ?? (found?.title ?? 'a job'),
+        from: x.fromCompany?.name ?? null,
+        status: String(x.status ?? ''),
+        sentOn: typeof x.submittedAt === 'string' ? x.submittedAt.slice(0, 10) : null,
+        href: x.requirement?.id ? `/dashboard/requisitions/${x.requirement.id}` : '/dashboard/submissions',
+      }))
+      const total = Number(body?.data?.pagination?.total ?? rows.length)
+      return { ok: true as const, job: found ? found.title : null, rows, total }
+    },
+
+    async compliance() {
+      // The compliance page's own read, in process and under this seat:
+      // who cannot start for want of a paper, and every check on file with
+      // the day it runs out. Its refusal is the chat's refusal.
+      if (!caller.company || !request) return { ok: false as const, says: 'Paperwork is read at your own company; switch to it first.' }
+      const url = new URL(request.url)
+      url.pathname = '/api/compliance'
+      url.search = ''
+      const res = await complianceRoute(new NextRequest(url, { headers: request.headers }))
+      const body = await res.json().catch(() => null)
+      if (!res.ok) return { ok: false as const, says: body?.error?.message ?? 'Paperwork could not be read just now.' }
+      const d = body?.data ?? {}
+      const held: PaperHeld[] = (d.startsHeld ?? []).map((x: any) => ({
+        personId: String(x.personId), name: String(x.name), startsOn: typeof x.startDate === 'string' ? x.startDate.slice(0, 10) : null,
+        missing: [...(x.blocking ?? []), ...(x.chasing ?? [])].map(String), href: `/dashboard/contracts/${x.contractId}`,
+      }))
+      const runs: PaperRun[] = []
+      for (const p of d.verifications?.persons ?? []) {
+        for (const c of p.checks ?? []) {
+          if (typeof c.expiresAt === 'string') runs.push({ whose: String(p.name), paper: c.named ?? labelFor(String(c.type)), runsOutOn: c.expiresAt.slice(0, 10), href: `/dashboard/people/${p.personId}` })
+        }
+      }
+      for (const f of d.verifications?.companies ?? []) {
+        for (const c of f.checks ?? []) {
+          if (typeof c.expiresAt === 'string') runs.push({ whose: String(f.name), paper: c.label ?? labelFor(String(c.type)), runsOutOn: c.expiresAt.slice(0, 10), href: '/dashboard/compliance' })
+        }
+      }
+      return { ok: true as const, client: String(d.client?.name ?? caller.company.name), held, runs }
     },
 
     async logPrompt(entry) {
