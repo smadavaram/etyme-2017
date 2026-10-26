@@ -2413,9 +2413,18 @@ export interface WaitingWeek {
 /**
  * Where a filed week stands, where it is not owed yet. Null where her
  * employer has accepted it — it is owed then, and `owedByWeek` prices it.
+ *
+ * The signature that makes it owed is her employer's acceptance, and
+ * where there is none on the list, the last signature on it. A one-person
+ * firm's acceptance is taken off her list (`withoutOwnFirmAcceptance` in
+ * lib/money/own-firm-acceptance), because the firm above accepting stands
+ * in for it: Colleen Byrne's week is owed once Halcyon Talent accepts it.
+ * Reading only the employer's role returned null for her, and her
+ * greeting fell back to waiting for the client the client had signed
+ * (the production walk, 2026-10-26).
  */
 export function waitingWeek(s: WaitingSheet, today: Date = new Date()): WaitingWeek | null {
-  const employer = [...s.signers].reverse().find((x) => x.role === 'EMPLOYER_ACCEPTANCE')
+  const employer = [...s.signers].reverse().find((x) => x.role === 'EMPLOYER_ACCEPTANCE') ?? s.signers[s.signers.length - 1]
   if (!employer || employer.signedAt) return null
   const client = s.signers.find((x) => x.role === 'CLIENT_APPROVAL')
   const next = s.signers.find((x) => !x.signedAt) ?? employer
@@ -2433,7 +2442,7 @@ export function waitingWeek(s: WaitingSheet, today: Date = new Date()): WaitingW
     says = `Sent to ${client.name}${s.submittedAt ? ` on ${day(s.submittedAt)}` : ''}. Waiting for them to sign.`
   } else {
     stage = 'WAITING_FOR_EMPLOYER'
-    const done = s.signers.filter((x) => x.signedAt && x.role !== 'EMPLOYER_ACCEPTANCE')
+    const done = s.signers.filter((x) => x.signedAt && x !== employer)
     const signed = done.map((x) =>
       x.role === 'CLIENT_APPROVAL' && s.clientApproval
         ? `${s.clientApproval.replace(/\.$/, '')}.`

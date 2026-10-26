@@ -10,6 +10,8 @@ import {
   clientEndingChoices, suggestedExtensionEnd, firstExtensionDay,
   extendFormSays, extendBody, readExtendRefusal,
 } from '@/lib/releasing-soon'
+import { waitingWeek } from '@/lib/consultant-portfolio'
+import { withoutOwnFirmAcceptance } from '@/lib/money/own-firm-acceptance'
 
 /**
  * The supply side of the screen walk of 2026-10-22 ("Papers at every
@@ -262,5 +264,42 @@ describe('A worker who renews a license says what makes it checkable', () => {
     expect(PAPERS).not.toContain('licenseFieldsSay')
     expect(PAPERS).toContain("setRefused({ id: r.id, says: e?.message || 'That did not go through.' })")
     expect(PAPERS).toContain('{refused?.id === r.id && (')
+  })
+})
+
+describe('A one-person firm’s week waits on the firm above her, never on herself', () => {
+  // Colleen Byrne, an ICU nurse paid through Byrne Critical Care LLC,
+  // placed at Harlow Health through Halcyon Talent (the production walk,
+  // 2026-10-26).
+  const d = (s: string) => new Date(`${s}T00:00:00Z`)
+  const signers = withoutOwnFirmAcceptance([
+    { companyId: 'harlow', name: 'Harlow Health', role: 'CLIENT_APPROVAL' as const },
+    { companyId: 'halcyon', name: 'Halcyon Talent', role: 'PASS_THROUGH' as const },
+    { companyId: 'byrne', name: 'Byrne Critical Care LLC', role: 'EMPLOYER_ACCEPTANCE' as const },
+  ], new Set(['byrne']))
+  const week = (harlow: string | null, halcyon: string | null) => ({
+    id: 'ts-colleen', periodStart: d('2026-10-18'), periodEnd: d('2026-10-24'), hours: 36, submittedAt: d('2026-10-25'),
+    signers: signers.map((x) => ({ ...x, signedAt: x.companyId === 'harlow' ? (harlow ? d(harlow) : null) : (halcyon ? d(halcyon) : null) })),
+  })
+
+  it('once the client has signed, her week is said to be signed by the client and waiting for the firm above her, and owed once that firm accepts', () => {
+    const w = waitingWeek(week('2026-10-26', null), d('2026-10-26'))!
+    expect(w).not.toBeNull()
+    expect(w.stage).toBe('WAITING_FOR_EMPLOYER')
+    expect(w.waitingOn).toBe('Halcyon Talent')
+    expect(w.says).toContain('Harlow Health signed it')
+    expect(w.says).toContain('Waiting for Halcyon Talent to accept it.')
+    expect(w.says).toContain('It is owed to you once Halcyon Talent accepts it.')
+    expect(w.says).not.toContain('Byrne Critical Care LLC')
+  })
+
+  it('before the client has signed, her week waits for the client', () => {
+    const w = waitingWeek(week(null, null), d('2026-10-26'))!
+    expect(w.stage).toBe('WAITING_FOR_CLIENT')
+    expect(w.waitingOn).toBe('Harlow Health')
+  })
+
+  it('once the firm above her accepts it, her week is no longer waiting: it is owed', () => {
+    expect(waitingWeek(week('2026-10-26', '2026-10-27'), d('2026-10-27'))).toBeNull()
   })
 })
