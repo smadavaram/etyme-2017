@@ -2843,7 +2843,7 @@ export const MATRIX: L1[] = [
             'DONE 2026-10-19 by etyme-architect, the founder\u2019s decision 2 the same day: where no seat at the firm but the owner Ask Etyme acts for sends bills (invoices.issue), Ask Etyme asks the owner to send its drafted bill instead of refusing, saying \u201cOnly you send bills here, so Ask Etyme asks you.\u201d; the question carries the reason (TwinApproval.selfApprovalReason) and the asking entry, the answer and both automation-log rows say the exception applied (ownerOnlyException); the owner answers only while nobody else may \u2014 a second sender seated since takes the question back, and wherever a second person sends bills the owner still cannot say yes; bill.send only, never another act (OWNER_ONLY_EXCEPTION, ownerOnlyException, decideApproval and waitingQuestions in src/lib/twin/ledger.ts; ownerOnlyAsked and ownerOnlyNoLonger in src/lib/refusal-words.ts; prisma/schema.prisma). Where not even the owner holds invoices.issue the twin still refuses with NO_OTHER_APPROVER',
             'BUILT 2026-10-19 by etyme-conversation (2e9d58418): where nobody but the owner sends bills, the owner reads Ask Etyme\u2019s drafted bill in Ask Etyme and in the Teams digest with \u201cOnly you send bills here, so Ask Etyme asks you.\u201d under the card title, read from waitingQuestions\u2019 mayDecide/askedYouBecause; every other own-authority question stays hidden; the Teams digest carries bill.send cards (Send bill / Keep it as a draft through decideApproval, surface TEAMS) to whoever may send them; the greeting no longer names Needs attention',
             'FIXED 2026-10-22 by etyme-architect, found by the simulation on the 2,000-person world: saying yes to the twin\u2019s bills failed 8 of 120 at a 95th percentile of 6.2s, because the transaction that sends a bill asks the pool for a second connection (a holiday read in lib/holidays, outside the transaction) and nine open transactions waited on each other until the five-second limit; and two bills closing cycles on shared lines can meet a Postgres deadlock. The ledger now holds at most three acts\u2019 transactions open at once and tries an act again when Postgres rolled it back for another (onePerformerSlot). Measured on a copy of the kept world: 40 yeses at once, 0 failed, 1.2 to 2.4s wall, one deadlock met and retried. The nightly run read firms one at a time and passed 60s; it now reads four at a time against a 45-second budget, says how many firms it did not reach, and starts at a different firm each day: 15.0s to 7.5s on the same world, same drafts. OWED BY etyme-money: loadContractHolidays takes the transaction (cycle-complete passes its db), so a bill\u2019s cycle is not left open when the pool is busy',
-          ],
+            'DONE 2026-10-26 by etyme-money (c9c8b82a4): a bill is dated by its agreement on the day it is sent, and says before the yes when that date has already passed; a clean invoice receipt asks to be approved for payment'],
           implementedBy: [
             'prisma/schema.prisma', 'src/lib/autonomy.ts', 'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts',
             'src/lib/twin/performers.ts', 'src/lib/twin/run.ts', 'src/lib/refusal-words.ts',
@@ -2853,11 +2853,13 @@ export const MATRIX: L1[] = [
             'src/app/api/conversations/twin/ask.ts', 'src/app/api/conversations/twin/read.ts', 'src/app/dashboard/conversations/ask-etyme.tsx',
             'src/app/api/twin/approvals/[id]/route.ts',
             'src/lib/teams/digest.ts', 'src/lib/teams/cards.ts', 'src/lib/teams/facts.ts', 'src/lib/teams/actions.ts',
-          ],
+            'src/lib/billing-cascade.ts'],
           testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/schema-terms.test.ts', '__integration__/a-refused-bill-names-the-week.test.ts',
             '__tests__/invariants/twin-conversation.test.ts', '__integration__/invoice-hold.test.ts',
             '__integration__/premium-invoice.test.ts', '__tests__/invariants/client-tester-money-words.test.ts', '__tests__/invariants/twin-ledger.test.ts',
-            '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/ask-etyme-questions.test.ts'] },
+            '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/ask-etyme-questions.test.ts',
+            '__tests__/invariants/bill-due-on-sending.test.ts',
+            '__tests__/invariants/twin-invoice-rule.test.ts'] },
       ]},
       { code: 'L2.7.5', name: 'Offers', domain: 'MARKET', processes: [
         // It had no implementedBy while it was NONE, on purpose, and the
