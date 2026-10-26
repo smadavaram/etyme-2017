@@ -356,11 +356,30 @@ async function registerOne(ctx: Ctx, client: { slug: string; name: string }, i: 
   await held(hr, 'INSURANCE', { validFrom: iso(plusDays(-30)), validUntil: iso(plusDays(335)) })
   await held(hr, 'GOOD_STANDING', { validFrom: iso(plusDays(-20)), validUntil: iso(plusDays(345)) })
   await mark(hr, 'VENDOR_SCREENING', 'HELD', { note: 'Sanctions and litigation screening clear, run by Procurement’s screening service.' })
+  // An agreement is on file only with its signed copy: HR attaches the
+  // signed MSA (and the NDA, where this client's orders ask for one),
+  // then marks it on file.
+  const list = await hr.get('/api/supplier-requests')
+  const mine = ((list.json?.data?.requests ?? []) as { id: string; checklist?: { key: string }[] }[]).find((r) => r.id === id)
+  const keys = new Set((mine?.checklist ?? []).map((c) => c.key))
+  for (const [key, what] of [['AGREEMENT', 'Master service agreement'], ['NDA', 'Non-disclosure agreement']] as const) {
+    if (!keys.has(key)) continue
+    const signed = holder(`${what}, signed by both firms`)
+    const form = new FormData()
+    form.set('key', key)
+    form.set('file', new Blob([new Uint8Array(signed.bytes)], { type: signed.type }), signed.name)
+    const attached = await hr.upload(`/api/supplier-requests/${id}/file`, form)
+    if (attached.ok) {
+      tally.answered('company registration')
+      await held(hr, key, { validFrom: iso(plusDays(0)), validUntil: iso(plusDays(3 * 365)) })
+    }
+  }
   const cleared = await hr.patch(`/api/supplier-requests/${id}`, { action: 'approve', note: 'Cover current; good standing current; screening clear.' })
   if (!cleared.ok) return { ok: false, firm, why: cleared.sentence ?? 'HR could not clear it' }
 
   // Finance: the W-9 and the bank details, then the last yes.
-  await held(finance, 'TAX_FORM')
+  // A W-9 is verified with the edition printed on it.
+  await held(finance, 'TAX_FORM', { edition: 'Rev. March 2024' })
   await held(finance, 'BANK')
   const approved = await finance.patch(`/api/supplier-requests/${id}`, { action: 'approve', note: 'Bank details match the W-9 legal name.' })
   if (!approved.ok) return { ok: false, firm, why: approved.sentence ?? 'Finance could not approve it' }
