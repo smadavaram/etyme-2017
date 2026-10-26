@@ -34,6 +34,7 @@ import { ENDING_SOON_READERS } from '@/lib/releasing-soon'
 import { firmBilling } from './billing'
 import { firmTuesday } from '@/lib/money/firm-today'
 import { benchAt } from '@/app/api/today/reads'
+import { todayReads } from '@/lib/today-page'
 import { GET as benchRoute } from '@/app/api/bench/route'
 import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import {
@@ -791,6 +792,10 @@ export function readersFor(
       // skills and free date: an integrator's is its own people between
       // projects (Our bench), any other firm's the people who agreed.
       const now = new Date()
+      // Opened where the Today page opens it (consultants.read, never an
+      // MSP's), or where an integrator's Our bench opens to this seat — a
+      // delivery manager reads his firm's people between projects.
+      let pageOpen = false
       const [on, detail] = await Promise.all([
         benchAt(company.id, now),
         (async (): Promise<Map<string, { free: string; skills: string[] }>> => {
@@ -799,6 +804,7 @@ export function readersFor(
             const res = await ourBenchRoute(request)
             const body = await res.json().catch(() => null)
             if (!res.ok) return out
+            pageOpen = true
             for (const r of body?.data?.rows ?? []) {
               if (r?.personId) out.set(r.personId, { free: r.freeOnSays ?? '—', skills: Array.isArray(r.skills) ? r.skills : [] })
             }
@@ -817,6 +823,9 @@ export function readersFor(
           return out
         })(),
       ])
+      if (!todayReads(caller.permissions, company.kind).bench && !pageOpen) {
+        return { ok: false as const, says: deskRefusal('reads who is on the bench', 'consultants.read', company.kind) }
+      }
       const rows: BenchRow[] = on.map((b) => ({
         personId: b.personId, person: b.name,
         free: detail.get(b.personId)?.free ?? 'Free now',

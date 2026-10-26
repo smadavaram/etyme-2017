@@ -1182,9 +1182,9 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple.'])
     // What needs her: the week that ended and is not filed, first.
     expect(a.recommend?.says).toBe('File your week of Oct 11–17 for Northbend Athletic.')
-    expect(a.says).toBe('One thing needs you. Checked just now.')
+    expect(a.says).toBe('One thing needs you: your week of Oct 11–17. Checked just now.')
     expect(a.cards.map((c) => [c.title, c.says, c.button, c.href])).toEqual([
-      ['Your week of Oct 11–17 isn’t filed yet.', '40 hours are expected; file it when you are ready. It is due Oct 19.', 'File my week', '/dashboard/my-work'],
+      ['Your week of Oct 11–17 isn’t filed yet.', '40 hours are expected; file it when you are ready. It is due Oct 19.', 'File my week', '/dashboard/my-work?week=2026-10-11'],
     ])
     // "Etyme never files a week for you" left the greeting (founder, 2026-10-19); the card opens her own page.
     expect(a.note).toBeUndefined()
@@ -1220,7 +1220,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     for (const q of ['File my week', 'Submit my hours for last week', 'Log 40 hours for me']) {
       const a = await respondWorker(q, { facts })
       expect(a.says, q).toBe(FILE_IT_YOURSELF)
-      expect(a.cards.map((c) => [c.act, c.button, c.href]), q).toEqual([['FILE_WEEK', 'File my week', '/dashboard/my-work']])
+      expect(a.cards.map((c) => [c.act, c.button, c.href]), q).toEqual([['FILE_WEEK', 'File my week', '/dashboard/my-work?week=2026-10-11']])
     }
     // Nothing to file: said, with the page.
     const none = await respondWorker('File my week', { facts: async () => helena({ toFile: [] }) })
@@ -1291,7 +1291,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
       ['PAPER', 'Non-disclosure agreement for Northbend Athletic', 'Sign', '/dashboard/my-work/paperwork'],
     ])
     expect(a.recommend?.says).toBe('Answer Cavanaugh Glassworks’ interview request for ERP finance lead.')
-    expect(a.says).toBe('Three things need you. Checked just now.')
+    expect(a.says).toBe('Three things need you: Cavanaugh Glassworks’ interview request, your stay on Techpeple’s bench and your non-disclosure agreement. Checked just now.')
     // A paper that stops her work stays with the week, first.
     const stops = workerToday(helena({ toFile: [], papers: [{ ...f.papers[0], stopsWork: true }] }))
     expect(stops.cards.map((c) => c.act)).toEqual(['PAPER'])
@@ -1359,7 +1359,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
       }],
     })
     expect(cardsFor(three)).toHaveLength(3)
-    expect(workerToday(three, { greeting: true }).says).toBe('Three things need you. Checked just now.')
+    expect(workerToday(three, { greeting: true }).says).toBe('Three things need you: your returned week of Sep 13–19, your unsent week of Sep 6–12 and one more. Checked just now.')
 
     noticeCalls.length = 0
     const needs = vi.fn(async () => 9)

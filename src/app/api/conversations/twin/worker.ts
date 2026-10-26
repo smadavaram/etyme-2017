@@ -181,6 +181,13 @@ export interface PaperAsk {
   dueOn: string | null
   stopsWork: boolean
   href: string
+  /**
+   * The paper she holds that this ask renews, where it renews one: its
+   * name and the day it runs out. That day is the one that matters to
+   * her, not the ask's own due date, which can fall after the lapse (the
+   * walk of 2026-10-22: a license running out Nov 15 read "due Dec 6").
+   */
+  renews?: { name: string; runsOutOn: string } | null
 }
 
 /** A document she holds that runs out soon. */
@@ -232,6 +239,12 @@ export interface WorkerFacts {
   papers: PaperAsk[]
   runningOut: PaperRunningOut[]
   interviews: InterviewFact[]
+  /**
+   * The jobs firms put her forward for, from her own pipeline: the job,
+   * who put her forward, where it stands in the pipeline's own words, and
+   * whether it is still open. Absent where it was not read.
+   */
+  putForward?: Array<{ role: string; by: string; says: string; live: boolean }>
   stays: StayFact[]
   consent: ConsentFacts
   /**
@@ -263,6 +276,8 @@ export interface WorkerCard {
   listingId?: string
   /** PAPER only: the paper stops her work until it is on file, so it goes with the week, not after the money. */
   stopsWork?: boolean
+  /** What it is, short, as the headline names it: "your week of Oct 11–17", "your I-9". */
+  name: string
 }
 
 export interface WorkerTable {
@@ -357,8 +372,9 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       act: 'FIX_WEEK',
       title: `Your week of ${week} was sent back.`,
       says: `${w.reason ? `${w.reason.replace(/\.$/, '')}. ` : ''}Correct it and send it again.`,
-      href: YOUR_WORK,
+      href: weekHref(w.periodStart),
       button: 'Correct my week',
+      name: `your returned week of ${week}`,
     })
   }
 
@@ -371,8 +387,9 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       act: 'SEND_WEEK',
       title: `Your week of ${week} is saved and not sent.`,
       says: `It holds ${hoursWord(w.hours)}. Nobody can sign it until you send it.`,
-      href: YOUR_WORK,
+      href: weekHref(w.periodStart),
       button: 'Send my week',
+      name: `your unsent week of ${week}`,
     })
   }
 
@@ -389,17 +406,24 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       act: 'FILE_WEEK',
       title: `Your week of ${week} isn’t filed yet.`,
       says: `${expected}${due}`,
-      href: YOUR_WORK,
+      href: weekHref(w.periodStart),
       button: 'File my week',
+      name: `your week of ${week}`,
     })
   }
 
   for (const p of f.papers) {
     const verb = p.todo === 'sign' ? 'Sign' : p.todo === 'upload' ? 'Upload' : 'Open'
     const by = p.askedBy ? ` for ${p.askedBy}` : ''
-    const due = p.dueOn ? ` It is due ${day(p.dueOn)}.` : ''
+    // A renewal is said by the day the paper she holds runs out, which is
+    // the day her work can stop; the ask's own due date is said only where
+    // it comes first, or where she holds nothing it renews.
+    const lapse = p.renews && (!p.dueOn || p.renews.runsOutOn <= p.dueOn) ? p.renews : null
+    const due = lapse
+      ? ` Your ${lowerFirst(lapse.name)} runs out on ${day(lapse.runsOutOn)}; send the new one before then.`
+      : p.dueOn ? ` It is due ${day(p.dueOn)}.` : ''
     cards.push({
-      first: `${verb} your ${p.name}${by}.`,
+      first: lapse ? `${verb} your ${p.name}${by} before ${day(lapse.runsOutOn)}.` : `${verb} your ${p.name}${by}.`,
       key: `paper:${p.id}`,
       act: 'PAPER',
       title: `${p.name}${by}`,
@@ -407,6 +431,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       href: p.href,
       button: verb,
       stopsWork: p.stopsWork,
+      name: `your ${lowerFirst(p.name.replace(/\s*\([^)]*\)/g, '').trim())}`,
     })
   }
 
@@ -419,6 +444,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       says: `Round ${i.round}. Pick a time or decline on Your work.`,
       href: YOUR_WORK,
       button: 'Answer interview',
+      name: `${possessive(i.with)} interview request`,
     })
   }
 
@@ -438,6 +464,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       href: WHO_HAS_YOU,
       button: `Renew for ${s.days} days`,
       listingId: s.listingId,
+      name: `your stay on ${possessive(s.firm)} bench`,
     })
   }
 
@@ -450,6 +477,7 @@ export function cardsFor(f: WorkerFacts): WorkerCard[] {
       says: 'Nothing happens until you answer.',
       href: WHO_HAS_YOU,
       button: 'Answer',
+      name: `${possessive(firm)} ask to list you`,
     })
   }
 
@@ -465,6 +493,34 @@ function recommendFor(c: WorkerCard): RichLine {
 export function needSays(n: number): string {
   return n === 0 ? 'Nothing needs you today.' : `${numberWord(n)} thing${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} you.`
 }
+
+/**
+ * The headline with the things in it (founder, 2026-10-19: names, not
+ * counts): "Three things need you: your week of Oct 11–17, your I-9 and
+ * Brightmoor Staffing’s interview request." At most three are named, the
+ * rest are "and n more", and fewer are named where three would run the
+ * sentence to twenty words.
+ */
+export function needNamesSays(cards: readonly Pick<WorkerCard, 'name'>[]): string {
+  const n = cards.length
+  if (n === 0) return needSays(0)
+  const head = needSays(n).replace(/\.$/, '')
+  for (let shown = Math.min(3, n); shown >= 1; shown--) {
+    const names = cards.slice(0, shown).map((c) => c.name)
+    const rest = n - shown
+    const list = rest > 0 ? `${names.join(', ')} and ${lowerNumber(rest)} more` : listed(names)
+    const said = `${head}: ${list}.`
+    if (said.split(/\s+/).length < 20) return said
+  }
+  return needSays(n)
+}
+
+const LOWER_NUMBERS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine']
+const lowerNumber = (n: number) => (n < LOWER_NUMBERS.length ? LOWER_NUMBERS[n] : String(n))
+/** "Professional license" → "professional license"; an acronym ("I-9", "W-4") keeps its capitals. */
+const lowerFirst = (x: string) => (/^[A-Z][A-Z0-9-]/.test(x) ? x : x.charAt(0).toLowerCase() + x.slice(1))
+/** Her own page, opened at the week a card is about. */
+const weekHref = (periodStart: string) => `${YOUR_WORK}?week=${periodStart.slice(0, 10)}`
 
 // ── Where each week stands ───────────────────────────────────────────
 
@@ -682,7 +738,7 @@ export function workerToday(
     kind: 'WORKER',
     ...(opts.greeting ? { greeting: true, where: chainsToSay(f.placements) } : {}),
     ...(lead ? { recommend: recommendFor(lead) } : {}),
-    says: `${needSays(cards.length)} Checked just now.`,
+    says: `${needNamesSays([...first, ...later])} Checked just now.`,
     cards: shown,
     more,
     ...(later.length ? { papers: { says: papersLine(later), cards: later } } : {}),
@@ -694,7 +750,7 @@ export function workerToday(
 
 export type WorkerIntent =
   | 'HELP' | 'NEEDS' | 'SIGNED' | 'OWED' | 'PAPERS' | 'CONSENT' | 'CHAIN' | 'MY_RATE' | 'THEIR_RATE'
-  | 'FILE' | 'SIGN_WEEK' | 'INTERVIEWS' | 'CONTRACT_END' | 'GENERAL' | 'ANOTHER' | 'NOT_YET'
+  | 'FILE' | 'SIGN_WEEK' | 'EXTEND' | 'LAST_PAID' | 'JOBS' | 'INTERVIEWS' | 'CONTRACT_END' | 'GENERAL' | 'ANOTHER' | 'NOT_YET'
 
 const lowerOf = (t: string) => t.toLowerCase().normalize('NFC').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim()
 
@@ -707,8 +763,11 @@ export function readWorkerAsk(raw: string): WorkerIntent {
   if (anotherBook(t) || /\b(other|another) (person|people|consultants?|workers?|contractors?)'?s?\b|\b(colleague|coworker|co-worker)s?'? (pay|rate|salary)\b/.test(t)) return 'ANOTHER'
   if (/^(file|submit|enter|log|send|fill in|fill out|put in)\b.*\b(week|hours|timesheet|time)\b|\b(file|submit|log|enter) (it|them) for me\b/.test(t)) return 'FILE'
   if (/^(approve|sign|accept)\b.*\b(week|hours|timesheet)\b/.test(t)) return 'SIGN_WEEK'
+  if (/^(please |can you |could you )?(extend|lengthen)\b/.test(t) || /\bextend (my|the) (contract|placement|assignment|project)\b/.test(t)) return 'EXTEND'
   if (/^(what|who|anything)\b.*\b(needs?|waiting on|waits? (for|on))\s+me\b|^what do i (need|have) to do\b|^(needs me|my queue|what is waiting( on me)?)\??$/.test(t)) return 'NEEDS'
   if (/\b(contract|placement|assignment|project)s?\b.*\b(end|ends|ending|finish|finishes|over|last day)\b|\bmy last day\b|\bwhen do i (finish|roll ?off)\b/.test(t)) return 'CONTRACT_END'
+  if (/\b(last|latest) (paid|pay ?check|payment|pay)\b|\bwhen was i (last )?paid\b|\bwhen did i (last )?get paid\b/.test(t)) return 'LAST_PAID'
+  if (/\b(is there|are there|any) (a |any )?(jobs?|work|roles?|openings?|positions?) (for me|i can)\b|\bjobs? for me\b|\bfind me (a )?(job|work|role)\b|\bwhat jobs?\b.*\b(me|i)\b/.test(t)) return 'JOBS'
   if (/\b(my (pay )?rate|my hourly|hourly rate|what am i paid (an|per) hour|my pay rate)\b/.test(t)) return 'MY_RATE'
   if (/\b(owed|owe me|get paid|pay ?day|paycheck|pay check|when (do|will) i (be )?paid|how much (do|will|have) i|been paid|my pay\b)/.test(t)) return 'OWED'
   if (/\b(sign(ed)?|approved?|accept(ed)?|sign(ed)? off)\b/.test(t) && /\b(week|weeks|hours|timesheets?)\b/.test(t)) return 'SIGNED'
@@ -760,7 +819,8 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
         key: `file:${thisWeek.periodStart}`, act: 'FILE_WEEK' as const,
         first: `File your week of ${weekWords(thisWeek.periodStart, thisWeek.periodEnd)} for ${thisWeek.site}.`,
         title: `Your week of ${weekWords(thisWeek.periodStart, thisWeek.periodEnd)} is open.`,
-        says: 'File the days you have worked when you are ready.', href: YOUR_WORK, button: 'File my week',
+        says: 'File the days you have worked when you are ready.', href: weekHref(thisWeek.periodStart), button: 'File my week',
+        name: `your week of ${weekWords(thisWeek.periodStart, thisWeek.periodEnd)}`,
       } : null)
       return withUnread({
         kind: 'WORKER',
@@ -776,6 +836,63 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
       const signer = p ? p.site : 'the client'
       const accepter = p ? p.employer : 'your employer'
       return text(`Etyme never signs a week; ${signer} signs it, then ${accepter} accepts it.`)
+    }
+
+    case 'EXTEND': {
+      // Refused in a sentence that says who may (the never floor, CLAUDE.md
+      // "The job twin"): an extension is agreed between the client and the
+      // firm that employs her, and that firm extends her line.
+      const p = f.placements.find((x) => x.live) ?? f.placements[0]
+      if (!p) return withUnread(text('Etyme never extends a contract, and you have no contract on the record to extend.'), 'weeks')
+      return withUnread(text(
+        `Etyme never extends a contract; ${p.employer} extends yours with ${p.site}. Ask ${p.employer}.`,
+        [{ label: 'Open Your work', href: YOUR_WORK }],
+      ), 'weeks')
+    }
+
+    case 'LAST_PAID': {
+      const paid = f.sent.filter((w) => w.stage === 'PAID' && w.paidOn).sort((a, b) => (b.paidOn ?? '').localeCompare(a.paidOn ?? ''))
+      const w = paid[0]
+      if (!w) {
+        return withUnread(text(
+          `No pay to you is recorded on Etyme yet. ${f.ownCompanyBills ? 'Your own company bills for your weeks, so its bills say what was paid.' : 'Your employer’s payroll records it here once it pays a week.'}`,
+          [{ label: 'Open Your work', href: YOUR_WORK }],
+        ), 'weeks')
+      }
+      return withUnread(text(
+        `You were last paid on ${day(w.paidOn!)}, for your week of ${weekWords(w.periodStart, w.periodEnd)}${w.employer ? `, by ${w.employer}` : ''}. Checked just now.`,
+        [{ label: 'Open Your work', href: YOUR_WORK }],
+      ), 'weeks')
+    }
+
+    case 'JOBS': {
+      // Etyme places nobody: the answer is what firms holding her consent
+      // did with it, read from her own pipeline, never a list of jobs.
+      const open = (f.putForward ?? []).filter((x) => x.live)
+      const firms = f.consent.benches.map((b) => b.firm)
+      const who = firms.length
+        ? `${listed(firms)} ${firms.length === 1 ? 'holds' : 'hold'} your consent to put you forward.`
+        : 'No firm holds your consent to put you forward yet.'
+      if (open.length === 0) {
+        return withUnread({
+          kind: 'WORKER', says: `No job you were put forward for is open now. ${who} Checked just now.`, cards: [],
+          more: [{ says: 'Etyme never places anybody; the firms that hold your consent put you forward.' }],
+          links: [{ label: 'Open Who has you', href: WHO_HAS_YOU }],
+        }, 'interviews')
+      }
+      const first = open[0]
+      return withUnread({
+        kind: 'WORKER',
+        says: `${first.by} put you forward for ${first.role}. ${open.length === 1 ? 'It is' : `${numberWord(open.length)} jobs are`} still open. Checked just now.`,
+        cards: cardsFor(f).filter((c) => c.act === 'INTERVIEW'),
+        more: [{ says: 'Etyme never places anybody; the firms that hold your consent put you forward.' }],
+        table: {
+          caption: 'Jobs you were put forward for, still open',
+          head: ['Job', 'Put forward by', 'Where it is'],
+          rows: open.slice(0, 8).map((x) => ({ cells: [x.role, x.by, x.says] })),
+        },
+        links: [{ label: 'Open Your work', href: YOUR_WORK }],
+      }, 'interviews')
     }
 
     case 'SIGNED': {

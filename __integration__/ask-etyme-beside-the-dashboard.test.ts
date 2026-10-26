@@ -107,4 +107,29 @@ describe('Ask Etyme says what the dashboard says', () => {
     const today = (await benchAt(firm!.id, new Date())).map((b) => b.name).sort()
     expect(chat).toEqual(today)
   })
+  it('Colleen Byrne, a one-person firm, finds the license renewal asked of her in her greeting and in her mark’s number, and reads the day her license runs out', async () => {
+    as('colleen.byrne@seed.etyme.invalid')
+    const g = await json(await greet(req('GET', '/api/conversations/twin')))
+    expect(g.status, JSON.stringify(g.body)).toBe(200)
+    const cards: any[] = g.body.data.answer.queue ?? []
+    const own = cards.filter((c) => c.type === 'OWN_PAPER')
+    expect(own.length, 'her own paper is a card in her greeting').toBeGreaterThan(0)
+    expect(own[0].title).toMatch(/^Your professional license is asked of you\.$/)
+    const mark = await json(await greet(req('GET', '/api/conversations/twin?only=owed')))
+    expect(mark.body.data.total).toBeGreaterThanOrEqual(own.length)
+    expect(g.body.data.answer.says).toMatch(/professional license/)
+
+    const r = await asked('What papers are due?')
+    const held = await prisma.verification.findFirst({
+      where: { person: { name: 'Colleen Byrne' }, expiresAt: { not: null } },
+      orderBy: { expiresAt: 'asc' },
+      select: { expiresAt: true },
+    })
+    const says = JSON.stringify(r.body.data.answer)
+    expect(says).toMatch(/runs out on [A-Z][a-z]{2} \d{1,2}; send the new one before then/)
+    if (held?.expiresAt) {
+      const lapse = held.expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+      expect(says).toContain(`runs out on ${lapse}`)
+    }
+  })
 })

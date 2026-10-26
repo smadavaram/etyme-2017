@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, type Picture, type Answer, type Party, type QueueRead } from './ask'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor } from '@/lib/model-boundary'
@@ -9,7 +9,7 @@ import { GET as programPicture } from '@/app/api/program/route'
 import { GET as decisionQueue } from '@/app/api/decisions/route'
 import { readersFor } from './read'
 import { unreadNotices, unreadThreads, markNoticesSeen } from './notices'
-import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine } from './worker'
+import { isWorkerSeat, workerToday, respondWorker, readWorkerAsk, latestWeekLine, cardsFor, type WorkerFacts } from './worker'
 import { seatFor, type LiveSeat } from '@/lib/program-seat'
 import { programQueue } from '@/app/api/program/queue'
 import { workerFacts } from './worker-read'
@@ -131,6 +131,21 @@ function seatOf(caller: Caller): Promise<LiveSeat | null> {
  * firm's decisions while its page read the client's, and the two said
  * different things about one program.
  */
+/**
+ * A one-person firm's own facts as the worker, read once per request: her
+ * week for the greeting's line, and the papers asked of her for the queue.
+ * Null where they could not be read; nothing is said from a guess.
+ */
+const soloFacts = new WeakMap<object, Promise<WorkerFacts | null>>()
+function ownFactsOf(caller: Caller, request: NextRequest): Promise<WorkerFacts | null> {
+  let got = soloFacts.get(caller)
+  if (!got) {
+    got = caller.company?.kind === 'CONSULTANT_CORP' ? workerFacts(caller, request).catch(() => null) : Promise.resolve(null)
+    soloFacts.set(caller, got)
+  }
+  return got
+}
+
 function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead | null> {
   let read: Promise<QueueRead | null> | null = null
   // Read once per request however often it is asked: the headline, the
@@ -149,7 +164,11 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
       if (!res.ok) return null
       // The same field the mark reads (`owedFrom` in lib/owed-count): one
       // answer, one figure — and the rows behind it, which the headline names.
-      return queueFrom(await res.json())
+      const queue = queueFrom(await res.json())
+      // A one-person firm is the worker too: what is asked of her on paper
+      // is in her one queue, so her greeting and her mark count it.
+      const own = await ownFactsOf(caller, request)
+      return own ? withOwnPapers(queue, cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
     } catch {
       return null
     }
@@ -251,9 +270,7 @@ export async function GET(request: NextRequest) {
     void queue()
     // A one-person firm is the firm and the worker: her own week is read
     // from her own pages beside the rest, and said in her greeting.
-    const ownWeek = company.kind === 'CONSULTANT_CORP'
-      ? workerFacts(caller, request).then(latestWeekLine).catch(() => null)
-      : Promise.resolve(null)
+    const ownWeek = ownFactsOf(caller, request).then((f) => (f ? latestWeekLine(f) : null)).catch(() => null)
     const [notices, threads, modelSwitch, who, week] = await Promise.all([
       unreadNotices(caller), unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller), ownWeek,
     ])
@@ -368,7 +385,7 @@ export async function POST(request: NextRequest) {
     // papers and her contract are answered from her own pages, as a
     // worker's are; what she billed and the rest, from the firm's book.
     const solo = who.party === 'SOLO' && readAsk(text).kind !== 'UNPAID' &&
-      ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK'].includes(readWorkerAsk(text))
+      ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS'].includes(readWorkerAsk(text))
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request) })
       : await respond(text, readersFor(caller, companyId, request, { seat: await seatOf(caller) }), {

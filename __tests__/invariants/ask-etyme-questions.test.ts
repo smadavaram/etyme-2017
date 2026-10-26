@@ -546,7 +546,7 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
 
   it('a worker asks “What needs me today?” and reads the week to file first, then where her weeks stand and when one is owed, and the paper that does not stop her work last', async () => {
     await worker('What needs me today?', 'ANSWERED',
-      'File your week of Oct 11–17 for Northbend Athletic. Two things need you. Checked just now. Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. $3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. A week is owed to you once Techpeple accepts it, not when the client signs it. One paper is asked of you: your non-disclosure agreement.')
+      'File your week of Oct 11–17 for Northbend Athletic. Two things need you: your week of Oct 11–17 and your non-disclosure agreement. Checked just now. Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple. $3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. A week is owed to you once Techpeple accepts it, not when the client signs it. One paper is asked of you: your non-disclosure agreement.')
   })
 
   it('a worker asks “Is my week signed?” and reads who signed it and who has still to accept it', async () => {

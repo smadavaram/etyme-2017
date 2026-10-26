@@ -124,3 +124,88 @@ describe('every decision in the count is a card, and none offers to pay what fai
     expect(line?.says).toBe('PR-9 does not match the approved hours or the contract rate; it cannot be paid until Pinnacle Resourcing corrects it.')
   })
 })
+
+// ── A worker and a one-person firm ────────────────────────────────────
+
+import { respondWorker, workerToday, cardsFor, readWorkerAsk, type WorkerFacts } from '@/app/api/conversations/twin/worker'
+import { withOwnPapers, queueCards, namedNeedsSays } from '@/app/api/conversations/twin/ask'
+
+function colleen(over: Partial<WorkerFacts> = {}): WorkerFacts {
+  return {
+    seat: 'CONSULTANT', seatAt: 'Byrne Critical Care LLC',
+    placements: [{ site: 'Harlow Health', through: ['Halcyon Talent'], employer: 'Byrne Critical Care LLC', tie: 'PAID', live: true, endDate: '2026-12-10', payRateMinor: null, payCurrency: null, rateNote: null }],
+    toFile: [{ periodStart: '2026-10-18', periodEnd: '2026-10-24', site: 'Harlow Health', ended: true, wholeWeek: true, expectedHours: 36, dueOn: '2026-10-26' }],
+    returned: [], sent: [], ownCompanyBills: null, weeksWithNoRate: 0,
+    papers: [{
+      id: 'p-lic', name: 'Professional license (RN 154-882, WI)', todo: 'open', askedBy: 'Halcyon Talent', dueOn: '2026-12-06',
+      stopsWork: false, href: '/packet/abc', renews: { name: 'Professional license', runsOutOn: '2026-11-15' },
+    }],
+    runningOut: [], interviews: [], stays: [],
+    consent: { benches: [], asking: [], employers: [] },
+    unread: [],
+    ...over,
+  }
+}
+
+describe('a worker’s first screen names what needs her, and every answer is her own record’s', () => {
+  it('the headline names the things that need her, never only their count', () => {
+    expect(workerToday(colleen()).says).toBe('Two things need you: your week of Oct 18–24 and your professional license. Checked just now.')
+  })
+
+  it('“File my week” opens Your work at that week', async () => {
+    const a = await respondWorker('File my week', { facts: async () => colleen() })
+    expect(a.cards[0].href).toBe('/dashboard/my-work?week=2026-10-18')
+  })
+
+  it('a license renewal is said by the day the license she holds runs out, not the request’s later due date', () => {
+    const card = cardsFor(colleen()).find((c) => c.act === 'PAPER')!
+    expect(card.says).toBe('Open it from your paperwork. Your professional license runs out on Nov 15; send the new one before then.')
+    expect(card.says).not.toContain('Dec 6')
+  })
+
+  it('a paper with nothing it renews keeps its own due date', () => {
+    const card = cardsFor(colleen({ papers: [{ ...colleen().papers[0], renews: null }] })).find((c) => c.act === 'PAPER')!
+    expect(card.says).toBe('Open it from your paperwork. It is due Dec 6.')
+  })
+
+  it('“Extend my contract” is refused in one sentence that says who extends it', async () => {
+    expect(readWorkerAsk('Extend my contract')).toBe('EXTEND')
+    const a = await respondWorker('Extend my contract', { facts: async () => colleen() })
+    expect(a.says).toBe('Etyme never extends a contract; Byrne Critical Care LLC extends yours with Harlow Health. Ask Byrne Critical Care LLC.')
+  })
+
+  it('“When was I last paid?” is answered from her own paid weeks', async () => {
+    const paid = colleen({
+      sent: [
+        { id: 'w1', periodStart: '2026-09-27', periodEnd: '2026-10-03', hours: 36, stage: 'PAID', waitingOn: null, client: 'Harlow Health', employer: 'Byrne Critical Care LLC', approvedBy: null, stillOwedMinor: 0, owedHours: 0, currency: 'USD', dueOn: null, overdue: false, paidOn: '2026-10-10' },
+        { id: 'w2', periodStart: '2026-10-04', periodEnd: '2026-10-10', hours: 36, stage: 'PAID', waitingOn: null, client: 'Harlow Health', employer: 'Byrne Critical Care LLC', approvedBy: null, stillOwedMinor: 0, owedHours: 0, currency: 'USD', dueOn: null, overdue: false, paidOn: '2026-10-17' },
+      ] as WorkerFacts['sent'],
+    })
+    const a = await respondWorker('When was I last paid?', { facts: async () => paid })
+    expect(a.says).toBe('You were last paid on Oct 17, for your week of Oct 4–10, by Byrne Critical Care LLC. Checked just now.')
+  })
+
+  it('“Is there a job for me?” says which firm put her forward and for what, and never offers a job Etyme found', async () => {
+    const f = colleen({ putForward: [{ role: 'ICU nurse, nights', by: 'Halcyon Talent', says: 'With Harlow Health for review.', live: true }] })
+    const a = await respondWorker('Is there a job for me?', { facts: async () => f })
+    expect(a.says).toBe('Halcyon Talent put you forward for ICU nurse, nights. It is still open. Checked just now.')
+    expect(a.more.map((m) => m.says)).toContain('Etyme never places anybody; the firms that hold your consent put you forward.')
+  })
+})
+
+describe('a one-person firm’s own paper is in her one queue', () => {
+  const card = () => cardsFor(colleen()).filter((c) => c.act === 'PAPER')
+
+  it('a paper asked of her as the worker is counted and named in her greeting, and is a card that opens her paperwork with Not now', () => {
+    const q = withOwnPapers({ total: 1, items: [{ type: 'INVOICE_OVERDUE', title: 'Overdue — IN-7YYZVO', entityId: 'inv-1' }] }, card())!
+    expect(q.total).toBe(2)
+    expect(namedNeedsSays(q, [])!.says).toBe('Two things need you: Bill IN-7YYZVO is overdue; Your professional license is asked of you. Open the list.')
+    const own = queueCards(q).find((c) => c.type === 'OWN_PAPER')!
+    expect(own.href).toBe('/packet/abc')
+    expect(own.act).toBeNull()
+  })
+
+  it('a queue that could not be read stays unread, rather than counting only her papers', () => {
+    expect(withOwnPapers(null, card())).toBeNull()
+  })
+})

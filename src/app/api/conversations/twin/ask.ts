@@ -2216,6 +2216,9 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
       return `${possessive(who.replace(/ at .*$/, ''))} contract waits to be papered`
     case 'CONTRACT_START':
       return `${d.title.replace(/^Start /, '').replace(/ at .*$/, '')} waits to be started`
+    case 'OWN_PAPER':
+      // A one-person firm's own paper, asked of her as the worker: the card's own name.
+      return cap(d.whose?.trim() || d.title)
     case 'TWIN_QUESTION': {
       const q = twin.find((i) => i.approvalId === d.entityId)
       if (!q) return 'Etyme has a question for you'
@@ -2282,6 +2285,30 @@ export function queueAct(d: QueueItem): QueueAct | null {
     return { label: 'Accept expense', url: `/api/expenses/${id}/accept`, body: { decision: 'accept' }, done: 'Accepted, and recorded under your name.' }
   }
   return null
+}
+
+/**
+ * A one-person firm's queue with her own papers in it (the walk of
+ * 2026-10-22: Colleen Byrne's license renewal was asked of her and her
+ * greeting said nothing needed her). She is the firm and the worker, so
+ * what is asked of her as the worker is hers to do as the firm: each
+ * paper is a row of the one queue, counted in the headline and the mark
+ * and drawn as a card that opens her paperwork. The queue's own sentence
+ * is dropped where a paper is added, so the headline names the papers too.
+ */
+export function withOwnPapers(
+  q: QueueRead | null,
+  papers: ReadonlyArray<{ key: string; name: string; title: string; says: string; href: string }>,
+): QueueRead | null {
+  // A queue that could not be read stays unread: a count of her papers
+  // alone, read as everything she owes, is the plausible wrong number.
+  if (papers.length === 0 || !q) return q
+  const own: QueueItem[] = papers.map((p) => ({
+    type: 'OWN_PAPER', title: p.title, whose: `${p.name} is asked of you`,
+    subtitle: p.says, entityId: p.key, actionUrl: p.href,
+  }))
+  // After the firm's own decisions: money and the week before paperwork.
+  return { total: q.total + own.length, items: [...q.items, ...own] }
 }
 
 /** Every decision in the count that is not one of the twin's own questions, as a card. */

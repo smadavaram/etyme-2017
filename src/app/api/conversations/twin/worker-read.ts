@@ -252,6 +252,18 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
 
   // ── What is asked of her on paper ────────────────────────────────────
   const paperRows: any[] = papers?.papers ?? []
+  // The paper she holds that an ask renews: a held row whose name begins
+  // the ask's ("Professional license" under "Professional license (RN
+  // 154-882, WI)"), with the day it runs out.
+  const held = paperRows.filter((p) => p.kind === 'HELD' && typeof p.name === 'string' && typeof p.runsOutOn === 'string')
+  const renewed = (name: unknown): { name: string; runsOutOn: string } | null => {
+    if (typeof name !== 'string') return null
+    const n = name.toLowerCase().trim()
+    const h = held
+      .filter((x) => { const m = String(x.name).toLowerCase().trim(); return m.length > 2 && (n === m || n.startsWith(`${m} `) || n.startsWith(`${m}(`)) })
+      .sort((a, b) => String(a.runsOutOn).localeCompare(String(b.runsOutOn)))[0]
+    return h ? { name: String(h.name), runsOutOn: String(h.runsOutOn).slice(0, 10) } : null
+  }
   const asks: PaperAsk[] = paperRows
     .filter((p) => p.todo === 'sign' || p.todo === 'upload' || p.todo === 'open')
     .map((p) => ({
@@ -262,6 +274,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
       dueOn: p.dueOn ? String(p.dueOn).slice(0, 10) : null,
       stopsWork: Boolean(p.stopsWork),
       href: typeof p.link === 'string' && p.link.startsWith('/') && !p.link.startsWith('//') ? p.link : '/dashboard/my-work/paperwork',
+      renews: renewed(p.name),
     }))
   const soon = addDays(today, RUNNING_OUT_DAYS)
   const runningOut: PaperRunningOut[] = paperRows
@@ -269,6 +282,13 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
     .map((p) => ({ name: p.name, runsOutOn: p.runsOutOn.slice(0, 10), stopsWork: Boolean(p.stopsWork) }))
 
   // ── Interviews ───────────────────────────────────────────────────────
+  // The jobs firms put her forward for, as her own pipeline says each stands.
+  const putForward = (pipeline?.submissions ?? []).map((x: any) => ({
+    role: String(x.role ?? 'a job'), by: String(x.submittedBy ?? 'A firm'),
+    says: typeof x.says === 'string' ? x.says : '—',
+    live: !['REJECTED', 'WITHDRAWN', 'CLOSED'].includes(String(x.status)),
+  }))
+
   const interviews: InterviewFact[] = (pipeline?.interviewsAhead ?? []).map((i: any) => ({
     id: i.id, role: i.role, with: i.with, round: i.round,
     waitingOnYou: i.state === 'PROPOSED' && !i.answeredByYou,
@@ -302,6 +322,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
     papers: asks,
     runningOut,
     interviews,
+    ...(pipeline ? { putForward } : {}),
     stays,
     limits,
     consent: {
