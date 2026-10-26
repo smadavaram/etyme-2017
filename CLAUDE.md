@@ -1978,6 +1978,14 @@ harness, not the product: an import path tripping a guard, and the
 seeded stand-in acceptance stamped at the same second as the signature
 it stands behind.
 
+**Shipped to production 2026-10-26, evening (4279c3a7f on the deploy
+branch, source adb269b56):** every fix above. Gates: no source
+difference, no Ruby, brand kit present, no schema line removed. Smoke:
+public pages and the chat 200, the inbound email door 404 to a POST.
+The pay card appears on production after the twin's nightly job next
+runs (06:00 UTC); the third walk on production records its verdict
+under this line.
+
 ## Cash flow and document flow are the trust layers — decided by the founder, 2026-10-20
 
 The founder, on the four flows the simulation exercised: *"Cashflow,
