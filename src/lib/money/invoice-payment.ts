@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { emit } from '@/lib/events'
+import { emit, type EmitParams } from '@/lib/events'
 import { fromUnits } from '@/lib/money-display'
 import { fromPrismaDecimal, toDecimal } from '@/lib/money'
 import { partiesOf } from '@/lib/money/invoice-parties'
@@ -10,7 +10,8 @@ import { partiesOf } from '@/lib/money/invoice-parties'
  * Every write a payment against an invoice makes, in one place: the
  * `Payment` row, the invoice's `paid` and `status`, the expenses that rode
  * on it moved from INVOICED to PAID once it is paid in full, the
- * PAYMENT_RECORDED automation log and the `invoice.paid` event.
+ * PAYMENT_RECORDED automation log — and the `invoice.paid` event, which
+ * it returns rather than sends, for the caller to emit after the commit.
  * `POST /api/invoices/:id/payments` calls it inside its transaction; the
  * twin's performer calls it the same way, so a payment made from the chat
  * and one made from the screen cannot write different rows.
@@ -92,6 +93,11 @@ export type InvoicePaymentRecorded = {
   /** The reader's word for the document: the payer's invoice, the supplier's own bill. */
   doc: 'invoice' | 'bill'
   amountCents: number
+  /**
+   * The `invoice.paid` event, not yet emitted. Emit it with
+   * `emitInvoicePaid` once the transaction has committed, never inside it.
+   */
+  event: EmitParams
 }
 
 export type InvoicePaymentResult = InvoicePaymentRecorded | InvoicePaymentRefusal
@@ -246,7 +252,11 @@ export async function recordInvoicePayment(
     },
   })
 
-  void emit({
+  // Not emitted here. The event is written on its own connection, so a
+  // rollback of the caller's transaction after this point would leave an
+  // `invoice.paid` for a payment that does not exist. It is returned, and
+  // the caller emits it after the commit through `emitInvoicePaid`.
+  const event: EmitParams = {
     type: 'invoice.paid',
     companyId: recordedBy.companyId,
     subjectType: 'Invoice',
@@ -264,7 +274,7 @@ export async function recordInvoicePayment(
       // different answer here, and an ERP consumer needs to tell them apart.
       settled: status === 'PAID',
     },
-  })
+  }
 
   return {
     ok: true,
@@ -281,5 +291,22 @@ export async function recordInvoicePayment(
     },
     doc,
     amountCents,
+    event,
   }
+}
+
+/**
+ * Send the `invoice.paid` event of a payment that has committed.
+ *
+ * Call it after `prisma.$transaction(...)` has returned, never inside the
+ * callback: a payment rolled back must leave no event behind. A refusal
+ * emits nothing. The twin's performer passes its own actor, so the event
+ * says the twin recorded it under the person it acts for.
+ */
+export function emitInvoicePaid(
+  result: InvoicePaymentResult,
+  actor?: Pick<EmitParams, 'actorKind' | 'actorTwinKind'>
+): Promise<{ id: string } | null> {
+  if (!result.ok) return Promise.resolve(null)
+  return emit({ ...result.event, ...(actor ?? {}) })
 }

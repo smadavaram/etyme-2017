@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
-import { recordInvoicePayment } from '@/lib/money/invoice-payment'
+import { recordInvoicePayment, emitInvoicePaid } from '@/lib/money/invoice-payment'
 import { fromPrismaDecimal } from '@/lib/money'
 
 /**
@@ -34,9 +34,8 @@ async function owedCents() {
 }
 
 /** The function, called the way the route calls it, by the same person. */
-function viaFunction(amountCents: number | null, reference: string) {
-  return prisma.$transaction((tx) =>
-    recordInvoicePayment(tx, {
+function input(amountCents: number | null, reference: string) {
+  return {
       invoiceId: w.invoice,
       amountCents,
       method: 'ACH',
@@ -45,8 +44,18 @@ function viaFunction(amountCents: number | null, reference: string) {
       onBooksOf: w.vendor,
       seatId: null,
       recordedBy: { companyId: w.vendor, companyName: w.vendorName, personName: w.ownerName },
-    })
-  )
+  }
+}
+
+/** The function, called the way the route calls it: write, commit, then emit. */
+async function viaFunction(amountCents: number | null, reference: string) {
+  const done = await prisma.$transaction((tx) => recordInvoicePayment(tx, input(amountCents, reference)))
+  await emitInvoicePaid(done)
+  return done
+}
+
+function paidEvents() {
+  return prisma.event.count({ where: { type: 'invoice.paid', subjectId: w.invoice } })
 }
 
 async function viaRoute(amount: number, reference: string) {
@@ -135,6 +144,11 @@ describe('one payment, one write', () => {
     expect(logShape(logs[1])).toEqual(logShape(logs[0]))
     expect((logs[0].payload as any).recordedBy.side).toBe('SUPPLIER')
 
+    // Both doors told the world, once each, after the commit.
+    for (const p of rows) {
+      expect(await prisma.event.count({ where: { type: 'invoice.paid', payload: { path: ['paymentId'], equals: p.id } } })).toBe(1)
+    }
+
     expect(await owedCents()).toBe(before - 2000)
     const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: w.invoice } })
     expect(inv.status).toBe('PARTIALLY_PAID')
@@ -158,6 +172,30 @@ describe('one payment, one write', () => {
     expect(r.body.error.message).toMatch(/still owed on bill/)
 
     expect(await prisma.payment.count({ where: { invoiceId: w.invoice } })).toBe(count)
+    expect(await owedCents()).toBe(owed)
+  })
+
+  it('a payment whose transaction rolls back emits no invoice.paid event', async () => {
+    const events = await paidEvents()
+    const payments = await prisma.payment.count({ where: { invoiceId: w.invoice } })
+    const owed = await owedCents()
+
+    // A later write in the same transaction fails — the twin's ledger line,
+    // say — after the payment was recorded inside it.
+    let emitted: Promise<unknown> | null = null
+    await expect(
+      prisma.$transaction(async (tx) => {
+        const done = await recordInvoicePayment(tx, input(500, 'ROLLED-BACK'))
+        expect(done.ok).toBe(true)
+        emitted = Promise.resolve(done.ok ? done.event : null)
+        throw new Error('the ledger line after the payment failed')
+      })
+    ).rejects.toThrow('the ledger line after the payment failed')
+    await emitted
+    await new Promise((r) => setTimeout(r, 200))
+
+    expect(await paidEvents()).toBe(events)
+    expect(await prisma.payment.count({ where: { invoiceId: w.invoice } })).toBe(payments)
     expect(await owedCents()).toBe(owed)
   })
 

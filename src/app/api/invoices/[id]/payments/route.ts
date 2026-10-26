@@ -8,7 +8,7 @@ import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
 import { fromDecimal, fromPrismaDecimal, toDecimal } from '@/lib/money'
-import { recordInvoicePayment, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
+import { recordInvoicePayment, emitInvoicePaid, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import { matchInvoice, payGate, receiptStateRefusal } from '@/lib/invoice-match'
 
 /**
@@ -221,6 +221,9 @@ export async function POST(
       { status }
     )
   }
+
+  // Committed: only now does the world hear the invoice was paid.
+  void emitInvoicePaid(recorded)
 
   const result = recorded.payment
   const totalNum = toDecimal({ minor: recorded.invoice.totalCents, currency: invoice.currency })
