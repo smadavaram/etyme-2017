@@ -106,8 +106,9 @@ describe('the job twin reads an invoice receipt', () => {
     const close = judge('R-4', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
     expect(close.payable).toBe(false)
     expect(close.failing).toContain('QUANTITY')
-    expect(close.rationale).toMatch(/^Held for the AP clerk/)
-    expect(close.rationale).toMatch(/AP clerk still records the difference before it is paid/)
+    expect(close.rationale).toMatch(/^Held for you/)
+    expect(close.rationale).toMatch(/you still record the difference before it is paid/)
+    expect(close.rationale).not.toMatch(/the AP clerk/)
   })
 
   it('a receipt that matches is one decision, to pay it, and never reads as nothing to decide or as approving it for payment', () => {

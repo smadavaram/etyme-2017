@@ -321,7 +321,7 @@ export function verdictFrom(
       rationale:
         (isRate
           ? `Ask ${from === 'The supplier' ? 'the supplier' : from} for a bill at the contract's rate, or amend the contract if the rate really changed. A rate is never waived on a bill.`
-          : `Ask ${from === 'The supplier' ? 'the supplier' : from} to bill the hours accepted, or have the AP clerk record why the difference stands. Nothing is paid until the three-way check passes.`) + more,
+          : `Ask ${from === 'The supplier' ? 'the supplier' : from} to bill the hours accepted, or record why the difference stands. Nothing is paid until the three-way check passes.`) + more,
     }
   }
 
@@ -337,7 +337,7 @@ export function verdictFrom(
       ...shell,
       verdict: 'MISMATCH',
       ruleCited: `${CHECK_NAME[first.code]} — no. ${clause(first.reason)}.`,
-      rationale: 'The hours and the rate are inside the rule; this is for the AP clerk to resolve or waive with a reason.',
+      rationale: 'The hours and the rate are inside the rule; this is yours to resolve or waive with a reason.',
     }
   }
 
@@ -361,7 +361,7 @@ export function verdictFrom(
     // exception path, where the AP clerk records why it stands.
     rationale: match.matched
       ? 'Pay it: it matches the signed hours and the contract rate.'
-      : `Held for the AP clerk: the difference is inside ${allowed}, and the AP clerk still records the difference before it is paid, because the three-way check pays only the hours accepted.`,
+      : `Held for you: the difference is inside ${allowed}, and you still record the difference before it is paid, because the three-way check pays only the hours accepted.`,
   }
 }
 
