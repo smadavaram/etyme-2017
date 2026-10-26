@@ -1,6 +1,6 @@
 import { payGate, type PayGate } from '@/lib/invoice-match'
 import { heldFor, type FailingCheck } from '@/app/api/decisions/receipt-to-pay'
-import { weekSays } from '@/app/api/timesheets/chain-turn'
+import { daySpan } from '@/lib/plain-date'
 
 /**
  * What an invoice receipt's own page draws where the money is paid: the
@@ -29,12 +29,12 @@ import { weekSays } from '@/app/api/timesheets/chain-turn'
 
 export interface HoursHeld {
   person: string
-  /** "Oct 4–10", or null where the line names no week. */
+  /** "Oct 4 – Oct 10, 2026" (the page's own `daySpan`), or null where the line names no week. */
   week: string | null
   billed: number
   /** What the payer signed; null where nobody has. */
   signed: number | null
-  /** "Lucía Fernández, Oct 4–10: 41.5 hours billed, 40 signed." */
+  /** "Lucía Fernández, Oct 4 – Oct 10, 2026: 41.5 hours billed, 40 signed." */
   says: string
 }
 
@@ -125,7 +125,7 @@ export function receiptPayPanel(i: {
 }
 
 function hoursHeld(l: ReceiptPanelLine): HoursHeld {
-  const week = l.periodStart && l.periodEnd ? weekSays(l.periodStart, l.periodEnd) : null
+  const week = l.periodStart && l.periodEnd ? daySpan(l.periodStart, l.periodEnd) : null
   const signed = l.hoursSigned == null ? 'none signed' : `${num(l.hoursSigned)} signed`
   return {
     person: l.personName,

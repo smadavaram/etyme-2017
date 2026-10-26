@@ -33,7 +33,7 @@ describe('an invoice receipt’s own page offers Pay only where the payment rout
     expect(p.kind).toBe('HELD')
     if (p.kind !== 'HELD') return
     expect(p.headline).toBe('Held: hours don’t match')
-    expect(p.hours.map((h) => h.says)).toEqual(['Lucía Fernández, Oct 4–10: 41.5 hours billed, 40 signed.'])
+    expect(p.hours.map((h) => h.says)).toEqual(['Lucía Fernández, Oct 4 – Oct 10, 2026: 41.5 hours billed, 40 signed.'])
     expect(p.wayForward).toEqual([
       'Ask Pinnacle Resourcing to correct it and send it again.',
       'Or record an exception with a reason under the check below, and it can be paid.',
@@ -53,7 +53,7 @@ describe('an invoice receipt’s own page offers Pay only where the payment rout
     expect(p.kind).toBe('HELD')
     if (p.kind !== 'HELD') return
     expect(p.wayForward).toEqual(['It can be paid once every week on it is signed and accepted.'])
-    expect(p.hours[0].says).toBe('Lucía Fernández, Oct 4–10: 41.5 hours billed, none signed.')
+    expect(p.hours[0].says).toBe('Lucía Fernández, Oct 4 – Oct 10, 2026: 41.5 hours billed, none signed.')
   })
 
   it('a receipt whose check could not be run is held, never paid on the check’s say-so', () => {

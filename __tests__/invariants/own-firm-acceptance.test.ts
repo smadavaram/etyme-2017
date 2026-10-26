@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { withoutOwnFirmAcceptance } from '@/lib/money/own-firm-acceptance'
+import { withoutOwnFirmAcceptance, onlyTheWorkerAccepts } from '@/lib/money/own-firm-acceptance'
+import { acceptsOnlyForItself } from '@/app/api/timesheets/chain-turn'
 import { signingOrder, type WeekSigner } from '@/lib/consultant-portfolio'
 
 /**
@@ -30,5 +31,16 @@ describe('a one-person firm is never asked to accept its own week', () => {
   it('the client’s signature and every firm between are never dropped, whoever the worker is', () => {
     const asked = withoutOwnFirmAcceptance(colleen, new Set(['harlow', 'halcyon', 'byrne']))
     expect(asked.map((s) => s.role)).toEqual(['CLIENT_APPROVAL', 'PASS_THROUGH'])
+  })
+
+  it('the list rule and the approve route’s rule give the same answer on every case, so the page and the route cannot disagree about whose acceptance is stood in for', () => {
+    const cases: Array<[{ personId: string }[], string]> = [
+      [[{ personId: 'colleen' }], 'colleen'],
+      [[{ personId: 'colleen' }, { personId: 'colleen' }], 'colleen'],
+      [[{ personId: 'colleen' }, { personId: 'bookkeeper' }], 'colleen'],
+      [[{ personId: 'bookkeeper' }], 'colleen'],
+      [[], 'colleen'],
+    ]
+    for (const [seats, worker] of cases) expect(onlyTheWorkerAccepts(seats, worker)).toBe(acceptsOnlyForItself(seats, worker))
   })
 })

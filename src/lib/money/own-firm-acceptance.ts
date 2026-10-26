@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/db'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
-import { acceptsOnlyForItself } from '@/app/api/timesheets/chain-turn'
 
 /**
  * A one-person firm is never asked to accept its own week.
@@ -11,8 +10,10 @@ import { acceptsOnlyForItself } from '@/app/api/timesheets/chain-turn'
  * the worker has nobody but the worker to accept hours — Colleen Byrne
  * at Byrne Critical Care LLC — the signature of the firm above stands as
  * her firm's acceptance, and she is never asked for it. The approve route
- * and the approve-by-email door already write it that way
- * (`acceptsOnlyForItself` in `api/timesheets/chain-turn`).
+ * and the approve-by-email door already write it that way, through the
+ * approve route's own `acceptsOnlyForItself`; `onlyTheWorkerAccepts`
+ * below is the same rule, and a test holds the two to the same answer
+ * on every case (own-firm-acceptance.test.ts).
  *
  * ── The fault this exists for ────────────────────────────────────────
  *
@@ -30,6 +31,14 @@ import { acceptsOnlyForItself } from '@/app/api/timesheets/chain-turn'
  * one-person corporation that seats a bookkeeper has somebody else to
  * accept, and then she is not accepting her own.
  */
+
+/**
+ * Whether every seat at a firm that may accept hours is the worker's own:
+ * at least one such seat, and none belonging to anybody else.
+ */
+export function onlyTheWorkerAccepts(seats: readonly { personId: string }[], workerId: string): boolean {
+  return seats.length > 0 && seats.every((s) => s.personId === workerId)
+}
 
 /** A signature a worker's week needs, as any list of signers carries it. */
 export interface SignerLike {
@@ -77,5 +86,5 @@ export async function firmsAcceptingOnlyFor(
     list.push({ personId: s.personId })
     byFirm.set(s.companyId, list)
   }
-  return new Set(ids.filter((id) => acceptsOnlyForItself(byFirm.get(id) ?? [], workerId)))
+  return new Set(ids.filter((id) => onlyTheWorkerAccepts(byFirm.get(id) ?? [], workerId)))
 }
