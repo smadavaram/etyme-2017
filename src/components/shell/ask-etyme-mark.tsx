@@ -15,22 +15,41 @@
  * total, a worker her greeting's cards (2026-10-19). Asking
  * GET /api/decisions left a worker's mark blank while her greeting said
  * three things needed her.
+ *
+ * And it reads again after an act (2026-10-26). Today said "Two things
+ * need you" while the mark beside it still said 3, because nothing
+ * between the minutes told it. Now every call this page makes is watched
+ * as it comes back, and a successful write to the app's own API — a card
+ * answered, a week approved, a receipt paid — reads the number again a
+ * moment later (`isAct` in lib/owed-count decides). A screen with an act
+ * that is not such a call fires `announceOwedChanged()` instead. Several
+ * acts in a burst are one read, and a read already out is followed by
+ * one more rather than a second at once.
  */
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
-import { OWED_REFRESH_MS, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
+import { OWED_CHANGED_EVENT, OWED_REFRESH_MS, OWED_SETTLE_MS, isAct, mayRefresh, owedBadge, owedFrom, owedLabel } from '@/lib/owed-count'
 
 let owed: number | null = null
 let lastAt: number | null = null
 let inFlight = false
 let timer: ReturnType<typeof setInterval> | null = null
 const listeners = new Set<(n: number | null) => void>()
+/** An act came back while a read was out: read once more when it lands. */
+let again = false
+let settle: ReturnType<typeof setTimeout> | null = null
+let watching = false
 
-function read(): void {
+/** `forced`: an act just changed what this seat owes, so the minute does not apply. */
+function read(forced = false): void {
   const now = Date.now()
-  if (inFlight || !mayRefresh(lastAt, now)) return
+  if (inFlight) {
+    if (forced) again = true
+    return
+  }
+  if (!forced && !mayRefresh(lastAt, now)) return
   inFlight = true
   lastAt = now
   fetch('/api/conversations/twin?only=owed', { cache: 'no-store' })
@@ -41,7 +60,55 @@ function read(): void {
     .finally(() => {
       inFlight = false
       listeners.forEach((f) => f(owed))
+      if (again) { again = false; read(true) }
     })
+}
+
+/** Read shortly after the last act, so a burst is one read; nothing when no mark is on screen. */
+function afterAct(): void {
+  if (listeners.size === 0) return
+  if (settle) clearTimeout(settle)
+  settle = setTimeout(() => { settle = null; read(true) }, OWED_SETTLE_MS)
+}
+
+/**
+ * Watch every call this page makes as it comes back, once per page. The
+ * request and the response pass through untouched; the watcher only
+ * looks, and a fault in looking never reaches the caller.
+ */
+function watchActs(): void {
+  if (watching || typeof window === 'undefined') return
+  watching = true
+  window.addEventListener(OWED_CHANGED_EVENT, afterAct)
+  const original = window.fetch.bind(window)
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const res = await original(input, init)
+    try {
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+      if (isAct(method, url, res.status, window.location.origin)) afterAct()
+    } catch { /* looking failed; the call stands */ }
+    return res
+  }
+}
+
+/**
+ * Hear the number: now, on every read, and after every act. The first
+ * listener starts the reads; the last one to leave stops them. Returns
+ * the way to stop listening.
+ */
+export function subscribeOwed(listener: (n: number | null) => void): () => void {
+  watchActs()
+  listeners.add(listener)
+  listener(owed)
+  if (listeners.size === 1) {
+    read()
+    timer = setInterval(read, OWED_REFRESH_MS)
+  }
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0 && timer) { clearInterval(timer); timer = null }
+  }
 }
 
 /** What this seat owes right now, or null while unknown. Reads only when `enabled`. */
@@ -49,16 +116,7 @@ export function useOwedCount(enabled: boolean): number | null {
   const [n, setN] = useState<number | null>(owed)
   useEffect(() => {
     if (!enabled) return
-    listeners.add(setN)
-    setN(owed)
-    if (listeners.size === 1) {
-      read()
-      timer = setInterval(read, OWED_REFRESH_MS)
-    }
-    return () => {
-      listeners.delete(setN)
-      if (listeners.size === 0 && timer) { clearInterval(timer); timer = null }
-    }
+    return subscribeOwed(setN)
   }, [enabled])
   return enabled ? n : null
 }

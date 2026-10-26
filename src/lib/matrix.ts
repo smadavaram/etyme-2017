@@ -2778,7 +2778,7 @@ export const MATRIX: L1[] = [
             'DONE 2026-10-19, conversation (c0f6a85be) then platform: a worker\u2019s badge counts the worker greeting\u2019s cards. GET /api/conversations/twin?only=owed answers `{ data: { total } }` with no side effect \u2014 a worker\u2019s cards from `cardsFor(workerFacts(...))`, a firm seat\u2019s decisions total \u2014 and nothing is marked seen; the mark asks it for every seat and reads it through `owedFrom`, unchanged \u2014 src/app/api/conversations/twin/owed.ts, src/components/shell/ask-etyme-mark.tsx',
             'DONE 2026-10-19, regulatory (537d1f1b2) then platform: a candidate with no company seat keeps a thread \u2014 AskEtymeThread.companyId is nullable and `personOnlyId` (unique, set to the person\u2019s id exactly where companyId is null) gives her one, because the unique on person and company reads two nulls as different; `threadKey` in lib/ask-etyme-thread picks the key, and a thread with no company carries no company\u2019s question \u2014 prisma/schema.prisma, src/lib/ask-etyme-thread.ts',
             'DONE 2026-10-19 by etyme-conversation (d41ac2275): a candidate with no company seat keeps her own thread through GET, POST and DELETE on /api/conversations/twin; the worker gate is gone',
-          ],
+            'FIXED 2026-10-26 by etyme-architect, found on the walk: the mark reads its number again a moment after any act this seat makes on either screen (a card answered, a week approved, a receipt paid), so Today and the mark never disagree; a burst of acts is one read'],
           implementedBy: [
             'src/lib/twin/role-contract.ts', 'src/lib/twin/ledger.ts', 'src/lib/twin/performers.ts',
             'src/app/api/conversations/twin/worker.ts', 'src/app/api/conversations/twin/worker-read.ts', 'src/lib/nav-table.ts', 'src/lib/password-door.ts', 'src/app/(auth)/start/page.tsx', 'src/app/api/demo/route.ts',
@@ -2808,7 +2808,8 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/twin-role-contract.test.ts', '__tests__/invariants/twin-ledger.test.ts', '__tests__/invariants/sidebar-nav.test.ts', '__tests__/invariants/demo-candidate.test.ts', '__integration__/demo-seats.test.ts', '__integration__/password-door.test.ts', '__tests__/invariants/mobile-shell.test.ts', '__tests__/invariants/teams-door.test.ts', '__tests__/invariants/twin-conversation.test.ts', '__tests__/invariants/schema-terms.test.ts', '__integration__/deskless-conversations.test.ts',
             '__tests__/invariants/access-lifecycle-log.test.ts', '__tests__/invariants/erasure.test.ts', '__tests__/invariants/retention.test.ts',
             '__integration__/data-rights.test.ts',
-            '__tests__/invariants/ask-etyme-questions.test.ts'] },
+            '__tests__/invariants/ask-etyme-questions.test.ts',
+            '__tests__/invariants/ask-etyme-mark-after-an-act.test.ts'] },
         // Added 2026-10-18 by etyme-architect, on the founder's "Billing
         // and paying follow the agreement between each pair". Step 1 of
         // four: the frame and the schema. PARTIAL because the twin has
