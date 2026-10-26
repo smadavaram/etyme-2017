@@ -189,7 +189,10 @@ describe('21 · no count before an answer, and nothing above a refusal', () => {
 
   it('the bench draws its counters only once its list has answered, and my-work waits before drawing anything', () => {
     const bench = code(read('src/app/dashboard/bench/page.tsx'))
-    expect(bench).toContain("{scope !== 'payroll' && !loading && entries.length > 0 && (")
+    // Since the screen walk of 2026-10-22 the counters also draw for a
+    // firm whose only listings are people it asked (`askedPeople`), and
+    // still never before the list has answered.
+    expect(bench).toContain("{scope !== 'payroll' && !loading && (entries.length > 0 || askedPeople.length > 0) && (")
     expect(bench).toContain('{summary && !loading && (')
     const mine = code(read('src/app/dashboard/my-work/page.tsx'))
     expect(mine).toContain('if (loading) return')
