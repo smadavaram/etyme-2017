@@ -8,6 +8,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
 import { feedWhere, ledgerFeed, waitingQuestions, ownerOnlyException } from '@/lib/twin/ledger'
@@ -40,6 +41,7 @@ import { GET as ourBenchRoute } from '@/app/api/bench/ours/route'
 import { GET as submissionsRoute } from '@/app/api/submissions/route'
 import { GET as complianceRoute } from '@/app/api/compliance/route'
 import { labelFor } from '@/lib/document-type'
+import { maySendBills } from '@/lib/money/bill-send'
 import {
   hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
   type Readers, type VarianceReceipt, type WaitingItem, type LedgerLine,
@@ -249,6 +251,7 @@ export function readersFor(
           rationale: a.rationale,
           href: hrefFor(a.entityType, a.entityId, a.id),
           action: a.action,
+          entity: { type: a.entityType, id: a.entityId },
           ...(bill ? { bill } : {}),
           ...(a.action === RECEIPT_PAY && a.entityType === 'Invoice'
             ? { pay: { supplier: typeof p.supplierName === 'string' ? p.supplierName : null, number: typeof p.number === 'string' ? p.number : null } }
@@ -322,8 +325,19 @@ export function readersFor(
       const questions = (await waitingQuestions(caller)).filter((q) => !q.mayDecide)
       const perms = [...new Set(questions.map((q) => q.needsPermission))]
       const holders = new Map(await Promise.all(perms.map(async (p) => [p, await peopleAtDesk(caller.company!.id, p)] as const)))
+      // A drafted bill the reader may send itself through the Bills page's
+      // own Send: money's one rule (`maySendBills`, lib/money/bill-send),
+      // the one the Today page's button and the send route read, so the
+      // chat never says "not yours" on a bill Today lets this seat send,
+      // and where the rule refuses, its sentence is said word for word
+      // (walk three, 2026-10-26).
+      const bills = questions.filter((q) => q.action === BILL_SEND && q.entityType === 'Invoice')
+      const sendable = bills.length
+        ? await maySendBills({ personId: caller.person.id, companyId: caller.company.id, permissions: caller.permissions }, bills.map((q) => q.entityId))
+        : new Map()
       return questions
         .map((q) => {
+          const verdict = q.action === BILL_SEND && q.entityType === 'Invoice' ? sendable.get(q.entityId) : undefined
           // The ledger's own fact, so a question taken back from the owner
           // (somebody else sends bills now) still reads as not theirs.
           const own = q.own
@@ -336,22 +350,38 @@ export function readersFor(
             own,
             href: hrefFor(q.entityType, q.entityId),
             people: (holders.get(q.needsPermission) ?? []).filter((n) => n !== caller.person.name),
+            ...(verdict?.ok ? { send: { invoiceId: q.entityId, because: verdict.ownerException } } : verdict && !verdict.ok && hasPermission(caller.permissions, 'invoices.issue') ? { sendRefused: verdict.says } : {}),
           }
         })
     },
 
     async limits() {
-      if (caller.company && caller.company.kind !== 'CLIENT') return { ok: false as const, says: LIMIT_IS_THE_CLIENTS }
-      const scope = feedWhere(companyId, caller)
-      // What the rules found is the program owner's reading; another desk
-      // reads the program without it (feedWhere's PROGRAM view).
-      if (!scope || scope.view !== 'OWNER') {
-        return { ok: false as const, says: deskRefusal('reads who is near the time limit', OWNER_DESKS, caller.company?.kind) }
+      // A firm seated in a client's program reads that program's time
+      // limit under the seat's own role, as the program page does (walk
+      // three, 2026-10-26: Kestrel and Aptiva were offered the chip and
+      // refused, while their program page showed Anders Lund past the cap).
+      const seated = !!caller.company && caller.company.kind !== 'CLIENT' && !!seat && ownCompany
+      if (caller.company && caller.company.kind !== 'CLIENT' && !seated) return { ok: false as const, says: LIMIT_IS_THE_CLIENTS }
+      const program = seated ? seat!.clientCompany.id : companyId
+      let scopeWhere: Prisma.TwinActionWhereInput
+      if (seated) {
+        if (!hasAnyPermission(actingInSeat(caller, seat!).permissions, OWNER_DESKS)) {
+          return { ok: false as const, says: deskRefusal('reads who is near the time limit', OWNER_DESKS, 'CLIENT', { book: seat!.clientCompany.name }) }
+        }
+        scopeWhere = { companyId: program }
+      } else {
+        const scope = feedWhere(companyId, caller)
+        // What the rules found is the program owner's reading; another desk
+        // reads the program without it (feedWhere's PROGRAM view).
+        if (!scope || scope.view !== 'OWNER') {
+          return { ok: false as const, says: deskRefusal('reads who is near the time limit', OWNER_DESKS, caller.company?.kind) }
+        }
+        scopeWhere = scope.where
       }
       // The rule run now, not last night's entries: the same reading the
       // nightly run records, at the moment of the question.
-      const rules = await ruleSetFor(companyId)
-      const live = await tenureWarnings(companyId, { warnAtDays: rules.tenureWarnAtDays }, {
+      const rules = await ruleSetFor(program)
+      const live = await tenureWarnings(program, { warnAtDays: rules.tenureWarnAtDays }, {
         actor: { personId: caller.person.id, companyId: caller.company?.id },
       })
       const now = new Date().toISOString()
@@ -365,7 +395,7 @@ export function readersFor(
       }))
       // Who last night's reading listed that the live check no longer does.
       const recorded = await prisma.twinAction.findMany({
-        where: { AND: [scope.where, { action: 'tenure.warning.record', outcome: 'PERFORMED', entityType: 'Person', ts: { gte: new Date(Date.now() - 36 * 3600_000) } }] },
+        where: { AND: [scopeWhere, { action: 'tenure.warning.record', outcome: 'PERFORMED', entityType: 'Person', ts: { gte: new Date(Date.now() - 36 * 3600_000) } }] },
         distinct: ['entityId'],
         select: { entityId: true },
         take: 200,
@@ -375,7 +405,7 @@ export function readersFor(
       const stale = goneIds.length
         ? (await prisma.person.findMany({ where: { id: { in: goneIds } }, select: { name: true } })).map((p) => p.name)
         : []
-      if (goneIds.length) logPeople(goneIds, 'Read in Ask Etyme: who is near the time limit')
+      if (goneIds.length) logPeople(goneIds, seated ? seatTrail(seat!, 'Read in Ask Etyme: who is near the time limit') : 'Read in Ask Etyme: who is near the time limit')
       return { ok: true as const, entries, stale }
     },
 
@@ -450,12 +480,22 @@ export function readersFor(
       if (!ownCompany || !company) {
         return { ok: false as const, says: 'Spend is read at your own company; switch to it first.' }
       }
-      if (!hasPermission(caller.permissions, 'invoices.read')) {
-        return { ok: false as const, says: deskRefusal('reads what suppliers billed you', 'invoices.read', company.kind) }
+      // A firm seated in a client's program reads what that program's
+      // suppliers billed it, under the seat's role, and says whom; never
+      // its own firm's book as "you" (walk three, 2026-10-26).
+      const inSeat = company.kind !== 'CLIENT' && seat ? seat : null
+      const perms = inSeat ? actingInSeat(caller, inSeat).permissions : caller.permissions
+      if (!hasPermission(perms, 'invoices.read')) {
+        return {
+          ok: false as const,
+          says: inSeat
+            ? deskRefusal('reads what suppliers billed it', 'invoices.read', 'CLIENT', { book: inSeat.clientCompany.name })
+            : deskRefusal('reads what suppliers billed you', 'invoices.read', company.kind),
+        }
       }
       const receipts: SpendReceipt[] = []
       let undated = 0
-      for (const r of await payablesOf(company.id)) {
+      for (const r of await payablesOf(inSeat ? inSeat.clientCompany.id : company.id)) {
         if (!r.dated) { undated++; continue }
         if (r.dated < from || r.dated >= to) continue
         receipts.push({
@@ -467,7 +507,7 @@ export function readersFor(
           paidMinor: fromPrismaDecimal(r.paid, r.currency).minor,
         })
       }
-      return { ok: true as const, receipts, undated }
+      return { ok: true as const, receipts, undated, ...(inSeat ? { whom: inSeat.clientCompany.name } : {}) }
     },
 
     async entry(ref) {

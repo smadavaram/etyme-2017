@@ -1695,7 +1695,7 @@ describe('every first screen names a person and the step in front of them (found
     expect(greet).toContain('const thread = threadFor(caller, take)')
     expect(greet).toContain('const picture = pictureFor(request)')
     expect(greet).not.toContain('picture: await pictureFor(request)')
-    expect(greet).toMatch(/await Promise\.all\(\[\s+unreadNotices\(caller\), unreadThreads\(caller\), modelSwitchFor\(company\.id\), partyFor\(caller\),/)
+    expect(greet).toMatch(/await Promise\.all\(\[\s+seatOf\(caller\)\.then\(\(seat\) => unreadNotices\(caller, \{ program: seat\?\.clientCompany\.id \?\? null \}\)\),\s+unreadThreads\(caller\), modelSwitchFor\(company\.id\), partyFor\(caller\),/)
     // The paying clerk's receipts are each checked at the same time, not in turn.
     const read = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
     expect(read).toContain('const verdicts = await Promise.all(flagged.map((f) => invoiceVerdict(f.entityId, rules)))')

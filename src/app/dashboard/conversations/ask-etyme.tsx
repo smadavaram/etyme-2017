@@ -12,7 +12,7 @@ import { deskOf } from '@/components/shell/sidebar-props'
 import {
   FOOTER_LINE, decisionRequest, entryHref, hrs, money, partOfDay, seatSays, partyOf, questionsFor, placeholderFor,
   billCardTitle, billRows, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
-  payQuestion, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer,
+  payQuestion, payYesSays, paidSays, NEEDS_BANK_REFERENCE, PAY_METHODS, type PayAnswer,
   type Answer, type Link as AnswerLink, type RichLine, type WaitingItem, type HeldBill, type VarianceRow, type LimitRow, type SpendRow, type WeekRow,
   type Party, type QueueCard, type ListTable,
 } from '@/app/api/conversations/twin/ask'
@@ -794,7 +794,8 @@ function PayCard({ item, card, busy, onDecide, onLater }: {
     <li className="rounded-[12px] border border-etyme-rule bg-etyme-raised px-3.5 py-3">
       <p className="font-medium">{payQuestion(item.pay!)}</p>
       {item.askedYouBecause && <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.askedYouBecause}</p>}
-      <p className="mt-0.5 text-[12.5px] text-etyme-muted">{item.rationale}</p>
+      {/* What the yes does, never the twin's "Approve it for payment" (walk three, 2026-10-26). */}
+      <p className="mt-0.5 text-[12.5px] text-etyme-muted">{payYesSays(item.pay!)}</p>
       <Links links={[{ label: `Open ${item.title}`, href: item.href }]} />
       {done ? (
         <p className="mt-2">

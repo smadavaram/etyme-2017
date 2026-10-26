@@ -170,6 +170,13 @@ export interface SentWeek {
   dueOn: string | null
   overdue: boolean
   paidOn: string | null
+  /**
+   * An owed week part of which is already paid: a week split across two
+   * pay periods, its first days paid on one pay day and the rest owed on
+   * the next. Said beside what is owed, as Your work says it (walk three,
+   * 2026-10-26: "$1,440 owed" for a 40-hour week of which 24 were paid).
+   */
+  partPaid?: { hours: number; on: string | null } | null
 }
 
 /** Something asked of her on her paperwork page. */
@@ -228,6 +235,12 @@ export interface WorkerFacts {
   seat: 'CONSULTANT' | 'EMPLOYEE'
   /** The firm her seat is at, where it is at one. */
   seatAt: string | null
+  /**
+   * Her own one-person company, where she is one: she is the firm and the
+   * worker, so her firm never "accepts her week" in a sentence to her and
+   * never owes her wages (walk three, 2026-10-26).
+   */
+  ownFirm?: string | null
   placements: WorkerPlacement[]
   toFile: WeekToFile[]
   returned: ReturnedWeek[]
@@ -529,8 +542,12 @@ const weekHref = (periodStart: string) => `${YOUR_WORK}?week=${periodStart.slice
  * client to sign, waiting on a firm below it, owed to her (only after her
  * employer accepted it), paid. Never a rate.
  */
-export function weekStandsSays(w: SentWeek): string {
+export function weekStandsSays(w: SentWeek, ownFirm?: string | null): string {
   const which = `Your week of ${weekWords(w.periodStart, w.periodEnd)}`
+  // Her own company is never a firm she waits on: what is left is hers.
+  if (ownFirm && w.stage === 'WAITING_FOR_EMPLOYER' && (w.waitingOn ?? w.employer) === ownFirm) {
+    return `${which} is signed${w.client ? ` by ${w.client}` : ''} and accepted by every firm above you.`
+  }
   switch (w.stage) {
     case 'NOT_SENT':
       return `${which} is saved and not sent.`
@@ -538,13 +555,21 @@ export function weekStandsSays(w: SentWeek): string {
       return `${which} is waiting for ${w.waitingOn ?? w.client ?? 'the client'} to sign.`
     case 'WAITING_FOR_EMPLOYER': {
       const signed = w.approvedBy ? `${w.approvedBy.replace(/\.$/, '')}.` : `${which} is signed${w.client ? ` by ${w.client}` : ''}.`
-      const then = w.employer && w.waitingOn && w.waitingOn !== w.employer ? `, then ${w.employer}` : ''
+      const then = w.employer && w.waitingOn && w.waitingOn !== w.employer && w.employer !== ownFirm ? `, then ${w.employer}` : ''
       const lead = w.approvedBy ? `${which}: ${signed}` : signed
       return `${lead} It waits for ${w.waitingOn ?? w.employer ?? 'your employer'} to accept it${then}.`
     }
     case 'OWED': {
-      const owed = w.stillOwedMinor != null && w.currency ? `${money(w.stillOwedMinor, w.currency)} is owed to you` : 'It is owed to you'
       const due = w.dueOn ? `, due ${day(w.dueOn)}` : ''
+      const part = w.partPaid && w.partPaid.hours > 0 ? w.partPaid : null
+      if (part) {
+        // Both halves, as Your work says them: what was paid and when, then what is owed for the rest.
+        const paid = `${hoursWord(part.hours)} ${r2(part.hours) === 1 ? 'was' : 'were'} paid${part.on ? ` on ${day(part.on)}` : ''}`
+        const rest = w.owedHours != null && w.owedHours > 0 ? `the other ${hoursWord(w.owedHours)}` : 'the rest'
+        const owedPart = w.stillOwedMinor != null && w.currency ? `${money(w.stillOwedMinor, w.currency)} for ${rest} is owed to you` : `${cap1(rest)} is owed to you`
+        return `${which} is accepted by ${w.employer ?? 'your employer'}. ${paid}; ${owedPart}${due}.${w.overdue ? ' Its pay day has passed.' : ''}`
+      }
+      const owed = w.stillOwedMinor != null && w.currency ? `${money(w.stillOwedMinor, w.currency)} is owed to you` : 'It is owed to you'
       return `${which} is accepted by ${w.employer ?? 'your employer'}. ${owed}${due}.${w.overdue ? ' Its pay day has passed.' : ''}`
     }
     case 'PAID':
@@ -554,13 +579,23 @@ export function weekStandsSays(w: SentWeek): string {
   }
 }
 
+/** "24 hours paid Oct 9": the paid part of a week owed in part, for a table cell. */
+export function partPaidWord(w: Pick<SentWeek, 'partPaid'>): string | null {
+  const part = w.partPaid && w.partPaid.hours > 0 ? w.partPaid : null
+  return part ? `${hoursWord(part.hours)} paid${part.on ? ` ${day(part.on)}` : ''}` : null
+}
+
 /** A short word for the table: where the week is. */
-function stageWord(w: SentWeek): string {
+export function stageWord(w: SentWeek, ownFirm?: string | null): string {
+  if (ownFirm && w.stage === 'WAITING_FOR_EMPLOYER' && (w.waitingOn ?? w.employer) === ownFirm) return 'Signed by every firm above you'
   switch (w.stage) {
     case 'NOT_SENT': return 'Not sent'
     case 'WAITING_FOR_CLIENT': return `Waiting for ${w.waitingOn ?? w.client ?? 'the client'} to sign`
     case 'WAITING_FOR_EMPLOYER': return `Signed; waiting for ${w.waitingOn ?? w.employer ?? 'your employer'}`
-    case 'OWED': return `Owed to you${w.dueOn ? `, due ${day(w.dueOn)}` : ''}`
+    case 'OWED': {
+      const part = partPaidWord(w)
+      return `Owed to you${w.dueOn ? `, due ${day(w.dueOn)}` : ''}${part ? `; ${part}` : ''}`
+    }
     case 'PAID': return `Paid${w.paidOn ? ` ${day(w.paidOn)}` : ''}`
     case 'SIGNED': return 'Signed by every firm'
   }
@@ -681,10 +716,10 @@ const cap1 = (x: string) => (x ? x[0].toUpperCase() + x.slice(1) : x)
  * 2026-10-20: Colleen Byrne was the one worker of thirteen whose greeting
  * never said her week was signed — her seat reads the firm's greeting).
  */
-export function latestWeekLine(f: Pick<WorkerFacts, 'sent'>): RichLine | null {
+export function latestWeekLine(f: Pick<WorkerFacts, 'sent'> & Partial<Pick<WorkerFacts, 'ownFirm'>>): RichLine | null {
   const latest = newest(f.sent.filter((w) => w.stage !== 'NOT_SENT'))[0]
   if (!latest) return null
-  return { says: weekStandsSays(latest), links: [{ text: `Your week of ${weekWords(latest.periodStart, latest.periodEnd)}`, href: `/dashboard/weeks/${latest.id}` }] }
+  return { says: weekStandsSays(latest, f.ownFirm), links: [{ text: `Your week of ${weekWords(latest.periodStart, latest.periodEnd)}`, href: `/dashboard/weeks/${latest.id}` }] }
 }
 
 /**
@@ -754,13 +789,26 @@ export type WorkerIntent =
 
 const lowerOf = (t: string) => t.toLowerCase().normalize('NFC').replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim()
 
+/**
+ * "What does Lucía earn?", "How much is Omar paid?", "Lucía's salary":
+ * another person's pay, asked by a name that is not her own (walk three,
+ * 2026-10-26: Helena read "I cannot answer that yet"). Refused in a
+ * sentence, never left to "not yet". Lower-cased text, as `lowerOf` gives.
+ */
+export function somebodyElsesPay(t: string): boolean {
+  const NAME = String.raw`(?!i\b|you\b|we\b|they\b|my\b|your\b|our\b)[\p{L}][\p{L}'-]*(?: [\p{L}][\p{L}'-]*)?`
+  return new RegExp(String.raw`^(what|how much) (does|did|do|will|would) ${NAME} (earn|make|get paid|take home)\b`, 'u').test(t) ||
+    new RegExp(String.raw`^how much (is|was|are|were) ${NAME} (paid|earning|making)\b`, 'u').test(t) ||
+    new RegExp(String.raw`\b(?!my\b|your\b|our\b)[\p{L}][\p{L}-]*'s? (pay|pay rate|rate|salary|wages?|earnings)\b`, 'u').test(t)
+}
+
 /** Read what a worker typed into one of the rule questions. */
 export function readWorkerAsk(raw: string): WorkerIntent {
   const t = lowerOf(raw)
   if (!t || /^(help|\?|what can you do\??|what do you answer\??)$/.test(t)) return 'HELP'
   if (generalAsk(t)) return 'GENERAL'
   if (/\b(mark-?up|margin)s?\b|\bbill rate\b|\b(charges?|bills?) (for|them|us)\b|\bpays? (for|them) (me|my)\b|\bpay(s)? (\w+ ){0,2}for me\b|\bwhat does \w+( \w+){0,3} (pay|charge|bill)\b/.test(t)) return 'THEIR_RATE'
-  if (anotherBook(t) || /\b(other|another) (person|people|consultants?|workers?|contractors?)'?s?\b|\b(colleague|coworker|co-worker)s?'? (pay|rate|salary)\b/.test(t)) return 'ANOTHER'
+  if (anotherBook(t) || /\b(other|another) (person|people|consultants?|workers?|contractors?)'?s?\b|\b(colleague|coworker|co-worker)s?'? (pay|rate|salary)\b/.test(t) || somebodyElsesPay(t)) return 'ANOTHER'
   if (/^(file|submit|enter|log|send|fill in|fill out|put in)\b.*\b(week|hours|timesheet|time)\b|\b(file|submit|log|enter) (it|them) for me\b/.test(t)) return 'FILE'
   if (/^(approve|sign|accept)\b.*\b(week|hours|timesheet)\b/.test(t)) return 'SIGN_WEEK'
   if (/^(please |can you |could you )?(extend|lengthen)\b/.test(t) || /\bextend (my|the) (contract|placement|assignment|project)\b/.test(t)) return 'EXTEND'
@@ -781,6 +829,11 @@ export function readWorkerAsk(raw: string): WorkerIntent {
 /** The record read for one answer: one read, the worker's own. */
 export interface WorkerReaders {
   facts(): Promise<WorkerFacts>
+  /**
+   * For a one-person firm: the last payment her firm received on a bill,
+   * which is how she is paid. Null where none is on the record.
+   */
+  firmPaid?(): Promise<{ on: string; amountMinor: number; currency: string; from: string | null; bill: string | null } | null>
 }
 
 const text = (says: string, links?: Link[]): WorkerAnswer => ({ kind: 'WORKER', says, cards: [], more: [], ...(links?.length ? { links } : {}) })
@@ -835,6 +888,8 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
       const p = f.placements.find((x) => x.live) ?? f.placements[0]
       const signer = p ? p.site : 'the client'
       const accepter = p ? p.employer : 'your employer'
+      // Her own firm accepts nothing from her: it is her.
+      if (f.ownFirm && accepter === f.ownFirm) return text(`Etyme never signs a week; ${signer} signs it, then each firm above you accepts it.`)
       return text(`Etyme never signs a week; ${signer} signs it, then ${accepter} accepts it.`)
     }
 
@@ -853,6 +908,20 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
     case 'LAST_PAID': {
       const paid = f.sent.filter((w) => w.stage === 'PAID' && w.paidOn).sort((a, b) => (b.paidOn ?? '').localeCompare(a.paidOn ?? ''))
       const w = paid[0]
+      if (!w && f.ownFirm) {
+        // A one-person firm is paid when her bills are paid; she has no employer's payroll.
+        const got = read.firmPaid ? await read.firmPaid().catch(() => null) : null
+        if (got) {
+          return withUnread(text(
+            `${got.from ?? 'A customer'} last paid ${f.ownFirm} ${money(got.amountMinor, got.currency)} on ${day(got.on)}${got.bill ? `, on bill ${got.bill}` : ''}. Checked just now.`,
+            [{ label: 'Open Bills', href: '/dashboard/invoices' }],
+          ), 'weeks')
+        }
+        return withUnread(text(
+          `No payment to ${f.ownFirm} is on Etyme yet. Ask “What have I billed and not been paid?” to see what is due.`,
+          [{ label: 'Open Bills', href: '/dashboard/invoices' }],
+        ), 'weeks')
+      }
       if (!w) {
         return withUnread(text(
           `No pay to you is recorded on Etyme yet. ${f.ownCompanyBills ? 'Your own company bills for your weeks, so its bills say what was paid.' : 'Your employer’s payroll records it here once it pays a week.'}`,
@@ -903,13 +972,13 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
       }
       return withUnread({
         kind: 'WORKER',
-        says: `${weekStandsSays(ws[0])} Checked just now.`,
+        says: `${weekStandsSays(ws[0], f.ownFirm)} Checked just now.`,
         cards: [],
         more: [],
         table: {
           caption: 'Your weeks, newest first',
           head: ['Week', 'Hours', 'Where it is'],
-          rows: ws.map((w) => ({ cells: [weekWords(w.periodStart, w.periodEnd), r2(w.hours).toLocaleString('en-US'), stageWord(w)], href: `/dashboard/weeks/${w.id}` })),
+          rows: ws.map((w) => ({ cells: [weekWords(w.periodStart, w.periodEnd), r2(w.hours).toLocaleString('en-US'), stageWord(w, f.ownFirm)], href: `/dashboard/weeks/${w.id}` })),
         },
         links: [{ label: 'Open Your work', href: YOUR_WORK }],
       }, 'weeks')
@@ -931,7 +1000,9 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
               cells: [
                 weekWords(w.periodStart, w.periodEnd),
                 r2(w.hours).toLocaleString('en-US'),
-                w.stage === 'PAID' ? 'Paid' : w.stillOwedMinor != null && w.currency ? money(w.stillOwedMinor, w.currency) : 'Not priced here',
+                w.stage === 'PAID' ? 'Paid'
+                  : w.stillOwedMinor != null && w.currency ? `${money(w.stillOwedMinor, w.currency)}${partPaidWord(w) ? `; ${partPaidWord(w)}` : ''}`
+                    : 'Not priced here',
                 w.stage === 'PAID' ? (w.paidOn ? day(w.paidOn) : '—') : (w.dueOn ? day(w.dueOn) : '—'),
               ],
               href: `/dashboard/weeks/${w.id}`,

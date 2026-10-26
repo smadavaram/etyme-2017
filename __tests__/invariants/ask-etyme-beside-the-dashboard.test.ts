@@ -199,7 +199,7 @@ describe('a one-person firm’s own paper is in her one queue', () => {
   it('a paper asked of her as the worker is counted and named in her greeting, and is a card that opens her paperwork with Not now', () => {
     const q = withOwnPapers({ total: 1, items: [{ type: 'INVOICE_OVERDUE', title: 'Overdue — IN-7YYZVO', entityId: 'inv-1' }] }, card())!
     expect(q.total).toBe(2)
-    expect(namedNeedsSays(q, [])!.says).toBe('Two things need you: Bill IN-7YYZVO is overdue; Your professional license is asked of you. Open the list.')
+    expect(namedNeedsSays(q, [])!.says).toBe('Two things need you: Bill IN-7YYZVO is overdue; your professional license is asked of you. Open the list.')
     const own = queueCards(q).find((c) => c.type === 'OWN_PAPER')!
     expect(own.href).toBe('/packet/abc')
     expect(own.act).toBeNull()

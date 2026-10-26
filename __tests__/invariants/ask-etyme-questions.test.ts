@@ -191,12 +191,12 @@ afterAll(() => {
 describe('Lorena, program manager at Northbend Athletic', () => {
   it('the program manager asks “What needs me today?” and reads who Etyme asked, by name and role, never “on your authority”', async () => {
     await check('PM', 'What needs me today?', 'ANSWERED',
-      'Ask Renata Kowal, AP clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Plan Tobias Lindqvist’s end date or break in service now. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Anything waiting on me?” and the rules answer it', async () => {
     await check('PM', 'Anything waiting on me?', 'ANSWERED',
-      'Ask Renata Kowal, AP clerk, to approve PR-2026-0441 and IN-XSWQQZ-20260901. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
+      'Plan Tobias Lindqvist’s end date or break in service now. Nothing from Etyme is waiting on you. Checked just now. Renata Kowal, AP clerk, has two invoice receipts to approve: PR-2026-0441 and IN-XSWQQZ-20260901. Etyme asked Renata; they are not yours to approve. Tobias Lindqvist reaches the 18-month time limit in 60 days, on Dec 11, 2026.')
   })
 
   it('the program manager asks “Who is near the time limit?” and the rules answer it', async () => {

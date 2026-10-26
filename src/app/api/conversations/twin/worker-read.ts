@@ -247,6 +247,8 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
       dueOn: money ? priced.dueOn ?? null : null,
       overdue: Boolean(money && priced.overdue),
       paidOn: stage === 'PAID' ? priced?.paidOn ?? null : null,
+      // Part of an owed week already paid on an earlier pay day: said beside what is owed.
+      partPaid: money && typeof priced.paidHours === 'number' && priced.paidHours > 0 ? { hours: Number(priced.paidHours), on: priced.paidOn ?? null } : null,
     })
   }
 
@@ -286,7 +288,9 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
   const putForward = (pipeline?.submissions ?? []).map((x: any) => ({
     role: String(x.role ?? 'a job'), by: String(x.submittedBy ?? 'A firm'),
     says: typeof x.says === 'string' ? x.says : '—',
-    live: !['REJECTED', 'WITHDRAWN', 'CLOSED'].includes(String(x.status)),
+    // Open means still in play. A job she got is not open (walk three,
+    // 2026-10-26: an ended placement read "It is still open … You got it").
+    live: !['REJECTED', 'WITHDRAWN', 'CLOSED', 'PLACED', 'AWARDED', 'HIRED'].includes(String(x.status).toUpperCase()),
   }))
 
   const interviews: InterviewFact[] = (pipeline?.interviewsAhead ?? []).map((i: any) => ({
@@ -313,6 +317,7 @@ export async function workerFacts(caller: CallerContext, request: NextRequest, n
   return {
     seat: caller.context.type === 'CONSULTANT' ? 'CONSULTANT' : 'EMPLOYEE',
     seatAt: caller.company?.name ?? null,
+    ownFirm: caller.company?.kind === 'CONSULTANT_CORP' ? caller.company.name : null,
     placements: placements.map(({ id: _id, ...p }) => p),
     toFile,
     returned,

@@ -19,6 +19,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { bellShows } from '@/lib/notify/account-mail'
 import { pageOf } from '@/lib/notify'
 import { NOTICES_SHOWN, THREADS_SHOWN, type NoticeLine, type ThreadNote } from './ask'
+import { partiesOf, directionFrom } from '@/lib/money/invoice-parties'
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
@@ -42,7 +43,22 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
  * chase for her license follows her for the same reason (Colleen Byrne,
  * 2026-10-20): a bench seat is no firm's book.
  */
-async function unreadWhere(caller: CallerContext): Promise<Prisma.NotificationWhereInput> {
+async function unreadWhere(caller: CallerContext, opts: { program?: string | null } = {}): Promise<Prisma.NotificationWhereInput> {
+  // A firm seated in a client's program reads that program, the same as
+  // its greeting: a notice written at its own firm's book waits for the
+  // seat that reads that book (walk three, 2026-10-26: Aptiva, seated at
+  // Cavanaugh Glassworks, read "Bill to raise" for its own Ruben Ortega).
+  if (opts.program) {
+    return {
+      personId: caller.person.id,
+      status: 'UNREAD',
+      AND: [
+        { OR: [{ companyId: null }, { companyId: opts.program }] },
+        { OR: [{ entityId: null }, { NOT: { entityId: { startsWith: DIGEST_PREFIX } } }] },
+      ],
+      ...bellShows(),
+    }
+  }
   const desks = caller.company
     ? await prisma.context.findMany({
         where: { personId: caller.person.id, type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: caller.company.id } },
@@ -76,8 +92,8 @@ export const DIGEST_PREFIX = 'twin-digest:'
  * Each comes with its body and, for a date coming due, the cycle and the
  * day, so the greeting can say who and what rather than the title.
  */
-export async function unreadNotices(caller: CallerContext): Promise<{ shown: NoticeLine[]; older: number }> {
-  const where = { ...(await unreadWhere(caller)), type: { not: 'CONVERSATION' } }
+export async function unreadNotices(caller: CallerContext, opts: { program?: string | null } = {}): Promise<{ shown: NoticeLine[]; older: number }> {
+  const where = { ...(await unreadWhere(caller, opts)), type: { not: 'CONVERSATION' } }
   const [rows, total] = await Promise.all([
     prisma.notification.findMany({
       where,
@@ -95,12 +111,13 @@ export async function unreadNotices(caller: CallerContext): Promise<{ shown: Not
   const settled = asked.length
     ? new Set((await prisma.twinApproval.findMany({ where: { id: { in: asked }, decision: { not: 'PENDING' } }, select: { id: true } })).map((a) => a.id))
     : new Set<string>()
+  const named = await mismatchTitles(rows, caller.company?.id ?? null)
   return {
     shown: rows.map((n) => {
       const data = asRecord(n.data)
       const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
       return {
-        id: n.id, title: n.title, href: pageOf(n.type, n.entityId, data),
+        id: n.id, title: named.get(n.id) ?? n.title, href: pageOf(n.type, n.entityId, data),
         type: n.type, body: typeof n.body === 'string' ? n.body : null,
         cycleKind: typeof data?.kind === 'string' ? data.kind : null,
         dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
@@ -110,6 +127,57 @@ export async function unreadNotices(caller: CallerContext): Promise<{ shown: Not
     }),
     older: Math.max(0, total - rows.length),
   }
+}
+
+/** The twin's mismatch notice, as the nightly run titles it (lib/twin/performers, flagMismatch). */
+export const MISMATCH_TITLE = 'An invoice receipt does not match what was accepted'
+
+/** "PR-2026-0442 from Pinnacle Resourcing does not match what was accepted." */
+export function mismatchSays(number: string, supplier: string | null): string {
+  return `${number}${supplier ? ` from ${supplier}` : ''} does not match what was accepted`
+}
+
+/**
+ * The mismatch notice says which receipt and whose (walk three,
+ * 2026-10-26): its title names neither, so the receipt it is about is
+ * read and named here. A receipt that cannot be read keeps the title.
+ */
+async function mismatchTitles(
+  rows: ReadonlyArray<{ id: string; title: string; entityId: string | null; data: unknown }>,
+  companyId: string | null,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const flagged = rows.filter((n) => n.title === MISMATCH_TITLE && n.entityId)
+  if (flagged.length === 0) return out
+  const ids = [...new Set(flagged.map((n) => n.entityId!))]
+  try {
+    const [invoices, keyed] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true, number: true,
+          engagement: { select: { msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } } } },
+          workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+        },
+      }),
+      prisma.vendorBill.findMany({ where: { id: { in: ids } }, select: { id: true, number: true, vendorCompany: { select: { name: true } } } }),
+    ])
+    const said = new Map<string, string>()
+    for (const i of invoices) {
+      const parties = partiesOf({ agreement: i.engagement?.msa ?? null, order: i.workOrder ?? null })
+      // The supplier is the firm that billed the reader; a receipt the reader is not paying keeps its title.
+      if (companyId && directionFrom(parties, companyId) !== 'PAYABLE') continue
+      said.set(i.id, mismatchSays(i.number, parties.vendor?.name ?? null))
+    }
+    for (const b of keyed) said.set(b.id, mismatchSays(b.number, b.vendorCompany?.name ?? null))
+    for (const n of flagged) {
+      const t = said.get(n.entityId!)
+      if (t) out.set(n.id, t)
+    }
+  } catch {
+    // The title as it was written; never a guess.
+  }
+  return out
 }
 
 /** What a thread is about, in the trade's words: "the HCM integration lead job". */

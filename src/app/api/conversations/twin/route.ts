@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { respond, today, modelState, cardIdsOf, partyOf, queueFrom, readAsk, withOwnPapers, withoutOwnWeek, questionsFor, type Picture, type Answer, type Party, type QueueRead } from './ask'
+import { fromPrismaDecimal } from '@/lib/money'
 import { readThread, appendTurn, markCard, clearThread, type SavedThread, type SavedTurn, type CardState } from '@/lib/ask-etyme-thread'
 import { prisma } from '@/lib/db'
 import { modelSwitchFor } from '@/lib/model-boundary'
@@ -168,7 +169,8 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
       // A one-person firm is the worker too: what is asked of her on paper
       // is in her one queue, so her greeting and her mark count it.
       const own = await ownFactsOf(caller, request)
-      return own ? withOwnPapers(queue, cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
+      // Nor is she asked to accept her own week: she is the firm (CLAUDE.md, shipped 2026-10-21).
+      return own ? withOwnPapers(withoutOwnWeek(queue, caller.person.name), cardsFor(own).filter((c) => c.act === 'PAPER')) : queue
     } catch {
       return null
     }
@@ -198,6 +200,41 @@ async function judgedBy(caller: Caller): Promise<readonly string[]> {
 }
 
 const NO_COMPANY = 'Ask Etyme answers about a company’s program. Switch to your company first.'
+
+/** The reader's own role by name, as a refusal must never name it back to them: the seat's where seated. */
+async function roleOf(caller: Caller): Promise<string | null> {
+  const seat = await seatOf(caller)
+  if (seat) return seat.role.name
+  if (!caller.context.roleId) return null
+  const role = await prisma.role.findUnique({ where: { id: caller.context.roleId }, select: { name: true } }).catch(() => null)
+  return role?.name ?? null
+}
+
+/**
+ * A one-person firm is paid when a customer pays her bill: the last
+ * payment her firm received, from the payment rows themselves. Null where
+ * none is on the record.
+ */
+async function firmPaidOf(caller: Caller) {
+  if (!caller.company) return null
+  const p = await prisma.payment.findFirst({
+    where: { receivedByCompanyId: caller.company.id, invoiceId: { not: null } },
+    orderBy: { receivedAt: 'desc' },
+    select: { amount: true, currency: true, receivedAt: true, payerCompany: { select: { name: true } }, invoice: { select: { number: true } } },
+  })
+  if (!p) return null
+  return {
+    on: p.receivedAt.toISOString().slice(0, 10), amountMinor: fromPrismaDecimal(p.amount, p.currency).minor, currency: p.currency,
+    from: p.payerCompany?.name ?? null, bill: p.invoice?.number ?? null,
+  }
+}
+
+/** The reader's own pay, where they are a worker too and payroll paid them a week; null where Etyme keeps none. */
+async function ownPayOf(caller: Caller, request: NextRequest, text: string): Promise<Answer | null> {
+  const facts = await workerFacts(caller, request).catch(() => null)
+  if (!facts || !facts.sent.some((w) => w.stage === 'PAID' && w.paidOn)) return null
+  return respondWorker(text, { facts: async () => facts })
+}
 
 /** Whether this caller reads Ask Etyme as a worker. */
 function asWorker(caller: Caller): boolean {
@@ -277,13 +314,15 @@ export async function GET(request: NextRequest) {
     // from her own pages beside the rest, and said in her greeting.
     const ownWeek = ownFactsOf(caller, request).then((f) => (f ? latestWeekLine(f) : null)).catch(() => null)
     const [notices, threads, modelSwitch, who, week] = await Promise.all([
-      unreadNotices(caller), unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller), ownWeek,
+      seatOf(caller).then((seat) => unreadNotices(caller, { program: seat?.clientCompany.id ?? null })),
+      unreadThreads(caller), modelSwitchFor(company.id), partyFor(caller), ownWeek,
     ])
     // The boundary line reads the company's own switch, so it says what is
     // true for this company; it is the greeting's last line.
     const model = modelState(modelSwitch.on, process.env)
     const answer = await today(readersFor(caller, company.id, request, { seat: await seatOf(caller) }), {
       greeting: true, picture, needs: queue, notices, threads, model, party: who.party, client: who.client, ownWeek: week,
+      self: caller.person.name,
     })
     // Said, so read: the section empties itself on the next greeting.
     await Promise.all([
@@ -393,11 +432,14 @@ export async function POST(request: NextRequest) {
     // worker's are; what she billed and the rest, from the firm's book.
     const solo = who.party === 'SOLO' && readAsk(text).kind !== 'UNPAID' &&
       ['SIGNED', 'PAPERS', 'CONTRACT_END', 'OWED', 'CHAIN', 'MY_RATE', 'INTERVIEWS', 'FILE', 'SIGN_WEEK', 'LAST_PAID', 'JOBS'].includes(readWorkerAsk(text))
+    const seat = await seatOf(caller)
     answer = solo
-      ? await respondWorker(text, { facts: () => workerFacts(caller, request) })
-      : await respond(text, readersFor(caller, companyId, request, { seat: await seatOf(caller) }), {
-        env: process.env, companyKind: caller.company.kind, permissions: await judgedBy(caller), needs: queueFor(request, caller), party: who.party,
-        ownCompany: caller.company.name,
+      ? await respondWorker(text, { facts: () => workerFacts(caller, request), firmPaid: () => firmPaidOf(caller) })
+      : await respond(text, readersFor(caller, companyId, request, { seat }), {
+        // Seated in a client's program, the book is the client's: its desks are the ones named.
+        env: process.env, companyKind: seat ? seat.clientCompany.kind : caller.company.kind, permissions: await judgedBy(caller), needs: queueFor(request, caller), party: who.party,
+        ownCompany: caller.company.name, client: seat?.clientCompany.name ?? null, ownKind: caller.company.kind,
+        role: await roleOf(caller), ownPay: () => ownPayOf(caller, request, text),
       })
   } catch (err) {
     await reportError('Ask Etyme could not answer', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company.id })

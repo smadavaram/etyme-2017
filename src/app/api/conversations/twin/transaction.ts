@@ -148,7 +148,7 @@ export function namesSomebody(text: string, names: ReaderNames): boolean {
 const OURS = /^(we|i|us|me|our|my|you|your|ourselves)\b/i
 
 /** "What does X pay …", "How much did X bill …": the payer, the verb and the rest. */
-const WHO_PAYS = /^(?:what|how much)\s+(?:does|did|do|will|would|is|was)\s+(.+?)\s+(?:pay(?:ing)?|bill(?:ing)?|charg(?:e|es|ing)|earn(?:ing)?|make|get paid|owe|spend)\b(.*)$/i
+const WHO_PAYS = /^(?:what|how much)\s+(?:does|did|do|will|would|is|was|are|were)\s+(.+?)\s+(?:pay(?:ing)?|bill(?:ing)?|charg(?:e|es|ing)|earn(?:ing)?|make|get paid|owe|spend(?:s|ing)?)\b(.*)$/i
 /** "… paid by X", "… billed to X", "… charged by X". */
 const PAID_BY = /\b(?:paid|billed|charged|invoiced)\s+(?:by|to)\s+(.+?)\s*[?.]?$/i
 /** "X's rates", "X’s bill rate", "X's margin". */
@@ -156,14 +156,26 @@ const FIRMS_RATE = /\b((?:[A-Z][\p{L}&.'-]*\s+){0,4}[A-Z][\p{L}&.'-]*)['’]s?\s
 
 const plainOf = (s: string) => s.replace(/^(the|a|an)\s+/i, '').replace(/[?.!,;:]+$/, '').trim()
 
+/**
+ * The reader's own book, by name: its own company, and for a firm seated in
+ * a client's program, that client too, because the program is the book it
+ * reads there (walk three, 2026-10-26).
+ */
+export type OwnBook = string | readonly (string | null | undefined)[] | null | undefined
+
+function ownNames(own: OwnBook): string[] {
+  return (typeof own === 'string' ? [own] : own ?? []).filter((x): x is string => typeof x === 'string' && !!x.trim())
+}
+
 /** Whether a name is the reader's own company, by its name or a pronoun for it. */
-function isOurs(name: string, own: string | null | undefined): boolean {
+function isOurs(name: string, own: OwnBook): boolean {
   const n = plainOf(name)
   if (!n || OURS.test(n)) return true
-  if (!own) return false
   const a = bare(n)
-  const b = bare(own)
-  return a.length > 0 && (a === b || b.startsWith(`${a} `) || a.startsWith(`${b} `))
+  return a.length > 0 && ownNames(own).some((o) => {
+    const b = bare(o)
+    return a === b || b.startsWith(`${a} `) || a.startsWith(`${b} `)
+  })
 }
 
 /** Whether the words name a firm that is not the reader: a firm on its record, a withheld one, or a name written as a firm is. */
@@ -188,14 +200,14 @@ const NO_FIRM = /^(other|another|any|every|all|each|some|most|their|they|he|she|
  * the other party is the reader itself, or where the words name no firm
  * in particular. Only a payer left standing costs a read of the names.
  */
-export function firmMoneyAsk(text: string, own: string | null | undefined): { payer: string } | null {
+export function firmMoneyAsk(text: string, own: OwnBook): { payer: string } | null {
   const t = text.trim().replace(/\s+/g, ' ')
   const standing = (payer: string) => (isOurs(payer, own) || NO_FIRM.test(plainOf(payer)) ? null : { payer })
   const who = t.match(WHO_PAYS)
   if (who) {
     const rest = plainOf(who[2] ?? '')
     // The reader is the other party: its own transaction.
-    if (rest && (isOurs(rest.split(/\s+(?:for|on|in|this|last|per|an?)\b/i)[0], own) || (own && squash(rest).includes(squash(own))))) return null
+    if (rest && (isOurs(rest.split(/\s+(?:for|on|in|this|last|per|an?)\b/i)[0], own) || ownNames(own).some((o) => squash(rest).includes(squash(o))))) return null
     return standing(who[1])
   }
   const by = t.match(PAID_BY)
@@ -206,7 +218,7 @@ export function firmMoneyAsk(text: string, own: string | null | undefined): { pa
 }
 
 /** The cheap test, no read: whether the names need reading at all. */
-export function asksAboutFirmMoney(text: string, own?: string | null): boolean {
+export function asksAboutFirmMoney(text: string, own?: OwnBook): boolean {
   return firmMoneyAsk(text, own) != null
 }
 
@@ -218,7 +230,7 @@ export function asksAboutFirmMoney(text: string, own?: string | null): boolean {
  * at Techpeple is Brightmoor's book; "What does Computer Systems owe
  * us?" is Techpeple's own.
  */
-export function anotherFirmsMoney(text: string, own: string | null | undefined, names: ReaderNames): boolean {
+export function anotherFirmsMoney(text: string, own: OwnBook, names: ReaderNames): boolean {
   const ask = firmMoneyAsk(text, own)
   return ask != null && aFirm(ask.payer, names)
 }
