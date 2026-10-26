@@ -11,6 +11,7 @@ import { YourExpense } from './your-expense'
 import { workStops, type PaperRow, type RunningOut } from './paperwork-rows'
 import { formatDay } from '@/lib/format-date'
 import { momentFor, readerZone } from '@/lib/when'
+import { askedWeek } from './asked-week'
 
 /**
  * A consultant's own page.
@@ -800,10 +801,13 @@ function dayLabel(iso: string): string {
  * open, so a day that has not happened, or is already on a filed week,
  * has no box at all.
  */
-function FileYourWeek({ filing, onSent }: { filing: Filing[]; onSent: () => Promise<void> }) {
-  const [contractId, setContractId] = useState(filing[0]?.contractId ?? '')
+function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: string | null; onSent: () => Promise<void> }) {
+  // A link that named a week (Ask Etyme's "File my week") opens on it;
+  // anything else opens on the first open week, as before.
+  const [opened] = useState(() => askedWeek(filing, asked))
+  const [contractId, setContractId] = useState(opened?.contractId ?? filing[0]?.contractId ?? '')
   const current = filing.find((f) => f.contractId === contractId) ?? filing[0]
-  const [periodStart, setPeriodStart] = useState(current?.weeks[0]?.periodStart ?? '')
+  const [periodStart, setPeriodStart] = useState(opened?.periodStart ?? current?.weeks[0]?.periodStart ?? '')
   const week = current?.weeks.find((w) => w.periodStart === periodStart) ?? current?.weeks[0]
   const [hours, setHours] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -1072,6 +1076,11 @@ export default function MyWorkPage() {
   // Her paperwork rows, read once by the section below the money and
   // handed up for the line at the top that names a paper that stops work.
   const [paperRows, setPaperRows] = useState<PaperRow[]>([])
+  // The week a link named (`?week=`), read once. Read from the address
+  // rather than through useSearchParams so the page needs no Suspense
+  // boundary; the filing form only draws after the client has loaded.
+  const [asked, setAsked] = useState<string | null>(null)
+  useEffect(() => { setAsked(new URLSearchParams(window.location.search).get('week')) }, [])
 
   // Quiet on a refresh after sending, so the form's own sentence about
   // what was sent stays on the screen instead of a loading line.
@@ -1218,7 +1227,7 @@ export default function MyWorkPage() {
       {/* The week first: the one thing on this page only they may do. */}
       {/* Their own week. The one thing on this page that only they may do. */}
       {(data.filing?.length ?? 0) > 0 && (
-        <FileYourWeek filing={data.filing} onSent={() => load(true)} />
+        <FileYourWeek filing={data.filing} asked={asked} onSent={() => load(true)} />
       )}
 
       {/* Their own expense, beside the week, on the same placement: the
