@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
-import { chipsFor, emptyBook, type TypeFilter } from './chips'
+import { chipsFor, emptyBook, decisionsAddress, type TypeFilter } from './chips'
 import { PageHead, Stat, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
@@ -174,7 +174,11 @@ export default function DecisionsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/decisions')
+      // A reader seated in a client's program reads that program's queue,
+      // the program page's own rows, and never its own firm's book
+      // (`seatedProgramQueue` in the route). A reader with no seat is
+      // answered with its own queue, as before.
+      const res = await fetch(decisionsAddress(window.location.search))
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}))
         setRefused(body.error?.message ?? 'Decisions are not part of your seat. Ask your company\'s owner if you need them.')

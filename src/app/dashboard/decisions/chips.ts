@@ -159,3 +159,20 @@ export function emptyBook(kind: CompanyKind | null | undefined, mayRecord: boole
     action: null,
   }
 }
+
+/**
+ * The address Needs attention reads, from the page's own query string.
+ *
+ * Always asks for the program (`in=program`), so a reader seated in a
+ * client's program reads that program's queue and never its own firm's
+ * book; a reader with no seat is answered with its own queue, the route
+ * deciding. A `clientCompanyId` on the page's address picks the program
+ * where the seat holds several, the way it does on the program page.
+ */
+export function decisionsAddress(search: string): string {
+  const own = new URLSearchParams(search)
+  const ask = new URLSearchParams({ in: 'program' })
+  const client = own.get('clientCompanyId')
+  if (client) ask.set('clientCompanyId', client)
+  return `/api/decisions?${ask.toString()}`
+}

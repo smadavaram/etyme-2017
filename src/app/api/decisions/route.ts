@@ -15,6 +15,9 @@ import { desksForMany } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, yourClientsSays, type Stage, type Decision } from '@/lib/supplier-onboarding'
 import { paperingRow } from '@/lib/papering'
 import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatFor } from '@/lib/program-seat'
+import { programView } from '@/app/api/program/view'
+import type { CallerContext } from '@/lib/api-context'
 import { rate as rateSays } from '@/lib/money-display'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { disputedBillDecision } from './disputed-bill'
@@ -73,6 +76,24 @@ export async function GET(request: NextRequest) {
   if (!companyId) {
     return NextResponse.json({ data: { decisions: [], counts: {} } })
   }
+
+  // ── A seat in a client's program reads that program, and only it ────
+  //
+  // The second production walk, 2026-10-26: Aptiva, seated in Cavanaugh
+  // Glassworks' program, opened Needs attention and read Ruben Ortega's
+  // week at Harlow Health — Aptiva's own book — while the chat and the
+  // program page beside it showed Cavanaugh's queue (Samuel Adeyinka's
+  // I-9, Wrenfield's agreement). So Needs attention asks for the program
+  // (`?in=program`, and `clientCompanyId` where the seat holds several),
+  // and a seated reader is answered with `programQueue` — the very rows
+  // the program page draws and Ask Etyme greets with, read through the
+  // one function both read (`programView`), every person logged under
+  // the seat. Nothing from the reader's own firm is added.
+  //
+  // Asked for, not assumed: a selling firm's Today page reads this route
+  // for its own book on purpose, and an MSP's own work stays there.
+  const program = await seatedProgramQueue(request, caller)
+  if (program) return program
 
   const now = new Date()
   const decisions: any[] = []
@@ -1235,4 +1256,45 @@ async function clientDecidedMany(
     if (said) out.set(w.timesheetId, said)
   }
   return out
+}
+
+/**
+ * Needs attention for a reader seated in a client's program: that
+ * program's queue in this route's own shape, or null where the reader
+ * did not ask for the program or holds no live seat (it then reads its
+ * own firm's queue, as before). A client's own seats and a one-person
+ * firm never hold a seat in somebody else's program.
+ */
+async function seatedProgramQueue(
+  request: NextRequest,
+  caller: CallerContext
+): Promise<NextResponse | null> {
+  const params = request.nextUrl.searchParams
+  if (params.get('in') !== 'program') return null
+  const kind = caller.company?.kind ?? null
+  if (!kind || kind === 'CLIENT' || kind === 'CONSULTANT_CORP') return null
+  const seat = await seatFor(caller, params.get('clientCompanyId'))
+  if (!seat) return null
+
+  const view = await programView(caller, seat.clientCompany.id, { trail: 'Needs attention' })
+  if (view.error) return view.error
+  // A seat the program did not read as a seat is not a seat here either.
+  if (!view.data?.seated) return null
+  const decisions = view.data.programQueue ?? []
+  const counts: Record<string, number> = {}
+  for (const d of decisions) counts[d.type] = (counts[d.type] ?? 0) + 1
+  return NextResponse.json({
+    data: {
+      decisions,
+      counts,
+      total: decisions.length,
+      says: deskHeadline(decisions).says,
+      welcome: null,
+      reading: {
+        company: caller.company?.name ?? null,
+        seated: true,
+        clientName: view.data.client.name,
+      },
+    },
+  })
 }
