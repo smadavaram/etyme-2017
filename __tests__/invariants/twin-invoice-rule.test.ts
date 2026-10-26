@@ -106,7 +106,17 @@ describe('the job twin reads an invoice receipt', () => {
     const close = judge('R-4', [{ hoursBilled: 40.2, hoursAccepted: 40 }])
     expect(close.payable).toBe(false)
     expect(close.failing).toContain('QUANTITY')
+    expect(close.rationale).toMatch(/^Held for the AP clerk/)
     expect(close.rationale).toMatch(/AP clerk still records the difference before it is paid/)
+  })
+
+  it('a receipt that matches is one decision, to approve it for payment, and never reads as nothing to decide', () => {
+    const exact = judge('R-4b', [{ hoursBilled: 40, hoursAccepted: 40 }])
+    expect(exact.payable).toBe(true)
+    expect(exact.rationale).toBe('Approve it for payment: it matches the signed hours and the contract rate.')
+    for (const v of [exact, judge('R-4c', [{ hoursBilled: 40.2, hoursAccepted: 40 }]), judge('R-4d', [{ hoursBilled: 41.5, hoursAccepted: 40 }])]) {
+      expect(v.rationale).not.toMatch(/Nothing to decide|Not raised to you/)
+    }
   })
 
   it('a receipt three point seven five percent over accepted hours is a mismatch that cites the rule and the numbers', () => {

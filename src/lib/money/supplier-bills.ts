@@ -273,6 +273,20 @@ export function draftRationale(d: Pick<BillDue, 'customerName' | 'planned'>): st
   )
 }
 
+/**
+ * The question put to whoever sends bills. When it falls due comes before
+ * "Send it?", so a bill the agreement makes late on the day it goes says
+ * so before the yes, never after it.
+ */
+export function sendQuestion(a: { invoiceNumber: string; customerName: string; periodLabel: string; totalSays: string; hours: number | null; dueSays: string }): string {
+  return (
+    `Bill ${a.invoiceNumber} to ${a.customerName} for ${a.periodLabel} is drafted: ${a.totalSays}` +
+    (a.hours != null ? `, ${a.hours} hours` : '') + '. ' +
+    (a.dueSays ? `${a.dueSays} ` : '') +
+    'Send it?'
+  )
+}
+
 /** What a card about this bill shows. Read by the conversation's cards. */
 export interface BillCardPayload {
   customerName: string
@@ -283,6 +297,13 @@ export interface BillCardPayload {
   people: { personName: string; hours: number; amountMinor: number }[]
   builtFrom: { timesheetIds: string[]; weeks: number; expenses: number; milestones: number }
   dueSays: string
+  /**
+   * Where the agreement's terms make the bill due, or past due, on the day
+   * it is sent: how many days past, and the sentence. Already inside
+   * `dueSays`, which the card shows before Yes; kept apart so a reader can
+   * act on the number. Null where the due date is still ahead.
+   */
+  pastDue?: { daysPast: number; says: string } | null
   heldBack: string | null
   setAside: string[]
   invoiceId?: string
@@ -300,6 +321,7 @@ export function cardPayload(d: BillDue, invoice?: { id: string; number: string }
     people: p.people,
     builtFrom: { timesheetIds: p.timesheetIds, weeks: p.timesheetIds.length, expenses: p.expenseCount, milestones: p.milestoneCount },
     dueSays: p.dueSays,
+    pastDue: p.pastDue,
     heldBack: p.heldBack,
     setAside: p.setAside,
     ...(invoice ? { invoiceId: invoice.id, invoiceNumber: invoice.number } : {}),

@@ -102,6 +102,74 @@ export interface Sent {
   payerNotice: { written: number; why: string | null }
 }
 
+/** What the due date of a bill being sent is counted from: its agreement, its order, its lines. */
+const DUE_SELECT = {
+  periodEnd: true,
+  engagement: {
+    select: {
+      msa: {
+        select: {
+          vendorId: true, clientId: true,
+          billFrequency: true, billAnchor: true, billStraddle: true,
+          paymentTerms: true, paymentTermsFrom: true, currency: true,
+          vendor: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true } },
+        },
+      },
+    },
+  },
+  workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
+  invoiceLines: {
+    select: {
+      sellContractId: true,
+      timesheet: { select: { periodEnd: true } },
+      sellContract: {
+        select: {
+          paymentTerms: true, paymentTermsFrom: true, billCurrency: true,
+          companyId: true, clientCompanyId: true,
+          company: { select: { id: true, name: true } },
+          clientCompany: { select: { id: true, name: true } },
+          ...SELL_LINE_TERMS_SELECT,
+          workOrder: { select: ORDER_HEADER_SELECT },
+        },
+      },
+    },
+  },
+} as const
+
+type DueRow = Prisma.InvoiceGetPayload<{ select: typeof DUE_SELECT }>
+
+/** The due date a bill would carry if it were sent on `on`, by the agreement's rule, and whether that date has already gone. */
+function dueWhenSent(inv: DueRow, on: Date): ReturnType<typeof billDue> {
+  const parties = partiesOf({
+    agreement: inv.engagement.msa,
+    order: inv.workOrder,
+    lines: inv.invoiceLines.map((l) => l.sellContract).filter((c): c is NonNullable<typeof c> => c != null),
+  })
+  const line = inv.invoiceLines.find((l) => l.sellContract)?.sellContract ?? null
+  return billDue({
+    line,
+    engagementAgreement: inv.engagement.msa,
+    companyName: parties.vendor?.name ?? 'this company',
+    customerName: parties.client?.name ?? 'the client',
+    periodEnd: inv.periodEnd,
+    issuedAt: on,
+  })
+}
+
+/**
+ * What a draft's due date would be if it were sent on `on`: the sentence a
+ * card shows beside Send, and whether the agreement's terms make it already
+ * due or past due. Read by the supplier's twin before it asks for a yes,
+ * so the card says it first. Null where the bill does not exist.
+ */
+export async function dueIfSentOn(invoiceId: string, on: Date = new Date()): Promise<{ dueAt: Date; says: string; pastDue: { daysPast: number; says: string } | null } | null> {
+  const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: DUE_SELECT })
+  if (!inv) return null
+  const { due, pastDue } = dueWhenSent(inv, on)
+  return { dueAt: due.dueAt, says: due.says, pastDue }
+}
+
 /**
  * The writes, inside the caller's transaction. Moves only a bill still
  * in the state the check saw — a second yes, or a person pressing Submit
@@ -116,37 +184,8 @@ export async function markSent(
     where: { id: a.invoiceId },
     select: {
       id: true, number: true, status: true, total: true, currency: true, dueAt: true,
-      periodEnd: true, engagementId: true,
-      engagement: {
-        select: {
-          msa: {
-            select: {
-              vendorId: true, clientId: true,
-              billFrequency: true, billAnchor: true, billStraddle: true,
-              paymentTerms: true, paymentTermsFrom: true, currency: true,
-              vendor: { select: { id: true, name: true } },
-              client: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-      workOrder: { select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } } },
-      invoiceLines: {
-        select: {
-          sellContractId: true,
-          timesheet: { select: { periodEnd: true } },
-          sellContract: {
-            select: {
-              paymentTerms: true, paymentTermsFrom: true, billCurrency: true,
-              companyId: true, clientCompanyId: true,
-              company: { select: { id: true, name: true } },
-              clientCompany: { select: { id: true, name: true } },
-              ...SELL_LINE_TERMS_SELECT,
-              workOrder: { select: ORDER_HEADER_SELECT },
-            },
-          },
-        },
-      },
+      engagementId: true,
+      ...DUE_SELECT,
     },
   })
   const raised = inv.status === 'DRAFT'
@@ -159,20 +198,7 @@ export async function markSent(
     // Raised today, so dated today: the due date is counted again by the
     // agreement's rule from the day it actually goes, never from the day
     // the twin drafted it.
-    const parties = partiesOf({
-      agreement: inv.engagement.msa,
-      order: inv.workOrder,
-      lines: inv.invoiceLines.map((l) => l.sellContract).filter((c): c is NonNullable<typeof c> => c != null),
-    })
-    const line = inv.invoiceLines.find((l) => l.sellContract)?.sellContract ?? null
-    dueAt = billDue({
-      line,
-      engagementAgreement: inv.engagement.msa,
-      companyName: parties.vendor?.name ?? 'this company',
-      customerName: parties.client?.name ?? 'the client',
-      periodEnd: inv.periodEnd,
-      issuedAt: now,
-    }).due.dueAt
+    dueAt = dueWhenSent(inv, now).due.dueAt
   }
 
   const moved = await tx.invoice.updateMany({

@@ -355,9 +355,13 @@ export function verdictFrom(
     ...shell,
     verdict: 'CLEAN',
     ruleCited,
+    // One receipt, one decision (browser walk, 2026-10-22: a row counted
+    // as a decision read "Nothing to decide"). A clean match is the
+    // decision to pay it; a difference inside the tolerance is held on the
+    // exception path, where the AP clerk records why it stands.
     rationale: match.matched
-      ? 'Nothing to decide: it matches the signed hours and the contract rate, and it can be paid.'
-      : `Not raised to you: the difference is inside ${allowed}. The AP clerk still records the difference before it is paid, because the three-way check pays only the hours accepted.`,
+      ? 'Approve it for payment: it matches the signed hours and the contract rate.'
+      : `Held for the AP clerk: the difference is inside ${allowed}, and the AP clerk still records the difference before it is paid, because the three-way check pays only the hours accepted.`,
   }
 }
 

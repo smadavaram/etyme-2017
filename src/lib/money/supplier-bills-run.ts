@@ -30,7 +30,8 @@ import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { formatDay } from '@/lib/format-date'
 import { act, type ActResult, type Authority, type Surface } from '@/lib/twin/ledger'
 import { supplierAuthorityAt } from '@/lib/twin/run'
-import { billsDueAt, cardPayload, draftRule, draftRationale, SUPPLIER_TWIN_NAME } from '@/lib/money/supplier-bills'
+import { billsDueAt, cardPayload, draftRule, draftRationale, sendQuestion } from '@/lib/money/supplier-bills'
+import { dueIfSentOn } from '@/lib/money/bill-send'
 import { fromUnits } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 
@@ -144,10 +145,11 @@ export async function runSupplierBills(
       companyId, twin: 'SUPPLIER', action: 'bill.send',
       entity: { type: 'Invoice', id: invoiceId, partyCompanyIds: [companyId, d.customerId] },
       rule: draftRule(d),
-      rationale:
-        `Bill ${invoiceNumber} to ${d.customerName} for ${d.period.label} is drafted: ` +
-        `${fromUnits(d.planned.totalMinor / minorPerUnit(d.planned.currency), d.planned.currency)}, ${d.planned.hours} hours. ` +
-        `Send it? ${d.planned.dueSays}`,
+      rationale: sendQuestion({
+        invoiceNumber, customerName: d.customerName, periodLabel: d.period.label,
+        totalSays: fromUnits(d.planned.totalMinor / minorPerUnit(d.planned.currency), d.planned.currency),
+        hours: d.planned.hours, dueSays: d.planned.dueSays,
+      }),
       surface, authority,
       payload: { ...cardPayload(d, { id: invoiceId, number: invoiceNumber }), engagementId: d.engagementId, sellContractId: d.sellContractId, askedOn },
       dedupKey: invoiceId,
@@ -176,13 +178,24 @@ export async function runSupplierBills(
     const askedOn = await askingGround(companyId, invoiceId, authority)
     if (await refusedOnSameGround(companyId, invoiceId, askedOn)) { unchanged++; continue }
     const p = ((row.payload ?? {}) as Record<string, any>)
+    // Asked days after it was drafted, so its due date is read again for
+    // today: a period-end term that had time left at the draft may have
+    // none now, and the card says so before the yes.
+    const due = await dueIfSentOn(invoiceId, opts.now ?? new Date())
     const send = tally(await act({
       companyId, twin: 'SUPPLIER', action: 'bill.send',
       entity: { type: 'Invoice', id: invoiceId, partyCompanyIds: row.partyCompanyIds.length ? row.partyCompanyIds : [companyId] },
       rule: `Bill ${inv.number} for ${plain(inv.periodStart)} to ${plain(inv.periodEnd)} is drafted and has not been sent.`,
-      rationale: `Drafted by ${SUPPLIER_TWIN_NAME}: ${fromUnits(Number(inv.total), inv.currency)}. Send it?`,
+      rationale: sendQuestion({
+        invoiceNumber: inv.number,
+        customerName: typeof p.customerName === 'string' ? p.customerName : 'the customer',
+        periodLabel: typeof p.period?.label === 'string' ? p.period.label : `${plain(inv.periodStart)} to ${plain(inv.periodEnd)}`,
+        totalSays: fromUnits(Number(inv.total), inv.currency),
+        hours: null,
+        dueSays: due?.says ?? '',
+      }),
       surface, authority,
-      payload: { ...p, invoiceId, invoiceNumber: inv.number, askedOn },
+      payload: { ...p, ...(due ? { dueSays: due.says, pastDue: due.pastDue } : {}), invoiceId, invoiceNumber: inv.number, askedOn },
       dedupKey: invoiceId,
       byHand: `Send it from the Bills page: open ${inv.number} and press Send.`,
     }))

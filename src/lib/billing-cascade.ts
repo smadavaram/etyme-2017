@@ -553,6 +553,63 @@ export function dueOn(input: DueInput): DueVerdict {
   }
 }
 
+// ── Sending a bill: what the days run from, and a date already gone ───
+//
+// Found by the browser walk, 2026-10-22: the supplier's twin offered
+// Teleworld a bill "Due Sep 14, 2026", and once sent it read "38 days
+// late" on its first day. The agreement counted net 30 from the end of
+// the work period, the period ended in August, and the bill went in
+// October. Two rules follow, both about the day a bill is sent:
+//
+//   1. Where nobody said what the days run from, they run from the day
+//      the bill is sent. The platform's PERIOD_END default stays for
+//      everything already raised, whose due date is stored and does not
+//      move; a bill being sent today is not "already raised", and
+//      counting its days from a period that ended weeks ago makes it late
+//      before the customer has seen it. Where the agreement (or an order
+//      or a line with its reason) said anything, its word stands.
+//   2. Where the agreement's own word puts the due date on or before the
+//      day it is sent, the bill says so before anybody says yes to it. It
+//      is not changed: the date is the agreement's, and a firm that bills
+//      late under a period-end term is late by the paper it signed.
+
+/** What a bill's days run from on the day it is sent. The agreement's word where anybody gave one; else the day it is sent. */
+export function sendingAnchor(from: Resolved<TermsAnchor>): Resolved<TermsAnchor> {
+  if (from.source !== 'PLATFORM') return from
+  return {
+    value: 'INVOICE_DATE',
+    source: 'PLATFORM',
+    because: 'nobody has said what the days run from, so they run from the day the bill is sent',
+    overrode: null,
+    setAside: from.setAside,
+  }
+}
+
+export interface PastDueOnSending {
+  /** Whole days between the due date and the day it is sent; 0 where it falls due that day. */
+  daysPast: number
+  /** The sentence the card and the bill say before the yes. */
+  says: string
+}
+
+const utcDay = (d: Date): number => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+
+/**
+ * Whether a bill sent on `sentOn` is already due, or past due, on that
+ * day. Null where the due date is still ahead, or the clock has not
+ * started (a receipt or an approval nobody has given cannot be late).
+ */
+export function pastDueOnSending(due: DueVerdict, sentOn: Date): PastDueOnSending | null {
+  if (!due.clockStarted) return null
+  const days = Math.round((utcDay(sentOn) - utcDay(due.dueAt)) / A_DAY)
+  if (days < 0) return null
+  if (days === 0) return { daysPast: 0, says: 'That is the day it is sent: it falls due the day it arrives.' }
+  return {
+    daysPast: days,
+    says: `That date has passed: sent ${said(sentOn)}, it is ${days} day${days === 1 ? '' : 's'} past due the day it arrives.`,
+  }
+}
+
 // ── Paying early, and what that is worth ──────────────────────────────
 //
 // "2/10 net 30" is the oldest discount in commerce: two per cent off if

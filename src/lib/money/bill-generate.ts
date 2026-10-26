@@ -38,8 +38,8 @@ import { legsOverMany, acceptancesOn } from '@/lib/money/expense-acceptance-read
 import { emit } from '@/lib/events'
 import { billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
-  partnerFunctions, mayConsolidate, selfBilling, taxFor, dueOn,
-  type Place, type Party, type BillingTerms, type DueVerdict,
+  partnerFunctions, mayConsolidate, selfBilling, taxFor, dueOn, sendingAnchor, pastDueOnSending,
+  type Place, type Party, type BillingTerms, type DueVerdict, type PastDueOnSending,
 } from '@/lib/billing-cascade'
 import { minorPerUnit } from '@/lib/money'
 import { drawnOnOrder } from '@/lib/money/order-drawn'
@@ -100,6 +100,12 @@ export interface PlannedBill {
   pending: string | null
   /** When it falls due, in words. */
   dueSays: string
+  /**
+   * Where the agreement's terms put the due date on or before the day it
+   * is raised: how many days past, and the sentence (already inside
+   * `dueSays`). Null where the date is still ahead.
+   */
+  pastDue: PastDueOnSending | null
   /** Terms an order or a line said with no reason, set aside, in words. */
   setAside: string[]
   /**
@@ -172,16 +178,21 @@ export function billDue(a: {
   customerName: string
   periodEnd: Date
   issuedAt: Date
-}): { terms_: BillingTerms; due: DueVerdict } {
+}): { terms_: BillingTerms; due: DueVerdict; pastDue: PastDueOnSending | null } {
   const line = a.line ?? {}
   const agreement =
     line.msa ?? line.workOrder?.msa ??
     (a.engagementAgreement ? { ...a.engagementAgreement, client: { name: a.customerName } } : null)
-  const { billing } = moneyTermsFor('SELL', line, { name: a.companyName }, agreement)
+  const { billing: resolved } = moneyTermsFor('SELL', line, { name: a.companyName }, agreement)
+  // Where nobody said what the days run from, a bill being sent counts
+  // them from the day it is sent, never from a period that ended weeks
+  // ago (`sendingAnchor`, lib/billing-cascade). The agreement's word,
+  // where it gave one, stands.
+  const billing: BillingTerms = { ...resolved, paymentTermsFrom: sendingAnchor(resolved.paymentTermsFrom) }
   // Receipt cannot have happened: we are raising it now. Approval
   // likewise. Both leave the clock unstarted, which `dueOn` says out
   // loud rather than quietly counting from today.
-  const due = dueOn({
+  const counted = dueOn({
     anchor: billing.paymentTermsFrom.value,
     days: billing.paymentTermsDays.value,
     periodEnd: a.periodEnd,
@@ -189,7 +200,12 @@ export function billDue(a: {
     receivedAt: null,
     approvedAt: null,
   })
-  return { terms_: billing, due }
+  // And where the agreement's own word puts that date on or before the
+  // day it goes, the bill says so in the same sentence, so a card shows
+  // it before the yes and a person pressing Send reads it first.
+  const pastDue = pastDueOnSending(counted, a.issuedAt)
+  const due = pastDue ? { ...counted, says: `${counted.says} ${pastDue.says}` } : counted
+  return { terms_: billing, due, pastDue }
 }
 
 /**
@@ -1275,7 +1291,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
   // from and the currency are the agreement's with the firm above; the
   // order, then the line, differ only where they give a reason.
   const issuedAt = new Date()
-  const { terms_, due } = billDue({
+  const { terms_, due, pastDue } = billDue({
     line: termsContract ?? null,
     engagementAgreement: engagement.msa,
     companyName: caller.company!.name,
@@ -1315,6 +1331,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     heldBack: heldSays,
     pending: pendingSays,
     dueSays: due.says,
+    pastDue,
     setAside: terms_.setAside,
     weeks: [...priced].map(([timesheetId, p]) => ({ timesheetId, hours: p.hours, amountMinor: p.cents })),
     weeksLeftOff: heldBack.map((h) => ({ ...h })),
