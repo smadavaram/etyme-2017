@@ -6340,6 +6340,12 @@ enum VerificationType {
   // end, like cover, and nothing here could hold one.
   GOOD_STANDING // certificate of good standing from the state of registration
 
+  // The supplier's tax form. Added 2026-10-26: supplier onboarding verifies
+  // it with the edition printed on it, and until now nothing could hold
+  // that on the record. It has no validity window; the edition goes in
+  // `formEdition`, where an old one is an audit finding.
+  W9
+
   // The licence a regulator issues to a person to do the work at all: a
   // state RN licence, a professional engineer's registration, a CDL.
   // Added 2026-09-17, because the first non-IT worker in the seeded world

@@ -41,8 +41,8 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     const gl = verdict.rows.find((r) => r.type === 'INSURANCE_GL')!
     expect(gl.companyId).toBe('veritan')
     expect(gl.status).toBe('CLEAR')
-    expect(gl.validFrom.toISOString().slice(0, 10)).toBe('2026-01-01')
-    expect(gl.expiresAt.toISOString().slice(0, 10)).toBe('2027-01-01')
+    expect(gl.validFrom!.toISOString().slice(0, 10)).toBe('2026-01-01')
+    expect(gl.expiresAt!.toISOString().slice(0, 10)).toBe('2027-01-01')
     expect(gl.verifiedById).toBe('priya')
     expect(gl.result.notes).toContain('veritan-coi-2026.pdf')
     expect(verdict.says).toContain('January 1, 2027')
@@ -468,5 +468,43 @@ describe('what a desk verified at onboarding, on the compliance record', () => {
     expect(verdict.rows.map((r) => r.type)).toEqual(['INSURANCE_GL'])
     expect(verdict.says).toContain('Passport')
     expect(verdict.says).toContain('not yours to render')
+  })
+  // ── The W-9, with its edition, 2026-10-26 ─────────────────────────
+  //
+  // Finance verifies the W-9 with the edition printed on it (6fb83af7f),
+  // and until now the edition stopped at the checklist: a W-9 had no
+  // place on the compliance record at all.
+
+  it('a W-9 Finance verified goes on the compliance record with the edition printed on it, and no dates', () => {
+    const verdict = verificationFromChecklistItem(
+      item({ key: 'TAX_FORM', label: 'Tax form (W-9, or W-8 for a foreign firm)', answers: ['W9'], fileName: 'veritan-w9.pdf', validFrom: null, validUntil: null, edition: 'Rev. March 2024' }),
+      'veritan',
+      by
+    )
+    expect(verdict.ok).toBe(true)
+    expect(verdict.needsDates).toBe(false)
+    expect(verdict.rows).toHaveLength(1)
+    expect(verdict.rows[0]).toMatchObject({ type: 'W9', formEdition: 'Rev. March 2024', validFrom: null, expiresAt: null, issuedAt: null })
+    expect(verdict.says).toContain('edition Rev. March 2024')
+    expect(verdict.says).toContain('nothing is chased for renewal')
+  })
+
+  it('a W-9 never asks the desk for two dates, because it has no validity window', () => {
+    expect(wantsDates({ key: 'TAX_FORM', label: 'Tax form', answers: ['W9'] })).toBe(false)
+  })
+
+  it('an edition is written only onto a form its issuer reissues, never onto a certificate of insurance', () => {
+    const verdict = verificationFromChecklistItem(item({ edition: 'Rev. March 2024' }), 'veritan', by)
+    expect(verdict.ok).toBe(true)
+    for (const row of verdict.rows) expect(row.formEdition).toBeNull()
+  })
+
+  it('a whole checklist replayed at Finance\u2019s yes carries the W-9\u2019s edition onto its row', () => {
+    const { rows } = verificationsFromChecklist(
+      [item(), item({ key: 'TAX_FORM', label: 'Tax form', answers: ['W9'], validFrom: null, validUntil: null, edition: 'Rev. March 2024' })],
+      'veritan',
+      by
+    )
+    expect(rows.find((r) => r.type === 'W9')?.formEdition).toBe('Rev. March 2024')
   })
 })

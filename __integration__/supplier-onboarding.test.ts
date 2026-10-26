@@ -308,9 +308,10 @@ describe('a supplier walks four desks', () => {
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.id}`, it_.id, { action: 'approve', note: 'Bank details match the W-9 legal name.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.says).toContain('is a supplier now')
-    // Three rows: general liability and workers' comp off the one
-    // insurance item, and the certificate of good standing.
-    expect(r.body.data.evidence.recorded).toBe(3)
+    // Four rows: general liability and workers' comp off the one
+    // insurance item, the certificate of good standing, and the W-9 with
+    // the edition Finance read off it (2026-10-26).
+    expect(r.body.data.evidence.recorded).toBe(4)
     expect(r.body.data.evidence.undated).toEqual([])
     expect(r.body.data.says).toContain('on their compliance record')
     const list = await json(await suppliers(req('GET', '/api/suppliers')))
@@ -415,10 +416,14 @@ describe('what the desks verified is on the supplier\u2019s compliance record', 
     const harbor = await prisma.company.findFirstOrThrow({ where: { name: 'Harbor Staffing' }, select: { id: true } })
     const rows = await prisma.verification.findMany({
       where: { companyId: harbor.id },
-      select: { type: true, status: true, validFrom: true, expiresAt: true, verifiedById: true, result: true },
+      select: { type: true, status: true, validFrom: true, expiresAt: true, verifiedById: true, result: true, formEdition: true },
     })
-    expect(rows.map((v) => v.type).sort()).toEqual(['GOOD_STANDING', 'INSURANCE_GL', 'INSURANCE_WC'])
-    for (const v of rows) {
+    expect(rows.map((v) => v.type).sort()).toEqual(['GOOD_STANDING', 'INSURANCE_GL', 'INSURANCE_WC', 'W9'])
+    // The W-9 has no validity window: it is on the record with the
+    // edition printed on it, and no dates for the watch to chase.
+    const w9 = rows.find((v) => v.type === 'W9')!
+    expect(w9).toMatchObject({ status: 'CLEAR', formEdition: 'Rev. March 2024', validFrom: null, expiresAt: null })
+    for (const v of rows.filter((x) => x.type !== 'W9')) {
       expect(v.status).toBe('CLEAR')
       // The two dates are what make it a verification rather than a row
       // that passes every check until somebody audits it.
@@ -544,8 +549,9 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
     }
     const r = await call(review, 'PATCH', `/api/supplier-requests/${it_.rid}`, it_.rid, { action: 'approve', note: 'Bank details match the W-9.' })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    // The three certificates its desks verified are on the record.
-    expect(r.body.data.evidence.recorded).toBe(3)
+    // The three certificates its desks verified are on the record, and
+    // the W-9 with its edition.
+    expect(r.body.data.evidence.recorded).toBe(4)
     // And the one they could not is named, in full, with the party whose
     // verdict it would take.
     expect(r.body.data.evidence.notRecorded.map((n: any) => n.key)).toEqual(['BACKGROUND_CHECK'])
@@ -555,7 +561,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
     // Nothing was written, which is the point of the refusal.
     const supplier = r.body.data.supplier
     expect(await prisma.verification.count({ where: { companyId: supplier.id, type: 'BACKGROUND_CHECK' } })).toBe(0)
-    expect(await prisma.verification.count({ where: { companyId: supplier.id } })).toBe(3)
+    expect(await prisma.verification.count({ where: { companyId: supplier.id } })).toBe(4)
   })
 })
 

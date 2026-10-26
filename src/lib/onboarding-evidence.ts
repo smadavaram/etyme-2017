@@ -114,6 +114,12 @@ export interface OnboardingEvidenceItem {
   validFrom?: string | Date | null
   /** The day it runs out. ISO, or a Date. */
   validUntil?: string | Date | null
+  /**
+   * The edition printed on a reissued form (the W-9's "Rev. March 2024"),
+   * as the desk read it when it verified the item. Carried onto the row's
+   * `formEdition`, where an old edition is an audit finding.
+   */
+  edition?: string | null
 }
 
 /**
@@ -140,6 +146,7 @@ const VERIFICATION_TYPE: Record<string, string> = {
   INSURANCE_EO: 'INSURANCE_EO',
   INSURANCE_CYBER: 'INSURANCE_CYBER',
   GOOD_STANDING: 'GOOD_STANDING',
+  W9: 'W9',
   BUSINESS_PARTNER: 'BUSINESS_PARTNER',
   REFERENCE_CHECK: 'REFERENCE_CHECK',
   BACKGROUND_CHECK: 'BACKGROUND_CHECK',
@@ -158,10 +165,13 @@ export interface VerificationToWrite {
   /** The company's own key for it, for the row's `documentTypeId` lookup. */
   documentTypeKey: string
   status: 'CLEAR'
-  validFrom: Date
-  expiresAt: Date
-  issuedAt: Date
+  /** Null only for a type with no validity window (a W-9): true forever until replaced. */
+  validFrom: Date | null
+  expiresAt: Date | null
+  issuedAt: Date | null
   verifiedAt: Date
+  /** The edition printed on a reissued form. Null where the type is not reissued or nobody said. */
+  formEdition: string | null
   uploadedById?: string
   verifiedById?: string
   result: { outcome: 'CLEAR'; notes: string }
@@ -339,6 +349,44 @@ export function verificationFromChecklistItem(
     )
   }
 
+  const notes =
+    `Verified at supplier onboarding${item.fileName ? ` against ${item.fileName}` : ''}` +
+    `${item.note ? `: ${item.note}` : '.'}`
+  // The edition goes only onto a type the issuer reissues: a degree has
+  // no edition, and writing one there would be a fact nobody stated.
+  const editionFor = (key: string): string | null =>
+    typeByKey(key, by?.documentTypes ?? [])?.reissued ? item.edition?.trim() || null : null
+
+  // A paper with no validity window — a W-9 — is true until it is
+  // replaced. It goes on the record with no dates, because inventing an
+  // expiry would have the watch chase a renewal nobody owes, and its
+  // edition is the fact that ages.
+  const undated = compliance.every((k) => typeByKey(k, by?.documentTypes ?? [])?.validityShape === 'NONE')
+  if (undated) {
+    const rows: VerificationToWrite[] = compliance.map((key) => ({
+      companyId,
+      type: VERIFICATION_TYPE[key],
+      documentTypeKey: key,
+      status: 'CLEAR',
+      validFrom: null,
+      expiresAt: null,
+      issuedAt: null,
+      verifiedAt: at,
+      formEdition: editionFor(key),
+      ...(by?.personId ? { uploadedById: by.personId, verifiedById: by.personId } : {}),
+      result: { outcome: 'CLEAR' as const, notes },
+    }))
+    const editions = rows.map((r) => r.formEdition).filter(Boolean)
+    return {
+      ok: true,
+      rows,
+      needsDates: false,
+      says:
+        `${item.label} goes on the compliance record${editions.length ? `, edition ${editions.join(', ')}` : ''}. ` +
+        `It has no expiry date, so nothing is chased for renewal.`,
+    }
+  }
+
   const validFrom = asDate(item.validFrom)
   const validUntil = asDate(item.validUntil)
 
@@ -367,10 +415,6 @@ export function verificationFromChecklistItem(
     )
   }
 
-  const notes =
-    `Verified at supplier onboarding${item.fileName ? ` against ${item.fileName}` : ''}` +
-    `${item.note ? `: ${item.note}` : '.'}`
-
   const rows: VerificationToWrite[] = compliance.map((key) => ({
     companyId,
     type: VERIFICATION_TYPE[key],
@@ -384,6 +428,7 @@ export function verificationFromChecklistItem(
     // answer.
     issuedAt: validFrom,
     verifiedAt: at,
+    formEdition: editionFor(key),
     ...(by?.personId ? { uploadedById: by.personId, verifiedById: by.personId } : {}),
     result: { outcome: 'CLEAR' as const, notes },
   }))
