@@ -84,7 +84,8 @@ describe('what the line says', () => {
 
 describe('the routes carry it through', () => {
   const GENERATE = read('src/lib/money/bill-generate.ts')
-  const PAY = read('src/app/api/invoices/[id]/payments/route.ts')
+  // The payment's writes are the one payment function's, which the route calls.
+  const PAY = read('src/lib/money/invoice-payment.ts')
   const ACTIONS = read('src/app/api/expenses/actions/route.ts')
 
   it('raising an invoice picks up the approved expenses the payer accepted on its contracts and marks them INVOICED with the invoice behind them', () => {
@@ -112,7 +113,7 @@ describe('the routes carry it through', () => {
   })
 
   it('paying the invoice in full pays the expenses on it', () => {
-    expect(PAY).toContain("await tx.expense.updateMany({ where: { invoiceId: id, status: 'INVOICED' }, data: { status: 'PAID' } })")
+    expect(PAY).toContain("await tx.expense.updateMany({ where: { invoiceId, status: 'INVOICED' }, data: { status: 'PAID' } })")
   })
 
   it('no button sets INVOICED any more', () => {

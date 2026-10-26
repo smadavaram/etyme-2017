@@ -3,12 +3,12 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { booksFor, noteMoneyRead, seatMayPay, moneyTrailFor } from '@/lib/money/seated-books'
 import { invoiceBetween, partiesOf } from '@/lib/money/invoice-parties'
 import { fromUnits } from '@/lib/money-display'
-import { fromPrismaDecimal } from '@/lib/money'
+import { fromDecimal, fromPrismaDecimal, toDecimal } from '@/lib/money'
+import { recordInvoicePayment, type InvoicePaymentResult } from '@/lib/money/invoice-payment'
 import { matchInvoice, payGate, receiptStateRefusal } from '@/lib/invoice-match'
 
 /**
@@ -158,7 +158,6 @@ export async function POST(
   // invoice, the firm that raised it holds its own bill. The party who
   // issues a document names it (CLAUDE.md, "Bill, invoice receipt,
   // payroll").
-  const doc = payer ? 'invoice' : 'bill'
   const Doc = payer ? 'Invoice' : 'Bill'
   // A client pays what came through the match, and only that (CLAUDE.md,
   // station 9) — through one gate, `payGate` in lib/invoice-match, which
@@ -179,173 +178,34 @@ export async function POST(
     }
   }
 
-  if (invoice.status === 'CANCELLED') {
-    return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: `Cannot record payment on a cancelled ${doc}` } },
-      { status: 409 }
-    )
-  }
+  // Every write a payment makes — the row, the invoice's paid and status,
+  // the expenses it carried, the trail and the event — is the one payment
+  // function's, which the twin's performer calls too, so a payment from
+  // the chat and one from this screen cannot write different rows. The
+  // cancelled, already-paid and over-the-balance refusals are its too.
+  // The amount arrives in whole currency, as a person types it, and is
+  // carried in integer minor units from here.
+  const amountCents = fromDecimal(amount, invoice.currency).minor
 
-  if (invoice.status === 'PAID') {
-    return NextResponse.json(
-      { error: { code: 'INVALID_STATE', message: `${Doc} is already fully paid` } },
-      { status: 409 }
-    )
-  }
-
-  const totalNum = Number(invoice.total)
-  const paidNum = Number(invoice.paid)
-  const outstanding = totalNum - paidNum
-
-  // LEGACY_RULES.md: no overpayment
-  if (amount > outstanding + 0.01) { // small tolerance for rounding
-    return NextResponse.json(
-      { error: {
-        code: 'OVERPAYMENT',
-        message:
-          `${fromUnits(amount, invoice.currency)} is more than the ${fromUnits(outstanding, invoice.currency)} still owed on ` +
-          `${doc} ${invoice.number}. Record what actually arrived, or raise a credit note for the difference.`,
-        field: 'amount',
-      }},
-      { status: 422 }
-    )
-  }
-
-  const newPaid = paidNum + amount
-  const newStatus = newPaid >= totalNum - 0.01 ? 'PAID' : 'PARTIALLY_PAID'
-
+  let recorded: InvoicePaymentResult
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
-        data: {
-          invoiceId: id,
-          amount,
-          currency: invoice.currency,
-          method: method ?? null,
-          reference: reference ?? null,
-          // Who paid and whose account it landed in — read off the
-          // paper, not off the caller, so the row says the same thing
-          // whichever side recorded it. The agreement where there is
-          // one, the order where there is not.
-          payerCompanyId: billedTo.id,
-          receivedByCompanyId: billedBy.id,
-          appliedAt: new Date(),
-          // Who pressed it, so the row can say so beside who paid whom.
-          appliedById: caller.person.id,
+    recorded = await prisma.$transaction((tx) =>
+      recordInvoicePayment(tx, {
+        invoiceId: id,
+        amountCents,
+        method: method ?? null,
+        reference: reference ?? null,
+        appliedById: caller.person.id,
+        onBooksOf: reading?.companyId ?? caller.company!.id,
+        seatId: reading?.seat?.id ?? null,
+        recordedBy: {
+          companyId: caller.company!.id,
+          companyName: caller.company!.name,
+          personName: caller.person.name,
         },
-        include: {
-          payerCompany: { select: { name: true } },
-          receivedByCompany: { select: { name: true } },
-        },
+        reason: moneyTrailFor(reading?.seat ?? null, `Payment of ${fromUnits(amount, invoice.currency)} recorded`),
       })
-
-      await tx.invoice.update({
-        where: { id },
-        data: {
-          paid: newPaid,
-          status: newStatus,
-        },
-      })
-
-      // Paid in full: the expenses that rode on this invoice are paid.
-      //
-      // Nothing completes an "invoice due" cycle here any more, because
-      // nothing generates one. When an invoice falls due is the
-      // invoice's own fact — `dueAt`, counted from the term and from the
-      // day the client received it — and the AR desk reads it there.
-      // Scheduling a second, earlier answer to the same question months
-      // in advance is how the two came to disagree. See lib/cycle-kinds.
-      if (newStatus === 'PAID') {
-        await tx.expense.updateMany({ where: { invoiceId: id, status: 'INVOICED' }, data: { status: 'PAID' } })
-      }
-
-      await tx.automationLog.create({
-        data: {
-          companyId: reading?.companyId ?? caller.company!.id,
-          action: 'PAYMENT_RECORDED',
-          summary: `Payment of ${fromUnits(amount, invoice.currency)} recorded on ${doc} ${invoice.number}. ${newStatus === 'PAID' ? `${Doc} now fully paid.` : `${fromUnits(totalNum - newPaid, invoice.currency)} outstanding.`}`,
-          reason:
-            moneyTrailFor(reading?.seat ?? null, `Payment of ${fromUnits(amount, invoice.currency)} recorded`) ??
-            `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
-          payload: {
-            paymentId: payment.id,
-            recordedBy: {
-              personId: caller.person.id,
-              companyId: caller.company!.id,
-              side: payer ? 'PAYER' : 'SUPPLIER',
-              // Null on all but a seated payment, and the one fact a
-              // client asking "on whose authority" needs.
-              seatId: reading?.seat?.id ?? null,
-              onBooksOf: reading?.companyId ?? caller.company!.id,
-            },
-            invoiceId: id,
-            invoiceNumber: invoice.number,
-            amount,
-            method,
-            reference,
-            newPaid,
-            newStatus,
-          },
-          reversible: true,
-        },
-      })
-
-      void emit({
-        type: 'invoice.paid',
-        companyId: caller.company?.id ?? null,
-        subjectType: 'Invoice',
-        subjectId: id,
-        actorPersonId: caller.person.id,
-        payload: {
-          invoiceNumber: invoice.number,
-          paymentId: payment.id,
-          amount,
-          method,
-          reference,
-          paidToDate: newPaid,
-          status: newStatus,
-          // Whether this closed it. A part payment and a final payment are
-          // the same event type with a different answer here, and an ERP
-          // consumer needs to tell them apart.
-          settled: newStatus === 'PAID',
-        },
-      })
-
-      return payment
-    })
-
-    return NextResponse.json({
-      data: {
-        // In the shape every reader of a payment row reads: minor units
-        // and the currency beside them, how it was paid, and who paid
-        // whom. The screen read `amountMinor` off this and got nothing
-        // back, so the payment just made showed "—" for its amount.
-        // `amount` stays for older readers, in whole currency.
-        payment: {
-          id: result.id,
-          amount: Number(result.amount),
-          amountMinor: fromPrismaDecimal(result.amount, result.currency ?? invoice.currency).minor,
-          currency: result.currency ?? invoice.currency,
-          method: result.method,
-          reference: result.reference,
-          receivedAt: result.receivedAt.toISOString(),
-          paidBy: result.payerCompany?.name ?? null,
-          paidTo: result.receivedByCompany?.name ?? null,
-          recordedBy: caller.person.name,
-        },
-        invoice: {
-          id,
-          number: invoice.number,
-          total: totalNum,
-          paid: newPaid,
-          outstanding: totalNum - newPaid,
-          status: newStatus,
-        },
-        message: newStatus === 'PAID'
-          ? `${Doc} ${invoice.number} fully paid`
-          : `Payment recorded — ${fromUnits(totalNum - newPaid, invoice.currency)} remaining`,
-      },
-    }, { status: 201 })
+    )
   } catch (err: any) {
     reportError('Payment recording failed:', err)
     return NextResponse.json(
@@ -353,4 +213,50 @@ export async function POST(
       { status: 500 }
     )
   }
+
+  if (!recorded.ok) {
+    const status = recorded.code === 'NOT_FOUND' ? 404 : recorded.code === 'INVALID_STATE' ? 409 : 422
+    return NextResponse.json(
+      { error: { code: recorded.code, message: recorded.says, ...(recorded.field ? { field: recorded.field } : {}) } },
+      { status }
+    )
+  }
+
+  const result = recorded.payment
+  const totalNum = toDecimal({ minor: recorded.invoice.totalCents, currency: invoice.currency })
+  const newPaid = toDecimal({ minor: recorded.invoice.paidCents, currency: invoice.currency })
+  const outstanding = toDecimal({ minor: recorded.invoice.outstandingCents, currency: invoice.currency })
+  const newStatus = recorded.status
+  return NextResponse.json({
+    data: {
+      // In the shape every reader of a payment row reads: minor units
+      // and the currency beside them, how it was paid, and who paid
+      // whom. The screen read `amountMinor` off this and got nothing
+      // back, so the payment just made showed "—" for its amount.
+      // `amount` stays for older readers, in whole currency.
+      payment: {
+        id: result.id,
+        amount: Number(result.amount),
+        amountMinor: fromPrismaDecimal(result.amount, result.currency ?? invoice.currency).minor,
+        currency: result.currency ?? invoice.currency,
+        method: result.method,
+        reference: result.reference,
+        receivedAt: result.receivedAt.toISOString(),
+        paidBy: result.payerCompany?.name ?? null,
+        paidTo: result.receivedByCompany?.name ?? null,
+        recordedBy: caller.person.name,
+      },
+      invoice: {
+        id,
+        number: invoice.number,
+        total: totalNum,
+        paid: newPaid,
+        outstanding,
+        status: newStatus,
+      },
+      message: newStatus === 'PAID'
+        ? `${Doc} ${invoice.number} fully paid`
+        : `Payment recorded — ${fromUnits(outstanding, invoice.currency)} remaining`,
+    },
+  }, { status: 201 })
 }

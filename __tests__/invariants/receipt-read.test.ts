@@ -101,7 +101,9 @@ describe('the payer’s list and page read the check, and offer Pay only where i
     const gate = route.indexOf('payGate(invoice, await matchInvoice(id))')
     expect(gate).toBeGreaterThan(-1)
     expect(route).toContain('receiptStateRefusal(invoice)')
-    expect(gate).toBeLessThan(route.indexOf('tx.payment.create'))
+    // The row is written by the one payment function, called after the gate.
+    expect(gate).toBeLessThan(route.indexOf('recordInvoicePayment(tx,'))
+    expect(src('lib/money/invoice-payment.ts')).toContain('tx.payment.create')
     // And the gate refuses a receipt the check fails, in the desk's words.
     expect(payGate({ number: 'INV-9', status: 'SUBMITTED' }, { matched: false, summary: 'hours differ' })).toEqual({
       ok: false, code: 'MATCH_FAILED',
