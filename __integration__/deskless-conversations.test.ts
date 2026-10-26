@@ -557,7 +557,9 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple.'])
     // A week that ended and is not filed, with the hours her job runs.
     const file = a.cards.find((c: any) => c.act === 'FILE_WEEK')
-    expect(file).toMatchObject({ button: 'File my week', href: '/dashboard/my-work' })
+    // The card opens Your work at that week, the Sunday it starts.
+    expect(file).toMatchObject({ button: 'File my week' })
+    expect(file.href).toMatch(/^\/dashboard\/my-work\?week=\d{4}-\d{2}-\d{2}$/)
     expect(file.title).toMatch(/^Your week of [A-Z][a-z]{2} \d+–(?:[A-Z][a-z]{2} )?\d+ isn’t filed yet\.$/)
     expect(file.says).toMatch(/^40 hours are expected; file it when you are ready\./)
     // "Etyme never files a week for you" left the greeting.
@@ -588,7 +590,8 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     const r = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'File my week' })))
     expect(r.status).toBe(200)
     expect(r.body.data.answer.says).toBe(FILE_IT_YOURSELF)
-    expect(r.body.data.answer.cards.map((c: any) => [c.act, c.href])).toEqual([['FILE_WEEK', '/dashboard/my-work']])
+    expect(r.body.data.answer.cards.map((c: any) => c.act)).toEqual(['FILE_WEEK'])
+    expect(r.body.data.answer.cards[0].href).toMatch(/^\/dashboard\/my-work\?week=\d{4}-\d{2}-\d{2}$/)
     expect(await prisma.timesheet.count({ where: { personId: helena } })).toBe(before)
   })
 
