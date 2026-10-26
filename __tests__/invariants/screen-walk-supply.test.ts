@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   paperRows, outstanding, paperworkHeadline, sectionOf, rowsInSection, SECTIONS,
-  isLicenseRow, licenseFieldsFor,
+  isLicenseRow, licenseFieldsFor, requestsByFirm,
 } from '@/app/dashboard/my-work/paperwork-rows'
 import { readBench, onTheBench, askedSays, ASKED_HEADING } from '@/lib/bench-filter'
 import {
@@ -301,5 +301,41 @@ describe('A one-person firm’s week waits on the firm above her, never on herse
 
   it('once the firm above her accepts it, her week is no longer waiting: it is owed', () => {
     expect(waitingWeek(week('2026-10-26', '2026-10-27'), d('2026-10-27'))).toBeNull()
+  })
+})
+
+describe('A link she was sent says who sent it', () => {
+  it('the paperwork page names the firm that sent each link, never \'a firm\'', () => {
+    const link = (id: string, name: string, askedBy: string) =>
+      ({ id, kind: 'REQUEST', name, askedBy, word: 'Asked for', todo: 'open', link: `/p/${id}` })
+    const one = paperRows({ papers: [link('i1', 'State nursing license', 'Halcyon Talent'), link('i2', 'Fit test record', 'Halcyon Talent')] })
+    expect(requestsByFirm(rowsInSection(one, 'REQUEST'))).toEqual([
+      expect.objectContaining({ firm: 'Halcyon Talent', says: 'Halcyon Talent sent you a link for these. Answer each one at its link.' }),
+    ])
+
+    // Two firms asked: one line each, firms in the order they arrived.
+    const two = paperRows({
+      papers: [
+        link('i1', 'State nursing license', 'Halcyon Talent'),
+        link('i3', 'Site induction', 'Harlow Health'),
+        link('i2', 'Fit test record', 'Halcyon Talent'),
+      ],
+    })
+    const groups = requestsByFirm(rowsInSection(two, 'REQUEST'))
+    expect(groups.map((g) => g.says)).toEqual([
+      'Halcyon Talent sent you a link for these. Answer each one at its link.',
+      'Harlow Health sent you a link for this. Answer it at its link.',
+    ])
+    expect(groups[0].rows.map((r) => r.id)).toEqual(['i1', 'i2'])
+
+    // Where the route named nobody, nobody is invented.
+    const unnamed = requestsByFirm(rowsInSection(paperRows({ papers: [link('i9', 'Drug screen consent', '')] }), 'REQUEST'))
+    expect(unnamed[0].firm).toBeNull()
+    for (const g of [...groups, ...unnamed]) expect(g.says).not.toMatch(/\ba firm\b/i)
+    expect(SECTIONS.find((s) => s.key === 'REQUEST')!.blurb).not.toMatch(/\ba firm\b/i)
+
+    // The page draws one line per firm from it.
+    expect(PAPERS).toContain("g.key === 'REQUEST'\n          ? requestsByFirm(group)")
+    expect(PAPERS).toContain('{part.says}')
   })
 })

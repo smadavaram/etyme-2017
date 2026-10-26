@@ -79,7 +79,10 @@ export const SECTIONS: { key: PaperSection; title: string; blurb: string }[] = [
   { key: 'DOCUMENT', title: 'Sent to you to sign',
     blurb: 'A firm sent you these papers to sign. Sign them here.' },
   { key: 'REQUEST', title: 'Asked for, with a link',
-    blurb: 'A firm sent you a link for these. Answer each one at its link.' },
+    // Drawn per firm by `requestsByFirm`, which names who sent each link.
+    // This line is only the fallback for a row whose firm the route did
+    // not name, and it says so without inventing "a firm".
+    blurb: 'These came with a link. Answer each one at its link.' },
   { key: 'SENT', title: 'Sent, waiting to be checked',
     blurb: 'You sent these. Nothing more is needed from you until somebody checks them. They go on your file once checked.' },
   { key: 'DONE', title: 'Answered',
@@ -472,6 +475,34 @@ export function sectionOf(row: PaperRow): PaperSection {
     return 'DOCUMENT'
   }
   return row.kind
+}
+
+/**
+ * The links she was sent, grouped by the firm that sent them, each with
+ * its own line: "Halcyon Talent sent you a link for this." A worker who
+ * reads "a firm sent you a link" cannot tell which email to look for, and
+ * the route already says who asked (`askedBy`). Firms in the order their
+ * first row arrived; rows kept in their own order. A row whose firm the
+ * route did not name is grouped apart and never given a made-up name.
+ */
+export function requestsByFirm(rows: PaperRow[]): { firm: string | null; says: string; rows: PaperRow[] }[] {
+  const groups = new Map<string, PaperRow[]>()
+  for (const r of rows) {
+    const firm = (r.askedBy ?? '').trim()
+    const list = groups.get(firm) ?? []
+    list.push(r)
+    groups.set(firm, list)
+  }
+  return [...groups.entries()].map(([firm, list]) => {
+    const one = list.length === 1
+    return {
+      firm: firm || null,
+      says: firm
+        ? `${firm} sent you a link for ${one ? 'this' : 'these'}. Answer ${one ? 'it' : 'each one'} at its link.`
+        : (SECTIONS.find((s) => s.key === 'REQUEST')!.blurb),
+      rows: list,
+    }
+  })
 }
 
 /** The rows under one heading, in the order they arrived. */

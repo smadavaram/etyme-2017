@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Fragment, useEffect, useState, useCallback } from 'react'
 import { readJson } from '@/lib/read-response'
 import { Chip } from '@/components/ui'
 import {
-  paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS,
+  paperRows, outstanding, paperworkHeadline, paperworkIntro, rowsInSection, SECTIONS, requestsByFirm,
   isLicenseRow, licenseFieldsFor,
   type PaperRow, type LicenseFields,
 } from './paperwork-rows'
@@ -249,14 +249,21 @@ export function YourPapers({ standalone = false, onRows }: {
       {SECTIONS.map((g) => {
         const group = rowsInSection(all, g.key)
         if (group.length === 0) return null
+        // A link names the firm that sent it, one line per firm; every
+        // other heading reads its own line once.
+        const parts = g.key === 'REQUEST'
+          ? requestsByFirm(group)
+          : [{ firm: null, says: g.blurb, rows: group }]
         return (
           <div key={g.key} className="mb-5">
             <div className="text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">{g.title}</div>
-            <p className="text-xs text-etyme-muted mb-2">{g.blurb}</p>
-            <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule ${
-              g.key === 'OWED' && group.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
+            {parts.map((part) => (
+            <Fragment key={part.firm ?? ''}>
+            <p className="text-xs text-etyme-muted mb-2">{part.says}</p>
+            <div className={`bg-etyme-surface border rounded-lg divide-y divide-etyme-rule mb-3 ${
+              g.key === 'OWED' && part.rows.some((r) => !r.waived) ? 'border-etyme-attention/30' : 'border-etyme-rule'
             }`}>
-              {group.map((r) => (
+              {part.rows.map((r) => (
                 <div key={`${r.kind}:${r.id}`} className="p-4 flex flex-wrap items-start gap-3">
                   <div className="flex-1 min-w-[220px]">
                     <div className="text-etyme-ink flex items-center gap-2">
@@ -387,6 +394,8 @@ export function YourPapers({ standalone = false, onRows }: {
                 </div>
               ))}
             </div>
+            </Fragment>
+            ))}
           </div>
         )
       })}
