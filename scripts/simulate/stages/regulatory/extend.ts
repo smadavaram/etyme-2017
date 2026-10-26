@@ -16,9 +16,9 @@
  *   - one warned: the supplier's cover runs out before the new end, so
  *     the first press is refused for a reason, and the second carries one.
  *
- * Then the table of every stage is written beside the run's report
- * (`reports/simulation-<stamp>.documents.md`), because the founder asked
- * for one table, one row per stage.
+ * Then the table of every stage is handed back as this station's
+ * `table`, printed in the run's report under the station's name, because
+ * the founder asked for one table, one row per stage.
  */
 import type { Actor, Res } from '../../actors'
 import { defineStage, type Ctx } from '../../stage'
@@ -26,7 +26,7 @@ import { extensionPapers, type ExtensionPapers } from '@/lib/contract-clearance'
 import { pdf } from './paper-files'
 import { statusOf } from './hiring-papers'
 import { firstSeat, walkPaper } from './registration'
-import { expectAt, stagePage, stageTable, tally, writeBesideTheReport } from './stage-tally'
+import { expectAt, notHeldLines, stageTable, tally } from './stage-tally'
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 
@@ -201,20 +201,23 @@ export default defineStage({
       }
     } else done.push('No placement this run had only a gap in cover before a new end date, so the warning was not tried.')
 
-    // ── The table, one row per stage, beside the run's report ──────────
-    const page = stagePage(tally, [
-      ...done,
+    // ── The table, one row per stage, in the run's own report ──────────
+    const notHeld = notHeldLines(tally)
+    const notes = [
       'Onboarding has no screen: a company cannot yet say what it requires. Its set is read as the shipped floor plus what its own orders add.',
       'A non-compete is asked of a W2 only where the site’s state does not void one for workers (California, Minnesota, North Dakota and Oklahoma do; NON_COMPETE_VOID in lib/document-stages).',
-    ])
-    const path = writeBesideTheReport(page)
-    for (const line of stageTable(tally).split('\n')) ctx.log(line)
+    ]
+    const table = stageTable(tally).split('\n')
+    for (const line of table) ctx.log(line)
     return {
       closed: extended,
       of: tried,
       says:
         `${extended} of ${tried} extensions went through. ${done.join(' ')} ` +
-        (path ? `The table of every stage is in ${path.split('/reports/')[1] ? `reports/${path.split('/reports/')[1]}` : path}.` : 'The table of every stage could not be written beside the report.'),
+        (notHeld.length ? `Rules expected to hold that did not: ${notHeld.map((l) => l.replace(/^- /, '')).join('; ')}. ` : 'Every refusal the run expected at every stage came, with the words it expected. ') +
+        `The table under this station is the documents at every stage: asked is a request sent, answered a file sent or a paper signed, examined a paper accepted, a provider's verdict recorded or a paper read against the new end date. ` +
+        notes.join(' '),
+      table,
     }
   },
 })

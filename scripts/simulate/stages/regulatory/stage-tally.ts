@@ -7,12 +7,11 @@
  * onboarding, company registration, worker registration, shortlisting,
  * interview, hiring, contract and extension. Every station of
  * regulatory's counts what it moved here as it moves it; the last one
- * (extend) writes the table beside the run's report.
+ * (extend) hands the table back as its station's `table`, printed in the
+ * run's report under the station's name.
  *
- * Owned by regulatory. Pure apart from `writeBesideTheReport`.
+ * Owned by regulatory. Pure.
  */
-import { readdirSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { Actor, Res } from '../../actors'
 import type { Ctx } from '../../stage'
 
@@ -148,51 +147,4 @@ export function notHeldLines(t: StageTally): string[] {
   const out: string[] = []
   for (const s of DOC_STAGES) for (const n of t.rows.get(s)!.notHeld) out.push(`- ${s}: ${n}`)
   return out
-}
-
-/** The whole page written beside the run's report. Pure. */
-export function stagePage(t: StageTally, extra: string[] = []): string {
-  const L: string[] = []
-  L.push('# Documents at every stage')
-  L.push('')
-  L.push('What each stage of a placement asked for, of whom, and what came of it. Every count is a call through the real routes, made as the real person.')
-  L.push('Asked: a request sent. Answered: a file sent or a paper signed. Examined: the asking firm looked and accepted it, a provider’s verdict was recorded, or the extension read the paper against the new end date. Sent back: returned with a reason and answered again. Refused: a rule said no where the run expected it to.')
-  L.push('')
-  L.push(stageTable(t))
-  L.push('')
-  const not = notHeldLines(t)
-  L.push('## Rules expected to hold that did not')
-  L.push('')
-  L.push(not.length ? not.join('\n') : 'None. Every refusal the run expected came, with the words it expected.')
-  L.push('')
-  if (extra.length) {
-    L.push('## Notes')
-    L.push('')
-    for (const e of extra) L.push(`- ${e}`)
-    L.push('')
-  }
-  return L.join('\n')
-}
-
-/**
- * Write the page beside this run's report: `reports/simulation-<stamp>.documents.md`,
- * the stamp read off the server log the run opened at its start (the
- * newest one). Returns the path, or null where no run's log is there.
- */
-export function writeBesideTheReport(page: string, root = join(__dirname, '..', '..', '..', '..')): string | null {
-  const dir = join(root, 'reports')
-  let newest: { name: string; at: number } | null = null
-  try {
-    for (const name of readdirSync(dir)) {
-      if (!/^simulation-\d{14}\.server\.log$/.test(name)) continue
-      const at = statSync(join(dir, name)).birthtimeMs || statSync(join(dir, name)).ctimeMs
-      if (!newest || at > newest.at) newest = { name, at }
-    }
-  } catch {
-    return null
-  }
-  if (!newest) return null
-  const path = join(dir, newest.name.replace('.server.log', '.documents.md'))
-  writeFileSync(path, page)
-  return path
 }
